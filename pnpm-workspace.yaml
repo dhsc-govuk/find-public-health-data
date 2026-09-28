@@ -106,6 +106,6 @@ catalog:
   # React Router 8.2 supports TypeScript 5 and 6; TypeScript 7 produces unmet peers.
   typescript: 6.0.3
   vite: 8.1.4
-  vitest: 4.1.10
+  vitest: 5.0.1
   yaml: 2.9.0
   zod: 4.4.3
