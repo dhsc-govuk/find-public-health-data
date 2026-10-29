@@ -2,10 +2,10 @@ import { createServer, request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
-
 import { request } from '@fphd/express/testing';
 import { BlobNotFoundError, type BlobStorage } from '@fphd/internal-storage';
 import { createFakeBlobStorage } from '@fphd/internal-storage/testing';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Logger } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -15,7 +15,6 @@ import type { UploadDraftRow } from './data-upload-repository.ts';
 import { dataUploadsRouter, findUploadDraft } from './data-uploads.ts';
 import type { InternalDataUploadRepository } from './repositories.ts';
 import {
-  createCapturingLogger,
   createFakeInternalRepositories,
   createRouterTestApp,
   handlerLogLines,
@@ -168,7 +167,7 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
   it('deletes the blobs of the uploads it replaced, and logs the upload', async () => {
     const storage = createFakeBlobStorage();
     await storage.put(`${INDICATOR}/old.csv`, Readable.from(['old']));
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const process = vi
       .fn()
       .mockResolvedValue({ ok: true, rowCount: 1, deletedBlobNames: [`${INDICATOR}/old.csv`] });
@@ -195,7 +194,7 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
         throw new Error('storage is down');
       },
     };
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const process = vi
       .fn()
       .mockResolvedValue({ ok: true, rowCount: 1, deletedBlobNames: [`${INDICATOR}/old.csv`] });
@@ -213,7 +212,7 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
 
   it('answers 422 with the problems, keeping the file the failed batch records', async () => {
     const storage = createFakeBlobStorage();
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const process = vi.fn().mockResolvedValue({
       ok: false,
       reason: 'invalid',
@@ -340,7 +339,7 @@ describe('an abandoned upload', () => {
   it('deletes its blob and logs the abandonment when the client goes', async () => {
     const storage = createFakeBlobStorage();
     const deleted = vi.spyOn(storage, 'delete');
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     let processing: () => void = () => {};
     const started = new Promise<void>((resolve) => {
       processing = resolve;

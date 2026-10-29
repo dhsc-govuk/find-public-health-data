@@ -1,4 +1,5 @@
 import { request } from '@fphd/express/testing';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import type { Logger } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
@@ -11,7 +12,6 @@ import {
 import { indicatorSectionRouter, yesNoDetailColumns } from './indicator-section.ts';
 import { definitionAndRationaleColumns } from './indicator-section-columns.ts';
 import {
-  createCapturingLogger,
   createFakeInternalRepositories,
   createRouterTestApp,
   type FakeInternalRepositoryOverrides,
@@ -229,7 +229,7 @@ describe('PUT on a section', () => {
   });
 
   it('logs the save under the request id, by the ids and the section alone', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
 
     const response = await request(
       createTestApp(
@@ -259,7 +259,7 @@ describe('PUT on a section', () => {
   });
 
   it('logs nothing when the save is refused', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
 
     await request(
       createTestApp(

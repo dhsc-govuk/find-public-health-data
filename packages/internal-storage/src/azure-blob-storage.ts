@@ -42,6 +42,10 @@ export async function createAzureBlobStorage(config: StorageConfig): Promise<Blo
     async delete(name) {
       await container.getBlobClient(name).deleteIfExists();
     },
+
+    async ping() {
+      await container.getProperties();
+    },
   };
 }
 

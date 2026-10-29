@@ -1,10 +1,8 @@
-import { Writable } from 'node:stream';
-
 import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { request } from '@fphd/express/testing';
 import { createLogger } from '@fphd/logger';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import express, { type Express } from 'express';
-import { pino } from 'pino';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -57,17 +55,8 @@ describe('API server', () => {
   // The line's shape is `@fphd/express`'s; this asserts an API app writes one at all, under its
   // own name, which is what FPH-316's verification found missing.
   it('logs each request through the logger it was given', async () => {
-    const lines: Record<string, unknown>[] = [];
-    const destination = new Writable({
-      write(chunk, _encoding, callback) {
-        lines.push(JSON.parse(String(chunk)));
-        callback();
-      },
-    });
-    const app = createApiApp({
-      logger: pino({ name: 'test-api' }, destination),
-      serviceName: 'test-api',
-    });
+    const { logger, lines } = createCapturingLogger('test-api');
+    const app = createApiApp({ logger, serviceName: 'test-api' });
     addFallbackHandlers(app);
 
     await request(app).get('/api');
@@ -81,17 +70,8 @@ describe('API server', () => {
   });
 
   it('logs a call under the id the web app forwarded', async () => {
-    const lines: Record<string, unknown>[] = [];
-    const destination = new Writable({
-      write(chunk, _encoding, callback) {
-        lines.push(JSON.parse(String(chunk)));
-        callback();
-      },
-    });
-    const app = createApiApp({
-      logger: pino({ name: 'test-api' }, destination),
-      serviceName: 'test-api',
-    });
+    const { logger, lines } = createCapturingLogger('test-api');
+    const app = createApiApp({ logger, serviceName: 'test-api' });
 
     await request(app).get('/api').set('X-Fphd-Request-Id', '019924a1-2c40-7000-8000-000000000001');
     await new Promise((resolve) => setImmediate(resolve));
@@ -101,17 +81,9 @@ describe('API server', () => {
 });
 
 describe('addFallbackHandlers', () => {
-  function createAppLoggingTo(lines: Record<string, unknown>[]): Express {
-    const destination = new Writable({
-      write(chunk, _encoding, callback) {
-        lines.push(JSON.parse(String(chunk)));
-        callback();
-      },
-    });
-    const app = createApiApp({
-      logger: pino({ name: 'test-api' }, destination),
-      serviceName: 'test-api',
-    });
+  function createLoggingApp(): { app: Express; lines: Record<string, unknown>[] } {
+    const { logger, lines } = createCapturingLogger('test-api');
+    const app = createApiApp({ logger, serviceName: 'test-api' });
 
     app.post('/api/echo', (request, response) => {
       response.status(200).json(request.body);
@@ -124,13 +96,13 @@ describe('addFallbackHandlers', () => {
     });
     addFallbackHandlers(app);
 
-    return app;
+    return { app, lines };
   }
 
   it('answers a thrown error with a JSON 500 and logs the error on the request line', async () => {
-    const lines: Record<string, unknown>[] = [];
+    const { app, lines } = createLoggingApp();
 
-    const response = await request(createAppLoggingTo(lines)).get('/api/broken');
+    const response = await request(app).get('/api/broken');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(response.status).toBe(500);
@@ -144,7 +116,7 @@ describe('addFallbackHandlers', () => {
   });
 
   it('refuses a body that is not JSON with a JSON 400', async () => {
-    const response = await request(createAppLoggingTo([]))
+    const response = await request(createLoggingApp().app)
       .post('/api/echo')
       .set('Content-Type', 'application/json')
       .send('{"name":');
@@ -154,14 +126,14 @@ describe('addFallbackHandlers', () => {
   });
 
   it('answers a 500 for an error that only shares a body-parser type', async () => {
-    const response = await request(createAppLoggingTo([])).get('/api/borrowed-type');
+    const response = await request(createLoggingApp().app).get('/api/borrowed-type');
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ error: 'internal_error' });
   });
 
   it('refuses a body over the size limit with a JSON 413', async () => {
-    const response = await request(createAppLoggingTo([]))
+    const response = await request(createLoggingApp().app)
       .post('/api/echo')
       .send({ name: 'x'.repeat(200_000) });
 

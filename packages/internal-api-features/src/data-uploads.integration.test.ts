@@ -3,13 +3,13 @@ import { existsSync } from 'node:fs';
 import { PassThrough, Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
 import { fileURLToPath } from 'node:url';
-
 import { BlobServiceClient } from '@azure/storage-blob';
 import { appEnvFields, parseEnv, z } from '@fphd/config';
 import { createDb, type Database, dbEnvFields, dimensionKey, resolveDbTls, schema } from '@fphd/db';
 import { auditEntriesFor, createTestDatabase } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
 import { BlobNotFoundError, createAzureBlobStorage } from '@fphd/internal-storage';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -27,7 +27,6 @@ import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import { AS_ACTOR, newDraft } from './indicator-repository.testing.ts';
 import { createInternalRepositories } from './repositories.ts';
 import {
-  createCapturingLogger,
   createRouterTestApp,
   handlerLogLines,
   TEST_TEAM_ID,
@@ -304,7 +303,7 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
 
   it('logs how long each stage of the upload took, in whole milliseconds', async () => {
     const { indicatorId } = await newDraft(internalDb, 'Upload logs its timings');
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const logged = createRouterTestApp(
       dataUploadsRouter(
         createInternalRepositories(internalDb).dataUploads,

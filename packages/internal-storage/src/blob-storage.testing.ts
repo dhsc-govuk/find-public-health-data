@@ -57,6 +57,10 @@ export function itBehavesAsBlobStorage(storage: BlobStorage): void {
     expect(await text(await storage.get('indicator-1/batch-3.csv'))).toBe('new');
   });
 
+  it('answers a ping while its container is there', async () => {
+    await expect(storage.ping()).resolves.toBeUndefined();
+  });
+
   it('deletes a name never put without complaint', async () => {
     await expect(storage.delete('indicator-1/never.csv')).resolves.toBeUndefined();
   });

@@ -27,5 +27,7 @@ export function createFakeBlobStorage(): BlobStorage {
     async delete(name) {
       blobs.delete(name);
     },
+
+    async ping() {},
   };
 }

@@ -1,7 +1,5 @@
-import { Writable } from 'node:stream';
-
+import { createCapturingLogger } from '@fphd/logger/testing';
 import express from 'express';
-import { pino } from 'pino';
 import { describe, expect, it } from 'vitest';
 
 import { createBaseApp, requestAwareLogger, requestLogging } from './index.ts';
@@ -9,20 +7,8 @@ import { request } from './testing.ts';
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function createCapturingLogger() {
-  const lines: Record<string, unknown>[] = [];
-  const destination = new Writable({
-    write(chunk, _encoding, callback) {
-      lines.push(JSON.parse(String(chunk)));
-      callback();
-    },
-  });
-
-  return { logger: pino({ name: 'public-web' }, destination), lines };
-}
-
 function createApp(options?: Parameters<typeof requestLogging>[1]) {
-  const { logger, lines } = createCapturingLogger();
+  const { logger, lines } = createCapturingLogger('public-web');
   const app = createBaseApp({ serviceName: 'public-web' });
   app.use(requestLogging(logger, options));
   app.get('/topics', (_request, response) => response.json({}));
@@ -212,7 +198,7 @@ describe('requestLogging', () => {
   // Mounted ahead of the probes, unlike createBaseApp's, so the middleware sees them and the
   // ignore is what keeps the log empty.
   it.each(['/livez', '/readyz', '/readyz?full=1'])('skips the probe at %s', async (path) => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('public-web');
     const app = express();
     app.use(requestLogging(logger));
     app.get(['/livez', '/readyz'], (_request, response) => response.json({}));
@@ -223,7 +209,7 @@ describe('requestLogging', () => {
   });
 
   it('uses the request path as express sees it, whatever router served it', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('public-web');
     const app = express();
     app.use(requestLogging(logger));
     app.use(
@@ -240,7 +226,7 @@ describe('requestLogging', () => {
 
 describe('requestAwareLogger', () => {
   it("gives a handler's line the request line's id, under the same field and nothing more", async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('public-web');
     const app = express();
     app.use(requestLogging(logger));
     app.get('/topics', (request, response) => {
@@ -264,7 +250,7 @@ describe('requestAwareLogger', () => {
   });
 
   it('is the logger itself for a request the middleware never saw', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('public-web');
     let seen: unknown;
     const app = express();
     app.get('/topics', (request, response) => {

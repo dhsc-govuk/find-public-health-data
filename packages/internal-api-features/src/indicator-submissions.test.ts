@@ -1,11 +1,11 @@
 import { request } from '@fphd/express/testing';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import type { Logger } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { indicatorSubmissionsRouter } from './indicator-submissions.ts';
 import {
-  createCapturingLogger,
   createFakeInternalRepositories,
   createRouterTestApp,
   type FakeInternalRepositoryOverrides,
@@ -123,7 +123,7 @@ describe.each([
   });
 
   it('takes the step as the signed-in publisher, answering 204, and logs it', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const takeStep = vi.fn().mockResolvedValue({ ok: true });
 
     const response = await request(createTestApp({ [method]: takeStep }, logger))
@@ -290,7 +290,7 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
   });
 
   it('assigns the reviewers as the signed-in manager, answering 204, and logs it', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const assignReviewers = vi.fn().mockResolvedValue({ ok: true });
     const change = {
       submissionNumber: 2,

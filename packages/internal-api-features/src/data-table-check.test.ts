@@ -1,4 +1,5 @@
 import { request } from '@fphd/express/testing';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import { dataTableCheckRouter } from './data-table-check.ts';
@@ -6,7 +7,6 @@ import type { DataTableRow } from './data-table-check-contract.ts';
 import type { DraftDataTableRow } from './data-table-check-repository.ts';
 import type { InternalDataUploadRepository } from './repositories.ts';
 import {
-  createCapturingLogger,
   createFakeInternalRepositories,
   createRouterTestApp,
   handlerLogLines,
@@ -167,7 +167,7 @@ describe('PUT /api/internal/indicators/:id/data-table/confirmation', () => {
       ok: true as const,
       confirmedAt: new Date('2026-10-12T10:00:00.000Z'),
     }));
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
 
     const response = await put(createTestApp({ confirm }, logger), { batchId: BATCH });
 

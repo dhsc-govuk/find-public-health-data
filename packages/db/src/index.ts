@@ -1,11 +1,13 @@
 export { type AreaSummary, listAreasByType } from './area-repository.ts';
 export {
+  closeDb,
   createDb,
   createDbFromClient,
   createDbFromTransaction,
   createPostgresClient,
   type Database,
   type DbConnection,
+  pingDb,
   type Schema,
   type SqlClient,
 } from './client.ts';

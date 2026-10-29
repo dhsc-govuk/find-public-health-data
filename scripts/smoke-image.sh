@@ -28,8 +28,8 @@ fail() {
 }
 
 # The union of every app's required config; each app ignores the keys it does not read. DB_HOST
-# points at nothing: the servers connect lazily, and a service container would add a minute per
-# image for nothing this test checks.
+# points at nothing: an API logs the unreachable database and carries on serving, and a service
+# container would add a minute per image for nothing this test checks.
 env_args=(
   -e APP_ENV=dev
   -e DB_HOST=127.0.0.1

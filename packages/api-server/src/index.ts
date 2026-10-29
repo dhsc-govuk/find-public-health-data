@@ -12,6 +12,8 @@ import type { Logger } from '@fphd/logger';
 import type { ErrorRequestHandler, Express, Request, RequestHandler, Response } from 'express';
 import { json } from 'express';
 
+export { checkDependencies, type Dependency } from './dependency-check.ts';
+
 export function createApiApp({
   logger,
   serviceName,

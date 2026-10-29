@@ -10,12 +10,18 @@
       "development": "./src/index.ts",
       "types": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "development": "./src/testing.ts",
+      "types": "./src/testing.ts",
+      "default": "./dist/testing.js"
     }
   },
   "files": [
     "dist",
     "!dist/**/*.map",
-    "!dist/**/*.d.ts"
+    "!dist/**/*.d.ts",
+    "!dist/testing.js"
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",

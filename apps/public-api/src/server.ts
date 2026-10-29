@@ -1,5 +1,5 @@
-import { serverLogging, startServer } from '@fphd/api-server';
-import { createRepositories } from '@fphd/db';
+import { checkDependencies, serverLogging, startServer } from '@fphd/api-server';
+import { closeDb, createRepositories, pingDb } from '@fphd/db';
 import { createLogger } from '@fphd/logger';
 
 import { createApp } from './app.ts';
@@ -13,10 +13,14 @@ const logger = createLogger({
   requestDetails: config.log.requestDetails,
 });
 
-startServer({
+const server = startServer({
   app: createApp({ logger, repositories: createRepositories(db) }),
   host: config.host,
   port: config.port,
   shutdown: config.shutdown,
-  ...serverLogging(logger, { port: config.port, onShutdown: () => db.$client.end() }),
+  ...serverLogging(logger, { port: config.port, onShutdown: () => closeDb(db) }),
+});
+
+server.once('listening', () => {
+  void checkDependencies(logger, [{ name: 'database', check: () => pingDb(db) }]);
 });
