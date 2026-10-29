@@ -9,6 +9,7 @@ import type {
   DraftSubmissionStatus,
   IndicatorStatus,
 } from './contract.ts';
+import type { EditPrecondition } from './edit-version.ts';
 import {
   draftJoin,
   draftStatus,
@@ -151,7 +152,8 @@ export type CreateIndicatorDraftResult =
 
 export type UpdateIndicatorDraftResult =
   | { ok: true }
-  | { ok: false; reason: 'no_draft' | 'locked' | 'slug_taken' };
+  | { ok: false; reason: 'no_draft' | 'locked' | 'slug_taken' }
+  | { ok: false; reason: 'changed'; version: string };
 
 // Scopes the slug locks within the two-key advisory lock space; no other lock uses this first key.
 export const SLUG_LOCK_NAMESPACE = 0x736c7567; // 'slug'
@@ -230,7 +232,8 @@ export async function createIndicatorDraft(
  * merged: the submission states what is true now. A renamed draft is
  * re-slugged only while nothing is published: once an indicator has a public address,
  * every version keeps it, so a rename never moves the page. A draft locked for review is
- * refused as `locked`.
+ * refused as `locked`, and one whose version is no longer the one the save was shown as
+ * `changed`, with the version it has now.
  */
 export async function updateIndicatorDraft(
   db: Database,
@@ -238,6 +241,7 @@ export async function updateIndicatorDraft(
   attributes: IndicatorDraftAttributes,
   lists: IndicatorDraftLists,
   actor: Actor,
+  precondition?: EditPrecondition<IndicatorDraft>,
 ): Promise<UpdateIndicatorDraftResult> {
   try {
     return await db.transaction(async (tx) => {
@@ -262,6 +266,15 @@ export async function updateIndicatorDraft(
 
       if (current === undefined) return { ok: false, reason: 'no_draft' };
       if (current.isLocked) return { ok: false, reason: 'locked' };
+
+      if (precondition !== undefined) {
+        const version = precondition.versionOf({
+          ...current,
+          ...(await draftListsOf(tx, current.id)),
+        });
+
+        if (version !== precondition.version) return { ok: false, reason: 'changed', version };
+      }
 
       const [draft] = await tx
         .update(indicatorVersion)

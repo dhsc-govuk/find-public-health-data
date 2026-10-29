@@ -2,6 +2,7 @@ import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, listChanges, recordAudit } from '@fphd/db/audit-log';
 import { countDistinct, eq, sql } from 'drizzle-orm';
 
+import type { EditPrecondition } from './edit-version.ts';
 import { violatesConstraint } from './indicator-repository-sql.ts';
 
 const { indicatorVersion, indicatorVersionTopic, subtopic, topic } = schema;
@@ -21,7 +22,8 @@ export type CreateTopicResult = { ok: true; topic: TopicRow } | { ok: false; rea
 
 export type UpdateTopicResult =
   | { ok: true; topic: TopicRow; changed: boolean }
-  | { ok: false; reason: 'not_found' | 'slug_taken' };
+  | { ok: false; reason: 'not_found' | 'slug_taken' }
+  | { ok: false; reason: 'changed'; version: string };
 
 export type DeleteTopicResult = { ok: true } | { ok: false; reason: 'not_found' | 'in_use' };
 
@@ -58,14 +60,17 @@ function matches(current: TopicRow, update: TopicUpdate): boolean {
 }
 
 /**
- * The row lock makes the unchanged check safe: without it two concurrent saves both read the
- * old row, and the later one overwrites the earlier as a change.
+ * The row lock makes the version and unchanged checks safe: without it two concurrent saves
+ * both read the old row, and the later one overwrites the earlier as a change. A topic whose
+ * version is no longer the one the save was shown is refused as `changed`, with the version
+ * it has now.
  */
 export async function updateTopic(
   db: Database,
   id: string,
   { description, slug, title }: TopicUpdate,
   actor: Actor,
+  precondition?: EditPrecondition<TopicRow>,
 ): Promise<UpdateTopicResult> {
   const update = { description, slug, title };
 
@@ -74,6 +79,12 @@ export async function updateTopic(
       const [current] = await tx.select().from(topic).where(eq(topic.id, id)).for('update');
 
       if (current === undefined) return { ok: false, reason: 'not_found' };
+
+      if (precondition !== undefined) {
+        const version = precondition.versionOf(current);
+        if (version !== precondition.version) return { ok: false, reason: 'changed', version };
+      }
+
       if (matches(current, update)) return { ok: true, topic: current, changed: false };
 
       // Named columns only: the id and creation timestamp stay the database's to set.
