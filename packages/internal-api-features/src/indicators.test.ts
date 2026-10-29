@@ -1,4 +1,5 @@
 import { request } from '@fphd/express/testing';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import type { Logger } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,7 +7,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IndicatorAdminDetailRow, IndicatorAdminRow } from './indicator-list-repository.ts';
 import { INDICATORS_PAGE_SIZE, internalIndicatorsRouter } from './indicators.ts';
 import {
-  createCapturingLogger,
   createFakeInternalRepositories,
   createRouterTestApp,
   type FakeInternalRepositoryOverrides,
@@ -518,7 +518,7 @@ describe('POST /api/internal/indicators', () => {
   });
 
   it('logs the creation under the request id, by the ids alone', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
     const createDraft = vi.fn().mockResolvedValue(created);
 
     const response = await request(
@@ -542,7 +542,7 @@ describe('POST /api/internal/indicators', () => {
   });
 
   it('logs nothing when the name is taken', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
 
     await request(
       createTestApp({ createDraft: async () => ({ ok: false, reason: 'slug_taken' }) }, logger),
@@ -736,7 +736,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
   });
 
   it('logs the rename under the request id, by the ids alone', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
 
     const response = await request(
       createTestApp(
@@ -762,7 +762,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
   });
 
   it('logs nothing when the rename is refused', async () => {
-    const { logger, lines } = createCapturingLogger();
+    const { logger, lines } = createCapturingLogger('internal-api');
 
     await request(
       createTestApp(

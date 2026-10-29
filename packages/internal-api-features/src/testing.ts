@@ -1,5 +1,3 @@
-import { Writable } from 'node:stream';
-
 import { createApiApp } from '@fphd/api-server';
 import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jwt-session';
@@ -85,19 +83,6 @@ export function createRouterTestApp(
   app.use(router);
 
   return app;
-}
-
-/** A logger whose lines are collected as parsed JSON. */
-export function createCapturingLogger(): { logger: Logger; lines: Record<string, unknown>[] } {
-  const lines: Record<string, unknown>[] = [];
-  const destination = new Writable({
-    write(chunk, _encoding, callback) {
-      lines.push(JSON.parse(String(chunk)));
-      callback();
-    },
-  });
-
-  return { logger: pino({ name: 'internal-api' }, destination), lines };
 }
 
 /** The lines a handler wrote, without the request line pino-http adds once the response ends. */

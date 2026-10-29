@@ -48,6 +48,7 @@
   "devDependencies": {
     "@azure/storage-blob": "catalog:",
     "@fphd/express": "workspace:*",
+    "@fphd/logger": "workspace:*",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
     "pino": "catalog:",

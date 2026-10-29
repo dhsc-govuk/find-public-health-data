@@ -575,9 +575,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
-      pino:
-        specifier: 'catalog:'
-        version: 10.3.1
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -706,9 +703,6 @@ importers:
       '@types/supertest':
         specifier: 'catalog:'
         version: 7.2.0
-      pino:
-        specifier: 'catalog:'
-        version: 10.3.1
       supertest:
         specifier: 'catalog:'
         version: 7.2.2
@@ -764,6 +758,9 @@ importers:
       '@fphd/express':
         specifier: workspace:*
         version: link:../express
+      '@fphd/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@types/express':
         specifier: 'catalog:'
         version: 5.0.6
