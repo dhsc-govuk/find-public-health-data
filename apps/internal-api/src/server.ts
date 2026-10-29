@@ -19,7 +19,7 @@ const logger = createLogger({
 
 const storage = await createAzureBlobStorage(config.storage);
 
-startServer({
+const server = startServer({
   app: createApp({
     logger,
     repositories: createRepositories(db),
@@ -41,7 +41,9 @@ startServer({
   ...serverLogging(logger, { port: config.port, onShutdown: () => closeDb(db) }),
 });
 
-await checkDependencies(logger, [
-  { name: 'database', check: () => pingDb(db) },
-  { name: 'blob storage', check: () => storage.ping() },
-]);
+server.once('listening', () => {
+  void checkDependencies(logger, [
+    { name: 'database', check: () => pingDb(db) },
+    { name: 'blob storage', check: () => storage.ping() },
+  ]);
+});

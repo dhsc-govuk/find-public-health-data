@@ -13,7 +13,7 @@ const logger = createLogger({
   requestDetails: config.log.requestDetails,
 });
 
-startServer({
+const server = startServer({
   app: createApp({ logger, repositories: createRepositories(db) }),
   host: config.host,
   port: config.port,
@@ -21,4 +21,6 @@ startServer({
   ...serverLogging(logger, { port: config.port, onShutdown: () => closeDb(db) }),
 });
 
-await checkDependencies(logger, [{ name: 'database', check: () => pingDb(db) }]);
+server.once('listening', () => {
+  void checkDependencies(logger, [{ name: 'database', check: () => pingDb(db) }]);
+});
