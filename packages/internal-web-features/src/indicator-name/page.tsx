@@ -11,7 +11,7 @@ interface IndicatorNamePageProps {
   fieldErrors?: IndicatorNameFailure['fieldErrors'] | undefined;
   formError?: string | undefined;
   name?: string | undefined;
-  /** The version of the name a rename was shown, which its save sends back. */
+  /** The version of the name when the page was shown. The form sends it back. */
   version?: string | undefined;
 }
 

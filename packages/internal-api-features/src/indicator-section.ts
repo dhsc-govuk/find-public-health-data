@@ -135,14 +135,18 @@ export function yesNoDetailColumns<
 }
 
 /**
- * GET and PUT `/api/internal/indicators/:id/<key>` for one section of a draft. Both answer
- * the section's answers and their version. A PUT sends the version its form was shown and
- * writes every answer or, when any is refused, nothing; a section changed since is refused as
- * 409 `changed`, so a save never overwrites an edit its author has not seen, while edits to
- * other sections leave it alone. A published indicator is edited by opening a draft first,
- * so until then the section does not exist: 404 `no_draft`, told apart from an indicator
- * that does not exist at all. A draft locked for review is neither read nor written here:
- * 409 `locked`.
+ * GET and PUT `/api/internal/indicators/:id/<key>` for one section of a draft.
+ *
+ * Both return the section's answers and a version of them. A PUT sends back the version its
+ * form was shown. If the section has changed since, the PUT is rejected with 409 `changed`, so
+ * nobody overwrites an edit they haven't seen. Changes to other sections don't count. A PUT
+ * saves all its answers or, if any is invalid, none.
+ *
+ * Other errors:
+ * - 404 `no_draft`: the indicator exists but has no draft. A published indicator needs a
+ *   draft opened before its sections can be edited.
+ * - 404 `not_found`: the indicator doesn't exist.
+ * - 409 `locked`: the draft is locked for review.
  */
 export function indicatorSectionRouter<
   Field extends string,

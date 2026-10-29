@@ -31,7 +31,7 @@ async function post(page: Page, path: string, form: Record<string, string>, next
   expect(response.headers().location, `${path} refused its answers`).toBe(next);
 }
 
-/** The version a section page carries in its form, which a save of it sends back. */
+/** Fetches a section page and returns the version in its form, which a save must send back. */
 export async function shownVersion(page: Page, path: string): Promise<string> {
   const html = await (await page.request.get(path)).text();
   const version = /<input[^>]*name="version"[^>]*value="([0-9a-f]{64})"/.exec(html)?.[1];

@@ -6,7 +6,7 @@ import {
 
 import type { SectionPageProps } from './indicator-section-form.tsx';
 
-/** A version as the API gives one, for a form to send back. */
+/** A well-formed version, as the API would return one. */
 export const SHOWN_VERSION = 'a'.repeat(64);
 
 /** A section page's props when the last submission was not refused, for page tests. */

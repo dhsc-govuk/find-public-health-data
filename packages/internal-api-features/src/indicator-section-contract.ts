@@ -75,12 +75,12 @@ export function indicatorSectionAnswersSchema<Field extends string>(
   return z.record(fields, z.string().nullable());
 }
 
-/** A section's answers, and their version, which a save of the form showing them sends back. */
+/** A section's answers and their version. The form sends the version back when it saves. */
 export function indicatorSectionResponseSchema<Answers>(answers: z.ZodType<Answers>) {
   return z.object({ answers, version: editVersionSchema });
 }
 
-/** A save: the answers, which the section's schema reads, and the version the form was shown. */
+/** A save request: the answers, checked later against the section's schema, and a version. */
 export const indicatorSectionSaveSchema = editVersionedSchema.extend({ answers: z.unknown() });
 
 /** Stored answers as the form's text, where an unanswered field is empty. */
@@ -112,9 +112,10 @@ function errorFieldsOf<Field extends string, ErrorField extends string>(
 }
 
 /**
- * The 400 and 409 answers. A refused answer is always named; a bad id or version names no
- * field. A save of a section changed since its form was shown is refused as `changed`, with
- * the version it has now. A missing indicator or draft is a 404, which the client throws.
+ * The 400 and 409 errors. `validation_failed` names each field at fault. `locked` means the
+ * draft is locked for review. `changed` means someone edited the section after the form was
+ * shown, and includes its current version. A missing indicator or draft is a 404, which the
+ * client throws.
  */
 export function indicatorSectionErrorSchema<Field extends string, ErrorField extends string>(
   section: IndicatorSection<Field, unknown, unknown, ErrorField, never>,

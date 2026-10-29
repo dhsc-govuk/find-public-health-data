@@ -74,20 +74,20 @@ export async function loadAdminTopicToEdit({ context, params }: LoaderFunctionAr
   };
 }
 
-/** Shown when a save is refused because the topic changed after the page was shown. */
+/** Shown when a save is rejected because someone changed the topic after the page loaded. */
 export const TOPIC_CHANGED =
   'Someone else has changed this topic since you opened this page. Your changes have not been saved. Select Save to save them and replace their changes.';
 
 export interface SaveTopicFailure extends FormRefusal<TopicField> {
   values: TopicFormValues;
-  /** On an edit, the version to save against next; see `versionedAction`. */
+  /** When editing, the version the next save sends. See `versionedAction`. */
   version?: string;
 }
 
 /**
  * Redirects on success so a refresh does not re-submit; the outcome arrives as a flash. The
- * redirect is by id, so editing the slug leaves the publisher where they were. A topic changed
- * since the page showed it is not saved.
+ * redirect is by id, so editing the slug leaves the publisher where they were. If the topic
+ * has changed since the page was shown, nothing is saved.
  */
 export const saveTopic = versionedAction(
   async ({ context, params }, { formData, version }): Promise<SaveTopicFailure | Response> => {

@@ -13,8 +13,8 @@ export const sectionBackLinkHandle = backLinkHandle<{ id: string }>(
 );
 
 /**
- * The draft's answers and their version, or, after the action re-rendered the page, what was
- * typed, why it was refused and the version the action carried (see `versionedAction`).
+ * The draft's answers and their version. After a rejected save, it's what was typed, the
+ * errors, and the version the action returned (see `versionedAction`).
  */
 export function useSectionForm<
   Field extends string,

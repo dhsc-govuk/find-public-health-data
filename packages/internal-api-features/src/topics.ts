@@ -27,7 +27,7 @@ function toSummary({ id, slug, title, createdAt, updatedAt }: Topic): TopicAdmin
   };
 }
 
-/** The version of the fields the topic's form edits, which a save compares with the topic's. */
+/** The version of the fields the topic form edits, which a save must send back. */
 function topicVersion({ title, slug, description }: Topic): string {
   return editVersion({ title, slug, description });
 }

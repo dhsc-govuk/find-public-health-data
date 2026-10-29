@@ -25,7 +25,7 @@ export const topicAdminSummaryListSchema = z.array(topicAdminSummarySchema);
 
 export const topicAdminDetailSchema = topicAdminSummarySchema.extend({
   description: z.string(),
-  /** The version of the fields the form edits, which a save sends back so it replaces none unseen. */
+  /** A hash of the editable fields. A save sends it back to show it saw the latest values. */
   version: editVersionSchema,
 });
 
@@ -63,8 +63,9 @@ export const topicUpdateResponseSchema = z.object({
 });
 
 /**
- * The 400 and 409 answers. A refused value is always named; a bad id or version names no field.
- * A topic changed since the form showed it is refused as `changed`, with its version now.
+ * The 400 and 409 errors. `validation_failed` and `slug_taken` name the fields at fault.
+ * `changed` means someone edited the topic after the form was shown, and includes the topic's
+ * current version.
  */
 export const topicUpdateErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.literal('invalid_id') }),
@@ -173,7 +174,7 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   publishedSlug: z.string().min(1).nullable(),
   /** The draft's latest submission, which a withdrawal names; null until the first. */
   draftSubmissionNumber: z.number().int().positive().nullable(),
-  /** The version of the name, which a rename sends back so it never replaces one unseen. */
+  /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
 });
@@ -225,10 +226,10 @@ export const indicatorCreateErrorSchema = z.discriminatedUnion('error', [
 ]);
 
 /**
- * The 400 and 409 answers. A refused value is always named; a bad id or version and a draft
- * locked for review name no field. A name changed since the page showed it is refused as
- * `changed`, with its version now. A missing indicator or draft is a 404, which the client
- * throws.
+ * The 400 and 409 errors. `validation_failed` and `slug_taken` name the fields at fault.
+ * `locked` means the draft is locked for review. `changed` means someone renamed the draft
+ * after the page was shown, and includes the name's current version. A missing indicator or
+ * draft is a 404, which the client throws.
  */
 export const indicatorUpdateErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.literal('invalid_id') }),

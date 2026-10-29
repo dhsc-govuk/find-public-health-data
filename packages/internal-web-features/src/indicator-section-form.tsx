@@ -12,8 +12,8 @@ import type { FormValues } from './form-values.ts';
 export const QUESTION_HEADING_SIZE = 'xl';
 
 /**
- * What every section page is given: its answers, the version they were read at, and any
- * refusals of the last submission.
+ * The props every section page gets: its answers, their version, and any errors from the last
+ * submission.
  */
 export interface SectionPageProps<Field extends string, Values = FormValues<Field>> {
   fieldErrors: Partial<Record<Field, string>>;
@@ -29,8 +29,8 @@ type IndicatorSectionFormProps<Field extends string> = {
   /** Set when the page asks one question whose label or legend is the h1, so none is added. */
   questionIsHeading?: boolean;
   /**
-   * The page's refusals, which the error summary lists, and the version of what it shows,
-   * which a page that saves only what it was shown sends back.
+   * The errors for the error summary, and the version of the answers shown. If given, the
+   * version goes in a hidden field so the save sends it back.
    */
   form: Omit<SectionPageProps<Field, unknown>, 'values' | 'version'> & {
     version?: string | undefined;

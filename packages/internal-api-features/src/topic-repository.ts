@@ -60,10 +60,9 @@ function matches(current: TopicRow, update: TopicUpdate): boolean {
 }
 
 /**
- * The row lock makes the version and unchanged checks safe: without it two concurrent saves
- * both read the old row, and the later one overwrites the earlier as a change. A topic whose
- * version is no longer the one the save was shown is refused as `changed`, with the version
- * it has now.
+ * The row lock makes the version and unchanged checks safe. Without it, two saves at once
+ * could both read the old row, and the later one would overwrite the earlier. Returns
+ * `changed`, with the current version, if the topic has changed since the form was shown.
  */
 export async function updateTopic(
   db: Database,

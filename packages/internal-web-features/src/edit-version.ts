@@ -1,25 +1,27 @@
 import type { ActionFunctionArgs } from 'react-router';
 
-/** The hidden field carrying the version of what a form was shown, which its save sends back. */
+/** The hidden form field that holds the version. */
 export const VERSION_FIELD = 'version';
 
-/** The version the form was shown; empty when it sent none, for the API to refuse. */
+/** The version the form sent, or an empty string if it sent none, which the API rejects. */
 export function readVersion(formData: FormData): string {
   const version = formData.get(VERSION_FIELD);
   return typeof version === 'string' ? version : '';
 }
 
-/** The form an action was sent, and the version of what it was shown. */
+/** The submitted form data and the version it contained. */
 export interface VersionedSubmission {
   formData: FormData;
   version: string;
 }
 
 /**
- * The action of a form that saves only what it was shown. Each page it re-renders carries the
- * version the form was shown, unless a refusal as changed gave a newer one to save against.
- * The loader's version will not do: loaders run again after every action, so it may be newer
- * than the one the form was shown.
+ * Wraps the action of a form that sends a version. Every state the action returns keeps the
+ * version the form was first shown, so the page goes on saving against it. The exception is a
+ * `changed` error, which brings the current version, so the next save overwrites on purpose.
+ *
+ * The page can't use the loader's version instead. Loaders run again after every action, so
+ * the loader may already have a newer version than the one the user saw.
  */
 export function versionedAction<State extends object>(
   submit: (args: ActionFunctionArgs, submission: VersionedSubmission) => Promise<State | Response>,

@@ -65,7 +65,7 @@ const SECTION_KEYS = indicatorTaskKeySchema.options.filter(
 
 type Method = 'get' | 'put' | 'patch' | 'post';
 
-// The lock and the draft are checked before the version, so any well-formed one will do.
+// The lock and draft checks run before the version check, so any valid version works here.
 const version = editVersion({});
 
 /** Every route that reads a draft to edit it or writes one, with a body it would accept. */

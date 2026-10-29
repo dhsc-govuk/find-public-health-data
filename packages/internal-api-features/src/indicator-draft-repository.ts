@@ -231,9 +231,9 @@ export async function createIndicatorDraft(
  * Rewrites a draft's columns and, when given, its lists. Lists are replaced rather than
  * merged: the submission states what is true now. A renamed draft is
  * re-slugged only while nothing is published: once an indicator has a public address,
- * every version keeps it, so a rename never moves the page. A draft locked for review is
- * refused as `locked`, and one whose version is no longer the one the save was shown as
- * `changed`, with the version it has now.
+ * every version keeps it, so a rename never moves the page. Returns `locked` if the draft is
+ * locked for review. Returns `changed`, with the current version, if the draft has changed
+ * since the form was shown.
  */
 export async function updateIndicatorDraft(
   db: Database,

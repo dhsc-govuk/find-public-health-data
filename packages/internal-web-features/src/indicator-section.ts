@@ -23,13 +23,13 @@ import { requireIndicatorId } from './indicator-id.ts';
 import { lockedDraftRedirect, unlessDraftLocked } from './locked-draft.ts';
 import { indicatorTaskListPath } from './publish-paths.ts';
 
-/** Shown when a save is refused because the section changed after the page was shown. */
+/** Shown when a save is rejected because someone changed the section after the page loaded. */
 export const SECTION_CHANGED =
   'Someone else has changed this section since you opened this page. Your answers have not been saved. Select Continue to save them and replace their changes.';
 
 /**
- * A rejected submission: the form as it was sent, and why it was refused. A refusal as
- * changed also gives the version the section has now, which the page saves against next.
+ * A rejected submission: the form as it was sent, and the errors. A `changed` error also
+ * includes the section's current version, which the page's next save sends.
  */
 export interface FormFailure<Field extends string, Values = FormValues<Field>>
   extends FormRefusal<Field> {
@@ -47,8 +47,8 @@ function sectionApiPath(id: string, key: IndicatorTaskKey): string {
 }
 
 /**
- * The draft's answers to one section, and their version. The API answers 404 when there is no
- * draft; a draft locked for review sends the publisher to the overview.
+ * The draft's answers to one section, and their version. The API returns 404 if there is no
+ * draft. If the draft is locked for review, the publisher is sent to the overview.
  */
 export async function loadIndicatorSectionAnswers<Answers>(
   { context, params }: LoaderFunctionArgs,
@@ -67,7 +67,7 @@ export async function loadIndicatorSectionAnswers<Answers>(
   return { id, answers, version };
 }
 
-/** The draft's answers, filling the form, and their version. */
+/** The draft's answers as form values, and their version. */
 export async function loadIndicatorSection<Field extends string, Values>(
   args: LoaderFunctionArgs,
   section: IndicatorSection<Field, Values>,
@@ -82,9 +82,9 @@ export async function loadIndicatorSection<Field extends string, Values>(
 }
 
 /**
- * Saves answers the form has accepted and returns to the task list, or answers why the API
- * refused them, in which case it saved nothing. A section changed since `version` is refused
- * with the version it has now.
+ * Saves answers the form has accepted and returns to the task list. If the API rejects them,
+ * nothing is saved and the errors are returned. If the section has changed since `version`,
+ * the errors include its current version.
  */
 async function putIndicatorSection<Field extends string, ErrorField extends string>(
   context: Readonly<RouterContextProvider>,
@@ -123,7 +123,7 @@ interface SaveSectionOptions<Field extends string, Values, Input> {
   answersSchema: ApiResponseSchema<unknown>;
   /** The answers to save, taking in an item typed or chosen but not yet added, or its refusal. */
   takeIn: (values: Values) => SectionAnswers<Values, Input> | FormFailure<Field, Values>;
-  /** The version of the answers the page was shown. */
+  /** The version of the answers when the page was shown. */
   version: string;
 }
 

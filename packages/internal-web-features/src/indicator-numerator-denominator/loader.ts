@@ -61,7 +61,7 @@ export function submitNumeratorDenominator(
       const { intent, values } = readNumeratorDenominatorForm(formData);
       const providers = await loadDataProviders(args.context);
 
-      // The page only lists sources the providers offer, so any other was not sent by it.
+      // The page lists only the providers' sources, so any other source didn't come from it.
       if (!areProviderSourcesOffered(values.sources, providers)) {
         throw new Response('Bad Request', { status: 400 });
       }

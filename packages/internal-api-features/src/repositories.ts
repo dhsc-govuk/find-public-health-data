@@ -82,7 +82,7 @@ export interface InternalTopicRepository {
   findById(id: string): Promise<TopicRow | undefined>;
   countLinkedIndicators(id: string): Promise<number>;
   create(values: TopicUpdate, actor: Actor): Promise<CreateTopicResult>;
-  /** Saves the topic's form, as long as the topic's version is the one the form was shown. */
+  /** Saves the topic, unless it has changed since the form was shown. */
   update(
     id: string,
     values: TopicUpdate,
@@ -107,7 +107,7 @@ export interface InternalIndicatorRepository {
     actor: Actor,
     teamId: string,
   ): Promise<CreateIndicatorDraftResult>;
-  /** Saves a form's answers, as long as the draft's version is the one the form was shown. */
+  /** Saves a form's answers, unless the draft has changed since the form was shown. */
   updateDraft(
     indicatorId: string,
     attributes: IndicatorDraftAttributes,

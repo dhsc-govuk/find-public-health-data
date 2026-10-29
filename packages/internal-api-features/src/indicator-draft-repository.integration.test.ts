@@ -528,7 +528,7 @@ describe('updateIndicatorDraft', () => {
 });
 
 describe('updateIndicatorDraft given the version a form was shown', () => {
-  // The version of a form asking for the definition alone.
+  // Versions as a form that edits only the definition would compute them.
   const versionOf = (draft: IndicatorDraft) => editVersion({ definition: draft.definition });
   const shown = editVersion({ definition: null });
 
@@ -631,7 +631,8 @@ describe('updateIndicatorDraft given the version a form was shown', () => {
     async ({ db }) => {
       const created = await newDraft(db, 'Two saves at once');
 
-      // Wrapped, or the transaction would await the save that is waiting for it to commit.
+      // Returned in an object so the transaction doesn't wait for the save, which is itself
+      // waiting for the transaction to commit.
       const { waiting } = await db.transaction(async (tx) => {
         await tx
           .update(indicatorVersion)

@@ -25,7 +25,7 @@ import { indicatorTaskListPath } from '../publish-paths.ts';
 
 export type IndicatorNameFailure = FormFailure<IndicatorField>;
 
-/** Shown when a rename is refused because the name changed after the page was shown. */
+/** Shown when a rename is rejected because someone changed the name after the page loaded. */
 export const NAME_CHANGED =
   'Someone else has changed the name since you opened this page. Your name has not been saved. Select Continue to save it and replace their change.';
 
@@ -89,8 +89,8 @@ export async function loadIndicatorName({ context, params }: LoaderFunctionArgs)
 }
 
 /**
- * Renames the draft and returns to the task list the publisher came from, unless the name
- * changed since the page showed it.
+ * Renames the draft and returns to the task list the publisher came from. If the name has
+ * changed since the page was shown, it saves nothing and shows an error.
  */
 export const saveIndicatorName = versionedAction(
   async ({ context, params }, { formData, version }): Promise<IndicatorNameFailure | Response> => {

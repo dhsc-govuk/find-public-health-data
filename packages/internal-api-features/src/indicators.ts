@@ -76,7 +76,7 @@ export function toListItem(row: IndicatorAdminListRow): IndicatorAdminListItem {
   return { ...toSummary(row), teamName, createdBy, lastEditedBy };
 }
 
-/** The version of a name, which the rename compares with the draft's. */
+/** The version of a draft's name, which a rename must send back. */
 function nameVersion(name: string): string {
   return editVersion({ name });
 }

@@ -73,7 +73,7 @@ interface TopicFieldsProps {
   fieldErrors: TopicFieldErrors;
   values: TopicFormValues;
   submitLabel: string;
-  /** The version of the topic an edit was shown, which its save sends back. */
+  /** The version of the topic when the edit page was shown. The form sends it back. */
   version?: string;
 }
 
