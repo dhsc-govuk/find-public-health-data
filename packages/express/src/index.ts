@@ -1,4 +1,4 @@
-import type { Server } from 'node:http';
+import { createServer, type Server } from 'node:http';
 
 import express, { type Express } from 'express';
 
@@ -45,6 +45,8 @@ export interface StartServerOptions {
   /** Taken whole, so no app can pass one number and forget the other. */
   shutdown: Pick<ShutdownOptions, 'drainDelayMs' | 'gracePeriodMs'>;
   onListening: () => void;
+  /** The server could not bind, after which the process exits 1. */
+  onListenError: (error: Error) => void;
   onShutdown?: ShutdownOptions['onShutdown'];
   onForcedClose?: ShutdownOptions['onForcedClose'];
   onError?: ShutdownOptions['onError'];
@@ -57,11 +59,13 @@ export function startServer({
   port,
   shutdown,
   onListening,
+  onListenError,
   onShutdown,
   onForcedClose,
   onError,
 }: StartServerOptions): Server {
-  const server = app.listen(port, host, onListening);
+  // `app.listen` would hand a bind error to the listening callback, so both events are ours.
+  const server = createServer(app);
 
   installShutdownHandlers(server, {
     ...shutdown,
@@ -72,6 +76,17 @@ export function startServer({
     onForcedClose,
     onError,
   });
+
+  const failToListen = (error: Error) => {
+    onListenError(error);
+    process.exit(1);
+  };
+  server.once('error', failToListen);
+  server.once('listening', () => {
+    server.off('error', failToListen);
+    onListening();
+  });
+  server.listen(port, host);
 
   return server;
 }

@@ -7,6 +7,7 @@ interface ServerLoggingOptions {
 
 interface ServerLogging {
   onListening: () => void;
+  onListenError: (error: Error) => void;
   onShutdown: (signal: NodeJS.Signals) => Promise<void>;
   onForcedClose: () => void;
   onError: (error: unknown) => void;
@@ -20,6 +21,7 @@ export function serverLogging(
 ): ServerLogging {
   return {
     onListening: () => logger.info({ port }, 'Listening'),
+    onListenError: (error) => logger.fatal({ err: error, port }, 'Could not listen'),
     onShutdown: async (signal) => {
       await onShutdown?.();
       logger.info({ signal }, 'Stopped');
