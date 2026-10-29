@@ -34,7 +34,7 @@
     "lint": "biome lint .",
     "perf:accept": "pnpm --filter @fphd/perf run perf:accept",
     "services:up": "scripts/services.sh",
-    "test": "pnpm test:unit && pnpm test:integration && pnpm test:e2e",
+    "test": "pnpm test:unit && pnpm test:integration",
     "test:e2e": "pnpm --filter @fphd/e2e run test:e2e",
     "test:integration": "cross-env INTEGRATION_DB=1 APP_ENV=test vitest run --passWithNoTests integration.test",
     "test:unit": "vitest run --exclude '**/*integration.test.*' && python3 -m unittest discover -s packages/db-operations/data/seed/export -p 'test_*.py'",

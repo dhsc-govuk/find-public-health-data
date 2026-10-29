@@ -49,8 +49,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
-      # Not `pnpm test` — that runs all three tiers, which is right locally and wrong here, where
-      # each tier is its own job.
+      # Not `pnpm test`, which chains unit and integration; each tier is its own job here.
       - run: pnpm test:unit
 
   integration:
