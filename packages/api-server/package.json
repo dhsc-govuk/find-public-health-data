@@ -27,8 +27,10 @@
     "express": "catalog:"
   },
   "devDependencies": {
+    "@fphd/db": "workspace:*",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
+    "drizzle-orm": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
