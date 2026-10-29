@@ -60,6 +60,11 @@ export async function pingDatabase(db: Database): Promise<void> {
   await db.$client`select 1`;
 }
 
+/** Bounded, because a connection still opening, such as the start-up ping's, holds `end()` open. */
+export async function closeDatabase(db: Database): Promise<void> {
+  await db.$client.end({ timeout: 1 });
+}
+
 /**
  * A Drizzle handle over an already-open client, for callers that own the connection.
  * Constructing it mutates the client: drizzle writes transparent date/time parsers into

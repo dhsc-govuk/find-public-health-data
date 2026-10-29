@@ -1,7 +1,7 @@
 import { checkDependencies, serverLogging, startServer } from '@fphd/api-server';
 import { sessionCookieName } from '@fphd/auth';
 import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { createRepositories, pingDatabase } from '@fphd/db';
+import { closeDatabase, createRepositories, pingDatabase } from '@fphd/db';
 import { createInternalRepositories } from '@fphd/internal-api-features';
 import { createAzureBlobStorage } from '@fphd/internal-storage';
 import { createLogger } from '@fphd/logger';
@@ -38,7 +38,7 @@ startServer({
   host: config.host,
   port: config.port,
   shutdown: config.shutdown,
-  ...serverLogging(logger, { port: config.port, onShutdown: () => db.$client.end() }),
+  ...serverLogging(logger, { port: config.port, onShutdown: () => closeDatabase(db) }),
 });
 
 await checkDependencies(logger, [

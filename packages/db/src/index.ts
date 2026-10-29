@@ -1,5 +1,6 @@
 export { type AreaSummary, listAreasByType } from './area-repository.ts';
 export {
+  closeDatabase,
   createDb,
   createDbFromClient,
   createDbFromTransaction,
