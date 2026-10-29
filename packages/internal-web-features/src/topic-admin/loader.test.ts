@@ -9,6 +9,7 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
+import { SHOWN_VERSION } from '../testing.ts';
 import {
   createTopic,
   deleteTopic,
@@ -16,6 +17,7 @@ import {
   loadAdminTopicToDelete,
   loadAdminTopicToEdit,
   saveTopic,
+  TOPIC_CHANGED,
 } from './loader.ts';
 import { deleteTopicPath, editTopicPath, TOPICS_ADMIN_PATH } from './paths.ts';
 
@@ -32,6 +34,7 @@ const topic = {
   description: 'About air quality.',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-02T00:00:00.000Z',
+  version: SHOWN_VERSION,
 };
 
 const valid = { title: 'Air quality', slug: 'air-quality', description: 'About air quality.' };
@@ -155,7 +158,12 @@ describe('loadAdminTopicToEdit', () => {
 
 describe('saveTopic', () => {
   function save(context: RouterContextProvider, body: Record<string, string>) {
-    return run(saveTopic, { context, method: 'POST', body, params: { id: topic.id } });
+    return run(saveTopic, {
+      context,
+      method: 'POST',
+      body: { version: SHOWN_VERSION, ...body },
+      params: { id: topic.id },
+    });
   }
 
   it('does not call the API when the submission is invalid', async () => {
@@ -164,6 +172,7 @@ describe('saveTopic', () => {
     expect(outcome).toEqual({
       values: { ...valid, title: '' },
       fieldErrors: { title: 'Enter a topic name' },
+      version: SHOWN_VERSION,
     });
   });
 
@@ -173,7 +182,7 @@ describe('saveTopic', () => {
     await save(createContext(fakeApi({ put })), { ...valid, title: '  Air quality  ' });
 
     expect(put.mock.calls[0]?.[0]).toBe(`/api/internal/topics/${topic.id}`);
-    expect(put.mock.calls[0]?.[1]).toEqual(valid);
+    expect(put.mock.calls[0]?.[1]).toEqual({ ...valid, version: SHOWN_VERSION });
   });
 
   // Redirecting rather than rendering is what stops a refresh re-submitting, and addressing
@@ -209,7 +218,7 @@ describe('saveTopic', () => {
 
     const { outcome } = await save(createContext(fakeApi({ put })), valid);
 
-    expect(outcome).toEqual({ values: valid, fieldErrors });
+    expect(outcome).toEqual({ values: valid, fieldErrors, version: SHOWN_VERSION });
   });
 
   it('reports a refusal that names no field as the form not saved', async () => {
@@ -219,7 +228,23 @@ describe('saveTopic', () => {
 
     const { outcome } = await save(createContext(fakeApi({ put })), valid);
 
-    expect(outcome).toEqual({ values: valid, fieldErrors: {}, formError: FORM_NOT_SAVED });
+    expect(outcome).toEqual({
+      values: valid,
+      fieldErrors: {},
+      formError: FORM_NOT_SAVED,
+      version: SHOWN_VERSION,
+    });
+  });
+
+  it('keeps the submitted values when the topic changed since, to save against its version now', async () => {
+    const version = 'b'.repeat(64);
+    const put = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 409, error: { error: 'changed', version } });
+
+    const { outcome } = await save(createContext(fakeApi({ put })), valid);
+
+    expect(outcome).toEqual({ values: valid, fieldErrors: {}, formError: TOPIC_CHANGED, version });
   });
 
   it('keeps the submitted values when the API rejects them', async () => {

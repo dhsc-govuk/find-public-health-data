@@ -15,6 +15,7 @@ import {
   TextInput,
 } from '@fphd/ui';
 
+import { VERSION_FIELD } from '../edit-version.ts';
 import type { TopicFormValues } from './form.ts';
 import type { TopicAdminDetailWithLinkCount, TopicAdminSummary } from './loader.ts';
 import { deleteTopicPath, editTopicPath, NEW_TOPIC_PATH, TOPICS_ADMIN_PATH } from './paths.ts';
@@ -72,12 +73,15 @@ interface TopicFieldsProps {
   fieldErrors: TopicFieldErrors;
   values: TopicFormValues;
   submitLabel: string;
+  /** The version of the topic an edit was shown, which its save sends back. */
+  version?: string;
 }
 
 // A plain form posting back to its own page, so it behaves the same with and without JavaScript.
-function TopicFields({ fieldErrors, values, submitLabel }: TopicFieldsProps) {
+function TopicFields({ fieldErrors, values, submitLabel, version }: TopicFieldsProps) {
   return (
     <form method="post">
+      {version === undefined ? null : <input name={VERSION_FIELD} type="hidden" value={version} />}
       <TextInput
         defaultValue={values.title}
         error={fieldErrors.title}
@@ -141,6 +145,7 @@ interface EditTopicPageProps {
   notification?: string | undefined;
   topicId: string;
   values: TopicFormValues;
+  version: string;
 }
 
 export function EditTopicPage({
@@ -150,6 +155,7 @@ export function EditTopicPage({
   notification,
   topicId,
   values,
+  version,
 }: EditTopicPageProps) {
   const errors = toErrorSummary(fieldErrors);
 
@@ -166,7 +172,12 @@ export function EditTopicPage({
       )}
       <ErrorSummary errors={errors} formError={formError} />
       <PageIntro title="Edit topic">
-        <TopicFields fieldErrors={fieldErrors} submitLabel="Save" values={values} />
+        <TopicFields
+          fieldErrors={fieldErrors}
+          submitLabel="Save"
+          values={values}
+          version={version}
+        />
         {linkedIndicatorCount === 0 ? (
           <>
             <p className="govuk-body">No indicators are linked to this topic.</p>

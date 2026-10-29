@@ -82,7 +82,13 @@ export interface InternalTopicRepository {
   findById(id: string): Promise<TopicRow | undefined>;
   countLinkedIndicators(id: string): Promise<number>;
   create(values: TopicUpdate, actor: Actor): Promise<CreateTopicResult>;
-  update(id: string, values: TopicUpdate, actor: Actor): Promise<UpdateTopicResult>;
+  /** Saves the topic's form, as long as the topic's version is the one the form was shown. */
+  update(
+    id: string,
+    values: TopicUpdate,
+    actor: Actor,
+    precondition: EditPrecondition<TopicRow>,
+  ): Promise<UpdateTopicResult>;
   delete(id: string, actor: Actor): Promise<DeleteTopicResult>;
 }
 
@@ -242,7 +248,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findById: (id) => getTopicById(db, id),
       countLinkedIndicators: (id) => countLinkedIndicators(db, id),
       create: (values, actor) => createTopic(db, values, actor),
-      update: (id, values, actor) => updateTopic(db, id, values, actor),
+      update: (id, values, actor, precondition) => updateTopic(db, id, values, actor, precondition),
       delete: (id, actor) => deleteTopic(db, id, actor),
     },
     valueTypesAndUnits: {

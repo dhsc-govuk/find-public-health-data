@@ -25,6 +25,8 @@ export const topicAdminSummaryListSchema = z.array(topicAdminSummarySchema);
 
 export const topicAdminDetailSchema = topicAdminSummarySchema.extend({
   description: z.string(),
+  /** The version of the fields the form edits, which a save sends back so it replaces none unseen. */
+  version: editVersionSchema,
 });
 
 /** A topic with the count that decides whether it can be deleted. */
@@ -60,9 +62,14 @@ export const topicUpdateResponseSchema = z.object({
   topic: topicAdminDetailSchema,
 });
 
-/** The 400 and 409 answers. A refused value is always named; only a bad id names no field. */
+/**
+ * The 400 and 409 answers. A refused value is always named; a bad id or version names no field.
+ * A topic changed since the form showed it is refused as `changed`, with its version now.
+ */
 export const topicUpdateErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.literal('invalid_id') }),
+  z.object({ error: z.literal('invalid_version') }),
+  z.object({ error: z.literal('changed'), version: editVersionSchema }),
   z.object({
     error: z.enum(['validation_failed', 'slug_taken']),
     fieldErrors: topicFieldErrorsSchema,

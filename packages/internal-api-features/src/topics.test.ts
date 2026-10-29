@@ -1,7 +1,8 @@
 import { request } from '@fphd/express/testing';
 import express, { type Express } from 'express';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { editVersion } from './edit-version.ts';
 import {
   createFakeInternalRepositories,
   type FakeInternalRepositoryOverrides,
@@ -24,6 +25,8 @@ const topic: TopicRow = {
 };
 
 const validSubmission = { title: 'Topic A', slug: 'topic-a', description: 'All about topic A.' };
+
+const topicVersion = editVersion(validSubmission);
 
 // The router alone, on a bare Express app: these tests cover its status mapping, not what
 // `createApiApp` wraps around it.
@@ -108,6 +111,7 @@ describe('POST /api/internal/topics', () => {
         description: 'All about topic A.',
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-02T00:00:00.000Z',
+        version: topicVersion,
       },
     });
   });
@@ -218,11 +222,11 @@ describe('GET /api/internal/topics/:id', () => {
 });
 
 describe('PUT /api/internal/topics/:id', () => {
-  async function put(app: Express, body: unknown, id: string = topic.id) {
+  async function put(app: Express, body: object, id: string = topic.id) {
     return request(app)
       .put(`/api/internal/topics/${id}`)
       .set('Cookie', await adminCookie())
-      .send(body as object);
+      .send({ version: topicVersion, ...body });
   }
 
   it('reports a write that changed the topic', async () => {
@@ -242,8 +246,42 @@ describe('PUT /api/internal/topics/:id', () => {
         description: 'All about topic A.',
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-02T00:00:00.000Z',
+        version: topicVersion,
       },
     });
+  });
+
+  it('saves only the topic the form was shown, taking its version from the fields it edits', async () => {
+    const update = vi.fn().mockResolvedValue({ ok: true, topic, changed: true });
+
+    await put(createTestApp({ update }), validSubmission);
+
+    const precondition = update.mock.lastCall?.[3];
+    expect(precondition.version).toBe(topicVersion);
+    expect(precondition.versionOf(topic)).toBe(topicVersion);
+    expect(precondition.versionOf({ ...topic, updatedAt: new Date() })).toBe(topicVersion);
+    expect(precondition.versionOf({ ...topic, title: 'Renamed since' })).not.toBe(topicVersion);
+  });
+
+  it('answers changed, with the version now, for a topic changed since the form showed it', async () => {
+    const version = editVersion({ ...validSubmission, title: 'Renamed since' });
+    const app = createTestApp({ update: async () => ({ ok: false, reason: 'changed', version }) });
+
+    const response = await put(app, validSubmission);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: 'changed', version });
+  });
+
+  it.each([
+    ['no version', { version: undefined }],
+    ['a version the API did not make', { version: 'stale' }],
+  ])('refuses a save with %s without reaching the repository', async (_case, version) => {
+    // Nothing is stubbed, so any repository call throws and the response would be a 500.
+    const response = await put(createTestApp(), { ...validSubmission, ...version });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_version' });
   });
 
   it('reports a submission that changed nothing', async () => {
