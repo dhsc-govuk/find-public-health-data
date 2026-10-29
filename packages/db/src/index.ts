@@ -6,6 +6,7 @@ export {
   createPostgresClient,
   type Database,
   type DbConnection,
+  pingDatabase,
   type Schema,
   type SqlClient,
 } from './client.ts';

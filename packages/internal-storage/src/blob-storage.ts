@@ -8,6 +8,8 @@ export interface BlobStorage {
   get(name: string): Promise<Readable>;
   /** Succeeds whether or not anything was stored under the name. */
   delete(name: string): Promise<void>;
+  /** Rejects when the container cannot be reached or read, as a start-up check. */
+  ping(): Promise<void>;
 }
 
 export class BlobExistsError extends Error {

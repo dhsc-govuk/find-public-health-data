@@ -55,6 +55,11 @@ export function createDb(connection: DbConnection): Database {
   return drizzle(createPostgresClient(connection), { schema, casing: 'snake_case' });
 }
 
+/** Rejects when the database refuses the connection or the login, or cannot be reached. */
+export async function pingDatabase(db: Database): Promise<void> {
+  await db.$client`select 1`;
+}
+
 /**
  * A Drizzle handle over an already-open client, for callers that own the connection.
  * Constructing it mutates the client: drizzle writes transparent date/time parsers into

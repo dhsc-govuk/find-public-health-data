@@ -1,7 +1,7 @@
-import { serverLogging, startServer } from '@fphd/api-server';
+import { checkDependencies, serverLogging, startServer } from '@fphd/api-server';
 import { sessionCookieName } from '@fphd/auth';
 import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { createRepositories } from '@fphd/db';
+import { createRepositories, pingDatabase } from '@fphd/db';
 import { createInternalRepositories } from '@fphd/internal-api-features';
 import { createAzureBlobStorage } from '@fphd/internal-storage';
 import { createLogger } from '@fphd/logger';
@@ -17,6 +17,8 @@ const logger = createLogger({
   requestDetails: config.log.requestDetails,
 });
 
+const storage = await createAzureBlobStorage(config.storage);
+
 startServer({
   app: createApp({
     logger,
@@ -31,10 +33,15 @@ startServer({
         ...config.session,
       }),
     ),
-    storage: await createAzureBlobStorage(config.storage),
+    storage,
   }),
   host: config.host,
   port: config.port,
   shutdown: config.shutdown,
   ...serverLogging(logger, { port: config.port, onShutdown: () => db.$client.end() }),
 });
+
+await checkDependencies(logger, [
+  { name: 'database', check: () => pingDatabase(db) },
+  { name: 'blob storage', check: () => storage.ping() },
+]);

@@ -52,4 +52,12 @@ describe('createAzureBlobStorage', () => {
     );
     expect((await buffer(await storage.get('indicator-2/batch-1.csv'))).length).toBe(10 * 2 ** 20);
   });
+
+  it('fails a ping once its container is gone', async () => {
+    const doomed = `${container}-gone`;
+    const gone = await createAzureBlobStorage({ container: doomed, connectionString });
+    await BlobServiceClient.fromConnectionString(connectionString).deleteContainer(doomed);
+
+    await expect(gone.ping()).rejects.toMatchObject({ code: 'ContainerNotFound' });
+  });
 });
