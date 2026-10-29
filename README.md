@@ -98,9 +98,9 @@ pnpm check:artefacts   # assert no internal code, secret or database operation r
 pnpm check:e2e-coverage # assert every page route has an e2e spec and every spec scans with axe
 pnpm check:migrations  # assert the schema holds no change its migrations do not
 pnpm build
-pnpm test              # all three tiers below, in order
+pnpm test              # unit then integration tests (not e2e)
 pnpm test:unit         # unit tests
-pnpm test:integration  # integration tests — need the local database running
+pnpm test:integration  # integration tests — need the local database and Azurite running
 pnpm test:e2e          # end-to-end tests — need the stack serving and the database seeded
 ```
 
@@ -127,13 +127,15 @@ statements, database pages and rows each of a set of routes costs, and its respo
 when a route exceeds `tools/perf/baseline.json` by more than its tolerance or its median time passes
 a generous limit. An intended increase is accepted with `pnpm perf:accept <run-id>` and committed.
 
-`pnpm check` is the local equivalent for lint, typecheck, test and build. It runs `pnpm test`, so it
-covers all three test tiers — which means `pnpm check` needs the local database running
-(`docker compose up -d db`) for the integration tier, and the apps serving with the database seeded
-for the e2e tier (see the e2e notes below). CI additionally runs `pnpm audit --audit-level high`, which fails on
-high and critical advisories, so a newly published advisory can redden a pull request that changed
-nothing. Where a real advisory has no fix and blocks all work, `pnpm.auditConfig.ignoreGhsas` is the
-escape hatch; each entry is a reviewable decision.
+`pnpm check` is the local equivalent for lint, typecheck, the migration drift check, unit and
+integration tests, build, the artefact boundary and the e2e coverage checks. It needs the local
+database and blob storage running (`docker compose up -d db azurite`) for the integration tier, but
+no apps: it leaves out the e2e tests, which CI runs on pull requests. Run `pnpm test:e2e` yourself
+for front-end work (see the e2e notes below). CI additionally runs
+`pnpm audit --audit-level high`, which fails on high and critical advisories, so a newly published
+advisory can redden a pull request that changed nothing. Where a real advisory has no fix and
+blocks all work, `pnpm.auditConfig.ignoreGhsas` is the escape hatch; each entry is a reviewable
+decision.
 
 `pnpm install` also refuses any version published within the last three days, transitive
 dependencies included: `minimumReleaseAge` in `pnpm-workspace.yaml` is set explicitly so the
@@ -148,7 +150,7 @@ a server error after COPY finishes sending must reject the writable so the trans
 Remove the patch when a released version includes that fix.
 
 Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integration` and
-`pnpm test:e2e` individually rather than `pnpm test`.
+`pnpm test:e2e` individually.
 
 - `pnpm test:integration` runs Vitest over every project, selecting `integration.test` files. A
   project without any still passes because of `--passWithNoTests`.
