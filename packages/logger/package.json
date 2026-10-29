@@ -32,7 +32,9 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "drizzle-orm": "catalog:",
     "pino-pretty": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

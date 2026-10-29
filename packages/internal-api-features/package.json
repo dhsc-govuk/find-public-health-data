@@ -51,7 +51,6 @@
     "@fphd/logger": "workspace:*",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
-    "pino": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

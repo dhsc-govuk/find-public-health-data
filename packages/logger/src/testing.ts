@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
 
-import { type Logger, pino } from 'pino';
+import { createLogger, type Logger } from './index.ts';
 
 /** A logger whose lines are collected as parsed JSON. */
 export function createCapturingLogger(name: string): {
@@ -15,5 +15,5 @@ export function createCapturingLogger(name: string): {
     },
   });
 
-  return { logger: pino({ name }, destination), lines };
+  return { logger: createLogger({ name, destination }), lines };
 }

@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 
-import type { Logger } from '@fphd/logger';
+import { type Logger, serializeError } from '@fphd/logger';
 import type { RequestHandler } from 'express';
 import { pinoHttp, type StdSerializedResults } from 'pino-http';
 
@@ -76,6 +76,8 @@ export function requestLogging(
           : {}),
       }),
       res: (response: StdSerializedResults['res']) => ({ statusCode: response.statusCode }),
+      // pino-http would otherwise replace the logger's own, which keeps query parameters out.
+      err: serializeError,
     },
   });
 }

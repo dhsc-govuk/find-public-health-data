@@ -5,8 +5,8 @@ import { text } from 'node:stream/consumers';
 import { request } from '@fphd/express/testing';
 import { BlobNotFoundError, type BlobStorage } from '@fphd/internal-storage';
 import { createFakeBlobStorage } from '@fphd/internal-storage/testing';
+import type { Logger } from '@fphd/logger';
 import { createCapturingLogger } from '@fphd/logger/testing';
-import type { Logger } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DATA_TABLE_MESSAGES } from './data-upload-contract.ts';

@@ -1,7 +1,7 @@
 import { request } from '@fphd/express/testing';
+import type { Logger } from '@fphd/logger';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
-import type { Logger } from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import {

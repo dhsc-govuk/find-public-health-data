@@ -1,13 +1,19 @@
 # @fphd/logger
 
-`createLogger({ name, level, pretty, requestDetails })` returns a pino logger with the service
-name on every line. `pretty` is for local development only; the transport it names is a
+`createLogger({ name, level, pretty, requestDetails, destination })` returns a pino logger with the
+service name on every line. `pretty` is for local development only; the transport it names is a
 devDependency and is never resolved in production or in the browser. Pretty output prints each
-request as one summary line unless `requestDetails` is set.
+request as one summary line unless `requestDetails` is set. `destination` replaces stdout.
+
+`serializeError` is the logger's `err` serializer: pino's own, less a failed query's bound
+parameters, and with a failed query's Postgres error as a `cause` field when the query is the
+logged error. A hook keeps the parameters out of the message pino takes from an error when a call
+gives none.
 
 Built package with a `browser` export condition, so the same module serves Node and the web
 bundles. Everything that logs goes through this package; see `agent-docs/logging.md` for what
 is and is not logged.
 
-`@fphd/logger/testing` exports `createCapturingLogger(name)`, a logger whose lines a test can read
-back as parsed JSON. Its build output is left out of `files`, so it never reaches an image.
+`@fphd/logger/testing` exports `createCapturingLogger(name)`, a `createLogger` logger whose lines
+a test can read back as parsed JSON. Its build output is left out of `files`, so it never reaches
+an image.

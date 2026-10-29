@@ -5,8 +5,8 @@ import { schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { nullColumns, withThrowingDefaults } from '@fphd/db/testing';
 import { REQUEST_ID_HEADER } from '@fphd/express';
+import { createLogger, type Logger } from '@fphd/logger';
 import type { Express, Router } from 'express';
-import { type Logger, pino } from 'pino';
 
 import { indicatorSectionFieldErrors } from './contract.ts';
 import type { IndicatorTeams } from './indicator-editor.ts';
@@ -76,7 +76,7 @@ export async function testSessionCookie(
 /** An internal API app serving one router, logging nowhere unless given a logger. */
 export function createRouterTestApp(
   router: Router,
-  logger: Logger = pino({ level: 'silent' }),
+  logger: Logger = createLogger({ name: 'internal-api', level: 'silent' }),
 ): Express {
   const app = createApiApp({ logger, serviceName: 'internal-api' });
 
