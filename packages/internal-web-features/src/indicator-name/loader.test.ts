@@ -7,10 +7,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
 import { signedInContext } from '../session.testing.ts';
+import { SHOWN_VERSION } from '../testing.ts';
 import {
   createIndicator,
   loadIndicatorName,
   loadNewIndicator,
+  NAME_CHANGED,
   saveIndicatorName,
 } from './loader.ts';
 
@@ -238,7 +240,7 @@ function rename(id: string, name: string, patch: ApiClient['patch']) {
     params: { id },
     request: new Request(`https://internal.test/publish/indicators/${id}/name`, {
       method: 'POST',
-      body: new URLSearchParams({ name }),
+      body: new URLSearchParams({ name, version: SHOWN_VERSION }),
     }),
   } as never);
 }
@@ -279,7 +281,10 @@ describe('saveIndicatorName', () => {
     const outcome = await rename(created.id, '  Renamed indicator  ', patch);
 
     expect(patch.mock.calls[0]?.[0]).toBe(`/api/internal/indicators/${created.id}`);
-    expect(patch.mock.calls[0]?.[1]).toEqual({ name: 'Renamed indicator' });
+    expect(patch.mock.calls[0]?.[1]).toEqual({
+      name: 'Renamed indicator',
+      version: SHOWN_VERSION,
+    });
     expect(outcome).toBeInstanceOf(Response);
     expect((outcome as Response).headers.get('location')).toBe(
       `/publish/indicators/${created.id}/task-list`,
@@ -294,6 +299,7 @@ describe('saveIndicatorName', () => {
     expect(outcome).toEqual({
       values: { name },
       fieldErrors: { name: 'Enter the name of the indicator' },
+      version: SHOWN_VERSION,
     });
     expect(patch).not.toHaveBeenCalled();
   });
@@ -313,6 +319,7 @@ describe('saveIndicatorName', () => {
     expect(outcome).toEqual({
       values: { name: 'Rejected name' },
       fieldErrors: { name: 'Enter the name of the indicator' },
+      version: SHOWN_VERSION,
     });
   });
 
@@ -331,6 +338,7 @@ describe('saveIndicatorName', () => {
     expect(outcome).toEqual({
       values: { name: 'Life expectancy at birth' },
       fieldErrors: { name: 'An indicator with this name already exists' },
+      version: SHOWN_VERSION,
     });
   });
 
@@ -345,6 +353,21 @@ describe('saveIndicatorName', () => {
       values: { name: 'Rejected name' },
       fieldErrors: {},
       formError: FORM_NOT_SAVED,
+      version: SHOWN_VERSION,
+    });
+  });
+
+  it('keeps what was typed when the name changed since, to save against its version now', async () => {
+    const version = 'b'.repeat(64);
+    const patch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 409, error: { error: 'changed', version } });
+
+    await expect(rename(created.id, 'A better name', patch)).resolves.toEqual({
+      values: { name: 'A better name' },
+      fieldErrors: {},
+      formError: NAME_CHANGED,
+      version,
     });
   });
 

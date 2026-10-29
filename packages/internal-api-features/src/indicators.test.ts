@@ -4,6 +4,7 @@ import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
+import { editVersion } from './edit-version.ts';
 import type { IndicatorAdminDetailRow, IndicatorAdminRow } from './indicator-list-repository.ts';
 import { INDICATORS_PAGE_SIZE, internalIndicatorsRouter } from './indicators.ts';
 import {
@@ -34,6 +35,8 @@ const row: IndicatorAdminRow = {
   draftSubmissionStatus: null,
   draftReviewers: [],
 };
+
+const nameVersion = editVersion({ name: 'Life expectancy at birth' });
 
 const detailRow: IndicatorAdminDetailRow = {
   ...row,
@@ -216,6 +219,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftSubmissionStatus: null,
       draftReviewers: [],
       draftSubmissionNumber: null,
+      nameVersion,
       actions: [],
     });
   });
@@ -465,6 +469,7 @@ describe('POST /api/internal/indicators', () => {
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
+      nameVersion,
       actions: ['submit'],
     });
   });
@@ -567,7 +572,9 @@ describe('PATCH /api/internal/indicators/:id', () => {
   const path = `/api/internal/indicators/${row.id}`;
 
   it('rejects an anonymous request', async () => {
-    const response = await request(createTestApp()).patch(path).send({ name: 'A better name' });
+    const response = await request(createTestApp())
+      .patch(path)
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(401);
     expect(response.body).toEqual({ error: 'authentication_required' });
@@ -577,7 +584,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     const response = await request(createTestApp())
       .patch(path)
       .set('Cookie', await publisherCookie(['internal']))
-      .send({ name: 'A better name' });
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -590,7 +597,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     const response = await request(createTestApp({ updateDraft, findById }))
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: '  A better name  ' });
+      .send({ name: '  A better name  ', version: nameVersion });
 
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
@@ -598,6 +605,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       { name: 'A better name' },
       {},
       testActor(response),
+      { version: nameVersion, versionOf: expect.any(Function) },
     );
     expect(response.body).toEqual({
       id: row.id,
@@ -612,8 +620,59 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
+      nameVersion: editVersion({ name: 'A better name' }),
       actions: ['submit'],
     });
+  });
+
+  it("takes the version from the draft's name alone", async () => {
+    const updateDraft = vi.fn().mockResolvedValue({ ok: true });
+
+    await request(createTestApp({ updateDraft, findById: async () => draftRow }))
+      .patch(path)
+      .set('Cookie', await publisherCookie())
+      .send({ name: 'A better name', version: nameVersion });
+
+    const versionOf = updateDraft.mock.lastCall?.[4].versionOf;
+    expect(versionOf({ ...unansweredDraft, name: 'Life expectancy at birth' })).toBe(nameVersion);
+    expect(
+      versionOf({ ...unansweredDraft, name: 'Life expectancy at birth', definition: 'Edited' }),
+    ).toBe(nameVersion);
+  });
+
+  it('answers changed, with the version now, for a name changed since the page showed it', async () => {
+    const findById = vi.fn();
+    const version = editVersion({ name: 'Renamed since' });
+
+    const response = await request(
+      createTestApp({
+        updateDraft: async () => ({ ok: false, reason: 'changed', version }),
+        findById,
+      }),
+    )
+      .patch(path)
+      .set('Cookie', await publisherCookie())
+      .send({ name: 'A better name', version: nameVersion });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: 'changed', version });
+    expect(findById).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no version', { name: 'A better name' }],
+    ['a version the API did not make', { name: 'A better name', version: 'stale' }],
+  ])('refuses a rename with %s without renaming', async (_, body) => {
+    const updateDraft = vi.fn();
+
+    const response = await request(createTestApp({ updateDraft }))
+      .patch(path)
+      .set('Cookie', await publisherCookie())
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_version' });
+    expect(updateDraft).not.toHaveBeenCalled();
   });
 
   it('rejects an id that is not a UUID without touching the repository', async () => {
@@ -622,7 +681,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     const response = await request(createTestApp({ updateDraft }))
       .patch('/api/internal/indicators/108')
       .set('Cookie', await publisherCookie())
-      .send({ name: 'A better name' });
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'invalid_id' });
@@ -635,7 +694,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     const response = await request(createTestApp({ updateDraft, findById: async () => draftRow }))
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: '  ' });
+      .send({ name: '  ', version: nameVersion });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
@@ -652,7 +711,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     const response = await request(createTestApp({ findById: async () => found }))
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: '  ' });
+      .send({ name: '  ', version: nameVersion });
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ error: 'validation_failed' });
@@ -665,7 +724,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     const response = await request(createTestApp({ updateDraft, findById }))
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: '  ' });
+      .send({ name: '  ', version: nameVersion });
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ error: 'locked' });
@@ -681,7 +740,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: 'A better name' });
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
@@ -698,7 +757,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: 'Life expectancy at birth' });
+      .send({ name: 'Life expectancy at birth', version: nameVersion });
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({
@@ -717,7 +776,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: 'A better name' });
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'no_draft' });
@@ -729,7 +788,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: 'A better name' });
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ error: 'locked' });
@@ -746,7 +805,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: 'A better name' });
+      .send({ name: 'A better name', version: nameVersion });
 
     expect(await handlerLogLines(lines)).toEqual([
       expect.objectContaining({
@@ -775,7 +834,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
-      .send({ name: 'Life expectancy at birth' });
+      .send({ name: 'Life expectancy at birth', version: nameVersion });
 
     expect(await handlerLogLines(lines)).toEqual([]);
   });

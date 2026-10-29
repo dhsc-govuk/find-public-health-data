@@ -24,6 +24,7 @@ export function EditIndicatorNameRoute() {
       fieldErrors={rejected?.fieldErrors}
       formError={rejected?.formError}
       name={rejected?.values.name ?? indicator.name}
+      version={rejected?.version ?? indicator.nameVersion}
     />
   );
 }

@@ -2,6 +2,7 @@ import { z } from '@fphd/config/zod';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
 
+import { editVersionSchema } from './edit-version-contract.ts';
 import { shortText } from './text-contract.ts';
 
 /**
@@ -165,6 +166,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   publishedSlug: z.string().min(1).nullable(),
   /** The draft's latest submission, which a withdrawal names; null until the first. */
   draftSubmissionNumber: z.number().int().positive().nullable(),
+  /** The version of the name, which a rename sends back so it never replaces one unseen. */
+  nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
 });
 
@@ -215,12 +218,16 @@ export const indicatorCreateErrorSchema = z.discriminatedUnion('error', [
 ]);
 
 /**
- * The 400 and 409 answers. A refused value is always named; a bad id and a draft locked for
- * review name no field. A missing indicator or draft is a 404, which the client throws.
+ * The 400 and 409 answers. A refused value is always named; a bad id or version and a draft
+ * locked for review name no field. A name changed since the page showed it is refused as
+ * `changed`, with its version now. A missing indicator or draft is a 404, which the client
+ * throws.
  */
 export const indicatorUpdateErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.literal('invalid_id') }),
+  z.object({ error: z.literal('invalid_version') }),
   z.object({ error: z.literal('locked') }),
+  z.object({ error: z.literal('changed'), version: editVersionSchema }),
   z.object({
     error: z.enum(['validation_failed', 'slug_taken']),
     fieldErrors: indicatorFieldErrorsSchema,
@@ -380,6 +387,7 @@ export type IndicatorWithdrawError = z.infer<typeof indicatorWithdrawErrorSchema
 
 export * from './data-table-check-contract.ts';
 export * from './data-upload-contract.ts';
+export * from './edit-version-contract.ts';
 export * from './indicator-benchmarking-contract.ts';
 export * from './indicator-calculation-contract.ts';
 export * from './indicator-confidence-intervals-contract.ts';

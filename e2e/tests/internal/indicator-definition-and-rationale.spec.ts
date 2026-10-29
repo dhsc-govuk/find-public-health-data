@@ -63,8 +63,89 @@ test('saves both answers on Continue and shows the task as completed', async ({ 
   await expect(page.getByLabel(RATIONALE)).toHaveValue('A summary measure of mortality.');
 });
 
+const CHANGED =
+  'Someone else has changed this section since you opened this page. Your answers have not been saved.';
+
+test('refuses a save of the section someone else changed since, keeping what was typed', async ({
+  page,
+}) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  const other = await page.context().newPage();
+  await other.goto(pagePath);
+  await other.getByLabel(DEFINITION).fill('Their definition');
+  await other.getByLabel(RATIONALE).fill('Their rationale');
+  await other.getByRole('button', { name: 'Continue' }).click();
+  await expect(other).toHaveURL(taskListPath);
+
+  await page.getByLabel(DEFINITION).fill('My definition');
+  await page.getByLabel(RATIONALE).fill('My rationale');
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(pagePath);
+  await expect(page.getByRole('alert')).toContainText(CHANGED);
+  await expect(page).toHaveTitle(/^Error: /);
+  await expect(page.getByLabel(DEFINITION)).toHaveValue('My definition');
+  await expect(page.getByLabel(RATIONALE)).toHaveValue('My rationale');
+  await other.goto(pagePath);
+  await expect(other.getByLabel(DEFINITION)).toHaveValue('Their definition');
+});
+
+test('saves over the other change when Continue is selected again', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  const other = await page.context().newPage();
+  await other.goto(pagePath);
+  await other.getByLabel(DEFINITION).fill('Their definition');
+  await other.getByLabel(RATIONALE).fill('Their rationale');
+  await other.getByRole('button', { name: 'Continue' }).click();
+  await expect(other).toHaveURL(taskListPath);
+  await page.getByLabel(DEFINITION).fill('My definition');
+  await page.getByLabel(RATIONALE).fill('My rationale');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('alert')).toContainText(CHANGED);
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(taskListPath);
+  await page.goto(pagePath);
+  await expect(page.getByLabel(DEFINITION)).toHaveValue('My definition');
+});
+
+test('saves the section when only another section changed since', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  const other = await page.context().newPage();
+  await other.goto(pagePath.replace(SECTION.key, 'other-comments'));
+  await other.getByLabel('No', { exact: true }).check();
+  await other.getByRole('button', { name: 'Continue' }).click();
+  await expect(other).toHaveURL(taskListPath);
+
+  await page.getByLabel(DEFINITION).fill('My definition');
+  await page.getByLabel(RATIONALE).fill('My rationale');
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(taskListPath);
+});
+
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
   await openSectionPage(page, SECTION);
+
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('has no WCAG 2.2 AA violations when the section changed since', async ({ page }, testInfo) => {
+  await openSectionPage(page, SECTION);
+  const other = await page.context().newPage();
+  await other.goto(page.url());
+  await other.getByLabel(DEFINITION).fill('Their definition');
+  await other.getByLabel(RATIONALE).fill('Their rationale');
+  await other.getByRole('button', { name: 'Continue' }).click();
+  await expect(other).toHaveURL(/task-list$/);
+  await page.getByLabel(DEFINITION).fill('My definition');
+  await page.getByLabel(RATIONALE).fill('My rationale');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('alert')).toContainText(CHANGED);
 
   await expectNoAccessibilityViolations(page, testInfo);
 });

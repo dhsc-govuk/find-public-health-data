@@ -23,6 +23,7 @@ import {
   valueTypeAndUnitsSection,
   varianceAndQualitySection,
 } from './contract.ts';
+import { editVersion } from './edit-version.ts';
 import { links } from './indicator-sections.testing.ts';
 import { indicatorSectionsRouter } from './indicator-sections.ts';
 import {
@@ -85,10 +86,10 @@ describe('indicatorSectionsRouter', () => {
         .set('Cookie', await testSessionCookie(['internal', 'publisher']));
 
       expect(response.status).toBe(200);
-      expect(Object.keys(response.body).sort()).toEqual(
+      expect(Object.keys(response.body.answers).sort()).toEqual(
         [...section.fields.options].filter((field) => field !== 'isAreaContext').sort(),
       );
-      for (const answer of Object.values(response.body)) {
+      for (const answer of Object.values(response.body.answers)) {
         expect(answer === null || (Array.isArray(answer) && answer.length === 0)).toBe(true);
       }
     },
@@ -111,7 +112,7 @@ describe('indicatorSectionsRouter', () => {
     )
       .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/links')
       .set('Cookie', await testSessionCookie(['internal', 'publisher']))
-      .send({ hasLinks: 'yes', links });
+      .send({ answers: { hasLinks: 'yes', links }, version: editVersion({}) });
 
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
@@ -119,7 +120,8 @@ describe('indicatorSectionsRouter', () => {
       { hasLinks: true },
       { links },
       testActor(response),
+      expect.objectContaining({ version: editVersion({}) }),
     );
-    expect(response.body).toEqual({ hasLinks: 'yes', links });
+    expect(response.body).toMatchObject({ answers: { hasLinks: 'yes', links } });
   });
 });

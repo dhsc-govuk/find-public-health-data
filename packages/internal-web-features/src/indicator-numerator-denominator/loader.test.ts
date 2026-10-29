@@ -5,6 +5,7 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ADD_INTENT, removeIntent } from '../list-form.ts';
+import { SHOWN_VERSION } from '../testing.ts';
 import { SHOW_SOURCES_INTENT, sourceFieldName } from './form.ts';
 import { loadNumeratorDenominator, submitNumeratorDenominator } from './loader.ts';
 
@@ -33,7 +34,9 @@ function context(client: Partial<ApiClient>) {
 function getting(answers: unknown) {
   return vi
     .fn()
-    .mockImplementation(async (path: string) => (path === providersPath ? providers : answers));
+    .mockImplementation(async (path: string) =>
+      path === providersPath ? providers : { answers, version: SHOWN_VERSION },
+    );
 }
 
 function isNotFound(error: unknown) {
@@ -60,7 +63,7 @@ function submit(
   sources: { providerId: string; sourceId: string | null }[],
   put: ApiClient['put'],
 ) {
-  const body = new URLSearchParams(fields);
+  const body = new URLSearchParams({ ...fields, version: SHOWN_VERSION });
   sources.forEach(({ providerId, sourceId }, index) => {
     body.set(sourceFieldName(index, 'providerId'), providerId);
     body.set(sourceFieldName(index, 'sourceId'), sourceId ?? '');
@@ -97,6 +100,7 @@ describe('loadNumeratorDenominator', () => {
       id,
       providers,
       values: { sources: [mortality], definition: 'Deaths', ...nothingChosen },
+      version: SHOWN_VERSION,
     });
     expect(get.mock.calls.map(([path]) => path).sort()).toEqual([providersPath, sectionPath]);
   });
@@ -133,6 +137,7 @@ describe('submitNumeratorDenominator', () => {
     expect(outcome).toEqual({
       values: { sources: [], definition: 'Deaths', providerId: ons.id, sourceId: '' },
       fieldErrors: {},
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -155,6 +160,7 @@ describe('submitNumeratorDenominator', () => {
     expect(outcome).toEqual({
       values: { sources: [mortality, estimatedAlone], definition: '', ...nothingChosen },
       fieldErrors: {},
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -167,6 +173,7 @@ describe('submitNumeratorDenominator', () => {
     expect(outcome).toEqual({
       values: { sources: [], definition: '', providerId: ons.id, sourceId: '' },
       fieldErrors: { sourceId: 'Select a source, or No specific source' },
+      version: SHOWN_VERSION,
     });
   });
 
@@ -190,8 +197,11 @@ describe('submitNumeratorDenominator', () => {
 
     expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
     expect(put.mock.calls[0]?.[1]).toEqual({
-      sources: [mortality, estimatedAlone],
-      definition: 'Deaths',
+      answers: {
+        sources: [mortality, estimatedAlone],
+        definition: 'Deaths',
+      },
+      version: SHOWN_VERSION,
     });
     expect(outcome).toSatisfy(isRedirectToTaskList);
   });
@@ -206,8 +216,11 @@ describe('submitNumeratorDenominator', () => {
     );
 
     expect(put.mock.calls[0]?.[1]).toEqual({
-      sources: [mortality, estimatedAlone],
-      definition: 'Deaths',
+      answers: {
+        sources: [mortality, estimatedAlone],
+        definition: 'Deaths',
+      },
+      version: SHOWN_VERSION,
     });
   });
 
@@ -222,6 +235,7 @@ describe('submitNumeratorDenominator', () => {
         sources: 'Add at least one data provider for the numerator',
         definition: 'Enter the definition of the numerator',
       },
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -238,6 +252,7 @@ describe('submitNumeratorDenominator', () => {
         sourceId: 'Select a source, or No specific source',
         definition: 'Enter the definition of the numerator',
       },
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -250,6 +265,7 @@ describe('submitNumeratorDenominator', () => {
     expect(outcome).toEqual({
       values: { sources: [], ...fields },
       fieldErrors: { sourceId: 'Select a source, or No specific source' },
+      version: SHOWN_VERSION,
     });
   });
 

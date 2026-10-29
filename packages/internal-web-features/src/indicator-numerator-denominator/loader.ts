@@ -8,7 +8,7 @@ import {
 } from '@fphd/internal-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { ActionFunctionArgs, LoaderFunctionArgs, RouterContextProvider } from 'react-router';
-
+import { versionedAction } from '../edit-version.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSectionAnswers, saveIndicatorSectionValues } from '../indicator-section.ts';
 import {
@@ -33,7 +33,7 @@ export async function loadNumeratorDenominator(
   // Checked before either request, so an id that names nothing asks the API for neither.
   requireIndicatorId(args.params);
 
-  const [{ id, answers }, providers] = await Promise.all([
+  const [{ id, answers, version }, providers] = await Promise.all([
     loadIndicatorSectionAnswers(args, section.key, providerSourcesAnswersSchema),
     loadDataProviders(args.context),
   ]);
@@ -43,7 +43,7 @@ export async function loadNumeratorDenominator(
     sourceId: '',
   };
 
-  return { id, providers, values };
+  return { id, providers, values, version };
 }
 
 /**
@@ -51,25 +51,30 @@ export async function loadNumeratorDenominator(
  * re-render it without saving: the list travels in the form until Continue saves it, taking
  * in a provider and source chosen but not yet added.
  */
-export async function submitNumeratorDenominator(
+export function submitNumeratorDenominator(
   args: ActionFunctionArgs,
   section: ProviderSourcesSection,
-): Promise<NumeratorDenominatorPageState | Response> {
-  const id = requireIndicatorId(args.params);
-  const { intent, values } = readNumeratorDenominatorForm(await args.request.formData());
-  const providers = await loadDataProviders(args.context);
+) {
+  return versionedAction(
+    async (_, { formData, version }): Promise<NumeratorDenominatorPageState | Response> => {
+      const id = requireIndicatorId(args.params);
+      const { intent, values } = readNumeratorDenominatorForm(formData);
+      const providers = await loadDataProviders(args.context);
 
-  // The page only lists sources the providers offer, so any other was not sent by it.
-  if (!areProviderSourcesOffered(values.sources, providers)) {
-    throw new Response('Bad Request', { status: 400 });
-  }
+      // The page only lists sources the providers offer, so any other was not sent by it.
+      if (!areProviderSourcesOffered(values.sources, providers)) {
+        throw new Response('Bad Request', { status: 400 });
+      }
 
-  if (intent.to === 'show-sources') return withSourcesShown(values, providers);
-  if (intent.to === 'add') return withSourceAdded(section.key, values, providers);
-  if (intent.to === 'remove') return withSourceRemoved(values, intent.index);
+      if (intent.to === 'show-sources') return withSourcesShown(values, providers);
+      if (intent.to === 'add') return withSourceAdded(section.key, values, providers);
+      if (intent.to === 'remove') return withSourceRemoved(values, intent.index);
 
-  return saveIndicatorSectionValues(args.context, id, section, values, {
-    answersSchema: providerSourcesAnswersSchema,
-    takeIn: (sent) => withChosenSourceTakenIn(section, sent, providers),
-  });
+      return saveIndicatorSectionValues(args.context, id, section, values, {
+        answersSchema: providerSourcesAnswersSchema,
+        takeIn: (sent) => withChosenSourceTakenIn(section, sent, providers),
+        version,
+      });
+    },
+  )(args);
 }

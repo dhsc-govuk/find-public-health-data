@@ -2,7 +2,7 @@ import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
-
+import { SHOWN_VERSION } from '../testing.ts';
 import { loadConfidenceIntervals } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -46,10 +46,13 @@ describe('loadConfidenceIntervals', () => {
       Promise.resolve(
         path === sectionPath
           ? {
-              ciMethodId: methodId,
-              hasCiMethodModifications: 'no',
-              ciMethodModificationsDetail: null,
-              ciMethodDetail: null,
+              answers: {
+                ciMethodId: methodId,
+                hasCiMethodModifications: 'no',
+                ciMethodModificationsDetail: null,
+                ciMethodDetail: null,
+              },
+              version: SHOWN_VERSION,
             }
           : methods,
       ),
@@ -64,6 +67,7 @@ describe('loadConfidenceIntervals', () => {
     expect(outcome).toEqual({
       id,
       values: { ...unanswered, ciMethodId: methodId, hasCiMethodModifications: 'no' },
+      version: SHOWN_VERSION,
       methods,
     });
   });

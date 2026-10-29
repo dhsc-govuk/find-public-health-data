@@ -1,6 +1,7 @@
 import { z } from '@fphd/config/zod';
 
 import type { IndicatorTaskKey } from './contract.ts';
+import { editVersionedSchema, editVersionSchema } from './edit-version-contract.ts';
 
 /** A section's field names, in the order its page asks them. */
 export type IndicatorSectionFields<Field extends string> = z.ZodEnum<{ [K in Field]: K }>;
@@ -74,6 +75,14 @@ export function indicatorSectionAnswersSchema<Field extends string>(
   return z.record(fields, z.string().nullable());
 }
 
+/** A section's answers, and their version, which a save of the form showing them sends back. */
+export function indicatorSectionResponseSchema<Answers>(answers: z.ZodType<Answers>) {
+  return z.object({ answers, version: editVersionSchema });
+}
+
+/** A save: the answers, which the section's schema reads, and the version the form was shown. */
+export const indicatorSectionSaveSchema = editVersionedSchema.extend({ answers: z.unknown() });
+
 /** Stored answers as the form's text, where an unanswered field is empty. */
 export function indicatorSectionFormValues<Field extends string>(
   fields: IndicatorSectionFields<Field>,
@@ -103,15 +112,18 @@ function errorFieldsOf<Field extends string, ErrorField extends string>(
 }
 
 /**
- * The 400 answers. A refused answer is always named; only a bad id names no field. A missing
- * indicator or draft is a 404, which the client throws.
+ * The 400 and 409 answers. A refused answer is always named; a bad id or version names no
+ * field. A save of a section changed since its form was shown is refused as `changed`, with
+ * the version it has now. A missing indicator or draft is a 404, which the client throws.
  */
 export function indicatorSectionErrorSchema<Field extends string, ErrorField extends string>(
   section: IndicatorSection<Field, unknown, unknown, ErrorField, never>,
 ): z.ZodType<IndicatorSectionError<Field | ErrorField>> {
   return z.discriminatedUnion('error', [
     z.object({ error: z.literal('invalid_id') }),
+    z.object({ error: z.literal('invalid_version') }),
     z.object({ error: z.literal('locked') }),
+    z.object({ error: z.literal('changed'), version: editVersionSchema }),
     z.object({
       error: z.literal('validation_failed'),
       fieldErrors: z.partialRecord(errorFieldsOf(section), z.string()),
@@ -121,7 +133,9 @@ export function indicatorSectionErrorSchema<Field extends string, ErrorField ext
 
 type IndicatorSectionError<Field extends string> =
   | { error: 'invalid_id' }
+  | { error: 'invalid_version' }
   | { error: 'locked' }
+  | { error: 'changed'; version: string }
   | { error: 'validation_failed'; fieldErrors: Partial<Record<Field, string>> };
 
 /** The names an issue may be shown under, most specific first: `list[0].part`, then `list`. */

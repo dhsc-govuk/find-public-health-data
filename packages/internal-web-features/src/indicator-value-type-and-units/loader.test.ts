@@ -2,7 +2,7 @@ import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
-
+import { SHOWN_VERSION } from '../testing.ts';
 import { loadValueTypeAndUnits } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -50,12 +50,15 @@ describe('loadValueTypeAndUnits', () => {
       Promise.resolve(
         path === sectionPath
           ? {
-              valueTypeId,
-              standardPopulation: null,
-              standardPopulationOther: null,
-              referencePopulation: null,
-              unitId,
-              unitDetail: null,
+              answers: {
+                valueTypeId,
+                standardPopulation: null,
+                standardPopulationOther: null,
+                referencePopulation: null,
+                unitId,
+                unitDetail: null,
+              },
+              version: SHOWN_VERSION,
             }
           : options,
       ),
@@ -70,6 +73,7 @@ describe('loadValueTypeAndUnits', () => {
     expect(outcome).toEqual({
       id,
       values: { ...unanswered, valueTypeId, unitId },
+      version: SHOWN_VERSION,
       ...options,
     });
   });

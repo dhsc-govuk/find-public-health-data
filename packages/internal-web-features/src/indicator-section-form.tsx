@@ -1,6 +1,7 @@
 import { Button, DocumentTitle, ErrorSummary, GridColumn, GridRow } from '@fphd/ui';
 import type { ReactNode } from 'react';
 
+import { VERSION_FIELD } from './edit-version.ts';
 import type { FormValues } from './form-values.ts';
 
 /**
@@ -10,12 +11,16 @@ import type { FormValues } from './form-values.ts';
  */
 export const QUESTION_HEADING_SIZE = 'xl';
 
-/** What every section page is given: its answers, and any refusals of the last submission. */
+/**
+ * What every section page is given: its answers, the version they were read at, and any
+ * refusals of the last submission.
+ */
 export interface SectionPageProps<Field extends string, Values = FormValues<Field>> {
   fieldErrors: Partial<Record<Field, string>>;
   /** Required, so no page can drop a refusal that names no field. */
   formError: string | undefined;
   values: Values;
+  version: string;
 }
 
 type IndicatorSectionFormProps<Field extends string> = {
@@ -23,8 +28,13 @@ type IndicatorSectionFormProps<Field extends string> = {
   title: string;
   /** Set when the page asks one question whose label or legend is the h1, so none is added. */
   questionIsHeading?: boolean;
-  /** The page's refusals, which the error summary lists. */
-  form: Omit<SectionPageProps<Field, unknown>, 'values'>;
+  /**
+   * The page's refusals, which the error summary lists, and the version of what it shows,
+   * which a page that saves only what it was shown sends back.
+   */
+  form: Omit<SectionPageProps<Field, unknown>, 'values' | 'version'> & {
+    version?: string | undefined;
+  };
   /** Where a summary link goes when it is not the field's own input, such as `firstRadioId`. */
   fieldIds?: Partial<Record<Field, string>>;
   /** Set when the form has buttons of its own before Continue, which Enter would otherwise press. */
@@ -50,7 +60,7 @@ export function IndicatorSectionForm<Field extends string>(
   const {
     children,
     continueOnEnter = false,
-    form: { fieldErrors, formError },
+    form: { fieldErrors, formError, version },
     questionIsHeading = false,
     title,
   } = props;
@@ -72,6 +82,9 @@ export function IndicatorSectionForm<Field extends string>(
           {questionIsHeading ? null : <h1 className="govuk-heading-xl">{title}</h1>}
           {/* A plain form posting back to its own page, so it works without JavaScript. */}
           <form method="post">
+            {version === undefined ? null : (
+              <input name={VERSION_FIELD} type="hidden" value={version} />
+            )}
             {/* Enter presses a form's first submit button: this Continue, out of sight and reach. */}
             {continueOnEnter ? (
               <button

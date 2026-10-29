@@ -5,6 +5,7 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { addIntent, removeIntent } from '../list-form.ts';
+import { SHOWN_VERSION } from '../testing.ts';
 import { loadTagging, submitTagging } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -54,7 +55,7 @@ function submit(fields: [string, string][], put: ApiClient['put'] = vi.fn()) {
     params: { id },
     request: new Request(`https://internal.test/publish/indicators/${id}/tagging`, {
       method: 'POST',
-      body: new URLSearchParams(fields),
+      body: new URLSearchParams([...fields, ['version', SHOWN_VERSION]]),
     }),
   } as never);
 }
@@ -81,15 +82,18 @@ describe('loadTagging', () => {
       Promise.resolve(
         path === sectionPath
           ? {
-              topicIds: [topic],
-              primaryTopicId: topic,
-              subtopicIds: [],
-              primarySubtopicId: '',
-              indicatorTypeIds: [],
-              hasLifeStage: 'yes',
-              lifeStageIds: [lifeStage],
-              hasFramework: null,
-              frameworkIds: [],
+              answers: {
+                topicIds: [topic],
+                primaryTopicId: topic,
+                subtopicIds: [],
+                primarySubtopicId: '',
+                indicatorTypeIds: [],
+                hasLifeStage: 'yes',
+                lifeStageIds: [lifeStage],
+                hasFramework: null,
+                frameworkIds: [],
+              },
+              version: SHOWN_VERSION,
             }
           : options,
       ),
@@ -116,6 +120,7 @@ describe('loadTagging', () => {
         frameworkIds: [],
         ...nothingChosen,
       },
+      version: SHOWN_VERSION,
     });
   });
 
@@ -204,15 +209,18 @@ describe('submitTagging', () => {
 
     expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
     expect(put.mock.calls[0]?.[1]).toEqual({
-      topicIds: [topic, otherTopic],
-      primaryTopicId: topic,
-      subtopicIds: [],
-      primarySubtopicId: '',
-      indicatorTypeIds: [type],
-      hasLifeStage: 'no',
-      lifeStageIds: [],
-      hasFramework: 'no',
-      frameworkIds: [],
+      answers: {
+        topicIds: [topic, otherTopic],
+        primaryTopicId: topic,
+        subtopicIds: [],
+        primarySubtopicId: '',
+        indicatorTypeIds: [type],
+        hasLifeStage: 'no',
+        lifeStageIds: [],
+        hasFramework: 'no',
+        frameworkIds: [],
+      },
+      version: SHOWN_VERSION,
     });
     expect(outcome).toSatisfy(isRedirectToTaskList);
   });
@@ -222,7 +230,9 @@ describe('submitTagging', () => {
 
     await submit([...answered, ['addLifeStage', lifeStage]], put);
 
-    expect(put.mock.calls[0]?.[1]).toMatchObject({ hasLifeStage: 'no', lifeStageIds: [] });
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      answers: { hasLifeStage: 'no', lifeStageIds: [] },
+    });
   });
 
   it('saves nothing while the answers are refused', async () => {
@@ -250,6 +260,7 @@ describe('submitTagging', () => {
         lifeStageIds: 'Select at least one life stage',
         hasFramework: 'Select whether this indicator is part of a framework or programme',
       },
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });

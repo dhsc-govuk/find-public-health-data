@@ -16,6 +16,7 @@ import {
 import { Router } from 'express';
 
 import {
+  editVersionedSchema,
   type IndicatorAdminDetail,
   type IndicatorAdminListItem,
   type IndicatorAdminPage,
@@ -29,6 +30,7 @@ import {
   indicatorTeamSchema,
   toFieldErrors,
 } from './contract.ts';
+import { editVersion } from './edit-version.ts';
 import { requireIndicatorEditor } from './indicator-editor.ts';
 import type {
   IndicatorAdminDetailRow,
@@ -74,12 +76,18 @@ export function toListItem(row: IndicatorAdminListRow): IndicatorAdminListItem {
   return { ...toSummary(row), teamName, createdBy, lastEditedBy };
 }
 
+/** The version of a name, which the rename compares with the draft's. */
+function nameVersion(name: string): string {
+  return editVersion({ name });
+}
+
 function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdminDetail {
   return {
     ...toSummary(row),
     shortId: row.shortId,
     publishedSlug: row.publishedSlug,
     draftSubmissionNumber: row.draftSubmissionNumber,
+    nameVersion: nameVersion(row.name),
     actions: stepsOpenTo(user, row),
   };
 }
@@ -185,6 +193,13 @@ export function internalIndicatorsRouter(
       return;
     }
 
+    const versioned = editVersionedSchema.safeParse(request.body);
+
+    if (!versioned.success) {
+      response.status(400).json({ error: 'invalid_version' });
+      return;
+    }
+
     const submission = indicatorNameSchema.safeParse(request.body);
 
     if (!submission.success) {
@@ -203,9 +218,17 @@ export function internalIndicatorsRouter(
 
     const actor = requireApiActor(request, response);
     // No lists: the repository leaves the ones it is not given alone.
-    const result = await indicators.updateDraft(id.data, submission.data, {}, actor);
+    const result = await indicators.updateDraft(id.data, submission.data, {}, actor, {
+      version: versioned.data.version,
+      versionOf: (draft) => nameVersion(draft.name),
+    });
 
     if (!result.ok) {
+      if (result.reason === 'changed') {
+        response.status(409).json({ error: 'changed', version: result.version });
+        return;
+      }
+
       if (result.reason === 'slug_taken') {
         response.status(409).json({ error: 'slug_taken', fieldErrors: { name: NAME_TAKEN } });
         return;

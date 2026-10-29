@@ -27,10 +27,12 @@ import {
   type LatestDataUploadRow,
   type UploadDraftRow,
 } from './data-upload-repository.ts';
+import type { EditPrecondition } from './edit-version.ts';
 import {
   type CreateIndicatorDraftResult,
   createIndicatorDraft,
   getIndicatorDraftState,
+  type IndicatorDraft,
   type IndicatorDraftAttributes,
   type IndicatorDraftStateRow,
   type NewIndicatorDraftAttributes,
@@ -99,11 +101,13 @@ export interface InternalIndicatorRepository {
     actor: Actor,
     teamId: string,
   ): Promise<CreateIndicatorDraftResult>;
+  /** Saves a form's answers, as long as the draft's version is the one the form was shown. */
   updateDraft(
     indicatorId: string,
     attributes: IndicatorDraftAttributes,
     lists: IndicatorDraftLists,
     actor: Actor,
+    precondition: EditPrecondition<IndicatorDraft>,
   ): Promise<UpdateIndicatorDraftResult>;
   /** Opens a draft from the published version, copying its columns and lists. */
   draftFromPublished(indicatorId: string, actor: Actor): Promise<CreateDraftFromPublishedResult>;
@@ -217,8 +221,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findDraftState: (id) => getIndicatorDraftState(db, id),
       createDraft: (attributes, actor, teamId) =>
         createIndicatorDraft(db, attributes, actor, teamId),
-      updateDraft: (indicatorId, attributes, lists, actor) =>
-        updateIndicatorDraft(db, indicatorId, attributes, lists, actor),
+      updateDraft: (indicatorId, attributes, lists, actor, precondition) =>
+        updateIndicatorDraft(db, indicatorId, attributes, lists, actor, precondition),
       draftFromPublished: (indicatorId, actor) => createDraftFromPublished(db, indicatorId, actor),
       submit: (indicatorId, draftUpdatedAt, actor) =>
         submitIndicator(db, indicatorId, draftUpdatedAt, actor),

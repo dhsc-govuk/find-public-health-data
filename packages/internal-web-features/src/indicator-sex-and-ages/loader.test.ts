@@ -4,6 +4,7 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { SHOWN_VERSION } from '../testing.ts';
 import { loadSexAndAges, submitSexAndAges } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -41,7 +42,7 @@ function load(indicatorId: string, get: ApiClient['get']) {
 }
 
 function submit(fields: [string, string][], ranges: AgeRangeFormValues[], put: ApiClient['put']) {
-  const body = new URLSearchParams(fields);
+  const body = new URLSearchParams([...fields, ['version', SHOWN_VERSION]]);
   ranges.forEach((range, index) => {
     for (const [part, value] of Object.entries(range)) {
       body.append(ageRangeFieldName(index, part as keyof AgeRangeFormValues), value);
@@ -69,12 +70,15 @@ function isRedirectToTaskList(outcome: unknown) {
 describe('loadSexAndAges', () => {
   it("fills the form with the draft's answers, each age as text", async () => {
     const get = vi.fn().mockResolvedValue({
-      ...unanswered,
-      sexes: ['persons'],
-      ageType: 'range',
-      ageRanges: [
-        { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
-      ],
+      answers: {
+        ...unanswered,
+        sexes: ['persons'],
+        ageType: 'range',
+        ageRanges: [
+          { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
+        ],
+      },
+      version: SHOWN_VERSION,
     });
 
     await expect(load(id, get)).resolves.toEqual({
@@ -87,12 +91,13 @@ describe('loadSexAndAges', () => {
         specificAgeUnit: '',
         ageDetail: '',
       },
+      version: SHOWN_VERSION,
     });
     expect(get.mock.calls[0]?.[0]).toBe(sectionPath);
   });
 
   it('offers one blank range while the draft holds none', async () => {
-    const get = vi.fn().mockResolvedValue(unanswered);
+    const get = vi.fn().mockResolvedValue({ answers: unanswered, version: SHOWN_VERSION });
 
     await expect(load(id, get)).resolves.toMatchObject({
       values: { sexes: [], ageType: '', ageRanges: [blank] },
@@ -137,12 +142,15 @@ describe('submitSexAndAges', () => {
 
     expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
     expect(put.mock.calls[0]?.[1]).toEqual({
-      sexes: ['persons', 'males'],
-      ageType: 'range',
-      ageRanges: [sixteenPlus],
-      specificAge: '',
-      specificAgeUnit: '',
-      ageDetail: '',
+      answers: {
+        sexes: ['persons', 'males'],
+        ageType: 'range',
+        ageRanges: [sixteenPlus],
+        specificAge: '',
+        specificAgeUnit: '',
+        ageDetail: '',
+      },
+      version: SHOWN_VERSION,
     });
     expect(outcome).toSatisfy(isRedirectToTaskList);
   });
@@ -166,6 +174,7 @@ describe('submitSexAndAges', () => {
         [ageRangeFieldName(1, 'lowerLimit')]:
           'You must enter at least a lower or upper limit for range 2',
       },
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });

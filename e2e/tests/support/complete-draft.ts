@@ -31,6 +31,14 @@ async function post(page: Page, path: string, form: Record<string, string>, next
   expect(response.headers().location, `${path} refused its answers`).toBe(next);
 }
 
+/** The version a section page carries in its form, which a save of it sends back. */
+export async function shownVersion(page: Page, path: string): Promise<string> {
+  const html = await (await page.request.get(path)).text();
+  const version = /<input[^>]*name="version"[^>]*value="([0-9a-f]{64})"/.exec(html)?.[1];
+  expect(version, `${path} carries no version`).toBeDefined();
+  return version ?? '';
+}
+
 /**
  * Answers every task on a new draft, data table included, so that it may be submitted. Each
  * page's form is posted as its Continue button sends it, as `createDraft` posts the name page.
@@ -100,7 +108,8 @@ export async function completeDraft(page: Page, id: string): Promise<void> {
   };
 
   for (const [key, form] of Object.entries(sections)) {
-    await post(page, `${base}/${key}`, form, taskList);
+    const path = `${base}/${key}`;
+    await post(page, path, { ...form, version: await shownVersion(page, path) }, taskList);
   }
 
   const uploaded = await page.request.post(`${base}/data-table`, {

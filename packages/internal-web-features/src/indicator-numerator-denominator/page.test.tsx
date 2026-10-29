@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { removeIntent } from '../list-form.ts';
-import { noRefusal } from '../testing.ts';
+import { noRefusal, SHOWN_VERSION } from '../testing.ts';
 import type { NumeratorDenominatorPageValues } from './form.ts';
 import { NumeratorDenominatorPage } from './page.tsx';
 
@@ -130,6 +130,7 @@ describe('NumeratorDenominatorPage', () => {
     ]);
 
     expect(hidden).toEqual([
+      ['version', SHOWN_VERSION],
       ['sources[0].providerId', ons.id],
       ['sources[0].sourceId', ons.sources[0]?.id],
       ['sources[1].providerId', estimated.id],
