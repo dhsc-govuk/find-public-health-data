@@ -56,12 +56,12 @@ export function createDb(connection: DbConnection): Database {
 }
 
 /** Rejects when the database refuses the connection or the login, or cannot be reached. */
-export async function pingDatabase(db: Database): Promise<void> {
+export async function pingDb(db: Database): Promise<void> {
   await db.$client`select 1`;
 }
 
 /** Bounded, because a connection still opening, such as the start-up ping's, holds `end()` open. */
-export async function closeDatabase(db: Database): Promise<void> {
+export async function closeDb(db: Database): Promise<void> {
   await db.$client.end({ timeout: 1 });
 }
 

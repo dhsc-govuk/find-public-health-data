@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { createDb, type Database, pingDatabase } from './client.ts';
+import { createDb, type Database, pingDb } from './client.ts';
 import { resolveDbTls } from './env.ts';
 import { loadOwnerEnv } from './testing.ts';
 
@@ -25,13 +25,13 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((db) => db.$client.end()));
 });
 
-describe('pingDatabase', () => {
+describe('pingDb', () => {
   it('resolves against a database that accepts the login', async () => {
-    await expect(pingDatabase(connect(env.POSTGRES_PASSWORD))).resolves.toBeUndefined();
+    await expect(pingDb(connect(env.POSTGRES_PASSWORD))).resolves.toBeUndefined();
   });
 
   it('rejects with the server error code when the login is refused', async () => {
-    await expect(pingDatabase(connect('wrong-password'))).rejects.toMatchObject({
+    await expect(pingDb(connect('wrong-password'))).rejects.toMatchObject({
       code: '28P01',
     });
   });

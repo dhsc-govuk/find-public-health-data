@@ -1,5 +1,5 @@
 import { checkDependencies, serverLogging, startServer } from '@fphd/api-server';
-import { closeDatabase, createRepositories, pingDatabase } from '@fphd/db';
+import { closeDb, createRepositories, pingDb } from '@fphd/db';
 import { createLogger } from '@fphd/logger';
 
 import { createApp } from './app.ts';
@@ -18,7 +18,7 @@ startServer({
   host: config.host,
   port: config.port,
   shutdown: config.shutdown,
-  ...serverLogging(logger, { port: config.port, onShutdown: () => closeDatabase(db) }),
+  ...serverLogging(logger, { port: config.port, onShutdown: () => closeDb(db) }),
 });
 
-await checkDependencies(logger, [{ name: 'database', check: () => pingDatabase(db) }]);
+await checkDependencies(logger, [{ name: 'database', check: () => pingDb(db) }]);

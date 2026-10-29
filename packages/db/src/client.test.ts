@@ -3,13 +3,7 @@ import { createServer, type Socket } from 'node:net';
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  closeDatabase,
-  createDb,
-  createPostgresClient,
-  type DbConnection,
-  pingDatabase,
-} from './client.ts';
+import { closeDb, createDb, createPostgresClient, type DbConnection, pingDb } from './client.ts';
 
 // postgres.js connects lazily, so building a client touches no database.
 const connection: DbConnection = {
@@ -47,7 +41,7 @@ describe('createPostgresClient', () => {
   });
 });
 
-describe('closeDatabase', () => {
+describe('closeDb', () => {
   it('returns while a connection is still opening, as against a database that never answers', async () => {
     const sockets: Socket[] = [];
     const silent = createServer((socket) => sockets.push(socket));
@@ -55,10 +49,10 @@ describe('closeDatabase', () => {
     const { port } = silent.address() as AddressInfo;
     const db = createDb({ ...connection, host: '127.0.0.1', port, ssl: false });
 
-    const ping = pingDatabase(db).catch(() => {});
+    const ping = pingDb(db).catch(() => {});
     await expect.poll(() => sockets.length).toBe(1);
     const started = Date.now();
-    await closeDatabase(db);
+    await closeDb(db);
 
     expect(Date.now() - started).toBeLessThan(3_000);
     await ping;
