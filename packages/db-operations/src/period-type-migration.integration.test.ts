@@ -1,4 +1,4 @@
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -41,9 +41,9 @@ const TRANSLATIONS: [string, string, string, number | null, number | null][] = [
 ];
 
 /** A database migrated to just before this one, holding a version of each Fingertips name. */
-async function withLegacyYearTypes(names: string[]): Promise<[TestDatabase, postgres.Sql]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+async function withLegacyYearTypes(names: string[]): Promise<[TestDb, postgres.Sql]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   for (const [index, name] of [...names, null].entries()) {
@@ -64,7 +64,7 @@ async function withLegacyYearTypes(names: string[]): Promise<[TestDatabase, post
 }
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -73,7 +73,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -144,7 +143,7 @@ describe(`migration ${MIGRATION}`, () => {
 });
 
 describe(`migration ${MIGRATION} over a year type it cannot translate`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -152,7 +151,6 @@ describe(`migration ${MIGRATION} over a year type it cannot translate`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

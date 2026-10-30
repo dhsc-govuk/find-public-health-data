@@ -3,13 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-import { createDbFromClient, schema } from '@fphd/db';
-import {
-  auditEntriesFor,
-  createOwnerClient,
-  createTestDatabase,
-  type TestDatabase,
-} from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -41,16 +36,15 @@ async function ciMethods(sql: postgres.Sql) {
 }
 
 describe('the committed core data and seed', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'seeded' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'seeded' });
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
@@ -80,7 +74,7 @@ describe('the committed core data and seed', () => {
 });
 
 describe('upsertCiMethods', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   const method: CiMethodRecord = {
@@ -91,17 +85,16 @@ describe('upsertCiMethods', () => {
   };
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
   it('inserts, leaves an unchanged method alone, rewrites a changed one and reports strays', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const [stray] = await sql<{ id: string }[]>`
       INSERT INTO ci_method (name) VALUES ('A method no file lists') RETURNING id
     `;
@@ -117,7 +110,7 @@ describe('upsertCiMethods', () => {
   });
 
   it('records the methods it writes as the core data import, and nothing for the rest', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const recorded = { ...method, id: '019fa38f-073f-764e-9ac6-1c4d03b1cb93', name: 'Recorded' };
 
     await upsertCiMethods(db, [recorded]);
@@ -139,7 +132,7 @@ describe('upsertCiMethods', () => {
   });
 
   it('touches updated_at only on a method it rewrites', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const stamp = async () => {
       const [row] = await sql<{ stamp: number }[]>`
         SELECT extract(epoch FROM updated_at)::float8 AS stamp FROM ci_method WHERE id = ${method.id}
@@ -159,14 +152,14 @@ describe('upsertCiMethods', () => {
 });
 
 describe('loadIndicatorVersions', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   let directory: string;
   let indicatorId: string;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
     await importCoreData(sql);
     const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
     indicatorId = row?.id ?? '';
@@ -174,7 +167,6 @@ describe('loadIndicatorVersions', () => {
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
     await rm(directory, { recursive: true, force: true });
   });

@@ -3,13 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-import { createDbFromClient, schema } from '@fphd/db';
-import {
-  auditEntriesFor,
-  createOwnerClient,
-  createTestDatabase,
-  type TestDatabase,
-} from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -20,16 +15,15 @@ import { loadIndicatorVersions } from './seeding.ts';
 const { SYSTEM_USER_IDS } = schema;
 
 describe('the committed core data and seed', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'seeded' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'seeded' });
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
@@ -74,7 +68,7 @@ describe('the committed core data and seed', () => {
 });
 
 describe('upsertDataProviders', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   const provider: DataProviderRecord = {
@@ -84,17 +78,16 @@ describe('upsertDataProviders', () => {
   };
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
   it('inserts, leaves an unchanged row alone, rewrites a changed one and reports strays', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const [stray] = await sql<{ id: string }[]>`
       INSERT INTO data_provider (name) VALUES ('A provider no file lists') RETURNING id
     `;
@@ -134,7 +127,7 @@ describe('upsertDataProviders', () => {
   });
 
   it('touches updated_at only on a row it rewrites', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const stamps = async () => sql<{ id: string; stamp: number }[]>`
       SELECT id, extract(epoch FROM updated_at)::float8 AS stamp
       FROM data_provider WHERE id = ${provider.id}
@@ -157,7 +150,7 @@ describe('upsertDataProviders', () => {
 });
 
 describe('loadIndicatorVersions with Fingertips sources', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   let directory: string;
   let indicatorId: string;
@@ -165,8 +158,8 @@ describe('loadIndicatorVersions with Fingertips sources', () => {
   const legacyId = '00000000-0000-7000-8000-00000000abcd';
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
     await importCoreData(sql);
     const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
     indicatorId = row?.id ?? '';
@@ -189,7 +182,6 @@ describe('loadIndicatorVersions with Fingertips sources', () => {
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
     await rm(directory, { recursive: true, force: true });
   });

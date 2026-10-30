@@ -1,24 +1,13 @@
 import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createDb, type Database, dbEnvFields, resolveDbTls, schema } from '@fphd/db';
+import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
-import { createTestDatabase } from '@fphd/db/testing';
+import { createTestDb } from '@fphd/db/testing';
 import type { ClassificationDimension } from '@fphd/utils/classification-dimension';
 import { slugify } from '@fphd/utils/slug';
 import { and, eq, sql } from 'drizzle-orm';
 import { expect, test } from 'vitest';
 
 import { type CreatedIndicatorDraft, createIndicatorDraft } from './indicator-draft-repository.ts';
-
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
 
 /**
  * A test given its file's own copy of the seeded database as `db`. The seed carries the lookup
@@ -27,22 +16,9 @@ const env = parseEnv(
 export const repositoryTest = test
   // biome-ignore lint/correctness/noEmptyPattern: vitest reads a fixture's dependencies from this pattern
   .extend('db', { scope: 'file' }, async ({}, { onCleanup }) => {
-    const testDb = await createTestDatabase({ template: 'seeded' });
-    const db = createDb({
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      database: testDb.name,
-      user: env.POSTGRES_USER,
-      password: env.POSTGRES_PASSWORD,
-      ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-    });
-
-    onCleanup(async () => {
-      await db.$client.end();
-      await testDb.drop();
-    });
-
-    return db;
+    const testDb = await createTestDb({ template: 'seeded' });
+    onCleanup(() => testDb.drop());
+    return testDb.db;
   })
   // Captured before the file's first test writes, so the later cases still know what the seed held.
   .extend('seededIds', { scope: 'file', auto: true }, ({ db }) => idsNewestFirst(db));

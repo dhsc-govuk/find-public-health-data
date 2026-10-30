@@ -1,33 +1,19 @@
-import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import { buffer, text } from 'node:stream/consumers';
-import { fileURLToPath } from 'node:url';
 
 import { BlobServiceClient } from '@azure/storage-blob';
-import { parseEnv, z } from '@fphd/config';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { createAzureBlobStorage } from './azure-blob-storage.ts';
 import { itBehavesAsBlobStorage } from './blob-storage.testing.ts';
 import { BlobExistsError } from './blob-storage.ts';
+import { createTestBlobStorage } from './testing.ts';
 
-// Azurite, as the repo .env or CI's environment names it; values already set win over the file.
-const envFile = fileURLToPath(new URL('../../../.env', import.meta.url));
-if (existsSync(envFile)) {
-  process.loadEnvFile(envFile);
-}
-const { STORAGE_CONNECTION_STRING: connectionString } = parseEnv(
-  z.object({ STORAGE_CONNECTION_STRING: z.string() }),
-  process.env,
-);
-
-// A container of this file's own, so runs and files never see one another's blobs.
-const container = `fphd-test-${randomBytes(6).toString('hex')}`;
-const storage = await createAzureBlobStorage({ container, connectionString });
+const testStorage = await createTestBlobStorage();
+const { storage, container, connectionString } = testStorage;
 
 afterAll(async () => {
-  await BlobServiceClient.fromConnectionString(connectionString).deleteContainer(container);
+  await testStorage.drop();
 });
 
 describe('createAzureBlobStorage', () => {

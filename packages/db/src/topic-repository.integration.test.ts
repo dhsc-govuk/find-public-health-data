@@ -1,25 +1,11 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDb, createPostgresClient, type Database } from './client.ts';
-import { dbEnvFields, resolveDbTls } from './env.ts';
+import type { Database } from './client.ts';
 import { SYSTEM_USER_IDS, type TopicRecord, topic } from './schema.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { apiLogin, createTestDb, type TestDb } from './testing.ts';
 import { getTopicBySlug, listTopics } from './topic-repository.ts';
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-    PUBLIC_API_PASSWORD: z.string().default('public_api'),
-    INTERNAL_API_PASSWORD: z.string().default('internal_api'),
-  }),
-  process.env,
-);
-
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
 
 const zebra: TopicRecord = {
@@ -38,15 +24,8 @@ const apple: TopicRecord = {
 
 // Seeded once for the whole file so no describe depends on another having run first.
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  db = createDb({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: testDb.name,
-    user: env.POSTGRES_USER,
-    password: env.POSTGRES_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  });
+  testDb = await createTestDb();
+  db = testDb.db;
   await db.insert(topic).values(
     [zebra, apple].map((record) => ({
       ...record,
@@ -57,7 +36,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 
@@ -102,28 +80,15 @@ describe('getTopicBySlug', () => {
 describe('the topic read surface', () => {
   // Only the shared read grant: internal_api's write grants are asserted alongside the writes,
   // in @fphd/internal-api-features.
-  const apiRoles = [
-    { role: 'public_api', password: env.PUBLIC_API_PASSWORD },
-    { role: 'internal_api', password: env.INTERNAL_API_PASSWORD },
-  ];
+  const apiLogins = [apiLogin('public_api'), apiLogin('internal_api')];
 
-  it.each(apiRoles)(
-    'lets $role select topics through the published view',
-    async ({ role, password }) => {
-      const client = createPostgresClient({
-        host: env.DB_HOST,
-        port: env.DB_PORT,
-        database: testDb.name,
-        user: role,
-        password,
-        ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-      });
+  it.each(apiLogins)('lets $user select topics through the published view', async (login) => {
+    const client = testDb.connect({ login });
 
-      try {
-        await expect(client`SELECT * FROM published.topic`).resolves.toBeDefined();
-      } finally {
-        await client.end();
-      }
-    },
-  );
+    try {
+      await expect(client`SELECT * FROM published.topic`).resolves.toBeDefined();
+    } finally {
+      await client.end();
+    }
+  });
 });

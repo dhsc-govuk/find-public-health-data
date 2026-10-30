@@ -1,4 +1,4 @@
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -26,11 +26,9 @@ interface LegacyVersion {
 }
 
 /** A database migrated to just before this one, holding a version for each answer. */
-async function withLegacyVersions(
-  versions: LegacyVersion[],
-): Promise<[TestDatabase, postgres.Sql]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+async function withLegacyVersions(versions: LegacyVersion[]): Promise<[TestDb, postgres.Sql]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   for (const [index, { periodTypeId, yearTypeId, yearEnd }] of versions.entries()) {
@@ -60,7 +58,7 @@ describe(`migration ${MIGRATION}`, () => {
     { periodTypeId: MONTHS_ID, yearTypeId: null },
     { periodTypeId: null, yearTypeId: null },
   ];
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -69,7 +67,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -105,7 +102,7 @@ describe(`migration ${MIGRATION}`, () => {
 });
 
 describe(`migration ${MIGRATION} over a period type it cannot translate`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -124,7 +121,6 @@ describe(`migration ${MIGRATION} over a period type it cannot translate`, () => 
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

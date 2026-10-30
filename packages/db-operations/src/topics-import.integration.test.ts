@@ -1,19 +1,6 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import {
-  createDb,
-  createDbFromClient,
-  type Database,
-  dbEnvFields,
-  resolveDbTls,
-  schema,
-} from '@fphd/db';
+import { type Database, schema } from '@fphd/db';
 import { type Actor, recordAudit } from '@fphd/db/audit-log';
-import {
-  auditEntriesFor,
-  createOwnerClient,
-  createTestDatabase,
-  type TestDatabase,
-} from '@fphd/db/testing';
+import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -21,37 +8,15 @@ import { upsertTopics } from './topic-import.ts';
 
 const { SYSTEM_USER_IDS, topic } = schema;
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
-
-function ownerConnection(database: string) {
-  return {
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database,
-    user: env.POSTGRES_USER,
-    password: env.POSTGRES_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  };
-}
-
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  db = createDb(ownerConnection(testDb.name));
+  testDb = await createTestDb();
+  db = testDb.db;
 });
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 
@@ -206,9 +171,9 @@ describe("an entity's entries", () => {
   }
 
   it('sort in the order their changes committed, though a writer that waited started first', async () => {
-    const holder = createOwnerClient(testDb.name);
-    const importer = createOwnerClient(testDb.name);
-    const editor = createOwnerClient(testDb.name);
+    const holder = testDb.connect({ max: 1 });
+    const importer = testDb.connectDb({ max: 1 });
+    const editor = testDb.connectDb({ max: 1 });
     const first = {
       id: '00000000-0000-4000-8000-000000000003',
       slug: 'held',
@@ -225,17 +190,17 @@ describe("an entity's entries", () => {
     let importing: Promise<unknown> = Promise.resolve();
 
     try {
-      await upsertTopics(createDbFromClient(importer), [first, second]);
+      await upsertTopics(importer, [first, second]);
 
       // The import starts, then waits on a topic another writer holds; meanwhile an edit commits.
       await holder.begin(async (tx) => {
         await tx`SELECT 1 FROM topic WHERE id = ${first.id} FOR UPDATE`;
-        importing = upsertTopics(createDbFromClient(importer), [
+        importing = upsertTopics(importer, [
           { ...first, title: 'Held, imported' },
           { ...second, title: 'Edited, imported' },
         ]);
         await expect.poll(lockWaiters).toBe(1);
-        await createDbFromClient(editor).transaction(async (edit) => {
+        await editor.transaction(async (edit) => {
           await edit
             .update(topic)
             .set({ title: 'Edited by hand', updatedBy: editorActor.userId })
@@ -251,7 +216,7 @@ describe("an entity's entries", () => {
       });
       await importing;
     } finally {
-      await Promise.all([holder.end(), importer.end(), editor.end()]);
+      await Promise.all([holder.end(), importer.$client.end(), editor.$client.end()]);
     }
 
     const history = await db.$client<{ actor_id: string; changes: unknown }[]>`

@@ -184,8 +184,10 @@ To add real ones:
   The integration job has Postgres and Azurite services and creates the per-API login roles. The root
   Vitest global setup (gated on `INTEGRATION_DB=1`, set by `test:integration`) builds a
   migrated, seeded template database once per run; each test file calls
-  `createTestDatabase()` from `@fphd/db/testing` for its own copy, so files run in parallel
-  against isolated databases and never touch the development database.
+  `createTestDb()` from `@fphd/db/testing` for its own copy, so files run in parallel
+  against isolated databases and never touch the development database. Every database a run
+  creates carries the run's id, so two runs against one server (from two worktrees, say)
+  leave each other alone.
 - E2e tests are Playwright specs in the top-level `e2e` workspace package (`@fphd/e2e`), not in
   `packages/*`: a package there is shared code the applications are built from, which an e2e suite
   is not. Specs drive the applications over HTTP and never import application code; the spec's

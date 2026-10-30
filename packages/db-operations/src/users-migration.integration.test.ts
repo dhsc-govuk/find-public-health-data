@@ -1,6 +1,6 @@
 import { fakeUsers } from '@fphd/auth';
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -41,15 +41,15 @@ async function recordsBy(
   return { versionId: version.id, batchId: batch.id };
 }
 
-async function beforeMigration(): Promise<[TestDatabase, postgres.Sql]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+async function beforeMigration(): Promise<[TestDb, postgres.Sql]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
   return [testDb, sql];
 }
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   let records: { versionId: string; batchId: string };
 
@@ -60,7 +60,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -106,7 +105,7 @@ describe(`migration ${MIGRATION}`, () => {
 });
 
 describe(`migration ${MIGRATION} over an actor that is not a user id`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -115,7 +114,6 @@ describe(`migration ${MIGRATION} over an actor that is not a user id`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -127,16 +125,15 @@ describe(`migration ${MIGRATION} over an actor that is not a user id`, () => {
 });
 
 describe('app_user', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

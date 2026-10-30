@@ -1,34 +1,16 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createDb, type Database, dbEnvFields, resolveDbTls } from '@fphd/db';
-import { createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import type { Database } from '@fphd/db';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { listValueTypeAndUnitOptions } from './value-type-and-unit-repository.ts';
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
-
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  db = createDb({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: testDb.name,
-    user: env.POSTGRES_USER,
-    password: env.POSTGRES_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  });
+  testDb = await createTestDb();
+  db = testDb.db;
   // Each list in reverse order of id, which no order by name or id would give.
   for (const table of ['value_type', 'unit']) {
     await db.execute(sql`
@@ -43,7 +25,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 

@@ -1,10 +1,8 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
 import type { PeriodType, YearType } from '@fphd/utils/period-type';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDb, type Database } from './client.ts';
-import { dbEnvFields, resolveDbTls } from './env.ts';
+import type { Database } from './client.ts';
 import {
   getPublishedIndicatorById,
   type IndicatorSearchFilters,
@@ -12,18 +10,7 @@ import {
   resolvePublishedIndicatorId,
   searchIndicators,
 } from './indicator-repository.ts';
-import { createOwnerClient } from './scripts/owner-client.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
-
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
+import { createTestDb, type TestDb } from './testing.ts';
 
 // Seeded indicators given the period types the seed does not carry.
 const WINTER_YEARS = 108;
@@ -39,7 +26,7 @@ const ENDING_31_MARCH = 92443;
 const ENDING_31_DECEMBER = 92708;
 const ENDING_31_AUGUST = 93861;
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let owner: postgres.Sql;
 let db: Database;
 
@@ -82,16 +69,9 @@ async function shortIdsFound(yearTypes: string[]): Promise<number[]> {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'seeded' });
-  owner = createOwnerClient(testDb.name);
-  db = createDb({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: testDb.name,
-    user: env.POSTGRES_USER,
-    password: env.POSTGRES_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  });
+  testDb = await createTestDb({ template: 'seeded' });
+  owner = testDb.sql;
+  db = testDb.db;
 
   await setPeriodType(WINTER_YEARS, 'years', 'specified-end-date', [31, 7]);
   await setPeriodType(SURVEY_YEARS, 'quarters', 'specified-end-date', [15, 11]);
@@ -104,8 +84,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.$client.end();
-  await owner.end();
   await testDb.drop();
 });
 

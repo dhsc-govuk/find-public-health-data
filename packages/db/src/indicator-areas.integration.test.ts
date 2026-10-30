@@ -1,20 +1,18 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { listAreasByGroup, listIndicatorAreas } from './area-repository.ts';
-import { createDbFromClient, type Database } from './client.ts';
+import type { Database } from './client.ts';
 import { resolvePublishedIndicatorId } from './indicator-repository.ts';
 import { area, areaType, observation } from './schema/index.ts';
-import { createOwnerClient } from './scripts/owner-client.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 
-let database: TestDatabase;
+let database: TestDb;
 let db: Database;
 beforeAll(async () => {
-  database = await createTestDatabase({ template: 'seeded' });
-  db = createDbFromClient(createOwnerClient(database.name));
+  database = await createTestDb({ template: 'seeded' });
+  db = database.db;
 });
 afterAll(async () => {
-  await db.$client.end();
   await database.drop();
 });
 

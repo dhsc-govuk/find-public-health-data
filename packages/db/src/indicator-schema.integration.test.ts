@@ -1,10 +1,8 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
 import { SLUG_MAX_LENGTH } from '@fphd/utils/slug';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { createDb, type Database } from './client.ts';
-import { dbEnvFields, resolveDbTls } from './env.ts';
+import type { Database } from './client.ts';
 import {
   ciMethod,
   classification,
@@ -15,19 +13,9 @@ import {
   SYSTEM_USER_IDS,
   topic,
 } from './schema/index.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
-
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
 
 // Above every Fingertips number the seed carries over, the largest of which is 94,194.
 const FIRST_MINTED_SHORT_ID = 100_000;
@@ -37,23 +25,15 @@ const NOT_NULL_VIOLATION = '23502';
 const EXCLUSION_VIOLATION = '23P01';
 const CHECK_VIOLATION = '23514';
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  db = createDb({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: testDb.name,
-    user: env.POSTGRES_USER,
-    password: env.POSTGRES_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  });
+  testDb = await createTestDb();
+  db = testDb.db;
 });
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 

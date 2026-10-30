@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { NUMERATOR_VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -66,13 +66,13 @@ async function observationOf(
 }
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   const observations = new Map<string, string>();
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'unmigrated' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'unmigrated' });
+    sql = testDb.sql;
     await migrateBefore(sql, MIGRATION);
 
     const [area] = await sql<{ id: string }[]>`
@@ -111,7 +111,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

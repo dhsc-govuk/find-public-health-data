@@ -1,4 +1,4 @@
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -42,7 +42,7 @@ interface Link {
   classificationId: string;
 }
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
 const originalIds = new Map<string, string>();
 
@@ -58,8 +58,8 @@ function listLinks(): Promise<Link[]> {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'unmigrated' });
-  sql = createOwnerClient(testDb.name);
+  testDb = await createTestDb({ template: 'unmigrated' });
+  sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   for (const { dimension, slug } of CLASSIFICATIONS) {
@@ -91,7 +91,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await sql?.end();
   await testDb?.drop();
 });
 

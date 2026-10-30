@@ -3,8 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dimensionKey } from './dimension-key.ts';
 import { SYSTEM_USER_IDS } from './schema/index.ts';
-import { createOwnerClient } from './scripts/owner-client.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
 
@@ -12,16 +11,15 @@ const UNIQUE_VIOLATION = '23505';
 const FOREIGN_KEY_VIOLATION = '23503';
 const CHECK_VIOLATION = '23514';
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'seeded' });
-  sql = createOwnerClient(testDb.name);
+  testDb = await createTestDb({ template: 'seeded' });
+  sql = testDb.sql;
 });
 
 afterAll(async () => {
-  await sql.end();
   await testDb.drop();
 });
 

@@ -1,5 +1,5 @@
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -10,13 +10,13 @@ const { SYSTEM_USER_IDS } = schema;
 const MIGRATION = '0048_topic-actors';
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   let topicId: string;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'unmigrated' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'unmigrated' });
+    sql = testDb.sql;
     await migrateBefore(sql, MIGRATION);
     const [row] = await sql<{ id: string }[]>`
       INSERT INTO topic (slug, title, description) VALUES ('older', 'Older', 'From before.')
@@ -27,7 +27,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

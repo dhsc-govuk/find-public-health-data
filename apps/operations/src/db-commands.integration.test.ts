@@ -1,10 +1,5 @@
 import type { SqlClient } from '@fphd/db';
-import {
-  createOwnerClient,
-  createTestDatabase,
-  loadOwnerEnv,
-  type TestDatabase,
-} from '@fphd/db/testing';
+import { createTestDb, loadOwnerEnv, type TestDb } from '@fphd/db/testing';
 import { assertCoreDataPresent } from '@fphd/db-operations';
 import { createLogger } from '@fphd/logger';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -13,8 +8,8 @@ import { resolveCommand } from './commands.ts';
 import { importCoreData, reset, seedDummyData } from './db-commands.ts';
 import { type Config, loadConfig } from './load-config.ts';
 
-// The same settings the createOwnerClient connections below use, so the configs built
-// here point at the same database.
+// The same settings the test databases' own connections use, so the configs built here
+// point at the same database.
 const env = loadOwnerEnv();
 
 // Through loadConfig rather than hand-built, so these contexts cannot drift from the shape
@@ -38,16 +33,15 @@ function testContext(sql: SqlClient, database: string, appEnv: string) {
   return { sql, config: testConfig(database, appEnv), logger };
 }
 
-let emptyDb: TestDatabase;
+let emptyDb: TestDb;
 let emptySql: SqlClient;
 
 beforeAll(async () => {
-  emptyDb = await createTestDatabase();
-  emptySql = createOwnerClient(emptyDb.name);
+  emptyDb = await createTestDb();
+  emptySql = emptyDb.sql;
 });
 
 afterAll(async () => {
-  await emptySql.end();
   await emptyDb.drop();
 });
 
@@ -84,14 +78,13 @@ describe('db seed-dummy-data (integration)', () => {
   });
 
   it('points at db migrate when the database is unmigrated', async () => {
-    const unmigrated = await createTestDatabase({ template: 'unmigrated' });
-    const sql = createOwnerClient(unmigrated.name);
+    const unmigrated = await createTestDb({ template: 'unmigrated' });
+    const sql = unmigrated.sql;
     try {
       await expect(seedDummyData(testContext(sql, unmigrated.name, 'test'))).rejects.toThrow(
         /db migrate/,
       );
     } finally {
-      await sql.end();
       await unmigrated.drop();
     }
   });
@@ -99,21 +92,20 @@ describe('db seed-dummy-data (integration)', () => {
   // Explicit timeout: the template copy in the body queues behind the copy lock, like the
   // beforeAll copies the raised hookTimeout covers.
   it('refuses when core data has not been imported', async () => {
-    const bare = await createTestDatabase();
-    const sql = createOwnerClient(bare.name);
+    const bare = await createTestDb();
+    const sql = bare.sql;
     try {
       await expect(seedDummyData(testContext(sql, bare.name, 'test'))).rejects.toThrow(
         /import-core-data/,
       );
     } finally {
-      await sql.end();
       await bare.drop();
     }
   }, 60_000);
 
   it('refuses when core data is only partly imported or not under its ids, and passes once it is all there', async () => {
-    const partial = await createTestDatabase();
-    const sql = createOwnerClient(partial.name);
+    const partial = await createTestDb();
+    const sql = partial.sql;
     try {
       const context = testContext(sql, partial.name, 'test');
       await importCoreData(context);
@@ -169,7 +161,6 @@ describe('db seed-dummy-data (integration)', () => {
       await importCoreData(context);
       await expect(assertCoreDataPresent(sql)).resolves.toBeUndefined();
     } finally {
-      await sql.end();
       await partial.drop();
     }
   }, 60_000);
@@ -183,8 +174,8 @@ describe('db reset (integration)', () => {
   });
 
   it('reset → migrate → import-core-data → seed-dummy-data rebuilds a working database', async () => {
-    const seeded = await createTestDatabase({ template: 'seeded' });
-    const sql = createOwnerClient(seeded.name);
+    const seeded = await createTestDb({ template: 'seeded' });
+    const sql = seeded.sql;
     try {
       const context = testContext(sql, seeded.name, 'test');
 
@@ -235,7 +226,6 @@ describe('db reset (integration)', () => {
       expect(await count(sql, 'indicator_version_topic')).toBeGreaterThan(0);
       expect(await count(sql, 'latest_headline')).toBeGreaterThan(0);
     } finally {
-      await sql.end();
       await seeded.drop();
     }
   }, 180_000);

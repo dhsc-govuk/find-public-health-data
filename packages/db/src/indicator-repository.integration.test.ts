@@ -1,4 +1,3 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
 import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,8 +11,7 @@ import {
   listDisplayGroups,
   searchAreas,
 } from './area-repository.ts';
-import { createDb, type Database } from './client.ts';
-import { dbEnvFields, resolveDbTls } from './env.ts';
+import type { Database } from './client.ts';
 import {
   getIndicatorObservations,
   getObservationRange,
@@ -27,30 +25,9 @@ import {
   searchPublishedIndicators,
 } from './indicator-repository.ts';
 import { SYSTEM_USER_IDS } from './schema/index.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
-
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
-
-function ownerConnection(database: string) {
-  return {
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database,
-    user: env.POSTGRES_USER,
-    password: env.POSTGRES_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  };
-}
 
 // Under 75 mortality rate from all causes: a seeded indicator with full metadata, both
 // single-year and rolling periods, and sex/age/deprivation breakdowns.
@@ -68,7 +45,7 @@ const CORNWALL = 'E06000052';
 const UNSEEDED_ID = '00000000-0000-7000-8000-000000000000';
 const MORTALITY_SLUG = 'under-75-mortality-rate-from-all-causes';
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
 let mortalityId: string;
 let diabetesId: string;
@@ -83,8 +60,8 @@ async function resolvedId(shortId: number): Promise<string> {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'seeded' });
-  db = createDb(ownerConnection(testDb.name));
+  testDb = await createTestDb({ template: 'seeded' });
+  db = testDb.db;
   [mortalityId, diabetesId, diabetesMortalityId] = await Promise.all([
     resolvedId(MORTALITY_UNDER_75),
     resolvedId(DIABETES_QOF_PREVALENCE),
@@ -93,7 +70,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 
@@ -168,7 +144,7 @@ describe('resolveIndicatorIdBySlug', () => {
   // The added publication is older than the seed's, so it supersedes nothing the rest of
   // this file reads: the views still show one row per indicator, under the current name.
   it('still answers for a slug only a superseded published version carries', async () => {
-    const owner = createDb(ownerConnection(testDb.name));
+    const owner = testDb.connectDb();
     await owner.execute(
       sql`INSERT INTO indicator_version
             (indicator_id, status, name, slug, published_at, created_by, updated_by)

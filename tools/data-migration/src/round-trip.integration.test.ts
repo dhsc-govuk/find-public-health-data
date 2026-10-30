@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { applyDataMigration, importCoreData, rebuildReadModels } from '@fphd/db-operations';
 import {
   baselineManifestSchema,
@@ -19,20 +19,20 @@ import { deterministicUuid, prepareBaseline } from './prepare-baseline.ts';
 import { TABLES } from './tables.ts';
 import { verifyPackageFiles } from './verify.ts';
 
-let database: TestDatabase;
+let database: TestDb;
 let sql: postgres.Sql;
 let directory: string;
 let topicId: string;
 
 beforeAll(async () => {
-  database = await createTestDatabase();
-  const core = createOwnerClient(database.name);
+  database = await createTestDb();
+  const core = database.connect({ max: 1 });
   try {
     await importCoreData(core);
   } finally {
     await core.end();
   }
-  sql = createOwnerClient(database.name);
+  sql = database.sql;
   const [topic] = await sql<{ id: string }[]>`SELECT id FROM topic ORDER BY id LIMIT 1`;
   if (!topic) throw new Error('Core topics are missing');
   topicId = topic.id;
@@ -40,7 +40,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await sql?.end();
   await database?.drop();
   if (directory) await rm(directory, { recursive: true });
 });

@@ -1,4 +1,4 @@
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -32,12 +32,12 @@ const PROSE: Record<number, Prose> = {
   10: { disclosureControl: ' \n', caveats: null, notes: '' },
 };
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'unmigrated' });
-  sql = createOwnerClient(testDb.name);
+  testDb = await createTestDb({ template: 'unmigrated' });
+  sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   for (const [shortId, prose] of Object.entries(PROSE)) {
@@ -56,7 +56,6 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await sql?.end();
   await testDb?.drop();
 });
 

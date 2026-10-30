@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -63,11 +63,9 @@ interface LegacyVersion {
 }
 
 /** A database migrated to just before this one, holding a version for each legacy answer. */
-async function withLegacyVersions(
-  versions: LegacyVersion[],
-): Promise<[TestDatabase, postgres.Sql]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+async function withLegacyVersions(versions: LegacyVersion[]): Promise<[TestDb, postgres.Sql]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   for (const [index, { valueType = null, unit = null }] of versions.entries()) {
@@ -109,7 +107,7 @@ async function versionOf(sql: postgres.Sql, shortId: number) {
 const BLANK = VALUE_TYPE_TRANSLATIONS.length + UNIT_TRANSLATIONS.length + 1;
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   function updateBlank(columns: Record<string, string | null>) {
@@ -130,7 +128,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -257,7 +254,7 @@ describe(`migration ${MIGRATION}`, () => {
 });
 
 describe(`migration ${MIGRATION} over every Pholio value type and unit`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -269,7 +266,6 @@ describe(`migration ${MIGRATION} over every Pholio value type and unit`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -308,7 +304,7 @@ describe.each<[string, LegacyVersion]>([
   ['a blank unit', { unit: '  ' }],
   ['a unit named in over 100 characters', { unit: 'x'.repeat(101) }],
 ])(`migration ${MIGRATION} over %s it cannot translate`, (_, version) => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -316,7 +312,6 @@ describe.each<[string, LegacyVersion]>([
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

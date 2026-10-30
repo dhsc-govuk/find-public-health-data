@@ -1,13 +1,5 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import {
-  createDb,
-  createRepositories,
-  type Database,
-  dbEnvFields,
-  resolveDbTls,
-  schema,
-} from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createRepositories, type Database, schema } from '@fphd/db';
+import { apiLogin, createTestDb, type TestDb } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
 import { SLUG_PATTERN } from '@fphd/utils/slug';
 import express from 'express';
@@ -22,38 +14,20 @@ import {
 } from './contract.ts';
 import { publicApiRoutes } from './index.ts';
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    PUBLIC_API_PASSWORD: z.string().default('public_api'),
-  }),
-  process.env,
-);
-
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
-let owner: ReturnType<typeof createOwnerClient>;
+let owner: TestDb['sql'];
 let app: express.Express;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'seeded' });
+  testDb = await createTestDb({ template: 'seeded' });
   // The public_api role, as the deployed app connects: the grant tests below depend on it.
-  db = createDb({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: testDb.name,
-    user: 'public_api',
-    password: env.PUBLIC_API_PASSWORD,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  });
-  owner = createOwnerClient(testDb.name);
+  db = testDb.connectDb({ login: apiLogin('public_api') });
+  owner = testDb.sql;
   app = express().use(publicApiRoutes(createRepositories(db)));
 });
 
 afterAll(async () => {
-  await db.$client.end();
-  await owner.end();
   await testDb.drop();
 });
 

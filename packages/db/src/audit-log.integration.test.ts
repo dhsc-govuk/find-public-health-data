@@ -2,17 +2,16 @@ import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type Actor, recordAudit } from './audit-log.ts';
-import { createDbFromClient, type Database } from './client.ts';
+import type { Database } from './client.ts';
 import { SYSTEM_USER_IDS } from './schema/index.ts';
-import { createOwnerClient } from './scripts/owner-client.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR: Actor = {
   userId: SYSTEM_USER_IDS.testSeed,
   requestId: '01a154fb-1a99-7705-9016-05db53119b94',
 };
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
 let db: Database;
 let entityCount = 0;
@@ -31,13 +30,12 @@ async function entriesFor(entityId: string) {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  sql = createOwnerClient(testDb.name);
-  db = createDbFromClient(sql);
+  testDb = await createTestDb();
+  sql = testDb.sql;
+  db = testDb.db;
 });
 
 afterAll(async () => {
-  await sql.end();
   await testDb.drop();
 });
 
@@ -66,7 +64,7 @@ describe('recordAudit', () => {
   it('records the changes as an object in a raw transaction', async () => {
     const entityId = newEntityId();
     // A client Drizzle has never wrapped, as the operations commands' is.
-    const raw = createOwnerClient(testDb.name);
+    const raw = testDb.connect({ max: 1 });
 
     await raw.begin((tx) =>
       recordAudit(tx, { ...ACTOR, requestId: null }, [
@@ -89,7 +87,7 @@ describe('the audit log', () => {
   async function insert(action: string, entityType: string, changes: string) {
     return sql`
       INSERT INTO audit_log (actor_id, action, entity_type, entity_id, changes)
-      VALUES (${ACTOR.userId}, ${action}, ${entityType}, ${newEntityId()}, ${changes}::jsonb)
+      VALUES (${ACTOR.userId}, ${action}, ${entityType}, ${newEntityId()}, ${changes}::text::jsonb)
     `;
   }
 
