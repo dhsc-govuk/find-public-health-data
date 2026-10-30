@@ -24,6 +24,11 @@ export function indicatorTaskListPath(id: string): string {
   return indicatorPublishPath(id, 'task-list');
 }
 
+/** Where the task list posts to fill in the draft's remaining tasks with sample answers. */
+export function indicatorSampleAnswersPath(id: string): string {
+  return indicatorPublishPath(id, 'sample-answers');
+}
+
 /** The page that confirms withdrawing the draft's submission for approval. */
 export function indicatorWithdrawalPath(id: string): string {
   return indicatorPublishPath(id, 'withdraw-submission');

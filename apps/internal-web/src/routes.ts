@@ -63,6 +63,10 @@ export default [
         '../../../packages/internal-web-features/src/indicator-task-list/route.tsx',
       ),
       route(
+        'publish/indicators/:id/sample-answers',
+        '../../../packages/internal-web-features/src/indicator-sample-answers/route.ts',
+      ),
+      route(
         'publish/indicators/:id/withdraw-submission',
         '../../../packages/internal-web-features/src/indicator-withdrawal/route.tsx',
       ),

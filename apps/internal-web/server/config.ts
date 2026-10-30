@@ -4,6 +4,7 @@ export const {
   basicAuth,
   development,
   host,
+  offersDevTools,
   port,
   apiUrl,
   apiUploadTimeoutMs,

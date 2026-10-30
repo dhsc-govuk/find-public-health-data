@@ -8,6 +8,7 @@ import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
 
+import { devToolsContext } from '../dev-tools.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { setOverviewFlash } from '../indicator-overview/notifications.ts';
 import { indicatorOverviewPath } from '../indicator-overview/paths.ts';
@@ -22,7 +23,8 @@ export type {
 /**
  * The whole page in one call. The API answers 404 for an indicator that is missing or has no
  * draft, which the not-found boundary renders; a draft locked for review sends the publisher to
- * the overview.
+ * the overview. Where the app offers development tools, a draft with tasks left to do offers
+ * to fill them in with sample answers.
  */
 export async function loadIndicatorTaskList({ context, params }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
@@ -32,7 +34,7 @@ export async function loadIndicatorTaskList({ context, params }: LoaderFunctionA
 
   if (!taskList.editable) throw lockedDraftRedirect(context, id);
 
-  return { taskList };
+  return { taskList, offersSampleAnswers: context.get(devToolsContext) && !taskList.canSubmit };
 }
 
 const NOT_SUBMITTED = 'The indicator could not be submitted. Try again.';

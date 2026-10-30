@@ -2,6 +2,7 @@ export { loadDashboard } from './dashboard/loader.ts';
 export { DashboardPage } from './dashboard/page.tsx';
 export { DASHBOARD_PATH, dashboardPath } from './dashboard/paths.ts';
 export { DashboardRoute } from './dashboard/route.tsx';
+export { devToolsContext } from './dev-tools.ts';
 export { loadIndicatorOverview } from './indicator-overview/loader.ts';
 export { IndicatorOverviewPage } from './indicator-overview/page.tsx';
 export { indicatorOverviewPath } from './indicator-overview/paths.ts';
