@@ -246,6 +246,22 @@ export async function exportIndicators(context: PholioExportOptions) {
   const textById = new Map<number, TextValuesRow>();
   for (const row of textRows) textById.set(row.IndicatorID, row);
 
+  const profileMetadata = await queryPholio<{
+    IndicatorID: number;
+    ProfileId: number | null;
+    Name: string | null;
+    Frequency: string | null;
+    StructuredFrequency: string | null;
+  }>(
+    pool,
+    `SELECT t.IndicatorID,t.ProfileId,CAST(t.[1_Name] AS nvarchar(max)) AS Name,
+    CAST(t.[23_Frequency] AS nvarchar(max)) AS Frequency,f.Name AS StructuredFrequency
+    FROM dbo.IndicatorMetadataTextValues t
+    LEFT JOIN dbo.CIAReference r ON r.IndicatorID=t.IndicatorID
+    LEFT JOIN dbo.CIA_L_Frequency f ON f.FrequencyID=r.Frequency
+    ORDER BY t.IndicatorID,t.ProfileId`,
+  );
+
   const sourceIds = new Set(metaRows.map((row) => row.IndicatorID));
   if (context.indicatorSelection.kind === 'approved') {
     const missing = [...selected].filter((id) => !sourceIds.has(id) || id === 94204);
@@ -414,6 +430,15 @@ export async function exportIndicators(context: PholioExportOptions) {
   }
 
   return {
+    profileMetadata: profileMetadata
+      .filter((row) => indicatorIds.has(row.IndicatorID))
+      .map((row) => ({
+        indicator_id: row.IndicatorID,
+        profile_id: row.ProfileId,
+        name: row.Name,
+        frequency: row.Frequency,
+        structured_frequency: row.StructuredFrequency ?? null,
+      })),
     indicatorIds,
     indicatorNames,
     indicatorNameMappings: INDICATOR_NAME_MAPPINGS.filter(({ fingertipsId }) =>

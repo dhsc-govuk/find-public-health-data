@@ -91,6 +91,7 @@ export async function exportPholio(options: ExportPholioOptions): Promise<void> 
             database: identity.database,
             snapshot_at: snapshotAt,
             cutoff_at: snapshotAt,
+            profile_metadata: indicators.profileMetadata,
           },
           exported_indicators: tables.indicator?.rows,
           scanned_observations: observations.scannedObservations,
