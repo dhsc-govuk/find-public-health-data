@@ -10,15 +10,19 @@ function titleFor(loaderData: unknown) {
 }
 
 describe('the dashboard route', () => {
-  it('titles the page for an IMRG manager as its heading, the indicators under review', () => {
-    expect(titleFor({ underReview, list: null })).toEqual([
+  it.each([
+    ['an IMRG manager', { underReview, toReview: null, list: null }],
+    ['an IMRG reviewer', { underReview: null, toReview: [], list: null }],
+  ])('titles the page for %s as its heading, the indicators under review', (_who, loaderData) => {
+    expect(titleFor(loaderData)).toEqual([
       { title: 'Indicators under review - Find public health data - GOV.UK' },
     ]);
   });
 
   it.each([
-    ['a publisher', { underReview: null, list }],
-    ['an IMRG manager who also publishes', { underReview, list }],
+    ['a publisher', { underReview: null, toReview: null, list }],
+    ['an IMRG manager who also publishes', { underReview, toReview: null, list }],
+    ['an IMRG reviewer who also publishes', { underReview: null, toReview: [], list }],
     ['a page whose loader failed', undefined],
   ])('titles the page for %s as Indicators', (_who, loaderData) => {
     expect(titleFor(loaderData)).toEqual([

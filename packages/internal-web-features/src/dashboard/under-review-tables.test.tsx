@@ -5,7 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { UnderReviewTables } from './under-review-tables.tsx';
+import { ReviewTable, UnderReviewTables } from './under-review-tables.tsx';
 
 afterEach(cleanup);
 
@@ -117,6 +117,55 @@ describe('UnderReviewTables', () => {
 
     expect(screen.getByText('No unassigned indicators')).toBeTruthy();
     expect(screen.getByText('No assigned indicators')).toBeTruthy();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('ReviewTable', () => {
+  function renderReviewTable(indicators: IndicatorAdminListItem[]) {
+    return render(
+      <MemoryRouter>
+        <ReviewTable indicators={indicators} />
+      </MemoryRouter>,
+    );
+  }
+
+  it("lists the reviewer's indicators with the Assigned indicators table's columns", () => {
+    renderReviewTable([inReview]);
+
+    expect(headingsOf('Indicators to review, oldest submission first')).toEqual([
+      'Indicator name',
+      'Assigned reviewers',
+      'Team',
+      'Created by',
+      'Last edited',
+      'Last edited by',
+      'Indicator status',
+      'Publishing status',
+    ]);
+
+    const [reviewers, ...rest] = cellsOf('Smoking prevalence');
+
+    expect(
+      [...(reviewers?.querySelectorAll('li') ?? [])].map((reviewer) => reviewer.textContent),
+    ).toEqual(['Jamie Evans', 'Morgan Hughes']);
+    expect(rest.map((cell) => cell.textContent)).toEqual([
+      'Team A',
+      'Sam Taylor',
+      '5 Aug 2026',
+      'Casey Patel',
+      'New',
+      'Pending approval',
+    ]);
+    expect(screen.getByRole('link', { name: 'Smoking prevalence' }).getAttribute('href')).toBe(
+      `/dashboard/indicators/${inReview.id}`,
+    );
+  });
+
+  it('says so when no indicator is assigned', () => {
+    renderReviewTable([]);
+
+    expect(screen.getByText('No assigned indicators under review')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
   });
 });
