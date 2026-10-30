@@ -19,6 +19,8 @@ import {
   hasSqlState,
   indicatorStatus,
   publishedJoin,
+  publishedVersion,
+  publishedVersionJoin,
   type Transaction,
 } from './indicator-repository-sql.ts';
 import {
@@ -96,6 +98,22 @@ export async function getIndicatorDraftState(
   if (draft === null) return { ...state, draft: null };
 
   return { ...state, draft: { ...draft, ...(await draftListsOf(db, draft.id)) } };
+}
+
+/** The published version as the sections read a draft, or undefined while none is published. */
+export async function getIndicatorPublishedVersion(
+  db: Database,
+  id: string,
+): Promise<IndicatorDraft | undefined> {
+  const [row] = await db
+    .select({ version: publishedVersion })
+    .from(currentPublishedVersion)
+    .innerJoin(publishedVersion, publishedVersionJoin)
+    .where(eq(currentPublishedVersion.indicatorId, id));
+
+  if (row === undefined) return undefined;
+
+  return { ...row.version, ...(await draftListsOf(db, row.version.id)) };
 }
 
 /** The lists a draft holds in tables of its own, as the sections read them. */
