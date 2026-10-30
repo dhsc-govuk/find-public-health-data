@@ -587,10 +587,16 @@ function indicatorQueries(
     Name: `Indicator ${IndicatorID}`,
   })),
   uploads: { IndicatorID: number; LastUploadedAt: Date }[] = [],
+  profileMetadata: Record<string, unknown>[] = [],
 ) {
   vi.mocked(queryPholio)
     .mockResolvedValueOnce([])
-    .mockResolvedValueOnce([{ id: 1, name: 'Not applicable' }])
+    .mockResolvedValueOnce([
+      { id: -1, name: 'Not applicable' },
+      { id: 0, name: 'RAG - Low is good' },
+      { id: 1, name: 'RAG - High is good' },
+      { id: 99, name: 'BOB - Blue orange blue' },
+    ])
     .mockResolvedValueOnce([{ id: 1, name: 'Annual' }])
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce([])
@@ -621,7 +627,8 @@ function indicatorQueries(
         Caveats: null,
         Notes: null,
       },
-    ]);
+    ])
+    .mockResolvedValueOnce(profileMetadata);
 }
 it('exports only the approved indicators and uses plain text without damaging inequalities', async () => {
   indicatorQueries();
@@ -629,6 +636,40 @@ it('exports only the approved indicators and uses plain text without damaging in
   expect(result.indicatorIds).toEqual(new Set([108]));
   expect(result.excludedNonApprovedIndicators).toBe(1);
   expect((await rows('indicator_version'))[0]?.definition).toBe('aged <16 and >64, high');
+});
+it('preserves profile references and raw frequency text in source provenance', async () => {
+  indicatorQueries(
+    'No unit',
+    undefined,
+    [],
+    [
+      {
+        IndicatorID: 108,
+        ProfileId: 10,
+        Name: 'B03 - Indicator 108',
+        Frequency: 'Every 3 years',
+        StructuredFrequency: 'Annual',
+      },
+      {
+        IndicatorID: 109,
+        ProfileId: 20,
+        Name: 'Unselected',
+        Frequency: 'Monthly',
+        StructuredFrequency: null,
+      },
+    ],
+  );
+  const result = await exportIndicators(options);
+  expect(result.profileMetadata).toEqual([
+    {
+      indicator_id: 108,
+      profile_id: 10,
+      name: 'B03 - Indicator 108',
+      frequency: 'Every 3 years',
+      structured_frequency: 'Annual',
+    },
+  ]);
+  expect((await rows('indicator_version'))[0]?.name).toBe('Indicator 108');
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',

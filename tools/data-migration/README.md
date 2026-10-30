@@ -7,9 +7,8 @@ publishing moves to this service. The operations image applies the packages with
 ## Prerequisites
 
 - Install the repository's Node and pnpm versions and run `pnpm install`.
-- Use a read-only `PHOLIO_CONNECTION_STRING` (SQL Server connection string) pointing at the
-  benchmark VM's Pholio copy for development exports, or at DHSC's SQL Managed Instance for
-  production exports. Set `--expected-database` to the restored database's name.
+- Use a read-only `PHOLIO_CONNECTION_STRING` (SQL Server connection string) pointing at an
+  immutable restored Pholio backup. Set `--expected-database` to the restored database's name.
 - Keep source exports, prepared snapshots and archives in private storage outside the
   repository. The archive command also requires `tar` on the host.
 
@@ -58,6 +57,9 @@ publishing moves to this service. The operations image applies the packages with
 - The expected live database name must match `DB_NAME()`.
 - UUIDs are deterministic from the source table and integer ID. The same source row keeps
   the same target ID across the baseline and every increment.
+- The source manifest's `profile_metadata` preserves profile-specific names, including
+  framework references, raw frequency prose and structured frequency labels. Preparation
+  and increments retain that provenance independently of the generic display name.
 - Each package names its schema format, source snapshot time, predecessor, row counts and
   SHA-256 digest for every file. The archive has a separate SHA-256 digest.
 - An increment carries `ci_method`, `comparator_method` and `numerator_denominator_source` in

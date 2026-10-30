@@ -9,6 +9,7 @@ import {
   DATA_MIGRATION_FORMAT_VERSION,
   DATA_MIGRATION_NULL,
   DATA_MIGRATION_SCHEMA,
+  dataMigrationSourceSchema,
   parseDataMigrationRelationships,
 } from '@fphd/db-operations/data-migration-contract';
 
@@ -27,13 +28,7 @@ const sourceFileSchema = z.object({
 });
 
 const sourceManifestSchema = z.object({
-  source: z.object({
-    system: z.literal('fingertips'),
-    environment: z.literal('live'),
-    database: z.string().min(1),
-    snapshot_at: z.iso.datetime({ offset: true }),
-    cutoff_at: z.iso.datetime({ offset: true }),
-  }),
+  source: dataMigrationSourceSchema,
   exported_indicators: z.number().int().positive(),
   indicator_selection: z.object({
     kind: z.literal('approved'),
