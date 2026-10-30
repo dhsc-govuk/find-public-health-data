@@ -6,12 +6,14 @@ packages:
 
 # Supply-chain guard: a version must be this old (minutes: 3 days) before pnpm resolves it or
 # installs it from the lockfile, transitive dependencies included. A deliberately fresh version is
-# listed in minimumReleaseAgeExclude as name@version and removed once it has aged past the window
-# (README, "Continuous integration").
+# listed in minimumReleaseAgeExclude as name@version and removed once it has aged past the window.
+# NotGovUK and react-foundry are excluded permanently (README, "Continuous integration").
 minimumReleaseAge: 4320
 minimumReleaseAgeStrict: true
 
-minimumReleaseAgeExclude: []
+minimumReleaseAgeExclude:
+  - '@not-govuk/*'
+  - '@react-foundry/*'
 
 overrides:
   # FIXME: remove once Azure Identity permits patched MSAL; GHSA-xcx6-jx8p-x3h5 affects its v6 dependency.
