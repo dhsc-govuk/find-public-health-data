@@ -48,6 +48,8 @@ export function AppShell({
     <GovUKPage
       backHref={backHref}
       backText={backText}
+      // Lands on the page element only, so the stylesheet can size each app's frame.
+      className={`fphd-app--${audience.toLowerCase()}`}
       meta={footerLinks}
       navigation={navigation}
       phase={isInternal ? 'Internal' : 'Alpha'}

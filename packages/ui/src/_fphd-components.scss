@@ -1,8 +1,17 @@
 @use "@not-govuk/sass-base" as *;
 
+// Each app frames its pages at its own width. AppShell tags the page with the audience.
+.fphd-app--public {
+  --fphd-page-width: 960px;
+}
+
+.fphd-app--internal {
+  --fphd-page-width: 1280px;
+}
+
 .govuk-width-container.govuk-width-container {
   width: calc(100% - 30px);
-  max-width: 960px;
+  max-width: var(--fphd-page-width, 960px);
   margin-right: auto;
   margin-left: auto;
   @media (min-width: 40.0625em) {
