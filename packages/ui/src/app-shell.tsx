@@ -11,7 +11,6 @@ const footerLinks = [
   { text: 'Accessibility statement', href: '/accessibility' },
   { text: 'Contact', href: '/contact' },
   { text: 'Terms and conditions', href: '/terms' },
-  { text: 'Rhestr o Wasanaethau Cymraeg', href: '/welsh-services' },
   {
     text: 'Government Digital Service',
     href: 'https://www.gov.uk/government/organisations/government-digital-service',
