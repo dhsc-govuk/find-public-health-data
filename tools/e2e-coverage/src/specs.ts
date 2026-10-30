@@ -4,8 +4,9 @@ import { callsScan } from './scans.ts';
  * Page routes, as `react-router routes` reports them, to the spec covering them. The mapping is
  * spelt out rather than derived from the path so a new route is a deliberate entry here and a
  * spec to match, and so a group of routes making one journey can share a spec. Both apps use
- * the one table: a route is looked up under the spec directory of whichever app declares it.
- * Resource routes need no entry; one that has an entry, such as a redirect worth a journey
+ * the one table: a route is looked up under the spec directory of whichever app declares it, or
+ * of another app that mounts the same module at the same path, since shared behaviour is tested
+ * once. Resource routes need no entry; one that has an entry, such as a redirect worth a journey
  * test, exempts its spec from scanning.
  */
 export const PAGE_SPECS: Readonly<Record<string, string>> = {
@@ -58,7 +59,15 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
 /** One app's route, classified by whether its module renders a page. */
 export type ClassifiedRoute = {
   path: string;
+  /** The route module, relative to the repository root, so two apps' routes compare. */
+  module: string;
   page: boolean;
+};
+
+/** One app's routes and its specs, relative to the app's spec directory. */
+export type AppSpecs = {
+  routes: readonly ClassifiedRoute[];
+  specs: readonly string[];
 };
 
 export type Finding = {
@@ -67,23 +76,27 @@ export type Finding = {
 };
 
 /**
- * Each of one app's page routes must map to a spec that exists among `specs`, the spec paths
- * relative to the app's spec directory. A resource route needs no entry, but one it has must
- * exist too: that entry is what exempts the spec from scanning.
+ * Each of one app's page routes must map to a spec that exists among the app's specs, or among
+ * the specs of one of `others` that mounts the same module at the same path. A resource route
+ * needs no entry, but one it has must exist too: that entry is what exempts the spec from
+ * scanning.
  */
 export function findUncoveredRoutes(
-  routes: readonly ClassifiedRoute[],
-  specs: readonly string[],
+  app: AppSpecs,
+  others: readonly AppSpecs[] = [],
   mapping: Readonly<Record<string, string>> = PAGE_SPECS,
 ): Finding[] {
-  const present = new Set(specs);
-  return routes.flatMap(({ path, page }) => {
-    const spec = mapping[path];
+  const covers = (candidate: AppSpecs, route: ClassifiedRoute, spec: string) =>
+    candidate.specs.includes(spec) &&
+    candidate.routes.some(({ path, module }) => path === route.path && module === route.module);
+
+  return app.routes.flatMap((route) => {
+    const spec = mapping[route.path];
     if (spec === undefined) {
-      return page ? [{ route: path, problem: 'is mapped to no spec' }] : [];
+      return route.page ? [{ route: route.path, problem: 'is mapped to no spec' }] : [];
     }
-    if (!present.has(spec)) {
-      return [{ route: path, problem: `is mapped to ${spec}, which does not exist` }];
+    if (![app, ...others].some((candidate) => covers(candidate, route, spec))) {
+      return [{ route: route.path, problem: `is mapped to ${spec}, which does not exist` }];
     }
     return [];
   });

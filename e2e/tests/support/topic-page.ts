@@ -65,12 +65,14 @@ export function topicPageTests() {
 
   test('shows every topic section without JavaScript and follows native Contents anchors', async ({
     page,
+    baseURL,
   }) => {
+    if (baseURL === undefined) throw new Error('A base URL is required');
     const context = await page
       .context()
       .browser()
       ?.newContext({
-        baseURL: new URL(page.url()).origin,
+        baseURL,
         storageState: await page.context().storageState(),
         javaScriptEnabled: false,
       });

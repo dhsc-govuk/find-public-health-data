@@ -4,7 +4,6 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
 import {
   describeSectionPage,
-  expectNotFoundWithoutDraft,
   openSectionPage,
   type Section,
   taskRow,
@@ -189,12 +188,6 @@ test('asks the same of the denominator and saves it apart from the numerator', a
   await expect(page).toHaveURL(taskListPath);
   await expect(taskRow(page, DENOMINATOR.taskName)).toContainText('Completed');
   await expect(taskRow(page, NUMERATOR.taskName)).toContainText('Not started');
-});
-
-test('answers the denominator of an indicator with no draft with the not-found page', async ({
-  page,
-}) => {
-  await expectNotFoundWithoutDraft(page, DENOMINATOR.key);
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {

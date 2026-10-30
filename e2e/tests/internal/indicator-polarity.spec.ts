@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import {
   describeSectionPage,
+  expectBackToTaskList,
+  expectNotFoundWithoutDraft,
   openSectionPage,
   type Section,
   taskRow,
@@ -40,6 +42,18 @@ test('saves the polarity on Continue and shows the task as completed', async ({ 
 
   await taskRow(page, SECTION.taskName).getByRole('link').click();
   await expect(page.getByLabel('Lower is better')).toBeChecked();
+});
+
+// Every section page has these from the shared section loader and page; they are tested here
+// once, for all of them.
+test('goes back to the task list', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+
+  await expectBackToTaskList(page, taskListPath);
+});
+
+test('answers an indicator with no draft with the not-found page', async ({ page }) => {
+  await expectNotFoundWithoutDraft(page, SECTION.key);
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
