@@ -41,8 +41,10 @@ publishing moves to this service. The operations image applies the packages with
   duplicate exclusions, each counted independently during pre-flight. Written observations
   plus those exclusions must equal `source_observations`; written observations plus every
   reason in `observation_exclusions` must equal `scanned_observations`. A mismatch fails export.
-- Area aliases prefer the non-n-prefixed code deterministically. Both source aliases map
-  to the survivor, so their observations and relationships retain the same area identity.
+- Area codes retain their exact source spelling, including upper- and lower-case N prefixes.
+  No prefix is stripped and no area identities are merged. `L_Areas.IsCurrent` supplies
+  `area.is_current`; area and relationship validity dates stay null because Pholio does
+  not supply them. Current-area queries use the explicit status rather than inferred dates.
 - Preparation combines note types only when their tidied text and every other field match.
   It preserves every observation-note link, records the source-id aliases in
   `reference_name_aliases`, and updates the prepared file counts and hashes. Conflicting
@@ -101,10 +103,10 @@ plus these fields:
 or an explicit entry in `areaContextIndicators`; an area-context indicator cannot also
 carry topics or classifications. `indicatorTopics` accepts `isPrimary` and
 `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId, isPrimary }` rows.
-Packages use format version 3 and `canonical-v3`, so an older receiver refuses a
-package rather than silently discarding the placement and area-context fields, and the
-receiver refuses an older package, whose observations hold Pholio's Count as the count
-even where it is the numerator.
+Packages use format version 4 and `canonical-v4`, including explicit area status and nullable
+area validity dates. Migrate the receiver's schema and regenerate older packages before
+importing; the receiver refuses an older format rather than applying different area or
+measure semantics.
 Preparation checks coverage before writing prepared output; the importer verifies all
 applied topic, subtopic and classification links before committing.
 

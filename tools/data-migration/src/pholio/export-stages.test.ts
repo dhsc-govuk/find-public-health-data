@@ -39,20 +39,32 @@ async function rows(table: string) {
   return out.map((row) => Object.fromEntries(header.map((column, index) => [column, row[index]])));
 }
 
-it('maps n-prefixed aliases and relationships to the same stable non-prefixed area', async () => {
+it('preserves exact area identities, source status and unknown validity dates', async () => {
   vi.mocked(queryPholio)
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce([
       { AreaCode: 'nS1', AreaName: 'Alias', AreaTypeID: 1, IsCurrent: true },
       { AreaCode: 'S1', AreaName: 'Canonical', AreaTypeID: 1, IsCurrent: true },
       { AreaCode: 'W1', AreaName: 'Welsh', AreaTypeID: 1, IsCurrent: true },
+      { AreaCode: 'N81001', AreaName: 'Audlem Medical Practice', AreaTypeID: 7, IsCurrent: true },
+      { AreaCode: 'nSTP_1', AreaName: 'Retired group', AreaTypeID: 120, IsCurrent: false },
     ])
     .mockResolvedValueOnce([{ ParentLevelGeographyCode: 'nS1', ChildLevelGeographyCode: 'W1' }]);
   const result = await exportGeography(options);
-  expect(result.areaIdByPholioCode.get('nS1')).toBe(areaId('S1'));
+  expect(result.areaIdByPholioCode.get('nS1')).toBe(areaId('nS1'));
   expect(result.areaIdByPholioCode.get('S1')).toBe(areaId('S1'));
   expect((await rows('area')).find((row) => row.code === 'S1')?.name).toBe('Canonical');
-  expect((await rows('area_relationship'))[0]?.parent_area_id).toBe(String(areaId('S1')));
+  expect((await rows('area_relationship'))[0]?.parent_area_id).toBe(String(areaId('nS1')));
+  expect((await rows('area')).find((row) => row.code === 'N81001')).toMatchObject({
+    valid_from: DATA_MIGRATION_NULL,
+    valid_to: DATA_MIGRATION_NULL,
+    is_current: 't',
+  });
+  expect((await rows('area')).find((row) => row.code === 'nSTP_1')).toMatchObject({
+    valid_from: DATA_MIGRATION_NULL,
+    valid_to: DATA_MIGRATION_NULL,
+    is_current: 'f',
+  });
 });
 
 it('chooses age parents only from dimension values that were emitted', async () => {
