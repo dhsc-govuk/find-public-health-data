@@ -23,6 +23,7 @@ const indicator: IndicatorAdminDetail = {
   draftSubmissionStatus: null,
   draftReviewers: [],
   draftSubmissionNumber: null,
+  draftScheduledPublishAt: null,
   nameVersion: SHOWN_VERSION,
   actions: [],
 };

@@ -554,6 +554,33 @@ describe('getIndicatorById', () => {
     expect(found?.updatedAt.toISOString()).toBe('2030-01-01T00:00:00.000Z');
   });
 
+  repositoryTest('reads the publication date the draft asks for', async ({ db }) => {
+    const created = await newDraft(db, 'Asks for a date');
+    expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+      draftScheduledPublishAt: null,
+    });
+
+    const scheduledPublishAt = new Date('2031-04-01T08:30:00.000Z');
+    await updateIndicatorDraft(db, created.indicatorId, { scheduledPublishAt }, {}, AS_ACTOR);
+
+    expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+      draftScheduledPublishAt: scheduledPublishAt,
+    });
+  });
+
+  repositoryTest("ignores a published version's date when there is no draft", async ({ db }) => {
+    const { indicatorId } = await indicatorWithTwoPublications(db, 'Published with a date');
+    await db
+      .update(schema.indicatorVersion)
+      .set({ scheduledPublishAt: new Date('2030-01-01T09:30:00.000Z') })
+      .where(eq(schema.indicatorVersion.indicatorId, indicatorId));
+
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+      draftStatus: null,
+      draftScheduledPublishAt: null,
+    });
+  });
+
   repositoryTest('returns nothing for an id no indicator has', async ({ db }) => {
     expect(await getIndicatorById(db, '00000000-0000-7000-8000-000000000000')).toBeUndefined();
   });

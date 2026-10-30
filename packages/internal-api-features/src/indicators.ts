@@ -88,6 +88,7 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
     shortId: row.shortId,
     publishedSlug: row.publishedSlug,
     draftSubmissionNumber: row.draftSubmissionNumber,
+    draftScheduledPublishAt: row.draftScheduledPublishAt?.toISOString() ?? null,
     nameVersion: nameVersion(row.name),
     actions: stepsOpenTo(user, row),
   };
