@@ -213,7 +213,10 @@ export async function createTestDb({
     connect,
     connectDb: (options) => createDbFromClient(connect(options)),
     async drop() {
-      await Promise.all(clients.map((client) => client.end()));
+      // Bounded, so a client stuck behind a lock after a failed test cannot hold up the drop,
+      // and a client that fails to end cannot leave the database behind: FORCE ends whatever
+      // sessions remain.
+      await Promise.allSettled(clients.map((client) => client.end({ timeout: 5 })));
       const cleanup = createOwnerClient('postgres');
       try {
         await cleanup.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);

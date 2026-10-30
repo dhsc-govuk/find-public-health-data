@@ -66,16 +66,13 @@ describe('an indicator with only a draft', () => {
       const links = await sql<{ topic_id: string }[]>`
       SELECT topic_id FROM indicator_version_topic WHERE indicator_version_id = ${draft.version_id}
     `;
-      // postgres.js hands a timestamptz back as text here, not as a Date.
-      const [updated] = await sql<{ data_updated_at: string | null }[]>`
+      const [updated] = await sql<{ data_updated_at: Date | null }[]>`
       SELECT data_updated_at FROM indicator WHERE id = ${identity.id}
     `;
 
       expect(summary).toMatchObject({ links: 1, timestamps: 1, unknownIndicators: [] });
       expect(links.map(({ topic_id }) => topic_id)).toEqual([topic.id]);
-      expect(new Date(updated?.data_updated_at ?? '').toISOString()).toBe(
-        '2026-01-02T03:04:05.000Z',
-      );
+      expect(updated?.data_updated_at?.toISOString()).toBe('2026-01-02T03:04:05.000Z');
     },
   );
 });

@@ -143,11 +143,14 @@ describe('upsertOrderedNames', () => {
 
   it('touches updated_at only on a row it rewrites', async () => {
     const { db } = testDb;
-    const before = await sql`SELECT id, updated_at FROM value_type ORDER BY id`;
+    const stamps = () => sql<{ id: string; stamp: number }[]>`
+      SELECT id, extract(epoch FROM updated_at)::float8 AS stamp FROM value_type ORDER BY id
+    `;
+    const before = await stamps();
 
     await upsertOrderedNames(db, valueType, VALUE_TYPES);
-    const after = await sql`SELECT id, updated_at FROM value_type ORDER BY id`;
-    const changed = after.filter((row, index) => row.updated_at > before[index]?.updated_at);
+    const after = await stamps();
+    const changed = after.filter((row, index) => row.stamp > (before[index]?.stamp ?? Infinity));
 
     expect(changed.map(({ id }) => id).sort()).toEqual(
       [VALUE_TYPES[0]?.id, VALUE_TYPES[1]?.id].sort(),

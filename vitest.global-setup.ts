@@ -20,7 +20,14 @@ export default async function setup(): Promise<(() => Promise<void>) | undefined
   );
   const run = newTestRun();
   process.env[TEST_RUN_ENV] = run;
-  await setUpTestTemplate(run);
+  try {
+    await setUpTestTemplate(run);
+  } catch (error) {
+    // Vitest only runs the teardown it is handed, so a failed build (a migration being
+    // written, say) would otherwise leave its templates until the stale sweep a day later.
+    await tearDownTestTemplate(run);
+    throw error;
+  }
   return async () => {
     await tearDownTestTemplate(run);
   };
