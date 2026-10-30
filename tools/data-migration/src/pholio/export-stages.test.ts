@@ -158,6 +158,37 @@ it.each([
   },
 );
 
+it('rejects the published zero-upper-limit defect before writing observations', async () => {
+  sourceObservations([
+    observation({
+      uid: 96485373,
+      LowerCI99_8: 89.88906373930455,
+      UpperCI99_8: 0,
+      Value: 90.85268000427945,
+    }),
+  ]);
+  await expect(exportObservations(observationOptions())).rejects.toThrow(
+    /uid 96485373, indicator 108, 99.8%: inverted/,
+  );
+  expect(await readdir(directory)).toEqual([]);
+});
+it('keeps numeric masking when a source note is recategorised as quality', async () => {
+  sourceObservations([
+    observation({ Value: -1, ValueNoteId: 305, Count: 3, Denominator: 10, Denominator_2: 8 }),
+  ]);
+  const input = observationOptions();
+  input.noteTypeCategory = new Map([[305, 'quality']]);
+  input.countIsNumerator = new Set([108]);
+  await exportObservations(input);
+  expect((await rows('observation'))[0]).toMatchObject({
+    value: DATA_MIGRATION_NULL,
+    count: DATA_MIGRATION_NULL,
+    numerator: DATA_MIGRATION_NULL,
+    denominator: DATA_MIGRATION_NULL,
+    denominator_2: DATA_MIGRATION_NULL,
+  });
+});
+
 it('counts every intentional observation exclusion separately', async () => {
   sourceObservations([
     observation(),

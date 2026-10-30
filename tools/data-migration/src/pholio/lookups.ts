@@ -1,4 +1,5 @@
 import type { PholioExportOptions } from './context.ts';
+import { MASKED_SOURCE_NOTE_IDS } from './note-suppression.ts';
 import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 
@@ -92,6 +93,10 @@ export async function exportLookups(context: PholioExportOptions) {
   await noteTypeWriter.writeAll(
     noteTypeRows.map((r) => {
       const category = noteCategory(r.Text);
+      if (category === 'disclosure' && !MASKED_SOURCE_NOTE_IDS.has(r.ValueNoteID))
+        throw new Error(
+          `Source note ${r.ValueNoteID} requires review of its numeric masking policy`,
+        );
       noteTypeCategory.set(r.ValueNoteID, category);
       return { id: r.ValueNoteID, text: r.Text, category };
     }),

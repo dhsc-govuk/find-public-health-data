@@ -37,8 +37,12 @@ describe('computeCiPair', () => {
   it('value present, normal order → NULLIF each', () => {
     expect(computeCiPair(5.0, 4.0, 6.0)).toEqual({ lower: 4.0, upper: 6.0 });
   });
-  it('value present, inverted (lower > upper): swap', () => {
-    expect(computeCiPair(5.0, 6.0, 4.0)).toEqual({ lower: 4.0, upper: 6.0 });
+  it('rejects inverted limits instead of inventing corrected bounds', () => {
+    expect(() => computeCiPair(5.0, 6.0, 4.0)).toThrow('inverted confidence limits');
+    expect(() => computeCiPair(90.85, 89.89, 0)).toThrow('source correction required');
+  });
+  it('discards limits for a null estimate', () => {
+    expect(computeCiPair(null, 4, 6)).toEqual({ lower: null, upper: null });
   });
   it('value present, lower is sentinel -1: no swap, lower → null', () => {
     expect(computeCiPair(5.0, -1, 6.0)).toEqual({ lower: null, upper: 6.0 });
