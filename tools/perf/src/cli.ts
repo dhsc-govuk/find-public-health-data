@@ -6,6 +6,7 @@ import {
   allowance,
   type Baseline,
   compareToBaseline,
+  overDatabaseBudget,
   percentile,
   serialiseBaseline,
   type Work,
@@ -13,6 +14,7 @@ import {
 import { deleteDataTableDraft } from './fixtures.ts';
 import { connect, measureWork, prepare, request, type Sessions, signIn } from './measure.ts';
 import { ROUTES, type Route, routeKey } from './routes.ts';
+import { describeStatements, type Statement } from './statements.ts';
 
 const baselinePath = path.resolve(import.meta.dirname, '..', 'baseline.json');
 
@@ -22,7 +24,9 @@ const WARM_UP = 3;
 const SAMPLES = 15;
 
 type Timing = { median: number; p95: number };
-type Result = { route: Route; work: Work; timing: Timing };
+type Result = { route: Route; work: Work; statements: Statement[]; timing: Timing };
+/** A route over budget on database work, and the queries behind that work. */
+type Breakdown = { route: string; lines: string[] };
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
@@ -40,8 +44,8 @@ async function main(): Promise<void> {
       for (let i = 0; i < WARM_UP; i++) await request(route, sessions);
       const timing = await time(route, sessions);
       // The timed requests warm each pooled connection before its database work is counted.
-      const work = await measureWork(sql, route, sessions);
-      results.push({ route, work, timing });
+      const { work, statements } = await measureWork(sql, route, sessions);
+      results.push({ route, work, statements, timing });
       console.log(`${routeKey(route)}: ${describe(work)}, median ${timing.median} ms`);
     }
   } finally {
@@ -64,7 +68,16 @@ async function main(): Promise<void> {
         `${routeKey(route)} median ${timing.median} ms, over its ${route.limitMs} ms limit`,
     );
 
-  await writeSummary(results, baseline, failures, slow, notices);
+  const breakdowns = overDatabaseBudget(measured, baseline).map(
+    (key): Breakdown => ({
+      route: key,
+      lines: describeStatements(
+        results.find(({ route }) => routeKey(route) === key)?.statements ?? [],
+      ),
+    }),
+  );
+
+  await writeSummary(results, baseline, failures, slow, notices, breakdowns);
 
   for (const notice of notices) console.log(`note: ${notice}`);
   if (failures.length === 0 && slow.length === 0) {
@@ -73,6 +86,10 @@ async function main(): Promise<void> {
   }
   console.error('\nRoute budgets exceeded:\n');
   for (const failure of [...failures, ...slow]) console.error(`  ${failure}`);
+  for (const { route, lines } of breakdowns) {
+    console.error(`\nStatements behind ${route}:\n`);
+    for (const line of lines) console.error(`  ${line}`);
+  }
   for (const line of advice(failures, slow)) console.error(`\n${line}`);
   process.exitCode = 1;
 }
@@ -125,6 +142,7 @@ async function writeSummary(
   failures: string[],
   slow: string[],
   notices: string[],
+  breakdowns: Breakdown[],
 ): Promise<void> {
   const file = process.env.GITHUB_STEP_SUMMARY;
   if (!file) return;
@@ -149,6 +167,16 @@ async function writeSummary(
       '',
       ...[...failures, ...slow].map((f) => `- ${f}`),
       '',
+      ...breakdowns.flatMap(({ route, lines }) => [
+        `<details><summary>Statements behind <code>${route}</code></summary>`,
+        '',
+        '```',
+        ...lines,
+        '```',
+        '',
+        '</details>',
+        '',
+      ]),
       ...advice(failures, slow).flatMap((line) => [line, '']),
     );
   }
