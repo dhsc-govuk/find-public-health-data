@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { expectHydrated } from '../support/govuk-frontend.ts';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -16,6 +17,13 @@ test('serves the home page and renders core-data topics', async ({ page }) => {
   await page.getByRole('link', { name: 'Browse by topics' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Public health topics' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Cancer', exact: true })).toBeVisible();
+});
+
+test('moves focus to the new page heading when following a link', async ({ page }) => {
+  await expectHydrated(page);
+
+  await page.getByRole('link', { name: 'Browse by topics' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Public health topics' })).toBeFocused();
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {

@@ -180,6 +180,15 @@ test('filtering keeps result links available', async ({ page }) => {
   await expect(results(page).getByRole('link')).toHaveCount(1);
 });
 
+test('keeps focus on a filter control while it updates the results', async ({ page }) => {
+  await ready(page, '/search?t=diabetes');
+  const clear = page.getByRole('link', { name: 'Clear all filters' });
+  await clear.click();
+  await expect(page).toHaveURL('/search');
+  await expect(page.getByRole('heading', { name: '12 indicators', exact: true })).toBeVisible();
+  await expect(clear).toBeFocused();
+});
+
 test('keeps the results live region while searches update its count', async ({ page }) => {
   await ready(page);
   const heading = page.getByRole('heading', { name: '12 indicators', exact: true });

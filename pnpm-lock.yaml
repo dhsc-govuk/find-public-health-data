@@ -105,6 +105,9 @@ catalogs:
     '@playwright/test':
       specifier: 1.62.1
       version: 1.62.1
+    '@react-foundry/router':
+      specifier: 0.7.1
+      version: 0.7.1
     '@react-router/dev':
       specifier: 8.3.0
       version: 8.3.0
@@ -1036,6 +1039,9 @@ importers:
       '@not-govuk/textarea':
         specifier: 'catalog:'
         version: 0.19.5(react@19.3.1)
+      '@react-foundry/router':
+        specifier: 'catalog:'
+        version: 0.7.1(react-router@8.3.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       accessible-autocomplete:
         specifier: 'catalog:'
         version: 3.0.1
