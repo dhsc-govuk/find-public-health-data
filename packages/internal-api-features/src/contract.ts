@@ -1,3 +1,4 @@
+import type { IndicatorAccess } from '@fphd/auth/permissions';
 import { z } from '@fphd/config/zod';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
@@ -129,6 +130,14 @@ export const indicatorAdminSummarySchema = z.object({
   draftReviewers: z.array(draftReviewerSchema),
 });
 
+/** What the permission checks need to know about an indicator, from its row or its detail. */
+export function indicatorAccess({
+  teamId,
+  draftReviewers,
+}: Pick<IndicatorAdminSummary, 'teamId' | 'draftReviewers'>): IndicatorAccess {
+  return { teamId, reviewerIds: draftReviewers.map(({ id }) => id) };
+}
+
 /** Parsed from a query string, so the page arrives as text; absent means the first page. */
 export const indicatorPageQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -179,6 +188,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   publishedSlug: z.string().min(1).nullable(),
   /** The draft's latest submission, which a withdrawal names; null until the first. */
   draftSubmissionNumber: z.number().int().positive().nullable(),
+  /** When the draft asks to be published; null with no draft or no answer yet. */
+  draftScheduledPublishAt: z.iso.datetime().nullable(),
   /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
@@ -422,3 +433,4 @@ export * from './indicator-tagging-contract.ts';
 export * from './indicator-update-frequency-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';
 export * from './indicator-variance-and-quality-contract.ts';
+export * from './notes-for-reviewers-contract.ts';

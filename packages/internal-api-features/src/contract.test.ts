@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   definitionAndRationaleSection,
+  indicatorAccess,
   indicatorCreateErrorSchema,
   indicatorFieldSchema,
   indicatorNameSchema,
@@ -16,6 +17,18 @@ import {
   topicUpdateErrorSchema,
   topicUpdateSchema,
 } from './contract.ts';
+
+describe('indicatorAccess', () => {
+  it('takes the team and the ids of the assigned reviewers', () => {
+    const teamId = '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b';
+    const reviewer = { id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5c', name: 'Jamie Evans' };
+
+    expect(indicatorAccess({ teamId, draftReviewers: [reviewer] })).toEqual({
+      teamId,
+      reviewerIds: [reviewer.id],
+    });
+  });
+});
 
 describe('indicatorNameSchema', () => {
   it('takes the name as typed, without its surrounding spaces', () => {

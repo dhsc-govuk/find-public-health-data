@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { SHOWN_VERSION } from '../testing.ts';
 import type { IndicatorAdminDetail } from './loader.ts';
+import { ANSWERED_NOTES } from './notes-for-reviewers.testing.ts';
 import { IndicatorOverviewPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -23,6 +24,7 @@ const indicator: IndicatorAdminDetail = {
   draftSubmissionStatus: null,
   draftReviewers: [],
   draftSubmissionNumber: null,
+  draftScheduledPublishAt: null,
   nameVersion: SHOWN_VERSION,
   actions: [],
 };
@@ -55,6 +57,26 @@ describe('IndicatorOverviewPage', () => {
       'Indicator status: Live indicator',
       'Publishing status: Update incomplete',
     ]);
+  });
+
+  it('shows the publication date the draft asks for under the statuses, in UK time', () => {
+    renderPage({ draftStatus: 'draft', draftScheduledPublishAt: '2027-04-01T08:30:00.000Z' });
+
+    const line = document.querySelector('p:has(.govuk-tag) + p');
+    expect(line?.textContent).toBe('Scheduled publication date: 1 April 2027 at 9:30am');
+    expect(line?.querySelector('time')?.getAttribute('dateTime')).toBe('2027-04-01T08:30:00.000Z');
+    expect(document.querySelector('h1 ~ p:has(.govuk-tag)')?.className).toBe(
+      'govuk-!-margin-bottom-2',
+    );
+  });
+
+  it('shows no publication date line while none is set', () => {
+    renderPage({ draftStatus: 'draft' });
+
+    expect(screen.queryByText(/Scheduled publication date/)).toBeNull();
+    expect(document.querySelector('h1 ~ p:has(.govuk-tag)')?.className).toBe(
+      'govuk-!-margin-bottom-6',
+    );
   });
 
   it('offers the published page as an action for a published indicator', () => {
@@ -111,6 +133,30 @@ describe('IndicatorOverviewPage', () => {
     });
 
     expect(screen.queryByRole('link', { name: /^Continue/ })).toBeNull();
+  });
+
+  it('offers the notes for reviewers in a tab after the actions to someone who may read them', () => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          indicator={{ ...indicator, draftStatus: 'draft' }}
+          notesForReviewers={ANSWERED_NOTES}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Actions',
+      'Notes for reviewers',
+    ]);
+    expect(screen.getByRole('heading', { level: 2, name: 'Notes for reviewers' })).toBeTruthy();
+  });
+
+  it('offers no notes for reviewers to someone who may not read them', () => {
+    renderPage({ draftStatus: 'draft' });
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Actions']);
   });
 
   it('shows something the publisher needs to know in an important banner', () => {

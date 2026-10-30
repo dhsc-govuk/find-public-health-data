@@ -78,6 +78,19 @@ export function canReviewIndicator(
   return canReviewIndicators(user) && reviewerIds.includes(user.sub);
 }
 
+/**
+ * Whether the user may read what the publisher wrote for the indicator's reviewers. Not every
+ * user who may see the indicator: a publisher in another team may not.
+ */
+export function canSeeNotesForReviewers(user: SessionUser, indicator: IndicatorAccess): boolean {
+  return (
+    holds(user, 'imrg-manager') ||
+    holds(user, 'admin') ||
+    canEditIndicator(user, indicator) ||
+    canReviewIndicator(user, indicator)
+  );
+}
+
 export function canSeeIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
     holds(user, 'admin') ||

@@ -71,6 +71,8 @@ export interface IndicatorAdminDetailRow extends IndicatorAdminRow {
   draftSubmissionNumber: number | null;
   /** The published version's slug, and so its public address; null while none is published. */
   publishedSlug: string | null;
+  /** When the draft asks to be published; null with no draft or no answer yet. */
+  draftScheduledPublishAt: Date | null;
 }
 
 function scopeCondition(scope: IndicatorListScope): SQL | undefined {
@@ -202,6 +204,7 @@ export async function getIndicatorById(
       draftSubmissionStatus,
       draftSubmissionNumber,
       draftReviewers,
+      draftScheduledPublishAt: draftVersion.scheduledPublishAt,
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)

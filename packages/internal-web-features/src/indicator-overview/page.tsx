@@ -1,9 +1,14 @@
-import { A, Button, GridColumn, GridRow, NotificationBanner, Tabs } from '@fphd/ui';
+import { A, Button, formatDate, GridColumn, GridRow, NotificationBanner, Tabs } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 
 import { indicatorTaskListPath, indicatorWithdrawalPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
-import type { IndicatorAdminDetail, OverviewNotification } from './loader.ts';
+import type {
+  IndicatorAdminDetail,
+  NotesForReviewers as Notes,
+  OverviewNotification,
+} from './loader.ts';
+import { NotesForReviewers } from './notes-for-reviewers.tsx';
 import { indicatorAssignReviewersPath } from './paths.ts';
 
 interface ActionsProps {
@@ -13,6 +18,8 @@ interface ActionsProps {
 }
 
 interface OverviewProps extends ActionsProps {
+  /** What the publisher wrote for the reviewers, for those who may read it. */
+  notesForReviewers?: Notes | null;
   /** What the page the publisher came from left to tell them. */
   notification?: OverviewNotification | undefined;
 }
@@ -73,7 +80,38 @@ function Actions({ canEdit, indicator }: ActionsProps) {
   );
 }
 
-export function IndicatorOverviewPage({ canEdit, indicator, notification }: OverviewProps) {
+function ScheduledPublicationDate({ at }: { at: string }) {
+  return (
+    <p className="govuk-body govuk-!-margin-bottom-6">
+      <strong>Scheduled publication date:</strong>{' '}
+      <time dateTime={at}>{formatDate(at, 'longWithTime')}</time>
+    </p>
+  );
+}
+
+export function IndicatorOverviewPage({
+  canEdit,
+  indicator,
+  notesForReviewers = null,
+  notification,
+}: OverviewProps) {
+  const tabs = [
+    {
+      id: 'actions',
+      label: 'Actions',
+      content: <Actions canEdit={canEdit} indicator={indicator} />,
+    },
+    ...(notesForReviewers === null
+      ? []
+      : [
+          {
+            id: 'notes-for-reviewers',
+            label: 'Notes for reviewers',
+            content: <NotesForReviewers notes={notesForReviewers} />,
+          },
+        ]),
+  ];
+
   return (
     <GridRow>
       <GridColumn width="two-thirds">
@@ -85,17 +123,12 @@ export function IndicatorOverviewPage({ canEdit, indicator, notification }: Over
             {notification.text}
           </NotificationBanner>
         )}
-        <IndicatorHeading indicator={indicator} />
-        <Tabs
-          items={[
-            {
-              id: 'actions',
-              label: 'Actions',
-              content: <Actions canEdit={canEdit} indicator={indicator} />,
-            },
-          ]}
-          paramKey="tab"
-        />
+        <IndicatorHeading indicator={indicator}>
+          {indicator.draftScheduledPublishAt === null ? null : (
+            <ScheduledPublicationDate at={indicator.draftScheduledPublishAt} />
+          )}
+        </IndicatorHeading>
+        <Tabs items={tabs} paramKey="tab" />
       </GridColumn>
     </GridRow>
   );
