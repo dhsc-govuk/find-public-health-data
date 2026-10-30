@@ -361,22 +361,6 @@ jobs:
       - name: Scan git history
         run: gitleaks git . --redact --verbose --log-opts=HEAD
 
-  # Drafts only. On every other run build-app-images builds the workspace inside Docker and
-  # artefact-boundary builds the public apps outside it, so this would be a third build. Not in
-  # all-checks-pass's needs: it skips on every run the gate decides, and a draft's gate fails
-  # anyway, since e2e skips.
-  compile:
-    name: Compile apps
-    if: ${{ github.event.pull_request.draft }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-workspace
-      - run: pnpm build
-
   # Distinct from `compile`, which only proves the workspace builds. This proves the artefact that
   # actually ships assembles and starts: `pnpm deploy --prod --legacy` prunes devDependencies, so a
   # module imported at runtime but declared as a devDependency compiles here and is missing there.
@@ -633,12 +617,13 @@ jobs:
         run: pnpm db:bootstrap && pnpm db:migrate && pnpm db:import-core-data && pnpm db:seed-dummy-data
 
       # pg_dump inside the service container, so the client is the server's version. The custom
-      # format is compressed already.
+      # format is compressed already. --statistics keeps the planner statistics the seed's ANALYZE
+      # of the read models wrote, which pg_dump leaves out by default.
       - name: Dump the database
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: >
-          docker exec "${POSTGRES_CONTAINER}" pg_dump --format=custom --username=fphd fphd
+          docker exec "${POSTGRES_CONTAINER}" pg_dump --format=custom --statistics --username=fphd fphd
           > "${RUNNER_TEMP}/seeded-database.dump"
 
       - name: Upload the dump
@@ -659,8 +644,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
-      # Builds the public artefacts itself, so it does not depend on the compile job — keeping the
-      # two jobs parallel, and keeping the check runnable standalone from a clean tree.
+      # Builds the public artefacts itself, so the check runs standalone from a clean tree. The only
+      # workspace build outside Docker; build-app-images builds the whole workspace inside it.
       - run: pnpm check:artefacts
 
   # A schema change without its migration: drizzle-kit, run against a copy of the migrations,

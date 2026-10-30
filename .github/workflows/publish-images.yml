@@ -1,11 +1,11 @@
 name: Publish images
 
 # Called by ci.yml on a push to main once All checks pass has passed, so a commit whose CI fails
-# publishes nothing. It pushes the images that run built, smoke-tested, scanned and ran e2e
-# against, so the deployed bytes are the tested bytes. A called workflow rather than one
-# triggered by workflow_run, which would run against main's latest commit rather than the one CI
-# tested: the infrastructure repo verifies each image's provenance against this file as the
-# signer, refs/heads/main as the ref and the image's commit.
+# publishes nothing. It pushes the images that run built, smoke-tested and scanned, and for the
+# four servers ran e2e against, so the deployed bytes are the tested bytes. A called workflow
+# rather than one triggered by workflow_run, which would run against main's latest commit rather
+# than the one CI tested: the infrastructure repo verifies each image's provenance against this
+# file as the signer, refs/heads/main as the ref and the image's commit.
 on:
   workflow_call:
     secrets:
@@ -105,16 +105,15 @@ jobs:
       # bytes before All checks pass passed.
       #
       # Both tags are labels for humans, not what a deployment should reference: GHCR tags are
-      # mutable. The digest below is the immutable reference.
+      # mutable. The digest below is the immutable reference. `latest` is pushed last, below.
       - name: Push the image
         id: push
         run: |
           # `docker push` reports the manifest the registry stored as `<tag>: digest: sha256:…`.
           # Read it from the push rather than from the local image: it is the registry's own
           # answer to what now exists under this tag. pipefail, from the default shell, fails
-          # the step when the SHA tag's push fails, before `latest` moves.
+          # the step when the push fails, so `latest` never moves.
           push_output=$(docker push "${IMAGE}:${GITHUB_SHA}" | tee /dev/stderr)
-          docker push "${IMAGE}:latest"
 
           digest=$(sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' <<<"${push_output}" | head -1)
           if [ -z "${digest}" ]; then
@@ -135,6 +134,26 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      # After the attestation, so `latest` never names an image the deploy workflows would refuse.
+      # It only moves forward: re-running an older commit's CI on main publishes its SHA tag again
+      # but leaves `latest` on a newer commit. The current revision is read from the label the
+      # infrastructure repo reads; an image without one, or no `latest` yet, is replaced.
+      - name: Move latest forward
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Image}}' \
+            | jq --raw-output '.config.Labels["org.opencontainers.image.revision"] // empty') \
+            || current=''
+          if [ -n "${current}" ] && [ "${current}" != "${GITHUB_SHA}" ]; then
+            status=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${current}...${GITHUB_SHA}" --jq .status)
+            if [ "${status}" != ahead ]; then
+              echo "::notice::latest stays on ${current}: ${GITHUB_SHA} is not ahead of it (${status})"
+              exit 0
+            fi
+          fi
+          docker push "${IMAGE}:latest"
 
       # Deploys are manual for now; the run summary puts the digest where a person can find
       # it without digging through logs.

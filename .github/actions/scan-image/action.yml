@@ -17,8 +17,8 @@ runs:
   using: composite
   steps:
     # The database trivy-db brought up to date for this run, so no scan downloads its own. The
-    # action's own cache is keyed by date, and a copy saved earlier the same day is already out of
-    # date to Trivy, which downloads it again.
+    # action's own cache is keyed by date, and a copy saved earlier the same day can already be out
+    # of date to Trivy, which then downloads it again.
     - name: Restore the vulnerability database
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
