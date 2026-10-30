@@ -37,6 +37,7 @@ describe('loadDashboard', () => {
     expect(get.mock.calls[0]?.[0]).toBe('/api/internal/indicators?page=1');
     expect(outcome).toEqual({
       underReview: null,
+      toReview: null,
       list: { canCreate: true, indicators: [indicator], page: 1, totalPages: 3 },
     });
   });
@@ -64,11 +65,8 @@ describe('loadDashboard', () => {
     expect(outcome.list).toMatchObject({ indicators: [], page: 1, totalPages: 1 });
   });
 
-  it.each([
-    ['an admin', ['admin']],
-    ['an IMRG reviewer', ['imrg-reviewer']],
-  ])('offers %s no create action', async (_who, roles) => {
-    const outcome = await load('https://internal.test/dashboard', apiPage(1, 1), roles, []);
+  it('offers an admin no create action', async () => {
+    const outcome = await load('https://internal.test/dashboard', apiPage(1, 1), ['admin'], []);
 
     expect(outcome.list?.canCreate).toBe(false);
   });
@@ -107,7 +105,7 @@ describe('loadDashboard', () => {
     const outcome = await load('https://internal.test/dashboard', get, ['imrg-manager'], []);
 
     expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-under-review']);
-    expect(outcome).toEqual({ underReview, list: null });
+    expect(outcome).toEqual({ underReview, toReview: null, list: null });
   });
 
   it('responds 404 to a second page for an IMRG manager, whose tables are not paged', async () => {
@@ -140,6 +138,67 @@ describe('loadDashboard', () => {
     ]);
     expect(outcome).toEqual({
       underReview,
+      toReview: null,
+      list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
+    });
+  });
+
+  it('shows an IMRG reviewer the indicators assigned to them and no list', async () => {
+    const get = vi.fn().mockResolvedValue({ indicators: [indicator] });
+
+    const outcome = await load('https://internal.test/dashboard', get, ['imrg-reviewer'], []);
+
+    expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-to-review']);
+    expect(outcome).toEqual({ underReview: null, toReview: [indicator], list: null });
+  });
+
+  it("shows a user who is IMRG manager and reviewer the manager's view alone", async () => {
+    const underReview = { unassigned: [], assigned: [indicator] };
+    const get = vi.fn().mockResolvedValue(underReview);
+
+    const outcome = await load(
+      'https://internal.test/dashboard',
+      get,
+      ['imrg-manager', 'imrg-reviewer'],
+      [],
+    );
+
+    expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-under-review']);
+    expect(outcome).toEqual({ underReview, toReview: null, list: null });
+  });
+
+  it('responds 404 to a second page for an IMRG reviewer, whose list is not paged', async () => {
+    const get = vi.fn();
+
+    await expect(
+      load('https://internal.test/dashboard?page=2', get, ['imrg-reviewer'], []),
+    ).rejects.toSatisfy((error: unknown) => error instanceof Response && error.status === 404);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it("shows an IMRG reviewer who publishes both, with a page of their own teams' indicators", async () => {
+    const get = vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path === '/api/internal/indicators-to-review'
+          ? { indicators: [indicator] }
+          : { indicators: [indicator], page: 2, pageSize: 10, total: 23 },
+      );
+
+    const outcome = await load(
+      'https://internal.test/dashboard?page=2',
+      get,
+      ['publisher', 'imrg-reviewer'],
+      [TEAM_IDS.teamC],
+    );
+
+    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
+      '/api/internal/indicators-to-review',
+      '/api/internal/indicators?page=2&teams=own',
+    ]);
+    expect(outcome).toEqual({
+      underReview: null,
+      toReview: [indicator],
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
     });
   });

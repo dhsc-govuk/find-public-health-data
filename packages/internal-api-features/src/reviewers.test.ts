@@ -3,13 +3,14 @@ import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
 import { type ReviewerOption, reviewerOptionsSchema } from './contract.ts';
-import type { IndicatorTeams } from './indicator-editor.ts';
+import type { IndicatorAdminDetailRow } from './indicator-list-repository.ts';
+import type { InternalIndicatorRepository } from './repositories.ts';
 import { internalReviewersRouter } from './reviewers.ts';
 import {
   createFakeInternalRepositories,
   createRouterTestApp,
   type FakeInternalRepositoryOverrides,
-  inTestTeam,
+  TEST_TEAM_ID,
   testSessionCookie,
   testSessionVerifier,
 } from './testing.ts';
@@ -22,9 +23,24 @@ const reviewers: ReviewerOption[] = [
   { id: '00000000-0000-7000-8000-0000000000a2', name: 'Morgan Hughes', assignedIndicatorCount: 0 },
 ];
 
+const submitted: IndicatorAdminDetailRow = {
+  id: ID,
+  shortId: 90366,
+  name: 'Life expectancy at birth',
+  teamId: TEST_TEAM_ID,
+  publishedSlug: null,
+  updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+  indicatorStatus: 'new',
+  draftStatus: 'draft',
+  draftLocked: true,
+  draftSubmissionStatus: 'submitted',
+  draftSubmissionNumber: 1,
+  draftReviewers: [],
+};
+
 function createTestApp(
   overrides: FakeInternalRepositoryOverrides['reviewers'] = {},
-  indicators: IndicatorTeams = inTestTeam,
+  indicators: Pick<InternalIndicatorRepository, 'findById'> = { findById: async () => submitted },
 ): Express {
   const repositories = createFakeInternalRepositories({ reviewers: overrides });
 
@@ -82,7 +98,7 @@ describe('GET /api/internal/indicators/:id/reviewer-options', () => {
     const listOptions = vi.fn();
 
     const response = await request(
-      createTestApp({ listOptions }, { findTeamId: async () => undefined }),
+      createTestApp({ listOptions }, { findById: async () => undefined }),
     )
       .get(path)
       .set('Cookie', await managerCookie());

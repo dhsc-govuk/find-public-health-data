@@ -78,6 +78,23 @@ describe.each([
     expect(takeStep).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['who publishes for another team', ['internal', 'publisher', 'imrg-reviewer']],
+    ['who does not publish', ['internal', 'imrg-reviewer']],
+  ])('refuses an IMRG reviewer assigned to the indicator, %s', async (_who, roles) => {
+    const takeStep = vi.fn();
+
+    const response = await request(
+      createTestApp({ findTeamId: async () => OTHER_TEAM_ID, [method]: takeStep }),
+    )
+      .post(path)
+      .set('Cookie', await testSessionCookie(roles))
+      .send(body);
+
+    expect(response.status).toBe(403);
+    expect(takeStep).not.toHaveBeenCalled();
+  });
+
   it('rejects an id that is not a UUID without asking the repository', async () => {
     const response = await request(createTestApp())
       .post(`/api/internal/indicators/108/${step}`)

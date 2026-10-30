@@ -15,6 +15,7 @@ import {
   draftLocked,
   draftReviewers,
   draftStatus,
+  draftSubmissionId,
   draftSubmissionNumber,
   draftSubmissionStatus,
   draftSubmittedAt,
@@ -28,7 +29,8 @@ import {
   publishedVersionJoin,
 } from './indicator-repository-sql.ts';
 
-const { appUser, currentPublishedVersion, indicator, team } = schema;
+const { appUser, currentPublishedVersion, indicator, indicatorVersionSubmissionReviewer, team } =
+  schema;
 
 const creator = alias(appUser, 'creator');
 const lastEditor = alias(appUser, 'last_editor');
@@ -156,6 +158,29 @@ export async function listIndicatorsUnderReview(
     unassigned: rows.filter((row) => row.draftSubmissionStatus === 'submitted'),
     assigned: rows.filter((row) => row.draftSubmissionStatus === 'in_review'),
   };
+}
+
+/**
+ * The indicators whose draft's latest submission is in review with `reviewerId` among its
+ * reviewers, oldest submission first, as a queue; the id breaks a tie.
+ */
+export async function listIndicatorsToReview(
+  db: Database,
+  reviewerId: string,
+): Promise<IndicatorAdminListRow[]> {
+  const assignedSubmissionIds = db
+    .select({ id: indicatorVersionSubmissionReviewer.submissionId })
+    .from(indicatorVersionSubmissionReviewer)
+    .where(eq(indicatorVersionSubmissionReviewer.reviewerId, reviewerId));
+
+  return listRowsQuery(db)
+    .where(
+      and(
+        eq(draftSubmissionStatus, 'in_review'),
+        inArray(draftSubmissionId, assignedSubmissionIds),
+      ),
+    )
+    .orderBy(asc(draftSubmittedAt), asc(indicator.id));
 }
 
 /** One indicator by its row id, whatever its status. */

@@ -10,7 +10,7 @@ export interface SessionUser {
 /** What the checks need to know about an indicator. */
 export interface IndicatorAccess {
   readonly teamId: string | null;
-  /** The IMRG reviewers assigned to it. */
+  /** The IMRG reviewers assigned to its draft's latest submission. */
   readonly reviewerIds: readonly string[];
 }
 
@@ -66,11 +66,16 @@ export function canWithdrawSubmission(
   return canSubmitIndicator(user, indicator);
 }
 
+/** Whether the user may be assigned indicators to review; `canReviewIndicator` decides which. */
+export function canReviewIndicators(user: SessionUser): boolean {
+  return holds(user, 'imrg-reviewer');
+}
+
 export function canReviewIndicator(
   user: SessionUser,
   { reviewerIds }: Pick<IndicatorAccess, 'reviewerIds'>,
 ): boolean {
-  return holds(user, 'imrg-reviewer') && reviewerIds.includes(user.sub);
+  return canReviewIndicators(user) && reviewerIds.includes(user.sub);
 }
 
 export function canSeeIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {

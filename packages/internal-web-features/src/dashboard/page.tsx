@@ -3,7 +3,7 @@ import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
 import { CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
-import { UnderReviewTables } from './under-review-tables.tsx';
+import { ReviewTable, UnderReviewTables } from './under-review-tables.tsx';
 
 export interface IndicatorList {
   canCreate: boolean;
@@ -55,39 +55,62 @@ function IndicatorListSection({
   );
 }
 
-function assignTabLabel({ unassigned }: IndicatorsUnderReview): string {
-  return unassigned.length > 0 ? `Assign (${unassigned.length})` : 'Assign';
+function countedLabel(label: string, count: number): string {
+  return count > 0 ? `${label} (${count})` : label;
 }
 
 interface DashboardPageProps {
   underReview: IndicatorsUnderReview | null;
+  toReview: IndicatorAdminListItem[] | null;
   list: IndicatorList | null;
 }
 
 /** The page's h1, which its document title follows; plain "Indicators" without the data. */
 export function dashboardHeading(data?: DashboardPageProps): string {
-  return data !== undefined && data.underReview !== null && data.list === null
+  return data !== undefined &&
+    data.list === null &&
+    (data.underReview !== null || data.toReview !== null)
     ? 'Indicators under review'
     : 'Indicators';
 }
 
+/** The indicators an IMRG manager or reviewer works on as such, with the tab that holds them. */
+function reviewSection({ underReview, toReview }: DashboardPageProps) {
+  if (underReview !== null) {
+    return {
+      id: 'assign',
+      label: countedLabel('Assign', underReview.unassigned.length),
+      content: <UnderReviewTables {...underReview} />,
+    };
+  }
+
+  if (toReview !== null) {
+    return {
+      id: 'review',
+      label: countedLabel('Review', toReview.length),
+      content: <ReviewTable indicators={toReview} />,
+    };
+  }
+
+  return null;
+}
+
 /**
- * The indicators under review for an IMRG manager, a page of indicators for anyone else, and a
- * tab of each for a manager who also publishes.
+ * The indicators under review for an IMRG manager, those assigned to an IMRG reviewer, a page of
+ * indicators for anyone else, and a tab of each for a manager or reviewer who also publishes.
  */
-export function DashboardPage({ underReview, list }: DashboardPageProps) {
-  if (underReview !== null && list !== null) {
+export function DashboardPage(props: DashboardPageProps) {
+  const { list } = props;
+  const review = reviewSection(props);
+
+  if (review !== null && list !== null) {
     return (
       <GridRow>
         <GridColumn width="full">
-          <h1 className="govuk-heading-xl">{dashboardHeading({ underReview, list })}</h1>
+          <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
           <Tabs
             items={[
-              {
-                id: 'assign',
-                label: assignTabLabel(underReview),
-                content: <UnderReviewTables {...underReview} />,
-              },
+              review,
               {
                 id: CREATE_AND_EDIT_TAB,
                 label: 'Create and edit',
@@ -104,8 +127,8 @@ export function DashboardPage({ underReview, list }: DashboardPageProps) {
   return (
     <GridRow>
       <GridColumn width="full">
-        <h1 className="govuk-heading-xl">{dashboardHeading({ underReview, list })}</h1>
-        {underReview !== null ? <UnderReviewTables {...underReview} /> : null}
+        <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
+        {review?.content}
         {list !== null ? <IndicatorListSection {...list} /> : null}
       </GridColumn>
     </GridRow>

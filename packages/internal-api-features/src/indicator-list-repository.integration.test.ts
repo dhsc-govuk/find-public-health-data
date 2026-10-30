@@ -1,13 +1,14 @@
 import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import type { IndicatorListScope } from '@fphd/auth/permissions';
 import { type Database, listIndicatorFacets, schema } from '@fphd/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import {
   getIndicatorById,
   listIndicatorsPage,
+  listIndicatorsToReview,
   listIndicatorsUnderReview,
 } from './indicator-list-repository.ts';
 import { createDraftFromPublished } from './indicator-publish-repository.ts';
@@ -285,24 +286,29 @@ describe('the derived statuses', () => {
   });
 });
 
+const AS_MANAGER = { userId: FAKE_USER_IDS.imrgManager, requestId: null };
+
+async function submitted(db: Database, name: string) {
+  const created = await newDraft(db, name);
+  await submitIndicator(db, created.indicatorId, await completeDraft(db, created), AS_ACTOR);
+  return created.indicatorId;
+}
+
+async function assign(
+  db: Database,
+  indicatorId: string,
+  reviewerIds: string[],
+  submissionNumber = 1,
+) {
+  await assignReviewers(
+    db,
+    indicatorId,
+    { submissionNumber, previousReviewerIds: [], reviewerIds },
+    AS_MANAGER,
+  );
+}
+
 describe('listIndicatorsUnderReview', () => {
-  const AS_MANAGER = { userId: FAKE_USER_IDS.imrgManager, requestId: null };
-
-  async function submitted(db: Database, name: string) {
-    const created = await newDraft(db, name);
-    await submitIndicator(db, created.indicatorId, await completeDraft(db, created), AS_ACTOR);
-    return created.indicatorId;
-  }
-
-  async function assign(db: Database, indicatorId: string, reviewerIds: string[]) {
-    await assignReviewers(
-      db,
-      indicatorId,
-      { submissionNumber: 1, previousReviewerIds: [], reviewerIds },
-      AS_MANAGER,
-    );
-  }
-
   /** The ids each table lists, in its order, from among `ids`. */
   async function tables(db: Database, ids: string[], scope: IndicatorListScope = EVERY_INDICATOR) {
     const { unassigned, assigned } = await listIndicatorsUnderReview(db, scope);
@@ -393,6 +399,111 @@ describe('listIndicatorsUnderReview', () => {
     await expect(listIndicatorsUnderReview(db, { all: false, teamIds: [] })).resolves.toEqual({
       unassigned: [],
       assigned: [],
+    });
+  });
+});
+
+describe('listIndicatorsToReview', () => {
+  const REVIEWER = FAKE_USER_IDS.imrgReviewer;
+  const OTHER_REVIEWER = FAKE_USER_IDS.publisherAndReviewer;
+
+  async function firstSubmissionId(db: Database, indicatorId: string): Promise<string> {
+    const [first] = await db
+      .select({ id: schema.indicatorVersionSubmission.id })
+      .from(schema.indicatorVersionSubmission)
+      .where(
+        and(
+          eq(schema.indicatorVersionSubmission.indicatorId, indicatorId),
+          eq(schema.indicatorVersionSubmission.number, 1),
+        ),
+      );
+    if (!first) throw new Error('the indicator has no submission');
+    return first.id;
+  }
+
+  /** The ids the reviewer's list holds, in its order, from among `ids`. */
+  async function listed(db: Database, ids: string[], reviewerId: string = REVIEWER) {
+    const rows = await listIndicatorsToReview(db, reviewerId);
+    return rows.map((row) => row.id).filter((id) => ids.includes(id));
+  }
+
+  repositoryTest(
+    'lists the drafts in review that the reviewer is assigned, and no others',
+    async ({ db }) => {
+      const mine = await submitted(db, 'In review, assigned to the reviewer');
+      await assign(db, mine, [REVIEWER, OTHER_REVIEWER]);
+      const theirs = await submitted(db, 'In review, assigned to another reviewer');
+      await assign(db, theirs, [OTHER_REVIEWER]);
+      const waiting = await submitted(db, 'Waiting for reviewers, none assigned yet');
+      const withdrawn = await submitted(db, 'Withdrawn before review');
+      await withdrawSubmission(db, withdrawn, 1, AS_ACTOR);
+
+      expect(await listed(db, [mine, theirs, waiting, withdrawn])).toEqual([mine]);
+      expect(await listed(db, [mine, theirs, waiting, withdrawn], OTHER_REVIEWER)).toEqual([
+        mine,
+        theirs,
+      ]);
+    },
+  );
+
+  repositoryTest(
+    'leaves out a draft whose reviewer was assigned to an earlier submission only',
+    async ({ db }) => {
+      const created = await newDraft(db, 'Reviewed once, in review again with someone else');
+      const shown = await completeDraft(db, created);
+      const { indicatorId } = created;
+      await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+      await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
+      // No step assigns reviewers to a withdrawn submission; it stands in for an earlier round.
+      await db.insert(schema.indicatorVersionSubmissionReviewer).values({
+        submissionId: await firstSubmissionId(db, indicatorId),
+        reviewerId: REVIEWER,
+        assignedBy: FAKE_USER_IDS.imrgManager,
+      });
+      await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+      await assign(db, indicatorId, [OTHER_REVIEWER], 2);
+
+      expect(await listed(db, [indicatorId])).toEqual([]);
+      expect(await listed(db, [indicatorId], OTHER_REVIEWER)).toEqual([indicatorId]);
+    },
+  );
+
+  repositoryTest(
+    "leaves out a draft whose latest submission has the reviewer's row but is not in review",
+    async ({ db }) => {
+      const indicatorId = await submitted(db, 'Withdrawn with a reviewer row');
+      await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
+      await db.insert(schema.indicatorVersionSubmissionReviewer).values({
+        submissionId: await firstSubmissionId(db, indicatorId),
+        reviewerId: REVIEWER,
+        assignedBy: FAKE_USER_IDS.imrgManager,
+      });
+
+      expect(await listed(db, [indicatorId])).toEqual([]);
+    },
+  );
+
+  repositoryTest('lists the oldest submission first, with its reviewers', async ({ db }) => {
+    const first = await newDraft(db, 'Created first, submitted second');
+    const second = await newDraft(db, 'Created second, submitted first');
+    const firstShown = await completeDraft(db, first);
+    const secondShown = await completeDraft(db, second);
+    await submitIndicator(db, second.indicatorId, secondShown, AS_ACTOR);
+    await submitIndicator(db, first.indicatorId, firstShown, AS_ACTOR);
+    await assign(db, first.indicatorId, [REVIEWER]);
+    await assign(db, second.indicatorId, [REVIEWER, OTHER_REVIEWER]);
+
+    const rows = await listIndicatorsToReview(db, REVIEWER);
+    const own = rows.filter(({ id }) => [first.indicatorId, second.indicatorId].includes(id));
+
+    expect(own.map(({ id }) => id)).toEqual([second.indicatorId, first.indicatorId]);
+    expect(own[0]).toMatchObject({
+      teamName: 'Team A',
+      draftSubmissionStatus: 'in_review',
+      draftReviewers: [
+        { id: REVIEWER, name: 'Jamie Evans' },
+        { id: OTHER_REVIEWER, name: 'Morgan Hughes' },
+      ],
     });
   });
 });

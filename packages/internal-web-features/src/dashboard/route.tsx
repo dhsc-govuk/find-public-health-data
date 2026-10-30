@@ -10,8 +10,8 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
 ];
 
 export function DashboardRoute() {
-  const { underReview, list } = useLoaderData<typeof loader>();
-  return <DashboardPage underReview={underReview} list={list} />;
+  const { underReview, toReview, list } = useLoaderData<typeof loader>();
+  return <DashboardPage underReview={underReview} toReview={toReview} list={list} />;
 }
 
 export default DashboardRoute;

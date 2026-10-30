@@ -43,9 +43,11 @@ import {
   findIndicatorTeamId,
   getIndicatorById,
   type IndicatorAdminDetailRow,
+  type IndicatorAdminListRow,
   type IndicatorAdminRows,
   type IndicatorsUnderReviewRows,
   listIndicatorsPage,
+  listIndicatorsToReview,
   listIndicatorsUnderReview,
 } from './indicator-list-repository.ts';
 import {
@@ -97,6 +99,8 @@ export interface InternalIndicatorRepository {
   listPage(page: number, pageSize: number, scope: IndicatorListScope): Promise<IndicatorAdminRows>;
   /** The open submissions in scope, waiting for reviewers or in review, oldest first. */
   listUnderReview(scope: IndicatorListScope): Promise<IndicatorsUnderReviewRows>;
+  /** The submissions in review that the reviewer is assigned, oldest first. */
+  listToReview(reviewerId: string): Promise<IndicatorAdminListRow[]>;
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
   /** The indicator's team, null when it has none, or undefined when there is no such indicator. */
   findTeamId(id: string): Promise<string | null | undefined>;
@@ -222,6 +226,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
     indicators: {
       listPage: (page, pageSize, scope) => listIndicatorsPage(db, page, pageSize, scope),
       listUnderReview: (scope) => listIndicatorsUnderReview(db, scope),
+      listToReview: (reviewerId) => listIndicatorsToReview(db, reviewerId),
       findById: (id) => getIndicatorById(db, id),
       findTeamId: (id) => findIndicatorTeamId(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),

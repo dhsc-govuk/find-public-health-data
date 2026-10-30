@@ -1,9 +1,17 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { assignReviewers } from '../support/assign-reviewers.ts';
 import { submitNewIndicator } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
-import { ADMIN, IMRG_MANAGER, PUBLISHER, TEAM_B_PUBLISHER } from '../support/sign-in.ts';
+import {
+  ADMIN,
+  IMRG_MANAGER,
+  IMRG_REVIEWER,
+  PUBLISHER,
+  PUBLISHER_AND_REVIEWER,
+  TEAM_B_PUBLISHER,
+} from '../support/sign-in.ts';
 
 test.use({ storageState: PUBLISHER.storageState });
 
@@ -119,5 +127,91 @@ test.describe('as an IMRG manager', () => {
     await row.getByRole('link', { name }).click();
 
     await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
+  });
+});
+
+test.describe('as an IMRG reviewer', () => {
+  test.use({ storageState: IMRG_REVIEWER.storageState });
+
+  /** The reviewer's row for the indicator named. */
+  function reviewRow(page: Page, name: string) {
+    return page
+      .getByRole('table', { name: 'Indicators to review, oldest submission first' })
+      .getByRole('row')
+      .filter({ hasText: name });
+  }
+
+  test('shows an IMRG reviewer the indicators assigned to them, without tabs', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const name = uniqueIndicatorName('to review');
+    const id = await submitNewIndicator(browser, name);
+    await assignReviewers(browser, id, [IMRG_REVIEWER.name, PUBLISHER_AND_REVIEWER.name]);
+
+    await page.goto('/dashboard');
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Indicators under review' }),
+    ).toBeVisible();
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+    const row = reviewRow(page, name);
+    await expect(row.getByRole('listitem')).toHaveText([
+      IMRG_REVIEWER.name,
+      PUBLISHER_AND_REVIEWER.name,
+    ]);
+    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending approval']);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test('an assigned reviewer opens the indicator overview, with no actions', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const name = uniqueIndicatorName('reviewer overview');
+    const id = await submitNewIndicator(browser, name);
+    await assignReviewers(browser, id, [IMRG_REVIEWER.name]);
+
+    await page.goto('/dashboard');
+    await reviewRow(page, name).getByRole('link', { name }).click();
+
+    await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await expect(
+      page.getByText('There are no actions available for this indicator yet.'),
+    ).toBeVisible();
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test("a reviewer can't open an indicator assigned to someone else", async ({ browser, page }) => {
+    const name = uniqueIndicatorName('not assigned');
+    const id = await submitNewIndicator(browser, name);
+    await assignReviewers(browser, id, [PUBLISHER_AND_REVIEWER.name]);
+
+    await page.goto('/dashboard');
+    await expect(reviewRow(page, name)).toHaveCount(0);
+
+    const response = await page.goto(`/dashboard/indicators/${id}`);
+
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  });
+});
+
+test.describe('as an IMRG reviewer who publishes', () => {
+  test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
+
+  test('offers a Review tab and a Create and edit tab', async ({ page }) => {
+    await expect(page.getByRole('heading', { level: 1, name: 'Indicators' })).toBeVisible();
+    // Other specs assign this reviewer too, so the count is whatever they have left.
+    await expect(page.getByRole('tab')).toHaveText([/^Review( \(\d+\))?$/, 'Create and edit']);
+
+    await page.getByRole('tab', { name: 'Create and edit' }).click();
+
+    await expect(
+      page
+        .getByRole('tabpanel', { name: 'Create and edit' })
+        .getByRole('button', { name: 'Create new indicator' }),
+    ).toBeVisible();
   });
 });
