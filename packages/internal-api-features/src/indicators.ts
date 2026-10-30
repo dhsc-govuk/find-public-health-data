@@ -9,6 +9,7 @@ import {
   canCreateIndicatorInTeam,
   canListIndicators,
   canSeeIndicator,
+  type IndicatorAccess,
   indicatorListScope,
   ownTeamsListScope,
   type SessionUser,
@@ -69,6 +70,11 @@ function toSummary({
     draftSubmissionStatus,
     draftReviewers,
   };
+}
+
+/** What the permission checks need to know about the indicator the row describes. */
+export function indicatorAccess({ teamId, draftReviewers }: IndicatorAdminRow): IndicatorAccess {
+  return { teamId, reviewerIds: draftReviewers.map(({ id }) => id) };
 }
 
 export function toListItem(row: IndicatorAdminListRow): IndicatorAdminListItem {
@@ -311,9 +317,8 @@ export function internalIndicatorsRouter(
     const row = await indicators.findById(id.data);
     const session = requireApiSession(response);
 
-    // An indicator the user may not see answers 404, as if it did not exist. Assigned reviewers
-    // get no access yet.
-    if (!row || !canSeeIndicator(session, { ...row, reviewerIds: [] })) {
+    // An indicator the user may not see answers 404, as if it did not exist.
+    if (!row || !canSeeIndicator(session, indicatorAccess(row))) {
       response.status(404).json({ error: 'not_found' });
       return;
     }

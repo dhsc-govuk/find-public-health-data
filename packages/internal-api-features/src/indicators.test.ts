@@ -45,6 +45,26 @@ const detailRow: IndicatorAdminDetailRow = {
   draftSubmissionNumber: null,
 };
 
+const OTHER_REVIEWER_ID = '00000000-0000-7000-8000-0000000000a1';
+
+/** A submitted draft of another team's indicator, in review with the test user as a reviewer. */
+const assignedToTestUser: IndicatorAdminDetailRow = {
+  ...detailRow,
+  teamId: OTHER_TEAM_ID,
+  publishedSlug: null,
+  indicatorStatus: 'new',
+  draftStatus: 'draft',
+  draftLocked: true,
+  draftSubmissionStatus: 'in_review',
+  draftSubmissionNumber: 1,
+  draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }],
+};
+
+/** An IMRG reviewer who also publishes, for a team other than the indicator's. */
+function reviewerCookie() {
+  return testSessionCookie(['internal', 'publisher', 'imrg-reviewer'], [TEAM_ID]);
+}
+
 // Inside `createApiApp`, whose request logging gives the handlers their `request.log`.
 function createTestApp(
   overrides: FakeInternalRepositoryOverrides['indicators'] = {},
@@ -328,6 +348,31 @@ describe('GET /api/internal/indicators/:id', () => {
       .set('Cookie', await testSessionCookie(roles));
 
     expect(response.status).toBe(200);
+  });
+
+  it("serves an IMRG reviewer another team's indicator assigned to them, offering no step", async () => {
+    const findById = vi.fn().mockResolvedValue(assignedToTestUser);
+
+    const response = await request(createTestApp({ findById }))
+      .get(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await reviewerCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body.actions).toEqual([]);
+  });
+
+  it('answers 404 to an IMRG reviewer for an indicator assigned to someone else', async () => {
+    const findById = vi.fn().mockResolvedValue({
+      ...assignedToTestUser,
+      draftReviewers: [{ id: OTHER_REVIEWER_ID, name: 'Jamie Evans' }],
+    });
+
+    const response = await request(createTestApp({ findById }))
+      .get(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await reviewerCookie());
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
   });
 
   it('answers 404 for an indicator that does not exist', async () => {
@@ -1009,5 +1054,34 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'invalid_id' });
     expect(findDraftState).not.toHaveBeenCalled();
+  });
+});
+
+describe('an IMRG reviewer assigned to an indicator', () => {
+  const findTeamId = async () => OTHER_TEAM_ID;
+  const findById = async () => assignedToTestUser;
+
+  it.each([
+    ['who publishes for another team', reviewerCookie],
+    ['who does not publish', () => testSessionCookie(['internal', 'imrg-reviewer'], [])],
+  ])('may not rename it, %s', async (_who, cookie) => {
+    const updateDraft = vi.fn();
+
+    const response = await request(createTestApp({ findTeamId, findById, updateDraft }))
+      .patch(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await cookie())
+      .send({ name: 'A better name', version: nameVersion });
+
+    expect(response.status).toBe(403);
+    expect(updateDraft).not.toHaveBeenCalled();
+  });
+
+  it('reads its task list as not found', async () => {
+    const response = await request(createTestApp({ findTeamId, findById }))
+      .get(`/api/internal/indicators/${row.id}/task-list`)
+      .set('Cookie', await reviewerCookie());
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
   });
 });

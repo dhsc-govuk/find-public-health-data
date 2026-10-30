@@ -218,7 +218,22 @@ describe('internal API', () => {
 
   it('mounts the reviewer options behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
-      indicators: { findTeamId: async () => TEAM_IDS.teamA },
+      indicators: {
+        findById: async () => ({
+          id: '00000000-0000-7000-8000-000000000001',
+          shortId: 90366,
+          name: 'Life expectancy at birth',
+          teamId: TEAM_IDS.teamA,
+          publishedSlug: null,
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          indicatorStatus: 'new',
+          draftStatus: 'draft',
+          draftLocked: true,
+          draftSubmissionStatus: 'submitted',
+          draftSubmissionNumber: 1,
+          draftReviewers: [],
+        }),
+      },
       reviewers: { listOptions: async () => [] },
     });
     const app = createTestApp(createFakeRepositories(), internalRepositories);

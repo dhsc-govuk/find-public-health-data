@@ -9,6 +9,7 @@ import {
   canManage,
   canMoveIndicatorBetweenTeams,
   canReviewIndicator,
+  canReviewIndicators,
   canSeeIndicator,
   canSeeTeamsAndUsers,
   canSubmitIndicator,
@@ -131,6 +132,13 @@ describe('canReviewIndicator', () => {
 });
 
 describe('the role-wide checks', () => {
+  it('lets an IMRG reviewer, whatever else they hold, be assigned indicators to review', () => {
+    expect(canReviewIndicators(reviewer)).toBe(true);
+    expect(canReviewIndicators(publisherReviewer)).toBe(true);
+    expect(canReviewIndicators(manager)).toBe(false);
+    expect(canReviewIndicators(publisherA)).toBe(false);
+  });
+
   it('lets an IMRG manager assign reviewers', () => {
     expect(canAssignReviewers(manager)).toBe(true);
     expect(canAssignReviewers(admin)).toBe(false);
