@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import type { Work } from './budget.ts';
 import { createDataTableDraft } from './fixtures.ts';
 import { ORIGINS, type Route } from './routes.ts';
+import { type Statement, totalWork } from './statements.ts';
 
 export type Response = { status: number; bytes: number; ms: number };
 
@@ -85,29 +86,34 @@ export async function prepare(sql: postgres.Sql): Promise<void> {
   await sql`create extension if not exists pg_stat_statements`;
 }
 
-/** The database work and response size of one request to the route. */
+/**
+ * The database work and response size of one request to the route, with the statements behind
+ * the work, so a route over budget can show which query cost more.
+ */
 export async function measureWork(
   sql: postgres.Sql,
   route: Route,
   sessions: Sessions,
-): Promise<Work> {
+): Promise<{ work: Work; statements: Statement[] }> {
   await sql`select pg_stat_statements_reset()`;
   const response = await request(route, sessions);
   if (response.status !== 200) {
     throw new Error(`${route.app} ${route.path} answered ${response.status}`);
   }
   // Only the API login roles: this connection's own statements are the owner's and never count.
-  const [counts] = await sql<Omit<Work, 'bytes'>[]>`
+  const statements = await sql<Statement[]>`
     select
-      coalesce(sum(s.calls), 0)::int as statements,
-      coalesce(sum(s.shared_blks_hit + s.shared_blks_read), 0)::int as buffers,
-      coalesce(sum(s.rows), 0)::int as rows
+      r.rolname as role,
+      s.query,
+      sum(s.calls)::int as calls,
+      sum(s.shared_blks_hit + s.shared_blks_read)::int as buffers,
+      sum(s.rows)::int as rows
     from pg_stat_statements s
     join pg_roles r on r.oid = s.userid
     where r.rolname in ('public_api', 'internal_api')
       -- Exclude postgres.js connection type discovery from the warmed route counts.
       and s.query not like '%select b.oid, b.typarray%from pg_catalog.pg_type%'
+    group by r.rolname, s.query
   `;
-  if (counts === undefined) throw new Error('pg_stat_statements returned no row');
-  return { ...counts, bytes: response.bytes };
+  return { work: totalWork(statements, response.bytes), statements: [...statements] };
 }

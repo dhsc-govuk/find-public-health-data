@@ -4,6 +4,7 @@ import {
   acceptRun,
   allowance,
   compareToBaseline,
+  overDatabaseBudget,
   percentile,
   serialiseBaseline,
   type Work,
@@ -67,6 +68,29 @@ describe('compareToBaseline', () => {
       'GET /new has no baseline',
       'GET /old is in the baseline but no longer measured',
     ]);
+  });
+});
+
+describe('overDatabaseBudget', () => {
+  it('names routes over budget on statements, buffers or rows', () => {
+    const baseline = { 'GET /a': work(), 'GET /b': work(), 'GET /c': work(), 'GET /d': work() };
+    const run = {
+      'GET /a': work({ statements: 4 }),
+      'GET /b': work({ buffers: 501 }),
+      'GET /c': work({ rows: 81 }),
+      'GET /d': work(),
+    };
+
+    expect(overDatabaseBudget(run, baseline)).toEqual(['GET /a', 'GET /b', 'GET /c']);
+  });
+
+  it('leaves out a route over budget only on bytes, and one with no baseline', () => {
+    expect(
+      overDatabaseBudget(
+        { 'GET /a': work({ bytes: 23_025 }), 'GET /new': work({ statements: 99 }) },
+        { 'GET /a': work() },
+      ),
+    ).toEqual([]);
   });
 });
 

@@ -74,6 +74,22 @@ export function compareToBaseline(measured: Baseline, baseline: Baseline): Compa
   return { failures, notices };
 }
 
+/** The metrics Postgres counts, as opposed to the response size. */
+const DATABASE_METRICS: (keyof Work)[] = ['statements', 'buffers', 'rows'];
+
+/** Routes over budget on what Postgres counted, whose statements are worth listing. */
+export function overDatabaseBudget(measured: Baseline, baseline: Baseline): string[] {
+  return Object.entries(measured)
+    .filter(([route, work]) => {
+      const expected = baseline[route];
+      return (
+        expected !== undefined &&
+        DATABASE_METRICS.some((metric) => exceeds(metric, work[metric], expected[metric]))
+      );
+    })
+    .map(([route]) => route);
+}
+
 export type Acceptance = {
   baseline: Baseline;
   /** Routes in both whose numbers were taken from the run. */

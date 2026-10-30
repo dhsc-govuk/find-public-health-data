@@ -48,6 +48,11 @@ result set or a page that has grown much heavier. The tolerances are `TOLERANCES
 measured, also fails. A metric well under its baseline passes with a note that the baseline could
 be tightened.
 
+A route over budget on statements, buffers or rows also lists the queries behind its numbers, in
+the log and in the job summary: each distinct query with the role that ran it, its calls, rows and
+buffers, most calls first. A query the route does not normally run, or one called once more than
+usual, shows where the extra work came from.
+
 ## Time limits
 
 Each route is then requested 15 times in sequence. The median fails the route if it exceeds the
