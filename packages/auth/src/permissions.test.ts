@@ -11,6 +11,7 @@ import {
   canReviewIndicator,
   canReviewIndicators,
   canSeeIndicator,
+  canSeeNotesForReviewers,
   canSeeTeamsAndUsers,
   canSubmitIndicator,
   canWithdrawSubmission,
@@ -128,6 +129,24 @@ describe('canReviewIndicator', () => {
     expect(canReviewIndicator(reviewer, assigned)).toBe(true);
     expect(canReviewIndicator(reviewer, inTeamA)).toBe(false);
     expect(canReviewIndicator(manager, assigned)).toBe(false);
+  });
+});
+
+describe('canSeeNotesForReviewers', () => {
+  // A publisher in team B who is also assigned to review a team B indicator.
+  const assignedInOwnTeam: IndicatorAccess = { teamId: teamB, reviewerIds: ['publisher-reviewer'] };
+
+  it.each([
+    ['an IMRG manager', manager, inTeamA, true],
+    ['an admin', admin, inTeamA, true],
+    ['a publisher in its team', publisherA, inTeamA, true],
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['a reviewer assigned in their own team', publisherReviewer, assignedInOwnTeam, true],
+    ['a publisher in another team', publisherA, inTeamB, false],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+    ['a reviewer who publishes in another team, unassigned', publisherReviewer, inTeamA, false],
+  ])('answers %s with %s', (_who, asking, indicator, expected) => {
+    expect(canSeeNotesForReviewers(asking, indicator)).toBe(expected);
   });
 });
 

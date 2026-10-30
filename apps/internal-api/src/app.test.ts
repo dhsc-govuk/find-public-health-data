@@ -251,6 +251,37 @@ describe('internal API', () => {
     expect(asPublisher.status).toBe(403);
   });
 
+  it('mounts the notes for reviewers', async () => {
+    const id = '00000000-0000-7000-8000-000000000001';
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findById: async () => ({
+          id,
+          shortId: 90366,
+          name: 'Life expectancy at birth',
+          teamId: TEAM_IDS.teamA,
+          publishedSlug: null,
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          indicatorStatus: 'new',
+          draftStatus: 'draft',
+          draftLocked: false,
+          draftSubmissionStatus: 'withdrawn',
+          draftSubmissionNumber: 1,
+          draftReviewers: [],
+          draftScheduledPublishAt: null,
+        }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = `/api/internal/indicators/${id}/notes-for-reviewers`;
+
+    const asManager = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+    // Only the route answers not_submitted; the fallback would answer not_found.
+    expect(asManager.body).toEqual({ error: 'not_submitted' });
+  });
+
   it('mounts the indicators under review behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: { listUnderReview: async () => ({ unassigned: [], assigned: [] }) },
