@@ -43,6 +43,7 @@ const detailRow: IndicatorAdminDetailRow = {
   shortId: 90366,
   publishedSlug: 'life-expectancy-at-birth',
   draftSubmissionNumber: null,
+  draftScheduledPublishAt: null,
 };
 
 const OTHER_REVIEWER_ID = '00000000-0000-7000-8000-0000000000a1';
@@ -239,9 +240,25 @@ describe('GET /api/internal/indicators/:id', () => {
       draftSubmissionStatus: null,
       draftReviewers: [],
       draftSubmissionNumber: null,
+      draftScheduledPublishAt: null,
       nameVersion,
       actions: [],
     });
+  });
+
+  it('serves the publication date the draft asks for', async () => {
+    const findById = vi.fn().mockResolvedValue({
+      ...detailRow,
+      draftStatus: 'draft',
+      draftScheduledPublishAt: new Date('2027-04-01T08:30:00.000Z'),
+    });
+
+    const response = await request(createTestApp({ findById }))
+      .get(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await publisherCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body.draftScheduledPublishAt).toBe('2027-04-01T08:30:00.000Z');
   });
 
   it("serves the reviewers of the draft's latest submission", async () => {
@@ -408,6 +425,7 @@ describe('POST /api/internal/indicators', () => {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionNumber: null,
+    draftScheduledPublishAt: null,
   };
 
   it('rejects an anonymous request', async () => {
@@ -514,6 +532,7 @@ describe('POST /api/internal/indicators', () => {
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
+      draftScheduledPublishAt: null,
       nameVersion,
       actions: ['submit'],
     });
@@ -613,6 +632,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionNumber: null,
+    draftScheduledPublishAt: null,
   };
   const path = `/api/internal/indicators/${row.id}`;
 
@@ -665,6 +685,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
+      draftScheduledPublishAt: null,
       nameVersion: editVersion({ name: 'A better name' }),
       actions: ['submit'],
     });

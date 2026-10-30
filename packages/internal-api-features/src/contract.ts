@@ -188,6 +188,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   publishedSlug: z.string().min(1).nullable(),
   /** The draft's latest submission, which a withdrawal names; null until the first. */
   draftSubmissionNumber: z.number().int().positive().nullable(),
+  /** When the draft asks to be published; null with no draft or no answer yet. */
+  draftScheduledPublishAt: z.iso.datetime().nullable(),
   /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
