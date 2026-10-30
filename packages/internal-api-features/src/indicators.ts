@@ -9,7 +9,6 @@ import {
   canCreateIndicatorInTeam,
   canListIndicators,
   canSeeIndicator,
-  type IndicatorAccess,
   indicatorListScope,
   ownTeamsListScope,
   type SessionUser,
@@ -23,6 +22,7 @@ import {
   type IndicatorAdminPage,
   type IndicatorAdminSummary,
   type IndicatorTaskList,
+  indicatorAccess,
   indicatorFieldSchema,
   indicatorIdSchema,
   indicatorListTeamsQuerySchema,
@@ -70,11 +70,6 @@ function toSummary({
     draftSubmissionStatus,
     draftReviewers,
   };
-}
-
-/** What the permission checks need to know about the indicator the row describes. */
-export function indicatorAccess({ teamId, draftReviewers }: IndicatorAdminRow): IndicatorAccess {
-  return { teamId, reviewerIds: draftReviewers.map(({ id }) => id) };
 }
 
 export function toListItem(row: IndicatorAdminListRow): IndicatorAdminListItem {
