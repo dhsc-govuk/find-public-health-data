@@ -47,7 +47,7 @@ export async function listIndicatorAreas(
     )
     .where(
       and(
-        scope === 'all-data' ? undefined : isNull(area.validTo),
+        scope === 'all-data' ? undefined : eq(area.isCurrent, true),
         scope === 'all-data' ? undefined : isNotNull(areaType.displayGroup),
         displayGroup ? eq(areaType.displayGroup, displayGroup) : undefined,
         escaped ? or(ilike(area.name, `%${escaped}%`), ilike(area.code, escaped)) : undefined,
@@ -100,7 +100,7 @@ export async function listAreasByGroup(
     .select({ code: area.code, name: area.name })
     .from(area)
     .innerJoin(areaType, eq(area.areaTypeId, areaType.id))
-    .where(and(eq(areaType.displayGroup, displayGroup), isNull(area.validTo)))
+    .where(and(eq(areaType.displayGroup, displayGroup), eq(area.isCurrent, true)))
     .orderBy(asc(area.name), asc(area.code));
   return limit === undefined ? query : query.limit(limit);
 }
@@ -123,7 +123,7 @@ export async function listAreasByGroups(
     })
     .from(area)
     .innerJoin(areaType, eq(area.areaTypeId, areaType.id))
-    .where(and(inArray(areaType.displayGroup, displayGroups), isNull(area.validTo)))
+    .where(and(inArray(areaType.displayGroup, displayGroups), eq(area.isCurrent, true)))
     .as('ranked_areas');
   const rows = await db
     .select({ displayGroup: ranked.displayGroup, code: ranked.code, name: ranked.name })
@@ -143,13 +143,13 @@ export interface AreaParent {
   parentName: string;
 }
 
-/** Current areas (open validity window) of one area type, ordered by name. */
+/** Current areas of one area type, ordered by name. */
 export async function listAreasByType(db: Database, areaTypeName: string): Promise<AreaSummary[]> {
   return db
     .select({ code: area.code, name: area.name })
     .from(area)
     .innerJoin(areaType, eq(area.areaTypeId, areaType.id))
-    .where(and(eq(areaType.name, areaTypeName), isNull(area.validTo)))
+    .where(and(eq(areaType.name, areaTypeName), eq(area.isCurrent, true)))
     .orderBy(asc(area.name));
 }
 
@@ -174,7 +174,7 @@ export async function listAreasByCodes(db: Database, codes: string[]): Promise<A
     })
     .from(area)
     .innerJoin(areaType, eq(area.areaTypeId, areaType.id))
-    .where(and(inArray(area.code, codes), isNull(area.validTo)))
+    .where(and(inArray(area.code, codes), eq(area.isCurrent, true)))
     .orderBy(asc(area.name));
 }
 
@@ -195,7 +195,10 @@ export async function searchAreas(
     .from(area)
     .innerJoin(areaType, and(eq(area.areaTypeId, areaType.id), isNotNull(areaType.displayGroup)))
     .where(
-      and(isNull(area.validTo), or(ilike(area.name, `%${escaped}%`), ilike(area.code, escaped))),
+      and(
+        eq(area.isCurrent, true),
+        or(ilike(area.name, `%${escaped}%`), ilike(area.code, escaped)),
+      ),
     )
     .orderBy(sql`position(lower(${query}) in lower(${area.name}))`, asc(area.name))
     .limit(limit);
@@ -218,6 +221,8 @@ export async function listAreaParents(
     .innerJoin(area, and(eq(areaRelationship.childAreaId, area.id), inArray(area.code, childCodes)))
     .innerJoin(parent, eq(areaRelationship.parentAreaId, parent.id))
     .innerJoin(areaType, and(eq(parent.areaTypeId, areaType.id), eq(areaType.name, parentTypeName)))
-    .where(isNull(areaRelationship.validTo))
+    .where(
+      and(isNull(areaRelationship.validTo), eq(area.isCurrent, true), eq(parent.isCurrent, true)),
+    )
     .orderBy(asc(area.code));
 }

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, date, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, date, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { literals, uuidPrimaryKey } from './helpers.ts';
 
@@ -36,8 +36,9 @@ export const area = pgTable(
     areaTypeId: uuid()
       .notNull()
       .references(() => areaType.id),
-    validFrom: date().notNull(),
+    validFrom: date(),
     validTo: date(),
+    isCurrent: boolean().notNull().default(true),
   },
   (t) => [
     check('area_validity_order_check', sql`${t.validTo} IS NULL OR ${t.validFrom} <= ${t.validTo}`),
@@ -58,7 +59,7 @@ export const areaRelationship = pgTable(
     childAreaId: uuid()
       .notNull()
       .references(() => area.id),
-    validFrom: date().notNull(),
+    validFrom: date(),
     validTo: date(),
   },
   (t) => [

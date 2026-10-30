@@ -62,7 +62,15 @@ async function snapshot(
     ],
     area_type: [{ id: 1, name: 'LA unchanged', hierarchy_type: 'Administrative', level: 1 }],
     area: [
-      { id: 1, code: 'E92000001', name: 'England', area_type_id: 1, valid_from: '2010-01-01' },
+      {
+        id: 1,
+        code: 'E92000001',
+        name: 'England',
+        area_type_id: 1,
+        valid_from: null,
+        valid_to: null,
+        is_current: true,
+      },
     ],
     indicator: [{ id: 108, created_at: enteredAt, data_updated_at: dataUpdatedAt }],
     indicator_version: [
@@ -193,6 +201,9 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
     { id: 4, from_date: '2026-01-01', to_date: '2026-12-31', value: 11 },
   ]);
   await apply(first);
+  expect(await sql`SELECT valid_from, valid_to, is_current FROM published.area`).toEqual([
+    { valid_from: null, valid_to: null, is_current: true },
+  ]);
   const [version] = await sql<{ batch: string; confirmed: boolean; owner: string }[]>`
     SELECT v.upload_batch_id AS batch, v.data_table_confirmed_at IS NOT NULL AS confirmed,
       b.indicator_version_id AS owner

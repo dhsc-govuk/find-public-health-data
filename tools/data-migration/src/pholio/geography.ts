@@ -24,20 +24,6 @@ export function areaTypeHierarchyType(areaTypeClass: string | null, areaTypeId: 
   return 'Administrative';
 }
 
-export function stripLeadingN(code: string): string {
-  return code.startsWith('n') || code.startsWith('N') ? code.slice(1) : code;
-}
-
-export function preferredAreaOrder<T extends { AreaCode: string }>(rows: readonly T[]): T[] {
-  return [...rows].sort((a, b) => {
-    const prefixed =
-      Number(stripLeadingN(a.AreaCode) !== a.AreaCode) -
-      Number(stripLeadingN(b.AreaCode) !== b.AreaCode);
-    if (prefixed !== 0) return prefixed;
-    return a.AreaCode < b.AreaCode ? -1 : a.AreaCode > b.AreaCode ? 1 : 0;
-  });
-}
-
 /** Exports area_type, area and area_relationship from Pholio. */
 export async function exportGeography(context: PholioExportOptions) {
   const { pool, outDir } = context;
@@ -83,9 +69,6 @@ export async function exportGeography(context: PholioExportOptions) {
     IsCurrent: boolean;
   }>(pool, 'SELECT AreaCode, AreaName, AreaTypeID, IsCurrent FROM L_Areas');
 
-  const emitted = new Map<string, number>();
-  const areaRowsSorted = preferredAreaOrder(areaRows);
-
   // id collision detection for areaId (SHA-based hash)
   const idToCode = new Map<number, string>();
 
@@ -94,23 +77,13 @@ export async function exportGeography(context: PholioExportOptions) {
     code: string;
     name: string;
     area_type_id: number;
-    valid_from: string;
-    valid_to: string | null;
+    valid_from: null;
+    valid_to: null;
+    is_current: boolean;
   }> = [];
 
-  for (const r of areaRowsSorted) {
-    const stripped = stripLeadingN(r.AreaCode);
-    const validTo = r.IsCurrent ? null : '2024-12-31';
-    const key = `${stripped}\u0000${r.AreaTypeID}\u0000${validTo ?? ''}`;
-
-    const survivor = emitted.get(key);
-    if (survivor !== undefined) {
-      areaIdByPholioCode.set(r.AreaCode, survivor);
-      continue;
-    }
-
+  for (const r of areaRows) {
     const id = areaId(r.AreaCode);
-    emitted.set(key, id);
     const existing = idToCode.get(id);
     if (existing !== undefined && existing !== r.AreaCode) {
       throw new Error(
@@ -124,11 +97,12 @@ export async function exportGeography(context: PholioExportOptions) {
 
     areaExportRows.push({
       id,
-      code: stripped,
+      code: r.AreaCode,
       name: r.AreaName ?? r.AreaCode,
       area_type_id: r.AreaTypeID,
-      valid_from: '2000-01-01',
-      valid_to: validTo,
+      valid_from: null,
+      valid_to: null,
+      is_current: r.IsCurrent,
     });
   }
 
@@ -145,7 +119,7 @@ export async function exportGeography(context: PholioExportOptions) {
     id: number;
     parent_area_id: number;
     child_area_id: number;
-    valid_from: string;
+    valid_from: null;
     valid_to: null;
   }> = [];
   const seenRels = new Set<string>();
@@ -177,7 +151,7 @@ export async function exportGeography(context: PholioExportOptions) {
       id,
       parent_area_id: parentId,
       child_area_id: childId,
-      valid_from: '2000-01-01',
+      valid_from: null,
       valid_to: null,
     });
   }

@@ -1,30 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  areaTypeHierarchyType,
-  areaTypeName,
-  normalizeAreaTypeName,
-  preferredAreaOrder,
-  stripLeadingN,
-} from './geography.ts';
-
-describe('stripLeadingN', () => {
-  it('strips a leading lowercase n', () => {
-    expect(stripLeadingN('nSTP_1')).toBe('STP_1');
-    expect(stripLeadingN('nE12000001')).toBe('E12000001');
-  });
-
-  it('strips a leading uppercase N (MSSQL LIKE is case-insensitive)', () => {
-    expect(stripLeadingN('N84027')).toBe('84027');
-    expect(stripLeadingN('N81001')).toBe('81001');
-  });
-
-  it('leaves codes not starting with n or N unchanged', () => {
-    expect(stripLeadingN('E12000001')).toBe('E12000001');
-    expect(stripLeadingN('A81001')).toBe('A81001');
-    expect(stripLeadingN('')).toBe('');
-  });
-});
+import { areaTypeHierarchyType, areaTypeName, normalizeAreaTypeName } from './geography.ts';
 
 describe('areaTypeName', () => {
   it('appends [id] suffix for duplicate names', () => {
@@ -68,14 +44,5 @@ describe('normalizeAreaTypeName', () => {
 
   it('makes trailing-space variant collide with canonical name', () => {
     expect(normalizeAreaTypeName('Counties & UAs')).toBe(normalizeAreaTypeName('Counties & UAs '));
-  });
-});
-
-describe('preferredAreaOrder', () => {
-  it('prefers the original Scottish and Welsh codes regardless of scan order', () => {
-    const rows = ['nW1', 'nS1', 'W1', 'S1'].map((AreaCode) => ({ AreaCode }));
-    const expected = ['S1', 'W1', 'nS1', 'nW1'];
-    expect(preferredAreaOrder(rows).map((row) => row.AreaCode)).toEqual(expected);
-    expect(preferredAreaOrder([...rows].reverse()).map((row) => row.AreaCode)).toEqual(expected);
   });
 });
