@@ -1,20 +1,13 @@
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
+import { schema } from '@fphd/db';
+import { createTestDb } from '@fphd/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 
-// config.ts parses the environment at import, so the repo .env must load first and
-// POSTGRES_DB must point at this file's own database before db.js is imported.
-const envFile = fileURLToPath(new URL('../../../.env', import.meta.url));
-if (existsSync(envFile)) {
-  process.loadEnvFile(envFile);
-}
-const { createTestDatabase } = await import('@fphd/db/testing');
-const testDb = await createTestDatabase({ template: 'seeded' });
+// config.ts parses the environment at import, so POSTGRES_DB must point at this file's own
+// database before db.ts is imported. The global setup has already loaded the repo .env.
+const testDb = await createTestDb({ template: 'seeded' });
 process.env.POSTGRES_DB = testDb.name;
 
 const { db } = await import('./db.ts');
-const { schema } = await import('@fphd/db');
 
 afterAll(async () => {
   await testDb.drop();

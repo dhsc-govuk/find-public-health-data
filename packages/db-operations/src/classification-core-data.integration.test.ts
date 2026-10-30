@@ -1,13 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { createDbFromClient, schema } from '@fphd/db';
-import {
-  auditEntriesFor,
-  createOwnerClient,
-  createTestDatabase,
-  type TestDatabase,
-} from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -22,16 +17,15 @@ const committed = parseClassificationsFile(
 );
 
 describe('the committed core data and seed', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'seeded' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'seeded' });
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
@@ -63,7 +57,7 @@ describe('the committed core data and seed', () => {
 });
 
 describe('upsertClassifications', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   const outcome: schema.ClassificationRecord = {
@@ -74,17 +68,16 @@ describe('upsertClassifications', () => {
   };
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
   it('matches on id, rewriting a renamed or re-slugged row in place, and reports strays', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const [stray] = await sql<{ id: string }[]>`
       INSERT INTO classification (dimension, slug, name)
       VALUES ('population', 'population-no-file-lists', 'A population no file lists')

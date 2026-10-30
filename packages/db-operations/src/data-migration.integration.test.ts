@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -30,7 +30,7 @@ const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 const MIGRATED = SYSTEM_USER_IDS.pholioMigration;
 const PUBLISHER = SYSTEM_USER_IDS.testSeed;
 
-let database: TestDatabase;
+let database: TestDb;
 let sql: postgres.Sql;
 let directory: string;
 let topicId: string;
@@ -38,14 +38,14 @@ let frameworkId: string;
 let lifeStageId: string;
 
 beforeAll(async () => {
-  database = await createTestDatabase();
-  const core = createOwnerClient(database.name);
+  database = await createTestDb();
+  const core = database.connect({ max: 1 });
   try {
     await importCoreData(core);
   } finally {
     await core.end();
   }
-  sql = createOwnerClient(database.name);
+  sql = database.sql;
   const [topic] = await sql<{ id: string }[]>`SELECT id FROM topic LIMIT 1`;
   const [framework] = await sql<
     { id: string }[]
@@ -72,7 +72,6 @@ afterEach(async () => {
   await rm(directory, { recursive: true });
 });
 afterAll(async () => {
-  await sql.end();
   await database.drop();
 });
 
@@ -563,8 +562,8 @@ describe('applyDataMigration', () => {
   });
   it('waits for concurrent publisher identities and never reissues their IDs', async () => {
     await baseline();
-    const publisher = createOwnerClient(database.name);
-    const observer = createOwnerClient(database.name);
+    const publisher = database.connect({ max: 1 });
+    const observer = database.connect({ max: 1 });
     let release!: () => void;
     let ready!: () => void;
     const acquired = new Promise<void>((resolve) => {
@@ -609,8 +608,8 @@ describe('applyDataMigration', () => {
     async (table) => {
       await baseline();
       const fixture = await migrationFixture(sql, directory, topicId);
-      const publisher = createOwnerClient(database.name);
-      const observer = createOwnerClient(database.name);
+      const publisher = database.connect({ max: 1 });
+      const observer = database.connect({ max: 1 });
       const [otherTopic] = await sql<
         { id: string }[]
       >`SELECT id FROM topic WHERE id <> ${topicId} LIMIT 1`;
@@ -682,8 +681,8 @@ describe('applyDataMigration', () => {
   );
   it('checks publisher version changes committed while the migration waits', async () => {
     await baseline();
-    const publisher = createOwnerClient(database.name);
-    const observer = createOwnerClient(database.name);
+    const publisher = database.connect({ max: 1 });
+    const observer = database.connect({ max: 1 });
     let release!: () => void;
     let ready!: () => void;
     const acquired = new Promise<void>((resolve) => {

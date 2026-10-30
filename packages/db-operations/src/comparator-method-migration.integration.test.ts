@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -32,9 +32,9 @@ const UNNAMED = { id: '019de000-0000-7000-8000-000000000003', name: 'Tertiles' }
 async function withSnapshotRows(
   rows: { id: string; name: string }[],
   versionComparatorId: string,
-): Promise<[TestDatabase, postgres.Sql]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+): Promise<[TestDb, postgres.Sql]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   await sql`INSERT INTO comparator_method ${sql(rows)}`;
@@ -51,7 +51,7 @@ async function withSnapshotRows(
 }
 
 describe(`migration ${MIGRATION} over a snapshot's comparator methods`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -60,7 +60,6 @@ describe(`migration ${MIGRATION} over a snapshot's comparator methods`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -81,7 +80,7 @@ describe(`migration ${MIGRATION} over a snapshot's comparator methods`, () => {
 });
 
 describe(`migration ${MIGRATION} followed by import-core-data`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -90,7 +89,6 @@ describe(`migration ${MIGRATION} followed by import-core-data`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -106,7 +104,7 @@ describe(`migration ${MIGRATION} followed by import-core-data`, () => {
 });
 
 describe(`migration ${MIGRATION} over a version naming a comparator method the core data lacks`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -114,7 +112,6 @@ describe(`migration ${MIGRATION} over a version naming a comparator method the c
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

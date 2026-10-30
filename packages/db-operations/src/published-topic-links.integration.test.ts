@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { createDbFromClient, schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseIndicatorTopicFile } from './indicator-topic-file.ts';
@@ -12,16 +13,15 @@ const { SYSTEM_USER_IDS } = schema;
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
 
-let database: TestDatabase;
-let sql: ReturnType<typeof createOwnerClient>;
+let database: TestDb;
+let sql: postgres.Sql;
 
 beforeAll(async () => {
-  database = await createTestDatabase({ template: 'seeded' });
-  sql = createOwnerClient(database.name);
+  database = await createTestDb({ template: 'seeded' });
+  sql = database.sql;
 });
 
 afterAll(async () => {
-  await sql.end();
   await database.drop();
 });
 
@@ -29,7 +29,7 @@ describe('published workbook topic links', () => {
   it('applies explicit memberships to imported Fingertips indicators', async () => {
     const path = fileURLToPath(new URL('../data/published-indicator-topics.json', import.meta.url));
     const file = parseIndicatorTopicFile(JSON.parse(readFileSync(path, 'utf-8')));
-    const summary = await applyIndicatorTopics(createDbFromClient(sql), file);
+    const summary = await applyIndicatorTopics(database.db, file);
     const [row] = await sql<
       { count: number }[]
     >`SELECT count(*)::int AS count FROM indicator_version_topic`;
@@ -57,7 +57,7 @@ describe('an indicator with only a draft', () => {
       if (!topic || !identity || !draft) throw new Error('the fixture was not written');
 
       const summary = await applyIndicatorTopics(
-        createDbFromClient(sql),
+        database.db,
         parseIndicatorTopicFile({
           indicatorTopics: [{ topicId: topic.id, fingertipsId: identity.short_id }],
           indicatorDataUpdatedAt: { [identity.short_id]: timestamp },
@@ -66,16 +66,13 @@ describe('an indicator with only a draft', () => {
       const links = await sql<{ topic_id: string }[]>`
       SELECT topic_id FROM indicator_version_topic WHERE indicator_version_id = ${draft.version_id}
     `;
-      // postgres.js hands a timestamptz back as text here, not as a Date.
-      const [updated] = await sql<{ data_updated_at: string | null }[]>`
+      const [updated] = await sql<{ data_updated_at: Date | null }[]>`
       SELECT data_updated_at FROM indicator WHERE id = ${identity.id}
     `;
 
       expect(summary).toMatchObject({ links: 1, timestamps: 1, unknownIndicators: [] });
       expect(links.map(({ topic_id }) => topic_id)).toEqual([topic.id]);
-      expect(new Date(updated?.data_updated_at ?? '').toISOString()).toBe(
-        '2026-01-02T03:04:05.000Z',
-      );
+      expect(updated?.data_updated_at?.toISOString()).toBe('2026-01-02T03:04:05.000Z');
     },
   );
 });

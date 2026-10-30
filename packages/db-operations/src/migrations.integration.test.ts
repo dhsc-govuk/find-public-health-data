@@ -1,8 +1,6 @@
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createPostgresClient, dbEnvFields, resolveDbTls } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { readAppliedMigrations, readLocalMigrations } from './migration-status.ts';
 import { migrateToLatest } from './migrations.ts';
@@ -11,34 +9,18 @@ import { migrateToLatest } from './migrations.ts';
 // and fails, rather than passing while asserting nothing.
 const MIGRATION_LOCK_KEY = 0x6d696772;
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
-
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
-let pool: postgres.Sql | undefined;
 
 // A database per test: two of these deliberately corrupt the migration bookkeeping, and a
 // shared one would leave the rest asserting against wreckage.
 beforeEach(async () => {
-  testDb = await createTestDatabase();
-  sql = createOwnerClient(testDb.name);
+  testDb = await createTestDb();
+  sql = testDb.sql;
 
   return async () => {
-    await sql.end();
     await testDb.drop();
   };
-});
-
-afterAll(async () => {
-  await pool?.end();
 });
 
 async function advisoryLockWaiters(sql: postgres.Sql): Promise<number> {
@@ -51,18 +33,7 @@ async function advisoryLockWaiters(sql: postgres.Sql): Promise<number> {
 }
 
 function poolOf(size: number): postgres.Sql {
-  pool = createPostgresClient(
-    {
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      database: testDb.name,
-      user: env.POSTGRES_USER,
-      password: env.POSTGRES_PASSWORD,
-      ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-    },
-    { max: size, onnotice: () => {} },
-  );
-  return pool;
+  return testDb.connect({ max: size });
 }
 
 describe('migrateToLatest', () => {
@@ -98,7 +69,7 @@ describe('migrateToLatest', () => {
   });
 
   it('waits for a migration already in progress rather than racing it', async () => {
-    const holder = createOwnerClient(testDb.name);
+    const holder = testDb.connect({ max: 1 });
     await holder`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
 
     let settled = false;

@@ -1,6 +1,6 @@
 import { and, eq, inArray, min } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { createDbFromClient, type Database } from './client.ts';
+import type { Database } from './client.ts';
 import {
   getIndicatorObservationsForAreas,
   type IndicatorSearchFilters,
@@ -22,11 +22,10 @@ import {
   publishedTopic,
   uploadBatch,
 } from './schema/index.ts';
-import { createOwnerClient } from './scripts/owner-client.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 import { listTopicSubtopics } from './topic-repository.ts';
 
-let database: TestDatabase;
+let database: TestDb;
 let db: Database;
 const filters = (overrides: Partial<IndicatorSearchFilters> = {}): IndicatorSearchFilters => ({
   query: '',
@@ -48,11 +47,10 @@ const filters = (overrides: Partial<IndicatorSearchFilters> = {}): IndicatorSear
 });
 
 beforeAll(async () => {
-  database = await createTestDatabase({ template: 'seeded' });
-  db = createDbFromClient(createOwnerClient(database.name));
+  database = await createTestDb({ template: 'seeded' });
+  db = database.db;
 });
 afterAll(async () => {
-  await db.$client.end();
   await database.drop();
 });
 

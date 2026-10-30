@@ -1,15 +1,7 @@
 import { FAKE_USER_IDS } from '@fphd/auth';
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import {
-  createDb,
-  createPostgresClient,
-  type Database,
-  dbEnvFields,
-  resolveDbTls,
-  schema,
-} from '@fphd/db';
+import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
-import { auditEntriesFor, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { apiLogin, auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { editVersion } from './edit-version.ts';
@@ -21,19 +13,7 @@ import {
   updateTopic,
 } from './topic-repository.ts';
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-    PUBLIC_API_PASSWORD: z.string().default('public_api'),
-    INTERNAL_API_PASSWORD: z.string().default('internal_api'),
-  }),
-  process.env,
-);
-
-let testDb: TestDatabase;
+let testDb: TestDb;
 let db: Database;
 let topicCount = 0;
 
@@ -60,24 +40,12 @@ async function givenTopic() {
   return record;
 }
 
-function connectionTo(user: string, password: string) {
-  return {
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    database: testDb.name,
-    user,
-    password,
-    ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-  };
-}
-
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  db = createDb(connectionTo(env.POSTGRES_USER, env.POSTGRES_PASSWORD));
+  testDb = await createTestDb();
+  db = testDb.db;
 });
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 
@@ -384,7 +352,7 @@ describe('the audit log of topic writes', () => {
 describe('the topic write surface', () => {
   it('lets internal_api update the editable columns', async () => {
     const topic = await givenTopic();
-    const client = createPostgresClient(connectionTo('internal_api', env.INTERNAL_API_PASSWORD));
+    const client = testDb.connect({ login: apiLogin('internal_api') });
 
     try {
       await expect(
@@ -396,7 +364,7 @@ describe('the topic write surface', () => {
   });
 
   it('lets internal_api insert and delete a topic', async () => {
-    const client = createPostgresClient(connectionTo('internal_api', env.INTERNAL_API_PASSWORD));
+    const client = testDb.connect({ login: apiLogin('internal_api') });
 
     try {
       await expect(
@@ -411,7 +379,7 @@ describe('the topic write surface', () => {
   // Connected as internal_api rather than the owner, which can write anything whatever the
   // statement names: this is what proves the app's own write path works under the grants.
   it('creates and deletes through the repository connected as internal_api', async () => {
-    const apiDb = createDb(connectionTo('internal_api', env.INTERNAL_API_PASSWORD));
+    const apiDb = testDb.connectDb({ login: apiLogin('internal_api') });
 
     try {
       const created = await createTopic(
@@ -442,7 +410,7 @@ describe('the topic write surface', () => {
 
   it('counts linked indicators connected as internal_api', async () => {
     const topic = await givenTopic();
-    const apiDb = createDb(connectionTo('internal_api', env.INTERNAL_API_PASSWORD));
+    const apiDb = testDb.connectDb({ login: apiLogin('internal_api') });
 
     try {
       expect(await countLinkedIndicators(apiDb, topic.id)).toBe(0);
@@ -453,7 +421,7 @@ describe('the topic write surface', () => {
 
   it('does not let public_api update, insert or delete topics at all', async () => {
     const topic = await givenTopic();
-    const client = createPostgresClient(connectionTo('public_api', env.PUBLIC_API_PASSWORD));
+    const client = testDb.connect({ login: apiLogin('public_api') });
 
     try {
       await expect(client`UPDATE topic SET title = 'Nope' WHERE id = ${topic.id}`).rejects.toThrow(

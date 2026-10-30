@@ -2,7 +2,12 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createOwnerClient, TEMPLATES, TEST_DATABASE_PREFIX } from '@fphd/db/testing';
+import {
+  createOwnerClient,
+  runTestDatabases,
+  staleTestDatabases,
+  templateName,
+} from '@fphd/db/testing';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import type postgres from 'postgres';
@@ -12,14 +17,15 @@ import { migrateToLatest, migrationsFolder } from './migrations.ts';
 import { rebuildReadModels } from './read-models.ts';
 import { seedDummyTables } from './seeding.ts';
 
-async function dropTestDatabases(): Promise<void> {
+// For the root Vitest global setup, which depends on this package rather than @fphd/db.
+export { newTestRun, TEST_RUN_ENV } from '@fphd/db/testing';
+
+async function dropTestDatabases(choose: (names: string[]) => string[]): Promise<void> {
   const admin = createOwnerClient('postgres');
   try {
-    const leftovers = await admin`
-      SELECT datname FROM pg_database WHERE datname LIKE ${`${TEST_DATABASE_PREFIX}%`}
-    `;
-    for (const { datname } of leftovers) {
-      await admin.unsafe(`DROP DATABASE IF EXISTS "${datname}" WITH (FORCE)`);
+    const databases = await admin<{ datname: string }[]>`SELECT datname FROM pg_database`;
+    for (const name of choose(databases.map(({ datname }) => datname))) {
+      await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
     }
   } finally {
     await admin.end();
@@ -51,18 +57,19 @@ async function buildTemplate(name: string, seed: boolean): Promise<void> {
 }
 
 /**
- * Build the templates the integration tier copies from, dropped and recreated each run.
- * Runs once from the root Vitest global setup, where there is no hook timeout and nothing
- * else is competing for the templates.
+ * Build the templates the run's test files copy from. Runs once from the root Vitest global
+ * setup, where there is no hook timeout and nothing else is competing for the templates.
+ * Other runs' databases are left alone unless they are stale.
  */
-export async function setUpTestTemplate(): Promise<void> {
-  await dropTestDatabases();
-  await buildTemplate(TEMPLATES.schema, false);
-  await buildTemplate(TEMPLATES.seeded, true);
+export async function setUpTestTemplate(run: string): Promise<void> {
+  await dropTestDatabases((names) => staleTestDatabases(names));
+  await buildTemplate(templateName(run, 'schema'), false);
+  await buildTemplate(templateName(run, 'seeded'), true);
 }
 
-export async function tearDownTestTemplate(): Promise<void> {
-  await dropTestDatabases();
+/** Drops the run's templates and any copy a test file failed to drop. */
+export async function tearDownTestTemplate(run: string): Promise<void> {
+  await dropTestDatabases((names) => runTestDatabases(names, run));
 }
 
 /** Applies the migrations up to the one tagged, and that one too when `through` is set. */

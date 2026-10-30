@@ -1,24 +1,13 @@
 import { randomBytes } from 'node:crypto';
 
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createPostgresClient, dbEnvFields, resolveDbTls } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { bootstrapRoles } from './bootstrap.ts';
 
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-  }),
-  process.env,
-);
-
-let testDb: TestDatabase;
-let owner: ReturnType<typeof createOwnerClient>;
+let testDb: TestDb;
+let owner: postgres.Sql;
 
 // Login roles are cluster-wide, not per-database, so this file must never bootstrap
 // public_api or internal_api: that would rotate the passwords the rest of the suite and the
@@ -33,17 +22,7 @@ function uniqueRoleName(): string {
 }
 
 async function canLogIn(role: string, password: string): Promise<boolean> {
-  const sql = createPostgresClient(
-    {
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      database: testDb.name,
-      user: role,
-      password,
-      ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-    },
-    { max: 1, onnotice: () => {} },
-  );
+  const sql = testDb.connect({ login: { user: role, password }, max: 1 });
   try {
     await sql`SELECT 1`;
     return true;
@@ -55,15 +34,14 @@ async function canLogIn(role: string, password: string): Promise<boolean> {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  owner = createOwnerClient(testDb.name);
+  testDb = await createTestDb();
+  owner = testDb.sql;
 });
 
 afterAll(async () => {
   for (const role of createdRoles) {
     await owner.unsafe(`DROP ROLE IF EXISTS "${role}"`);
   }
-  await owner.end();
   await testDb.drop();
 });
 

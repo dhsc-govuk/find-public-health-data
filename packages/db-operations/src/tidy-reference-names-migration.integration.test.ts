@@ -1,4 +1,4 @@
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -37,9 +37,9 @@ interface Fixture {
 }
 
 /** A database migrated to just before this one, holding the fixture and read models built from it. */
-async function withReferenceRows(fixture: Fixture): Promise<[TestDatabase, postgres.Sql]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+async function withReferenceRows(fixture: Fixture): Promise<[TestDb, postgres.Sql]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   const types = fixture.types.map((type) => ({
@@ -153,7 +153,7 @@ async function readModels(sql: postgres.Sql): Promise<Record<string, string[]>> 
 }
 
 describe(`migration ${MIGRATION} over names differing only in whitespace`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -162,7 +162,6 @@ describe(`migration ${MIGRATION} over names differing only in whitespace`, () =>
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -308,7 +307,7 @@ describe.each([
     },
   },
 ])(`migration ${MIGRATION} over names it cannot merge`, ({ refusal, fixture }) => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
@@ -316,7 +315,6 @@ describe.each([
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

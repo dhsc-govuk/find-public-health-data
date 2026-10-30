@@ -1,4 +1,4 @@
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -8,17 +8,16 @@ import { migrateBefore, migrateThrough } from './testing.ts';
 const MIGRATION = '0042_drop-unit-detail-length-check';
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'unmigrated' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'unmigrated' });
+    sql = testDb.sql;
     await migrateBefore(sql, MIGRATION);
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

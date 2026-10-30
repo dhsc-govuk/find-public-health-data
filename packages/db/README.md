@@ -172,5 +172,5 @@ changed by accident.
 `src/*.integration.test.ts` need the local docker database up (`docker compose up -d db`)
 but never touch the shared `fphd` database. The root Vitest global setup builds a
 migrated, seeded template once per run through `@fphd/db-operations/testing`; each test
-file calls `createTestDatabase()` from `@fphd/db/testing` for its own throwaway copy and
-drops it in `afterAll`.
+file calls `createTestDb()` from `@fphd/db/testing` for its own throwaway copy, connects
+through it, and drops it in `afterAll`.

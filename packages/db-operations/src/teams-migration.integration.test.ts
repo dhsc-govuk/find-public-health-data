@@ -1,6 +1,6 @@
 import { TEAM_IDS, TEAMS } from '@fphd/auth';
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -11,17 +11,16 @@ const { IMPORTED_INDICATOR_TEAM_ID } = schema;
 const MIGRATION = '0046_teams';
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'unmigrated' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'unmigrated' });
+    sql = testDb.sql;
     await migrateThrough(sql, MIGRATION);
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 

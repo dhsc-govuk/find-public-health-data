@@ -134,7 +134,7 @@ see the operations section of the root README.
 ## Integration tests
 
 `src/*.integration.test.ts` need the local docker database up (`docker compose up -d db`), and
-take their databases from `createTestDatabase()` in `@fphd/db/testing` as every other package's
+take their databases from `createTestDb()` in `@fphd/db/testing` as every other package's
 do. The root Vitest global setup builds the templates those copy from with `setUpTestTemplate`
 from `@fphd/db-operations/testing`.
 

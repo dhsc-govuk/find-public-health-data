@@ -1,9 +1,5 @@
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createDb, dbEnvFields, resolveDbTls, schema } from '@fphd/db';
-import { auditEntriesFor, createTestDatabase } from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
 import { createFakeBlobStorage } from '@fphd/internal-storage/testing';
 import { eq } from 'drizzle-orm';
@@ -18,33 +14,11 @@ import { submitIndicator } from './indicator-workflow-repository.ts';
 import { createInternalRepositories } from './repositories.ts';
 import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './testing.ts';
 
-const envFile = fileURLToPath(new URL('../../../.env', import.meta.url));
-if (existsSync(envFile)) {
-  process.loadEnvFile(envFile);
-}
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-    INTERNAL_API_PASSWORD: z.string().default('internal_api'),
-  }),
-  process.env,
-);
-
 const { indicatorVersion } = schema;
 
-const testDb = await createTestDatabase({ template: 'seeded' });
+const testDb = await createTestDb({ template: 'seeded' });
 // The routes run as internal_api, as they do deployed.
-const db = createDb({
-  host: env.DB_HOST,
-  port: env.DB_PORT,
-  database: testDb.name,
-  user: 'internal_api',
-  password: env.INTERNAL_API_PASSWORD,
-  ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-});
+const db = testDb.connectDb({ login: apiLogin('internal_api') });
 const storage = createFakeBlobStorage();
 const app = createRouterTestApp(
   internalApiRoutes({
@@ -55,7 +29,6 @@ const app = createRouterTestApp(
 );
 
 afterAll(async () => {
-  await db.$client.end();
   await testDb.drop();
 });
 

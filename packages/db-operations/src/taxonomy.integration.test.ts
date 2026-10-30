@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 
-import { createDbFromClient, listTopicsForIndicator, schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { listTopicsForIndicator, schema } from '@fphd/db';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
+import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { importCoreData } from './core-data.ts';
@@ -30,14 +31,13 @@ const only = (ids: number[]) =>
     ),
   });
 
-let database: TestDatabase;
-let sql: ReturnType<typeof createOwnerClient>;
+let database: TestDb;
+let sql: postgres.Sql;
 beforeAll(async () => {
-  database = await createTestDatabase({ template: 'seeded' });
-  sql = createOwnerClient(database.name);
+  database = await createTestDb({ template: 'seeded' });
+  sql = database.sql;
 });
 afterAll(async () => {
-  await sql.end();
   await database.drop();
 });
 
@@ -93,7 +93,7 @@ describe('the V2 taxonomy import', () => {
 
   it('retains two subtopic placements within a single primary topic', async () => {
     const [indicator] = await sql<{ id: string }[]>`SELECT id FROM indicator WHERE short_id = 108`;
-    const topics = await listTopicsForIndicator(createDbFromClient(sql), indicator?.id ?? '');
+    const topics = await listTopicsForIndicator(database.db, indicator?.id ?? '');
     expect(topics).toEqual([
       {
         slug: 'mortality-and-life-expectancy',
@@ -121,7 +121,7 @@ describe('the V2 taxonomy import', () => {
     >`SELECT count(*)::int AS count FROM observation o JOIN indicator i ON i.id = o.indicator_id WHERE i.short_id = 92708`;
     await sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) SELECT v.id, t.id FROM indicator i JOIN current_published_version v ON v.indicator_id = i.id CROSS JOIN topic t WHERE i.short_id = 92708 AND t.slug = 'diabetes'`;
     await sql`INSERT INTO indicator_version_classification (indicator_version_id, classification_id) SELECT v.id, c.id FROM indicator i JOIN current_published_version v ON v.indicator_id = i.id CROSS JOIN classification c WHERE i.short_id = 92708 AND c.slug = 'indicator-type-outcome'`;
-    const applied = await applyIndicatorTopics(createDbFromClient(sql), only([92708]));
+    const applied = await applyIndicatorTopics(database.db, only([92708]));
     expect(applied).toMatchObject({
       links: 0,
       subtopicLinks: 0,
@@ -151,7 +151,7 @@ describe('the V2 taxonomy import', () => {
       { id: string }[]
     >`INSERT INTO indicator (short_id) VALUES (383) RETURNING id`;
     await sql`INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by) VALUES (${identity?.id ?? ''}, 'published', now(), 'Taxonomy dementia fixture', 'taxonomy-dementia-fixture', ${SYSTEM_USER_IDS.pholioMigration}, ${SYSTEM_USER_IDS.pholioMigration})`;
-    await applyIndicatorTopics(createDbFromClient(sql), only([383]));
+    await applyIndicatorTopics(database.db, only([383]));
     const rows = await sql<{ dimension: string; name: string }[]>`
       SELECT c.dimension, c.name FROM published.indicator_classification ic JOIN published.classification c ON c.id = ic.classification_id WHERE ic.indicator_id = ${identity?.id ?? ''} ORDER BY c.dimension
     `;

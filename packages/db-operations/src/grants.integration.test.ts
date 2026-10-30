@@ -1,8 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createPostgresClient, dbEnvFields, resolveDbTls, schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -11,8 +10,6 @@ import { API_ROLES } from './bootstrap.ts';
 const { SYSTEM_USER_IDS } = schema;
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
-
-const env = parseEnv(z.object({ ...dbEnvFields, ...appEnvFields }), process.env);
 
 const TABLE_PRIVILEGES = [
   'SELECT',
@@ -30,8 +27,8 @@ const TABLE_PRIVILEGES = [
 const memberRole = `fphd_grants_test_${randomBytes(6).toString('hex')}`;
 const memberPassword = 'grants-test';
 
-let testDb: TestDatabase;
-let owner: ReturnType<typeof createOwnerClient>;
+let testDb: TestDb;
+let owner: postgres.Sql;
 let member: postgres.Sql;
 let draftIndicatorId: string;
 let draftObservationId: string;
@@ -133,29 +130,18 @@ async function insertDraftOnlyIndicator(): Promise<void> {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'seeded' });
-  owner = createOwnerClient(testDb.name);
+  testDb = await createTestDb({ template: 'seeded' });
+  owner = testDb.sql;
   await owner.unsafe(
     `CREATE ROLE "${memberRole}" LOGIN PASSWORD '${memberPassword}' IN ROLE "${API_ROLES.publicApi}"`,
   );
   await insertDraftOnlyIndicator();
-  member = createPostgresClient(
-    {
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      database: testDb.name,
-      user: memberRole,
-      password: memberPassword,
-      ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-    },
-    { max: 1, onnotice: () => {} },
-  );
+  member = testDb.connect({ login: { user: memberRole, password: memberPassword }, max: 1 });
 });
 
 afterAll(async () => {
   await member?.end();
   await owner.unsafe(`DROP ROLE IF EXISTS "${memberRole}"`);
-  await owner.end();
   await testDb.drop();
 });
 
@@ -539,17 +525,7 @@ function internalMemberOfBlock(): () => postgres.Sql {
     await owner.unsafe(
       `CREATE ROLE "${role}" LOGIN PASSWORD '${memberPassword}' IN ROLE "${API_ROLES.internalApi}"`,
     );
-    client = createPostgresClient(
-      {
-        host: env.DB_HOST,
-        port: env.DB_PORT,
-        database: testDb.name,
-        user: role,
-        password: memberPassword,
-        ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-      },
-      { max: 1, onnotice: () => {} },
-    );
+    client = testDb.connect({ login: { user: role, password: memberPassword }, max: 1 });
   });
 
   afterAll(async () => {

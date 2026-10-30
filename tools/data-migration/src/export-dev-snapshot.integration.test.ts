@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { importCoreData, rebuildReadModels, seedPublishedTables } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 import type postgres from 'postgres';
@@ -15,17 +15,16 @@ import { exportPholio } from './pholio/export-pholio.ts';
 import { deterministicUuid } from './prepare-baseline.ts';
 
 vi.mock('./pholio/export-pholio.ts', () => ({ exportPholio: vi.fn() }));
-let database: TestDatabase;
+let database: TestDb;
 let sql: postgres.Sql;
 let directory: string;
 beforeAll(async () => {
-  database = await createTestDatabase();
-  sql = createOwnerClient(database.name);
+  database = await createTestDb();
+  sql = database.sql;
   await importCoreData(sql);
   directory = await mkdtemp(join(tmpdir(), 'dev-snapshot-import-'));
 });
 afterAll(async () => {
-  await sql?.end();
   await database?.drop();
   if (directory) await rm(directory, { recursive: true, force: true });
 });

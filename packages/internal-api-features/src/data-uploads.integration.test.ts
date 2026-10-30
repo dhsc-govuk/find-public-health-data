@@ -1,14 +1,10 @@
-import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
 import { PassThrough, Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
-import { fileURLToPath } from 'node:url';
-import { BlobServiceClient } from '@azure/storage-blob';
-import { appEnvFields, parseEnv, z } from '@fphd/config';
-import { createDb, type Database, dbEnvFields, dimensionKey, resolveDbTls, schema } from '@fphd/db';
-import { auditEntriesFor, createTestDatabase } from '@fphd/db/testing';
+import { type Database, dimensionKey, schema } from '@fphd/db';
+import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
-import { BlobNotFoundError, createAzureBlobStorage } from '@fphd/internal-storage';
+import { BlobNotFoundError } from '@fphd/internal-storage';
+import { createTestBlobStorage } from '@fphd/internal-storage/testing';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
@@ -35,22 +31,6 @@ import {
   testSessionVerifier,
 } from './testing.ts';
 
-const envFile = fileURLToPath(new URL('../../../.env', import.meta.url));
-if (existsSync(envFile)) {
-  process.loadEnvFile(envFile);
-}
-const env = parseEnv(
-  z.object({
-    ...dbEnvFields,
-    ...appEnvFields,
-    POSTGRES_USER: z.string().default('fphd'),
-    POSTGRES_PASSWORD: z.string().default('fphd'),
-    INTERNAL_API_PASSWORD: z.string().default('internal_api'),
-    STORAGE_CONNECTION_STRING: z.string(),
-  }),
-  process.env,
-);
-
 const {
   area,
   dimensionType,
@@ -64,30 +44,13 @@ const {
   currentPublishedVersion,
 } = schema;
 
-const testDb = await createTestDatabase({ template: 'seeded' });
-const connection = {
-  host: env.DB_HOST,
-  port: env.DB_PORT,
-  database: testDb.name,
-  ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
-};
+const testDb = await createTestDb({ template: 'seeded' });
 // The uploads run as internal_api, so its grants are tested too; the checks read as the owner.
-const internalDb = createDb({
-  ...connection,
-  user: 'internal_api',
-  password: env.INTERNAL_API_PASSWORD,
-});
-const ownerDb = createDb({
-  ...connection,
-  user: env.POSTGRES_USER,
-  password: env.POSTGRES_PASSWORD,
-});
+const internalDb = testDb.connectDb({ login: apiLogin('internal_api') });
+const ownerDb = testDb.db;
 
-const container = `fphd-test-${randomBytes(6).toString('hex')}`;
-const storage = await createAzureBlobStorage({
-  container,
-  connectionString: env.STORAGE_CONNECTION_STRING,
-});
+const testStorage = await createTestBlobStorage();
+const { storage } = testStorage;
 
 const app = createRouterTestApp(
   dataUploadsRouter(
@@ -99,12 +62,8 @@ const app = createRouterTestApp(
 );
 
 afterAll(async () => {
-  await internalDb.$client.end();
-  await ownerDb.$client.end();
   await testDb.drop();
-  await BlobServiceClient.fromConnectionString(env.STORAGE_CONNECTION_STRING).deleteContainer(
-    container,
-  );
+  await testStorage.drop();
 });
 
 const HEADER =

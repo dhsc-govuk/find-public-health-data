@@ -2,8 +2,7 @@ import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SYSTEM_USER_IDS } from './schema/index.ts';
-import { createOwnerClient } from './scripts/owner-client.ts';
-import { createTestDatabase, type TestDatabase } from './testing.ts';
+import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.testSeed;
 const NOBODY = '01a13c69-0000-7000-8000-000000000000';
@@ -12,16 +11,15 @@ const UNIQUE_VIOLATION = '23505';
 const FOREIGN_KEY_VIOLATION = '23503';
 const CHECK_VIOLATION = '23514';
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase();
-  sql = createOwnerClient(testDb.name);
+  testDb = await createTestDb();
+  sql = testDb.sql;
 });
 
 afterAll(async () => {
-  await sql.end();
   await testDb.drop();
 });
 

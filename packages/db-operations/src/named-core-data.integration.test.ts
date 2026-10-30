@@ -4,13 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-import { createDbFromClient, schema } from '@fphd/db';
-import {
-  auditEntriesFor,
-  createOwnerClient,
-  createTestDatabase,
-  type TestDatabase,
-} from '@fphd/db/testing';
+import { schema } from '@fphd/db';
+import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import { countIsNumerator } from '@fphd/utils/value-type-and-unit';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -36,16 +31,15 @@ const UNITS = committed('units', 'units.json');
 const COMPARATOR_METHODS = committed('comparator methods', 'comparator-methods.json');
 
 describe('the committed core data and seed', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase({ template: 'seeded' });
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb({ template: 'seeded' });
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
@@ -93,16 +87,15 @@ describe('the committed core data and seed', () => {
 });
 
 describe('upsertOrderedNames', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
@@ -113,7 +106,7 @@ describe('upsertOrderedNames', () => {
   }
 
   it('orders the rows as the file does, rewrites only what changed and reports strays', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const [stray] = await sql<{ id: string }[]>`
       INSERT INTO value_type (name, position) VALUES ('A value type no file lists', 0)
       RETURNING id
@@ -149,12 +142,15 @@ describe('upsertOrderedNames', () => {
   });
 
   it('touches updated_at only on a row it rewrites', async () => {
-    const db = createDbFromClient(sql);
-    const before = await sql`SELECT id, updated_at FROM value_type ORDER BY id`;
+    const { db } = testDb;
+    const stamps = () => sql<{ id: string; stamp: number }[]>`
+      SELECT id, extract(epoch FROM updated_at)::float8 AS stamp FROM value_type ORDER BY id
+    `;
+    const before = await stamps();
 
     await upsertOrderedNames(db, valueType, VALUE_TYPES);
-    const after = await sql`SELECT id, updated_at FROM value_type ORDER BY id`;
-    const changed = after.filter((row, index) => row.updated_at > before[index]?.updated_at);
+    const after = await stamps();
+    const changed = after.filter((row, index) => row.stamp > (before[index]?.stamp ?? Infinity));
 
     expect(changed.map(({ id }) => id).sort()).toEqual(
       [VALUE_TYPES[0]?.id, VALUE_TYPES[1]?.id].sort(),
@@ -163,21 +159,20 @@ describe('upsertOrderedNames', () => {
 });
 
 describe('upsertComparatorMethods', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
   });
 
   it('inserts, leaves an unchanged method alone, renames a changed one and reports strays', async () => {
-    const db = createDbFromClient(sql);
+    const { db } = testDb;
     const method = { id: '019fa38f-0750-73a5-a5aa-998e2d8982c2', name: 'No comparison' };
     const [stray] = await sql<{ id: string }[]>`
       INSERT INTO comparator_method (name) VALUES ('A method no file lists') RETURNING id
@@ -199,7 +194,7 @@ describe('upsertComparatorMethods', () => {
 });
 
 describe('loadIndicatorVersions with comparator methods', () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   let directory: string;
   let indicatorId: string;
@@ -207,8 +202,8 @@ describe('loadIndicatorVersions with comparator methods', () => {
   const sourceId = '00000000-0000-7000-8000-00000000c0c0';
 
   beforeAll(async () => {
-    testDb = await createTestDatabase();
-    sql = createOwnerClient(testDb.name);
+    testDb = await createTestDb();
+    sql = testDb.sql;
     await importCoreData(sql);
     const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
     indicatorId = row?.id ?? '';
@@ -227,7 +222,6 @@ describe('loadIndicatorVersions with comparator methods', () => {
   });
 
   afterAll(async () => {
-    await sql.end();
     await testDb.drop();
     await rm(directory, { recursive: true, force: true });
   });

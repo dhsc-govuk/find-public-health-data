@@ -1,5 +1,5 @@
 import { dimensionKey } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -14,9 +14,9 @@ interface Reference {
 }
 
 /** A database migrated to just before this one, with an area and two dimension values. */
-async function beforeMigration(): Promise<[TestDatabase, postgres.Sql, Reference]> {
-  const testDb = await createTestDatabase({ template: 'unmigrated' });
-  const sql = createOwnerClient(testDb.name);
+async function beforeMigration(): Promise<[TestDb, postgres.Sql, Reference]> {
+  const testDb = await createTestDb({ template: 'unmigrated' });
+  const sql = testDb.sql;
   await migrateBefore(sql, MIGRATION);
 
   const [area] = await sql<{ id: string }[]>`
@@ -116,7 +116,7 @@ async function observationIn(
 }
 
 describe(`migration ${MIGRATION}`, () => {
-  let testDb: TestDatabase;
+  let testDb: TestDb;
   let sql: postgres.Sql;
   let reference: Reference;
   const ids: Record<string, string> = {};
@@ -172,7 +172,6 @@ describe(`migration ${MIGRATION}`, () => {
   });
 
   afterAll(async () => {
-    await sql?.end();
     await testDb?.drop();
   });
 
@@ -241,17 +240,16 @@ describe(`migration ${MIGRATION}`, () => {
 });
 
 describe(`migration ${MIGRATION} stops`, () => {
-  const opened: [TestDatabase, postgres.Sql][] = [];
+  const opened: TestDb[] = [];
 
   async function opening(): Promise<[postgres.Sql, Reference]> {
     const [testDb, sql, reference] = await beforeMigration();
-    opened.push([testDb, sql]);
+    opened.push(testDb);
     return [sql, reference];
   }
 
   afterAll(async () => {
-    for (const [testDb, sql] of opened) {
-      await sql.end();
+    for (const testDb of opened) {
       await testDb.drop();
     }
   });

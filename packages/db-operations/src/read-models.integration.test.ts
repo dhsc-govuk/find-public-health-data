@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { schema } from '@fphd/db';
-import { createOwnerClient, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -13,16 +13,15 @@ const ACTOR = SYSTEM_USER_IDS.pholioMigration;
 
 const MISSING_UUID = '00000000-0000-0000-0000-000000000000';
 
-let testDb: TestDatabase;
+let testDb: TestDb;
 let sql: postgres.Sql;
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ template: 'seeded' });
-  sql = createOwnerClient(testDb.name);
+  testDb = await createTestDb({ template: 'seeded' });
+  sql = testDb.sql;
 });
 
 afterAll(async () => {
-  await sql.end();
   await testDb.drop();
 });
 
@@ -202,16 +201,15 @@ describe('bridge/registry schema', () => {
 
 describe('the read-model rebuild', () => {
   // Its own database, since the draft's rows would reach the migration query's parity check.
-  let draftDb: TestDatabase;
+  let draftDb: TestDb;
   let draftSql: postgres.Sql;
 
   beforeAll(async () => {
-    draftDb = await createTestDatabase({ template: 'seeded' });
-    draftSql = createOwnerClient(draftDb.name);
+    draftDb = await createTestDb({ template: 'seeded' });
+    draftSql = draftDb.sql;
   });
 
   afterAll(async () => {
-    await draftSql.end();
     await draftDb.drop();
   });
 
