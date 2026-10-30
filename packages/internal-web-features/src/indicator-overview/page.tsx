@@ -3,7 +3,12 @@ import { indicatorPath } from '@fphd/utils/indicator-path';
 
 import { indicatorTaskListPath, indicatorWithdrawalPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
-import type { IndicatorAdminDetail, OverviewNotification } from './loader.ts';
+import type {
+  IndicatorAdminDetail,
+  NotesForReviewers as Notes,
+  OverviewNotification,
+} from './loader.ts';
+import { NotesForReviewers } from './notes-for-reviewers.tsx';
 import { indicatorAssignReviewersPath } from './paths.ts';
 
 interface ActionsProps {
@@ -13,6 +18,8 @@ interface ActionsProps {
 }
 
 interface OverviewProps extends ActionsProps {
+  /** What the publisher wrote for the reviewers, for those who may read it. */
+  notesForReviewers?: Notes | null;
   /** What the page the publisher came from left to tell them. */
   notification?: OverviewNotification | undefined;
 }
@@ -82,7 +89,29 @@ function ScheduledPublicationDate({ at }: { at: string }) {
   );
 }
 
-export function IndicatorOverviewPage({ canEdit, indicator, notification }: OverviewProps) {
+export function IndicatorOverviewPage({
+  canEdit,
+  indicator,
+  notesForReviewers = null,
+  notification,
+}: OverviewProps) {
+  const tabs = [
+    {
+      id: 'actions',
+      label: 'Actions',
+      content: <Actions canEdit={canEdit} indicator={indicator} />,
+    },
+    ...(notesForReviewers === null
+      ? []
+      : [
+          {
+            id: 'notes-for-reviewers',
+            label: 'Notes for reviewers',
+            content: <NotesForReviewers notes={notesForReviewers} />,
+          },
+        ]),
+  ];
+
   return (
     <GridRow>
       <GridColumn width="two-thirds">
@@ -99,16 +128,7 @@ export function IndicatorOverviewPage({ canEdit, indicator, notification }: Over
             <ScheduledPublicationDate at={indicator.draftScheduledPublishAt} />
           )}
         </IndicatorHeading>
-        <Tabs
-          items={[
-            {
-              id: 'actions',
-              label: 'Actions',
-              content: <Actions canEdit={canEdit} indicator={indicator} />,
-            },
-          ]}
-          paramKey="tab"
-        />
+        <Tabs items={tabs} paramKey="tab" />
       </GridColumn>
     </GridRow>
   );

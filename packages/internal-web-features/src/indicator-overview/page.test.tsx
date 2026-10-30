@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { SHOWN_VERSION } from '../testing.ts';
 import type { IndicatorAdminDetail } from './loader.ts';
+import { ANSWERED_NOTES } from './notes-for-reviewers.testing.ts';
 import { IndicatorOverviewPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -132,6 +133,30 @@ describe('IndicatorOverviewPage', () => {
     });
 
     expect(screen.queryByRole('link', { name: /^Continue/ })).toBeNull();
+  });
+
+  it('offers the notes for reviewers in a tab after the actions to someone who may read them', () => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          indicator={{ ...indicator, draftStatus: 'draft' }}
+          notesForReviewers={ANSWERED_NOTES}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Actions',
+      'Notes for reviewers',
+    ]);
+    expect(screen.getByRole('heading', { level: 2, name: 'Notes for reviewers' })).toBeTruthy();
+  });
+
+  it('offers no notes for reviewers to someone who may not read them', () => {
+    renderPage({ draftStatus: 'draft' });
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Actions']);
   });
 
   it('shows something the publisher needs to know in an important banner', () => {
