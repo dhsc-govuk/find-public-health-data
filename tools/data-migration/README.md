@@ -47,6 +47,9 @@ publishing moves to this service. The operations image applies the packages with
   It preserves every observation-note link, records the source-id aliases in
   `reference_name_aliases`, and updates the prepared file counts and hashes. Conflicting
   categories or other reference-name collisions stop preparation.
+- Update frequency comes from `CIAReference.Frequency` and unambiguous frequency prose.
+  Missing or unrepresentable frequencies remain null. Contradictory supported frequencies
+  stop export with the indicator id. Unrecognised structured lookup values stop export.
 - Creation and migration audit timestamps use the indicator's `DateEnteredInPHOLIO`,
   never the export time. `indicator.data_updated_at` uses the latest successful
   `UploadJob.DateCreated` whose batch is still referenced by that indicator's
