@@ -1,3 +1,4 @@
+import type { IndicatorAccess } from '@fphd/auth/permissions';
 import { z } from '@fphd/config/zod';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
@@ -128,6 +129,14 @@ export const indicatorAdminSummarySchema = z.object({
   /** The reviewers of the draft's latest submission, by name; empty until they are assigned. */
   draftReviewers: z.array(draftReviewerSchema),
 });
+
+/** What the permission checks need to know about an indicator, from its row or its detail. */
+export function indicatorAccess({
+  teamId,
+  draftReviewers,
+}: Pick<IndicatorAdminSummary, 'teamId' | 'draftReviewers'>): IndicatorAccess {
+  return { teamId, reviewerIds: draftReviewers.map(({ id }) => id) };
+}
 
 /** Parsed from a query string, so the page arrives as text; absent means the first page. */
 export const indicatorPageQuerySchema = z.object({
