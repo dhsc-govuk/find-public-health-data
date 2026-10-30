@@ -20,13 +20,15 @@ runs:
 
     # The database trivy-db brought up to date for this run, so no scan downloads its own. The
     # action's own cache is keyed by date, and a copy saved earlier the same day can already be out
-    # of date to Trivy, which then downloads it again.
+    # of date to Trivy, which then downloads it again. A restore can fail even when the entry
+    # exists, as when the account's cache downloads are over their limit; Trivy then downloads
+    # the database itself, so the cache only ever saves time.
     - name: Restore the vulnerability database
+      id: db
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}/trivy-cache
         key: ${{ inputs.db-cache-key }}
-        fail-on-cache-miss: true
 
     # OS packages only: the npm tree is already audited from the lockfile in CI, and scanning
     # it here would fail on npm's own bundled dependencies — which nothing in these images runs
@@ -46,7 +48,7 @@ runs:
         cache-dir: ${{ runner.temp }}/trivy-cache
         skip-setup-trivy: 'true'
       env:
-        TRIVY_SKIP_DB_UPDATE: 'true'
+        TRIVY_SKIP_DB_UPDATE: ${{ steps.db.outputs.cache-hit == 'true' }}
 
     # The images are public, so a secret in a layer is published. A separate step because the
     # vulnerability scan's HIGH,CRITICAL floor would hide Trivy's generic credential patterns.

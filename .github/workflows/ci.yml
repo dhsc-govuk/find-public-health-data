@@ -468,8 +468,9 @@ jobs:
           db-cache-key: ${{ needs.trivy-db.outputs.cache-key }}
 
   # Brings Trivy's vulnerability database up to date once a run and caches it under its update
-  # time; each of the five scans restores that copy and skips the update. It starts from the newest
-  # copy cached before, so Trivy downloads only when that copy is out of date.
+  # time; each of the five scans restores that copy and skips the update, or downloads its own if
+  # the restore fails. It starts from the newest copy cached before, so Trivy downloads only when
+  # that copy is out of date.
   trivy-db:
     name: Update the Trivy database
     if: ${{ !github.event.pull_request.draft }}

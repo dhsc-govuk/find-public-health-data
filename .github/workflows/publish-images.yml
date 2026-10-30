@@ -1,11 +1,11 @@
 name: Publish images
 
-# Called by ci.yml on a push to main once All checks pass has passed, so a commit whose CI fails
-# publishes nothing. It pushes the images that run built, smoke-tested and scanned, and for the
-# four servers ran e2e against, so the deployed bytes are the tested bytes. A called workflow
-# rather than one triggered by workflow_run, which would run against main's latest commit rather
-# than the one CI tested: the infrastructure repo verifies each image's provenance against this
-# file as the signer, refs/heads/main as the ref and the image's commit.
+# Called by ci.yml on a push to main once the All checks pass job has succeeded, so a commit
+# whose CI fails publishes nothing. It pushes the images that run built, smoke-tested and scanned,
+# and for the four servers ran e2e against, so the deployed bytes are the tested bytes. A called
+# workflow rather than one triggered by workflow_run, which would run against main's latest
+# commit rather than the one CI tested: the infrastructure repo verifies each image's provenance
+# against this file as the signer, refs/heads/main as the ref and the image's commit.
 on:
   workflow_call:
     secrets:
@@ -102,7 +102,7 @@ jobs:
         run: docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin <<<"${GITHUB_TOKEN}"
 
       # No build, smoke test, contents check or scan here: the calling run did all four to these
-      # bytes before All checks pass passed.
+      # bytes before the All checks pass job succeeded.
       #
       # Both tags are labels for humans, not what a deployment should reference: GHCR tags are
       # mutable. The digest below is the immutable reference. `latest` is pushed last, below.
@@ -138,14 +138,24 @@ jobs:
       # After the attestation, so `latest` never names an image the deploy workflows would refuse.
       # It only moves forward: re-running an older commit's CI on main publishes its SHA tag again
       # but leaves `latest` on a newer commit. The current revision is read from the label the
-      # infrastructure repo reads; an image without one, or no `latest` yet, is replaced.
+      # infrastructure repo reads; an image without one, or no `latest` yet, is replaced. Only a
+      # missing tag counts as no `latest`: any other inspect error, such as the registry being
+      # unavailable, fails the step rather than risk moving `latest` back. The package exists by
+      # now, since the SHA tag was pushed above.
       - name: Move latest forward
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          current=$(docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Image}}' \
-            | jq --raw-output '.config.Labels["org.opencontainers.image.revision"] // empty') \
-            || current=''
+          if inspected=$(docker buildx imagetools inspect "${IMAGE}:latest" --format '{{json .Image}}' \
+            2> "${RUNNER_TEMP}/inspect-latest.err"); then
+            current=$(jq --raw-output '.config.Labels["org.opencontainers.image.revision"] // empty' \
+              <<<"${inspected}")
+          elif grep --quiet --fixed-strings "${IMAGE}:latest: not found" "${RUNNER_TEMP}/inspect-latest.err"; then
+            current=''
+          else
+            cat "${RUNNER_TEMP}/inspect-latest.err" >&2
+            exit 1
+          fi
           if [ -n "${current}" ] && [ "${current}" != "${GITHUB_SHA}" ]; then
             status=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${current}...${GITHUB_SHA}" --jq .status)
             if [ "${status}" != ahead ]; then
