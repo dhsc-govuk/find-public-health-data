@@ -5,6 +5,7 @@ import { capture } from './exec.ts';
 import { isPageModule } from './modules.ts';
 import { collectRoutes } from './routes.ts';
 import {
+  type AppSpecs,
   type ClassifiedRoute,
   findSpecsWithoutScan,
   findStaleEntries,
@@ -24,15 +25,18 @@ const WEB_APPS: WebApp[] = [
 
 async function main(): Promise<void> {
   const problems: string[] = [];
-  const declared: string[] = [];
 
+  // Every app is read before any is checked: a shared route may be covered by another app's spec.
+  const read: Array<{ app: WebApp } & AppSpecs> = [];
   for (const app of WEB_APPS) {
-    console.log(`Checking ${app.pkg}’s routes against e2e/tests/${app.specDir}…`);
-    const routes = await readRoutes(app);
-    declared.push(...routes.map((route) => route.path));
-    const specs = await listSpecs(app.specDir);
+    console.log(`Reading ${app.pkg}’s routes and e2e/tests/${app.specDir}…`);
+    read.push({ app, routes: await readRoutes(app), specs: await listSpecs(app.specDir) });
+  }
 
-    for (const { route, problem } of findUncoveredRoutes(routes, specs)) {
+  for (const { app, routes, specs } of read) {
+    const others = read.filter((other) => other.app !== app);
+
+    for (const { route, problem } of findUncoveredRoutes({ routes, specs }, others)) {
       problems.push(`${app.pkg} ${route} ${problem}`);
     }
 
@@ -47,6 +51,7 @@ async function main(): Promise<void> {
     }
   }
 
+  const declared = read.flatMap(({ routes }) => routes.map((route) => route.path));
   for (const route of findStaleEntries(declared)) {
     problems.push(`tools/e2e-coverage/src/specs.ts lists ${route}, which neither app declares`);
   }
@@ -77,10 +82,14 @@ async function readRoutes(app: WebApp): Promise<ClassifiedRoute[]> {
     throw new Error(`No routes were found in ${app.pkg}’s route table:\n${output}`);
   }
   return Promise.all(
-    routes.map(async ({ path: routePath, file }) => ({
-      path: routePath,
-      page: isPageModule(await readFile(path.join(repoRoot, app.appDir, file), 'utf8')),
-    })),
+    routes.map(async ({ path: routePath, file }) => {
+      const module = path.join(app.appDir, file);
+      return {
+        path: routePath,
+        module,
+        page: isPageModule(await readFile(path.join(repoRoot, module), 'utf8')),
+      };
+    }),
   );
 }
 
