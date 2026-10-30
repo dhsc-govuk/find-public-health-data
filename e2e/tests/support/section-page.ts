@@ -55,9 +55,10 @@ type SharedCases = {
 };
 
 /**
- * Declares the tests every section page shares: reached from the task list, the empty form
- * refused, the back link and not-found for an indicator with no draft. The spec adds its own
- * questions' tests and the accessibility scans.
+ * Declares the tests every section page shares: reached from the task list and the empty form
+ * refused. The spec adds its own questions' tests and the accessibility scans. The back link and
+ * not-found for an indicator with no draft come from the shared section loader and page, so the
+ * polarity spec tests them for every section.
  */
 export function describeSectionPage(section: Section, { expectUnanswered, refusal }: SharedCases) {
   test('is reached from the task list, where it starts as not started', async ({ page }) => {
@@ -86,15 +87,5 @@ export function describeSectionPage(section: Section, { expectUnanswered, refusa
     const follow = refusal.follow ?? refusal.messages[0];
     await summary.getByRole('link', { name: follow, exact: true }).click();
     await expect(refusal.focuses(page)).toBeFocused();
-  });
-
-  test('goes back to the task list', async ({ page }) => {
-    const taskListPath = await openSectionPage(page, section);
-
-    await expectBackToTaskList(page, taskListPath);
-  });
-
-  test('answers an indicator with no draft with the not-found page', async ({ page }) => {
-    await expectNotFoundWithoutDraft(page, section.key);
   });
 }
