@@ -1,18 +1,35 @@
 name: Scan image
 description: Trivy scans a built image — OS vulnerabilities, then secrets — and fails on findings.
 
-# One definition for the two workflows that scan: ci.yml on the pull request, publish-images.yml
-# before the push. The trivy action rather than a trivy image so the engine sits under
-# Dependabot's actions updater; pinning `version:` would undo that.
+# ci.yml's scans, of the app images and of operations. Trivy itself comes from the setup-trivy
+# action beside this one, which pins its version.
 
 inputs:
   image-ref:
     description: The image reference to scan.
     required: true
+  db-cache-key:
+    description: >-
+      The cache key ci.yml's trivy-db job saved the vulnerability database under, this run.
+    required: true
 
 runs:
   using: composite
   steps:
+    - uses: ./.github/actions/setup-trivy
+
+    # The database trivy-db brought up to date for this run, so no scan downloads its own. The
+    # action's own cache is keyed by date, and a copy saved earlier the same day can already be out
+    # of date to Trivy, which then downloads it again. A restore can fail even when the entry
+    # exists, as when the account's cache downloads are over their limit; Trivy then downloads
+    # the database itself, so the cache only ever saves time.
+    - name: Restore the vulnerability database
+      id: db
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/trivy-cache
+        key: ${{ inputs.db-cache-key }}
+
     # OS packages only: the npm tree is already audited from the lockfile in CI, and scanning
     # it here would fail on npm's own bundled dependencies — which nothing in these images runs
     # and only a new base image fixes. ignore-unfixed because a CVE with no fix yet is a red
@@ -27,6 +44,11 @@ runs:
         severity: HIGH,CRITICAL
         ignore-unfixed: true
         exit-code: 1
+        cache: 'false'
+        cache-dir: ${{ runner.temp }}/trivy-cache
+        skip-setup-trivy: 'true'
+      env:
+        TRIVY_SKIP_DB_UPDATE: ${{ steps.db.outputs.cache-hit == 'true' }}
 
     # The images are public, so a secret in a layer is published. A separate step because the
     # vulnerability scan's HIGH,CRITICAL floor would hide Trivy's generic credential patterns.
@@ -37,6 +59,9 @@ runs:
         image-ref: ${{ inputs.image-ref }}
         scanners: secret
         exit-code: 1
+        cache: 'false'
+        cache-dir: ${{ runner.temp }}/trivy-cache
+        skip-setup-trivy: 'true'
       env:
         # Build args and ENV land in the image config, not in a file; the default scan reads files only.
         TRIVY_IMAGE_CONFIG_SCANNERS: secret

@@ -29,6 +29,8 @@ jobs:
     { label: 'docker buildx build', run: 'docker buildx build .' },
     { label: 'docker image build', run: 'docker image build .' },
     { label: 'docker compose build', run: 'docker compose build' },
+    { label: 'docker bake', run: 'docker bake --load' },
+    { label: 'docker buildx bake', run: 'docker buildx bake -f docker/docker-bake.hcl --load' },
     { label: 'a continued line', run: 'set -e\ndocker \\\n  build .' },
     { label: 'an env prefix', run: 'DOCKER_BUILDKIT=1 docker build .' },
     { label: 'sudo', run: 'sudo docker build .' },
@@ -58,6 +60,22 @@ jobs:
 `);
     expect(collectImageBuilds(yaml, FILE)).toEqual([
       { file: FILE, job: 'ci', step: '#1', references: [] },
+    ]);
+  });
+
+  it('recognises docker/bake-action as a build, and a secret in its env', () => {
+    const yaml = workflow(`
+jobs:
+  ci:
+    steps:
+      - uses: docker/bake-action@abc123
+        env:
+          OCI_REVISION: \${{ secrets.TOKEN }}
+        with:
+          load: true
+`);
+    expect(collectImageBuilds(yaml, FILE)).toEqual([
+      { file: FILE, job: 'ci', step: '#1', references: ['secrets.TOKEN (step env)'] },
     ]);
   });
 

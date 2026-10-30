@@ -159,9 +159,10 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
 - `pnpm test:e2e` names the one suite directly (`pnpm --filter @fphd/e2e run test:e2e`), so broken
   e2e wiring is an error rather than a silent skip. In CI the job is a matrix of shards, each
   running `--shard=i/n`: every shard runs the four apps as compose containers from the production
-  images the image build job made (see [Container images](#container-images)), seeds the database
-  with the same commands a developer runs, runs its share of the suite, and uploads its own
-  Playwright report when it fails. Add a shard to the matrix as the suite grows.
+  images the image build job made (see [Container images](#container-images)), restores the
+  database a seed job seeded once for the run, with the same commands a developer runs, runs its
+  share of the suite, and uploads its own Playwright report when it fails. Add a shard to the
+  matrix as the suite grows.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
@@ -542,10 +543,13 @@ build for its image, and a scan job per image runs Trivy on the same images alon
 operations image, which e2e does not use, is built, smoke-tested, contents-checked and scanned in
 a job of its own.
 
-`.github/workflows/publish-images.yml` builds all five on every push to `main` and pushes them to
+On a push to `main`, CI runs the same jobs and then, once every check has passed, calls
+`.github/workflows/publish-images.yml`, which pushes the five images that run built and tested to
 GitHub Container Registry under the repository that ran it —
 `ghcr.io/<owner>/find-public-health-data/fphd-<app>`, lowercased — tagged with the commit SHA and
-`latest`. The `fphd-` prefix groups the five in the organisation's package list. OCI labels carry
+`latest`. A commit whose CI fails publishes nothing, and `latest` only moves forward: re-running an
+older commit's CI publishes its SHA tag but leaves `latest` on the newer commit. The `fphd-` prefix
+groups the five in the organisation's package list. OCI labels, set when CI builds the images, carry
 the repository, commit and build time rather than encoding them in the tag. There is no registry
 credential on either side: the workflow authenticates with its own run-scoped `GITHUB_TOKEN`, and
 the packages are public, so deployments pull anonymously. GHCR does not reliably create a new
@@ -554,15 +558,17 @@ private one cannot be pulled anonymously.
 
 Write access to the packages is repository access: they are linked to this repository on that first
 push and inherit its permissions, so anyone with maintain or admin here can push to them, from any
-workflow on any branch or with a personal token. The `main`-only trigger is a convention of this
-workflow, not something the registry enforces. What keeps a stray push away from a deployment is
-the digest pin below — a new tag changes nothing until someone updates the infrastructure repository.
+workflow on any branch or with a personal token. Publishing only from CI on `main` is a convention
+of these workflows, not something the registry enforces. What keeps a stray push away from a
+deployment is the digest pin below — a new tag changes nothing until someone updates the
+infrastructure repository.
 
 **Deploy by digest, not by tag.** Both tags are labels for people; neither is a stable reference to
-particular bits. GHCR tags are mutable, and re-running the workflow for a commit already published
-necessarily builds a different manifest — the `created` label alone guarantees it — which then
-overwrites both tags. A replica scaling up afterwards against the same tag can get different code
-from the one already running. Each run therefore prints the pushed digest to its summary:
+particular bits. GHCR tags are mutable: `latest` moves with each newer commit, anyone who can push
+can move either, and re-running all of a CI run's jobs on `main` rebuilds the images, so the
+commit's SHA tag then names a new digest. A replica scaling up afterwards against the same tag can
+get different code from the one already running. Each run therefore prints the pushed digest to its
+summary:
 
 ```
 ghcr.io/<owner>/find-public-health-data/fphd-public-web@sha256:4f30b957…
@@ -571,8 +577,8 @@ ghcr.io/<owner>/find-public-health-data/fphd-public-web@sha256:4f30b957…
 That is what a revision should reference, and what `app_images` in the infrastructure repository
 should be set to. Deploys are manual for now, so the summary is where to copy it from.
 
-Trivy scans each image between building and pushing, and a fixable high or critical vulnerability
-in an operating system package stops it reaching the registry. That layer is otherwise unscanned —
+Trivy scans each image in CI, before the push, and a fixable high or critical vulnerability in an
+operating system package stops it reaching the registry. That layer is otherwise unscanned —
 CodeQL reads the source and CI's audit job resolves the npm tree from the lockfile, and neither
 looks at the Alpine packages underneath, which is also why the scan covers OS packages only. The
 base image is pinned by digest and raised by Dependabot, and the runtime stage runs `apk upgrade`,
@@ -584,9 +590,10 @@ by name — without anyone choosing to.
 A second Trivy pass scans each image for secrets — in its files and, with
 `TRIVY_IMAGE_CONFIG_SCANNERS=secret`, in its config and layer history, which is where a build arg
 or `ENV` lands. It is a separate step because the vulnerability scan's `HIGH,CRITICAL` floor would
-drop the generic credential patterns Trivy rates lower. CI runs the same scan on every pull
-request, and `check:artefacts` refuses any workflow that lets a repository secret reach `docker
-build` at all, so this step should never be the first to notice.
+drop the generic credential patterns Trivy rates lower. CI runs it on every pull request and every
+push to `main`, and `check:artefacts` refuses any workflow that lets a repository secret reach an
+image build (`docker build`, `docker buildx bake` or their actions) at all, so this step should
+never be the first to notice.
 
 ## Mixed local/Docker development
 

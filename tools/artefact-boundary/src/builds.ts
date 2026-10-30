@@ -24,7 +24,7 @@ type Job = { env?: unknown; steps?: unknown };
 const WORKFLOW_EXTENSIONS = ['.yml', '.yaml'];
 const ACTION_FILENAMES = ['action.yml', 'action.yaml'];
 
-const IMAGE_BUILD_ACTION = /^docker\/build-push-action(?:@|$)/;
+const IMAGE_BUILD_ACTION = /^docker\/(?:build-push|bake)-action(?:@|$)/;
 // Where one command ends and the next may begin: a newline, `;`, `&`, `|` or `(`.
 const COMMAND_BOUNDARY = /[\n;&|(]/;
 const LINE_CONTINUATION = /\\\n/g;
@@ -177,8 +177,8 @@ function buildsAnImage(step: Step, buildActions: ReadonlySet<string>): boolean {
 }
 
 /**
- * `docker build`, or `docker {buildx,image,compose} build`, in command position — after any
- * `VAR=value`, `sudo` or `-flag` prefix. Tokenised rather than matched by one regular expression,
+ * `docker build`, `docker {buildx,image,compose} build`, or `docker bake` or `docker buildx bake`,
+ * in command position — after any `VAR=value`, `sudo` or `-flag` prefix. Tokenised rather than matched by one regular expression,
  * which CodeQL rightly flagged for backtracking; `docker build` in an echo or a string never
  * qualifies. A flag's separate value is indistinguishable from a command, so `sudo -u root
  * docker build` is missed — the Trivy scan on the built image is the backstop.
@@ -194,7 +194,12 @@ function runsAnImageBuild(script: string): boolean {
       if (first !== 'docker') {
         return false;
       }
-      return second === 'build' || (BUILD_SUBCOMMANDS.includes(second) && third === 'build');
+      return (
+        second === 'build' ||
+        second === 'bake' ||
+        (BUILD_SUBCOMMANDS.includes(second) && third === 'build') ||
+        (second === 'buildx' && third === 'bake')
+      );
     });
 }
 

@@ -4,8 +4,8 @@
 # runtime resolved from the tree `pnpm deploy --prod` pruned. The failure this catches is a runtime
 # import declared as a devDependency, which compiles everywhere and is missing only here.
 #
-# ci.yml runs it against the pull request's build and publish-images.yml against the image it is
-# about to push. It also runs by hand against any local tag:
+# ci.yml runs it against each image it builds, which on main are the images publish-images.yml
+# pushes. It also runs by hand against any local tag:
 #
 #   scripts/smoke-image.sh public-web fphd-ci/public-web:ci
 set -euo pipefail

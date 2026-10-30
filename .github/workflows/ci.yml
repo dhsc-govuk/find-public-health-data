@@ -14,6 +14,12 @@ concurrency:
   # Only supersede pull request runs — two quick merges must not leave main without a green run.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# bash -eo pipefail, where an unnamed shell is bash -e alone: a failed command on the left of a
+# pipe, such as the docker save that feeds an image archive, must fail the step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   lint:
     name: Lint
@@ -120,7 +126,7 @@ jobs:
   # Each shard starts its own stack and runs its share of the suite; add shards as the suite grows.
   e2e:
     name: E2E tests (${{ matrix.shard }}/${{ strategy.job-total }})
-    needs: build-app-images
+    needs: [build-app-images, seed-database]
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -185,8 +191,15 @@ jobs:
           --profile public-api --profile internal-api
           up --detach --wait
 
-      # The same commands a developer runs, from the host against the compose database.
-      - name: Seed the database
+      - name: Download the seeded database
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: seeded-database
+          path: ${{ runner.temp }}
+
+      # seed-database's dump, into the compose database. The login roles come first: the dump
+      # grants to them, but they belong to the server, not the database, so it cannot carry them.
+      - name: Restore the seeded database
         env:
           APP_ENV: test
           DB_HOST: localhost
@@ -196,7 +209,11 @@ jobs:
           POSTGRES_PASSWORD: fphd
           PUBLIC_API_PASSWORD: public_api
           INTERNAL_API_PASSWORD: internal_api
-        run: pnpm db:bootstrap && pnpm db:migrate && pnpm db:import-core-data && pnpm db:seed-dummy-data
+        run: |
+          pnpm db:bootstrap
+          docker exec --interactive fphd-postgres \
+            pg_restore --username=fphd --dbname=fphd --exit-on-error --single-transaction \
+            < "${RUNNER_TEMP}/seeded-database.dump"
 
       - name: Run the e2e tests
         env:
@@ -216,7 +233,7 @@ jobs:
   # e2e on the same images, so it adds nothing to the pull request's critical path.
   performance:
     name: Route budgets
-    needs: build-app-images
+    needs: [build-app-images, seed-database]
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -254,7 +271,15 @@ jobs:
           --profile public-api --profile internal-api
           up --detach --wait
 
-      - name: Seed the database
+      - name: Download the seeded database
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: seeded-database
+          path: ${{ runner.temp }}
+
+      # seed-database's dump, into the compose database. The login roles come first: the dump
+      # grants to them, but they belong to the server, not the database, so it cannot carry them.
+      - name: Restore the seeded database
         env:
           APP_ENV: test
           DB_HOST: localhost
@@ -264,7 +289,11 @@ jobs:
           POSTGRES_PASSWORD: fphd
           PUBLIC_API_PASSWORD: public_api
           INTERNAL_API_PASSWORD: internal_api
-        run: pnpm db:bootstrap && pnpm db:migrate && pnpm db:import-core-data && pnpm db:seed-dummy-data
+        run: |
+          pnpm db:bootstrap
+          docker exec --interactive fphd-postgres \
+            pg_restore --username=fphd --dbname=fphd --exit-on-error --single-transaction \
+            < "${RUNNER_TEMP}/seeded-database.dump"
 
       - name: Check the route budgets
         env:
@@ -332,17 +361,6 @@ jobs:
       - name: Scan git history
         run: gitleaks git . --redact --verbose --log-opts=HEAD
 
-  compile:
-    name: Compile apps
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-workspace
-      - run: pnpm build
-
   # Distinct from `compile`, which only proves the workspace builds. This proves the artefact that
   # actually ships assembles and starts: `pnpm deploy --prod --legacy` prunes devDependencies, so a
   # module imported at runtime but declared as a devDependency compiles here and is missing there.
@@ -350,9 +368,11 @@ jobs:
   # route handler.
   #
   # No registry login: the images are built into the local daemon, then saved as an artifact for
-  # e2e and scan-app-images. One bake invocation so the shared builder stage runs once and the four
-  # app builds run in parallel. No build cache: every layer after `COPY . .` misses on a pull
-  # request anyway, and exporting it costs more time than it restores.
+  # e2e and scan-app-images, and on a push to main for publish-images.yml, which pushes these
+  # bytes. One bake invocation so the shared builder stage runs once and the four app builds run
+  # in parallel. No build cache: every layer after `COPY . .` misses on a pull request anyway,
+  # exporting it costs more time than it restores, and a published image is then made only of
+  # layers this run built.
   build-app-images:
     name: Build app images
     if: ${{ !github.event.pull_request.draft }}
@@ -365,9 +385,20 @@ jobs:
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # `source: .` builds the checkout; the default is a Git context fetched by BuildKit.
+      # The one label value the run's context cannot supply.
+      - name: Read the build timestamp
+        id: timestamp
+        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+
+      # `source: .` builds the checkout; the default is a Git context fetched by BuildKit. The
+      # OCI_ variables fill in docker-bake.hcl's labels: commit and build-time metadata go in the
+      # labels, not the tags, where they could drift from what the labels say.
       - name: Build the app images
         uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        env:
+          OCI_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+          OCI_REVISION: ${{ github.sha }}
+          OCI_CREATED: ${{ steps.timestamp.outputs.created }}
         with:
           source: .
           files: docker/docker-bake.hcl
@@ -407,7 +438,7 @@ jobs:
   # Alongside e2e rather than before it, so a scan never holds up the suite.
   scan-app-images:
     name: Scan images (${{ matrix.app }})
-    needs: build-app-images
+    needs: [build-app-images, trivy-db]
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -434,11 +465,70 @@ jobs:
         uses: ./.github/actions/scan-image
         with:
           image-ref: fphd-ci/${{ matrix.app }}:ci
+          db-cache-key: ${{ needs.trivy-db.outputs.cache-key }}
 
-  # Build, smoke test and scan, the same three steps publish-images.yml runs through the same
-  # action and script. On its own because nothing downstream runs the image.
+  # Brings Trivy's vulnerability database up to date once a run and caches it under its update
+  # time; each of the five scans restores that copy and skips the update, or downloads its own if
+  # the restore fails. It starts from the newest copy cached before, so Trivy downloads only when
+  # that copy is out of date.
+  trivy-db:
+    name: Update the Trivy database
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      cache-key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-trivy
+
+      - name: Restore the newest cached database
+        id: restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          # Never saved, so restore-keys picks the newest copy.
+          key: trivy-db-newest
+          restore-keys: trivy-db-
+
+      - name: Make an empty directory to scan
+        run: mkdir "${RUNNER_TEMP}/empty"
+
+      # A vulnerability scan of an empty directory: Trivy updates the database before it reads
+      # the target, then finds nothing in it.
+      - name: Update the database
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ runner.temp }}/empty
+          scanners: vuln
+          cache: 'false'
+          cache-dir: ${{ runner.temp }}/trivy-cache
+          skip-setup-trivy: 'true'
+
+      - name: Key the database by its update time
+        id: key
+        run: |
+          updated=$(jq --raw-output --exit-status .UpdatedAt "${RUNNER_TEMP}/trivy-cache/db/metadata.json")
+          echo "key=trivy-db-${updated}" >> "${GITHUB_OUTPUT}"
+
+      - name: Cache the database
+        if: ${{ steps.key.outputs.key != steps.restore.outputs.cache-matched-key }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          key: ${{ steps.key.outputs.key }}
+
+  # Build, smoke test, check and scan, as build-app-images and scan-app-images do for the app
+  # images. On its own because e2e does not run it. On a push to main it saves the image for
+  # publish-images.yml. No build cache, as for the app images: exporting it cost more time than
+  # it restored.
   build-operations-image:
     name: Build image (operations)
+    needs: trivy-db
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -447,13 +537,24 @@ jobs:
         with:
           persist-credentials: false
 
+      # The one label value the run's context cannot supply.
+      - name: Read the build timestamp
+        id: timestamp
+        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
+
+      # The same labels docker-bake.hcl gives the app images.
       - name: Build operations
         uses: ./.github/actions/build-image
         with:
           app: operations
           target: operations
           tags: fphd-ci/operations:ci
-          cache-scope: images-operations
+          labels: |
+            org.opencontainers.image.title=fphd-operations
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.timestamp.outputs.created }}
+            org.opencontainers.image.licenses=MIT
 
       - name: Smoke test operations
         run: scripts/smoke-image.sh operations fphd-ci/operations:ci
@@ -466,6 +567,81 @@ jobs:
         uses: ./.github/actions/scan-image
         with:
           image-ref: fphd-ci/operations:ci
+          db-cache-key: ${{ needs.trivy-db.outputs.cache-key }}
+
+      - name: Save operations
+        if: ${{ github.event_name == 'push' }}
+        run: docker save fphd-ci/operations:ci | zstd -T0 -3 -o "${RUNNER_TEMP}/operations-image.tar.zst"
+
+      - name: Upload operations
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: operations-image
+          path: ${{ runner.temp }}/operations-image.tar.zst
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  # Seeds a database once a run and saves a dump of it, which e2e and Route budgets restore
+  # rather than each seeding their own. Beside build-app-images, so it adds nothing to the pull
+  # request's critical path.
+  seed-database:
+    name: Seed the database
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: fphd
+          POSTGRES_PASSWORD: fphd
+          POSTGRES_DB: fphd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fphd -d fphd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-workspace
+
+      # The same commands a developer runs.
+      - name: Seed the database
+        env:
+          APP_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          POSTGRES_DB: fphd
+          POSTGRES_USER: fphd
+          POSTGRES_PASSWORD: fphd
+          PUBLIC_API_PASSWORD: public_api
+          INTERNAL_API_PASSWORD: internal_api
+        run: pnpm db:bootstrap && pnpm db:migrate && pnpm db:import-core-data && pnpm db:seed-dummy-data
+
+      # pg_dump inside the service container, so the client is the server's version. The custom
+      # format is compressed already. --statistics keeps the planner statistics the seed's ANALYZE
+      # of the read models wrote, which pg_dump leaves out by default.
+      - name: Dump the database
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: >
+          docker exec "${POSTGRES_CONTAINER}" pg_dump --format=custom --statistics --username=fphd fphd
+          > "${RUNNER_TEMP}/seeded-database.dump"
+
+      - name: Upload the dump
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: seeded-database
+          path: ${{ runner.temp }}/seeded-database.dump
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
 
   artefact-boundary:
     name: Public artefact boundary
@@ -476,8 +652,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
-      # Builds the public artefacts itself, so it does not depend on the compile job — keeping the
-      # two jobs parallel, and keeping the check runnable standalone from a clean tree.
+      # Builds the public artefacts itself, so the check runs standalone from a clean tree. The only
+      # workspace build outside Docker; build-app-images builds the whole workspace inside it.
       - run: pnpm check:artefacts
 
   # A schema change without its migration: drizzle-kit, run against a copy of the migrations,
@@ -563,10 +739,11 @@ jobs:
         performance,
         audit,
         secrets,
-        compile,
         build-app-images,
         scan-app-images,
+        trivy-db,
         build-operations-image,
+        seed-database,
         artefact-boundary,
         migration-drift,
         e2e-coverage,
@@ -598,6 +775,23 @@ jobs:
             fi
           done
 
+  # On a push to main once every check has passed, publishes the images this run built and
+  # tested. After the gate rather than in its needs, so a commit with a failing check publishes
+  # nothing. A called workflow gets no more permissions than its caller job grants.
+  publish-images:
+    name: Publish images
+    needs: [all-checks-pass]
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      actions: read
+    uses: ./.github/workflows/publish-images.yml
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
   # Runs only on push to main: the webhook secret must never be available to
   # pull_request jobs. Not in all-checks-pass's needs — it gates nothing, and
   # would sit skipped (not success) on the runs the gate checks.
@@ -605,7 +799,7 @@ jobs:
     name: Notify CI failure
     needs: [all-checks-pass]
     # Success is silent — a green run on main is the expected state, and the
-    # publish run posts the message that marks the commit landing.
+    # publish jobs post the message that marks the commit landing.
     if: ${{ always() && github.event_name == 'push' && needs.all-checks-pass.result != 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

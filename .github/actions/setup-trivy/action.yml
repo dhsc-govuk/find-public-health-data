@@ -1,0 +1,17 @@
+name: Set up Trivy
+description: Installs the pinned Trivy release, from the Actions cache once a run has saved it.
+
+# One install for ci.yml's trivy-db job and the scans, which call trivy-action with
+# skip-setup-trivy. trivy-action's own install shares its cache switch with the vulnerability
+# database, which those callers turn off; without the cache each job downloaded Trivy from
+# GitHub's releases, and a failed download failed the scan. setup-trivy caches only a named
+# version, so the version is pinned here. Dependabot raises trivy-action in ci.yml but not here:
+# when it does, raise this to the version that trivy-action release installs by default.
+
+runs:
+  using: composite
+  steps:
+    - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6
+      with:
+        version: v0.70.0
+        cache: true
