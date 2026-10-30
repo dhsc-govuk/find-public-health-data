@@ -1,8 +1,8 @@
 name: Scan image
 description: Trivy scans a built image — OS vulnerabilities, then secrets — and fails on findings.
 
-# ci.yml's scans, of the app images and of operations. The trivy action rather than a trivy image
-# so the engine sits under Dependabot's actions updater; pinning `version:` would undo that.
+# ci.yml's scans, of the app images and of operations. Trivy itself comes from the setup-trivy
+# action beside this one, which pins its version.
 
 inputs:
   image-ref:
@@ -16,6 +16,8 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: ./.github/actions/setup-trivy
+
     # The database trivy-db brought up to date for this run, so no scan downloads its own. The
     # action's own cache is keyed by date, and a copy saved earlier the same day can already be out
     # of date to Trivy, which then downloads it again.
@@ -42,6 +44,7 @@ runs:
         exit-code: 1
         cache: 'false'
         cache-dir: ${{ runner.temp }}/trivy-cache
+        skip-setup-trivy: 'true'
       env:
         TRIVY_SKIP_DB_UPDATE: 'true'
 
@@ -56,7 +59,6 @@ runs:
         exit-code: 1
         cache: 'false'
         cache-dir: ${{ runner.temp }}/trivy-cache
-        # The step above put Trivy on the path.
         skip-setup-trivy: 'true'
       env:
         # Build args and ENV land in the image config, not in a file; the default scan reads files only.
