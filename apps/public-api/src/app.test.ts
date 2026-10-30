@@ -56,6 +56,7 @@ describe('public API', () => {
     ['put', `/api/internal/indicators/${anyId}/data-table/confirmation`],
     ['get', '/api/internal/topics'],
     ['get', `/api/internal/indicators/${anyId}/reviewer-options`],
+    ['get', `/api/internal/indicators/${anyId}/notes-for-reviewers`],
     ['post', `/api/internal/indicators/${anyId}/assign-reviewers`],
     ['get', '/api/internal/indicators-under-review'],
     ['get', '/api/internal/indicators-to-review'],

@@ -433,3 +433,4 @@ export * from './indicator-tagging-contract.ts';
 export * from './indicator-update-frequency-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';
 export * from './indicator-variance-and-quality-contract.ts';
+export * from './notes-for-reviewers-contract.ts';
