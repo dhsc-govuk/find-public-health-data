@@ -1,9 +1,10 @@
 import { countIsNumerator as countIsNumeratorOf } from '@fphd/utils/value-type-and-unit';
 
-import { translateFrequency, translatePolarity } from '../fingertips-lookups.ts';
+import { translatePolarity } from '../fingertips-lookups.ts';
 import { notesAndCaveats } from '../notes-and-caveats.ts';
 import { plainTextFromHtml } from '../plain-text.ts';
 import type { PholioExportOptions } from './context.ts';
+import { sourceUpdateFrequency } from './frequency.ts';
 import { uploadBatchId } from './ids.ts';
 import { INDICATOR_NAME_MAPPINGS, reviewedIndicatorName } from './indicator-names.ts';
 import type { PholioRow } from './source.ts';
@@ -60,6 +61,7 @@ interface TextValuesRow extends PholioRow {
   DisclosureControl: string | null;
   Caveats: string | null;
   Notes: string | null;
+  Frequency: string | null;
 }
 
 /** Exports indicator, indicator_version and upload_batch from Pholio. */
@@ -109,12 +111,23 @@ export async function exportIndicators(context: PholioExportOptions) {
   const polarityNameById = new Map<number, string>();
   for (const row of polarityNames) polarityNameById.set(row.id, row.name);
 
-  // Pre-compute frequency name for id=1 (the only value used). Column is Name.
-  const freqRows = await queryPholio<{ id: number; name: string }>(
+  const frequencyRows = await queryPholio<{
+    IndicatorID: number;
+    FrequencyID: number;
+    Name: string | null;
+  }>(
     pool,
-    'SELECT FrequencyID AS id, Name AS name FROM dbo.CIA_L_Frequency WHERE FrequencyID = 1',
+    `
+    SELECT r.IndicatorID,r.Frequency AS FrequencyID,f.Name
+    FROM dbo.CIAReference r LEFT JOIN dbo.CIA_L_Frequency f ON f.FrequencyID=r.Frequency
+  `,
   );
-  const annualFrequencyName = freqRows[0]?.name ?? 'Annual';
+  const frequencyById = new Map<number, string>();
+  for (const row of frequencyRows) {
+    if (row.Name === null)
+      throw new Error(`Indicator ${row.IndicatorID}: unknown frequency ${row.FrequencyID}`);
+    frequencyById.set(row.IndicatorID, row.Name);
+  }
 
   // Pre-compute comparator method per indicator: most common ComparatorMethodID in grouping.
   const comparatorRows = await queryPholio<ComparatorRow>(
@@ -239,7 +252,8 @@ export async function exportIndicators(context: PholioExportOptions) {
        imtv.[43_DenomSourceID] AS DenominatorSourceID,
        CAST(imtv.[16_DiscControl] AS nvarchar(max)) AS DisclosureControl,
        CAST(imtv.[17_Caveats] AS nvarchar(max)) AS Caveats,
-       CAST(imtv.[22_Notes] AS nvarchar(max)) AS Notes
+       CAST(imtv.[22_Notes] AS nvarchar(max)) AS Notes,
+       CAST(imtv.[23_Frequency] AS nvarchar(max)) AS Frequency
      FROM dbo.IndicatorMetadataTextValues imtv
      WHERE imtv.ProfileId IS NULL`,
   );
@@ -258,6 +272,22 @@ export async function exportIndicators(context: PholioExportOptions) {
     context.indicatorSelection.kind === 'approved'
       ? metaRows.filter((row) => row.IndicatorID !== 94204 && !selected.has(row.IndicatorID)).length
       : 0;
+  const updateFrequencyByIndicator = new Map(
+    selectedRows.map((row) => {
+      const id = row.IndicatorID;
+      try {
+        return [
+          id,
+          sourceUpdateFrequency(frequencyById.get(id) ?? null, textById.get(id)?.Frequency ?? null),
+        ] as const;
+      } catch (cause) {
+        throw new Error(
+          `Indicator ${id}: ${cause instanceof Error ? cause.message : String(cause)}`,
+          { cause },
+        );
+      }
+    }),
+  );
   const indicatorWriter = new TableWriter(outDir, 'indicator');
   const versionWriter = new TableWriter(outDir, 'indicator_version');
   const batchWriter = new TableWriter(outDir, 'upload_batch');
@@ -278,7 +308,9 @@ export async function exportIndicators(context: PholioExportOptions) {
       throw new Error(`Indicator ${id}: no polarity name for polarity_id ${polarityId}`);
     }
     const polarity = translatePolarity(polarityName);
-    const updateFrequency = translateFrequency(annualFrequencyName);
+    const updateFrequency = updateFrequencyByIndicator.get(id);
+    if (updateFrequency === undefined)
+      throw new Error(`Indicator ${id}: missing validated frequency`);
 
     const vtName = row.ValueTypeName ?? 'Count';
     const resolvedValueTypeId = valueTypeId(vtName);
