@@ -4,6 +4,7 @@ import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
 
+import { DEV_CLASS_APP_ENVS, isDevClassEnv } from '@fphd/config';
 import { createDbFromTransaction, schema } from '@fphd/db';
 import type postgres from 'postgres';
 
@@ -132,15 +133,9 @@ export async function streamSeedCsv(
   }
 }
 
-// Its own list rather than isDeployedEnv: 'dev' is deployed but is populated by running the
-// seed against it, while 'preview' and 'production' hold data no command may erase. The
-// integration harness runs under 'test' and seeds through seedDummyTables directly, but the
-// value is listed so that path stays permitted if it ever reaches for the CLI.
-const DEV_CLASS_APP_ENVS = ['local', 'test', 'dev'];
-
 /** Fails closed: an explicit APP_ENV is required rather than a missing value being assumed safe. */
 function assertDevClassEnv(action: string, appEnv: string | undefined): void {
-  if (appEnv !== undefined && DEV_CLASS_APP_ENVS.includes(appEnv)) return;
+  if (isDevClassEnv(appEnv)) return;
 
   throw new Error(
     `Refusing to ${action}: APP_ENV is ${appEnv === undefined ? 'unset' : `'${appEnv}'`}; ` +
