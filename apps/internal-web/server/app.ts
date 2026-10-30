@@ -1,4 +1,5 @@
 import { sessionCookieName } from '@fphd/auth';
+import { devToolsContext } from '@fphd/internal-web-features';
 import { createApiClient, forwardedCookieHeaders } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { createFakeAuthReactRouterApp } from '@fphd/web-server/fake-auth-react-router';
@@ -29,5 +30,6 @@ export const app = createFakeAuthReactRouterApp(() => import('virtual:react-rout
       }),
     );
     setFlashStorage(context, flashStorage);
+    context.set(devToolsContext, config.offersDevTools);
   },
 });

@@ -27,10 +27,18 @@ const taskList: IndicatorTaskList = {
   tasks: { ...taskStatuses('not_started'), name: 'completed' },
 };
 
-function renderPage(overrides: Partial<IndicatorTaskList> = {}, formError?: string) {
+function renderPage(
+  overrides: Partial<IndicatorTaskList> = {},
+  formError?: string,
+  offersSampleAnswers = false,
+) {
   return render(
     <MemoryRouter initialEntries={[`/publish/indicators/${taskList.indicator.id}/task-list`]}>
-      <IndicatorTaskListPage taskList={{ ...taskList, ...overrides }} formError={formError} />
+      <IndicatorTaskListPage
+        taskList={{ ...taskList, ...overrides }}
+        offersSampleAnswers={offersSampleAnswers}
+        formError={formError}
+      />
     </MemoryRouter>,
   );
 }
@@ -234,6 +242,28 @@ describe('IndicatorTaskListPage', () => {
 
     expect(screen.queryByRole('button', { name: 'Submit for approval' })).toBeNull();
     expect(screen.queryByText(/By continuing/)).toBeNull();
+  });
+
+  it('offers to fill in the remaining tasks with sample answers when told to', () => {
+    renderPage({ canSubmit: false }, undefined, true);
+
+    const button = screen.getByRole('button', {
+      name: 'Fill in the remaining tasks with sample answers',
+    });
+    const form = button.closest('form');
+    expect(form?.getAttribute('method')).toBe('post');
+    expect(form?.getAttribute('action')).toBe(
+      `/publish/indicators/${taskList.indicator.id}/sample-answers`,
+    );
+    expect(form?.textContent).toContain(
+      'It replaces any answers to tasks not yet completed, and any data table not yet confirmed.',
+    );
+  });
+
+  it('offers no sample answers unless told to', () => {
+    renderPage({ canSubmit: false });
+
+    expect(screen.queryByRole('button', { name: /sample answers/ })).toBeNull();
   });
 
   it('shows why a submission was refused in the error summary', () => {

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   boolSchema,
   isDeployedEnv,
+  isDevClassEnv,
   loadWebServerConfig,
   logEnvFields,
   parseEnv,
@@ -47,6 +48,20 @@ describe('boolSchema', () => {
     expect(() => boolSchema.parse('yes')).toThrow();
     expect(() => boolSchema.parse('TRUE')).toThrow();
     expect(() => boolSchema.parse('2')).toThrow();
+  });
+});
+
+describe('isDevClassEnv', () => {
+  it('allows the environments whose data is disposable', () => {
+    expect(isDevClassEnv('local')).toBe(true);
+    expect(isDevClassEnv('test')).toBe(true);
+    expect(isDevClassEnv('dev')).toBe(true);
+  });
+
+  it('refuses the environments that hold data to keep, and an unset value', () => {
+    expect(isDevClassEnv('preview')).toBe(false);
+    expect(isDevClassEnv('production')).toBe(false);
+    expect(isDevClassEnv(undefined)).toBe(false);
   });
 });
 
@@ -237,6 +252,7 @@ describe('loadWebServerConfig', () => {
 
   it('uses the app port, api url and local logging defaults', () => {
     expect(loadWebServerConfig({ APP_ENV: 'local', ...secrets }, defaults)).toEqual({
+      offersDevTools: true,
       development: false,
       host: '0.0.0.0',
       port: 3000,
@@ -248,6 +264,18 @@ describe('loadWebServerConfig', () => {
       session: { secret: sessionSecret, secure: false },
       webSession: { secret: webSessionSecret, secure: false },
     });
+  });
+
+  it.each([
+    ['local', true],
+    ['test', true],
+    ['dev', true],
+    ['preview', false],
+    ['production', false],
+  ])('offers development tools under APP_ENV %s: %s', (appEnv, offered) => {
+    expect(loadWebServerConfig({ APP_ENV: appEnv, ...secrets }, defaults).offersDevTools).toBe(
+      offered,
+    );
   });
 
   it('parses runtime and logging configuration', () => {
@@ -268,6 +296,7 @@ describe('loadWebServerConfig', () => {
         defaults,
       ),
     ).toEqual({
+      offersDevTools: false,
       development: true,
       host: '127.0.0.1',
       port: 8080,

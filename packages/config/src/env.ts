@@ -33,6 +33,19 @@ export function isDeployedEnv(appEnv: AppEnv): boolean {
   return appEnv !== 'local' && appEnv !== 'test';
 }
 
+// 'dev' is deployed but is populated by running the seed against it, while 'preview' and
+// 'production' hold data no command may erase. 'test' is listed for the integration harness and
+// e2e, which run under it: e2e completes its drafts with the sample answers.
+export const DEV_CLASS_APP_ENVS: readonly AppEnv[] = ['local', 'test', 'dev'];
+
+/**
+ * Whether the environment's data is disposable, so seeding, resets and development aids such as
+ * sample answers may run there. Fails closed: an unset or unknown value is not one.
+ */
+export function isDevClassEnv(appEnv: string | undefined): boolean {
+  return DEV_CLASS_APP_ENVS.some((value) => value === appEnv);
+}
+
 /**
  * No default, deliberately. Every fallback keyed off APP_ENV is safe when deployed and
  * relaxed when not, so a default would have to be `local` — and an unset variable would
@@ -195,6 +208,7 @@ export function loadWebServerConfig(
   );
 
   return {
+    offersDevTools: isDevClassEnv(parsed.APP_ENV),
     development: parsed.NODE_ENV === 'development',
     host: parsed.HOST,
     port: parsed.PORT,

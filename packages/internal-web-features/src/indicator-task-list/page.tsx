@@ -11,6 +11,7 @@ import {
 import {
   indicatorDataTableCheckPath,
   indicatorDataTablePath,
+  indicatorSampleAnswersPath,
   indicatorSectionPath,
   indicatorTaskListPath,
 } from '../publish-paths.ts';
@@ -124,6 +125,8 @@ const TASK_GROUPS: readonly TaskGroup[] = [
 
 interface TaskListPageProps {
   taskList: IndicatorTaskList;
+  /** True where a development tool may fill in the tasks left to do. */
+  offersSampleAnswers?: boolean;
   /** Why the last submission was refused. */
   formError?: string | undefined;
 }
@@ -147,7 +150,26 @@ function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
   );
 }
 
-export function IndicatorTaskListPage({ taskList, formError }: TaskListPageProps) {
+/** A development tool, so that the submit and review journeys can be tried without the typing. */
+function SampleAnswersForm({ id }: { id: string }) {
+  return (
+    <form action={indicatorSampleAnswersPath(id)} method="post">
+      <InsetText>
+        This button is only in development environments. It replaces any answers to tasks not yet
+        completed, and any data table not yet confirmed.
+      </InsetText>
+      <Button classModifiers="secondary" preventDoubleClick type="submit">
+        Fill in the remaining tasks with sample answers
+      </Button>
+    </form>
+  );
+}
+
+export function IndicatorTaskListPage({
+  taskList,
+  offersSampleAnswers = false,
+  formError,
+}: TaskListPageProps) {
   const { indicator, tasks } = taskList;
 
   return (
@@ -173,6 +195,7 @@ export function IndicatorTaskListPage({ taskList, formError }: TaskListPageProps
             />
           </div>
         ))}
+        {offersSampleAnswers && <SampleAnswersForm id={indicator.id} />}
         <SubmitForm taskList={taskList} />
       </GridColumn>
     </GridRow>

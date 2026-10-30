@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { shownVersion } from '../support/complete-draft.ts';
 import { createDraft, createIndicator, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { expectNotFoundWithoutDraft, taskRow } from '../support/section-page.ts';
 import { PUBLISHER, TEAM_B_PUBLISHER } from '../support/sign-in.ts';
@@ -122,6 +123,49 @@ test('is reached from the indicator overview', async ({ page }) => {
   await page.getByRole('link', { name: 'Continue creating indicator' }).click();
 
   await expect(page).toHaveURL(taskListPath);
+});
+
+test('fills in the remaining tasks with sample answers, ready to submit', async ({
+  page,
+}, testInfo) => {
+  await createIndicator(page, uniqueName());
+  const taskListPath = new URL(page.url()).pathname;
+
+  await page
+    .getByRole('button', { name: 'Fill in the remaining tasks with sample answers' })
+    .click();
+
+  // The rows wait for the fill to finish; the address alone would match before it had begun.
+  for (const taskName of TASKS) {
+    await expect(taskRow(page, taskName)).toContainText('Completed');
+  }
+  await expect(page).toHaveURL(taskListPath);
+  await expect(page.getByRole('button', { name: /sample answers/ })).toHaveCount(0);
+  await expectNoAccessibilityViolations(page, testInfo);
+
+  await page.getByRole('button', { name: 'Submit for approval' }).click();
+
+  await expect(page).toHaveURL(/\/dashboard\/indicators\/[0-9a-f-]{36}$/);
+  await expect(page.getByText('Indicator successfully submitted for approval.')).toBeVisible();
+});
+
+test('keeps the answers to tasks already complete when filling in the rest', async ({ page }) => {
+  const id = await createDraft(page, uniqueName());
+  const polarityPath = `/publish/indicators/${id}/polarity`;
+  const polarity = await page.request.post(polarityPath, {
+    form: { polarity: 'higher-is-better', version: await shownVersion(page, polarityPath) },
+    maxRedirects: 0,
+  });
+  expect(polarity.headers().location).toBe(`/publish/indicators/${id}/task-list`);
+  await page.goto(`/publish/indicators/${id}/task-list`);
+
+  await page
+    .getByRole('button', { name: 'Fill in the remaining tasks with sample answers' })
+    .click();
+  await expect(taskRow(page, 'Polarity')).toContainText('Completed');
+  await page.goto(`/publish/indicators/${id}/polarity`);
+
+  await expect(page.getByRole('radio', { name: 'Higher is better' })).toBeChecked();
 });
 
 test('answers an indicator with nothing to edit with the not-found page', async ({ page }) => {

@@ -26,6 +26,8 @@ describe('the task list route', () => {
   it('links back to the indicator overview from above the page', () => {
     if (typeof handle.backHref !== 'function') throw new Error('back link needs the loader');
 
-    expect(handle.backHref({ taskList })).toBe(`/dashboard/indicators/${taskList.indicator.id}`);
+    expect(handle.backHref({ taskList, offersSampleAnswers: false })).toBe(
+      `/dashboard/indicators/${taskList.indicator.id}`,
+    );
   });
 });

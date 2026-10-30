@@ -3,6 +3,7 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { devToolsContext } from '../dev-tools.ts';
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { loadIndicatorTaskList, submitIndicator } from './loader.ts';
 
@@ -23,9 +24,11 @@ const taskList = {
   tasks: { name: 'completed' },
 };
 
-function load(id: string, get: ApiClient['get']) {
+/** Leaves the development tools context unset unless `devTools` is given, as an app might. */
+function load(id: string, get: ApiClient['get'], devTools?: boolean) {
   const context = new RouterContextProvider();
   context.set(apiContext, { get } as unknown as ApiClient);
+  if (devTools !== undefined) context.set(devToolsContext, devTools);
 
   return loadIndicatorTaskList({
     context,
@@ -43,7 +46,35 @@ describe('loadIndicatorTaskList', () => {
     expect(get.mock.calls[0]?.[0]).toBe(
       `/api/internal/indicators/${taskList.indicator.id}/task-list`,
     );
-    expect(outcome).toEqual({ taskList });
+    expect(outcome).toEqual({ taskList, offersSampleAnswers: false });
+  });
+
+  it('offers sample answers where the app offers development tools and tasks are left', async () => {
+    const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false });
+
+    const outcome = await load(taskList.indicator.id, get, true);
+
+    expect(outcome.offersSampleAnswers).toBe(true);
+  });
+
+  it.each([
+    ['off', false],
+    ['unset', undefined],
+  ])(
+    'offers no sample answers with development tools %s, though tasks are left',
+    async (_, devTools) => {
+      const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false });
+
+      const outcome = await load(taskList.indicator.id, get, devTools);
+
+      expect(outcome.offersSampleAnswers).toBe(false);
+    },
+  );
+
+  it('offers no sample answers once every task is complete', async () => {
+    const outcome = await load(taskList.indicator.id, vi.fn().mockResolvedValue(taskList), true);
+
+    expect(outcome.offersSampleAnswers).toBe(false);
   });
 
   it('sends the publisher to the overview, saying why, while the draft is locked', async () => {
