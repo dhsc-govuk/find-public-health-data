@@ -68,6 +68,11 @@ publishing moves to this service. The operations image applies the packages with
   wrote for it. A version a publisher has added links or age ranges to is never deleted;
   the import stops and names the count.
 - Financial cumulative-quarter data retains its cumulative date ranges; quarter numbers are never treated as distribution ranks. Repeated canonical observation keys stop the export with source-row diagnostics.
+- Financial and academic monthly periods count Month 1 from April, matching Fingertips.
+  November-to-November annual periods run from 16 November to 15 November. Financial
+  year-end snapshots retain their 31 March point date. Academic quarters and multi-year
+  rolling periods require a verified date mapping if they pass the publication-format gate;
+  the exporter refuses them rather than guessing dates.
 - The importer resumes an interrupted package download from the bytes it already has.
 - A baseline only applies when every canonical target table and the migration ledger are
   empty. An increment only applies after its named predecessor, with a later cutoff.
