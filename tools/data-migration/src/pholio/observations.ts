@@ -16,6 +16,7 @@ import {
   SEX_DIMENSION_TYPE_ID,
   sourceUidForObservationId,
 } from './ids.ts';
+import { suppressSourceMeasures } from './note-suppression.ts';
 import { computeDates } from './period.ts';
 import { queryPholio, streamPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
@@ -49,24 +50,20 @@ export function computeDenominator2(
   return nullIfSentinel(denominator2Raw);
 }
 
-/**
- * CI pair with the inversion-swap rule (Step 6, lines 757–767).
- * When value = -1: both → null.
- * When value present, lower > upper and neither is -1: swap.
- * Otherwise: NULLIF individually.
- */
 export function computeCiPair(
-  valueRaw: number,
+  valueRaw: number | null,
   lowerRaw: number | null,
   upperRaw: number | null,
+  source = 'Confidence interval',
 ): { lower: number | null; upper: number | null } {
-  if (valueRaw === -1) return { lower: null, upper: null };
-  const lo = lowerRaw ?? -1;
-  const hi = upperRaw ?? -1;
-  if (lo > hi && lo !== -1 && hi !== -1) {
-    return { lower: nullIfSentinel(hi), upper: nullIfSentinel(lo) };
-  }
-  return { lower: nullIfSentinel(lo), upper: nullIfSentinel(hi) };
+  if (nullIfSentinel(valueRaw) === null) return { lower: null, upper: null };
+  const lower = nullIfSentinel(lowerRaw);
+  const upper = nullIfSentinel(upperRaw);
+  if (lower !== null && upper !== null && lower > upper)
+    throw new Error(
+      `${source}: inverted confidence limits ${lower} > ${upper}; source correction required`,
+    );
+  return { lower, upper };
 }
 
 // ─── Compound sex+age ─────────────────────────────────────────────────────────
@@ -323,6 +320,8 @@ async function assertDistinctObservations(
     if (areaId === undefined) throw new Error(`${diagnostic}: unknown area ${c.AreaCode}`);
     if (c.ValueNoteId !== 0 && !context.noteTypeCategory.has(c.ValueNoteId))
       throw new Error(`${diagnostic}: unknown note type ${c.ValueNoteId}`);
+    computeCiPair(c.Value, c.LowerCI95, c.UpperCI95, `${diagnostic}, 95%`);
+    computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     // Any other sex would silently lose the age, as only SexID 4 is split into the sexed bands.
     if (COMPOUND_AGE_IDS.has(c.AgeID) && c.SexID !== 4)
       throw new Error(`${diagnostic}: compound age ${c.AgeID} with SexID ${c.SexID}, expected 4`);
@@ -442,8 +441,7 @@ export async function exportObservations(context: ObservationExportOptions) {
       c.YearTypeID ?? 1,
     );
     const value = nullIfSentinel(c.Value);
-    const suppressed =
-      value === null && context.noteTypeCategory.get(c.ValueNoteId) === 'disclosure';
+    const suppressed = suppressSourceMeasures(c.Value, c.ValueNoteId);
     const ci95 = computeCiPair(c.Value ?? -1, c.LowerCI95, c.UpperCI95);
     const ci998 = computeCiPair(c.Value ?? -1, c.LowerCI99_8, c.UpperCI99_8);
     const halves = observationDimensions(c);

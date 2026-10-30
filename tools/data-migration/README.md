@@ -43,6 +43,10 @@ publishing moves to this service. The operations image applies the packages with
   reason in `observation_exclusions` must equal `scanned_observations`. A mismatch fails export.
 - Area aliases prefer the non-n-prefixed code deterministically. Both source aliases map
   to the survivor, so their observations and relationships retain the same area identity.
+- Missing-value sentinels are nullified before confidence-limit validation. Present inverted
+  limits stop export with the source uid and confidence level; they are never swapped.
+  Numeric suppression follows the explicit source-note policy independently of the note's
+  display category, so recategorising a note cannot expose a hidden count or denominator.
 - Preparation combines note types only when their tidied text and every other field match.
   It preserves every observation-note link, records the source-id aliases in
   `reference_name_aliases`, and updates the prepared file counts and hashes. Conflicting
