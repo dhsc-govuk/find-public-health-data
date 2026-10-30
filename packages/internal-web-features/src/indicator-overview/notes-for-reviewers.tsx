@@ -1,17 +1,18 @@
 import type { NotesForReviewers as Notes } from '@fphd/internal-api-features/contract';
 import { SummaryList } from '@fphd/ui';
 
-const NOT_PROVIDED = 'Not provided';
+// As the indicator preview shows an unanswered question.
+const NOT_ENTERED = '[Not entered yet]';
 
 function textAnswer(text: string | null): string {
-  return text || NOT_PROVIDED;
+  return text || NOT_ENTERED;
 }
 
 /** A yes/no answer, with the detail a yes gives. */
 function yesNoAnswer(answer: string | null, detail: string | null): string {
   if (answer === 'yes') return detail ? `Yes - ${detail}` : 'Yes';
   if (answer === 'no') return 'No';
-  return NOT_PROVIDED;
+  return NOT_ENTERED;
 }
 
 interface Row {

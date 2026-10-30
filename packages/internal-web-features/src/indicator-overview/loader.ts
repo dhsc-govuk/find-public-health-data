@@ -20,7 +20,7 @@ export type {
 } from '@fphd/internal-api-features/contract';
 export type { OverviewNotification } from './notifications.ts';
 
-// A submission withdrawn since the detail was read leaves no notes, not a missing page.
+// A reviewer unassigned since the detail was read gets no notes, not a missing page.
 function noneIfNotFound(error: unknown): null {
   if (error instanceof Response && error.status === 404) return null;
   throw error;
@@ -35,11 +35,8 @@ export async function loadIndicatorOverview({ context, params }: LoaderFunctionA
   );
 
   const session = getSession(context);
-  // Shown while the draft is locked for review, when its answers are what was submitted.
   const notesForReviewers =
-    session !== undefined &&
-    indicator.draftLocked &&
-    canSeeNotesForReviewers(session, indicatorAccess(indicator))
+    session !== undefined && canSeeNotesForReviewers(session, indicatorAccess(indicator))
       ? await api
           .get(apiPath`/api/internal/indicators/${id}/notes-for-reviewers`, notesForReviewersSchema)
           .catch(noneIfNotFound)
