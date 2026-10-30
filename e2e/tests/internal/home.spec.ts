@@ -53,6 +53,16 @@ test.describe('signed out', () => {
     await page.goto('/');
     await expectNoAccessibilityViolations(page, testInfo);
   });
+
+  // Wider than the public app's 960px, for the internal app's tables and forms.
+  test('frames the page and header at the internal content width', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto('/');
+
+    await expect(page.locator('.govuk-template__container')).toHaveCSS('max-width', '1280px');
+    await expect(page.locator('.govuk-template__container')).toHaveCSS('width', '1280px');
+    await expect(page.locator('.govuk-header .govuk-width-container')).toHaveCSS('width', '1280px');
+  });
 });
 
 test.describe('as a publisher', () => {
