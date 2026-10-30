@@ -162,6 +162,11 @@ export const indicatorsUnderReviewSchema = z.object({
   assigned: z.array(indicatorAdminListItemSchema),
 });
 
+/** The submissions in review that a reviewer is assigned, oldest submission first. */
+export const indicatorsToReviewSchema = z.object({
+  indicators: z.array(indicatorAdminListItemSchema),
+});
+
 export const indicatorIdSchema = z.uuid();
 
 /** The workflow steps the user may take on the indicator now, so the web offers only those. */
@@ -246,6 +251,7 @@ export type IndicatorAdminSummary = z.infer<typeof indicatorAdminSummarySchema>;
 export type IndicatorAdminListItem = z.infer<typeof indicatorAdminListItemSchema>;
 export type IndicatorAdminPage = z.infer<typeof indicatorAdminPageSchema>;
 export type IndicatorsUnderReview = z.infer<typeof indicatorsUnderReviewSchema>;
+export type IndicatorsToReview = z.infer<typeof indicatorsToReviewSchema>;
 export type IndicatorStatus = z.infer<typeof indicatorStatusSchema>;
 export type DraftStatus = z.infer<typeof draftStatusSchema>;
 export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;

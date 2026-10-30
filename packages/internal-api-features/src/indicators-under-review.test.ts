@@ -3,13 +3,19 @@ import { request } from '@fphd/express/testing';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import { indicatorsUnderReviewSchema } from './contract.ts';
+import { indicatorsToReviewSchema, indicatorsUnderReviewSchema } from './contract.ts';
 import type { IndicatorAdminListRow } from './indicator-list-repository.ts';
 import { internalIndicatorsUnderReviewRouter } from './indicators-under-review.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
-import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './testing.ts';
+import {
+  createRouterTestApp,
+  TEST_USER_ID,
+  testSessionCookie,
+  testSessionVerifier,
+} from './testing.ts';
 
 const path = '/api/internal/indicators-under-review';
+const toReviewPath = '/api/internal/indicators-to-review';
 
 const row: IndicatorAdminListRow = {
   id: '00000000-0000-7000-8000-000000000001',
@@ -37,9 +43,10 @@ function createTestApp(
   listUnderReview: InternalIndicatorRepository['listUnderReview'] = vi
     .fn()
     .mockResolvedValue({ unassigned: [row], assigned: [inReview] }),
+  listToReview: InternalIndicatorRepository['listToReview'] = vi.fn().mockResolvedValue([inReview]),
 ): Express {
   return createRouterTestApp(
-    internalIndicatorsUnderReviewRouter({ listUnderReview }, testSessionVerifier),
+    internalIndicatorsUnderReviewRouter({ listUnderReview, listToReview }, testSessionVerifier),
   );
 }
 
@@ -84,6 +91,52 @@ describe('GET /api/internal/indicators-under-review', () => {
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(path)
+      .set('Cookie', await testSessionCookie(roles));
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('GET /api/internal/indicators-to-review', () => {
+  function reviewerCookie() {
+    return testSessionCookie(['internal', 'imrg-reviewer'], []);
+  }
+
+  it('answers the list in the shape the contract describes', async () => {
+    const response = await request(createTestApp())
+      .get(toReviewPath)
+      .set('Cookie', await reviewerCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      indicators: [{ ...inReview, updatedAt: '2026-08-04T10:00:00.000Z' }],
+    });
+    expect(indicatorsToReviewSchema.safeParse(response.body).success).toBe(true);
+  });
+
+  it('lists the indicators assigned to the signed-in reviewer', async () => {
+    const listToReview = vi.fn().mockResolvedValue([]);
+
+    await request(createTestApp(undefined, listToReview))
+      .get(toReviewPath)
+      .set('Cookie', await testSessionCookie(['internal', 'publisher', 'imrg-reviewer']));
+
+    expect(listToReview).toHaveBeenCalledWith(TEST_USER_ID);
+  });
+
+  it('rejects an anonymous request', async () => {
+    const response = await request(createTestApp()).get(toReviewPath);
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    ['a publisher', ['internal', 'publisher']],
+    ['an admin', ['internal', 'admin']],
+    ['an IMRG manager', ['internal', 'imrg-manager']],
+  ])('rejects %s', async (_, roles) => {
+    const response = await request(createTestApp())
+      .get(toReviewPath)
       .set('Cookie', await testSessionCookie(roles));
 
     expect(response.status).toBe(403);
