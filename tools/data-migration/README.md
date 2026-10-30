@@ -56,6 +56,11 @@ publishing moves to this service. The operations image applies the packages with
   rows, so an increment carries only real changes. The export time appears only in the
   manifest.
 - The expected live database name must match `DB_NAME()`.
+- Analytical settings use the owning profile's groupings. Without groupings in that profile,
+  the remaining groupings must agree. Conflicting polarity or comparator methods stop export
+  with the indicator and group ids; the exporter neither votes nor overrides individual ids.
+  Polarity 0 is lower-is-better. Neutral -1/99 polarities and their -1/15 comparator variants
+  can be represented together without treating a directional disagreement as neutral.
 - UUIDs are deterministic from the source table and integer ID. The same source row keeps
   the same target ID across the baseline and every increment.
 - Each package names its schema format, source snapshot time, predecessor, row counts and
