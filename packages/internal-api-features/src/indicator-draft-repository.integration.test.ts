@@ -9,6 +9,7 @@ import { editVersion } from './edit-version.ts';
 import {
   createIndicatorDraft,
   getIndicatorDraftState,
+  getIndicatorPublishedVersion,
   type IndicatorDraft,
   type IndicatorDraftAttributes,
   SLUG_LOCK_NAMESPACE,
@@ -817,6 +818,43 @@ describe('the audit log of draft writes', () => {
       });
     },
   );
+});
+
+describe('getIndicatorPublishedVersion', () => {
+  repositoryTest(
+    'reads the current published version, as a section reads a draft',
+    async ({ db }) => {
+      const published = await indicatorWithTwoPublications(db, 'Published and annotated');
+      await db
+        .update(indicatorVersion)
+        .set({ variation: 'Little.' })
+        .where(eq(indicatorVersion.id, published.currentId));
+
+      const version = await getIndicatorPublishedVersion(db, published.indicatorId);
+
+      expect(version).toMatchObject({
+        id: published.currentId,
+        name: published.currentName,
+        variation: 'Little.',
+        links: [],
+      });
+    },
+  );
+
+  repositoryTest('still reads it while a draft revises it', async ({ db }) => {
+    const published = await indicatorWithTwoPublications(db, 'Published and revised');
+    await createDraftFromPublished(db, published.indicatorId, AS_ACTOR);
+
+    const version = await getIndicatorPublishedVersion(db, published.indicatorId);
+
+    expect(version?.id).toBe(published.currentId);
+  });
+
+  repositoryTest('reads nothing for an indicator never published', async ({ db }) => {
+    const created = await newDraft(db, 'Never published');
+
+    expect(await getIndicatorPublishedVersion(db, created.indicatorId)).toBeUndefined();
+  });
 });
 
 describe('getIndicatorDraftState', () => {
