@@ -93,6 +93,33 @@ test('renames a draft from its name page', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: `${name} renamed` })).toBeVisible();
 });
 
+test('refuses a rename of a name someone else changed since, keeping what was typed', async ({
+  page,
+}) => {
+  const name = uniqueName();
+  const id = await createIndicator(page, name);
+  const taskListPath = new URL(page.url()).pathname;
+  await page.goto(`/publish/indicators/${id}/name`);
+  const other = await page.context().newPage();
+  await other.goto(`/publish/indicators/${id}/name`);
+  await other.getByLabel('What is the name of the indicator?').fill(`${name} theirs`);
+  await other.getByRole('button', { name: 'Continue' }).click();
+  await expect(other).toHaveURL(taskListPath);
+
+  await page.getByLabel('What is the name of the indicator?').fill(`${name} mine`);
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page.getByRole('alert')).toContainText(
+    'Someone else has changed the name since you opened this page.',
+  );
+  await expect(page.getByLabel('What is the name of the indicator?')).toHaveValue(`${name} mine`);
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(taskListPath);
+  await expect(page.getByRole('heading', { level: 1, name: `${name} mine` })).toBeVisible();
+});
+
 test('goes back to the task list from its name page', async ({ page }) => {
   const id = await createIndicator(page, uniqueName());
   const taskListPath = new URL(page.url()).pathname;

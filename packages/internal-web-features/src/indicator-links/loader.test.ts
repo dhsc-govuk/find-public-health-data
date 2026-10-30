@@ -3,6 +3,7 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { SHOWN_VERSION } from '../testing.ts';
 import { linkFieldName } from './form.ts';
 import { loadLinks, submitLinks } from './loader.ts';
 
@@ -31,7 +32,7 @@ function submit(
   links: { url: string; text: string }[],
   put: ApiClient['put'],
 ) {
-  const body = new URLSearchParams(fields);
+  const body = new URLSearchParams({ ...fields, version: SHOWN_VERSION });
   links.forEach(({ url, text }, index) => {
     body.set(linkFieldName(index, 'url'), url);
     body.set(linkFieldName(index, 'text'), text);
@@ -57,17 +58,23 @@ function isRedirectToTaskList(outcome: unknown) {
 
 describe('loadLinks', () => {
   it("fills the form with the draft's answers and nothing typed", async () => {
-    const get = vi.fn().mockResolvedValue({ hasLinks: 'yes', links: [commentary] });
+    const get = vi.fn().mockResolvedValue({
+      answers: { hasLinks: 'yes', links: [commentary] },
+      version: SHOWN_VERSION,
+    });
 
     await expect(load(id, get)).resolves.toEqual({
       id,
       values: { hasLinks: 'yes', links: [commentary], linkUrl: '', linkText: '' },
+      version: SHOWN_VERSION,
     });
     expect(get.mock.calls[0]?.[0]).toBe(sectionPath);
   });
 
   it('leaves an unanswered question unchosen', async () => {
-    const get = vi.fn().mockResolvedValue({ hasLinks: null, links: [] });
+    const get = vi
+      .fn()
+      .mockResolvedValue({ answers: { hasLinks: null, links: [] }, version: SHOWN_VERSION });
 
     await expect(load(id, get)).resolves.toMatchObject({ values: { hasLinks: '', links: [] } });
   });
@@ -86,6 +93,7 @@ describe('submitLinks', () => {
     expect(outcome).toEqual({
       values: { hasLinks: 'yes', links: [commentary, fingertips], linkUrl: '', linkText: '' },
       fieldErrors: {},
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -99,7 +107,11 @@ describe('submitLinks', () => {
       put,
     );
 
-    expect(outcome).toMatchObject({ values: { links: [fingertips] }, fieldErrors: {} });
+    expect(outcome).toMatchObject({
+      values: { links: [fingertips] },
+      fieldErrors: {},
+      version: SHOWN_VERSION,
+    });
     expect(put).not.toHaveBeenCalled();
   });
 
@@ -109,7 +121,10 @@ describe('submitLinks', () => {
     const outcome = await submit({ hasLinks: 'yes' }, [commentary, fingertips], put);
 
     expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
-    expect(put.mock.calls[0]?.[1]).toEqual({ hasLinks: 'yes', links: [commentary, fingertips] });
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      answers: { hasLinks: 'yes', links: [commentary, fingertips] },
+      version: SHOWN_VERSION,
+    });
     expect(outcome).toSatisfy(isRedirectToTaskList);
   });
 
@@ -122,7 +137,10 @@ describe('submitLinks', () => {
       put,
     );
 
-    expect(put.mock.calls[0]?.[1]).toEqual({ hasLinks: 'yes', links: [commentary, fingertips] });
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      answers: { hasLinks: 'yes', links: [commentary, fingertips] },
+      version: SHOWN_VERSION,
+    });
   });
 
   it('ignores a link typed beside "No"', async () => {
@@ -130,7 +148,10 @@ describe('submitLinks', () => {
 
     await submit({ hasLinks: 'no', linkUrl: 'not a url', linkText: '' }, [], put);
 
-    expect(put.mock.calls[0]?.[1]).toEqual({ hasLinks: 'no', links: [] });
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      answers: { hasLinks: 'no', links: [] },
+      version: SHOWN_VERSION,
+    });
   });
 
   it('saves nothing when the link typed is refused, keeping the page as sent', async () => {
@@ -142,6 +163,7 @@ describe('submitLinks', () => {
     expect(outcome).toEqual({
       values: { ...fields, links: [commentary] },
       fieldErrors: { linkText: 'Enter link text' },
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -154,6 +176,7 @@ describe('submitLinks', () => {
     expect(outcome).toEqual({
       values: { hasLinks: 'yes', links: [], linkUrl: '', linkText: '' },
       fieldErrors: { links: 'Add at least one link' },
+      version: SHOWN_VERSION,
     });
     expect(put).not.toHaveBeenCalled();
   });
@@ -168,6 +191,7 @@ describe('submitLinks', () => {
     await expect(submit({ hasLinks: 'yes' }, [commentary], put)).resolves.toEqual({
       values: { hasLinks: 'yes', links: [commentary], linkUrl: '', linkText: '' },
       fieldErrors: { links: 'Refused by the API' },
+      version: SHOWN_VERSION,
     });
   });
 });

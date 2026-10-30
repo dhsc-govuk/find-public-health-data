@@ -24,6 +24,7 @@ export function EditTopicRoute() {
       notification={notification}
       topicId={topic.id}
       values={rejected?.values ?? topic}
+      version={rejected?.version ?? topic.version}
     />
   );
 }

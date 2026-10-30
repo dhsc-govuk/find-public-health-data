@@ -3,6 +3,7 @@ import { request } from '@fphd/express/testing';
 import { createFakeBlobStorage } from '@fphd/internal-storage/testing';
 import { describe, expect } from 'vitest';
 
+import { editVersion } from './edit-version.ts';
 import { internalApiRoutes } from './index.ts';
 import { newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { createInternalRepositories } from './repositories.ts';
@@ -51,7 +52,7 @@ describe("the publish journey's endpoints, for a publisher in another team", () 
       const own = await request(app)
         .patch(path)
         .set('Cookie', await testSessionCookie(['internal', 'publisher'], [TEAM_IDS.teamA]))
-        .send({ name: 'Renamed by Team A' });
+        .send({ name: 'Renamed by Team A', version: editVersion({ name: 'A Team A draft' }) });
       expect(own.status).toBe(200);
     },
   );

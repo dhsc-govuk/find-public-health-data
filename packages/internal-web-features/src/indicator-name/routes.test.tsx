@@ -3,6 +3,7 @@ import { TEAM_IDS } from '@fphd/auth';
 import type { IndicatorAdminDetail } from '@fphd/internal-api-features/contract';
 import { describe, expect, it } from 'vitest';
 
+import { SHOWN_VERSION } from '../testing.ts';
 import { handle as editHandle } from './edit-route.tsx';
 import { handle as newHandle } from './new-route.tsx';
 
@@ -18,6 +19,7 @@ const indicator: IndicatorAdminDetail = {
   draftSubmissionStatus: null,
   draftReviewers: [],
   draftSubmissionNumber: null,
+  nameVersion: SHOWN_VERSION,
   actions: [],
   updatedAt: '2026-08-04T23:30:00.000Z',
 };

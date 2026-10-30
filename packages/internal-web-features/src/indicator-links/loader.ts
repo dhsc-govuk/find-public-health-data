@@ -1,7 +1,7 @@
 // No @fphd/ui imports here, so the loader and action unit-test without the jsdom the components need.
 import { linksAnswersSchema, linksSection } from '@fphd/internal-api-features/contract';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
-
+import { versionedAction } from '../edit-version.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSectionAnswers, saveIndicatorSectionValues } from '../indicator-section.ts';
 import {
@@ -15,7 +15,7 @@ import {
 
 /** The draft's answers, with nothing typed in the fields that add a link. */
 export async function loadLinks(args: LoaderFunctionArgs) {
-  const { id, answers } = await loadIndicatorSectionAnswers(
+  const { id, answers, version } = await loadIndicatorSectionAnswers(
     args,
     linksSection.key,
     linksAnswersSchema,
@@ -26,7 +26,7 @@ export async function loadLinks(args: LoaderFunctionArgs) {
     linkText: '',
   };
 
-  return { id, values };
+  return { id, values, version };
 }
 
 /**
@@ -34,15 +34,18 @@ export async function loadLinks(args: LoaderFunctionArgs) {
  * page without saving: the list travels in the form until Continue saves it, taking in a
  * link typed but not yet added.
  */
-export async function submitLinks(args: ActionFunctionArgs): Promise<LinksPageState | Response> {
-  const id = requireIndicatorId(args.params);
-  const { intent, values } = readLinksForm(await args.request.formData());
+export const submitLinks = versionedAction(
+  async (args: ActionFunctionArgs, { formData, version }): Promise<LinksPageState | Response> => {
+    const id = requireIndicatorId(args.params);
+    const { intent, values } = readLinksForm(formData);
 
-  if (intent.to === 'add') return withLinkAdded(values);
-  if (intent.to === 'remove') return withLinkRemoved(values, intent.index);
+    if (intent.to === 'add') return withLinkAdded(values);
+    if (intent.to === 'remove') return withLinkRemoved(values, intent.index);
 
-  return saveIndicatorSectionValues(args.context, id, linksSection, values, {
-    answersSchema: linksAnswersSchema,
-    takeIn: withTypedLinkTakenIn,
-  });
-}
+    return saveIndicatorSectionValues(args.context, id, linksSection, values, {
+      answersSchema: linksAnswersSchema,
+      takeIn: withTypedLinkTakenIn,
+      version,
+    });
+  },
+);

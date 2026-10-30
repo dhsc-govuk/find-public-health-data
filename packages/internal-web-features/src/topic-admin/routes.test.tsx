@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 
+import { SHOWN_VERSION } from '../testing.ts';
 import { handle as deleteHandle } from './delete-route.tsx';
 import { handle as editHandle } from './edit-route.tsx';
 import type { TopicAdminDetailWithLinkCount } from './loader.ts';
@@ -14,6 +15,7 @@ const topic: TopicAdminDetailWithLinkCount = {
   description: 'About smoking.',
   linkedIndicatorCount: 0,
   updatedAt: '2026-09-01T09:30:00.000Z',
+  version: SHOWN_VERSION,
 };
 
 describe('the topic admin routes', () => {

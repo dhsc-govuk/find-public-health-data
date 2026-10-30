@@ -11,6 +11,8 @@ interface IndicatorNamePageProps {
   fieldErrors?: IndicatorNameFailure['fieldErrors'] | undefined;
   formError?: string | undefined;
   name?: string | undefined;
+  /** The version of the name when the page was shown. The form sends it back. */
+  version?: string | undefined;
 }
 
 // The heading is the field's label, as GOV.UK asks of a page with a single question.
@@ -18,11 +20,12 @@ export function IndicatorNamePage({
   fieldErrors = {},
   formError,
   name = '',
+  version,
 }: IndicatorNamePageProps) {
   return (
     <IndicatorSectionForm
       fields={[NAME_FIELD]}
-      form={{ fieldErrors, formError }}
+      form={{ fieldErrors, formError, version }}
       questionIsHeading
       title={INDICATOR_NAME_HEADING}
     >

@@ -3,12 +3,14 @@ import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { Router } from 'express';
 
 import { indicatorIdSchema, indicatorSectionFieldErrors } from './contract.ts';
+import { editVersion } from './edit-version.ts';
 import type { IndicatorDraft, IndicatorDraftAttributes } from './indicator-draft-repository.ts';
 import { requireIndicatorEditor } from './indicator-editor.ts';
-import type {
-  DetailedQuestion,
-  IndicatorSection,
-  IndicatorSectionFields,
+import {
+  type DetailedQuestion,
+  type IndicatorSection,
+  type IndicatorSectionFields,
+  indicatorSectionSaveSchema,
 } from './indicator-section-contract.ts';
 import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
@@ -133,11 +135,18 @@ export function yesNoDetailColumns<
 }
 
 /**
- * GET and PUT `/api/internal/indicators/:id/<key>` for one section of a draft. A PUT writes
- * every answer or, when any is refused, nothing. A published indicator is edited by opening a
- * draft first, so until then the section does not exist: 404 `no_draft`, told apart from an
- * indicator that does not exist at all. A draft locked for review is neither read nor
- * written here: 409 `locked`.
+ * GET and PUT `/api/internal/indicators/:id/<key>` for one section of a draft.
+ *
+ * Both return the section's answers and a version of them. A PUT sends back the version its
+ * form was shown. If the section has changed since, the PUT is rejected with 409 `changed`, so
+ * nobody overwrites an edit they haven't seen. Changes to other sections don't count. A PUT
+ * saves all its answers or, if any is invalid, none.
+ *
+ * Other errors:
+ * - 404 `no_draft`: the indicator exists but has no draft. A published indicator needs a
+ *   draft opened before its sections can be edited.
+ * - 404 `not_found`: the indicator doesn't exist.
+ * - 409 `locked`: the draft is locked for review.
  */
 export function indicatorSectionRouter<
   Field extends string,
@@ -154,6 +163,11 @@ export function indicatorSectionRouter<
   const router = Router();
   const requireEditor = requireIndicatorEditor(session, indicators);
   const path = `/api/internal/indicators/:id/${section.key}`;
+  const versionOf = (draft: IndicatorSectionDraft) => editVersion(columns.fromDraft(draft));
+  const withVersion = (draft: IndicatorSectionDraft) => ({
+    answers: columns.fromDraft(draft),
+    version: versionOf(draft),
+  });
 
   router.get(path, requireEditor, async (request, response) => {
     const id = indicatorIdSchema.safeParse(request.params.id);
@@ -175,7 +189,7 @@ export function indicatorSectionRouter<
       return;
     }
 
-    response.status(200).json(columns.fromDraft(row.draft));
+    response.status(200).json(withVersion(row.draft));
   });
 
   router.put(path, requireEditor, async (request, response) => {
@@ -186,8 +200,15 @@ export function indicatorSectionRouter<
       return;
     }
 
+    const save = indicatorSectionSaveSchema.safeParse(request.body);
+
+    if (!save.success) {
+      response.status(400).json({ error: 'invalid_version' });
+      return;
+    }
+
     // Async, because a section's API-side schema may check an answer against a lookup.
-    const submission = await section.schema.safeParseAsync(request.body);
+    const submission = await section.schema.safeParseAsync(save.data.answers);
 
     if (!submission.success) {
       // A locked draft refuses every save, so a refused answer is not what to report.
@@ -206,10 +227,18 @@ export function indicatorSectionRouter<
     const actor = requireApiActor(request, response);
     const attributes = columns.toAttributes(submission.data);
     const lists = columns.toLists?.(submission.data) ?? {};
-    const result = await indicators.updateDraft(id.data, attributes, lists, actor);
+    const result = await indicators.updateDraft(id.data, attributes, lists, actor, {
+      version: save.data.version,
+      versionOf,
+    });
 
     if (!result.ok && result.reason === 'locked') {
       response.status(409).json({ error: 'locked' });
+      return;
+    }
+
+    if (!result.ok && result.reason === 'changed') {
+      response.status(409).json({ error: 'changed', version: result.version });
       return;
     }
 
@@ -228,7 +257,7 @@ export function indicatorSectionRouter<
       { indicatorId: row.id, shortId: row.shortId, section: section.key },
       'Indicator section saved',
     );
-    response.status(200).json(columns.fromDraft(row.draft));
+    response.status(200).json(withVersion(row.draft));
   });
 
   return router;

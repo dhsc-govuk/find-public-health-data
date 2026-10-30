@@ -4,6 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { SHOWN_VERSION } from '../testing.ts';
 import { IndicatorNamePage } from './page.tsx';
 
 afterEach(cleanup);
@@ -92,5 +93,19 @@ describe('IndicatorNamePage', () => {
     renderPage({ name: 'Life expectancy at birth' });
 
     expect(nameField().value).toBe('Life expectancy at birth');
+  });
+
+  it('sends back the version of the name a rename was shown', () => {
+    const { container } = renderPage({ name: 'Life expectancy at birth', version: SHOWN_VERSION });
+
+    expect(container.querySelector<HTMLInputElement>('input[name="version"]')?.value).toBe(
+      SHOWN_VERSION,
+    );
+  });
+
+  it('sends no version for a new indicator', () => {
+    const { container } = renderPage();
+
+    expect(container.querySelector('input[name="version"]')).toBeNull();
   });
 });

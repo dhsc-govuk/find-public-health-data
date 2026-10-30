@@ -321,6 +321,7 @@ describe('the delete topic confirmation page', () => {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-08-04T23:30:00.000Z',
     linkedIndicatorCount: 0,
+    version: 'a'.repeat(64),
   };
 
   it('names the topic and warns the delete cannot be undone', async () => {
@@ -350,9 +351,17 @@ describe('the delete topic confirmation page', () => {
 describe('the edit topic page', () => {
   const topicId = '00000000-0000-7000-8000-000000000001';
   const values = { title: 'Air quality', slug: 'air-quality', description: 'About air quality.' };
+  const version = 'a'.repeat(64);
 
   it('pre-fills the form and offers a way back to the list', async () => {
-    renderPage(<EditTopicPage linkedIndicatorCount={0} topicId={topicId} values={values} />);
+    renderPage(
+      <EditTopicPage
+        linkedIndicatorCount={0}
+        topicId={topicId}
+        values={values}
+        version={version}
+      />,
+    );
 
     expect((await screen.findByLabelText('Topic name')).getAttribute('value')).toBe('Air quality');
     expect(screen.getByLabelText('Slug').getAttribute('value')).toBe('air-quality');
@@ -364,7 +373,12 @@ describe('the edit topic page', () => {
 
   it('submits back to the same URL with a plain form, so it works without JavaScript', async () => {
     const { container } = renderPage(
-      <EditTopicPage linkedIndicatorCount={0} topicId={topicId} values={values} />,
+      <EditTopicPage
+        linkedIndicatorCount={0}
+        topicId={topicId}
+        values={values}
+        version={version}
+      />,
     );
 
     expect(await screen.findByRole('button', { name: 'Save' })).toBeTruthy();
@@ -381,6 +395,7 @@ describe('the edit topic page', () => {
         notification="Topic updated"
         topicId={topicId}
         values={values}
+        version={version}
       />,
     );
 
@@ -388,7 +403,14 @@ describe('the edit topic page', () => {
   });
 
   it('links to the delete confirmation page for this topic', async () => {
-    renderPage(<EditTopicPage linkedIndicatorCount={0} topicId={topicId} values={values} />);
+    renderPage(
+      <EditTopicPage
+        linkedIndicatorCount={0}
+        topicId={topicId}
+        values={values}
+        version={version}
+      />,
+    );
 
     expect((await screen.findByRole('link', { name: 'Delete topic' })).getAttribute('href')).toBe(
       `/manage/topics/${topicId}/delete`,
@@ -397,7 +419,12 @@ describe('the edit topic page', () => {
 
   it('shows no notification banner when there is nothing to report', async () => {
     const { container } = renderPage(
-      <EditTopicPage linkedIndicatorCount={0} topicId={topicId} values={values} />,
+      <EditTopicPage
+        linkedIndicatorCount={0}
+        topicId={topicId}
+        values={values}
+        version={version}
+      />,
     );
 
     expect(await screen.findByRole('button', { name: 'Save' })).toBeTruthy();
@@ -411,6 +438,7 @@ describe('the edit topic page', () => {
         fieldErrors={{ description: 'Enter a description', title: 'Enter a topic name' }}
         topicId={topicId}
         values={{ ...values, title: '', description: '' }}
+        version={version}
       />,
     );
 
@@ -436,6 +464,7 @@ describe('the edit topic page', () => {
         fieldErrors={{ slug: 'Enter a slug' }}
         topicId={topicId}
         values={{ ...values, slug: '', title: 'A half-finished edit' }}
+        version={version}
       />,
     );
 

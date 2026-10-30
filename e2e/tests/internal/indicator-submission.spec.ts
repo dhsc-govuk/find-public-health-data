@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { completeDraft } from '../support/complete-draft.ts';
+import { completeDraft, shownVersion } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
 
@@ -76,8 +76,9 @@ test("a teammate's edit after the task list loaded makes submit return to the ta
   page,
 }, testInfo) => {
   const id = await openCompleteTaskList(page);
-  const edited = await page.request.post(`/publish/indicators/${id}/polarity`, {
-    form: { polarity: 'higher-is-better' },
+  const polarityPath = `/publish/indicators/${id}/polarity`;
+  const edited = await page.request.post(polarityPath, {
+    form: { polarity: 'higher-is-better', version: await shownVersion(page, polarityPath) },
     maxRedirects: 0,
   });
   expect(edited.headers().location).toBe(taskListPath(id));

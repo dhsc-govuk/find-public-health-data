@@ -74,6 +74,31 @@ test('adds links to a list, in the order they were added, clearing the fields', 
   await expect(page.getByLabel(TEXT_FIELD, { exact: true })).toBeEmpty();
 });
 
+test('refuses a save of links someone else changed while links were being added', async ({
+  page,
+}) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  await page.getByLabel('Yes', { exact: true }).check();
+  await addLink(page, COMMENTARY);
+  const other = await page.context().newPage();
+  await other.goto(pagePath);
+  await other.getByLabel('No', { exact: true }).check();
+  await other.getByRole('button', { name: 'Continue' }).click();
+  await expect(other).toHaveURL(taskListPath);
+
+  await addLink(page, FINGERTIPS);
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page.getByRole('alert')).toContainText(
+    'Someone else has changed this section since you opened this page.',
+  );
+  await expect(addedLinks(page)).toHaveText([
+    'Statistical commentary (opens in new tab)',
+    'Fingertips (opens in new tab)',
+  ]);
+});
+
 test('continues when Enter is pressed on "No", rather than adding a link', async ({ page }) => {
   const taskListPath = await openSectionPage(page, SECTION);
   await page.getByLabel('No', { exact: true }).check();

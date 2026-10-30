@@ -14,6 +14,7 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { setFlash, takeFlash } from '@fphd/web-server/flash';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
 
+import { versionedAction } from '../edit-version.ts';
 import { type FormRefusal, formRefusal } from '../form-refusal.ts';
 import { parseTopicForm, readTopicForm, type TopicFormValues } from './form.ts';
 import { deleteTopicPath, editTopicPath, TOPICS_ADMIN_PATH } from './paths.ts';
@@ -73,44 +74,52 @@ export async function loadAdminTopicToEdit({ context, params }: LoaderFunctionAr
   };
 }
 
+/** Shown when a save is rejected because someone changed the topic after the page loaded. */
+export const TOPIC_CHANGED =
+  'Someone else has changed this topic since you opened this page. Your changes have not been saved. Select Save to save them and replace their changes.';
+
 export interface SaveTopicFailure extends FormRefusal<TopicField> {
   values: TopicFormValues;
+  /** When editing, the version the next save sends. See `versionedAction`. */
+  version?: string;
 }
 
 /**
  * Redirects on success so a refresh does not re-submit; the outcome arrives as a flash. The
- * redirect is by id, so editing the slug leaves the publisher where they were.
+ * redirect is by id, so editing the slug leaves the publisher where they were. If the topic
+ * has changed since the page was shown, nothing is saved.
  */
-export async function saveTopic({
-  context,
-  params,
-  request,
-}: ActionFunctionArgs): Promise<SaveTopicFailure | Response> {
-  const id = requireTopicId(params);
-  const formData = await request.formData();
-  const submission = parseTopicForm(formData);
+export const saveTopic = versionedAction(
+  async ({ context, params }, { formData, version }): Promise<SaveTopicFailure | Response> => {
+    const id = requireTopicId(params);
+    const submission = parseTopicForm(formData);
 
-  if (!submission.ok) {
-    return { values: readTopicForm(formData), fieldErrors: submission.fieldErrors };
-  }
+    if (!submission.ok) {
+      return { values: readTopicForm(formData), fieldErrors: submission.fieldErrors };
+    }
 
-  const result = await context
-    .get(apiContext)
-    .put(
-      apiPath`/api/internal/topics/${id}`,
-      submission.values,
-      topicUpdateResponseSchema,
-      topicUpdateErrorSchema,
-    );
+    const result = await context
+      .get(apiContext)
+      .put(
+        apiPath`/api/internal/topics/${id}`,
+        { ...submission.values, version },
+        topicUpdateResponseSchema,
+        topicUpdateErrorSchema,
+      );
 
-  if (!result.ok) {
-    return { values: readTopicForm(formData), ...formRefusal(result.error) };
-  }
+    if (!result.ok) {
+      const values = readTopicForm(formData);
 
-  setFlash(context, result.data.changed ? 'topic-updated' : 'topic-unchanged');
+      return result.error.error === 'changed'
+        ? { values, fieldErrors: {}, formError: TOPIC_CHANGED, version: result.error.version }
+        : { values, ...formRefusal(result.error) };
+    }
 
-  return redirect(editTopicPath(id));
-}
+    setFlash(context, result.data.changed ? 'topic-updated' : 'topic-unchanged');
+
+    return redirect(editTopicPath(id));
+  },
+);
 
 /** Redirects to the new topic's edit page with a flash, the same shape as a save. */
 export async function createTopic({

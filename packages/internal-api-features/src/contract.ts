@@ -2,6 +2,7 @@ import { z } from '@fphd/config/zod';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
 
+import { editVersionSchema } from './edit-version-contract.ts';
 import { shortText } from './text-contract.ts';
 
 /**
@@ -24,6 +25,8 @@ export const topicAdminSummaryListSchema = z.array(topicAdminSummarySchema);
 
 export const topicAdminDetailSchema = topicAdminSummarySchema.extend({
   description: z.string(),
+  /** A hash of the editable fields. A save sends it back to show it saw the latest values. */
+  version: editVersionSchema,
 });
 
 /** A topic with the count that decides whether it can be deleted. */
@@ -59,9 +62,15 @@ export const topicUpdateResponseSchema = z.object({
   topic: topicAdminDetailSchema,
 });
 
-/** The 400 and 409 answers. A refused value is always named; only a bad id names no field. */
+/**
+ * The 400 and 409 errors. `validation_failed` and `slug_taken` name the fields at fault.
+ * `changed` means someone edited the topic after the form was shown, and includes the topic's
+ * current version.
+ */
 export const topicUpdateErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.literal('invalid_id') }),
+  z.object({ error: z.literal('invalid_version') }),
+  z.object({ error: z.literal('changed'), version: editVersionSchema }),
   z.object({
     error: z.enum(['validation_failed', 'slug_taken']),
     fieldErrors: topicFieldErrorsSchema,
@@ -165,6 +174,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   publishedSlug: z.string().min(1).nullable(),
   /** The draft's latest submission, which a withdrawal names; null until the first. */
   draftSubmissionNumber: z.number().int().positive().nullable(),
+  /** A hash of the name. A rename sends it back to show it saw the latest name. */
+  nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
 });
 
@@ -215,12 +226,16 @@ export const indicatorCreateErrorSchema = z.discriminatedUnion('error', [
 ]);
 
 /**
- * The 400 and 409 answers. A refused value is always named; a bad id and a draft locked for
- * review name no field. A missing indicator or draft is a 404, which the client throws.
+ * The 400 and 409 errors. `validation_failed` and `slug_taken` name the fields at fault.
+ * `locked` means the draft is locked for review. `changed` means someone renamed the draft
+ * after the page was shown, and includes the name's current version. A missing indicator or
+ * draft is a 404, which the client throws.
  */
 export const indicatorUpdateErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.literal('invalid_id') }),
+  z.object({ error: z.literal('invalid_version') }),
   z.object({ error: z.literal('locked') }),
+  z.object({ error: z.literal('changed'), version: editVersionSchema }),
   z.object({
     error: z.enum(['validation_failed', 'slug_taken']),
     fieldErrors: indicatorFieldErrorsSchema,
@@ -380,6 +395,7 @@ export type IndicatorWithdrawError = z.infer<typeof indicatorWithdrawErrorSchema
 
 export * from './data-table-check-contract.ts';
 export * from './data-upload-contract.ts';
+export * from './edit-version-contract.ts';
 export * from './indicator-benchmarking-contract.ts';
 export * from './indicator-calculation-contract.ts';
 export * from './indicator-confidence-intervals-contract.ts';

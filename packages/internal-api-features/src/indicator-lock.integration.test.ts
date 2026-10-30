@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { indicatorTaskKeySchema } from './contract.ts';
+import { editVersion } from './edit-version.ts';
 import { internalApiRoutes } from './index.ts';
 import { AS_ACTOR, newDraft } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
@@ -64,11 +65,18 @@ const SECTION_KEYS = indicatorTaskKeySchema.options.filter(
 
 type Method = 'get' | 'put' | 'patch' | 'post';
 
+// The lock and draft checks run before the version check, so any valid version works here.
+const version = editVersion({});
+
 /** Every route that reads a draft to edit it or writes one, with a body it would accept. */
 const EDIT_PATHS: [Method, string, object?][] = [
   ...SECTION_KEYS.map((key): [Method, string] => ['get', `/${key}`]),
-  ['put', '/definition-and-rationale', { definition: 'Changed', rationale: 'Changed' }],
-  ['patch', '', { name: 'Renamed while locked' }],
+  [
+    'put',
+    '/definition-and-rationale',
+    { answers: { definition: 'Changed', rationale: 'Changed' }, version },
+  ],
+  ['patch', '', { name: 'Renamed while locked', version }],
   ['post', '/data-uploads'],
   ['get', '/data-uploads/latest'],
   ['get', '/data-table'],
@@ -112,8 +120,8 @@ describe('a draft locked for review', () => {
   });
 
   it.each([
-    ['put', '/definition-and-rationale', { definition: '' }],
-    ['patch', '', { name: '' }],
+    ['put', '/definition-and-rationale', { answers: { definition: '' }, version }],
+    ['patch', '', { name: '', version }],
     ['put', '/data-table/confirmation', {}],
   ] as const)(
     'answers %s %s with 409 locked even when the answers are refused',

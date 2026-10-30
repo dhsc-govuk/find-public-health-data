@@ -12,6 +12,7 @@ import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor, createTestDatabase, type TestDatabase } from '@fphd/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { editVersion } from './edit-version.ts';
 import {
   countLinkedIndicators,
   createTopic,
@@ -148,6 +149,45 @@ describe('updateTopic', () => {
     expect(result).toEqual({ ok: false, reason: 'slug_taken' });
     expect(await getTopicById(db, target.id)).toMatchObject(target);
     expect(await getTopicById(db, other.id)).toMatchObject(other);
+  });
+
+  describe('given the version a form was shown', () => {
+    const versionOf = ({ title }: { title: string }) => editVersion({ title });
+
+    it('saves a topic whose version is the one shown', async () => {
+      const topic = await givenTopic();
+
+      const result = await updateTopic(
+        db,
+        topic.id,
+        { ...topic, title: 'Saved as shown' },
+        AS_ACTOR,
+        { version: versionOf(topic), versionOf },
+      );
+
+      expect(result).toMatchObject({ ok: true, changed: true });
+    });
+
+    it('refuses a save of a topic changed since, writing nothing and answering its version now', async () => {
+      const topic = await givenTopic();
+      const shown = { version: versionOf(topic), versionOf };
+      await updateTopic(db, topic.id, { ...topic, title: 'First' }, AS_ACTOR, shown);
+
+      const result = await updateTopic(
+        db,
+        topic.id,
+        { ...topic, title: 'Second' },
+        AS_ACTOR,
+        shown,
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        reason: 'changed',
+        version: editVersion({ title: 'First' }),
+      });
+      expect(await getTopicById(db, topic.id)).toMatchObject({ title: 'First' });
+    });
   });
 });
 

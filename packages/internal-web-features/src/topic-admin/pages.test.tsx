@@ -5,6 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { SHOWN_VERSION } from '../testing.ts';
 import { DeleteTopicPage, EditTopicPage, NewTopicPage } from './pages.tsx';
 import { deleteTopicPath, editTopicPath } from './paths.ts';
 
@@ -18,6 +19,7 @@ const topic = {
   description: 'About smoking.',
   updatedAt: '2026-09-01T09:30:00.000Z',
   linkedIndicatorCount: 0,
+  version: SHOWN_VERSION,
 };
 
 // The page's links read router state, so it renders inside a router.
@@ -36,6 +38,7 @@ function renderEditPage(linkedIndicatorCount: number) {
         linkedIndicatorCount={linkedIndicatorCount}
         topicId={topic.id}
         values={values}
+        version={SHOWN_VERSION}
       />
     </MemoryRouter>,
   );
@@ -69,7 +72,12 @@ describe('EditTopicPage', () => {
   it('titles the document after the page', () => {
     render(
       <MemoryRouter>
-        <EditTopicPage linkedIndicatorCount={0} topicId={topic.id} values={values} />
+        <EditTopicPage
+          linkedIndicatorCount={0}
+          topicId={topic.id}
+          values={values}
+          version={SHOWN_VERSION}
+        />
       </MemoryRouter>,
     );
 
@@ -84,6 +92,7 @@ describe('EditTopicPage', () => {
           linkedIndicatorCount={0}
           topicId={topic.id}
           values={values}
+          version={SHOWN_VERSION}
         />
       </MemoryRouter>,
     );
@@ -113,10 +122,23 @@ describe('EditTopicPage', () => {
     expect(screen.queryByRole('link', { name: 'Delete topic' })).toBeNull();
   });
 
+  it('sends back the version of the topic it was shown', () => {
+    const { container } = renderEditPage(0);
+
+    expect(container.querySelector<HTMLInputElement>('input[name="version"]')?.value).toBe(
+      SHOWN_VERSION,
+    );
+  });
+
   it('debounces Save, so a double click saves the topic once', () => {
     render(
       <MemoryRouter>
-        <EditTopicPage linkedIndicatorCount={0} topicId={topic.id} values={values} />
+        <EditTopicPage
+          linkedIndicatorCount={0}
+          topicId={topic.id}
+          values={values}
+          version={SHOWN_VERSION}
+        />
       </MemoryRouter>,
     );
 

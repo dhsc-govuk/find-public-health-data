@@ -4,6 +4,7 @@ import type { Topic } from '@fphd/db';
 import { Router } from 'express';
 
 import {
+  editVersionedSchema,
   type TopicAdminDetail,
   type TopicAdminDetailWithLinkCount,
   type TopicAdminSummary,
@@ -13,6 +14,7 @@ import {
   topicIdSchema,
   topicUpdateSchema,
 } from './contract.ts';
+import { editVersion } from './edit-version.ts';
 import type { InternalTopicRepository } from './repositories.ts';
 
 function toSummary({ id, slug, title, createdAt, updatedAt }: Topic): TopicAdminSummary {
@@ -25,8 +27,13 @@ function toSummary({ id, slug, title, createdAt, updatedAt }: Topic): TopicAdmin
   };
 }
 
+/** The version of the fields the topic form edits, which a save must send back. */
+function topicVersion({ title, slug, description }: Topic): string {
+  return editVersion({ title, slug, description });
+}
+
 function toDetail(topic: Topic): TopicAdminDetail {
-  return { ...toSummary(topic), description: topic.description };
+  return { ...toSummary(topic), description: topic.description, version: topicVersion(topic) };
 }
 
 /**
@@ -99,6 +106,13 @@ export function internalTopicsRouter(
       return;
     }
 
+    const versioned = editVersionedSchema.safeParse(request.body);
+
+    if (!versioned.success) {
+      response.status(400).json({ error: 'invalid_version' });
+      return;
+    }
+
     // Validated for the same reason as the create above.
     const submission = topicUpdateSchema.safeParse(request.body);
 
@@ -114,11 +128,17 @@ export function internalTopicsRouter(
       id.data,
       submission.data,
       requireApiActor(request, response),
+      { version: versioned.data.version, versionOf: topicVersion },
     );
 
     if (!result.ok) {
       if (result.reason === 'not_found') {
         response.status(404).json({ error: 'not_found' });
+        return;
+      }
+
+      if (result.reason === 'changed') {
+        response.status(409).json({ error: 'changed', version: result.version });
         return;
       }
 

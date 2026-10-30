@@ -5,9 +5,11 @@ import { MAX_AGE } from '@fphd/utils/sex-and-ages';
 import { eq, sql } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
+import { editVersion } from './edit-version.ts';
 import {
   createIndicatorDraft,
   getIndicatorDraftState,
+  type IndicatorDraft,
   type IndicatorDraftAttributes,
   SLUG_LOCK_NAMESPACE,
   updateIndicatorDraft,
@@ -20,6 +22,7 @@ import {
   AS_OTHER_ACTOR,
   ciMethodId,
   indicatorWithTwoPublications,
+  lockWaited,
   lockWaiters,
   newDraft,
   OTHER_ACTOR,
@@ -522,6 +525,135 @@ describe('updateIndicatorDraft', () => {
       reason: 'no_draft',
     });
   });
+});
+
+describe('updateIndicatorDraft given the version a form was shown', () => {
+  // Versions as a form that edits only the definition would compute them.
+  const versionOf = (draft: IndicatorDraft) => editVersion({ definition: draft.definition });
+  const shown = editVersion({ definition: null });
+
+  async function definitionOf(db: Database, versionId: string) {
+    const [row] = await db
+      .select({ definition: indicatorVersion.definition })
+      .from(indicatorVersion)
+      .where(eq(indicatorVersion.id, versionId));
+    return row?.definition;
+  }
+
+  repositoryTest('saves a draft whose version is the one shown', async ({ db }) => {
+    const created = await newDraft(db, 'Saved as shown');
+
+    const result = await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      { definition: 'Saved' },
+      {},
+      AS_ACTOR,
+      { version: shown, versionOf },
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(await definitionOf(db, created.versionId)).toBe('Saved');
+  });
+
+  repositoryTest(
+    'refuses a save of a draft changed since, writing nothing and answering its version now',
+    async ({ db }) => {
+      const created = await newDraft(db, 'Changed since shown');
+      await updateIndicatorDraft(db, created.indicatorId, { definition: 'First' }, {}, AS_ACTOR, {
+        version: shown,
+        versionOf,
+      });
+
+      const result = await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        { definition: 'Second' },
+        {},
+        AS_OTHER_ACTOR,
+        { version: shown, versionOf },
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        reason: 'changed',
+        version: editVersion({ definition: 'First' }),
+      });
+      expect(await definitionOf(db, created.versionId)).toBe('First');
+      expect(await auditEntriesFor(db, created.indicatorId)).toHaveLength(2);
+    },
+  );
+
+  repositoryTest('saves when only what the version does not cover has changed', async ({ db }) => {
+    const created = await newDraft(db, 'Changed elsewhere');
+    await updateIndicatorDraft(db, created.indicatorId, { rationale: 'Elsewhere' }, {}, AS_ACTOR);
+
+    const result = await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      { definition: 'Saved' },
+      {},
+      AS_OTHER_ACTOR,
+      { version: shown, versionOf },
+    );
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  repositoryTest("takes the version from the draft's lists too", async ({ db }) => {
+    const created = await newDraft(db, 'Lists changed since');
+    const linksVersion = (draft: IndicatorDraft) => editVersion(draft.links);
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      {},
+      { links: [{ url: 'https://example.org/', text: 'Example' }] },
+      AS_ACTOR,
+    );
+
+    const result = await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      {},
+      { links: [] },
+      AS_ACTOR,
+      {
+        version: editVersion([]),
+        versionOf: linksVersion,
+      },
+    );
+
+    expect(result).toMatchObject({ ok: false, reason: 'changed' });
+  });
+
+  repositoryTest(
+    'refuses a save that waited on another save of the version shown to both',
+    async ({ db }) => {
+      const created = await newDraft(db, 'Two saves at once');
+
+      // Returned in an object so the transaction doesn't wait for the save, which is itself
+      // waiting for the transaction to commit.
+      const { waiting } = await db.transaction(async (tx) => {
+        await tx
+          .update(indicatorVersion)
+          .set({ definition: 'First' })
+          .where(eq(indicatorVersion.id, created.versionId));
+        const waiting = updateIndicatorDraft(
+          db,
+          created.indicatorId,
+          { definition: 'Second' },
+          {},
+          AS_OTHER_ACTOR,
+          { version: shown, versionOf },
+        );
+        await lockWaited(db);
+        return { waiting };
+      });
+
+      expect(await waiting).toMatchObject({ ok: false, reason: 'changed' });
+      expect(await definitionOf(db, created.versionId)).toBe('First');
+    },
+  );
 });
 
 describe('the audit log of draft writes', () => {

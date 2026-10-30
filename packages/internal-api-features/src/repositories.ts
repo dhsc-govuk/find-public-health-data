@@ -27,10 +27,12 @@ import {
   type LatestDataUploadRow,
   type UploadDraftRow,
 } from './data-upload-repository.ts';
+import type { EditPrecondition } from './edit-version.ts';
 import {
   type CreateIndicatorDraftResult,
   createIndicatorDraft,
   getIndicatorDraftState,
+  type IndicatorDraft,
   type IndicatorDraftAttributes,
   type IndicatorDraftStateRow,
   type NewIndicatorDraftAttributes,
@@ -80,7 +82,13 @@ export interface InternalTopicRepository {
   findById(id: string): Promise<TopicRow | undefined>;
   countLinkedIndicators(id: string): Promise<number>;
   create(values: TopicUpdate, actor: Actor): Promise<CreateTopicResult>;
-  update(id: string, values: TopicUpdate, actor: Actor): Promise<UpdateTopicResult>;
+  /** Saves the topic, unless it has changed since the form was shown. */
+  update(
+    id: string,
+    values: TopicUpdate,
+    actor: Actor,
+    precondition: EditPrecondition<TopicRow>,
+  ): Promise<UpdateTopicResult>;
   delete(id: string, actor: Actor): Promise<DeleteTopicResult>;
 }
 
@@ -99,11 +107,13 @@ export interface InternalIndicatorRepository {
     actor: Actor,
     teamId: string,
   ): Promise<CreateIndicatorDraftResult>;
+  /** Saves a form's answers, unless the draft has changed since the form was shown. */
   updateDraft(
     indicatorId: string,
     attributes: IndicatorDraftAttributes,
     lists: IndicatorDraftLists,
     actor: Actor,
+    precondition: EditPrecondition<IndicatorDraft>,
   ): Promise<UpdateIndicatorDraftResult>;
   /** Opens a draft from the published version, copying its columns and lists. */
   draftFromPublished(indicatorId: string, actor: Actor): Promise<CreateDraftFromPublishedResult>;
@@ -217,8 +227,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findDraftState: (id) => getIndicatorDraftState(db, id),
       createDraft: (attributes, actor, teamId) =>
         createIndicatorDraft(db, attributes, actor, teamId),
-      updateDraft: (indicatorId, attributes, lists, actor) =>
-        updateIndicatorDraft(db, indicatorId, attributes, lists, actor),
+      updateDraft: (indicatorId, attributes, lists, actor, precondition) =>
+        updateIndicatorDraft(db, indicatorId, attributes, lists, actor, precondition),
       draftFromPublished: (indicatorId, actor) => createDraftFromPublished(db, indicatorId, actor),
       submit: (indicatorId, draftUpdatedAt, actor) =>
         submitIndicator(db, indicatorId, draftUpdatedAt, actor),
@@ -238,7 +248,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findById: (id) => getTopicById(db, id),
       countLinkedIndicators: (id) => countLinkedIndicators(db, id),
       create: (values, actor) => createTopic(db, values, actor),
-      update: (id, values, actor) => updateTopic(db, id, values, actor),
+      update: (id, values, actor, precondition) => updateTopic(db, id, values, actor, precondition),
       delete: (id, actor) => deleteTopic(db, id, actor),
     },
     valueTypesAndUnits: {

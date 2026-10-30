@@ -9,6 +9,7 @@ import {
   otherNotesAndCaveatsSection,
   varianceAndQualitySection,
 } from './contract.ts';
+import { editVersion } from './edit-version.ts';
 import { indicatorSectionRouter, yesNoDetailColumns } from './indicator-section.ts';
 import { definitionAndRationaleColumns } from './indicator-section-columns.ts';
 import {
@@ -42,6 +43,14 @@ const noDraftState = { ...draftState, draft: null, indicatorStatus: 'live', draf
 
 const answers = { definition: 'A definition', rationale: 'A rationale' };
 
+const storedAnswers = { definition: 'Stored definition', rationale: 'Stored rationale' };
+
+const storedVersion = editVersion(storedAnswers);
+
+const save = { answers, version: storedVersion };
+
+const otherVersion = editVersion({ definition: 'Saved since', rationale: 'Stored rationale' });
+
 function createTestApp(
   overrides: FakeInternalRepositoryOverrides['indicators'] = {},
   logger?: Logger,
@@ -67,7 +76,7 @@ function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
 
 describe.each(['get', 'put'] as const)('%s on a section', (method) => {
   it('rejects an anonymous request', async () => {
-    const response = await request(createTestApp())[method](path).send(answers);
+    const response = await request(createTestApp())[method](path).send(save);
 
     expect(response.status).toBe(401);
     expect(response.body).toEqual({ error: 'authentication_required' });
@@ -77,7 +86,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
     const response = await request(createTestApp())
       [method](path)
       .set('Cookie', await publisherCookie(['internal']))
-      .send(answers);
+      .send(save);
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -90,7 +99,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
     const response = await request(createTestApp({ findDraftState, updateDraft }))
       [method]('/api/internal/indicators/108/definition-and-rationale')
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'invalid_id' });
@@ -107,7 +116,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
     )
       [method](path)
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
@@ -122,7 +131,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
     )
       [method](path)
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'no_draft' });
@@ -137,7 +146,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
     )
       [method](path)
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ error: 'locked' });
@@ -154,10 +163,7 @@ describe('GET on a section', () => {
 
     expect(response.status).toBe(200);
     expect(findDraftState).toHaveBeenCalledWith(id);
-    expect(response.body).toEqual({
-      definition: 'Stored definition',
-      rationale: 'Stored rationale',
-    });
+    expect(response.body).toEqual({ answers: storedAnswers, version: storedVersion });
   });
 });
 
@@ -169,14 +175,65 @@ describe('PUT on a section', () => {
     const response = await request(createTestApp({ updateDraft, findDraftState }))
       .put(path)
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(response.status).toBe(200);
-    expect(updateDraft).toHaveBeenCalledWith(id, answers, {}, testActor(response));
-    expect(response.body).toEqual({
-      definition: 'Stored definition',
-      rationale: 'Stored rationale',
+    expect(updateDraft).toHaveBeenCalledWith(id, answers, {}, testActor(response), {
+      version: storedVersion,
+      versionOf: expect.any(Function),
     });
+    expect(response.body).toEqual({ answers: storedAnswers, version: storedVersion });
+  });
+
+  it("takes the draft's version from this section's answers alone", async () => {
+    const updateDraft = vi.fn().mockResolvedValue({ ok: true });
+
+    await request(
+      createTestApp({ updateDraft, findDraftState: vi.fn().mockResolvedValue(draftState) }),
+    )
+      .put(path)
+      .set('Cookie', await publisherCookie())
+      .send(save);
+
+    const versionOf = updateDraft.mock.lastCall?.[4].versionOf;
+    expect(versionOf(draftState.draft)).toBe(storedVersion);
+    expect(versionOf({ ...draftState.draft, polarity: 'Something else' })).toBe(storedVersion);
+    expect(versionOf({ ...draftState.draft, definition: 'Saved since' })).toBe(otherVersion);
+  });
+
+  it('answers changed, with the version now, for a section changed since the form showed it', async () => {
+    const findDraftState = vi.fn();
+
+    const response = await request(
+      createTestApp({
+        updateDraft: async () => ({ ok: false, reason: 'changed', version: otherVersion }),
+        findDraftState,
+      }),
+    )
+      .put(path)
+      .set('Cookie', await publisherCookie())
+      .send(save);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: 'changed', version: otherVersion });
+    expect(findDraftState).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no version', { answers }],
+    ['a version the API did not make', { answers, version: 'stale' }],
+    ['answers alone, outside the save', answers],
+  ])('refuses a save with %s without writing', async (_, body) => {
+    const updateDraft = vi.fn();
+
+    const response = await request(createTestApp({ updateDraft }))
+      .put(path)
+      .set('Cookie', await publisherCookie())
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_version' });
+    expect(updateDraft).not.toHaveBeenCalled();
   });
 
   it('writes nothing when any answer is refused, naming each field refused', async () => {
@@ -186,7 +243,7 @@ describe('PUT on a section', () => {
     const response = await request(createTestApp({ updateDraft, findById }))
       .put(path)
       .set('Cookie', await publisherCookie())
-      .send({ definition: '', rationale: 108 });
+      .send({ answers: { definition: '', rationale: 108 }, version: storedVersion });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
@@ -208,7 +265,7 @@ describe('PUT on a section', () => {
     const response = await request(createTestApp({ findById }))
       .put(path)
       .set('Cookie', await publisherCookie())
-      .send({ definition: '' });
+      .send({ answers: { definition: '' }, version: storedVersion });
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ error: 'validation_failed' });
@@ -221,7 +278,7 @@ describe('PUT on a section', () => {
     const response = await request(createTestApp({ updateDraft, findById }))
       .put(path)
       .set('Cookie', await publisherCookie())
-      .send({ definition: '' });
+      .send({ answers: { definition: '' }, version: storedVersion });
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ error: 'locked' });
@@ -242,7 +299,7 @@ describe('PUT on a section', () => {
     )
       .put(path)
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(await handlerLogLines(lines)).toEqual([
       expect.objectContaining({
@@ -272,7 +329,7 @@ describe('PUT on a section', () => {
     )
       .put(path)
       .set('Cookie', await publisherCookie())
-      .send(answers);
+      .send(save);
 
     expect(await handlerLogLines(lines)).toEqual([]);
   });

@@ -12,17 +12,21 @@ export const sectionBackLinkHandle = backLinkHandle<{ id: string }>(
   'Back to task list',
 );
 
-/** The draft's answers, or what was typed and why it was refused after a rejected submission. */
+/**
+ * The draft's answers and their version. After a rejected save, it's what was typed, the
+ * errors, and the version the action returned (see `versionedAction`).
+ */
 export function useSectionForm<
   Field extends string,
   Values = FormValues<Field>,
 >(): SectionPageProps<Field, Values> {
-  const { values } = useLoaderData<{ values: Values }>();
-  const rejected = useActionData<FormFailure<Field, Values> | undefined>();
+  const { values, version } = useLoaderData<{ values: Values; version: string }>();
+  const rejected = useActionData<(FormFailure<Field, Values> & { version: string }) | undefined>();
 
   return {
     fieldErrors: rejected?.fieldErrors ?? {},
     formError: rejected?.formError,
     values: rejected?.values ?? values,
+    version: rejected?.version ?? version,
   };
 }

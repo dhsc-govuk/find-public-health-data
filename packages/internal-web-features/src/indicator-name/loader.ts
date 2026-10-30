@@ -13,6 +13,7 @@ import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
 
+import { versionedAction } from '../edit-version.ts';
 import { requireEditableIndicator } from '../editable-indicator.ts';
 import { formRefusal } from '../form-refusal.ts';
 import { readFormValues } from '../form-values.ts';
@@ -23,6 +24,10 @@ import { requireNewIndicatorTeam } from '../new-indicator-team.ts';
 import { indicatorTaskListPath } from '../publish-paths.ts';
 
 export type IndicatorNameFailure = FormFailure<IndicatorField>;
+
+/** Shown when a rename is rejected because someone changed the name after the page loaded. */
+export const NAME_CHANGED =
+  'Someone else has changed the name since you opened this page. Your name has not been saved. Select Continue to save it and replace their change.';
 
 const FIELDS = indicatorFieldSchema.options;
 
@@ -83,33 +88,37 @@ export async function loadIndicatorName({ context, params }: LoaderFunctionArgs)
   return { indicator };
 }
 
-/** Renames the draft and returns to the task list the publisher came from. */
-export async function saveIndicatorName({
-  context,
-  params,
-  request,
-}: ActionFunctionArgs): Promise<IndicatorNameFailure | Response> {
-  const id = requireIndicatorId(params);
-  const values = readFormValues(await request.formData(), FIELDS);
-  const submission = indicatorNameSchema.safeParse(values);
+/**
+ * Renames the draft and returns to the task list the publisher came from. If the name has
+ * changed since the page was shown, it saves nothing and shows an error.
+ */
+export const saveIndicatorName = versionedAction(
+  async ({ context, params }, { formData, version }): Promise<IndicatorNameFailure | Response> => {
+    const id = requireIndicatorId(params);
+    const values = readFormValues(formData, FIELDS);
+    const submission = indicatorNameSchema.safeParse(values);
 
-  if (!submission.success) {
-    return { values, fieldErrors: toFieldErrors(submission.error, indicatorFieldSchema) };
-  }
+    if (!submission.success) {
+      return { values, fieldErrors: toFieldErrors(submission.error, indicatorFieldSchema) };
+    }
 
-  const result = await context
-    .get(apiContext)
-    .patch(
-      apiPath`/api/internal/indicators/${id}`,
-      submission.data,
-      indicatorAdminDetailSchema,
-      indicatorUpdateErrorSchema,
-    );
+    const result = await context
+      .get(apiContext)
+      .patch(
+        apiPath`/api/internal/indicators/${id}`,
+        { ...submission.data, version },
+        indicatorAdminDetailSchema,
+        indicatorUpdateErrorSchema,
+      );
 
-  if (!result.ok) {
-    if (result.error.error === 'locked') return lockedDraftRedirect(context, id);
-    return { values, ...formRefusal(result.error) };
-  }
+    if (!result.ok) {
+      if (result.error.error === 'locked') return lockedDraftRedirect(context, id);
+      if (result.error.error === 'changed') {
+        return { values, fieldErrors: {}, formError: NAME_CHANGED, version: result.error.version };
+      }
+      return { values, ...formRefusal(result.error) };
+    }
 
-  return redirect(indicatorTaskListPath(id));
-}
+    return redirect(indicatorTaskListPath(id));
+  },
+);

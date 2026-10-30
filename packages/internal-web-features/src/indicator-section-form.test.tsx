@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { IndicatorSectionForm } from './indicator-section-form.tsx';
+import { SHOWN_VERSION } from './testing.ts';
 
 afterEach(cleanup);
 
@@ -15,15 +16,16 @@ interface FormProps {
   formError?: string;
   questionIsHeading?: boolean;
   continueOnEnter?: boolean;
+  version?: string;
 }
 
 // Radios as well as a textarea, because GOV.UK links a radios error to its first option.
-function renderForm({ fieldErrors = {}, formError, ...props }: FormProps = {}) {
+function renderForm({ fieldErrors = {}, formError, version, ...props }: FormProps = {}) {
   return render(
     <MemoryRouter>
       <IndicatorSectionForm
         fieldIds={{ choice: firstRadioId('choice') }}
-        form={{ fieldErrors, formError }}
+        form={{ fieldErrors, formError, version }}
         section={{ fields: { options: ['answer', 'choice'] } }}
         title="A section"
         {...props}
@@ -65,6 +67,20 @@ describe('IndicatorSectionForm', () => {
     expect(form?.getAttribute('method')).toBe('post');
     expect(form?.getAttribute('action')).toBeNull();
     expect(within(form as HTMLElement).getByRole('button', { name: 'Continue' })).toBeTruthy();
+  });
+
+  it('sends back the version of the answers it was shown', () => {
+    const { container } = renderForm({ version: SHOWN_VERSION });
+
+    const hidden = container.querySelector<HTMLInputElement>('form input[type="hidden"]');
+
+    expect([hidden?.name, hidden?.value]).toEqual(['version', SHOWN_VERSION]);
+  });
+
+  it('sends no version for a form that saves without one', () => {
+    const { container } = renderForm();
+
+    expect(container.querySelector('input[name="version"]')).toBeNull();
   });
 
   it('debounces Continue, so a double click submits the answers once', () => {

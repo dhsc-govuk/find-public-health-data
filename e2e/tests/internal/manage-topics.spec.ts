@@ -209,6 +209,32 @@ test.describe('editing a topic', () => {
     await expect(page.getByLabel('Slug')).toHaveValue('cancer');
   });
 
+  test('refuses a save of a topic someone else changed since, keeping what was typed', async ({
+    page,
+  }) => {
+    const slug = uniqueSlug();
+    await createTopic(page, { title: `Shared ${slug}`, slug });
+    const editUrl = page.url();
+    const other = await page.context().newPage();
+    await other.goto(editUrl);
+    await other.getByLabel('Topic name').fill(`Theirs ${slug}`);
+    await other.getByRole('button', { name: 'Save' }).click();
+    await expect(other.getByText('Topic updated')).toBeVisible();
+
+    await page.getByLabel('Topic name').fill(`Mine ${slug}`);
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'Someone else has changed this topic since you opened this page.',
+    );
+    await expect(page.getByLabel('Topic name')).toHaveValue(`Mine ${slug}`);
+
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Topic updated')).toBeVisible();
+    await expect(page.getByLabel('Topic name')).toHaveValue(`Mine ${slug}`);
+  });
+
   test('answers a topic that does not exist with the not-found page', async ({ page }) => {
     for (const path of [
       '/manage/topics/not-an-id',

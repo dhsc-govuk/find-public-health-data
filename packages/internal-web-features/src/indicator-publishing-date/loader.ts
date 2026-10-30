@@ -20,12 +20,13 @@ export function publishingDateExample(now: Date): string {
  * example date from today's.
  */
 export async function loadPublishingDate(args: LoaderFunctionArgs) {
-  const { id, values } = await loadIndicatorSection(args, publishingDateSection);
+  const { id, values, version } = await loadIndicatorSection(args, publishingDateSection);
   const unanswered = values.publishingTimeHour === '' && values.publishingTimeMinute === '';
 
   return {
     id,
     values: unanswered ? { ...values, ...DEFAULT_PUBLISHING_TIME } : values,
+    version,
     dateExample: publishingDateExample(new Date()),
   };
 }

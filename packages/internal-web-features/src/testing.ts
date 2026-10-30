@@ -6,10 +6,14 @@ import {
 
 import type { SectionPageProps } from './indicator-section-form.tsx';
 
+/** A well-formed version, as the API would return one. */
+export const SHOWN_VERSION = 'a'.repeat(64);
+
 /** A section page's props when the last submission was not refused, for page tests. */
 export const noRefusal: Omit<SectionPageProps<never, unknown>, 'values'> = {
   fieldErrors: {},
   formError: undefined,
+  version: SHOWN_VERSION,
 };
 
 /** Every task at the one status, for a task list to start from. */

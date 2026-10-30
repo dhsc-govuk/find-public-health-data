@@ -2,7 +2,7 @@ import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { SHOWN_VERSION } from '../testing.ts';
 import { loadPublishingDate, publishingDateExample } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -17,7 +17,9 @@ const unanswered = {
 
 function load(answers: Record<string, string | null>) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, { get: vi.fn().mockResolvedValue(answers) } as unknown as ApiClient);
+  provider.set(apiContext, {
+    get: vi.fn().mockResolvedValue({ answers, version: SHOWN_VERSION }),
+  } as unknown as ApiClient);
 
   return loadPublishingDate({
     context: provider,
@@ -58,7 +60,12 @@ describe('loadPublishingDate', () => {
       publishingTimeMinute: '05',
     };
 
-    expect(await load(answers)).toEqual({ id, values: answers, dateExample: '9 11 2027' });
+    expect(await load(answers)).toEqual({
+      id,
+      values: answers,
+      version: SHOWN_VERSION,
+      dateExample: '9 11 2027',
+    });
   });
 });
 

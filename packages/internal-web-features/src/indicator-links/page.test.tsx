@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, SHOWN_VERSION } from '../testing.ts';
 import type { LinksPageValues } from './form.ts';
 import { LinksPage } from './page.tsx';
 
@@ -130,6 +130,7 @@ describe('LinksPage', () => {
     const hidden = [...container.querySelectorAll<HTMLInputElement>('input[type="hidden"]')];
 
     expect(hidden.map(({ name, value }) => [name, value])).toEqual([
+      ['version', SHOWN_VERSION],
       ['links[0].url', commentary.url],
       ['links[0].text', commentary.text],
       ['links[1].url', fingertips.url],
