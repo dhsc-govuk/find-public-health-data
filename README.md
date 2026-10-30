@@ -141,9 +141,11 @@ decision.
 dependencies included: `minimumReleaseAge` in `pnpm-workspace.yaml` is set explicitly so the
 policy is visible and does not move with pnpm's own default. It is enforced both when resolving a
 bump and when CI installs from the lockfile, so a too-new version fails locally rather than only in
-CI. To take a version that is still inside the window, add a `name@version` entry to
-`minimumReleaseAgeExclude` with a note of when it can go, and remove it once the version has aged
-out. Do not pass `--trust-lockfile`: it skips the verification entirely.
+CI. The NotGovUK and react-foundry packages are permanently excluded, because they are maintained
+alongside this project and their releases are often taken straight away. To take any other version
+that is still inside the window, add a `name@version` entry to `minimumReleaseAgeExclude` with a
+note of when it can go, and remove it once the version has aged out. Do not pass
+`--trust-lockfile`: it skips the verification entirely.
 
 `postgres@3.4.9` has a pnpm patch for [upstream COPY error handling](https://github.com/porsager/postgres/pull/1183):
 a server error after COPY finishes sending must reject the writable so the transaction rolls back.

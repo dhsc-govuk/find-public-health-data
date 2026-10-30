@@ -1,3 +1,4 @@
+import { RouteAnnouncer } from '@react-foundry/router';
 import type { ReactNode } from 'react';
 import { Links, Meta, Scripts, ScrollRestoration } from 'react-router';
 
@@ -36,6 +37,7 @@ export function AppDocument({ children }: AppDocumentProps) {
           }}
         />
         {children}
+        <RouteAnnouncer />
         {/* Default keying: filter navigations pass preventScrollReset and carry no
             hash, so anchors still scroll while nothing else moves the page. */}
         <ScrollRestoration />
