@@ -49,10 +49,10 @@ describe('NotesForReviewers', () => {
     expect(screen.getByText(/Mostly by region/).className).toBe('fphd-metadata-text');
   });
 
-  it('says what is not provided', () => {
+  it('marks each question not answered yet as the preview does', () => {
     render(<NotesForReviewers notes={UNANSWERED_NOTES} />);
 
-    expect(new Set(rows().map(([, answer]) => answer))).toEqual(new Set(['Not provided']));
+    expect(new Set(rows().map(([, answer]) => answer))).toEqual(new Set(['[Not entered yet]']));
   });
 
   it.each([
