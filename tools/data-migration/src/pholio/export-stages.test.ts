@@ -587,12 +587,17 @@ function indicatorQueries(
     Name: `Indicator ${IndicatorID}`,
   })),
   uploads: { IndicatorID: number; LastUploadedAt: Date }[] = [],
+  metadata: { groupings?: Record<string, unknown>[]; ownerProfileId?: number } = {},
 ) {
   vi.mocked(queryPholio)
-    .mockResolvedValueOnce([])
-    .mockResolvedValueOnce([{ id: 1, name: 'Not applicable' }])
+    .mockResolvedValueOnce(metadata.groupings ?? [])
+    .mockResolvedValueOnce([
+      { id: -1, name: 'Not applicable' },
+      { id: 0, name: 'RAG - Low is good' },
+      { id: 1, name: 'RAG - High is good' },
+      { id: 99, name: 'BOB - Blue orange blue' },
+    ])
     .mockResolvedValueOnce([{ id: 1, name: 'Annual' }])
-    .mockResolvedValueOnce([])
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce(
       indicators.map(({ IndicatorID, Name }) => ({
@@ -601,6 +606,7 @@ function indicatorQueries(
         ValueTypeName: 'Count',
         UnitName: unitName,
         YearTypeName: 'Calendar',
+        OwnerProfileId: metadata.ownerProfileId ?? null,
         CIMethodID: null,
         EnteredAt: new Date('2020-01-01T00:00:00Z'),
       })),
@@ -629,6 +635,35 @@ it('exports only the approved indicators and uses plain text without damaging in
   expect(result.indicatorIds).toEqual(new Set([108]));
   expect(result.excludedNonApprovedIndicators).toBe(1);
   expect((await rows('indicator_version'))[0]?.definition).toBe('aged <16 and >64, high');
+});
+it('writes the owning profile polarity and comparator instead of the other profile', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    ownerProfileId: 10,
+    groupings: [
+      { IndicatorID: 108, GroupID: 1, ProfileId: 10, PolarityID: 0, ComparatorMethodID: 1 },
+      { IndicatorID: 108, GroupID: 2, ProfileId: 20, PolarityID: 1, ComparatorMethodID: 2 },
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    polarity: 'lower-is-better',
+    comparator_method_id: '1',
+  });
+});
+it('leaves absent source polarity unanswered', async () => {
+  indicatorQueries();
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.polarity).toBe(DATA_MIGRATION_NULL);
+});
+it('preserves an all-not-applicable source polarity', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    ownerProfileId: 10,
+    groupings: [
+      { IndicatorID: 108, GroupID: 1, ProfileId: 10, PolarityID: -1, ComparatorMethodID: -1 },
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.polarity).toBe('no-comparison-possible');
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',
