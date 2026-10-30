@@ -11,9 +11,9 @@
 #   docker build -f docker/Dockerfile --target api --build-arg APP=internal-api  -t internal-api  .
 #   docker build -f docker/Dockerfile --target operations --build-arg APP=operations -t operations .
 #
-# publish-images.yml builds this list on main, one matrix job per row, through
-# .github/actions/build-image. ci.yml builds the four servers in one go from docker/docker-bake.hcl
-# and operations through the same action. Both smoke-test and scan; only publish pushes.
+# ci.yml builds the four servers in one go from docker/docker-bake.hcl and operations through
+# .github/actions/build-image, then smoke-tests and scans them. On a push to main,
+# publish-images.yml pushes those images once every check has passed.
 #
 # docker/app.Dockerfile is the separate development image (see scripts/dev.sh); it keeps the
 # whole workspace and devDependencies, which is exactly what these must not do.

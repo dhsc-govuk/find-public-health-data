@@ -6,8 +6,8 @@
 # its seed data. The operations image must still hold every migration its journal lists, the core
 # data and the seed, none of which its smoke test reaches.
 #
-# ci.yml runs it against the pull request's build and publish-images.yml against the image it is
-# about to push. It also runs by hand against any local tag:
+# ci.yml runs it against each image it builds, which on main are the images publish-images.yml
+# pushes. It also runs by hand against any local tag:
 #
 #   scripts/check-image-contents.sh public-api fphd-ci/public-api:ci
 set -euo pipefail

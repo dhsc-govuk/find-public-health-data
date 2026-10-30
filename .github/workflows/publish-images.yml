@@ -1,20 +1,31 @@
 name: Publish images
 
-# Only main, and only on push — these packages are what deployments pull, so only merged
-# code publishes to them. It doesn't wait on CI: CI's image builds already gate image regressions
-# on the pull request, and this job smoke-tests and scans the image it pushes itself.
+# Called by ci.yml on a push to main once All checks pass has passed, so a commit whose CI fails
+# publishes nothing. It pushes the images that run built, smoke-tested, scanned and ran e2e
+# against, so the deployed bytes are the tested bytes. A called workflow rather than one
+# triggered by workflow_run, which would run against main's latest commit rather than the one CI
+# tested: the infrastructure repo verifies each image's provenance against this file as the
+# signer, refs/heads/main as the ref and the image's commit.
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
 
 permissions:
   contents: read
 
 # Never cancels: two quick merges must queue rather than race, or `latest` can end up
-# pointing at the older of the two.
+# pointing at the older of the two. ci.yml's runs on main queue too, so they call this in order.
 concurrency:
   group: publish-images
   cancel-in-progress: false
+
+# bash -eo pipefail, where an unnamed shell is bash -e alone: a failed command on the left of a
+# pipe must fail the step.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   publish:
@@ -30,20 +41,20 @@ jobs:
       id-token: write
       attestations: write
     strategy:
-      # One app failing to build must not stop the other four publishing.
+      # One app failing to push must not stop the other four publishing.
       fail-fast: false
       matrix:
         include:
           - app: public-web
-            target: web
+            artifact: app-images
           - app: internal-web
-            target: web
+            artifact: app-images
           - app: public-api
-            target: api
+            artifact: app-images
           - app: internal-api
-            target: api
+            artifact: app-images
           - app: operations
-            target: operations
+            artifact: operations-image
     steps:
       # Derived from the run so the workflow publishes under whichever repository it is in.
       # Repo-prefixed so a generic name like `operations` isn't loose in the organisation
@@ -58,66 +69,50 @@ jobs:
           APP: ${{ matrix.app }}
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/fphd-${APP}" >> "${GITHUB_ENV}"
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download the image
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          persist-credentials: false
+          name: ${{ matrix.artifact }}
+          path: ${{ runner.temp }}
+
+      - name: Load the image
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+        run: zstd --decompress --stdout "${RUNNER_TEMP}/${ARTIFACT}.tar.zst" | docker load
+
+      # ci.yml labels the images with the commit it built. The infrastructure repo reads the label
+      # to find the commit behind `latest`, so an image without it, or with another commit's,
+      # must not be pushed.
+      - name: Tag the image, if it is this commit's
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          revision=$(docker image inspect "fphd-ci/${APP}:ci" \
+            --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+          if [ "${revision}" != "${GITHUB_SHA}" ]; then
+            echo "::error::fphd-ci/${APP}:ci is labelled with revision '${revision}', not ${GITHUB_SHA}"
+            exit 1
+          fi
+          docker tag "fphd-ci/${APP}:ci" "${IMAGE}:${GITHUB_SHA}"
+          docker tag "fphd-ci/${APP}:ci" "${IMAGE}:latest"
 
       - name: Sign in to the container registry
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin <<<"${GITHUB_TOKEN}"
 
-      # The one label value the run's context cannot supply.
-      - name: Read the build timestamp
-        id: timestamp
-        run: echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
-
-      # Commit and build-time metadata go in the OCI labels, not the tags: a tag encoding them
-      # could drift from what the labels say. No build cache, so a published image is made only
-      # of layers this run built; the pull request's cache is scoped to its branch anyway.
-      - name: Build the image
-        uses: ./.github/actions/build-image
-        with:
-          app: ${{ matrix.app }}
-          target: ${{ matrix.target }}
-          tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
-          labels: |
-            org.opencontainers.image.title=fphd-${{ matrix.app }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ steps.timestamp.outputs.created }}
-            org.opencontainers.image.licenses=MIT
-
-      # Runs the image this job built and is about to push. The pull request's smoke test ran a
-      # different build, from a different builder with its own cache, so it does not cover this one.
-      - name: Smoke test the image
-        env:
-          APP: ${{ matrix.app }}
-        run: scripts/smoke-image.sh "${APP}" "${IMAGE}:${GITHUB_SHA}"
-
-      - name: Check the image's contents
-        env:
-          APP: ${{ matrix.app }}
-        run: scripts/check-image-contents.sh "${APP}" "${IMAGE}:${GITHUB_SHA}"
-
-      # After the smoke test, so a scan finding never masks an image that fails to start, and
-      # before the push, so a failing image is never in the registry to be deployed.
-      - name: Scan the image
-        uses: ./.github/actions/scan-image
-        with:
-          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
-
+      # No build, smoke test, contents check or scan here: the calling run did all four to these
+      # bytes before All checks pass passed.
+      #
       # Both tags are labels for humans, not what a deployment should reference: GHCR tags are
-      # mutable, and re-running this workflow for the same commit produces a different manifest
-      # that overwrites both. The digest below is the immutable reference.
+      # mutable. The digest below is the immutable reference.
       - name: Push the image
         id: push
         run: |
           # `docker push` reports the manifest the registry stored as `<tag>: digest: sha256:…`.
           # Read it from the push rather than from the local image: it is the registry's own
-          # answer to what now exists under this tag.
+          # answer to what now exists under this tag. pipefail, from the default shell, fails
+          # the step when the SHA tag's push fails, before `latest` moves.
           push_output=$(docker push "${IMAGE}:${GITHUB_SHA}" | tee /dev/stderr)
           docker push "${IMAGE}:latest"
 
@@ -164,7 +159,8 @@ jobs:
   # value — and the partial publish (fail-fast: false) is the case worth spelling
   # out, since the registry is then a mixed set under `latest`. The API can lag
   # the run, reporting a finished leg's conclusion as null, so the step waits for
-  # it and then falls back on needs.publish.result.
+  # it and then falls back on needs.publish.result. The API names a called
+  # workflow's jobs after the caller's job too: `Publish images / Publish public-web`.
   notify:
     name: Notify publish outcome
     needs: [publish]
@@ -185,7 +181,7 @@ jobs:
         run: |
           for attempt in 1 2 3 4 5 6; do
             jobs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
-              --jq '[.jobs[] | select(.name | startswith("Publish ")) | {app: (.name | ltrimstr("Publish ")), conclusion}]')
+              --jq '[.jobs[] | select(.name | test("(^|/ )Publish [^/]+$")) | {app: (.name | sub("^.*Publish "; "")), conclusion}]')
             if ! jq --exit-status 'length == 0 or any(.[]; .conclusion == null)' <<<"${jobs}" > /dev/null; then
               break
             fi
