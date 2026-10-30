@@ -12,18 +12,15 @@ import {
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**
- * GET `/api/internal/indicators/:id/notes-for-reviewers`: the draft's answers to the sections
- * the publisher writes for its reviewers, for those `canSeeNotesForReviewers` allows, while the
- * draft is locked for review and so holds what was submitted.
- *
- * Errors:
- * - 404 `not_found`: no such indicator, or one the user may not read the notes of.
- * - 404 `no_draft`: the indicator has no draft.
- * - 404 `not_submitted`: the draft is not locked for review, as before it is submitted or
- *   after a withdrawal.
+ * GET `/api/internal/indicators/:id/notes-for-reviewers`: the answers to the sections the
+ * publisher writes for its reviewers, from the draft or, with none, the published version, for
+ * those `canSeeNotesForReviewers` allows. Anyone else gets 404 `not_found`.
  */
 export function internalNotesForReviewersRouter(
-  indicators: Pick<InternalIndicatorRepository, 'findById' | 'findDraftState'>,
+  indicators: Pick<
+    InternalIndicatorRepository,
+    'findById' | 'findDraftState' | 'findPublishedVersion'
+  >,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
@@ -46,24 +43,18 @@ export function internalNotesForReviewersRouter(
         return;
       }
 
-      if (row.draftStatus === null) {
-        response.status(404).json({ error: 'no_draft' });
-        return;
-      }
+      const version =
+        row.draftStatus === null
+          ? await indicators.findPublishedVersion(id.data)
+          : (await indicators.findDraftState(id.data))?.draft;
 
-      if (!row.draftLocked) {
-        response.status(404).json({ error: 'not_submitted' });
-        return;
-      }
-
-      const draft = (await indicators.findDraftState(id.data))?.draft;
-
-      if (!draft) throw new Error('the draft just found could not be read');
+      // Every indicator has a draft, a published version or both.
+      if (!version) throw new Error('the indicator has no version to read');
 
       const body: NotesForReviewers = {
-        varianceAndQuality: varianceAndQualityColumns.fromDraft(draft),
-        justifications: justificationsColumns.fromDraft(draft),
-        otherComments: otherCommentsColumns.fromDraft(draft),
+        varianceAndQuality: varianceAndQualityColumns.fromDraft(version),
+        justifications: justificationsColumns.fromDraft(version),
+        otherComments: otherCommentsColumns.fromDraft(version),
       };
 
       response.status(200).json(body);

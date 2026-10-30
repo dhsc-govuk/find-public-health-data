@@ -270,6 +270,7 @@ describe('internal API', () => {
           draftReviewers: [],
           draftScheduledPublishAt: null,
         }),
+        findDraftState: vi.fn().mockResolvedValue({ draft: unansweredDraft }),
       },
     });
     const app = createTestApp(createFakeRepositories(), internalRepositories);
@@ -278,8 +279,7 @@ describe('internal API', () => {
     const asManager = await request(app)
       .get(path)
       .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
-    // Only the route answers not_submitted; the fallback would answer not_found.
-    expect(asManager.body).toEqual({ error: 'not_submitted' });
+    expect(asManager.status).toBe(200);
   });
 
   it('mounts the indicators under review behind the IMRG manager role', async () => {

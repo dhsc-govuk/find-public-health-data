@@ -64,7 +64,10 @@ const draftState = {
   draftSubmissionStatus: 'in_review',
 };
 
-type Indicators = Pick<InternalIndicatorRepository, 'findById' | 'findDraftState'>;
+type Indicators = Pick<
+  InternalIndicatorRepository,
+  'findById' | 'findDraftState' | 'findPublishedVersion'
+>;
 
 function createTestApp(indicators: Partial<Indicators> = {}): Express {
   return createRouterTestApp(
@@ -72,6 +75,7 @@ function createTestApp(indicators: Partial<Indicators> = {}): Express {
       {
         findById: async () => inReview,
         findDraftState: vi.fn().mockResolvedValue(draftState),
+        findPublishedVersion: vi.fn(),
         ...indicators,
       },
       testSessionVerifier,
@@ -83,7 +87,7 @@ const asManager = () => testSessionCookie(['internal', 'imrg-manager'], []);
 const asReviewer = () => testSessionCookie(['internal', 'imrg-reviewer'], []);
 
 describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
-  it("serves an IMRG manager the draft's answers while it is locked for review", async () => {
+  it("serves an IMRG manager the draft's answers", async () => {
     const response = await request(createTestApp())
       .get(path)
       .set('Cookie', await asManager());
@@ -114,12 +118,17 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
     });
   });
 
-  it('serves them while the submission waits for reviewers', async () => {
+  it.each([
+    ['before it is submitted', false, null],
+    ['while the submission waits for reviewers', true, 'submitted'],
+    ['after its submission is withdrawn', false, 'withdrawn'],
+  ] as const)('serves them %s', async (_, draftLocked, draftSubmissionStatus) => {
     const response = await request(
       createTestApp({
         findById: async () => ({
           ...inReview,
-          draftSubmissionStatus: 'submitted',
+          draftLocked,
+          draftSubmissionStatus,
           draftReviewers: [],
         }),
       }),
@@ -128,6 +137,7 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
       .set('Cookie', await asManager());
 
     expect(response.status).toBe(200);
+    expect(response.body.varianceAndQuality.variation).toBe('Little.');
   });
 
   it('serves a reviewer assigned to the indicator', async () => {
@@ -189,45 +199,33 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
     expect(response.body).toEqual({ error: 'not_found' });
   });
 
-  it('answers 404 no_draft for an indicator with no draft', async () => {
+  it("serves the published version's answers for a live indicator with no draft", async () => {
     const findDraftState = vi.fn();
-
-    const response = await request(
-      createTestApp({
-        findById: async () => ({ ...inReview, draftStatus: null, draftLocked: false }),
-        findDraftState,
-      }),
-    )
-      .get(path)
-      .set('Cookie', await asManager());
-
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'no_draft' });
-    expect(findDraftState).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ['before it is submitted', null],
-    ['after its submission is withdrawn', 'withdrawn'],
-  ] as const)('answers 404 not_submitted for a draft %s', async (_, draftSubmissionStatus) => {
-    const findDraftState = vi.fn();
+    const findPublishedVersion = vi
+      .fn()
+      .mockResolvedValue({ ...unansweredDraft, variation: 'As published.' });
 
     const response = await request(
       createTestApp({
         findById: async () => ({
           ...inReview,
+          indicatorStatus: 'live',
+          draftStatus: null,
           draftLocked: false,
-          draftSubmissionStatus,
+          draftSubmissionStatus: null,
+          draftSubmissionNumber: null,
           draftReviewers: [],
         }),
         findDraftState,
+        findPublishedVersion,
       }),
     )
       .get(path)
       .set('Cookie', await asManager());
 
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'not_submitted' });
+    expect(response.status).toBe(200);
+    expect(response.body.varianceAndQuality.variation).toBe('As published.');
+    expect(findPublishedVersion).toHaveBeenCalledWith(ID);
     expect(findDraftState).not.toHaveBeenCalled();
   });
 });
