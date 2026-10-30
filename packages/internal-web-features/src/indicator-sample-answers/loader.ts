@@ -107,6 +107,7 @@ export async function fillInSampleAnswers({
     );
     if (uploaded instanceof Response) return uploaded;
 
+    request.signal.throwIfAborted();
     const confirmation = await api.put(
       apiPath`/api/internal/indicators/${id}/data-table/confirmation`,
       { batchId: uploaded.id },

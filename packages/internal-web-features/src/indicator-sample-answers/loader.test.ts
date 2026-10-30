@@ -170,6 +170,22 @@ describe('fillInSampleAnswers', () => {
     expect(put).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves the table unconfirmed once the browser has gone during the upload', async () => {
+    const abandoned = new AbortController();
+    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const postStream = vi.fn().mockImplementation(async () => {
+      abandoned.abort();
+      return { ok: true, data: { id: batchId } };
+    });
+
+    await expect(
+      fillIn({ get: reads(taskList), put, postStream }, true, abandoned.signal),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(put.mock.calls.map(([path]) => path)).not.toContain(
+      `/api/internal/indicators/${id}/data-table/confirmation`,
+    );
+  });
+
   it('sends the publisher to the overview, saying why, while the draft is locked', async () => {
     const put = vi.fn();
 
