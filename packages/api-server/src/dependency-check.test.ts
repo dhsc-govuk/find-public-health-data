@@ -1,3 +1,6 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
 import { request } from '@fphd/express/testing';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { describe, expect, it, vi } from 'vitest';
@@ -19,6 +22,8 @@ function failing(times: number) {
 }
 
 const retryAfterMs = 1;
+
+const runFile = promisify(execFile);
 
 describe('checkDependencies', () => {
   it('logs each failed check, with the name and error code, until the check passes', async () => {
@@ -82,11 +87,44 @@ describe('checkDependencies', () => {
   it('leaves an API with an unreachable database answering its probes', async () => {
     const { lines, logger } = createCapturingLogger('test-api');
     const app = createApiApp({ logger, serviceName: 'test-api' });
+    let reachable = false;
+    const checking = checkDependencies(
+      logger,
+      [
+        {
+          name: 'database',
+          check: async () => {
+            if (!reachable) throw connectionRefused();
+          },
+        },
+      ],
+      { retryAfterMs },
+    );
 
-    await checkDependencies(logger, [{ name: 'database', check: failing(1) }], { retryAfterMs });
-
-    expect(lines[0]).toMatchObject({ msg: 'Dependency unreachable at start-up' });
+    await vi.waitFor(() =>
+      expect(lines[0]).toMatchObject({ msg: 'Dependency unreachable at start-up' }),
+    );
     expect((await request(app).get('/livez')).status).toBe(200);
     expect((await request(app).get('/readyz')).status).toBe(200);
+
+    reachable = true;
+    await checking;
+  });
+
+  it('lets the process exit with a retry pending', { timeout: 10_000 }, async () => {
+    // A child process, as only a real exit shows the pending retry is not holding it open. Its
+    // retry is the default minute away; the five-second cap fails the test if the exit waits on it.
+    const module = JSON.stringify(new URL('./dependency-check.ts', import.meta.url).href);
+    const script = `
+      const { checkDependencies } = await import(${module});
+      const logger = { error: (_fields, message) => console.log(message), info: () => {} };
+      checkDependencies(logger, [{ name: 'database', check: async () => { throw new Error('down'); } }]);
+    `;
+
+    const { stdout } = await runFile(process.execPath, ['--input-type=module', '-e', script], {
+      timeout: 5_000,
+    });
+
+    expect(stdout).toBe('Dependency unreachable at start-up\n');
   });
 });
