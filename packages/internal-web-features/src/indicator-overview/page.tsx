@@ -1,4 +1,4 @@
-import { A, Button, GridColumn, GridRow, NotificationBanner, Tabs } from '@fphd/ui';
+import { A, Button, formatDate, GridColumn, GridRow, NotificationBanner, Tabs } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 
 import { indicatorTaskListPath, indicatorWithdrawalPath } from '../publish-paths.ts';
@@ -73,6 +73,15 @@ function Actions({ canEdit, indicator }: ActionsProps) {
   );
 }
 
+function ScheduledPublicationDate({ at }: { at: string }) {
+  return (
+    <p className="govuk-body govuk-!-margin-bottom-6">
+      <strong>Scheduled publication date:</strong>{' '}
+      <time dateTime={at}>{formatDate(at, 'longWithTime')}</time>
+    </p>
+  );
+}
+
 export function IndicatorOverviewPage({ canEdit, indicator, notification }: OverviewProps) {
   return (
     <GridRow>
@@ -85,7 +94,11 @@ export function IndicatorOverviewPage({ canEdit, indicator, notification }: Over
             {notification.text}
           </NotificationBanner>
         )}
-        <IndicatorHeading indicator={indicator} />
+        <IndicatorHeading indicator={indicator}>
+          {indicator.draftScheduledPublishAt === null ? null : (
+            <ScheduledPublicationDate at={indicator.draftScheduledPublishAt} />
+          )}
+        </IndicatorHeading>
         <Tabs
           items={[
             {
