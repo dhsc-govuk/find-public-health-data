@@ -160,7 +160,7 @@ jobs:
         run: pnpm --filter @fphd/e2e exec playwright install --with-deps chromium
 
       - name: Download the app images
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: app-images
           path: ${{ runner.temp }}
@@ -192,7 +192,7 @@ jobs:
           up --detach --wait
 
       - name: Download the seeded database
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: seeded-database
           path: ${{ runner.temp }}
@@ -222,7 +222,7 @@ jobs:
 
       - name: Upload the Playwright report
         if: ${{ failure() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ matrix.shard }}
           path: e2e/playwright-report
@@ -244,7 +244,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
 
       - name: Download the app images
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: app-images
           path: ${{ runner.temp }}
@@ -272,7 +272,7 @@ jobs:
           up --detach --wait
 
       - name: Download the seeded database
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: seeded-database
           path: ${{ runner.temp }}
@@ -307,7 +307,7 @@ jobs:
       # Always, so `pnpm perf:accept <run-id>` can adopt a run's numbers whether it passed or not.
       - name: Upload the measured numbers
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: perf-baseline
           path: ${{ runner.temp }}/perf-baseline/baseline.json
@@ -322,7 +322,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
       - name: Enable corepack
@@ -394,7 +394,7 @@ jobs:
       # OCI_ variables fill in docker-bake.hcl's labels: commit and build-time metadata go in the
       # labels, not the tags, where they could drift from what the labels say.
       - name: Build the app images
-        uses: docker/bake-action@018cb6412ab401ebaa809aa5f85966b74628600f # v7.4.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         env:
           OCI_SOURCE: ${{ github.server_url }}/${{ github.repository }}
           OCI_REVISION: ${{ github.sha }}
@@ -427,7 +427,7 @@ jobs:
           | zstd -T0 -3 -o "${RUNNER_TEMP}/app-images.tar.zst"
 
       - name: Upload the app images
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: app-images
           path: ${{ runner.temp }}/app-images.tar.zst
@@ -453,7 +453,7 @@ jobs:
           persist-credentials: false
 
       - name: Download the app images
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: app-images
           path: ${{ runner.temp }}
@@ -575,7 +575,7 @@ jobs:
 
       - name: Upload operations
         if: ${{ github.event_name == 'push' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: operations-image
           path: ${{ runner.temp }}/operations-image.tar.zst
@@ -635,7 +635,7 @@ jobs:
           > "${RUNNER_TEMP}/seeded-database.dump"
 
       - name: Upload the dump
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: seeded-database
           path: ${{ runner.temp }}/seeded-database.dump
