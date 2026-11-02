@@ -164,7 +164,7 @@ test.describe('as an IMRG reviewer', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  test('an assigned reviewer opens the indicator overview, with no actions', async ({
+  test('an assigned reviewer opens the indicator overview, with the review response to submit', async ({
     browser,
     page,
   }, testInfo) => {
@@ -177,9 +177,8 @@ test.describe('as an IMRG reviewer', () => {
 
     await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-    await expect(
-      page.getByText('There are no actions available for this indicator yet.'),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Review' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Submit review response' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

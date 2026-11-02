@@ -11,10 +11,12 @@ export const meta = createDocumentMeta('Indicator overview');
 export const handle = backLinkHandle(DASHBOARD_PATH, 'Back to indicators');
 
 export function IndicatorOverviewRoute() {
-  const { canEdit, indicator, notesForReviewers, notification } = useLoaderData<typeof loader>();
+  const { canEdit, isReviewer, indicator, notesForReviewers, notification } =
+    useLoaderData<typeof loader>();
   return (
     <IndicatorOverviewPage
       canEdit={canEdit}
+      isReviewer={isReviewer}
       indicator={indicator}
       notesForReviewers={notesForReviewers}
       notification={notification}

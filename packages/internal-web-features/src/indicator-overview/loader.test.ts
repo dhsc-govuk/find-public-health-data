@@ -54,6 +54,7 @@ describe('loadIndicatorOverview', () => {
     ]);
     expect(outcome).toEqual({
       canEdit: true,
+      isReviewer: false,
       indicator,
       notesForReviewers: notes,
       notification: undefined,
@@ -67,6 +68,33 @@ describe('loadIndicatorOverview', () => {
     const outcome = await load(indicator.id, vi.fn().mockResolvedValue(indicator), roles, teams);
 
     expect(outcome.canEdit).toBe(false);
+  });
+
+  it.each([
+    ['an assigned reviewer', ['imrg-reviewer'], [{ id: 'test-user', name: 'Jamie Evans' }], true],
+    [
+      'a reviewer assigned to someone else',
+      ['imrg-reviewer'],
+      [{ id: 'other', name: 'Robin' }],
+      false,
+    ],
+    [
+      'someone listed without the reviewer role',
+      ['imrg-manager'],
+      [{ id: 'test-user', name: 'Avery' }],
+      false,
+    ],
+  ])('says whether the user is %s of it', async (_who, roles, draftReviewers, expected) => {
+    const detail = { ...indicator, draftStatus: 'draft', draftReviewers };
+    const get = vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path.endsWith('/notes-for-reviewers') ? {} : detail,
+      );
+
+    const outcome = await load(indicator.id, get, roles, []);
+
+    expect(outcome.isReviewer).toBe(expected);
   });
 
   describe('the notes for reviewers', () => {
