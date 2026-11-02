@@ -68,6 +68,7 @@ publishing moves to this service. The operations image applies the packages with
 - The source manifest's `profile_metadata` preserves profile-specific names, including
   framework references, raw frequency prose and structured frequency labels. Preparation
   and increments retain that provenance independently of the generic display name.
+  Development archives retain it as `profile_metadata` in both manifest files.
 - Each package names its schema format, source snapshot time, predecessor, row counts and
   SHA-256 digest for every file. The archive has a separate SHA-256 digest.
 - An increment carries `ci_method`, `comparator_method` and `numerator_denominator_source` in

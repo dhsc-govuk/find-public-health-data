@@ -111,6 +111,14 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
   await writeFile(
     join(outDir, 'source-manifest.json'),
     JSON.stringify({
+      source: {
+        system: 'fingertips',
+        environment: 'live',
+        database: 'pholio_live_b',
+        snapshot_at: '2026-01-01T00:00:00Z',
+        cutoff_at: '2026-01-01T00:00:00Z',
+        profile_metadata: [],
+      },
       exported_indicators: 1325,
       source_observations: 29656329,
       excluded_observations: 29656328,
