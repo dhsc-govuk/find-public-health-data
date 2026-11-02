@@ -13,10 +13,12 @@ import {
 } from '@fphd/internal-api-features/contract';
 import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { takeFlash } from '@fphd/web-server/flash';
 import { getSession } from '@fphd/web-server/session';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { queryObject } from '../query-object.ts';
+import { dashboardNotification } from './notifications.ts';
 
 export type {
   IndicatorAdminListItem,
@@ -76,5 +78,7 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
     underReview,
     toReview,
     list: list === null ? null : { canCreate, ...list },
+    // Taken after the fetches, so a failed page load does not consume the message it would show.
+    notification: dashboardNotification(takeFlash(context)),
   };
 }

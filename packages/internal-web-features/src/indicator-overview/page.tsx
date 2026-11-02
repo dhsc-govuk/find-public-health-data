@@ -62,6 +62,9 @@ export function IndicatorOverviewPage({
           <NotificationBanner
             disableAutoFocus
             {...(notification.type === 'success' ? { type: 'success' } : {})}
+            {...(notification.colour === undefined
+              ? {}
+              : { className: `fphd-notification-banner--${notification.colour}` })}
           >
             {notification.text}
           </NotificationBanner>

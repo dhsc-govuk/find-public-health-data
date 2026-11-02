@@ -290,4 +290,20 @@ describe('IndicatorOverviewPage', () => {
     expect(review?.textContent).toContain('There are no actions available for this indicator yet.');
     expect(screen.queryByRole('button', { name: 'Submit review response' })).toBeNull();
   });
+
+  it.each(['orange', 'red'] as const)('colours a review response banner %s', (colour) => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          indicator={indicator}
+          notification={{ type: 'important', colour, text: 'Revisions needed.' }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('region', { name: 'Important' }).className).toContain(
+      `fphd-notification-banner--${colour}`,
+    );
+  });
 });

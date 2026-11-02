@@ -377,4 +377,21 @@ describe('DashboardPage', () => {
     );
     expect(screen.queryByRole('button', { name: 'Create new indicator' })).toBeNull();
   });
+
+  it('shows what the page before left to say in an important banner', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <DashboardPage
+          underReview={null}
+          toReview={[]}
+          list={null}
+          notification="You are no longer a reviewer of this indicator."
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('region', { name: 'Important' }).textContent).toContain(
+      'You are no longer a reviewer of this indicator.',
+    );
+  });
 });
