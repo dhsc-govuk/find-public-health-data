@@ -60,6 +60,9 @@ async function stepIndicator(
   return row;
 }
 
+/** Where a reviewer posts their response, which may carry many long flags. */
+export const REVIEW_RESPONSE_PATH = '/api/internal/indicators/:id/review-response';
+
 /** A refused step: no draft is a 404, and every other reason a 409 naming it. */
 function refuse<Reason extends string>(
   response: Response,
@@ -189,7 +192,7 @@ export function indicatorSubmissionsRouter(
   );
 
   router.post(
-    '/api/internal/indicators/:id/review-response',
+    REVIEW_RESPONSE_PATH,
     requireJwtSession(session, canReviewIndicators),
     async (request, response) => {
       // Every response step takes the same permission, so any one of them checks it.

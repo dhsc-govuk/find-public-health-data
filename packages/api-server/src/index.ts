@@ -18,18 +18,31 @@ export {
   type Dependency,
 } from './dependency-check.ts';
 
+/** A route whose JSON body may be larger than the default 100 kB, and the size it may reach. */
+export interface BodyLimit {
+  /** The route's path, as Express matches it, such as `/api/things/:id/notes`. */
+  path: string;
+  /** body-parser's limit, such as `'1mb'`. */
+  limit: string;
+}
+
 export function createApiApp({
   logger,
   serviceName,
+  bodyLimits = [],
 }: {
   logger: Logger;
   serviceName: string;
+  /** The routes that raise their own body limit; every other route keeps the default. */
+  bodyLimits?: readonly BodyLimit[];
 }): Express {
   const app = createBaseApp({ serviceName });
 
   // Ahead of every route, so a miss is logged as well as a hit. The probes sit on the base app
   // above and never reach it. The id a web app forwarded is kept, so both logs share it.
   app.use(requestLogging(logger, { servesWebApps: true }));
+  // A route's own parser reads its body first, and the default parser skips a body already read.
+  for (const { path, limit } of bodyLimits) app.use(path, json({ limit }));
   app.use(json());
 
   app.get('/api', (_request, response) => {

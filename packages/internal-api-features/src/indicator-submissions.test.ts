@@ -1,6 +1,7 @@
 import { request } from '@fphd/express/testing';
 import type { Logger } from '@fphd/logger';
 import { createCapturingLogger } from '@fphd/logger/testing';
+import { FLAGGABLE_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -517,6 +518,22 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
         kind: 'minor_revisions',
       }),
     ]);
+  });
+
+  it('accepts a response over the default body limit but within the text limits', async () => {
+    const respond = vi.fn().mockResolvedValue({ ok: true });
+    const flags = FLAGGABLE_TASK_KEYS.map((task) => ({ task, notes: 'é'.repeat(10_000) }));
+    const sent = { ...minorRevisions, clarificationRequest: 'é'.repeat(10_000), flags };
+
+    expect(Buffer.byteLength(JSON.stringify(sent))).toBeGreaterThan(100_000);
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(sent);
+
+    expect(response.status).toBe(204);
+    expect(respond).toHaveBeenCalledWith(ID, sent, testActor(response));
   });
 
   it.each([

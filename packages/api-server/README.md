@@ -8,7 +8,7 @@ Built package; consumed by the API apps and by `@fphd/internal-api-features`.
 
 | Export                | Purpose                                                                       |
 | --------------------- | ----------------------------------------------------------------------------- |
-| `createApiApp`        | `createBaseApp` from `@fphd/express` plus request logging, JSON bodies and the `/api` descriptor |
+| `createApiApp`        | `createBaseApp` from `@fphd/express` plus request logging, JSON bodies and the `/api` descriptor. `bodyLimits` lists the routes that raise the 100 kB body limit, each with its own |
 | `addFallbackHandlers` | Mounted after every router: the JSON `not_found` fallback, and an error handler that returns JSON and attaches the error to the request log line |
 | `requireJwtRole`      | Middleware that reads the session cookie, verifies the JWT and checks a role  |
 | `requireJwtSession`   | The same, admitting the sessions a check such as one from `@fphd/auth/permissions` admits |

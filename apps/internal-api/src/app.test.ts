@@ -2,7 +2,10 @@ import { TEAM_IDS } from '@fphd/auth';
 import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { createFakeRepositories } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
-import { indicatorTaskKeySchema } from '@fphd/internal-api-features/contract';
+import {
+  flaggableTaskKeySchema,
+  indicatorTaskKeySchema,
+} from '@fphd/internal-api-features/contract';
 import {
   createFakeInternalRepositories,
   unansweredDraft,
@@ -255,6 +258,16 @@ describe('internal API', () => {
 
     expect(asReviewer.status).toBe(204);
     expect(asPublisher.status).toBe(403);
+
+    // Its own body limit, over the default 100 kB.
+    const long = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']))
+      .send({
+        ...body,
+        flags: flaggableTaskKeySchema.options.map((task) => ({ task, notes: '€'.repeat(10_000) })),
+      });
+    expect(long.status).toBe(204);
   });
 
   it('mounts the reviewer options behind the IMRG manager role', async () => {
