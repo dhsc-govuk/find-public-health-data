@@ -682,6 +682,30 @@ describe('getIndicatorById', () => {
     });
   });
 
+  repositoryTest('forgets the response once the draft is resubmitted', async ({ db }) => {
+    const created = await newDraft(db, 'Answered, then resubmitted');
+    const shown = await completeDraft(db, created);
+    const { indicatorId, versionId } = created;
+    await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+    await assign(db, indicatorId, [FAKE_USER_IDS.imrgReviewer]);
+    await respond(db, indicatorId, 'major_revisions');
+    await db
+      .update(schema.indicatorVersionSubmission)
+      .set({ revisionResponse: 'Revised as asked' })
+      .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
+
+    expect(await submitIndicator(db, indicatorId, shown, AS_ACTOR)).toEqual({ ok: true });
+
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+      draftSubmissionNumber: 2,
+      draftSubmissionStatus: 'in_review',
+      draftResponseKind: null,
+    });
+    expect(await getIndicatorDraftState(db, indicatorId)).toMatchObject({
+      draftResponseKind: null,
+    });
+  });
+
   repositoryTest("ignores a published version's date when there is no draft", async ({ db }) => {
     const { indicatorId } = await indicatorWithTwoPublications(db, 'Published with a date');
     await db
