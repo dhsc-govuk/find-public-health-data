@@ -442,8 +442,9 @@ export async function exportObservations(context: ObservationExportOptions) {
     );
     const value = nullIfSentinel(c.Value);
     const suppressed = suppressSourceMeasures(c.Value, c.ValueNoteId);
-    const ci95 = computeCiPair(c.Value ?? -1, c.LowerCI95, c.UpperCI95);
-    const ci998 = computeCiPair(c.Value ?? -1, c.LowerCI99_8, c.UpperCI99_8);
+    const diagnostic = `CoreDataSet uid ${c.uid}, indicator ${c.IndicatorID}`;
+    const ci95 = computeCiPair(c.Value, c.LowerCI95, c.UpperCI95, `${diagnostic}, 95%`);
+    const ci998 = computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     const halves = observationDimensions(c);
     for (const [split, dimensions] of halves.entries()) {
       const obsId = observationId(c.uid, split as 0 | 1);

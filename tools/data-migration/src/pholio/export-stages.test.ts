@@ -207,6 +207,28 @@ it('keeps numeric masking when a source note is recategorised as quality', async
   });
 });
 
+it.each([
+  { level: '95%', bounds: { LowerCI95: 12, UpperCI95: 8 } },
+  { level: '99.8%', bounds: { LowerCI99_8: 12, UpperCI99_8: 8 } },
+])(
+  'reports source diagnostics for a $level interval changed after pre-flight',
+  async ({ level, bounds }) => {
+    sourceObservations([observation()]);
+    vi.mocked(streamPholio)
+      .mockImplementationOnce(async (_pool, _query, consume) => {
+        await consume(observation());
+        return 1;
+      })
+      .mockImplementationOnce(async (_pool, _query, consume) => {
+        await consume(observation(bounds));
+        return 1;
+      });
+    await expect(exportObservations(observationOptions())).rejects.toThrow(
+      `CoreDataSet uid 1, indicator 108, ${level}: inverted`,
+    );
+  },
+);
+
 it('counts every intentional observation exclusion separately', async () => {
   sourceObservations([
     observation(),
@@ -920,4 +942,19 @@ it('sorts comparator gap-fill rows together with existing lookup IDs', async () 
     { id: '2', name: 'Legacy comparator method 2' },
     { id: '3', name: 'Three' },
   ]);
+});
+
+it('rejects an unreviewed disclosure note masking policy', async () => {
+  vi.mocked(queryPholio)
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce([
+      { ValueNoteID: 999, Text: 'Value suppressed to protect confidentiality' },
+    ]);
+  await expect(exportLookups(options)).rejects.toThrow(
+    'Source note 999 requires review of its numeric masking policy',
+  );
 });
