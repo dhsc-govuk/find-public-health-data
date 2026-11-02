@@ -275,35 +275,12 @@ export const publishedObservationNote = publishedSchema
   })
   .existing();
 
-export const publishedLatestHeadline = publishedSchema
-  .view('latest_headline', {
-    indicatorId: uuid('indicator_id').notNull(),
-    areaId: uuid('area_id').notNull(),
-    fromDate: date('from_date').notNull(),
-    toDate: date('to_date').notNull(),
-    value: doublePrecision('value'),
-    lowerCi95: doublePrecision('lower_ci_95'),
-    upperCi95: doublePrecision('upper_ci_95'),
-  })
-  .existing();
-
 export const publishedAvailableData = publishedSchema
   .view('available_data', {
     indicatorId: uuid('indicator_id').notNull(),
     areaTypeId: uuid('area_type_id').notNull(),
     areaTypeName: text('area_type_name').notNull(),
     areaCount: integer('area_count').notNull(),
-  })
-  .existing();
-
-export const publishedIndicatorDimensionValues = publishedSchema
-  .view('indicator_dimension_values', {
-    indicatorId: uuid('indicator_id').notNull(),
-    dimensionTypeId: uuid('dimension_type_id').notNull(),
-    dimensionTypeName: text('dimension_type_name').notNull(),
-    dimensionValueId: uuid('dimension_value_id').notNull(),
-    dimensionValueName: text('dimension_value_name').notNull(),
-    sortOrder: integer('sort_order').notNull(),
   })
   .existing();
 

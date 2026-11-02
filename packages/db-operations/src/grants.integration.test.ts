@@ -107,20 +107,8 @@ async function insertDraftOnlyIndicator(): Promise<void> {
   draftObservationId = await insertObservation(draftIndicatorId, batch?.id ?? '', '2024-01-01');
 
   await owner`
-    INSERT INTO latest_headline (indicator_id, area_id, from_date, to_date, value)
-    SELECT ${draftIndicatorId}, a.id, '2024-01-01', '2024-12-31', 1.5 FROM area a LIMIT 1
-  `;
-  await owner`
     INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
     SELECT ${draftIndicatorId}, at.id, at.name, 1 FROM area_type at LIMIT 1
-  `;
-  await owner`
-    INSERT INTO indicator_dimension_values
-      (indicator_id, dimension_type_id, dimension_type_name, dimension_value_id,
-       dimension_value_name)
-    SELECT ${draftIndicatorId}, dt.id, dt.name, dv.id, dv.name
-    FROM dimension_value dv JOIN dimension_type dt ON dt.id = dv.dimension_type_id
-    LIMIT 1
   `;
   await owner`
     INSERT INTO observation_range
@@ -363,21 +351,17 @@ describe('an indicator whose only version is a draft', () => {
         FROM published.observation_dimension WHERE observation_id = ${draftObservationId}
       UNION ALL SELECT 'observation_note', count(*)::int
         FROM published.observation_note WHERE observation_id = ${draftObservationId}
-      UNION ALL SELECT 'latest_headline', count(*)::int
-        FROM published.latest_headline WHERE indicator_id = ${draftIndicatorId}
       UNION ALL SELECT 'available_data', count(*)::int
         FROM published.available_data WHERE indicator_id = ${draftIndicatorId}
-      UNION ALL SELECT 'indicator_dimension_values', count(*)::int
-        FROM published.indicator_dimension_values WHERE indicator_id = ${draftIndicatorId}
       UNION ALL SELECT 'observation_range', count(*)::int
         FROM published.observation_range WHERE indicator_id = ${draftIndicatorId}
     `;
 
     expect(counts.filter(({ rows }) => rows > 0)).toEqual([]);
-    expect(counts).toHaveLength(12);
+    expect(counts).toHaveLength(10);
   });
 
-  it.each(['latest_headline', 'available_data', 'indicator_dimension_values', 'observation_range'])(
+  it.each(['available_data', 'observation_range'])(
     'serves every row %s holds for a published indicator',
     async (readModel) => {
       const [stored] = await owner.unsafe<{ rows: number }[]>(
