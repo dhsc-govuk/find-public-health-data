@@ -51,6 +51,12 @@ export const PUBLISHER_AND_REVIEWER: SignedInUser = {
   storageState: join(SESSIONS_DIR, 'publisher-and-reviewer.json'),
 };
 
+/** A second publisher in Team C, whose indicators `PUBLISHER_AND_REVIEWER` may review. */
+export const TEAM_C_PUBLISHER: SignedInUser = {
+  name: 'Drew Kaur',
+  storageState: join(SESSIONS_DIR, 'team-c-publisher.json'),
+};
+
 export const ADMIN: SignedInUser = {
   name: 'Riley Singh',
   storageState: join(SESSIONS_DIR, 'admin.json'),

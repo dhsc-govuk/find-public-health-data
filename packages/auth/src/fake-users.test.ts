@@ -27,6 +27,7 @@ describe('fake users', () => {
       'Jordan Lee',
       'Casey Patel',
       'Morgan Hughes',
+      'Drew Kaur',
       'Avery Clarke',
       'Jamie Evans',
       'Robin Shaw',
