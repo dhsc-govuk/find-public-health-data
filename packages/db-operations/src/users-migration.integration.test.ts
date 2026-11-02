@@ -1,4 +1,4 @@
-import { fakeUsers } from '@fphd/auth';
+import { findFakeUser } from '@fphd/auth';
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
@@ -63,19 +63,22 @@ describe(`migration ${MIGRATION}`, () => {
     await testDb?.drop();
   });
 
-  it('inserts the system users and a person for each fake user, with their ids', async () => {
+  it('inserts the system users and the eight fake people of the time, with their ids', async () => {
     const rows = await sql<{ id: string; displayName: string; kind: string }[]>`
       SELECT id, display_name AS "displayName", kind FROM app_user
     `;
+    const people = rows.filter(({ kind }) => kind === 'person');
 
-    expect(rows).toHaveLength(fakeUsers.length + 2);
-    expect(rows).toEqual(
+    expect(rows.filter(({ kind }) => kind === 'system')).toEqual(
       expect.arrayContaining([
         { id: SYSTEM_USER_IDS.pholioMigration, displayName: 'PHOLIO migration', kind: 'system' },
         { id: SYSTEM_USER_IDS.testSeed, displayName: 'Test seed', kind: 'system' },
-        ...fakeUsers.map(({ id, name }) => ({ id, displayName: name, kind: 'person' })),
       ]),
     );
+    expect(people).toHaveLength(8);
+    for (const { id, displayName } of people) {
+      expect(findFakeUser(id)?.name).toBe(displayName);
+    }
   });
 
   it('keeps an actor that is a user id as that user', async () => {

@@ -18,6 +18,7 @@ export const FAKE_USER_IDS = Object.freeze({
   publisherAndReviewer: '01a13c69-96ab-7598-9ce1-0437fbc8b7ec',
   imrgManager: '01a13c69-96ab-7598-9ce1-0a29866e38c2',
   imrgReviewer: '01a13c69-96ac-700c-9c28-84ab06327fd0',
+  secondImrgReviewer: '01a19d3e-4a04-75e3-b779-49514c791db5',
   admin: '01a13c69-96ac-700c-9c28-8a01ee1fdfa8',
 });
 
@@ -65,6 +66,7 @@ export const fakeUsers: readonly FakeUser[] = Object.freeze([
   ),
   fakeUser(FAKE_USER_IDS.imrgManager, 'Avery Clarke', [...INTERNAL, 'imrg-manager']),
   fakeUser(FAKE_USER_IDS.imrgReviewer, 'Jamie Evans', [...INTERNAL, 'imrg-reviewer']),
+  fakeUser(FAKE_USER_IDS.secondImrgReviewer, 'Robin Shaw', [...INTERNAL, 'imrg-reviewer']),
   fakeUser(FAKE_USER_IDS.admin, 'Riley Singh', [...INTERNAL, 'admin']),
 ]);
 

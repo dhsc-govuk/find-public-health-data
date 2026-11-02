@@ -14,6 +14,7 @@ const { indicatorVersionSubmission } = schema;
 const AS_MANAGER = { userId: FAKE_USER_IDS.imrgManager, requestId: null };
 const REVIEWER = FAKE_USER_IDS.imrgReviewer;
 const PUBLISHING_REVIEWER = FAKE_USER_IDS.publisherAndReviewer;
+const SECOND_REVIEWER = FAKE_USER_IDS.secondImrgReviewer;
 
 /** A new indicator's draft, completed and submitted by the repository tests' actor. */
 async function submitted(db: Database, name: string): Promise<string> {
@@ -40,6 +41,7 @@ describe('listReviewerOptions', () => {
         name: 'Morgan Hughes',
         assignedIndicatorCount: expect.any(Number),
       },
+      { id: SECOND_REVIEWER, name: 'Robin Shaw', assignedIndicatorCount: expect.any(Number) },
     ]);
   });
 
@@ -54,6 +56,7 @@ describe('listReviewerOptions', () => {
 
     expect((await listReviewerOptions(db, created.indicatorId)).map(({ id }) => id)).toEqual([
       REVIEWER,
+      SECOND_REVIEWER,
     ]);
   });
 
@@ -66,6 +69,7 @@ describe('listReviewerOptions', () => {
 
     expect((await listReviewerOptions(db, draft.indicatorId)).map(({ id }) => id)).toEqual([
       REVIEWER,
+      SECOND_REVIEWER,
     ]);
   });
 
@@ -94,6 +98,7 @@ describe('listReviewerOptions', () => {
     expect(await countsOf(db, first)).toEqual({
       [REVIEWER]: (before[REVIEWER] ?? 0) + 2,
       [PUBLISHING_REVIEWER]: (before[PUBLISHING_REVIEWER] ?? 0) + 1,
+      [SECOND_REVIEWER]: before[SECOND_REVIEWER] ?? 0,
     });
   });
 

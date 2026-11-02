@@ -29,6 +29,7 @@ describe('fake users', () => {
       'Morgan Hughes',
       'Avery Clarke',
       'Jamie Evans',
+      'Robin Shaw',
       'Riley Singh',
     ]);
     expect(fakeUsersForAudience('public')).toEqual(fakeUsers);
