@@ -3,10 +3,11 @@ import type {
   DraftSubmissionStatus,
   IndicatorStatus,
   IndicatorTaskStatus,
+  ReviewResponseKind,
 } from '@fphd/internal-api-features/contract';
 import { Tag } from '@fphd/ui';
 
-type Colour = 'blue' | 'green' | 'teal' | 'yellow';
+type Colour = 'blue' | 'green' | 'orange' | 'red' | 'teal' | 'yellow';
 
 interface TagFace {
   label: string;
@@ -24,10 +25,18 @@ const DRAFT_STATUS: Record<DraftStatus, TagFace> = {
   draft: { label: 'Incomplete', colour: 'blue' },
 };
 
-// A withdrawn submission leaves the draft as it was before it was submitted.
+// A withdrawn submission leaves the draft as it was before it was submitted, and one sent back for
+// changes is named by what its response asked for.
 const SUBMISSION_STATUS: Partial<Record<DraftSubmissionStatus, TagFace>> = {
   submitted: { label: 'Pending approval', colour: 'yellow' },
   in_review: { label: 'Pending approval', colour: 'yellow' },
+  approved: { label: 'Publishing scheduled', colour: 'yellow' },
+};
+
+const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace> = {
+  pre_imrg_feedback: { label: 'Revisions or clarifications advised', colour: 'orange' },
+  minor_revisions: { label: 'Minor revisions needed', colour: 'orange' },
+  major_revisions: { label: 'Major revisions needed', colour: 'red' },
 };
 
 const PUBLISHED: TagFace = { label: 'Published', colour: 'green' };
@@ -43,6 +52,20 @@ interface PublishingState {
   indicatorStatus: IndicatorStatus;
   draftStatus: DraftStatus | null;
   draftSubmissionStatus: DraftSubmissionStatus | null;
+  draftResponseKind: ReviewResponseKind | null;
+}
+
+/** Where the draft's latest submission stands, if that names the draft's label. */
+function submissionFace({
+  draftSubmissionStatus,
+  draftResponseKind,
+}: PublishingState): TagFace | undefined {
+  if (draftSubmissionStatus === 'changes_requested') {
+    return draftResponseKind === null || draftResponseKind === 'approved'
+      ? undefined
+      : CHANGES_REQUESTED[draftResponseKind];
+  }
+  return draftSubmissionStatus === null ? undefined : SUBMISSION_STATUS[draftSubmissionStatus];
 }
 
 /**
@@ -50,16 +73,12 @@ interface PublishingState {
  * indicator is an update, so its label says so; a live indicator with no draft is published as
  * it stands. A new indicator with no draft cannot be made, so it has no label.
  */
-function publishingStatus({
-  indicatorStatus,
-  draftStatus,
-  draftSubmissionStatus,
-}: PublishingState): TagFace | undefined {
+function publishingStatus(state: PublishingState): TagFace | undefined {
+  const { indicatorStatus, draftStatus } = state;
+
   if (draftStatus === null) return indicatorStatus === 'live' ? PUBLISHED : undefined;
 
-  const { colour, label } =
-    (draftSubmissionStatus === null ? undefined : SUBMISSION_STATUS[draftSubmissionStatus]) ??
-    DRAFT_STATUS[draftStatus];
+  const { colour, label } = submissionFace(state) ?? DRAFT_STATUS[draftStatus];
 
   return indicatorStatus === 'live'
     ? { colour, label: `Update ${label.toLowerCase()}` }

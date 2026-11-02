@@ -5,7 +5,12 @@ import { StatusTag } from './status-tag.tsx';
 
 type HeadedIndicator = Pick<
   IndicatorAdminDetail,
-  'name' | 'shortId' | 'indicatorStatus' | 'draftStatus' | 'draftSubmissionStatus'
+  | 'name'
+  | 'shortId'
+  | 'indicatorStatus'
+  | 'draftStatus'
+  | 'draftSubmissionStatus'
+  | 'draftResponseKind'
 >;
 
 interface IndicatorHeadingProps {
@@ -16,7 +21,8 @@ interface IndicatorHeadingProps {
 
 /** How a publisher's pages title an indicator: its name, its public number, then its statuses. */
 export function IndicatorHeading({ indicator, children }: IndicatorHeadingProps) {
-  const { draftStatus, draftSubmissionStatus, indicatorStatus, name, shortId } = indicator;
+  const { draftResponseKind, draftStatus, draftSubmissionStatus, indicatorStatus, name, shortId } =
+    indicator;
 
   return (
     <>
@@ -29,6 +35,7 @@ export function IndicatorHeading({ indicator, children }: IndicatorHeadingProps)
           indicatorStatus={indicatorStatus}
           draftStatus={draftStatus}
           draftSubmissionStatus={draftSubmissionStatus}
+          draftResponseKind={draftResponseKind}
         />
       </p>
       {children}

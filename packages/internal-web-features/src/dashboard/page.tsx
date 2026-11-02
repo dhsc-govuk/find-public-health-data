@@ -101,7 +101,12 @@ function dashboardSections({ underReview, toReview, list }: DashboardPageProps, 
       ? null
       : {
           id: 'review',
-          label: countedLabel('Review', toReview.length),
+          // Counts only the indicators waiting for the reviewer, not those sent back for changes.
+          label: countedLabel(
+            'Review',
+            toReview.filter(({ draftSubmissionStatus }) => draftSubmissionStatus === 'in_review')
+              .length,
+          ),
           content: <ReviewTable indicators={toReview} />,
         },
     list === null ? null : listSection(list, tabbed),

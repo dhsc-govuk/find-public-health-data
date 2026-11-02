@@ -46,6 +46,7 @@ export function indicatorCells(indicator: IndicatorAdminListItem) {
         indicatorStatus={indicator.indicatorStatus}
         draftStatus={indicator.draftStatus}
         draftSubmissionStatus={indicator.draftSubmissionStatus}
+        draftResponseKind={indicator.draftResponseKind}
         labelled={false}
       />
     ),
