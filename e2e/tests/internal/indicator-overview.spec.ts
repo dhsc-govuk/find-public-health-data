@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { completeDraft } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { MORTALITY_ID, MORTALITY_NAME } from '../support/indicator-page.ts';
 import { ADMIN, PUBLISHER, TEAM_B_PUBLISHER } from '../support/sign-in.ts';
@@ -19,6 +20,21 @@ test('shows the indicator a publisher picked from the dashboard', async ({ page 
   await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   await expect(page.getByText(/^ID: \d+$/)).toBeVisible();
+});
+
+test('shows the scheduled publication date under the status tags', async ({ page }) => {
+  const id = await createDraft(page, uniqueIndicatorName('overview'));
+
+  await page.goto(`/dashboard/indicators/${id}`);
+  await expect(page.getByText('Scheduled publication date:')).toHaveCount(0);
+
+  // The sample answers ask for 09:30 UK time on 1 April next year.
+  await completeDraft(page, id);
+  await page.goto(`/dashboard/indicators/${id}`);
+
+  await expect(page.getByRole('main').locator('p:has(.govuk-tag) + p')).toHaveText(
+    `Scheduled publication date: 1 April ${new Date().getFullYear() + 1} at 9:30am`,
+  );
 });
 
 test('answers an indicator that does not exist with the not-found page', async ({ page }) => {

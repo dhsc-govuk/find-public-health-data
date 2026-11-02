@@ -232,6 +232,7 @@ describe('internal API', () => {
           draftSubmissionStatus: 'submitted',
           draftSubmissionNumber: 1,
           draftReviewers: [],
+          draftScheduledPublishAt: null,
         }),
       },
       reviewers: { listOptions: async () => [] },
@@ -248,6 +249,27 @@ describe('internal API', () => {
 
     expect(asManager.status).toBe(200);
     expect(asPublisher.status).toBe(403);
+  });
+
+  it('mounts the notes for reviewers', async () => {
+    const id = '00000000-0000-7000-8000-000000000001';
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findNotesForReviewers: async () => ({
+          teamId: TEAM_IDS.teamA,
+          draftReviewers: [],
+          version: { ...unansweredDraft, id },
+        }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = `/api/internal/indicators/${id}/notes-for-reviewers`;
+
+    const asManager = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+
+    expect(asManager.status).toBe(200);
   });
 
   it('mounts the indicators under review behind the IMRG manager role', async () => {

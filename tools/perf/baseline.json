@@ -36,10 +36,10 @@
     "bytes": 40776
   },
   "internal-web /dashboard/indicators/01a00ab4-ce0a-70c1-b22b-f8192c94a59d": {
-    "statements": 1,
-    "buffers": 22,
-    "rows": 1,
-    "bytes": 31880
+    "statements": 2,
+    "buffers": 20,
+    "rows": 2,
+    "bytes": 36451
   },
   "internal-web /manage/topics": {
     "statements": 1,

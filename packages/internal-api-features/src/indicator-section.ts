@@ -94,6 +94,14 @@ type Asks<Unasked extends string> = [Unasked] extends [never]
   ? unknown
   : { yesNoWithoutQuestion: Unasked };
 
+/** Columns that read only their own fields, so a query may select those alone. */
+export type OwnFieldColumns<Field extends keyof IndicatorSectionDraft, Values> = Omit<
+  IndicatorSectionColumns<Field, Values>,
+  'fromDraft'
+> & {
+  fromDraft(draft: Pick<IndicatorSectionDraft, Field>): Record<Field, string | null>;
+};
+
 /**
  * For a section whose every field is the draft column of the same name: text as it is, and
  * each yes/no question stored as a boolean, its details kept beside a yes alone. The questions
@@ -107,7 +115,7 @@ export function yesNoDetailColumns<
 >(
   section: IndicatorSection<Field, Values>,
   questions: readonly Question[] & Asks<Exclude<Extract<Field, BooleanColumn>, Question['answer']>>,
-): IndicatorSectionColumns<Field, Values> {
+): OwnFieldColumns<Field, Values> {
   const answers = new Set<Field>(questions.map(({ answer }) => answer));
   const isAnswer = (field: Field): field is Question['answer'] => answers.has(field);
   const answerOf = new Map<Field, Question['answer']>(

@@ -3,15 +3,20 @@ import { type Actor, changesBetween, listChanges, recordAudit } from '@fphd/db/a
 import { slugify, slugProblem } from '@fphd/utils/slug';
 import { and, eq, sql } from 'drizzle-orm';
 
-import type {
-  CiMethodKind,
-  DraftStatus,
-  DraftSubmissionStatus,
-  IndicatorStatus,
+import {
+  type CiMethodKind,
+  type DraftReviewer,
+  type DraftStatus,
+  type DraftSubmissionStatus,
+  type IndicatorStatus,
+  justificationsSection,
+  otherCommentsSection,
+  varianceAndQualitySection,
 } from './contract.ts';
 import type { EditPrecondition } from './edit-version.ts';
 import {
   draftJoin,
+  draftReviewers,
   draftStatus,
   draftSubmissionStatus,
   draftVersion,
@@ -19,6 +24,8 @@ import {
   hasSqlState,
   indicatorStatus,
   publishedJoin,
+  publishedVersion,
+  publishedVersionJoin,
   type Transaction,
 } from './indicator-repository-sql.ts';
 import {
@@ -96,6 +103,70 @@ export async function getIndicatorDraftState(
   if (draft === null) return { ...state, draft: null };
 
   return { ...state, draft: { ...draft, ...(await draftListsOf(db, draft.id)) } };
+}
+
+const NOTES_FOR_REVIEWERS_FIELDS = [
+  ...varianceAndQualitySection.fields.options,
+  ...justificationsSection.fields.options,
+  ...otherCommentsSection.fields.options,
+] as const;
+
+type NotesForReviewersField = (typeof NOTES_FOR_REVIEWERS_FIELDS)[number];
+
+/** The columns the notes for reviewers come from, with the version's id to show it exists. */
+export type NotesForReviewersVersion = Pick<IndicatorDraftVersion, 'id' | NotesForReviewersField>;
+
+/** Who may read an indicator's notes for reviewers, and the version they come from. */
+export interface IndicatorNotesForReviewersRow {
+  teamId: string | null;
+  draftReviewers: DraftReviewer[];
+  /** The draft, or the published version while there is no draft. */
+  version: NotesForReviewersVersion;
+}
+
+function notesForReviewersColumns<Version extends Record<NotesForReviewersField, unknown>>(
+  version: Version,
+) {
+  return Object.fromEntries(
+    NOTES_FOR_REVIEWERS_FIELDS.map((field) => [field, version[field]]),
+  ) as Pick<Version, NotesForReviewersField>;
+}
+
+// A left-joined version none of whose columns came back is one that does not exist.
+function existing(version: { id: string | null } | null): version is NotesForReviewersVersion {
+  return version !== null && version.id !== null;
+}
+
+/**
+ * The notes for reviewers and what the access checks need, in one statement: from the draft, or
+ * the published version while there is no draft. Undefined when there is no such indicator.
+ */
+export async function getIndicatorNotesForReviewers(
+  db: Database,
+  id: string,
+): Promise<IndicatorNotesForReviewersRow | undefined> {
+  const [row] = await db
+    .select({
+      teamId: indicator.teamId,
+      draftReviewers,
+      draft: { id: draftVersion.id, ...notesForReviewersColumns(draftVersion) },
+      published: { id: publishedVersion.id, ...notesForReviewersColumns(publishedVersion) },
+    })
+    .from(indicator)
+    .leftJoin(draftVersion, draftJoin)
+    .leftJoin(currentPublishedVersion, publishedJoin)
+    .leftJoin(publishedVersion, publishedVersionJoin)
+    .where(eq(indicator.id, id));
+
+  if (row === undefined) return undefined;
+
+  const { draft, published, ...access } = row;
+  const version = [draft, published].find(existing);
+
+  // Every indicator has a draft, a published version or both.
+  if (version === undefined) throw new Error('the indicator has no version to read');
+
+  return { ...access, version };
 }
 
 /** The lists a draft holds in tables of its own, as the sections read them. */

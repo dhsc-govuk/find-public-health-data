@@ -3,8 +3,7 @@ import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { canAssignReviewers, canSeeIndicator } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import { indicatorIdSchema, type ReviewerOptions } from './contract.ts';
-import { indicatorAccess } from './indicators.ts';
+import { indicatorAccess, indicatorIdSchema, type ReviewerOptions } from './contract.ts';
 import type { InternalIndicatorRepository, InternalReviewerRepository } from './repositories.ts';
 
 /** The reviewers an IMRG manager may assign to an indicator. */

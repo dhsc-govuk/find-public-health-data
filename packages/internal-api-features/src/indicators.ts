@@ -9,7 +9,6 @@ import {
   canCreateIndicatorInTeam,
   canListIndicators,
   canSeeIndicator,
-  type IndicatorAccess,
   indicatorListScope,
   ownTeamsListScope,
   type SessionUser,
@@ -23,6 +22,7 @@ import {
   type IndicatorAdminPage,
   type IndicatorAdminSummary,
   type IndicatorTaskList,
+  indicatorAccess,
   indicatorFieldSchema,
   indicatorIdSchema,
   indicatorListTeamsQuerySchema,
@@ -72,11 +72,6 @@ function toSummary({
   };
 }
 
-/** What the permission checks need to know about the indicator the row describes. */
-export function indicatorAccess({ teamId, draftReviewers }: IndicatorAdminRow): IndicatorAccess {
-  return { teamId, reviewerIds: draftReviewers.map(({ id }) => id) };
-}
-
 export function toListItem(row: IndicatorAdminListRow): IndicatorAdminListItem {
   const { teamName, createdBy, lastEditedBy } = row;
   return { ...toSummary(row), teamName, createdBy, lastEditedBy };
@@ -93,6 +88,7 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
     shortId: row.shortId,
     publishedSlug: row.publishedSlug,
     draftSubmissionNumber: row.draftSubmissionNumber,
+    draftScheduledPublishAt: row.draftScheduledPublishAt?.toISOString() ?? null,
     nameVersion: nameVersion(row.name),
     actions: stepsOpenTo(user, row),
   };

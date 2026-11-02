@@ -78,6 +78,20 @@ export function canReviewIndicator(
   return canReviewIndicators(user) && reviewerIds.includes(user.sub);
 }
 
+/**
+ * Whether the user may read what the publisher wrote for the indicator's reviewers. It admits
+ * the users `canSeeIndicator` does, and is kept apart from it so the notes stay closed to anyone
+ * a wider overview access lets in later.
+ */
+export function canSeeNotesForReviewers(user: SessionUser, indicator: IndicatorAccess): boolean {
+  return (
+    holds(user, 'imrg-manager') ||
+    holds(user, 'admin') ||
+    canEditIndicator(user, indicator) ||
+    canReviewIndicator(user, indicator)
+  );
+}
+
 export function canSeeIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
     holds(user, 'admin') ||
