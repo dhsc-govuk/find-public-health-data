@@ -56,8 +56,8 @@ async function firstSubmittedOn(tx: Transaction, versionId: string): Promise<str
   return first?.on;
 }
 
-/** Inserts the response and its flags as the actor's, answering them for the audit. */
-function insertResponse(response: ReviewResponse, actor: Actor): IndicatorStepWrite {
+/** The write that inserts the response and its flags as the actor's, answering them for the audit. */
+export function responseWrite(response: ReviewResponse, actor: Actor): IndicatorStepWrite {
   return async (tx, submission) => {
     const [row] = await tx
       .insert(indicatorVersionSubmissionResponse)
@@ -122,6 +122,6 @@ export function respondToReview(
         ? 'no_publication_date'
         : undefined;
     },
-    write: insertResponse(response, actor),
+    write: responseWrite(response, actor),
   });
 }

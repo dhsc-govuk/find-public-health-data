@@ -2,6 +2,7 @@ import { PassThrough, Readable } from 'node:stream';
 
 import { FAKE_USER_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
+import type { Actor } from '@fphd/db/audit-log';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
@@ -27,9 +28,18 @@ import {
   takeIndicatorStep,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
-import { respondToReview } from './review-response-repository.ts';
+import {
+  type ReviewResponse,
+  respondToReview,
+  responseWrite,
+} from './review-response-repository.ts';
 
-const { indicatorVersion, indicatorVersionSubmission, indicatorVersionSubmissionReviewer } = schema;
+const {
+  indicatorVersion,
+  indicatorVersionSubmission,
+  indicatorVersionSubmissionResponse,
+  indicatorVersionSubmissionReviewer,
+} = schema;
 
 const AS_MANAGER = { userId: FAKE_USER_IDS.imrgManager, requestId: null };
 const REVIEWER = FAKE_USER_IDS.imrgReviewer;
@@ -41,15 +51,15 @@ const VALID_CSV = `${HEADER}\nE92000001,2019-04-01,2020-03-31,83.8,1234,Female,<
 const REFUSED_CSV = `${HEADER}\nE99999999,2019-04-01,2020-03-31,1,,,,,,`;
 
 /**
- * Takes `step`, with `stepWrite` for its own rows, while it holds the draft's lock until `write`
- * has started and is seen waiting on it, then answers what each returned.
+ * Takes `step` as `actor`, with `stepWrite` for its own rows, while it holds the draft's lock
+ * until `write` has started and is seen waiting on it, then answers what each returned.
  */
 async function writeWhileStepHolds<Result>(
   db: Database,
   indicatorId: string,
   step: IndicatorStep,
   write: () => Promise<Result>,
-  stepWrite?: IndicatorStepWrite,
+  { actor = AS_ACTOR, stepWrite }: { actor?: Actor; stepWrite?: IndicatorStepWrite } = {},
 ) {
   let held: () => void = () => {};
   let release: () => void = () => {};
@@ -59,7 +69,7 @@ async function writeWhileStepHolds<Result>(
   const released = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const stepped = takeIndicatorStep(db, indicatorId, step, AS_ACTOR, {
+  const stepped = takeIndicatorStep(db, indicatorId, step, actor, {
     precondition: async () => {
       held();
       await released;
@@ -326,7 +336,7 @@ describe('two steps at once', () => {
         indicatorId,
         'assign_reviewers',
         () => withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR),
-        replaceReviewers([REVIEWER], AS_MANAGER),
+        { actor: AS_MANAGER, stepWrite: replaceReviewers([REVIEWER], AS_MANAGER) },
       );
 
       expect(result).toEqual({ step: { ok: true }, write: { ok: true } });
@@ -344,7 +354,7 @@ describe('two steps at once', () => {
       indicatorId,
       'assign_reviewers',
       () => assign(db, indicatorId, [OTHER_REVIEWER]),
-      replaceReviewers([REVIEWER], AS_MANAGER),
+      { actor: AS_MANAGER, stepWrite: replaceReviewers([REVIEWER], AS_MANAGER) },
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'changed' } });
@@ -362,30 +372,52 @@ describe('a response beside another step', () => {
     return draft;
   }
 
+  function minorRevisions(): ReviewResponse {
+    return {
+      submissionNumber: 1,
+      kind: 'minor_revisions',
+      imrgReviewedOn: ukToday(),
+      clarificationRequest: 'What is counted?',
+      flags: [],
+    };
+  }
+
   function respond(db: Database, indicatorId: string) {
-    return respondToReview(
-      db,
-      indicatorId,
-      {
-        submissionNumber: 1,
-        kind: 'minor_revisions',
-        imrgReviewedOn: ukToday(),
-        clarificationRequest: 'What is counted?',
-        flags: [],
-      },
-      AS_REVIEWER,
-    );
+    return respondToReview(db, indicatorId, minorRevisions(), AS_REVIEWER);
+  }
+
+  /** The reviewer's own response, which holds the lock while another step waits. */
+  const responding = {
+    actor: AS_REVIEWER,
+    stepWrite: responseWrite(minorRevisions(), AS_REVIEWER),
+  };
+
+  async function responsesTo(db: Database, versionId: string): Promise<string[]> {
+    const rows = await db
+      .select({ kind: indicatorVersionSubmissionResponse.kind })
+      .from(indicatorVersionSubmissionResponse)
+      .innerJoin(
+        indicatorVersionSubmission,
+        eq(indicatorVersionSubmission.id, indicatorVersionSubmissionResponse.submissionId),
+      )
+      .where(eq(indicatorVersionSubmission.indicatorVersionId, versionId));
+    return rows.map(({ kind }) => kind);
   }
 
   repositoryTest('refuses the second of two responses', async ({ db }) => {
     const { indicatorId, versionId } = await inReview(db, 'Answered together');
 
-    const result = await writeWhileStepHolds(db, indicatorId, 'approve', () =>
-      respond(db, indicatorId),
+    const result = await writeWhileStepHolds(
+      db,
+      indicatorId,
+      'request_changes',
+      () => respond(db, indicatorId),
+      responding,
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
-    expect(await submissionStatuses(db, versionId)).toEqual(['approved']);
+    expect(await submissionStatuses(db, versionId)).toEqual(['changes_requested']);
+    expect(await responsesTo(db, versionId)).toEqual(['minor_revisions']);
   });
 
   repositoryTest('refuses a response from a reviewer removed while it waited', async ({ db }) => {
@@ -396,7 +428,7 @@ describe('a response beside another step', () => {
       indicatorId,
       'assign_reviewers',
       () => respond(db, indicatorId),
-      replaceReviewers([OTHER_REVIEWER], AS_MANAGER),
+      { actor: AS_MANAGER, stepWrite: replaceReviewers([OTHER_REVIEWER], AS_MANAGER) },
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_a_reviewer' } });
@@ -407,13 +439,18 @@ describe('a response beside another step', () => {
   repositoryTest('refuses a change of reviewers that waited on a response', async ({ db }) => {
     const { indicatorId } = await inReview(db, 'Reassigned after a response');
 
-    const result = await writeWhileStepHolds(db, indicatorId, 'request_changes', () =>
-      assignReviewers(
-        db,
-        indicatorId,
-        { submissionNumber: 1, previousReviewerIds: [REVIEWER], reviewerIds: [OTHER_REVIEWER] },
-        AS_MANAGER,
-      ),
+    const result = await writeWhileStepHolds(
+      db,
+      indicatorId,
+      'request_changes',
+      () =>
+        assignReviewers(
+          db,
+          indicatorId,
+          { submissionNumber: 1, previousReviewerIds: [REVIEWER], reviewerIds: [OTHER_REVIEWER] },
+          AS_MANAGER,
+        ),
+      responding,
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
@@ -434,8 +471,12 @@ describe('a response beside another step', () => {
   repositoryTest('refuses a withdrawal that waited on a response', async ({ db }) => {
     const { indicatorId, versionId } = await inReview(db, 'Withdrawn after a response');
 
-    const result = await writeWhileStepHolds(db, indicatorId, 'request_changes', () =>
-      withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR),
+    const result = await writeWhileStepHolds(
+      db,
+      indicatorId,
+      'request_changes',
+      () => withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR),
+      responding,
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
