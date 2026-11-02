@@ -14,7 +14,7 @@ export interface IndicatorList {
 
 interface IndicatorListSectionProps extends IndicatorList {
   /** The tab the list is in, which its page links keep open. */
-  tab?: string;
+  tab?: string | undefined;
 }
 
 function IndicatorListSection({
@@ -65,72 +65,61 @@ interface DashboardPageProps {
   list: IndicatorList | null;
 }
 
+function sectionCount({ underReview, toReview, list }: DashboardPageProps): number {
+  return [underReview, toReview, list].filter((section) => section !== null).length;
+}
+
 /** The page's h1, which its document title follows; plain "Indicators" without the data. */
 export function dashboardHeading(data?: DashboardPageProps): string {
-  return data !== undefined &&
-    data.list === null &&
-    (data.underReview !== null || data.toReview !== null)
+  return data !== undefined && data.list === null && sectionCount(data) === 1
     ? 'Indicators under review'
     : 'Indicators';
 }
 
-/** The Assign tab for an IMRG manager, the Review tab for an IMRG reviewer, or null otherwise. */
-function reviewSection({ underReview, toReview }: DashboardPageProps) {
-  if (underReview !== null) {
-    return {
-      id: 'assign',
-      label: countedLabel('Assign', underReview.unassigned.length),
-      content: <UnderReviewTables {...underReview} />,
-    };
-  }
-
-  if (toReview !== null) {
-    return {
-      id: 'review',
-      label: countedLabel('Review', toReview.length),
-      content: <ReviewTable indicators={toReview} />,
-    };
-  }
-
-  return null;
+/**
+ * One section for each role the user holds: Assign for an IMRG manager, Review for an IMRG
+ * reviewer, then the indicator list. `listTab` is the list's tab, which its page links keep open.
+ */
+function dashboardSections({ underReview, toReview, list }: DashboardPageProps, listTab?: string) {
+  return [
+    underReview === null
+      ? null
+      : {
+          id: 'assign',
+          label: countedLabel('Assign', underReview.unassigned.length),
+          content: <UnderReviewTables {...underReview} />,
+        },
+    toReview === null
+      ? null
+      : {
+          id: 'review',
+          label: countedLabel('Review', toReview.length),
+          content: <ReviewTable indicators={toReview} />,
+        },
+    list === null
+      ? null
+      : {
+          id: CREATE_AND_EDIT_TAB,
+          label: 'Create and edit',
+          content: <IndicatorListSection {...list} tab={listTab} />,
+        },
+  ].filter((section) => section !== null);
 }
 
 /**
  * Shows an IMRG manager the indicators under review, an IMRG reviewer the indicators assigned to
- * them, and anyone else a page of their indicators. A manager or reviewer who also publishes gets a
- * tab for each.
+ * them, and anyone else a page of their indicators. A user with more than one of these gets a tab
+ * for each.
  */
 export function DashboardPage(props: DashboardPageProps) {
-  const { list } = props;
-  const review = reviewSection(props);
-
-  if (review !== null && list !== null) {
-    return (
-      <GridRow>
-        <GridColumn width="full">
-          <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
-          <Tabs
-            items={[
-              review,
-              {
-                id: CREATE_AND_EDIT_TAB,
-                label: 'Create and edit',
-                content: <IndicatorListSection {...list} tab={CREATE_AND_EDIT_TAB} />,
-              },
-            ]}
-            paramKey="tab"
-          />
-        </GridColumn>
-      </GridRow>
-    );
-  }
+  const tabbed = sectionCount(props) > 1;
+  const sections = dashboardSections(props, tabbed ? CREATE_AND_EDIT_TAB : undefined);
 
   return (
     <GridRow>
       <GridColumn width="full">
         <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
-        {review?.content}
-        {list !== null ? <IndicatorListSection {...list} /> : null}
+        {tabbed ? <Tabs items={sections} paramKey="tab" /> : sections[0]?.content}
       </GridColumn>
     </GridRow>
   );

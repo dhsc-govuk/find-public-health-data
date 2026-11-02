@@ -152,9 +152,15 @@ describe('loadDashboard', () => {
     expect(outcome).toEqual({ underReview: null, toReview: [indicator], list: null });
   });
 
-  it("shows a user who is IMRG manager and reviewer the manager's view alone", async () => {
+  it('shows a user who is IMRG manager and reviewer both review lists and no list', async () => {
     const underReview = { unassigned: [], assigned: [indicator] };
-    const get = vi.fn().mockResolvedValue(underReview);
+    const get = vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path === '/api/internal/indicators-under-review'
+          ? underReview
+          : { indicators: [indicator] },
+      );
 
     const outcome = await load(
       'https://internal.test/dashboard',
@@ -163,8 +169,37 @@ describe('loadDashboard', () => {
       [],
     );
 
-    expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-under-review']);
-    expect(outcome).toEqual({ underReview, toReview: null, list: null });
+    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
+      '/api/internal/indicators-to-review',
+      '/api/internal/indicators-under-review',
+    ]);
+    expect(outcome).toEqual({ underReview, toReview: [indicator], list: null });
+  });
+
+  it.each([
+    ['a publisher', ['publisher'], ['/api/internal/indicators?page=1']],
+    ['an admin', ['admin'], ['/api/internal/indicators?page=1']],
+    ['an IMRG manager', ['imrg-manager'], ['/api/internal/indicators-under-review']],
+    ['an IMRG reviewer', ['imrg-reviewer'], ['/api/internal/indicators-to-review']],
+    [
+      'an IMRG manager and reviewer who publishes',
+      ['publisher', 'imrg-manager', 'imrg-reviewer'],
+      [
+        '/api/internal/indicators-to-review',
+        '/api/internal/indicators-under-review',
+        '/api/internal/indicators?page=1&teams=own',
+      ],
+    ],
+  ])('fetches for %s the lists their roles allow', async (_who, roles, paths) => {
+    const get = vi.fn().mockImplementation(async (path: string) => {
+      if (path === '/api/internal/indicators-under-review') return { unassigned: [], assigned: [] };
+      if (path === '/api/internal/indicators-to-review') return { indicators: [] };
+      return { indicators: [], page: 1, pageSize: 10, total: 0 };
+    });
+
+    await load('https://internal.test/dashboard', get, roles);
+
+    expect(get.mock.calls.map(([path]) => path).sort()).toEqual(paths);
   });
 
   it('responds 404 to a second page for an IMRG reviewer, whose list is not paged', async () => {

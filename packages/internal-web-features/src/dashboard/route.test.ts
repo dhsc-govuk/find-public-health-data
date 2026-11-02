@@ -23,6 +23,7 @@ describe('the dashboard route', () => {
     ['a publisher', { underReview: null, toReview: null, list }],
     ['an IMRG manager who also publishes', { underReview, toReview: null, list }],
     ['an IMRG reviewer who also publishes', { underReview: null, toReview: [], list }],
+    ['an IMRG manager who also reviews', { underReview, toReview: [], list: null }],
     ['a page whose loader failed', undefined],
   ])('titles the page for %s as Indicators', (_who, loaderData) => {
     expect(titleFor(loaderData)).toEqual([

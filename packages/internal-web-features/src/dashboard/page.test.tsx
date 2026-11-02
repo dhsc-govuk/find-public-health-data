@@ -297,4 +297,44 @@ describe('DashboardPage', () => {
       expect(within(panel).getByRole('link', { name: 'Life expectancy at birth' })).toBeTruthy();
     });
   });
+
+  it('offers an IMRG manager who reviews an Assign tab then a Review tab, headed Indicators', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <DashboardPage
+          underReview={{ unassigned: [submitted], assigned: [] }}
+          toReview={[inReview]}
+          list={null}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Assign (1)',
+      'Review (1)',
+    ]);
+    expect(
+      within(screen.getByRole('tabpanel', { name: 'Assign (1)' })).getByRole('heading', {
+        level: 2,
+        name: 'Unassigned indicators',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('offers an IMRG manager who reviews and publishes a tab for each role, in order', () => {
+    renderPage({}, '/dashboard', { unassigned: [], assigned: [] }, []);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Assign',
+      'Review',
+      'Create and edit',
+    ]);
+    expect(
+      within(screen.getByRole('tabpanel', { name: 'Create and edit' })).getByRole('button', {
+        name: 'Create new indicator',
+      }),
+    ).toBeTruthy();
+  });
 });
