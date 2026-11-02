@@ -8,12 +8,14 @@ import type {
   DraftStatus,
   DraftSubmissionStatus,
   IndicatorStatus,
+  ReviewResponseKind,
 } from './contract.ts';
 import {
   currentName,
   draftFirstSubmittedAt,
   draftJoin,
   draftLocked,
+  draftResponseKind,
   draftReviewers,
   draftStatus,
   draftSubmissionId,
@@ -45,6 +47,7 @@ export interface IndicatorAdminRow {
   draftStatus: DraftStatus | null;
   draftLocked: boolean;
   draftSubmissionStatus: DraftSubmissionStatus | null;
+  draftResponseKind: ReviewResponseKind | null;
   draftReviewers: DraftReviewer[];
 }
 
@@ -60,7 +63,7 @@ export interface IndicatorAdminRows {
   total: number;
 }
 
-/** The open submissions an IMRG manager works through, by whether reviewers are assigned. */
+/** The submissions an IMRG manager works through, by whether reviewers are assigned. */
 export interface IndicatorsUnderReviewRows {
   unassigned: IndicatorAdminListRow[];
   assigned: IndicatorAdminListRow[];
@@ -110,6 +113,7 @@ function listRowsQuery(db: Database) {
       draftStatus,
       draftLocked,
       draftSubmissionStatus,
+      draftResponseKind,
       draftReviewers,
     })
     .from(indicator)
@@ -146,8 +150,9 @@ export async function listIndicatorsPage(
 }
 
 /**
- * The indicators in scope whose draft's latest submission waits for reviewers or is in review,
- * oldest submission first, as a queue; the id breaks a tie.
+ * The indicators in scope whose draft's latest submission waits for reviewers, is in review, or
+ * was answered with changes requested or approval, oldest submission first, as a queue; the id
+ * breaks a tie. An answered submission stays with the reviewers who answered it.
  */
 export async function listIndicatorsUnderReview(
   db: Database,
@@ -156,18 +161,23 @@ export async function listIndicatorsUnderReview(
   if (inNoTeams(scope)) return { unassigned: [], assigned: [] };
 
   const rows = await listRowsQuery(db)
-    .where(and(scopeCondition(scope), inArray(draftSubmissionStatus, ['submitted', 'in_review'])))
+    .where(
+      and(
+        scopeCondition(scope),
+        inArray(draftSubmissionStatus, ['submitted', 'in_review', 'changes_requested', 'approved']),
+      ),
+    )
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
 
   return {
     unassigned: rows.filter((row) => row.draftSubmissionStatus === 'submitted'),
-    assigned: rows.filter((row) => row.draftSubmissionStatus === 'in_review'),
+    assigned: rows.filter((row) => row.draftSubmissionStatus !== 'submitted'),
   };
 }
 
 /**
- * The indicators whose draft's latest submission is in review with `reviewerId` among its
- * reviewers, oldest submission first, with the indicator id breaking ties.
+ * The indicators whose draft's latest submission is in review or sent back for changes, with
+ * `reviewerId` among its reviewers, oldest submission first, with the indicator id breaking ties.
  */
 export async function listIndicatorsToReview(
   db: Database,
@@ -181,7 +191,7 @@ export async function listIndicatorsToReview(
   return listRowsQuery(db)
     .where(
       and(
-        eq(draftSubmissionStatus, 'in_review'),
+        inArray(draftSubmissionStatus, ['in_review', 'changes_requested']),
         inArray(draftSubmissionId, assignedSubmissionIds),
       ),
     )
@@ -206,6 +216,7 @@ export async function getIndicatorById(
       draftLocked,
       draftSubmissionStatus,
       draftSubmissionNumber,
+      draftResponseKind,
       draftReviewers,
       draftScheduledPublishAt: draftVersion.scheduledPublishAt,
       draftFirstSubmittedAt,

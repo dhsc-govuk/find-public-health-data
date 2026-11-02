@@ -50,6 +50,7 @@ const NAME_TAKEN = 'An indicator with this name already exists';
 
 function toSummary({
   draftLocked,
+  draftResponseKind,
   draftReviewers,
   draftStatus,
   draftSubmissionStatus,
@@ -68,6 +69,7 @@ function toSummary({
     draftStatus,
     draftLocked,
     draftSubmissionStatus,
+    draftResponseKind,
     draftReviewers,
   };
 }
@@ -288,6 +290,7 @@ export function internalIndicatorsRouter(
           indicatorStatus: row.indicatorStatus,
           draftStatus: row.draftStatus,
           draftSubmissionStatus: row.draftSubmissionStatus,
+          draftResponseKind: row.draftResponseKind,
         },
         draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
       }),

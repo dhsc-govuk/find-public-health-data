@@ -5,6 +5,7 @@ import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
 
 import { editVersionSchema } from './edit-version-contract.ts';
+import { reviewResponseKindSchema } from './review-response-contract.ts';
 import { shortText } from './text-contract.ts';
 
 /**
@@ -135,6 +136,8 @@ export const indicatorAdminSummarySchema = z.object({
   draftLocked: z.boolean(),
   /** Null until the draft is first submitted, and while there is no draft. */
   draftSubmissionStatus: draftSubmissionStatusSchema.nullable(),
+  /** What the latest response to the draft's latest submission said; null until there is one. */
+  draftResponseKind: reviewResponseKindSchema.nullable(),
   /** The reviewers of the draft's latest submission, by name; empty until they are assigned. */
   draftReviewers: z.array(draftReviewerSchema),
 });
@@ -172,15 +175,18 @@ export const indicatorAdminPageSchema = z.object({
   total: z.number().int().min(0),
 });
 
-/** The open submissions an IMRG manager works through, oldest submission first. */
+/** The submissions an IMRG manager works through, oldest submission first. */
 export const indicatorsUnderReviewSchema = z.object({
   /** Waiting for reviewers: the latest submission is `submitted`. */
   unassigned: z.array(indicatorAdminListItemSchema),
-  /** Reviewers assigned: the latest submission is `in_review`. */
+  /** Reviewers assigned: the latest submission is in review, sent back for changes or approved. */
   assigned: z.array(indicatorAdminListItemSchema),
 });
 
-/** The submissions in review assigned to a reviewer, oldest submission first. */
+/**
+ * The submissions assigned to a reviewer that are in review or sent back for changes, oldest
+ * submission first.
+ */
 export const indicatorsToReviewSchema = z.object({
   indicators: z.array(indicatorAdminListItemSchema),
 });
@@ -313,6 +319,7 @@ export const indicatorTaskListSchema = z.object({
     // Nullable as picked, but never null here: the endpoint answers 404 when there is no draft.
     draftStatus: true,
     draftSubmissionStatus: true,
+    draftResponseKind: true,
   }),
   /** True when the indicator is live, so this edit revises what the public has. */
   isUpdate: z.boolean(),

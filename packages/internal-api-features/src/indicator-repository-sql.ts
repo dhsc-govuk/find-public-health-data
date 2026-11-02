@@ -7,6 +7,7 @@ import type {
   DraftStatus,
   DraftSubmissionStatus,
   IndicatorStatus,
+  ReviewResponseKind,
 } from './contract.ts';
 
 const {
@@ -15,6 +16,7 @@ const {
   indicator,
   indicatorVersion,
   indicatorVersionSubmission,
+  indicatorVersionSubmissionResponse,
   indicatorVersionSubmissionReviewer,
 } = schema;
 
@@ -117,6 +119,14 @@ const latestDraftSubmissionId = new QueryBuilder({ casing: 'snake_case' })
   .orderBy(desc(indicatorVersionSubmission.number))
   .limit(1);
 export const draftSubmissionId = sql<string | null>`(${latestDraftSubmissionId})`;
+const latestDraftResponse = new QueryBuilder({ casing: 'snake_case' })
+  .select({ kind: indicatorVersionSubmissionResponse.kind })
+  .from(indicatorVersionSubmissionResponse)
+  .where(eq(indicatorVersionSubmissionResponse.submissionId, draftSubmissionId))
+  .orderBy(desc(indicatorVersionSubmissionResponse.respondedAt))
+  .limit(1);
+// What the latest response to the draft's latest submission said, which names its label.
+export const draftResponseKind = sql<ReviewResponseKind | null>`(${latestDraftResponse})`;
 export const draftReviewers = sql<DraftReviewer[]>`coalesce((
   select json_agg(json_build_object('id', ${appUser.id}, 'name', ${appUser.displayName})
     order by ${appUser.displayName}, ${appUser.id})

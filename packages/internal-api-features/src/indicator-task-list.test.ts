@@ -21,6 +21,7 @@ const source: IndicatorTaskListSource = {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionStatus: null,
+    draftResponseKind: null,
   },
   draft: { ...unansweredDraft, name: 'Life expectancy at birth', ciMethodKind: null },
 };
@@ -44,6 +45,7 @@ describe('indicatorTaskList', () => {
       indicatorStatus: 'new',
       draftStatus: 'draft',
       draftSubmissionStatus: null,
+      draftResponseKind: null,
     });
   });
 

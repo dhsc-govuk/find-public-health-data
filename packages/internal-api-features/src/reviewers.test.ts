@@ -34,6 +34,7 @@ const submitted: IndicatorAdminDetailRow = {
   draftStatus: 'draft',
   draftLocked: true,
   draftSubmissionStatus: 'submitted',
+  draftResponseKind: null,
   draftSubmissionNumber: 1,
   draftReviewers: [],
   draftScheduledPublishAt: null,

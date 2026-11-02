@@ -33,6 +33,7 @@ const row: IndicatorAdminRow = {
   draftStatus: null,
   draftLocked: false,
   draftSubmissionStatus: null,
+  draftResponseKind: null,
   draftReviewers: [],
 };
 
@@ -130,6 +131,7 @@ describe('GET /api/internal/indicators', () => {
           draftStatus: null,
           draftLocked: false,
           draftSubmissionStatus: null,
+          draftResponseKind: null,
           draftReviewers: [],
         },
       ],
@@ -239,6 +241,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftStatus: null,
       draftLocked: false,
       draftSubmissionStatus: null,
+      draftResponseKind: null,
       draftReviewers: [],
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
@@ -532,6 +535,7 @@ describe('POST /api/internal/indicators', () => {
       draftStatus: 'draft',
       draftLocked: false,
       draftSubmissionStatus: null,
+      draftResponseKind: null,
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
@@ -687,6 +691,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftStatus: 'draft',
       draftLocked: false,
       draftSubmissionStatus: null,
+      draftResponseKind: null,
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
@@ -927,6 +932,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionStatus: null,
+    draftResponseKind: null,
     draftReviewers: [],
   };
 
@@ -965,6 +971,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         indicatorStatus: 'new',
         draftStatus: 'draft',
         draftSubmissionStatus: null,
+        draftResponseKind: null,
       },
       isUpdate: false,
       canSubmit: false,
