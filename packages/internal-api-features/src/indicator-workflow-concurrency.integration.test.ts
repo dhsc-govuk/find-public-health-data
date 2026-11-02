@@ -18,7 +18,7 @@ import {
   newDraft,
   repositoryTest,
 } from './indicator-repository.testing.ts';
-import { completeDraft, draftUpdatedAt } from './indicator-workflow.testing.ts';
+import { completeDraft, draftUpdatedAt, ukToday } from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   type IndicatorStepWrite,
@@ -27,6 +27,7 @@ import {
   takeIndicatorStep,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
+import { respondToReview } from './review-response-repository.ts';
 
 const { indicatorVersion, indicatorVersionSubmission, indicatorVersionSubmissionReviewer } = schema;
 
@@ -348,6 +349,98 @@ describe('two steps at once', () => {
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'changed' } });
     expect(await reviewerIdsOf(db, indicatorId)).toEqual([REVIEWER]);
+  });
+});
+
+describe('a response beside another step', () => {
+  const AS_REVIEWER = { userId: REVIEWER, requestId: null };
+
+  /** A submitted draft in review with `REVIEWER` assigned. */
+  async function inReview(db: Database, name: string) {
+    const draft = await submittedNewDraft(db, name);
+    await assign(db, draft.indicatorId, [REVIEWER]);
+    return draft;
+  }
+
+  function respond(db: Database, indicatorId: string) {
+    return respondToReview(
+      db,
+      indicatorId,
+      {
+        submissionNumber: 1,
+        kind: 'minor_revisions',
+        imrgReviewedOn: ukToday(),
+        clarificationRequest: 'What is counted?',
+        flags: [],
+      },
+      AS_REVIEWER,
+    );
+  }
+
+  repositoryTest('refuses the second of two responses', async ({ db }) => {
+    const { indicatorId, versionId } = await inReview(db, 'Answered together');
+
+    const result = await writeWhileStepHolds(db, indicatorId, 'approve', () =>
+      respond(db, indicatorId),
+    );
+
+    expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
+    expect(await submissionStatuses(db, versionId)).toEqual(['approved']);
+  });
+
+  repositoryTest('refuses a response from a reviewer removed while it waited', async ({ db }) => {
+    const { indicatorId, versionId } = await inReview(db, 'Answered after removal');
+
+    const result = await writeWhileStepHolds(
+      db,
+      indicatorId,
+      'assign_reviewers',
+      () => respond(db, indicatorId),
+      replaceReviewers([OTHER_REVIEWER], AS_MANAGER),
+    );
+
+    expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_a_reviewer' } });
+    expect(await submissionStatuses(db, versionId)).toEqual(['in_review']);
+    expect(await reviewerIdsOf(db, indicatorId)).toEqual([OTHER_REVIEWER]);
+  });
+
+  repositoryTest('refuses a change of reviewers that waited on a response', async ({ db }) => {
+    const { indicatorId } = await inReview(db, 'Reassigned after a response');
+
+    const result = await writeWhileStepHolds(db, indicatorId, 'request_changes', () =>
+      assignReviewers(
+        db,
+        indicatorId,
+        { submissionNumber: 1, previousReviewerIds: [REVIEWER], reviewerIds: [OTHER_REVIEWER] },
+        AS_MANAGER,
+      ),
+    );
+
+    expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
+    expect(await reviewerIdsOf(db, indicatorId)).toEqual([REVIEWER]);
+  });
+
+  repositoryTest('refuses a response that waited on a withdrawal', async ({ db }) => {
+    const { indicatorId, versionId } = await inReview(db, 'Answered after withdrawal');
+
+    const result = await writeWhileStepHolds(db, indicatorId, 'withdraw', () =>
+      respond(db, indicatorId),
+    );
+
+    expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
+    expect(await submissionStatuses(db, versionId)).toEqual(['withdrawn']);
+  });
+
+  repositoryTest('refuses a withdrawal that waited on a response', async ({ db }) => {
+    const { indicatorId, versionId } = await inReview(db, 'Withdrawn after a response');
+
+    const result = await writeWhileStepHolds(db, indicatorId, 'request_changes', () =>
+      withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR),
+    );
+
+    expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
+    expect(await submissionStatuses(db, versionId)).toEqual(['changes_requested']);
+    expect((await draftOf(db, versionId)).isLocked).toBe(false);
   });
 });
 

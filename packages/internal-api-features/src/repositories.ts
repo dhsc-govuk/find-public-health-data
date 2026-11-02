@@ -64,6 +64,11 @@ import {
   submitIndicator,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
+import {
+  type RespondToReviewResult,
+  type ReviewResponse,
+  respondToReview,
+} from './review-response-repository.ts';
 import { listReviewerOptions } from './reviewer-repository.ts';
 import { listTagOptions } from './tag-repository.ts';
 import {
@@ -146,6 +151,12 @@ export interface InternalIndicatorRepository {
     assignment: ReviewerAssignment,
     actor: Actor,
   ): Promise<IndicatorStepResult<'changed' | 'not_a_reviewer'>>;
+  /** Records an assigned reviewer's response, which ends the submission they were shown. */
+  respond(
+    indicatorId: string,
+    response: ReviewResponse,
+    actor: Actor,
+  ): Promise<RespondToReviewResult>;
 }
 
 /** The confidence interval methods a publisher chooses from. */
@@ -249,6 +260,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
         withdrawSubmission(db, indicatorId, submissionNumber, actor),
       assignReviewers: (indicatorId, assignment, actor) =>
         assignReviewers(db, indicatorId, assignment, actor),
+      respond: (indicatorId, response, actor) => respondToReview(db, indicatorId, response, actor),
     },
     reviewers: {
       listOptions: (indicatorId) => listReviewerOptions(db, indicatorId),

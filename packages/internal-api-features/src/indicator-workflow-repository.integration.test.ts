@@ -21,12 +21,13 @@ import {
   repositoryTest,
 } from './indicator-repository.testing.ts';
 import { indicatorTaskList } from './indicator-task-list.ts';
-import { completeDraft, draftUpdatedAt } from './indicator-workflow.testing.ts';
+import { completeDraft, draftUpdatedAt, ukToday } from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
+import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
 
 const { indicatorVersion, indicatorVersionSubmission, indicatorVersionSubmissionReviewer } = schema;
 
@@ -34,6 +35,10 @@ const STEP_ACTIONS = [
   'indicator.submitted',
   'indicator.submission_withdrawn',
   'indicator.reviewers_assigned',
+  'indicator.review_feedback_given',
+  'indicator.changes_requested',
+  'indicator.approved',
+  'indicator.resubmitted',
 ];
 
 const MANAGER = FAKE_USER_IDS.imrgManager;
@@ -89,7 +94,7 @@ async function lockMismatches(db: Database): Promise<string[]> {
       WHERE s.indicator_version_id = v.id ORDER BY s.number DESC LIMIT 1
     ) latest ON true
     WHERE v.is_locked IS DISTINCT FROM
-      (v.status <> 'published' AND coalesce(latest.status IN ('submitted', 'in_review'), false))
+      (v.status <> 'published' AND coalesce(latest.status IN ('submitted', 'in_review', 'approved'), false))
   `)) as unknown as { id: string }[];
   return rows.map(({ id }) => id);
 }
@@ -611,13 +616,43 @@ describe('assignReviewers', () => {
 
 describe('the lock', () => {
   repositoryTest('matches the latest submission after every step', async ({ db }) => {
-    const { indicatorId, shown } = await completeNewDraft(db, 'Locked in step');
+    const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Locked in step');
+    const asReviewer = { userId: PUBLISHING_REVIEWER, requestId: null };
+    const respond = (submissionNumber: number, kind: ReviewResponse['kind']) =>
+      respondToReview(
+        db,
+        indicatorId,
+        {
+          submissionNumber,
+          kind,
+          imrgReviewedOn: kind === 'pre_imrg_feedback' ? null : ukToday(),
+          clarificationRequest: kind === 'approved' ? null : 'What is counted?',
+          flags: [],
+        },
+        asReviewer,
+      );
+    const replied = async () => {
+      await db
+        .update(indicatorVersionSubmission)
+        .set({ revisionResponse: 'Answered' })
+        .where(eq(indicatorVersionSubmission.indicatorVersionId, versionId));
+      return { ok: true };
+    };
     const steps = [
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
       () => withdrawSubmission(db, indicatorId, 1, AS_ACTOR),
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
       () => assign(db, indicatorId, [REVIEWER], [], 2),
       () => assign(db, indicatorId, [PUBLISHING_REVIEWER], [REVIEWER], 2),
+      () => withdrawSubmission(db, indicatorId, 2, AS_ACTOR),
+      () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
+      () => respond(3, 'pre_imrg_feedback'),
+      replied,
+      () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
+      () => respond(4, 'major_revisions'),
+      replied,
+      () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
+      () => respond(5, 'approved'),
     ];
 
     for (const step of steps) {
