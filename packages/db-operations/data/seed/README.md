@@ -40,9 +40,7 @@ That yields 433,678 observations, 657,869 bridge rows and 67,978 observation not
 
 - An observation's aggregate ("Persons, all ages") is expressed by the **absence** of a
   dimension bridge row, not by aggregate-flagged dimension values. Some indicators have
-  no fully-aggregate observations at all, so `latest_headline` — which follows the alpha
-  benchmark's definition of headline = observation with zero bridge rows — only has rows
-  for 92708 and 93622. Refining headline semantics is ISS106 read-model design work.
+  no fully-aggregate observations at all.
 - `indicator_version.slug` is derived from the name by the export's `slug.py`, which mirrors
   `slugify` in `@fphd/utils/slug`. A name yielding no usable slug, or two names that slugify
   alike, stop the export with the indicators named: a slug belongs to one indicator, so a
