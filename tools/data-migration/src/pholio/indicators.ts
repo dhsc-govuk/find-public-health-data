@@ -113,7 +113,7 @@ export async function exportIndicators(context: PholioExportOptions) {
 
   const frequencyRows = await queryPholio<{
     IndicatorID: number;
-    FrequencyID: number;
+    FrequencyID: number | null;
     Name: string | null;
   }>(
     pool,
@@ -122,12 +122,7 @@ export async function exportIndicators(context: PholioExportOptions) {
     FROM dbo.CIAReference r LEFT JOIN dbo.CIA_L_Frequency f ON f.FrequencyID=r.Frequency
   `,
   );
-  const frequencyById = new Map<number, string>();
-  for (const row of frequencyRows) {
-    if (row.Name === null)
-      throw new Error(`Indicator ${row.IndicatorID}: unknown frequency ${row.FrequencyID}`);
-    frequencyById.set(row.IndicatorID, row.Name);
-  }
+  const frequencyById = new Map(frequencyRows.map((row) => [row.IndicatorID, row]));
 
   // Pre-compute comparator method per indicator: most common ComparatorMethodID in grouping.
   const comparatorRows = await queryPholio<ComparatorRow>(
@@ -275,10 +270,16 @@ export async function exportIndicators(context: PholioExportOptions) {
   const updateFrequencyByIndicator = new Map(
     selectedRows.map((row) => {
       const id = row.IndicatorID;
+      const frequency = frequencyById.get(id);
+      if (frequency?.FrequencyID != null && frequency.Name === null)
+        throw new Error(`Indicator ${id}: unknown frequency ${frequency.FrequencyID}`);
       try {
         return [
           id,
-          sourceUpdateFrequency(frequencyById.get(id) ?? null, textById.get(id)?.Frequency ?? null),
+          sourceUpdateFrequency(
+            frequency?.FrequencyID == null ? null : frequency.Name,
+            textById.get(id)?.Frequency ?? null,
+          ),
         ] as const;
       } catch (cause) {
         throw new Error(

@@ -587,7 +587,11 @@ function indicatorQueries(
     Name: `Indicator ${IndicatorID}`,
   })),
   uploads: { IndicatorID: number; LastUploadedAt: Date }[] = [],
-  metadata: { frequency?: string; frequencyProse?: string } = {},
+  metadata: {
+    frequency?: string;
+    frequencyProse?: string;
+    frequencies?: { IndicatorID: number; FrequencyID: number | null; Name: string | null }[];
+  } = {},
 ) {
   vi.mocked(queryPholio)
     .mockResolvedValueOnce([])
@@ -598,7 +602,10 @@ function indicatorQueries(
       { id: 99, name: 'BOB - Blue orange blue' },
     ])
     .mockResolvedValueOnce(
-      metadata.frequency ? [{ IndicatorID: 108, FrequencyID: 1, Name: metadata.frequency }] : [],
+      metadata.frequencies ??
+        (metadata.frequency
+          ? [{ IndicatorID: 108, FrequencyID: 1, Name: metadata.frequency }]
+          : []),
     )
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce([])
@@ -649,6 +656,42 @@ it('leaves missing indicator frequency unanswered', async () => {
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.update_frequency).toBe(DATA_MIGRATION_NULL);
 });
+it.each([
+  ['Quarterly', 'quarterly'],
+  [undefined, DATA_MIGRATION_NULL],
+])('allows a null structured frequency with prose %s', async (frequencyProse, expected) => {
+  indicatorQueries('No unit', undefined, [], {
+    frequencies: [{ IndicatorID: 108, FrequencyID: null, Name: null }],
+    ...(frequencyProse === undefined ? {} : { frequencyProse }),
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.update_frequency).toBe(expected);
+});
+it.each(['approved', 'development-snapshot'] as const)(
+  'ignores unknown frequency lookups outside the %s export selection',
+  async (kind) => {
+    indicatorQueries('No unit', undefined, [], {
+      frequencies: [{ IndicatorID: 109, FrequencyID: 999, Name: null }],
+    });
+    if (kind === 'development-snapshot') {
+      options.indicatorSelection = { kind };
+      options.excludedIndicators = [109];
+    }
+    const result = await exportIndicators(options);
+    expect(result.indicatorIds).toEqual(new Set([108]));
+  },
+);
+it.each(['approved', 'development-snapshot'] as const)(
+  'rejects unknown frequency lookups in the %s export selection before writing',
+  async (kind) => {
+    indicatorQueries('No unit', undefined, [], {
+      frequencies: [{ IndicatorID: 108, FrequencyID: 999, Name: null }],
+    });
+    if (kind === 'development-snapshot') options.indicatorSelection = { kind };
+    await expect(exportIndicators(options)).rejects.toThrow('Indicator 108: unknown frequency 999');
+    expect(await readdir(directory)).toEqual([]);
+  },
+);
 it('refuses contradictory source frequency before writing indicator tables', async () => {
   indicatorQueries('No unit', undefined, [], {
     frequency: 'Annual',

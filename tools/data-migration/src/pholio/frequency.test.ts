@@ -8,15 +8,22 @@ it('reads each indicator structured setting', () =>
 it.each([
   ['Annual', 'annually'],
   ['The data will be updated annually.', 'annually'],
+  ['The data will be updated monthly.', 'monthly'],
+  ['The data are updated quarterly.', 'quarterly'],
+  ['Updated quarterly.', 'quarterly'],
   ['Quarterly', 'quarterly'],
   ['Monthly', 'monthly'],
   ['Every 2 years', 'every-2-years'],
 ] as const)('translates unambiguous prose %s', (prose, expected) =>
   expect(sourceUpdateFrequency(null, prose)).toBe(expected),
 );
-it.each(['Every 3 years', 'Quarterly and annually'])(
-  'leaves unsupported or mixed prose for review: %s',
-  (prose) => expect(sourceUpdateFrequency(null, prose)).toBeNull(),
+it.each([
+  'Every 3 years',
+  'Quarterly and annually',
+  'The data will be updated monthly and annually.',
+  'The data are not updated monthly.',
+])('leaves unsupported or mixed prose for review: %s', (prose) =>
+  expect(sourceUpdateFrequency(null, prose)).toBeNull(),
 );
 it('refuses a conflict between structured and prose frequency', () =>
   expect(() => sourceUpdateFrequency('Annual', 'Quarterly')).toThrow(
