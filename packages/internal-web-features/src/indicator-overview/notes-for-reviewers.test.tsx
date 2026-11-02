@@ -2,9 +2,33 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ANSWERED_NOTES, UNANSWERED_NOTES } from './notes-for-reviewers.testing.ts';
-import { NotesForReviewers } from './notes-for-reviewers.tsx';
+import { NotesForReviewers, unansweredText } from './notes-for-reviewers.tsx';
 
 afterEach(cleanup);
+
+const NEVER_SUBMITTED = { draftStatus: 'draft', draftSubmissionStatus: null } as const;
+const IN_REVIEW = { draftStatus: 'draft', draftSubmissionStatus: 'in_review' } as const;
+
+describe('unansweredText', () => {
+  it('reads "[Not entered yet]" on a draft never submitted', () => {
+    expect(unansweredText(NEVER_SUBMITTED)).toBe('[Not entered yet]');
+  });
+
+  it.each([
+    ['waiting for reviewers', 'draft', 'submitted'],
+    ['in review', 'draft', 'in_review'],
+    ['withdrawn', 'draft', 'withdrawn'],
+  ] as const)(
+    'reads "Not provided" once submitted, %s',
+    (_, draftStatus, draftSubmissionStatus) => {
+      expect(unansweredText({ draftStatus, draftSubmissionStatus })).toBe('Not provided');
+    },
+  );
+
+  it('reads "Not provided" on the published answers of an indicator with no draft', () => {
+    expect(unansweredText({ draftStatus: null, draftSubmissionStatus: null })).toBe('Not provided');
+  });
+});
 
 /** Each row of each summary list, as its question and its answer. */
 function rows(): [string, string][] {
@@ -16,7 +40,7 @@ function rows(): [string, string][] {
 
 describe('NotesForReviewers', () => {
   it("heads each of the publisher's sections under the tab's heading", () => {
-    render(<NotesForReviewers notes={ANSWERED_NOTES} />);
+    render(<NotesForReviewers notes={ANSWERED_NOTES} indicator={IN_REVIEW} />);
 
     expect(screen.getByRole('heading', { level: 2, name: 'Notes for reviewers' })).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
@@ -27,7 +51,7 @@ describe('NotesForReviewers', () => {
   });
 
   it('shows each answer against its question, with the detail a yes gives', () => {
-    render(<NotesForReviewers notes={ANSWERED_NOTES} />);
+    render(<NotesForReviewers notes={ANSWERED_NOTES} indicator={IN_REVIEW} />);
 
     expect(rows()).toEqual([
       ['How does the indicator vary?', 'Little.\nMostly by region.'],
@@ -44,15 +68,18 @@ describe('NotesForReviewers', () => {
   });
 
   it('keeps the line breaks the publisher typed', () => {
-    render(<NotesForReviewers notes={ANSWERED_NOTES} />);
+    render(<NotesForReviewers notes={ANSWERED_NOTES} indicator={IN_REVIEW} />);
 
     expect(screen.getByText(/Mostly by region/).className).toBe('fphd-metadata-text');
   });
 
-  it('marks each question not answered yet as the preview does', () => {
-    render(<NotesForReviewers notes={UNANSWERED_NOTES} />);
+  it.each([
+    ['a draft never submitted', NEVER_SUBMITTED, '[Not entered yet]'],
+    ['a submitted draft', IN_REVIEW, 'Not provided'],
+  ] as const)('marks each unanswered question on %s', (_, indicator, text) => {
+    render(<NotesForReviewers notes={UNANSWERED_NOTES} indicator={indicator} />);
 
-    expect(new Set(rows().map(([, answer]) => answer))).toEqual(new Set(['[Not entered yet]']));
+    expect(new Set(rows().map(([, answer]) => answer))).toEqual(new Set([text]));
   });
 
   it.each([
@@ -69,6 +96,7 @@ describe('NotesForReviewers', () => {
             exclusionsDetail: detail,
           },
         }}
+        indicator={IN_REVIEW}
       />,
     );
 
@@ -82,6 +110,7 @@ describe('NotesForReviewers', () => {
           ...UNANSWERED_NOTES,
           otherComments: { ...UNANSWERED_NOTES.otherComments, hasReviewerComments: 'no' },
         }}
+        indicator={IN_REVIEW}
       />,
     );
 

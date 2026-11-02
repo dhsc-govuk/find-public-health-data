@@ -199,6 +199,25 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
     expect(response.body).toEqual({ error: 'not_found' });
   });
 
+  it("serves the published version's answers when the draft goes after the indicator is read", async () => {
+    const findPublishedVersion = vi
+      .fn()
+      .mockResolvedValue({ ...unansweredDraft, variation: 'As published.' });
+
+    const response = await request(
+      createTestApp({
+        findDraftState: vi.fn().mockResolvedValue({ ...draftState, draft: null }),
+        findPublishedVersion,
+      }),
+    )
+      .get(path)
+      .set('Cookie', await asManager());
+
+    expect(response.status).toBe(200);
+    expect(response.body.varianceAndQuality.variation).toBe('As published.');
+    expect(findPublishedVersion).toHaveBeenCalledWith(ID);
+  });
+
   it("serves the published version's answers for a live indicator with no draft", async () => {
     const findDraftState = vi.fn();
     const findPublishedVersion = vi

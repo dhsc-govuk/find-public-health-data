@@ -107,7 +107,7 @@ export function IndicatorOverviewPage({
           {
             id: 'notes-for-reviewers',
             label: 'Notes for reviewers',
-            content: <NotesForReviewers notes={notesForReviewers} />,
+            content: <NotesForReviewers notes={notesForReviewers} indicator={indicator} />,
           },
         ]),
   ];

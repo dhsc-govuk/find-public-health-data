@@ -1,18 +1,31 @@
-import type { NotesForReviewers as Notes } from '@fphd/internal-api-features/contract';
+import type {
+  IndicatorAdminDetail,
+  NotesForReviewers as Notes,
+} from '@fphd/internal-api-features/contract';
 import { SummaryList } from '@fphd/ui';
 
-// As the indicator preview shows an unanswered question.
-const NOT_ENTERED = '[Not entered yet]';
+type AnswersState = Pick<IndicatorAdminDetail, 'draftStatus' | 'draftSubmissionStatus'>;
 
-function textAnswer(text: string | null): string {
-  return text || NOT_ENTERED;
+/**
+ * What an unanswered question reads. A draft never submitted may still be answered, so it reads
+ * as the prototype's preview page has it. Once submitted or published, it reads as the
+ * prototype's assign and review overviews have it.
+ */
+export function unansweredText({ draftStatus, draftSubmissionStatus }: AnswersState): string {
+  return draftStatus !== null && draftSubmissionStatus === null
+    ? '[Not entered yet]'
+    : 'Not provided';
+}
+
+function textAnswer(text: string | null, unanswered: string): string {
+  return text || unanswered;
 }
 
 /** A yes/no answer, with the detail a yes gives. */
-function yesNoAnswer(answer: string | null, detail: string | null): string {
+function yesNoAnswer(answer: string | null, detail: string | null, unanswered: string): string {
   if (answer === 'yes') return detail ? `Yes - ${detail}` : 'Yes';
   if (answer === 'no') return 'No';
-  return NOT_ENTERED;
+  return unanswered;
 }
 
 interface Row {
@@ -34,9 +47,16 @@ function NotesSection({ title, rows }: { title: string; rows: Row[] }) {
   );
 }
 
+interface NotesForReviewersProps {
+  notes: Notes;
+  /** The indicator the notes are from, whose state decides how an unanswered question reads. */
+  indicator: AnswersState;
+}
+
 /** What the publisher wrote for the indicator's reviewers, as the forms asked it. */
-export function NotesForReviewers({ notes }: { notes: Notes }) {
+export function NotesForReviewers({ notes, indicator }: NotesForReviewersProps) {
   const { varianceAndQuality: quality, justifications, otherComments } = notes;
+  const unanswered = unansweredText(indicator);
 
   return (
     <>
@@ -44,14 +64,21 @@ export function NotesForReviewers({ notes }: { notes: Notes }) {
       <NotesSection
         title="Variance and quality"
         rows={[
-          { question: 'How does the indicator vary?', answer: textAnswer(quality.variation) },
+          {
+            question: 'How does the indicator vary?',
+            answer: textAnswer(quality.variation, unanswered),
+          },
           {
             question: 'What quality assurance has been done on the indicator?',
-            answer: textAnswer(quality.qualityAssurance),
+            answer: textAnswer(quality.qualityAssurance, unanswered),
           },
           {
             question: 'Are there any data quality issues with the source data?',
-            answer: yesNoAnswer(quality.hasSourceDataIssues, quality.sourceDataIssuesDetail),
+            answer: yesNoAnswer(
+              quality.hasSourceDataIssues,
+              quality.sourceDataIssuesDetail,
+              unanswered,
+            ),
           },
         ]}
       />
@@ -60,23 +87,31 @@ export function NotesForReviewers({ notes }: { notes: Notes }) {
         rows={[
           {
             question: 'Why was the confidence interval method chosen?',
-            answer: textAnswer(justifications.ciMethodJustification),
+            answer: textAnswer(justifications.ciMethodJustification, unanswered),
           },
           {
             question: 'Why were the data sources chosen?',
-            answer: textAnswer(justifications.dataSourcesJustification),
+            answer: textAnswer(justifications.dataSourcesJustification, unanswered),
           },
           {
             question: 'What health inequalities have been included?',
-            answer: textAnswer(justifications.inequalitiesIncluded),
+            answer: textAnswer(justifications.inequalitiesIncluded, unanswered),
           },
           {
             question: 'Have there been any exclusions?',
-            answer: yesNoAnswer(justifications.hasExclusions, justifications.exclusionsDetail),
+            answer: yesNoAnswer(
+              justifications.hasExclusions,
+              justifications.exclusionsDetail,
+              unanswered,
+            ),
           },
           {
             question: 'Have internal automation tools been used to create this indicator?',
-            answer: yesNoAnswer(justifications.hasAutomation, justifications.automationDetail),
+            answer: yesNoAnswer(
+              justifications.hasAutomation,
+              justifications.automationDetail,
+              unanswered,
+            ),
           },
         ]}
       />
@@ -85,14 +120,14 @@ export function NotesForReviewers({ notes }: { notes: Notes }) {
         rows={[
           {
             question: 'Sponsors or stakeholders',
-            answer: textAnswer(otherComments.sponsorsAndStakeholders),
+            answer: textAnswer(otherComments.sponsorsAndStakeholders, unanswered),
           },
           {
             question: 'Other comments',
             answer:
               otherComments.hasReviewerComments === 'no'
                 ? 'None'
-                : textAnswer(otherComments.reviewerCommentsDetail),
+                : textAnswer(otherComments.reviewerCommentsDetail, unanswered),
           },
         ]}
       />

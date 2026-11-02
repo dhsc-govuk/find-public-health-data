@@ -43,10 +43,10 @@ export function internalNotesForReviewersRouter(
         return;
       }
 
-      const version =
-        row.draftStatus === null
-          ? await indicators.findPublishedVersion(id.data)
-          : (await indicators.findDraftState(id.data))?.draft;
+      // A draft published or discarded since the row was read falls back to the published version.
+      const draft =
+        row.draftStatus === null ? null : (await indicators.findDraftState(id.data))?.draft;
+      const version = draft ?? (await indicators.findPublishedVersion(id.data));
 
       // Every indicator has a draft, a published version or both.
       if (!version) throw new Error('the indicator has no version to read');

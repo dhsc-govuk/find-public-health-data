@@ -38,13 +38,26 @@ async function load(
 }
 
 describe('loadIndicatorOverview', () => {
-  it('fetches the indicator the address names', async () => {
-    const get = vi.fn().mockResolvedValue(indicator);
+  it('fetches the indicator the address names, then its notes for reviewers', async () => {
+    const notes = { varianceAndQuality: {}, justifications: {}, otherComments: {} };
+    const get = vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path.endsWith('/notes-for-reviewers') ? notes : indicator,
+      );
 
     const outcome = await load(indicator.id, get);
 
-    expect(get.mock.calls[0]?.[0]).toBe(`/api/internal/indicators/${indicator.id}`);
-    expect(outcome).toMatchObject({ canEdit: true, indicator, notification: undefined });
+    expect(get.mock.calls.map(([path]) => path)).toEqual([
+      `/api/internal/indicators/${indicator.id}`,
+      `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
+    ]);
+    expect(outcome).toEqual({
+      canEdit: true,
+      indicator,
+      notesForReviewers: notes,
+      notification: undefined,
+    });
   });
 
   it.each([

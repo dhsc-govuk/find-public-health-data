@@ -22,14 +22,14 @@ function answerTo(page: Page, question: string) {
     .locator('dd');
 }
 
-/** Opens the tab and checks a few of the sample answers in it. */
+/** Opens the tab and checks a few of a submitted indicator's sample answers in it. */
 async function expectNotesForReviewers(page: Page) {
   await page.getByRole('tab', { name: 'Notes for reviewers' }).click();
 
   await expect(page.getByRole('heading', { level: 2, name: 'Notes for reviewers' })).toBeVisible();
   await expect(answerTo(page, 'How does the indicator vary?')).toHaveText('Little.');
   await expect(answerTo(page, 'Have there been any exclusions?')).toHaveText('No');
-  await expect(answerTo(page, 'Sponsors or stakeholders')).toHaveText('[Not entered yet]');
+  await expect(answerTo(page, 'Sponsors or stakeholders')).toHaveText('Not provided');
   await expect(answerTo(page, 'Other comments')).toHaveText('None');
 }
 

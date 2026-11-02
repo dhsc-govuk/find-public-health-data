@@ -79,8 +79,9 @@ export function canReviewIndicator(
 }
 
 /**
- * Whether the user may read what the publisher wrote for the indicator's reviewers. Not every
- * user who may see the indicator: a publisher in another team may not.
+ * Whether the user may read what the publisher wrote for the indicator's reviewers. It admits
+ * the users `canSeeIndicator` does, and is kept apart from it so the notes stay closed to anyone
+ * a wider overview access lets in later.
  */
 export function canSeeNotesForReviewers(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
