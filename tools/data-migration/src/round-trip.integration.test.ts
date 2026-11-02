@@ -273,7 +273,7 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
   const withdrawal = join(directory, 'withdrawal');
   await createIncremental(current, withdrawn, withdrawal, 'increment-3');
   await apply(withdrawal);
-  for (const table of ['upload_batch', 'observation', 'observation_dimension', 'latest_headline']) {
+  for (const table of ['upload_batch', 'observation', 'observation_dimension', 'available_data']) {
     expect(await sql.unsafe(`SELECT count(*)::int AS count FROM ${table}`)).toEqual([{ count: 0 }]);
   }
   expect(await sql`SELECT short_id FROM published.indicator`).toEqual([{ short_id: 109 }]);

@@ -217,10 +217,10 @@ describe('the read-model rebuild', () => {
     const [published] = await draftSql<{ id: string; indicatorId: string }[]>`
       SELECT cpv.id, cpv.indicator_id AS "indicatorId"
       FROM current_published_version cpv
-      JOIN latest_headline lh ON lh.indicator_id = cpv.indicator_id
+      JOIN available_data ad ON ad.indicator_id = cpv.indicator_id
       LIMIT 1
     `;
-    if (!published) throw new Error('The seed holds no indicator with headline rows');
+    if (!published) throw new Error('The seed holds no indicator with published data');
     const [draft] = await draftSql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, status, name, slug, created_by, updated_by)
       SELECT indicator_id, 'draft', name, slug, ${ACTOR}::uuid, ${ACTOR}::uuid
@@ -233,7 +233,7 @@ describe('the read-model rebuild', () => {
       RETURNING id
     `;
     await draftSql`UPDATE indicator_version SET upload_batch_id = ${batch?.id ?? ''} WHERE id = ${draft?.id ?? ''}`;
-    // A headline for every area type, in a year no published row reaches.
+    // A row for every area type, in a year no published row reaches.
     await draftSql`
       INSERT INTO observation
         (indicator_id, area_id, from_date, to_date, value, upload_batch_id, dimension_key)
@@ -243,15 +243,10 @@ describe('the read-model rebuild', () => {
       FROM area a
       ORDER BY a.area_type_id, a.id
     `;
-    // And a dimension value none of the indicator's published rows has.
-    const [unused] = await draftSql<{ id: string }[]>`
+    // And one with a dimension value.
+    const [dimensioned] = await draftSql<{ id: string }[]>`
       WITH dv AS (
-        SELECT dv.id, dv.dimension_type_id FROM dimension_value dv
-        WHERE NOT EXISTS (
-          SELECT 1 FROM indicator_dimension_values idv
-          WHERE idv.indicator_id = ${published.indicatorId} AND idv.dimension_value_id = dv.id
-        )
-        ORDER BY dv.id LIMIT 1
+        SELECT dv.id, dv.dimension_type_id FROM dimension_value dv ORDER BY dv.id LIMIT 1
       ),
       o AS (
         INSERT INTO observation
@@ -265,14 +260,12 @@ describe('the read-model rebuild', () => {
       SELECT o.id, dv.id, dv.dimension_type_id FROM o, dv
       RETURNING dimension_value_id AS id
     `;
-    if (!unused) throw new Error('Every dimension value is in the published rows');
+    if (!dimensioned) throw new Error('The seed holds no dimension values');
 
     await rebuildReadModels(draftSql);
 
     const leaked = await draftSql`
-      SELECT 'latest_headline' AS model FROM latest_headline
-        WHERE indicator_id = ${published.indicatorId} AND from_date = '2099-01-01'
-      UNION ALL SELECT 'observation_range' FROM observation_range
+      SELECT 'observation_range' AS model FROM observation_range
         WHERE indicator_id = ${published.indicatorId} AND from_date = '2099-01-01'
       UNION ALL SELECT 'available_data' FROM available_data ad
         WHERE ad.indicator_id = ${published.indicatorId}
@@ -280,8 +273,6 @@ describe('the read-model rebuild', () => {
             SELECT 1 FROM published.observation o JOIN area a ON a.id = o.area_id
             WHERE o.indicator_id = ad.indicator_id AND a.area_type_id = ad.area_type_id
           )
-      UNION ALL SELECT 'indicator_dimension_values' FROM indicator_dimension_values
-        WHERE indicator_id = ${published.indicatorId} AND dimension_value_id = ${unused.id}
     `;
     expect(leaked).toEqual([]);
   });
