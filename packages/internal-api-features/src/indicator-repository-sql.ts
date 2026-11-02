@@ -98,6 +98,18 @@ const latestDraftSubmittedAt = new QueryBuilder({ casing: 'snake_case' })
 export const draftSubmittedAt = sql`(${latestDraftSubmittedAt})`.mapWith(
   indicatorVersionSubmission.submittedAt,
 );
+const firstDraftSubmittedAt = new QueryBuilder({ casing: 'snake_case' })
+  .select({ submittedAt: indicatorVersionSubmission.submittedAt })
+  .from(indicatorVersionSubmission)
+  .where(
+    and(
+      eq(indicatorVersionSubmission.indicatorVersionId, draftVersion.id),
+      eq(indicatorVersionSubmission.number, 1),
+    ),
+  );
+export const draftFirstSubmittedAt = sql`(${firstDraftSubmittedAt})`.mapWith(
+  indicatorVersionSubmission.submittedAt,
+);
 const latestDraftSubmissionId = new QueryBuilder({ casing: 'snake_case' })
   .select({ id: indicatorVersionSubmission.id })
   .from(indicatorVersionSubmission)

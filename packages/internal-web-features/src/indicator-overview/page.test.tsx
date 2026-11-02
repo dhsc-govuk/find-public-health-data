@@ -25,6 +25,7 @@ const indicator: IndicatorAdminDetail = {
   draftReviewers: [],
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
+  draftFirstSubmittedAt: null,
   nameVersion: SHOWN_VERSION,
   actions: [],
 };

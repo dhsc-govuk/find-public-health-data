@@ -37,6 +37,7 @@ const submitted: IndicatorAdminDetailRow = {
   draftSubmissionNumber: 1,
   draftReviewers: [],
   draftScheduledPublishAt: null,
+  draftFirstSubmittedAt: null,
 };
 
 function createTestApp(

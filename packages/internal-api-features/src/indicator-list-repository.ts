@@ -11,6 +11,7 @@ import type {
 } from './contract.ts';
 import {
   currentName,
+  draftFirstSubmittedAt,
   draftJoin,
   draftLocked,
   draftReviewers,
@@ -73,6 +74,8 @@ export interface IndicatorAdminDetailRow extends IndicatorAdminRow {
   publishedSlug: string | null;
   /** When the draft asks to be published; null with no draft or no answer yet. */
   draftScheduledPublishAt: Date | null;
+  /** When the draft was first submitted; null until it is. */
+  draftFirstSubmittedAt: Date | null;
 }
 
 function scopeCondition(scope: IndicatorListScope): SQL | undefined {
@@ -205,6 +208,7 @@ export async function getIndicatorById(
       draftSubmissionNumber,
       draftReviewers,
       draftScheduledPublishAt: draftVersion.scheduledPublishAt,
+      draftFirstSubmittedAt,
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)

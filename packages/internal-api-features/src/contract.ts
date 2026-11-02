@@ -199,6 +199,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   draftSubmissionNumber: z.number().int().positive().nullable(),
   /** When the draft asks to be published; null with no draft or no answer yet. */
   draftScheduledPublishAt: z.iso.datetime().nullable(),
+  /** When the draft was first submitted, which no IMRG review date may precede; null until then. */
+  draftFirstSubmittedAt: z.iso.datetime().nullable(),
   /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
@@ -428,3 +430,4 @@ export * from './indicator-update-frequency-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';
 export * from './indicator-variance-and-quality-contract.ts';
 export * from './notes-for-reviewers-contract.ts';
+export * from './review-response-contract.ts';

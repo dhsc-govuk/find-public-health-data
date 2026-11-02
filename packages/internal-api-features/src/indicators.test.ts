@@ -44,6 +44,7 @@ const detailRow: IndicatorAdminDetailRow = {
   publishedSlug: 'life-expectancy-at-birth',
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
+  draftFirstSubmittedAt: null,
 };
 
 const OTHER_REVIEWER_ID = '00000000-0000-7000-8000-0000000000a1';
@@ -241,6 +242,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftReviewers: [],
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFirstSubmittedAt: null,
       nameVersion,
       actions: [],
     });
@@ -426,6 +428,7 @@ describe('POST /api/internal/indicators', () => {
     draftStatus: 'draft',
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFirstSubmittedAt: null,
   };
 
   it('rejects an anonymous request', async () => {
@@ -533,6 +536,7 @@ describe('POST /api/internal/indicators', () => {
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFirstSubmittedAt: null,
       nameVersion,
       actions: ['submit'],
     });
@@ -633,6 +637,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     draftStatus: 'draft',
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFirstSubmittedAt: null,
   };
   const path = `/api/internal/indicators/${row.id}`;
 
@@ -686,6 +691,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFirstSubmittedAt: null,
       nameVersion: editVersion({ name: 'A better name' }),
       actions: ['submit'],
     });

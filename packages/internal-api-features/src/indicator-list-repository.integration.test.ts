@@ -569,6 +569,30 @@ describe('getIndicatorById', () => {
     });
   });
 
+  repositoryTest(
+    'reads when the draft was first submitted, through later rounds',
+    async ({ db }) => {
+      const created = await newDraft(db, 'First submitted once');
+      const shown = await completeDraft(db, created);
+      expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+        draftFirstSubmittedAt: null,
+      });
+
+      await submitIndicator(db, created.indicatorId, shown, AS_ACTOR);
+      const [first] = await db
+        .select({ submittedAt: schema.indicatorVersionSubmission.submittedAt })
+        .from(schema.indicatorVersionSubmission)
+        .where(eq(schema.indicatorVersionSubmission.indicatorId, created.indicatorId));
+      await withdrawSubmission(db, created.indicatorId, 1, AS_ACTOR);
+      await submitIndicator(db, created.indicatorId, shown, AS_ACTOR);
+
+      expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+        draftSubmissionNumber: 2,
+        draftFirstSubmittedAt: first?.submittedAt,
+      });
+    },
+  );
+
   repositoryTest("ignores a published version's date when there is no draft", async ({ db }) => {
     const { indicatorId } = await indicatorWithTwoPublications(db, 'Published with a date');
     await db
