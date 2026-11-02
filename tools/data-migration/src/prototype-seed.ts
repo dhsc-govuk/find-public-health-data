@@ -203,7 +203,7 @@ async function addAreas(
 ): Promise<Map<string, string>> {
   const ids = new Map(
     (
-      await tx<{ id: string; code: string }[]>`SELECT id, code FROM area WHERE valid_to IS NULL`
+      await tx<{ id: string; code: string }[]>`SELECT id, code FROM area WHERE is_current = true`
     ).map(({ id, code }) => [code, id]),
   );
   const types = new Map(

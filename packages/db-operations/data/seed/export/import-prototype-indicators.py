@@ -243,7 +243,7 @@ def load_area_registry(area_dir, area_types_path):
 
 
 def add_areas(cur, registry):
-    cur.execute("SELECT id, code FROM area WHERE valid_to IS NULL")
+    cur.execute("SELECT id, code FROM area WHERE is_current = true")
     area_ids = {code: area_id for area_id, code in cur.fetchall()}
     cur.execute("SELECT name, id FROM area_type")
     area_type_ids = dict(cur.fetchall())

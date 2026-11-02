@@ -249,8 +249,8 @@ describe('applyDataMigration', () => {
           rows: [[areaId, 'Country', 'Administrative', 1]],
         },
         area: {
-          columns: ['id', 'area_type_id', 'code', 'name', 'valid_from'],
-          rows: [[areaId, areaId, 'E92000001', 'England', '2010-01-01']],
+          columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
+          rows: [[areaId, areaId, 'E92000001', 'England', '2010-01-01', 't']],
         },
         observation: observation(firstBatch, 10),
       },
@@ -308,8 +308,8 @@ describe('applyDataMigration', () => {
           rows: [[areaId, 'Country', 'Administrative', 1]],
         },
         area: {
-          columns: ['id', 'area_type_id', 'code', 'name', 'valid_from'],
-          rows: [[areaId, areaId, 'E92000001', 'England', '2010-01-01']],
+          columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
+          rows: [[areaId, areaId, 'E92000001', 'England', '2010-01-01', 't']],
         },
         observation: {
           columns: [
@@ -518,6 +518,27 @@ describe('applyDataMigration', () => {
     await expect(apply({ upserts: { indicator: { columns: ['id'] } } })).rejects.toThrow(
       'missing required columns: short_id',
     );
+  });
+  it('rejects a retired area without explicit current status and rolls back the package', async () => {
+    await baseline();
+    const id = '44444444-4444-7444-8444-444444444444';
+    await expect(
+      apply({
+        upserts: {
+          area_type: {
+            columns: ['id', 'name', 'hierarchy_type', 'level'],
+            rows: [[id, 'Retired type', 'Administrative', 1]],
+          },
+          area: {
+            columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'valid_to'],
+            rows: [[id, id, 'E08000001', 'Retired area', '2010-01-01', '2024-01-01']],
+          },
+        },
+      }),
+    ).rejects.toThrow('area CSV is missing required columns: is_current');
+    expect(await sql`SELECT id FROM area WHERE id = ${id}`).toEqual([]);
+    expect(await sql`SELECT id FROM area_type WHERE id = ${id}`).toEqual([]);
+    await assertRolledBack();
   });
   it.each(
     [VERSION_COLUMNS.slice(0, -2), VERSION_COLUMNS.slice(0, -1)].map((columns) => ({ columns })),

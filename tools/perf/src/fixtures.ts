@@ -56,7 +56,7 @@ export async function createDataTableDraft(sql: postgres.Sql): Promise<void> {
         from area a
         cross join generate_series(1, ${YEARS}) y
         cross join sex
-        where a.valid_to is null
+        where a.is_current = true
         returning id, dimension_key
       )
       insert into observation_dimension (observation_id, dimension_value_id, dimension_type_id)
