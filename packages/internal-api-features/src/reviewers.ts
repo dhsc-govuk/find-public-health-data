@@ -4,13 +4,13 @@ import { canAssignReviewers, canSeeIndicator } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
 import { indicatorIdSchema, type ReviewerOptions } from './contract.ts';
-import type { IndicatorTeams } from './indicator-editor.ts';
-import type { InternalReviewerRepository } from './repositories.ts';
+import { indicatorAccess } from './indicators.ts';
+import type { InternalIndicatorRepository, InternalReviewerRepository } from './repositories.ts';
 
 /** The reviewers an IMRG manager may assign to an indicator. */
 export function internalReviewersRouter(
   reviewers: InternalReviewerRepository,
-  indicators: IndicatorTeams,
+  indicators: Pick<InternalIndicatorRepository, 'findById'>,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
@@ -26,13 +26,10 @@ export function internalReviewersRouter(
         return;
       }
 
-      const teamId = await indicators.findTeamId(id.data);
+      const row = await indicators.findById(id.data);
 
       // As on the detail route, an indicator the user may not see answers as if it did not exist.
-      if (
-        teamId === undefined ||
-        !canSeeIndicator(requireApiSession(response), { teamId, reviewerIds: [] })
-      ) {
+      if (!row || !canSeeIndicator(requireApiSession(response), indicatorAccess(row))) {
         response.status(404).json({ error: 'not_found' });
         return;
       }

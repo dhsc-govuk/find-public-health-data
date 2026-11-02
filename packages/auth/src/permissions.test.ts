@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canAssignReviewers,
+  canBrowseAllIndicators,
   canCreateIndicator,
   canCreateIndicatorInTeam,
   canEditIndicator,
@@ -9,6 +10,7 @@ import {
   canManage,
   canMoveIndicatorBetweenTeams,
   canReviewIndicator,
+  canReviewIndicators,
   canSeeIndicator,
   canSeeTeamsAndUsers,
   canSubmitIndicator,
@@ -131,6 +133,13 @@ describe('canReviewIndicator', () => {
 });
 
 describe('the role-wide checks', () => {
+  it('lets an IMRG reviewer, whatever else they hold, be assigned indicators to review', () => {
+    expect(canReviewIndicators(reviewer)).toBe(true);
+    expect(canReviewIndicators(publisherReviewer)).toBe(true);
+    expect(canReviewIndicators(manager)).toBe(false);
+    expect(canReviewIndicators(publisherA)).toBe(false);
+  });
+
   it('lets an IMRG manager assign reviewers', () => {
     expect(canAssignReviewers(manager)).toBe(true);
     expect(canAssignReviewers(admin)).toBe(false);
@@ -140,6 +149,14 @@ describe('the role-wide checks', () => {
     expect(canManage(admin)).toBe(true);
     for (const asking of [publisherAB, manager, reviewer]) {
       expect(canManage(asking), asking.sub).toBe(false);
+    }
+  });
+
+  it('lets an admin, and no one else, browse every indicator from the dashboard', () => {
+    expect(canBrowseAllIndicators(admin)).toBe(true);
+    expect(canBrowseAllIndicators(user('admin-reviewer', ['admin', 'imrg-reviewer']))).toBe(true);
+    for (const asking of [publisherAB, manager, reviewer]) {
+      expect(canBrowseAllIndicators(asking), asking.sub).toBe(false);
     }
   });
 

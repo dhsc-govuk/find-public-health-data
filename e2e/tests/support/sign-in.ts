@@ -33,6 +33,18 @@ export const IMRG_MANAGER: SignedInUser = {
   storageState: join(SESSIONS_DIR, 'imrg-manager.json'),
 };
 
+/** An IMRG reviewer who does not publish. */
+export const IMRG_REVIEWER: SignedInUser = {
+  name: 'Jamie Evans',
+  storageState: join(SESSIONS_DIR, 'imrg-reviewer.json'),
+};
+
+/** An IMRG reviewer who also publishes, in Team C. */
+export const PUBLISHER_AND_REVIEWER: SignedInUser = {
+  name: 'Morgan Hughes',
+  storageState: join(SESSIONS_DIR, 'publisher-and-reviewer.json'),
+};
+
 export const ADMIN: SignedInUser = {
   name: 'Riley Singh',
   storageState: join(SESSIONS_DIR, 'admin.json'),

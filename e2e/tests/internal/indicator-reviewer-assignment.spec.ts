@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { addReviewer, chooseReviewer } from '../support/assign-reviewers.ts';
 import { submitNewIndicator } from '../support/complete-draft.ts';
 import { uniqueIndicatorName } from '../support/create-indicator.ts';
 import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
@@ -15,21 +16,6 @@ function overviewPath(id: string) {
 
 function assignPath(id: string) {
   return `${overviewPath(id)}/assign-reviewers`;
-}
-
-/** Chooses a reviewer by name: the count beside it moves as other specs assign reviewers. */
-async function chooseReviewer(page: Page, name: string) {
-  const select = page.getByLabel('Reviewer', { exact: true });
-  const value = await select
-    .getByRole('option', { name: `${name} (`, includeHidden: true })
-    .getAttribute('value');
-  await select.selectOption(value ?? '');
-}
-
-async function addReviewer(page: Page, name: string) {
-  await chooseReviewer(page, name);
-  await page.getByRole('button', { name: /^Add (another )?reviewer$/ }).click();
-  await expect(page.getByRole('button', { name: `Remove reviewer ${name}` })).toBeVisible();
 }
 
 /** The reviewers listed so far, read from their Remove buttons in page order. */

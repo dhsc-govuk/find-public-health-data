@@ -104,12 +104,13 @@ const latestDraftSubmissionId = new QueryBuilder({ casing: 'snake_case' })
   .where(eq(indicatorVersionSubmission.indicatorVersionId, draftVersion.id))
   .orderBy(desc(indicatorVersionSubmission.number))
   .limit(1);
+export const draftSubmissionId = sql<string | null>`(${latestDraftSubmissionId})`;
 export const draftReviewers = sql<DraftReviewer[]>`coalesce((
   select json_agg(json_build_object('id', ${appUser.id}, 'name', ${appUser.displayName})
     order by ${appUser.displayName}, ${appUser.id})
   from ${indicatorVersionSubmissionReviewer}
   join ${appUser} on ${appUser.id} = ${indicatorVersionSubmissionReviewer.reviewerId}
-  where ${indicatorVersionSubmissionReviewer.submissionId} = (${latestDraftSubmissionId})
+  where ${indicatorVersionSubmissionReviewer.submissionId} = ${draftSubmissionId}
 ), '[]'::json)`;
 const firstVersionCreator = new QueryBuilder({ casing: 'snake_case' })
   .select({ createdBy: firstVersion.createdBy })

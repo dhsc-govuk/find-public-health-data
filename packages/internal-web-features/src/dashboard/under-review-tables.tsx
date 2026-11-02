@@ -53,3 +53,17 @@ export function UnderReviewTables({ unassigned, assigned }: IndicatorsUnderRevie
     </>
   );
 }
+
+/** The submissions in review assigned to the reviewer, oldest first. */
+export function ReviewTable({ indicators }: { indicators: IndicatorAdminListItem[] }) {
+  return indicators.length === 0 ? (
+    <p className="govuk-body">No assigned indicators under review</p>
+  ) : (
+    <Table
+      aria-label="Indicators to review, oldest submission first"
+      headings={ASSIGNED_HEADINGS}
+      keys={ASSIGNED_KEYS}
+      data={indicators.map(assignedCells)}
+    />
+  );
+}
