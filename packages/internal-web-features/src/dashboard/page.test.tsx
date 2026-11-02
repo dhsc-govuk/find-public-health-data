@@ -337,4 +337,26 @@ describe('DashboardPage', () => {
       }),
     ).toBeTruthy();
   });
+
+  it('offers an admin who reviews a Review tab then an All indicators tab, headed Indicators', () => {
+    renderPage(
+      { canCreate: false, page: 2, totalPages: 3 },
+      '/dashboard?page=2&tab=all-indicators',
+      null,
+      [inReview],
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Review (1)',
+      'All indicators',
+    ]);
+    expect(screen.getByRole('tab', { name: 'All indicators' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+      '/dashboard?page=3&tab=all-indicators',
+    );
+    expect(screen.queryByRole('button', { name: 'Create new indicator' })).toBeNull();
+  });
 });

@@ -2,7 +2,7 @@ import { Button, GridColumn, GridRow, Pagination, Table, Tabs } from '@fphd/ui';
 import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
-import { CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
+import { ALL_INDICATORS_TAB, CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
 import { ReviewTable, UnderReviewTables } from './under-review-tables.tsx';
 
 export interface IndicatorList {
@@ -76,11 +76,19 @@ export function dashboardHeading(data?: DashboardPageProps): string {
     : 'Indicators';
 }
 
+/** The list's section: Create and edit for someone who may create, otherwise every indicator. */
+function listSection(list: IndicatorList, tabbed: boolean) {
+  const tab = list.canCreate
+    ? { id: CREATE_AND_EDIT_TAB, label: 'Create and edit' }
+    : { id: ALL_INDICATORS_TAB, label: 'All indicators' };
+  return { ...tab, content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} /> };
+}
+
 /**
  * One section for each role the user holds: Assign for an IMRG manager, Review for an IMRG
- * reviewer, then the indicator list. `listTab` is the list's tab, which its page links keep open.
+ * reviewer, then the indicator list, whose page links keep its tab open when `tabbed`.
  */
-function dashboardSections({ underReview, toReview, list }: DashboardPageProps, listTab?: string) {
+function dashboardSections({ underReview, toReview, list }: DashboardPageProps, tabbed: boolean) {
   return [
     underReview === null
       ? null
@@ -96,13 +104,7 @@ function dashboardSections({ underReview, toReview, list }: DashboardPageProps, 
           label: countedLabel('Review', toReview.length),
           content: <ReviewTable indicators={toReview} />,
         },
-    list === null
-      ? null
-      : {
-          id: CREATE_AND_EDIT_TAB,
-          label: 'Create and edit',
-          content: <IndicatorListSection {...list} tab={listTab} />,
-        },
+    list === null ? null : listSection(list, tabbed),
   ].filter((section) => section !== null);
 }
 
@@ -113,7 +115,7 @@ function dashboardSections({ underReview, toReview, list }: DashboardPageProps, 
  */
 export function DashboardPage(props: DashboardPageProps) {
   const tabbed = sectionCount(props) > 1;
-  const sections = dashboardSections(props, tabbed ? CREATE_AND_EDIT_TAB : undefined);
+  const sections = dashboardSections(props, tabbed);
 
   return (
     <GridRow>

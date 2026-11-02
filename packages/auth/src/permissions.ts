@@ -100,6 +100,11 @@ export function canMoveIndicatorBetweenTeams(user: SessionUser): boolean {
   return holds(user, 'admin');
 }
 
+/** Whether the user browses every indicator from the dashboard, whatever other roles they hold. */
+export function canBrowseAllIndicators(user: SessionUser): boolean {
+  return holds(user, 'admin');
+}
+
 export function canSeeTeamsAndUsers(user: SessionUser): boolean {
   return holds(user, 'admin');
 }

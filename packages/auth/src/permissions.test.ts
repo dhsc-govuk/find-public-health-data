@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canAssignReviewers,
+  canBrowseAllIndicators,
   canCreateIndicator,
   canCreateIndicatorInTeam,
   canEditIndicator,
@@ -148,6 +149,14 @@ describe('the role-wide checks', () => {
     expect(canManage(admin)).toBe(true);
     for (const asking of [publisherAB, manager, reviewer]) {
       expect(canManage(asking), asking.sub).toBe(false);
+    }
+  });
+
+  it('lets an admin, and no one else, browse every indicator from the dashboard', () => {
+    expect(canBrowseAllIndicators(admin)).toBe(true);
+    expect(canBrowseAllIndicators(user('admin-reviewer', ['admin', 'imrg-reviewer']))).toBe(true);
+    for (const asking of [publisherAB, manager, reviewer]) {
+      expect(canBrowseAllIndicators(asking), asking.sub).toBe(false);
     }
   });
 

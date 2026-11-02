@@ -182,6 +182,11 @@ describe('loadDashboard', () => {
     ['an IMRG manager', ['imrg-manager'], ['/api/internal/indicators-under-review']],
     ['an IMRG reviewer', ['imrg-reviewer'], ['/api/internal/indicators-to-review']],
     [
+      'an admin who reviews',
+      ['admin', 'imrg-reviewer'],
+      ['/api/internal/indicators-to-review', '/api/internal/indicators?page=1'],
+    ],
+    [
       'an IMRG manager and reviewer who publishes',
       ['publisher', 'imrg-manager', 'imrg-reviewer'],
       [

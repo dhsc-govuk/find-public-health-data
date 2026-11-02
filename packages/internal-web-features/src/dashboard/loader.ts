@@ -1,6 +1,7 @@
 // No @fphd/ui imports here, so the loader unit-tests without the jsdom the components need.
 import {
   canAssignReviewers,
+  canBrowseAllIndicators,
   canCreateIndicator,
   canReviewIndicators,
 } from '@fphd/auth/permissions';
@@ -41,8 +42,8 @@ async function loadIndicatorList(api: ApiClient, page: number, ownTeams: boolean
 
 /**
  * An IMRG manager sees the indicators under review, an IMRG reviewer the indicators assigned to
- * them, and anyone else a page of the indicators they work on. A user with several of these roles,
- * or one who also publishes, sees each. An invalid page number, or a page past the first for
+ * them, and an admin or anyone else a page of the indicators they work on. A user with several of
+ * these roles, or one who also publishes, sees each. An invalid page number, or a page past the first for
  * someone with no list, is a 404.
  */
 export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
@@ -54,7 +55,8 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
   const managing = session !== undefined && canAssignReviewers(session);
   const reviewing = session !== undefined && canReviewIndicators(session);
   const canCreate = session !== undefined && canCreateIndicator(session);
-  const listing = (!managing && !reviewing) || canCreate;
+  const browsing = session !== undefined && canBrowseAllIndicators(session);
+  const listing = (!managing && !reviewing) || canCreate || browsing;
   const { page } = query.data;
 
   if (!listing && page > 1) throw notFound();
@@ -67,7 +69,7 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
           .get('/api/internal/indicators-to-review', indicatorsToReviewSchema)
           .then(({ indicators }) => indicators)
       : null,
-    listing ? loadIndicatorList(api, page, managing || reviewing) : null,
+    listing ? loadIndicatorList(api, page, (managing || reviewing) && !browsing) : null,
   ]);
 
   return {
