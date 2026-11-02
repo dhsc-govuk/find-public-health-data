@@ -1,4 +1,4 @@
-import { TEAM_IDS } from '@fphd/auth';
+import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { MAX_AGE } from '@fphd/utils/sex-and-ages';
@@ -9,7 +9,7 @@ import { editVersion } from './edit-version.ts';
 import {
   createIndicatorDraft,
   getIndicatorDraftState,
-  getIndicatorPublishedVersion,
+  getIndicatorNotesForReviewers,
   type IndicatorDraft,
   type IndicatorDraftAttributes,
   SLUG_LOCK_NAMESPACE,
@@ -32,7 +32,7 @@ import {
   typeClassification,
 } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
-import { submitIndicator } from './indicator-workflow-repository.ts';
+import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 
 const { indicator, indicatorVersion } = schema;
 
@@ -820,40 +820,89 @@ describe('the audit log of draft writes', () => {
   );
 });
 
-describe('getIndicatorPublishedVersion', () => {
-  repositoryTest(
-    'reads the current published version, as a section reads a draft',
-    async ({ db }) => {
-      const published = await indicatorWithTwoPublications(db, 'Published and annotated');
-      await db
-        .update(indicatorVersion)
-        .set({ variation: 'Little.' })
-        .where(eq(indicatorVersion.id, published.currentId));
+describe('getIndicatorNotesForReviewers', () => {
+  repositoryTest("reads a new indicator's draft, with its team", async ({ db }) => {
+    const created = await newDraft(db, 'Notes from a draft');
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      { variation: 'Little.', hasReviewerComments: true, reviewerCommentsDetail: 'See 2020.' },
+      {},
+      AS_ACTOR,
+    );
 
-      const version = await getIndicatorPublishedVersion(db, published.indicatorId);
+    const found = await getIndicatorNotesForReviewers(db, created.indicatorId);
 
-      expect(version).toMatchObject({
-        id: published.currentId,
-        name: published.currentName,
+    expect(found).toMatchObject({
+      teamId: TEAM_IDS.teamA,
+      draftReviewers: [],
+      version: {
+        id: created.versionId,
         variation: 'Little.',
-        links: [],
-      });
-    },
-  );
-
-  repositoryTest('still reads it while a draft revises it', async ({ db }) => {
-    const published = await indicatorWithTwoPublications(db, 'Published and revised');
-    await createDraftFromPublished(db, published.indicatorId, AS_ACTOR);
-
-    const version = await getIndicatorPublishedVersion(db, published.indicatorId);
-
-    expect(version?.id).toBe(published.currentId);
+        hasReviewerComments: true,
+        reviewerCommentsDetail: 'See 2020.',
+        qualityAssurance: null,
+      },
+    });
   });
 
-  repositoryTest('reads nothing for an indicator never published', async ({ db }) => {
-    const created = await newDraft(db, 'Never published');
+  repositoryTest('reads a draft with nothing answered yet', async ({ db }) => {
+    const created = await newDraft(db, 'Notes not written yet');
 
-    expect(await getIndicatorPublishedVersion(db, created.indicatorId)).toBeUndefined();
+    const found = await getIndicatorNotesForReviewers(db, created.indicatorId);
+
+    expect(found?.version).toMatchObject({ id: created.versionId, variation: null });
+  });
+
+  repositoryTest('reads the published version while there is no draft', async ({ db }) => {
+    const published = await indicatorWithTwoPublications(db, 'Notes as published');
+    await db
+      .update(indicatorVersion)
+      .set({ variation: 'As published.' })
+      .where(eq(indicatorVersion.id, published.currentId));
+
+    const found = await getIndicatorNotesForReviewers(db, published.indicatorId);
+
+    expect(found?.version).toMatchObject({ id: published.currentId, variation: 'As published.' });
+  });
+
+  repositoryTest('prefers the draft to the version it revises', async ({ db }) => {
+    const published = await indicatorWithTwoPublications(db, 'Notes being revised');
+    await db
+      .update(indicatorVersion)
+      .set({ variation: 'As published.' })
+      .where(eq(indicatorVersion.id, published.currentId));
+    await createDraftFromPublished(db, published.indicatorId, AS_ACTOR);
+    await updateIndicatorDraft(db, published.indicatorId, { variation: null }, {}, AS_ACTOR);
+
+    const found = await getIndicatorNotesForReviewers(db, published.indicatorId);
+
+    expect(found?.version.id).not.toBe(published.currentId);
+    expect(found?.version.variation).toBeNull();
+  });
+
+  repositoryTest("reads the reviewers of the draft's latest submission", async ({ db }) => {
+    const created = await newDraft(db, 'Notes under review');
+    const shown = await completeDraft(db, created);
+    await submitIndicator(db, created.indicatorId, shown, AS_ACTOR);
+    await assignReviewers(
+      db,
+      created.indicatorId,
+      { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
+      { userId: FAKE_USER_IDS.imrgManager, requestId: null },
+    );
+
+    const found = await getIndicatorNotesForReviewers(db, created.indicatorId);
+
+    expect(found?.draftReviewers).toEqual([
+      { id: FAKE_USER_IDS.imrgReviewer, name: 'Jamie Evans' },
+    ]);
+  });
+
+  repositoryTest('reads nothing for an id no indicator has', async ({ db }) => {
+    expect(
+      await getIndicatorNotesForReviewers(db, '00000000-0000-7000-8000-000000000000'),
+    ).toBeUndefined();
   });
 });
 

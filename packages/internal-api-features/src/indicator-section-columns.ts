@@ -42,6 +42,7 @@ import {
 import {
   detailOf,
   type IndicatorSectionColumns,
+  type OwnFieldColumns,
   sameNamedColumns,
   yesNoAnswer,
   yesNoDetailColumns,
@@ -196,7 +197,7 @@ export const justificationsColumns = yesNoDetailColumns(
 
 const otherCommentsAnswers = yesNoDetailColumns(otherCommentsSection, otherCommentsQuestions);
 
-export const otherCommentsColumns: IndicatorSectionColumns<OtherCommentsField, OtherComments> = {
+export const otherCommentsColumns: OwnFieldColumns<OtherCommentsField, OtherComments> = {
   ...otherCommentsAnswers,
   // The sponsors and stakeholders are optional, and none given is stored as none.
   toAttributes: (answers) => ({

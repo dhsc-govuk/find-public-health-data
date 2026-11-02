@@ -32,10 +32,11 @@ import {
   type CreateIndicatorDraftResult,
   createIndicatorDraft,
   getIndicatorDraftState,
-  getIndicatorPublishedVersion,
+  getIndicatorNotesForReviewers,
   type IndicatorDraft,
   type IndicatorDraftAttributes,
   type IndicatorDraftStateRow,
+  type IndicatorNotesForReviewersRow,
   type NewIndicatorDraftAttributes,
   type UpdateIndicatorDraftResult,
   updateIndicatorDraft,
@@ -107,8 +108,8 @@ export interface InternalIndicatorRepository {
   findTeamId(id: string): Promise<string | null | undefined>;
   /** The draft and whether anything is published, read together for the task list. */
   findDraftState(id: string): Promise<IndicatorDraftStateRow | undefined>;
-  /** The published version, read as a draft is; undefined while none is published. */
-  findPublishedVersion(id: string): Promise<IndicatorDraft | undefined>;
+  /** The notes for reviewers, from the draft or else the published version, with their access. */
+  findNotesForReviewers(id: string): Promise<IndicatorNotesForReviewersRow | undefined>;
   createDraft(
     attributes: NewIndicatorDraftAttributes,
     actor: Actor,
@@ -233,7 +234,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findById: (id) => getIndicatorById(db, id),
       findTeamId: (id) => findIndicatorTeamId(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),
-      findPublishedVersion: (id) => getIndicatorPublishedVersion(db, id),
+      findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
       createDraft: (attributes, actor, teamId) =>
         createIndicatorDraft(db, attributes, actor, teamId),
       updateDraft: (indicatorId, attributes, lists, actor, precondition) =>

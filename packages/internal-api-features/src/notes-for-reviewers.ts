@@ -17,10 +17,7 @@ import type { InternalIndicatorRepository } from './repositories.ts';
  * those `canSeeNotesForReviewers` allows. Anyone else gets 404 `not_found`.
  */
 export function internalNotesForReviewersRouter(
-  indicators: Pick<
-    InternalIndicatorRepository,
-    'findById' | 'findDraftState' | 'findPublishedVersion'
-  >,
+  indicators: Pick<InternalIndicatorRepository, 'findNotesForReviewers'>,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
@@ -36,21 +33,14 @@ export function internalNotesForReviewersRouter(
         return;
       }
 
-      const row = await indicators.findById(id.data);
+      const row = await indicators.findNotesForReviewers(id.data);
 
       if (!row || !canSeeNotesForReviewers(requireApiSession(response), indicatorAccess(row))) {
         response.status(404).json({ error: 'not_found' });
         return;
       }
 
-      // A draft published or discarded since the row was read falls back to the published version.
-      const draft =
-        row.draftStatus === null ? null : (await indicators.findDraftState(id.data))?.draft;
-      const version = draft ?? (await indicators.findPublishedVersion(id.data));
-
-      // Every indicator has a draft, a published version or both.
-      if (!version) throw new Error('the indicator has no version to read');
-
+      const { version } = row;
       const body: NotesForReviewers = {
         varianceAndQuality: varianceAndQualityColumns.fromDraft(version),
         justifications: justificationsColumns.fromDraft(version),

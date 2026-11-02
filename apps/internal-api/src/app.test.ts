@@ -255,22 +255,11 @@ describe('internal API', () => {
     const id = '00000000-0000-7000-8000-000000000001';
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findById: async () => ({
-          id,
-          shortId: 90366,
-          name: 'Life expectancy at birth',
+        findNotesForReviewers: async () => ({
           teamId: TEAM_IDS.teamA,
-          publishedSlug: null,
-          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
-          indicatorStatus: 'new',
-          draftStatus: 'draft',
-          draftLocked: false,
-          draftSubmissionStatus: 'withdrawn',
-          draftSubmissionNumber: 1,
           draftReviewers: [],
-          draftScheduledPublishAt: null,
+          version: { ...unansweredDraft, id },
         }),
-        findDraftState: vi.fn().mockResolvedValue({ draft: unansweredDraft }),
       },
     });
     const app = createTestApp(createFakeRepositories(), internalRepositories);
@@ -279,6 +268,7 @@ describe('internal API', () => {
     const asManager = await request(app)
       .get(path)
       .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+
     expect(asManager.status).toBe(200);
   });
 
