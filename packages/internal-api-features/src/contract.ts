@@ -162,7 +162,7 @@ export const indicatorsUnderReviewSchema = z.object({
   assigned: z.array(indicatorAdminListItemSchema),
 });
 
-/** The submissions in review that a reviewer is assigned, oldest submission first. */
+/** The submissions in review assigned to a reviewer, oldest submission first. */
 export const indicatorsToReviewSchema = z.object({
   indicators: z.array(indicatorAdminListItemSchema),
 });

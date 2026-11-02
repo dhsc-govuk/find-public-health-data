@@ -74,7 +74,7 @@ export function dashboardHeading(data?: DashboardPageProps): string {
     : 'Indicators';
 }
 
-/** The indicators an IMRG manager or reviewer works on as such, with the tab that holds them. */
+/** The Assign tab for an IMRG manager, the Review tab for an IMRG reviewer, or null otherwise. */
 function reviewSection({ underReview, toReview }: DashboardPageProps) {
   if (underReview !== null) {
     return {
@@ -96,8 +96,9 @@ function reviewSection({ underReview, toReview }: DashboardPageProps) {
 }
 
 /**
- * The indicators under review for an IMRG manager, those assigned to an IMRG reviewer, a page of
- * indicators for anyone else, and a tab of each for a manager or reviewer who also publishes.
+ * Shows an IMRG manager the indicators under review, an IMRG reviewer the indicators assigned to
+ * them, and anyone else a page of their indicators. A manager or reviewer who also publishes gets a
+ * tab for each.
  */
 export function DashboardPage(props: DashboardPageProps) {
   const { list } = props;

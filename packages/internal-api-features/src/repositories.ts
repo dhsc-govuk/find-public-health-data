@@ -99,7 +99,7 @@ export interface InternalIndicatorRepository {
   listPage(page: number, pageSize: number, scope: IndicatorListScope): Promise<IndicatorAdminRows>;
   /** The open submissions in scope, waiting for reviewers or in review, oldest first. */
   listUnderReview(scope: IndicatorListScope): Promise<IndicatorsUnderReviewRows>;
-  /** The submissions in review that the reviewer is assigned, oldest first. */
+  /** The submissions in review assigned to the reviewer, oldest first. */
   listToReview(reviewerId: string): Promise<IndicatorAdminListRow[]>;
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
   /** The indicator's team, null when it has none, or undefined when there is no such indicator. */

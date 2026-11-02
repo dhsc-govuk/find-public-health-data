@@ -133,7 +133,7 @@ test.describe('as an IMRG manager', () => {
 test.describe('as an IMRG reviewer', () => {
   test.use({ storageState: IMRG_REVIEWER.storageState });
 
-  /** The reviewer's row for the indicator named. */
+  /** The named indicator's row in the reviewer's table. */
   function reviewRow(page: Page, name: string) {
     return page
       .getByRole('table', { name: 'Indicators to review, oldest submission first' })
@@ -203,7 +203,7 @@ test.describe('as an IMRG reviewer who publishes', () => {
 
   test('offers a Review tab and a Create and edit tab', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Indicators' })).toBeVisible();
-    // Other specs assign this reviewer too, so the count is whatever they have left.
+    // Other specs also assign indicators to this reviewer, so the count varies (none at zero).
     await expect(page.getByRole('tab')).toHaveText([/^Review( \(\d+\))?$/, 'Create and edit']);
 
     await page.getByRole('tab', { name: 'Create and edit' }).click();

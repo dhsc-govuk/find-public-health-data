@@ -162,7 +162,7 @@ export async function listIndicatorsUnderReview(
 
 /**
  * The indicators whose draft's latest submission is in review with `reviewerId` among its
- * reviewers, oldest submission first, as a queue; the id breaks a tie.
+ * reviewers, oldest submission first, with the indicator id breaking ties.
  */
 export async function listIndicatorsToReview(
   db: Database,

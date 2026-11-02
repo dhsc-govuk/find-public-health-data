@@ -13,7 +13,7 @@ import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**
  * The review queues, unpaginated: every open submission an IMRG manager may see, and the
- * submissions in review that a reviewer is assigned.
+ * submissions in review assigned to a reviewer.
  */
 export function internalIndicatorsUnderReviewRouter(
   indicators: Pick<InternalIndicatorRepository, 'listUnderReview' | 'listToReview'>,

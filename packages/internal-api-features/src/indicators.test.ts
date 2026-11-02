@@ -60,7 +60,7 @@ const assignedToTestUser: IndicatorAdminDetailRow = {
   draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }],
 };
 
-/** An IMRG reviewer who also publishes, for a team other than the indicator's. */
+/** An IMRG reviewer who also publishes for a team other than the indicator's. */
 function reviewerCookie() {
   return testSessionCookie(['internal', 'publisher', 'imrg-reviewer'], [TEAM_ID]);
 }

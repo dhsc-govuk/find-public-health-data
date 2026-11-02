@@ -2,7 +2,7 @@ import { type Browser, expect, type Page } from '@playwright/test';
 
 import { IMRG_MANAGER } from './sign-in.ts';
 
-/** Chooses a reviewer by name: the count beside it moves as other specs assign reviewers. */
+/** Chooses a reviewer by name only, since the count beside the name changes as other specs run. */
 export async function chooseReviewer(page: Page, name: string) {
   const select = page.getByLabel('Reviewer', { exact: true });
   const value = await select
@@ -18,8 +18,9 @@ export async function addReviewer(page: Page, name: string) {
 }
 
 /**
- * Assigns the named reviewers to a submitted indicator as the IMRG manager, in a browser context
- * of their own, for tests whose user comes to it once it is in review.
+ * Signs in as the IMRG manager in a separate browser context and assigns the named reviewers to
+ * a submitted indicator. This puts the indicator in review for a test signed in as someone else,
+ * usually one of those reviewers.
  */
 export async function assignReviewers(browser: Browser, id: string, names: readonly string[]) {
   const context = await browser.newContext({ storageState: IMRG_MANAGER.storageState });

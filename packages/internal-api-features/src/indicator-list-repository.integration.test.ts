@@ -421,7 +421,7 @@ describe('listIndicatorsToReview', () => {
     return first.id;
   }
 
-  /** The ids the reviewer's list holds, in its order, from among `ids`. */
+  /** Which of `ids` are in the reviewer's list, in the list's order. */
   async function listed(db: Database, ids: string[], reviewerId: string = REVIEWER) {
     const rows = await listIndicatorsToReview(db, reviewerId);
     return rows.map((row) => row.id).filter((id) => ids.includes(id));
@@ -454,7 +454,8 @@ describe('listIndicatorsToReview', () => {
       const { indicatorId } = created;
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
       await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
-      // No step assigns reviewers to a withdrawn submission; it stands in for an earlier round.
+      // No step assigns reviewers to a withdrawn submission, so the row is inserted directly. The
+      // withdrawn submission stands in for an earlier round that had this reviewer.
       await db.insert(schema.indicatorVersionSubmissionReviewer).values({
         submissionId: await firstSubmissionId(db, indicatorId),
         reviewerId: REVIEWER,
