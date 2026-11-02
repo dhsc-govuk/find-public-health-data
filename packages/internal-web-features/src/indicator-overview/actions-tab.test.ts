@@ -124,6 +124,21 @@ describe('actionsTabSections', () => {
       expect(sections(approved)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
     });
 
+    it('gives a manager who also edits the indicator one Actions section with both sets of links', () => {
+      expect(
+        sections({ ...submitted, actions: ['withdraw', 'assign_reviewers'] }, { canEdit: true }),
+      ).toEqual([{ heading: 'Actions', button: assignFirst, links: [withdraw] }]);
+      expect(
+        sections({ ...inReview, actions: ['withdraw', 'assign_reviewers'] }, { canEdit: true }),
+      ).toEqual([{ heading: 'Actions', button: null, links: [withdraw, changeReviewers] }]);
+    });
+
+    it('leaves a manager who reviewed it only the Review section once the round is answered', () => {
+      expect(sections(sentBack, { isReviewer: true })).toEqual([
+        { heading: 'Review', button: null, links: [] },
+      ]);
+    });
+
     it('gives a manager who is an assigned reviewer both sections, Review first', () => {
       expect(
         sections({ ...inReview, actions: ['assign_reviewers', ...RESPOND] }, { isReviewer: true }),
