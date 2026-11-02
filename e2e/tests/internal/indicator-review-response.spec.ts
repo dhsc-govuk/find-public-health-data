@@ -100,6 +100,10 @@ test.describe('as an assigned IMRG reviewer', () => {
   }, testInfo) => {
     const { id } = await inReview(browser, 'pre-IMRG feedback');
 
+    await page.goto(overviewPath(id));
+    await expect(
+      page.getByRole('tabpanel', { name: 'Actions' }).getByRole('heading', { level: 2 }),
+    ).toHaveText(['Review']);
     await startResponse(page, id);
     await expectNoAccessibilityViolations(page, testInfo);
     await page.getByLabel('Pre-IMRG meeting feedback').check();
@@ -233,6 +237,24 @@ test.describe('as an assigned IMRG reviewer', () => {
     );
   });
 
+  test('the revisions page asks for something to revise or clarify when nothing is ticked', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const { id } = await inReview(browser, 'nothing ticked');
+
+    await startResponse(page, id);
+    await page.getByLabel('Pre-IMRG meeting feedback').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveTitle(/^Error: What needs to be revised or clarified\?/);
+    await expect(page.getByRole('alert').getByRole('link')).toHaveText([
+      'Select what needs to be revised or clarified',
+    ]);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
   test('a response page opened before a resubmission is refused with the changed banner', async ({
     browser,
     page,
@@ -263,6 +285,34 @@ test.describe('as an assigned IMRG reviewer', () => {
 
   test.describe('without JavaScript', () => {
     test.use({ javaScriptEnabled: false });
+
+    test('posts the same forms to approve the indicator', async ({ browser, page }) => {
+      const { id } = await inReview(browser, 'no script approval');
+
+      await startResponse(page, id);
+      await decide(page);
+      await page.getByLabel('Yes', { exact: true }).check();
+      await page.getByRole('button', { name: 'Continue' }).click();
+
+      await expect(page).toHaveURL(overviewPath(id));
+      await expect(publishingTag(page)).toHaveText('Publishing status: Publishing scheduled');
+    });
+
+    test('re-renders the revisions page with its error summary when nothing is ticked', async ({
+      browser,
+      page,
+    }) => {
+      const { id } = await inReview(browser, 'no script nothing ticked');
+
+      await startResponse(page, id);
+      await page.getByLabel('Pre-IMRG meeting feedback').check();
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByRole('button', { name: 'Continue' }).click();
+
+      await expect(page.getByRole('alert')).toContainText(
+        'Select what needs to be revised or clarified',
+      );
+    });
 
     test('posts the same forms to send minor revisions', async ({ browser, page }) => {
       const { id } = await inReview(browser, 'no script');
