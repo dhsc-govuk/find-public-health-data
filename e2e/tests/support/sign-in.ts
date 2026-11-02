@@ -9,7 +9,7 @@ const SESSIONS_DIR = join(import.meta.dirname, '..', '..', '.auth');
  * run for specs to start from with `test.use({ storageState })`. Every spec shares the session, so
  * a test that signs out signs in for itself first.
  */
-type SignedInUser = { name: string; storageState: string };
+export type SignedInUser = { name: string; storageState: string };
 
 export const PUBLISHER: SignedInUser = {
   name: 'Sam Taylor',
