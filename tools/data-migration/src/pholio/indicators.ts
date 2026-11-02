@@ -235,10 +235,10 @@ export async function exportIndicators(context: PholioExportOptions) {
         row.OwnerProfileId,
         analyticalRows,
       );
-      const polarityName = polarityId === null ? null : polarityNameById.get(polarityId);
+      const polarityName = polarityNameById.get(polarityId);
       if (polarityName === undefined)
         throw new Error(`Indicator ${id}: no polarity name for polarity_id ${polarityId}`);
-      const polarity = polarityName === null ? null : translatePolarity(polarityName);
+      const polarity = translatePolarity(polarityName);
       return [id, { polarity, comparatorMethodId }] as const;
     }),
   );

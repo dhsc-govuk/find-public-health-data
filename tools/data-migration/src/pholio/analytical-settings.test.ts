@@ -47,14 +47,26 @@ it('does not discard an explicit unspecified method when directional settings di
     ]),
   ).toThrow('conflicting comparator method -1, 1');
 });
-it('uses a unanimous setting when an owner has no groupings', () => {
-  expect(
-    indicatorAnalyticalSettings(108, null, [grouping(), grouping({ ProfileId: 20 })]).polarityId,
-  ).toBe(0);
+it.each(
+  [[], [grouping()], [grouping(), grouping({ ProfileId: 20 })]].map((groupings) => ({ groupings })),
+)('rejects a missing owner even with groupings %j', ({ groupings }) => {
+  expect(() => indicatorAnalyticalSettings(108, null, groupings)).toThrow(
+    'Indicator 108: no owning profile; source decision required',
+  );
 });
-it('leaves absent settings unanswered', () => {
-  expect(indicatorAnalyticalSettings(108, null, [])).toEqual({
-    polarityId: null,
+it('rejects a known owner without groupings instead of using another profile', () => {
+  expect(() => indicatorAnalyticalSettings(108, 10, [grouping({ ProfileId: 20 })])).toThrow(
+    'Indicator 108: no groupings for owning profile 10; source decision required',
+  );
+});
+it('rejects an owner whose groupings have no polarity', () => {
+  expect(() => indicatorAnalyticalSettings(108, 10, [grouping({ PolarityID: null })])).toThrow(
+    'Indicator 108: missing polarity in owning profile 10; source decision required',
+  );
+});
+it('preserves a missing comparator when the owner has a polarity', () => {
+  expect(indicatorAnalyticalSettings(108, 10, [grouping({ ComparatorMethodID: null })])).toEqual({
+    polarityId: 0,
     comparatorMethodId: null,
   });
 });

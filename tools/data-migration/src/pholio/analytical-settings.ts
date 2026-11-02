@@ -12,10 +12,16 @@ export function indicatorAnalyticalSettings(
   indicatorId: number,
   ownerProfileId: number | null,
   groupings: readonly SourceGroupingSetting[],
-): { polarityId: number | null; comparatorMethodId: number | null } {
-  const all = groupings.filter((row) => row.IndicatorID === indicatorId);
-  const owned = all.filter((row) => ownerProfileId !== null && row.ProfileId === ownerProfileId);
-  const selected = owned.length ? owned : all;
+): { polarityId: number; comparatorMethodId: number | null } {
+  if (ownerProfileId === null)
+    throw new Error(`Indicator ${indicatorId}: no owning profile; source decision required`);
+  const selected = groupings.filter(
+    (row) => row.IndicatorID === indicatorId && row.ProfileId === ownerProfileId,
+  );
+  if (!selected.length)
+    throw new Error(
+      `Indicator ${indicatorId}: no groupings for owning profile ${ownerProfileId}; source decision required`,
+    );
   const resolve = (values: readonly (number | null)[], kind: string): number | null => {
     const ids = [...new Set(values.filter((id): id is number => id !== null))].sort(
       (a, b) => a - b,
@@ -35,6 +41,10 @@ export function indicatorAnalyticalSettings(
         ? -1
         : null
     : resolve(polarities, 'polarity');
+  if (polarityId === null)
+    throw new Error(
+      `Indicator ${indicatorId}: missing polarity in owning profile ${ownerProfileId}; source decision required`,
+    );
   const methods = selected.map((row) => row.ComparatorMethodID);
   const quintiles = neutral && methods.every((id) => id === null || id === -1 || id === 15);
   const comparatorMethodId = quintiles
