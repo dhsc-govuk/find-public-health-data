@@ -1,8 +1,11 @@
 // No @fphd/ui imports here, so the loaders and actions unit-test without the components' jsdom.
+
+import { canReviewIndicators } from '@fphd/auth/permissions';
 import {
   type IndicatorAdminDetail,
   imrgReviewDateSchemaFor,
   indicatorAdminDetailSchema,
+  REVIEW_RESPONSE_STEPS,
   type ReviewResponseField,
   reviewApprovalSchema,
   reviewedBeforeSubmissionMessage,
@@ -14,10 +17,10 @@ import {
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { takeFlash } from '@fphd/web-server/flash';
+import { getSession } from '@fphd/web-server/session';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
 
 import { requireIndicatorId } from '../indicator-id.ts';
-import { RESPONSE_STEPS } from '../indicator-overview/actions-tab.ts';
 import { setOverviewFlash } from '../indicator-overview/notifications.ts';
 import { indicatorOverviewPath } from '../indicator-overview/paths.ts';
 import {
@@ -34,9 +37,18 @@ import {
 } from './form.ts';
 import { reviewResponsePath } from './paths.ts';
 import { isRevisionsJourney, journeyFrom, journeySearch, type ReviewJourney } from './query.ts';
-import { REVIEWED_BEFORE_SUBMISSION, type ReviewFormState, sendReviewResponse } from './send.ts';
+import { REVIEW_DATE_REFUSED, type ReviewFormState, sendReviewResponse } from './send.ts';
 
 type Context = LoaderFunctionArgs['context'];
+
+/** The pages do not exist for a user who may not review, as the API's 403 means. */
+function requireReviewer(context: Context): void {
+  const session = getSession(context);
+
+  if (session === undefined || !canReviewIndicators(session)) {
+    throw new Response('Not Found', { status: 404 });
+  }
+}
 
 function fetchIndicator(context: Context, id: string): Promise<IndicatorAdminDetail> {
   return context
@@ -51,7 +63,7 @@ function fetchIndicator(context: Context, id: string): Promise<IndicatorAdminDet
 async function waitingIndicator(context: Context, id: string): Promise<IndicatorAdminDetail> {
   const indicator = await fetchIndicator(context, id);
 
-  if (!indicator.actions.some((step) => RESPONSE_STEPS.includes(step))) {
+  if (!indicator.actions.some((step) => REVIEW_RESPONSE_STEPS.includes(step))) {
     setOverviewFlash(context, 'review-not-waiting');
     throw redirect(indicatorOverviewPath(id));
   }
@@ -86,6 +98,7 @@ function recap({ name, draftScheduledPublishAt }: IndicatorAdminDetail) {
 
 export async function loadResponseType({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const indicator = await waitingIndicator(context, id);
   const journey = journeyFrom(new URL(request.url));
   const submissionNumber = indicator.draftSubmissionNumber;
@@ -96,10 +109,12 @@ export async function loadResponseType({ context, params, request }: LoaderFunct
 }
 
 export async function chooseResponseType({
+  context,
   params,
   request,
 }: ActionFunctionArgs): Promise<ReviewFormState<'responseType', ResponseTypeValues> | Response> {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const formData = await request.formData();
   const submission = formData.get('submissionNumber');
   const responseType = formData.get('responseType');
@@ -130,22 +145,47 @@ export async function chooseResponseType({
 
 export async function loadReviewDate({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const indicator = await waitingIndicator(context, id);
   const journey = requireJourney(request, id, anyJourney);
-  const { draftFirstSubmittedAt } = indicator;
-  const refused =
-    takeFlash(context) === REVIEWED_BEFORE_SUBMISSION && draftFirstSubmittedAt !== null;
-  const message = refused ? reviewedBeforeSubmissionMessage(new Date(draftFirstSubmittedAt)) : '';
+  const values = dateValuesFrom(journey);
 
   return {
     id,
     journey,
     ...recap(indicator),
-    values: dateValuesFrom(journey),
-    fieldErrors: refused
-      ? { imrgReviewedOnDay: message, imrgReviewedOnMonth: message, imrgReviewedOnYear: message }
-      : {},
+    values,
+    fieldErrors:
+      takeFlash(context) === REVIEW_DATE_REFUSED ? refusedDateErrors(values, indicator) : {},
   };
+}
+
+/** The date rules' schema, as the date page and its loader apply them today. */
+function reviewDateSchema({ draftFirstSubmittedAt }: IndicatorAdminDetail) {
+  return imrgReviewDateSchemaFor({
+    now: new Date(),
+    firstSubmittedAt: draftFirstSubmittedAt === null ? null : new Date(draftFirstSubmittedAt),
+  });
+}
+
+/**
+ * Why the API refused the date the journey carries: the date rules again, or else the one rule
+ * only the API applies under the draft's lock, a date before the version's first submission.
+ */
+function refusedDateErrors(
+  values: DateValues,
+  indicator: IndicatorAdminDetail,
+): Partial<Record<keyof DateValues, string>> {
+  const schema = reviewDateSchema(indicator);
+  const checked = schema.safeParse(values);
+
+  if (!checked.success) return toFieldErrors(checked.error, schema.in.keyof());
+
+  const { draftFirstSubmittedAt } = indicator;
+  if (draftFirstSubmittedAt === null) return {};
+
+  const message = reviewedBeforeSubmissionMessage(new Date(draftFirstSubmittedAt));
+  return { imrgReviewedOnDay: message, imrgReviewedOnMonth: message, imrgReviewedOnYear: message };
 }
 
 export async function chooseReviewDate({
@@ -154,14 +194,11 @@ export async function chooseReviewDate({
   request,
 }: ActionFunctionArgs): Promise<ReviewFormState<keyof DateValues, DateValues> | Response> {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const journey = requireJourney(request, id, anyJourney);
   const formData = await request.formData();
   const values = readReviewDate(formData);
-  const { draftFirstSubmittedAt } = await fetchIndicator(context, id);
-  const schema = imrgReviewDateSchemaFor({
-    now: new Date(),
-    firstSubmittedAt: draftFirstSubmittedAt === null ? null : new Date(draftFirstSubmittedAt),
-  });
+  const schema = reviewDateSchema(await fetchIndicator(context, id));
   const date = schema.safeParse(values);
 
   if (!date.success) {
@@ -177,6 +214,7 @@ export async function chooseReviewDate({
 
 export async function loadApproval({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const indicator = await waitingIndicator(context, id);
   const journey = requireJourney(request, id, dated);
 
@@ -189,11 +227,16 @@ export async function chooseApproval({
   request,
 }: ActionFunctionArgs): Promise<ReviewFormState<keyof ApprovalValues, ApprovalValues> | Response> {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const journey = requireJourney(request, id, dated);
   const formData = await request.formData();
+  const text = (name: string) => {
+    const value = formData.get(name);
+    return typeof value === 'string' ? value : '';
+  };
   const values: ApprovalValues = {
-    approved: String(formData.get('approved') ?? ''),
-    revisionsKind: String(formData.get('revisionsKind') ?? ''),
+    approved: text('approved'),
+    revisionsKind: text('revisionsKind'),
   };
   const decision = reviewApprovalSchema.safeParse({
     approved: values.approved || undefined,
@@ -226,6 +269,7 @@ export async function chooseApproval({
 
 export async function loadRevisions({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   await waitingIndicator(context, id);
   const journey = requireJourney(request, id, isRevisionsJourney);
 
@@ -238,6 +282,7 @@ export async function sendRevisions({
   request,
 }: ActionFunctionArgs): Promise<ReviewFormState<ReviewResponseField, RevisionsValues> | Response> {
   const id = requireIndicatorId(params);
+  requireReviewer(context);
   const journey = requireJourney(request, id, isRevisionsJourney);
   const values = readRevisions(await request.formData());
   const body = revisionsBody(journey, values);

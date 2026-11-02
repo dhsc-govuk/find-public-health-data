@@ -27,7 +27,7 @@ export interface ReviewFormState<Field extends string, Values> {
 }
 
 /** The flash that takes the reviewer back to the date page when the API refuses the date. */
-export const REVIEWED_BEFORE_SUBMISSION = 'reviewed-before-submission';
+export const REVIEW_DATE_REFUSED = 'review-date-refused';
 
 const SENT: Readonly<Record<ReviewResponseKind, OverviewFlash>> = {
   pre_imrg_feedback: 'review-feedback-given',
@@ -88,7 +88,7 @@ export async function sendReviewResponse(
 
   if (refusal.error === 'validation_failed') {
     if (refusal.fieldErrors.imrgReviewedOn !== undefined) {
-      setFlash(context, REVIEWED_BEFORE_SUBMISSION);
+      setFlash(context, REVIEW_DATE_REFUSED);
       const back = {
         submissionNumber: journey.submissionNumber,
         imrgReviewedOn: journey.imrgReviewedOn,

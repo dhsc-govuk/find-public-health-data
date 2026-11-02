@@ -55,8 +55,9 @@ async function run(
   handler: (args: never) => Promise<unknown>,
   client: Partial<ApiClient>,
   request: Request,
+  roles: readonly string[] = ['imrg-reviewer'],
 ) {
-  const context = withFlashStorage(await signedInContext(['imrg-reviewer'], []));
+  const context = withFlashStorage(await signedInContext(roles, []));
   context.set(apiContext, client as ApiClient);
   let outcome: unknown;
   const response = await flashedResponse(context, request, async () => {
@@ -67,6 +68,55 @@ async function run(
 }
 
 describe('the response pages', () => {
+  const pages: [string, (args: never) => Promise<unknown>, Request][] = [
+    [
+      'response type page',
+      loadResponseType,
+      new Request(`https://internal.test${REVIEW}/response-type`),
+    ],
+    [
+      'response type form',
+      chooseResponseType,
+      post(`${REVIEW}/response-type`, [['submissionNumber', '2']]),
+    ],
+    ['date page', loadReviewDate, new Request(`https://internal.test${REVIEW}/date?submission=2`)],
+    ['date form', chooseReviewDate, post(`${REVIEW}/date?submission=2`, [])],
+    [
+      'approval page',
+      loadApproval,
+      new Request(`https://internal.test${REVIEW}/approval?submission=2&reviewedOn=2026-10-29`),
+    ],
+    [
+      'approval form',
+      chooseApproval,
+      post(`${REVIEW}/approval?submission=2&reviewedOn=2026-10-29`, []),
+    ],
+    [
+      'revisions page',
+      loadRevisions,
+      new Request(`https://internal.test${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`),
+    ],
+    [
+      'revisions form',
+      sendRevisions,
+      post(`${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`, []),
+    ],
+  ];
+
+  it.each([
+    ['a publisher', ['publisher']],
+    ['an IMRG manager without the reviewer role', ['imrg-manager']],
+  ])('do not exist for %s', async (_, roles) => {
+    for (const [name, handler, request] of pages) {
+      const client = { get: vi.fn(), postToMember: vi.fn() };
+      const { response } = await run(handler, client, request.clone(), roles);
+
+      expect(response.status, name).toBe(404);
+      expect(client.get, name).not.toHaveBeenCalled();
+      expect(client.postToMember, name).not.toHaveBeenCalled();
+    }
+  });
+
   it('open with the submission the reviewer is shown', async () => {
     const { outcome } = await run(
       loadResponseType,
@@ -176,13 +226,30 @@ describe('the response pages', () => {
     );
   });
 
+  it('show on the date page the rule a refused date breaks', async () => {
+    const context = withFlashStorage(await signedInContext(['imrg-reviewer'], []));
+    context.set(apiContext, { get: vi.fn().mockResolvedValue(inReview) } as unknown as ApiClient);
+    const request = new Request(
+      `https://internal.test${REVIEW}/date?submission=2&reviewedOn=2999-01-01`,
+      { headers: { Cookie: await flashCookie('review-date-refused') } },
+    );
+    let outcome: unknown;
+    await flashedResponse(context, request, async () => {
+      outcome = await loadReviewDate({ context, params: { id: ID }, request } as never);
+    });
+
+    expect(outcome).toMatchObject({
+      fieldErrors: { imrgReviewedOnDay: 'Date reviewed by IMRG must be today or in the past' },
+    });
+  });
+
   it('show on the date page why the API refused the date', async () => {
     const context = withFlashStorage(await signedInContext(['imrg-reviewer'], []));
     context.set(apiContext, { get: vi.fn().mockResolvedValue(inReview) } as unknown as ApiClient);
     const request = new Request(
       `https://internal.test${REVIEW}/date?submission=2&reviewedOn=2026-10-20`,
       {
-        headers: { Cookie: await flashCookie('reviewed-before-submission') },
+        headers: { Cookie: await flashCookie('review-date-refused') },
       },
     );
     let outcome: unknown;
@@ -320,7 +387,7 @@ describe('the response pages', () => {
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
       location: `${REVIEW}/date?submission=2&reviewedOn=2026-10-29`,
-      flash: 'reviewed-before-submission',
+      flash: 'review-date-refused',
     });
   });
 });

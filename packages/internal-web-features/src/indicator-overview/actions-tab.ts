@@ -1,5 +1,8 @@
 // No @fphd/ui imports here, so the sections unit-test without the components' jsdom.
-import type { IndicatorAdminDetail, IndicatorStep } from '@fphd/internal-api-features/contract';
+import {
+  type IndicatorAdminDetail,
+  REVIEW_RESPONSE_STEPS,
+} from '@fphd/internal-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 
 import { reviewResponsePath } from '../indicator-review-response/paths.ts';
@@ -18,13 +21,6 @@ export interface ActionsTabSection {
   links: ActionLink[];
 }
 
-/** The steps a reviewer's response takes, any of which the Review section's button offers. */
-export const RESPONSE_STEPS: readonly IndicatorStep[] = [
-  'give_feedback',
-  'request_changes',
-  'approve',
-];
-
 export interface ActionsTabInput {
   /** Whether the user is an assigned reviewer of the draft's latest submission. */
   isReviewer: boolean;
@@ -32,16 +28,20 @@ export interface ActionsTabInput {
   canEdit: boolean;
   indicator: Pick<
     IndicatorAdminDetail,
-    'id' | 'actions' | 'indicatorStatus' | 'draftStatus' | 'draftLocked' | 'draftSubmissionStatus'
-  > &
-    Pick<IndicatorAdminDetail, 'publishedSlug'>;
+    | 'id'
+    | 'actions'
+    | 'indicatorStatus'
+    | 'draftStatus'
+    | 'draftLocked'
+    | 'draftSubmissionStatus'
+    | 'publishedSlug'
+  >;
 }
 
 function reviewSection({ indicator }: ActionsTabInput): ActionsTabSection {
-  const responds = indicator.actions.some((step) => RESPONSE_STEPS.includes(step));
   return {
     heading: 'Review',
-    button: responds
+    button: indicator.actions.some((step) => REVIEW_RESPONSE_STEPS.includes(step))
       ? { href: reviewResponsePath(indicator.id, 'response-type'), label: 'Submit review response' }
       : null,
     links: [],
