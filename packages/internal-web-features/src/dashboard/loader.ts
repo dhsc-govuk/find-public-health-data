@@ -43,8 +43,8 @@ async function loadIndicatorList(api: ApiClient, page: number, ownTeams: boolean
 /**
  * An IMRG manager sees the indicators under review, an IMRG reviewer the indicators assigned to
  * them, and an admin or anyone else a page of the indicators they work on. A user with several of
- * these roles, or one who also publishes, sees each. An invalid page number, or a page past the first for
- * someone with no list, is a 404.
+ * these roles, or one who also publishes, sees each. An invalid page number, or a page past the
+ * first for someone with no list, is a 404.
  */
 export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
   const query = indicatorPageQuerySchema.safeParse(queryObject(new URL(request.url).searchParams));
