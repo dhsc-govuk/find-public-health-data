@@ -103,7 +103,15 @@ export const draftStatusSchema = z.enum(['draft']);
 export const draftSubmissionStatusSchema = z.enum(INDICATOR_SUBMISSION_STATUSES);
 
 /** The steps a version takes through review, in the order the workflow allows them. */
-export const INDICATOR_STEPS = ['submit', 'withdraw', 'assign_reviewers'] as const;
+export const INDICATOR_STEPS = [
+  'submit',
+  'withdraw',
+  'assign_reviewers',
+  'give_feedback',
+  'request_changes',
+  'approve',
+  'resubmit',
+] as const;
 
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
 

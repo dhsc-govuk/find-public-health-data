@@ -72,6 +72,8 @@ export interface IndicatorDraftStateRow {
   indicatorStatus: IndicatorStatus;
   draftStatus: DraftStatus | null;
   draftSubmissionStatus: DraftSubmissionStatus | null;
+  /** The reviewers of the draft's latest submission, who may take steps on it too. */
+  draftReviewers: DraftReviewer[];
 }
 
 /** The draft and the indicator's two statuses, which is what a task list is derived from. */
@@ -89,6 +91,7 @@ export async function getIndicatorDraftState(
       indicatorStatus,
       draftStatus,
       draftSubmissionStatus,
+      draftReviewers,
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)

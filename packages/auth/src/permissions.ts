@@ -58,7 +58,7 @@ export function canSubmitIndicator(
   return canEditIndicator(user, indicator);
 }
 
-/** Whether the user may withdraw the draft's submission before review. As `canSubmitIndicator`. */
+/** Whether the user may withdraw the draft's submission before a response. As `canSubmitIndicator`. */
 export function canWithdrawSubmission(
   user: SessionUser,
   indicator: Pick<IndicatorAccess, 'teamId'>,
@@ -76,6 +76,14 @@ export function canReviewIndicator(
   { reviewerIds }: Pick<IndicatorAccess, 'reviewerIds'>,
 ): boolean {
   return canReviewIndicators(user) && reviewerIds.includes(user.sub);
+}
+
+/** Whether the user may respond to the indicator's submission: one of its assigned reviewers. */
+export function canRespondToReview(
+  user: SessionUser,
+  indicator: Pick<IndicatorAccess, 'reviewerIds'>,
+): boolean {
+  return canReviewIndicator(user, indicator);
 }
 
 /**

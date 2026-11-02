@@ -315,21 +315,25 @@ describe('two steps at once', () => {
     expect(await submissionStatuses(db, versionId)).toEqual(['withdrawn']);
   });
 
-  repositoryTest('refuse a withdrawal that waited on an assignment', async ({ db }) => {
-    const { indicatorId, versionId } = await submittedNewDraft(db, 'Assigned, then withdrawn');
+  repositoryTest(
+    'withdraw a submission put in review while the withdrawal waited, keeping its reviewers',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await submittedNewDraft(db, 'Assigned, then withdrawn');
 
-    const result = await writeWhileStepHolds(
-      db,
-      indicatorId,
-      'assign_reviewers',
-      () => withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR),
-      replaceReviewers([REVIEWER], AS_MANAGER),
-    );
+      const result = await writeWhileStepHolds(
+        db,
+        indicatorId,
+        'assign_reviewers',
+        () => withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR),
+        replaceReviewers([REVIEWER], AS_MANAGER),
+      );
 
-    expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'not_allowed' } });
-    expect(await submissionStatuses(db, versionId)).toEqual(['in_review']);
-    expect((await draftOf(db, versionId)).isLocked).toBe(true);
-  });
+      expect(result).toEqual({ step: { ok: true }, write: { ok: true } });
+      expect(await submissionStatuses(db, versionId)).toEqual(['withdrawn']);
+      expect((await draftOf(db, versionId)).isLocked).toBe(false);
+      expect(await reviewerIdsOf(db, indicatorId)).toEqual([REVIEWER]);
+    },
+  );
 
   repositoryTest('refuse as changed an assignment that waited on another one', async ({ db }) => {
     const { indicatorId } = await submittedNewDraft(db, 'Assigned by two managers');

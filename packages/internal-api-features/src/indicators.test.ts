@@ -367,7 +367,7 @@ describe('GET /api/internal/indicators/:id', () => {
     expect(response.status).toBe(200);
   });
 
-  it("serves an IMRG reviewer another team's indicator assigned to them, offering no step", async () => {
+  it("serves an IMRG reviewer another team's indicator assigned to them, offering the responses", async () => {
     const findById = vi.fn().mockResolvedValue(assignedToTestUser);
 
     const response = await request(createTestApp({ findById }))
@@ -375,7 +375,7 @@ describe('GET /api/internal/indicators/:id', () => {
       .set('Cookie', await reviewerCookie());
 
     expect(response.status).toBe(200);
-    expect(response.body.actions).toEqual([]);
+    expect(response.body.actions).toEqual(['give_feedback', 'request_changes', 'approve']);
   });
 
   it('answers 404 to an IMRG reviewer for an indicator assigned to someone else', async () => {
@@ -921,6 +921,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionStatus: null,
+    draftReviewers: [],
   };
 
   it('rejects an anonymous request', async () => {

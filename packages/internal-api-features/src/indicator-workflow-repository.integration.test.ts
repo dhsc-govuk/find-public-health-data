@@ -592,16 +592,21 @@ describe('assignReviewers', () => {
     });
   });
 
-  repositoryTest('stops the publisher withdrawing the submission', async ({ db }) => {
-    const { indicatorId, versionId } = await submittedDraft(db, 'Withdrawn after assignment');
-    await assign(db, indicatorId, [REVIEWER]);
+  repositoryTest(
+    'lets the publisher withdraw the submission, keeping its reviewers',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await submittedDraft(db, 'Withdrawn after assignment');
+      await assign(db, indicatorId, [REVIEWER]);
 
-    await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
-      ok: false,
-      reason: 'not_allowed',
-    });
-    expect((await versionOf(db, versionId)).isLocked).toBe(true);
-  });
+      await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({ ok: true });
+      const [submission] = await submissionsOf(db, versionId);
+      expect(submission?.status).toBe('withdrawn');
+      expect(
+        (await reviewersOf(db, submission?.id ?? '')).map(({ reviewerId }) => reviewerId),
+      ).toEqual([REVIEWER]);
+      expect((await versionOf(db, versionId)).isLocked).toBe(false);
+    },
+  );
 });
 
 describe('the lock', () => {

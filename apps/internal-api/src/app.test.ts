@@ -39,6 +39,8 @@ function createTestApp(
 
 const app = createTestApp();
 
+const stepRow = { teamId: TEAM_IDS.teamA, draftReviewers: [] };
+
 async function createCookie(roles: readonly string[]): Promise<string> {
   const token = await session.issueToken({
     expiresInSeconds: 900,
@@ -168,6 +170,8 @@ describe('internal API', () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
         findTeamId: async () => TEAM_IDS.teamA,
+        // The step routes read only the indicator's access from its row.
+        findById: vi.fn().mockResolvedValue(stepRow),
         submit: async () => ({ ok: true }),
         withdraw: async () => ({ ok: true }),
       },
@@ -191,7 +195,7 @@ describe('internal API', () => {
   it('mounts the assign reviewers step behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findTeamId: async () => TEAM_IDS.teamA,
+        findById: vi.fn().mockResolvedValue(stepRow),
         assignReviewers: async () => ({ ok: true }),
       },
     });

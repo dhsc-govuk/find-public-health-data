@@ -52,6 +52,10 @@ const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   submit: 'indicator.submitted',
   withdraw: 'indicator.submission_withdrawn',
   assign_reviewers: 'indicator.reviewers_assigned',
+  give_feedback: 'indicator.review_feedback_given',
+  request_changes: 'indicator.changes_requested',
+  approve: 'indicator.approved',
+  resubmit: 'indicator.resubmitted',
 };
 
 interface SubmissionWrite {
@@ -62,37 +66,53 @@ interface SubmissionWrite {
   actor: Actor;
 }
 
+type SubmissionWriteResult = { before: Submission | null; after: Submission };
+
+/** Inserts the version's next submission, as a submission or resubmission does. */
+async function insertNextSubmission({
+  tx,
+  draft,
+  latest,
+  status,
+  actor,
+}: SubmissionWrite): Promise<SubmissionWriteResult> {
+  const [after] = await tx
+    .insert(indicatorVersionSubmission)
+    .values({
+      indicatorVersionId: draft.id,
+      indicatorId: draft.indicatorId,
+      number: (latest?.number ?? 0) + 1,
+      status,
+      submittedBy: actor.userId,
+    })
+    .returning();
+  if (after === undefined) throw new Error('inserted no submission');
+  return { before: null, after };
+}
+
+/** Ends the latest submission, as a withdrawal or a reviewer's response does. */
+async function endLatestSubmission({
+  tx,
+  latest,
+  status,
+  actor,
+}: SubmissionWrite): Promise<SubmissionWriteResult> {
+  if (latest === undefined) throw new Error('found no submission to end');
+  const [after] = await tx
+    .update(indicatorVersionSubmission)
+    .set({ status, endedBy: actor.userId, endedAt: sql`clock_timestamp()` })
+    .where(eq(indicatorVersionSubmission.id, latest.id))
+    .returning();
+  if (after === undefined) throw new Error(`ended no submission ${latest.id}`);
+  return { before: latest, after };
+}
+
 /** Each step's write of a submission, answering the row before (null when inserted) and after. */
 const SUBMISSION_WRITES: Readonly<
-  Record<
-    IndicatorStep,
-    (write: SubmissionWrite) => Promise<{ before: Submission | null; after: Submission }>
-  >
+  Record<IndicatorStep, (write: SubmissionWrite) => Promise<SubmissionWriteResult>>
 > = {
-  submit: async ({ tx, draft, latest, status, actor }) => {
-    const [after] = await tx
-      .insert(indicatorVersionSubmission)
-      .values({
-        indicatorVersionId: draft.id,
-        indicatorId: draft.indicatorId,
-        number: (latest?.number ?? 0) + 1,
-        status,
-        submittedBy: actor.userId,
-      })
-      .returning();
-    if (after === undefined) throw new Error('submit inserted no submission');
-    return { before: null, after };
-  },
-  withdraw: async ({ tx, latest, status, actor }) => {
-    if (latest === undefined) throw new Error('withdraw found no submission to end');
-    const [after] = await tx
-      .update(indicatorVersionSubmission)
-      .set({ status, endedBy: actor.userId, endedAt: sql`clock_timestamp()` })
-      .where(eq(indicatorVersionSubmission.id, latest.id))
-      .returning();
-    if (after === undefined) throw new Error(`withdraw updated no submission ${latest.id}`);
-    return { before: latest, after };
-  },
+  submit: insertNextSubmission,
+  withdraw: endLatestSubmission,
   // Changing the reviewers leaves a submission already in review as it is.
   assign_reviewers: async ({ tx, latest, status }) => {
     if (latest === undefined) throw new Error('assign_reviewers found no submission');
@@ -105,6 +125,10 @@ const SUBMISSION_WRITES: Readonly<
     if (after === undefined) throw new Error(`assign_reviewers updated no submission ${latest.id}`);
     return { before: latest, after };
   },
+  give_feedback: endLatestSubmission,
+  request_changes: endLatestSubmission,
+  approve: endLatestSubmission,
+  resubmit: insertNextSubmission,
 };
 
 /**
@@ -222,9 +246,10 @@ export function submitIndicator(
 }
 
 /**
- * Withdraws the draft's submission before review, unlocking the draft. `submissionNumber` is the
- * submission the publisher was shown: one withdrawn and resubmitted since is refused as `changed`,
- * so an old confirmation page never withdraws a newer submission.
+ * Withdraws the draft's submission before any response, unlocking the draft and keeping its
+ * reviewers for the next submission. `submissionNumber` is the submission the publisher was shown:
+ * one withdrawn and resubmitted since is refused as `changed`, so an old confirmation page never
+ * withdraws a newer submission.
  */
 export function withdrawSubmission(
   db: Database,

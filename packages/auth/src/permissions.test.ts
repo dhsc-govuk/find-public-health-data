@@ -9,6 +9,7 @@ import {
   canListIndicators,
   canManage,
   canMoveIndicatorBetweenTeams,
+  canRespondToReview,
   canReviewIndicator,
   canReviewIndicators,
   canSeeIndicator,
@@ -130,6 +131,18 @@ describe('canReviewIndicator', () => {
     expect(canReviewIndicator(reviewer, assigned)).toBe(true);
     expect(canReviewIndicator(reviewer, inTeamA)).toBe(false);
     expect(canReviewIndicator(manager, assigned)).toBe(false);
+  });
+});
+
+describe('canRespondToReview', () => {
+  it.each([
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+    ['a publisher in its team', publisherA, assigned, false],
+    ['an IMRG manager', manager, assigned, false],
+    ['an admin', admin, assigned, false],
+  ])('answers %s', (_who, asking, indicator, expected) => {
+    expect(canRespondToReview(asking, indicator)).toBe(expected);
   });
 });
 

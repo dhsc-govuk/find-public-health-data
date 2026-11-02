@@ -4,13 +4,14 @@ import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { IndicatorAdminDetailRow } from './indicator-list-repository.ts';
 import { indicatorSubmissionsRouter } from './indicator-submissions.ts';
 import {
   createFakeInternalRepositories,
   createRouterTestApp,
   type FakeInternalRepositoryOverrides,
   handlerLogLines,
-  inTestTeam,
+  TEST_TEAM_ID,
   TEST_USER_ID,
   testActor,
   testSessionCookie,
@@ -21,12 +22,41 @@ const ID = '00000000-0000-7000-8000-000000000001';
 const OTHER_TEAM_ID = '00000000-0000-7000-8000-00000000000b';
 const DRAFT_UPDATED_AT = '2026-10-22T09:30:00.123Z';
 
+const submittedRow: IndicatorAdminDetailRow = {
+  id: ID,
+  name: 'Life expectancy at birth',
+  teamId: TEST_TEAM_ID,
+  updatedAt: new Date('2026-10-22T09:30:00.123Z'),
+  indicatorStatus: 'new',
+  draftStatus: 'draft',
+  draftLocked: true,
+  draftSubmissionStatus: 'submitted',
+  draftReviewers: [],
+  shortId: 90366,
+  publishedSlug: null,
+  draftSubmissionNumber: 1,
+  draftScheduledPublishAt: null,
+};
+
+/** The indicator's lookups, for an indicator in `teamId`. */
+function inTeam(teamId: string): FakeInternalRepositoryOverrides['indicators'] {
+  return {
+    findTeamId: async () => teamId,
+    findById: async () => ({ ...submittedRow, teamId }),
+  };
+}
+
+const noIndicator: FakeInternalRepositoryOverrides['indicators'] = {
+  findTeamId: async () => undefined,
+  findById: async () => undefined,
+};
+
 function createTestApp(
   overrides: FakeInternalRepositoryOverrides['indicators'] = {},
   logger?: Logger,
 ): Express {
   const repositories = createFakeInternalRepositories({
-    indicators: { ...inTestTeam, ...overrides },
+    indicators: { ...inTeam(TEST_TEAM_ID), ...overrides },
   });
 
   return createRouterTestApp(
@@ -66,9 +96,7 @@ describe.each([
   it("refuses a publisher another team's indicator", async () => {
     const takeStep = vi.fn();
 
-    const response = await request(
-      createTestApp({ findTeamId: async () => OTHER_TEAM_ID, [method]: takeStep }),
-    )
+    const response = await request(createTestApp({ ...inTeam(OTHER_TEAM_ID), [method]: takeStep }))
       .post(path)
       .set('Cookie', await publisherCookie())
       .send(body);
@@ -84,9 +112,7 @@ describe.each([
   ])('refuses an IMRG reviewer assigned to the indicator, %s', async (_who, roles) => {
     const takeStep = vi.fn();
 
-    const response = await request(
-      createTestApp({ findTeamId: async () => OTHER_TEAM_ID, [method]: takeStep }),
-    )
+    const response = await request(createTestApp({ ...inTeam(OTHER_TEAM_ID), [method]: takeStep }))
       .post(path)
       .set('Cookie', await testSessionCookie(roles))
       .send(body);
@@ -106,7 +132,7 @@ describe.each([
   });
 
   it('answers 404 for an indicator that does not exist', async () => {
-    const response = await request(createTestApp({ findTeamId: async () => undefined }))
+    const response = await request(createTestApp(noIndicator))
       .post(path)
       .set('Cookie', await publisherCookie())
       .send(body);
@@ -297,7 +323,7 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
   });
 
   it('answers 404 for an indicator that does not exist', async () => {
-    const response = await request(createTestApp({ findTeamId: async () => undefined }))
+    const response = await request(createTestApp(noIndicator))
       .post(path)
       .set('Cookie', await managerCookie())
       .send(body);

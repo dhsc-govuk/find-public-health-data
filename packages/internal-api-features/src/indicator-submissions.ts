@@ -1,6 +1,6 @@
 import { requireApiActor, requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canAssignReviewers } from '@fphd/auth/permissions';
+import { canAssignReviewers, canSeeIndicator } from '@fphd/auth/permissions';
 import { type Request, type Response, Router } from 'express';
 
 import {
@@ -8,6 +8,7 @@ import {
   type IndicatorStep,
   type IndicatorSubmitError,
   type IndicatorWithdrawError,
+  indicatorAccess,
   indicatorAssignReviewersSchema,
   indicatorIdSchema,
   indicatorSubmitSchema,
@@ -20,10 +21,11 @@ import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**
  * The indicator `:id` names, once the user may take `step` on it, or undefined once the answer is
- * sent: 400 for an id that is not one, 404 for no such indicator, 403 for a user who may not.
+ * sent: 400 for an id that is not one, 404 for no such indicator or one the user may not see, 403
+ * for a user who may see it but not take the step.
  */
 async function stepIndicatorId(
-  indicators: Pick<InternalIndicatorRepository, 'findTeamId'>,
+  indicators: Pick<InternalIndicatorRepository, 'findById'>,
   step: IndicatorStep,
   request: Request,
   response: Response,
@@ -35,14 +37,15 @@ async function stepIndicatorId(
     return undefined;
   }
 
-  const teamId = await indicators.findTeamId(id.data);
+  const row = await indicators.findById(id.data);
+  const session = requireApiSession(response);
 
-  if (teamId === undefined) {
+  if (row === undefined || !canSeeIndicator(session, indicatorAccess(row))) {
     response.status(404).json({ error: 'not_found' });
     return undefined;
   }
 
-  if (!mayTakeStep(requireApiSession(response), { teamId }, step)) {
+  if (!mayTakeStep(session, indicatorAccess(row), step)) {
     response.status(403).json({ error: 'forbidden' });
     return undefined;
   }
