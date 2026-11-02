@@ -1,6 +1,7 @@
 import type { IndicatorAccess } from '@fphd/auth/permissions';
 import { z } from '@fphd/config/zod';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
+import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
 
 import { editVersionSchema } from './edit-version-contract.ts';
@@ -281,30 +282,7 @@ export type IndicatorUpdateError = z.infer<typeof indicatorUpdateErrorSchema>;
 export const indicatorTaskStatusSchema = z.enum(['not_started', 'in_progress', 'completed']);
 
 /** The tasks the API judges: the name, the data table and each section. */
-export const indicatorTaskKeySchema = z.enum([
-  'name',
-  'data-table',
-  'definition-and-rationale',
-  'polarity',
-  'data-quality',
-  'numerator',
-  'denominator',
-  'calculation',
-  'confidence-intervals',
-  'update-frequency',
-  'value-type-and-units',
-  'period-type',
-  'other-notes-and-caveats',
-  'publishing-date',
-  'links',
-  'variance-and-quality',
-  'justifications',
-  'other-comments',
-  'copyright-and-data-reuse',
-  'benchmarking',
-  'sex-and-ages',
-  'tagging',
-]);
+export const indicatorTaskKeySchema = z.enum(INDICATOR_TASK_KEYS);
 
 export const indicatorTaskStatusesSchema = z.record(
   indicatorTaskKeySchema,

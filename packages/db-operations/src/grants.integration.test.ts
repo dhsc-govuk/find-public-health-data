@@ -667,3 +667,94 @@ describe('the reviewer assignments', () => {
     ).rejects.toThrow(/permission denied/);
   });
 });
+
+describe('the review responses, flags and reviewer notes', () => {
+  const internal = internalMemberOfBlock();
+
+  /** A submission in review with `ACTOR` as its reviewer, inserted as the owner. */
+  async function reviewedSubmission(): Promise<string> {
+    const [submission] = await owner<{ id: string }[]>`
+      INSERT INTO indicator_version_submission
+        (indicator_version_id, indicator_id, number, status, submitted_by)
+      SELECT v.id, v.indicator_id,
+        (SELECT coalesce(max(number), 0) + 1 FROM indicator_version_submission s
+         WHERE s.indicator_version_id = v.id),
+        'in_review', ${ACTOR}
+      FROM indicator_version v WHERE v.indicator_id = ${draftIndicatorId}
+      RETURNING id
+    `;
+    const id = submission?.id ?? '';
+    await owner`
+      INSERT INTO indicator_version_submission_reviewer (submission_id, reviewer_id, assigned_by)
+      VALUES (${id}, ${ACTOR}, ${ACTOR})
+    `;
+    return id;
+  }
+
+  it('lets the internal role add a response and its flag, read them and clear the flag', async () => {
+    const submissionId = await reviewedSubmission();
+    const [response] = await internal()<{ id: string }[]>`
+      INSERT INTO indicator_version_submission_response (submission_id, reviewer_id, kind)
+      VALUES (${submissionId}, ${ACTOR}, 'pre_imrg_feedback')
+      RETURNING id
+    `;
+    const responseId = response?.id ?? '';
+    await internal()`
+      INSERT INTO indicator_version_submission_flag (response_id, task_key, notes)
+      VALUES (${responseId}, 'polarity', 'Check the polarity')
+    `;
+    await internal()`
+      UPDATE indicator_version_submission_flag SET cleared_by = ${ACTOR}, cleared_at = now()
+      WHERE response_id = ${responseId}
+    `;
+
+    await expect(
+      internal()`
+        SELECT r.kind, f.cleared_by FROM indicator_version_submission_response r
+        JOIN indicator_version_submission_flag f ON f.response_id = r.id
+        WHERE r.id = ${responseId}
+      `,
+    ).resolves.toEqual([{ kind: 'pre_imrg_feedback', cleared_by: ACTOR }]);
+  });
+
+  it('lets the internal role add a reviewer note, read it and edit it', async () => {
+    const submissionId = await reviewedSubmission();
+    const [note] = await internal()<{ id: string }[]>`
+      INSERT INTO indicator_version_review_note (submission_id, author_id, text)
+      VALUES (${submissionId}, ${ACTOR}, 'First thoughts')
+      RETURNING id
+    `;
+    await internal()`
+      UPDATE indicator_version_review_note SET text = 'Second thoughts', updated_at = now()
+      WHERE id = ${note?.id ?? ''}
+    `;
+
+    await expect(
+      internal()`SELECT text FROM indicator_version_review_note WHERE id = ${note?.id ?? ''}`,
+    ).resolves.toEqual([{ text: 'Second thoughts' }]);
+  });
+
+  it.each([
+    ['UPDATE', 'indicator_version_submission_response'],
+    ['DELETE', 'indicator_version_submission_response'],
+    ['TRUNCATE', 'indicator_version_submission_response'],
+    ['DELETE', 'indicator_version_submission_flag'],
+    ['TRUNCATE', 'indicator_version_submission_flag'],
+    ['DELETE', 'indicator_version_review_note'],
+    ['TRUNCATE', 'indicator_version_review_note'],
+  ])('gives the internal role no %s on %s', async (privilege, table) => {
+    const [row] = await owner<{ granted: boolean }[]>`
+      SELECT has_table_privilege(${API_ROLES.internalApi}, ${`public.${table}`}, ${privilege}) AS granted
+    `;
+
+    expect(row?.granted).toBe(false);
+  });
+
+  it.each([
+    'indicator_version_submission_response',
+    'indicator_version_submission_flag',
+    'indicator_version_review_note',
+  ])('refuses the public role reading %s', async (table) => {
+    await expect(member`SELECT 1 FROM ${member(table)}`).rejects.toThrow(/permission denied/);
+  });
+});
