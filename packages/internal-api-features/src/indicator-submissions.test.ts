@@ -221,17 +221,20 @@ describe('POST /api/internal/indicators/:id/submit', () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
-  it.each(['changed', 'incomplete'])('answers 409 %s when the draft refuses', async (reason) => {
-    const submit = vi.fn().mockResolvedValue({ ok: false, reason });
+  it.each(['changed', 'incomplete', 'flagged', 'no_response'])(
+    'answers 409 %s when the draft refuses',
+    async (reason) => {
+      const submit = vi.fn().mockResolvedValue({ ok: false, reason });
 
-    const response = await request(createTestApp({ submit }))
-      .post(path)
-      .set('Cookie', await publisherCookie())
-      .send({ draftUpdatedAt: DRAFT_UPDATED_AT });
+      const response = await request(createTestApp({ submit }))
+        .post(path)
+        .set('Cookie', await publisherCookie())
+        .send({ draftUpdatedAt: DRAFT_UPDATED_AT });
 
-    expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: reason });
-  });
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({ error: reason });
+    },
+  );
 });
 
 describe('POST /api/internal/indicators/:id/withdraw', () => {

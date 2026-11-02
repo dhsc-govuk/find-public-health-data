@@ -44,6 +44,9 @@ const SUBMIT_REFUSALS: Record<IndicatorSubmitError['error'], string> = {
   changed:
     'This indicator has changed since you opened this page. Check the changes, then submit again.',
   incomplete: 'Complete every task before you submit this indicator.',
+  flagged: 'Save every task that needs revisions before you resubmit this indicator.',
+  no_response:
+    'Write your response to the revisions or clarifications before you resubmit this indicator.',
   not_allowed: 'This indicator cannot be submitted for approval.',
   invalid_id: NOT_SUBMITTED,
   invalid_draft_updated_at: NOT_SUBMITTED,

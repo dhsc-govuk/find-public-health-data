@@ -334,7 +334,15 @@ export const indicatorSubmitSchema = z.object({ draftUpdatedAt: z.iso.datetime()
 
 /** The 400 and 409 answers. A missing indicator or draft is a 404, which the client throws. */
 export const indicatorSubmitErrorSchema = z.object({
-  error: z.enum(['invalid_id', 'invalid_draft_updated_at', 'not_allowed', 'changed', 'incomplete']),
+  error: z.enum([
+    'invalid_id',
+    'invalid_draft_updated_at',
+    'not_allowed',
+    'changed',
+    'incomplete',
+    'flagged',
+    'no_response',
+  ]),
 });
 
 /** A withdrawal names the submission the publisher was shown, so it never ends a newer one. */

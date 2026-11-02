@@ -160,6 +160,11 @@ export function nextState(
     : { ok: true, state: entry.leadsTo };
 }
 
+/** Whether `step` starts a submission, which carries the latest submission's reviewers over. */
+export function carriesReviewers(step: IndicatorStep): boolean {
+  return STEPS[step].carriesReviewers === true;
+}
+
 /** The steps open now, whoever may take them. */
 export function allowedSteps(context: IndicatorWorkflowContext): IndicatorStep[] {
   return INDICATOR_STEPS.filter((step) => isOpen(STEPS[step], context));

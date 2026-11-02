@@ -453,16 +453,16 @@ describe('listIndicatorsToReview', () => {
       const shown = await completeDraft(db, created);
       const { indicatorId } = created;
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+      await assign(db, indicatorId, [REVIEWER]);
       await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
-      // No step assigns reviewers to a withdrawn submission, so the row is inserted directly. The
-      // withdrawn submission stands in for an earlier round that had this reviewer.
-      await db.insert(schema.indicatorVersionSubmissionReviewer).values({
-        submissionId: await firstSubmissionId(db, indicatorId),
-        reviewerId: REVIEWER,
-        assignedBy: FAKE_USER_IDS.imrgManager,
-      });
+      // The second submission carries the reviewer over, and the manager then replaces them.
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
-      await assign(db, indicatorId, [OTHER_REVIEWER], 2);
+      await assignReviewers(
+        db,
+        indicatorId,
+        { submissionNumber: 2, previousReviewerIds: [REVIEWER], reviewerIds: [OTHER_REVIEWER] },
+        AS_MANAGER,
+      );
 
       expect(await listed(db, [indicatorId])).toEqual([]);
       expect(await listed(db, [indicatorId], OTHER_REVIEWER)).toEqual([indicatorId]);

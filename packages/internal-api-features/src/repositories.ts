@@ -125,12 +125,15 @@ export interface InternalIndicatorRepository {
   ): Promise<UpdateIndicatorDraftResult>;
   /** Opens a draft from the published version, copying its columns and lists. */
   draftFromPublished(indicatorId: string, actor: Actor): Promise<CreateDraftFromPublishedResult>;
-  /** Submits the draft for approval, as long as it is complete and `draftUpdatedAt` is current. */
+  /**
+   * Submits the draft for approval, or resubmits it once its requested changes are answered, as
+   * long as it is complete and `draftUpdatedAt` is current.
+   */
   submit(
     indicatorId: string,
     draftUpdatedAt: Date,
     actor: Actor,
-  ): Promise<IndicatorStepResult<'changed' | 'incomplete'>>;
+  ): Promise<IndicatorStepResult<'changed' | 'incomplete' | 'flagged' | 'no_response'>>;
   /** Withdraws the draft's submission, unlocking the draft, as long as it is the one numbered. */
   withdraw(
     indicatorId: string,
