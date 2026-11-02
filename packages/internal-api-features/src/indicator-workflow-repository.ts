@@ -20,7 +20,12 @@ import {
 } from './indicator-draft-repository.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
 import { isDraftComplete } from './indicator-task-list.ts';
-import { carriesReviewers, nextState } from './indicator-workflow.ts';
+import {
+  allowedSteps,
+  carriesReviewers,
+  type IndicatorWorkflowContext,
+  nextState,
+} from './indicator-workflow.ts';
 import { hasUnclearedFlag } from './review-flag-repository.ts';
 import {
   assignedReviewerIds,
@@ -179,20 +184,20 @@ export async function takeIndicatorStep<Reason extends string = never>(
       .orderBy(desc(indicatorVersionSubmission.number))
       .limit(1);
     const step = typeof choice === 'function' ? choice(latest) : choice;
+    const context: IndicatorWorkflowContext = {
+      indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
+      versionStatus: draft.status,
+      isLocked: draft.isLocked,
+      latestSubmissionStatus: latest?.status ?? null,
+    };
+
+    if (!allowedSteps(context).includes(step)) return { ok: false, reason: 'not_allowed' };
+
     const carried: CarriedReviewer[] =
       carriesReviewers(step) && latest !== undefined
         ? await carriedReviewersOf(tx, indicatorId, latest.id, actor.userId)
         : [];
-    const next = nextState(
-      {
-        indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
-        versionStatus: draft.status,
-        isLocked: draft.isLocked,
-        latestSubmissionStatus: latest?.status ?? null,
-      },
-      step,
-      { carriedReviewerCount: carried.length },
-    );
+    const next = nextState(context, step, { carriedReviewerCount: carried.length });
 
     if (!next.ok) return next;
 
