@@ -275,7 +275,7 @@ describe('IndicatorOverviewPage', () => {
     ).toBe(`/dashboard/indicators/${indicator.id}/review/response-type`);
   });
 
-  it('tells a reviewer who has responded that nothing is left to do, under Review', () => {
+  it('tells a responded reviewer whose notes could not be read that nothing is left to do', () => {
     render(
       <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
         <IndicatorOverviewPage

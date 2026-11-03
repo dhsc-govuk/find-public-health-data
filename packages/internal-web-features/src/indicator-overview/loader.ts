@@ -19,6 +19,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 
 import { requireIndicatorId } from '../indicator-id.ts';
 import { overviewNotification } from './notifications.ts';
+import { reviewerNoteFormFor } from './reviewer-notes.ts';
 
 export type {
   IndicatorAdminDetail,
@@ -26,6 +27,7 @@ export type {
   ReviewerNote,
 } from '@fphd/internal-api-features/contract';
 export type { OverviewNotification } from './notifications.ts';
+export type { ReviewerNoteForm } from './reviewer-notes.ts';
 
 // A reviewer unassigned since the detail was read gets no notes of either kind, not a missing page.
 function noneIfNotFound(error: unknown): null {
@@ -33,7 +35,7 @@ function noneIfNotFound(error: unknown): null {
   throw error;
 }
 
-export async function loadIndicatorOverview({ context, params }: LoaderFunctionArgs) {
+export async function loadIndicatorOverview({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
   const api = context.get(apiContext);
   const indicator = await api.get(
@@ -52,7 +54,7 @@ export async function loadIndicatorOverview({ context, params }: LoaderFunctionA
     session !== undefined && canWriteReviewerNotes(session, access)
       ? api
           .get(apiPath`/api/internal/indicators/${id}/reviewer-notes`, reviewerNotesSchema)
-          .then(({ notes }) => notes)
+          .then(({ notes }) => ({ notes, form: reviewerNoteFormFor(notes, new URL(request.url)) }))
           .catch(noneIfNotFound)
       : null,
   ]);

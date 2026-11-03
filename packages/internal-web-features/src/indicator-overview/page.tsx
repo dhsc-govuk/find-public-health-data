@@ -1,4 +1,12 @@
-import { formatDate, GridColumn, GridRow, NotificationBanner, Tabs } from '@fphd/ui';
+import {
+  DocumentTitle,
+  ErrorSummary,
+  formatDate,
+  GridColumn,
+  GridRow,
+  NotificationBanner,
+  Tabs,
+} from '@fphd/ui';
 
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
 import { actionsTabSections } from './actions-tab.ts';
@@ -8,9 +16,13 @@ import type {
   NotesForReviewers as Notes,
   OverviewNotification,
   ReviewerNote,
+  ReviewerNoteForm,
 } from './loader.ts';
 import { NotesForReviewers } from './notes-for-reviewers.tsx';
+import { REVIEWER_NOTE_FIELD } from './reviewer-notes.ts';
 import { ReviewerNotes } from './reviewer-notes.tsx';
+
+const OVERVIEW_TITLE = 'Indicator overview';
 
 interface OverviewProps {
   /** Whether the user may edit it, which the task list is for. */
@@ -20,8 +32,8 @@ interface OverviewProps {
   indicator: IndicatorAdminDetail;
   /** What the publisher wrote for the reviewers, for those who may read it. */
   notesForReviewers?: Notes | null;
-  /** The assigned reviewer's own notes, for them alone. */
-  reviewerNotes?: readonly ReviewerNote[] | null;
+  /** The assigned reviewer's own notes and the form for them, for them alone. */
+  reviewerNotes?: { notes: readonly ReviewerNote[]; form: ReviewerNoteForm } | null;
   /** What the page the publisher came from left to tell them. */
   notification?: OverviewNotification | undefined;
 }
@@ -50,7 +62,11 @@ export function IndicatorOverviewPage({
       content: (
         <ActionsTab
           sections={actionsTabSections({ canEdit, indicator, isReviewer })}
-          reviewerNotes={reviewerNotes === null ? null : <ReviewerNotes notes={reviewerNotes} />}
+          reviewerNotes={
+            reviewerNotes === null ? null : (
+              <ReviewerNotes indicatorId={indicator.id} {...reviewerNotes} />
+            )
+          }
         />
       ),
     },
@@ -65,27 +81,38 @@ export function IndicatorOverviewPage({
         ]),
   ];
 
+  const noteError = reviewerNotes?.form.fieldErrors.reviewerNote;
+  const formError = reviewerNotes?.form.formError;
+  const errors = noteError === undefined ? [] : [{ name: REVIEWER_NOTE_FIELD, message: noteError }];
+
   return (
-    <GridRow>
-      <GridColumn width="two-thirds">
-        {notification === undefined ? null : (
-          <NotificationBanner
-            disableAutoFocus
-            {...(notification.type === 'success' ? { type: 'success' } : {})}
-            {...(notification.colour === undefined
-              ? {}
-              : { className: `fphd-notification-banner--${notification.colour}` })}
-          >
-            {notification.text}
-          </NotificationBanner>
-        )}
-        <IndicatorHeading indicator={indicator}>
-          {indicator.draftScheduledPublishAt === null ? null : (
-            <ScheduledPublicationDate at={indicator.draftScheduledPublishAt} />
+    <>
+      <DocumentTitle
+        hasErrors={errors.length > 0 || formError !== undefined}
+        pageTitle={OVERVIEW_TITLE}
+      />
+      <ErrorSummary errors={errors} formError={formError} />
+      <GridRow>
+        <GridColumn width="two-thirds">
+          {notification === undefined ? null : (
+            <NotificationBanner
+              disableAutoFocus
+              {...(notification.type === 'success' ? { type: 'success' } : {})}
+              {...(notification.colour === undefined
+                ? {}
+                : { className: `fphd-notification-banner--${notification.colour}` })}
+            >
+              {notification.text}
+            </NotificationBanner>
           )}
-        </IndicatorHeading>
-        <Tabs items={tabs} paramKey="tab" />
-      </GridColumn>
-    </GridRow>
+          <IndicatorHeading indicator={indicator}>
+            {indicator.draftScheduledPublishAt === null ? null : (
+              <ScheduledPublicationDate at={indicator.draftScheduledPublishAt} />
+            )}
+          </IndicatorHeading>
+          <Tabs items={tabs} paramKey="tab" />
+        </GridColumn>
+      </GridRow>
+    </>
   );
 }

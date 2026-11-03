@@ -39,6 +39,7 @@ import * as denominator from './indicator-numerator-denominator/denominator-rout
 import * as numerator from './indicator-numerator-denominator/numerator-route.tsx';
 import * as otherComments from './indicator-other-comments/route.tsx';
 import * as otherNotesAndCaveats from './indicator-other-notes-and-caveats/route.tsx';
+import * as overview from './indicator-overview/route.tsx';
 import * as periodType from './indicator-period-type/route.tsx';
 import * as polarity from './indicator-polarity/route.tsx';
 import * as publishingDate from './indicator-publishing-date/route.tsx';
@@ -134,6 +135,8 @@ const tagOptions = {
 const linksUnanswered = { hasLinks: '', links: [], linkUrl: '', linkText: '' };
 
 const providerSourcesUnanswered = { sources: [], definition: '', providerId: '', sourceId: '' };
+
+const noteAdded = { reviewerNote: '', noteId: '', version: '' };
 
 const forms: {
   name: string;
@@ -290,6 +293,31 @@ const forms: {
       values: taggingUnanswered,
       fieldErrors: { topicIds: 'Select at least one topic' },
     },
+  },
+  {
+    name: 'indicator overview, for a reviewer adding a note',
+    route: overview,
+    pageTitle: 'Indicator overview',
+    loaderData: {
+      canEdit: false,
+      isReviewer: true,
+      indicator: {
+        ...indicator,
+        teamId: null,
+        draftLocked: true,
+        draftSubmissionStatus: 'in_review',
+        draftResponseKind: null,
+        draftReviewers: [],
+        draftSubmissionNumber: 1,
+        draftScheduledPublishAt: null,
+        draftFirstSubmittedAt: '2026-01-02T00:00:00.000Z',
+        nameVersion: 'a'.repeat(64),
+        actions: [],
+      },
+      notesForReviewers: null,
+      reviewerNotes: { notes: [], form: { values: noteAdded, fieldErrors: {} } },
+    },
+    rejected: { values: noteAdded, fieldErrors: { reviewerNote: 'Enter your notes' } },
   },
   {
     name: 'new topic',

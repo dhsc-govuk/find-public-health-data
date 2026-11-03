@@ -25,10 +25,11 @@ async function load(
   roles: readonly string[] = ['publisher'],
   teams: readonly string[] = [indicator.teamId],
   cookie?: string,
+  search = '',
 ) {
   const context = withFlashStorage(await signedInContext(roles, teams));
   context.set(apiContext, { get } as unknown as ApiClient);
-  const request = new Request(`https://internal.test/dashboard/indicators/${id}`, {
+  const request = new Request(`https://internal.test/dashboard/indicators/${id}${search}`, {
     ...(cookie === undefined ? {} : { headers: { Cookie: cookie } }),
   });
 
@@ -87,11 +88,10 @@ describe('loadIndicatorOverview', () => {
     ],
   ])('says whether the user is %s of it', async (_who, roles, draftReviewers, expected) => {
     const detail = { ...indicator, draftStatus: 'draft', draftReviewers };
-    const get = vi
-      .fn()
-      .mockImplementation(async (path: string) =>
-        path.endsWith('/notes-for-reviewers') ? {} : detail,
-      );
+    const get = vi.fn().mockImplementation(async (path: string) => {
+      if (path.endsWith('/reviewer-notes')) return { notes: [] };
+      return path.endsWith('/notes-for-reviewers') ? {} : detail;
+    });
 
     const outcome = await load(indicator.id, get, roles, []);
 
@@ -113,11 +113,10 @@ describe('loadIndicatorOverview', () => {
     };
 
     function apiGet(detail: object) {
-      return vi
-        .fn()
-        .mockImplementation(async (path: string) =>
-          path.endsWith('/notes-for-reviewers') ? notes : detail,
-        );
+      return vi.fn().mockImplementation(async (path: string) => {
+        if (path.endsWith('/reviewer-notes')) return { notes: [] };
+        return path.endsWith('/notes-for-reviewers') ? notes : detail;
+      });
     }
 
     it.each([
@@ -146,7 +145,7 @@ describe('loadIndicatorOverview', () => {
 
     it('shows none to a reviewer unassigned after the indicator is read', async () => {
       const get = vi.fn().mockImplementation(async (path: string) => {
-        if (path.endsWith('/notes-for-reviewers')) {
+        if (path.endsWith('/notes-for-reviewers') || path.endsWith('/reviewer-notes')) {
           throw new Response('Not Found', { status: 404 });
         }
         return draft;
@@ -220,7 +219,41 @@ describe('loadIndicatorOverview', () => {
         `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
         `/api/internal/indicators/${indicator.id}/reviewer-notes`,
       ]);
-      expect(outcome.reviewerNotes).toEqual(reviewerNotes);
+      expect(outcome.reviewerNotes).toEqual({
+        notes: reviewerNotes,
+        form: { values: { reviewerNote: '', noteId: '', version: '' }, fieldErrors: {} },
+      });
+    });
+
+    it('fills the form with the note the address names', async () => {
+      const [note] = reviewerNotes;
+      const outcome = await load(
+        indicator.id,
+        apiGet(inReview),
+        ['imrg-reviewer'],
+        [],
+        undefined,
+        `?note=${note?.id}`,
+      );
+
+      expect(outcome.reviewerNotes?.form.values).toEqual({
+        reviewerNote: 'Check the 2019 dip',
+        noteId: note?.id,
+        version: note?.version,
+      });
+    });
+
+    it('leaves the form empty for a note that is not one of theirs', async () => {
+      const outcome = await load(
+        indicator.id,
+        apiGet(inReview),
+        ['imrg-reviewer'],
+        [],
+        undefined,
+        '?note=00000000-0000-7000-8000-0000000000ff',
+      );
+
+      expect(outcome.reviewerNotes?.form.values.noteId).toBe('');
     });
 
     it.each([
