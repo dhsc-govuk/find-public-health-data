@@ -4,6 +4,7 @@ import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type {
+  DraftResponse,
   DraftReviewer,
   DraftStatus,
   DraftSubmissionStatus,
@@ -15,6 +16,7 @@ import {
   draftFirstSubmittedAt,
   draftJoin,
   draftLocked,
+  draftResponse,
   draftResponseKind,
   draftReviewers,
   draftStatus,
@@ -79,6 +81,8 @@ export interface IndicatorAdminDetailRow extends IndicatorAdminRow {
   draftScheduledPublishAt: Date | null;
   /** When the draft was first submitted; null until it is. */
   draftFirstSubmittedAt: Date | null;
+  /** The latest response to the draft's latest submission; null until a reviewer responds. */
+  draftResponse: DraftResponse | null;
 }
 
 function scopeCondition(scope: IndicatorListScope): SQL | undefined {
@@ -220,6 +224,7 @@ export async function getIndicatorById(
       draftReviewers,
       draftScheduledPublishAt: draftVersion.scheduledPublishAt,
       draftFirstSubmittedAt,
+      draftResponse,
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)

@@ -119,8 +119,11 @@ describe('completeDraft', () => {
 
     const { draft, draftCiMethodKind, ...indicator } = state;
     expect(
-      indicatorTaskList({ indicator, draft: { ...draft, ciMethodKind: draftCiMethodKind } })
-        .canSubmit,
+      indicatorTaskList({
+        indicator,
+        draft: { ...draft, ciMethodKind: draftCiMethodKind },
+        review: null,
+      }).canSubmit,
     ).toBe(true);
   });
 });

@@ -38,7 +38,7 @@ import type {
   IndicatorAdminListRow,
   IndicatorAdminRow,
 } from './indicator-list-repository.ts';
-import { indicatorTaskList } from './indicator-task-list.ts';
+import { indicatorTaskList, taskListReview } from './indicator-task-list.ts';
 import { stepsOpenTo } from './indicator-workflow.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
@@ -92,6 +92,7 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
     draftSubmissionNumber: row.draftSubmissionNumber,
     draftScheduledPublishAt: row.draftScheduledPublishAt?.toISOString() ?? null,
     draftFirstSubmittedAt: row.draftFirstSubmittedAt?.toISOString() ?? null,
+    draftResponse: row.draftResponse,
     nameVersion: nameVersion(row.name),
     actions: stepsOpenTo(user, row),
   };
@@ -268,7 +269,11 @@ export function internalIndicatorsRouter(
       return;
     }
 
-    const row = await indicators.findDraftState(id.data);
+    // Apart, so the section reads that share findDraftState do not carry the round.
+    const [row, round] = await Promise.all([
+      indicators.findDraftState(id.data),
+      indicators.findRevisionRound(id.data),
+    ]);
 
     if (!row) {
       response.status(404).json({ error: 'not_found' });
@@ -293,6 +298,7 @@ export function internalIndicatorsRouter(
           draftResponseKind: row.draftResponseKind,
         },
         draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
+        review: taskListReview(round),
       }),
       draftUpdatedAt: row.draft.updatedAt.toISOString(),
       editable: !row.draft.isLocked,

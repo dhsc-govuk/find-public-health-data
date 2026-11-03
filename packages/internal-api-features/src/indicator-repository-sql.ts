@@ -3,6 +3,7 @@ import { and, asc, desc, eq, max, sql } from 'drizzle-orm';
 import { alias, QueryBuilder } from 'drizzle-orm/pg-core';
 
 import type {
+  DraftResponse,
   DraftReviewer,
   DraftStatus,
   DraftSubmissionStatus,
@@ -16,6 +17,7 @@ const {
   indicator,
   indicatorVersion,
   indicatorVersionSubmission,
+  indicatorVersionSubmissionFlag,
   indicatorVersionSubmissionResponse,
   indicatorVersionSubmissionReviewer,
 } = schema;
@@ -127,6 +129,20 @@ const latestDraftResponse = new QueryBuilder({ casing: 'snake_case' })
   .limit(1);
 // What the latest response to the draft's latest submission said, which names its label.
 export const draftResponseKind = sql<ReviewResponseKind | null>`(${latestDraftResponse})`;
+// The latest response with how many tasks it flagged, which words the publisher's next step.
+export const draftResponse = sql<DraftResponse | null>`(
+  select json_build_object(
+    'kind', ${indicatorVersionSubmissionResponse.kind},
+    'flaggedTaskCount', (
+      select count(*) from ${indicatorVersionSubmissionFlag}
+      where ${indicatorVersionSubmissionFlag.responseId} = ${indicatorVersionSubmissionResponse.id}
+    )
+  )
+  from ${indicatorVersionSubmissionResponse}
+  where ${indicatorVersionSubmissionResponse.submissionId} = ${draftSubmissionId}
+  order by ${indicatorVersionSubmissionResponse.respondedAt} desc
+  limit 1
+)`;
 export const draftReviewers = sql<DraftReviewer[]>`coalesce((
   select json_agg(json_build_object('id', ${appUser.id}, 'name', ${appUser.displayName})
     order by ${appUser.displayName}, ${appUser.id})

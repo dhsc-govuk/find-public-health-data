@@ -5,7 +5,8 @@ import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
 
 import { editVersionSchema } from './edit-version-contract.ts';
-import { reviewResponseKindSchema } from './review-response-contract.ts';
+import { flaggableTaskKeySchema, reviewResponseKindSchema } from './review-response-contract.ts';
+import { revisionKindSchema } from './revision-response-contract.ts';
 import { shortText } from './text-contract.ts';
 
 /**
@@ -214,6 +215,14 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   draftScheduledPublishAt: z.iso.datetime().nullable(),
   /** When the draft was first submitted, which no IMRG review date may precede; null until then. */
   draftFirstSubmittedAt: z.iso.datetime().nullable(),
+  /** The latest response to the draft's latest submission, null until a reviewer responds. */
+  draftResponse: z
+    .object({
+      kind: reviewResponseKindSchema,
+      /** How many tasks it flagged; none means it asked only for clarification. */
+      flaggedTaskCount: z.number().int().min(0),
+    })
+    .nullable(),
   /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
@@ -293,6 +302,7 @@ export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;
 export type DraftReviewer = z.infer<typeof draftReviewerSchema>;
 export type IndicatorStep = z.infer<typeof indicatorStepSchema>;
 export type IndicatorAdminDetail = z.infer<typeof indicatorAdminDetailSchema>;
+export type DraftResponse = NonNullable<IndicatorAdminDetail['draftResponse']>;
 export type IndicatorName = z.infer<typeof indicatorNameSchema>;
 export type IndicatorTeam = z.infer<typeof indicatorTeamSchema>;
 export type IndicatorField = z.infer<typeof indicatorFieldSchema>;
@@ -312,6 +322,21 @@ export const indicatorTaskStatusesSchema = z.record(
   indicatorTaskStatusSchema,
 );
 
+/** One task a review response flagged, with the reviewer's notes, and whether it is saved since. */
+export const indicatorTaskFlagSchema = z.object({
+  task: flaggableTaskKeySchema,
+  notes: z.string(),
+  cleared: z.boolean(),
+});
+
+/** What the round of review that sent the draft back asked for, and the publisher's reply. */
+export const indicatorTaskListReviewSchema = z.object({
+  kind: revisionKindSchema,
+  clarificationRequest: z.string().nullable(),
+  flags: z.array(indicatorTaskFlagSchema),
+  revisionResponse: z.string().nullable(),
+});
+
 /**
  * Everything the task list page shows about a draft in one answer: what the indicator is
  * called and its statuses, as the detail response gives them, whether this edit changes a
@@ -330,9 +355,14 @@ export const indicatorTaskListSchema = z.object({
   }),
   /** True when the indicator is live, so this edit revises what the public has. */
   isUpdate: z.boolean(),
-  /** True once every task is complete. */
+  /**
+   * True once the step on offer would pass: every task complete, and for a draft sent back, no
+   * flagged task left unsaved and the reply written.
+   */
   canSubmit: z.boolean(),
   tasks: indicatorTaskStatusesSchema,
+  /** The round of review that sent the draft back; null unless its latest submission was. */
+  review: indicatorTaskListReviewSchema.nullable(),
   /** The draft's last edit, which a submission sends back to confirm the draft it was shown. */
   draftUpdatedAt: z.iso.datetime(),
   /** False while the draft is locked for review, so none of its tasks may be edited. */
@@ -414,6 +444,8 @@ export type IndicatorTaskStatus = z.infer<typeof indicatorTaskStatusSchema>;
 export type IndicatorTaskKey = z.infer<typeof indicatorTaskKeySchema>;
 export type IndicatorTaskStatuses = z.infer<typeof indicatorTaskStatusesSchema>;
 export type IndicatorTaskList = z.infer<typeof indicatorTaskListSchema>;
+export type IndicatorTaskListReview = z.infer<typeof indicatorTaskListReviewSchema>;
+export type IndicatorTaskFlag = z.infer<typeof indicatorTaskFlagSchema>;
 export type IndicatorTaskListError = z.infer<typeof indicatorTaskListErrorSchema>;
 export type IndicatorSubmit = z.infer<typeof indicatorSubmitSchema>;
 export type IndicatorSubmitError = z.infer<typeof indicatorSubmitErrorSchema>;

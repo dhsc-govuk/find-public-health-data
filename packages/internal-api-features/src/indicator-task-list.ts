@@ -9,6 +9,7 @@ import {
   denominatorSection,
   type IndicatorSection,
   type IndicatorTaskList,
+  type IndicatorTaskListReview,
   type IndicatorTaskStatus,
   type IndicatorTaskStatuses,
   justificationsSection,
@@ -19,6 +20,7 @@ import {
   periodTypeSection,
   polaritySection,
   publishingDateSection,
+  revisionKindSchema,
   sexAndAgesSection,
   taggingSection,
   updateFrequencySection,
@@ -51,6 +53,7 @@ import {
   sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
+import type { RevisionRoundRow } from './revision-response-repository.ts';
 
 /** The draft columns the task list judges: the name, the data table's, and those the sections read. */
 export type IndicatorTaskListDraft = Pick<
@@ -71,6 +74,28 @@ export type IndicatorTaskListTasks = Omit<
 export interface IndicatorTaskListSource {
   indicator: Omit<IndicatorTaskList['indicator'], 'name'>;
   draft: IndicatorTaskListDraft;
+  review: IndicatorTaskListReview | null;
+}
+
+/** The round that sent the draft back, as the task list shows it; null unless one has. */
+export function taskListReview(
+  round: RevisionRoundRow | undefined,
+): IndicatorTaskListReview | null {
+  const kind = revisionKindSchema.safeParse(round?.kind);
+
+  if (round?.submissionStatus !== 'changes_requested' || !kind.success) return null;
+
+  return {
+    kind: kind.data,
+    clarificationRequest: round.clarificationRequest,
+    flags: round.flags,
+    revisionResponse: round.revisionResponse,
+  };
+}
+
+/** Whether the round's flags are all saved and its reply written, so it may be resubmitted. */
+function isAnswered({ flags, revisionResponse }: IndicatorTaskListReview): boolean {
+  return flags.every(({ cleared }) => cleared) && (revisionResponse ?? '').trim() !== '';
 }
 
 /** Loaded but not yet confirmed on the check page is in progress. */
@@ -141,13 +166,15 @@ export function isDraftComplete(draft: IndicatorTaskListDraft): boolean {
 export function indicatorTaskList({
   draft,
   indicator,
+  review,
 }: IndicatorTaskListSource): IndicatorTaskListTasks {
   const tasks = taskStatuses(draft);
 
   return {
     indicator: { ...indicator, name: draft.name },
     isUpdate: indicator.indicatorStatus === 'live',
-    canSubmit: allCompleted(tasks),
+    canSubmit: allCompleted(tasks) && (review === null || isAnswered(review)),
     tasks,
+    review,
   };
 }

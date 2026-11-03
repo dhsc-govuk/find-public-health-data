@@ -289,6 +289,7 @@ describe('internal API', () => {
           draftReviewers: [],
           draftScheduledPublishAt: null,
           draftFirstSubmittedAt: null,
+          draftResponse: null,
         }),
       },
       reviewers: { listOptions: async () => [] },

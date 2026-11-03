@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { indicatorTaskKeySchema, indicatorTaskListSchema } from './contract.ts';
+import {
+  type IndicatorTaskListReview,
+  indicatorTaskKeySchema,
+  indicatorTaskListSchema,
+} from './contract.ts';
 import {
   ciMethodId,
   completeTaskListDraft as complete,
@@ -10,7 +14,9 @@ import {
   type IndicatorTaskListDraft,
   type IndicatorTaskListSource,
   indicatorTaskList,
+  taskListReview,
 } from './indicator-task-list.ts';
+import type { RevisionRoundRow } from './revision-response-repository.ts';
 import { unansweredDraft } from './testing.ts';
 
 // A draft as the name page leaves it: named, with every other answer still to give.
@@ -24,6 +30,7 @@ const source: IndicatorTaskListSource = {
     draftResponseKind: null,
   },
   draft: { ...unansweredDraft, name: 'Life expectancy at birth', ciMethodKind: null },
+  review: null,
 };
 
 function withDraft(draft: Partial<IndicatorTaskListDraft>): IndicatorTaskListSource {
@@ -166,5 +173,73 @@ describe('indicatorTaskList', () => {
     });
 
     expect(shape.safeParse(indicatorTaskList(source)).success).toBe(true);
+  });
+});
+
+describe('resubmitting a draft sent back', () => {
+  const review: IndicatorTaskListReview = {
+    kind: 'minor_revisions',
+    clarificationRequest: null,
+    flags: [{ task: 'polarity', notes: 'Is higher better?', cleared: true }],
+    revisionResponse: 'Higher is better',
+  };
+  const sentBack = (changes: Partial<IndicatorTaskListReview>) => ({
+    ...withDraft(complete),
+    review: { ...review, ...changes },
+  });
+
+  it('is allowed once every flag is saved and the reply written', () => {
+    expect(indicatorTaskList(sentBack({})).canSubmit).toBe(true);
+  });
+
+  it('is held back while a flagged task is unsaved', () => {
+    const flags = [...review.flags, { task: 'name' as const, notes: 'Shorter', cleared: false }];
+
+    expect(indicatorTaskList(sentBack({ flags })).canSubmit).toBe(false);
+  });
+
+  it.each([null, '  '])('is held back while the reply is %o', (revisionResponse) => {
+    expect(indicatorTaskList(sentBack({ revisionResponse })).canSubmit).toBe(false);
+  });
+
+  it('is held back while any task is not complete', () => {
+    expect(indicatorTaskList({ ...source, review }).canSubmit).toBe(false);
+  });
+
+  it('answers the round as it was given', () => {
+    expect(indicatorTaskList(sentBack({})).review).toEqual(review);
+  });
+});
+
+describe('taskListReview', () => {
+  const round: RevisionRoundRow = {
+    hasDraft: true,
+    draftLocked: false,
+    submissionStatus: 'changes_requested',
+    kind: 'major_revisions',
+    clarificationRequest: 'Which years?',
+    revisionResponse: null,
+    flags: [{ task: 'polarity', notes: 'Is higher better?', cleared: false }],
+  };
+
+  it('takes the round that sent the draft back', () => {
+    expect(taskListReview(round)).toEqual({
+      kind: 'major_revisions',
+      clarificationRequest: 'Which years?',
+      flags: round.flags,
+      revisionResponse: null,
+    });
+  });
+
+  it.each([
+    ['no indicator', undefined],
+    ['a draft never submitted', { ...round, submissionStatus: null, kind: null }],
+    ['a draft in review', { ...round, submissionStatus: 'in_review' as const, kind: null }],
+    [
+      'an approved draft',
+      { ...round, submissionStatus: 'approved' as const, kind: 'approved' as const },
+    ],
+  ])('is null for %s', (_case, found) => {
+    expect(taskListReview(found)).toBeNull();
   });
 });
