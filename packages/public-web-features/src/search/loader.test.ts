@@ -134,6 +134,29 @@ describe('loadSearch', () => {
     expect(get).toHaveBeenCalledWith('/api/indicators/search', expect.anything());
   });
 
+  it('treats a query holding a control character as no query, so the API never sees it', async () => {
+    const { client, get } = api();
+
+    const result = await loadSearch(loaderArgs(client, 'http://localhost/search?q=blood%00'));
+
+    expect(result.q).toBe('');
+    expect(get).toHaveBeenCalledWith('/api/indicators/search', expect.anything());
+  });
+
+  it('searches a query holding a tab as words separated by a space', async () => {
+    const { client, get } = api();
+
+    const result = await loadSearch(
+      loaderArgs(client, 'http://localhost/search?q=blood%09pressure'),
+    );
+
+    expect(result.q).toBe('blood pressure');
+    expect(get).toHaveBeenCalledWith(
+      '/api/indicators/search?q=blood%20pressure',
+      expect.anything(),
+    );
+  });
+
   it('encodes keyword into the search query', async () => {
     const { client, get } = api();
 

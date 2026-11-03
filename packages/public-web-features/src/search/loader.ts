@@ -11,7 +11,9 @@ import {
   MAX_INDICATOR_FILTER_RESULTS,
   MAX_INDICATOR_QUERY_LENGTH,
   pickAreaCodes,
+  queryText,
 } from '@fphd/public-api-features/contract';
+import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
@@ -97,7 +99,9 @@ export async function loadSearch(
     params.set('t', topicSlug);
   }
   const api = context.get(apiContext);
-  const query = params.get('q')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
+  const text = queryText(params.get('q'), MAX_INDICATOR_QUERY_LENGTH);
+  // The API refuses a control character with a 400, so a query holding one is no query.
+  const query = CONTROL_CHARACTER.test(text) ? '' : text;
 
   const addParams = DIMENSIONS.map((d) => d.param);
   const hasAddControl = addParams.some((p) => params.has(`${p}-add`));
