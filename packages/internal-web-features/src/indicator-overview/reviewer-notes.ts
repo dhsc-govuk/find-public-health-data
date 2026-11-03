@@ -17,7 +17,7 @@ import { type ActionFunctionArgs, redirect } from 'react-router';
 import { setDashboardFlash } from '../dashboard/notifications.ts';
 import { DASHBOARD_PATH } from '../dashboard/paths.ts';
 import { readVersion } from '../edit-version.ts';
-import { FORM_NOT_SAVED } from '../form-refusal.ts';
+import { formRefusal } from '../form-refusal.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { EDIT_NOTE_PARAM, indicatorOverviewPath } from './paths.ts';
 
@@ -85,16 +85,20 @@ function refused(values: ReviewerNoteValues, error: ReviewerNoteError): Reviewer
       formError: NOTE_CHANGED,
     };
   }
-  if (error.error === 'validation_failed' && error.fieldErrors.text !== undefined) {
-    return { values, fieldErrors: { reviewerNote: error.fieldErrors.text } };
-  }
-  return { values, fieldErrors: {}, formError: FORM_NOT_SAVED };
+  const text = error.error === 'validation_failed' ? error.fieldErrors.text : undefined;
+  return {
+    values,
+    ...formRefusal({
+      error: error.error,
+      fieldErrors: text === undefined ? {} : { reviewerNote: text },
+    }),
+  };
 }
 
 /**
  * Adds the reviewer's note, or saves the one the form edits, and returns to the overview. A
- * reviewer no longer assigned goes to the dashboard, which says so. A 403, for one who may
- * still see the indicator, falls to the error page as every refused write does.
+ * reviewer no longer assigned goes to the dashboard, which says so. Any other failure of the
+ * API, a 403 included, falls to the error page as every refused write does.
  */
 export async function saveReviewerNote({
   context,

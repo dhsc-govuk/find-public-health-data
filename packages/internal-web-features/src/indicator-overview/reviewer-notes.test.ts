@@ -153,7 +153,7 @@ describe('saveReviewerNote', () => {
     });
   });
 
-  it('lets a 403 fall to the error page', async () => {
+  it('lets any other failure of the API fall to the error page', async () => {
     const forbidden = new Response('Bad Gateway', { status: 502 });
 
     const { response } = await save(

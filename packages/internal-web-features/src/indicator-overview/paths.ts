@@ -13,6 +13,7 @@ export function indicatorAssignReviewersPath(id: string): string {
 export const EDIT_NOTE_PARAM = 'note';
 
 /** The overview with the reviewer's note `noteId` in the notes form, scrolled to it. */
+// The fragment is fieldInputId('reviewerNote') spelt out: the loader's modules keep clear of @fphd/ui.
 export function reviewerNoteEditPath(id: string, noteId: string): string {
   return `${indicatorOverviewPath(id)}?${new URLSearchParams({ [EDIT_NOTE_PARAM]: noteId })}#reviewerNote-input`;
 }

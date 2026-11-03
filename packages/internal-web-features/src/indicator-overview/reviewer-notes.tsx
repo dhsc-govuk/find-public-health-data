@@ -22,7 +22,7 @@ export function ReviewerNotes({ indicatorId, notes, form }: ReviewerNotesProps) 
 
   return (
     <>
-      <h3 className="govuk-heading-m">Your notes</h3>
+      <h3 className="govuk-heading-m govuk-!-margin-top-4">Your notes</h3>
       {notes.length === 0 ? null : (
         <Table
           headings={{ date: 'Date', text: 'Notes', edit: 'Edit link' }}

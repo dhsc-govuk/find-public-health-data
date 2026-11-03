@@ -230,7 +230,6 @@ export async function getIndicatorById(
   return rows[0];
 }
 
-/** The team the indicator is in, null when it has none, or undefined when there is no such indicator. */
 /** What the access checks read of an indicator: its team and its draft's current reviewers. */
 export interface IndicatorAccessRow {
   teamId: string | null;
@@ -251,6 +250,7 @@ export async function findIndicatorAccess(
   return row;
 }
 
+/** The team the indicator is in, null when it has none, or undefined when there is no such indicator. */
 export async function findIndicatorTeamId(
   db: Database,
   id: string,
