@@ -50,7 +50,9 @@ describe('RevisionResponsePage', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'High-level clarification request' }),
     ).toBeTruthy();
-    expect(screen.getByText('years').tagName).toBe('STRONG');
+    const years = screen.getByText('years');
+    expect(years.tagName).toBe('STRONG');
+    expect(years.closest('.fphd-markdown')?.className).toContain('fphd-body-italic');
   });
 
   it('shows no clarification request when there is none', () => {

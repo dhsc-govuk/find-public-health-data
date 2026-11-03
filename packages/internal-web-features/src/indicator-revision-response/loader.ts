@@ -58,7 +58,7 @@ export async function loadRevisionResponse({ context, params }: LoaderFunctionAr
   return {
     id,
     clarificationRequest:
-      reply.clarificationRequest === null ? null : renderMarkdown(reply.clarificationRequest),
+      reply.clarificationRequest === null ? null : renderMarkdown(reply.clarificationRequest, 's'),
     values,
     version: reply.version,
   };

@@ -53,7 +53,7 @@ describe('loadRevisionResponse', () => {
     await expect(load({ get }).run()).resolves.toEqual({
       id,
       clarificationRequest: {
-        markdownHtml: '<p class="govuk-body">Which <strong>years</strong>?</p>',
+        markdownHtml: '<p class="govuk-body-s">Which <strong>years</strong>?</p>',
       },
       values: { revisionResponse: '' },
       version: SHOWN_VERSION,

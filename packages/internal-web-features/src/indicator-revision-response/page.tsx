@@ -35,7 +35,10 @@ export function RevisionResponsePage({ clarificationRequest, ...form }: Revision
         {clarificationRequest === null ? null : (
           <>
             <h2 className="govuk-heading-s">High-level clarification request</h2>
-            <Markdown className="govuk-!-margin-bottom-6" html={clarificationRequest} />
+            <Markdown
+              className="fphd-body-italic govuk-!-margin-bottom-6"
+              html={clarificationRequest}
+            />
           </>
         )}
         <div className="govuk-body" id={HINT_ID}>
