@@ -61,33 +61,39 @@ export function revisionResponseRouter(
   const router = Router();
   const requireEditor = requireIndicatorEditor(session, indicators);
 
-  /** The id and its reply, or undefined once the refusal is sent. */
-  async function currentReply(request: Request, response: Response) {
+  /** The id `:id` names, or undefined once the refusal is sent. */
+  function indicatorId(request: Request, response: Response): string | undefined {
     const id = indicatorIdSchema.safeParse(request.params.id);
 
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' } satisfies Refusal);
-      return undefined;
-    }
+    if (id.success) return id.data;
 
-    const reply = replyOf(await indicators.findRevisionRound(id.data));
+    response.status(400).json({ error: 'invalid_id' } satisfies Refusal);
+    return undefined;
+  }
 
-    if (Array.isArray(reply)) {
-      const [status, refusal] = reply;
-      response.status(status).json(refusal);
-      return undefined;
-    }
+  /** The indicator's reply, or undefined once the refusal is sent. */
+  async function currentReply(id: string, response: Response) {
+    const reply = replyOf(await indicators.findRevisionRound(id));
 
-    return { id: id.data, reply };
+    if (!Array.isArray(reply)) return reply;
+
+    const [status, refusal] = reply;
+    response.status(status).json(refusal);
+    return undefined;
   }
 
   router.get(PATH, requireEditor, async (request, response) => {
-    const current = await currentReply(request, response);
+    const id = indicatorId(request, response);
+    const reply = id === undefined ? undefined : await currentReply(id, response);
 
-    if (current !== undefined) response.status(200).json(current.reply);
+    if (reply !== undefined) response.status(200).json(reply);
   });
 
   router.put(PATH, requireEditor, async (request, response) => {
+    const id = indicatorId(request, response);
+
+    if (id === undefined) return;
+
     const body = revisionResponseSaveBodySchema.safeParse(request.body);
 
     if (!body.success) {
@@ -96,11 +102,11 @@ export function revisionResponseRouter(
     }
 
     // Read first, so a locked draft answers locked before its refused text, as a section does.
-    const current = await currentReply(request, response);
+    const current = await currentReply(id, response);
 
     if (current === undefined) return;
 
-    const checked = revisionResponseFormSchemaFor(current.reply).safeParse(body.data);
+    const checked = revisionResponseFormSchemaFor(current).safeParse(body.data);
 
     if (!checked.success) {
       response.status(400).json({
@@ -111,7 +117,7 @@ export function revisionResponseRouter(
     }
 
     const result = await indicators.saveRevisionResponse(
-      current.id,
+      id,
       checked.data.revisionResponse,
       { version: body.data.version, versionOf: revisionReplyVersion },
       requireApiActor(request, response),
@@ -128,11 +134,11 @@ export function revisionResponseRouter(
       return;
     }
 
-    const saved = replyOf(await indicators.findRevisionRound(current.id));
+    const saved = replyOf(await indicators.findRevisionRound(id));
 
     if (Array.isArray(saved)) throw new Error('the reply just saved could not be read back');
 
-    request.log.info({ indicatorId: current.id }, 'Revision response saved');
+    request.log.info({ indicatorId: id }, 'Revision response saved');
     response.status(200).json(saved);
   });
 

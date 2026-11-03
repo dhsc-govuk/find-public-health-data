@@ -3,7 +3,6 @@ import { desc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
 import { confirmDataTable } from './data-table-check-repository.ts';
-import { editVersion } from './edit-version.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import { AS_ACTOR, AS_OTHER_ACTOR, repositoryTest } from './indicator-repository.testing.ts';
 import { sentBackDraft } from './indicator-workflow.testing.ts';
@@ -12,7 +11,7 @@ import {
   writeWhileStepHolds,
 } from './indicator-workflow-concurrency.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
-import { saveRevisionResponse } from './revision-response-repository.ts';
+import { revisionReplyVersion, saveRevisionResponse } from './revision-response-repository.ts';
 
 const {
   indicatorVersion,
@@ -131,9 +130,8 @@ describe('two publishers writing the reply', () => {
   repositoryTest('take turns, and the second is refused as changed', async ({ db }) => {
     const { indicatorId, versionId } = await sentBackDraft(db, 'Two replies', ['polarity']);
     const shown = {
-      version: editVersion(null),
-      versionOf: (reply: { revisionResponse: string | null }) =>
-        editVersion(reply.revisionResponse),
+      version: revisionReplyVersion({ submissionNumber: 1, revisionResponse: null }),
+      versionOf: revisionReplyVersion,
     };
 
     const result = await stepWhileWriteHolds(
@@ -144,7 +142,11 @@ describe('two publishers writing the reply', () => {
 
     expect(result).toEqual({
       write: { ok: true },
-      step: { ok: false, reason: 'changed', version: editVersion('First') },
+      step: {
+        ok: false,
+        reason: 'changed',
+        version: revisionReplyVersion({ submissionNumber: 1, revisionResponse: 'First' }),
+      },
     });
     const [latest] = await db
       .select({ revisionResponse: indicatorVersionSubmission.revisionResponse })

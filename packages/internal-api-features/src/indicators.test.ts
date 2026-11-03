@@ -946,6 +946,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
   const neverSentBack: RevisionRoundRow = {
     hasDraft: true,
     draftLocked: false,
+    submissionNumber: null,
     submissionStatus: null,
     kind: null,
     clarificationRequest: null,

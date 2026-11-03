@@ -3,7 +3,7 @@ import { auditEntriesFor } from '@fphd/db/testing';
 import { desc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
-import { type EditPrecondition, editVersion } from './edit-version.ts';
+import type { EditPrecondition } from './edit-version.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import {
   AS_ACTOR,
@@ -12,11 +12,18 @@ import {
   OTHER_ACTOR,
   repositoryTest,
 } from './indicator-repository.testing.ts';
-import { draftUpdatedAt, sentBackDraft } from './indicator-workflow.testing.ts';
+import {
+  AS_REVIEWER,
+  draftUpdatedAt,
+  sentBackDraft,
+  ukToday,
+} from './indicator-workflow.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
+import { respondToReview } from './review-response-repository.ts';
 import {
   getRevisionRound,
   type RevisionReply,
+  revisionReplyVersion,
   saveRevisionResponse,
 } from './revision-response-repository.ts';
 
@@ -24,10 +31,14 @@ const { indicatorVersion, indicatorVersionSubmission } = schema;
 
 const UNKNOWN_ID = '00000000-0000-7000-8000-000000000009';
 
-function shownReply(revisionResponse: string | null): EditPrecondition<RevisionReply> {
+/** The reply as a page showed it in round `submissionNumber`, the first unless told. */
+function shownReply(
+  revisionResponse: string | null,
+  submissionNumber = 1,
+): EditPrecondition<RevisionReply> {
   return {
-    version: editVersion(revisionResponse),
-    versionOf: (reply) => editVersion(reply.revisionResponse),
+    version: revisionReplyVersion({ submissionNumber, revisionResponse }),
+    versionOf: revisionReplyVersion,
   };
 }
 
@@ -66,6 +77,7 @@ describe('getRevisionRound', () => {
     expect(await getRevisionRound(db, indicatorId)).toEqual({
       hasDraft: true,
       draftLocked: false,
+      submissionNumber: 1,
       submissionStatus: 'changes_requested',
       kind: 'minor_revisions',
       clarificationRequest: 'Which years?',
@@ -84,6 +96,7 @@ describe('getRevisionRound', () => {
     expect(await getRevisionRound(db, indicatorId)).toEqual({
       hasDraft: true,
       draftLocked: false,
+      submissionNumber: null,
       submissionStatus: null,
       kind: null,
       clarificationRequest: null,
@@ -148,8 +161,40 @@ describe('saveRevisionResponse', () => {
 
       expect(
         await saveRevisionResponse(db, indicatorId, 'Too late', shownReply(null), AS_ACTOR),
-      ).toEqual({ ok: false, reason: 'changed', version: editVersion('Teammate first') });
+      ).toEqual({ ok: false, reason: 'changed', version: shownReply('Teammate first').version });
       expect(await latestReplyOf(db, versionId)).toBe('Teammate first');
+    },
+  );
+
+  repositoryTest(
+    "refuses a page shown in an earlier round as changed, though both rounds' replies started empty",
+    async ({ db }) => {
+      const { indicatorId, versionId } = await sentBackDraft(db, 'Replied a round late', [
+        'polarity',
+      ]);
+      const firstRound = shownReply(null);
+      await updateIndicatorDraft(db, indicatorId, 'polarity', {}, {}, AS_ACTOR);
+      await saveRevisionResponse(db, indicatorId, 'Done', firstRound, AS_ACTOR);
+      await submitIndicator(db, indicatorId, await draftUpdatedAt(db, versionId), AS_ACTOR);
+      expect(
+        await respondToReview(
+          db,
+          indicatorId,
+          {
+            submissionNumber: 2,
+            kind: 'major_revisions',
+            imrgReviewedOn: ukToday(),
+            clarificationRequest: 'Which years?',
+            flags: [],
+          },
+          AS_REVIEWER,
+        ),
+      ).toEqual({ ok: true });
+
+      expect(
+        await saveRevisionResponse(db, indicatorId, 'Meant for round 1', firstRound, AS_ACTOR),
+      ).toEqual({ ok: false, reason: 'changed', version: shownReply(null, 2).version });
+      expect(await latestReplyOf(db, versionId)).toBeNull();
     },
   );
 

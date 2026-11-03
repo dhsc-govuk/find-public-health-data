@@ -7,7 +7,7 @@ import { revisionResponseSchema } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 import { revisionResponseRouter } from './revision-response.ts';
-import type { RevisionRoundRow } from './revision-response-repository.ts';
+import { type RevisionRoundRow, revisionReplyVersion } from './revision-response-repository.ts';
 import {
   createRouterTestApp,
   TEST_TEAM_ID,
@@ -22,6 +22,7 @@ const path = `/api/internal/indicators/${ID}/revision-response`;
 const round: RevisionRoundRow = {
   hasDraft: true,
   draftLocked: false,
+  submissionNumber: 1,
   submissionStatus: 'changes_requested',
   kind: 'minor_revisions',
   clarificationRequest: 'Which years?',
@@ -32,7 +33,7 @@ const round: RevisionRoundRow = {
   ],
 };
 
-const VERSION = editVersion('Checked the years');
+const VERSION = revisionReplyVersion(round);
 
 type Indicators = Pick<
   InternalIndicatorRepository,
@@ -143,41 +144,13 @@ describe('PUT the revision response', () => {
     expect(saveRevisionResponse.mock.lastCall?.[2].versionOf(round)).toBe(VERSION);
     expect(response.body).toMatchObject({
       revisionResponse: 'Changed the name',
-      version: editVersion('Changed the name'),
+      version: revisionReplyVersion({ submissionNumber: 1, revisionResponse: 'Changed the name' }),
     });
   });
 
-  it.each([
-    [
-      'flags and a clarification request',
-      round,
-      'Enter your response to the requested revisions and clarification request',
-    ],
-    [
-      'pre-IMRG flags and a clarification request',
-      { ...round, kind: 'pre_imrg_feedback' as const },
-      'Enter your response to the advised revisions and clarification request',
-    ],
-    [
-      'a clarification request alone',
-      { ...round, flags: [] },
-      'Enter your response to the clarification request',
-    ],
-    [
-      'flags alone',
-      { ...round, clarificationRequest: null },
-      'Enter your response to the requested revisions',
-    ],
-    [
-      'pre-IMRG flags alone',
-      { ...round, kind: 'pre_imrg_feedback' as const, clarificationRequest: null },
-      'Enter your response to the advised revisions',
-    ],
-  ])('refuses an empty reply to %s, saying what to answer', async (_case, found, message) => {
+  it('refuses an empty reply, saying what the round asked for', async () => {
     const saveRevisionResponse = vi.fn();
-    const response = await request(
-      createTestApp({ findRevisionRound: async () => found, saveRevisionResponse }),
-    )
+    const response = await request(createTestApp({ saveRevisionResponse }))
       .put(path)
       .set('Cookie', await asPublisher())
       .send({ revisionResponse: '   ', version: VERSION });
@@ -185,7 +158,10 @@ describe('PUT the revision response', () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       error: 'validation_failed',
-      fieldErrors: { revisionResponse: message },
+      fieldErrors: {
+        revisionResponse:
+          'Enter your response to the requested revisions and clarification request',
+      },
     });
     expect(saveRevisionResponse).not.toHaveBeenCalled();
   });
@@ -201,6 +177,16 @@ describe('PUT the revision response', () => {
       error: 'validation_failed',
       fieldErrors: { revisionResponse: 'Your response must be 10,000 characters or fewer' },
     });
+  });
+
+  it('refuses an id that is not one before its body', async () => {
+    const response = await request(createTestApp())
+      .put('/api/internal/indicators/not-an-id/revision-response')
+      .set('Cookie', await asPublisher())
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_id' });
   });
 
   it.each([

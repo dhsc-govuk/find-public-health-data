@@ -215,6 +215,7 @@ describe('taskListReview', () => {
   const round: RevisionRoundRow = {
     hasDraft: true,
     draftLocked: false,
+    submissionNumber: 1,
     submissionStatus: 'changes_requested',
     kind: 'major_revisions',
     clarificationRequest: 'Which years?',

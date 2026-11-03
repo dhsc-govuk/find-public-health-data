@@ -9,6 +9,7 @@ import {
   draftJoin,
   draftResponseKind,
   draftSubmissionId,
+  draftSubmissionNumber,
   draftSubmissionStatus,
   draftVersion,
 } from './indicator-repository-sql.ts';
@@ -32,6 +33,8 @@ export interface RevisionFlag {
 export interface RevisionRoundRow {
   hasDraft: boolean;
   draftLocked: boolean;
+  /** The draft's latest submission, the round a reply answers; null until first submitted. */
+  submissionNumber: number | null;
   submissionStatus: DraftSubmissionStatus | null;
   /** What the latest response to the round said, null until a reviewer responds. */
   kind: ReviewResponseKind | null;
@@ -41,8 +44,12 @@ export interface RevisionRoundRow {
   flags: RevisionFlag[];
 }
 
-/** The reply as the page edits it, which its version is a hash of. */
+/**
+ * The reply as the page edits it, with the round it answers, which its version is a hash of:
+ * every round's reply starts empty, so a page shown in an earlier round never matches a later one.
+ */
 export interface RevisionReply {
+  submissionNumber: number | null;
   revisionResponse: string | null;
 }
 
@@ -86,6 +93,7 @@ export async function getRevisionRound(
     .select({
       draftId: draftVersion.id,
       draftLocked: sql<boolean>`coalesce(${draftVersion.isLocked}, false)`,
+      submissionNumber: draftSubmissionNumber,
       submissionStatus: draftSubmissionStatus,
       kind: draftResponseKind,
       clarificationRequest: sql<string | null>`(${latestClarification})`,
@@ -132,6 +140,7 @@ export function saveRevisionResponse(
     const [latest] = await tx
       .select({
         id: indicatorVersionSubmission.id,
+        number: indicatorVersionSubmission.number,
         status: indicatorVersionSubmission.status,
         revisionResponse: indicatorVersionSubmission.revisionResponse,
       })
@@ -142,8 +151,10 @@ export function saveRevisionResponse(
 
     if (latest?.status !== 'changes_requested') return { ok: false, reason: 'not_allowed' };
 
-    const before = { revisionResponse: latest.revisionResponse };
-    const version = precondition.versionOf(before);
+    const version = precondition.versionOf({
+      submissionNumber: latest.number,
+      revisionResponse: latest.revisionResponse,
+    });
     if (version !== precondition.version) return { ok: false, reason: 'changed', version };
 
     await tx
@@ -155,7 +166,10 @@ export function saveRevisionResponse(
       .set({ updatedAt: sql`now()`, updatedBy: actor.userId })
       .where(eq(indicatorVersion.id, draft.id));
 
-    const changes = changesBetween(before, { revisionResponse: text });
+    const changes = changesBetween(
+      { revisionResponse: latest.revisionResponse },
+      { revisionResponse: text },
+    );
     if (Object.keys(changes).length > 0) {
       await recordAudit(tx, actor, [
         { action: 'indicator.revision_response_updated', entityId: indicatorId, changes },
@@ -167,6 +181,9 @@ export function saveRevisionResponse(
 }
 
 /** The version of the reply a page shows, which its save sends back. */
-export function revisionReplyVersion({ revisionResponse }: RevisionReply): string {
-  return editVersion(revisionResponse);
+export function revisionReplyVersion({
+  submissionNumber,
+  revisionResponse,
+}: RevisionReply): string {
+  return editVersion({ submissionNumber, revisionResponse });
 }

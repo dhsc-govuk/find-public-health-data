@@ -357,6 +357,7 @@ describe('internal API', () => {
         findRevisionRound: async () => ({
           hasDraft: true,
           draftLocked: false,
+          submissionNumber: 1,
           submissionStatus: 'changes_requested',
           kind: 'minor_revisions',
           clarificationRequest: null,
