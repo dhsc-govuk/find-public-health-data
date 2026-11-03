@@ -78,7 +78,8 @@ export function serverEnvFields(defaults: { port: number }) {
  * The two shutdown numbers together, so the one thing they must satisfy is checked once. The
  * drain has no default in the field above because this fallback depends on APP_ENV, which a
  * shared fragment cannot see: nothing routes to a machine here, so a delay would only make
- * Ctrl-C slow. The deployed value is two readiness probe intervals plus a margin.
+ * Ctrl-C slow. Deployed, the 5s gives the platform time to stop routing new requests here before
+ * the server closes.
  *
  * The drain comes out of the grace period rather than adding to it, so one that fills the
  * budget leaves nothing to finish in-flight work in — a misconfiguration worth a startup
