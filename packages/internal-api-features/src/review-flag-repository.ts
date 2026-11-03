@@ -1,10 +1,6 @@
 import { schema } from '@fphd/db';
 import type { Actor, AuditChanges } from '@fphd/db/audit-log';
-import {
-  FLAGGABLE_TASK_KEYS,
-  type FlaggableTaskKey,
-  type IndicatorTaskKey,
-} from '@fphd/utils/indicator-task-key';
+import { type IndicatorTaskKey, isFlaggable } from '@fphd/utils/indicator-task-key';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from './indicator-repository-sql.ts';
@@ -32,10 +28,6 @@ export async function hasUnclearedFlag(tx: Transaction, submissionId: string): P
     )
     .limit(1);
   return flag !== undefined;
-}
-
-function isFlaggable(task: IndicatorTaskKey): task is FlaggableTaskKey {
-  return (FLAGGABLE_TASK_KEYS as readonly IndicatorTaskKey[]).includes(task);
 }
 
 /**

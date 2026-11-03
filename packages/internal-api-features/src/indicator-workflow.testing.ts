@@ -160,9 +160,10 @@ export async function sentBackDraft(
     .select({ batchId: indicatorVersion.uploadBatchId })
     .from(indicatorVersion)
     .where(eq(indicatorVersion.id, draft.versionId));
+  if (!row?.batchId) throw new Error(`sentBackDraft found no data table on ${draft.versionId}`);
   return {
     ...draft,
-    batchId: row?.batchId ?? '',
+    batchId: row.batchId,
     shown: await draftUpdatedAt(db, draft.versionId),
   };
 }

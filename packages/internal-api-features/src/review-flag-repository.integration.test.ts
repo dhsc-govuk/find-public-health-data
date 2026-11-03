@@ -92,6 +92,24 @@ describe('saving a flagged task', () => {
     },
   );
 
+  repositoryTest('records a changed answer and the cleared flag in one entry', async ({ db }) => {
+    const { indicatorId, versionId } = await sentBackDraft(db, 'Saved changed', ['polarity']);
+    const before = await draftUpdates(db, indicatorId);
+    const polarity = await polarityOf(db, versionId);
+    const changed = polarity === 'higher-is-better' ? 'lower-is-better' : 'higher-is-better';
+
+    await updateIndicatorDraft(db, indicatorId, 'polarity', { polarity: changed }, {}, AS_ACTOR);
+
+    expect((await draftUpdates(db, indicatorId)).slice(before.length)).toEqual([
+      expect.objectContaining({
+        changes: {
+          polarity: { before: polarity, after: changed },
+          flags: { before: ['polarity'], after: [] },
+        },
+      }),
+    ]);
+  });
+
   repositoryTest('keeps the flag as the first save cleared it', async ({ db }) => {
     const { indicatorId, versionId } = await sentBackDraft(db, 'Saved twice', ['polarity']);
     const polarity = await polarityOf(db, versionId);
