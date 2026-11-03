@@ -214,8 +214,9 @@ export const publishedArea = publishedSchema
     code: text('code').notNull(),
     name: text('name').notNull(),
     areaTypeId: uuid('area_type_id').notNull(),
-    validFrom: date('valid_from').notNull(),
+    validFrom: date('valid_from'),
     validTo: date('valid_to'),
+    isCurrent: boolean('is_current').notNull(),
   })
   .existing();
 
@@ -224,7 +225,7 @@ export const publishedAreaRelationship = publishedSchema
     id: uuid('id').notNull(),
     parentAreaId: uuid('parent_area_id').notNull(),
     childAreaId: uuid('child_area_id').notNull(),
-    validFrom: date('valid_from').notNull(),
+    validFrom: date('valid_from'),
     validTo: date('valid_to'),
   })
   .existing();

@@ -1,5 +1,5 @@
 import { type Database, schema } from '@fphd/db';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { categoryKey, nameIndex, nameKey } from './data-table-names.ts';
 import type { DataTableReferences } from './data-table-rows.ts';
@@ -76,7 +76,7 @@ export async function getLatestDataUpload(
 /** Every code and name a data table can match, names keyed as the file's names are. */
 export async function loadDataTableReferences(db: Database): Promise<DataTableReferences> {
   const [areas, values, notes] = await Promise.all([
-    db.select({ code: area.code, id: area.id }).from(area).where(isNull(area.validTo)),
+    db.select({ code: area.code, id: area.id }).from(area).where(eq(area.isCurrent, true)),
     db
       .select({ type: dimensionType.name, name: dimensionValue.name, id: dimensionValue.id })
       .from(dimensionValue)

@@ -76,7 +76,10 @@ export async function validateMigrationHeader(
   const missing = targetInfo
     .filter(
       ({ name, notNull, hasDefault }) =>
-        name === 'id' || (table === 'indicator' && name === 'short_id') || (notNull && !hasDefault),
+        name === 'id' ||
+        (table === 'indicator' && name === 'short_id') ||
+        (table === 'area' && name === 'is_current') ||
+        (notNull && !hasDefault),
     )
     .map(({ name }) => name)
     .filter((name) => !columnSet.has(name));

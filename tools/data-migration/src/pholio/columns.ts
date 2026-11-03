@@ -27,7 +27,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'is_aggregate',
   ],
   area_type: ['id', 'name', 'hierarchy_type', 'level'],
-  area: ['id', 'code', 'name', 'area_type_id', 'valid_from', 'valid_to'],
+  area: ['id', 'code', 'name', 'area_type_id', 'valid_from', 'valid_to', 'is_current'],
   area_relationship: ['id', 'parent_area_id', 'child_area_id', 'valid_from', 'valid_to'],
   indicator: ['id', 'created_at', 'data_updated_at'],
   indicator_version: [
