@@ -116,6 +116,13 @@ export const INDICATOR_STEPS = [
 
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
 
+/** The steps a reviewer's response takes, one for each kind of response. */
+export const REVIEW_RESPONSE_STEPS: readonly IndicatorStep[] = [
+  'give_feedback',
+  'request_changes',
+  'approve',
+];
+
 /** A reviewer assigned to the draft's latest submission. */
 export const draftReviewerSchema = z.object({ id: z.uuid(), name: z.string().min(1) });
 

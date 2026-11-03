@@ -1702,3 +1702,13 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   text-align: center;
   margin: 0;
 }
+
+// The review response banners, coloured as GOV.UK Frontend colours its success banner. The orange
+// is a shade darker than the tag's, so the white title keeps its contrast.
+.govuk-notification-banner.fphd-notification-banner--orange {
+  --_govuk-notification-banner-colour: #{govuk-colour("orange", $variant: "shade-25")};
+}
+
+.govuk-notification-banner.fphd-notification-banner--red {
+  --_govuk-notification-banner-colour: #{govuk-colour("red")};
+}

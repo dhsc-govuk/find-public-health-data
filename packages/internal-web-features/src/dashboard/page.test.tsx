@@ -280,6 +280,23 @@ describe('DashboardPage', () => {
       );
     });
 
+    it('lists an indicator sent back for changes on the Review tab without counting it', () => {
+      const sentBack: IndicatorAdminListItem = {
+        ...inReview,
+        id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5d',
+        name: 'Hip fractures',
+        draftLocked: false,
+        draftSubmissionStatus: 'changes_requested',
+        draftResponseKind: 'minor_revisions',
+      };
+
+      renderPage({}, '/dashboard', null, [inReview, sentBack]);
+
+      const panel = screen.getByRole('tabpanel', { name: 'Review (1)' });
+      expect(within(panel).getByRole('link', { name: 'Hip fractures' })).toBeTruthy();
+      expect(within(panel).getByText('Minor revisions needed')).toBeTruthy();
+    });
+
     it('leaves the count off the Review tab when nothing is assigned', () => {
       renderPage({}, '/dashboard', null, []);
 
@@ -359,5 +376,22 @@ describe('DashboardPage', () => {
       '/dashboard?page=3&tab=all-indicators',
     );
     expect(screen.queryByRole('button', { name: 'Create new indicator' })).toBeNull();
+  });
+
+  it('shows what the page before left to say in an important banner', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <DashboardPage
+          underReview={null}
+          toReview={[]}
+          list={null}
+          notification="You are no longer a reviewer of this indicator."
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('region', { name: 'Important' }).textContent).toContain(
+      'You are no longer a reviewer of this indicator.',
+    );
   });
 });

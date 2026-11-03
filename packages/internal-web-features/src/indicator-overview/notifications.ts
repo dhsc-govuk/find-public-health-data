@@ -6,6 +6,8 @@ type FlashContext = Parameters<typeof setFlash>[0];
 export interface OverviewNotification {
   type: 'success' | 'important';
   text: string;
+  /** The banner's colour where it is neither GOV.UK's success green nor its important blue. */
+  colour?: 'orange' | 'red';
 }
 
 /** Resolved on the server so a cookie value is only ever a key into copy written here. */
@@ -41,6 +43,34 @@ const NOTIFICATIONS = {
   'reviewer-refused': {
     type: 'important',
     text: 'A reviewer you chose can no longer review this indicator. Choose the reviewers again.',
+  },
+  'review-approved': { type: 'success', text: 'Indicator approved for publishing' },
+  'review-minor-revisions': {
+    type: 'important',
+    colour: 'orange',
+    text: 'Indicator requires minor revisions to be approved for publishing',
+  },
+  'review-major-revisions': {
+    type: 'important',
+    colour: 'red',
+    text: 'Indicator requires major revisions to be approved for publishing',
+  },
+  'review-feedback-given': {
+    type: 'important',
+    colour: 'orange',
+    text: 'Revisions or clarifications advised before indicator submitted for IMRG review',
+  },
+  'review-not-waiting': {
+    type: 'important',
+    text: 'This indicator is no longer waiting for a review response.',
+  },
+  'review-changed': {
+    type: 'important',
+    text: 'This indicator has been resubmitted since you opened this page. Check it, then send your response.',
+  },
+  'review-no-publication-date': {
+    type: 'important',
+    text: 'This indicator cannot be approved because it has no publication date.',
   },
 } as const satisfies Record<string, OverviewNotification>;
 

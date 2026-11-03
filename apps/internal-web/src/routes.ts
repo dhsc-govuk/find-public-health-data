@@ -44,6 +44,22 @@ export default [
         'dashboard/indicators/:id/assign-reviewers',
         '../../../packages/internal-web-features/src/indicator-reviewer-assignment/route.tsx',
       ),
+      route(
+        'dashboard/indicators/:id/review/response-type',
+        '../../../packages/internal-web-features/src/indicator-review-response/response-type-route.tsx',
+      ),
+      route(
+        'dashboard/indicators/:id/review/date',
+        '../../../packages/internal-web-features/src/indicator-review-response/date-route.tsx',
+      ),
+      route(
+        'dashboard/indicators/:id/review/approval',
+        '../../../packages/internal-web-features/src/indicator-review-response/approval-route.tsx',
+      ),
+      route(
+        'dashboard/indicators/:id/review/revisions',
+        '../../../packages/internal-web-features/src/indicator-review-response/revisions-route.tsx',
+      ),
     ]),
     layout('./publisher.tsx', [
       route(

@@ -103,8 +103,8 @@ describe('IndicatorOverviewPage', () => {
     renderPage({ draftStatus: 'draft' });
 
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Continue updating indicator',
       'View published indicator',
+      'Continue updating indicator',
     ]);
     expect(
       screen.getByRole('link', { name: 'Continue updating indicator' }).getAttribute('href'),
@@ -250,5 +250,60 @@ describe('IndicatorOverviewPage', () => {
 
     expect(screen.queryByRole('button', { name: 'Assign reviewers to indicator' })).toBeNull();
     expect(screen.getByText('There are no actions available for this indicator yet.')).toBeTruthy();
+  });
+
+  it('offers an assigned reviewer the response under a Review heading', () => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          isReviewer
+          indicator={{
+            ...indicator,
+            ...submitted,
+            draftSubmissionStatus: 'in_review',
+            actions: ['give_feedback', 'request_changes', 'approve'],
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Review' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Actions' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Submit review response' }).getAttribute('href'),
+    ).toBe(`/dashboard/indicators/${indicator.id}/review/response-type`);
+  });
+
+  it('tells a reviewer who has responded that nothing is left to do, under Review', () => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          isReviewer
+          indicator={{ ...indicator, ...submitted, draftSubmissionStatus: 'approved', actions: [] }}
+        />
+      </MemoryRouter>,
+    );
+
+    const review = screen.getByRole('heading', { level: 2, name: 'Review' }).parentElement;
+    expect(review?.textContent).toContain('There are no actions available for this indicator yet.');
+    expect(screen.queryByRole('button', { name: 'Submit review response' })).toBeNull();
+  });
+
+  it.each(['orange', 'red'] as const)('colours a review response banner %s', (colour) => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          indicator={indicator}
+          notification={{ type: 'important', colour, text: 'Revisions needed.' }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('region', { name: 'Important' }).className).toContain(
+      `fphd-notification-banner--${colour}`,
+    );
   });
 });

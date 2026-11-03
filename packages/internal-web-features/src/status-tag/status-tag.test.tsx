@@ -26,21 +26,33 @@ describe('StatusTag', () => {
   });
 
   it.each([
-    ['new', 'draft', null, 'Incomplete', 'blue'],
-    ['new', 'draft', 'submitted', 'Pending approval', 'yellow'],
-    ['new', 'draft', 'in_review', 'Pending approval', 'yellow'],
-    ['new', 'draft', 'withdrawn', 'Incomplete', 'blue'],
-    ['live', null, null, 'Published', 'green'],
-    ['live', 'draft', null, 'Update incomplete', 'blue'],
+    ['new', 'draft', null, null, 'Incomplete', 'blue'],
+    ['new', 'draft', 'submitted', null, 'Pending approval', 'yellow'],
+    ['new', 'draft', 'in_review', null, 'Pending approval', 'yellow'],
+    ['new', 'draft', 'withdrawn', null, 'Incomplete', 'blue'],
+    [
+      'new',
+      'draft',
+      'changes_requested',
+      'pre_imrg_feedback',
+      'Revisions or clarifications advised',
+      'orange',
+    ],
+    ['new', 'draft', 'changes_requested', 'minor_revisions', 'Minor revisions needed', 'orange'],
+    ['new', 'draft', 'changes_requested', 'major_revisions', 'Major revisions needed', 'red'],
+    ['new', 'draft', 'approved', 'approved', 'Publishing scheduled', 'yellow'],
+    ['live', null, null, null, 'Published', 'green'],
+    ['live', 'draft', null, null, 'Update incomplete', 'blue'],
   ] as const)(
-    'shows a %s indicator with a draft status of %s and a submission %s as %s',
-    (indicatorStatus, draftStatus, draftSubmissionStatus, label, colour) => {
+    'shows a %s indicator with a draft status of %s, a submission %s and a response %s as %s',
+    (indicatorStatus, draftStatus, draftSubmissionStatus, draftResponseKind, label, colour) => {
       render(
         <StatusTag
           type="publishing"
           indicatorStatus={indicatorStatus}
           draftStatus={draftStatus}
           draftSubmissionStatus={draftSubmissionStatus}
+          draftResponseKind={draftResponseKind}
         />,
       );
 
@@ -55,6 +67,7 @@ describe('StatusTag', () => {
         indicatorStatus="new"
         draftStatus={null}
         draftSubmissionStatus={null}
+        draftResponseKind={null}
       />,
     );
 
@@ -70,6 +83,7 @@ describe('StatusTag', () => {
         indicatorStatus: 'live',
         draftStatus: null,
         draftSubmissionStatus: null,
+        draftResponseKind: null,
       },
       'Publishing status: ',
       'Published',

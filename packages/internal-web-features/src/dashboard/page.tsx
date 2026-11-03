@@ -1,4 +1,4 @@
-import { Button, GridColumn, GridRow, Pagination, Table, Tabs } from '@fphd/ui';
+import { Button, GridColumn, GridRow, NotificationBanner, Pagination, Table, Tabs } from '@fphd/ui';
 import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
@@ -63,6 +63,8 @@ interface DashboardPageProps {
   underReview: IndicatorsUnderReview | null;
   toReview: IndicatorAdminListItem[] | null;
   list: IndicatorList | null;
+  /** Something the page the user came from left to tell them. */
+  notification?: string | undefined;
 }
 
 function sectionCount({ underReview, toReview, list }: DashboardPageProps): number {
@@ -101,7 +103,12 @@ function dashboardSections({ underReview, toReview, list }: DashboardPageProps, 
       ? null
       : {
           id: 'review',
-          label: countedLabel('Review', toReview.length),
+          // Counts only the indicators waiting for the reviewer, not those sent back for changes.
+          label: countedLabel(
+            'Review',
+            toReview.filter(({ draftSubmissionStatus }) => draftSubmissionStatus === 'in_review')
+              .length,
+          ),
           content: <ReviewTable indicators={toReview} />,
         },
     list === null ? null : listSection(list, tabbed),
@@ -120,6 +127,9 @@ export function DashboardPage(props: DashboardPageProps) {
   return (
     <GridRow>
       <GridColumn width="full">
+        {props.notification === undefined ? null : (
+          <NotificationBanner disableAutoFocus>{props.notification}</NotificationBanner>
+        )}
         <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
         {tabbed ? <Tabs items={sections} paramKey="tab" /> : sections[0]?.content}
       </GridColumn>

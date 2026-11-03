@@ -1,5 +1,9 @@
 // No @fphd/ui imports here, so the loader unit-tests without the jsdom the components need.
-import { canEditIndicator, canSeeNotesForReviewers } from '@fphd/auth/permissions';
+import {
+  canEditIndicator,
+  canReviewIndicator,
+  canSeeNotesForReviewers,
+} from '@fphd/auth/permissions';
 import {
   indicatorAccess,
   indicatorAdminDetailSchema,
@@ -47,6 +51,7 @@ export async function loadIndicatorOverview({ context, params }: LoaderFunctionA
 
   return {
     canEdit: session !== undefined && canEditIndicator(session, indicator),
+    isReviewer: session !== undefined && canReviewIndicator(session, indicatorAccess(indicator)),
     indicator,
     notesForReviewers,
     notification,

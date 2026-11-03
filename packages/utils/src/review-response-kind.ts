@@ -17,5 +17,3 @@ export const IMRG_DECISION_KINDS = [
   'major_revisions',
   'approved',
 ] as const satisfies readonly ReviewResponseKind[];
-
-export type ImrgDecisionKind = (typeof IMRG_DECISION_KINDS)[number];

@@ -3,6 +3,7 @@ import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { describe, expect, it, vi } from 'vitest';
 
+import { flashCookie, loadWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { signedInContext } from '../session.testing.ts';
 import { loadDashboard } from './loader.ts';
 
@@ -17,11 +18,22 @@ async function load(
   get: ApiClient['get'],
   roles: readonly string[] = ['publisher'],
   teams: readonly string[] = [TEAM_IDS.teamA],
+  cookie?: string,
 ) {
-  const context = await signedInContext(roles, teams);
+  const context = withFlashStorage(await signedInContext(roles, teams));
   context.set(apiContext, { get } as unknown as ApiClient);
+  const request = new Request(url, cookie === undefined ? {} : { headers: { Cookie: cookie } });
 
-  return loadDashboard({ context, params: {}, request: new Request(url) } as never);
+  // A loader that throws, as for a missing page, rejects here rather than inside the middleware.
+  let failure: unknown;
+  const outcome = await loadWithFlash(context, request, () =>
+    loadDashboard({ context, params: {}, request } as never).catch((error: unknown) => {
+      failure = error;
+      return undefined;
+    }),
+  );
+  if (outcome === undefined) throw failure;
+  return outcome;
 }
 
 function apiPage(page: number, total: number, indicators = [indicator]) {
@@ -39,6 +51,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: null,
       list: { canCreate: true, indicators: [indicator], page: 1, totalPages: 3 },
+      notification: undefined,
     });
   });
 
@@ -105,7 +118,7 @@ describe('loadDashboard', () => {
     const outcome = await load('https://internal.test/dashboard', get, ['imrg-manager'], []);
 
     expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-under-review']);
-    expect(outcome).toEqual({ underReview, toReview: null, list: null });
+    expect(outcome).toEqual({ underReview, toReview: null, list: null, notification: undefined });
   });
 
   it('responds 404 to a second page for an IMRG manager, whose tables are not paged', async () => {
@@ -140,6 +153,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
+      notification: undefined,
     });
   });
 
@@ -149,7 +163,12 @@ describe('loadDashboard', () => {
     const outcome = await load('https://internal.test/dashboard', get, ['imrg-reviewer'], []);
 
     expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-to-review']);
-    expect(outcome).toEqual({ underReview: null, toReview: [indicator], list: null });
+    expect(outcome).toEqual({
+      underReview: null,
+      toReview: [indicator],
+      list: null,
+      notification: undefined,
+    });
   });
 
   it('shows a user who is IMRG manager and reviewer both review lists and no list', async () => {
@@ -173,7 +192,12 @@ describe('loadDashboard', () => {
       '/api/internal/indicators-to-review',
       '/api/internal/indicators-under-review',
     ]);
-    expect(outcome).toEqual({ underReview, toReview: [indicator], list: null });
+    expect(outcome).toEqual({
+      underReview,
+      toReview: [indicator],
+      list: null,
+      notification: undefined,
+    });
   });
 
   it.each([
@@ -240,6 +264,19 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: [indicator],
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
+      notification: undefined,
     });
+  });
+
+  it('shows the message the page before left', async () => {
+    const outcome = await load(
+      'https://internal.test/dashboard',
+      apiPage(1, 1),
+      ['publisher'],
+      [TEAM_IDS.teamA],
+      await flashCookie('no-longer-reviewer'),
+    );
+
+    expect(outcome.notification).toBe('You are no longer a reviewer of this indicator.');
   });
 });

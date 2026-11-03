@@ -1,7 +1,7 @@
 import { type Browser, expect, type Page } from '@playwright/test';
 
 import { createDraft } from './create-indicator.ts';
-import { PUBLISHER } from './sign-in.ts';
+import { PUBLISHER, type SignedInUser } from './sign-in.ts';
 
 /** Fetches a section page and returns the version in its form, which a save must send back. */
 export async function shownVersion(page: Page, path: string): Promise<string> {
@@ -29,11 +29,15 @@ export async function submitDraft(page: Page, id: string): Promise<void> {
 }
 
 /**
- * Creates, completes and submits a new indicator as the publisher, in a browser context of their
+ * Creates, completes and submits a new indicator as `publisher`, in a browser context of their
  * own, for tests whose user comes to it after submission. Answers its id.
  */
-export async function submitNewIndicator(browser: Browser, name: string): Promise<string> {
-  const context = await browser.newContext({ storageState: PUBLISHER.storageState });
+export async function submitNewIndicator(
+  browser: Browser,
+  name: string,
+  publisher: SignedInUser = PUBLISHER,
+): Promise<string> {
+  const context = await browser.newContext({ storageState: publisher.storageState });
   try {
     const page = await context.newPage();
     const id = await createDraft(page, name);
