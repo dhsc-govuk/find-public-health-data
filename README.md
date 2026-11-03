@@ -376,9 +376,11 @@ On SIGTERM or SIGINT every server drains, closes, then cleans up — releasing t
 Vite in dev. `SHUTDOWN_GRACE_PERIOD_MS` (default 25s) is the budget for all three rather than a
 timeout per phase, so it is directly comparable to Container Apps' `terminationGracePeriodSeconds`
 and must stay under it, since that is what decides when SIGKILL arrives. It is a ceiling and not a
-wait: a stop with nothing in flight is immediate. `SHUTDOWN_DRAIN_MS` is how long the server goes on
-serving while readiness fails, giving the ingress time to stop routing here; it comes out of the
-budget rather than adding to it, and is zero locally, five seconds elsewhere.
+wait: a stop with nothing in flight ends as soon as the drain does. `SHUTDOWN_DRAIN_MS` is how long
+the server goes on serving after the signal, giving the platform time to stop routing new requests
+here; it comes out of the budget rather than adding to it, and is zero locally, five seconds
+elsewhere. A server logs `Stopping`, with the signal and each phase's budget, as the signal arrives,
+and `Stopped` once cleanup is done.
 
 All four apps serve the same two probes, so one configuration covers every app: `/livez` stays 200
 throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the moment a signal
@@ -528,7 +530,8 @@ this workspace does not use. Images run as the `node` user and start under tini,
 SIGTERM is delivered to a process running as PID 1 — the kernel discards a default-action signal
 sent to PID 1 unless that process installed a handler. Every server stops gracefully on that
 signal, well inside a thirty-second grace period. `HOST` and `PORT` come from the environment,
-defaulting to `0.0.0.0` and the app's own port.
+defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg of that name,
+which CI sets to the commit, and a server logs it with `Listening`.
 
 This is separate from `docker/app.Dockerfile`, which is the development image used by
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and

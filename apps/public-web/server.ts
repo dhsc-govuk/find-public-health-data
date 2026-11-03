@@ -19,5 +19,5 @@ await startReactRouterServer({
   shutdown: config.shutdown,
   rootDirectory: import.meta.dirname,
   serviceName: 'public-web',
-  ...serverLogging(logger, { port: config.port }),
+  ...serverLogging(logger, { port: config.port, revision: config.revision }),
 });

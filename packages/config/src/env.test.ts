@@ -87,6 +87,7 @@ describe('serverEnvFields', () => {
       HOST: '0.0.0.0',
       PORT: 4000,
       SHUTDOWN_GRACE_PERIOD_MS: 25_000,
+      REVISION: 'unknown',
     });
   });
 
@@ -97,12 +98,14 @@ describe('serverEnvFields', () => {
         HOST: '127.0.0.1',
         PORT: '8080',
         SHUTDOWN_GRACE_PERIOD_MS: '60000',
+        REVISION: 'f3c1a0d5e2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d1',
       }),
     ).toEqual({
       APP_ENV: 'preview',
       HOST: '127.0.0.1',
       PORT: 8080,
       SHUTDOWN_GRACE_PERIOD_MS: 60_000,
+      REVISION: 'f3c1a0d5e2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d1',
     });
   });
 
@@ -256,6 +259,7 @@ describe('loadWebServerConfig', () => {
       development: false,
       host: '0.0.0.0',
       port: 3000,
+      revision: 'unknown',
       apiUrl: 'http://localhost:4000',
       apiUploadTimeoutMs: undefined,
       trustedProxyHops: 2,
@@ -286,6 +290,7 @@ describe('loadWebServerConfig', () => {
           HOST: '127.0.0.1',
           NODE_ENV: 'development',
           PORT: '8080',
+          REVISION: 'f3c1a0d5e2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d1',
           API_URL: 'http://api.internal:9000',
           API_UPLOAD_TIMEOUT_MS: '45000',
           TRUSTED_PROXY_HOPS: '1',
@@ -300,6 +305,7 @@ describe('loadWebServerConfig', () => {
       development: true,
       host: '127.0.0.1',
       port: 8080,
+      revision: 'f3c1a0d5e2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d1',
       apiUrl: 'http://api.internal:9000',
       apiUploadTimeoutMs: 45_000,
       trustedProxyHops: 1,

@@ -6,6 +6,7 @@ export const {
   host,
   offersDevTools,
   port,
+  revision,
   apiUrl,
   apiUploadTimeoutMs,
   trustedProxyHops,

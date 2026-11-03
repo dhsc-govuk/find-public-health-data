@@ -12,7 +12,7 @@ describe('serverLogging', () => {
     const logger = stubLogger();
     const failure = new Error('cleanup hung');
 
-    serverLogging(logger, { port: 3000 }).onError(failure);
+    serverLogging(logger, { port: 3000, revision: 'abc123' }).onError(failure);
 
     expect(logger.fatal).toHaveBeenCalledWith({ err: failure }, 'Did not stop cleanly');
     expect(logger.error).not.toHaveBeenCalled();

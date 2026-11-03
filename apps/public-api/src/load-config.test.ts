@@ -10,6 +10,7 @@ describe('loadConfig', () => {
       appEnv: 'local',
       host: '0.0.0.0',
       port: 4000,
+      revision: 'unknown',
       log: { level: 'debug', pretty: true, requestDetails: false },
       shutdown: { drainDelayMs: 0, gracePeriodMs: 25_000 },
       db: {
@@ -28,6 +29,7 @@ describe('loadConfig', () => {
       APP_ENV: 'preview',
       HOST: '127.0.0.1',
       PORT: '8080',
+      REVISION: 'f3c1a0d5e2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d1',
       LOG_LEVEL: 'debug',
       LOG_PRETTY: '1',
       DB_HOST: 'db.internal',
@@ -40,6 +42,7 @@ describe('loadConfig', () => {
       appEnv: 'preview',
       host: '127.0.0.1',
       port: 8080,
+      revision: 'f3c1a0d5e2b4c6d8e0f1a2b3c4d5e6f7a8b9c0d1',
       log: { level: 'debug', pretty: false, requestDetails: false },
       shutdown: { drainDelayMs: 5_000, gracePeriodMs: 25_000 },
       db: {

@@ -2,7 +2,9 @@
 # Starts a production image and checks it comes up: a server logs `Listening` once bound, the
 # operations CLI prints its usage and exits 2. Either shows that every module the app imports at
 # runtime resolved from the tree `pnpm deploy --prod` pruned. The failure this catches is a runtime
-# import declared as a devDependency, which compiles everywhere and is missing only here.
+# import declared as a devDependency, which compiles everywhere and is missing only here. A server's
+# `Listening` line must also carry the commit in the image's revision label, or `unknown` when the
+# image has no label, which shows the REVISION build arg reached the app.
 #
 # ci.yml runs it against each image it builds, which on main are the images publish-images.yml
 # pushes. It also runs by hand against any local tag:
@@ -75,4 +77,10 @@ done
 logs=$(docker logs "${cid}" 2>&1)
 docker rm -f "${cid}" > /dev/null
 echo "${logs}"
-grep -q '"msg":"Listening"' <<<"${logs}" || fail "${app} did not start"
+listening=$(grep '"msg":"Listening"' <<<"${logs}") || fail "${app} did not start"
+
+label=$(docker image inspect "${image}" \
+  --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+expected=${label:-unknown}
+grep -qF "\"revision\":\"${expected}\"" <<<"${listening}" \
+  || fail "${app} did not log revision ${expected} on Listening"

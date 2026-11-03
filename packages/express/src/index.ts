@@ -47,6 +47,7 @@ export interface StartServerOptions {
   onListening: () => void;
   /** The server could not bind, after which the process exits 1. */
   onListenError: (error: Error) => void;
+  onStopping?: ShutdownOptions['onStopping'];
   onShutdown?: ShutdownOptions['onShutdown'];
   onForcedClose?: ShutdownOptions['onForcedClose'];
   onError?: ShutdownOptions['onError'];
@@ -60,6 +61,7 @@ export function startServer({
   shutdown,
   onListening,
   onListenError,
+  onStopping,
   onShutdown,
   onForcedClose,
   onError,
@@ -69,6 +71,7 @@ export function startServer({
 
   installShutdownHandlers(server, {
     ...shutdown,
+    onStopping,
     onDraining: () => {
       app.locals.draining = true;
     },

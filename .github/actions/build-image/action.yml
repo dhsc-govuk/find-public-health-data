@@ -20,6 +20,9 @@ inputs:
     description: OCI labels, one per line.
     required: false
     default: ''
+  revision:
+    description: The commit being built, passed as the REVISION build arg the servers log.
+    required: true
 
 runs:
   using: composite
@@ -32,7 +35,9 @@ runs:
         context: .
         file: docker/Dockerfile
         target: ${{ inputs.target }}
-        build-args: APP=${{ inputs.app }}
+        build-args: |
+          APP=${{ inputs.app }}
+          REVISION=${{ inputs.revision }}
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
         # Into the local daemon, not a registry.

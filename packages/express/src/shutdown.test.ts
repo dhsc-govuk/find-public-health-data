@@ -212,6 +212,62 @@ describe('the close phase', () => {
 });
 
 describe('createShutdownHandler', () => {
+  it('reports the signal and the budgets before it starts to drain', async () => {
+    const { server } = await startServer((_request, response) => response.end('ok'));
+    const events: string[] = [];
+    const onStopping = vi.fn(() => events.push('stopping'));
+
+    await shutdownHandler(server, {
+      gracePeriodMs: 1_000,
+      drainDelayMs: 20,
+      onStopping,
+      onDraining: () => events.push('draining'),
+      onShutdown: () => {
+        events.push('cleanup');
+      },
+    })('SIGTERM');
+
+    const { drainMs, closeMs, reserveMs } = phaseBudgets(1_000, 20);
+    expect(events).toEqual(['stopping', 'draining', 'cleanup']);
+    expect(onStopping).toHaveBeenCalledWith('SIGTERM', {
+      gracePeriodMs: 1_000,
+      drainMs,
+      closeMs,
+      reserveMs,
+    });
+  });
+
+  it('still stops when reporting the stop throws', async () => {
+    const { server } = await startServer((_request, response) => response.end('ok'));
+    const failure = new Error('logger threw');
+    const onShutdown = vi.fn();
+    const onError = vi.fn();
+
+    const exitCode = await shutdownHandler(server, {
+      onStopping: () => {
+        throw failure;
+      },
+      onShutdown,
+      onError,
+    })('SIGTERM');
+
+    expect(server.listening).toBe(false);
+    expect(onShutdown).toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(failure);
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports the stop once, however many signals arrive', async () => {
+    const { server } = await startServer((_request, response) => response.end('ok'));
+    const onStopping = vi.fn();
+    const shutdown = shutdownHandler(server, { onStopping });
+
+    await Promise.all([shutdown('SIGTERM'), shutdown('SIGINT')]);
+
+    expect(onStopping).toHaveBeenCalledTimes(1);
+    expect(onStopping).toHaveBeenCalledWith('SIGTERM', expect.anything());
+  });
+
   it('keeps serving while it drains, before anything stops listening', async () => {
     let served = 0;
     const { server, url } = await startServer((_request, response) => {

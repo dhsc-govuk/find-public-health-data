@@ -66,9 +66,11 @@ export function serverEnvFields(defaults: { port: number }) {
     PORT: portSchema.default(defaults.port),
     SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).optional(),
     // Unlike the drain, this carries a default here: it is a ceiling rather than a wait, so a
-    // stop with nothing in flight is instant under it and a developer machine needs no
-    // different value. The floor is what a stop needs to have phases at all.
+    // stop with nothing in flight ends as soon as the drain does and a developer machine needs
+    // no different value. The floor is what a stop needs to have phases at all.
     SHUTDOWN_GRACE_PERIOD_MS: z.coerce.number().int().min(1_000).default(25_000),
+    // The commit an image was built from, set by docker/Dockerfile and logged on start-up.
+    REVISION: z.string().default('unknown'),
   };
 }
 
@@ -76,7 +78,8 @@ export function serverEnvFields(defaults: { port: number }) {
  * The two shutdown numbers together, so the one thing they must satisfy is checked once. The
  * drain has no default in the field above because this fallback depends on APP_ENV, which a
  * shared fragment cannot see: nothing routes to a machine here, so a delay would only make
- * Ctrl-C slow. The deployed value is two readiness probe intervals plus a margin.
+ * Ctrl-C slow. Deployed, the 5s gives the platform time to stop routing new requests here before
+ * the server closes.
  *
  * The drain comes out of the grace period rather than adding to it, so one that fills the
  * budget leaves nothing to finish in-flight work in — a misconfiguration worth a startup
@@ -212,6 +215,7 @@ export function loadWebServerConfig(
     development: parsed.NODE_ENV === 'development',
     host: parsed.HOST,
     port: parsed.PORT,
+    revision: parsed.REVISION,
     apiUrl: parsed.API_URL,
     apiUploadTimeoutMs: parsed.API_UPLOAD_TIMEOUT_MS,
     trustedProxyHops: parsed.TRUSTED_PROXY_HOPS,

@@ -31,6 +31,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     appEnv: parsed.APP_ENV,
     host: parsed.HOST,
     port: parsed.PORT,
+    revision: parsed.REVISION,
     log: resolveLog(parsed.APP_ENV, parsed),
     shutdown: resolveShutdown(parsed.APP_ENV, parsed),
     session: {

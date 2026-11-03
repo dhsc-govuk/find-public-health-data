@@ -6,6 +6,7 @@
 
 # OCI labels. On a push to main publish-images.yml pushes the images ci.yml built, so ci.yml sets
 # these from its run; the infrastructure repo reads the revision label. Unset, a label is left out.
+# OCI_REVISION is also the REVISION build arg the servers log, so the two cannot disagree.
 variable "OCI_SOURCE" { default = "" }
 variable "OCI_REVISION" { default = "" }
 variable "OCI_CREATED" { default = "" }
@@ -23,7 +24,7 @@ target "app" {
   context    = "."
   dockerfile = "docker/Dockerfile"
   target     = item.target
-  args       = { APP = item.app }
+  args       = { APP = item.app, REVISION = OCI_REVISION }
   tags       = ["fphd-ci/${item.app}:ci"]
   labels = {
     for key, value in {
