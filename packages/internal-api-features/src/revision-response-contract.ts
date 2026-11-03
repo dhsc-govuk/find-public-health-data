@@ -65,7 +65,7 @@ export const revisionResponseErrorSchema = z.discriminatedUnion('error', [
   z.object({ error: z.enum(['invalid_id', 'invalid_request', 'locked', 'not_allowed']) }),
   z.object({
     error: z.literal('validation_failed'),
-    fieldErrors: z.object({ revisionResponse: z.string().optional() }),
+    fieldErrors: z.partialRecord(revisionResponseFieldSchema, z.string()),
   }),
   z.object({ error: z.literal('changed'), version: editVersionSchema }),
 ]);
