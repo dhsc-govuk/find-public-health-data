@@ -11,6 +11,8 @@
 #   docker build -f docker/Dockerfile --target api --build-arg APP=internal-api  -t internal-api  .
 #   docker build -f docker/Dockerfile --target operations --build-arg APP=operations -t operations .
 #
+# Add `--build-arg REVISION=$(git rev-parse HEAD)` to any of these to log the commit on start-up.
+#
 # ci.yml builds the four servers in one go from docker/docker-bake.hcl and operations through
 # .github/actions/build-image, then smoke-tests and scans them. On a push to main,
 # publish-images.yml pushes those images once every check has passed.
@@ -73,11 +75,18 @@ ENTRYPOINT ["/sbin/tini", "--"]
 
 FROM runtime AS api
 COPY --from=builder --chown=node:node /out /app
+# The commit, which the server logs on start-up. Declared last in each stage, so a new commit
+# rebuilds no layer before it. Unset, the app logs `unknown`.
+ARG REVISION
+ENV REVISION=${REVISION}
 # HOST and PORT come from the environment; the app defaults to 0.0.0.0 and its own port.
 CMD ["node", "dist/server.js"]
 
 FROM runtime AS web
 COPY --from=builder --chown=node:node /out /app
+# As in the api stage.
+ARG REVISION
+ENV REVISION=${REVISION}
 # server.ts, not a compiled entrypoint: the web apps' server is run by Node's type stripping,
 # which is why tsconfig.base.json sets erasableSyntaxOnly. Everything it imports from the
 # workspace resolves to compiled dist/ output.
@@ -94,6 +103,9 @@ USER root
 RUN apk add --no-cache postgresql18-client
 USER node
 COPY --from=builder --chown=node:node /out /app
+# As in the api stage, though only the servers log it.
+ARG REVISION
+ENV REVISION=${REVISION}
 # No default command worth running unattended — a job names the one it wants. Bare, this
 # prints the usage and exits non-zero.
 CMD ["node", "dist/cli.js"]

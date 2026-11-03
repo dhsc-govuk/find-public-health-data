@@ -528,7 +528,8 @@ this workspace does not use. Images run as the `node` user and start under tini,
 SIGTERM is delivered to a process running as PID 1 — the kernel discards a default-action signal
 sent to PID 1 unless that process installed a handler. Every server stops gracefully on that
 signal, well inside a thirty-second grace period. `HOST` and `PORT` come from the environment,
-defaulting to `0.0.0.0` and the app's own port.
+defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg of that name,
+which CI sets to the commit, and a server logs it with `Listening`.
 
 This is separate from `docker/app.Dockerfile`, which is the development image used by
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and

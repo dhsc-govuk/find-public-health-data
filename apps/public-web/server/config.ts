@@ -5,6 +5,7 @@ export const {
   development,
   host,
   port,
+  revision,
   apiUrl,
   trustedProxyHops,
   log,

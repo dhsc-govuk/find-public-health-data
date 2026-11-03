@@ -2,6 +2,8 @@ import type { Logger } from '@fphd/logger';
 
 interface ServerLoggingOptions {
   port: number;
+  /** The commit the image was built from. */
+  revision: string;
   onShutdown?: (() => void | Promise<void>) | undefined;
 }
 
@@ -17,10 +19,10 @@ interface ServerLogging {
  * already binds that to every line. */
 export function serverLogging(
   logger: Logger,
-  { port, onShutdown }: ServerLoggingOptions,
+  { port, revision, onShutdown }: ServerLoggingOptions,
 ): ServerLogging {
   return {
-    onListening: () => logger.info({ port }, 'Listening'),
+    onListening: () => logger.info({ port, revision }, 'Listening'),
     onListenError: (error) => logger.fatal({ err: error, port }, 'Could not listen'),
     onShutdown: async (signal) => {
       await onShutdown?.();

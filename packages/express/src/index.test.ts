@@ -85,7 +85,7 @@ describe('startServer', () => {
       host: '127.0.0.1',
       port,
       shutdown: { gracePeriodMs: 1_000, drainDelayMs: 0 },
-      ...serverLogging(logger, { port }),
+      ...serverLogging(logger, { port, revision: 'abc123' }),
     });
     opened.push(server);
     return server;
@@ -116,7 +116,9 @@ describe('startServer', () => {
     const logger = stubLogger();
 
     const server = start(logger, 0);
-    await vi.waitFor(() => expect(logger.info).toHaveBeenCalledWith({ port: 0 }, 'Listening'));
+    await vi.waitFor(() =>
+      expect(logger.info).toHaveBeenCalledWith({ port: 0, revision: 'abc123' }, 'Listening'),
+    );
 
     expect(server.listening).toBe(true);
     expect(exit).not.toHaveBeenCalled();

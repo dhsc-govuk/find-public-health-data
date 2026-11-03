@@ -69,6 +69,8 @@ export function serverEnvFields(defaults: { port: number }) {
     // stop with nothing in flight is instant under it and a developer machine needs no
     // different value. The floor is what a stop needs to have phases at all.
     SHUTDOWN_GRACE_PERIOD_MS: z.coerce.number().int().min(1_000).default(25_000),
+    // The commit an image was built from, set by docker/Dockerfile and logged on start-up.
+    REVISION: z.string().default('unknown'),
   };
 }
 
@@ -212,6 +214,7 @@ export function loadWebServerConfig(
     development: parsed.NODE_ENV === 'development',
     host: parsed.HOST,
     port: parsed.PORT,
+    revision: parsed.REVISION,
     apiUrl: parsed.API_URL,
     apiUploadTimeoutMs: parsed.API_UPLOAD_TIMEOUT_MS,
     trustedProxyHops: parsed.TRUSTED_PROXY_HOPS,

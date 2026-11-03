@@ -38,7 +38,11 @@ const server = startServer({
   host: config.host,
   port: config.port,
   shutdown: config.shutdown,
-  ...serverLogging(logger, { port: config.port, onShutdown: () => closeDb(db) }),
+  ...serverLogging(logger, {
+    port: config.port,
+    revision: config.revision,
+    onShutdown: () => closeDb(db),
+  }),
 });
 
 server.once('listening', () => {

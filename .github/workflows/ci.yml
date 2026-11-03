@@ -549,6 +549,7 @@ jobs:
           app: operations
           target: operations
           tags: fphd-ci/operations:ci
+          revision: ${{ github.sha }}
           labels: |
             org.opencontainers.image.title=fphd-operations
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
