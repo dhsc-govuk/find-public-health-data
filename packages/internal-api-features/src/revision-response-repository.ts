@@ -4,7 +4,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { QueryBuilder } from 'drizzle-orm/pg-core';
 
 import type { DraftSubmissionStatus, FlaggableTaskKey, ReviewResponseKind } from './contract.ts';
-import type { EditPrecondition } from './edit-version.ts';
+import { type EditPrecondition, editVersion } from './edit-version.ts';
 import {
   draftJoin,
   draftResponseKind,
@@ -164,4 +164,9 @@ export function saveRevisionResponse(
 
     return { ok: true };
   });
+}
+
+/** The version of the reply a page shows, which its save sends back. */
+export function revisionReplyVersion({ revisionResponse }: RevisionReply): string {
+  return editVersion(revisionResponse);
 }

@@ -446,3 +446,4 @@ export * from './indicator-variance-and-quality-contract.ts';
 export * from './notes-for-reviewers-contract.ts';
 export * from './review-response-contract.ts';
 export * from './reviewer-notes-contract.ts';
+export * from './revision-response-contract.ts';
