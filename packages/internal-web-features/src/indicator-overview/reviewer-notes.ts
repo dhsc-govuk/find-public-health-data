@@ -96,7 +96,7 @@ function refused(values: ReviewerNoteValues, error: ReviewerNoteError): Reviewer
 }
 
 /**
- * Adds the reviewer's note, or saves the one the form edits, and returns to the overview. A
+ * Adds the reviewer's note, or saves the one the form edits, and returns to the Actions tab. A
  * reviewer no longer assigned goes to the dashboard, which says so. Any other failure of the
  * API, a 403 included, falls to the error page as every refused write does.
  */
@@ -143,7 +143,8 @@ export async function saveReviewerNote({
     throw error;
   }
 
-  if (result.ok) return redirect(indicatorOverviewPath(id));
+  // A fragment of its own, so an edit lands where an add does, not at the textarea it came from.
+  if (result.ok) return redirect(`${indicatorOverviewPath(id)}#actions`);
   if (result.error.error === 'not_a_reviewer') return noLongerReviewer(context);
   return refused(values, result.error);
 }

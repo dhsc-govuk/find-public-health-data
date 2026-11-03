@@ -38,7 +38,7 @@ async function save(
 const notFound = () => Promise.reject(new Response('Not Found', { status: 404 }));
 
 describe('saveReviewerNote', () => {
-  it('adds a new note, trimmed, and returns to the overview', async () => {
+  it('adds a new note, trimmed, and returns to the Actions tab', async () => {
     const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
 
     const { outcome } = await save({ postToMember }, post({ reviewerNote: '  Check 2019 \r\n' }));
@@ -49,7 +49,7 @@ describe('saveReviewerNote', () => {
       expect.anything(),
     );
     expect(outcome).toBeInstanceOf(Response);
-    expect((outcome as Response).headers.get('Location')).toBe(OVERVIEW);
+    expect((outcome as Response).headers.get('Location')).toBe(`${OVERVIEW}#actions`);
   });
 
   it('saves the note the form edits against the version it showed', async () => {
@@ -66,7 +66,7 @@ describe('saveReviewerNote', () => {
       expect.anything(),
       expect.anything(),
     );
-    expect((outcome as Response).headers.get('Location')).toBe(OVERVIEW);
+    expect((outcome as Response).headers.get('Location')).toBe(`${OVERVIEW}#actions`);
   });
 
   it('asks for notes before calling the API, keeping the form as it was', async () => {

@@ -18,9 +18,9 @@ function overviewPath(id: string) {
   return `/dashboard/indicators/${id}`;
 }
 
-/** The overview without the edit query; a save from an Edit link keeps its fragment. */
+/** Where a saved note lands: the overview's Actions tab, without the edit query. */
 function savedOverview(id: string) {
-  return new RegExp(`${overviewPath(id)}(#reviewerNote-input)?$`);
+  return new RegExp(`${overviewPath(id)}#actions$`);
 }
 
 /** A new indicator, submitted and in review with the named reviewers. */
@@ -52,7 +52,7 @@ async function addNote(page: Page, id: string, text: string) {
   await page.goto(overviewPath(id));
   await page.getByLabel(NOTE_LABEL).fill(text);
   await page.getByRole('button', { name: 'Add notes' }).click();
-  await expect(page).toHaveURL(overviewPath(id));
+  await expect(page).toHaveURL(savedOverview(id));
 }
 
 async function editNote(page: Page, text: string) {
@@ -78,6 +78,7 @@ test.describe('as an assigned IMRG reviewer', () => {
 
     await addNote(page, id, 'Check the dip in 2019.');
 
+    await expect(page.getByRole('tab', { name: 'Actions', selected: true })).toBeVisible();
     await expect(notesTable(page)).toContainText('Check the dip in 2019.');
     await expect(page.getByLabel(NOTE_LABEL)).toHaveValue('');
     await expectNoAccessibilityViolations(page, testInfo);
