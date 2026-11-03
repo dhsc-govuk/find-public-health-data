@@ -15,6 +15,7 @@ import { exportIndicators } from './indicators.ts';
 import { exportLookups } from './lookups.ts';
 import { exportObservations, observationDimensions } from './observations.ts';
 import { queryPholio, streamPholio } from './source.ts';
+import verifiedIntervals from './vaccination-interval-corrections.ts';
 
 vi.mock('./source.ts', () => ({ queryPholio: vi.fn(), streamPholio: vi.fn() }));
 let directory: string;
@@ -125,6 +126,7 @@ function observation(overrides: object = {}) {
     Quarter: -1,
     YearRange: 1,
     YearTypeID: 1,
+    CIMethodID: 1,
     SexID: 4,
     AgeID: 1,
     CategoryTypeID: -1,
@@ -179,16 +181,89 @@ it('excludes academic quarters when the source groupings publish annual data onl
 it('rejects the published zero-upper-limit defect before writing observations', async () => {
   sourceObservations([
     observation({
-      uid: 96485373,
+      uid: 1,
       LowerCI99_8: 89.88906373930455,
       UpperCI99_8: 0,
       Value: 90.85268000427945,
     }),
   ]);
   await expect(exportObservations(observationOptions())).rejects.toThrow(
-    /uid 96485373, indicator 108, 99.8%: inverted/,
+    /uid 1, indicator 108, 99.8%: inverted/,
   );
   expect(await readdir(directory)).toEqual([]);
+});
+it.each(verifiedIntervals)(
+  'exports the verified vaccination correction for $expected.uid',
+  async (repair) => {
+    const original = repair.expected;
+    const source = observation({ ...original, YearTypeID: 2 });
+    const groupings = [{ ...source, BaselineQuarter: -1, BaselineMonth: -1 }];
+    sourceObservations([source], groupings);
+    const input = observationOptions();
+    input.indicatorSelection = { kind: 'approved', indicators: [original.IndicatorID] };
+    input.indicatorIds = new Set([original.IndicatorID]);
+    input.indicatorEnteredAt = new Map([[original.IndicatorID, '2020-01-01T00:00:00.000Z']]);
+    input.areaIdByPholioCode = new Map([[original.AreaCode, areaId(original.AreaCode)]]);
+    input.dimensionValueIds = new Set([
+      sexDimensionValueId(original.SexID),
+      ageDimensionValueId(original.AgeID),
+    ]);
+    const result = await exportObservations(input);
+    expect((await rows('observation'))[0]).toMatchObject({
+      lower_ci_998: String(original.LowerCI99_8),
+      upper_ci_998: String(repair.corrected_upper_ci_998),
+      lower_ci_95: String(original.LowerCI95),
+      upper_ci_95: String(original.UpperCI95),
+    });
+    expect(result.observationCorrections).toEqual([
+      {
+        source_uid: original.uid,
+        indicator_id: original.IndicatorID,
+        field: 'UpperCI99_8',
+        original_value: 0,
+        corrected_value: repair.corrected_upper_ci_998,
+        evidence_url: repair.evidence_url,
+      },
+    ]);
+  },
+);
+it('refuses a verified interval repair when the source numerator changes', async () => {
+  const repair = verifiedIntervals[0];
+  sourceObservations([observation({ ...repair.expected, Count: repair.expected.Count + 1 })]);
+  const input = observationOptions();
+  input.indicatorSelection = { kind: 'approved', indicators: [repair.expected.IndicatorID] };
+  await expect(exportObservations(input)).rejects.toThrow(
+    'verified interval correction does not match source Count',
+  );
+  expect(await readdir(directory)).toEqual([]);
+});
+it('checks verified repairs again when source counts change after pre-flight', async () => {
+  const repair = verifiedIntervals[0];
+  const source = observation({ ...repair.expected });
+  sourceObservations([source]);
+  vi.mocked(streamPholio)
+    .mockImplementationOnce(async (_pool, _query, consume) => {
+      await consume(source);
+      return 1;
+    })
+    .mockImplementationOnce(async (_pool, _query, consume) => {
+      await consume({ ...source, Denominator: repair.expected.Denominator + 1 });
+      return 1;
+    });
+  const input = observationOptions();
+  input.indicatorSelection = { kind: 'approved', indicators: [repair.expected.IndicatorID] };
+  input.indicatorIds = new Set([repair.expected.IndicatorID]);
+  input.indicatorEnteredAt = new Map([[repair.expected.IndicatorID, '2020-01-01T00:00:00.000Z']]);
+  input.areaIdByPholioCode = new Map([
+    [repair.expected.AreaCode, areaId(repair.expected.AreaCode)],
+  ]);
+  input.dimensionValueIds = new Set([
+    sexDimensionValueId(repair.expected.SexID),
+    ageDimensionValueId(repair.expected.AgeID),
+  ]);
+  await expect(exportObservations(input)).rejects.toThrow(
+    'verified interval correction does not match source Denominator',
+  );
 });
 it('keeps numeric masking when a source note is recategorised as quality', async () => {
   sourceObservations([

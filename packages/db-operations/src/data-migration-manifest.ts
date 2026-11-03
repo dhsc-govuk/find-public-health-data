@@ -33,6 +33,18 @@ export const dataMigrationSourceSchema = z.object({
   database: z.string().min(1),
   snapshot_at: z.iso.datetime({ offset: true }),
   cutoff_at: z.iso.datetime({ offset: true }),
+  observation_corrections: z
+    .array(
+      z.object({
+        source_uid: z.number().int().positive(),
+        indicator_id: z.number().int().positive(),
+        field: z.literal('UpperCI99_8'),
+        original_value: z.number(),
+        corrected_value: z.number(),
+        evidence_url: z.url(),
+      }),
+    )
+    .optional(),
   profile_metadata: z
     .array(
       z.object({

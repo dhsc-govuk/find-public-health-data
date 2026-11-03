@@ -74,6 +74,7 @@ export async function exportDevSnapshot(options: ExportDevSnapshotOptions): Prom
   const description = {
     source: devSource,
     profile_metadata: exported.source.profile_metadata,
+    observation_corrections: exported.source.observation_corrections,
     source_database: devDatabase,
     source_indicators: sourceIndicators,
     source_observations: sourceObservations,
