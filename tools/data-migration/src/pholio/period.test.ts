@@ -28,8 +28,8 @@ describe('yearTypeOnlyFromDate', () => {
     expect(yearTypeOnlyFromDate(2020, 11)).toBe('2020-10-01'));
   it('YearTypeID=13 (Jul-Jun) → Jul 1', () =>
     expect(yearTypeOnlyFromDate(2020, 13)).toBe('2020-07-01'));
-  it('YearTypeID=14 (Nov-Nov) → Nov 1', () =>
-    expect(yearTypeOnlyFromDate(2020, 14)).toBe('2020-11-01'));
+  it('starts the Active Lives survey year on 16 November', () =>
+    expect(yearTypeOnlyFromDate(2020, 14)).toBe('2020-11-16'));
   it('YearTypeID=17 (Sep-Jan) → Sep 1', () =>
     expect(yearTypeOnlyFromDate(2020, 17)).toBe('2020-09-01'));
   it('YearTypeID=18 (Sep-Feb) → Sep 1', () =>
@@ -64,6 +64,32 @@ describe('yearTypeOnlyToDate', () => {
 });
 
 describe('computeDates', () => {
+  it.each([2, 3])('maps source month 1 to April for year type %s', (type) => {
+    expect(computeDates(2023, 1, -1, 1, type)).toEqual({
+      fromDate: '2023-04-01',
+      toDate: '2023-04-30',
+    });
+    expect(computeDates(2023, 11, -1, 1, type)).toEqual({
+      fromDate: '2024-02-01',
+      toDate: '2024-02-29',
+    });
+    expect(computeDates(2023, 12, -1, 1, type)).toEqual({
+      fromDate: '2024-03-01',
+      toDate: '2024-03-31',
+    });
+  });
+  it('preserves the published mid-November survey boundaries', () => {
+    expect(computeDates(2022, -1, -1, 2, 14)).toEqual({
+      fromDate: '2022-11-16',
+      toDate: '2024-11-15',
+    });
+  });
+  it('refuses an unverified academic quarter instead of assigning calendar dates', () => {
+    expect(() => computeDates(2023, -1, 1, 1, 3)).toThrow('Academic quarters');
+  });
+  it.each([4, 5, 6])('refuses unsupported multi-year rolling type %s', (type) => {
+    expect(() => computeDates(2023, -1, -1, 3, type)).toThrow('Rolling year range');
+  });
   it('refuses a financial rolling monthly period without verified source semantics', () => {
     expect(() => computeDates(2022, 6, -1, 1, 12)).toThrow('verified source mapping');
   });

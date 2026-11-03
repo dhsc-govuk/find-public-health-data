@@ -59,6 +59,7 @@ function yearTypeFromMonth(yearTypeId: number): number {
  * Start of an annual source period.
  */
 export function yearTypeOnlyFromDate(year: number, yearTypeId: number): string {
+  if (yearTypeId === 14) return dateParts(year, 11, 16);
   return dateParts(year, yearTypeFromMonth(yearTypeId), 1);
 }
 
@@ -68,6 +69,8 @@ export function yearTypeOnlyFromDate(year: number, yearTypeId: number): string {
 export function yearTypeOnlyToDate(year: number, yearRange: number, yearTypeId: number): string {
   if (yearRange > 0) {
     switch (yearTypeId) {
+      case 14:
+        return dateParts(year + yearRange, 11, 15);
       case 17:
         return dateParts(year + 1, 1, 31);
       case 18:
@@ -92,6 +95,8 @@ export function computeDates(
   yearTypeId: number,
 ): { fromDate: string; toDate: string } {
   const firstMonth = yearTypeFromMonth(yearTypeId);
+  if ([4, 5, 6, 12].includes(yearTypeId) && yearRange > 1)
+    throw new Error(`Rolling year range ${yearRange} requires a verified source mapping`);
   if (yearTypeId === 16) {
     const date = dateParts(year, 3, 31);
     return { fromDate: date, toDate: date };
@@ -108,12 +113,19 @@ export function computeDates(
     if (yearTypeId === 12)
       throw new Error('Financial rolling monthly periods require a verified source mapping');
     const rolling = yearTypeId === 6;
+    const offset = yearTypeId === 2 || yearTypeId === 3 ? 3 : 0;
+    const start = new Date(Date.UTC(year, month - 1 + offset, 1));
     return {
-      fromDate: dateParts(year, month, 1),
-      toDate: endOfMonth(year + (rolling ? 1 : 0), month - (rolling ? 1 : 0)),
+      fromDate: dateParts(start.getUTCFullYear(), start.getUTCMonth() + 1, 1),
+      toDate: endOfMonth(
+        start.getUTCFullYear() + (rolling ? 1 : 0),
+        start.getUTCMonth() + (rolling ? 0 : 1),
+      ),
     };
   }
   if (quarter >= 1 && quarter <= 4) {
+    if (yearTypeId === 3)
+      throw new Error('Academic quarters require a verified source date mapping');
     const fiscal = yearTypeId === 2 || yearTypeId === 4;
     const start = new Date(Date.UTC(year, (fiscal ? firstMonth - 1 : 0) + (quarter - 1) * 3, 1));
     const months = yearTypeId === 4 || yearTypeId === 5 ? 12 : 3;
@@ -124,7 +136,7 @@ export function computeDates(
     };
   }
   if (quarter !== -1) throw new Error(`Unsupported quarter ${quarter} for year type ${yearTypeId}`);
-  const fromDate = dateParts(year, firstMonth, 1);
+  const fromDate = yearTypeOnlyFromDate(year, yearTypeId);
   const toDate = yearTypeOnlyToDate(year, yearRange, yearTypeId);
   return { fromDate, toDate };
 }

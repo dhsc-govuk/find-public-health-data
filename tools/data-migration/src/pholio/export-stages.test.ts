@@ -158,6 +158,13 @@ it.each([
   },
 );
 
+it('excludes academic quarters when the source groupings publish annual data only', async () => {
+  sourceObservations([observation({ YearTypeID: 3, Quarter: 1 })]);
+  const result = await exportObservations(observationOptions());
+  expect(result.observationExclusions.periodicity_not_in_grouping).toBe(1);
+  expect(await rows('observation')).toEqual([]);
+});
+
 it('counts every intentional observation exclusion separately', async () => {
   sourceObservations([
     observation(),
