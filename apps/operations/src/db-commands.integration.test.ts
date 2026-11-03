@@ -104,67 +104,64 @@ describe('db seed-dummy-data (integration)', () => {
     }
   }, 60_000);
 
-  it('refuses when core data is only partly imported or not under its ids, and passes once it is all there', async () => {
-    const partial = await createTestDb();
+  it.each([
+    {
+      name: 'classifications are incomplete',
+      statements: ["DELETE FROM classification WHERE dimension IN ('life_stage', 'framework')"],
+      error:
+        'Classifications are missing from the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'a classification has a different id',
+      statements: ["UPDATE classification SET id = uuidv7() WHERE slug = 'life-stage-children'"],
+      error:
+        'Classifications are missing from the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'CI methods are missing',
+      statements: ['DELETE FROM ci_method'],
+      error: 'No CI methods in the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'data providers are missing',
+      statements: ['DELETE FROM data_provider_source', 'DELETE FROM data_provider'],
+      error: 'No data providers in the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'value types are incomplete',
+      statements: ["DELETE FROM value_type WHERE name = 'Mean'"],
+      error: 'Value types are missing from the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'units are incomplete',
+      statements: ["DELETE FROM unit WHERE name = 'hours'"],
+      error: 'Units are missing from the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'comparator methods are incomplete',
+      statements: ["DELETE FROM comparator_method WHERE name = 'Quintiles'"],
+      error:
+        'Comparator methods are missing from the database — run `db import-core-data` before seeding',
+    },
+    {
+      name: 'a note type has a different id',
+      statements: [
+        'UPDATE note_type SET id = uuidv7() WHERE id = (SELECT id FROM note_type ORDER BY id LIMIT 1)',
+      ],
+      error: 'note_type core data is incomplete — run `db import-core-data`',
+    },
+  ])('refuses to seed when $name', async ({ statements, error }) => {
+    const partial = await createTestDb({ template: 'core' });
     const sql = partial.sql;
     try {
       const context = testContext(sql, partial.name, 'test');
-      await importCoreData(context);
       await expect(assertCoreDataPresent(sql)).resolves.toBeUndefined();
-
-      // A database seeded before classifications were core data holds only some of them.
-      await sql`DELETE FROM classification WHERE dimension IN ('life_stage', 'framework')`;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'Classifications are missing from the database — run `db import-core-data` before seeding',
-      );
-
-      // A classification with the right slug under another id is not the one the seed links to.
-      await importCoreData(context);
-      await sql`
-        UPDATE classification SET id = uuidv7() WHERE slug = 'life-stage-children'
-      `;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'Classifications are missing from the database — run `db import-core-data` before seeding',
-      );
-
-      await sql`DELETE FROM classification WHERE slug = 'life-stage-children'`;
-      await importCoreData(context);
-      await sql`DELETE FROM ci_method`;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'No CI methods in the database — run `db import-core-data` before seeding',
-      );
-
-      await importCoreData(context);
-      await sql`DELETE FROM data_provider_source`;
-      await sql`DELETE FROM data_provider`;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'No data providers in the database — run `db import-core-data` before seeding',
-      );
-
-      await importCoreData(context);
-      await sql`DELETE FROM value_type WHERE name = 'Mean'`;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'Value types are missing from the database — run `db import-core-data` before seeding',
-      );
-
-      await importCoreData(context);
-      await sql`DELETE FROM unit WHERE name = 'hours'`;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'Units are missing from the database — run `db import-core-data` before seeding',
-      );
-
-      await importCoreData(context);
-      await sql`DELETE FROM comparator_method WHERE name = 'Quintiles'`;
-      await expect(seedDummyData(context)).rejects.toThrow(
-        'Comparator methods are missing from the database — run `db import-core-data` before seeding',
-      );
-
-      await importCoreData(context);
-      await expect(assertCoreDataPresent(sql)).resolves.toBeUndefined();
+      for (const statement of statements) await sql.unsafe(statement);
+      await expect(seedDummyData(context)).rejects.toThrow(error);
     } finally {
       await partial.drop();
     }
-  }, 60_000);
+  });
 });
 
 describe('db reset (integration)', () => {

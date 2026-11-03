@@ -1,15 +1,15 @@
 import type postgres from 'postgres';
 
 /**
- * A draft with an uploaded data table, which the seed doesn't have: every current area for 8
- * years, for Female and Male, stored as an upload would store them. Its dates are old, so the
- * dashboard lists it last while the routes are measured. It is deleted afterwards.
+ * A draft with an uploaded data table for every current seeded area across eight years,
+ * for Female and Male. Its old dates put it last on the dashboard during measurement.
+ * The fixture is deleted afterwards.
  */
 export const DATA_TABLE_DRAFT = {
   indicatorId: '01a00000-0000-7000-8000-0000000f4040',
   versionId: '01a00000-0000-7000-8000-0000000f4041',
   batchId: '01a00000-0000-7000-8000-0000000f4042',
-  /** The seed's 6,544 current areas, 8 years, 2 sexes; the fixture refuses to load otherwise. */
+  /** The seed's 6,544 current areas, 8 years and 2 sexes. */
   rowCount: 104_704,
 };
 
@@ -57,6 +57,7 @@ export async function createDataTableDraft(sql: postgres.Sql): Promise<void> {
         cross join generate_series(1, ${YEARS}) y
         cross join sex
         where a.is_current = true
+          and exists (select 1 from observation seeded where seeded.area_id = a.id)
         returning id, dimension_key
       )
       insert into observation_dimension (observation_id, dimension_value_id, dimension_type_id)
