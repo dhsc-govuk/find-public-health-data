@@ -67,7 +67,7 @@
   },
   "public-api /api/areas/search?q=leeds": {
     "statements": 1,
-    "buffers": 89,
+    "buffers": 222,
     "rows": 5,
     "bytes": 510
   },
@@ -158,7 +158,7 @@
   "public-web /search?q=mortality": {
     "statements": 11,
     "buffers": 356,
-    "rows": 313,
+    "rows": 414,
     "bytes": 75437
   },
   "public-web /topics": {

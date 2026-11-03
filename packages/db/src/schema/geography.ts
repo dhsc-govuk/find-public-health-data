@@ -45,6 +45,7 @@ export const area = pgTable(
     index('idx_area_code').on(t.code),
     index('idx_area_code_validity').on(t.code, t.validFrom, t.validTo),
     index('idx_area_type').on(t.areaTypeId),
+    index('idx_area_type_current_name_code_id').on(t.areaTypeId, t.isCurrent, t.name, t.code, t.id),
     index('idx_area_validity').on(t.areaTypeId, t.validFrom, t.validTo),
   ],
 );

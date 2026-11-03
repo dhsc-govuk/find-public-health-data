@@ -156,7 +156,8 @@ Areas match on code and area type. Relationships match on their parent and child
 Existing ids are retained when those keys match. Multiple matching area or relationship
 versions stop the import for review. The catalog preserves Pholio's codes and current
 status. Validity dates that Pholio does not supply remain empty. Rows absent from the
-catalog are reported and retained.
+catalog are reported and retained. Current-area lookups use a covering index on area type,
+status, name, code and id.
 
 The seed and live-data package importers map their reference ids onto this catalog.
 Lookup names identify area types, dimension types and notes. A value matches by dimension
