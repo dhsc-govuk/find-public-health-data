@@ -17,7 +17,7 @@ command-line application, run as a job — see [Operational commands](#operation
 
 ## Requirements
 
-- Node.js 24+
+- Node.js at the version in `.nvmrc`, the one the production images run
 - pnpm 11.18.0
 - Docker, to run the development database and storage emulator
 
@@ -526,12 +526,13 @@ app, and the CLI-plus-`psql` image for operations.
 `pnpm deploy --prod --legacy` prunes devDependencies and copies only the workspace packages the app
 actually depends on, so no image carries pnpm, TypeScript, drizzle-kit or another app's code.
 `--legacy` is required because the current implementation expects injected workspace packages, which
-this workspace does not use. Images run as the `node` user and start under tini, which guarantees
-SIGTERM is delivered to a process running as PID 1 — the kernel discards a default-action signal
-sent to PID 1 unless that process installed a handler. Every server stops gracefully on that
-signal, well inside a thirty-second grace period. `HOST` and `PORT` come from the environment,
-defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg of that name,
-which CI sets to the commit, and a server logs it with `Listening`.
+this workspace does not use. The runtime stage deletes the base image's npm, yarn and corepack,
+because every app starts with `node`. Images run as the `node` user and start under tini, which
+guarantees SIGTERM is delivered to a process running as PID 1 — the kernel discards a
+default-action signal sent to PID 1 unless that process installed a handler. Every server stops
+gracefully on that signal, well inside a thirty-second grace period. `HOST` and `PORT` come from
+the environment, defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg
+of that name, which CI sets to the commit, and a server logs it with `Listening`.
 
 This is separate from `docker/app.Dockerfile`, which is the development image used by
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and
@@ -540,13 +541,14 @@ its devDependencies — exactly what the production images must not do.
 On a pull request, CI builds the four server images in one `docker buildx bake` run from
 `docker/docker-bake.hcl`, so the shared builder stage runs once. It smoke-tests them, checks their
 contents with `scripts/check-image-contents.sh` and saves them as an artifact. The contents check
-fails if an image carries TypeScript, or if a server image carries `@fphd/db-operations`, a `.sql`
-or `.csv.gz` file or a drizzle config; for the operations image it requires every migration the
-journal lists, the core data and the seed. The e2e job loads that artifact and runs the suite
-against the images, with `compose.e2e.yaml` layered over `compose.yaml` to swap each service's
-build for its image, and a scan job per image runs Trivy on the same images alongside it. The
-operations image, which e2e does not use, is built, smoke-tested, contents-checked and scanned in
-a job of its own.
+fails if an image carries TypeScript, npm, yarn or corepack, or if a server image carries
+`@fphd/db-operations`, a `.sql` or `.csv.gz` file or a drizzle config; for the operations image it
+requires every migration the journal lists, the core data and the seed. CI also fails when the
+images' `node --version` differs from `.nvmrc`, which the other jobs install Node from. The e2e job
+loads that artifact and runs the suite against the images, with `compose.e2e.yaml` layered over
+`compose.yaml` to swap each service's build for its image, and a scan job per image runs Trivy on
+the same images alongside it. The operations image, which e2e does not use, is built, smoke-tested,
+contents-checked and scanned in a job of its own.
 
 On a push to `main`, CI runs the same jobs and then, once every check has passed, calls
 `.github/workflows/publish-images.yml`, which pushes the five images that run built and tested to

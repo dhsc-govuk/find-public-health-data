@@ -21,8 +21,9 @@ updates:
   # Same reasoning one layer down: docker/Dockerfile pins its base image by digest, which never
   # moves on its own. The runtime stage runs `apk upgrade` at build time, so a stale base no
   # longer fails the publish scan; weekly keeps the pin moving anyway — a fresh base keeps the
-  # upgrade delta small, and it is the only route to a newer Node and npm. app.Dockerfile sits
-  # in the same directory but tracks a tag, so there is nothing in it to raise.
+  # upgrade delta small, and it is the only route to a newer Node. A bump that moves Node fails
+  # CI until the same pull request updates .nvmrc to match. app.Dockerfile sits in the same
+  # directory but tracks a tag, so there is nothing in it to raise.
   - package-ecosystem: docker
     directory: /docker
     schedule:

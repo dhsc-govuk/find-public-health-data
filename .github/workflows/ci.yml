@@ -417,6 +417,16 @@ jobs:
             scripts/check-image-contents.sh "${app}" "fphd-ci/${app}:ci"
           done
 
+      # The other jobs test on the Node .nvmrc names, and Dependabot's base image bumps move only
+      # the digest. All five images share the base, so one image stands for them.
+      - name: Check the images' Node matches .nvmrc
+        run: |
+          image_node=$(docker run --rm --entrypoint node fphd-ci/public-api:ci --version)
+          if [ "${image_node}" != "v$(cat .nvmrc)" ]; then
+            echo "::error::The images run Node ${image_node}, but .nvmrc says $(cat .nvmrc)"
+            exit 1
+          fi
+
       # One archive for all four so the base layers they share are stored once. zstd rather than
       # the artifact's own zip compression, which is slower for the same size.
       - name: Save the app images
