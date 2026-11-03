@@ -49,6 +49,12 @@ const TASK_STATUS: Record<IndicatorTaskStatus, TagFace | string> = {
   completed: 'Completed',
 };
 
+// A task a review response flagged, until it is saved: advised before IMRG meets, needed after.
+const REVISION_STATUS: Record<'advised' | 'needed', TagFace> = {
+  advised: { label: 'Revisions advised', colour: 'orange' },
+  needed: { label: 'Revisions needed', colour: 'red' },
+};
+
 interface PublishingState {
   indicatorStatus: IndicatorStatus;
   draftStatus: DraftStatus | null;
@@ -90,6 +96,7 @@ export type StatusTagProps = (
   | { type: 'indicator'; status: IndicatorStatus }
   | ({ type: 'publishing' } & PublishingState)
   | { type: 'task'; status: IndicatorTaskStatus }
+  | { type: 'revision'; status: keyof typeof REVISION_STATUS }
 ) & {
   /**
    * Set false where something else, such as a column header, already names the status: the
@@ -112,6 +119,8 @@ function faceOf(props: StatusTagProps): TagFace | string | undefined {
       return publishingStatus(props);
     case 'task':
       return TASK_STATUS[props.status];
+    case 'revision':
+      return REVISION_STATUS[props.status];
   }
 }
 

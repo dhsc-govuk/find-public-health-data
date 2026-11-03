@@ -17,12 +17,13 @@ export const handle = backLinkHandle<Awaited<ReturnType<typeof loader>>>(
 );
 
 export function IndicatorTaskListRoute() {
-  const { taskList, offersSampleAnswers } = useLoaderData<typeof loader>();
+  const { taskList, requests, offersSampleAnswers } = useLoaderData<typeof loader>();
   const refused = useActionData<SubmitRefusal | undefined>();
 
   return (
     <IndicatorTaskListPage
       taskList={taskList}
+      requests={requests}
       offersSampleAnswers={offersSampleAnswers}
       formError={refused?.formError}
     />

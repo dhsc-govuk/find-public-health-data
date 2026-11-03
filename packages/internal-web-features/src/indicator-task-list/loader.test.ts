@@ -7,6 +7,8 @@ import { devToolsContext } from '../dev-tools.ts';
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { loadIndicatorTaskList, submitIndicator } from './loader.ts';
 
+const tasksLeft = { name: 'completed', polarity: 'not_started' };
+
 const taskList = {
   indicator: {
     id: '00000000-0000-7000-8000-000000000001',
@@ -18,6 +20,7 @@ const taskList = {
   },
   isUpdate: false,
   canSubmit: true,
+  review: null,
   draftUpdatedAt: '2026-10-22T09:30:00.123Z',
   editable: true,
   actions: ['submit'],
@@ -46,11 +49,11 @@ describe('loadIndicatorTaskList', () => {
     expect(get.mock.calls[0]?.[0]).toBe(
       `/api/internal/indicators/${taskList.indicator.id}/task-list`,
     );
-    expect(outcome).toEqual({ taskList, offersSampleAnswers: false });
+    expect(outcome).toEqual({ taskList, requests: null, offersSampleAnswers: false });
   });
 
   it('offers sample answers where the app offers development tools and tasks are left', async () => {
-    const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false });
+    const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false, tasks: tasksLeft });
 
     const outcome = await load(taskList.indicator.id, get, true);
 
@@ -63,13 +66,57 @@ describe('loadIndicatorTaskList', () => {
   ])(
     'offers no sample answers with development tools %s, though tasks are left',
     async (_, devTools) => {
-      const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false });
+      const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false, tasks: tasksLeft });
 
       const outcome = await load(taskList.indicator.id, get, devTools);
 
       expect(outcome.offersSampleAnswers).toBe(false);
     },
   );
+
+  it('offers no sample answers to a complete draft held back by its review', async () => {
+    const review = {
+      kind: 'minor_revisions',
+      clarificationRequest: null,
+      flags: [],
+      revisionResponse: null,
+    };
+    const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false, review });
+
+    const outcome = await load(taskList.indicator.id, get, true);
+
+    expect(outcome.offersSampleAnswers).toBe(false);
+  });
+
+  it('renders what the round asks from the reviewer’s Markdown', async () => {
+    const review = {
+      kind: 'pre_imrg_feedback',
+      clarificationRequest: 'Which *years*?',
+      flags: [
+        { task: 'polarity', notes: 'Is **higher** better?', cleared: false },
+        { task: 'name', notes: 'Shorter', cleared: true },
+      ],
+      revisionResponse: '  ',
+    };
+
+    const outcome = await load(
+      taskList.indicator.id,
+      vi.fn().mockResolvedValue({ ...taskList, review }),
+    );
+
+    expect(outcome.requests).toEqual({
+      advised: true,
+      clarificationRequest: { markdownHtml: '<p class="govuk-body">Which <em>years</em>?</p>' },
+      flags: {
+        polarity: {
+          notes: { markdownHtml: '<p class="govuk-body">Is <strong>higher</strong> better?</p>' },
+          cleared: false,
+        },
+        name: { notes: { markdownHtml: '<p class="govuk-body">Shorter</p>' }, cleared: true },
+      },
+      replied: false,
+    });
+  });
 
   it('offers no sample answers once every task is complete', async () => {
     const outcome = await load(taskList.indicator.id, vi.fn().mockResolvedValue(taskList), true);

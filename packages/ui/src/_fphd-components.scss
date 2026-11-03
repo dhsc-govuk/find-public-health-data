@@ -126,6 +126,11 @@
   white-space: pre-line;
 }
 
+// The task list's Status column, as the prototype lays it out while a review asks for changes.
+.fphd-task-table__status {
+  text-align: right;
+}
+
 // Rendered Markdown sits inside other content, such as a table cell, so its last block adds no
 // space below it.
 .fphd-markdown > :last-child {

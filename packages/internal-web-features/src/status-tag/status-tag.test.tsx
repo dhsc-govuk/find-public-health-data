@@ -122,6 +122,16 @@ describe('StatusTag', () => {
     expect(tag('Incomplete')).toContain('govuk-tag--blue');
   });
 
+  it.each([
+    ['needed', 'Revisions needed', 'govuk-tag--red'],
+    ['advised', 'Revisions advised', 'govuk-tag--orange'],
+  ] as const)('tags a flagged task whose revisions are %s', (status, label, colour) => {
+    render(<StatusTag type="revision" status={status} />);
+
+    expect(tag(label)).toContain(colour);
+    expect(document.querySelector('.govuk-visually-hidden')).toBeNull();
+  });
+
   it('shows a completed task as plain text, as GOV.UK does', () => {
     const { container } = render(<StatusTag type="task" status="completed" />);
 

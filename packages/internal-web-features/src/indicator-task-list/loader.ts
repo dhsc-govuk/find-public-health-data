@@ -1,9 +1,13 @@
 // No @fphd/ui imports here, so the loader unit-tests without the jsdom the components need.
 import {
+  type FlaggableTaskKey,
   type IndicatorSubmitError,
+  type IndicatorTaskList,
+  type IndicatorTaskListReview,
   indicatorSubmitErrorSchema,
   indicatorTaskListSchema,
 } from '@fphd/internal-api-features/contract';
+import { type MarkdownHtml, renderMarkdown } from '@fphd/ui/markdown';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
@@ -20,11 +24,51 @@ export type {
   IndicatorTaskStatus,
 } from '@fphd/internal-api-features/contract';
 
+/** A flag of the round, with the reviewer's notes rendered from their Markdown. */
+export interface ReviewerRequest {
+  notes: MarkdownHtml;
+  cleared: boolean;
+}
+
+/** What the round of review that sent the draft back asks of each task, as the page shows it. */
+export interface ReviewerRequests {
+  /** Pre-IMRG feedback advises revisions; every other round needs them. */
+  advised: boolean;
+  clarificationRequest: MarkdownHtml | null;
+  flags: Partial<Record<FlaggableTaskKey, ReviewerRequest>>;
+  replied: boolean;
+}
+
+/** The round's requests, with the reviewer's text rendered on the server; null with no round. */
+export function reviewerRequestsOf(
+  review: IndicatorTaskListReview | null,
+): ReviewerRequests | null {
+  if (review === null) return null;
+
+  return {
+    advised: review.kind === 'pre_imrg_feedback',
+    clarificationRequest:
+      review.clarificationRequest === null ? null : renderMarkdown(review.clarificationRequest),
+    flags: Object.fromEntries(
+      review.flags.map(({ task, notes, cleared }) => [
+        task,
+        { notes: renderMarkdown(notes), cleared },
+      ]),
+    ),
+    replied: (review.revisionResponse ?? '').trim() !== '',
+  };
+}
+
+function hasTasksLeft({ tasks }: IndicatorTaskList): boolean {
+  return Object.values(tasks).some((status) => status !== 'completed');
+}
+
 /**
  * The whole page in one call. The API answers 404 for an indicator that is missing or has no
  * draft, which the not-found boundary renders; a draft locked for review sends the publisher to
  * the overview. Where the app offers development tools, a draft with tasks left to do offers
- * to fill them in with sample answers.
+ * to fill them in with sample answers. A draft sent back for changes brings the round's requests,
+ * rendered from the reviewer's Markdown.
  */
 export async function loadIndicatorTaskList({ context, params }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
@@ -34,7 +78,11 @@ export async function loadIndicatorTaskList({ context, params }: LoaderFunctionA
 
   if (!taskList.editable) throw lockedDraftRedirect(context, id);
 
-  return { taskList, offersSampleAnswers: context.get(devToolsContext) && !taskList.canSubmit };
+  return {
+    taskList,
+    requests: reviewerRequestsOf(taskList.review),
+    offersSampleAnswers: context.get(devToolsContext) && hasTasksLeft(taskList),
+  };
 }
 
 const NOT_SUBMITTED = 'The indicator could not be submitted. Try again.';
