@@ -328,6 +328,27 @@ describe('internal API', () => {
     expect(asManager.status).toBe(200);
   });
 
+  it("mounts a reviewer's own notes", async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findAccess: async () => ({
+          teamId: TEAM_IDS.teamA,
+          draftReviewers: [{ id: 'test-user', name: 'Test User' }],
+        }),
+      },
+      reviewerNotes: { list: async () => [] },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/reviewer-notes';
+
+    const asReviewer = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']));
+
+    expect(asReviewer.status).toBe(200);
+    expect(asReviewer.body).toEqual({ notes: [] });
+  });
+
   it('mounts the indicators under review behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: { listUnderReview: async () => ({ unassigned: [], assigned: [] }) },

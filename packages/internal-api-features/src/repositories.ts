@@ -42,8 +42,10 @@ import {
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
 import {
+  findIndicatorAccess,
   findIndicatorTeamId,
   getIndicatorById,
+  type IndicatorAccessRow,
   type IndicatorAdminDetailRow,
   type IndicatorAdminListRow,
   type IndicatorAdminRows,
@@ -69,6 +71,14 @@ import {
   type ReviewResponse,
   respondToReview,
 } from './review-response-repository.ts';
+import {
+  type AddReviewerNoteResult,
+  addReviewerNote,
+  listReviewerNotes,
+  type ReviewerNoteRow,
+  type UpdateReviewerNoteResult,
+  updateReviewerNote,
+} from './reviewer-note-repository.ts';
 import { listReviewerOptions } from './reviewer-repository.ts';
 import { listTagOptions } from './tag-repository.ts';
 import {
@@ -109,6 +119,8 @@ export interface InternalIndicatorRepository {
   /** The submissions in review assigned to the reviewer, oldest first. */
   listToReview(reviewerId: string): Promise<IndicatorAdminListRow[]>;
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
+  /** The indicator's team and draft reviewers, for an access check, or undefined with none. */
+  findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
   /** The indicator's team, null when it has none, or undefined when there is no such indicator. */
   findTeamId(id: string): Promise<string | null | undefined>;
   /** The draft and whether anything is published, read together for the task list. */
@@ -171,6 +183,22 @@ export interface InternalReviewerRepository {
   listOptions(indicatorId: string): Promise<ReviewerOption[]>;
 }
 
+/** An assigned reviewer's own notes on an indicator, which nobody else reads. */
+export interface InternalReviewerNoteRepository {
+  /** The author's notes on the indicator's draft, newest first. */
+  list(indicatorId: string, authorId: string): Promise<ReviewerNoteRow[]>;
+  /** Adds a note, as long as the actor is assigned to the draft's latest submission. */
+  add(indicatorId: string, text: string, actor: Actor): Promise<AddReviewerNoteResult>;
+  /** Edits one of the actor's notes, unless it has changed since the form was shown. */
+  update(
+    indicatorId: string,
+    noteId: string,
+    text: string,
+    precondition: EditPrecondition<Pick<ReviewerNoteRow, 'text'>>,
+    actor: Actor,
+  ): Promise<UpdateReviewerNoteResult>;
+}
+
 /** The topics and classifications a publisher tags an indicator with. */
 export interface InternalTagRepository {
   listOptions(): Promise<TagOptions>;
@@ -218,6 +246,7 @@ export interface InternalRepositories {
   dataProviders: InternalDataProviderRepository;
   dataUploads: InternalDataUploadRepository;
   indicators: InternalIndicatorRepository;
+  reviewerNotes: InternalReviewerNoteRepository;
   reviewers: InternalReviewerRepository;
   tags: InternalTagRepository;
   topics: InternalTopicRepository;
@@ -246,6 +275,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       listUnderReview: (scope) => listIndicatorsUnderReview(db, scope),
       listToReview: (reviewerId) => listIndicatorsToReview(db, reviewerId),
       findById: (id) => getIndicatorById(db, id),
+      findAccess: (id) => findIndicatorAccess(db, id),
       findTeamId: (id) => findIndicatorTeamId(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
@@ -261,6 +291,12 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       assignReviewers: (indicatorId, assignment, actor) =>
         assignReviewers(db, indicatorId, assignment, actor),
       respond: (indicatorId, response, actor) => respondToReview(db, indicatorId, response, actor),
+    },
+    reviewerNotes: {
+      list: (indicatorId, authorId) => listReviewerNotes(db, indicatorId, authorId),
+      add: (indicatorId, text, actor) => addReviewerNote(db, indicatorId, text, actor),
+      update: (indicatorId, noteId, text, precondition, actor) =>
+        updateReviewerNote(db, indicatorId, noteId, text, precondition, actor),
     },
     reviewers: {
       listOptions: (indicatorId) => listReviewerOptions(db, indicatorId),

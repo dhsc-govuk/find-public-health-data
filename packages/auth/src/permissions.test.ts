@@ -17,6 +17,7 @@ import {
   canSeeTeamsAndUsers,
   canSubmitIndicator,
   canWithdrawSubmission,
+  canWriteReviewerNotes,
   type IndicatorAccess,
   indicatorListScope,
   ownTeamsListScope,
@@ -143,6 +144,18 @@ describe('canRespondToReview', () => {
     ['an admin', admin, assigned, false],
   ])('answers %s', (_who, asking, indicator, expected) => {
     expect(canRespondToReview(asking, indicator)).toBe(expected);
+  });
+});
+
+describe('canWriteReviewerNotes', () => {
+  it.each([
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+    ['a publisher in its team', publisherA, assigned, false],
+    ['an IMRG manager', manager, assigned, false],
+    ['an admin', admin, assigned, false],
+  ])('answers %s', (_who, asking, indicator, expected) => {
+    expect(canWriteReviewerNotes(asking, indicator)).toBe(expected);
   });
 });
 

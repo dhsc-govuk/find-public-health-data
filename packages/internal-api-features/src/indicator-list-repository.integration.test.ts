@@ -7,6 +7,7 @@ import { describe, expect } from 'vitest';
 import type { ReviewResponseKind } from './contract.ts';
 import { getIndicatorDraftState, updateIndicatorDraft } from './indicator-draft-repository.ts';
 import {
+  findIndicatorAccess,
   getIndicatorById,
   listIndicatorsPage,
   listIndicatorsToReview,
@@ -721,6 +722,32 @@ describe('getIndicatorById', () => {
 
   repositoryTest('returns nothing for an id no indicator has', async ({ db }) => {
     expect(await getIndicatorById(db, '00000000-0000-7000-8000-000000000000')).toBeUndefined();
+  });
+});
+
+describe('findIndicatorAccess', () => {
+  repositoryTest("reads the team and the draft's reviewers", async ({ db }) => {
+    const indicatorId = await submitted(db, 'Access read in review');
+    await assign(db, indicatorId, [FAKE_USER_IDS.imrgReviewer]);
+
+    expect(await findIndicatorAccess(db, indicatorId)).toEqual({
+      teamId: TEAM_IDS.teamA,
+      draftReviewers: [{ id: FAKE_USER_IDS.imrgReviewer, name: 'Jamie Evans' }],
+    });
+  });
+
+  repositoryTest(
+    'reads no reviewers for a seeded indicator, which nobody reviews',
+    async ({ db, seededIds }) => {
+      const target = seededIds[0];
+      if (target === undefined) throw new Error('The seed holds no indicators');
+
+      expect(await findIndicatorAccess(db, target)).toMatchObject({ draftReviewers: [] });
+    },
+  );
+
+  repositoryTest('answers undefined for no such indicator', async ({ db }) => {
+    expect(await findIndicatorAccess(db, '00000000-0000-7000-8000-000000000000')).toBeUndefined();
   });
 });
 
