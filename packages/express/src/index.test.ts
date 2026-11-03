@@ -124,6 +124,27 @@ describe('startServer', () => {
     expect(exit).not.toHaveBeenCalled();
   });
 
+  it('logs Stopping as a signal arrives and Stopped once the stop is done', async () => {
+    const logger = stubLogger();
+    const server = start(logger, 0);
+    await vi.waitFor(() => expect(server.listening).toBe(true));
+
+    // Called directly: emitting SIGTERM on the test process would reach the runner's own handlers.
+    const [onSigterm] = process
+      .listeners('SIGTERM')
+      .filter((listener) => !signalListeners.get('SIGTERM')?.includes(listener));
+    expect(onSigterm).toBeDefined();
+    onSigterm?.('SIGTERM');
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+
+    const messages = vi.mocked(logger.info).mock.calls.map(([, message]) => message);
+    expect(messages).toEqual(['Listening', 'Stopping', 'Stopped']);
+    expect(logger.info).toHaveBeenCalledWith(
+      { signal: 'SIGTERM', gracePeriodMs: 1_000, drainMs: 0, closeMs: 800, reserveMs: 200 },
+      'Stopping',
+    );
+  });
+
   it('logs fatal and exits 1 when the port is taken, never claiming to listen', async () => {
     const occupant = createServer();
     opened.push(occupant);

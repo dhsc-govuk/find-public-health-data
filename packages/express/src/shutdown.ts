@@ -21,6 +21,8 @@ export interface ShutdownOptions {
   /** The whole stop, drain included. Keep it under the platform's own grace period. */
   gracePeriodMs: number;
   drainDelayMs: number;
+  /** The first signal arrived. Runs before anything else in the stop. */
+  onStopping?: ((signal: NodeJS.Signals, budgets: StopBudgets) => void) | undefined;
   onDraining?: (() => void) | undefined;
   /** The budget ran out. Not a failure, so it leaves the exit code alone. */
   onForcedClose?: (() => void) | undefined;
@@ -34,6 +36,14 @@ interface PhaseBudgets {
   closeMs: number;
   /** What the library is told, under `closeMs` so its poll loop can slip and still finish. */
   closeTimeoutMs: number;
+  reserveMs: number;
+}
+
+/** The whole budget and its split, as a stop starts. */
+export interface StopBudgets {
+  gracePeriodMs: number;
+  drainMs: number;
+  closeMs: number;
   reserveMs: number;
 }
 
@@ -70,9 +80,17 @@ function withDeadline(work: Promise<void>, timeoutMs: number, phase: string): Pr
  */
 export function createShutdownHandler(
   server: Server,
-  { gracePeriodMs, drainDelayMs, onDraining, onForcedClose, onShutdown, onError }: ShutdownOptions,
+  {
+    gracePeriodMs,
+    drainDelayMs,
+    onStopping,
+    onDraining,
+    onForcedClose,
+    onShutdown,
+    onError,
+  }: ShutdownOptions,
 ): (signal: NodeJS.Signals) => Promise<number> {
-  const { drainMs, closeTimeoutMs, reserveMs } = phaseBudgets(gracePeriodMs, drainDelayMs);
+  const { drainMs, closeMs, closeTimeoutMs, reserveMs } = phaseBudgets(gracePeriodMs, drainDelayMs);
   let drainFailure: unknown;
 
   const closeHttpServer = gracefulShutdown(server, {
@@ -102,6 +120,13 @@ export function createShutdownHandler(
       const expiresAt = Date.now() + gracePeriodMs;
       const remaining = () => Math.max(0, expiresAt - Date.now());
       const failures: unknown[] = [];
+
+      // Caught so that a failure to report the stop cannot skip it.
+      try {
+        onStopping?.(signal, { gracePeriodMs, drainMs, closeMs, reserveMs });
+      } catch (error) {
+        failures.push(error);
+      }
 
       try {
         // The library's timeout covers its wait for idle connections, not the close itself, which
