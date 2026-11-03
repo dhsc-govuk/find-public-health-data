@@ -2,7 +2,6 @@ import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-
 import {
   DATA_MIGRATION_FORMAT_VERSION,
   DATA_MIGRATION_NULL,
@@ -11,10 +10,10 @@ import {
   incrementalManifestSchema,
 } from '@fphd/db-operations/data-migration-contract';
 import { afterEach, describe, expect, it } from 'vitest';
-
 import { encodeRow, readGzipCsv } from './csv.ts';
 import { createIncremental } from './diff.ts';
 import { fileRecord } from './files.ts';
+import verifiedSettings from './pholio/verified-analytical-settings.ts';
 import { deterministicUuid } from './prepare-baseline.ts';
 
 const directories: string[] = [];
@@ -123,6 +122,7 @@ describe('createIncremental', () => {
       },
     ];
     currentManifest.source.observation_corrections = corrections;
+    currentManifest.source.analytical_reconciliations = verifiedSettings;
     await writeFile(currentManifestPath, JSON.stringify(currentManifest));
     const output = await outputDirectory();
 
@@ -133,6 +133,7 @@ describe('createIncremental', () => {
     );
     expect(manifest.predecessor).toBe('baseline-1');
     expect(manifest.source.observation_corrections).toEqual(corrections);
+    expect(manifest.source.analytical_reconciliations).toEqual(verifiedSettings);
     expect(manifest.tables.data_source?.upserts.rows).toBe(2);
     expect(manifest.tables.data_source?.deletes.rows).toBe(1);
     expect(await records(join(output, 'data_source.csv.gz'))).toEqual([

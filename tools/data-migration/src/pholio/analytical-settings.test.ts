@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { indicatorAnalyticalSettings, type SourceGroupingSetting } from './analytical-settings.ts';
+import verifiedSettings from './verified-analytical-settings.ts';
 
 const grouping = (changes: Partial<SourceGroupingSetting> = {}): SourceGroupingSetting => ({
   IndicatorID: 108,
@@ -8,6 +9,76 @@ const grouping = (changes: Partial<SourceGroupingSetting> = {}): SourceGroupingS
   PolarityID: 0,
   ComparatorMethodID: 1,
   ...changes,
+});
+
+it.each(verifiedSettings)(
+  'reconciles the verified published settings for $indicator_id',
+  (entry) => {
+    const rows: SourceGroupingSetting[] = entry.expected_groupings.map((row) => ({
+      ...row,
+      IndicatorID: entry.indicator_id,
+    }));
+    expect(indicatorAnalyticalSettings(entry.indicator_id, entry.owner_profile_id, rows)).toEqual({
+      polarityId: entry.polarity_id,
+      comparatorMethodId: entry.comparator_method_id,
+      reconciliation: entry,
+    });
+  },
+);
+
+it.each(verifiedSettings)('rejects changed source settings for $indicator_id', (entry) => {
+  const rows: SourceGroupingSetting[] = entry.expected_groupings.map((row) => ({
+    ...row,
+    IndicatorID: entry.indicator_id,
+  }));
+  rows.push(
+    grouping({
+      IndicatorID: entry.indicator_id,
+      GroupID: 999,
+      ProfileId: entry.owner_profile_id,
+      PolarityID: 1,
+    }),
+  );
+  rows.push(
+    grouping({
+      IndicatorID: entry.indicator_id,
+      GroupID: 998,
+      ProfileId: entry.owner_profile_id,
+      PolarityID: 0,
+    }),
+  );
+  expect(() =>
+    indicatorAnalyticalSettings(entry.indicator_id, entry.owner_profile_id, rows),
+  ).toThrow('conflicting polarity');
+});
+
+it('uses a corrected owning-profile source without the reconciliation', () => {
+  const rows = [grouping({ IndicatorID: 91871, ProfileId: 105, PolarityID: 99 })];
+  expect(indicatorAnalyticalSettings(91871, 105, rows)).toEqual({
+    polarityId: 99,
+    comparatorMethodId: 1,
+  });
+});
+
+it('keeps the unresolved owning-profile conflict for 93582 explicit', () => {
+  expect(() =>
+    indicatorAnalyticalSettings(93582, 50, [
+      grouping({
+        IndicatorID: 93582,
+        ProfileId: 50,
+        GroupID: 1938133452,
+        PolarityID: 0,
+        ComparatorMethodID: 12,
+      }),
+      grouping({
+        IndicatorID: 93582,
+        ProfileId: 50,
+        GroupID: 1938133456,
+        PolarityID: 99,
+        ComparatorMethodID: 12,
+      }),
+    ]),
+  ).toThrow('conflicting polarity 0, 99');
 });
 it('uses the owner even when a different setting is more common elsewhere', () => {
   expect(

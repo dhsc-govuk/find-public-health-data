@@ -7,6 +7,7 @@ import { readGzipCsv } from './csv.ts';
 import { writeDevelopmentSource } from './export-dev-snapshot.testing.ts';
 import { exportDevSnapshot } from './export-dev-snapshot.ts';
 import { exportPholio } from './pholio/export-pholio.ts';
+import verifiedSettings from './pholio/verified-analytical-settings.ts';
 
 vi.mock('./pholio/export-pholio.ts', () => ({ exportPholio: vi.fn() }));
 let directory: string;
@@ -58,6 +59,7 @@ it('preserves profile metadata in both development archive manifests', async () 
     const source = JSON.parse(await readFile(path, 'utf8'));
     source.source.profile_metadata = profileMetadata;
     source.source.observation_corrections = corrections;
+    source.source.analytical_reconciliations = verifiedSettings;
     await writeFile(path, JSON.stringify(source));
   });
   await exportDevSnapshot({ connectionString: 'test source', outDir: directory });
@@ -66,6 +68,7 @@ it('preserves profile metadata in both development archive manifests', async () 
     const manifest = JSON.parse(await readFile(join(directory, file), 'utf8'));
     expect(manifest.profile_metadata).toEqual(profileMetadata);
     expect(manifest.observation_corrections).toEqual(corrections);
+    expect(manifest.analytical_reconciliations).toEqual(verifiedSettings);
   }
 });
 

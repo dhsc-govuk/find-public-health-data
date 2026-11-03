@@ -246,7 +246,7 @@ export async function exportIndicators(context: PholioExportOptions) {
   const analyticalById = new Map(
     selectedRows.map((row) => {
       const id = row.IndicatorID;
-      const { polarityId, comparatorMethodId } = indicatorAnalyticalSettings(
+      const { polarityId, comparatorMethodId, reconciliation } = indicatorAnalyticalSettings(
         id,
         row.OwnerProfileId,
         analyticalRows,
@@ -255,7 +255,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       if (polarityName === undefined)
         throw new Error(`Indicator ${id}: no polarity name for polarity_id ${polarityId}`);
       const polarity = translatePolarity(polarityName);
-      return [id, { polarity, comparatorMethodId }] as const;
+      return [id, { polarity, comparatorMethodId, reconciliation }] as const;
     }),
   );
   const indicatorWriter = new TableWriter(outDir, 'indicator');
@@ -413,6 +413,9 @@ export async function exportIndicators(context: PholioExportOptions) {
   }
 
   return {
+    analyticalReconciliations: [...analyticalById.values()].flatMap(({ reconciliation }) =>
+      reconciliation ? [reconciliation] : [],
+    ),
     profileMetadata: profileMetadata
       .filter((row) => indicatorIds.has(row.IndicatorID))
       .map((row) => ({
