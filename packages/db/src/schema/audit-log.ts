@@ -33,6 +33,7 @@ export const AUDIT_ACTIONS = [
   'indicator.approved',
   'indicator.resubmitted',
   'indicator.revision_response_updated',
+  // A reviewer's private notes: never show these two in the indicator's history.
   'indicator.review_note_added',
   'indicator.review_note_updated',
   'upload_batch.loaded',

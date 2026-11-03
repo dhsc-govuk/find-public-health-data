@@ -28,6 +28,7 @@ export function createFakeInternalRepositories(
     dataProviders: withThrowingDefaults('dataProviders', overrides.dataProviders),
     dataUploads: withThrowingDefaults('dataUploads', overrides.dataUploads),
     indicators: withThrowingDefaults('indicators', overrides.indicators),
+    reviewerNotes: withThrowingDefaults('reviewerNotes', overrides.reviewerNotes),
     reviewers: withThrowingDefaults('reviewers', overrides.reviewers),
     tags: withThrowingDefaults('tags', overrides.tags),
     topics: withThrowingDefaults('topics', overrides.topics),

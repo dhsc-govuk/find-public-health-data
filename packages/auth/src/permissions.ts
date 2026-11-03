@@ -87,6 +87,17 @@ export function canRespondToReview(
 }
 
 /**
+ * Whether the user may read and write their own notes on the indicator: one of its assigned
+ * reviewers. Nobody reads another user's notes.
+ */
+export function canWriteReviewerNotes(
+  user: SessionUser,
+  indicator: Pick<IndicatorAccess, 'reviewerIds'>,
+): boolean {
+  return canReviewIndicator(user, indicator);
+}
+
+/**
  * Whether the user may read what the publisher wrote for the indicator's reviewers. It admits
  * the users `canSeeIndicator` does, and is kept apart from it so the notes stay closed to anyone
  * a wider overview access lets in later.

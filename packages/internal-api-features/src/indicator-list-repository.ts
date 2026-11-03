@@ -231,6 +231,26 @@ export async function getIndicatorById(
 }
 
 /** The team the indicator is in, null when it has none, or undefined when there is no such indicator. */
+/** What the access checks read of an indicator: its team and its draft's current reviewers. */
+export interface IndicatorAccessRow {
+  teamId: string | null;
+  draftReviewers: DraftReviewer[];
+}
+
+/** The indicator's access row in one small statement, or undefined when there is none. */
+export async function findIndicatorAccess(
+  db: Database,
+  id: string,
+): Promise<IndicatorAccessRow | undefined> {
+  const [row] = await db
+    .select({ teamId: indicator.teamId, draftReviewers })
+    .from(indicator)
+    .leftJoin(draftVersion, draftJoin)
+    .where(eq(indicator.id, id));
+
+  return row;
+}
+
 export async function findIndicatorTeamId(
   db: Database,
   id: string,
