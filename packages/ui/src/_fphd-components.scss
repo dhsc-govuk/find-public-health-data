@@ -126,6 +126,12 @@
   white-space: pre-line;
 }
 
+// Rendered Markdown sits inside other content, such as a table cell, so its last block adds no
+// space below it.
+.fphd-markdown > :last-child {
+  margin-bottom: 0;
+}
+
 .fphd-filter-card {
   margin-bottom: govuk-spacing(4);
   border: 1px solid govuk-colour("black", $variant: "tint-80");

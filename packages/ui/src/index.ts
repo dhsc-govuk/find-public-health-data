@@ -50,6 +50,8 @@ export { CollapsibleFilterCard, FilterCard, FilterChip, FilterChips } from './fi
 export { type DateFormat, DISPLAY_TIME_ZONE, formatDate } from './format-date.ts';
 export { type GeographyArea, GeographyTree } from './geography-tree.tsx';
 export { GridColumn, GridRow, SectionBreak } from './layout.tsx';
+export type { MarkdownHtml, MarkdownSize } from './markdown.ts';
+export { Markdown } from './markdown-content.tsx';
 export { NonceProvider, useNonce } from './nonce.tsx';
 export { RootErrorBoundary } from './root-error-boundary.tsx';
 export { SearchField } from './search-field.tsx';
