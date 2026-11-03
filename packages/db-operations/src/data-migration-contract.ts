@@ -10,6 +10,7 @@ export {
   DATA_MIGRATION_TABLES,
   type DataMigrationManifest,
   dataMigrationManifestSchema,
+  dataMigrationSourceSchema,
   type IncrementalManifest,
   incrementalManifestSchema,
 } from './data-migration-manifest.ts';

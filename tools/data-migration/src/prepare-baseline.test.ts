@@ -96,6 +96,33 @@ describe('prepareBaseline', () => {
     ]);
   });
 
+  it('retains profile reference names and unrepresentable frequency prose in package provenance', async () => {
+    const source = await sourceExport();
+    const metadata = [
+      {
+        indicator_id: 1,
+        profile_id: 10,
+        name: 'B03 - Source indicator',
+        frequency: 'Every 3 years',
+        structured_frequency: null,
+      },
+    ];
+    const path = join(source.directory, 'source-manifest.json');
+    const input = JSON.parse(await readFile(path, 'utf8'));
+    input.source.profile_metadata = metadata;
+    await writeFile(path, JSON.stringify(input));
+    await prepareBaseline(
+      source.directory,
+      'baseline-1',
+      source.relationships,
+      join(source.directory, 'prepared'),
+    );
+    const manifest = baselineManifestSchema.parse(
+      JSON.parse(await readFile(join(source.directory, 'prepared', 'manifest.json'), 'utf8')),
+    );
+    expect(manifest.source.profile_metadata).toEqual(metadata);
+  });
+
   it('prepares the same source under two migration IDs without changing its files', async () => {
     const source = await sourceExport();
     const before = await readFile(join(source.directory, 'indicator.csv.gz'));

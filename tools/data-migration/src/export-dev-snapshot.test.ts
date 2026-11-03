@@ -30,6 +30,32 @@ it('builds an archive accepted by the receiver using the real tidy and rekey pip
   expect((await stat(join(directory, 'snapshot.tar'))).size).toBeGreaterThan(0);
 });
 
+it('preserves profile metadata in both development archive manifests', async () => {
+  directory = await mkdtemp(join(tmpdir(), 'dev-snapshot-'));
+  const profileMetadata = [
+    {
+      indicator_id: 108,
+      profile_id: 10,
+      name: 'Framework 1.2 - Indicator',
+      frequency: 'Updated quarterly',
+      structured_frequency: null,
+    },
+  ];
+  vi.mocked(exportPholio).mockImplementation(async ({ outDir }) => {
+    await writeDevelopmentSource(outDir);
+    const path = join(outDir, 'source-manifest.json');
+    const source = JSON.parse(await readFile(path, 'utf8'));
+    source.source.profile_metadata = profileMetadata;
+    await writeFile(path, JSON.stringify(source));
+  });
+  await exportDevSnapshot({ connectionString: 'test source', outDir: directory });
+  await verifyPublishedSnapshot(directory);
+  for (const file of ['manifest.json', 'source-manifest.json']) {
+    const manifest = JSON.parse(await readFile(join(directory, file), 'utf8'));
+    expect(manifest.profile_metadata).toEqual(profileMetadata);
+  }
+});
+
 it('checks the original source fingerprint before intentional publication exclusions', async () => {
   directory = await mkdtemp(join(tmpdir(), 'dev-snapshot-'));
   vi.mocked(exportPholio).mockImplementation(async ({ outDir }) => {

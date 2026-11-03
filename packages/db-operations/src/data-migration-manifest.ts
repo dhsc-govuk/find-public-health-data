@@ -26,19 +26,30 @@ const relationshipsFileSchema = fileSchema.extend({
   file: z.literal('indicator-relationships.json'),
 });
 
-const sourceSchema = z.object({
+export const dataMigrationSourceSchema = z.object({
   system: z.literal('fingertips'),
   environment: z.literal('live'),
   database: z.string().min(1),
   snapshot_at: z.iso.datetime({ offset: true }),
   cutoff_at: z.iso.datetime({ offset: true }),
+  profile_metadata: z
+    .array(
+      z.object({
+        indicator_id: z.number().int().positive(),
+        profile_id: z.number().int().nullable(),
+        name: z.string().nullable(),
+        frequency: z.string().nullable(),
+        structured_frequency: z.string().nullable(),
+      }),
+    )
+    .optional(),
 });
 
 const commonSchema = z.object({
   format_version: z.literal(DATA_MIGRATION_FORMAT_VERSION),
   schema: z.literal(DATA_MIGRATION_SCHEMA),
   migration_id: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/),
-  source: sourceSchema,
+  source: dataMigrationSourceSchema,
   // The source export's sentinel; prepared package CSVs use unquoted empty fields for NULL.
   source_csv_null: z.literal(DATA_MIGRATION_NULL),
   id_mapping: z.literal('deterministic-uuidv7-v1'),

@@ -3,7 +3,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { DATA_MIGRATION_NULL, SEED_TABLES } from '@fphd/db-operations/data-migration-contract';
+import {
+  DATA_MIGRATION_NULL,
+  type DataMigrationManifest,
+  SEED_TABLES,
+} from '@fphd/db-operations/data-migration-contract';
 
 import { exportPholio } from './pholio/export-pholio.ts';
 import { rekeyDirectory } from './prepare-baseline.ts';
@@ -26,6 +30,7 @@ export interface ExportDevSnapshotOptions {
 }
 
 interface PholioSourceManifest {
+  source: DataMigrationManifest['source'];
   exported_indicators: number;
   source_observations: number;
   scanned_observations: number;
@@ -68,6 +73,7 @@ export async function exportDevSnapshot(options: ExportDevSnapshotOptions): Prom
 
   const description = {
     source: devSource,
+    profile_metadata: exported.source.profile_metadata,
     source_database: devDatabase,
     source_indicators: sourceIndicators,
     source_observations: sourceObservations,

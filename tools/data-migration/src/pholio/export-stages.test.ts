@@ -613,6 +613,7 @@ function indicatorQueries(
     frequencyProse?: string;
     frequencies?: { IndicatorID: number; FrequencyID: number | null; Name: string | null }[];
   } = {},
+  profileMetadata: Record<string, unknown>[] = [],
 ) {
   vi.mocked(queryPholio)
     .mockResolvedValueOnce(
@@ -667,7 +668,8 @@ function indicatorQueries(
         Notes: null,
         Frequency: metadata.frequencyProse ?? null,
       },
-    ]);
+    ])
+    .mockResolvedValueOnce(profileMetadata);
 }
 it('exports only the approved indicators and uses plain text without damaging inequalities', async () => {
   indicatorQueries();
@@ -768,6 +770,35 @@ it('preserves an all-not-applicable source polarity', async () => {
   });
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.polarity).toBe('no-comparison-possible');
+});
+it('preserves profile references and raw frequency text in source provenance', async () => {
+  indicatorQueries('No unit', undefined, [], {}, [
+    {
+      IndicatorID: 108,
+      ProfileId: 10,
+      Name: 'B03 - Indicator 108',
+      Frequency: 'Every 3 years',
+      StructuredFrequency: 'Annual',
+    },
+    {
+      IndicatorID: 109,
+      ProfileId: 20,
+      Name: 'Unselected',
+      Frequency: 'Monthly',
+      StructuredFrequency: null,
+    },
+  ]);
+  const result = await exportIndicators(options);
+  expect(result.profileMetadata).toEqual([
+    {
+      indicator_id: 108,
+      profile_id: 10,
+      name: 'B03 - Indicator 108',
+      frequency: 'Every 3 years',
+      structured_frequency: 'Annual',
+    },
+  ]);
+  expect((await rows('indicator_version'))[0]?.name).toBe('Indicator 108');
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',
