@@ -587,11 +587,26 @@ function indicatorQueries(
     Name: `Indicator ${IndicatorID}`,
   })),
   uploads: { IndicatorID: number; LastUploadedAt: Date }[] = [],
+  metadata: {
+    frequency?: string;
+    frequencyProse?: string;
+    frequencies?: { IndicatorID: number; FrequencyID: number | null; Name: string | null }[];
+  } = {},
 ) {
   vi.mocked(queryPholio)
     .mockResolvedValueOnce([])
-    .mockResolvedValueOnce([{ id: 1, name: 'Not applicable' }])
-    .mockResolvedValueOnce([{ id: 1, name: 'Annual' }])
+    .mockResolvedValueOnce([
+      { id: -1, name: 'Not applicable' },
+      { id: 0, name: 'RAG - Low is good' },
+      { id: 1, name: 'RAG - High is good' },
+      { id: 99, name: 'BOB - Blue orange blue' },
+    ])
+    .mockResolvedValueOnce(
+      metadata.frequencies ??
+        (metadata.frequency
+          ? [{ IndicatorID: 108, FrequencyID: 1, Name: metadata.frequency }]
+          : []),
+    )
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce(
@@ -620,6 +635,7 @@ function indicatorQueries(
         DisclosureControl: null,
         Caveats: null,
         Notes: null,
+        Frequency: metadata.frequencyProse ?? null,
       },
     ]);
 }
@@ -629,6 +645,60 @@ it('exports only the approved indicators and uses plain text without damaging in
   expect(result.indicatorIds).toEqual(new Set([108]));
   expect(result.excludedNonApprovedIndicators).toBe(1);
   expect((await rows('indicator_version'))[0]?.definition).toBe('aged <16 and >64, high');
+});
+it('writes the indicator frequency from source prose', async () => {
+  indicatorQueries('No unit', undefined, [], { frequencyProse: 'Quarterly' });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.update_frequency).toBe('quarterly');
+});
+it('leaves missing indicator frequency unanswered', async () => {
+  indicatorQueries();
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.update_frequency).toBe(DATA_MIGRATION_NULL);
+});
+it.each([
+  ['Quarterly', 'quarterly'],
+  [undefined, DATA_MIGRATION_NULL],
+])('allows a null structured frequency with prose %s', async (frequencyProse, expected) => {
+  indicatorQueries('No unit', undefined, [], {
+    frequencies: [{ IndicatorID: 108, FrequencyID: null, Name: null }],
+    ...(frequencyProse === undefined ? {} : { frequencyProse }),
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.update_frequency).toBe(expected);
+});
+it.each(['approved', 'development-snapshot'] as const)(
+  'ignores unknown frequency lookups outside the %s export selection',
+  async (kind) => {
+    indicatorQueries('No unit', undefined, [], {
+      frequencies: [{ IndicatorID: 109, FrequencyID: 999, Name: null }],
+    });
+    if (kind === 'development-snapshot') {
+      options.indicatorSelection = { kind };
+      options.excludedIndicators = [109];
+    }
+    const result = await exportIndicators(options);
+    expect(result.indicatorIds).toEqual(new Set([108]));
+  },
+);
+it.each(['approved', 'development-snapshot'] as const)(
+  'rejects unknown frequency lookups in the %s export selection before writing',
+  async (kind) => {
+    indicatorQueries('No unit', undefined, [], {
+      frequencies: [{ IndicatorID: 108, FrequencyID: 999, Name: null }],
+    });
+    if (kind === 'development-snapshot') options.indicatorSelection = { kind };
+    await expect(exportIndicators(options)).rejects.toThrow('Indicator 108: unknown frequency 999');
+    expect(await readdir(directory)).toEqual([]);
+  },
+);
+it('refuses contradictory source frequency before writing indicator tables', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    frequency: 'Annual',
+    frequencyProse: 'Monthly',
+  });
+  await expect(exportIndicators(options)).rejects.toThrow('Conflicting source update frequencies');
+  expect(await readdir(directory)).toEqual([]);
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',
