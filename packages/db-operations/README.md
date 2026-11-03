@@ -142,7 +142,7 @@ publisher upload after that command.
 `data/area-types.json`, `dimension-types.json`, `dimension-values.json` and
 `note-types.json` contain the fixed lookup ids. They use the exporter's deterministic
 UUIDv7 mapping of Pholio keys. The import validates ids, names and dimension parents,
-then upserts each list using one JSON parameter. Migration 0056 moves existing names to
+then upserts each list using one JSON parameter. Migration 0059 moves existing names to
 those ids and updates their foreign keys, observation dimension keys and area read models.
 
 `data/geography/` contains the full Pholio area catalog as gzipped CSV files. Its manifest
