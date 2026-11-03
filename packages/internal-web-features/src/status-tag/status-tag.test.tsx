@@ -110,10 +110,10 @@ describe('StatusTag', () => {
     expect(document.querySelector('.govuk-visually-hidden')).toBeNull();
   });
 
-  it('shows a task that is not started as a tag', () => {
+  it('shows a task that is not started as incomplete, in the tag GOV.UK gives it', () => {
     render(<StatusTag type="task" status="not_started" />);
 
-    expect(tag('Not started')).toContain('govuk-tag--blue');
+    expect(tag('Incomplete')).toContain('govuk-tag--blue');
   });
 
   it('shows a task in progress as incomplete, in the tag GOV.UK gives it', () => {

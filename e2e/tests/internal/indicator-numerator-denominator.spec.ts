@@ -148,7 +148,7 @@ test('saves the sources and definition on Continue and shows the task as complet
 
   await expect(page).toHaveURL(taskListPath);
   await expect(taskRow(page, NUMERATOR.taskName)).toContainText('Completed');
-  await expect(taskRow(page, DENOMINATOR.taskName)).toContainText('Not started');
+  await expect(taskRow(page, DENOMINATOR.taskName)).toContainText('Incomplete');
 
   await taskRow(page, NUMERATOR.taskName).getByRole('link').click();
   await expect(addedSources(page)).toHaveText([`${ONS}: Live births`, DEFRA]);
@@ -187,7 +187,7 @@ test('asks the same of the denominator and saves it apart from the numerator', a
 
   await expect(page).toHaveURL(taskListPath);
   await expect(taskRow(page, DENOMINATOR.taskName)).toContainText('Completed');
-  await expect(taskRow(page, NUMERATOR.taskName)).toContainText('Not started');
+  await expect(taskRow(page, NUMERATOR.taskName)).toContainText('Incomplete');
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {

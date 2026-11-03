@@ -47,7 +47,7 @@ async function continueWithFile(page: Page, name: string, content: string) {
 
 test('is reached from the data table task on the task list', async ({ page }) => {
   await createIndicator(page, uniqueIndicatorName('data table'));
-  await expect(taskRow(page, 'Data table')).toContainText('Not started');
+  await expect(taskRow(page, 'Data table')).toContainText('Incomplete');
 
   await taskRow(page, 'Data table').getByRole('link', { name: 'Data table' }).click();
 

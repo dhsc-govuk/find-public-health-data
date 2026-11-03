@@ -61,9 +61,9 @@ type SharedCases = {
  * polarity spec tests them for every section.
  */
 export function describeSectionPage(section: Section, { expectUnanswered, refusal }: SharedCases) {
-  test('is reached from the task list, where it starts as not started', async ({ page }) => {
+  test('is reached from the task list, where it starts as incomplete', async ({ page }) => {
     await createIndicator(page, uniqueIndicatorName(section.key));
-    await expect(taskRow(page, section.taskName)).toContainText('Not started');
+    await expect(taskRow(page, section.taskName)).toContainText('Incomplete');
 
     await taskRow(page, section.taskName).getByRole('link').click();
 

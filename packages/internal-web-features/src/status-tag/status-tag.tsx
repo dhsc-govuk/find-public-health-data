@@ -41,9 +41,10 @@ const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace
 
 const PUBLISHED: TagFace = { label: 'Published', colour: 'green' };
 
-// GOV.UK shows a completed task as plain text, and anything still to do as a tag.
+// GOV.UK's task list shows a completed task as plain text, and one still to do, started or not, as
+// a blue "Incomplete" tag.
 const TASK_STATUS: Record<IndicatorTaskStatus, TagFace | string> = {
-  not_started: { label: 'Not started', colour: 'blue' },
+  not_started: { label: 'Incomplete', colour: 'blue' },
   in_progress: { label: 'Incomplete', colour: 'blue' },
   completed: 'Completed',
 };

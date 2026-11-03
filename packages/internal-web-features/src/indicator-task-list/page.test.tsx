@@ -108,7 +108,7 @@ describe('IndicatorTaskListPage', () => {
     const name = group('Metadata').getByRole('link', { name: 'Name' });
     const status = document.getElementById(name.getAttribute('aria-describedby') ?? '');
 
-    expect(status?.textContent).toBe('Not started');
+    expect(status?.textContent).toBe('Incomplete');
   });
 
   it('links the data table to its upload page until a file has loaded', () => {
@@ -208,10 +208,10 @@ describe('IndicatorTaskListPage', () => {
     );
   });
 
-  it('tags a task that is not started and leaves a completed one as text', () => {
+  it('tags a task that is not started as incomplete and leaves a completed one as text', () => {
     renderPage();
 
-    expect(screen.getAllByText('Not started')[0]?.className).toContain('govuk-tag--blue');
+    expect(screen.getAllByText('Incomplete')[0]?.className).toContain('govuk-tag--blue');
     expect(screen.getByText('Completed').className).not.toContain('govuk-tag');
   });
 
