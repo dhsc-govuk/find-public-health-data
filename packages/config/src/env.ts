@@ -66,8 +66,8 @@ export function serverEnvFields(defaults: { port: number }) {
     PORT: portSchema.default(defaults.port),
     SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).optional(),
     // Unlike the drain, this carries a default here: it is a ceiling rather than a wait, so a
-    // stop with nothing in flight is instant under it and a developer machine needs no
-    // different value. The floor is what a stop needs to have phases at all.
+    // stop with nothing in flight ends as soon as the drain does and a developer machine needs
+    // no different value. The floor is what a stop needs to have phases at all.
     SHUTDOWN_GRACE_PERIOD_MS: z.coerce.number().int().min(1_000).default(25_000),
     // The commit an image was built from, set by docker/Dockerfile and logged on start-up.
     REVISION: z.string().default('unknown'),

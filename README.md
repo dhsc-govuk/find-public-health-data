@@ -376,11 +376,11 @@ On SIGTERM or SIGINT every server drains, closes, then cleans up — releasing t
 Vite in dev. `SHUTDOWN_GRACE_PERIOD_MS` (default 25s) is the budget for all three rather than a
 timeout per phase, so it is directly comparable to Container Apps' `terminationGracePeriodSeconds`
 and must stay under it, since that is what decides when SIGKILL arrives. It is a ceiling and not a
-wait: a stop with nothing in flight is immediate. `SHUTDOWN_DRAIN_MS` is how long the server goes on
-serving while readiness fails, giving the ingress time to stop routing here; it comes out of the
-budget rather than adding to it, and is zero locally, five seconds elsewhere. A server logs
-`Stopping`, with the signal and each phase's budget, as the signal arrives, and `Stopped` once
-cleanup is done.
+wait: a stop with nothing in flight ends as soon as the drain does. `SHUTDOWN_DRAIN_MS` is how long
+the server goes on serving while readiness fails, giving the ingress time to stop routing here; it
+comes out of the budget rather than adding to it, and is zero locally, five seconds elsewhere. A
+server logs `Stopping`, with the signal and each phase's budget, as the signal arrives, and
+`Stopped` once cleanup is done.
 
 All four apps serve the same two probes, so one configuration covers every app: `/livez` stays 200
 throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the moment a signal
