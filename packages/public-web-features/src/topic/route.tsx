@@ -1,13 +1,15 @@
 import { formatDocumentTitle } from '@fphd/ui';
 import { type MetaFunction, type ShouldRevalidateFunctionArgs, useLoaderData } from 'react-router';
-import { topicDataKey } from './filters.ts';
+import { topicDataKey, topicTab } from './filters.ts';
 import { loadTopicPage } from './loader.ts';
 import { TopicPage } from './page.tsx';
 
 export const loader = loadTopicPage;
 
 export function shouldRevalidate({ currentUrl, nextUrl }: ShouldRevalidateFunctionArgs) {
-  return topicDataKey(currentUrl) !== topicDataKey(nextUrl);
+  return (
+    topicTab(currentUrl) !== topicTab(nextUrl) || topicDataKey(currentUrl) !== topicDataKey(nextUrl)
+  );
 }
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [

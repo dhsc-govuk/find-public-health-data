@@ -11,7 +11,7 @@ async function openTopicPage(page: Page, path: string) {
 }
 
 export function topicPageTests() {
-  test('preloads every section, uses mobile anchors and switches desktop tabs without reloading topic data', async ({
+  test('loads only the open topic section and keeps the mobile sections stacked', async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -20,77 +20,66 @@ export function topicPageTests() {
     const areas = page.locator('#topic-area-summaries');
     await expect(page.getByRole('tablist')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
-    await expect(data.getByRole('table')).toBeVisible();
-    await expect(areas.getByRole('table')).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
-    ).toBeVisible();
-    const requests: string[] = [];
-    page.on('request', (request) => {
-      const url = new URL(request.url());
-      if (
-        request.isNavigationRequest() ||
-        (url.pathname.endsWith('.data') && url.searchParams.get('_routes') !== 'root')
-      )
-        requests.push(request.url());
-    });
-    await expect(page.getByRole('link', { name: 'Data', exact: true })).toHaveAttribute(
-      'href',
-      '#topic-data',
-    );
+    await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeVisible();
+    await expect(areas.getByRole('heading', { name: 'Area summaries', exact: true })).toBeVisible();
+    await expect(data.getByRole('table')).toHaveCount(0);
+    await expect(areas.getByRole('table')).toHaveCount(0);
     await page.getByRole('link', { name: 'Data', exact: true }).click();
-    await expect(page).toHaveURL(/#topic-data$/);
+    await expect(page).toHaveURL(/tab-topic=data#topic-data$/);
     await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeInViewport();
-    await page.getByRole('link', { name: 'More information', exact: true }).click();
-    await expect(page).toHaveURL(/#topic-publications$/);
-    await page.getByRole('link', { name: 'Overview', exact: true }).click();
-    await expect(page).toHaveURL(/#topic-overview$/);
+    await expect(data.getByRole('table')).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.getByRole('tab', { name: 'Data', exact: true }).click();
-    await expect(data.getByRole('table')).toBeVisible();
-    await expect(page.locator('.govuk-tabs__panel[aria-busy="true"]')).toHaveCount(0);
-    await page.goBack();
-    await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('tab', { name: 'Data', exact: true })).toHaveAttribute(
       'aria-selected',
       'true',
     );
+    await page.getByRole('tab', { name: 'Area summaries', exact: true }).click();
+    await expect(areas.getByRole('table')).toBeVisible();
+    await page.goBack();
+    await expect(data.getByRole('table')).toBeVisible();
     await page.goForward();
-    await expect(data.getByRole('table')).toBeVisible();
-    expect(requests).toEqual([]);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await expect(data.getByRole('table')).toBeVisible();
     await expect(areas.getByRole('table')).toBeVisible();
   });
 
-  test('shows every topic section without JavaScript and follows native Contents anchors', async ({
+  test('opens every topic tab without JavaScript by navigation', async ({
     page,
+    browser,
     baseURL,
   }) => {
     if (baseURL === undefined) throw new Error('A base URL is required');
-    const context = await page
-      .context()
-      .browser()
-      ?.newContext({
-        baseURL,
-        storageState: await page.context().storageState(),
-        javaScriptEnabled: false,
-      });
-    if (!context) throw new Error('A browser context is required');
+    const context = await browser.newContext({
+      baseURL,
+      storageState: await page.context().storageState(),
+      javaScriptEnabled: false,
+      viewport: { width: 390, height: 844 },
+    });
     const withoutJs = await context.newPage();
     try {
-      await withoutJs.setViewportSize({ width: 390, height: 844 });
       await withoutJs.goto('/topics/diabetes');
-      await expect(withoutJs.locator('#topic-data').getByRole('table')).toBeVisible();
-      await expect(withoutJs.locator('#topic-area-summaries').getByRole('table')).toBeVisible();
-      await expect(
-        withoutJs.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
-      ).toBeVisible();
-      await withoutJs.getByRole('link', { name: 'Data', exact: true }).click();
-      await expect(withoutJs).toHaveURL(/#topic-data$/);
-      await expect(
-        withoutJs.locator('#topic-data').getByRole('heading', { name: 'Data', exact: true }),
-      ).toBeInViewport();
+      for (const [label, anchor, content] of [
+        ['Data', 'topic-data', withoutJs.locator('#topic-data').getByRole('table')],
+        [
+          'Area summaries',
+          'topic-area-summaries',
+          withoutJs.locator('#topic-area-summaries').getByRole('table'),
+        ],
+        [
+          'More information',
+          'topic-publications',
+          withoutJs.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
+        ],
+        [
+          'Overview',
+          'topic-overview',
+          withoutJs.getByRole('heading', { name: 'Highlighted indicators' }),
+        ],
+      ] as const) {
+        await expect(content).toHaveCount(0);
+        await withoutJs.getByRole('link', { name: label, exact: true }).click();
+        await expect(withoutJs).toHaveURL(new RegExp(`#${anchor}$`));
+        await expect(content).toBeVisible();
+      }
     } finally {
       await context.close();
     }
@@ -284,7 +273,7 @@ export function topicPageTests() {
     for (const width of [641, 834, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       const initial = await position();
-      for (const label of ['Overview', 'Data', 'Area summaries', 'More information']) {
+      for (const label of ['More information', 'Overview']) {
         await page.getByRole('tab', { name: label, exact: true }).click();
         await expect(page.getByRole('tabpanel', { name: label, exact: true })).not.toHaveAttribute(
           'aria-busy',

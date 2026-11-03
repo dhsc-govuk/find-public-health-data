@@ -33,6 +33,7 @@ export function TopicGeographies({
   };
   const urlFor = (gaCodes: string[], geoLevels: string[]) =>
     searchUrl({ ...search, gaCodes, geoLevels }, path, extraParams);
+  const action = `${path}#${tab === 'areas' ? 'topic-area-summaries' : `topic-${tab}`}`;
   const picked = search.gaCodes.length > 0 || search.geoLevels.length > 0;
   const group = search.geoLevels[0] ?? 'NHS regions';
   const [selectedGroup, setSelectedGroup] = useState(group);
@@ -49,7 +50,7 @@ export function TopicGeographies({
           headingLevel={3}
           title="Type of geography"
         >
-          <Form action={path} method="get" preventScrollReset>
+          <Form action={action} method="get" preventScrollReset>
             <HiddenFilters
               state={search}
               extraParams={extraParams}
@@ -119,7 +120,7 @@ export function TopicGeographies({
             autoApply
             lookupUrl="/geographies?scheme=public"
             single={tab === 'overview'}
-            action={path}
+            action={action}
             extraParams={extraParams}
             state={search}
             displayGroups={search.displayGroups}

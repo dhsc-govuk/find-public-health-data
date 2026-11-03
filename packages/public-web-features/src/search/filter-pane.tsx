@@ -22,6 +22,7 @@ import { DIMENSIONS, EMPTY_SEARCH_STATE, removeFrom, type SearchState, searchUrl
 
 interface SearchFilterPaneProps {
   action?: string;
+  formAction?: string;
   extraParams?: Record<string, string>;
   includeTopics?: boolean;
   includeDataPeriod?: boolean;
@@ -41,6 +42,7 @@ interface SearchFilterPaneProps {
 
 export function SearchFilterPane({
   action = '/search',
+  formAction = action,
   extraParams = {},
   includeTopics = true,
   includeDataPeriod = false,
@@ -189,7 +191,7 @@ export function SearchFilterPane({
     variant === 'accordion' ? (
       <FilterDimensionChoices
         key={dim.param}
-        action={action}
+        action={formAction}
         extraParams={extraParams}
         label={dim.selectedLabel
           .replace(/^Selected /, '')
@@ -203,7 +205,7 @@ export function SearchFilterPane({
     ) : (
       <FilterDimensionFooter
         key={`${dim.param}-${JSON.stringify(state[dim.stateKey])}`}
-        action={action}
+        action={formAction}
         extraParams={extraParams}
         draftValue={drafts.current[dim.param]}
         onDraftChange={(value) => {
@@ -225,7 +227,7 @@ export function SearchFilterPane({
     <div className={variant === 'accordion' ? 'fphd-topic-indicator-filters' : undefined}>
       {includeSearch ? (
         <Form
-          action={action}
+          action={formAction}
           method="get"
           replace
           onChangeCapture={(event) => {
@@ -297,7 +299,7 @@ export function SearchFilterPane({
           footer={
             <SearchGeographyPicker
               key={JSON.stringify([state.gaCodes, state.geoLevels])}
-              action={action}
+              action={formAction}
               extraParams={extraParams}
               state={state}
               displayGroups={displayGroups}
@@ -396,6 +398,7 @@ export function SearchFilterPane({
             <SearchPeriodFilter
               key={JSON.stringify([state.fromYear, state.toYear, state.updatedWithin])}
               action={action}
+              formAction={formAction}
               extraParams={extraParams}
               state={state}
               variant={variant}

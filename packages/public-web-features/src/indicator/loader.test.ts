@@ -1,3 +1,4 @@
+import { indicatorAreaDataSchema } from '@fphd/public-api-features/contract';
 import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
@@ -6,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { loadIndicator } from './loader.ts';
 
 function api() {
-  const get = vi.fn(async (path: string) => {
+  const get = vi.fn(async (path: string, schema?: unknown) => {
     if (/\/api\/indicators\/[^/]+\/areas\?/.test(path))
       return [
         {
@@ -39,12 +40,16 @@ function api() {
         },
       ];
     if (path.startsWith('/api/areas')) return [{ areaType: 'England', areas: [] }];
-    if (path.includes('/data?'))
-      return new URL(`http://localhost${path}`).searchParams.getAll('areaCode').map((code) => ({
-        areaCode: code,
-        areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
-        observations: [],
-      }));
+    if (path.includes('/data?')) {
+      const data = new URL(`http://localhost${path}`).searchParams
+        .getAll('areaCode')
+        .map((code) => ({
+          areaCode: code,
+          areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
+          observations: [],
+        }));
+      return schema === indicatorAreaDataSchema ? data[0] : data;
+    }
     if (path.includes('/range?')) return { periods: [] };
     const shortId = Number((path.split('/')[3] ?? '').replace('indicator-', ''));
     return { shortId, slug: `indicator-${shortId}`, areaTypes: [] };
@@ -135,9 +140,9 @@ describe('loadIndicator', () => {
     const { client, get } = api();
     const original = get.getMockImplementation();
     if (!original) throw new Error('Missing test API implementation');
-    get.mockImplementation(async (path) => {
+    get.mockImplementation(async (path, schema) => {
       if (path === '/api/indicators/missing') throw new Response(null, { status: 404 });
-      return original(path);
+      return original(path, schema);
     });
     await expect(
       loadIndicator(
@@ -169,9 +174,9 @@ describe('loadIndicator', () => {
       const { client, get } = api();
       const original = get.getMockImplementation();
       if (!original) throw new Error('Missing test API implementation');
-      get.mockImplementation(async (candidate) => {
+      get.mockImplementation(async (candidate, schema) => {
         if (candidate === path) throw new Response(null, { status });
-        return original(candidate);
+        return original(candidate, schema);
       });
       await expect(
         loadIndicator(
@@ -231,32 +236,35 @@ describe('loadIndicator', () => {
     ]);
   });
 
-  it('loads every section in bounded batches regardless of the selected tab', async () => {
+  it.each([
+    ['indicator', '', [1], false, false],
+    ['areas', '&compareWith=indicator-241', [1, 20, 5], true, false],
+    ['compare', '&compareWith=indicator-241', [1, 20, 5], true, true],
+    ['compare', '&find=diabetes', [1], false, false],
+    ['inequalities', '&as=E06000052&cmp-108=region&cr-108=yes', [2], false, false],
+    ['about', '&compareWith=indicator-241&as=E06000052', [1], false, false],
+  ])('loads only the data for %s with %s', async (tab, query, batchSizes, ranking, compared) => {
     const { client, get } = api();
-    const initial = await loadIndicator(args(client));
-    expect(initial.compareAreasData).toHaveLength(25);
-    expect(
-      get.mock.calls
-        .filter(([path]) => path.includes('/108/data?'))
-        .map(([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length),
-    ).toEqual([1, 20, 5]);
-
-    get.mockClear();
-    const compared = await loadIndicator(
-      args(client, 'http://localhost/indicator/indicator-108?tab-indicator=areas'),
+    const result = await loadIndicator(
+      args(client, `http://localhost/indicator/indicator-108?tab-indicator=${tab}${query}`),
     );
-    expect(compared.compareAreaGroup).toBe('Local authorities');
-    expect(compared.compareAreaOptions).toHaveLength(25);
-    expect(compared.compareAreasData).toHaveLength(25);
-    expect(get).toHaveBeenCalledWith(
-      '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
-      expect.anything(),
-    );
-    const batches = get.mock.calls.filter(([path]) => String(path).includes('/108/data?'));
+    const paths = get.mock.calls.map(([path]) => path);
+    expect(result.compareAreasData).toHaveLength(ranking ? 25 : 0);
+    expect(result.comparedAreasData).toHaveLength(compared ? 25 : 0);
+    expect(paths.includes('/api/indicators/indicator-241')).toBe(compared);
     expect(
-      batches.map(
-        ([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length,
-      ),
-    ).toEqual([1, 20, 5]);
+      paths.some((path) => path.includes('/range?') || path.startsWith('/api/areas/parents')),
+    ).toBe(false);
+    expect(paths.some((path) => path.startsWith('/api/indicators?q='))).toBe(
+      query.includes('find'),
+    );
+    expect(paths.some((path) => path.includes('/areas?displayGroup='))).toBe(
+      ranking || tab === 'indicator',
+    );
+    expect(
+      paths
+        .filter((path) => path.includes('/108/data?'))
+        .map((path) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length),
+    ).toEqual(batchSizes);
   });
 });
