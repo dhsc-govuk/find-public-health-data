@@ -161,7 +161,8 @@ python3 export/split-count-and-numerator.py .
 
 `strip-metadata-html.py` converts the metadata prose from Pholio's HTML to the plain
 text the pages store and render; `enrich-area-display.py` stamps each area type's display
-group and strips the level suffixes from area names; `tidy-reference-names.py` tidies the
+group, copies explicit current status and validity dates from the verified core geography
+snapshot, and strips the level suffixes from area names; `tidy-reference-names.py` tidies the
 names uploaded data is matched to. Skipping any of them commits seeds the site would show
 or match wrong. `reshape-indicator-versions.py` splits the Pholio shape into the
 identity and version tables this service holds: `indicator.csv.gz` keeps

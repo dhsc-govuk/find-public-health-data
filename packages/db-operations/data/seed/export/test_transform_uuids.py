@@ -2,6 +2,7 @@
 
 import csv
 import gzip
+import hashlib
 import io
 import json
 import runpy
@@ -99,6 +100,38 @@ class PublishedCsvTest(unittest.TestCase):
                 Path(directory, "indicator_version.csv.gz"), "rt", newline=""
             ) as result:
                 self.assertTrue(result.read().endswith(',,""\r\n'))
+
+
+class SeedGeographyTest(unittest.TestCase):
+    def test_regeneration_uses_explicit_status_and_dates_from_core_geography(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            geography = root / "geography"
+            geography.mkdir()
+            source = geography / "area.csv.gz"
+            with gzip.open(source, "wt", newline="") as output:
+                output.write("code,valid_from,valid_to,is_current\nA,,,f\nB,,,t\n")
+            (geography / "manifest.json").write_text(json.dumps({"files": {"area": {
+                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            }}}))
+            seed = root / "area.csv.gz"
+            with gzip.open(seed, "wt", newline="") as output:
+                output.write("id,code,name,area_type_id,valid_from,valid_to\n")
+                output.write("1,A,Retired,6,2000-01-01,\n2,B,Current,6,2000-01-01,2020-01-01\n")
+            enrich_area["refresh_area_status"](str(seed), geography)
+            with gzip.open(seed, "rt", newline="") as result:
+                rows = list(csv.DictReader(result))
+            self.assertEqual([row["is_current"] for row in rows], ["f", "t"])
+            self.assertTrue(all(row["valid_from"] == row["valid_to"] == "" for row in rows))
+            before = seed.read_bytes()
+            with gzip.open(source, "wt", newline="") as output:
+                output.write("code,valid_from,valid_to,is_current\nB,,,t\n")
+            (geography / "manifest.json").write_text(json.dumps({"files": {"area": {
+                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            }}}))
+            with self.assertRaisesRegex(ValueError, "No core geography for seed area A"):
+                enrich_area["refresh_area_status"](str(seed), geography)
+            self.assertEqual(seed.read_bytes(), before)
 
 
 class ForeignKeyIndexesTest(unittest.TestCase):

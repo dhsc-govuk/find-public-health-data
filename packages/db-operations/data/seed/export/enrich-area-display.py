@@ -8,7 +8,9 @@ context. Run after export-seed.py / transform-uuids.py, before committing the CS
 
 import csv
 import gzip
+import hashlib
 import io
+import json
 import re
 import sys
 from pathlib import Path
@@ -89,7 +91,47 @@ def strip_area_names(path: str) -> None:
     print(f"{path}: {changed} of {len(rows)} names stripped")
 
 
+def refresh_area_status(path: str, geography_directory=None) -> None:
+    geography = Path(geography_directory or Path(__file__).resolve().parents[2] / "geography")
+    manifest = json.loads((geography / "manifest.json").read_text())["files"]["area"]
+    source = geography / "area.csv.gz"
+    if hashlib.sha256(source.read_bytes()).hexdigest() != manifest["sha256"]:
+        raise ValueError("Core geography integrity check failed for area")
+    with gzip.open(source, "rt", newline="") as handle:
+        source_rows = list(csv.DictReader(handle))
+    by_code = {row["code"]: row for row in source_rows}
+    if len(by_code) != len(source_rows):
+        raise ValueError("Core geography contains ambiguous area codes")
+    with gzip.open(path, "rt", newline="") as handle:
+        reader = csv.DictReader(handle)
+        header = list(reader.fieldnames)
+        rows = list(reader)
+    if "is_current" not in header:
+        header.append("is_current")
+    null_marker = published_null_marker(Path(path).parent)
+    for row in rows:
+        reference = by_code.get(row["code"])
+        if reference is None:
+            raise ValueError(f"No core geography for seed area {row['code']}")
+        if reference["is_current"] not in ("t", "f"):
+            raise ValueError(f"Missing core current status for seed area {row['code']}")
+        row["is_current"] = reference["is_current"]
+        for field in ("valid_from", "valid_to"):
+            row[field] = reference[field] or null_marker or ""
+    temporary = f"{path}.tmp"
+    with gzip.open(temporary, "wt", newline="") as handle:
+        csv.writer(handle).writerow(header)
+        for row in rows:
+            if null_marker:
+                write_published_row(handle, [row[field] for field in header])
+            else:
+                csv.writer(handle).writerow([row[field] for field in header])
+    Path(temporary).replace(path)
+    print(f"{path}: {len(rows)} areas matched to core geography")
+
+
 if __name__ == "__main__":
     directory = sys.argv[1] if len(sys.argv) > 1 else "."
     enrich_area_types(f"{directory}/area_type.csv.gz")
+    refresh_area_status(f"{directory}/area.csv.gz")
     strip_area_names(f"{directory}/area.csv.gz")
