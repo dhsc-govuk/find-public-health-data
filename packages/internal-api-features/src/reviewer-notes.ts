@@ -160,7 +160,9 @@ export function reviewerNotesRouter(
       return;
     }
 
-    request.log.info({ indicatorId: id, noteId: noteId.data }, 'Reviewer note updated');
+    if (result.changed) {
+      request.log.info({ indicatorId: id, noteId: noteId.data }, 'Reviewer note updated');
+    }
     response.status(200).json(toNote(result.note));
   });
 

@@ -54,7 +54,7 @@ function createTestApp(
       {
         list: async () => [note],
         add: async () => ({ ok: true, note }),
-        update: async () => ({ ok: true, note }),
+        update: async () => ({ ok: true, note, changed: true }),
         ...reviewerNotes,
       },
       { findAccess },
@@ -210,7 +210,7 @@ describe('PUT /api/internal/indicators/:id/reviewer-notes/:noteId', () => {
   it('edits the note against the version shown, answering it, and logs it', async () => {
     const { logger, lines } = createCapturingLogger('internal-api');
     const edited = { ...note, text: 'Settled' };
-    const update = vi.fn().mockResolvedValue({ ok: true, note: edited });
+    const update = vi.fn().mockResolvedValue({ ok: true, note: edited, changed: true });
 
     const response = await request(createTestApp({ update }, undefined, logger))
       .put(notePath)
@@ -237,6 +237,20 @@ describe('PUT /api/internal/indicators/:id/reviewer-notes/:noteId', () => {
     expect(await handlerLogLines(lines)).toEqual([
       expect.objectContaining({ msg: 'Reviewer note updated', indicatorId: ID, noteId: NOTE_ID }),
     ]);
+  });
+
+  it('answers the note and logs nothing for an edit that changes nothing', async () => {
+    const { logger, lines } = createCapturingLogger('internal-api');
+    const update = vi.fn().mockResolvedValue({ ok: true, note, changed: false });
+
+    const response = await request(createTestApp({ update }, undefined, logger))
+      .put(notePath)
+      .set('Cookie', await asReviewer())
+      .send({ text: note.text, version: VERSION });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({ id: NOTE_ID, version: VERSION }));
+    expect(await handlerLogLines(lines)).toEqual([]);
   });
 
   it('answers 409 with the current version when the note has changed', async () => {

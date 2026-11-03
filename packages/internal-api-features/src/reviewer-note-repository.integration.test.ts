@@ -230,6 +230,7 @@ describe('updateReviewerNote', () => {
     expect(result).toEqual({
       ok: true,
       note: { ...note, text: 'Settled thought', updatedAt: expect.any(Date) },
+      changed: true,
     });
     if (!result.ok) return;
     expect(result.note.updatedAt.getTime()).toBeGreaterThan(note.updatedAt.getTime());
@@ -254,7 +255,7 @@ describe('updateReviewerNote', () => {
 
     await expect(
       updateReviewerNote(db, indicatorId, note.id, 'As it was', shownAs(note), AS_REVIEWER),
-    ).resolves.toEqual({ ok: true, note });
+    ).resolves.toEqual({ ok: true, note, changed: false });
     expect(await noteEntries(db, indicatorId)).toHaveLength(1);
   });
 

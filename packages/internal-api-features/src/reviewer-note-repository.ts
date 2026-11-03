@@ -27,7 +27,7 @@ export type AddReviewerNoteResult =
   | { ok: false; reason: 'not_a_reviewer' };
 
 export type UpdateReviewerNoteResult =
-  | { ok: true; note: ReviewerNoteRow }
+  | { ok: true; note: ReviewerNoteRow; changed: boolean }
   | { ok: false; reason: 'not_a_reviewer' | 'not_found' }
   | { ok: false; reason: 'changed'; version: string };
 
@@ -179,7 +179,7 @@ export function updateReviewerNote(
     if (version !== precondition.version) return { ok: false, reason: 'changed', version };
 
     const { submissionId, ...note } = current;
-    if (note.text === text) return { ok: true, note };
+    if (note.text === text) return { ok: true, note, changed: false };
 
     const [updated] = await tx
       .update(indicatorVersionReviewNote)
@@ -201,6 +201,6 @@ export function updateReviewerNote(
         },
       },
     ]);
-    return { ok: true, note: updated };
+    return { ok: true, note: updated, changed: true };
   });
 }
