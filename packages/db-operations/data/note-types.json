@@ -377,7 +377,7 @@
   {
     "id": "019de0d5-c800-7012-8000-00000000015e",
     "text": "Value suppressed as denominator age group count is too small to produce a reliable DSR",
-    "category": "disclosure"
+    "category": "quality"
   },
   {
     "id": "019de0d5-c800-7012-8000-000000000160",
@@ -592,7 +592,7 @@
   {
     "id": "019de0d5-c800-7012-8000-0000000001d0",
     "text": "Value suppressed as sample size was too small to produce a reliable estimate",
-    "category": "disclosure"
+    "category": "quality"
   },
   {
     "id": "019de0d5-c800-7012-8000-0000000001d2",
@@ -647,7 +647,7 @@
   {
     "id": "019de0d5-c800-7012-8000-000000000262",
     "text": "Value suppressed due to incompleteness of source data",
-    "category": "disclosure"
+    "category": "quality"
   },
   {
     "id": "019de0d5-c800-7012-8000-000000000264",
@@ -1102,7 +1102,7 @@
   {
     "id": "019de0d5-c800-7012-8000-000000000456",
     "text": "Extreme outlier suppressed for data presentation purposes",
-    "category": "disclosure"
+    "category": "quality"
   },
   {
     "id": "019de0d5-c800-7012-8000-000000000458",

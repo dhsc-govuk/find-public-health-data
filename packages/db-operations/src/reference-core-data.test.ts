@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 
 import { parseReferenceData, readReferenceData } from './reference-core-data.ts';
+import { readSeedTable } from './seed-csv.testing.ts';
 
 it('holds complete lookup rows under unique stable ids and names', () => {
   const records = readReferenceData();
@@ -12,6 +13,18 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     dimensionValues: 1384,
     noteTypes: 235,
   });
+});
+
+it.each([
+  'Extreme outlier suppressed for data presentation purposes',
+  'Value suppressed as denominator age group count is too small to produce a reliable DSR',
+  'Value suppressed as sample size was too small to produce a reliable estimate',
+  'Value suppressed due to incompleteness of source data',
+])('keeps the reliability note category consistent in core data and seed: %s', (text) => {
+  expect(readReferenceData().noteTypes.find((note) => note.text === text)?.category).toBe(
+    'quality',
+  );
+  expect(readSeedTable('note_type').find((note) => note.text === text)?.category).toBe('quality');
 });
 
 it('refuses duplicate lookup ids and names before import', () => {

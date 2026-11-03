@@ -2,8 +2,16 @@ import type { PholioExportOptions } from './context.ts';
 import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 
+const QUALITY_NOTES = new Set([
+  'Extreme outlier suppressed for data presentation purposes',
+  'Value suppressed as denominator age group count is too small to produce a reliable DSR',
+  'Value suppressed as sample size was too small to produce a reliable estimate',
+  'Value suppressed due to incompleteness of source data',
+]);
+
 export function noteCategory(text: string | null): string {
   if (!text) return 'contextual';
+  if (QUALITY_NOTES.has(text)) return 'quality';
   const t = text.toLowerCase();
   if (/boundar|geograph|merg|area.*change|reconfig/.test(t)) return 'geographic';
   if (/suppress|disclosure|small number/.test(t)) return 'disclosure';

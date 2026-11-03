@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { noteCategory } from './lookups.ts';
 
 describe('noteCategory', () => {
+  it.each([
+    'Extreme outlier suppressed for data presentation purposes',
+    'Value suppressed as denominator age group count is too small to produce a reliable DSR',
+    'Value suppressed as sample size was too small to produce a reliable estimate',
+    'Value suppressed due to incompleteness of source data',
+  ])('classifies the source reliability note as quality: %s', (text) => {
+    expect(noteCategory(text)).toBe('quality');
+  });
   it('classifies geographic notes', () => {
     expect(noteCategory('Boundary change in 2019')).toBe('geographic');
     expect(noteCategory('Area geography changed')).toBe('geographic');
