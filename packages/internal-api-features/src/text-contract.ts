@@ -1,14 +1,14 @@
 import { z } from '@fphd/config/zod';
+import {
+  CONTROL_CHARACTER,
+  CONTROL_CHARACTER_BUT_NEWLINE_OR_TAB,
+} from '@fphd/utils/control-character';
 
 /** The most characters a single-line text input takes. */
 export const SHORT_TEXT_MAX_LENGTH = 300;
 
 /** The most characters a textarea takes. */
 export const LONG_TEXT_MAX_LENGTH = 10_000;
-
-const CONTROL_CHARACTER = /\p{Cc}/u;
-
-const CONTROL_CHARACTER_BUT_NEWLINE_OR_TAB = /(?![\n\t])\p{Cc}/u;
 
 /** Counted in code points, as Postgres's `length()` counts, so an emoji is one character. */
 function characterCount(text: string): number {

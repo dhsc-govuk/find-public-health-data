@@ -29,6 +29,12 @@
       "types": "./src/classification-dimension.ts",
       "default": "./dist/classification-dimension.js"
     },
+    "./control-character": {
+      "browser": "./src/control-character.ts",
+      "development": "./src/control-character.ts",
+      "types": "./src/control-character.ts",
+      "default": "./dist/control-character.js"
+    },
     "./disclosure-control": {
       "browser": "./src/disclosure-control.ts",
       "development": "./src/disclosure-control.ts",
