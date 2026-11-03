@@ -595,13 +595,24 @@ function indicatorQueries(
   })),
   uploads: { IndicatorID: number; LastUploadedAt: Date }[] = [],
   metadata: {
+    groupings?: Record<string, unknown>[];
+    ownerProfileId?: number | null;
     frequency?: string;
     frequencyProse?: string;
     frequencies?: { IndicatorID: number; FrequencyID: number | null; Name: string | null }[];
   } = {},
 ) {
   vi.mocked(queryPholio)
-    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce(
+      metadata.groupings ??
+        indicators.map(({ IndicatorID }) => ({
+          IndicatorID,
+          GroupID: 1,
+          ProfileId: 10,
+          PolarityID: 0,
+          ComparatorMethodID: 1,
+        })),
+    )
     .mockResolvedValueOnce([
       { id: -1, name: 'Not applicable' },
       { id: 0, name: 'RAG - Low is good' },
@@ -615,7 +626,6 @@ function indicatorQueries(
           : []),
     )
     .mockResolvedValueOnce([])
-    .mockResolvedValueOnce([])
     .mockResolvedValueOnce(
       indicators.map(({ IndicatorID, Name }) => ({
         IndicatorID,
@@ -623,6 +633,7 @@ function indicatorQueries(
         ValueTypeName: 'Count',
         UnitName: unitName,
         YearTypeName: 'Calendar',
+        OwnerProfileId: metadata.ownerProfileId === undefined ? 10 : metadata.ownerProfileId,
         CIMethodID: null,
         EnteredAt: new Date('2020-01-01T00:00:00Z'),
       })),
@@ -706,6 +717,45 @@ it('refuses contradictory source frequency before writing indicator tables', asy
   });
   await expect(exportIndicators(options)).rejects.toThrow('Conflicting source update frequencies');
   expect(await readdir(directory)).toEqual([]);
+});
+it('writes the owning profile polarity and comparator instead of the other profile', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    ownerProfileId: 10,
+    groupings: [
+      { IndicatorID: 108, GroupID: 1, ProfileId: 10, PolarityID: 0, ComparatorMethodID: 1 },
+      { IndicatorID: 108, GroupID: 2, ProfileId: 20, PolarityID: 1, ComparatorMethodID: 2 },
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    polarity: 'lower-is-better',
+    comparator_method_id: '1',
+  });
+});
+it.each([
+  { ownerProfileId: null, groupings: [], error: 'no owning profile' },
+  { ownerProfileId: 10, groupings: [], error: 'no groupings for owning profile 10' },
+  {
+    ownerProfileId: 10,
+    groupings: [
+      { IndicatorID: 108, GroupID: 1, ProfileId: 10, PolarityID: null, ComparatorMethodID: 1 },
+    ],
+    error: 'missing polarity in owning profile 10',
+  },
+])('rejects missing analytical settings before writing: $error', async (metadata) => {
+  indicatorQueries('No unit', undefined, [], metadata);
+  await expect(exportIndicators(options)).rejects.toThrow(`Indicator 108: ${metadata.error}`);
+  expect(await readdir(directory)).toEqual([]);
+});
+it('preserves an all-not-applicable source polarity', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    ownerProfileId: 10,
+    groupings: [
+      { IndicatorID: 108, GroupID: 1, ProfileId: 10, PolarityID: -1, ComparatorMethodID: -1 },
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.polarity).toBe('no-comparison-possible');
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',

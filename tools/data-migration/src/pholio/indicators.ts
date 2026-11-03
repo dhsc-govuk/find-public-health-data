@@ -3,6 +3,7 @@ import { countIsNumerator as countIsNumeratorOf } from '@fphd/utils/value-type-a
 import { translatePolarity } from '../fingertips-lookups.ts';
 import { notesAndCaveats } from '../notes-and-caveats.ts';
 import { plainTextFromHtml } from '../plain-text.ts';
+import { indicatorAnalyticalSettings, type SourceGroupingSetting } from './analytical-settings.ts';
 import type { PholioExportOptions } from './context.ts';
 import { sourceUpdateFrequency } from './frequency.ts';
 import { uploadBatchId } from './ids.ts';
@@ -12,26 +13,6 @@ import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 import { unitValues, unknownUnits, unknownValueTypes, valueTypeId } from './value-type-and-unit.ts';
 import { YEAR_TYPES, yearTypeValues } from './year-type.ts';
-
-// The 16 indicator ids whose polarity must be forced to BOB regardless of Pholio grouping data.
-const BOB_OVERRIDE_IDS = new Set([
-  212, 219, 241, 247, 258, 262, 273, 280, 352, 848, 1179, 1180, 90443, 90581, 91269, 93777,
-]);
-
-// The Pholio polarity id that maps to BOB.
-const BOB_POLARITY_ID = 99;
-// Fallback polarity_id when no grouping row selects one.
-const DEFAULT_POLARITY_ID = 1;
-
-interface PolarityRow extends PholioRow {
-  IndicatorID: number;
-  PolarityID: number;
-}
-
-interface ComparatorRow extends PholioRow {
-  IndicatorID: number;
-  ComparatorMethodID: number;
-}
 
 interface CiLevelRow extends PholioRow {
   IndicatorID: number;
@@ -46,6 +27,7 @@ interface IndicatorMetaRow extends PholioRow {
   YearTypeName: string | null;
   CIMethodID: number | null;
   EnteredAt: Date;
+  OwnerProfileId: number | null;
 }
 
 interface TextValuesRow extends PholioRow {
@@ -79,31 +61,13 @@ export async function exportIndicators(context: PholioExportOptions) {
   // Always exclude the one test indicator the alpha migration hard-coded.
   excluded.add(94204);
 
-  // Pre-compute polarity per indicator: first non-default polarity row by GroupingID,
-  // then apply the 16 BOB overrides.
-  const polarityRows = await queryPholio<PolarityRow>(
+  const analyticalRows = await queryPholio<SourceGroupingSetting>(
     pool,
-    `SELECT IndicatorID, PolarityID
-     FROM (
-       SELECT IndicatorID, PolarityID,
-         ROW_NUMBER() OVER (PARTITION BY IndicatorID ORDER BY
-           CASE WHEN PolarityID NOT IN (0, -1) THEN 0 ELSE 1 END, GroupingID) AS rn
-       FROM dbo.[grouping]
-       WHERE PolarityID != -1
-     ) g
-     WHERE rn = 1`,
+    `
+    SELECT g.IndicatorID,g.GroupID,gm.ProfileId,g.PolarityID,g.ComparatorMethodID
+    FROM dbo.[Grouping] g LEFT JOIN dbo.GroupingMetadata gm ON gm.GroupID=g.GroupID
+  `,
   );
-  const polarityById = new Map<number, number>();
-  for (const row of polarityRows) {
-    const pid = BOB_OVERRIDE_IDS.has(row.IndicatorID) ? BOB_POLARITY_ID : row.PolarityID;
-    polarityById.set(row.IndicatorID, pid);
-  }
-  // Indicators in the BOB override list that have no grouping rows still need BOB.
-  for (const id of BOB_OVERRIDE_IDS) {
-    if (!polarityById.has(id)) polarityById.set(id, BOB_POLARITY_ID);
-  }
-
-  // Pre-compute polarity name lookup from Pholio polarity table.
   const polarityNames = await queryPholio<{ id: number; name: string }>(
     pool,
     'SELECT PolarityID AS id, Polarity AS name FROM dbo.L_Polarity',
@@ -123,33 +87,6 @@ export async function exportIndicators(context: PholioExportOptions) {
   `,
   );
   const frequencyById = new Map(frequencyRows.map((row) => [row.IndicatorID, row]));
-
-  // Pre-compute comparator method per indicator: most common ComparatorMethodID in grouping.
-  const comparatorRows = await queryPholio<ComparatorRow>(
-    pool,
-    `SELECT IndicatorID, ComparatorMethodID
-     FROM (
-       SELECT IndicatorID, ComparatorMethodID,
-         ROW_NUMBER() OVER (
-           PARTITION BY IndicatorID
-           ORDER BY COUNT(*) DESC, MIN(GroupingID)
-         ) AS rn
-       FROM dbo.[grouping]
-       WHERE ComparatorMethodID IS NOT NULL
-         AND ComparatorMethodID != -1
-         AND ComparatorMethodID IN (
-           SELECT ComparatorMethodID FROM dbo.L_ComparatorMethods
-           UNION
-           SELECT DISTINCT g2.ComparatorMethodID
-           FROM dbo.[grouping] g2
-           WHERE g2.ComparatorMethodID IS NOT NULL AND g2.ComparatorMethodID != -1
-         )
-       GROUP BY IndicatorID, ComparatorMethodID
-     ) g
-     WHERE rn = 1`,
-  );
-  const comparatorById = new Map<number, number>();
-  for (const row of comparatorRows) comparatorById.set(row.IndicatorID, row.ComparatorMethodID);
 
   // Pre-compute CI confidence level per indicator from CoreDataSet.
   const ciLevelRows = await queryPholio<CiLevelRow>(
@@ -177,6 +114,7 @@ export async function exportIndicators(context: PholioExportOptions) {
     pool,
     `SELECT
        im.IndicatorID,
+       im.OwnerProfileId,
        imtv.[1_Name] AS Name,
        ISNULL(vt.ValueType, CONCAT('Unknown value type ', im.ValueTypeID)) AS ValueTypeName,
        ISNULL(u.Unit, CONCAT('Unknown unit ', im.UnitID)) AS UnitName,
@@ -289,6 +227,21 @@ export async function exportIndicators(context: PholioExportOptions) {
       }
     }),
   );
+  const analyticalById = new Map(
+    selectedRows.map((row) => {
+      const id = row.IndicatorID;
+      const { polarityId, comparatorMethodId } = indicatorAnalyticalSettings(
+        id,
+        row.OwnerProfileId,
+        analyticalRows,
+      );
+      const polarityName = polarityNameById.get(polarityId);
+      if (polarityName === undefined)
+        throw new Error(`Indicator ${id}: no polarity name for polarity_id ${polarityId}`);
+      const polarity = translatePolarity(polarityName);
+      return [id, { polarity, comparatorMethodId }] as const;
+    }),
+  );
   const indicatorWriter = new TableWriter(outDir, 'indicator');
   const versionWriter = new TableWriter(outDir, 'indicator_version');
   const batchWriter = new TableWriter(outDir, 'upload_batch');
@@ -303,12 +256,10 @@ export async function exportIndicators(context: PholioExportOptions) {
 
     const name = indicatorNames.get(id);
     if (name === undefined) throw new Error(`Indicator ${id}: missing reviewed name`);
-    const polarityId = polarityById.get(id) ?? DEFAULT_POLARITY_ID;
-    const polarityName = polarityNameById.get(polarityId);
-    if (polarityName === undefined) {
-      throw new Error(`Indicator ${id}: no polarity name for polarity_id ${polarityId}`);
-    }
-    const polarity = translatePolarity(polarityName);
+    const analytical = analyticalById.get(id);
+    if (analytical === undefined)
+      throw new Error(`Indicator ${id}: missing validated analytical settings`);
+    const { polarity, comparatorMethodId } = analytical;
     const updateFrequency = updateFrequencyByIndicator.get(id);
     if (updateFrequency === undefined)
       throw new Error(`Indicator ${id}: missing validated frequency`);
@@ -320,7 +271,6 @@ export async function exportIndicators(context: PholioExportOptions) {
     const yearTypeName = row.YearTypeName;
     const yearTypeEntry = yearTypeName ? yearTypeValues(yearTypeName) : null;
     const ciLevel = ciLevelById.get(id) ?? null;
-    const comparatorMethodId = comparatorById.get(id) ?? null;
     const text = textById.get(id) ?? null;
     const definition = text?.Definition == null ? null : plainTextFromHtml(text.Definition);
     const rationale = text?.Rationale == null ? null : plainTextFromHtml(text.Rationale);
