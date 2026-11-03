@@ -1,5 +1,9 @@
 {
-  "files": ["types/assets.d.ts", "types/accessible-autocomplete.d.ts"],
+  "files": [
+    "types/assets.d.ts",
+    "types/accessible-autocomplete.d.ts",
+    "types/markdown-it-plugins.d.ts"
+  ],
   "compilerOptions": {
     "target": "ES2024",
     "strict": true,
