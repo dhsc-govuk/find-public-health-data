@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkdown } from './markdown.ts';
+import { type MarkdownHtml, renderMarkdown } from './markdown.ts';
 
 const html = (text: string, size?: 'm' | 's') => renderMarkdown(text, size).markdownHtml;
 
@@ -30,8 +30,17 @@ describe('renderMarkdown', () => {
     );
   });
 
-  it('leaves a bare address as text', () => {
-    expect(html('https://www.gov.uk')).toBe('<p class="govuk-body">https://www.gov.uk</p>');
+  it('links a bare address with its scheme, as the prototype does', () => {
+    expect(html('See https://www.gov.uk/guidance')).toBe(
+      '<p class="govuk-body">See <a href="https://www.gov.uk/guidance" class="govuk-link">https://www.gov.uk/guidance</a></p>',
+    );
+  });
+
+  it('leaves an address without its scheme, and a bare javascript: one, as text', () => {
+    expect(html('Read notes.md or www.gov.uk')).toBe(
+      '<p class="govuk-body">Read notes.md or www.gov.uk</p>',
+    );
+    expect(html('javascript:alert(1)')).toBe('<p class="govuk-body">javascript:alert(1)</p>');
   });
 
   it('renders a table with GOV.UK table classes', () => {
@@ -40,8 +49,8 @@ describe('renderMarkdown', () => {
         '<table class="govuk-table">',
         '<thead class="govuk-table__head">',
         '<tr class="govuk-table__row">',
-        '<th class="govuk-table__header">Year</th>',
-        '<th class="govuk-table__header">Count</th>',
+        '<th scope="col" class="govuk-table__header">Year</th>',
+        '<th scope="col" class="govuk-table__header">Count</th>',
         '</tr>',
         '</thead>',
         '<tbody class="govuk-table__body">',
@@ -53,6 +62,17 @@ describe('renderMarkdown', () => {
         '</table>',
       ].join('\n'),
     );
+  });
+
+  it('aligns table columns with GOV.UK classes, never a style the CSP would refuse', () => {
+    const rendered = html('| Area | Rate | Note |\n| :--- | ---: | :---: |\n| Leeds | 12.5 | ok |');
+
+    expect(rendered).not.toContain('style=');
+    expect(rendered).toContain(
+      '<th scope="col" class="govuk-table__header govuk-!-text-align-left">Area</th>',
+    );
+    expect(rendered).toContain('<td class="govuk-table__cell govuk-!-text-align-right">12.5</td>');
+    expect(rendered).toContain('<td class="govuk-table__cell govuk-!-text-align-centre">ok</td>');
   });
 
   it('renders superscript and subscript, leaving strikethrough as it was', () => {
@@ -78,6 +98,11 @@ describe('renderMarkdown', () => {
     expect(rendered).toBe('<p class="govuk-body">[click me](javascript:alert(1))</p>');
   });
 
+  it('leaves a fenced block and a quotation as paragraphs', () => {
+    expect(html('```\nx = 1\n```')).not.toContain('<pre');
+    expect(html('> quoted')).toBe('<p class="govuk-body">&gt; quoted</p>');
+  });
+
   it('leaves headings, rules, images and indented lines as text', () => {
     expect(html('# Not a heading')).toBe('<p class="govuk-body"># Not a heading</p>');
     expect(html('Text\n\n---')).toBe(
@@ -85,5 +110,12 @@ describe('renderMarkdown', () => {
     );
     expect(html('![a pixel](https://example.com/p.png)')).not.toContain('<img');
     expect(html('    indented')).toBe('<p class="govuk-body">indented</p>');
+  });
+
+  it('is the only maker of rendered Markdown', () => {
+    // @ts-expect-error a plain object is not rendered Markdown
+    const forged: MarkdownHtml = { markdownHtml: '<script>alert(1)</script>' };
+
+    expect(forged.markdownHtml).toContain('script');
   });
 });

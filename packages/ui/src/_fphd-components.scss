@@ -131,6 +131,11 @@
   text-align: right;
 }
 
+// Quoted text a reviewer wrote, set apart from the page's own, as the prototype sets it.
+.fphd-body-italic {
+  font-style: italic;
+}
+
 // Rendered Markdown sits inside other content, such as a table cell, so its last block adds no
 // space below it.
 .fphd-markdown > :last-child {
