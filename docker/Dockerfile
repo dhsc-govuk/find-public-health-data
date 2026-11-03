@@ -67,8 +67,15 @@ ENV NODE_ENV=production
 # Container Apps stops a revision with SIGTERM, and the kernel discards a default-action
 # signal sent to PID 1 unless that process installed a handler — which Node does not do for
 # SIGTERM. Without an init, every stop would wait out the full grace period and then SIGKILL.
+#
+# Every app starts with node, so the base image's npm, yarn and corepack go: they would only
+# carry CVEs that the OS-package scan does not see. Each path in full, since busybox sh has no
+# brace expansion. scripts/check-image-contents.sh fails if any is back.
 RUN apk upgrade --no-cache \
-  && apk add --no-cache tini
+  && apk add --no-cache tini \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
 WORKDIR /app
 USER node
 ENTRYPOINT ["/sbin/tini", "--"]
