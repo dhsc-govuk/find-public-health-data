@@ -1,5 +1,6 @@
 // No @fphd/ui imports here, so the sections unit-test without the components' jsdom.
 import {
+  type DraftResponse,
   type IndicatorAdminDetail,
   REVIEW_RESPONSE_STEPS,
 } from '@fphd/internal-api-features/contract';
@@ -34,6 +35,7 @@ export interface ActionsTabInput {
     | 'draftStatus'
     | 'draftLocked'
     | 'draftSubmissionStatus'
+    | 'draftResponse'
     | 'publishedSlug'
   >;
 }
@@ -48,13 +50,24 @@ function reviewSection({ indicator }: ActionsTabInput): ActionsTabSection {
   };
 }
 
-// An editor continues from the task list while the draft is unlocked and withdraws what the
-// workflow lets them; an IMRG manager assigns the first reviewers with a button, then changes them.
+/** The publisher's next step once a round sends the draft back, worded by what it asked for. */
+function respondLabel(response: DraftResponse | null): string {
+  if (response?.flaggedTaskCount === 0) return 'Respond to clarification request';
+  return response?.kind === 'pre_imrg_feedback'
+    ? 'Respond to advised revisions'
+    : 'Respond to requested revision';
+}
+
+// An editor continues from the task list while the draft is unlocked, or responds from it once a
+// round sends the draft back, and withdraws what the workflow lets them; an IMRG manager assigns
+// the first reviewers with a button, then changes them.
 function actionsSection({ canEdit, indicator }: ActionsTabInput): ActionsTabSection {
   const mayAssign = indicator.actions.includes('assign_reviewers');
   const assignFirst = mayAssign && indicator.draftSubmissionStatus === 'submitted';
+  const editable = canEdit && indicator.draftStatus !== null && !indicator.draftLocked;
+  const responds = editable && indicator.draftSubmissionStatus === 'changes_requested';
   const links = [
-    !canEdit || indicator.draftStatus === null || indicator.draftLocked
+    !editable || responds
       ? undefined
       : {
           href: indicatorTaskListPath(indicator.id),
@@ -81,7 +94,12 @@ function actionsSection({ canEdit, indicator }: ActionsTabInput): ActionsTabSect
           href: indicatorAssignReviewersPath(indicator.id),
           label: 'Assign reviewers to indicator',
         }
-      : null,
+      : responds
+        ? {
+            href: indicatorTaskListPath(indicator.id),
+            label: respondLabel(indicator.draftResponse),
+          }
+        : null,
     links,
   };
 }

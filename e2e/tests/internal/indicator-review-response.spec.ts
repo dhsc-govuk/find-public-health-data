@@ -379,7 +379,7 @@ test.describe("the overview's Actions tab", () => {
   test.describe('for a publisher assigned to review a teammate’s indicator', () => {
     test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
 
-    test('shows the Review section, then the Actions section with the editor’s links once the draft is sent back', async ({
+    test('shows the Review section, then the Actions section with the editor’s response once the draft is sent back', async ({
       browser,
       page,
     }, testInfo) => {
@@ -405,7 +405,9 @@ test.describe("the overview's Actions tab", () => {
       await page.getByRole('button', { name: 'Continue' }).click();
 
       await expect(sections).toHaveText(['Review', 'Actions']);
-      await expect(page.getByRole('link', { name: 'Continue creating indicator' })).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Respond to advised revisions' }),
+      ).toBeVisible();
       await expect(page.getByRole('button', { name: 'Submit review response' })).toHaveCount(0);
       await expectNoAccessibilityViolations(page, testInfo);
     });
