@@ -30,10 +30,8 @@ runs:
         path: ${{ runner.temp }}/trivy-cache
         key: ${{ inputs.db-cache-key }}
 
-    # OS packages only: the npm tree is already audited from the lockfile in CI, and scanning
-    # it here would fail on npm's own bundled dependencies — which nothing in these images runs
-    # and only a new base image fixes. ignore-unfixed because a CVE with no fix yet is a red
-    # build with nothing to do about it but wait.
+    # OS packages only: the npm tree is already audited from the lockfile in CI. ignore-unfixed
+    # because a CVE with no fix yet is a red build with nothing to do about it but wait.
     - name: Scan for vulnerabilities
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
       with:

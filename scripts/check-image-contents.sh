@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Checks a production image ships only what its app runs. No image carries TypeScript: the web
 # apps run their `.ts` through Node's type stripping and the rest run compiled JavaScript, so the
-# compiler only arrives through a dependency's optional peer, which `.pnpmfile.mjs` drops. Only
+# compiler only arrives through a dependency's optional peer, which `.pnpmfile.mjs` drops. No
+# image carries the base image's npm, yarn or corepack, since every app starts with node. Only
 # the operations image carries the database operations: `@fphd/db-operations`, its migrations and
 # its seed data. The operations image must still hold every migration its journal lists, the core
 # data and the seed, none of which its smoke test reaches.
@@ -38,6 +39,13 @@ find_in_image() {
 typescript=$(find_in_image -path '*/node_modules/typescript')
 [ -z "${typescript}" ] || fail "${app} ships TypeScript:
 ${typescript}"
+
+# The base image's package managers, which the Dockerfile's runtime stage deletes.
+package_managers=$(docker run --rm --entrypoint find "${image}" \
+  /usr/local/bin /usr/local/lib/node_modules /opt -maxdepth 1 \
+  \( -name npm -o -name npx -o -name corepack -o -name 'yarn*' \))
+[ -z "${package_managers}" ] || fail "${app} ships a package manager:
+${package_managers}"
 
 case "${app}" in
   operations)
