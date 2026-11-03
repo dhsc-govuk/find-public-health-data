@@ -123,6 +123,13 @@ describe('GET /api/indicators', () => {
     expect(search).toHaveBeenLastCalledWith('x', 20);
   });
 
+  it('rejects a query holding a control character without searching', async () => {
+    const response = await request(createTestApp()).get('/api/indicators?q=%00');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_q' });
+  });
+
   it('lists every indicator when q is empty', async () => {
     const listPublished = vi.fn().mockResolvedValue([]);
     const app = createTestApp({ listPublished });
@@ -180,6 +187,28 @@ describe('GET /api/indicators/:indicator/areas', () => {
       const response = await request(app).get(`/api/indicators/108/areas?limit=${limit}`);
       expect(response.status).toBe(400);
     }
+    expect(listAreas).not.toHaveBeenCalled();
+  });
+
+  it('rejects a query holding a control character without listing areas', async () => {
+    const listAreas = vi.fn();
+    const app = createTestApp({ resolveId: async () => 'indicator-id', listAreas });
+
+    const response = await request(app).get('/api/indicators/108/areas?q=London%00');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_q' });
+    expect(listAreas).not.toHaveBeenCalled();
+  });
+
+  it('answers a display group holding a control character as an unknown group, with no areas', async () => {
+    const listAreas = vi.fn();
+    const app = createTestApp({ resolveId: async () => 'indicator-id', listAreas });
+
+    const response = await request(app).get('/api/indicators/108/areas?displayGroup=%00');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
     expect(listAreas).not.toHaveBeenCalled();
   });
 
@@ -367,6 +396,7 @@ describe('GET /api/indicators/:indicator/range', () => {
     const app = createTestApp();
 
     expect((await request(app).get('/api/indicators/241/range')).status).toBe(404);
+    expect((await request(app).get('/api/indicators/241/range?displayGroup=%00')).status).toBe(404);
     expect(
       (await request(app).get('/api/indicators/no%20pe/range?displayGroup=Local+authorities'))
         .status,
@@ -415,6 +445,31 @@ describe('search ordering and workload bounds', () => {
     expect(searchWithFilters.mock.calls[0]?.[0]).not.toHaveProperty('sort');
     await request(app).get('/api/indicators/search');
     expect(searchWithFilters.mock.calls[1]?.[0]).not.toHaveProperty('sort');
+  });
+  it('rejects a query holding a control character without searching', async () => {
+    const response = await request(createTestApp()).get('/api/indicators/search?q=%00');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_q' });
+  });
+  it('searches a query holding a tab as words separated by a space', async () => {
+    const searchWithFilters = vi.fn().mockResolvedValue({ total: 0, limit: 200, indicators: [] });
+    const response = await request(createTestApp({ searchWithFilters })).get(
+      '/api/indicators/search?q=blood%09pressure',
+    );
+    expect(response.status).toBe(200);
+    expect(searchWithFilters).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'blood pressure' }),
+    );
+  });
+  it('ignores a filter value holding a control character', async () => {
+    const searchWithFilters = vi.fn().mockResolvedValue({ total: 0, limit: 200, indicators: [] });
+    await request(createTestApp({ searchWithFilters })).get(
+      '/api/indicators/search?t=diabetes&t=%00&src=%7F',
+    );
+    expect(searchWithFilters).toHaveBeenCalledWith(
+      expect.objectContaining({ topics: ['diabetes'], sources: [] }),
+    );
   });
   it('requires one topic before evaluating a trend sort', async () => {
     const searchWithFilters = vi.fn();

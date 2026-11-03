@@ -1,4 +1,5 @@
 import type { Repositories } from '@fphd/db';
+import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { Router } from 'express';
 import {
   DEFAULT_AREA_SEARCH_RESULTS,
@@ -7,6 +8,7 @@ import {
   MAX_AREA_PREVIEW,
   MAX_AREA_SEARCH_RESULTS,
   pickAreaCodes,
+  queryText,
 } from './contract.ts';
 
 export function areasRouter(areas: Repositories['areas']): Router {
@@ -29,10 +31,15 @@ export function areasRouter(areas: Repositories['areas']): Router {
 
   router.get('/api/areas/search', async (request, response) => {
     const { q, limit } = request.query;
-    const query = typeof q === 'string' ? q.trim().slice(0, MAX_AREA_NAME_LENGTH) : '';
+    const query = queryText(q, MAX_AREA_NAME_LENGTH);
 
     if (!query) {
       response.status(400).json({ error: 'q_required' });
+      return;
+    }
+
+    if (CONTROL_CHARACTER.test(query)) {
+      response.status(400).json({ error: 'invalid_q' });
       return;
     }
 
@@ -51,7 +58,8 @@ export function areasRouter(areas: Repositories['areas']): Router {
       codes.length === 0 ||
       typeof parentType !== 'string' ||
       parentType === '' ||
-      parentType.length > MAX_AREA_NAME_LENGTH
+      parentType.length > MAX_AREA_NAME_LENGTH ||
+      CONTROL_CHARACTER.test(parentType)
     ) {
       response.status(400).json({ error: 'area_code_and_parent_type_required' });
       return;
@@ -68,7 +76,10 @@ export function areasRouter(areas: Repositories['areas']): Router {
         ...new Set(
           (Array.isArray(value) ? value : [value]).filter(
             (entry): entry is string =>
-              typeof entry === 'string' && entry !== '' && entry.length <= MAX_AREA_NAME_LENGTH,
+              typeof entry === 'string' &&
+              entry !== '' &&
+              entry.length <= MAX_AREA_NAME_LENGTH &&
+              !CONTROL_CHARACTER.test(entry),
           ),
         ),
       ].slice(0, MAX_AREA_GROUPS_PER_REQUEST);

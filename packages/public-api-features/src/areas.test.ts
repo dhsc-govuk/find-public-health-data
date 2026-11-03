@@ -61,6 +61,13 @@ describe('GET /api/areas/search', () => {
     expect((await request(app).get('/api/areas/search')).status).toBe(400);
     expect((await request(app).get('/api/areas/search?q=%20%20')).status).toBe(400);
   });
+
+  it.each(['%00', 'corn%7F'])('rejects a query of %s without searching', async (q) => {
+    const response = await request(createTestApp()).get(`/api/areas/search?q=${q}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_q' });
+  });
 });
 
 describe('GET /api/areas/parents', () => {
@@ -76,10 +83,13 @@ describe('GET /api/areas/parents', () => {
     expect(listParents).toHaveBeenCalledWith(['E06000052'], 'Regions (statistical)');
   });
 
-  it('rejects a parents request missing or overflowing parentType', async () => {
+  it('rejects a parents request missing or overflowing parentType, or with a control character', async () => {
     const app = createTestApp();
 
     expect((await request(app).get('/api/areas/parents?areaCode=E06000052')).status).toBe(400);
+    expect(
+      (await request(app).get('/api/areas/parents?areaCode=E06000052&parentType=%00')).status,
+    ).toBe(400);
     expect(
       (
         await request(app).get(
@@ -159,6 +169,18 @@ describe('GET /api/areas', () => {
     const response = await request(createTestApp()).get('/api/areas');
 
     expect(response.status).toBe(400);
+  });
+
+  it('ignores an area type or display group holding a control character', async () => {
+    const listByType = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ listByType });
+
+    expect((await request(app).get('/api/areas?areaType=%00&displayGroup=%00')).status).toBe(400);
+
+    const response = await request(app).get('/api/areas?areaType=Regions&areaType=Regions%00');
+
+    expect(response.status).toBe(200);
+    expect(listByType.mock.calls).toEqual([['Regions']]);
   });
 
   it('ignores query parameters it does not know', async () => {

@@ -3,6 +3,7 @@ import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
+import { tidyName } from '@fphd/utils/tidy-name';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 
 // One selection contains up to 19 picked areas and England for comparison.
@@ -34,6 +35,11 @@ export const indicatorPeriodFiltersSchema = z.object({
     .catch(''),
   updatedWithin: z.enum(['', '3', '6', '12']).catch(''),
 });
+
+/** A free-text query as the API searches it: each run of whitespace one space, cut to `max`. */
+export function queryText(value: unknown, max: number): string {
+  return typeof value === 'string' ? tidyName(value).slice(0, max) : '';
+}
 
 export function pickAreaCodes(value: unknown, limit = MAX_AREA_CODES_PER_REQUEST): string[] {
   return [
