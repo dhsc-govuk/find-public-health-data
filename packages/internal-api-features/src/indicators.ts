@@ -223,7 +223,7 @@ export function internalIndicatorsRouter(
 
     const actor = requireApiActor(request, response);
     // No lists: the repository leaves the ones it is not given alone.
-    const result = await indicators.updateDraft(id.data, submission.data, {}, actor, {
+    const result = await indicators.updateDraft(id.data, 'name', submission.data, {}, actor, {
       version: versioned.data.version,
       versionOf: (draft) => nameVersion(draft.name),
     });

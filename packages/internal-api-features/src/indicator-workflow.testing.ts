@@ -1,4 +1,7 @@
+import { FAKE_USER_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
+import type { Actor } from '@fphd/db/audit-log';
+import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import { ukDateTime } from '@fphd/utils/uk-time';
 import { eq } from 'drizzle-orm';
 
@@ -7,8 +10,16 @@ import {
   type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
-import { ACTOR, AS_ACTOR, classificationIn, onsSources } from './indicator-repository.testing.ts';
+import {
+  ACTOR,
+  AS_ACTOR,
+  classificationIn,
+  newDraft,
+  onsSources,
+} from './indicator-repository.testing.ts';
 import { completeTaskListDraft } from './indicator-task-list.testing.ts';
+import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
+import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
 
 const { indicatorVersion, topic, uploadBatch } = schema;
 
@@ -72,6 +83,7 @@ export async function completeDraft(
   const saved = await updateIndicatorDraft(
     db,
     indicatorId,
+    'tagging',
     { ...answers, uploadBatchId: batch.id },
     {
       links,
@@ -93,4 +105,64 @@ export async function completeDraft(
 export function ukToday(): string {
   const { year, month, day } = ukDateTime(new Date());
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export const AS_REVIEWER: Actor = { userId: FAKE_USER_IDS.imrgReviewer, requestId: null };
+
+/** A draft sent back for changes, the `updatedAt` its task list shows, and its data table. */
+export interface SentBackDraft {
+  indicatorId: string;
+  versionId: string;
+  batchId: string;
+  shown: Date;
+}
+
+/**
+ * A complete new draft, submitted by the repository tests' actor, put in review with the IMRG
+ * reviewer, and sent back with the reviewer's response: minor revisions flagging `flags` unless
+ * `response` says otherwise.
+ */
+export async function sentBackDraft(
+  db: Database,
+  name: string,
+  flags: readonly FlaggableTaskKey[],
+  response: Partial<ReviewResponse> = {},
+): Promise<SentBackDraft> {
+  const draft = await newDraft(db, name);
+  const submitted = await submitIndicator(
+    db,
+    draft.indicatorId,
+    await completeDraft(db, draft),
+    AS_ACTOR,
+  );
+  if (!submitted.ok) throw new Error(`sentBackDraft could not submit: ${submitted.reason}`);
+  await assignReviewers(
+    db,
+    draft.indicatorId,
+    { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
+    { userId: FAKE_USER_IDS.imrgManager, requestId: null },
+  );
+  const responded = await respondToReview(
+    db,
+    draft.indicatorId,
+    {
+      submissionNumber: 1,
+      kind: 'minor_revisions',
+      imrgReviewedOn: ukToday(),
+      clarificationRequest: null,
+      flags: flags.map((task) => ({ task, notes: `Revise ${task}` })),
+      ...response,
+    },
+    AS_REVIEWER,
+  );
+  if (!responded.ok) throw new Error(`sentBackDraft could not respond: ${responded.reason}`);
+  const [row] = await db
+    .select({ batchId: indicatorVersion.uploadBatchId })
+    .from(indicatorVersion)
+    .where(eq(indicatorVersion.id, draft.versionId));
+  return {
+    ...draft,
+    batchId: row?.batchId ?? '',
+    shown: await draftUpdatedAt(db, draft.versionId),
+  };
 }

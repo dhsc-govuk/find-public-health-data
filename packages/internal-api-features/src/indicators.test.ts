@@ -676,6 +676,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
       row.id,
+      'name',
       { name: 'A better name' },
       {},
       testActor(response),
@@ -710,7 +711,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       .set('Cookie', await publisherCookie())
       .send({ name: 'A better name', version: nameVersion });
 
-    const versionOf = updateDraft.mock.lastCall?.[4].versionOf;
+    const versionOf = updateDraft.mock.lastCall?.[5].versionOf;
     expect(versionOf({ ...unansweredDraft, name: 'Life expectancy at birth' })).toBe(nameVersion);
     expect(
       versionOf({ ...unansweredDraft, name: 'Life expectancy at birth', definition: 'Edited' }),

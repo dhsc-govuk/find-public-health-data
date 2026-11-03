@@ -7,6 +7,7 @@ import type { DataTableRow } from './data-table-check-contract.ts';
 import { columnsOf, type DataTableColumn } from './data-table-columns.ts';
 import { nameKey } from './data-table-names.ts';
 import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
+import { clearFlag } from './review-flag-repository.ts';
 
 const {
   area,
@@ -190,7 +191,8 @@ export type ConfirmDataTableResult =
 
 /**
  * Records that the publisher has checked the draft's data table. It only succeeds if the draft
- * still uses the batch they were shown, so a newer upload, a lock or publication stops it.
+ * still uses the batch they were shown, so a newer upload, a lock or publication stops it. It
+ * clears the data table's flag a review response left; an upload does not, since it unconfirms.
  */
 export async function confirmDataTable(
   db: Database,
@@ -211,6 +213,7 @@ export async function confirmDataTable(
         ),
       )
       .returning({
+        id: indicatorVersion.id,
         before: sql`old.data_table_confirmed_at`.mapWith(indicatorVersion.dataTableConfirmedAt),
         after: indicatorVersion.dataTableConfirmedAt,
       });
@@ -221,10 +224,13 @@ export async function confirmDataTable(
       {
         action: 'indicator.data_table_confirmed',
         entityId: indicatorId,
-        changes: changesBetween(
-          { dataTableConfirmedAt: confirmed.before },
-          { dataTableConfirmedAt: confirmed.after },
-        ),
+        changes: {
+          ...changesBetween(
+            { dataTableConfirmedAt: confirmed.before },
+            { dataTableConfirmedAt: confirmed.after },
+          ),
+          ...(await clearFlag(tx, confirmed.id, 'data-table', actor)),
+        },
       },
     ]);
     return confirmed.after;

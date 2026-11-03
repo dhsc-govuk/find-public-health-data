@@ -121,6 +121,7 @@ describe('the names on each row', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'definition-and-rationale',
         { definition: 'Edited' },
         {},
         AS_OTHER_ACTOR,
@@ -600,7 +601,7 @@ describe('getIndicatorById', () => {
       if (target === undefined) throw new Error('The seed holds no indicators');
 
       await createDraftFromPublished(db, target, AS_ACTOR);
-      await updateIndicatorDraft(db, target, { name: 'Edited in a draft' }, {}, AS_ACTOR);
+      await updateIndicatorDraft(db, target, 'name', { name: 'Edited in a draft' }, {}, AS_ACTOR);
 
       expect(await getIndicatorById(db, target)).toMatchObject({
         draftStatus: 'draft',
@@ -630,7 +631,14 @@ describe('getIndicatorById', () => {
     });
 
     const scheduledPublishAt = new Date('2031-04-01T08:30:00.000Z');
-    await updateIndicatorDraft(db, created.indicatorId, { scheduledPublishAt }, {}, AS_ACTOR);
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      'publishing-date',
+      { scheduledPublishAt },
+      {},
+      AS_ACTOR,
+    );
 
     expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
       draftScheduledPublishAt: scheduledPublishAt,

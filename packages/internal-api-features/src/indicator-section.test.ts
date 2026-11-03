@@ -178,10 +178,17 @@ describe('PUT on a section', () => {
       .send(save);
 
     expect(response.status).toBe(200);
-    expect(updateDraft).toHaveBeenCalledWith(id, answers, {}, testActor(response), {
-      version: storedVersion,
-      versionOf: expect.any(Function),
-    });
+    expect(updateDraft).toHaveBeenCalledWith(
+      id,
+      'definition-and-rationale',
+      answers,
+      {},
+      testActor(response),
+      {
+        version: storedVersion,
+        versionOf: expect.any(Function),
+      },
+    );
     expect(response.body).toEqual({ answers: storedAnswers, version: storedVersion });
   });
 
@@ -195,7 +202,7 @@ describe('PUT on a section', () => {
       .set('Cookie', await publisherCookie())
       .send(save);
 
-    const versionOf = updateDraft.mock.lastCall?.[4].versionOf;
+    const versionOf = updateDraft.mock.lastCall?.[5].versionOf;
     expect(versionOf(draftState.draft)).toBe(storedVersion);
     expect(versionOf({ ...draftState.draft, polarity: 'Something else' })).toBe(storedVersion);
     expect(versionOf({ ...draftState.draft, definition: 'Saved since' })).toBe(otherVersion);

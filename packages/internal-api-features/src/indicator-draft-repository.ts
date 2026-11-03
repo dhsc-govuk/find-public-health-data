@@ -9,6 +9,7 @@ import {
   type DraftStatus,
   type DraftSubmissionStatus,
   type IndicatorStatus,
+  type IndicatorTaskKey,
   justificationsSection,
   otherCommentsSection,
   type ReviewResponseKind,
@@ -45,6 +46,7 @@ import {
   taxonomyOf,
   UNORDERED_LISTS,
 } from './indicator-version-lists-repository.ts';
+import { clearFlag } from './review-flag-repository.ts';
 
 const { ciMethod, currentPublishedVersion, indicator, indicatorVersion } = schema;
 
@@ -312,11 +314,13 @@ export async function createIndicatorDraft(
  * re-slugged only while nothing is published: once an indicator has a public address,
  * every version keeps it, so a rename never moves the page. Returns `locked` if the draft is
  * locked for review. Returns `changed`, with the current version, if the draft has changed
- * since the form was shown.
+ * since the form was shown. Saving `task` clears the flag a review response left on it, whether
+ * or not its answers changed.
  */
 export async function updateIndicatorDraft(
   db: Database,
   indicatorId: string,
+  task: IndicatorTaskKey,
   attributes: IndicatorDraftAttributes,
   lists: IndicatorDraftLists,
   actor: Actor,
@@ -370,6 +374,7 @@ export async function updateIndicatorDraft(
       const changes = {
         ...changesBetween(current, draft),
         ...listChanges(replaced.before, replaced.after, UNORDERED_LISTS),
+        ...(await clearFlag(tx, draft.id, task, actor)),
       };
       if (Object.keys(changes).length > 0) {
         await recordAudit(tx, actor, [

@@ -5,7 +5,12 @@ import { type Database, listTopics, type Topic } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 
 import { type CiMethodRow, getCiMethodById, listCiMethods } from './ci-method-repository.ts';
-import type { ReviewerOption, TagOptions, ValueTypeAndUnitOptions } from './contract.ts';
+import type {
+  IndicatorTaskKey,
+  ReviewerOption,
+  TagOptions,
+  ValueTypeAndUnitOptions,
+} from './contract.ts';
 import { type DataProviderRow, listDataProviders } from './data-provider-repository.ts';
 import type { DataTableRow } from './data-table-check-contract.ts';
 import {
@@ -135,6 +140,7 @@ export interface InternalIndicatorRepository {
   /** Saves a form's answers, unless the draft has changed since the form was shown. */
   updateDraft(
     indicatorId: string,
+    task: IndicatorTaskKey,
     attributes: IndicatorDraftAttributes,
     lists: IndicatorDraftLists,
     actor: Actor,
@@ -281,8 +287,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
       createDraft: (attributes, actor, teamId) =>
         createIndicatorDraft(db, attributes, actor, teamId),
-      updateDraft: (indicatorId, attributes, lists, actor, precondition) =>
-        updateIndicatorDraft(db, indicatorId, attributes, lists, actor, precondition),
+      updateDraft: (indicatorId, task, attributes, lists, actor, precondition) =>
+        updateIndicatorDraft(db, indicatorId, task, attributes, lists, actor, precondition),
       draftFromPublished: (indicatorId, actor) => createDraftFromPublished(db, indicatorId, actor),
       submit: (indicatorId, draftUpdatedAt, actor) =>
         submitIndicator(db, indicatorId, draftUpdatedAt, actor),

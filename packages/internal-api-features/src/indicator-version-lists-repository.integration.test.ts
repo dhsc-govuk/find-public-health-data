@@ -37,6 +37,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'tagging',
         {},
         {
           topicIds: [first.topicId, second.topicId],
@@ -54,6 +55,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'tagging',
         {},
         {
           topicIds: [second.topicId],
@@ -84,6 +86,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
+      'tagging',
       {},
       {
         topicIds: [topic.id],
@@ -96,6 +99,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
+      'name',
       { name: 'Keeps its links renamed' },
       {},
       AS_ACTOR,
@@ -120,6 +124,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'tagging',
         {},
         { classificationIds: { framework: [framework.id], life_stage: [lifeStage.id] } },
         AS_ACTOR,
@@ -128,6 +133,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'tagging',
         {},
         { classificationIds: { indicator_type: [type.id], life_stage: [] } },
         AS_ACTOR,
@@ -156,6 +162,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
+      'tagging',
       { hasLifeStage: true, hasFramework: false },
       {
         topicIds: topics.map(({ id }) => id),
@@ -182,16 +189,25 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'links',
         { hasLinks: true },
         { links: [commentary, fingertips] },
         AS_ACTOR,
       );
       const first = await getIndicatorDraftState(db, created.indicatorId);
-      await updateIndicatorDraft(db, created.indicatorId, {}, { links: [fingertips] }, AS_ACTOR);
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'links',
+        {},
+        { links: [fingertips] },
+        AS_ACTOR,
+      );
       const replaced = await getIndicatorDraftState(db, created.indicatorId);
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'links',
         { hasLinks: false },
         { links: [] },
         AS_ACTOR,
@@ -212,6 +228,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'sex-and-ages',
         { sexes: ['females', 'males'], ageType: 'range' },
         { ageRanges: [underFive, sixteenPlus] },
         AS_ACTOR,
@@ -220,6 +237,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'sex-and-ages',
         { ageType: 'specific', specificAge: 5, specificAgeUnit: 'weeks' },
         { ageRanges: [] },
         AS_ACTOR,
@@ -247,6 +265,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
+      'sex-and-ages',
       { ageType: 'range' },
       { ageRanges: [oldest] },
       AS_ACTOR,
@@ -254,6 +273,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
+      'sex-and-ages',
       { ageType: 'specific', specificAge: MAX_AGE, specificAgeUnit: 'days' },
       {},
       AS_ACTOR,
@@ -279,7 +299,14 @@ describe('updateIndicatorDraft', () => {
     const created = await newDraft(db, `Refuses a range with ${name}`);
 
     await expect(
-      updateIndicatorDraft(db, created.indicatorId, {}, { ageRanges: [ageRange] }, AS_ACTOR),
+      updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'sex-and-ages',
+        {},
+        { ageRanges: [ageRange] },
+        AS_ACTOR,
+      ),
     ).rejects.toThrow();
   });
 
@@ -297,6 +324,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'sex-and-ages',
         { ageType: 'range' },
         { ageRanges: [firstYear] },
         AS_ACTOR,
@@ -315,6 +343,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'numerator',
         {},
         { numeratorSources: [liveBirths, onsAlone], denominatorSources: [onsAlone] },
         AS_ACTOR,
@@ -323,6 +352,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'numerator',
         {},
         { numeratorSources: [onsAlone] },
         AS_ACTOR,
@@ -353,6 +383,7 @@ describe('updateIndicatorDraft', () => {
       updateIndicatorDraft(
         db,
         created.indicatorId,
+        'numerator',
         {},
         { numeratorSources: [{ providerId: other.id, sourceId: liveBirths.sourceId }] },
         AS_ACTOR,
@@ -370,6 +401,7 @@ describe('indicator_version_classification', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
+      'tagging',
       {},
       { classificationIds: { indicator_type: [classified.id] } },
       AS_ACTOR,

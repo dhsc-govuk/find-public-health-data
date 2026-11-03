@@ -654,6 +654,7 @@ describe('processDataUpload', () => {
       updateIndicatorDraft(
         internalDb,
         indicatorId,
+        'definition-and-rationale',
         { definition: 'Saved meanwhile' },
         {},
         AS_ACTOR,

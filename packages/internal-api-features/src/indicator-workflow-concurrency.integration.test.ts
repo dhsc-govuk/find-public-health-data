@@ -2,11 +2,9 @@ import { PassThrough, Readable } from 'node:stream';
 
 import { FAKE_USER_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
-import type { Actor } from '@fphd/db/audit-log';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
-import type { IndicatorStep } from './contract.ts';
 import { confirmDataTable } from './data-table-check-repository.ts';
 import { processDataUpload } from './data-upload-load-repository.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
@@ -14,15 +12,16 @@ import {
   AS_ACTOR,
   AS_OTHER_ACTOR,
   LOCK_WAIT,
-  lockWaited,
-  lockWaiters,
   newDraft,
   repositoryTest,
 } from './indicator-repository.testing.ts';
 import { completeDraft, draftUpdatedAt, ukToday } from './indicator-workflow.testing.ts';
 import {
+  stepWhileWriteHolds,
+  writeWhileStepHolds,
+} from './indicator-workflow-concurrency.testing.ts';
+import {
   assignReviewers,
-  type IndicatorStepWrite,
   replaceReviewers,
   submitIndicator,
   takeIndicatorStep,
@@ -49,65 +48,6 @@ const HEADER =
   'area_code,period_start,period_end,value,count,sex,age,category_type,category,value_note';
 const VALID_CSV = `${HEADER}\nE92000001,2019-04-01,2020-03-31,83.8,1234,Female,<75 yrs,,,`;
 const REFUSED_CSV = `${HEADER}\nE99999999,2019-04-01,2020-03-31,1,,,,,,`;
-
-/**
- * Takes `step` as `actor`, with `stepWrite` for its own rows, while it holds the draft's lock
- * until `write` has started and is seen waiting on it, then answers what each returned.
- */
-async function writeWhileStepHolds<Result>(
-  db: Database,
-  indicatorId: string,
-  step: IndicatorStep,
-  write: () => Promise<Result>,
-  { actor = AS_ACTOR, stepWrite }: { actor?: Actor; stepWrite?: IndicatorStepWrite } = {},
-) {
-  let held: () => void = () => {};
-  let release: () => void = () => {};
-  const holding = new Promise<void>((resolve) => {
-    held = resolve;
-  });
-  const released = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const stepped = takeIndicatorStep(db, indicatorId, step, actor, {
-    precondition: async () => {
-      held();
-      await released;
-      return undefined;
-    },
-    ...(stepWrite === undefined ? {} : { write: stepWrite }),
-  });
-  await holding;
-  const written = write();
-  try {
-    await lockWaited(db);
-  } finally {
-    release();
-  }
-  return { step: await stepped, write: await written };
-}
-
-/**
- * Runs `write` until it has written the draft's row and waits to record its audit entry, starts
- * `step` waiting behind it, then lets the write commit, and answers what each returned.
- */
-async function stepWhileWriteHolds<Written, Stepped>(
-  db: Database,
-  write: () => Promise<Written>,
-  step: () => Promise<Stepped>,
-) {
-  const { written, stepped } = await db.transaction(async (tx) => {
-    // The writes used here update the draft's row before recording their entry, so this holds
-    // each with the row written and its transaction open. A timeout rolls this back, freeing it.
-    await tx.execute(sql`LOCK TABLE audit_log IN EXCLUSIVE MODE`);
-    const written = write();
-    await expect.poll(() => lockWaiters(db), LOCK_WAIT).toBe(1);
-    const stepped = step();
-    await expect.poll(() => lockWaiters(db), LOCK_WAIT).toBe(2);
-    return { written, stepped };
-  });
-  return { write: await written, step: await stepped };
-}
 
 /** A new indicator's complete draft, the `updatedAt` its task list shows, and its batch. */
 async function completeNewDraft(db: Database, name: string) {
@@ -218,7 +158,15 @@ describe('a submission beside an edit', () => {
 
       const result = await stepWhileWriteHolds(
         db,
-        () => updateIndicatorDraft(db, indicatorId, { definition: 'Saved' }, {}, AS_OTHER_ACTOR),
+        () =>
+          updateIndicatorDraft(
+            db,
+            indicatorId,
+            'definition-and-rationale',
+            { definition: 'Saved' },
+            {},
+            AS_OTHER_ACTOR,
+          ),
         () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
       );
 
@@ -252,7 +200,14 @@ describe('a submission beside an edit', () => {
     const { indicatorId, versionId } = await newDraft(db, 'Save waits on a submission');
 
     const result = await writeWhileStepHolds(db, indicatorId, 'submit', () =>
-      updateIndicatorDraft(db, indicatorId, { definition: 'Too late' }, {}, AS_OTHER_ACTOR),
+      updateIndicatorDraft(
+        db,
+        indicatorId,
+        'definition-and-rationale',
+        { definition: 'Too late' },
+        {},
+        AS_OTHER_ACTOR,
+      ),
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: false, reason: 'locked' } });
@@ -282,7 +237,14 @@ describe('a submission beside an edit', () => {
     await submitIndicator(db, indicatorId, shown, AS_ACTOR);
 
     const result = await writeWhileStepHolds(db, indicatorId, 'withdraw', () =>
-      updateIndicatorDraft(db, indicatorId, { definition: 'After withdrawal' }, {}, AS_OTHER_ACTOR),
+      updateIndicatorDraft(
+        db,
+        indicatorId,
+        'definition-and-rationale',
+        { definition: 'After withdrawal' },
+        {},
+        AS_OTHER_ACTOR,
+      ),
     );
 
     expect(result).toEqual({ step: { ok: true }, write: { ok: true } });

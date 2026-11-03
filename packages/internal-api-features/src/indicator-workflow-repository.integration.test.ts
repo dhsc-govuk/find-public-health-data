@@ -191,7 +191,14 @@ describe('submitIndicator', () => {
 
   repositoryTest('refuses a draft edited since the publisher was shown it', async ({ db }) => {
     const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Edited before submit');
-    await updateIndicatorDraft(db, indicatorId, { definition: 'Edited since' }, {}, AS_ACTOR);
+    await updateIndicatorDraft(
+      db,
+      indicatorId,
+      'definition-and-rationale',
+      { definition: 'Edited since' },
+      {},
+      AS_ACTOR,
+    );
 
     await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
       ok: false,
