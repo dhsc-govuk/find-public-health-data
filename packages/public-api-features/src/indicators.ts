@@ -98,10 +98,6 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
   router.get('/api/indicators/search', async (request, response) => {
     const { q } = request.query;
     const query = queryText(q, MAX_INDICATOR_QUERY_LENGTH);
-    if (CONTROL_CHARACTER.test(query)) {
-      response.status(400).json({ error: 'invalid_q' });
-      return;
-    }
 
     const filters: IndicatorSearchFilters = {
       query,
@@ -147,10 +143,6 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
   router.get('/api/indicators', async (request, response) => {
     const { q, limit } = request.query;
     const query = queryText(q, MAX_INDICATOR_QUERY_LENGTH);
-    if (CONTROL_CHARACTER.test(query)) {
-      response.status(400).json({ error: 'invalid_q' });
-      return;
-    }
     if (query) {
       const capped =
         typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
@@ -174,10 +166,6 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       return;
     }
     const query = queryText(q, MAX_AREA_NAME_LENGTH);
-    if (CONTROL_CHARACTER.test(query)) {
-      response.status(400).json({ error: 'invalid_q' });
-      return;
-    }
     // A group holding a control character names none, so it has no areas, like any unknown group.
     if (typeof displayGroup === 'string' && CONTROL_CHARACTER.test(displayGroup)) {
       response.status(200).json([]);

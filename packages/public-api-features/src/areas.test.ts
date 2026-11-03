@@ -62,11 +62,21 @@ describe('GET /api/areas/search', () => {
     expect((await request(app).get('/api/areas/search?q=%20%20')).status).toBe(400);
   });
 
-  it.each(['%00', 'corn%7F'])('rejects a query of %s without searching', async (q) => {
-    const response = await request(createTestApp()).get(`/api/areas/search?q=${q}`);
+  it('rejects a query of control characters alone as missing', async () => {
+    const response = await request(createTestApp()).get('/api/areas/search?q=%00%7F');
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'invalid_q' });
+    expect(response.body).toEqual({ error: 'q_required' });
+  });
+
+  it('searches a query holding a control character as words separated by a space', async () => {
+    const search = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ search });
+
+    const response = await request(app).get('/api/areas/search?q=corn%00wall');
+
+    expect(response.status).toBe(200);
+    expect(search).toHaveBeenCalledWith('corn wall', 50);
   });
 });
 

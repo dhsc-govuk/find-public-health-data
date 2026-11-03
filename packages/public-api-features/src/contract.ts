@@ -1,5 +1,6 @@
 import { z } from '@fphd/config/zod';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
+import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -36,9 +37,16 @@ export const indicatorPeriodFiltersSchema = z.object({
   updatedWithin: z.enum(['', '3', '6', '12']).catch(''),
 });
 
-/** A free-text query as the API searches it: each run of whitespace one space, cut to `max`. */
+const CONTROL_CHARACTERS = new RegExp(CONTROL_CHARACTER, 'gu');
+
+/**
+ * A free-text query as the API searches it: each control character a space, each run of
+ * whitespace one space, trimmed and cut to `max`. A query of control characters alone is empty.
+ */
 export function queryText(value: unknown, max: number): string {
-  return typeof value === 'string' ? tidyName(value).slice(0, max) : '';
+  return typeof value === 'string'
+    ? tidyName(value.replaceAll(CONTROL_CHARACTERS, ' ')).slice(0, max)
+    : '';
 }
 
 export function pickAreaCodes(value: unknown, limit = MAX_AREA_CODES_PER_REQUEST): string[] {

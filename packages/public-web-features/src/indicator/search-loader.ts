@@ -3,7 +3,6 @@ import {
   MAX_INDICATOR_QUERY_LENGTH,
   queryText,
 } from '@fphd/public-api-features/contract';
-import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
 
@@ -14,8 +13,7 @@ import type { LoaderFunctionArgs } from 'react-router';
  */
 export async function loadIndicatorSearch({ context, request }: LoaderFunctionArgs) {
   const query = queryText(new URL(request.url).searchParams.get('q'), MAX_INDICATOR_QUERY_LENGTH);
-  // A query holding a control character is no query, as in the search page's loader.
-  if (!query || CONTROL_CHARACTER.test(query)) {
+  if (!query) {
     return Response.json({ indicators: [] });
   }
   const api = context.get(apiContext);

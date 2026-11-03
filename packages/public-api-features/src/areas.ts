@@ -38,11 +38,6 @@ export function areasRouter(areas: Repositories['areas']): Router {
       return;
     }
 
-    if (CONTROL_CHARACTER.test(query)) {
-      response.status(400).json({ error: 'invalid_q' });
-      return;
-    }
-
     const capped =
       typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
         ? Math.min(Number(limit), MAX_AREA_SEARCH_RESULTS)
