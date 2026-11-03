@@ -29,6 +29,7 @@ const row: IndicatorAdminListRow = {
   draftStatus: 'draft',
   draftLocked: true,
   draftSubmissionStatus: 'submitted',
+  draftResponseKind: null,
   draftReviewers: [],
 };
 

@@ -1,4 +1,3 @@
-import { fakeUsers } from '@fphd/auth';
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
@@ -63,19 +62,23 @@ describe(`migration ${MIGRATION}`, () => {
     await testDb?.drop();
   });
 
-  it('inserts the system users and a person for each fake user, with their ids', async () => {
+  it('inserts the system users and the fake people of the time, with their ids', async () => {
     const rows = await sql<{ id: string; displayName: string; kind: string }[]>`
-      SELECT id, display_name AS "displayName", kind FROM app_user
+      SELECT id, display_name AS "displayName", kind FROM app_user ORDER BY display_name
     `;
 
-    expect(rows).toHaveLength(fakeUsers.length + 2);
-    expect(rows).toEqual(
-      expect.arrayContaining([
-        { id: SYSTEM_USER_IDS.pholioMigration, displayName: 'PHOLIO migration', kind: 'system' },
-        { id: SYSTEM_USER_IDS.testSeed, displayName: 'Test seed', kind: 'system' },
-        ...fakeUsers.map(({ id, name }) => ({ id, displayName: name, kind: 'person' })),
-      ]),
-    );
+    expect(rows).toEqual([
+      { id: '01a13c69-96ac-700c-9c28-8f3a1d3968e2', displayName: 'Alex Morgan', kind: 'person' },
+      { id: '01a13c69-96ab-7598-9ce1-0a29866e38c2', displayName: 'Avery Clarke', kind: 'person' },
+      { id: '01a13c69-96ab-7598-9ce1-00c3f4e7a399', displayName: 'Casey Patel', kind: 'person' },
+      { id: '01a13c69-96ac-700c-9c28-84ab06327fd0', displayName: 'Jamie Evans', kind: 'person' },
+      { id: '01a13c69-96ab-7598-9ce0-fc3b3433f586', displayName: 'Jordan Lee', kind: 'person' },
+      { id: '01a13c69-96ab-7598-9ce1-0437fbc8b7ec', displayName: 'Morgan Hughes', kind: 'person' },
+      { id: SYSTEM_USER_IDS.pholioMigration, displayName: 'PHOLIO migration', kind: 'system' },
+      { id: ADMIN, displayName: 'Riley Singh', kind: 'person' },
+      { id: PUBLISHER, displayName: 'Sam Taylor', kind: 'person' },
+      { id: SYSTEM_USER_IDS.testSeed, displayName: 'Test seed', kind: 'system' },
+    ]);
   });
 
   it('keeps an actor that is a user id as that user', async () => {

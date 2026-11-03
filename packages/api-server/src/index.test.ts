@@ -140,6 +140,47 @@ describe('addFallbackHandlers', () => {
     expect(response.status).toBe(413);
     expect(response.body).toEqual({ error: 'payload_too_large' });
   });
+
+  describe('with a route that raises its own body limit', () => {
+    function createApp() {
+      const app = createApiApp({
+        logger,
+        serviceName: 'test-api',
+        bodyLimits: [{ path: '/api/things/:id/notes', limit: '300kb' }],
+      });
+      app.post(['/api/things/:id/notes', '/api/things/:id/other'], (request, response) => {
+        response.status(200).json({ length: String(request.body.name).length });
+      });
+      addFallbackHandlers(app);
+      return app;
+    }
+
+    it('reads a body over the default limit on that route', async () => {
+      const response = await request(createApp())
+        .post('/api/things/1/notes')
+        .send({ name: 'x'.repeat(200_000) });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ length: 200_000 });
+    });
+
+    it('refuses a body over its own limit there', async () => {
+      const response = await request(createApp())
+        .post('/api/things/1/notes')
+        .send({ name: 'x'.repeat(400_000) });
+
+      expect(response.status).toBe(413);
+      expect(response.body).toEqual({ error: 'payload_too_large' });
+    });
+
+    it('keeps the default limit on every other route', async () => {
+      const response = await request(createApp())
+        .post('/api/things/1/other')
+        .send({ name: 'x'.repeat(200_000) });
+
+      expect(response.status).toBe(413);
+    });
+  });
 });
 
 const session = createJwtSessionService({

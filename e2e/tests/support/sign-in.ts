@@ -39,10 +39,22 @@ export const IMRG_REVIEWER: SignedInUser = {
   storageState: join(SESSIONS_DIR, 'imrg-reviewer.json'),
 };
 
+/** A second IMRG reviewer who does not publish, for a review shared with `IMRG_REVIEWER`. */
+export const SECOND_IMRG_REVIEWER: SignedInUser = {
+  name: 'Robin Shaw',
+  storageState: join(SESSIONS_DIR, 'second-imrg-reviewer.json'),
+};
+
 /** An IMRG reviewer who also publishes, in Team C. */
 export const PUBLISHER_AND_REVIEWER: SignedInUser = {
   name: 'Morgan Hughes',
   storageState: join(SESSIONS_DIR, 'publisher-and-reviewer.json'),
+};
+
+/** A second publisher in Team C, whose indicators `PUBLISHER_AND_REVIEWER` may review. */
+export const TEAM_C_PUBLISHER: SignedInUser = {
+  name: 'Drew Kaur',
+  storageState: join(SESSIONS_DIR, 'team-c-publisher.json'),
 };
 
 export const ADMIN: SignedInUser = {

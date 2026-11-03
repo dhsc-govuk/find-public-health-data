@@ -47,6 +47,12 @@
       "types": "./src/indicator-submission-status.ts",
       "default": "./dist/indicator-submission-status.js"
     },
+    "./indicator-task-key": {
+      "browser": "./src/indicator-task-key.ts",
+      "development": "./src/indicator-task-key.ts",
+      "types": "./src/indicator-task-key.ts",
+      "default": "./dist/indicator-task-key.js"
+    },
     "./period-label": {
       "browser": "./src/period-label.ts",
       "development": "./src/period-label.ts",
@@ -64,6 +70,12 @@
       "development": "./src/polarity.ts",
       "types": "./src/polarity.ts",
       "default": "./dist/polarity.js"
+    },
+    "./review-response-kind": {
+      "browser": "./src/review-response-kind.ts",
+      "development": "./src/review-response-kind.ts",
+      "types": "./src/review-response-kind.ts",
+      "default": "./dist/review-response-kind.js"
     },
     "./sex-and-ages": {
       "browser": "./src/sex-and-ages.ts",

@@ -8,6 +8,7 @@ import { REQUEST_ID_HEADER } from '@fphd/express';
 import { createLogger, type Logger } from '@fphd/logger';
 import type { Express, Router } from 'express';
 
+import { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
 import { indicatorSectionFieldErrors } from './contract.ts';
 import type { IndicatorTeams } from './indicator-editor.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
@@ -78,7 +79,11 @@ export function createRouterTestApp(
   router: Router,
   logger: Logger = createLogger({ name: 'internal-api', level: 'silent' }),
 ): Express {
-  const app = createApiApp({ logger, serviceName: 'internal-api' });
+  const app = createApiApp({
+    logger,
+    serviceName: 'internal-api',
+    bodyLimits: INTERNAL_API_BODY_LIMITS,
+  });
 
   app.use(router);
 

@@ -58,6 +58,7 @@ describe('public API', () => {
     ['get', `/api/internal/indicators/${anyId}/reviewer-options`],
     ['get', `/api/internal/indicators/${anyId}/notes-for-reviewers`],
     ['post', `/api/internal/indicators/${anyId}/assign-reviewers`],
+    ['post', `/api/internal/indicators/${anyId}/review-response`],
     ['get', '/api/internal/indicators-under-review'],
     ['get', '/api/internal/indicators-to-review'],
   ] as const)('does not expose the internal surface at %s %s', async (method, path) => {

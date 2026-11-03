@@ -1,9 +1,11 @@
 import type { IndicatorAccess } from '@fphd/auth/permissions';
 import { z } from '@fphd/config/zod';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
+import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
 
 import { editVersionSchema } from './edit-version-contract.ts';
+import { reviewResponseKindSchema } from './review-response-contract.ts';
 import { shortText } from './text-contract.ts';
 
 /**
@@ -102,7 +104,15 @@ export const draftStatusSchema = z.enum(['draft']);
 export const draftSubmissionStatusSchema = z.enum(INDICATOR_SUBMISSION_STATUSES);
 
 /** The steps a version takes through review, in the order the workflow allows them. */
-export const INDICATOR_STEPS = ['submit', 'withdraw', 'assign_reviewers'] as const;
+export const INDICATOR_STEPS = [
+  'submit',
+  'withdraw',
+  'assign_reviewers',
+  'give_feedback',
+  'request_changes',
+  'approve',
+  'resubmit',
+] as const;
 
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
 
@@ -126,6 +136,8 @@ export const indicatorAdminSummarySchema = z.object({
   draftLocked: z.boolean(),
   /** Null until the draft is first submitted, and while there is no draft. */
   draftSubmissionStatus: draftSubmissionStatusSchema.nullable(),
+  /** What the latest response to the draft's latest submission said; null until there is one. */
+  draftResponseKind: reviewResponseKindSchema.nullable(),
   /** The reviewers of the draft's latest submission, by name; empty until they are assigned. */
   draftReviewers: z.array(draftReviewerSchema),
 });
@@ -163,15 +175,18 @@ export const indicatorAdminPageSchema = z.object({
   total: z.number().int().min(0),
 });
 
-/** The open submissions an IMRG manager works through, oldest submission first. */
+/** The submissions an IMRG manager works through, oldest submission first. */
 export const indicatorsUnderReviewSchema = z.object({
   /** Waiting for reviewers: the latest submission is `submitted`. */
   unassigned: z.array(indicatorAdminListItemSchema),
-  /** Reviewers assigned: the latest submission is `in_review`. */
+  /** Reviewers assigned: the latest submission is in review, sent back for changes or approved. */
   assigned: z.array(indicatorAdminListItemSchema),
 });
 
-/** The submissions in review assigned to a reviewer, oldest submission first. */
+/**
+ * The submissions assigned to a reviewer that are in review or sent back for changes, oldest
+ * submission first.
+ */
 export const indicatorsToReviewSchema = z.object({
   indicators: z.array(indicatorAdminListItemSchema),
 });
@@ -190,6 +205,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   draftSubmissionNumber: z.number().int().positive().nullable(),
   /** When the draft asks to be published; null with no draft or no answer yet. */
   draftScheduledPublishAt: z.iso.datetime().nullable(),
+  /** When the draft was first submitted, which no IMRG review date may precede; null until then. */
+  draftFirstSubmittedAt: z.iso.datetime().nullable(),
   /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
   actions: indicatorActionsSchema,
@@ -281,30 +298,7 @@ export type IndicatorUpdateError = z.infer<typeof indicatorUpdateErrorSchema>;
 export const indicatorTaskStatusSchema = z.enum(['not_started', 'in_progress', 'completed']);
 
 /** The tasks the API judges: the name, the data table and each section. */
-export const indicatorTaskKeySchema = z.enum([
-  'name',
-  'data-table',
-  'definition-and-rationale',
-  'polarity',
-  'data-quality',
-  'numerator',
-  'denominator',
-  'calculation',
-  'confidence-intervals',
-  'update-frequency',
-  'value-type-and-units',
-  'period-type',
-  'other-notes-and-caveats',
-  'publishing-date',
-  'links',
-  'variance-and-quality',
-  'justifications',
-  'other-comments',
-  'copyright-and-data-reuse',
-  'benchmarking',
-  'sex-and-ages',
-  'tagging',
-]);
+export const indicatorTaskKeySchema = z.enum(INDICATOR_TASK_KEYS);
 
 export const indicatorTaskStatusesSchema = z.record(
   indicatorTaskKeySchema,
@@ -325,6 +319,7 @@ export const indicatorTaskListSchema = z.object({
     // Nullable as picked, but never null here: the endpoint answers 404 when there is no draft.
     draftStatus: true,
     draftSubmissionStatus: true,
+    draftResponseKind: true,
   }),
   /** True when the indicator is live, so this edit revises what the public has. */
   isUpdate: z.boolean(),
@@ -348,7 +343,15 @@ export const indicatorSubmitSchema = z.object({ draftUpdatedAt: z.iso.datetime()
 
 /** The 400 and 409 answers. A missing indicator or draft is a 404, which the client throws. */
 export const indicatorSubmitErrorSchema = z.object({
-  error: z.enum(['invalid_id', 'invalid_draft_updated_at', 'not_allowed', 'changed', 'incomplete']),
+  error: z.enum([
+    'invalid_id',
+    'invalid_draft_updated_at',
+    'not_allowed',
+    'changed',
+    'incomplete',
+    'flagged',
+    'no_response',
+  ]),
 });
 
 /** A withdrawal names the submission the publisher was shown, so it never ends a newer one. */
@@ -434,3 +437,4 @@ export * from './indicator-update-frequency-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';
 export * from './indicator-variance-and-quality-contract.ts';
 export * from './notes-for-reviewers-contract.ts';
+export * from './review-response-contract.ts';

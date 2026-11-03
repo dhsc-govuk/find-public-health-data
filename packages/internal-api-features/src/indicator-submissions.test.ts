@@ -1,16 +1,18 @@
 import { request } from '@fphd/express/testing';
 import type { Logger } from '@fphd/logger';
 import { createCapturingLogger } from '@fphd/logger/testing';
+import { FLAGGABLE_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { IndicatorAdminDetailRow } from './indicator-list-repository.ts';
 import { indicatorSubmissionsRouter } from './indicator-submissions.ts';
 import {
   createFakeInternalRepositories,
   createRouterTestApp,
   type FakeInternalRepositoryOverrides,
   handlerLogLines,
-  inTestTeam,
+  TEST_TEAM_ID,
   TEST_USER_ID,
   testActor,
   testSessionCookie,
@@ -20,17 +22,50 @@ import {
 const ID = '00000000-0000-7000-8000-000000000001';
 const OTHER_TEAM_ID = '00000000-0000-7000-8000-00000000000b';
 const DRAFT_UPDATED_AT = '2026-10-22T09:30:00.123Z';
+// Midday on 2 November 2026 in the UK, which is on GMT then.
+const NOW = new Date('2026-11-02T12:00:00.000Z');
+
+const submittedRow: IndicatorAdminDetailRow = {
+  id: ID,
+  name: 'Life expectancy at birth',
+  teamId: TEST_TEAM_ID,
+  updatedAt: new Date('2026-10-22T09:30:00.123Z'),
+  indicatorStatus: 'new',
+  draftStatus: 'draft',
+  draftLocked: true,
+  draftSubmissionStatus: 'submitted',
+  draftResponseKind: null,
+  draftReviewers: [],
+  shortId: 90366,
+  publishedSlug: null,
+  draftSubmissionNumber: 1,
+  draftScheduledPublishAt: null,
+  draftFirstSubmittedAt: null,
+};
+
+/** The indicator's lookups, for an indicator in `teamId`. */
+function inTeam(teamId: string): FakeInternalRepositoryOverrides['indicators'] {
+  return {
+    findTeamId: async () => teamId,
+    findById: async () => ({ ...submittedRow, teamId }),
+  };
+}
+
+const noIndicator: FakeInternalRepositoryOverrides['indicators'] = {
+  findTeamId: async () => undefined,
+  findById: async () => undefined,
+};
 
 function createTestApp(
   overrides: FakeInternalRepositoryOverrides['indicators'] = {},
   logger?: Logger,
 ): Express {
   const repositories = createFakeInternalRepositories({
-    indicators: { ...inTestTeam, ...overrides },
+    indicators: { ...inTeam(TEST_TEAM_ID), ...overrides },
   });
 
   return createRouterTestApp(
-    indicatorSubmissionsRouter(repositories.indicators, testSessionVerifier),
+    indicatorSubmissionsRouter(repositories.indicators, testSessionVerifier, () => NOW),
     logger,
   );
 }
@@ -66,9 +101,7 @@ describe.each([
   it("refuses a publisher another team's indicator", async () => {
     const takeStep = vi.fn();
 
-    const response = await request(
-      createTestApp({ findTeamId: async () => OTHER_TEAM_ID, [method]: takeStep }),
-    )
+    const response = await request(createTestApp({ ...inTeam(OTHER_TEAM_ID), [method]: takeStep }))
       .post(path)
       .set('Cookie', await publisherCookie())
       .send(body);
@@ -84,9 +117,7 @@ describe.each([
   ])('refuses an IMRG reviewer assigned to the indicator, %s', async (_who, roles) => {
     const takeStep = vi.fn();
 
-    const response = await request(
-      createTestApp({ findTeamId: async () => OTHER_TEAM_ID, [method]: takeStep }),
-    )
+    const response = await request(createTestApp({ ...inTeam(OTHER_TEAM_ID), [method]: takeStep }))
       .post(path)
       .set('Cookie', await testSessionCookie(roles))
       .send(body);
@@ -106,7 +137,7 @@ describe.each([
   });
 
   it('answers 404 for an indicator that does not exist', async () => {
-    const response = await request(createTestApp({ findTeamId: async () => undefined }))
+    const response = await request(createTestApp(noIndicator))
       .post(path)
       .set('Cookie', await publisherCookie())
       .send(body);
@@ -195,17 +226,20 @@ describe('POST /api/internal/indicators/:id/submit', () => {
     expect(submit).not.toHaveBeenCalled();
   });
 
-  it.each(['changed', 'incomplete'])('answers 409 %s when the draft refuses', async (reason) => {
-    const submit = vi.fn().mockResolvedValue({ ok: false, reason });
+  it.each(['changed', 'incomplete', 'flagged', 'no_response'])(
+    'answers 409 %s when the draft refuses',
+    async (reason) => {
+      const submit = vi.fn().mockResolvedValue({ ok: false, reason });
 
-    const response = await request(createTestApp({ submit }))
-      .post(path)
-      .set('Cookie', await publisherCookie())
-      .send({ draftUpdatedAt: DRAFT_UPDATED_AT });
+      const response = await request(createTestApp({ submit }))
+        .post(path)
+        .set('Cookie', await publisherCookie())
+        .send({ draftUpdatedAt: DRAFT_UPDATED_AT });
 
-    expect(response.status).toBe(409);
-    expect(response.body).toEqual({ error: reason });
-  });
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({ error: reason });
+    },
+  );
 });
 
 describe('POST /api/internal/indicators/:id/withdraw', () => {
@@ -297,7 +331,7 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
   });
 
   it('answers 404 for an indicator that does not exist', async () => {
-    const response = await request(createTestApp({ findTeamId: async () => undefined }))
+    const response = await request(createTestApp(noIndicator))
       .post(path)
       .set('Cookie', await managerCookie())
       .send(body);
@@ -367,6 +401,221 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
         .post(path)
         .set('Cookie', await managerCookie())
         .send(body);
+
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({ error: reason });
+    },
+  );
+});
+
+describe('POST /api/internal/indicators/:id/review-response', () => {
+  const path = `/api/internal/indicators/${ID}/review-response`;
+  const OTHER_REVIEWER = '00000000-0000-7000-8000-0000000000a2';
+  const minorRevisions = {
+    submissionNumber: 1,
+    kind: 'minor_revisions',
+    imrgReviewedOn: '2026-10-29',
+    clarificationRequest: null,
+    flags: [{ task: 'polarity', notes: ' Higher is better here ' }],
+  };
+
+  /** Another team's indicator in review, with the test user among its reviewers when told. */
+  function inReview(reviewerIds: string[] = [TEST_USER_ID]) {
+    return {
+      findById: async (): Promise<IndicatorAdminDetailRow> => ({
+        ...submittedRow,
+        teamId: OTHER_TEAM_ID,
+        draftSubmissionStatus: 'in_review',
+        draftReviewers: reviewerIds.map((id) => ({ id, name: 'A reviewer' })),
+        draftFirstSubmittedAt: new Date('2026-10-20T23:30:00.000Z'),
+      }),
+    };
+  }
+
+  function reviewerCookie() {
+    return testSessionCookie(['internal', 'imrg-reviewer'], []);
+  }
+
+  it('rejects an anonymous request', async () => {
+    const response = await request(createTestApp(inReview())).post(path).send(minorRevisions);
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    ['a publisher', ['internal', 'publisher']],
+    ['the IMRG manager', ['internal', 'imrg-manager']],
+    ['an admin', ['internal', 'admin']],
+  ])('refuses %s', async (_, roles) => {
+    const respond = vi.fn();
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await testSessionCookie(roles))
+      .send(minorRevisions);
+
+    expect(response.status).toBe(403);
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('rejects an id that is not a UUID', async () => {
+    const response = await request(createTestApp(inReview()))
+      .post('/api/internal/indicators/108/review-response')
+      .set('Cookie', await reviewerCookie())
+      .send(minorRevisions);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_id' });
+  });
+
+  it.each([
+    ['an indicator that does not exist', noIndicator],
+    ['an indicator the reviewer is not assigned to', inReview([OTHER_REVIEWER])],
+  ])('answers 404 for %s', async (_, overrides) => {
+    const response = await request(createTestApp(overrides))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(minorRevisions);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('answers 403 to a reviewer who may see the indicator but is not assigned to it', async () => {
+    const respond = vi.fn();
+    const inOwnTeam = {
+      findById: async () => ({ ...submittedRow, draftSubmissionStatus: 'in_review' as const }),
+    };
+
+    const response = await request(createTestApp({ ...inOwnTeam, respond }))
+      .post(path)
+      .set('Cookie', await testSessionCookie(['internal', 'publisher', 'imrg-reviewer']))
+      .send(minorRevisions);
+
+    expect(response.status).toBe(403);
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('records the response as the signed-in reviewer, answering 204, and logs it', async () => {
+    const { logger, lines } = createCapturingLogger('internal-api');
+    const respond = vi.fn().mockResolvedValue({ ok: true });
+
+    const response = await request(createTestApp({ ...inReview(), respond }, logger))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(minorRevisions);
+
+    expect(response.status).toBe(204);
+    expect(respond).toHaveBeenCalledWith(
+      ID,
+      { ...minorRevisions, flags: [{ task: 'polarity', notes: 'Higher is better here' }] },
+      testActor(response),
+    );
+    expect(await handlerLogLines(lines)).toEqual([
+      expect.objectContaining({
+        msg: 'Review response recorded',
+        indicatorId: ID,
+        kind: 'minor_revisions',
+      }),
+    ]);
+  });
+
+  it('accepts a response over the default body limit but within the text limits', async () => {
+    const respond = vi.fn().mockResolvedValue({ ok: true });
+    const flags = FLAGGABLE_TASK_KEYS.map((task) => ({ task, notes: 'é'.repeat(10_000) }));
+    const sent = { ...minorRevisions, clarificationRequest: 'é'.repeat(10_000), flags };
+
+    expect(Buffer.byteLength(JSON.stringify(sent))).toBeGreaterThan(100_000);
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(sent);
+
+    expect(response.status).toBe(204);
+    expect(respond).toHaveBeenCalledWith(ID, sent, testActor(response));
+  });
+
+  it.each([
+    ['no body', undefined],
+    ['an unknown kind', { ...minorRevisions, kind: 'rejected' }],
+    [
+      'a task that cannot be flagged',
+      { ...minorRevisions, flags: [{ task: 'justifications', notes: 'x' }] },
+    ],
+    ['an approval with flags', { ...minorRevisions, kind: 'approved' }],
+    [
+      'an approval with a clarification request',
+      { ...minorRevisions, kind: 'approved', flags: [], clarificationRequest: 'Why?' },
+    ],
+  ])('refuses %s as invalid without asking the repository', async (_, sent) => {
+    const respond = vi.fn();
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(sent);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_request' });
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('names the fields at fault, such as feedback with neither a flag nor a request', async () => {
+    const respond = vi.fn();
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send({ ...minorRevisions, imrgReviewedOn: '2026-11-03', flags: [] });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: {
+        imrgReviewedOn: 'Date reviewed by IMRG must be today or in the past',
+        flags: 'Select what needs to be revised or clarified',
+      },
+    });
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('names the date when it is before the first submission', async () => {
+    const respond = vi.fn().mockResolvedValue({ ok: false, reason: 'reviewed_before_submission' });
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(minorRevisions);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: { imrgReviewedOn: 'Date reviewed by IMRG must be on or after 21 October 2026' },
+    });
+  });
+
+  it('answers 404 for an indicator with no draft', async () => {
+    const respond = vi.fn().mockResolvedValue({ ok: false, reason: 'no_draft' });
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(minorRevisions);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'no_draft' });
+  });
+
+  it.each(['not_allowed', 'changed', 'not_a_reviewer', 'no_publication_date'])(
+    'answers 409 %s when the repository refuses',
+    async (reason) => {
+      const respond = vi.fn().mockResolvedValue({ ok: false, reason });
+
+      const response = await request(createTestApp({ ...inReview(), respond }))
+        .post(path)
+        .set('Cookie', await reviewerCookie())
+        .send(minorRevisions);
 
       expect(response.status).toBe(409);
       expect(response.body).toEqual({ error: reason });

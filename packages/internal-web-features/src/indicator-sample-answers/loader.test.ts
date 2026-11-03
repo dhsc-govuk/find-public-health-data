@@ -23,6 +23,7 @@ const taskList: IndicatorTaskList = {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionStatus: null,
+    draftResponseKind: null,
   },
   isUpdate: false,
   canSubmit: false,

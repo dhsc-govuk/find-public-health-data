@@ -205,6 +205,7 @@ describe('indicatorTaskListSchema', () => {
       indicatorStatus: 'new',
       draftStatus: 'draft',
       draftSubmissionStatus: null,
+      draftResponseKind: null,
     },
     isUpdate: false,
     canSubmit: true,

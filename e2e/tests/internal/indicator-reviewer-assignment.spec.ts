@@ -8,7 +8,7 @@ import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
 import { IMRG_MANAGER, PUBLISHER } from '../support/sign-in.ts';
 
 const ASSIGNED = 'Reviewers successfully assigned to indicator.';
-const NOT_WITHDRAWN = 'This submission can no longer be withdrawn.';
+const WITHDRAWN = 'Submission withdrawn. You can now edit the indicator.';
 
 function overviewPath(id: string) {
   return `/dashboard/indicators/${id}`;
@@ -102,11 +102,11 @@ test('asks for a reviewer when none is chosen', async ({ browser, page }, testIn
   await expect(page.getByLabel('Reviewer', { exact: true })).toBeFocused();
 });
 
-test('once reviewers are assigned, the publisher can no longer withdraw the submission', async ({
+test('once reviewers are assigned, the publisher can still withdraw the submission', async ({
   browser,
   page,
 }) => {
-  const id = await submitNewIndicator(browser, uniqueIndicatorName('no withdrawal'));
+  const id = await submitNewIndicator(browser, uniqueIndicatorName('withdrawn in review'));
   await page.goto(assignPath(id));
   await chooseReviewer(page, 'Jamie Evans');
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -116,12 +116,11 @@ test('once reviewers are assigned, the publisher can no longer withdraw the subm
     await browser.newContext({ storageState: PUBLISHER.storageState })
   ).newPage();
   await publisher.goto(overviewPath(id));
-  await expect(publisher.getByRole('heading', { level: 2, name: 'Actions' })).toBeVisible();
-  await expect(publisher.getByRole('link', { name: 'Withdraw submission' })).toHaveCount(0);
+  await publisher.getByRole('link', { name: 'Withdraw submission' }).click();
+  await publisher.getByRole('button', { name: 'Withdraw submission' }).click();
 
-  await publisher.goto(`/publish/indicators/${id}/withdraw-submission`);
   await expect(publisher).toHaveURL(overviewPath(id));
-  await expect(publisher.getByRole('region', { name: 'Important' })).toContainText(NOT_WITHDRAWN);
+  await expect(publisher.getByText(WITHDRAWN)).toBeVisible();
   await publisher.context().close();
 });
 

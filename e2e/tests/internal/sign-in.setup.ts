@@ -6,8 +6,10 @@ import {
   IMRG_REVIEWER,
   PUBLISHER,
   PUBLISHER_AND_REVIEWER,
+  SECOND_IMRG_REVIEWER,
   signInAs,
   TEAM_B_PUBLISHER,
+  TEAM_C_PUBLISHER,
   TEAMS_A_AND_B_PUBLISHER,
 } from '../support/sign-in.ts';
 
@@ -17,7 +19,9 @@ for (const user of [
   TEAMS_A_AND_B_PUBLISHER,
   IMRG_MANAGER,
   IMRG_REVIEWER,
+  SECOND_IMRG_REVIEWER,
   PUBLISHER_AND_REVIEWER,
+  TEAM_C_PUBLISHER,
   ADMIN,
 ]) {
   setup(`signs in as ${user.name}`, async ({ page }) => {

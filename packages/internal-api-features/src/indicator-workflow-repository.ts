@@ -20,8 +20,20 @@ import {
 } from './indicator-draft-repository.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
 import { isDraftComplete } from './indicator-task-list.ts';
-import { nextState } from './indicator-workflow.ts';
-import { assignedReviewerIds, findEligibleReviewerIds } from './reviewer-repository.ts';
+import {
+  allowedSteps,
+  carriesReviewers,
+  type IndicatorWorkflowContext,
+  nextState,
+} from './indicator-workflow.ts';
+import { hasUnclearedFlag } from './review-flag-repository.ts';
+import {
+  assignedReviewerIds,
+  type CarriedReviewer,
+  carriedReviewersOf,
+  carryReviewers,
+  findEligibleReviewerIds,
+} from './reviewer-repository.ts';
 
 const {
   ciMethod,
@@ -48,10 +60,19 @@ export type IndicatorStepPrecondition<Reason extends string> = (
 /** A step's write of its own rows beside the submission's, answering their changes for the audit. */
 export type IndicatorStepWrite = (tx: Transaction, submission: Submission) => Promise<AuditChanges>;
 
+/** The step to take, chosen by where the draft's latest submission stands under the lock. */
+export type IndicatorStepChoice =
+  | IndicatorStep
+  | ((latest: Submission | undefined) => IndicatorStep);
+
 const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   submit: 'indicator.submitted',
   withdraw: 'indicator.submission_withdrawn',
   assign_reviewers: 'indicator.reviewers_assigned',
+  give_feedback: 'indicator.review_feedback_given',
+  request_changes: 'indicator.changes_requested',
+  approve: 'indicator.approved',
+  resubmit: 'indicator.resubmitted',
 };
 
 interface SubmissionWrite {
@@ -62,37 +83,53 @@ interface SubmissionWrite {
   actor: Actor;
 }
 
+type SubmissionWriteResult = { before: Submission | null; after: Submission };
+
+/** Inserts the version's next submission, as a submission or resubmission does. */
+async function insertNextSubmission({
+  tx,
+  draft,
+  latest,
+  status,
+  actor,
+}: SubmissionWrite): Promise<SubmissionWriteResult> {
+  const [after] = await tx
+    .insert(indicatorVersionSubmission)
+    .values({
+      indicatorVersionId: draft.id,
+      indicatorId: draft.indicatorId,
+      number: (latest?.number ?? 0) + 1,
+      status,
+      submittedBy: actor.userId,
+    })
+    .returning();
+  if (after === undefined) throw new Error('inserted no submission');
+  return { before: null, after };
+}
+
+/** Ends the latest submission, as a withdrawal or a reviewer's response does. */
+async function endLatestSubmission({
+  tx,
+  latest,
+  status,
+  actor,
+}: SubmissionWrite): Promise<SubmissionWriteResult> {
+  if (latest === undefined) throw new Error('found no submission to end');
+  const [after] = await tx
+    .update(indicatorVersionSubmission)
+    .set({ status, endedBy: actor.userId, endedAt: sql`clock_timestamp()` })
+    .where(eq(indicatorVersionSubmission.id, latest.id))
+    .returning();
+  if (after === undefined) throw new Error(`ended no submission ${latest.id}`);
+  return { before: latest, after };
+}
+
 /** Each step's write of a submission, answering the row before (null when inserted) and after. */
 const SUBMISSION_WRITES: Readonly<
-  Record<
-    IndicatorStep,
-    (write: SubmissionWrite) => Promise<{ before: Submission | null; after: Submission }>
-  >
+  Record<IndicatorStep, (write: SubmissionWrite) => Promise<SubmissionWriteResult>>
 > = {
-  submit: async ({ tx, draft, latest, status, actor }) => {
-    const [after] = await tx
-      .insert(indicatorVersionSubmission)
-      .values({
-        indicatorVersionId: draft.id,
-        indicatorId: draft.indicatorId,
-        number: (latest?.number ?? 0) + 1,
-        status,
-        submittedBy: actor.userId,
-      })
-      .returning();
-    if (after === undefined) throw new Error('submit inserted no submission');
-    return { before: null, after };
-  },
-  withdraw: async ({ tx, latest, status, actor }) => {
-    if (latest === undefined) throw new Error('withdraw found no submission to end');
-    const [after] = await tx
-      .update(indicatorVersionSubmission)
-      .set({ status, endedBy: actor.userId, endedAt: sql`clock_timestamp()` })
-      .where(eq(indicatorVersionSubmission.id, latest.id))
-      .returning();
-    if (after === undefined) throw new Error(`withdraw updated no submission ${latest.id}`);
-    return { before: latest, after };
-  },
+  submit: insertNextSubmission,
+  withdraw: endLatestSubmission,
   // Changing the reviewers leaves a submission already in review as it is.
   assign_reviewers: async ({ tx, latest, status }) => {
     if (latest === undefined) throw new Error('assign_reviewers found no submission');
@@ -105,6 +142,10 @@ const SUBMISSION_WRITES: Readonly<
     if (after === undefined) throw new Error(`assign_reviewers updated no submission ${latest.id}`);
     return { before: latest, after };
   },
+  give_feedback: endLatestSubmission,
+  request_changes: endLatestSubmission,
+  approve: endLatestSubmission,
+  resubmit: insertNextSubmission,
 };
 
 /**
@@ -116,7 +157,7 @@ const SUBMISSION_WRITES: Readonly<
 export async function takeIndicatorStep<Reason extends string = never>(
   db: Database,
   indicatorId: string,
-  step: IndicatorStep,
+  choice: IndicatorStepChoice,
   actor: Actor,
   {
     precondition,
@@ -142,15 +183,21 @@ export async function takeIndicatorStep<Reason extends string = never>(
       .where(eq(indicatorVersionSubmission.indicatorVersionId, draft.id))
       .orderBy(desc(indicatorVersionSubmission.number))
       .limit(1);
-    const next = nextState(
-      {
-        indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
-        versionStatus: draft.status,
-        isLocked: draft.isLocked,
-        latestSubmissionStatus: latest?.status ?? null,
-      },
-      step,
-    );
+    const step = typeof choice === 'function' ? choice(latest) : choice;
+    const context: IndicatorWorkflowContext = {
+      indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
+      versionStatus: draft.status,
+      isLocked: draft.isLocked,
+      latestSubmissionStatus: latest?.status ?? null,
+    };
+
+    if (!allowedSteps(context).includes(step)) return { ok: false, reason: 'not_allowed' };
+
+    const carried: CarriedReviewer[] =
+      carriesReviewers(step) && latest !== undefined
+        ? await carriedReviewersOf(tx, indicatorId, latest.id, actor.userId)
+        : [];
+    const next = nextState(context, step, { carriedReviewerCount: carried.length });
 
     if (!next.ok) return next;
 
@@ -172,10 +219,12 @@ export async function takeIndicatorStep<Reason extends string = never>(
       status: next.state.submissionStatus,
       actor,
     });
+    const reviewersCarried = await carryReviewers(tx, submission.after.id, carried);
     const written = (await write?.(tx, submission.after)) ?? {};
     const changes = {
       ...changesBetween({ status: draft.status, isLocked: draft.isLocked }, version),
       ...(isDeepStrictEqual(submission.before, submission.after) ? {} : { submission }),
+      ...reviewersCarried,
       ...written,
     };
 
@@ -198,33 +247,52 @@ async function ciMethodKindOf(tx: Transaction, id: string | null): Promise<CiMet
   return method?.kind ?? null;
 }
 
+/** Why a draft sent back for changes may not be resubmitted yet: a flag left, or no reply. */
+async function resubmissionProblem(
+  tx: Transaction,
+  latest: Submission,
+): Promise<'flagged' | 'no_response' | undefined> {
+  if (await hasUnclearedFlag(tx, latest.id)) return 'flagged';
+  return (latest.revisionResponse ?? '').trim() === '' ? 'no_response' : undefined;
+}
+
 /**
- * Submits a new indicator's complete draft for approval. `draftUpdatedAt` is the draft's
- * `updatedAt` as the publisher was shown it: an edit since then refuses the submission as
- * `changed`, so nobody confirms a draft they have not seen.
+ * Submits a new indicator's complete draft for approval, or resubmits one sent back for changes
+ * once every flagged task is saved and the reply is written. Either goes straight to the latest
+ * submission's reviewers who may still review it. `draftUpdatedAt` is the draft's `updatedAt` as
+ * the publisher was shown it: an edit since then refuses the submission as `changed`, so nobody
+ * confirms a draft they have not seen.
  */
 export function submitIndicator(
   db: Database,
   indicatorId: string,
   draftUpdatedAt: Date,
   actor: Actor,
-): Promise<IndicatorStepResult<'changed' | 'incomplete'>> {
-  return takeIndicatorStep(db, indicatorId, 'submit', actor, {
-    precondition: async (tx, { draft }) => {
-      if (draft.updatedAt.getTime() !== draftUpdatedAt.getTime()) return 'changed';
-      const [lists, ciMethodKind] = await Promise.all([
-        draftListsOf(tx, draft.id),
-        ciMethodKindOf(tx, draft.ciMethodId),
-      ]);
-      return isDraftComplete({ ...draft, ...lists, ciMethodKind }) ? undefined : 'incomplete';
+): Promise<IndicatorStepResult<'changed' | 'incomplete' | 'flagged' | 'no_response'>> {
+  return takeIndicatorStep(
+    db,
+    indicatorId,
+    (latest) => (latest?.status === 'changes_requested' ? 'resubmit' : 'submit'),
+    actor,
+    {
+      precondition: async (tx, { draft, latest }) => {
+        if (draft.updatedAt.getTime() !== draftUpdatedAt.getTime()) return 'changed';
+        const [lists, ciMethodKind] = await Promise.all([
+          draftListsOf(tx, draft.id),
+          ciMethodKindOf(tx, draft.ciMethodId),
+        ]);
+        if (!isDraftComplete({ ...draft, ...lists, ciMethodKind })) return 'incomplete';
+        return latest?.status === 'changes_requested' ? resubmissionProblem(tx, latest) : undefined;
+      },
     },
-  });
+  );
 }
 
 /**
- * Withdraws the draft's submission before review, unlocking the draft. `submissionNumber` is the
- * submission the publisher was shown: one withdrawn and resubmitted since is refused as `changed`,
- * so an old confirmation page never withdraws a newer submission.
+ * Withdraws the draft's submission before any response, unlocking the draft and keeping its
+ * reviewers for the next submission. `submissionNumber` is the submission the publisher was shown:
+ * one withdrawn and resubmitted since is refused as `changed`, so an old confirmation page never
+ * withdraws a newer submission.
  */
 export function withdrawSubmission(
   db: Database,

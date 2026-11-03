@@ -4,7 +4,8 @@ import { type Database, listIndicatorFacets, schema } from '@fphd/db';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
-import { updateIndicatorDraft } from './indicator-draft-repository.ts';
+import type { ReviewResponseKind } from './contract.ts';
+import { getIndicatorDraftState, updateIndicatorDraft } from './indicator-draft-repository.ts';
 import {
   getIndicatorById,
   listIndicatorsPage,
@@ -22,12 +23,13 @@ import {
   OTHER_ACTOR,
   repositoryTest,
 } from './indicator-repository.testing.ts';
-import { completeDraft } from './indicator-workflow.testing.ts';
+import { completeDraft, ukToday } from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
+import { respondToReview } from './review-response-repository.ts';
 
 const EVERY_INDICATOR = { all: true } as const;
 
@@ -308,6 +310,23 @@ async function assign(
   );
 }
 
+/** Answers the draft's first submission as Jamie Evans, who must be assigned to it. */
+async function respond(db: Database, indicatorId: string, kind: ReviewResponseKind) {
+  const result = await respondToReview(
+    db,
+    indicatorId,
+    {
+      submissionNumber: 1,
+      kind,
+      imrgReviewedOn: kind === 'pre_imrg_feedback' ? null : ukToday(),
+      clarificationRequest: kind === 'approved' ? null : 'What is counted?',
+      flags: [],
+    },
+    { userId: FAKE_USER_IDS.imrgReviewer, requestId: null },
+  );
+  if (!result.ok) throw new Error(`the response was refused: ${result.reason}`);
+}
+
 describe('listIndicatorsUnderReview', () => {
   /** The ids each table lists, in its order, from among `ids`. */
   async function tables(db: Database, ids: string[], scope: IndicatorListScope = EVERY_INDICATOR) {
@@ -332,6 +351,35 @@ describe('listIndicatorsUnderReview', () => {
         unassigned: [waiting],
         assigned: [inReview],
       });
+    },
+  );
+
+  repositoryTest(
+    'keeps drafts sent back for changes or approved as assigned, with what their response said',
+    async ({ db }) => {
+      const sentBack = await submitted(db, 'Sent back to its publisher');
+      await assign(db, sentBack, [FAKE_USER_IDS.imrgReviewer]);
+      await respond(db, sentBack, 'major_revisions');
+      const approved = await submitted(db, 'Approved by IMRG');
+      await assign(db, approved, [FAKE_USER_IDS.imrgReviewer]);
+      await respond(db, approved, 'approved');
+
+      expect(await tables(db, [sentBack, approved])).toEqual({
+        unassigned: [],
+        assigned: [sentBack, approved],
+      });
+      const { assigned } = await listIndicatorsUnderReview(db, EVERY_INDICATOR);
+      expect(
+        assigned
+          .filter(({ id }) => [sentBack, approved].includes(id))
+          .map(({ draftSubmissionStatus, draftResponseKind }) => ({
+            draftSubmissionStatus,
+            draftResponseKind,
+          })),
+      ).toEqual([
+        { draftSubmissionStatus: 'changes_requested', draftResponseKind: 'major_revisions' },
+        { draftSubmissionStatus: 'approved', draftResponseKind: 'approved' },
+      ]);
     },
   );
 
@@ -447,22 +495,41 @@ describe('listIndicatorsToReview', () => {
   );
 
   repositoryTest(
+    'keeps a draft sent back for changes, with what the response said, but not an approved one',
+    async ({ db }) => {
+      const advised = await submitted(db, 'Advised before the meeting');
+      await assign(db, advised, [REVIEWER]);
+      await respond(db, advised, 'pre_imrg_feedback');
+      const approved = await submitted(db, 'Approved, so off the review list');
+      await assign(db, approved, [REVIEWER]);
+      await respond(db, approved, 'approved');
+
+      expect(await listed(db, [advised, approved])).toEqual([advised]);
+      const rows = await listIndicatorsToReview(db, REVIEWER);
+      expect(rows.find(({ id }) => id === advised)).toMatchObject({
+        draftSubmissionStatus: 'changes_requested',
+        draftResponseKind: 'pre_imrg_feedback',
+      });
+    },
+  );
+
+  repositoryTest(
     'leaves out a draft whose reviewer was assigned to an earlier submission only',
     async ({ db }) => {
       const created = await newDraft(db, 'Reviewed once, in review again with someone else');
       const shown = await completeDraft(db, created);
       const { indicatorId } = created;
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+      await assign(db, indicatorId, [REVIEWER]);
       await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
-      // No step assigns reviewers to a withdrawn submission, so the row is inserted directly. The
-      // withdrawn submission stands in for an earlier round that had this reviewer.
-      await db.insert(schema.indicatorVersionSubmissionReviewer).values({
-        submissionId: await firstSubmissionId(db, indicatorId),
-        reviewerId: REVIEWER,
-        assignedBy: FAKE_USER_IDS.imrgManager,
-      });
+      // The second submission carries the reviewer over, and the manager then replaces them.
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
-      await assign(db, indicatorId, [OTHER_REVIEWER], 2);
+      await assignReviewers(
+        db,
+        indicatorId,
+        { submissionNumber: 2, previousReviewerIds: [REVIEWER], reviewerIds: [OTHER_REVIEWER] },
+        AS_MANAGER,
+      );
 
       expect(await listed(db, [indicatorId])).toEqual([]);
       expect(await listed(db, [indicatorId], OTHER_REVIEWER)).toEqual([indicatorId]);
@@ -566,6 +633,76 @@ describe('getIndicatorById', () => {
 
     expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
       draftScheduledPublishAt: scheduledPublishAt,
+    });
+  });
+
+  repositoryTest(
+    'reads when the draft was first submitted, through later rounds',
+    async ({ db }) => {
+      const created = await newDraft(db, 'First submitted once');
+      const shown = await completeDraft(db, created);
+      expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+        draftFirstSubmittedAt: null,
+      });
+
+      await submitIndicator(db, created.indicatorId, shown, AS_ACTOR);
+      const [first] = await db
+        .select({ submittedAt: schema.indicatorVersionSubmission.submittedAt })
+        .from(schema.indicatorVersionSubmission)
+        .where(eq(schema.indicatorVersionSubmission.indicatorId, created.indicatorId));
+      await withdrawSubmission(db, created.indicatorId, 1, AS_ACTOR);
+      await submitIndicator(db, created.indicatorId, shown, AS_ACTOR);
+
+      expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+        draftSubmissionNumber: 2,
+        draftFirstSubmittedAt: first?.submittedAt,
+      });
+    },
+  );
+
+  repositoryTest('reads what the latest response to the draft said', async ({ db }) => {
+    const indicatorId = await submitted(db, 'Answered with minor revisions');
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({ draftResponseKind: null });
+    await assignReviewers(
+      db,
+      indicatorId,
+      { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
+      AS_MANAGER,
+    );
+
+    await respond(db, indicatorId, 'minor_revisions');
+
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+      draftSubmissionStatus: 'changes_requested',
+      draftResponseKind: 'minor_revisions',
+    });
+    expect(await getIndicatorDraftState(db, indicatorId)).toMatchObject({
+      draftResponseKind: 'minor_revisions',
+      draftReviewers: [{ id: FAKE_USER_IDS.imrgReviewer, name: 'Jamie Evans' }],
+    });
+  });
+
+  repositoryTest('forgets the response once the draft is resubmitted', async ({ db }) => {
+    const created = await newDraft(db, 'Answered, then resubmitted');
+    const shown = await completeDraft(db, created);
+    const { indicatorId, versionId } = created;
+    await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+    await assign(db, indicatorId, [FAKE_USER_IDS.imrgReviewer]);
+    await respond(db, indicatorId, 'major_revisions');
+    await db
+      .update(schema.indicatorVersionSubmission)
+      .set({ revisionResponse: 'Revised as asked' })
+      .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
+
+    expect(await submitIndicator(db, indicatorId, shown, AS_ACTOR)).toEqual({ ok: true });
+
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+      draftSubmissionNumber: 2,
+      draftSubmissionStatus: 'in_review',
+      draftResponseKind: null,
+    });
+    expect(await getIndicatorDraftState(db, indicatorId)).toMatchObject({
+      draftResponseKind: null,
     });
   });
 

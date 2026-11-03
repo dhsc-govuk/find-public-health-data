@@ -22,9 +22,11 @@ const indicator: IndicatorAdminDetail = {
   draftStatus: null,
   draftLocked: false,
   draftSubmissionStatus: null,
+  draftResponseKind: null,
   draftReviewers: [],
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
+  draftFirstSubmittedAt: null,
   nameVersion: SHOWN_VERSION,
   actions: [],
 };

@@ -2,7 +2,10 @@ import { TEAM_IDS } from '@fphd/auth';
 import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { createFakeRepositories } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
-import { indicatorTaskKeySchema } from '@fphd/internal-api-features/contract';
+import {
+  flaggableTaskKeySchema,
+  indicatorTaskKeySchema,
+} from '@fphd/internal-api-features/contract';
 import {
   createFakeInternalRepositories,
   unansweredDraft,
@@ -38,6 +41,12 @@ function createTestApp(
 }
 
 const app = createTestApp();
+
+const stepRow = {
+  id: '00000000-0000-7000-8000-000000000001',
+  teamId: TEAM_IDS.teamA,
+  draftReviewers: [],
+};
 
 async function createCookie(roles: readonly string[]): Promise<string> {
   const token = await session.issueToken({
@@ -168,6 +177,8 @@ describe('internal API', () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
         findTeamId: async () => TEAM_IDS.teamA,
+        // The step routes read only the indicator's id and access from its row.
+        findById: vi.fn().mockResolvedValue(stepRow),
         submit: async () => ({ ok: true }),
         withdraw: async () => ({ ok: true }),
       },
@@ -191,7 +202,7 @@ describe('internal API', () => {
   it('mounts the assign reviewers step behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findTeamId: async () => TEAM_IDS.teamA,
+        findById: vi.fn().mockResolvedValue(stepRow),
         assignReviewers: async () => ({ ok: true }),
       },
     });
@@ -216,6 +227,49 @@ describe('internal API', () => {
     expect(asPublisher.status).toBe(403);
   });
 
+  it('mounts the review response behind the IMRG reviewer role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findById: vi.fn().mockResolvedValue({
+          ...stepRow,
+          draftReviewers: [{ id: 'test-user', name: 'A reviewer' }],
+        }),
+        respond: async () => ({ ok: true }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/review-response';
+    const body = {
+      submissionNumber: 1,
+      kind: 'pre_imrg_feedback',
+      imrgReviewedOn: null,
+      clarificationRequest: 'What is counted?',
+      flags: [],
+    };
+
+    const asReviewer = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']))
+      .send(body);
+    const asPublisher = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'publisher']))
+      .send(body);
+
+    expect(asReviewer.status).toBe(204);
+    expect(asPublisher.status).toBe(403);
+
+    // Its own body limit, over the default 100 kB.
+    const long = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']))
+      .send({
+        ...body,
+        flags: flaggableTaskKeySchema.options.map((task) => ({ task, notes: '€'.repeat(10_000) })),
+      });
+    expect(long.status).toBe(204);
+  });
+
   it('mounts the reviewer options behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
@@ -230,9 +284,11 @@ describe('internal API', () => {
           draftStatus: 'draft',
           draftLocked: true,
           draftSubmissionStatus: 'submitted',
+          draftResponseKind: null,
           draftSubmissionNumber: 1,
           draftReviewers: [],
           draftScheduledPublishAt: null,
+          draftFirstSubmittedAt: null,
         }),
       },
       reviewers: { listOptions: async () => [] },

@@ -11,11 +11,13 @@ import {
   type IndicatorStatus,
   justificationsSection,
   otherCommentsSection,
+  type ReviewResponseKind,
   varianceAndQualitySection,
 } from './contract.ts';
 import type { EditPrecondition } from './edit-version.ts';
 import {
   draftJoin,
+  draftResponseKind,
   draftReviewers,
   draftStatus,
   draftSubmissionStatus,
@@ -72,6 +74,10 @@ export interface IndicatorDraftStateRow {
   indicatorStatus: IndicatorStatus;
   draftStatus: DraftStatus | null;
   draftSubmissionStatus: DraftSubmissionStatus | null;
+  /** What the latest response to the draft's latest submission said, which names its label. */
+  draftResponseKind: ReviewResponseKind | null;
+  /** The reviewers of the draft's latest submission, who may take steps on it too. */
+  draftReviewers: DraftReviewer[];
 }
 
 /** The draft and the indicator's two statuses, which is what a task list is derived from. */
@@ -89,6 +95,8 @@ export async function getIndicatorDraftState(
       indicatorStatus,
       draftStatus,
       draftSubmissionStatus,
+      draftResponseKind,
+      draftReviewers,
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)

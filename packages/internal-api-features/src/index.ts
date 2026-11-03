@@ -16,6 +16,7 @@ import { internalTagsRouter } from './tags.ts';
 import { internalTopicsRouter } from './topics.ts';
 import { internalValueTypesAndUnitsRouter } from './value-types-and-units.ts';
 
+export { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
 export { createInternalRepositories, type InternalRepositories } from './repositories.ts';
 
 export interface InternalApiDependencies {

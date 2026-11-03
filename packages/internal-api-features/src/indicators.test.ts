@@ -33,6 +33,7 @@ const row: IndicatorAdminRow = {
   draftStatus: null,
   draftLocked: false,
   draftSubmissionStatus: null,
+  draftResponseKind: null,
   draftReviewers: [],
 };
 
@@ -44,6 +45,7 @@ const detailRow: IndicatorAdminDetailRow = {
   publishedSlug: 'life-expectancy-at-birth',
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
+  draftFirstSubmittedAt: null,
 };
 
 const OTHER_REVIEWER_ID = '00000000-0000-7000-8000-0000000000a1';
@@ -129,6 +131,7 @@ describe('GET /api/internal/indicators', () => {
           draftStatus: null,
           draftLocked: false,
           draftSubmissionStatus: null,
+          draftResponseKind: null,
           draftReviewers: [],
         },
       ],
@@ -238,9 +241,11 @@ describe('GET /api/internal/indicators/:id', () => {
       draftStatus: null,
       draftLocked: false,
       draftSubmissionStatus: null,
+      draftResponseKind: null,
       draftReviewers: [],
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFirstSubmittedAt: null,
       nameVersion,
       actions: [],
     });
@@ -367,7 +372,7 @@ describe('GET /api/internal/indicators/:id', () => {
     expect(response.status).toBe(200);
   });
 
-  it("serves an IMRG reviewer another team's indicator assigned to them, offering no step", async () => {
+  it("serves an IMRG reviewer another team's indicator assigned to them, offering the responses", async () => {
     const findById = vi.fn().mockResolvedValue(assignedToTestUser);
 
     const response = await request(createTestApp({ findById }))
@@ -375,7 +380,7 @@ describe('GET /api/internal/indicators/:id', () => {
       .set('Cookie', await reviewerCookie());
 
     expect(response.status).toBe(200);
-    expect(response.body.actions).toEqual([]);
+    expect(response.body.actions).toEqual(['give_feedback', 'request_changes', 'approve']);
   });
 
   it('answers 404 to an IMRG reviewer for an indicator assigned to someone else', async () => {
@@ -426,6 +431,7 @@ describe('POST /api/internal/indicators', () => {
     draftStatus: 'draft',
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFirstSubmittedAt: null,
   };
 
   it('rejects an anonymous request', async () => {
@@ -529,10 +535,12 @@ describe('POST /api/internal/indicators', () => {
       draftStatus: 'draft',
       draftLocked: false,
       draftSubmissionStatus: null,
+      draftResponseKind: null,
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFirstSubmittedAt: null,
       nameVersion,
       actions: ['submit'],
     });
@@ -633,6 +641,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     draftStatus: 'draft',
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFirstSubmittedAt: null,
   };
   const path = `/api/internal/indicators/${row.id}`;
 
@@ -682,10 +691,12 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftStatus: 'draft',
       draftLocked: false,
       draftSubmissionStatus: null,
+      draftResponseKind: null,
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFirstSubmittedAt: null,
       nameVersion: editVersion({ name: 'A better name' }),
       actions: ['submit'],
     });
@@ -921,6 +932,8 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionStatus: null,
+    draftResponseKind: null,
+    draftReviewers: [],
   };
 
   it('rejects an anonymous request', async () => {
@@ -958,6 +971,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         indicatorStatus: 'new',
         draftStatus: 'draft',
         draftSubmissionStatus: null,
+        draftResponseKind: null,
       },
       isUpdate: false,
       canSubmit: false,

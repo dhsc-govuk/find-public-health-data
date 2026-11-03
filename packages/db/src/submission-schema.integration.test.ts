@@ -106,8 +106,26 @@ describe('indicator_version_submission', () => {
     ).resolves.toBeDefined();
   });
 
+  it.each(['changes_requested', 'approved'])(
+    'refuses a submission %s without saying who ended it and when',
+    async (status) => {
+      await expect(insertSubmission(await newDraft(), { status })).rejects.toMatchObject({
+        code: CHECK_VIOLATION,
+      });
+    },
+  );
+
+  it.each(['changes_requested', 'approved'])(
+    'accepts a submission %s saying who ended it and when',
+    async (status) => {
+      await expect(
+        insertSubmission(await newDraft(), { status, endedBy: ACTOR, endedAt: new Date() }),
+      ).resolves.toBeDefined();
+    },
+  );
+
   it('refuses a status the workflow does not know', async () => {
-    await expect(insertSubmission(await newDraft(), { status: 'approved' })).rejects.toMatchObject({
+    await expect(insertSubmission(await newDraft(), { status: 'rejected' })).rejects.toMatchObject({
       code: CHECK_VIOLATION,
     });
   });
@@ -201,5 +219,194 @@ describe('indicator_version_submission_reviewer', () => {
     `;
 
     expect(rows).toEqual([]);
+  });
+});
+
+describe('the review responses, flags and reviewer notes', () => {
+  /** A submission in review with `ACTOR` assigned to review it. */
+  async function reviewedSubmission(): Promise<{ draft: Draft; submissionId: string }> {
+    const draft = await newDraft();
+    const [row] = await sql<{ id: string }[]>`
+      INSERT INTO indicator_version_submission
+        (indicator_version_id, indicator_id, number, status, submitted_by)
+      VALUES (${draft.versionId}, ${draft.indicatorId}, 1, 'in_review', ${ACTOR})
+      RETURNING id
+    `;
+    if (!row) throw new Error('inserted no submission');
+    await sql`
+      INSERT INTO indicator_version_submission_reviewer (submission_id, reviewer_id, assigned_by)
+      VALUES (${row.id}, ${ACTOR}, ${ACTOR})
+    `;
+    return { draft, submissionId: row.id };
+  }
+
+  type ResponseValues = {
+    reviewerId?: string;
+    kind?: string;
+    imrgReviewedOn?: string | null;
+    clarificationRequest?: string | null;
+  };
+
+  async function respond(
+    submissionId: string,
+    {
+      reviewerId = ACTOR,
+      kind = 'minor_revisions',
+      imrgReviewedOn = '2026-10-01',
+      clarificationRequest = null,
+    }: ResponseValues = {},
+  ): Promise<string> {
+    const [row] = await sql<{ id: string }[]>`
+      INSERT INTO indicator_version_submission_response
+        (submission_id, reviewer_id, kind, imrg_reviewed_on, clarification_request)
+      VALUES (${submissionId}, ${reviewerId}, ${kind}, ${imrgReviewedOn}, ${clarificationRequest})
+      RETURNING id
+    `;
+    if (!row) throw new Error('inserted no response');
+    return row.id;
+  }
+
+  function flag(
+    responseId: string,
+    { taskKey = 'polarity', notes = 'Check it', clearedBy = null as string | null } = {},
+  ) {
+    return sql`
+      INSERT INTO indicator_version_submission_flag (response_id, task_key, notes, cleared_by, cleared_at)
+      VALUES (${responseId}, ${taskKey}, ${notes}, ${clearedBy}, ${clearedBy === null ? null : new Date()})
+    `;
+  }
+
+  function note(submissionId: string, text = 'A thought') {
+    return sql`
+      INSERT INTO indicator_version_review_note (submission_id, author_id, text)
+      VALUES (${submissionId}, ${ACTOR}, ${text})
+    `;
+  }
+
+  it('records a response by a reviewer of the submission, and when', async () => {
+    const { submissionId } = await reviewedSubmission();
+    const id = await respond(submissionId);
+    const [row] = await sql`
+      SELECT responded_at IS NOT NULL AS dated FROM indicator_version_submission_response
+      WHERE id = ${id}
+    `;
+
+    expect(row).toEqual({ dated: true });
+  });
+
+  it('refuses a response by someone not assigned to the submission', async () => {
+    const { submissionId } = await reviewedSubmission();
+
+    await expect(
+      respond(submissionId, { reviewerId: SYSTEM_USER_IDS.pholioMigration }),
+    ).rejects.toMatchObject({ code: FOREIGN_KEY_VIOLATION });
+  });
+
+  it('refuses a kind the workflow does not know', async () => {
+    const { submissionId } = await reviewedSubmission();
+
+    await expect(respond(submissionId, { kind: 'rejected' })).rejects.toMatchObject({
+      code: CHECK_VIOLATION,
+    });
+  });
+
+  it.each([
+    ['an IMRG decision without its date', { kind: 'approved', imrgReviewedOn: null }],
+    ['pre-IMRG feedback with a date', { kind: 'pre_imrg_feedback', imrgReviewedOn: '2026-10-01' }],
+    [
+      'an approval with a clarification request',
+      { kind: 'approved', clarificationRequest: 'Why?' },
+    ],
+    ['an empty clarification request', { clarificationRequest: '' }],
+  ])('refuses %s', async (_, values) => {
+    const { submissionId } = await reviewedSubmission();
+
+    await expect(respond(submissionId, values)).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+
+  it('accepts pre-IMRG feedback with a clarification request and no date', async () => {
+    const { submissionId } = await reviewedSubmission();
+
+    await expect(
+      respond(submissionId, {
+        kind: 'pre_imrg_feedback',
+        imrgReviewedOn: null,
+        clarificationRequest: 'What is counted?',
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('refuses a second response to a submission', async () => {
+    const { submissionId } = await reviewedSubmission();
+    await respond(submissionId);
+
+    await expect(respond(submissionId)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+  });
+
+  it('keeps a reviewer who has responded on the submission', async () => {
+    const { submissionId } = await reviewedSubmission();
+    await respond(submissionId);
+
+    await expect(
+      sql`DELETE FROM indicator_version_submission_reviewer WHERE submission_id = ${submissionId}`,
+    ).rejects.toMatchObject({ code: FOREIGN_KEY_VIOLATION });
+  });
+
+  it.each([
+    ['a task that cannot be flagged', { taskKey: 'justifications' }],
+    ['a task that does not exist', { taskKey: 'summary' }],
+    ['empty notes', { notes: '' }],
+  ])('refuses a flag on %s', async (_, values) => {
+    const { submissionId } = await reviewedSubmission();
+    const responseId = await respond(submissionId);
+
+    await expect(flag(responseId, values)).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+
+  it('refuses flagging one task twice in a response', async () => {
+    const { submissionId } = await reviewedSubmission();
+    const responseId = await respond(submissionId);
+    await flag(responseId);
+
+    await expect(flag(responseId)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+  });
+
+  it('records who cleared a flag only with when', async () => {
+    const { submissionId } = await reviewedSubmission();
+    const responseId = await respond(submissionId);
+
+    await expect(flag(responseId, { clearedBy: ACTOR })).resolves.toBeDefined();
+    await expect(
+      sql`
+        INSERT INTO indicator_version_submission_flag (response_id, task_key, notes, cleared_by)
+        VALUES (${responseId}, 'name', 'Rename it', ${ACTOR})
+      `,
+    ).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+
+  it('refuses an empty reviewer note', async () => {
+    const { submissionId } = await reviewedSubmission();
+
+    await expect(note(submissionId, '')).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+
+  it('deletes a version with its responses, flags and reviewer notes', async () => {
+    const { draft, submissionId } = await reviewedSubmission();
+    await flag(await respond(submissionId));
+    await note(submissionId);
+
+    await sql`DELETE FROM indicator_version WHERE id = ${draft.versionId}`;
+
+    const [counts] = await sql`
+      SELECT
+        (SELECT count(*)::int FROM indicator_version_submission_response
+         WHERE submission_id = ${submissionId}) AS responses,
+        (SELECT count(*)::int FROM indicator_version_submission_flag f
+         LEFT JOIN indicator_version_submission_response r ON r.id = f.response_id
+         WHERE r.id IS NULL) AS orphan_flags,
+        (SELECT count(*)::int FROM indicator_version_review_note
+         WHERE submission_id = ${submissionId}) AS notes
+    `;
+    expect(counts).toEqual({ responses: 0, orphan_flags: 0, notes: 0 });
   });
 });

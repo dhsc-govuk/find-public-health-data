@@ -1,4 +1,5 @@
 import { type Database, schema } from '@fphd/db';
+import { ukDateTime } from '@fphd/utils/uk-time';
 import { eq } from 'drizzle-orm';
 
 import {
@@ -86,4 +87,10 @@ export async function completeDraft(
   if (!saved.ok) throw new Error(`completeDraft could not save the draft: ${saved.reason}`);
 
   return draftUpdatedAt(db, versionId);
+}
+
+/** Today's date in the UK, `YYYY-MM-DD`, as an IMRG review date may be. */
+export function ukToday(): string {
+  const { year, month, day } = ukDateTime(new Date());
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
