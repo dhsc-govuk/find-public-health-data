@@ -40,6 +40,16 @@ function hasSourceDataIssues() {
 }
 
 describe('VarianceAndQualityPage', () => {
+  it('says under the heading that the answers are for reviewer use only', () => {
+    renderPage();
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Variance and quality' });
+    expect(heading.nextElementSibling?.textContent).toBe(
+      'The information you provide here is for reviewer use only',
+    );
+    expect(heading.nextElementSibling?.className).toContain('govuk-inset-text');
+  });
+
   it('asks two questions in text, then whether the source data has issues', () => {
     renderPage();
 

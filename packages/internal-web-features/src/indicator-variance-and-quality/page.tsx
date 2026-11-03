@@ -5,6 +5,7 @@ import {
 import { firstRadioId, Textarea } from '@fphd/ui';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
+import { ReviewerUseOnly } from '../reviewer-use-only.tsx';
 import { YesNoQuestion } from '../yes-no-question.tsx';
 
 export function VarianceAndQualityPage(form: SectionPageProps<VarianceAndQualityField>) {
@@ -13,6 +14,7 @@ export function VarianceAndQualityPage(form: SectionPageProps<VarianceAndQuality
   return (
     <IndicatorSectionForm
       form={form}
+      intro={<ReviewerUseOnly />}
       fieldIds={{ hasSourceDataIssues: firstRadioId('hasSourceDataIssues') }}
       section={varianceAndQualitySection}
       title="Variance and quality"

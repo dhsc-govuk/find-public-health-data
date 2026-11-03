@@ -39,6 +39,8 @@ type IndicatorSectionFormProps<Field extends string> = {
   fieldIds?: Partial<Record<Field, string>>;
   /** Set when the form has buttons of its own before Continue, which Enter would otherwise press. */
   continueOnEnter?: boolean;
+  /** Shown under the h1, before the form, such as who the answers are for. */
+  intro?: ReactNode;
   children: ReactNode;
 } & (
   | {
@@ -61,6 +63,7 @@ export function IndicatorSectionForm<Field extends string>(
     children,
     continueOnEnter = false,
     form: { fieldErrors, formError, version },
+    intro = null,
     questionIsHeading = false,
     title,
   } = props;
@@ -80,6 +83,7 @@ export function IndicatorSectionForm<Field extends string>(
       <GridRow>
         <GridColumn width="two-thirds">
           {questionIsHeading ? null : <h1 className="govuk-heading-xl">{title}</h1>}
+          {intro}
           {/* A plain form posting back to its own page, so it works without JavaScript. */}
           <form method="post">
             {version === undefined ? null : (

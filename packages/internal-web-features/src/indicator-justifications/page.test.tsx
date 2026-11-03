@@ -46,6 +46,16 @@ function question(legend: string) {
 }
 
 describe('JustificationsPage', () => {
+  it('says under the heading that the answers are for reviewer use only', () => {
+    renderPage();
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Justifications' });
+    expect(heading.nextElementSibling?.textContent).toBe(
+      'The information you provide here is for reviewer use only',
+    );
+    expect(heading.nextElementSibling?.className).toContain('govuk-inset-text');
+  });
+
   it('asks three questions in text, then about exclusions and automation', () => {
     renderPage();
 

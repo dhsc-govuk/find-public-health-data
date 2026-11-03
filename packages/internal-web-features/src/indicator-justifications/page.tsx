@@ -5,6 +5,7 @@ import {
 import { firstRadioId, Textarea } from '@fphd/ui';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
+import { ReviewerUseOnly } from '../reviewer-use-only.tsx';
 import { YesNoQuestion } from '../yes-no-question.tsx';
 
 const TEXT_QUESTIONS = [
@@ -19,6 +20,7 @@ export function JustificationsPage(form: SectionPageProps<JustificationsField>) 
   return (
     <IndicatorSectionForm
       form={form}
+      intro={<ReviewerUseOnly />}
       fieldIds={{
         hasExclusions: firstRadioId('hasExclusions'),
         hasAutomation: firstRadioId('hasAutomation'),

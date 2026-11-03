@@ -82,12 +82,12 @@ describe('IndicatorTaskListPage', () => {
 
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (for internal use only)']);
+    ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
     expect(group('Data').getAllByRole('listitem')).toHaveLength(6);
     expect(group('Metadata').getAllByRole('listitem')).toHaveLength(11);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
-      group('Notes for reviewers (for internal use only)').getAllByRole('listitem'),
+      group('Notes for reviewers (not visible to consumers)').getAllByRole('listitem'),
     ).toHaveLength(3);
   });
 
@@ -166,7 +166,7 @@ describe('IndicatorTaskListPage', () => {
     ]);
   });
 
-  const NOTES = 'Notes for reviewers (for internal use only)';
+  const NOTES = 'Notes for reviewers (not visible to consumers)';
 
   it.each([
     ['Data', 'Value type and units', 'value-type-and-units'],

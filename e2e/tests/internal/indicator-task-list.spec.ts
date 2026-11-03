@@ -32,7 +32,7 @@ const TASK_GROUPS = {
     'Copyright and data re-use',
   ],
   Publishing: ['Update frequency', 'Publishing date'],
-  'Notes for reviewers (for internal use only)': [
+  'Notes for reviewers (not visible to consumers)': [
     'Variance and quality',
     'Justifications',
     'Other comments',
