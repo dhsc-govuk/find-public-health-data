@@ -7,8 +7,10 @@ import type {
   IndicatorAdminDetail,
   NotesForReviewers as Notes,
   OverviewNotification,
+  ReviewerNote,
 } from './loader.ts';
 import { NotesForReviewers } from './notes-for-reviewers.tsx';
+import { ReviewerNotes } from './reviewer-notes.tsx';
 
 interface OverviewProps {
   /** Whether the user may edit it, which the task list is for. */
@@ -18,6 +20,8 @@ interface OverviewProps {
   indicator: IndicatorAdminDetail;
   /** What the publisher wrote for the reviewers, for those who may read it. */
   notesForReviewers?: Notes | null;
+  /** The assigned reviewer's own notes, for them alone. */
+  reviewerNotes?: readonly ReviewerNote[] | null;
   /** What the page the publisher came from left to tell them. */
   notification?: OverviewNotification | undefined;
 }
@@ -36,13 +40,19 @@ export function IndicatorOverviewPage({
   isReviewer = false,
   indicator,
   notesForReviewers = null,
+  reviewerNotes = null,
   notification,
 }: OverviewProps) {
   const tabs = [
     {
       id: 'actions',
       label: 'Actions',
-      content: <ActionsTab sections={actionsTabSections({ canEdit, indicator, isReviewer })} />,
+      content: (
+        <ActionsTab
+          sections={actionsTabSections({ canEdit, indicator, isReviewer })}
+          reviewerNotes={reviewerNotes === null ? null : <ReviewerNotes notes={reviewerNotes} />}
+        />
+      ),
     },
     ...(notesForReviewers === null
       ? []

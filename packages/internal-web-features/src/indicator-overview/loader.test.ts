@@ -57,6 +57,7 @@ describe('loadIndicatorOverview', () => {
       isReviewer: false,
       indicator,
       notesForReviewers: notes,
+      reviewerNotes: null,
       notification: undefined,
     });
   });
@@ -177,6 +178,81 @@ describe('loadIndicatorOverview', () => {
 
       expect(get).toHaveBeenCalledTimes(1);
       expect(outcome.notesForReviewers).toBeNull();
+    });
+  });
+
+  describe("the reviewer's own notes", () => {
+    const inReview = {
+      ...indicator,
+      publishedSlug: null,
+      indicatorStatus: 'new',
+      draftStatus: 'draft',
+      draftReviewers: [{ id: 'test-user', name: 'Jamie Evans' }],
+    };
+    const reviewerNotes = [
+      {
+        id: '00000000-0000-7000-8000-0000000000e1',
+        text: 'Check the 2019 dip',
+        createdAt: '2026-11-03T10:15:00.000Z',
+        updatedAt: '2026-11-03T10:15:00.000Z',
+        version: 'a'.repeat(64),
+      },
+    ];
+
+    function apiGet(
+      detail: object,
+      notesGet: () => Promise<unknown> = async () => ({ notes: reviewerNotes }),
+    ) {
+      return vi.fn().mockImplementation(async (path: string) => {
+        if (path.endsWith('/reviewer-notes')) return notesGet();
+        if (path.endsWith('/notes-for-reviewers')) return {};
+        return detail;
+      });
+    }
+
+    it('fetches them for an assigned reviewer beside the notes for reviewers', async () => {
+      const get = apiGet(inReview);
+
+      const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
+
+      expect(get.mock.calls.map(([path]) => path)).toEqual([
+        `/api/internal/indicators/${indicator.id}`,
+        `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
+        `/api/internal/indicators/${indicator.id}/reviewer-notes`,
+      ]);
+      expect(outcome.reviewerNotes).toEqual(reviewerNotes);
+    });
+
+    it.each([
+      ['an IMRG manager', ['imrg-manager'], [], inReview],
+      ['an admin', ['admin'], [], inReview],
+      ['a publisher in its team', ['publisher'], [indicator.teamId], inReview],
+      [
+        'a reviewer assigned to someone else',
+        ['imrg-reviewer'],
+        [],
+        { ...inReview, draftReviewers: [{ id: 'other', name: 'Robin Shaw' }] },
+      ],
+    ])('does not fetch them for %s', async (_who, roles, teams, detail) => {
+      const get = apiGet(detail);
+
+      const outcome = await load(indicator.id, get, roles, teams);
+
+      expect(get).not.toHaveBeenCalledWith(
+        `/api/internal/indicators/${indicator.id}/reviewer-notes`,
+        expect.anything(),
+      );
+      expect(outcome.reviewerNotes).toBeNull();
+    });
+
+    it('shows none to a reviewer unassigned after the indicator is read', async () => {
+      const get = apiGet(inReview, async () => {
+        throw new Response('Not Found', { status: 404 });
+      });
+
+      const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
+
+      expect(outcome.reviewerNotes).toBeNull();
     });
   });
 
