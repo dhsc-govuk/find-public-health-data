@@ -1,8 +1,9 @@
 import { type Database, schema } from '@fphd/db';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
 import { confirmDataTable } from './data-table-check-repository.ts';
+import { editVersion } from './edit-version.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import { AS_ACTOR, AS_OTHER_ACTOR, repositoryTest } from './indicator-repository.testing.ts';
 import { sentBackDraft } from './indicator-workflow.testing.ts';
@@ -11,6 +12,7 @@ import {
   writeWhileStepHolds,
 } from './indicator-workflow-concurrency.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
+import { saveRevisionResponse } from './revision-response-repository.ts';
 
 const {
   indicatorVersion,
@@ -123,4 +125,33 @@ describe('a resubmission beside a data table confirmation', () => {
       expect(await flagCleared(db, indicatorId)).toBe(false);
     },
   );
+});
+
+describe('two publishers writing the reply', () => {
+  repositoryTest('take turns, and the second is refused as changed', async ({ db }) => {
+    const { indicatorId, versionId } = await sentBackDraft(db, 'Two replies', ['polarity']);
+    const shown = {
+      version: editVersion(null),
+      versionOf: (reply: { revisionResponse: string | null }) =>
+        editVersion(reply.revisionResponse),
+    };
+
+    const result = await stepWhileWriteHolds(
+      db,
+      () => saveRevisionResponse(db, indicatorId, 'First', shown, AS_ACTOR),
+      () => saveRevisionResponse(db, indicatorId, 'Second', shown, AS_OTHER_ACTOR),
+    );
+
+    expect(result).toEqual({
+      write: { ok: true },
+      step: { ok: false, reason: 'changed', version: editVersion('First') },
+    });
+    const [latest] = await db
+      .select({ revisionResponse: indicatorVersionSubmission.revisionResponse })
+      .from(indicatorVersionSubmission)
+      .where(eq(indicatorVersionSubmission.indicatorVersionId, versionId))
+      .orderBy(desc(indicatorVersionSubmission.number))
+      .limit(1);
+    expect(latest?.revisionResponse).toBe('First');
+  });
 });

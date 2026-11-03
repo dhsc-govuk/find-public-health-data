@@ -85,6 +85,13 @@ import {
   updateReviewerNote,
 } from './reviewer-note-repository.ts';
 import { listReviewerOptions } from './reviewer-repository.ts';
+import {
+  getRevisionRound,
+  type RevisionReply,
+  type RevisionRoundRow,
+  type SaveRevisionResponseResult,
+  saveRevisionResponse,
+} from './revision-response-repository.ts';
 import { listTagOptions } from './tag-repository.ts';
 import {
   type CreateTopicResult,
@@ -175,6 +182,15 @@ export interface InternalIndicatorRepository {
     response: ReviewResponse,
     actor: Actor,
   ): Promise<RespondToReviewResult>;
+  /** The draft's latest round of review and the publisher's reply, or undefined with no indicator. */
+  findRevisionRound(id: string): Promise<RevisionRoundRow | undefined>;
+  /** Writes the publisher's reply to the round, unless it has changed since the page was shown. */
+  saveRevisionResponse(
+    indicatorId: string,
+    text: string,
+    precondition: EditPrecondition<RevisionReply>,
+    actor: Actor,
+  ): Promise<SaveRevisionResponseResult>;
 }
 
 /** The confidence interval methods a publisher chooses from. */
@@ -297,6 +313,9 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       assignReviewers: (indicatorId, assignment, actor) =>
         assignReviewers(db, indicatorId, assignment, actor),
       respond: (indicatorId, response, actor) => respondToReview(db, indicatorId, response, actor),
+      findRevisionRound: (id) => getRevisionRound(db, id),
+      saveRevisionResponse: (indicatorId, text, precondition, actor) =>
+        saveRevisionResponse(db, indicatorId, text, precondition, actor),
     },
     reviewerNotes: {
       list: (indicatorId, authorId) => listReviewerNotes(db, indicatorId, authorId),

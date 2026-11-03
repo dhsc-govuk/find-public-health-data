@@ -1,0 +1,167 @@
+import { type Database, schema } from '@fphd/db';
+import { type Actor, changesBetween, recordAudit } from '@fphd/db/audit-log';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { QueryBuilder } from 'drizzle-orm/pg-core';
+
+import type { DraftSubmissionStatus, FlaggableTaskKey, ReviewResponseKind } from './contract.ts';
+import type { EditPrecondition } from './edit-version.ts';
+import {
+  draftJoin,
+  draftResponseKind,
+  draftSubmissionId,
+  draftSubmissionStatus,
+  draftVersion,
+} from './indicator-repository-sql.ts';
+
+const {
+  indicator,
+  indicatorVersion,
+  indicatorVersionSubmission,
+  indicatorVersionSubmissionFlag,
+  indicatorVersionSubmissionResponse,
+} = schema;
+
+/** One flag of the round, and whether the publisher has saved its task since. */
+export interface RevisionFlag {
+  task: FlaggableTaskKey;
+  notes: string;
+  cleared: boolean;
+}
+
+/** Where the draft's latest round of review stands, as the publisher answers it. */
+export interface RevisionRoundRow {
+  hasDraft: boolean;
+  draftLocked: boolean;
+  submissionStatus: DraftSubmissionStatus | null;
+  /** What the latest response to the round said, null until a reviewer responds. */
+  kind: ReviewResponseKind | null;
+  clarificationRequest: string | null;
+  /** The publisher's reply to the round, null until written. */
+  revisionResponse: string | null;
+  flags: RevisionFlag[];
+}
+
+/** The reply as the page edits it, which its version is a hash of. */
+export interface RevisionReply {
+  revisionResponse: string | null;
+}
+
+export type SaveRevisionResponseResult =
+  | { ok: true }
+  | { ok: false; reason: 'no_draft' | 'locked' | 'not_allowed' }
+  | { ok: false; reason: 'changed'; version: string };
+
+const builder = new QueryBuilder({ casing: 'snake_case' });
+const latestReply = builder
+  .select({ reply: indicatorVersionSubmission.revisionResponse })
+  .from(indicatorVersionSubmission)
+  .where(eq(indicatorVersionSubmission.id, draftSubmissionId));
+const latestClarification = builder
+  .select({ request: indicatorVersionSubmissionResponse.clarificationRequest })
+  .from(indicatorVersionSubmissionResponse)
+  .where(eq(indicatorVersionSubmissionResponse.submissionId, draftSubmissionId))
+  .orderBy(desc(indicatorVersionSubmissionResponse.respondedAt))
+  .limit(1);
+const roundFlags = sql<RevisionFlag[]>`coalesce((
+  select json_agg(json_build_object(
+    'task', ${indicatorVersionSubmissionFlag.taskKey},
+    'notes', ${indicatorVersionSubmissionFlag.notes},
+    'cleared', ${indicatorVersionSubmissionFlag.clearedAt} is not null
+  ) order by ${indicatorVersionSubmissionFlag.taskKey})
+  from ${indicatorVersionSubmissionFlag}
+  join ${indicatorVersionSubmissionResponse}
+    on ${indicatorVersionSubmissionResponse.id} = ${indicatorVersionSubmissionFlag.responseId}
+  where ${indicatorVersionSubmissionResponse.submissionId} = ${draftSubmissionId}
+), '[]'::json)`;
+
+/**
+ * The draft's latest round of review: its status, the response's kind, clarification request and
+ * flags, and the publisher's reply, read in one statement. Undefined when there is no indicator.
+ */
+export async function getRevisionRound(
+  db: Database,
+  indicatorId: string,
+): Promise<RevisionRoundRow | undefined> {
+  const [row] = await db
+    .select({
+      draftId: draftVersion.id,
+      draftLocked: sql<boolean>`coalesce(${draftVersion.isLocked}, false)`,
+      submissionStatus: draftSubmissionStatus,
+      kind: draftResponseKind,
+      clarificationRequest: sql<string | null>`(${latestClarification})`,
+      revisionResponse: sql<string | null>`(${latestReply})`,
+      flags: roundFlags,
+    })
+    .from(indicator)
+    .leftJoin(draftVersion, draftJoin)
+    .where(eq(indicator.id, indicatorId));
+
+  if (row === undefined) return undefined;
+
+  const { draftId, ...round } = row;
+  return { ...round, hasDraft: draftId !== null };
+}
+
+/**
+ * Writes the publisher's reply to the round of review that sent the draft back. Writing it is an
+ * edit of the draft, so it moves the draft's `updatedAt` and `updatedBy`, which a submission
+ * confirms. Refused as `locked` while the draft is locked, `not_allowed` unless its latest
+ * submission was sent back for changes, and `changed`, with the current version, when someone
+ * has written the reply since the page was shown.
+ */
+export function saveRevisionResponse(
+  db: Database,
+  indicatorId: string,
+  text: string,
+  precondition: EditPrecondition<RevisionReply>,
+  actor: Actor,
+): Promise<SaveRevisionResponseResult> {
+  return db.transaction(async (tx): Promise<SaveRevisionResponseResult> => {
+    // The draft's lock, as every edit and step takes it, so the reply and a resubmission take turns.
+    const [draft] = await tx
+      .select({ id: indicatorVersion.id, isLocked: indicatorVersion.isLocked })
+      .from(indicatorVersion)
+      .where(
+        and(eq(indicatorVersion.indicatorId, indicatorId), eq(indicatorVersion.status, 'draft')),
+      )
+      .for('no key update');
+
+    if (draft === undefined) return { ok: false, reason: 'no_draft' };
+    if (draft.isLocked) return { ok: false, reason: 'locked' };
+
+    const [latest] = await tx
+      .select({
+        id: indicatorVersionSubmission.id,
+        status: indicatorVersionSubmission.status,
+        revisionResponse: indicatorVersionSubmission.revisionResponse,
+      })
+      .from(indicatorVersionSubmission)
+      .where(eq(indicatorVersionSubmission.indicatorVersionId, draft.id))
+      .orderBy(desc(indicatorVersionSubmission.number))
+      .limit(1);
+
+    if (latest?.status !== 'changes_requested') return { ok: false, reason: 'not_allowed' };
+
+    const before = { revisionResponse: latest.revisionResponse };
+    const version = precondition.versionOf(before);
+    if (version !== precondition.version) return { ok: false, reason: 'changed', version };
+
+    await tx
+      .update(indicatorVersionSubmission)
+      .set({ revisionResponse: text })
+      .where(eq(indicatorVersionSubmission.id, latest.id));
+    await tx
+      .update(indicatorVersion)
+      .set({ updatedAt: sql`now()`, updatedBy: actor.userId })
+      .where(eq(indicatorVersion.id, draft.id));
+
+    const changes = changesBetween(before, { revisionResponse: text });
+    if (Object.keys(changes).length > 0) {
+      await recordAudit(tx, actor, [
+        { action: 'indicator.revision_response_updated', entityId: indicatorId, changes },
+      ]);
+    }
+
+    return { ok: true };
+  });
+}
