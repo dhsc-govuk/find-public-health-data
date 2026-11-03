@@ -16,6 +16,12 @@ export const PUBLISHER: SignedInUser = {
   storageState: join(SESSIONS_DIR, 'publisher.json'),
 };
 
+/** A second publisher in Team A, a teammate of `PUBLISHER`. */
+export const SECOND_TEAM_A_PUBLISHER: SignedInUser = {
+  name: 'Charlie Owen',
+  storageState: join(SESSIONS_DIR, 'second-team-a-publisher.json'),
+};
+
 /** A publisher in Team B, which holds none of the seeded indicators. */
 export const TEAM_B_PUBLISHER: SignedInUser = {
   name: 'Jordan Lee',

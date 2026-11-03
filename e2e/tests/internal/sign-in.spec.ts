@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 test('offers the internal users only', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
-  await expect(page.getByRole('radio')).toHaveCount(9);
+  await expect(page.getByRole('radio')).toHaveCount(10);
   await expect(page.getByRole('radio', { name: 'Sam Taylor' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Riley Singh' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Alex Morgan' })).toHaveCount(0);
@@ -19,6 +19,7 @@ test("shows each fake user's roles and teams", async ({ page }) => {
   const hints = page.locator('.govuk-radios__item .govuk-radios__hint');
 
   await expect(hints).toHaveText([
+    'Publisher in Team A.',
     'Publisher in Team A.',
     'Publisher in Team B.',
     'Publisher in Team A and Team B.',

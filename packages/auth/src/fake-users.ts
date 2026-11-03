@@ -13,6 +13,7 @@ export interface FakeUser {
 export const FAKE_USER_IDS = Object.freeze({
   publicUser: '01a13c69-96ac-700c-9c28-8f3a1d3968e2',
   publisherTeamA: '01a13c69-96ab-7598-9ce0-f84dbec3d5dd',
+  secondPublisherTeamA: '01a1a248-ca45-70b6-912d-21b990329653',
   publisherTeamB: '01a13c69-96ab-7598-9ce0-fc3b3433f586',
   publisherTeamsAAndB: '01a13c69-96ab-7598-9ce1-00c3f4e7a399',
   publisherAndReviewer: '01a13c69-96ab-7598-9ce1-0437fbc8b7ec',
@@ -44,6 +45,12 @@ export const fakeUsers: readonly FakeUser[] = Object.freeze([
   fakeUser(
     FAKE_USER_IDS.publisherTeamA,
     'Sam Taylor',
+    [...INTERNAL, 'publisher'],
+    [TEAM_IDS.teamA],
+  ),
+  fakeUser(
+    FAKE_USER_IDS.secondPublisherTeamA,
+    'Charlie Owen',
     [...INTERNAL, 'publisher'],
     [TEAM_IDS.teamA],
   ),
