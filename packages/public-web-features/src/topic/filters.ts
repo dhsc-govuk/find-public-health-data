@@ -8,3 +8,8 @@ export function topicDataKey(url: { pathname: string; search: string }) {
   params.sort();
   return `${url.pathname}?${params}`;
 }
+
+export function topicTab({ search }: { search: string }) {
+  const tab = new URLSearchParams(search).get('tab-topic');
+  return tab === 'data' || tab === 'areas' || tab === 'publications' ? tab : 'overview';
+}

@@ -3,6 +3,7 @@ import { type MetaFunction, type ShouldRevalidateFunctionArgs, useLoaderData } f
 
 import { loadIndicator } from './loader.ts';
 import { SingleIndicatorPage } from './single-page.tsx';
+import { indicatorTab } from './view.ts';
 
 export const loader = loadIndicator;
 
@@ -21,7 +22,7 @@ export function shouldRevalidate({ currentUrl, nextUrl }: ShouldRevalidateFuncti
     }
     return `${url.pathname}?${params.toString()}`;
   };
-  return strip(currentUrl) !== strip(nextUrl);
+  return indicatorTab(currentUrl) !== indicatorTab(nextUrl) || strip(currentUrl) !== strip(nextUrl);
 }
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [

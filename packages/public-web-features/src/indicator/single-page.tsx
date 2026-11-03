@@ -1,5 +1,5 @@
 import { InsetText, Tabs } from '@fphd/ui';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { AREA_COMPARISON_GROUPS } from './area-comparison.ts';
@@ -17,6 +17,7 @@ import type {
   SelectedIndicator,
 } from './loader.ts';
 import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
+import { defaultIndicatorTab, indicatorTab } from './view.ts';
 
 export function SingleIndicatorPage({
   selected,
@@ -49,6 +50,8 @@ export function SingleIndicatorPage({
   areasLimited?: boolean;
   selection: IndicatorSelection;
 }) {
+  const location = useLocation();
+  const tab = indicatorTab(location);
   const primary = selected[0];
   if (!primary) throw new Error('The indicator page needs one indicator');
   const compared = selected[1];
@@ -97,7 +100,8 @@ export function SingleIndicatorPage({
       ) : null}
       <Tabs
         history="push"
-        defaultParam={compared ? 'compare' : undefined}
+        waitForNavigation
+        defaultParam={defaultIndicatorTab(new URLSearchParams(location.search))}
         paramKey="tab-indicator"
         title={`${detail.name} contents`}
         items={[
@@ -105,53 +109,56 @@ export function SingleIndicatorPage({
             id: 'indicator-data',
             param: 'indicator',
             label: 'Indicator',
-            content: (
-              <IndicatorTab
-                primary={primary}
-                selectedAreas={selectedAreas}
-                benchmarkGeography={benchmarkGeography}
-                displayGroups={displayGroups}
-                geographyOptions={geographyOptions}
-                selection={selection}
-              />
-            ),
+            content:
+              tab === 'indicator' ? (
+                <IndicatorTab
+                  primary={primary}
+                  selectedAreas={selectedAreas}
+                  benchmarkGeography={benchmarkGeography}
+                  displayGroups={displayGroups}
+                  geographyOptions={geographyOptions}
+                  selection={selection}
+                />
+              ) : undefined,
           },
           {
             id: 'indicator-compare-areas',
             param: 'areas',
             label: 'Compare areas',
-            content: <CompareAreasTab {...comparisonProps} />,
+            content: tab === 'areas' ? <CompareAreasTab {...comparisonProps} /> : undefined,
           },
           {
             id: 'indicator-compare-indicators',
             param: 'compare',
             label: 'Compare indicators',
-            content: (
-              <CompareIndicatorsTab
-                {...comparisonProps}
-                compared={compared}
-                comparedAreasData={comparedAreasData}
-                findResults={findResults}
-                findSubject={findSubject}
-              />
-            ),
+            content:
+              tab === 'compare' ? (
+                <CompareIndicatorsTab
+                  {...comparisonProps}
+                  compared={compared}
+                  comparedAreasData={comparedAreasData}
+                  findResults={findResults}
+                  findSubject={findSubject}
+                />
+              ) : undefined,
           },
           {
             id: 'indicator-inequalities',
             param: 'inequalities',
             label: 'Inequalities',
-            content: <InequalitiesTab primary={primary} />,
+            content: tab === 'inequalities' ? <InequalitiesTab primary={primary} /> : undefined,
           },
           {
             id: 'indicator-about',
             param: 'about',
             label: 'About this indicator',
-            content: (
-              <>
-                <h2 className="govuk-heading-l">About this indicator</h2>
-                <BackgroundInformation indicator={detail} observations={allObservations} />
-              </>
-            ),
+            content:
+              tab === 'about' ? (
+                <>
+                  <h2 className="govuk-heading-l">About this indicator</h2>
+                  <BackgroundInformation indicator={detail} observations={allObservations} />
+                </>
+              ) : undefined,
           },
         ]}
       />

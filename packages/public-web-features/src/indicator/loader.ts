@@ -2,7 +2,6 @@ import {
   areaDisplayGroupListSchema,
   areaLookupListSchema,
   areaParentListSchema,
-  DEFAULT_INDICATOR_SEARCH_RESULTS,
   displayGroupListSchema,
   type IndicatorAreaData,
   type IndicatorDetail,
@@ -10,12 +9,10 @@ import {
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
   indicatorDetailSchema,
-  indicatorListResponseSchema,
   indicatorRangeSchema,
   MAX_AREA_CODES_PER_REQUEST,
   MAX_AREA_GROUPS_PER_REQUEST,
   MAX_AREA_NAME_LENGTH,
-  MAX_INDICATOR_QUERY_LENGTH,
   pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import { apiPath } from '@fphd/web-server/api-client';
@@ -80,11 +77,11 @@ export interface BenchmarkGeography {
 
 export interface IndicatorPageData {
   detail: IndicatorDetail;
-  compared: IndicatorDetail | undefined;
+  tab: 'indicator' | 'inequalities';
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
 }
 
-const DEFAULT_AREA_CODE = 'E92000001';
+export const DEFAULT_AREA_CODE = 'E92000001';
 const singleAreaBatchSchema = indicatorAreaDataSchema.transform((one) => [one]);
 
 // Charts and tables with dozens of series are unreadable long before they are slow, so the
@@ -134,10 +131,9 @@ export async function loadIndicatorData(
   const url = new URL(request.url);
   const api = context.get(apiContext);
   const routeDetail = page?.detail;
-  const comparedDetail = page?.compared;
   const indicatorGroups = page?.groups;
   const singlePage = page !== undefined;
-  const includePageData = singlePage;
+  const includeTrendControls = page?.tab === 'indicator';
 
   // De-duplicated: a hand-edited URL repeating a code would otherwise fetch it twice and
   // render it twice.
@@ -202,7 +198,7 @@ export async function loadIndicatorData(
   // catalogue on demand, keeping thousands of areas out of the page payload.
   const codeQuery = nonEnglandCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
   const [lookedUp, areaParents, catalogueGroups] = await Promise.all([
-    nonEnglandCodes.length > 0
+    nonEnglandCodes.length > 0 && page?.tab !== 'inequalities'
       ? Promise.all(
           Array.from(
             { length: Math.ceil(nonEnglandCodes.length / MAX_AREA_CODES_PER_REQUEST) },
@@ -219,7 +215,7 @@ export async function loadIndicatorData(
           ),
         ).then((batches) => batches.flat())
       : Promise.resolve([]),
-    nonEnglandCodes.length > 0 && tableDisplayGroups === undefined
+    nonEnglandCodes.length > 0 && includeTrendControls
       ? api.get(
           `/api/areas/parents?${codeQuery}&parentType=${encodeURIComponent('Regions (statistical)')}`,
           areaParentListSchema,
@@ -231,13 +227,13 @@ export async function loadIndicatorData(
       ? Promise.resolve(indicatorGroups.map(({ displayGroup }) => displayGroup))
       : tableDisplayGroups !== undefined
         ? Promise.resolve(tableDisplayGroups)
-        : includePageData
+        : includeTrendControls
           ? api.get('/api/areas/display-groups', displayGroupListSchema)
           : Promise.resolve([]),
   ]);
   const displayGroups = singlePage ? publicGeographyLevels(catalogueGroups) : catalogueGroups;
   const areaLevels = requestedLevels.filter((level) => displayGroups.includes(level));
-  const geographyOptions = includePageData
+  const geographyOptions = includeTrendControls
     ? await loadGeographyOptions(api, url.searchParams, displayGroups, {
         indicator: singlePage ? routeDetail?.slug : undefined,
         previews: indicatorGroups,
@@ -265,51 +261,26 @@ export async function loadIndicatorData(
   // Benchmark data is expensive (a range query aggregates every observation of a level),
   // so it is fetched only for indicators whose cmp/cr options actually display it.
   const comparisonFor = (id: number) => {
-    const choices = [
-      url.searchParams.get(`cmp-${id}`) ?? 'none',
-      url.searchParams.get('cmp-compare') ?? 'none',
-    ];
-    const ranges = [
-      url.searchParams.get(`cr-${id}`) === 'yes',
-      url.searchParams.get('cr-compare') === 'yes',
-    ];
-    const rangeLevels = new Set<string>();
-    choices.forEach((choice, index) => {
-      if (!ranges[index]) {
-        return;
-      }
-      if (choice === 'england') {
-        for (const level of pickedLevels) {
-          rangeLevels.add(level);
-        }
-      }
-      if (choice === 'region') {
-        rangeLevels.add('Statistical regions');
-      }
-    });
-    return { region: choices.includes('region'), rangeLevels: [...rangeLevels] };
+    const choice = includeTrendControls ? url.searchParams.get(`cmp-${id}`) : null;
+    const range = url.searchParams.get(`cr-${id}`) === 'yes';
+    const rangeLevels = !range
+      ? []
+      : choice === 'england'
+        ? pickedLevels
+        : choice === 'region'
+          ? ['Statistical regions']
+          : [];
+    return { region: choice === 'region', rangeLevels };
   };
 
   const shortIds =
     singlePage && routeDetail
-      ? [routeDetail.shortId, ...(comparedDetail ? [comparedDetail.shortId] : [])]
+      ? [routeDetail.shortId]
       : selectedIndicatorIds(
           url,
           routeDetail?.shortId,
           tableDisplayGroups === undefined ? MAX_SELECTED_INDICATORS : Number.POSITIVE_INFINITY,
         );
-  // `find` is the quicksearch form's no-script round trip; matches render as add links.
-  const findSubject =
-    url.searchParams.get('find')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
-  const findResults =
-    includePageData && findSubject
-      ? (
-          await api.get(
-            `/api/indicators?q=${encodeURIComponent(findSubject)}&limit=${DEFAULT_INDICATOR_SEARCH_RESULTS}`,
-            indicatorListResponseSchema,
-          )
-        ).indicators
-      : [];
   const selected =
     tableDisplayGroups !== undefined
       ? await loadIndicatorTableEntries(api, shortIds, codesToLoad)
@@ -379,8 +350,6 @@ export async function loadIndicatorData(
     selectedAreas,
     displayGroups,
     benchmarkGeography: { regionByCode, levelByCode } satisfies BenchmarkGeography,
-    findSubject,
-    findResults,
     geographyOptions,
     areasLimited,
     selection: { areaCodes, areaLevels, shortIds } satisfies IndicatorSelection,

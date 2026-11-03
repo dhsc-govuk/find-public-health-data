@@ -11,16 +11,11 @@ import { TopicSubtopicFilter } from './subtopic-filter.tsx';
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 
 export function TopicPage(data: TopicData) {
-  const { topic, content, overview, areas } = data;
+  const { topic, tab, content, overview, areas } = data;
   const location = useLocation();
   const tableData = content ? { topic, ...content } : null;
   const areaData = areas ? { topic, ...areas } : null;
   const path = `/topics/${topic.slug}`;
-  const viewUrl = (tab: string) => {
-    const params = new URLSearchParams(location.search);
-    params.set('tab-topic', tab);
-    return `${path}?${params}`;
-  };
   const columnParams = Object.fromEntries(
     [...new URLSearchParams(location.search)].filter(([key]) => key === 'columns-topic'),
   );
@@ -43,6 +38,7 @@ export function TopicPage(data: TopicData) {
       <h1 className="govuk-heading-xl">{topic.title}</h1>
       <Tabs
         sectionHeadings
+        waitForNavigation
         history="push"
         paramKey="tab-topic"
         title={`${topic.title} contents`}
@@ -51,11 +47,7 @@ export function TopicPage(data: TopicData) {
             id: 'topic-overview',
             param: 'overview',
             label: 'Overview',
-            content: overview ? (
-              <TopicOverview topic={topic} overview={overview} />
-            ) : (
-              <p className="govuk-body">{topic.description}</p>
-            ),
+            content: overview ? <TopicOverview topic={topic} overview={overview} /> : undefined,
           },
           {
             id: 'topic-data',
@@ -69,6 +61,7 @@ export function TopicPage(data: TopicData) {
                     <TopicGeographies search={content.search} path={path} tab="data" />
                     <SearchFilterPane
                       action={path}
+                      formAction={`${path}#topic-data`}
                       extraParams={{
                         ...columnParams,
                         'tab-topic': 'data',
@@ -93,29 +86,20 @@ export function TopicPage(data: TopicData) {
                     <TopicListing data={tableData} />
                   </GridColumn>
                 </GridRow>
-              ) : (
-                <p className="govuk-body">
-                  <Link className="govuk-link" to={viewUrl('data')}>
-                    View topic data
-                  </Link>
-                </p>
-              ),
+              ) : undefined,
           },
           {
             id: 'topic-area-summaries',
             param: 'areas',
             label: 'Area summaries',
             content:
-              areas &&
-              areaData &&
-              (areas.defaultAreas ||
-                areas.search.gaCodes.length > 0 ||
-                areas.search.geoLevels.length > 0) ? (
+              areas && areaData ? (
                 <GridRow>
                   <GridColumn width="one-quarter">
                     <TopicGeographies search={areas.search} path={path} tab="areas" />
                     <SearchFilterPane
                       action={path}
+                      formAction={`${path}#topic-area-summaries`}
                       extraParams={{
                         ...columnParams,
                         'tab-topic': 'areas',
@@ -140,40 +124,35 @@ export function TopicPage(data: TopicData) {
                     <TopicListing data={areaData} areas />
                   </GridColumn>
                 </GridRow>
-              ) : (
-                <p className="govuk-body">
-                  <Link className="govuk-link" to={viewUrl('areas')}>
-                    View area summaries for NHS regions
-                  </Link>
-                </p>
-              ),
+              ) : undefined,
           },
           {
             id: 'topic-publications',
             param: 'publications',
             label: 'More information',
-            content: topic.content ? (
-              <div className="fphd-topic-more-information">
-                <p className="govuk-body">{topic.content.moreInformation.intro}</p>
-                {topic.content.moreInformation.sections.map((section) => (
-                  <section key={section.heading}>
-                    <h2 className="govuk-heading-m">{section.heading}</h2>
-                    <ul className="govuk-list govuk-list--bullet">
-                      {section.links.map(({ label, url, note }) => (
-                        <li key={url}>
-                          <a className="govuk-link" href={url}>
-                            {label}
-                          </a>
-                          {note ? ` (${note})` : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <p className="govuk-body">No further information is available for this topic.</p>
-            ),
+            content:
+              tab !== 'publications' ? undefined : topic.content ? (
+                <div className="fphd-topic-more-information">
+                  <p className="govuk-body">{topic.content.moreInformation.intro}</p>
+                  {topic.content.moreInformation.sections.map((section) => (
+                    <section key={section.heading}>
+                      <h2 className="govuk-heading-m">{section.heading}</h2>
+                      <ul className="govuk-list govuk-list--bullet">
+                        {section.links.map(({ label, url, note }) => (
+                          <li key={url}>
+                            <a className="govuk-link" href={url}>
+                              {label}
+                            </a>
+                            {note ? ` (${note})` : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <p className="govuk-body">No further information is available for this topic.</p>
+              ),
           },
         ]}
       />

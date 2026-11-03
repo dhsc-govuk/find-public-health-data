@@ -69,7 +69,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
           ) : null}
         </h2>
         {!areas ? (
-          <Form action={path} method="get" preventScrollReset>
+          <Form action={`${path}#topic-data`} method="get" preventScrollReset>
             {[...params]
               .filter(([key]) => key !== 'sort' && key !== 'page')
               .map(([name, value], index) => (

@@ -32,7 +32,11 @@ export function TopicSubtopicFilter({
   };
   if (subtopics.length === 0) return null;
   return (
-    <Form action={path} method="get" preventScrollReset>
+    <Form
+      action={`${path}#${tab === 'areas' ? 'topic-area-summaries' : 'topic-data'}`}
+      method="get"
+      preventScrollReset
+    >
       <HiddenFilters state={state} except="subtopics" extraParams={extraParams} />
       <Checkboxes
         id={`topic-subtopic-${tab}`}

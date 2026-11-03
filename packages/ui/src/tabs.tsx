@@ -1,10 +1,10 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useNavigation } from 'react-router';
+import { Link, useLocation, useNavigate, useNavigation } from 'react-router';
 
 interface TabItem {
   id: string;
   label: string;
-  content: ReactNode;
+  content?: ReactNode;
   param?: string;
 }
 
@@ -45,30 +45,28 @@ function TabPanels({
     0,
     items.findIndex(({ id, param }) => (param ?? id) === defaultParam),
   );
-  const paramIndex = Math.max(
-    0,
-    items.findIndex(({ id, param }) => (param ?? id) === fromParam),
-  );
+  const indexFor = (value: string | undefined) => {
+    const index = items.findIndex(({ id, param }) => (param ?? id) === value);
+    return index < 0 ? defaultIndex : index;
+  };
+  const paramIndex = indexFor(fromParam);
   const [selected, setSelected] = useState(paramIndex);
   const [mounted, setMounted] = useState(false);
   const [tabMode, setTabMode] = useState(false);
-  const hashIndex = mounted ? items.findIndex(({ id }) => location.hash === `#${id}`) : -1;
+  const hashIndex =
+    mounted && !waitForNavigation ? items.findIndex(({ id }) => location.hash === `#${id}`) : -1;
   const committedIndex = hashIndex >= 0 ? hashIndex : waitForNavigation ? paramIndex : selected;
   const pendingParam =
     waitForNavigation && navigation?.location?.pathname === location.pathname
       ? (new URLSearchParams(navigation.location.search).get(paramKey) ?? defaultParam)
       : undefined;
-  const pendingIndex = Math.max(
-    0,
-    items.findIndex(({ id, param }) => (param ?? id) === pendingParam),
-  );
+  const pendingIndex = indexFor(pendingParam);
   const loading =
-    tabMode &&
     waitForNavigation &&
     navigation?.state === 'loading' &&
     navigation.location?.pathname === location.pathname &&
     pendingIndex !== committedIndex;
-  const visibleIndex = loading ? pendingIndex : committedIndex;
+  const visibleIndex = loading && tabMode ? pendingIndex : committedIndex;
   const refs = useRef<(HTMLAnchorElement | null)[]>([]);
   const panels = useRef<(HTMLDivElement | null)[]>([]);
   const previousTabMode = useRef<boolean | undefined>(undefined);
@@ -100,6 +98,26 @@ function TabPanels({
     previousParam.current = fromParam;
     setSelected(paramIndex);
   }, [fromParam, paramIndex]);
+
+  useEffect(() => {
+    if (!mounted || !waitForNavigation || navigation?.state !== 'idle') return;
+    const params = new URLSearchParams(location.search);
+    if (params.has(paramKey)) return;
+    const item = items.find(({ id }) => location.hash === `#${id}`);
+    if (!item || item === items[defaultIndex]) return;
+    params.set(paramKey, item.param ?? item.id);
+    void navigate({ search: `?${params}`, hash: location.hash }, { replace: true });
+  }, [
+    mounted,
+    waitForNavigation,
+    navigation?.state,
+    location.search,
+    location.hash,
+    paramKey,
+    items,
+    defaultIndex,
+    navigate,
+  ]);
 
   const searchFor = (index: number) => {
     const params = new URLSearchParams(location.search);
@@ -147,10 +165,24 @@ function TabPanels({
                 ? { role: 'tab', 'aria-controls': id, 'aria-selected': index === visibleIndex }
                 : {})}
               className="govuk-tabs__tab"
-              href={tabMode && waitForNavigation ? `${searchFor(index)}#${id}` : `#${id}`}
+              href={
+                waitForNavigation && (tabMode || items[index]?.content === undefined)
+                  ? `${searchFor(index)}#${id}`
+                  : `#${id}`
+              }
               id={`tab_${id}`}
               onClick={(event) => {
-                if (!tabMode) return;
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                if (!tabMode) {
+                  if (!waitForNavigation || items[index]?.content !== undefined) return;
+                  event.preventDefault();
+                  panels.current[index]?.scrollIntoView({ block: 'start' });
+                  void navigate(
+                    { search: searchFor(index), hash: id },
+                    { replace: history === 'replace', preventScrollReset: true },
+                  );
+                  return;
+                }
                 event.preventDefault();
                 choose(index);
               }}
@@ -165,10 +197,10 @@ function TabPanels({
           </li>
         ))}
       </ul>
-      {items.map(({ content, id }, index) => (
+      {items.map(({ content, id, label }, index) => (
         <div
           {...(tabMode ? { role: 'tabpanel', 'aria-labelledby': `tab_${id}` } : {})}
-          aria-busy={loading && index === visibleIndex ? true : undefined}
+          aria-busy={loading && index === pendingIndex ? true : undefined}
           className={`govuk-tabs__panel${index === visibleIndex ? ' fphd-tabs__panel--open' : ''}${mounted && tabMode && index !== visibleIndex ? ' govuk-tabs__panel--hidden' : ''}`}
           id={id}
           key={id}
@@ -176,20 +208,28 @@ function TabPanels({
             panels.current[index] = element;
           }}
         >
-          {sectionHeadings ? (
-            <h2 className="govuk-heading-l fphd-tabs__section-title">{items[index]?.label}</h2>
+          {sectionHeadings || content === undefined ? (
+            <h2 className="govuk-heading-l fphd-tabs__section-title">{label}</h2>
           ) : null}
-          {loading && index === visibleIndex ? (
+          {loading && index === pendingIndex ? (
             <p className="govuk-body fphd-tabs__loading" role="status">
-              Loading {items[index]?.label.toLowerCase()}…
+              Loading {label.toLowerCase()}…
             </p>
           ) : null}
           <div
             className="fphd-tabs__content"
-            aria-hidden={loading && index === visibleIndex ? true : undefined}
-            inert={loading && index === visibleIndex ? true : undefined}
+            aria-hidden={loading && index === pendingIndex ? true : undefined}
+            inert={loading && index === pendingIndex ? true : undefined}
           >
-            {content}
+            {content === undefined ? (
+              <p className="govuk-body">
+                <Link className="govuk-link" to={`${searchFor(index)}#${id}`}>
+                  View {label.toLowerCase()}
+                </Link>
+              </p>
+            ) : (
+              content
+            )}
           </div>
         </div>
       ))}

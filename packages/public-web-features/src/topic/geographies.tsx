@@ -31,12 +31,13 @@ export function TopicGeographies({
   useEffect(() => setSelectedGroup(group), [group]);
   const [selectedCodes, setSelectedCodes] = useState(search.gaCodes);
   useEffect(() => setSelectedCodes(search.gaCodes), [search.gaCodes]);
+  const action = `${path}#${tab === 'areas' ? 'topic-area-summaries' : `topic-${tab}`}`;
   if (tab === 'areas') {
     return (
       <div className="fphd-topic-geographies">
         <h2 className="govuk-heading-m">Geographies</h2>
         <CollapsibleFilterCard active headingLevel={3} title="Type of geography">
-          <Form action={path} method="get" preventScrollReset>
+          <Form action={action} method="get" preventScrollReset>
             <HiddenFilters
               state={search}
               extraParams={extraParams}
@@ -96,6 +97,7 @@ export function TopicGeographies({
     <SearchGeographies
       search={search}
       path={path}
+      formAction={action}
       extraParams={extraParams}
       single={tab === 'overview'}
     />

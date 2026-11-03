@@ -24,6 +24,7 @@ export function AreaControls({
       ? navigation.location.search
       : location.search,
   );
+  const action = `${location.pathname}#${displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators'}`;
   const highlighted = params.getAll('highlight');
   const search = params.get('geo-q')?.trim() ?? '';
   const update = (key: string, value: string | string[]) => {
@@ -48,7 +49,7 @@ export function AreaControls({
     <>
       <h2 className="govuk-heading-m">Geographies</h2>
       <CollapsibleFilterCard active headingLevel={3} title="Geographies">
-        <Form method="get" action={location.pathname}>
+        <Form method="get" action={action}>
           {hidden(['areaType', 'highlight', 'geo-q'])}
           <Select
             id={displayOptions ? 'compare-area-type' : 'pair-area-type'}
@@ -62,7 +63,7 @@ export function AreaControls({
             <Button type="submit">Change geography type</Button>
           </noscript>
         </Form>
-        <Form method="get" action={location.pathname}>
+        <Form method="get" action={action}>
           {hidden(['geo-q', 'highlight'])}
           <GeographyTree
             key={group}
@@ -93,7 +94,7 @@ export function AreaControls({
         <>
           <h2 className="govuk-heading-m">Display options</h2>
           <CollapsibleFilterCard active headingLevel={3} title="Table and map options">
-            <Form method="get" action={location.pathname}>
+            <Form method="get" action={action}>
               {hidden(['areaSort', 'areaColour'])}
               <Select
                 id="compare-area-sort"
