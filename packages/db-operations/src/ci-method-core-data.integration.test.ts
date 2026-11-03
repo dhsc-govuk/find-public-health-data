@@ -9,7 +9,6 @@ import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type CiMethodRecord, upsertCiMethods } from './ci-method-core-data.ts';
-import { importCoreData } from './core-data.ts';
 import { loadIndicatorVersions } from './seeding.ts';
 
 const { SYSTEM_USER_IDS } = schema;
@@ -147,9 +146,8 @@ describe('loadIndicatorVersions', () => {
   let indicatorId: string;
 
   beforeAll(async () => {
-    testDb = await createTestDb();
+    testDb = await createTestDb({ template: 'core' });
     sql = testDb.sql;
-    await importCoreData(sql);
     const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
     indicatorId = row?.id ?? '';
     directory = await mkdtemp(join(tmpdir(), 'fphd-ci-methods-'));

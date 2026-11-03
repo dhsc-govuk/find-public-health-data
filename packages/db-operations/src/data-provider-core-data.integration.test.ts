@@ -8,7 +8,6 @@ import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { importCoreData } from './core-data.ts';
 import { type DataProviderRecord, upsertDataProviders } from './data-provider-core-data.ts';
 import { loadIndicatorVersions } from './seeding.ts';
 
@@ -147,9 +146,8 @@ describe('loadIndicatorVersions with Fingertips sources', () => {
   const legacyId = '00000000-0000-7000-8000-00000000abcd';
 
   beforeAll(async () => {
-    testDb = await createTestDb();
+    testDb = await createTestDb({ template: 'core' });
     sql = testDb.sql;
-    await importCoreData(sql);
     const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
     indicatorId = row?.id ?? '';
     directory = await mkdtemp(join(tmpdir(), 'fphd-legacy-sources-'));

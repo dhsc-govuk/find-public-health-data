@@ -4,9 +4,8 @@ import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-import { assertCoreDataPresent, importCoreData } from './core-data.ts';
 import { migrateToLatest } from './migrations.ts';
+import { upsertComparatorMethods } from './named-core-data.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
 const { SYSTEM_USER_IDS } = schema;
@@ -79,7 +78,7 @@ describe(`migration ${MIGRATION} over a snapshot's comparator methods`, () => {
   });
 });
 
-describe(`migration ${MIGRATION} followed by import-core-data`, () => {
+describe(`migration ${MIGRATION} followed by the comparator core-data import`, () => {
   let testDb: TestDb;
   let sql: postgres.Sql;
 
@@ -92,14 +91,13 @@ describe(`migration ${MIGRATION} followed by import-core-data`, () => {
     await testDb?.drop();
   });
 
-  it('imports every comparator method, leaving the core data complete', async () => {
-    const { comparatorMethods } = await importCoreData(sql);
+  it('imports the complete comparator list after migration', async () => {
+    const comparatorMethods = await upsertComparatorMethods(testDb.db, CORE);
     const rows = await sql`SELECT id, name FROM comparator_method`;
 
     expect(comparatorMethods.orphaned).toEqual([]);
     expect(rows).toHaveLength(CORE.length);
     expect(rows).toEqual(expect.arrayContaining(CORE));
-    await expect(assertCoreDataPresent(sql)).resolves.toBeUndefined();
   });
 });
 

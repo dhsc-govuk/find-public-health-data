@@ -48,7 +48,7 @@ export const commands: Record<string, Command> = {
     run: status,
   },
   'db import-core-data': {
-    description: 'Load the required core data (topics) — idempotent, any environment',
+    description: 'Load core content and upload reference data — idempotent, any environment',
     run: importCoreData,
   },
   'db seed-dummy-data': {

@@ -10,7 +10,6 @@ import { countIsNumerator } from '@fphd/utils/value-type-and-unit';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { importCoreData } from './core-data.ts';
 import {
   type NamedRecord,
   parseNamedRecordsFile,
@@ -193,9 +192,8 @@ describe('loadIndicatorVersions with comparator methods', () => {
   const sourceId = '00000000-0000-7000-8000-00000000c0c0';
 
   beforeAll(async () => {
-    testDb = await createTestDb();
+    testDb = await createTestDb({ template: 'core' });
     sql = testDb.sql;
-    await importCoreData(sql);
     const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
     indicatorId = row?.id ?? '';
     directory = await mkdtemp(join(tmpdir(), 'fphd-comparator-methods-'));

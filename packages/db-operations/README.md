@@ -21,7 +21,7 @@ share the receiver's format.
 ```
 data/                 Core content (topics.json, ci-methods.json, classifications.json,
                       data-providers.json, value-types.json, units.json,
-                      comparator-methods.json), the map from Fingertips' numerator and
+                      comparator-methods.json and the upload reference catalogs), the map from Fingertips' numerator and
                       denominator sources onto it, the dummy indicator relationship files
                       and the committed seed (seed/)
 drizzle/              Generated migrations + drizzle-kit metadata — never edit applied ones
@@ -32,7 +32,7 @@ src/
   owner-group.ts      prepareOwnerGroup — the fphd_owner group that owns every object
   core-data.ts        importCoreData — loads the required core content (topics, CI methods,
                       classifications, data providers, value types, units, comparator
-                      methods)
+                      methods and upload reference data)
   topic-import.ts     upsertTopics, the topics half of the core data import
   legacy-sources.ts   Maps Fingertips' numerator and denominator sources onto the providers
   indicator-topic-import.ts
@@ -133,12 +133,52 @@ The data-loading commands (`db:import-core-data`, `db:seed-dummy-data`, `db:rese
 run through `apps/operations`, so a developer machine and a deployed job use one engine —
 see the operations section of the root README.
 
+## Upload reference data
+
+`db import-core-data` loads the area types, dimensions, note types, areas and area
+relationships required by upload validation. A freshly migrated database can accept a
+publisher upload after that command.
+
+`data/area-types.json`, `dimension-types.json`, `dimension-values.json` and
+`note-types.json` contain the fixed lookup ids. They use the exporter's deterministic
+UUIDv7 mapping of Pholio keys. The import validates ids, names and dimension parents,
+then upserts each list using one JSON parameter. Migration 0056 moves existing names to
+those ids and updates their foreign keys, observation dimension keys and area read models.
+
+`data/geography/` contains the full Pholio area catalog as gzipped CSV files. Its manifest
+records the source backup digest, row counts, file sizes and SHA-256 digests. The import
+verifies these before writing, copies both files into temporary tables and performs
+set-based upserts in one transaction. This keeps the parameter count constant for the
+73,302 areas and 158,929 relationships. Each changed geography row gets an audit entry
+in the same SQL statement. A no-op rerun writes no audit entries.
+
+Areas match on code and area type. Relationships match on their parent and child areas.
+Existing ids are retained when those keys match. Multiple matching area or relationship
+versions stop the import for review. The catalog preserves Pholio's codes and current
+status. Validity dates that Pholio does not supply remain empty. Rows absent from the
+catalog are reported and retained.
+
+The seed and live-data package importers map their reference ids onto this catalog.
+Lookup names identify area types, dimension types and notes. A value matches by dimension
+type and name, and an area by code and mapped area type. A referenced value with no core
+counterpart stops the load. Core reference rows are retained when loading the dummy seed.
+
+Refresh the committed catalogs from a reviewed Pholio cut when reference data changes.
+Deploy the operations image and run `db import-core-data` before applying a package that
+uses those new rows. The export and receiver share format version 5, which carries the
+reference catalogs in full in incremental packages.
+
 ## Integration tests
 
 `src/*.integration.test.ts` need the local docker database up (`docker compose up -d db`), and
 take their databases from `createTestDb()` in `@fphd/db/testing` as every other package's
 do. The root Vitest global setup builds the templates those copy from with `setUpTestTemplate`
 from `@fphd/db-operations/testing`.
+
+The integration setup builds schema, core-data and seeded templates once per run. Use
+`createTestDb({ template: 'core' })` for an empty service with its required reference
+catalogs. Reusable templates omit setup audit history to keep database copies small.
+Fresh-import tests use the schema template and verify the import and its audit history.
 
 A migration's own test puts rows in the shape the migration meets with `migrateBefore`, then
 runs it with `migrateThrough`, which stops there, so a later migration never breaks it. Both are

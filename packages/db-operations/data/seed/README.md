@@ -6,8 +6,9 @@ additions come from the public Fingertips API and are imported through local Pos
 
 ## What is in it
 
-Reference and registry tables (lookups, dimension types and values, area types, note
-types) are complete. `ci_method.csv.gz` and `comparator_method.csv.gz` are Pholio's lists and
+Reference and registry CSVs provide the source ids used to map onto the committed core
+catalogs. Core-data setup owns dimensions, area types, note types, areas and area
+relationships. `ci_method.csv.gz` and `comparator_method.csv.gz` are Pholio's lists and
 are not loaded: the methods are core data (`../ci-methods.json`,
 `../comparator-methods.json`), and the seed maps its versions onto them by name. Areas,
 observations and bridge rows contain:

@@ -22,6 +22,7 @@ import {
   applyVersionBatchPointers,
 } from './data-migration-table-import.ts';
 import { type LegacySourceMap, readLegacySourceMap } from './legacy-sources.ts';
+import { stageReferenceMaps } from './reference-data-maps.ts';
 
 export type {
   DataMigrationProgress,
@@ -206,6 +207,15 @@ export async function applyDataMigration(
   const relationships = await readMigrationRelationships(directory, manifest);
   if (manifest.kind === 'incremental') {
     await assertMigrationPublisherWorkUnchanged(tx, relationships);
+  }
+  const referenceCounts = await stageReferenceMaps(tx, directory, report);
+  for (const [table, count] of Object.entries(referenceCounts)) {
+    const expected =
+      manifest.kind === 'baseline'
+        ? manifest.tables[table]?.rows
+        : manifest.tables[table]?.upserts.rows;
+    if (count !== expected)
+      throw new Error(`${table} staged ${count} reference rows; package declares ${expected}`);
   }
   const changes =
     manifest.kind === 'baseline'

@@ -189,6 +189,26 @@ it('resends unchanged versions when reference names change', async () => {
   ]);
 });
 
+it('carries a changed core catalog without resending unchanged indicator versions', async () => {
+  const versionId = deterministicUuid('indicator_version', '1');
+  const areaId = deterministicUuid('area', '1');
+  const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {
+    indicator_version: [[versionId, 'Unchanged version']],
+    area: [[areaId, 'Old area name']],
+  });
+  const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', {
+    indicator_version: [[versionId, 'Unchanged version']],
+    area: [[areaId, 'New area name']],
+  });
+  const output = await outputDirectory();
+  await createIncremental(previous, current, output, 'increment-2');
+  expect(await records(join(output, 'indicator_version.csv.gz'))).toEqual([['id', 'name']]);
+  expect(await records(join(output, 'area.csv.gz'))).toEqual([
+    ['id', 'name'],
+    [areaId, 'New area name'],
+  ]);
+});
+
 it('captures a change from SQL NULL to an empty string', async () => {
   const id = deterministicUuid('data_source', '1');
   const headers = { data_source: ['id', 'name', 'url'] };

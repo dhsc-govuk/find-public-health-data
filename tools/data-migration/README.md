@@ -119,7 +119,7 @@ plus these fields:
 or an explicit entry in `areaContextIndicators`; an area-context indicator cannot also
 carry topics or classifications. `indicatorTopics` accepts `isPrimary` and
 `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId, isPrimary }` rows.
-Packages use format version 4 and `canonical-v4`, including explicit area status and nullable
+Packages use format version 5 and `canonical-v5`, including explicit area status and nullable
 area validity dates. Every area file requires `is_current`; missing status is rejected rather
 than filled from the database default. Migrate the receiver's schema and regenerate older packages before
 importing; the receiver refuses an older format rather than applying different area or

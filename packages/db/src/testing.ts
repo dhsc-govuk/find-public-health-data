@@ -13,11 +13,10 @@ import { createOwnerClient, loadOwnerEnv } from './scripts/owner-client.ts';
 export { createOwnerClient, loadOwnerEnv } from './scripts/owner-client.ts';
 
 /**
- * Two templates, because most integration tests do not want the seed. Copying `seeded`
- * duplicates ~490k observations and ~759k bridge rows; a test that only exercises the
- * topics table should not pay for that. `@fphd/db-operations/testing` builds them.
+ * Schema, core-data and seeded templates are built once by @fphd/db-operations/testing.
+ * Tests select the least populated state their subject needs.
  */
-export type TestTemplate = 'schema' | 'seeded';
+export type TestTemplate = 'schema' | 'core' | 'seeded';
 
 export const TEST_DATABASE_PREFIX = 'fphd_test_';
 
@@ -168,9 +167,8 @@ export interface TestDb {
 
 export interface CreateTestDbOptions {
   /**
-   * `schema` (the default) is migrated and empty — ask for it unless the test asserts
-   * something about the committed seed. `seeded` additionally has the seed loaded and the
-   * read models rebuilt. `unmigrated` is a fresh database with no migrations applied.
+   * `schema` is migrated and empty. `core` adds required reference data. `seeded` adds
+   * dummy indicators and read models. `unmigrated` has no migrations applied.
    */
   template?: TestTemplate | 'unmigrated';
 }

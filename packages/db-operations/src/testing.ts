@@ -6,6 +6,7 @@ import {
   createOwnerClient,
   runTestDatabases,
   staleTestDatabases,
+  type TestTemplate,
   templateName,
 } from '@fphd/db/testing';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -32,21 +33,29 @@ async function dropTestDatabases(choose: (names: string[]) => string[]): Promise
   }
 }
 
-async function buildTemplate(name: string, seed: boolean): Promise<void> {
+async function buildTemplate(
+  run: string,
+  stage: TestTemplate,
+  source?: TestTemplate,
+): Promise<void> {
+  const name = templateName(run, stage);
   const admin = createOwnerClient('postgres');
   try {
-    await admin.unsafe(`CREATE DATABASE "${name}"`);
+    const from = source === undefined ? '' : ` TEMPLATE "${templateName(run, source)}"`;
+    await admin.unsafe(`CREATE DATABASE "${name}"${from}`);
   } finally {
     await admin.end();
   }
 
   const template = createOwnerClient(name);
   try {
-    await migrateToLatest(template);
-    if (seed) {
-      // The same sequence a deployed environment runs: core content first, since the dummy
-      // relationships reference topics by id, then the dummy seed, then the read models.
+    if (stage === 'schema') await migrateToLatest(template);
+    if (stage === 'core') {
       await importCoreData(template);
+      // Core fixtures omit setup audit history to keep template copies small.
+      await template`TRUNCATE audit_log`;
+    }
+    if (stage === 'seeded') {
       await template.begin((tx) => seedDummyTables(tx));
       await rebuildReadModels(template);
     }
@@ -63,8 +72,9 @@ async function buildTemplate(name: string, seed: boolean): Promise<void> {
  */
 export async function setUpTestTemplate(run: string): Promise<void> {
   await dropTestDatabases((names) => staleTestDatabases(names));
-  await buildTemplate(templateName(run, 'schema'), false);
-  await buildTemplate(templateName(run, 'seeded'), true);
+  await buildTemplate(run, 'schema');
+  await buildTemplate(run, 'core', 'schema');
+  await buildTemplate(run, 'seeded', 'core');
 }
 
 /** Drops the run's templates and any copy a test file failed to drop. */
