@@ -134,6 +134,32 @@ describe('loadSearch', () => {
     expect(get).toHaveBeenCalledWith('/api/indicators/search', expect.anything());
   });
 
+  it('treats a query of control characters alone as no query', async () => {
+    const { client, get } = api();
+
+    const result = await loadSearch(loaderArgs(client, 'http://localhost/search?q=%00'));
+
+    expect(result.q).toBe('');
+    expect(get).toHaveBeenCalledWith('/api/indicators/search', expect.anything());
+  });
+
+  it.each(['%09', '%00'])(
+    'searches a query holding %s as words separated by a space',
+    async (character) => {
+      const { client, get } = api();
+
+      const result = await loadSearch(
+        loaderArgs(client, `http://localhost/search?q=blood${character}pressure`),
+      );
+
+      expect(result.q).toBe('blood pressure');
+      expect(get).toHaveBeenCalledWith(
+        '/api/indicators/search?q=blood%20pressure',
+        expect.anything(),
+      );
+    },
+  );
+
   it('encodes keyword into the search query', async () => {
     const { client, get } = api();
 

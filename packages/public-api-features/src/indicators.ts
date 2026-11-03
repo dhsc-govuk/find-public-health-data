@@ -1,4 +1,5 @@
 import type { IndicatorSearchFilters, Repositories } from '@fphd/db';
+import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -24,6 +25,7 @@ import {
   MAX_SELECTED_AREAS,
   MAX_TABLE_INDICATORS_PER_REQUEST,
   pickAreaCodes,
+  queryText,
 } from './contract.ts';
 
 const DEFAULT_AREA_CODE = 'E92000001';
@@ -54,7 +56,10 @@ function pickStrings(value: unknown, maxLength = MAX_FILTER_VALUE_LENGTH): strin
     ...new Set(
       (Array.isArray(value) ? value : [value]).filter(
         (entry): entry is string =>
-          typeof entry === 'string' && entry !== '' && entry.length <= maxLength,
+          typeof entry === 'string' &&
+          entry !== '' &&
+          entry.length <= maxLength &&
+          !CONTROL_CHARACTER.test(entry),
       ),
     ),
   ].slice(0, MAX_FILTER_VALUES);
@@ -92,7 +97,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
 
   router.get('/api/indicators/search', async (request, response) => {
     const { q } = request.query;
-    const query = typeof q === 'string' ? q.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) : '';
+    const query = queryText(q, MAX_INDICATOR_QUERY_LENGTH);
 
     const filters: IndicatorSearchFilters = {
       query,
@@ -137,7 +142,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
 
   router.get('/api/indicators', async (request, response) => {
     const { q, limit } = request.query;
-    const query = typeof q === 'string' ? q.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) : '';
+    const query = queryText(q, MAX_INDICATOR_QUERY_LENGTH);
     if (query) {
       const capped =
         typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
@@ -160,6 +165,12 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       response.status(400).json({ error: 'invalid_limit' });
       return;
     }
+    const query = queryText(q, MAX_AREA_NAME_LENGTH);
+    // A group holding a control character names none, so it has no areas, like any unknown group.
+    if (typeof displayGroup === 'string' && CONTROL_CHARACTER.test(displayGroup)) {
+      response.status(200).json([]);
+      return;
+    }
     response.status(200).json(
       await indicators.listAreas(indicatorId, {
         scope: scope === 'all-data' ? 'all-data' : undefined,
@@ -167,7 +178,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
           typeof displayGroup === 'string'
             ? displayGroup.slice(0, MAX_AREA_NAME_LENGTH)
             : undefined,
-        query: typeof q === 'string' ? q.trim().slice(0, MAX_AREA_NAME_LENGTH) : undefined,
+        query,
         limit:
           typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
             ? Math.min(Number(limit), MAX_AREA_PREVIEW)
@@ -212,7 +223,12 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
   router.get('/api/indicators/:indicator/range', async (request, response) => {
     const displayGroup = request.query.displayGroup;
 
-    if (typeof displayGroup !== 'string' || displayGroup === '' || displayGroup.length > 100) {
+    if (
+      typeof displayGroup !== 'string' ||
+      displayGroup === '' ||
+      displayGroup.length > 100 ||
+      CONTROL_CHARACTER.test(displayGroup)
+    ) {
       response.status(404).json({ error: 'not_found' });
       return;
     }

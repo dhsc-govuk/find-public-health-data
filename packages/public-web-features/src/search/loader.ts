@@ -11,6 +11,7 @@ import {
   MAX_INDICATOR_FILTER_RESULTS,
   MAX_INDICATOR_QUERY_LENGTH,
   pickAreaCodes,
+  queryText,
 } from '@fphd/public-api-features/contract';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { apiContext } from '@fphd/web-server/api-context';
@@ -97,7 +98,7 @@ export async function loadSearch(
     params.set('t', topicSlug);
   }
   const api = context.get(apiContext);
-  const query = params.get('q')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
+  const query = queryText(params.get('q'), MAX_INDICATOR_QUERY_LENGTH);
 
   const addParams = DIMENSIONS.map((d) => d.param);
   const hasAddControl = addParams.some((p) => params.has(`${p}-add`));

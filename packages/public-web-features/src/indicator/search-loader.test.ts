@@ -24,6 +24,30 @@ describe('indicator search loader', () => {
     expect(get).not.toHaveBeenCalled();
   });
 
+  it('answers a query of control characters alone with no results and no api call', async () => {
+    const get = vi.fn();
+
+    const response = await loadIndicatorSearch(
+      loaderArgs(get, 'http://localhost/indicators/search?q=%00'),
+    );
+
+    expect(await response.json()).toEqual({ indicators: [] });
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it.each(['%09', '%00'])(
+    'sends a query holding %s as words separated by a space',
+    async (character) => {
+      const get = vi.fn().mockResolvedValue({ indicators: [] });
+
+      await loadIndicatorSearch(
+        loaderArgs(get, `http://localhost/indicators/search?q=blood${character}pressure`),
+      );
+
+      expect(get).toHaveBeenCalledWith('/api/indicators?q=blood%20pressure', expect.anything());
+    },
+  );
+
   it('passes the query through to the api, encoded', async () => {
     const indicators = [
       { shortId: 241, slug: 'diabetes-qof-prevalence', name: 'Diabetes: QOF prevalence' },

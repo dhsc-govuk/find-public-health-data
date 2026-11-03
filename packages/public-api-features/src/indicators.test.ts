@@ -123,6 +123,25 @@ describe('GET /api/indicators', () => {
     expect(search).toHaveBeenLastCalledWith('x', 20);
   });
 
+  it('searches a query holding a control character as words separated by a space', async () => {
+    const search = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ search });
+
+    await request(app).get('/api/indicators?q=blood%00pressure');
+
+    expect(search).toHaveBeenCalledWith('blood pressure', 20);
+  });
+
+  it('lists every indicator when q is control characters alone', async () => {
+    const listPublished = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ listPublished });
+
+    const response = await request(app).get('/api/indicators?q=%00');
+
+    expect(response.status).toBe(200);
+    expect(listPublished).toHaveBeenCalled();
+  });
+
   it('lists every indicator when q is empty', async () => {
     const listPublished = vi.fn().mockResolvedValue([]);
     const app = createTestApp({ listPublished });
@@ -180,6 +199,30 @@ describe('GET /api/indicators/:indicator/areas', () => {
       const response = await request(app).get(`/api/indicators/108/areas?limit=${limit}`);
       expect(response.status).toBe(400);
     }
+    expect(listAreas).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['London%00Bridge', 'London Bridge'],
+    ['%00', ''],
+  ])('lists areas for a query of %s as %j', async (q, query) => {
+    const listAreas = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ resolveId: async () => 'indicator-id', listAreas });
+
+    const response = await request(app).get(`/api/indicators/108/areas?q=${q}`);
+
+    expect(response.status).toBe(200);
+    expect(listAreas).toHaveBeenCalledWith('indicator-id', expect.objectContaining({ query }));
+  });
+
+  it('answers a display group holding a control character as an unknown group, with no areas', async () => {
+    const listAreas = vi.fn();
+    const app = createTestApp({ resolveId: async () => 'indicator-id', listAreas });
+
+    const response = await request(app).get('/api/indicators/108/areas?displayGroup=%00');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
     expect(listAreas).not.toHaveBeenCalled();
   });
 
@@ -367,6 +410,7 @@ describe('GET /api/indicators/:indicator/range', () => {
     const app = createTestApp();
 
     expect((await request(app).get('/api/indicators/241/range')).status).toBe(404);
+    expect((await request(app).get('/api/indicators/241/range?displayGroup=%00')).status).toBe(404);
     expect(
       (await request(app).get('/api/indicators/no%20pe/range?displayGroup=Local+authorities'))
         .status,
@@ -415,6 +459,27 @@ describe('search ordering and workload bounds', () => {
     expect(searchWithFilters.mock.calls[0]?.[0]).not.toHaveProperty('sort');
     await request(app).get('/api/indicators/search');
     expect(searchWithFilters.mock.calls[1]?.[0]).not.toHaveProperty('sort');
+  });
+  it.each([
+    ['blood%09pressure', 'blood pressure'],
+    ['blood%00pressure', 'blood pressure'],
+    ['%00', ''],
+  ])('searches a query of %s as %j', async (q, query) => {
+    const searchWithFilters = vi.fn().mockResolvedValue({ total: 0, limit: 200, indicators: [] });
+    const response = await request(createTestApp({ searchWithFilters })).get(
+      `/api/indicators/search?q=${q}`,
+    );
+    expect(response.status).toBe(200);
+    expect(searchWithFilters).toHaveBeenCalledWith(expect.objectContaining({ query }));
+  });
+  it('ignores a filter value holding a control character', async () => {
+    const searchWithFilters = vi.fn().mockResolvedValue({ total: 0, limit: 200, indicators: [] });
+    await request(createTestApp({ searchWithFilters })).get(
+      '/api/indicators/search?t=diabetes&t=%00&src=%7F',
+    );
+    expect(searchWithFilters).toHaveBeenCalledWith(
+      expect.objectContaining({ topics: ['diabetes'], sources: [] }),
+    );
   });
   it('requires one topic before evaluating a trend sort', async () => {
     const searchWithFilters = vi.fn();

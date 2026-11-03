@@ -354,3 +354,35 @@ it('reads paginated trend results and batched areas using the public API role', 
   expect(parsed.map(({ areaCode }) => areaCode)).toEqual(['E07000223', 'E92000001']);
   expect(parsed[0]?.observations.length).toBeGreaterThan(0);
 });
+
+describe('control characters', () => {
+  // Postgres refuses a NUL in text, so each of these answered 500 when it reached a query.
+  it.each([
+    ['/api/topics/%00', 404],
+    ['/api/topics/%00/trends', 404],
+    ['/api/areas/search?q=%00', 400],
+    ['/api/areas/search?q=corn%00wall', 200],
+    ['/api/areas/parents?areaCode=E92000001&parentType=%00', 400],
+    ['/api/areas?areaType=%00', 400],
+    ['/api/areas?displayGroup=%00', 400],
+    ['/api/indicators?q=%00', 200],
+    ['/api/indicators?q=blood%00pressure', 200],
+    ['/api/indicators/search?q=%00', 200],
+    ['/api/indicators/search?q=blood%00pressure', 200],
+    ['/api/indicators/search?t=%00', 200],
+    ['/api/indicators/108/areas?q=%00', 200],
+    ['/api/indicators/108/areas?q=London%00', 200],
+    ['/api/indicators/108/areas?displayGroup=%00', 200],
+    ['/api/indicators/108/range?displayGroup=%00', 404],
+  ])('answers %s with %i, not a database error', async (path, status) => {
+    expect((await request(app).get(path)).status).toBe(status);
+  });
+
+  it('answers a display group holding one as the database answers an unknown group', async () => {
+    const unknown = await request(app).get('/api/indicators/108/areas?displayGroup=No+such+group');
+    const refused = await request(app).get('/api/indicators/108/areas?displayGroup=%00');
+
+    expect(unknown.body).toEqual([]);
+    expect(refused.body).toEqual(unknown.body);
+  });
+});

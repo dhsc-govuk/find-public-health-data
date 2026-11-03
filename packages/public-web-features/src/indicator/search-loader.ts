@@ -1,6 +1,7 @@
 import {
   indicatorListResponseSchema,
   MAX_INDICATOR_QUERY_LENGTH,
+  queryText,
 } from '@fphd/public-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
@@ -11,8 +12,7 @@ import type { LoaderFunctionArgs } from 'react-router';
  * else. No component — the loader's JSON is the whole response.
  */
 export async function loadIndicatorSearch({ context, request }: LoaderFunctionArgs) {
-  const query =
-    new URL(request.url).searchParams.get('q')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
+  const query = queryText(new URL(request.url).searchParams.get('q'), MAX_INDICATOR_QUERY_LENGTH);
   if (!query) {
     return Response.json({ indicators: [] });
   }

@@ -86,7 +86,7 @@ export function trendCsv(
       ];
     }),
   ]);
-  return stringify([headers, ...rows]);
+  return tableCsv([headers, ...rows]);
 }
 
 /** Every observation for the selected areas, segments and notes included. */

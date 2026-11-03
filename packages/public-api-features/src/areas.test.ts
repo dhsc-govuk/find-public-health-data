@@ -61,6 +61,23 @@ describe('GET /api/areas/search', () => {
     expect((await request(app).get('/api/areas/search')).status).toBe(400);
     expect((await request(app).get('/api/areas/search?q=%20%20')).status).toBe(400);
   });
+
+  it('rejects a query of control characters alone as missing', async () => {
+    const response = await request(createTestApp()).get('/api/areas/search?q=%00%7F');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'q_required' });
+  });
+
+  it('searches a query holding a control character as words separated by a space', async () => {
+    const search = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ search });
+
+    const response = await request(app).get('/api/areas/search?q=corn%00wall');
+
+    expect(response.status).toBe(200);
+    expect(search).toHaveBeenCalledWith('corn wall', 50);
+  });
 });
 
 describe('GET /api/areas/parents', () => {
@@ -76,10 +93,13 @@ describe('GET /api/areas/parents', () => {
     expect(listParents).toHaveBeenCalledWith(['E06000052'], 'Regions (statistical)');
   });
 
-  it('rejects a parents request missing or overflowing parentType', async () => {
+  it('rejects a parents request missing or overflowing parentType, or with a control character', async () => {
     const app = createTestApp();
 
     expect((await request(app).get('/api/areas/parents?areaCode=E06000052')).status).toBe(400);
+    expect(
+      (await request(app).get('/api/areas/parents?areaCode=E06000052&parentType=%00')).status,
+    ).toBe(400);
     expect(
       (
         await request(app).get(
@@ -159,6 +179,18 @@ describe('GET /api/areas', () => {
     const response = await request(createTestApp()).get('/api/areas');
 
     expect(response.status).toBe(400);
+  });
+
+  it('ignores an area type or display group holding a control character', async () => {
+    const listByType = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ listByType });
+
+    expect((await request(app).get('/api/areas?areaType=%00&displayGroup=%00')).status).toBe(400);
+
+    const response = await request(app).get('/api/areas?areaType=Regions&areaType=Regions%00');
+
+    expect(response.status).toBe(200);
+    expect(listByType.mock.calls).toEqual([['Regions']]);
   });
 
   it('ignores query parameters it does not know', async () => {

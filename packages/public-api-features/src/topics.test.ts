@@ -139,3 +139,19 @@ describe('GET /api/topics/:slug/trends', () => {
     expect(response.body).toEqual(summary);
   });
 });
+
+describe('a segment that is not a slug', () => {
+  it.each([
+    '/api/topics/%00',
+    '/api/topics/%00/trends',
+    '/api/topics/topic%7Fa',
+    '/api/topics/Topic-A',
+    `/api/topics/${'a'.repeat(201)}`,
+  ])('answers %s with not-found without touching the repository', async (path) => {
+    // No stub: reaching the repository would throw and answer 500.
+    const response = await request(createTestApp()).get(path);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+});
