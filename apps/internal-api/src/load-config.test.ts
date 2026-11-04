@@ -114,9 +114,8 @@ describe('loadConfig', () => {
   });
 
   it('throws naming the missing password', () => {
-    expect(() => loadConfig({ APP_ENV: 'local', SESSION_JWT_SECRET: sessionSecret })).toThrow(
-      /INTERNAL_API_PASSWORD/,
-    );
+    const { INTERNAL_API_PASSWORD: _, ...withoutPassword } = local;
+    expect(() => loadConfig(withoutPassword)).toThrow(/INTERNAL_API_PASSWORD/);
   });
 
   it('refuses the Azurite connection string in a deployed environment', () => {
@@ -131,5 +130,15 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ APP_ENV: 'local', INTERNAL_API_PASSWORD: 'pw' })).toThrow(
       /SESSION_JWT_SECRET/,
     );
+  });
+
+  it('signs in to the database with the same managed identity as storage under DB_AUTH=entra', () => {
+    const { INTERNAL_API_PASSWORD: _, ...withoutPassword } = deployed;
+    const config = loadConfig({ ...withoutPassword, DB_AUTH: 'entra', DB_USER: 'id-internal-api' });
+
+    expect(config.db).toMatchObject({
+      user: 'id-internal-api',
+      entraClientId: '00000000-0000-0000-0000-000000000000',
+    });
   });
 });

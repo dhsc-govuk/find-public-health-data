@@ -6,10 +6,12 @@ import {
   assertMigratable,
   assertResetAllowed,
   assertSeedingAllowed,
+  bootstrapEntraPrincipals,
   bootstrapRoles,
   compareMigrations,
   createOwnerGroup,
   type DatabaseRole,
+  type EntraPrincipal,
   importCoreData as importCoreDataFromFiles,
   READ_MODEL_TABLES,
   readAppliedMigrations,
@@ -66,9 +68,35 @@ export function rolesToBootstrap(roles: Config['roles']): DatabaseRole[] {
   );
 }
 
+/** Under DB_AUTH=entra, the two API identities' principals, refusing half the pair as above. */
+export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] {
+  const required = [
+    { group: API_ROLES.publicApi, prefix: 'PUBLIC_API', principal: roles.publicApiPrincipal },
+    {
+      group: API_ROLES.internalApi,
+      prefix: 'INTERNAL_API',
+      principal: roles.internalApiPrincipal,
+    },
+  ];
+
+  const missing = required.filter((role) => role.principal === undefined);
+  if (missing.length > 0) {
+    const variables = missing.flatMap(({ prefix }) => [`${prefix}_DB_USER`, `${prefix}_OBJECT_ID`]);
+    throw new Error(`db bootstrap needs ${variables.join(', ')} in the environment`);
+  }
+
+  return required.flatMap(({ group, principal }) =>
+    principal === undefined ? [] : [{ group, ...principal }],
+  );
+}
+
 /** Also creates the owner group, which a restored dump names as owner but doesn't carry. */
 export async function bootstrap({ sql, config }: CommandContext): Promise<void> {
-  await bootstrapRoles(sql, rolesToBootstrap(config.roles));
+  if ('entraClientId' in config.db) {
+    await bootstrapEntraPrincipals(sql, principalsToBootstrap(config.roles));
+  } else {
+    await bootstrapRoles(sql, rolesToBootstrap(config.roles));
+  }
   await sql.begin((tx) => createOwnerGroup(tx));
 }
 

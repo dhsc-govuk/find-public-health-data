@@ -4,7 +4,7 @@ import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { bootstrapRoles } from './bootstrap.ts';
+import { bootstrapEntraPrincipals, bootstrapRoles } from './bootstrap.ts';
 
 let testDb: TestDb;
 let owner: postgres.Sql;
@@ -36,10 +36,23 @@ async function canLogIn(role: string, password: string): Promise<boolean> {
 beforeAll(async () => {
   testDb = await createTestDb();
   owner = testDb.sql;
+  // Stands in for Azure's function, which creates a login role mapped to the Entra object.
+  await owner.unsafe(`
+    CREATE TABLE created_principals (role_name text, object_id text, object_type text);
+    CREATE FUNCTION pgaadauth_create_principal_with_oid(
+      role_name text, object_id text, object_type text, is_admin boolean, is_mfa boolean
+    ) RETURNS text LANGUAGE plpgsql AS $$
+    BEGIN
+      EXECUTE format('CREATE ROLE %I LOGIN', role_name);
+      INSERT INTO created_principals VALUES (role_name, object_id, object_type);
+      RETURN 'Created role for ' || role_name;
+    END $$;
+  `);
 });
 
 afterAll(async () => {
-  for (const role of createdRoles) {
+  // Principals before groups, so no group is dropped while it still has members.
+  for (const role of createdRoles.toReversed()) {
     await owner.unsafe(`DROP ROLE IF EXISTS "${role}"`);
   }
   await testDb.drop();
@@ -95,5 +108,58 @@ describe('bootstrapRoles', () => {
     for (const role of roles) {
       expect(await canLogIn(role.name, role.password)).toBe(true);
     }
+  });
+});
+
+describe('bootstrapEntraPrincipals', () => {
+  const objectId = '22222222-2222-2222-2222-222222222222';
+
+  async function roleFlags(role: string): Promise<{ canLogin: boolean } | undefined> {
+    const [row] = await owner<{ canLogin: boolean }[]>`
+      SELECT rolcanlogin AS "canLogin" FROM pg_roles WHERE rolname = ${role}
+    `;
+    return row;
+  }
+
+  async function isMember(member: string, group: string): Promise<boolean> {
+    const [row] = await owner<{ member: boolean }[]>`
+      SELECT pg_has_role(${member}, ${group}, 'USAGE') AS member
+    `;
+    return row?.member ?? false;
+  }
+
+  it('creates the principal from its object ID and adds it to a group that cannot log in', async () => {
+    const group = uniqueRoleName();
+    const name = uniqueRoleName();
+
+    await bootstrapEntraPrincipals(owner, [{ group, name, objectId }]);
+
+    expect(await owner`SELECT * FROM created_principals WHERE role_name = ${name}`).toEqual([
+      { role_name: name, object_id: objectId, object_type: 'service' },
+    ]);
+    expect(await roleFlags(group)).toEqual({ canLogin: false });
+    expect(await isMember(name, group)).toBe(true);
+  });
+
+  it('leaves an existing principal alone when run again', async () => {
+    const group = uniqueRoleName();
+    const name = uniqueRoleName();
+
+    await bootstrapEntraPrincipals(owner, [{ group, name, objectId }]);
+    await bootstrapEntraPrincipals(owner, [{ group, name, objectId }]);
+
+    const created = await owner`SELECT 1 FROM created_principals WHERE role_name = ${name}`;
+    expect(created).toHaveLength(1);
+    expect(await isMember(name, group)).toBe(true);
+  });
+
+  it('stops a group that was a password login from logging in', async () => {
+    const group = uniqueRoleName();
+    await bootstrapRoles(owner, [{ name: group, password: 'a-password' }]);
+
+    await bootstrapEntraPrincipals(owner, [{ group, name: uniqueRoleName(), objectId }]);
+
+    expect(await roleFlags(group)).toEqual({ canLogin: false });
+    expect(await canLogIn(group, 'a-password')).toBe(false);
   });
 });

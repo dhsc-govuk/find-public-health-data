@@ -6,14 +6,42 @@ import {
   serverEnvFields,
   z,
 } from '@fphd/config';
-import { dbEnvFields, resolveDbTls } from '@fphd/db';
+import {
+  checkDbLogin,
+  type DbLoginSource,
+  dbAuthEnvFields,
+  dbEnvFields,
+  resolveDbLogin,
+  resolveDbTls,
+} from '@fphd/db';
 
-const envSchema = z.object({
-  ...serverEnvFields({ port: 4000 }),
-  ...logEnvFields,
-  ...dbEnvFields,
-  PUBLIC_API_PASSWORD: z.string().min(1),
-});
+const envSchema = z
+  .object({
+    ...serverEnvFields({ port: 4000 }),
+    ...logEnvFields,
+    ...dbEnvFields,
+    ...dbAuthEnvFields,
+    PUBLIC_API_PASSWORD: z.string().min(1).optional(),
+    // The API identity's Entra principal, a member of public_api.
+    DB_USER: z.string().min(1).optional(),
+  })
+  .superRefine((env, ctx) => checkDbLogin(dbLogin(env), ctx));
+
+function dbLogin(env: {
+  DB_AUTH: 'password' | 'entra';
+  AZURE_CLIENT_ID?: string | undefined;
+  DB_USER?: string | undefined;
+  PUBLIC_API_PASSWORD?: string | undefined;
+}): DbLoginSource {
+  return {
+    auth: env.DB_AUTH,
+    clientId: env.AZURE_CLIENT_ID,
+    user: env.DB_AUTH === 'entra' ? env.DB_USER : 'public_api',
+    userVariable: 'DB_USER',
+    password: env.PUBLIC_API_PASSWORD,
+    passwordVariable: 'PUBLIC_API_PASSWORD',
+  };
+}
 
 /**
  * Every process.env read in this app happens via this module; new config domains (auth,
@@ -34,8 +62,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
       host: parsed.DB_HOST,
       port: parsed.DB_PORT,
       database: parsed.POSTGRES_DB,
-      user: 'public_api',
-      password: parsed.PUBLIC_API_PASSWORD,
+      ...resolveDbLogin(dbLogin(parsed)),
       ssl: resolveDbTls(parsed.APP_ENV, parsed.DB_TLS),
     },
   } as const;

@@ -17,7 +17,12 @@ describe('loadConfig', () => {
         password: 'owner-pw',
         ssl: false,
       },
-      roles: { publicApiPassword: undefined, internalApiPassword: undefined },
+      roles: {
+        publicApiPassword: undefined,
+        internalApiPassword: undefined,
+        publicApiPrincipal: undefined,
+        internalApiPrincipal: undefined,
+      },
       publishedSnapshot: { url: undefined, sha256: undefined },
       dataMigration: { url: undefined, sha256: undefined },
     });
@@ -42,7 +47,7 @@ describe('loadConfig', () => {
       password: 'owner-pw',
       ssl: true,
     });
-    expect(config.roles).toEqual({
+    expect(config.roles).toMatchObject({
       publicApiPassword: 'public-pw',
       internalApiPassword: 'internal-pw',
     });
@@ -87,6 +92,47 @@ describe('loadConfig', () => {
     expect(config.dataMigration).toEqual({
       url: 'https://example.blob.core.windows.net/import/live.tar',
       sha256: 'b'.repeat(64),
+    });
+  });
+
+  describe('under DB_AUTH=entra', () => {
+    const entra = {
+      APP_ENV: 'production',
+      DB_AUTH: 'entra',
+      POSTGRES_USER: 'id-ops',
+      AZURE_CLIENT_ID: '11111111-1111-1111-1111-111111111111',
+    };
+
+    it("connects as the job's Entra principal with no password", () => {
+      expect(loadConfig(entra).db).toMatchObject({
+        user: 'id-ops',
+        entraClientId: '11111111-1111-1111-1111-111111111111',
+      });
+    });
+
+    it('needs POSTGRES_USER rather than assuming the dev superuser, even locally', () => {
+      expect(() => loadConfig({ ...entra, APP_ENV: 'local', POSTGRES_USER: undefined })).toThrow(
+        /POSTGRES_USER/,
+      );
+    });
+
+    it("reads each API identity's principal for db bootstrap", () => {
+      const config = loadConfig({
+        ...entra,
+        PUBLIC_API_DB_USER: 'id-public-api',
+        PUBLIC_API_OBJECT_ID: '22222222-2222-2222-2222-222222222222',
+        INTERNAL_API_DB_USER: 'id-internal-api',
+        INTERNAL_API_OBJECT_ID: '33333333-3333-3333-3333-333333333333',
+      });
+
+      expect(config.roles.publicApiPrincipal).toEqual({
+        name: 'id-public-api',
+        objectId: '22222222-2222-2222-2222-222222222222',
+      });
+      expect(config.roles.internalApiPrincipal).toEqual({
+        name: 'id-internal-api',
+        objectId: '33333333-3333-3333-3333-333333333333',
+      });
     });
   });
 });

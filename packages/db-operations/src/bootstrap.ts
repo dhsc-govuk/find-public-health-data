@@ -60,3 +60,56 @@ export async function bootstrapRoles(
     }
   });
 }
+
+export interface EntraPrincipal {
+  /** The role the principal joins, which holds the grants: public_api or internal_api. */
+  group: string;
+  /** The principal's role name, which the API connects as. */
+  name: string;
+  /** The managed identity's object (principal) ID in Entra. */
+  objectId: string;
+}
+
+/**
+ * The Entra counterpart of `bootstrapRoles`, for a server that only accepts Entra sign-in. Makes
+ * each group a role with no login, creates a principal for each API's managed identity, and
+ * adds the principal to its group. Idempotent, and run as the server's Entra admin, the only
+ * role that can create principals.
+ *
+ * `pgaadauth_create_principal_with_oid` takes the identity's object ID rather than looking a
+ * name up in Entra, so the role name is ours to choose. It is called unqualified: Azure has it
+ * in `pg_catalog`, and the integration test supplies a stand-in.
+ */
+export async function bootstrapEntraPrincipals(
+  sql: postgres.Sql,
+  principals: readonly EntraPrincipal[],
+): Promise<void> {
+  await sql.begin(async (tx) => {
+    for (const principal of principals) {
+      await tx`SELECT set_config('fphd.bootstrap_group', ${principal.group}, true)`;
+      await tx`SELECT set_config('fphd.bootstrap_principal', ${principal.name}, true)`;
+      await tx`SELECT set_config('fphd.bootstrap_object_id', ${principal.objectId}, true)`;
+      await tx.unsafe(`
+        DO $$
+        DECLARE
+          group_name text := current_setting('fphd.bootstrap_group');
+          principal_name text := current_setting('fphd.bootstrap_principal');
+          object_id text := current_setting('fphd.bootstrap_object_id');
+        BEGIN
+          BEGIN
+            EXECUTE format('CREATE ROLE %I NOLOGIN', group_name);
+          EXCEPTION WHEN duplicate_object OR unique_violation THEN
+            NULL;
+          END;
+          EXECUTE format('ALTER ROLE %I NOLOGIN', group_name);
+          IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = principal_name) THEN
+            PERFORM pgaadauth_create_principal_with_oid(
+              principal_name, object_id, 'service', false, false
+            );
+          END IF;
+          EXECUTE format('GRANT %I TO %I', group_name, principal_name);
+        END $$;
+      `);
+    }
+  });
+}

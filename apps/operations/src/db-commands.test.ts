@@ -14,6 +14,7 @@ import {
   importCoreData,
   importPublishedSnapshot,
   migrateLiveData,
+  principalsToBootstrap,
   rolesToBootstrap,
 } from './db-commands.ts';
 import type { Config } from './load-config.ts';
@@ -145,10 +146,21 @@ function migrationContext() {
   };
 }
 
+const noRoles: Config['roles'] = {
+  publicApiPassword: undefined,
+  internalApiPassword: undefined,
+  publicApiPrincipal: undefined,
+  internalApiPrincipal: undefined,
+};
+
 describe('rolesToBootstrap', () => {
   it('pairs each fixed role name with its injected password', () => {
     expect(
-      rolesToBootstrap({ publicApiPassword: 'public-pw', internalApiPassword: 'internal-pw' }),
+      rolesToBootstrap({
+        ...noRoles,
+        publicApiPassword: 'public-pw',
+        internalApiPassword: 'internal-pw',
+      }),
     ).toEqual([
       { name: 'public_api', password: 'public-pw' },
       { name: 'internal_api', password: 'internal-pw' },
@@ -156,15 +168,41 @@ describe('rolesToBootstrap', () => {
   });
 
   it('names every missing password in one error', () => {
-    expect(() =>
-      rolesToBootstrap({ publicApiPassword: undefined, internalApiPassword: undefined }),
-    ).toThrow(/PUBLIC_API_PASSWORD and INTERNAL_API_PASSWORD/);
+    expect(() => rolesToBootstrap(noRoles)).toThrow(
+      /PUBLIC_API_PASSWORD and INTERNAL_API_PASSWORD/,
+    );
   });
 
   it('refuses a half-configured pair rather than bootstrapping one role', () => {
-    expect(() =>
-      rolesToBootstrap({ publicApiPassword: 'public-pw', internalApiPassword: undefined }),
-    ).toThrow(/INTERNAL_API_PASSWORD/);
+    expect(() => rolesToBootstrap({ ...noRoles, publicApiPassword: 'public-pw' })).toThrow(
+      /INTERNAL_API_PASSWORD/,
+    );
+  });
+});
+
+describe('principalsToBootstrap', () => {
+  const publicApiPrincipal = {
+    name: 'id-public-api',
+    objectId: '22222222-2222-2222-2222-222222222222',
+  };
+  const internalApiPrincipal = {
+    name: 'id-internal-api',
+    objectId: '33333333-3333-3333-3333-333333333333',
+  };
+
+  it('puts each identity in its API group', () => {
+    expect(principalsToBootstrap({ ...noRoles, publicApiPrincipal, internalApiPrincipal })).toEqual(
+      [
+        { group: 'public_api', ...publicApiPrincipal },
+        { group: 'internal_api', ...internalApiPrincipal },
+      ],
+    );
+  });
+
+  it('refuses a half-configured pair, naming what is missing', () => {
+    expect(() => principalsToBootstrap({ ...noRoles, publicApiPrincipal })).toThrow(
+      'db bootstrap needs INTERNAL_API_DB_USER, INTERNAL_API_OBJECT_ID in the environment',
+    );
   });
 });
 
