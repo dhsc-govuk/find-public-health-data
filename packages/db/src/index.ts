@@ -12,7 +12,15 @@ export {
   type SqlClient,
 } from './client.ts';
 export { dimensionKey } from './dimension-key.ts';
-export { dbEnvFields, resolveDbTls } from './env.ts';
+export {
+  checkDbLogin,
+  type DbLogin,
+  type DbLoginSource,
+  dbAuthEnvFields,
+  dbEnvFields,
+  resolveDbLogin,
+  resolveDbTls,
+} from './env.ts';
 export {
   getIndicatorObservations,
   getPublishedIndicatorById,

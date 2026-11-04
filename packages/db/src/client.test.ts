@@ -33,6 +33,20 @@ describe('createPostgresClient', () => {
     expect(client.options.host).toEqual(['db.example']);
   });
 
+  it('passes a password function for a managed identity, and the password otherwise', () => {
+    const entra = createPostgresClient({
+      host: 'db.example',
+      port: 5432,
+      database: 'fphd',
+      user: 'id-public-api',
+      entraClientId: '11111111-1111-1111-1111-111111111111',
+      ssl: true,
+    });
+
+    expect(entra.options.pass).toBeTypeOf('function');
+    expect(createPostgresClient(connection).options.pass).toBe('pw');
+  });
+
   it('still applies options that name no connection field', () => {
     const client = createPostgresClient(connection, { max: 1 });
 

@@ -637,6 +637,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@azure/identity':
+        specifier: 'catalog:'
+        version: 4.13.3
       '@fphd/config':
         specifier: workspace:*
         version: link:../config

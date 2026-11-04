@@ -1,6 +1,7 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
+import { entraTokenPassword } from './entra-token.ts';
 import * as schema from './schema/index.ts';
 
 export type Schema = typeof schema;
@@ -13,14 +14,17 @@ export type SqlClient = postgres.Sql;
 // shutdown, instead of leaving the process to hang on an open socket.
 export type Database = PostgresJsDatabase<Schema> & { $client: postgres.Sql };
 
-export interface DbConnection {
+/**
+ * Signs in with a password, or with an Entra token from the managed identity whose client ID is
+ * given.
+ */
+export type DbConnection = {
   host: string;
   port: number;
   database: string;
   user: string;
-  password: string;
   ssl: boolean;
-}
+} & ({ password: string } | { entraClientId: string });
 
 /**
  * `ssl` is passed as a boolean, never the string 'require': postgres.js maps 'require' to
@@ -42,7 +46,10 @@ export function createPostgresClient(
     port: connection.port,
     database: connection.database,
     username: connection.user,
-    password: connection.password,
+    password:
+      'entraClientId' in connection
+        ? entraTokenPassword(connection.entraClientId)
+        : connection.password,
     ssl: connection.ssl,
   });
 }

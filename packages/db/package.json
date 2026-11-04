@@ -33,6 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@azure/identity": "catalog:",
     "@fphd/config": "workspace:*",
     "@fphd/utils": "workspace:*",
     "drizzle-orm": "catalog:",
