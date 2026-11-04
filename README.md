@@ -337,8 +337,17 @@ migrate` refuses a database migrated before the group existed, with a message to
 belong to the login, so `db migrate` refuses that database too.
 
 Only a role with ADMIN on `fphd_owner` can add a member, and that is the login that created it. If
-a different login is to run migrations, such as a replacement managed identity, the old one must
-first run `GRANT fphd_owner TO <new login> WITH ADMIN TRUE`.
+a different login is to run migrations, such as a replacement managed identity, the old login must
+first run both of these:
+
+```sql
+GRANT fphd_owner TO "<new login>" WITH ADMIN TRUE;
+ALTER DATABASE <database> OWNER TO fphd_owner;
+```
+
+The second gives every member of the group the database owner's rights. The new login needs those
+to run `db reset`, and to grant the group `CREATE` on the `public` schema that a reset recreates.
+The old login can't give the database to the new login directly, because it can't `SET ROLE` to it.
 
 The Drizzle schema lives in `packages/db` and its migrations in `packages/db-operations`:
 
