@@ -46,7 +46,7 @@ function createTestApp(indicators: Partial<Indicators> = {}): Express {
       {
         findTeamId: async () => TEST_TEAM_ID,
         findRevisionRound: async () => round,
-        saveRevisionResponse: async () => ({ ok: true }),
+        saveRevisionResponse: async () => ({ ok: true, version: VERSION }),
         ...indicators,
       },
       testSessionVerifier,
@@ -123,11 +123,16 @@ describe('GET the revision response', () => {
 
 describe('PUT the revision response', () => {
   it('saves the trimmed reply as the publisher and answers it with its new version', async () => {
-    const saveRevisionResponse = vi.fn().mockResolvedValue({ ok: true });
+    const saved = revisionReplyVersion({
+      submissionNumber: 1,
+      revisionResponse: 'Changed the name',
+    });
+    const saveRevisionResponse = vi.fn().mockResolvedValue({ ok: true, version: saved });
+    // A teammate resubmitting straight after the save leaves the answer to the save alone.
     const findRevisionRound = vi
       .fn()
       .mockResolvedValueOnce(round)
-      .mockResolvedValueOnce({ ...round, revisionResponse: 'Changed the name' });
+      .mockResolvedValue({ ...round, draftLocked: true, submissionStatus: 'in_review' });
 
     const response = await request(createTestApp({ findRevisionRound, saveRevisionResponse }))
       .put(path)
@@ -142,9 +147,12 @@ describe('PUT the revision response', () => {
       testActor(response),
     );
     expect(saveRevisionResponse.mock.lastCall?.[2].versionOf(round)).toBe(VERSION);
-    expect(response.body).toMatchObject({
+    expect(response.body).toEqual({
+      kind: round.kind,
+      clarificationRequest: round.clarificationRequest,
+      flaggedTaskCount: round.flags.length,
       revisionResponse: 'Changed the name',
-      version: revisionReplyVersion({ submissionNumber: 1, revisionResponse: 'Changed the name' }),
+      version: saved,
     });
   });
 

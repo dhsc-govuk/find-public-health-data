@@ -140,13 +140,10 @@ describe('two publishers writing the reply', () => {
       () => saveRevisionResponse(db, indicatorId, 'Second', shown, AS_OTHER_ACTOR),
     );
 
+    const first = revisionReplyVersion({ submissionNumber: 1, revisionResponse: 'First' });
     expect(result).toEqual({
-      write: { ok: true },
-      step: {
-        ok: false,
-        reason: 'changed',
-        version: revisionReplyVersion({ submissionNumber: 1, revisionResponse: 'First' }),
-      },
+      write: { ok: true, version: first },
+      step: { ok: false, reason: 'changed', version: first },
     });
     const [latest] = await db
       .select({ revisionResponse: indicatorVersionSubmission.revisionResponse })

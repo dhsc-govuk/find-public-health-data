@@ -54,7 +54,7 @@ export interface RevisionReply {
 }
 
 export type SaveRevisionResponseResult =
-  | { ok: true }
+  | { ok: true; version: string }
   | { ok: false; reason: 'no_draft' | 'locked' | 'not_allowed' }
   | { ok: false; reason: 'changed'; version: string };
 
@@ -115,7 +115,7 @@ export async function getRevisionRound(
  * edit of the draft, so it moves the draft's `updatedAt` and `updatedBy`, which a submission
  * confirms. Refused as `locked` while the draft is locked, `not_allowed` unless its latest
  * submission was sent back for changes, and `changed`, with the current version, when someone
- * has written the reply since the page was shown.
+ * has written the reply since the page was shown. A save answers the reply's new version.
  */
 export function saveRevisionResponse(
   db: Database,
@@ -176,7 +176,10 @@ export function saveRevisionResponse(
       ]);
     }
 
-    return { ok: true };
+    return {
+      ok: true,
+      version: precondition.versionOf({ submissionNumber: latest.number, revisionResponse: text }),
+    };
   });
 }
 

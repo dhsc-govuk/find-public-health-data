@@ -134,12 +134,12 @@ export function revisionResponseRouter(
       return;
     }
 
-    const saved = replyOf(await indicators.findRevisionRound(id));
-
-    if (Array.isArray(saved)) throw new Error('the reply just saved could not be read back');
-
     request.log.info({ indicatorId: id }, 'Revision response saved');
-    response.status(200).json(saved);
+    response.status(200).json({
+      ...current,
+      revisionResponse: checked.data.revisionResponse,
+      version: result.version,
+    } satisfies RevisionResponse);
   });
 
   return router;

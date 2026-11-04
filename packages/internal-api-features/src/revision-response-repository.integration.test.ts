@@ -122,7 +122,7 @@ describe('saveRevisionResponse', () => {
       AS_OTHER_ACTOR,
     );
 
-    expect(saved).toEqual({ ok: true });
+    expect(saved).toEqual({ ok: true, version: shownReply('Polarity checked').version });
     expect(await latestReplyOf(db, versionId)).toBe('Polarity checked');
     const draft = await draftOf(db, versionId);
     expect(draft.updatedBy).toBe(OTHER_ACTOR);
@@ -141,7 +141,7 @@ describe('saveRevisionResponse', () => {
 
     expect(
       await saveRevisionResponse(db, indicatorId, 'Same', shownReply('Same'), AS_ACTOR),
-    ).toEqual({ ok: true });
+    ).toEqual({ ok: true, version: shownReply('Same').version });
     expect(await replyEntries(db, indicatorId)).toHaveLength(1);
   });
 
