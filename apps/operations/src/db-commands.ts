@@ -8,6 +8,7 @@ import {
   assertSeedingAllowed,
   bootstrapRoles,
   compareMigrations,
+  createOwnerGroup,
   type DatabaseRole,
   importCoreData as importCoreDataFromFiles,
   READ_MODEL_TABLES,
@@ -65,8 +66,10 @@ export function rolesToBootstrap(roles: Config['roles']): DatabaseRole[] {
   );
 }
 
+/** Also creates the owner group, which a restored dump names as owner but doesn't carry. */
 export async function bootstrap({ sql, config }: CommandContext): Promise<void> {
   await bootstrapRoles(sql, rolesToBootstrap(config.roles));
+  await sql.begin((tx) => createOwnerGroup(tx));
 }
 
 /**

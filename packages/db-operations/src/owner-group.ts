@@ -24,15 +24,7 @@ export const APP_SCHEMAS = ['public', ...OWNED_SCHEMAS];
  */
 export async function prepareOwnerGroup(sql: postgres.Sql): Promise<void> {
   await sql.begin(async (tx) => {
-    await tx.unsafe(`
-      DO $$
-      BEGIN
-        CREATE ROLE ${OWNER_GROUP} NOLOGIN;
-      -- unique_violation is what the loser of a genuinely concurrent CREATE ROLE gets.
-      EXCEPTION WHEN duplicate_object OR unique_violation THEN
-        NULL;
-      END $$;
-    `);
+    await createOwnerGroup(tx);
 
     const [membership] = await tx<{ ready: boolean }[]>`
       SELECT pg_has_role(current_user, ${OWNER_GROUP}, 'USAGE')
@@ -57,6 +49,19 @@ export async function prepareOwnerGroup(sql: postgres.Sql): Promise<void> {
       );
     }
   });
+}
+
+/** Creates the owner group if it doesn't exist. */
+export async function createOwnerGroup(tx: postgres.TransactionSql): Promise<void> {
+  await tx.unsafe(`
+    DO $$
+    BEGIN
+      CREATE ROLE ${OWNER_GROUP} NOLOGIN;
+    -- unique_violation is what the loser of a genuinely concurrent CREATE ROLE gets.
+    EXCEPTION WHEN duplicate_object OR unique_violation THEN
+      NULL;
+    END $$;
+  `);
 }
 
 /**

@@ -36,7 +36,7 @@ export interface Command {
  */
 export const commands: Record<string, Command> = {
   'db bootstrap': {
-    description: 'Create the per-API login roles, resetting passwords',
+    description: 'Create the owner group and the per-API login roles, resetting passwords',
     run: bootstrap,
   },
   'db migrate': {

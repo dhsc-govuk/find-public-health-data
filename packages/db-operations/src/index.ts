@@ -45,6 +45,7 @@ export {
   readLocalMigrations,
 } from './migration-status.ts';
 export { migrateToLatest } from './migrations.ts';
+export { createOwnerGroup } from './owner-group.ts';
 export {
   analyzeReadModels,
   READ_MODEL_TABLES,

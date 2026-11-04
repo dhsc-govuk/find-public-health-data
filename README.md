@@ -323,8 +323,8 @@ to `compose.yaml` without a profile becomes a dev prerequisite without the scrip
 app services are profile-gated and belong to `pnpm dev:mixed`.
 
 Each API connects with its own login role (`public_api`, `internal_api`) rather than as the owner,
-so access can be constrained per audience at the grant level. The roles are created by
-`pnpm db:bootstrap` — run it once against a fresh database, before the first migration: the grant
+so access can be constrained per audience at the grant level. The roles, and the `fphd_owner` group
+below, are created by `pnpm db:bootstrap` — run it once against a fresh database, before the first migration: the grant
 migrations reference the roles, so migrating a database that has never been bootstrapped fails.
 It is idempotent, and it sets the passwords every time, so re-running it is also how a password
 change in `.env` reaches the database.
