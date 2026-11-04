@@ -43,7 +43,12 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     checkDbLogin(dbLogin(env), ctx);
-    if (isDeployedEnv(env.APP_ENV) && env.POSTGRES_USER === undefined) {
+    // Under entra, checkDbLogin has already reported a missing POSTGRES_USER.
+    if (
+      env.DB_AUTH === 'password' &&
+      isDeployedEnv(env.APP_ENV) &&
+      env.POSTGRES_USER === undefined
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['POSTGRES_USER'],

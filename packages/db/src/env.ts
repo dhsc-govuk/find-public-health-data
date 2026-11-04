@@ -56,7 +56,10 @@ function missingDbLogin(source: DbLoginSource): string[] {
   ].filter((name) => name !== undefined);
 }
 
-/** For an app schema's `superRefine`, so a missing login is reported with every other problem. */
+/**
+ * For an app schema's `superRefine`, so a missing login is reported with the schema's other
+ * errors. Zod skips it when a value has the wrong type, so then it is reported on the next run.
+ */
 export function checkDbLogin(source: DbLoginSource, ctx: z.RefinementCtx): void {
   for (const variable of missingDbLogin(source)) {
     ctx.addIssue({

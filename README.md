@@ -532,8 +532,8 @@ POSTGRES_PASSWORD        # DB_AUTH=password only
 AZURE_CLIENT_ID          # DB_AUTH=entra only: the job's managed identity
 ```
 
-`DB_AUTH`, `DB_PORT`, `DB_TLS` and `LOG_LEVEL` are optional. Exit codes: `0` success, `1` failure, `2`
-unrecognised command.
+`DB_AUTH`, `DB_PORT`, `DB_TLS` and `LOG_LEVEL` are optional. Exit codes: `0` success, `1` failure,
+`2` unrecognised command.
 
 ## Container images
 

@@ -1,3 +1,4 @@
+import { createPostgresClient } from '@fphd/db';
 import {
   API_ROLES,
   analyzeReadModels,
@@ -90,10 +91,24 @@ export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] 
   );
 }
 
-/** Also creates the owner group, which a restored dump names as owner but doesn't carry. */
+/**
+ * Also creates the owner group, which a restored dump names as owner but doesn't carry. Under
+ * Entra the principals are created over a connection to the `postgres` database, where Azure
+ * provides the pgaadauth functions. Roles belong to the whole server, so that is no
+ * different from creating them in the app's database.
+ */
 export async function bootstrap({ sql, config }: CommandContext): Promise<void> {
   if ('entraClientId' in config.db) {
-    await bootstrapEntraPrincipals(sql, principalsToBootstrap(config.roles));
+    const principals = principalsToBootstrap(config.roles);
+    const server = createPostgresClient(
+      { ...config.db, database: 'postgres' },
+      { max: 1, onnotice: () => {} },
+    );
+    try {
+      await bootstrapEntraPrincipals(server, principals);
+    } finally {
+      await server.end();
+    }
   } else {
     await bootstrapRoles(sql, rolesToBootstrap(config.roles));
   }

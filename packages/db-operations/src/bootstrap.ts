@@ -77,8 +77,9 @@ export interface EntraPrincipal {
  * role that can create principals.
  *
  * `pgaadauth_create_principal_with_oid` takes the identity's object ID rather than looking a
- * name up in Entra, so the role name is ours to choose. It is called unqualified: Azure has it
- * in `pg_catalog`, and the integration test supplies a stand-in.
+ * name up in Entra, so the role name is ours to choose. Azure provides it in the `postgres`
+ * database, which `sql` must be connected to. It is called unqualified so that the
+ * integration test can supply a stand-in.
  */
 export async function bootstrapEntraPrincipals(
   sql: postgres.Sql,
