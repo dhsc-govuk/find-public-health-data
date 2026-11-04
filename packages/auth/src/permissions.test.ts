@@ -179,15 +179,59 @@ describe('canSeeNotesForReviewers', () => {
 });
 
 describe('canSeeIndicatorHistory', () => {
+  // A publisher in team B who is also assigned to review a team B indicator.
+  const assignedInOwnTeam: IndicatorAccess = { teamId: teamB, reviewerIds: ['publisher-reviewer'] };
+  const assignedToPublisherReviewer: IndicatorAccess = {
+    teamId: teamA,
+    reviewerIds: ['publisher-reviewer'],
+  };
+
   it.each([
-    ['an IMRG manager', manager, inTeamA, true],
-    ['an admin', admin, inTeamA, true],
-    ['a publisher in its team', publisherA, inTeamA, true],
-    ['an assigned reviewer', reviewer, assigned, true],
-    ['a publisher in another team', publisherA, inTeamB, false],
-    ['an unassigned reviewer', reviewer, inTeamA, false],
-  ])('answers %s with %s', (_who, asking, indicator, expected) => {
+    ['an IMRG manager', true, manager, inTeamA],
+    ['an admin', true, admin, inTeamA],
+    ['a publisher in its team', true, publisherA, inTeamA],
+    ['an assigned reviewer', true, reviewer, assigned],
+    ['a reviewer assigned in their own team', true, publisherReviewer, assignedInOwnTeam],
+    [
+      'a reviewer who publishes in another team, assigned',
+      true,
+      publisherReviewer,
+      assignedToPublisherReviewer,
+    ],
+    ['a publisher in another team', false, publisherA, inTeamB],
+    ['an unassigned reviewer', false, reviewer, inTeamA],
+    ['a reviewer who publishes in another team, unassigned', false, publisherReviewer, inTeamA],
+  ])('answers %s with %s', (_who, expected, asking, indicator) => {
     expect(canSeeIndicatorHistory(asking, indicator)).toBe(expected);
+  });
+
+  it('admits whoever canSeeIndicator does', () => {
+    const users = [
+      publisherA,
+      publisherAB,
+      reviewer,
+      publisherReviewer,
+      manager,
+      admin,
+      publisherManager,
+      teamless,
+    ];
+    const indicators = [
+      inTeamA,
+      inTeamB,
+      inNoTeam,
+      assigned,
+      assignedInOwnTeam,
+      assignedToPublisherReviewer,
+    ];
+
+    for (const asking of users) {
+      for (const indicator of indicators) {
+        expect(canSeeIndicatorHistory(asking, indicator), asking.sub).toBe(
+          canSeeIndicator(asking, indicator),
+        );
+      }
+    }
   });
 });
 
