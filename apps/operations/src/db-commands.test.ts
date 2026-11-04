@@ -11,9 +11,11 @@ import { createLogger, type Logger } from '@fphd/logger';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommandContext } from './commands.ts';
 import {
+  bootstrap,
   importCoreData,
   importPublishedSnapshot,
   migrateLiveData,
+  principalsToBootstrap,
   rolesToBootstrap,
 } from './db-commands.ts';
 import type { Config } from './load-config.ts';
@@ -28,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   importCoreData: vi.fn(),
   migrationDownload: vi.fn(),
   migrationApply: vi.fn(),
+  createClient: vi.fn(),
+  bootstrapEntra: vi.fn(),
+  createOwnerGroup: vi.fn(),
 }));
 
 vi.mock('./published-snapshot.ts', () => ({ downloadPublishedSnapshot: mocks.download }));
@@ -42,6 +47,12 @@ vi.mock('@fphd/db-operations', async (importOriginal) => ({
   analyzeReadModels: mocks.analyze,
   importCoreData: mocks.importCoreData,
   applyDataMigration: mocks.migrationApply,
+  bootstrapEntraPrincipals: mocks.bootstrapEntra,
+  createOwnerGroup: mocks.createOwnerGroup,
+}));
+vi.mock('@fphd/db', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@fphd/db')>()),
+  createPostgresClient: mocks.createClient,
 }));
 
 afterEach(() => vi.clearAllMocks());
@@ -145,10 +156,21 @@ function migrationContext() {
   };
 }
 
+const noRoles: Config['roles'] = {
+  publicApiPassword: undefined,
+  internalApiPassword: undefined,
+  publicApiPrincipal: undefined,
+  internalApiPrincipal: undefined,
+};
+
 describe('rolesToBootstrap', () => {
   it('pairs each fixed role name with its injected password', () => {
     expect(
-      rolesToBootstrap({ publicApiPassword: 'public-pw', internalApiPassword: 'internal-pw' }),
+      rolesToBootstrap({
+        ...noRoles,
+        publicApiPassword: 'public-pw',
+        internalApiPassword: 'internal-pw',
+      }),
     ).toEqual([
       { name: 'public_api', password: 'public-pw' },
       { name: 'internal_api', password: 'internal-pw' },
@@ -156,15 +178,100 @@ describe('rolesToBootstrap', () => {
   });
 
   it('names every missing password in one error', () => {
-    expect(() =>
-      rolesToBootstrap({ publicApiPassword: undefined, internalApiPassword: undefined }),
-    ).toThrow(/PUBLIC_API_PASSWORD and INTERNAL_API_PASSWORD/);
+    expect(() => rolesToBootstrap(noRoles)).toThrow(
+      /PUBLIC_API_PASSWORD and INTERNAL_API_PASSWORD/,
+    );
   });
 
   it('refuses a half-configured pair rather than bootstrapping one role', () => {
-    expect(() =>
-      rolesToBootstrap({ publicApiPassword: 'public-pw', internalApiPassword: undefined }),
-    ).toThrow(/INTERNAL_API_PASSWORD/);
+    expect(() => rolesToBootstrap({ ...noRoles, publicApiPassword: 'public-pw' })).toThrow(
+      /INTERNAL_API_PASSWORD/,
+    );
+  });
+});
+
+describe('principalsToBootstrap', () => {
+  const publicApiPrincipal = {
+    name: 'id-public-api',
+    objectId: '22222222-2222-2222-2222-222222222222',
+  };
+  const internalApiPrincipal = {
+    name: 'id-internal-api',
+    objectId: '33333333-3333-3333-3333-333333333333',
+  };
+
+  it('puts each identity in its API group', () => {
+    expect(principalsToBootstrap({ ...noRoles, publicApiPrincipal, internalApiPrincipal })).toEqual(
+      [
+        { group: 'public_api', ...publicApiPrincipal },
+        { group: 'internal_api', ...internalApiPrincipal },
+      ],
+    );
+  });
+
+  it('refuses a half-configured pair, naming what is missing', () => {
+    expect(() => principalsToBootstrap({ ...noRoles, publicApiPrincipal })).toThrow(
+      'db bootstrap needs INTERNAL_API_DB_USER, INTERNAL_API_OBJECT_ID in the environment',
+    );
+  });
+});
+
+describe('bootstrap under DB_AUTH=entra', () => {
+  const clientId = '11111111-1111-1111-1111-111111111111';
+  const principal = (name: string) => ({ name, objectId: '22222222-2222-2222-2222-222222222222' });
+
+  function entraContext(): CommandContext {
+    const sql = {
+      begin: vi.fn(async (run: (transaction: object) => Promise<unknown>) => run({})),
+    } as unknown as SqlClient;
+    const config = {
+      db: {
+        host: 'db.example',
+        port: 5432,
+        database: 'fphd',
+        user: 'id-ops',
+        entraClientId: clientId,
+        ssl: true,
+      },
+      roles: {
+        ...noRoles,
+        publicApiPrincipal: principal('id-public-api'),
+        internalApiPrincipal: principal('id-internal-api'),
+      },
+    } as Config;
+    return { sql, config, logger };
+  }
+
+  function serverClient() {
+    const server = { end: vi.fn(async () => {}) };
+    mocks.createClient.mockReturnValue(server);
+    return server;
+  }
+
+  it('creates the principals over its own client to the postgres database, then closes it', async () => {
+    const server = serverClient();
+
+    await bootstrap(entraContext());
+
+    expect(mocks.createClient).toHaveBeenCalledWith(
+      expect.objectContaining({ database: 'postgres', user: 'id-ops', entraClientId: clientId }),
+      expect.objectContaining({ max: 1 }),
+    );
+    expect(mocks.bootstrapEntra).toHaveBeenCalledWith(server, [
+      { group: 'public_api', ...principal('id-public-api') },
+      { group: 'internal_api', ...principal('id-internal-api') },
+    ]);
+    expect(server.end).toHaveBeenCalledOnce();
+    expect(mocks.createOwnerGroup).toHaveBeenCalledOnce();
+  });
+
+  it('closes that client when creating the principals fails', async () => {
+    const server = serverClient();
+    mocks.bootstrapEntra.mockRejectedValueOnce(new Error('function does not exist'));
+
+    await expect(bootstrap(entraContext())).rejects.toThrow('function does not exist');
+
+    expect(server.end).toHaveBeenCalledOnce();
   });
 });
 

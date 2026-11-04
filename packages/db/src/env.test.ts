@@ -1,7 +1,7 @@
 import { parseEnv, z } from '@fphd/config';
 import { describe, expect, it } from 'vitest';
 
-import { dbEnvFields, resolveDbTls } from './env.ts';
+import { dbAuthEnvFields, dbEnvFields, resolveDbLogin, resolveDbTls } from './env.ts';
 
 describe('dbEnvFields', () => {
   const schema = z.object(dbEnvFields);
@@ -56,5 +56,70 @@ describe('resolveDbTls', () => {
   it('lets DB_TLS override the default in both directions', () => {
     expect(resolveDbTls('local', true)).toBe(true);
     expect(resolveDbTls('production', false)).toBe(false);
+  });
+});
+
+describe('dbAuthEnvFields', () => {
+  const schema = z.object(dbAuthEnvFields);
+
+  it('defaults to password sign-in', () => {
+    expect(parseEnv(schema, {}).DB_AUTH).toBe('password');
+  });
+
+  it('rejects an unknown method', () => {
+    expect(() => parseEnv(schema, { DB_AUTH: 'token' })).toThrow(/DB_AUTH/);
+  });
+});
+
+describe('resolveDbLogin', () => {
+  const clientId = '11111111-1111-1111-1111-111111111111';
+  const names = { userVariable: 'DB_USER', passwordVariable: 'PUBLIC_API_PASSWORD' };
+
+  it('signs in with the password under password', () => {
+    expect(
+      resolveDbLogin({
+        ...names,
+        auth: 'password',
+        clientId: undefined,
+        user: 'public_api',
+        password: 'pw',
+      }),
+    ).toEqual({ user: 'public_api', password: 'pw' });
+  });
+
+  it('signs in with the managed identity under entra, ignoring any password', () => {
+    expect(
+      resolveDbLogin({
+        ...names,
+        auth: 'entra',
+        clientId,
+        user: 'id-public-api',
+        password: 'pw',
+      }),
+    ).toEqual({ user: 'id-public-api', entraClientId: clientId });
+  });
+
+  it('names the missing password under password', () => {
+    expect(() =>
+      resolveDbLogin({
+        ...names,
+        auth: 'password',
+        clientId,
+        user: 'public_api',
+        password: undefined,
+      }),
+    ).toThrow('DB_AUTH=password needs PUBLIC_API_PASSWORD');
+  });
+
+  it('names both missing values under entra', () => {
+    expect(() =>
+      resolveDbLogin({
+        ...names,
+        auth: 'entra',
+        clientId: undefined,
+        user: undefined,
+        password: 'pw',
+      }),
+    ).toThrow('DB_AUTH=entra needs DB_USER and AZURE_CLIENT_ID');
   });
 });

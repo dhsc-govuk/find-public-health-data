@@ -63,6 +63,13 @@ identity. Locally and in CI, `STORAGE_CONNECTION_STRING` connects to
 service beside the database; internal-api creates the container on startup if it is missing. A
 connection string is refused when `APP_ENV` is a deployed environment.
 
+`DB_AUTH` says how the operations job and the two APIs sign in to Postgres. It defaults to
+`password`, which local dev and CI use. The deployed environments set `entra`: the servers accept
+only Microsoft Entra sign-in, and each app connects with a token from its managed identity
+(`AZURE_CLIENT_ID`), fetched for each new connection. Under `entra` the APIs connect as their
+identity's principal (`DB_USER`), which is a member of `public_api` or `internal_api`. The
+operations job connects as the server's Entra admin (`POSTGRES_USER`). No database password is set.
+
 `DB_TLS` turns TLS to the database on or off. Left unset it follows `APP_ENV`: off for `local` and
 `test`, where the database is the compose container and presents no certificate, and on everywhere
 else, because every managed Postgres this deploys to requires it. Certificates are verified against
@@ -489,9 +496,12 @@ These commands are worth noting:
   `local`/`test`/`dev` and never touches database roles.
 
 `db bootstrap` needs `PUBLIC_API_PASSWORD` and `INTERNAL_API_PASSWORD`; the other commands do not,
-and fail naming them rather than requiring every job to hold role passwords. All of them connect as
-the owner login (`POSTGRES_USER`/`POSTGRES_PASSWORD`), not as a per-API role. `db migrate` applies
-migrations as the `fphd_owner` group, which the owner login is made a member of.
+and fail naming them rather than requiring every job to hold role passwords. Under `DB_AUTH=entra`
+it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER` and
+`INTERNAL_API_OBJECT_ID` instead. It makes `public_api` and `internal_api` roles that can't log in,
+creates an Entra principal for each API identity from its object ID, and adds it to its role. All
+of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API role. `db migrate`
+applies migrations as the `fphd_owner` group, which the owner login is made a member of.
 
 ### Invoking them from a deployed environment
 
@@ -499,7 +509,7 @@ Deployment lives in the infrastructure repository, which owns the jobs that call
 `node dist/cli.js <command>`:
 
 ```sh
-db bootstrap             # additionally needs PUBLIC_API_PASSWORD and INTERNAL_API_PASSWORD
+db bootstrap             # additionally needs the API passwords, or the API principals under entra
 db migrate
 db status
 db import-core-data
@@ -518,11 +528,12 @@ APP_ENV                  # dev | preview | production for a deployed job; no def
 DB_HOST
 POSTGRES_DB
 POSTGRES_USER            # the owner login, not a per-API role
-POSTGRES_PASSWORD
+POSTGRES_PASSWORD        # DB_AUTH=password only
+AZURE_CLIENT_ID          # DB_AUTH=entra only: the job's managed identity
 ```
 
-`DB_PORT`, `DB_TLS` and `LOG_LEVEL` are optional. Exit codes: `0` success, `1` failure, `2`
-unrecognised command.
+`DB_AUTH`, `DB_PORT`, `DB_TLS` and `LOG_LEVEL` are optional. Exit codes: `0` success, `1` failure,
+`2` unrecognised command.
 
 ## Container images
 

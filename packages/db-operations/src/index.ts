@@ -3,7 +3,13 @@
  * migrate, import, seed, reset and rebuild. A package of its own so the API images ship none
  * of it, nor the migrations and data files it reads.
  */
-export { API_ROLES, bootstrapRoles, type DatabaseRole } from './bootstrap.ts';
+export {
+  API_ROLES,
+  bootstrapEntraPrincipals,
+  bootstrapRoles,
+  type DatabaseRole,
+  type EntraPrincipal,
+} from './bootstrap.ts';
 export { assertCoreDataPresent, importCoreData } from './core-data.ts';
 export {
   type ApplyDataMigrationResult,

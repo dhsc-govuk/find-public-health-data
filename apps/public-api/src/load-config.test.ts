@@ -104,4 +104,25 @@ describe('loadConfig', () => {
       /PORT[\s\S]*PUBLIC_API_PASSWORD/,
     );
   });
+
+  it('connects as its Entra principal with a managed identity token under DB_AUTH=entra', () => {
+    const config = loadConfig({
+      APP_ENV: 'dev',
+      DB_AUTH: 'entra',
+      DB_USER: 'id-public-api',
+      AZURE_CLIENT_ID: '11111111-1111-1111-1111-111111111111',
+    });
+
+    expect(config.db).toMatchObject({
+      user: 'id-public-api',
+      entraClientId: '11111111-1111-1111-1111-111111111111',
+    });
+    expect(config.db).not.toHaveProperty('password');
+  });
+
+  it('names what DB_AUTH=entra is missing', () => {
+    expect(() => loadConfig({ APP_ENV: 'dev', DB_AUTH: 'entra' })).toThrow(
+      /DB_USER[\s\S]*AZURE_CLIENT_ID/,
+    );
+  });
 });
