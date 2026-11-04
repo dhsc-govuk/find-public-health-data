@@ -101,7 +101,7 @@ test.describe('after minor revisions', () => {
 
     await resubmit(page, id);
     await expect(page.getByRole('alert')).toContainText(SUBMITTED);
-    await expect(publishingTag(page)).toHaveText('Publishing status: Pending approval');
+    await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
 
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
       await reviewer.goto('/dashboard');
@@ -109,7 +109,7 @@ test.describe('after minor revisions', () => {
         .getByRole('table', { name: 'Indicators to review, oldest submission first' })
         .getByRole('row')
         .filter({ hasText: name });
-      await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending approval']);
+      await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending review']);
     });
     await respondToReview(browser, id, { kind: 'approved' });
 
@@ -236,7 +236,7 @@ test.describe('with a teammate', () => {
       await teammate.getByRole('button', { name: 'Withdraw submission' }).click();
       await expect(publishingTag(teammate)).toHaveText('Publishing status: Incomplete');
       await resubmit(teammate, id);
-      await expect(publishingTag(teammate)).toHaveText('Publishing status: Pending approval');
+      await expect(publishingTag(teammate)).toHaveText('Publishing status: Pending review');
     });
 
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
@@ -263,6 +263,6 @@ test.describe('without JavaScript', () => {
     await writeReply(page, id, 'Higher is better.');
     await resubmit(page, id);
 
-    await expect(publishingTag(page)).toHaveText('Publishing status: Pending approval');
+    await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
   });
 });

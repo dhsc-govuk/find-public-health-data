@@ -255,7 +255,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     await expect(page.getByRole('region', { name: 'Important' })).toContainText(
       'This indicator has been resubmitted since you opened this page.',
     );
-    await expect(publishingTag(page)).toHaveText('Publishing status: Pending approval');
+    await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
   });
 
   test.describe('without JavaScript', () => {

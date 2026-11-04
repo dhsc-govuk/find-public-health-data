@@ -121,7 +121,7 @@ test.describe('as an IMRG manager', () => {
       .getByRole('row')
       .filter({ hasText: name });
 
-    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending approval']);
+    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending review']);
     await expectNoAccessibilityViolations(page, testInfo);
 
     await row.getByRole('link', { name }).click();
@@ -160,7 +160,7 @@ test.describe('as an IMRG reviewer', () => {
       IMRG_REVIEWER.name,
       PUBLISHER_AND_REVIEWER.name,
     ]);
-    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending approval']);
+    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending review']);
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
