@@ -64,6 +64,10 @@ import {
   type CreateDraftFromPublishedResult,
   createDraftFromPublished,
 } from './indicator-publish-repository.ts';
+import {
+  type PublicationSchedule,
+  schedulePublication,
+} from './indicator-scheduling-repository.ts';
 import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import {
   assignReviewers,
@@ -185,6 +189,15 @@ export interface InternalIndicatorRepository {
     response: ReviewResponse,
     actor: Actor,
   ): Promise<RespondToReviewResult>;
+  /**
+   * Confirms an approved draft's publication date, scheduling it, or changes a scheduled one's,
+   * as long as the stored date is the one shown.
+   */
+  schedule(
+    indicatorId: string,
+    schedule: PublicationSchedule,
+    actor: Actor,
+  ): Promise<IndicatorStepResult<'changed'>>;
   /** The draft's latest round of review and the publisher's reply, or undefined with no indicator. */
   findRevisionRound(id: string): Promise<RevisionRoundRow | undefined>;
   /** Writes the publisher's reply to the round, unless it has changed since the page was shown. */
@@ -317,6 +330,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       assignReviewers: (indicatorId, assignment, actor) =>
         assignReviewers(db, indicatorId, assignment, actor),
       respond: (indicatorId, response, actor) => respondToReview(db, indicatorId, response, actor),
+      schedule: (indicatorId, schedule, actor) =>
+        schedulePublication(db, indicatorId, schedule, actor),
       findRevisionRound: (id) => getRevisionRound(db, id),
       saveRevisionResponse: (indicatorId, text, precondition, actor) =>
         saveRevisionResponse(db, indicatorId, text, precondition, actor),

@@ -116,6 +116,8 @@ export const INDICATOR_STEPS = [
   'request_changes',
   'approve',
   'resubmit',
+  'schedule',
+  'change_publication_date',
 ] as const;
 
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);

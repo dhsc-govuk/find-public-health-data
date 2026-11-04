@@ -1,6 +1,7 @@
 import {
   canAssignReviewers,
   canRespondToReview,
+  canSchedulePublication,
   canSubmitIndicator,
   canWithdrawSubmission,
   type IndicatorAccess,
@@ -120,6 +121,28 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     carriesReviewers: true,
     permission: canSubmitIndicator,
+  },
+  // An admin confirms an approved new indicator's publication date, which schedules it.
+  schedule: {
+    from: {
+      indicatorStatuses: ['new'],
+      versionStatuses: ['draft'],
+      isLocked: true,
+      submissionStatuses: ['approved'],
+    },
+    leadsTo: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
+    permission: canSchedulePublication,
+  },
+  // The only step open from a scheduled version: it stays scheduled, with a new date.
+  change_publication_date: {
+    from: {
+      indicatorStatuses: ['new'],
+      versionStatuses: ['scheduled'],
+      isLocked: true,
+      submissionStatuses: ['approved'],
+    },
+    leadsTo: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
+    permission: canSchedulePublication,
   },
 };
 
