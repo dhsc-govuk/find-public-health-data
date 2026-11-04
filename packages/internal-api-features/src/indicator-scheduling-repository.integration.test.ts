@@ -25,6 +25,9 @@ const SCHEDULING_ACTIONS = [
 ];
 
 const NEXT_YEAR = new Date('2027-11-04T09:30:00.000Z');
+const EARLIER = new Date('2027-06-01T08:30:00.000Z');
+// The date the task list fixture's complete draft proposes, between EARLIER and LATER.
+const PROPOSED = new Date('2027-09-14T08:30:00.000Z');
 const LATER = new Date('2027-12-01T15:00:00.000Z');
 
 async function versionOf(db: Database, versionId: string) {
@@ -233,7 +236,7 @@ describe('two admins confirming the same date at once', () => {
 
 describe('listIndicatorsScheduled', () => {
   repositoryTest(
-    'lists approved drafts pending scheduling or scheduled, soonest date first',
+    'lists scheduled versions soonest date first, leaving out a draft not yet approved',
     async ({ db }) => {
       const later = await scheduledDraft(db, 'Listed later indicator');
       const sooner = await sentBackDraft(db, 'Listed sooner indicator', [], { kind: 'approved' });
@@ -277,16 +280,42 @@ describe('listIndicatorsScheduled', () => {
     },
   );
 
-  repositoryTest('lists a pending draft by its proposed date', async ({ db }) => {
-    const pending = await sentBackDraft(db, 'Listed pending indicator', [], { kind: 'approved' });
+  repositoryTest(
+    'places a draft pending scheduling by its proposed date among the scheduled ones',
+    async ({ db }) => {
+      const schedule = async (name: string, scheduledPublishAt: Date) => {
+        const draft = await sentBackDraft(db, name, [], { kind: 'approved' });
+        await schedulePublication(
+          db,
+          draft.indicatorId,
+          {
+            scheduledPublishAt,
+            shownScheduledPublishAt: await scheduledPublishAtOf(db, draft.versionId),
+          },
+          AS_ADMIN,
+        );
+        return draft.indicatorId;
+      };
+      const first = await schedule('Listed first indicator', EARLIER);
+      const last = await schedule('Listed last indicator', LATER);
+      const pending = await sentBackDraft(db, 'Listed pending indicator', [], { kind: 'approved' });
+      const ours = [first, last, pending.indicatorId];
 
-    const rows = await listIndicatorsScheduled(db, { all: true });
+      expect(await scheduledPublishAtOf(db, pending.versionId)).toEqual(PROPOSED);
 
-    expect(rows.find(({ id }) => id === pending.indicatorId)).toMatchObject({
-      draftStatus: 'draft',
-      draftSubmissionStatus: 'approved',
-    });
-  });
+      const rows = await listIndicatorsScheduled(db, { all: true });
+
+      expect(
+        rows
+          .filter(({ id }) => ours.includes(id))
+          .map(({ id, draftStatus }) => ({ id, draftStatus })),
+      ).toEqual([
+        { id: first, draftStatus: 'scheduled' },
+        { id: pending.indicatorId, draftStatus: 'draft' },
+        { id: last, draftStatus: 'scheduled' },
+      ]);
+    },
+  );
 
   repositoryTest('keeps to the scope', async ({ db }) => {
     const { indicatorId } = await scheduledDraft(db, 'Listed scoped indicator');

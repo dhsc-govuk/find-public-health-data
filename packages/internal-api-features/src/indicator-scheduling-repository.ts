@@ -23,7 +23,9 @@ function publicationDateWrite(scheduledPublishAt: Date): IndicatorStepWrite {
       .set({ scheduledPublishAt })
       .where(eq(indicatorVersion.id, submission.indicatorVersionId))
       .returning({ scheduledPublishAt: indicatorVersion.scheduledPublishAt });
-    if (row === undefined) throw new Error(`dated no version ${submission.indicatorVersionId}`);
+    if (row === undefined) {
+      throw new Error(`scheduling locked draft ${draft.id} but updated no row`);
+    }
     return changesBetween({ scheduledPublishAt: draft.scheduledPublishAt }, row);
   };
 }
