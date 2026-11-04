@@ -168,14 +168,27 @@ jobs:
       - name: Load the app images
         run: zstd --decompress --stdout "${RUNNER_TEMP}/app-images.tar.zst" | docker load
 
+      - name: Download the seeded database
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: seeded-database
+          path: ${{ runner.temp }}
+
       # The production images build-app-images built, smoke-tested and saved, so the suite runs
       # against the artefact scan-app-images scans. compose.e2e.yaml swaps each service's build
       # for its image; the healthchecks make --wait a real readiness gate. APP_ENV=test rather
       # than local so the TLS-to-database default stays off (isDeployedEnv is false for both)
       # while container logs stay JSON.
+      #
+      # The database first, with seed-database's dump restored, then the apps. Each API checks the
+      # database at start-up as its own login, which bootstrap creates, and a failed check retries a
+      # minute later, in the middle of whatever runs then. The login roles come before the dump: it
+      # grants to them, but they belong to the server, not the database, so it cannot carry them.
       - name: Start the stack
         env:
           APP_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
           POSTGRES_USER: fphd
           POSTGRES_PASSWORD: fphd
           POSTGRES_DB: fphd
@@ -185,35 +198,16 @@ jobs:
           # value, not a secret.
           SESSION_JWT_SECRET: ci-only-jwt-session-secret-at-least-32-bytes
           WEB_SESSION_SECRET: ci-only-web-session-secret-at-least-32-bytes
-        run: >
-          docker compose -f compose.yaml -f compose.e2e.yaml
-          --profile public-web --profile internal-web
-          --profile public-api --profile internal-api
-          up --detach --wait
-
-      - name: Download the seeded database
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: seeded-database
-          path: ${{ runner.temp }}
-
-      # seed-database's dump, into the compose database. The login roles come first: the dump
-      # grants to them, but they belong to the server, not the database, so it cannot carry them.
-      - name: Restore the seeded database
-        env:
-          APP_ENV: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          POSTGRES_DB: fphd
-          POSTGRES_USER: fphd
-          POSTGRES_PASSWORD: fphd
-          PUBLIC_API_PASSWORD: public_api
-          INTERNAL_API_PASSWORD: internal_api
         run: |
+          docker compose -f compose.yaml -f compose.e2e.yaml up --detach --wait db
           pnpm db:bootstrap
           docker exec --interactive fphd-postgres \
             pg_restore --username=fphd --dbname=fphd --exit-on-error --single-transaction \
             < "${RUNNER_TEMP}/seeded-database.dump"
+          docker compose -f compose.yaml -f compose.e2e.yaml \
+            --profile public-web --profile internal-web \
+            --profile public-api --profile internal-api \
+            up --detach --wait
 
       - name: Run the e2e tests
         env:
@@ -252,10 +246,23 @@ jobs:
       - name: Load the app images
         run: zstd --decompress --stdout "${RUNNER_TEMP}/app-images.tar.zst" | docker load
 
+      - name: Download the seeded database
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: seeded-database
+          path: ${{ runner.temp }}
+
       # As e2e starts it, plus compose.perf.yaml's database settings.
+      #
+      # The database first, with seed-database's dump restored, then the apps. Each API checks the
+      # database at start-up as its own login, which bootstrap creates, and a failed check retries a
+      # minute later, in the middle of whatever runs then. The login roles come before the dump: it
+      # grants to them, but they belong to the server, not the database, so it cannot carry them.
       - name: Start the stack
         env:
           APP_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
           POSTGRES_USER: fphd
           POSTGRES_PASSWORD: fphd
           POSTGRES_DB: fphd
@@ -265,35 +272,17 @@ jobs:
           # value, not a secret.
           SESSION_JWT_SECRET: ci-only-jwt-session-secret-at-least-32-bytes
           WEB_SESSION_SECRET: ci-only-web-session-secret-at-least-32-bytes
-        run: >
-          docker compose -f compose.yaml -f compose.e2e.yaml -f compose.perf.yaml
-          --profile public-web --profile internal-web
-          --profile public-api --profile internal-api
-          up --detach --wait
-
-      - name: Download the seeded database
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: seeded-database
-          path: ${{ runner.temp }}
-
-      # seed-database's dump, into the compose database. The login roles come first: the dump
-      # grants to them, but they belong to the server, not the database, so it cannot carry them.
-      - name: Restore the seeded database
-        env:
-          APP_ENV: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          POSTGRES_DB: fphd
-          POSTGRES_USER: fphd
-          POSTGRES_PASSWORD: fphd
-          PUBLIC_API_PASSWORD: public_api
-          INTERNAL_API_PASSWORD: internal_api
         run: |
+          docker compose -f compose.yaml -f compose.e2e.yaml -f compose.perf.yaml \
+            up --detach --wait db
           pnpm db:bootstrap
           docker exec --interactive fphd-postgres \
             pg_restore --username=fphd --dbname=fphd --exit-on-error --single-transaction \
             < "${RUNNER_TEMP}/seeded-database.dump"
+          docker compose -f compose.yaml -f compose.e2e.yaml -f compose.perf.yaml \
+            --profile public-web --profile internal-web \
+            --profile public-api --profile internal-api \
+            up --detach --wait
 
       - name: Check the route budgets
         env:
