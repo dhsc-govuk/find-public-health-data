@@ -153,11 +153,10 @@ test.describe('as an admin', () => {
   }) => {
     await openHistory(page, MORTALITY_ID);
 
-    await expect(entries(page).locator(':scope > p:nth-child(2)')).toHaveText([
-      'Indicator published',
-      'Indicator first created',
-    ]);
+    await expect(entries(page)).toHaveCount(2);
+    await expect(entries(page).first()).toContainText('Indicator published');
     await expect(entries(page).first()).not.toContainText('By ');
+    await expect(entries(page).last()).toContainText('Indicator first created');
     await expect(entries(page).last()).toContainText('By PHOLIO migration');
   });
 });
@@ -170,6 +169,7 @@ test.describe('without JavaScript', () => {
 
     await page.goto(overviewPath(id));
     await page.getByRole('link', { name: 'History', exact: true }).click();
+    await expect(page).toHaveURL(/#history$/);
 
     await expect(entries(page)).toHaveText(
       [
