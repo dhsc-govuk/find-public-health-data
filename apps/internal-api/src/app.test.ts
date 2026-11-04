@@ -329,6 +329,30 @@ describe('internal API', () => {
     expect(asManager.status).toBe(200);
   });
 
+  it("mounts an indicator's history", async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findHistory: async () => ({
+          teamId: TEAM_IDS.teamA,
+          draftReviewers: [],
+          versions: [],
+          submissions: [],
+          assignments: [],
+          saves: [],
+        }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/history';
+
+    const asManager = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+
+    expect(asManager.status).toBe(200);
+    expect(asManager.body).toEqual({ entries: [] });
+  });
+
   it("mounts a reviewer's own notes", async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
