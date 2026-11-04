@@ -16,7 +16,11 @@ export const CORE_DATA_TABLES = [
   'comparator_method',
 ] as const;
 
-/** Every change the log records, named `<entity type>.<what happened>`. */
+/**
+ * Every change the log records, named `<entity type>.<what happened>`. An indicator's history
+ * reads the reviewers an assignment leaves and the fields each draft save changes, so those
+ * entries keep their shape.
+ */
 export const AUDIT_ACTIONS = [
   'topic.created',
   'topic.updated',
