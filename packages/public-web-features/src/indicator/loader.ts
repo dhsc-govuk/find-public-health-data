@@ -310,7 +310,7 @@ export async function loadIndicatorData(
           )
         ).indicators
       : [];
-  const selected =
+  const selected: SelectedIndicator[] =
     tableDisplayGroups !== undefined
       ? await loadIndicatorTableEntries(api, shortIds, codesToLoad)
       : await loadInBatches(shortIds, async (id) => {

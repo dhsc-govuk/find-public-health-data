@@ -1,10 +1,9 @@
 import { formatDocumentTitle } from '@fphd/ui';
 import { type MetaFunction, type ShouldRevalidateFunctionArgs, useLoaderData } from 'react-router';
-
-import { loadIndicator } from './loader.ts';
+import { loadIndicatorPage } from './single-loader.ts';
 import { SingleIndicatorPage } from './single-page.tsx';
 
-export const loader = loadIndicator;
+export const loader = loadIndicatorPage;
 
 // Changing a display option only re-renders with data the page already has; benchmark
 // options (`cmp-`, `cr-`) are not listed because they decide what the loader fetches.
@@ -25,44 +24,12 @@ export function shouldRevalidate({ currentUrl, nextUrl }: ShouldRevalidateFuncti
 }
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
-  { title: formatDocumentTitle(loaderData?.selected[0]?.detail.name ?? 'Indicator') },
+  { title: formatDocumentTitle(loaderData?.detail.name ?? 'Indicator') },
 ];
 
 export function IndicatorRoute() {
-  const {
-    selected,
-    selectedAreas,
-    compareAreasData,
-    comparedAreasData,
-    compareAreaOptions,
-    compareAreaGroup,
-    displayGroups,
-    comparisonDisplayGroups,
-    benchmarkGeography,
-    findResults,
-    findSubject,
-    geographyOptions,
-    areasLimited,
-    selection,
-  } = useLoaderData<typeof loader>();
-  return (
-    <SingleIndicatorPage
-      selected={selected}
-      selectedAreas={selectedAreas}
-      compareAreasData={compareAreasData}
-      comparedAreasData={comparedAreasData}
-      compareAreaOptions={compareAreaOptions}
-      compareAreaGroup={compareAreaGroup}
-      displayGroups={displayGroups}
-      comparisonDisplayGroups={comparisonDisplayGroups}
-      benchmarkGeography={benchmarkGeography}
-      findResults={findResults}
-      findSubject={findSubject}
-      geographyOptions={geographyOptions}
-      areasLimited={areasLimited}
-      selection={selection}
-    />
-  );
+  const data = useLoaderData<typeof loader>();
+  return <SingleIndicatorPage {...data} />;
 }
 
 export default IndicatorRoute;

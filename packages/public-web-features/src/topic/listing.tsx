@@ -11,7 +11,7 @@ import { TopicDataTable } from './tables/data-table.tsx';
 
 type TopicPageData = Awaited<ReturnType<typeof loadTopicPage>>;
 type TopicData = { topic: TopicPageData['topic'] } & NonNullable<
-  TopicPageData['content'] | TopicPageData['areas']
+  Awaited<TopicPageData['content'] | TopicPageData['areas']>
 >;
 
 export function TopicListing({ data, areas = false }: { data: TopicData; areas?: boolean }) {

@@ -154,7 +154,7 @@ test.describe('adding a topic', () => {
 
     await page.goto(`/topics/${slug}`);
     await expect(page.getByRole('heading', { level: 1, name: `Listed ${slug}` })).toBeVisible();
-    await expect(page.getByText(`About Listed ${slug}.`)).toBeVisible();
+    await expect(page.locator('#topic-overview').getByText(`About Listed ${slug}.`)).toBeVisible();
   });
 });
 

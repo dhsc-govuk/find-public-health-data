@@ -11,6 +11,21 @@ async function openTopicPage(page: Page, path: string) {
 }
 
 export function topicPageTests() {
+  test('streams the topic heading and navigation before its section data', async ({ page }) => {
+    const response = await page.request.get('/topics/diabetes', {
+      headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36' },
+    });
+    expect(response.ok()).toBe(true);
+    const html = await response.text();
+    const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+    expect(shell).toContain('Diabetes');
+    expect(shell).toContain('topic-area-summaries');
+    expect(shell).toContain('Loading overview');
+    expect(shell).toContain('Loading data');
+    expect(html).toContain('Highlighted indicators');
+    expect(html).toContain('<table');
+  });
+
   test('shows every topic section together on mobile and switches desktop tabs locally', async ({
     page,
   }, testInfo) => {
@@ -50,7 +65,7 @@ export function topicPageTests() {
     expect(reads).toEqual([]);
   });
 
-  test('shows every topic section without JavaScript and follows the contents links', async ({
+  test('loads every topic section through the JavaScript-free fallback and follows the contents links', async ({
     page,
     browser,
     baseURL,
@@ -65,6 +80,7 @@ export function topicPageTests() {
     const withoutJs = await context.newPage();
     try {
       await withoutJs.goto('/topics/diabetes');
+      await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
       for (const [label, anchor, content] of [
         ['Data', 'topic-data', withoutJs.locator('#topic-data').getByRole('table')],
         [
@@ -100,7 +116,9 @@ export function topicPageTests() {
     await expect(
       page.getByRole('heading', { name: /Diabetes has \d+ indicators in total/ }),
     ).toBeVisible();
-    await expect(page.getByText(/(?:are|is) getting better/)).toBeVisible();
+    await expect(
+      page.locator('#topic-overview').getByText(/(?:are|is) getting better/),
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Diabetes: QOF prevalence' })).toBeVisible();
     await expect(
@@ -118,15 +136,15 @@ export function topicPageTests() {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
       const sidebar = await page
-        .locator('.fphd-topic-overview > .govuk-grid-column-one-quarter')
+        .locator('#topic-overview .fphd-topic-overview > .govuk-grid-column-one-quarter')
         .boundingBox();
       const content = await page
-        .locator('.fphd-topic-overview > .govuk-grid-column-three-quarters')
+        .locator('#topic-overview .fphd-topic-overview > .govuk-grid-column-three-quarters')
         .boundingBox();
       if (width <= 1020)
         expect(content?.y).toBeGreaterThanOrEqual((sidebar?.y ?? 0) + (sidebar?.height ?? 0));
       else expect(content?.y).toBe(sidebar?.y);
-      for (const card of await page.locator('.fphd-topic-highlight').all()) {
+      for (const card of await page.locator('#topic-overview .fphd-topic-highlight').all()) {
         expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
           true,
         );
@@ -466,8 +484,14 @@ export function topicPageTests() {
     await expect(table).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
-    const ids = await page.locator('[id]').evaluateAll((elements) => elements.map(({ id }) => id));
-    expect(ids.length).toBe(new Set(ids).size);
+    await expect
+      .poll(async () => {
+        const ids = await page
+          .locator('[id]')
+          .evaluateAll((elements) => elements.map(({ id }) => id));
+        return ids.length === new Set(ids).size;
+      })
+      .toBe(true);
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
