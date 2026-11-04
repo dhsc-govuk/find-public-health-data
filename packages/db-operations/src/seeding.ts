@@ -315,7 +315,7 @@ async function loadUploadBatches(
     UPDATE source_upload_batch b
     SET indicator_version_id = coalesce(
       (SELECT cpv.id FROM current_published_version cpv WHERE cpv.indicator_id = b.indicator_id),
-      (SELECT v.id FROM indicator_version v WHERE v.indicator_id = b.indicator_id AND v.status = 'draft')
+      (SELECT v.id FROM indicator_version v WHERE v.indicator_id = b.indicator_id AND v.status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)})
     )
     WHERE indicator_version_id IS NULL
   `;

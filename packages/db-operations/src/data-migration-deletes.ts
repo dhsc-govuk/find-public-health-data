@@ -1,3 +1,4 @@
+import { schema } from '@fphd/db';
 import type postgres from 'postgres';
 
 import { MIGRATION_USER_ID } from './data-migration-actors.ts';
@@ -52,7 +53,8 @@ export async function prepareVersionDeletes(tx: postgres.TransactionSql): Promis
     WHERE deleting.id IN (SELECT id FROM data_migration_delete_indicator_version)
       AND EXISTS (
         SELECT 1 FROM indicator_version v WHERE v.indicator_id = i.id
-          AND (v.status = 'draft' OR v.created_by IS DISTINCT FROM ${MIGRATION_USER_ID}
+          AND (v.status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)}
+            OR v.created_by IS DISTINCT FROM ${MIGRATION_USER_ID}
             OR v.updated_by IS DISTINCT FROM ${MIGRATION_USER_ID})
       )
     ORDER BY i.short_id

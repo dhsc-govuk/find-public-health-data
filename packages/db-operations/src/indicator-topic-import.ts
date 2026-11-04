@@ -12,6 +12,7 @@ const {
   indicatorVersionClassification,
   indicatorVersionSubtopic,
   indicatorVersionTopic,
+  isUnpublished,
   subtopic,
   topic,
 } = schema;
@@ -74,7 +75,7 @@ export async function applyIndicatorTopics(
           .leftJoin(currentPublishedVersion, eq(currentPublishedVersion.indicatorId, indicator.id))
           .leftJoin(
             draftVersion,
-            and(eq(draftVersion.indicatorId, indicator.id), eq(draftVersion.status, 'draft')),
+            and(eq(draftVersion.indicatorId, indicator.id), isUnpublished(draftVersion.status)),
           )
           .where(inArray(indicator.shortId, shortIds))
       : Promise.resolve([]),
