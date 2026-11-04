@@ -21,7 +21,6 @@ function version(overrides: Partial<HistoryVersionRecord> = {}): HistoryVersionR
 
 function submission(overrides: Partial<HistorySubmissionRecord>): HistorySubmissionRecord {
   return {
-    id: 's1',
     versionId: VERSION,
     status: 'submitted',
     previousStatus: null,
@@ -106,7 +105,7 @@ describe('historyEntries', () => {
         }),
       ],
       assignments: [
-        { id: 'a1', at: at('02T10:00:00'), by: 'Avery Clarke', reviewers: ['Jamie Evans'] },
+        { at: at('02T10:00:00'), by: 'Avery Clarke', reviewers: ['Jamie Evans'] },
       ],
     });
 
@@ -147,7 +146,7 @@ describe('historyEntries', () => {
         }),
       ],
       // Assigned late on the meeting's day, in UK time.
-      assignments: [{ id: 'a1', at: at('02T21:00:00'), by: 'Avery Clarke', reviewers: [] }],
+      assignments: [{ at: at('02T21:00:00'), by: 'Avery Clarke', reviewers: [] }],
     });
 
     expect(entries.map(({ kind }) => kind)).toEqual([
@@ -164,7 +163,7 @@ describe('historyEntries', () => {
       ...noRecords,
       submissions: [
         submission({ status: 'withdrawn', endedAt: at('02T12:00:00'), endedBy: 'Charlie Owen' }),
-        submission({ id: 's2', previousStatus: 'withdrawn', submittedAt: at('03T09:00:00') }),
+        submission({ previousStatus: 'withdrawn', submittedAt: at('03T09:00:00') }),
       ],
     });
 
@@ -197,7 +196,6 @@ describe('historyEntries', () => {
       ],
     });
     const resubmitted = submission({
-      id: 's2',
       previousStatus: 'changes_requested',
       submittedAt: at('05T09:00:00'),
     });
@@ -267,7 +265,7 @@ describe('historyEntries', () => {
     });
 
     it('takes its flags from the same version’s round', () => {
-      const otherVersion = submission({ id: 's0', versionId: 'v0', status: 'changes_requested' });
+      const otherVersion = submission({ versionId: 'v0', status: 'changes_requested' });
       const entries = historyEntries({
         ...noRecords,
         submissions: [sentBack, otherVersion, resubmitted],

@@ -27,7 +27,6 @@ export interface HistoryResponseRecord {
 }
 
 export interface HistorySubmissionRecord {
-  id: string;
   versionId: string;
   status: IndicatorSubmissionStatus;
   /** The status of the version's submission before this one, or null for its first. */
@@ -41,7 +40,6 @@ export interface HistorySubmissionRecord {
 }
 
 export interface HistoryAssignmentRecord {
-  id: string;
   at: string;
   by: string;
   reviewers: string[];
@@ -76,7 +74,6 @@ const versions = sql<HistoryVersionRecord[]>`coalesce((
 
 const submissions = sql<HistorySubmissionRecord[]>`coalesce((
   select json_agg(json_build_object(
-    'id', s.id,
     'versionId', s.indicator_version_id,
     'status', s.status,
     'previousStatus', s.previous_status,
@@ -113,9 +110,10 @@ const submissions = sql<HistorySubmissionRecord[]>`coalesce((
 ), '[]'::json)`;
 
 // The audit log keeps every assignment and change of reviewers; the reviewer rows only the last.
+// The entity index finds the indicator's entries, tens to hundreds, and the action narrows them
+// before any entry's changes are read.
 const assignments = sql<HistoryAssignmentRecord[]>`coalesce((
   select json_agg(json_build_object(
-    'id', a.id,
     'at', a.occurred_at,
     'by', actor.display_name,
     'reviewers', coalesce((
@@ -123,16 +121,16 @@ const assignments = sql<HistoryAssignmentRecord[]>`coalesce((
       from jsonb_array_elements_text(a.changes -> 'reviewerIds' -> 'after') as assigned(id)
       join app_user reviewer on reviewer.id = assigned.id::uuid
     ), '[]'::json)
-  ) order by a.occurred_at)
+  ) order by a.occurred_at) filter (where a.changes -> 'reviewerIds' is not null)
   from audit_log a
   join app_user actor on actor.id = a.actor_id
-  where a.entity_type = 'indicator'
+  where a.action = 'indicator.reviewers_assigned'
+    and a.entity_type = 'indicator'
     and a.entity_id = ${indicator.id}::text
-    and a.action = 'indicator.reviewers_assigned'
-    and a.changes -> 'reviewerIds' is not null
 ), '[]'::json)`;
 
-// Only the field names: the values are the draft's, which this history never shows.
+// Only the field names: the values are the draft's, which this history never shows. The entity
+// index finds the indicator's entries and the action narrows them, as for the assignments.
 const saves = sql<HistorySaveRecord[]>`coalesce((
   select json_agg(json_build_object(
     'at', a.occurred_at,
@@ -142,9 +140,9 @@ const saves = sql<HistorySaveRecord[]>`coalesce((
       and a.changes -> 'dataTableConfirmedAt' -> 'before' = 'null'::jsonb
   ) order by a.occurred_at)
   from audit_log a
-  where a.entity_type = 'indicator'
+  where a.action in ('indicator.draft_updated', 'indicator.data_table_confirmed')
+    and a.entity_type = 'indicator'
     and a.entity_id = ${indicator.id}::text
-    and a.action in ('indicator.draft_updated', 'indicator.data_table_confirmed')
     and a.occurred_at > (
       select min(r.responded_at)
       from indicator_version_submission_response r

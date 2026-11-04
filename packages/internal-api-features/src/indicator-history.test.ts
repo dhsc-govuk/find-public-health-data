@@ -30,7 +30,6 @@ const found: IndicatorHistoryRow = {
   ],
   submissions: [
     {
-      id: '00000000-0000-7000-8000-0000000000b1',
       versionId: '00000000-0000-7000-8000-0000000000d1',
       status: 'in_review',
       previousStatus: null,
@@ -44,7 +43,6 @@ const found: IndicatorHistoryRow = {
   ],
   assignments: [
     {
-      id: '00000000-0000-7000-8000-0000000000c1',
       at: '2026-06-02T10:00:00+00:00',
       by: 'Avery Clarke',
       reviewers: ['Jamie Evans'],
