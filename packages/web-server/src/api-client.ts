@@ -1,10 +1,15 @@
 import { readCookie } from '@fphd/auth/cookies';
 import type { z } from '@fphd/config/zod';
+import type { Logger } from '@fphd/logger';
 
 export interface ApiClientOptions {
   baseUrl: string;
   /** Sent with every request — the internal app forwards its session cookie this way. */
   headers?: Record<string, string>;
+  /** The page request's logger, from `loggerContext`, which gets a line for each call. */
+  logger: Logger;
+  /** Aborts when the browser leaves, abandoning every call still in flight. */
+  signal: AbortSignal;
   /** Abort and fail rather than hold a page render open indefinitely. */
   timeoutMs?: number;
   /** As `timeoutMs`, for `postStream`'s answer once its body is sent; undefined takes the default. */
@@ -73,15 +78,13 @@ export interface ApiClient {
   /**
    * POST a body to `path` as it arrives, without reading it first, then wait up to the upload
    * timeout for the answer, throwing `ApiTimeoutError` after it. A 400, 409 or 422 comes back as
-   * a value parsed with `errorSchema`; otherwise as `put`. Aborting `signal`, as a browser
-   * abandoning its request does, abandons this one too.
+   * a value parsed with `errorSchema`; otherwise as `put`.
    */
   postStream<T, E>(
     path: string,
     body: StreamedBody,
     schema: z.ZodType<T>,
     errorSchema: z.ZodType<E>,
-    signal?: AbortSignal,
   ): Promise<ApiWriteResult<T, E>>;
 
   /**
@@ -153,6 +156,46 @@ export function apiPath(strings: TemplateStringsArray, ...segments: string[]) {
   }, '');
 }
 
+/** Why a call failed, or `aborted` when the browser left before it finished. */
+type ApiCallFailure =
+  | 'aborted'
+  | 'connection_failed'
+  | 'not_json'
+  | 'schema_mismatch'
+  | 'timeout'
+  | 'unexpected_status';
+
+/** Where a response failed its schema. Never the issue's message, which can quote the value. */
+interface SchemaIssue {
+  path: PropertyKey[];
+  code: string;
+}
+
+/** An answer this app can't use: the 502 to throw, and what to log about it. */
+class UnusableAnswer {
+  readonly failure: 'not_json' | 'schema_mismatch' | 'unexpected_status';
+  readonly response: Response;
+  readonly issues: SchemaIssue[] | undefined;
+
+  constructor(failure: UnusableAnswer['failure'], response: Response, issues?: SchemaIssue[]) {
+    this.failure = failure;
+    this.response = response;
+    this.issues = issues;
+  }
+}
+
+function unexpectedStatus(): never {
+  throw new UnusableAnswer('unexpected_status', new Response('Bad Gateway', { status: 502 }));
+}
+
+function unexpectedResponse(path: string) {
+  return new Response(`Unexpected response from ${path}`, { status: 502 });
+}
+
+function notFound(): never {
+  throw new Response('Not Found', { status: 404 });
+}
+
 /**
  * The API answered with a shape this app does not understand. Failing here keeps the mismatch
  * at the boundary instead of rendering undefined fields down the page.
@@ -161,97 +204,141 @@ function parseOrFail<T>(path: string, schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
 
   if (!result.success) {
-    throw new Response(`Unexpected response from ${path}`, { status: 502 });
+    throw new UnusableAnswer(
+      'schema_mismatch',
+      unexpectedResponse(path),
+      result.error.issues.map(({ path, code }) => ({ path, code })),
+    );
   }
 
   return result.data;
 }
 
-/** A non-JSON body (an ingress error page, an empty 200) fails the same way as a shape mismatch. */
+/**
+ * A non-JSON body (an ingress error page, an empty 200) fails the same way as a shape mismatch.
+ * The parse error isn't logged, because its message quotes the start of the body.
+ */
 async function readJson(path: string, response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch {
-    throw new Response(`Unexpected response from ${path}`, { status: 502 });
+    throw new UnusableAnswer('not_json', unexpectedResponse(path));
   }
 }
+
+async function readParsed<T>(path: string, schema: z.ZodType<T>, response: Response) {
+  return parseOrFail(path, schema, await readJson(path, response));
+}
+
+async function refusal<E>(path: string, errorSchema: z.ZodType<E>, response: Response) {
+  return {
+    ok: false as const,
+    status: response.status,
+    error: await readParsed(path, errorSchema, response),
+  };
+}
+
+/**
+ * The refusal a write to a member of a collection can get. The record may be gone, so a 404 is
+ * meaningful. A 400 or 409 comes back parsed. Any other answer is left to the caller.
+ */
+async function memberRefusal<E>(path: string, errorSchema: z.ZodType<E>, response: Response) {
+  if (response.status === 404) notFound();
+  if (response.status === 400 || response.status === 409) {
+    return refusal(path, errorSchema, response);
+  }
+  return undefined;
+}
+
+// `duplex` is required of a streamed body, and missing from the DOM library's RequestInit.
+type CallInit = Omit<RequestInit, 'method' | 'signal'> & { duplex?: 'half' };
 
 export function createApiClient({
   baseUrl,
   headers = {},
+  logger,
+  signal,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   uploadTimeoutMs = DEFAULT_UPLOAD_TIMEOUT_MS,
 }: ApiClientOptions): ApiClient {
+  const json = (body: unknown): CallInit => ({
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
   /**
-   * Sends a write to a member of a collection: the record may be gone, so a 404 is meaningful. A
-   * 400 or 409 comes back parsed; any other answer is the caller's to read.
+   * Every call goes through here, and logs one line once it settles. `answer` reads the
+   * response, and throws an `UnusableAnswer` for one the page can't use.
    */
-  async function sendToMember<E>(
-    method: 'PATCH' | 'POST' | 'PUT',
+  async function call<R>(
+    method: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT',
     path: string,
-    body: unknown,
-    errorSchema: z.ZodType<E>,
-  ): Promise<{ ok: false; status: number; error: E } | Response> {
-    const response = await fetch(`${baseUrl}${path}`, {
+    init: CallInit,
+    answer: (response: Response) => Promise<R>,
+    timeout: AbortSignal = AbortSignal.timeout(timeoutMs),
+  ): Promise<R> {
+    const started = performance.now();
+    const combined = AbortSignal.any([timeout, signal]);
+    let status: number | undefined;
+    const fields = (failure?: ApiCallFailure, issues?: SchemaIssue[]) => ({
       method,
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
+      path,
+      ...(status === undefined ? {} : { status }),
+      ms: Math.round(performance.now() - started),
+      ...(failure === undefined ? {} : { failure }),
+      ...(issues === undefined ? {} : { issues }),
     });
 
-    if (response.status === 404) {
-      throw new Response('Not Found', { status: 404 });
-    }
+    try {
+      const response = await fetch(`${baseUrl}${path}`, { ...init, method, signal: combined });
+      status = response.status;
+      const result = await answer(response);
+      logger.debug({ api: fields() }, 'API call');
+      return result;
+    } catch (error) {
+      const unusable = error instanceof UnusableAnswer ? error : undefined;
+      const failure: ApiCallFailure | undefined = combined.aborted
+        ? signal.aborted
+          ? 'aborted'
+          : 'timeout'
+        : (unusable?.failure ?? (status === undefined ? 'connection_failed' : undefined));
 
-    if (response.status === 400 || response.status === 409) {
-      return {
-        ok: false,
-        status: response.status,
-        error: parseOrFail(path, errorSchema, await readJson(path, response)),
-      };
-    }
+      if (failure === undefined || failure === 'aborted') {
+        logger.debug({ api: fields(failure) }, 'API call');
+      } else {
+        const api = fields(failure, unusable?.issues);
+        logger.error(unusable === undefined ? { api, err: error } : { api }, 'API call failed');
+      }
 
-    return response;
+      throw unusable?.response ?? error;
+    }
   }
 
-  async function writeToMember<T, E>(
+  function writeToMember<T, E>(
     method: 'PATCH' | 'PUT',
     path: string,
     body: unknown,
     schema: z.ZodType<T>,
     errorSchema: z.ZodType<E>,
   ): Promise<ApiWriteResult<T, E>> {
-    const response = await sendToMember(method, path, body, errorSchema);
-
-    if (!(response instanceof Response)) return response;
-
-    if (!response.ok) {
-      throw new Response('Bad Gateway', { status: 502 });
-    }
-
-    return { ok: true, data: parseOrFail(path, schema, await readJson(path, response)) };
+    return call(method, path, json(body), async (response) => {
+      const refused = await memberRefusal(path, errorSchema, response);
+      if (refused !== undefined) return refused;
+      if (!response.ok) unexpectedStatus();
+      return { ok: true, data: await readParsed(path, schema, response) };
+    });
   }
 
   return {
-    async get(path, schema) {
-      const response = await fetch(`${baseUrl}${path}`, {
-        headers,
-        signal: AbortSignal.timeout(timeoutMs),
+    get(path, schema) {
+      return call('GET', path, { headers }, async (response) => {
+        if (response.status === 404) notFound();
+        if (response.status === 409) {
+          throw new ApiConflictError(path, await readJson(path, response));
+        }
+        if (!response.ok) unexpectedStatus();
+        return readParsed(path, schema, response);
       });
-
-      if (response.status === 404) {
-        throw new Response('Not Found', { status: 404 });
-      }
-
-      if (response.status === 409) {
-        throw new ApiConflictError(path, await readJson(path, response));
-      }
-
-      if (!response.ok) {
-        throw new Response('Bad Gateway', { status: 502 });
-      }
-
-      return parseOrFail(path, schema, await readJson(path, response));
     },
 
     put(path, body, schema, errorSchema) {
@@ -262,42 +349,26 @@ export function createApiClient({
       return writeToMember('PATCH', path, body, schema, errorSchema);
     },
 
-    async post(path, body, schema, errorSchema) {
-      const response = await fetch(`${baseUrl}${path}`, {
-        method: 'POST',
-        headers: { ...headers, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(timeoutMs),
+    post(path, body, schema, errorSchema) {
+      return call('POST', path, json(body), async (response) => {
+        if (response.status === 400 || response.status === 409) {
+          return refusal(path, errorSchema, response);
+        }
+        if (!response.ok) unexpectedStatus();
+        return { ok: true, data: await readParsed(path, schema, response) };
       });
-
-      if (response.status === 400 || response.status === 409) {
-        return {
-          ok: false,
-          status: response.status,
-          error: parseOrFail(path, errorSchema, await readJson(path, response)),
-        };
-      }
-
-      if (!response.ok) {
-        throw new Response('Bad Gateway', { status: 502 });
-      }
-
-      return { ok: true, data: parseOrFail(path, schema, await readJson(path, response)) };
     },
 
-    async postToMember(path, body, errorSchema) {
-      const response = await sendToMember('POST', path, body, errorSchema);
-
-      if (!(response instanceof Response)) return response;
-
-      if (response.status !== 204) {
-        throw new Response('Bad Gateway', { status: 502 });
-      }
-
-      return { ok: true, data: undefined };
+    postToMember(path, body, errorSchema) {
+      return call('POST', path, json(body), async (response) => {
+        const refused = await memberRefusal(path, errorSchema, response);
+        if (refused !== undefined) return refused;
+        if (response.status !== 204) unexpectedStatus();
+        return { ok: true, data: undefined };
+      });
     },
 
-    async postStream(path, { body, contentType }, schema, errorSchema, signal) {
+    async postStream(path, { body, contentType }, schema, errorSchema) {
       // The timeout covers the API's answer, not the browser's upload, so it starts once the
       // body has been sent.
       const timeout = new AbortController();
@@ -308,35 +379,27 @@ export function createApiClient({
       const sent = body?.pipeThrough(new TransformStream({ flush: startTimer })) ?? null;
       if (sent === null) startTimer();
 
-      // `duplex` is required of a streamed body, and missing from the DOM library's RequestInit.
-      const init: RequestInit & { duplex: 'half' } = {
-        method: 'POST',
+      const init: CallInit = {
         headers: { ...headers, 'content-type': contentType },
         body: sent,
         duplex: 'half',
-        signal: signal === undefined ? timeout.signal : AbortSignal.any([timeout.signal, signal]),
       };
 
       try {
-        const response = await fetch(`${baseUrl}${path}`, init);
-
-        if (response.status === 404) {
-          throw new Response('Not Found', { status: 404 });
-        }
-
-        if (response.status === 400 || response.status === 409 || response.status === 422) {
-          return {
-            ok: false,
-            status: response.status,
-            error: parseOrFail(path, errorSchema, await readJson(path, response)),
-          };
-        }
-
-        if (!response.ok) {
-          throw new Response('Bad Gateway', { status: 502 });
-        }
-
-        return { ok: true, data: parseOrFail(path, schema, await readJson(path, response)) };
+        return await call(
+          'POST',
+          path,
+          init,
+          async (response) => {
+            if (response.status === 404) notFound();
+            if (response.status === 400 || response.status === 409 || response.status === 422) {
+              return refusal(path, errorSchema, response);
+            }
+            if (!response.ok) unexpectedStatus();
+            return { ok: true, data: await readParsed(path, schema, response) };
+          },
+          timeout.signal,
+        );
       } catch (error) {
         if (timeout.signal.aborted) throw new ApiTimeoutError(path);
         throw error;
@@ -345,30 +408,13 @@ export function createApiClient({
       }
     },
 
-    async delete(path, errorSchema) {
-      const response = await fetch(`${baseUrl}${path}`, {
-        method: 'DELETE',
-        headers,
-        signal: AbortSignal.timeout(timeoutMs),
+    delete(path, errorSchema) {
+      return call('DELETE', path, { headers }, async (response) => {
+        if (response.status === 404) notFound();
+        if (response.status === 409) return refusal(path, errorSchema, response);
+        if (!response.ok) unexpectedStatus();
+        return { ok: true, data: undefined };
       });
-
-      if (response.status === 404) {
-        throw new Response('Not Found', { status: 404 });
-      }
-
-      if (response.status === 409) {
-        return {
-          ok: false,
-          status: response.status,
-          error: parseOrFail(path, errorSchema, await readJson(path, response)),
-        };
-      }
-
-      if (!response.ok) {
-        throw new Response('Bad Gateway', { status: 502 });
-      }
-
-      return { ok: true, data: undefined };
     },
   };
 }

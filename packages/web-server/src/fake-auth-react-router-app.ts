@@ -16,7 +16,7 @@ interface FakeAuthReactRouterAppOptions {
   audience: AppAudience;
   session: Pick<JwtSessionServiceOptions, 'secret' | 'secure'>;
   trustedProxyHops: number;
-  extendContext?: (context: RouterContextProvider, request: Request) => void;
+  extendContext?: (context: RouterContextProvider, request: Request, signal: AbortSignal) => void;
 }
 
 export function createFakeAuthReactRouterApp(

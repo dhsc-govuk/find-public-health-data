@@ -78,7 +78,6 @@ export async function uploadDataTable({
       { body: request.body, contentType: request.headers.get('content-type') ?? '' },
       dataUploadCreatedSchema,
       dataUploadErrorSchema,
-      request.signal,
     )
     .catch((error: unknown) => {
       if (error instanceof ApiTimeoutError) return undefined;

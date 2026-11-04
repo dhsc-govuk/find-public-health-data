@@ -1,7 +1,9 @@
 import { z } from '@fphd/config/zod';
+import { createCapturingLogger } from '@fphd/logger/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  type ApiClientOptions,
   ApiConflictError,
   ApiTimeoutError,
   apiPath,
@@ -17,6 +19,27 @@ function respondWith(body: unknown, status = 200) {
   const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
+}
+
+/** A fetch that answers only when its signal aborts, and reads the body when told to. */
+function hangingFetch() {
+  let readBody: () => Promise<string> = async () => '';
+  const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+    readBody = () => new Response(init.body).text();
+    return new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return { fetchMock, readBody: () => readBody() };
+}
+
+function baseOptions(): ApiClientOptions {
+  return {
+    baseUrl: 'http://api:4000',
+    logger: createCapturingLogger('test-web').logger,
+    signal: new AbortController().signal,
+  };
 }
 
 afterEach(() => {
@@ -60,7 +83,7 @@ describe('createApiClient', () => {
   it('returns the parsed body on success', async () => {
     respondWith([{ slug: 'a-topic' }]);
 
-    const result = await createApiClient({ baseUrl: 'http://api:4000' }).get('/api/topics', schema);
+    const result = await createApiClient(baseOptions()).get('/api/topics', schema);
 
     expect(result).toEqual([{ slug: 'a-topic' }]);
   });
@@ -68,7 +91,7 @@ describe('createApiClient', () => {
   it('requests the path against the configured base url', async () => {
     const fetchMock = respondWith([]);
 
-    await createApiClient({ baseUrl: 'http://api:4000' }).get('/api/topics', schema);
+    await createApiClient(baseOptions()).get('/api/topics', schema);
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://api:4000/api/topics');
   });
@@ -77,14 +100,14 @@ describe('createApiClient', () => {
     respondWith({}, 404);
 
     await expect(
-      createApiClient({ baseUrl: 'http://api:4000' }).get('/api/topics/nope', schema),
+      createApiClient(baseOptions()).get('/api/topics/nope', schema),
     ).rejects.toMatchObject({ status: 404 });
   });
 
   it('throws a 409 as a conflict carrying the answer, for a caller that expects one', async () => {
     respondWith({ error: 'locked' }, 409);
 
-    const read = createApiClient({ baseUrl: 'http://api:4000' }).get('/api/topics/a', schema);
+    const read = createApiClient(baseOptions()).get('/api/topics/a', schema);
 
     await expect(read).rejects.toBeInstanceOf(ApiConflictError);
     await expect(read).rejects.toMatchObject({ body: { error: 'locked' } });
@@ -93,24 +116,24 @@ describe('createApiClient', () => {
   it('turns any other api failure into a 502 rather than surfacing its status', async () => {
     respondWith({}, 500);
 
-    await expect(
-      createApiClient({ baseUrl: 'http://api:4000' }).get('/api/topics', schema),
-    ).rejects.toMatchObject({ status: 502 });
+    await expect(createApiClient(baseOptions()).get('/api/topics', schema)).rejects.toMatchObject({
+      status: 502,
+    });
   });
 
   it('rejects a body that does not match the contract instead of returning it', async () => {
     respondWith([{ notASlug: true }]);
 
-    await expect(
-      createApiClient({ baseUrl: 'http://api:4000' }).get('/api/topics', schema),
-    ).rejects.toMatchObject({ status: 502 });
+    await expect(createApiClient(baseOptions()).get('/api/topics', schema)).rejects.toMatchObject({
+      status: 502,
+    });
   });
 
   it('sends the configured headers with every request', async () => {
     const fetchMock = respondWith([]);
 
     await createApiClient({
-      baseUrl: 'http://api:4000',
+      ...baseOptions(),
       headers: { cookie: 'fphd-internal-session=a-token' },
     }).get('/api/topics', schema);
 
@@ -130,7 +153,7 @@ describe('createApiClient', () => {
     );
 
     await expect(
-      createApiClient({ baseUrl: 'http://api:4000', timeoutMs: 5 }).get('/api/topics', schema),
+      createApiClient({ ...baseOptions(), timeoutMs: 5 }).get('/api/topics', schema),
     ).rejects.toThrow();
   });
 });
@@ -138,7 +161,7 @@ describe('createApiClient', () => {
 describe('ApiClient.put', () => {
   function client(headers?: Record<string, string>) {
     return createApiClient({
-      baseUrl: 'http://api:4000',
+      ...baseOptions(),
       ...(headers === undefined ? {} : { headers }),
     });
   }
@@ -213,7 +236,7 @@ describe('ApiClient.put', () => {
 describe('ApiClient.patch', () => {
   function client(headers?: Record<string, string>) {
     return createApiClient({
-      baseUrl: 'http://api:4000',
+      ...baseOptions(),
       ...(headers === undefined ? {} : { headers }),
     });
   }
@@ -264,7 +287,7 @@ describe('ApiClient.patch', () => {
 describe('ApiClient.post', () => {
   function client(headers?: Record<string, string>) {
     return createApiClient({
-      baseUrl: 'http://api:4000',
+      ...baseOptions(),
       ...(headers === undefined ? {} : { headers }),
     });
   }
@@ -318,7 +341,7 @@ describe('ApiClient.post', () => {
 
 describe('ApiClient.postToMember', () => {
   function client() {
-    return createApiClient({ baseUrl: 'http://api:4000', headers: { cookie: 'a=b' } });
+    return createApiClient({ ...baseOptions(), headers: { cookie: 'a=b' } });
   }
 
   it('resolves to success on a 204, sending the body as JSON', async () => {
@@ -362,7 +385,7 @@ describe('ApiClient.postToMember', () => {
 describe('ApiClient.delete', () => {
   function client(headers?: Record<string, string>) {
     return createApiClient({
-      baseUrl: 'http://api:4000',
+      ...baseOptions(),
       ...(headers === undefined ? {} : { headers }),
     });
   }
@@ -434,7 +457,7 @@ describe('ApiClient.postStream', () => {
   const contentType = 'multipart/form-data; boundary=b';
 
   function client() {
-    return createApiClient({ baseUrl: 'http://api:4000', headers: { cookie: 'a=b' } });
+    return createApiClient({ ...baseOptions(), headers: { cookie: 'a=b' } });
   }
 
   it('sends the body as it arrives with its own content type and the configured headers', async () => {
@@ -496,41 +519,24 @@ describe('ApiClient.postStream', () => {
     ).rejects.toMatchObject({ status: 502 });
   });
 
-  it("abandons the API's request when the caller's signal aborts", async () => {
-    const fetchMock = respondWith({ slug: 'uploaded' }, 201);
-    const abandoned = new AbortController();
+  it("abandons the API's request when the browser leaves, rather than timing out", async () => {
+    const { fetchMock } = hangingFetch();
+    const browser = new AbortController();
 
-    await client().postStream(
-      '/api/internal/uploads',
-      { body: body(), contentType },
-      topicSchema,
-      errorSchema,
-      abandoned.signal,
-    );
-    const signal: AbortSignal = fetchMock.mock.calls[0]?.[1].signal;
-    abandoned.abort();
+    const outcome = createApiClient({ ...baseOptions(), signal: browser.signal })
+      .postStream('/api/internal/uploads', { body: body(), contentType }, topicSchema, errorSchema)
+      .catch((error: unknown) => error);
+    browser.abort();
 
-    expect(signal.aborted).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[1].signal?.aborted).toBe(true);
+    expect(await outcome).toMatchObject({ name: 'AbortError' });
   });
-
-  /** A fetch that answers only when its signal aborts, and reads the body when told to. */
-  function hangingFetch() {
-    let readBody: () => Promise<string> = async () => '';
-    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
-      readBody = () => new Response(init.body).text();
-      return new Promise((_resolve, reject) => {
-        init.signal?.addEventListener('abort', () => reject(init.signal?.reason));
-      });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    return { readBody: () => readBody() };
-  }
 
   it('times the answer from when the body has been sent, then gives up', async () => {
     vi.useFakeTimers();
     try {
       const { readBody } = hangingFetch();
-      const outcome = createApiClient({ baseUrl: 'http://api:4000', uploadTimeoutMs: 1000 })
+      const outcome = createApiClient({ ...baseOptions(), uploadTimeoutMs: 1000 })
         .postStream(
           '/api/internal/uploads',
           { body: body(), contentType },
@@ -560,7 +566,7 @@ describe('ApiClient.postStream', () => {
     vi.useFakeTimers();
     try {
       const { readBody } = hangingFetch();
-      const outcome = createApiClient({ baseUrl: 'http://api:4000', uploadTimeoutMs: undefined })
+      const outcome = createApiClient({ ...baseOptions(), uploadTimeoutMs: undefined })
         .postStream(
           '/api/internal/uploads',
           { body: body(), contentType },
@@ -582,6 +588,207 @@ describe('ApiClient.postStream', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('API call logging', () => {
+  const DEBUG = 20;
+  const ERROR = 50;
+
+  function loggingClient(options: Partial<ApiClientOptions> = {}) {
+    const { logger, lines } = createCapturingLogger('test-web');
+    logger.level = 'debug';
+    return { client: createApiClient({ ...baseOptions(), logger, ...options }), lines };
+  }
+
+  it('logs a successful call at debug with its method, path, status and duration', async () => {
+    respondWith([{ slug: 'a-topic' }]);
+    const { client, lines } = loggingClient();
+
+    await client.get('/api/topics', schema);
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: DEBUG,
+        msg: 'API call',
+        api: { method: 'GET', path: '/api/topics', status: 200, ms: expect.any(Number) },
+      }),
+    ]);
+  });
+
+  it.each([
+    ['a 404 rethrown for the not-found boundary', 404, 'GET'],
+    ['a 409 rethrown as a conflict', 409, 'GET'],
+    ['a 400 returned to the form', 400, 'PUT'],
+    ['a 409 returned to the form', 409, 'PUT'],
+  ] as const)('logs %s at debug', async (_case, status, method) => {
+    respondWith({ error: 'refused' }, status);
+    const { client, lines } = loggingClient();
+
+    await (method === 'GET'
+      ? client.get('/api/topics/a', schema)
+      : client.put('/api/topics/a', {}, topicSchema, errorSchema)
+    ).catch(() => {});
+
+    expect(lines).toEqual([
+      expect.objectContaining({ level: DEBUG, api: expect.objectContaining({ method, status }) }),
+    ]);
+    expect(lines[0]?.api).not.toHaveProperty('failure');
+  });
+
+  it('logs an unexpected status at error as one', async () => {
+    respondWith({}, 500);
+    const { client, lines } = loggingClient();
+
+    await expect(client.get('/api/topics', schema)).rejects.toMatchObject({ status: 502 });
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        msg: 'API call failed',
+        api: {
+          method: 'GET',
+          path: '/api/topics',
+          status: 500,
+          ms: expect.any(Number),
+          failure: 'unexpected_status',
+        },
+      }),
+    ]);
+  });
+
+  it('logs a body that is not JSON at error, without the body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<html>Gateway page</html>', { status: 200 })),
+    );
+    const { client, lines } = loggingClient();
+
+    await expect(client.get('/api/topics', schema)).rejects.toMatchObject({ status: 502 });
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        api: expect.objectContaining({ status: 200, failure: 'not_json' }),
+      }),
+    ]);
+    expect(JSON.stringify(lines)).not.toContain('Gateway page');
+  });
+
+  it('logs where a body failed its schema at error, without the values the API sent', async () => {
+    respondWith([{ slug: 'fine' }, { slug: 12345, name: 'secret-value' }]);
+    const { client, lines } = loggingClient();
+
+    await expect(
+      client.get('/api/topics', z.array(z.object({ slug: z.string(), name: z.number() }))),
+    ).rejects.toMatchObject({ status: 502 });
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        api: expect.objectContaining({
+          status: 200,
+          failure: 'schema_mismatch',
+          issues: [
+            { path: [0, 'name'], code: 'invalid_type' },
+            { path: [1, 'slug'], code: 'invalid_type' },
+            { path: [1, 'name'], code: 'invalid_type' },
+          ],
+        }),
+      }),
+    ]);
+    expect(JSON.stringify(lines)).not.toMatch(/12345|secret-value|fine/);
+  });
+
+  it('logs a timeout at error, with the time until it gave up', async () => {
+    hangingFetch();
+    const { client, lines } = loggingClient({ timeoutMs: 5 });
+
+    await expect(client.get('/api/topics', schema)).rejects.toThrow();
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        api: { method: 'GET', path: '/api/topics', ms: expect.any(Number), failure: 'timeout' },
+        err: expect.objectContaining({ type: 'DOMException' }),
+      }),
+    ]);
+    expect(lines[0]?.api).toHaveProperty(
+      'ms',
+      expect.toSatisfy((ms: number) => ms >= 4),
+    );
+  });
+
+  it("logs postStream's own upload timeout as a timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      hangingFetch();
+      const { client, lines } = loggingClient({ uploadTimeoutMs: 1000 });
+      const outcome = client
+        .postStream(
+          '/api/internal/uploads',
+          { body: null, contentType: '' },
+          topicSchema,
+          errorSchema,
+        )
+        .catch((error: unknown) => error);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(await outcome).toBeInstanceOf(ApiTimeoutError);
+      expect(lines).toEqual([
+        expect.objectContaining({
+          level: ERROR,
+          api: expect.objectContaining({ method: 'POST', failure: 'timeout' }),
+        }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('logs a refused connection at error with its error', async () => {
+    const refused = new TypeError('fetch failed', {
+      cause: Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:4000'), {
+        code: 'ECONNREFUSED',
+      }),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(refused));
+    const { client, lines } = loggingClient();
+
+    await expect(client.get('/api/topics', schema)).rejects.toBe(refused);
+
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: ERROR,
+        api: {
+          method: 'GET',
+          path: '/api/topics',
+          ms: expect.any(Number),
+          failure: 'connection_failed',
+        },
+        err: expect.objectContaining({ message: expect.stringContaining('ECONNREFUSED') }),
+      }),
+    ]);
+  });
+
+  it('aborts the call when the browser leaves, and logs it at debug as an abort', async () => {
+    const { fetchMock } = hangingFetch();
+    const browser = new AbortController();
+    const { client, lines } = loggingClient({ signal: browser.signal });
+
+    const outcome = client.get('/api/topics', schema).catch((error: unknown) => error);
+    browser.abort();
+
+    expect(await outcome).toMatchObject({ name: 'AbortError' });
+    expect(fetchMock.mock.calls[0]?.[1].signal?.aborted).toBe(true);
+    expect(lines).toEqual([
+      expect.objectContaining({
+        level: DEBUG,
+        msg: 'API call',
+        api: expect.objectContaining({ path: '/api/topics', failure: 'aborted' }),
+      }),
+    ]);
   });
 });
 

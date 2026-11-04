@@ -4,6 +4,7 @@ import { createApiClient, forwardedCookieHeaders } from '@fphd/web-server/api-cl
 import { apiContext } from '@fphd/web-server/api-context';
 import { createFakeAuthReactRouterApp } from '@fphd/web-server/fake-auth-react-router';
 import { createFlashSessionStorage, setFlashStorage } from '@fphd/web-server/flash';
+import { loggerContext } from '@fphd/web-server/logger-context';
 import { forwardedRequestIdHeaders } from '@fphd/web-server/request-id-headers';
 
 import * as config from './config.ts';
@@ -15,7 +16,7 @@ export const app = createFakeAuthReactRouterApp(() => import('virtual:react-rout
   audience,
   session: config.session,
   trustedProxyHops: config.trustedProxyHops,
-  extendContext: (context, request) => {
+  extendContext: (context, request, signal) => {
     // Per request: the caller's session cookie, none of the browser's others, and the request
     // id, so the API line and this one read as one flow.
     context.set(
@@ -27,6 +28,8 @@ export const app = createFakeAuthReactRouterApp(() => import('virtual:react-rout
           ...forwardedCookieHeaders(request.headers.cookie, sessionCookieName(audience)),
           ...forwardedRequestIdHeaders(request),
         },
+        logger: context.get(loggerContext),
+        signal,
       }),
     );
     setFlashStorage(context, flashStorage);

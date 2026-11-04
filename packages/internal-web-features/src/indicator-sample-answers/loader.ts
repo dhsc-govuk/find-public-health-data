@@ -102,7 +102,6 @@ export async function fillInSampleAnswers({
         sampleDataTableForm(),
         dataUploadCreatedSchema,
         dataUploadErrorSchema,
-        request.signal,
       ),
     );
     if (uploaded instanceof Response) return uploaded;

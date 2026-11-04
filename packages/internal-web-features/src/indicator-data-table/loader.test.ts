@@ -41,12 +41,10 @@ async function load<T>(
 }
 
 function upload(postStream: ApiClient['postStream'], headers: Record<string, string> = {}) {
-  const abandoned = new AbortController();
   const request = new Request(`https://internal.test/publish/indicators/${ID}/data-table`, {
     method: 'POST',
     headers: { 'content-type': 'multipart/form-data; boundary=b', ...headers },
     body: '--b--\r\n',
-    signal: abandoned.signal,
   });
 
   return uploadDataTable({
@@ -107,19 +105,18 @@ describe('exceedsFormLimit', () => {
 });
 
 describe('uploadDataTable', () => {
-  it("passes the form on unread, with its content type and the browser's signal", async () => {
+  it('passes the form on unread, with its content type', async () => {
     const postStream = vi.fn().mockResolvedValue({ ok: true, data: { id: ID, rowCount: 3 } });
 
     const { request } = await upload(postStream);
 
-    const [path, body, , , signal] = postStream.mock.calls[0] ?? [];
+    const [path, body] = postStream.mock.calls[0] ?? [];
     expect(path).toBe(`/api/internal/indicators/${ID}/data-uploads`);
     expect(body).toEqual({
       body: request.body,
       contentType: 'multipart/form-data; boundary=b',
     });
     expect(request.bodyUsed).toBe(false);
-    expect(signal).toBe(request.signal);
   });
 
   it('refuses a form too big for any acceptable file without calling the API', async () => {
