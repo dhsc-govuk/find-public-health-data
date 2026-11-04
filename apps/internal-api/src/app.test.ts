@@ -227,6 +227,37 @@ describe('internal API', () => {
     expect(asPublisher.status).toBe(403);
   });
 
+  it('mounts the publication date confirmation behind the admin role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findById: vi.fn().mockResolvedValue(stepRow),
+        schedule: async () => ({ ok: true }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/schedule';
+    const body = {
+      publishingDateDay: '4',
+      publishingDateMonth: '11',
+      publishingDateYear: '2099',
+      publishingTimeHour: '09',
+      publishingTimeMinute: '30',
+      shownScheduledPublishAt: '2099-10-04T08:30:00.000Z',
+    };
+
+    const asAdmin = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'admin']))
+      .send(body);
+    const asPublisher = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'publisher']))
+      .send(body);
+
+    expect(asAdmin.status).toBe(204);
+    expect(asPublisher.status).toBe(403);
+  });
+
   it('mounts the review response behind the IMRG reviewer role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
@@ -446,6 +477,24 @@ describe('internal API', () => {
 
     expect(asReviewer.status).toBe(200);
     expect(asPublisher.status).toBe(403);
+  });
+
+  it('mounts the scheduled indicators behind the admin role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: { listScheduled: async () => [] },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators-scheduled';
+
+    const asAdmin = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'admin']));
+    const asManager = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+
+    expect(asAdmin.status).toBe(200);
+    expect(asManager.status).toBe(403);
   });
 
   it('mounts the internal topics surface behind the admin role', async () => {

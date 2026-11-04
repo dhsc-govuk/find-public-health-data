@@ -202,6 +202,21 @@ export async function listIndicatorsToReview(
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
 }
 
+/**
+ * The indicators in scope whose draft's latest submission is approved, waiting for an admin to
+ * confirm the publication date or for the date to come, soonest date first; the id breaks ties.
+ */
+export async function listIndicatorsScheduled(
+  db: Database,
+  scope: IndicatorListScope,
+): Promise<IndicatorAdminListRow[]> {
+  if (inNoTeams(scope)) return [];
+
+  return listRowsQuery(db)
+    .where(and(scopeCondition(scope), eq(draftSubmissionStatus, 'approved')))
+    .orderBy(asc(draftVersion.scheduledPublishAt), asc(indicator.id));
+}
+
 /** One indicator by its row id, whatever its status. */
 export async function getIndicatorById(
   db: Database,

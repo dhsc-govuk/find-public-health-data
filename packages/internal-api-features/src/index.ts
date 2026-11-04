@@ -6,6 +6,7 @@ import { internalDataProvidersRouter } from './data-providers.ts';
 import { dataTableCheckRouter } from './data-table-check.ts';
 import { dataUploadsRouter } from './data-uploads.ts';
 import { indicatorHistoryRouter } from './indicator-history.ts';
+import { indicatorSchedulingRouter } from './indicator-scheduling.ts';
 import { indicatorSectionsRouter } from './indicator-sections.ts';
 import { indicatorSubmissionsRouter } from './indicator-submissions.ts';
 import { internalIndicatorsRouter } from './indicators.ts';
@@ -43,6 +44,7 @@ export function internalApiRoutes({
   router.use(internalIndicatorsUnderReviewRouter(repositories.indicators, session));
   router.use(indicatorSectionsRouter(repositories, session));
   router.use(indicatorSubmissionsRouter(repositories.indicators, session));
+  router.use(indicatorSchedulingRouter(repositories.indicators, session));
   router.use(internalReviewersRouter(repositories.reviewers, repositories.indicators, session));
   router.use(internalNotesForReviewersRouter(repositories.indicators, session));
   router.use(indicatorHistoryRouter(repositories.indicators, session));

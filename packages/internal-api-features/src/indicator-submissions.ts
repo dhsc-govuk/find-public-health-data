@@ -31,7 +31,7 @@ import type { InternalIndicatorRepository } from './repositories.ts';
  * sent: 400 for an id that is not one, 404 for no such indicator or one the user may not see, 403
  * for a user who may see it but not take the step.
  */
-async function stepIndicator(
+export async function stepIndicator(
   indicators: Pick<InternalIndicatorRepository, 'findById'>,
   step: IndicatorStep,
   request: Request,
@@ -64,7 +64,7 @@ async function stepIndicator(
 export const REVIEW_RESPONSE_PATH = '/api/internal/indicators/:id/review-response';
 
 /** A refused step: no draft is a 404, and every other reason a 409 naming it. */
-function refuse<Reason extends string>(
+export function refuse<Reason extends string>(
   response: Response,
   { reason }: Extract<IndicatorStepResult<Reason>, { ok: false }>,
 ): void {

@@ -4,6 +4,7 @@ import { auditEntriesFor } from '@fphd/db/testing';
 import { asc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
+import { listIndicatorsScheduled } from './indicator-list-repository.ts';
 import { AS_ACTOR, newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { schedulePublication } from './indicator-scheduling-repository.ts';
 import {
@@ -228,4 +229,75 @@ describe('two admins confirming the same date at once', () => {
       ]);
     },
   );
+});
+
+describe('listIndicatorsScheduled', () => {
+  repositoryTest(
+    'lists approved drafts pending scheduling or scheduled, soonest date first',
+    async ({ db }) => {
+      const later = await scheduledDraft(db, 'Listed later indicator');
+      const sooner = await sentBackDraft(db, 'Listed sooner indicator', [], { kind: 'approved' });
+      const inReview = await newDraft(db, 'Listed unapproved indicator');
+      await submitIndicator(db, inReview.indicatorId, await completeDraft(db, inReview), AS_ACTOR);
+      await schedulePublication(
+        db,
+        later.indicatorId,
+        {
+          scheduledPublishAt: LATER,
+          shownScheduledPublishAt: await scheduledPublishAtOf(db, later.versionId),
+        },
+        AS_ADMIN,
+      );
+      await schedulePublication(
+        db,
+        sooner.indicatorId,
+        {
+          scheduledPublishAt: NEXT_YEAR,
+          shownScheduledPublishAt: await scheduledPublishAtOf(db, sooner.versionId),
+        },
+        AS_ADMIN,
+      );
+      const ours = [later.indicatorId, sooner.indicatorId, inReview.indicatorId];
+
+      const rows = await listIndicatorsScheduled(db, { all: true });
+
+      expect(rows.filter(({ id }) => ours.includes(id))).toEqual([
+        expect.objectContaining({
+          id: sooner.indicatorId,
+          draftStatus: 'scheduled',
+          draftSubmissionStatus: 'approved',
+          teamName: expect.any(String),
+          createdBy: expect.any(String),
+        }),
+        expect.objectContaining({ id: later.indicatorId, draftStatus: 'scheduled' }),
+      ]);
+      expect(rows.every(({ draftSubmissionStatus }) => draftSubmissionStatus === 'approved')).toBe(
+        true,
+      );
+    },
+  );
+
+  repositoryTest('lists a pending draft by its proposed date', async ({ db }) => {
+    const pending = await sentBackDraft(db, 'Listed pending indicator', [], { kind: 'approved' });
+
+    const rows = await listIndicatorsScheduled(db, { all: true });
+
+    expect(rows.find(({ id }) => id === pending.indicatorId)).toMatchObject({
+      draftStatus: 'draft',
+      draftSubmissionStatus: 'approved',
+    });
+  });
+
+  repositoryTest('keeps to the scope', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Listed scoped indicator');
+
+    const none = await listIndicatorsScheduled(db, { all: false, teamIds: [] });
+    const otherTeam = await listIndicatorsScheduled(db, {
+      all: false,
+      teamIds: ['00000000-0000-7000-8000-00000000000b'],
+    });
+
+    expect(none).toEqual([]);
+    expect(otherTeam.map(({ id }) => id)).not.toContain(indicatorId);
+  });
 });

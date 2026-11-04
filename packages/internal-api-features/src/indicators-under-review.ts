@@ -3,20 +3,24 @@ import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import {
   canAssignReviewers,
   canReviewIndicators,
+  canSchedulePublication,
   indicatorListScope,
 } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import type { IndicatorsToReview, IndicatorsUnderReview } from './contract.ts';
+import type { IndicatorsScheduled, IndicatorsToReview, IndicatorsUnderReview } from './contract.ts';
 import { toListItem } from './indicators.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**
- * The review queues, unpaginated: every open submission an IMRG manager may see, and the
- * submissions in review assigned to a reviewer.
+ * The workflow's queues, unpaginated: every open submission an IMRG manager may see, the
+ * submissions in review assigned to a reviewer, and the approved indicators an admin schedules.
  */
 export function internalIndicatorsUnderReviewRouter(
-  indicators: Pick<InternalIndicatorRepository, 'listUnderReview' | 'listToReview'>,
+  indicators: Pick<
+    InternalIndicatorRepository,
+    'listUnderReview' | 'listToReview' | 'listScheduled'
+  >,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
@@ -43,6 +47,17 @@ export function internalIndicatorsUnderReviewRouter(
     async (_request, response) => {
       const rows = await indicators.listToReview(requireApiSession(response).sub);
       const body: IndicatorsToReview = { indicators: rows.map(toListItem) };
+
+      response.status(200).json(body);
+    },
+  );
+
+  router.get(
+    '/api/internal/indicators-scheduled',
+    requireJwtSession(session, canSchedulePublication),
+    async (_request, response) => {
+      const rows = await indicators.listScheduled(indicatorListScope(requireApiSession(response)));
+      const body: IndicatorsScheduled = { indicators: rows.map(toListItem) };
 
       response.status(200).json(body);
     },

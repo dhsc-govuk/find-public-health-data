@@ -57,6 +57,7 @@ import {
   type IndicatorAdminRows,
   type IndicatorsUnderReviewRows,
   listIndicatorsPage,
+  listIndicatorsScheduled,
   listIndicatorsToReview,
   listIndicatorsUnderReview,
 } from './indicator-list-repository.ts';
@@ -135,6 +136,8 @@ export interface InternalIndicatorRepository {
   listUnderReview(scope: IndicatorListScope): Promise<IndicatorsUnderReviewRows>;
   /** The submissions in review assigned to the reviewer, oldest first. */
   listToReview(reviewerId: string): Promise<IndicatorAdminListRow[]>;
+  /** The approved drafts in scope, pending scheduling or scheduled, soonest date first. */
+  listScheduled(scope: IndicatorListScope): Promise<IndicatorAdminListRow[]>;
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
   /** The indicator's team and draft reviewers, for an access check, or undefined with none. */
   findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
@@ -312,6 +315,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       listPage: (page, pageSize, scope) => listIndicatorsPage(db, page, pageSize, scope),
       listUnderReview: (scope) => listIndicatorsUnderReview(db, scope),
       listToReview: (reviewerId) => listIndicatorsToReview(db, reviewerId),
+      listScheduled: (scope) => listIndicatorsScheduled(db, scope),
       findById: (id) => getIndicatorById(db, id),
       findAccess: (id) => findIndicatorAccess(db, id),
       findTeamId: (id) => findIndicatorTeamId(db, id),
