@@ -144,34 +144,32 @@ describe('loadTopic', () => {
     },
   );
 
-  it.each([
-    ['overview', true, false, true],
-    ['data', false, false, true],
-    ['areas', false, true, true],
-    ['publications', false, false, false],
-  ])('loads only the API data needed by the %s tab', async (tab, trends, areaGroups, table) => {
-    const indicators = Array.from({ length: 8 }, (_, index) => ({
-      shortId: index + 1,
-      name: `Indicator ${index + 1}`,
-      slug: `indicator-${index + 1}`,
-    }));
-    const get = topicApi(indicators);
-    const page = await loadTopicPage(
-      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }, `?tab-topic=${tab}`),
-    );
-    expect(page.overview?.selected.length ?? 0).toBe(trends ? 4 : 0);
-    expect(page.content?.listing.indicators.length ?? 0).toBe(tab === 'data' ? 8 : 0);
-    expect(page.areas?.listing.indicators.length ?? 0).toBe(tab === 'areas' ? 8 : 0);
-    const paths = get.mock.calls.map(([path]) => path);
-    expect(paths.filter((path) => path === '/api/topics/topic-a')).toHaveLength(1);
-    expect(paths.includes('/api/topics/topic-a/trends')).toBe(trends);
-    expect(paths.some((path) => path.startsWith('/api/areas?'))).toBe(areaGroups);
-    expect(paths.filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(
-      table ? 1 : 0,
-    );
-    if (!table) expect(paths).toEqual(['/api/topics/topic-a']);
-  });
-
+  it.each(['overview', 'data', 'areas', 'publications'])(
+    'preloads every page section once when opening %s',
+    async (tab) => {
+      const indicators = Array.from({ length: 8 }, (_, index) => ({
+        shortId: index + 1,
+        name: `Indicator ${index + 1}`,
+        slug: `indicator-${index + 1}`,
+      }));
+      const get = topicApi(indicators);
+      const page = await loadTopicPage(
+        loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }, `?tab-topic=${tab}`),
+      );
+      expect(page.overview?.selected).toHaveLength(4);
+      expect(page.content?.listing.indicators).toHaveLength(8);
+      expect(page.areas?.listing.indicators).toHaveLength(8);
+      expect(page.content?.data).not.toHaveProperty('selected');
+      expect(page.areas?.data).not.toHaveProperty('selected');
+      expect(get.mock.calls.filter(([path]) => path === '/api/topics/topic-a')).toHaveLength(1);
+      expect(
+        get.mock.calls.filter(([path]) => /^\/api\/indicators\/\d+(?:\/data\?)?$/.test(path)),
+      ).toHaveLength(0);
+      expect(
+        get.mock.calls.filter(([path]) => path.startsWith('/api/indicator-data?')),
+      ).toHaveLength(2);
+    },
+  );
   it.each(['?tab-topic=publications', '?tab-topic=invalid'])(
     'loads only the topic content for %s',
     async (query) => {

@@ -29,6 +29,14 @@ test('keeps Compare areas in view when changing to mobile and opening its shared
   ]) {
     await expect(page.locator(`#${id}`)).toBeVisible();
   }
+  await expect(
+    page.locator('#indicator-data').getByRole('table', { name: /^Table:/ }),
+  ).toBeVisible();
+  await expect(
+    page.locator('#indicator-compare-indicators').getByLabel('Search for an indicator'),
+  ).toBeVisible();
+  await expect(page.getByRole('table', { name: /Table of inequalities/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Data attributes' })).toBeVisible();
   await page.reload();
   await expect(heading).toBeInViewport();
   await expect(selector).toBeInViewport();
@@ -94,36 +102,30 @@ test('keeps the active section in the URL and supports arrow keys', async ({ pag
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 });
 
-test('selects the requested tab immediately while its data is still loading', async ({
+test('switches between loaded indicator sections without another data request', async ({
   page,
 }, testInfo) => {
   const areas = page.getByRole('tab', { name: 'Compare areas', exact: true });
   const table = page.getByRole('table', { name: /Table of area comparisons/ });
   await expect(table).toHaveCount(0);
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
+  const reads: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/indicator/') && request.url().includes('.data')) {
+      reads.push(request.url());
+    }
   });
-  await page.route('**/indicator/*.data?*', async (route) => {
-    await gate;
-    await route.continue();
-  });
-  try {
-    await areas.click();
-    await expect(areas).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('status').filter({ hasText: 'Loading compare areas' }),
-    ).toBeVisible();
-    await expect(table).toHaveCount(0);
-  } finally {
-    release();
-  }
+  await areas.click();
+  await expect(areas).toHaveAttribute('aria-selected', 'true');
   await expect(page).toHaveURL(/tab-indicator=areas/);
   await expect(table).toBeVisible();
+  await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
+  await expect(page).toHaveURL(/tab-indicator=about/);
+  await expect(page.getByRole('heading', { name: 'Data attributes' })).toBeVisible();
+  expect(reads).toEqual([]);
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('opens every indicator tab without JavaScript and keeps comparison search in view', async ({
+test('shows every indicator section without JavaScript and keeps comparison search in view', async ({
   browser,
   baseURL,
 }) => {
@@ -159,14 +161,15 @@ test('opens every indicator tab without JavaScript and keeps comparison search i
       ],
       ['Indicator', 'indicator-data', withoutJs.getByRole('table', { name: /^Table:/ })],
     ] as const) {
-      await expect(content).toHaveCount(0);
+      await expect(content).toBeVisible();
       await withoutJs.getByRole('link', { name: label, exact: true }).click();
       await expect(withoutJs).toHaveURL(new RegExp(`#${anchor}$`));
       await expect(content).toBeVisible();
     }
     await withoutJs.getByRole('link', { name: 'Compare indicators', exact: true }).click();
-    await withoutJs.getByLabel('Search for an indicator').fill('diabetes');
-    await withoutJs.getByRole('button', { name: 'Search', exact: true }).click();
+    const compare = withoutJs.locator('#indicator-compare-indicators');
+    await compare.getByLabel('Search for an indicator').fill('diabetes');
+    await compare.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(withoutJs).toHaveURL(/find=diabetes.*#indicator-compare-indicators$/);
     await expect(withoutJs.getByLabel('Search for an indicator')).toBeInViewport();
     await expect(withoutJs.getByRole('link', { name: /Diabetes: QOF prevalence/ })).toBeVisible();
@@ -536,7 +539,7 @@ test('keeps the full tab labels in one connected row at tablet and desktop width
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('shows Contents links and loads stacked sections on demand on small screens', async ({
+test('shows Contents links and every section on first load on small screens', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 1000 });
@@ -571,10 +574,12 @@ test('shows Contents links and loads stacked sections on demand on small screens
   }
   await expect(page.getByRole('region', { name: `${MORTALITY_NAME} trend chart` })).toBeVisible();
   const map = page.getByRole('region', { name: `${MORTALITY_NAME} map` });
-  await expect(map).toHaveCount(0);
-  await page.getByRole('link', { name: 'View compare areas', exact: true }).click();
   await expect(map).toBeVisible();
-  await expect(page).toHaveURL(/tab-indicator=areas#indicator-compare-areas$/);
+  await page
+    .locator('.govuk-tabs__list')
+    .getByRole('link', { name: 'Compare areas', exact: true })
+    .click();
+  await expect(page).toHaveURL(/#indicator-compare-areas$/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
   await expectNoAccessibilityViolations(page, testInfo);
   await page

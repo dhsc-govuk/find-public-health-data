@@ -123,11 +123,9 @@ it('keeps the current default panel mounted when its own options reload data', a
   });
 });
 
-it('loads a legacy hash for navigation tabs and lets the next tab replace it', async () => {
+it('honours a legacy hash for navigation tabs and lets the next tab replace it', async () => {
   window.history.replaceState({}, '', '/#second');
-  const router = renderTabs(true);
-  await act(async () => {});
-  expect(router.state.location.search).toBe('?panel=second');
+  renderTabs(true);
   expect(screen.getByRole('tab', { name: 'Second' }).getAttribute('aria-selected')).toBe('true');
   await act(async () => {
     fireEvent.click(screen.getByRole('tab', { name: 'First' }));
