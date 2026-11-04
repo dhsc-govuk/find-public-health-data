@@ -22,6 +22,7 @@ import {
   MAX_INDICATOR_FILTER_RESULTS,
   MAX_INDICATOR_QUERY_LENGTH,
   MAX_INDICATOR_SEARCH_RESULTS,
+  MAX_RANKING_AREAS,
   MAX_SELECTED_AREAS,
   MAX_TABLE_INDICATORS_PER_REQUEST,
   pickAreaCodes,
@@ -68,6 +69,19 @@ function pickStrings(value: unknown, maxLength = MAX_FILTER_VALUE_LENGTH): strin
 export function indicatorsRouter(indicators: Repositories['indicators']): Router {
   const router = Router();
 
+  router.get('/api/indicators/:indicator/ranking', async (request, response) => {
+    const areaCodes = pickAreaCodes(request.query.areaCode, MAX_RANKING_AREAS);
+    const indicatorId = areaCodes.length
+      ? await resolveIndicator(indicators, request.params.indicator)
+      : undefined;
+    if (!indicatorId) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const data: IndicatorAreaData[] = await indicators.findRankingData(indicatorId, areaCodes);
+    response.status(data.length ? 200 : 404).json(data.length ? data : { error: 'not_found' });
+  });
+
   router.get('/api/indicator-data', async (request, response) => {
     const raw = request.query.indicator;
     const shortIds = [
@@ -82,7 +96,10 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       response.status(404).json({ error: 'not_found' });
       return;
     }
-    const entries = await indicators.findTableData(shortIds, areaCodes);
+    const entries =
+      request.query.points === 'latest'
+        ? await indicators.findTableData(shortIds, areaCodes, 'latest')
+        : await indicators.findTableData(shortIds, areaCodes);
     if (entries.length !== shortIds.length || entries.some(({ areaData }) => !areaData.length)) {
       response.status(404).json({ error: 'not_found' });
       return;

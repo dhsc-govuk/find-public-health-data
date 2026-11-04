@@ -121,7 +121,8 @@ export async function loader(args: LoaderFunctionArgs) {
                 measures.map((measure) => {
                   const cell = row.cells.find((cell) => cell.areaCode === areaCode);
                   return measure === 'trend'
-                    ? recentTrend(cell?.series ?? [], entry.detail.polarity).label
+                    ? recentTrend(cell?.series ?? [], entry.detail.polarity, cell?.trendDirection)
+                        .label
                     : measure === 'count' || measure === 'numerator'
                       ? (cell?.[measure] ?? null)
                       : (cell?.value ?? null);

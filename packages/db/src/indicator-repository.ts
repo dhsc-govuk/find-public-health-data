@@ -382,8 +382,8 @@ export async function getPublishedIndicatorsByIds(
 }
 
 export {
+  getIndicatorObservationData,
   getIndicatorObservations,
-  getIndicatorObservationsByIds,
   getIndicatorObservationsForAreas,
   type IndicatorAreaData,
   type IndicatorObservation,
