@@ -173,21 +173,45 @@ export async function ageRangesOf(
  * The audit log's field for one dimension's classifications, such as `classificationIds.lifeStage`:
  * a save replaces each dimension it names and leaves the others, so each is a list of its own.
  */
-function classificationField(dimension: ClassificationDimension): string {
+export function classificationAuditField(
+  dimension: ClassificationDimension,
+): `classificationIds.${string}` {
   return `classificationIds.${dimension.replace(/_([a-z])/g, (_, next: string) => next.toUpperCase())}`;
 }
 
+/** Every list a replacement may rewrite, by the field the audit log records it as. */
+export const LIST_AUDIT_FIELDS = [
+  'topicIds',
+  'primaryTopicId',
+  'subtopicPlacements',
+  ...CLASSIFICATION_DIMENSIONS.map(classificationAuditField),
+  'links',
+  'ageRanges',
+  'numeratorSources',
+  'denominatorSources',
+] as const;
+
+export type ListAuditField = (typeof LIST_AUDIT_FIELDS)[number];
+
 /** The lists whose order means nothing, compared as sets in the audit log. */
-export const UNORDERED_LISTS = [
+export const UNORDERED_LISTS: readonly ListAuditField[] = [
   'topicIds',
   'subtopicPlacements',
-  ...CLASSIFICATION_DIMENSIONS.map(classificationField),
+  ...CLASSIFICATION_DIMENSIONS.map(classificationAuditField),
 ];
 
 /** The lists a replacement rewrote, as the audit log records them: what each held, and holds. */
+type ClassificationAuditField = ReturnType<typeof classificationAuditField>;
+
+/** Each list a replacement rewrote, by its audit field. */
+type ListsByAuditField = Partial<
+  Record<Exclude<ListAuditField, ClassificationAuditField>, unknown[]>
+> &
+  Record<ClassificationAuditField, unknown[]>;
+
 export interface ReplacedLists {
-  before: Record<string, unknown[]>;
-  after: Record<string, unknown[]>;
+  before: ListsByAuditField;
+  after: ListsByAuditField;
 }
 
 const auditedLink = ({ url, text }: IndicatorDraftLink) => ({ url, text });
@@ -228,8 +252,8 @@ export async function replaceLists(
     denominatorSources,
   }: IndicatorDraftLists,
 ): Promise<ReplacedLists> {
-  const before: Record<string, unknown[]> = {};
-  const after: Record<string, unknown[]> = {};
+  const before: ReplacedLists['before'] = {};
+  const after: ReplacedLists['after'] = {};
 
   if (topicIds !== undefined) {
     const placements = await tx
@@ -315,8 +339,8 @@ export async function replaceLists(
           ids.map((classificationId) => ({ classificationId, indicatorVersionId: versionId })),
         );
     }
-    before[classificationField(dimension)] = removed.map(({ id }) => id);
-    after[classificationField(dimension)] = ids;
+    before[classificationAuditField(dimension)] = removed.map(({ id }) => id);
+    after[classificationAuditField(dimension)] = ids;
   }
 
   if (links !== undefined) {
