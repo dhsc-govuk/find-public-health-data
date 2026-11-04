@@ -29,7 +29,7 @@ import {
   UNIT_IDS,
   VALUE_TYPE_IDS,
 } from '@fphd/utils/value-type-and-unit';
-import { asc, desc, eq, type SQL, sql } from 'drizzle-orm';
+import { type AnyColumn, asc, desc, eq, type SQL, sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
   boolean,
@@ -65,9 +65,26 @@ import { team } from './team.ts';
 import { uploadBatch } from './upload.ts';
 import { audit } from './user.ts';
 
-export const INDICATOR_VERSION_STATUSES = ['draft', 'published'] as const;
+export const INDICATOR_VERSION_STATUSES = ['draft', 'scheduled', 'published'] as const;
 
 export type IndicatorVersionStatus = (typeof INDICATOR_VERSION_STATUSES)[number];
+
+/**
+ * The statuses of the version a publisher works on, until it is published: an indicator has at
+ * most one. A scheduled version is a draft an admin has confirmed the publication date of.
+ */
+export const UNPUBLISHED_VERSION_STATUSES = [
+  'draft',
+  'scheduled',
+] as const satisfies readonly IndicatorVersionStatus[];
+
+/**
+ * Whether `status` names an unpublished version. The statuses are literals, as the one-unpublished
+ * index's predicate has them, so the planner can use it.
+ */
+export function isUnpublished(status: AnyColumn): SQL {
+  return sql`${status} IN (${literals(UNPUBLISHED_VERSION_STATUSES)})`;
+}
 
 /** A yes whose detail the contract requires: the detail is kept beside a yes and nothing else. */
 function detailBesideYes(answer: AnyPgColumn, detail: AnyPgColumn): SQL {
@@ -423,11 +440,11 @@ export const indicatorVersion = pgTable(
       'indicator_version_slug_check',
       sql`${t.slug} ~ ${sql.raw(`'${SLUG_PATTERN.source}'`)} AND ${t.slug} !~ '^[0-9]+$' AND length(${t.slug}) <= ${sql.raw(String(SLUG_MAX_LENGTH))}`,
     ),
-    // One draft per indicator, as a constraint rather than a convention. An indicator may
-    // hold several published versions; reads take the most recently published one.
-    uniqueIndex('idx_indicator_version_one_draft')
+    // One unpublished version per indicator, as a constraint rather than a convention. An
+    // indicator may hold several published versions; reads take the most recently published one.
+    uniqueIndex('idx_indicator_version_one_unpublished')
       .on(t.indicatorId)
-      .where(sql`${t.status} = ${literals(['draft' satisfies IndicatorVersionStatus])}`),
+      .where(sql`${t.status} IN (${literals(UNPUBLISHED_VERSION_STATUSES)})`),
     index('idx_indicator_version_indicator').on(t.indicatorId),
     index('idx_indicator_version_slug').on(t.slug),
     index('idx_indicator_version_name_trgm').using('gin', t.name.op('gin_trgm_ops')),

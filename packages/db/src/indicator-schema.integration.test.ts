@@ -6,6 +6,7 @@ import type { Database } from './client.ts';
 import {
   ciMethod,
   classification,
+  type IndicatorVersionStatus,
   indicator,
   indicatorVersion,
   indicatorVersionClassification,
@@ -47,7 +48,7 @@ async function newIndicatorId(): Promise<string> {
 // published version says when, as the table insists, unless the caller says otherwise.
 async function addVersion(
   indicatorId: string,
-  status: 'draft' | 'published',
+  status: IndicatorVersionStatus,
   values: Partial<typeof indicatorVersion.$inferInsert> = {},
 ) {
   return db
@@ -113,6 +114,33 @@ describe('indicator_version', () => {
     await expect(addVersion(indicatorId, 'draft')).rejects.toMatchObject({
       cause: { code: UNIQUE_VIOLATION },
     });
+  });
+
+  it('allows one unpublished version per indicator, draft or scheduled', async () => {
+    const scheduledFirst = await newIndicatorId();
+    const draftFirst = await newIndicatorId();
+    await addVersion(scheduledFirst, 'scheduled');
+    await addVersion(draftFirst, 'draft');
+
+    await expect(addVersion(scheduledFirst, 'draft')).rejects.toMatchObject({
+      cause: { code: UNIQUE_VIOLATION },
+    });
+    await expect(addVersion(draftFirst, 'scheduled')).rejects.toMatchObject({
+      cause: { code: UNIQUE_VIOLATION },
+    });
+  });
+
+  it('allows a scheduled version alongside the published one', async () => {
+    const indicatorId = await newIndicatorId();
+    await addVersion(indicatorId, 'published');
+
+    await expect(addVersion(indicatorId, 'scheduled')).resolves.toHaveLength(1);
+  });
+
+  it('refuses a status the workflow does not have', async () => {
+    await expect(
+      addVersion(await newIndicatorId(), 'approved' as IndicatorVersionStatus),
+    ).rejects.toMatchObject({ cause: { code: CHECK_VIOLATION } });
   });
 
   it('allows several published versions per indicator', async () => {
