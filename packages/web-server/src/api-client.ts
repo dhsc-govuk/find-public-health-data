@@ -290,6 +290,7 @@ export function createApiClient({
     });
 
     try {
+      combined.throwIfAborted();
       const response = await fetch(`${baseUrl}${path}`, { ...init, method, signal: combined });
       status = response.status;
       const result = await answer(response);

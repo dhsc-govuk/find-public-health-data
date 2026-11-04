@@ -789,6 +789,9 @@ describe('API call logging', () => {
         api: expect.objectContaining({ path: '/api/topics', failure: 'aborted' }),
       }),
     ]);
+
+    await expect(client.get('/queued', schema)).rejects.toBe(browser.signal.reason);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
