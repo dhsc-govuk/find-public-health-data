@@ -40,6 +40,7 @@ function renderPage(
       <DashboardPage
         underReview={underReview}
         toReview={toReview}
+        scheduled={null}
         list={{ canCreate: true, indicators: [indicator], page: 1, totalPages: 1, ...list }}
       />
     </MemoryRouter>,
@@ -49,7 +50,7 @@ function renderPage(
 function renderManagerPage(underReview: IndicatorsUnderReview) {
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <DashboardPage underReview={underReview} toReview={null} list={null} />
+      <DashboardPage underReview={underReview} toReview={null} scheduled={null} list={null} />
     </MemoryRouter>,
   );
 }
@@ -57,7 +58,7 @@ function renderManagerPage(underReview: IndicatorsUnderReview) {
 function renderReviewerPage(toReview: IndicatorAdminListItem[]) {
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <DashboardPage underReview={null} toReview={toReview} list={null} />
+      <DashboardPage underReview={null} toReview={toReview} scheduled={null} list={null} />
     </MemoryRouter>,
   );
 }
@@ -322,6 +323,7 @@ describe('DashboardPage', () => {
         <DashboardPage
           underReview={{ unassigned: [submitted], assigned: [] }}
           toReview={[inReview]}
+          scheduled={null}
           list={null}
         />
       </MemoryRouter>,
@@ -464,6 +466,7 @@ describe('DashboardPage', () => {
         <DashboardPage
           underReview={null}
           toReview={[]}
+          scheduled={null}
           list={null}
           notification="You are no longer a reviewer of this indicator."
         />

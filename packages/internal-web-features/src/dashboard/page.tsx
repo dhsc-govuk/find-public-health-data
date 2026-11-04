@@ -63,13 +63,13 @@ interface DashboardPageProps {
   underReview: IndicatorsUnderReview | null;
   toReview: IndicatorAdminListItem[] | null;
   /** The approved indicators an admin schedules; null for anyone else. */
-  scheduled?: IndicatorAdminListItem[] | null;
+  scheduled: IndicatorAdminListItem[] | null;
   list: IndicatorList | null;
   /** Something the page the user came from left to tell them. */
   notification?: string | undefined;
 }
 
-function sectionCount({ underReview, toReview, scheduled = null, list }: DashboardPageProps) {
+function sectionCount({ underReview, toReview, scheduled, list }: DashboardPageProps) {
   return [underReview, toReview, scheduled, list].filter((section) => section !== null).length;
 }
 
@@ -94,7 +94,7 @@ function listSection(list: IndicatorList, tabbed: boolean) {
  * its tab open when `tabbed`.
  */
 function dashboardSections(
-  { underReview, toReview, scheduled = null, list }: DashboardPageProps,
+  { underReview, toReview, scheduled, list }: DashboardPageProps,
   tabbed: boolean,
 ) {
   return [
