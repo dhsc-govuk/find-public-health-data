@@ -10,6 +10,7 @@ import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 // One selection contains up to 19 picked areas and England for comparison.
 export const MAX_SELECTED_AREAS = 19;
 export const MAX_AREA_CODES_PER_REQUEST = MAX_SELECTED_AREAS + 1;
+export const MAX_RANKING_AREAS = 500;
 export const MAX_AREA_GROUPS_PER_REQUEST = 20;
 export const MAX_AREA_NAME_LENGTH = 100;
 export const MAX_AREA_PREVIEW = 101;
@@ -221,6 +222,17 @@ export const indicatorTableDataSchema = z.array(
   z.object({
     detail: indicatorDetailSchema,
     areaData: indicatorAreaDataListSchema,
+    tableSeries: z
+      .array(
+        z.object({
+          sex: z.string(),
+          periodType: z.enum(['all', '1-year', '3-year']),
+          segments: z.record(z.string(), z.string()),
+          trends: z.record(z.string(), z.enum(['up', 'down', 'right']).nullable()).optional(),
+          rowOrder: z.record(z.string(), z.number().int().nonnegative()).optional(),
+        }),
+      )
+      .optional(),
   }),
 );
 

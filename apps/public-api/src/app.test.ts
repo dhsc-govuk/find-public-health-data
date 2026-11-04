@@ -26,12 +26,44 @@ function createTestApp(repositories = createFakeRepositories()) {
 
 describe('public API', () => {
   it('mounts the public bulk table-data surface', async () => {
-    const findTableData = vi.fn().mockResolvedValue([]);
+    const data = [
+      {
+        detail: { shortId: 108, slug: 'mortality', name: 'Mortality' },
+        areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: [] }],
+        tableSeries: [
+          {
+            sex: '',
+            periodType: 'all',
+            segments: { E92000001: 'Age:All ages' },
+            trends: { E92000001: 'up' },
+            rowOrder: { E92000001: 0 },
+          },
+        ],
+      },
+    ];
+    const findTableData = vi.fn().mockResolvedValue(data);
     const response = await request(
       createTestApp(createFakeRepositories({ indicators: { findTableData } })),
     ).get('/api/indicator-data?indicator=108');
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(data);
+    expect(JSON.stringify(response.body)).not.toContain(anyId);
     expect(findTableData).toHaveBeenCalledWith([108], ['E92000001']);
+  });
+
+  it('exposes compact rankings using public area codes without internal row ids', async () => {
+    const data = [{ areaCode: 'E06000052', areaName: 'Cornwall', observations: [] }];
+    const findRankingData = vi.fn().mockResolvedValue(data);
+    const repositories = createFakeRepositories({
+      indicators: { resolveId: async () => anyId, findRankingData },
+    });
+    const response = await request(createTestApp(repositories)).get(
+      '/api/indicators/108/ranking?areaCode=E06000052',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(data);
+    expect(JSON.stringify(response.body)).not.toContain(anyId);
+    expect(findRankingData).toHaveBeenCalledWith(anyId, ['E06000052']);
   });
   it('reports its health', async () => {
     const response = await request(createTestApp()).get('/livez');

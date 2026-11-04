@@ -1,5 +1,24 @@
 # Route budgets
 
+For concurrent tests against an existing dataset, use the separate read-only command:
+
+```sh
+pnpm perf:load --base-url http://127.0.0.1:3000 \
+  --path /topics/cancer \
+  --path /indicator/under-75-mortality-rate-from-all-causes \
+  --concurrency 1,4,8 --rounds 3 --output /tmp/full-load.json
+```
+
+This only sends GET requests. It warms each route once, then records at least six requests per
+route and concurrency level. Add `--mixed` to distribute each level's requests across the routes.
+The report includes every sample, failures, time to headers and time until the entire streamed
+response has been consumed. It uses a browser user agent so the initial shell can stream. These
+are local server response timings; measure browser rendering separately. A failed response,
+stream or section fails the command. It does not prepare fixtures or connect to the database.
+Use `--skip-warmup` immediately after restarting the apps to check their first requests.
+
+## Seeded budgets
+
 `pnpm check:perf` requests a set of read-only routes across the four apps on the seeded stack and
 checks, for each, how much work one request costs and how long requests take. CI runs it in the
 `Route budgets` job on every pull request, beside e2e and against the same production images.

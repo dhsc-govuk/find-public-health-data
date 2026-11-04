@@ -40,7 +40,7 @@ function api() {
         },
       ];
     if (path.startsWith('/api/areas')) return [{ areaType: 'England', areas: [] }];
-    if (path.includes('/data?'))
+    if (path.includes('/data?') || path.includes('/ranking?'))
       return new URL(`http://localhost${path}`).searchParams.getAll('areaCode').map((code) => ({
         areaCode: code,
         areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
@@ -75,7 +75,7 @@ describe('loadIndicator', () => {
     const delayed = {
       ...client,
       get: vi.fn(async (path, schema) => {
-        if (path.includes('/data?')) await gate.promise;
+        if (path.includes('/data?') || path.includes('/ranking?')) await gate.promise;
         return read(path, schema);
       }),
     } as ApiClient;
@@ -270,33 +270,26 @@ describe('loadIndicator', () => {
     ]);
   });
 
-  it('loads every section in bounded batches regardless of the selected tab', async () => {
+  it('loads every section and requests compact rankings for all comparison areas', async () => {
     const { client, get } = api();
-    const initial = await loadIndicator(args(client));
-    expect(initial.compareAreasData).toHaveLength(25);
-    expect(
-      get.mock.calls
-        .filter(([path]) => path.includes('/108/data?'))
-        .map(([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length)
-        .sort((a, b) => a - b),
-    ).toEqual([1, 5, 20]);
-
-    get.mockClear();
-    const compared = await loadIndicator(
-      args(client, 'http://localhost/indicator/indicator-108?tab-indicator=areas'),
-    );
-    expect(compared.compareAreaGroup).toBe('Local authorities');
-    expect(compared.compareAreaOptions).toHaveLength(25);
-    expect(compared.compareAreasData).toHaveLength(25);
-    expect(get).toHaveBeenCalledWith(
-      '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
-      expect.anything(),
-    );
-    const batches = get.mock.calls.filter(([path]) => String(path).includes('/108/data?'));
-    expect(
-      batches
-        .map(([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length)
-        .sort((a, b) => a - b),
-    ).toEqual([1, 5, 20]);
+    for (const query of ['', '?tab-indicator=areas']) {
+      get.mockClear();
+      const result = await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108${query}`),
+      );
+      expect(result.compareAreasData).toHaveLength(25);
+      expect(result.compareAreaOptions).toHaveLength(25);
+      expect(get).toHaveBeenCalledWith(
+        '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
+        expect.anything(),
+      );
+      const rankings = get.mock.calls.filter(([path]) => path.includes('/108/ranking?'));
+      expect(rankings).toHaveLength(1);
+      expect(
+        new URL(`http://localhost${rankings[0]?.[0]}`).searchParams.getAll('areaCode'),
+      ).toHaveLength(25);
+      const histories = get.mock.calls.filter(([path]) => path.includes('/108/data?'));
+      expect(histories).toHaveLength(1);
+    }
   });
 });

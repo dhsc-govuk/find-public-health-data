@@ -6,6 +6,7 @@
   "scripts": {
     "check:perf": "tsx src/cli.ts",
     "perf:accept": "tsx src/accept.ts",
+    "perf:load": "tsx src/load.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -158,6 +158,8 @@ export async function loadTopic(
         ? await loadIndicatorTableData(
             { ...args, params: {}, request: new Request(dataUrl) },
             search.displayGroups,
+            false,
+            'recent',
           )
         : null;
       return { search, selected: data ? topicTableSelection(data.selected) : [] };

@@ -1,13 +1,26 @@
-import { tableAreaSeries } from '@fphd/utils/observation-series';
 import { inArray } from 'drizzle-orm';
 import type { Database } from './client.ts';
 import {
-  getIndicatorObservationsByIds,
+  getIndicatorObservationData,
   getPublishedIndicatorsByIds,
 } from './indicator-repository.ts';
 import { publishedIndicator } from './schema/index.ts';
 
-export async function getIndicatorTableData(db: Database, shortIds: number[], areaCodes: string[]) {
+export async function getIndicatorRankingData(
+  db: Database,
+  indicatorId: string,
+  areaCodes: string[],
+) {
+  const data = await getIndicatorObservationData(db, [indicatorId], areaCodes, 'ranking');
+  return data.get(indicatorId)?.areaData ?? [];
+}
+
+export async function getIndicatorTableData(
+  db: Database,
+  shortIds: number[],
+  areaCodes: string[],
+  points: 'recent' | 'latest' = 'recent',
+) {
   if (!shortIds.length || !areaCodes.length) return [];
   const identities = await db
     .select({ id: publishedIndicator.id, shortId: publishedIndicator.shortId })
@@ -16,12 +29,13 @@ export async function getIndicatorTableData(db: Database, shortIds: number[], ar
   const ids = identities.map(({ id }) => id);
   const [details, data] = await Promise.all([
     getPublishedIndicatorsByIds(db, ids),
-    getIndicatorObservationsByIds(db, ids, areaCodes, true),
+    getIndicatorObservationData(db, ids, areaCodes, points === 'latest' ? 'summary' : 'table'),
   ]);
   const byShortId = new Map(identities.map(({ id, shortId }) => [shortId, id]));
   return shortIds.flatMap((shortId) => {
     const id = byShortId.get(shortId);
     const detail = id ? details.get(id) : undefined;
-    return detail && id ? [{ detail, areaData: tableAreaSeries(data.get(id) ?? []) }] : [];
+    const observations = id ? data.get(id) : undefined;
+    return detail && observations ? [{ detail, ...observations }] : [];
   });
 }
