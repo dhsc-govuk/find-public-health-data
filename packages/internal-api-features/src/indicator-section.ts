@@ -235,7 +235,7 @@ export function indicatorSectionRouter<
     const actor = requireApiActor(request, response);
     const attributes = columns.toAttributes(submission.data);
     const lists = columns.toLists?.(submission.data) ?? {};
-    const result = await indicators.updateDraft(id.data, attributes, lists, actor, {
+    const result = await indicators.updateDraft(id.data, section.key, attributes, lists, actor, {
       version: save.data.version,
       versionOf,
     });

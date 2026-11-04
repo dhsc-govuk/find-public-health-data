@@ -24,6 +24,7 @@ describe('fake users', () => {
     expect(canAccessAudience(publicUser, 'internal')).toBe(false);
     expect(fakeUsersForAudience('internal').map((user) => user.name)).toEqual([
       'Sam Taylor',
+      'Charlie Owen',
       'Jordan Lee',
       'Casey Patel',
       'Morgan Hughes',

@@ -289,6 +289,7 @@ describe('internal API', () => {
           draftReviewers: [],
           draftScheduledPublishAt: null,
           draftFirstSubmittedAt: null,
+          draftResponse: null,
         }),
       },
       reviewers: { listOptions: async () => [] },
@@ -347,6 +348,37 @@ describe('internal API', () => {
 
     expect(asReviewer.status).toBe(200);
     expect(asReviewer.body).toEqual({ notes: [] });
+  });
+
+  it("mounts the publisher's reply to a review behind the editor guard", async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findTeamId: async () => TEAM_IDS.teamA,
+        findRevisionRound: async () => ({
+          hasDraft: true,
+          draftLocked: false,
+          submissionNumber: 1,
+          submissionStatus: 'changes_requested',
+          kind: 'minor_revisions',
+          clarificationRequest: null,
+          revisionResponse: null,
+          flags: [{ task: 'polarity', notes: 'Is higher better?', cleared: false }],
+        }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/revision-response';
+
+    const asPublisher = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
+    const asReviewer = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']));
+
+    expect(asPublisher.status).toBe(200);
+    expect(asPublisher.body).toMatchObject({ kind: 'minor_revisions', flaggedTaskCount: 1 });
+    expect(asReviewer.status).toBe(403);
   });
 
   it('mounts the indicators under review behind the IMRG manager role', async () => {

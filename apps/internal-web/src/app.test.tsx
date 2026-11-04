@@ -68,7 +68,7 @@ describe('internal application routes', () => {
       />,
     );
 
-    expect(screen.getAllByRole('radio')).toHaveLength(9);
+    expect(screen.getAllByRole('radio')).toHaveLength(10);
     expect(screen.queryByText('Alex Morgan')).toBeNull();
     expect(screen.getByText('Sam Taylor')).toBeTruthy();
     expect(screen.getByText('Riley Singh')).toBeTruthy();

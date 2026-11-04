@@ -37,7 +37,8 @@ type NotesForReviewersTaskKey = (typeof NOTES_FOR_REVIEWERS_TASK_KEYS)[number];
 
 export type FlaggableTaskKey = Exclude<IndicatorTaskKey, NotesForReviewersTaskKey>;
 
-function isFlaggable(key: IndicatorTaskKey): key is FlaggableTaskKey {
+/** Whether a reviewer may flag the task: every task but the notes for reviewers. */
+export function isFlaggable(key: IndicatorTaskKey): key is FlaggableTaskKey {
   return !(NOTES_FOR_REVIEWERS_TASK_KEYS as readonly IndicatorTaskKey[]).includes(key);
 }
 

@@ -181,7 +181,14 @@ describe('createDraftFromPublished', () => {
           );
       expect(await placements(result.versionId)).toEqual(await placements(publishedId));
       expect(await primaryTopics(result.versionId)).toEqual(await primaryTopics(publishedId));
-      await updateIndicatorDraft(db, target, {}, { topicIds: publishedTopics }, AS_ACTOR);
+      await updateIndicatorDraft(
+        db,
+        target,
+        'tagging',
+        {},
+        { topicIds: publishedTopics },
+        AS_ACTOR,
+      );
       expect(await placements(result.versionId)).toEqual(await placements(publishedId));
       expect(await primaryTopics(result.versionId)).toEqual(await primaryTopics(publishedId));
     },

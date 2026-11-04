@@ -117,6 +117,7 @@ describe('indicatorSectionsRouter', () => {
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
       '00000000-0000-7000-8000-000000000001',
+      'links',
       { hasLinks: true },
       { links },
       testActor(response),

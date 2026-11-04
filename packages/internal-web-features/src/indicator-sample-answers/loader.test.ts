@@ -27,6 +27,7 @@ const taskList: IndicatorTaskList = {
   },
   isUpdate: false,
   canSubmit: false,
+  review: null,
   draftUpdatedAt: '2026-10-22T09:30:00.123Z',
   editable: true,
   actions: ['submit'],

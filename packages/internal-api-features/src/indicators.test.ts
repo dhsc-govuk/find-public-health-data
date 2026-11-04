@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { editVersion } from './edit-version.ts';
 import type { IndicatorAdminDetailRow, IndicatorAdminRow } from './indicator-list-repository.ts';
 import { INDICATORS_PAGE_SIZE, internalIndicatorsRouter } from './indicators.ts';
+import type { RevisionRoundRow } from './revision-response-repository.ts';
 import {
   createFakeInternalRepositories,
   createRouterTestApp,
@@ -46,6 +47,7 @@ const detailRow: IndicatorAdminDetailRow = {
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
   draftFirstSubmittedAt: null,
+  draftResponse: null,
 };
 
 const OTHER_REVIEWER_ID = '00000000-0000-7000-8000-0000000000a1';
@@ -246,6 +248,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
       draftFirstSubmittedAt: null,
+      draftResponse: null,
       nameVersion,
       actions: [],
     });
@@ -432,6 +435,7 @@ describe('POST /api/internal/indicators', () => {
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
     draftFirstSubmittedAt: null,
+    draftResponse: null,
   };
 
   it('rejects an anonymous request', async () => {
@@ -541,6 +545,7 @@ describe('POST /api/internal/indicators', () => {
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
       draftFirstSubmittedAt: null,
+      draftResponse: null,
       nameVersion,
       actions: ['submit'],
     });
@@ -642,6 +647,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
     draftFirstSubmittedAt: null,
+    draftResponse: null,
   };
   const path = `/api/internal/indicators/${row.id}`;
 
@@ -676,6 +682,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
       row.id,
+      'name',
       { name: 'A better name' },
       {},
       testActor(response),
@@ -697,6 +704,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
       draftFirstSubmittedAt: null,
+      draftResponse: null,
       nameVersion: editVersion({ name: 'A better name' }),
       actions: ['submit'],
     });
@@ -710,7 +718,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       .set('Cookie', await publisherCookie())
       .send({ name: 'A better name', version: nameVersion });
 
-    const versionOf = updateDraft.mock.lastCall?.[4].versionOf;
+    const versionOf = updateDraft.mock.lastCall?.[5].versionOf;
     expect(versionOf({ ...unansweredDraft, name: 'Life expectancy at birth' })).toBe(nameVersion);
     expect(
       versionOf({ ...unansweredDraft, name: 'Life expectancy at birth', definition: 'Edited' }),
@@ -935,6 +943,16 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     draftResponseKind: null,
     draftReviewers: [],
   };
+  const neverSentBack: RevisionRoundRow = {
+    hasDraft: true,
+    draftLocked: false,
+    submissionNumber: null,
+    submissionStatus: null,
+    kind: null,
+    clarificationRequest: null,
+    revisionResponse: null,
+    flags: [],
+  };
 
   it('rejects an anonymous request', async () => {
     const response = await request(createTestApp()).get(
@@ -957,7 +975,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
   it('serves the draft as a task list', async () => {
     const findDraftState = vi.fn().mockResolvedValue(draftState);
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
@@ -975,6 +995,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       },
       isUpdate: false,
       canSubmit: false,
+      review: null,
       draftUpdatedAt: '2026-10-22T09:30:00.123Z',
       editable: true,
       actions: ['submit'],
@@ -1012,7 +1033,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       draftCiMethodKind: 'none',
     });
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
@@ -1022,7 +1045,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
   it('reports a draft behind a published version as an update of a live indicator', async () => {
     const findDraftState = vi.fn().mockResolvedValue({ ...draftState, indicatorStatus: 'live' });
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
@@ -1040,7 +1065,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       draftSubmissionStatus: 'submitted',
     });
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
@@ -1052,10 +1079,45 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     });
   });
 
+  it('serves the round that sent the draft back, offering its resubmission', async () => {
+    const findDraftState = vi.fn().mockResolvedValue({
+      ...draftState,
+      draftSubmissionStatus: 'changes_requested',
+      draftResponseKind: 'pre_imrg_feedback',
+    });
+    const flags = [{ task: 'polarity', notes: 'Is higher better?', cleared: false }];
+    const findRevisionRound = vi.fn().mockResolvedValue({
+      ...neverSentBack,
+      submissionStatus: 'changes_requested',
+      kind: 'pre_imrg_feedback',
+      clarificationRequest: 'Which years?',
+      flags,
+    });
+
+    const response = await request(createTestApp({ findDraftState, findRevisionRound }))
+      .get(`/api/internal/indicators/${row.id}/task-list`)
+      .set('Cookie', await publisherCookie());
+
+    expect(response.status).toBe(200);
+    expect(findRevisionRound).toHaveBeenCalledWith(row.id);
+    expect(response.body).toMatchObject({
+      canSubmit: false,
+      review: {
+        kind: 'pre_imrg_feedback',
+        clarificationRequest: 'Which years?',
+        flags,
+        revisionResponse: null,
+      },
+      actions: ['resubmit'],
+    });
+  });
+
   it('answers 404 for an indicator that does not exist', async () => {
     const findDraftState = vi.fn().mockResolvedValue(undefined);
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get('/api/internal/indicators/00000000-0000-7000-8000-000000000000/task-list')
       .set('Cookie', await publisherCookie());
 
@@ -1071,7 +1133,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       draftStatus: null,
     });
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
@@ -1082,7 +1146,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
   it('rejects an id that is not a UUID without asking the repository', async () => {
     const findDraftState = vi.fn();
 
-    const response = await request(createTestApp({ findDraftState }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+    )
       .get('/api/internal/indicators/108/task-list')
       .set('Cookie', await publisherCookie());
 

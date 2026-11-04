@@ -5,7 +5,12 @@ import { type Database, listTopics, type Topic } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 
 import { type CiMethodRow, getCiMethodById, listCiMethods } from './ci-method-repository.ts';
-import type { ReviewerOption, TagOptions, ValueTypeAndUnitOptions } from './contract.ts';
+import type {
+  IndicatorTaskKey,
+  ReviewerOption,
+  TagOptions,
+  ValueTypeAndUnitOptions,
+} from './contract.ts';
 import { type DataProviderRow, listDataProviders } from './data-provider-repository.ts';
 import type { DataTableRow } from './data-table-check-contract.ts';
 import {
@@ -80,6 +85,13 @@ import {
   updateReviewerNote,
 } from './reviewer-note-repository.ts';
 import { listReviewerOptions } from './reviewer-repository.ts';
+import {
+  getRevisionRound,
+  type RevisionReply,
+  type RevisionRoundRow,
+  type SaveRevisionResponseResult,
+  saveRevisionResponse,
+} from './revision-response-repository.ts';
 import { listTagOptions } from './tag-repository.ts';
 import {
   type CreateTopicResult,
@@ -135,6 +147,7 @@ export interface InternalIndicatorRepository {
   /** Saves a form's answers, unless the draft has changed since the form was shown. */
   updateDraft(
     indicatorId: string,
+    task: IndicatorTaskKey,
     attributes: IndicatorDraftAttributes,
     lists: IndicatorDraftLists,
     actor: Actor,
@@ -169,6 +182,15 @@ export interface InternalIndicatorRepository {
     response: ReviewResponse,
     actor: Actor,
   ): Promise<RespondToReviewResult>;
+  /** The draft's latest round of review and the publisher's reply, or undefined with no indicator. */
+  findRevisionRound(id: string): Promise<RevisionRoundRow | undefined>;
+  /** Writes the publisher's reply to the round, unless it has changed since the page was shown. */
+  saveRevisionResponse(
+    indicatorId: string,
+    text: string,
+    precondition: EditPrecondition<RevisionReply>,
+    actor: Actor,
+  ): Promise<SaveRevisionResponseResult>;
 }
 
 /** The confidence interval methods a publisher chooses from. */
@@ -281,8 +303,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
       createDraft: (attributes, actor, teamId) =>
         createIndicatorDraft(db, attributes, actor, teamId),
-      updateDraft: (indicatorId, attributes, lists, actor, precondition) =>
-        updateIndicatorDraft(db, indicatorId, attributes, lists, actor, precondition),
+      updateDraft: (indicatorId, task, attributes, lists, actor, precondition) =>
+        updateIndicatorDraft(db, indicatorId, task, attributes, lists, actor, precondition),
       draftFromPublished: (indicatorId, actor) => createDraftFromPublished(db, indicatorId, actor),
       submit: (indicatorId, draftUpdatedAt, actor) =>
         submitIndicator(db, indicatorId, draftUpdatedAt, actor),
@@ -291,6 +313,9 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       assignReviewers: (indicatorId, assignment, actor) =>
         assignReviewers(db, indicatorId, assignment, actor),
       respond: (indicatorId, response, actor) => respondToReview(db, indicatorId, response, actor),
+      findRevisionRound: (id) => getRevisionRound(db, id),
+      saveRevisionResponse: (indicatorId, text, precondition, actor) =>
+        saveRevisionResponse(db, indicatorId, text, precondition, actor),
     },
     reviewerNotes: {
       list: (indicatorId, authorId) => listReviewerNotes(db, indicatorId, authorId),

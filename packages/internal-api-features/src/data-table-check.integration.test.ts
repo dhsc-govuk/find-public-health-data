@@ -214,6 +214,7 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
     await updateIndicatorDraft(
       internalDb,
       indicatorId,
+      'period-type',
       { periodType: 'years', yearType: 'specified-end-date', yearEndDay: 31, yearEndMonth: 7 },
       {},
       AS_ACTOR,

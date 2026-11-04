@@ -41,6 +41,7 @@ const submittedRow: IndicatorAdminDetailRow = {
   draftSubmissionNumber: 1,
   draftScheduledPublishAt: null,
   draftFirstSubmittedAt: null,
+  draftResponse: null,
 };
 
 /** The indicator's lookups, for an indicator in `teamId`. */

@@ -24,7 +24,7 @@ import {
   OTHER_ACTOR,
   repositoryTest,
 } from './indicator-repository.testing.ts';
-import { completeDraft, ukToday } from './indicator-workflow.testing.ts';
+import { completeDraft, sentBackDraft, ukToday } from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
@@ -121,6 +121,7 @@ describe('the names on each row', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
+        'definition-and-rationale',
         { definition: 'Edited' },
         {},
         AS_OTHER_ACTOR,
@@ -600,7 +601,7 @@ describe('getIndicatorById', () => {
       if (target === undefined) throw new Error('The seed holds no indicators');
 
       await createDraftFromPublished(db, target, AS_ACTOR);
-      await updateIndicatorDraft(db, target, { name: 'Edited in a draft' }, {}, AS_ACTOR);
+      await updateIndicatorDraft(db, target, 'name', { name: 'Edited in a draft' }, {}, AS_ACTOR);
 
       expect(await getIndicatorById(db, target)).toMatchObject({
         draftStatus: 'draft',
@@ -630,7 +631,14 @@ describe('getIndicatorById', () => {
     });
 
     const scheduledPublishAt = new Date('2031-04-01T08:30:00.000Z');
-    await updateIndicatorDraft(db, created.indicatorId, { scheduledPublishAt }, {}, AS_ACTOR);
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      'publishing-date',
+      { scheduledPublishAt },
+      {},
+      AS_ACTOR,
+    );
 
     expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
       draftScheduledPublishAt: scheduledPublishAt,
@@ -663,7 +671,10 @@ describe('getIndicatorById', () => {
 
   repositoryTest('reads what the latest response to the draft said', async ({ db }) => {
     const indicatorId = await submitted(db, 'Answered with minor revisions');
-    expect(await getIndicatorById(db, indicatorId)).toMatchObject({ draftResponseKind: null });
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+      draftResponseKind: null,
+      draftResponse: null,
+    });
     await assignReviewers(
       db,
       indicatorId,
@@ -676,10 +687,30 @@ describe('getIndicatorById', () => {
     expect(await getIndicatorById(db, indicatorId)).toMatchObject({
       draftSubmissionStatus: 'changes_requested',
       draftResponseKind: 'minor_revisions',
+      draftResponse: { kind: 'minor_revisions', flaggedTaskCount: 0 },
     });
     expect(await getIndicatorDraftState(db, indicatorId)).toMatchObject({
       draftResponseKind: 'minor_revisions',
       draftReviewers: [{ id: FAKE_USER_IDS.imrgReviewer, name: 'Jamie Evans' }],
+    });
+  });
+
+  repositoryTest('counts the tasks the response flagged, saved since or not', async ({ db }) => {
+    const { indicatorId } = await sentBackDraft(db, 'Two tasks flagged', ['name', 'polarity'], {
+      kind: 'pre_imrg_feedback',
+      imrgReviewedOn: null,
+    });
+    await updateIndicatorDraft(
+      db,
+      indicatorId,
+      'name',
+      { name: 'Two tasks flagged' },
+      {},
+      AS_ACTOR,
+    );
+
+    expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+      draftResponse: { kind: 'pre_imrg_feedback', flaggedTaskCount: 2 },
     });
   });
 
@@ -701,6 +732,7 @@ describe('getIndicatorById', () => {
       draftSubmissionNumber: 2,
       draftSubmissionStatus: 'in_review',
       draftResponseKind: null,
+      draftResponse: null,
     });
     expect(await getIndicatorDraftState(db, indicatorId)).toMatchObject({
       draftResponseKind: null,
