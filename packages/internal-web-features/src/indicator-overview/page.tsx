@@ -38,10 +38,11 @@ interface OverviewProps {
   notification?: OverviewNotification | undefined;
 }
 
-function ScheduledPublicationDate({ at }: { at: string }) {
+/** The publisher's date is a proposal until an admin confirms it, which schedules the version. */
+function PublicationDate({ at, scheduled }: { at: string; scheduled: boolean }) {
   return (
     <p className="govuk-body govuk-!-margin-bottom-6">
-      <strong>Scheduled publication date:</strong>{' '}
+      <strong>{scheduled ? 'Scheduled' : 'Proposed'} publication date:</strong>{' '}
       <time dateTime={at}>{formatDate(at, 'longWithTime')}</time>
     </p>
   );
@@ -107,7 +108,10 @@ export function IndicatorOverviewPage({
           )}
           <IndicatorHeading indicator={indicator}>
             {indicator.draftScheduledPublishAt === null ? null : (
-              <ScheduledPublicationDate at={indicator.draftScheduledPublishAt} />
+              <PublicationDate
+                at={indicator.draftScheduledPublishAt}
+                scheduled={indicator.draftStatus === 'scheduled'}
+              />
             )}
           </IndicatorHeading>
           <Tabs items={tabs} paramKey="tab" />

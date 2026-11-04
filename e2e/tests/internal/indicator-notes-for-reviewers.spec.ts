@@ -8,11 +8,11 @@ import { MORTALITY_ID } from '../support/indicator-page.ts';
 import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 
 // The sample answers a submitted indicator carries ask for 09:30 UK time on 1 April next year.
-const SCHEDULED = `Scheduled publication date: 1 April ${new Date().getFullYear() + 1} at 9:30am`;
+const PROPOSED = `Proposed publication date: 1 April ${new Date().getFullYear() + 1} at 9:30am`;
 
 async function openOverview(page: Page, id: string) {
   await page.goto(`/dashboard/indicators/${id}`);
-  await expect(page.getByRole('main').locator('p:has(.govuk-tag) + p')).toHaveText(SCHEDULED);
+  await expect(page.getByRole('main').locator('p:has(.govuk-tag) + p')).toHaveText(PROPOSED);
 }
 
 function answerTo(page: Page, question: string) {

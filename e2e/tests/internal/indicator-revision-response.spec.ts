@@ -114,7 +114,7 @@ test.describe('after minor revisions', () => {
     await respondToReview(browser, id, { kind: 'approved' });
 
     await page.goto(overviewPath(id));
-    await expect(publishingTag(page)).toHaveText('Publishing status: Publishing scheduled');
+    await expect(publishingTag(page)).toHaveText('Publishing status: Pending scheduling');
   });
 });
 
