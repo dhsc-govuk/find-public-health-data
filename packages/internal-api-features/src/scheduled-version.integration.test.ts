@@ -25,8 +25,8 @@ const REVIEWER = FAKE_USER_IDS.imrgReviewer;
 const AS_REVIEWER: Actor = { userId: REVIEWER, requestId: null };
 const ALL = { all: true } as const;
 
-// A scheduled version is still the indicator's working version: every read of the draft finds it,
-// locked, and nothing but its own steps can move it.
+// A scheduled version is still the indicator's working version: every read of the draft, and the
+// step's own, finds it locked.
 describe('a scheduled version, read as the draft', () => {
   repositoryTest('is the draft of its list and detail rows', async ({ db }) => {
     const { indicatorId } = await scheduledDraft(db, 'Scheduled rows indicator');
@@ -93,7 +93,7 @@ describe('a scheduled version, read as the draft', () => {
     ]);
   });
 
-  repositoryTest('takes no step a draft takes', async ({ db }) => {
+  repositoryTest('answers a step as not allowed rather than as no draft', async ({ db }) => {
     const { indicatorId } = await scheduledDraft(db, 'Scheduled step indicator');
 
     await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
