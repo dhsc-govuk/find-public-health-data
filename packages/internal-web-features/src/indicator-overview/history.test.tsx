@@ -13,7 +13,7 @@ describe('History', () => {
       <History
         items={[
           {
-            date: '2026-11-03T23:30:00.000Z',
+            date: '2026-06-02T23:30:00.000Z',
             action: 'Indicator submitted for approval',
             by: 'Sam Taylor',
             rows: [],
@@ -25,11 +25,11 @@ describe('History', () => {
 
     const entries = within(screen.getByRole('list')).getAllByRole('listitem');
     expect(entries.map((entry) => entry.textContent)).toEqual([
-      '3 November 2026Indicator submitted for approvalBy Sam Taylor',
+      '3 June 2026Indicator submitted for approvalBy Sam Taylor',
       '2 June 2026Indicator reviewed by IMRGBy Jamie Evans',
     ]);
     expect(entries[0]?.querySelector('time')?.getAttribute('dateTime')).toBe(
-      '2026-11-03T23:30:00.000Z',
+      '2026-06-02T23:30:00.000Z',
     );
     expect(entries[0]?.querySelector('.fphd-body-italic')?.textContent).toBe('By Sam Taylor');
   });
@@ -72,7 +72,7 @@ describe('History', () => {
       />,
     );
 
-    const table = screen.getByRole('table');
+    const table = screen.getByRole('table', { name: 'Indicator resubmitted for approval.' });
     expect(
       within(table)
         .getAllByRole('columnheader')
