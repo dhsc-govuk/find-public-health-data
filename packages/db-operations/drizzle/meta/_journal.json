@@ -435,6 +435,34 @@
       "when": 1793896583520,
       "tag": "0061_import-free-audit-log",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1793896583521,
+      "tag": "0062_public-observation-dimension-key",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1793896583522,
+      "tag": "0063_selective-published-observations",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1793896583523,
+      "tag": "0064_published-observation-index-filters",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793896583524,
+      "tag": "0065_published-observation-visibility",
+      "breakpoints": true
     }
   ]
 }

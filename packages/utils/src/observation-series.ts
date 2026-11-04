@@ -33,8 +33,7 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
 export function tableAreaSeries<T extends { areaCode: string; observations: SeriesObservation[] }>(
   areas: T[],
 ): T[] {
-  return areas.map((area) => {
-    if (area.areaCode === 'E92000001' && areas.length > 1) return area;
+  const selected = areas.map((area) => {
     const sexes = [
       ...new Set(
         area.observations.flatMap(({ dimensions }) =>
@@ -61,5 +60,18 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
         for (const point of headlineSeries(points)) keep.add(point);
     }
     return { ...area, observations: area.observations.filter((point) => keep.has(point)) };
+  });
+  const benchmarkSegments = new Set(
+    selected.flatMap(({ observations }) => observations.map(observationSegmentKey)),
+  );
+  return selected.map((area) => {
+    if (area.areaCode !== 'E92000001' || areas.length === 1) return area;
+    const england = areas.find(({ areaCode }) => areaCode === 'E92000001');
+    return {
+      ...area,
+      observations: (england?.observations ?? []).filter((point) =>
+        benchmarkSegments.has(observationSegmentKey(point)),
+      ),
+    };
   });
 }
