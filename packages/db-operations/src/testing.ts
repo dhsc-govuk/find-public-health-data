@@ -13,7 +13,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import type postgres from 'postgres';
 
 import { importCoreData } from './core-data.ts';
-import { migrateToLatest, migrationsFolder } from './migrations.ts';
+import { asOwnerGroup, migrateToLatest, migrationsFolder } from './migrations.ts';
 import { rebuildReadModels } from './read-models.ts';
 import { seedDummyTables } from './seeding.ts';
 
@@ -72,7 +72,10 @@ export async function tearDownTestTemplate(run: string): Promise<void> {
   await dropTestDatabases((names) => runTestDatabases(names, run));
 }
 
-/** Applies the migrations up to the one tagged, and that one too when `through` is set. */
+/**
+ * Applies the migrations up to the one tagged, and that one too when `through` is set. As the
+ * owner group, like `migrateToLatest`, so a test can finish the job with either.
+ */
 async function migrateUpTo(sql: postgres.Sql, tag: string, through: boolean): Promise<void> {
   const folder = mkdtempSync(join(tmpdir(), 'fphd-migrations-'));
   try {
@@ -90,7 +93,7 @@ async function migrateUpTo(sql: postgres.Sql, tag: string, through: boolean): Pr
         entries: journal.entries.slice(0, through ? index + 1 : index),
       }),
     );
-    await migrate(drizzle(sql), { migrationsFolder: folder });
+    await asOwnerGroup(sql, () => migrate(drizzle(sql), { migrationsFolder: folder }));
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }

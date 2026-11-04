@@ -5,7 +5,7 @@ import { dbEnvFields, resolveDbTls } from '@fphd/db';
 import { defineConfig } from 'drizzle-kit';
 
 // Load the repo-root .env when running drizzle-kit from this package
-// (cwd = packages/db-operations). drizzle-kit runs migrations as the owner role.
+// (cwd = packages/db-operations). drizzle-kit connects as the owner login.
 if (existsSync('../../.env')) {
   process.loadEnvFile('../../.env');
 }

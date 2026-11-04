@@ -9,6 +9,7 @@ import {
   readAppliedMigrations,
   readLocalMigrations,
 } from './migration-status.ts';
+import { OWNER_GROUP, prepareOwnerGroup } from './owner-group.ts';
 
 export { migrationsFolder };
 
@@ -37,8 +38,8 @@ export async function withTeardown<T>(
 }
 
 /**
- * Applies pending migrations through drizzle-orm's migrator rather than `drizzle-kit
- * migrate`, so the deployed path needs no devDependency: drizzle-kit is a build-time tool
+ * Applies pending migrations, as the owner group (`asOwnerGroup`), through drizzle-orm's
+ * migrator rather than `drizzle-kit migrate`, so the deployed path needs no devDependency: drizzle-kit is a build-time tool
  * and is absent from a production install.
  *
  * Two things wrap that call. The advisory lock, because the migrator reads its watermark
@@ -60,8 +61,24 @@ export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
   await withTeardown(
     async () => {
       assertMigratable(compareMigrations(readLocalMigrations(), await readAppliedMigrations(sql)));
-      await migrate(drizzle(sql), { migrationsFolder });
+      await asOwnerGroup(sql, () => migrate(drizzle(sql), { migrationsFolder }));
     },
     () => sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`,
   );
+}
+
+/**
+ * Runs `work` as the owner group, so what it creates belongs to the group whichever login is
+ * connected (see `prepareOwnerGroup`). The role is reset afterwards, so a caller that goes on
+ * to use the client is back as itself.
+ */
+export async function asOwnerGroup<T>(sql: postgres.Sql, work: () => Promise<T>): Promise<T> {
+  if (sql.options.max !== 1) {
+    throw new Error(
+      `asOwnerGroup needs a client with max: 1, got ${sql.options.max} — SET ROLE binds to a single session`,
+    );
+  }
+  await prepareOwnerGroup(sql);
+  await sql`SET ROLE ${sql(OWNER_GROUP)}`;
+  return withTeardown(work, () => sql`RESET ROLE`);
 }
