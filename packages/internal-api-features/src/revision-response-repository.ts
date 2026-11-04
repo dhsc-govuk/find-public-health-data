@@ -3,7 +3,12 @@ import { type Actor, changesBetween, recordAudit } from '@fphd/db/audit-log';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { QueryBuilder } from 'drizzle-orm/pg-core';
 
-import type { DraftSubmissionStatus, FlaggableTaskKey, ReviewResponseKind } from './contract.ts';
+import type {
+  DraftSubmissionStatus,
+  FlaggableTaskKey,
+  ReviewerComment,
+  ReviewResponseKind,
+} from './contract.ts';
 import { type EditPrecondition, editVersion } from './edit-version.ts';
 import {
   draftJoin,
@@ -15,6 +20,7 @@ import {
 } from './indicator-repository-sql.ts';
 
 const {
+  appUser,
   indicator,
   indicatorVersion,
   indicatorVersionSubmission,
@@ -23,9 +29,8 @@ const {
 } = schema;
 
 /** One flag of the round, and whether the publisher has saved its task since. */
-export interface RevisionFlag {
+export interface RevisionFlag extends ReviewerComment {
   task: FlaggableTaskKey;
-  notes: string;
   cleared: boolean;
 }
 
@@ -38,7 +43,7 @@ export interface RevisionRoundRow {
   submissionStatus: DraftSubmissionStatus | null;
   /** What the latest response to the round said, null until a reviewer responds. */
   kind: ReviewResponseKind | null;
-  clarificationRequest: string | null;
+  clarificationRequest: ReviewerComment | null;
   /** The publisher's reply to the round, null until written. */
   revisionResponse: string | null;
   flags: RevisionFlag[];
@@ -64,8 +69,15 @@ const latestReply = builder
   .from(indicatorVersionSubmission)
   .where(eq(indicatorVersionSubmission.id, draftSubmissionId));
 const latestClarification = builder
-  .select({ request: indicatorVersionSubmissionResponse.clarificationRequest })
+  .select({
+    request: sql`case when ${indicatorVersionSubmissionResponse.clarificationRequest} is not null
+      then json_build_object(
+        'notes', ${indicatorVersionSubmissionResponse.clarificationRequest},
+        'reviewerName', ${appUser.displayName}
+      ) end`,
+  })
   .from(indicatorVersionSubmissionResponse)
+  .innerJoin(appUser, eq(appUser.id, indicatorVersionSubmissionResponse.reviewerId))
   .where(eq(indicatorVersionSubmissionResponse.submissionId, draftSubmissionId))
   .orderBy(desc(indicatorVersionSubmissionResponse.respondedAt))
   .limit(1);
@@ -73,17 +85,20 @@ const roundFlags = sql<RevisionFlag[]>`coalesce((
   select json_agg(json_build_object(
     'task', ${indicatorVersionSubmissionFlag.taskKey},
     'notes', ${indicatorVersionSubmissionFlag.notes},
+    'reviewerName', ${appUser.displayName},
     'cleared', ${indicatorVersionSubmissionFlag.clearedAt} is not null
   ) order by ${indicatorVersionSubmissionFlag.taskKey})
   from ${indicatorVersionSubmissionFlag}
   join ${indicatorVersionSubmissionResponse}
     on ${indicatorVersionSubmissionResponse.id} = ${indicatorVersionSubmissionFlag.responseId}
+  join ${appUser} on ${appUser.id} = ${indicatorVersionSubmissionResponse.reviewerId}
   where ${indicatorVersionSubmissionResponse.submissionId} = ${draftSubmissionId}
 ), '[]'::json)`;
 
 /**
  * The draft's latest round of review: its status, the response's kind, clarification request and
- * flags, and the publisher's reply, read in one statement. Undefined when there is no indicator.
+ * flags with the names of the reviewers who wrote them, and the publisher's reply, read in one
+ * statement. Undefined when there is no indicator.
  */
 export async function getRevisionRound(
   db: Database,
@@ -96,7 +111,7 @@ export async function getRevisionRound(
       submissionNumber: draftSubmissionNumber,
       submissionStatus: draftSubmissionStatus,
       kind: draftResponseKind,
-      clarificationRequest: sql<string | null>`(${latestClarification})`,
+      clarificationRequest: sql<ReviewerComment | null>`(${latestClarification})`,
       revisionResponse: sql<string | null>`(${latestReply})`,
       flags: roundFlags,
     })

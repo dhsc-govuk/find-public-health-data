@@ -91,10 +91,15 @@ describe('loadIndicatorTaskList', () => {
   it('renders what the round asks from the reviewer’s Markdown', async () => {
     const review = {
       kind: 'pre_imrg_feedback',
-      clarificationRequest: 'Which *years*?',
+      clarificationRequest: { notes: 'Which *years*?', reviewerName: 'Sam Reviewer' },
       flags: [
-        { task: 'polarity', notes: 'Is **higher** better?', cleared: false },
-        { task: 'name', notes: 'Shorter', cleared: true },
+        {
+          task: 'polarity',
+          notes: 'Is **higher** better?',
+          reviewerName: 'Sam Reviewer',
+          cleared: false,
+        },
+        { task: 'name', notes: 'Shorter', reviewerName: 'Ali Reviewer', cleared: true },
       ],
       revisionResponse: '  ',
     };
@@ -106,13 +111,21 @@ describe('loadIndicatorTaskList', () => {
 
     expect(outcome.requests).toEqual({
       advised: true,
-      clarificationRequest: { markdownHtml: '<p class="govuk-body">Which <em>years</em>?</p>' },
+      clarificationRequest: {
+        reviewerName: 'Sam Reviewer',
+        notes: { markdownHtml: '<p class="govuk-body">Which <em>years</em>?</p>' },
+      },
       flags: {
         polarity: {
+          reviewerName: 'Sam Reviewer',
           notes: { markdownHtml: '<p class="govuk-body">Is <strong>higher</strong> better?</p>' },
           cleared: false,
         },
-        name: { notes: { markdownHtml: '<p class="govuk-body">Shorter</p>' }, cleared: true },
+        name: {
+          reviewerName: 'Ali Reviewer',
+          notes: { markdownHtml: '<p class="govuk-body">Shorter</p>' },
+          cleared: true,
+        },
       },
       replied: false,
     });

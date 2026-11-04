@@ -291,10 +291,21 @@ describe('IndicatorTaskListPage', () => {
 describe('IndicatorTaskListPage for a draft sent back for changes', () => {
   const requests: ReviewerRequests = {
     advised: false,
-    clarificationRequest: renderMarkdown('Which **years** are counted?'),
+    clarificationRequest: {
+      reviewerName: 'Ali Reviewer',
+      notes: renderMarkdown('Which **years** are counted?'),
+    },
     flags: {
-      polarity: { notes: renderMarkdown('Is higher better?'), cleared: false },
-      name: { notes: renderMarkdown('A shorter name'), cleared: true },
+      polarity: {
+        reviewerName: 'Sam Reviewer',
+        notes: renderMarkdown('Is higher better?'),
+        cleared: false,
+      },
+      name: {
+        reviewerName: 'Sam Reviewer',
+        notes: renderMarkdown('A shorter name'),
+        cleared: true,
+      },
     },
     replied: false,
   };
@@ -308,34 +319,32 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     return renderPage({ ...sentBack, ...overrides }, undefined, false, shown);
   }
 
-  /** The row of a task in the table under a group's heading. */
+  /** The item of a task in the list under a group's heading. */
   function row(groupTitle: string, task: string) {
-    const table = screen.getByRole('table', { name: groupTitle });
-    const link = within(table).getByRole('link', { name: task });
-    const tr = link.closest('tr');
-    if (tr === null) throw new Error(`no row for ${task}`);
-    return within(tr);
+    const link = group(groupTitle).getByRole('link', { name: task });
+    const li = link.closest('li');
+    if (li === null) throw new Error(`no item for ${task}`);
+    return within(li);
   }
 
-  it('widens the page and lays each group out as a table of task, request and status', () => {
+  it('widens the page and keeps each group a task list', () => {
     renderSentBack();
 
     expect(document.querySelector('.govuk-grid-column-three-quarters')).not.toBeNull();
-    expect(
-      screen.getAllByRole('table').map((table) => table.getAttribute('aria-labelledby')),
-    ).toEqual(['data-heading', 'metadata-heading', 'publishing-heading', 'reviewer-notes-heading']);
-    expect(
-      within(screen.getByRole('table', { name: 'Data' }))
-        .getAllByRole('columnheader')
-        .map((header) => header.textContent),
-    ).toEqual(['Task', 'Reviewer requests', 'Status']);
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(11);
   });
 
   it('shows a flagged task’s notes, tagged as needing revisions until it is saved', () => {
     renderSentBack();
 
     const polarity = row('Data', 'Polarity');
-    expect(polarity.getByText('Is higher better?')).toBeTruthy();
+    const inset = polarity.getByText('Is higher better?').closest('.govuk-inset-text');
+    expect(inset?.closest('.govuk-task-list__hint')).not.toBeNull();
+    expect(inset?.textContent).toBe('Comment from Sam Reviewer:Is higher better?');
+    expect(polarity.getByText('Comment from Sam Reviewer:').className).toContain(
+      'govuk-!-font-weight-bold',
+    );
     expect(polarity.getByText('Revisions needed').className).toContain('govuk-tag--red');
   });
 
@@ -347,6 +356,19 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     expect(name.getByText('Completed').className).not.toContain('govuk-tag');
   });
 
+  it('describes a flagged task’s link with the reviewer’s comment', () => {
+    renderSentBack();
+
+    expect(
+      screen.getByRole('link', { name: 'Polarity' }).getAttribute('aria-describedby'),
+    ).not.toBeNull();
+    expect(
+      row('Data', 'Polarity').getByRole('link', {
+        description: /Comment from Sam Reviewer:\s*Is higher better\?/,
+      }),
+    ).toBeTruthy();
+  });
+
   it('tags a task flagged before IMRG as having revisions advised', () => {
     renderSentBack({}, { ...requests, advised: true });
 
@@ -355,12 +377,12 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     );
   });
 
-  it('leaves the request empty for a task nobody flagged', () => {
+  it('gives a task nobody flagged no hint', () => {
     renderSentBack();
 
-    const cells = row('Data', 'Data table').getAllByRole('cell');
-    expect(cells[1]?.textContent).toBe('');
-    expect(cells[2]?.textContent).toBe('Completed');
+    const item = screen.getByRole('link', { name: 'Data table' }).closest('li');
+    expect(item?.querySelector('.govuk-task-list__hint')).toBeNull();
+    expect(row('Data', 'Data table').getByText('Completed')).toBeTruthy();
   });
 
   it('ends the notes for reviewers with the reply, beside the clarification request', () => {
@@ -375,6 +397,7 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
         .getByRole('link', { name: 'Response to revisions or clarifications' })
         .getAttribute('href'),
     ).toBe(`/publish/indicators/${taskList.indicator.id}/revision-response`);
+    expect(reply.getByText('Comment from Ali Reviewer:')).toBeTruthy();
     expect(reply.getByText('years').tagName).toBe('STRONG');
     expect(reply.getByText('Incomplete').className).toContain('govuk-tag--blue');
   });

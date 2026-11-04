@@ -25,11 +25,11 @@ const round: RevisionRoundRow = {
   submissionNumber: 1,
   submissionStatus: 'changes_requested',
   kind: 'minor_revisions',
-  clarificationRequest: 'Which years?',
+  clarificationRequest: { notes: 'Which years?', reviewerName: 'Sam Reviewer' },
   revisionResponse: 'Checked the years',
   flags: [
-    { task: 'polarity', notes: 'Is higher better?', cleared: true },
-    { task: 'name', notes: 'Shorter', cleared: false },
+    { task: 'polarity', notes: 'Is higher better?', reviewerName: 'Sam Reviewer', cleared: true },
+    { task: 'name', notes: 'Shorter', reviewerName: 'Sam Reviewer', cleared: false },
   ],
 };
 
@@ -149,7 +149,7 @@ describe('PUT the revision response', () => {
     expect(saveRevisionResponse.mock.lastCall?.[2].versionOf(round)).toBe(VERSION);
     expect(response.body).toEqual({
       kind: round.kind,
-      clarificationRequest: round.clarificationRequest,
+      clarificationRequest: 'Which years?',
       flaggedTaskCount: round.flags.length,
       revisionResponse: 'Changed the name',
       version: saved,

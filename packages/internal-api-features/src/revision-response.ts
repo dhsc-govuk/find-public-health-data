@@ -34,7 +34,7 @@ function replyOf(round: RevisionRoundRow | undefined): RevisionResponse | [numbe
 
   return {
     kind: kind.data,
-    clarificationRequest: round.clarificationRequest,
+    clarificationRequest: round.clarificationRequest?.notes ?? null,
     flaggedTaskCount: round.flags.length,
     revisionResponse: round.revisionResponse,
     version: revisionReplyVersion(round),

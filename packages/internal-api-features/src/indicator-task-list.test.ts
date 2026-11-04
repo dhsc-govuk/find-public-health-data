@@ -180,7 +180,9 @@ describe('resubmitting a draft sent back', () => {
   const review: IndicatorTaskListReview = {
     kind: 'minor_revisions',
     clarificationRequest: null,
-    flags: [{ task: 'polarity', notes: 'Is higher better?', cleared: true }],
+    flags: [
+      { task: 'polarity', notes: 'Is higher better?', reviewerName: 'Sam Reviewer', cleared: true },
+    ],
     revisionResponse: 'Higher is better',
   };
   const sentBack = (changes: Partial<IndicatorTaskListReview>) => ({
@@ -193,7 +195,10 @@ describe('resubmitting a draft sent back', () => {
   });
 
   it('is held back while a flagged task is unsaved', () => {
-    const flags = [...review.flags, { task: 'name' as const, notes: 'Shorter', cleared: false }];
+    const flags = [
+      ...review.flags,
+      { task: 'name' as const, notes: 'Shorter', reviewerName: 'Sam Reviewer', cleared: false },
+    ];
 
     expect(indicatorTaskList(sentBack({ flags })).canSubmit).toBe(false);
   });
@@ -218,15 +223,22 @@ describe('taskListReview', () => {
     submissionNumber: 1,
     submissionStatus: 'changes_requested',
     kind: 'major_revisions',
-    clarificationRequest: 'Which years?',
+    clarificationRequest: { notes: 'Which years?', reviewerName: 'Sam Reviewer' },
     revisionResponse: null,
-    flags: [{ task: 'polarity', notes: 'Is higher better?', cleared: false }],
+    flags: [
+      {
+        task: 'polarity',
+        notes: 'Is higher better?',
+        reviewerName: 'Sam Reviewer',
+        cleared: false,
+      },
+    ],
   };
 
   it('takes the round that sent the draft back', () => {
     expect(taskListReview(round)).toEqual({
       kind: 'major_revisions',
-      clarificationRequest: 'Which years?',
+      clarificationRequest: round.clarificationRequest,
       flags: round.flags,
       revisionResponse: null,
     });

@@ -126,9 +126,11 @@
   white-space: pre-line;
 }
 
-// The task list's Status column, as the prototype lays it out while a review asks for changes.
-.fphd-task-table__status {
-  text-align: right;
+// A reviewer's comment in a task list item's hint. It sits above the link's whole-row click
+// target, so its own links can be clicked and its text selected.
+.fphd-task-list__comment {
+  position: relative;
+  z-index: 1;
 }
 
 // Quoted text a reviewer wrote, set apart from the page's own, as the prototype sets it.

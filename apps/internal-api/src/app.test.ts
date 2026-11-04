@@ -362,7 +362,14 @@ describe('internal API', () => {
           kind: 'minor_revisions',
           clarificationRequest: null,
           revisionResponse: null,
-          flags: [{ task: 'polarity', notes: 'Is higher better?', cleared: false }],
+          flags: [
+            {
+              task: 'polarity',
+              notes: 'Is higher better?',
+              reviewerName: 'Sam Reviewer',
+              cleared: false,
+            },
+          ],
         }),
       },
     });

@@ -13,11 +13,11 @@ import { indicatorSampleAnswersPath, indicatorTaskListPath } from '../publish-pa
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
 import { StatusTag } from '../status-tag/status-tag.tsx';
 import type { IndicatorTaskList, ReviewerRequests } from './loader.ts';
-import { ReviewTaskTable } from './review-tables.tsx';
+import { ReviewTaskList } from './review-task-list.tsx';
 
 interface TaskListPageProps {
   taskList: IndicatorTaskList;
-  /** What the round of review that sent the draft back asks, which lays the groups out as tables. */
+  /** What the round of review that sent the draft back asks, shown below each task it flagged. */
   requests?: ReviewerRequests | null;
   /** True where a development tool may fill in the tasks left to do. */
   offersSampleAnswers?: boolean;
@@ -95,7 +95,7 @@ export function IndicatorTaskListPage({
               />
             </div>
           ) : (
-            <ReviewTaskTable
+            <ReviewTaskList
               group={group}
               id={indicator.id}
               key={group.id}

@@ -1085,12 +1085,19 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       draftSubmissionStatus: 'changes_requested',
       draftResponseKind: 'pre_imrg_feedback',
     });
-    const flags = [{ task: 'polarity', notes: 'Is higher better?', cleared: false }];
+    const flags = [
+      {
+        task: 'polarity',
+        notes: 'Is higher better?',
+        reviewerName: 'Sam Reviewer',
+        cleared: false,
+      },
+    ];
     const findRevisionRound = vi.fn().mockResolvedValue({
       ...neverSentBack,
       submissionStatus: 'changes_requested',
       kind: 'pre_imrg_feedback',
-      clarificationRequest: 'Which years?',
+      clarificationRequest: { notes: 'Which years?', reviewerName: 'Sam Reviewer' },
       flags,
     });
 
@@ -1104,7 +1111,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       canSubmit: false,
       review: {
         kind: 'pre_imrg_feedback',
-        clarificationRequest: 'Which years?',
+        clarificationRequest: { notes: 'Which years?', reviewerName: 'Sam Reviewer' },
         flags,
         revisionResponse: null,
       },

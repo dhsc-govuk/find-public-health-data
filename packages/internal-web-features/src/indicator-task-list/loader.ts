@@ -1,5 +1,6 @@
 // No @fphd/ui imports here, so the loader unit-tests without the jsdom the components need.
 import {
+  type ReviewerComment as ApiReviewerComment,
   type FlaggableTaskKey,
   type IndicatorSubmitError,
   type IndicatorTaskList,
@@ -24,9 +25,14 @@ export type {
   IndicatorTaskStatus,
 } from '@fphd/internal-api-features/contract';
 
-/** A flag of the round, with the reviewer's notes rendered from their Markdown. */
-export interface ReviewerRequest {
+/** Something a reviewer wrote, rendered from their Markdown, with who wrote it. */
+export interface ReviewerComment {
+  reviewerName: string;
   notes: MarkdownHtml;
+}
+
+/** A flag of the round, with the reviewer's notes. */
+export interface ReviewerRequest extends ReviewerComment {
   cleared: boolean;
 }
 
@@ -34,9 +40,13 @@ export interface ReviewerRequest {
 export interface ReviewerRequests {
   /** Pre-IMRG feedback advises revisions; every other round needs them. */
   advised: boolean;
-  clarificationRequest: MarkdownHtml | null;
+  clarificationRequest: ReviewerComment | null;
   flags: Partial<Record<FlaggableTaskKey, ReviewerRequest>>;
   replied: boolean;
+}
+
+function commentOf({ reviewerName, notes }: ApiReviewerComment): ReviewerComment {
+  return { reviewerName, notes: renderMarkdown(notes) };
 }
 
 /** The round's requests, with the reviewer's text rendered on the server; null with no round. */
@@ -48,11 +58,11 @@ export function reviewerRequestsOf(
   return {
     advised: review.kind === 'pre_imrg_feedback',
     clarificationRequest:
-      review.clarificationRequest === null ? null : renderMarkdown(review.clarificationRequest),
+      review.clarificationRequest === null ? null : commentOf(review.clarificationRequest),
     flags: Object.fromEntries(
-      review.flags.map(({ task, notes, cleared }) => [
+      review.flags.map(({ task, cleared, ...comment }) => [
         task,
-        { notes: renderMarkdown(notes), cleared },
+        { ...commentOf(comment), cleared },
       ]),
     ),
     replied: (review.revisionResponse ?? '').trim() !== '',
