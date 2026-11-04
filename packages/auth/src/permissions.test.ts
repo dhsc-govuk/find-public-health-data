@@ -13,6 +13,7 @@ import {
   canReviewIndicator,
   canReviewIndicators,
   canSeeIndicator,
+  canSeeIndicatorHistory,
   canSeeNotesForReviewers,
   canSeeTeamsAndUsers,
   canSubmitIndicator,
@@ -174,6 +175,19 @@ describe('canSeeNotesForReviewers', () => {
     ['a reviewer who publishes in another team, unassigned', publisherReviewer, inTeamA, false],
   ])('answers %s with %s', (_who, asking, indicator, expected) => {
     expect(canSeeNotesForReviewers(asking, indicator)).toBe(expected);
+  });
+});
+
+describe('canSeeIndicatorHistory', () => {
+  it.each([
+    ['an IMRG manager', manager, inTeamA, true],
+    ['an admin', admin, inTeamA, true],
+    ['a publisher in its team', publisherA, inTeamA, true],
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['a publisher in another team', publisherA, inTeamB, false],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+  ])('answers %s with %s', (_who, asking, indicator, expected) => {
+    expect(canSeeIndicatorHistory(asking, indicator)).toBe(expected);
   });
 });
 
