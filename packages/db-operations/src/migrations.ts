@@ -9,6 +9,7 @@ import {
   readAppliedMigrations,
   readLocalMigrations,
 } from './migration-status.ts';
+import { OWNER_GROUP, prepareOwnerGroup } from './owner-group.ts';
 
 export { migrationsFolder };
 
@@ -48,6 +49,9 @@ export async function withTeardown<T>(
  *
  * And the pre-flight, because the states it refuses are ones the migrator reports success on
  * having applied nothing at all.
+ *
+ * The migrator then runs as the owner group (see `asOwnerGroup`), so what it creates belongs
+ * to the group whichever login is connected.
  */
 export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
   if (sql.options.max !== 1) {
@@ -60,8 +64,19 @@ export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
   await withTeardown(
     async () => {
       assertMigratable(compareMigrations(readLocalMigrations(), await readAppliedMigrations(sql)));
-      await migrate(drizzle(sql), { migrationsFolder });
+      await asOwnerGroup(sql, () => migrate(drizzle(sql), { migrationsFolder }));
     },
     () => sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`,
   );
+}
+
+/**
+ * Runs `work` as the owner group, after `prepareOwnerGroup`, on a client whose statements all
+ * go to one session (`max: 1`), since `SET ROLE` binds to the session it runs on. The role is
+ * reset afterwards, so a caller that goes on to use the client is back as itself.
+ */
+export async function asOwnerGroup<T>(sql: postgres.Sql, work: () => Promise<T>): Promise<T> {
+  await prepareOwnerGroup(sql);
+  await sql`SET ROLE ${sql(OWNER_GROUP)}`;
+  return withTeardown(work, () => sql`RESET ROLE`);
 }

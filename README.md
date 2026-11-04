@@ -329,6 +329,12 @@ migrations reference the roles, so migrating a database that has never been boot
 It is idempotent, and it sets the passwords every time, so re-running it is also how a password
 change in `.env` reaches the database.
 
+Every application object is owned by `fphd_owner`, a group role with no login. `db migrate` creates
+the group if it is missing, makes the connecting login a member and applies migrations under
+`SET ROLE fphd_owner`, so objects belong to the group whichever login runs the migrations. A
+database migrated before the group existed is refused, with a message to run `pnpm db:reset` and
+migrate again.
+
 The Drizzle schema lives in `packages/db` and its migrations in `packages/db-operations`:
 
 ```sh
@@ -470,7 +476,8 @@ These commands are worth noting:
 
 `db bootstrap` needs `PUBLIC_API_PASSWORD` and `INTERNAL_API_PASSWORD`; the other commands do not,
 and fail naming them rather than requiring every job to hold role passwords. All of them connect as
-the owner role (`POSTGRES_USER`/`POSTGRES_PASSWORD`), not as a per-API role.
+the owner login (`POSTGRES_USER`/`POSTGRES_PASSWORD`), not as a per-API role. `db migrate` applies
+migrations as the `fphd_owner` group, which the owner login is made a member of.
 
 ### Invoking them from a deployed environment
 
@@ -496,7 +503,7 @@ APP_ENV                  # dev | preview | production for a deployed job; no def
                          # unset value fails the job rather than relaxing TLS in silence
 DB_HOST
 POSTGRES_DB
-POSTGRES_USER            # the owner role, not a per-API role
+POSTGRES_USER            # the owner login, not a per-API role
 POSTGRES_PASSWORD
 ```
 
