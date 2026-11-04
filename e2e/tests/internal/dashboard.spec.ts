@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { assignReviewers } from '../support/assign-reviewers.ts';
 import { submitNewIndicator } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
+import { approvedIndicator } from '../support/review-response.ts';
 import {
   ADMIN,
   IMRG_MANAGER,
@@ -93,6 +94,54 @@ test.describe('as an admin, who sees every team', () => {
 
   test('offers an admin no create action', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Create new indicator' })).toHaveCount(0);
+  });
+});
+
+test.describe('as an admin, scheduling publication', () => {
+  test.use({ storageState: ADMIN.storageState });
+
+  function scheduledRow(page: Page, name: string) {
+    return page
+      .getByRole('table', { name: 'Scheduled indicators, soonest publication date first' })
+      .getByRole('row')
+      .filter({ hasText: name });
+  }
+
+  test('the Scheduled indicators tab comes first and lists an approved indicator, pending scheduling then publishing scheduled', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const { id, name } = await approvedIndicator(browser, 'scheduled tab');
+    await page.goto('/dashboard');
+
+    await expect(page.getByRole('tab')).toHaveText([
+      /^Scheduled indicators \(\d+\)$/,
+      'All indicators',
+    ]);
+    await expect(page.getByRole('tab', { name: /^Scheduled indicators/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(scheduledRow(page, name).locator('.govuk-tag')).toHaveText([
+      'New',
+      'Pending scheduling',
+    ]);
+    await expectNoAccessibilityViolations(page, testInfo);
+
+    await scheduledRow(page, name).getByRole('link', { name }).click();
+    await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
+    await page.getByRole('button', { name: 'Confirm publication date' }).click();
+    await page
+      .getByRole('group', { name: 'Date' })
+      .getByLabel('Year')
+      .fill(String(new Date().getFullYear() + 2));
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.goto('/dashboard');
+
+    await expect(scheduledRow(page, name).locator('.govuk-tag')).toHaveText([
+      'New',
+      'Publishing scheduled',
+    ]);
   });
 });
 
