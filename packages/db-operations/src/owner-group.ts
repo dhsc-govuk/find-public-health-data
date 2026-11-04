@@ -35,9 +35,8 @@ export async function prepareOwnerGroup(sql: postgres.Sql): Promise<void> {
     `);
 
     const [membership] = await tx<{ ready: boolean }[]>`
-      SELECT coalesce(bool_or(inherit_option) AND bool_or(set_option), false) AS ready
-      FROM pg_auth_members
-      WHERE roleid = ${OWNER_GROUP}::regrole AND member = current_user::text::regrole
+      SELECT pg_has_role(current_user, ${OWNER_GROUP}, 'USAGE')
+        AND pg_has_role(current_user, ${OWNER_GROUP}, 'SET') AS ready
     `;
     if (!membership?.ready) {
       await tx.unsafe(`GRANT ${OWNER_GROUP} TO CURRENT_USER WITH INHERIT TRUE, SET TRUE`);

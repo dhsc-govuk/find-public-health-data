@@ -38,8 +38,8 @@ export async function withTeardown<T>(
 }
 
 /**
- * Applies pending migrations through drizzle-orm's migrator rather than `drizzle-kit
- * migrate`, so the deployed path needs no devDependency: drizzle-kit is a build-time tool
+ * Applies pending migrations, as the owner group (`asOwnerGroup`), through drizzle-orm's
+ * migrator rather than `drizzle-kit migrate`, so the deployed path needs no devDependency: drizzle-kit is a build-time tool
  * and is absent from a production install.
  *
  * Two things wrap that call. The advisory lock, because the migrator reads its watermark
@@ -49,9 +49,6 @@ export async function withTeardown<T>(
  *
  * And the pre-flight, because the states it refuses are ones the migrator reports success on
  * having applied nothing at all.
- *
- * The migrator then runs as the owner group (see `asOwnerGroup`), so what it creates belongs
- * to the group whichever login is connected.
  */
 export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
   if (sql.options.max !== 1) {
@@ -71,11 +68,16 @@ export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
 }
 
 /**
- * Runs `work` as the owner group, after `prepareOwnerGroup`, on a client whose statements all
- * go to one session (`max: 1`), since `SET ROLE` binds to the session it runs on. The role is
- * reset afterwards, so a caller that goes on to use the client is back as itself.
+ * Runs `work` as the owner group, so what it creates belongs to the group whichever login is
+ * connected (see `prepareOwnerGroup`). The role is reset afterwards, so a caller that goes on
+ * to use the client is back as itself.
  */
 export async function asOwnerGroup<T>(sql: postgres.Sql, work: () => Promise<T>): Promise<T> {
+  if (sql.options.max !== 1) {
+    throw new Error(
+      `asOwnerGroup needs a client with max: 1, got ${sql.options.max} — SET ROLE binds to a single session`,
+    );
+  }
   await prepareOwnerGroup(sql);
   await sql`SET ROLE ${sql(OWNER_GROUP)}`;
   return withTeardown(work, () => sql`RESET ROLE`);

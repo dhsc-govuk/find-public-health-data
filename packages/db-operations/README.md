@@ -10,8 +10,7 @@ root `db:*` commands, drizzle-kit's own config for `db:generate`/`db:studio` and
 `createOwnerClient` from `@fphd/db/testing` for the test harness. The per-API roles are created by
 `bootstrapRoles` (`pnpm db:bootstrap` locally, `operations db bootstrap` deployed), which must run
 against a fresh server before the first migration: the grant migrations reference the roles.
-`migrateToLatest` runs the migrations as the `fphd_owner` group (`asOwnerGroup`), so every object
-they create belongs to the group, not to the login connected.
+`migrateToLatest` runs the migrations as the `fphd_owner` group: see `owner-group.ts`.
 
 The `@fphd/db-operations/data-migration-contract` subpath exposes package manifests, reviewed
 relationship schemas and CSV table names without database operations. Export tooling uses it to

@@ -4,7 +4,7 @@ import { createOwnerClient, createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { migrateToLatest } from './migrations.ts';
+import { asOwnerGroup, migrateToLatest } from './migrations.ts';
 import { APP_SCHEMAS, OWNER_GROUP } from './owner-group.ts';
 import { resetDatabase } from './reset.ts';
 
@@ -74,6 +74,14 @@ describe('migrateToLatest and the owner group', () => {
     await expect(migrateToLatest(sql)).rejects.toThrow(/left_over.*pnpm db:reset/);
   });
 
+  it('refuses a client that could run its statements on more than one session', async () => {
+    const testDb = await newDatabase();
+
+    await expect(asOwnerGroup(testDb.connect({ max: 2 }), async () => {})).rejects.toThrow(
+      /max: 1/,
+    );
+  });
+
   it('gives the group what it needs again after a reset drops the public schema', async () => {
     const { sql } = await newDatabase();
 
@@ -87,12 +95,12 @@ describe('migrateToLatest and the owner group', () => {
     expect(privilege?.create).toBe(true);
   });
 
-  // Closer to the deployed shape: the login is not a superuser and owns the database. Postgres
-  // 16+ gives a non-superuser the ADMIN option, and nothing more, on a role it creates;
-  // granting the login just that stands in for it having created the group, which on a
-  // cluster the test run has already migrated it cannot do itself.
+  // Closer to the deployed shape: the login is not a superuser and owns the database. The
+  // test run has already created the group, so the login can't create it. Instead it gets
+  // what Postgres 16+ gives a non-superuser that creates a role: ADMIN and nothing more.
   describe('as a non-superuser admin login', () => {
-    const login = `fphd_owner_test_${randomBytes(6).toString('hex')}`;
+    // Capitals and a dot, as an Entra user's name has, so the name needs quoting.
+    const login = `Fphd.Owner_Test_${randomBytes(6).toString('hex')}`;
     const password = 'owner-group-test';
 
     async function databaseOwnedByLogin(): Promise<{ admin: postgres.Sql; asLogin: postgres.Sql }> {

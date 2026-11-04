@@ -331,9 +331,14 @@ change in `.env` reaches the database.
 
 Every application object is owned by `fphd_owner`, a group role with no login. `db migrate` creates
 the group if it is missing, makes the connecting login a member and applies migrations under
-`SET ROLE fphd_owner`, so objects belong to the group whichever login runs the migrations. A
-database migrated before the group existed is refused, with a message to run `pnpm db:reset` and
-migrate again.
+`SET ROLE fphd_owner`, so objects belong to the group whichever login runs the migrations. `db
+migrate` refuses a database migrated before the group existed, with a message to run
+`pnpm db:reset` and migrate again. Objects that `pnpm --filter @fphd/db-operations db:push` creates
+belong to the login, so `db migrate` refuses that database too.
+
+Only a role with ADMIN on `fphd_owner` can add a member, and that is the login that created it. If
+a different login is to run migrations, such as a replacement managed identity, the old one must
+first run `GRANT fphd_owner TO <new login> WITH ADMIN TRUE`.
 
 The Drizzle schema lives in `packages/db` and its migrations in `packages/db-operations`:
 
