@@ -114,6 +114,22 @@ describe('React Router server rendering', () => {
     expect(logger.error).toHaveBeenCalledWith({ err: error }, 'Streaming failed');
   });
 
+  it('does not report an abandoned response as a streaming failure', async () => {
+    const controller = new AbortController();
+    const response = handleRequest(
+      new Request('https://example.com/', { signal: controller.signal }),
+      200,
+      new Headers(),
+      entryContext,
+      loadContextWithNonce(),
+    );
+    renderer.options?.onShellReady?.();
+    await response;
+    controller.abort();
+    renderer.options?.onError?.(new Error('destination closed'), {});
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it('leaves a failure before the shell to onShellError, which React Router reports', () => {
     void handleRequest(
       new Request('https://example.com/'),
