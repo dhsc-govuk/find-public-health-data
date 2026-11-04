@@ -15,6 +15,7 @@ const {
   dimensionValue,
   indicator,
   indicatorVersion,
+  isUnpublished,
   noteType,
   observation,
   observationDimension,
@@ -207,7 +208,7 @@ export async function confirmDataTable(
       .where(
         and(
           eq(indicatorVersion.indicatorId, indicatorId),
-          eq(indicatorVersion.status, 'draft'),
+          isUnpublished(indicatorVersion.status),
           eq(indicatorVersion.isLocked, false),
           eq(indicatorVersion.uploadBatchId, batchId),
         ),

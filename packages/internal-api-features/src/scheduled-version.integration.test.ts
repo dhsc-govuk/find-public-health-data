@@ -2,11 +2,13 @@ import { FAKE_USER_IDS } from '@fphd/auth';
 import type { Actor } from '@fphd/db/audit-log';
 import { describe, expect } from 'vitest';
 
-import { findDraftDataTable } from './data-table-check-repository.ts';
+import { confirmDataTable, findDraftDataTable } from './data-table-check-repository.ts';
+import { processDataUpload } from './data-upload-load-repository.ts';
 import { findUploadDraftVersion } from './data-upload-repository.ts';
 import {
   getIndicatorDraftState,
   getIndicatorNotesForReviewers,
+  updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
 import {
   getIndicatorById,
@@ -17,6 +19,7 @@ import { AS_ACTOR, repositoryTest } from './indicator-repository.testing.ts';
 import { scheduledDraft } from './indicator-workflow.testing.ts';
 import { withdrawSubmission } from './indicator-workflow-repository.ts';
 import { addReviewerNote, listReviewerNotes } from './reviewer-note-repository.ts';
+import { revisionReplyVersion, saveRevisionResponse } from './revision-response-repository.ts';
 
 const REVIEWER = FAKE_USER_IDS.imrgReviewer;
 const AS_REVIEWER: Actor = { userId: REVIEWER, requestId: null };
@@ -97,5 +100,71 @@ describe('a scheduled version, read as the draft', () => {
       ok: false,
       reason: 'not_allowed',
     });
+  });
+});
+
+const LOCKED = { ok: false, reason: 'locked' };
+
+// Every edit finds the scheduled version and refuses it as locked, never as a missing draft.
+describe('a scheduled version, edited', () => {
+  repositoryTest('refuses a section save and a rename', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled edit indicator');
+
+    await expect(
+      updateIndicatorDraft(
+        db,
+        indicatorId,
+        'definition-and-rationale',
+        { definition: 'Edited after scheduling' },
+        {},
+        AS_ACTOR,
+      ),
+    ).resolves.toEqual(LOCKED);
+    await expect(
+      updateIndicatorDraft(
+        db,
+        indicatorId,
+        'name',
+        { name: 'Renamed after scheduling' },
+        {},
+        AS_ACTOR,
+      ),
+    ).resolves.toEqual(LOCKED);
+  });
+
+  repositoryTest('refuses a data table confirmation and an upload', async ({ db }) => {
+    const { indicatorId, batchId } = await scheduledDraft(db, 'Scheduled upload indicator');
+
+    await expect(confirmDataTable(db, indicatorId, batchId, AS_ACTOR)).resolves.toEqual(LOCKED);
+    await expect(
+      processDataUpload(
+        db,
+        {
+          batchId: crypto.randomUUID(),
+          indicatorId,
+          blobName: 'never-read',
+          originalFilename: 'data.csv',
+          byteSize: 0,
+          sha256: '',
+          actor: AS_ACTOR,
+        },
+        () => Promise.reject(new Error('a locked version reads no file')),
+        new AbortController().signal,
+      ),
+    ).resolves.toMatchObject(LOCKED);
+  });
+
+  repositoryTest('refuses a revision response', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled reply indicator');
+
+    await expect(
+      saveRevisionResponse(
+        db,
+        indicatorId,
+        'Replied after scheduling',
+        { version: '', versionOf: revisionReplyVersion },
+        AS_ACTOR,
+      ),
+    ).resolves.toEqual(LOCKED);
   });
 });
