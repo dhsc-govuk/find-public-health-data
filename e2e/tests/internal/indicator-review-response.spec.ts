@@ -1,9 +1,8 @@
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { assignReviewers } from '../support/assign-reviewers.ts';
-import { submitDraft, submitNewIndicator } from '../support/complete-draft.ts';
-import { uniqueIndicatorName } from '../support/create-indicator.ts';
+import { submitDraft } from '../support/complete-draft.ts';
+import { asUser, inReview } from '../support/review-response.ts';
 import {
   ADMIN,
   IMRG_MANAGER,
@@ -11,7 +10,6 @@ import {
   PUBLISHER,
   PUBLISHER_AND_REVIEWER,
   SECOND_IMRG_REVIEWER,
-  type SignedInUser,
   TEAM_C_PUBLISHER,
 } from '../support/sign-in.ts';
 
@@ -35,19 +33,6 @@ function ukDay(offset: number) {
   }).formatToParts(new Date(Date.now() + offset * 24 * 60 * 60 * 1000));
   const part = (type: string) => parts.find((each) => each.type === type)?.value ?? '';
   return { day: part('day'), month: part('month'), year: part('year') };
-}
-
-/** A new indicator, submitted by `publisher` and in review with the named reviewers. */
-async function inReview(
-  browser: Browser,
-  label: string,
-  reviewers: readonly string[] = [IMRG_REVIEWER.name],
-  publisher: SignedInUser = PUBLISHER,
-) {
-  const name = uniqueIndicatorName(label);
-  const id = await submitNewIndicator(browser, name, publisher);
-  await assignReviewers(browser, id, reviewers);
-  return { id, name };
 }
 
 /** The notes under a flagged task's box on the revisions page. */
@@ -79,16 +64,6 @@ async function decide(page: Page) {
   await expect(
     page.getByRole('heading', { level: 1, name: 'Was this indicator approved for publishing?' }),
   ).toBeVisible();
-}
-
-/** Runs `act` as `user`, in a browser context of their own. */
-async function as<T>(browser: Browser, user: SignedInUser, act: (page: Page) => Promise<T>) {
-  const context = await browser.newContext({ storageState: user.storageState });
-  try {
-    return await act(await context.newPage());
-  } finally {
-    await context.close();
-  }
 }
 
 test.describe('as an assigned IMRG reviewer', () => {
@@ -265,7 +240,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     await page.getByLabel('Pre-IMRG meeting feedback').check();
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    await as(browser, PUBLISHER, async (publisher) => {
+    await asUser(browser, PUBLISHER, async (publisher) => {
       await publisher.goto(overviewPath(id));
       await publisher.getByRole('link', { name: 'Withdraw submission' }).click();
       await publisher.getByRole('button', { name: 'Withdraw submission' }).click();
@@ -348,7 +323,7 @@ test.describe('with two reviewers assigned', () => {
     await page.getByLabel('Pre-IMRG meeting feedback').check();
     await page.getByRole('button', { name: 'Continue' }).click();
 
-    await as(browser, IMRG_REVIEWER, async (jamie) => {
+    await asUser(browser, IMRG_REVIEWER, async (jamie) => {
       await startResponse(jamie, id);
       await decide(jamie);
       await jamie.getByLabel('Yes', { exact: true }).check();
@@ -379,7 +354,7 @@ test.describe("the overview's Actions tab", () => {
   test.describe('for a publisher assigned to review a teammate’s indicator', () => {
     test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
 
-    test('shows the Review section, then the Actions section with the editor’s links once the draft is sent back', async ({
+    test('shows the Review section, then the Actions section with the editor’s response once the draft is sent back', async ({
       browser,
       page,
     }, testInfo) => {
@@ -405,7 +380,9 @@ test.describe("the overview's Actions tab", () => {
       await page.getByRole('button', { name: 'Continue' }).click();
 
       await expect(sections).toHaveText(['Review', 'Actions']);
-      await expect(page.getByRole('link', { name: 'Continue creating indicator' })).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Respond to advised revisions' }),
+      ).toBeVisible();
       await expect(page.getByRole('button', { name: 'Submit review response' })).toHaveCount(0);
       await expectNoAccessibilityViolations(page, testInfo);
     });

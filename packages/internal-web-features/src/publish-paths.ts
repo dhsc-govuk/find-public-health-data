@@ -29,6 +29,11 @@ export function indicatorSampleAnswersPath(id: string): string {
   return indicatorPublishPath(id, 'sample-answers');
 }
 
+/** The publisher's reply to the round of review that sent the draft back. */
+export function indicatorRevisionResponsePath(id: string): string {
+  return indicatorPublishPath(id, 'revision-response');
+}
+
 /** The page that confirms withdrawing the draft's submission for approval. */
 export function indicatorWithdrawalPath(id: string): string {
   return indicatorPublishPath(id, 'withdraw-submission');

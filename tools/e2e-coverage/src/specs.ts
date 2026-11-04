@@ -28,6 +28,7 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
   '/publish/indicators/new': 'indicator-name.spec.ts',
   '/publish/indicators/:id/name': 'indicator-name.spec.ts',
   '/publish/indicators/:id/task-list': 'indicator-task-list.spec.ts',
+  '/publish/indicators/:id/revision-response': 'indicator-revision-response.spec.ts',
   '/publish/indicators/:id/withdraw-submission': 'indicator-submission.spec.ts',
   '/publish/indicators/:id/data-table': 'indicator-data-table.spec.ts',
   '/publish/indicators/:id/data-table/problems': 'indicator-data-table.spec.ts',

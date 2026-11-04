@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { serviceName } from '@fphd/ui';
+import { renderMarkdown } from '@fphd/ui/markdown';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
-
 import { taskStatuses } from '../testing.ts';
-import type { IndicatorTaskList } from './loader.ts';
+
+import type { IndicatorTaskList, ReviewerRequests } from './loader.ts';
 import { IndicatorTaskListPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -33,10 +34,12 @@ function renderPage(
   overrides: Partial<IndicatorTaskList> = {},
   formError?: string,
   offersSampleAnswers = false,
+  requests: ReviewerRequests | null = null,
 ) {
   return render(
     <MemoryRouter initialEntries={[`/publish/indicators/${taskList.indicator.id}/task-list`]}>
       <IndicatorTaskListPage
+        requests={requests}
         taskList={{ ...taskList, ...overrides }}
         offersSampleAnswers={offersSampleAnswers}
         formError={formError}
@@ -82,12 +85,12 @@ describe('IndicatorTaskListPage', () => {
 
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (for internal use only)']);
+    ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
     expect(group('Data').getAllByRole('listitem')).toHaveLength(6);
     expect(group('Metadata').getAllByRole('listitem')).toHaveLength(11);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
-      group('Notes for reviewers (for internal use only)').getAllByRole('listitem'),
+      group('Notes for reviewers (not visible to consumers)').getAllByRole('listitem'),
     ).toHaveLength(3);
   });
 
@@ -108,7 +111,7 @@ describe('IndicatorTaskListPage', () => {
     const name = group('Metadata').getByRole('link', { name: 'Name' });
     const status = document.getElementById(name.getAttribute('aria-describedby') ?? '');
 
-    expect(status?.textContent).toBe('Not started');
+    expect(status?.textContent).toBe('Incomplete');
   });
 
   it('links the data table to its upload page until a file has loaded', () => {
@@ -166,7 +169,7 @@ describe('IndicatorTaskListPage', () => {
     ]);
   });
 
-  const NOTES = 'Notes for reviewers (for internal use only)';
+  const NOTES = 'Notes for reviewers (not visible to consumers)';
 
   it.each([
     ['Data', 'Value type and units', 'value-type-and-units'],
@@ -208,10 +211,10 @@ describe('IndicatorTaskListPage', () => {
     );
   });
 
-  it('tags a task that is not started and leaves a completed one as text', () => {
+  it('tags a task that is not started as incomplete and leaves a completed one as text', () => {
     renderPage();
 
-    expect(screen.getAllByText('Not started')[0]?.className).toContain('govuk-tag--blue');
+    expect(screen.getAllByText('Incomplete')[0]?.className).toContain('govuk-tag--blue');
     expect(screen.getByText('Completed').className).not.toContain('govuk-tag');
   });
 
@@ -282,5 +285,124 @@ describe('IndicatorTaskListPage', () => {
 
     expect(screen.queryByRole('alert')).toBeNull();
     expect(document.title).toBe(`Indicator task list - ${serviceName} - GOV.UK`);
+  });
+});
+
+describe('IndicatorTaskListPage for a draft sent back for changes', () => {
+  const requests: ReviewerRequests = {
+    advised: false,
+    clarificationRequest: renderMarkdown('Which **years** are counted?'),
+    flags: {
+      polarity: { notes: renderMarkdown('Is higher better?'), cleared: false },
+      name: { notes: renderMarkdown('A shorter name'), cleared: true },
+    },
+    replied: false,
+  };
+  const sentBack: Partial<IndicatorTaskList> = {
+    tasks: taskStatuses('completed'),
+    canSubmit: false,
+    actions: ['resubmit'],
+  };
+
+  function renderSentBack(overrides: Partial<IndicatorTaskList> = {}, shown = requests) {
+    return renderPage({ ...sentBack, ...overrides }, undefined, false, shown);
+  }
+
+  /** The row of a task in the table under a group's heading. */
+  function row(groupTitle: string, task: string) {
+    const table = screen.getByRole('table', { name: groupTitle });
+    const link = within(table).getByRole('link', { name: task });
+    const tr = link.closest('tr');
+    if (tr === null) throw new Error(`no row for ${task}`);
+    return within(tr);
+  }
+
+  it('widens the page and lays each group out as a table of task, request and status', () => {
+    renderSentBack();
+
+    expect(document.querySelector('.govuk-grid-column-three-quarters')).not.toBeNull();
+    expect(
+      screen.getAllByRole('table').map((table) => table.getAttribute('aria-labelledby')),
+    ).toEqual(['data-heading', 'metadata-heading', 'publishing-heading', 'reviewer-notes-heading']);
+    expect(
+      within(screen.getByRole('table', { name: 'Data' }))
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Task', 'Reviewer requests', 'Status']);
+  });
+
+  it('shows a flagged task’s notes, tagged as needing revisions until it is saved', () => {
+    renderSentBack();
+
+    const polarity = row('Data', 'Polarity');
+    expect(polarity.getByText('Is higher better?')).toBeTruthy();
+    expect(polarity.getByText('Revisions needed').className).toContain('govuk-tag--red');
+  });
+
+  it('keeps a saved flag’s notes beside the task’s own status', () => {
+    renderSentBack();
+
+    const name = row('Metadata', 'Name');
+    expect(name.getByText('A shorter name')).toBeTruthy();
+    expect(name.getByText('Completed').className).not.toContain('govuk-tag');
+  });
+
+  it('tags a task flagged before IMRG as having revisions advised', () => {
+    renderSentBack({}, { ...requests, advised: true });
+
+    expect(row('Data', 'Polarity').getByText('Revisions advised').className).toContain(
+      'govuk-tag--orange',
+    );
+  });
+
+  it('leaves the request empty for a task nobody flagged', () => {
+    renderSentBack();
+
+    const cells = row('Data', 'Data table').getAllByRole('cell');
+    expect(cells[1]?.textContent).toBe('');
+    expect(cells[2]?.textContent).toBe('Completed');
+  });
+
+  it('ends the notes for reviewers with the reply, beside the clarification request', () => {
+    renderSentBack();
+
+    const reply = row(
+      'Notes for reviewers (not visible to consumers)',
+      'Response to revisions or clarifications',
+    );
+    expect(
+      reply
+        .getByRole('link', { name: 'Response to revisions or clarifications' })
+        .getAttribute('href'),
+    ).toBe(`/publish/indicators/${taskList.indicator.id}/revision-response`);
+    expect(reply.getByText('years').tagName).toBe('STRONG');
+    expect(reply.getByText('Incomplete').className).toContain('govuk-tag--blue');
+  });
+
+  it('shows the reply as completed once written', () => {
+    renderSentBack({}, { ...requests, replied: true });
+
+    expect(
+      row(
+        'Notes for reviewers (not visible to consumers)',
+        'Response to revisions or clarifications',
+      ).getByText('Completed'),
+    ).toBeTruthy();
+  });
+
+  it('offers resubmission once the round is answered, and not before', () => {
+    renderSentBack();
+    expect(screen.queryByRole('button', { name: 'Submit for approval' })).toBeNull();
+
+    cleanup();
+    renderSentBack({ canSubmit: true });
+    expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeTruthy();
+  });
+
+  it('keeps the two-thirds page and the task lists without a round', () => {
+    renderPage();
+
+    expect(document.querySelector('.govuk-grid-column-two-thirds')).not.toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
   });
 });

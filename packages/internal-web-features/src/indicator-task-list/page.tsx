@@ -12,19 +12,26 @@ import { TASK_GROUPS } from '../indicator-tasks.ts';
 import { indicatorSampleAnswersPath, indicatorTaskListPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
 import { StatusTag } from '../status-tag/status-tag.tsx';
-import type { IndicatorTaskList } from './loader.ts';
+import type { IndicatorTaskList, ReviewerRequests } from './loader.ts';
+import { ReviewTaskTable } from './review-tables.tsx';
 
 interface TaskListPageProps {
   taskList: IndicatorTaskList;
+  /** What the round of review that sent the draft back asks, which lays the groups out as tables. */
+  requests?: ReviewerRequests | null;
   /** True where a development tool may fill in the tasks left to do. */
   offersSampleAnswers?: boolean;
   /** Why the last submission was refused. */
   formError?: string | undefined;
 }
 
-/** Offered once every task is complete and the workflow lets the user submit the draft. */
+/**
+ * Offered once the workflow lets the user submit or resubmit the draft and the step would pass:
+ * every task complete and, for a draft sent back, every flagged task saved and the reply written.
+ */
 function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
-  if (!taskList.canSubmit || !taskList.actions.includes('submit')) return null;
+  const offered = taskList.actions.includes('submit') || taskList.actions.includes('resubmit');
+  if (!taskList.canSubmit || !offered) return null;
 
   return (
     <>
@@ -58,6 +65,7 @@ function SampleAnswersForm({ id }: { id: string }) {
 
 export function IndicatorTaskListPage({
   taskList,
+  requests = null,
   offersSampleAnswers = false,
   formError,
 }: TaskListPageProps) {
@@ -65,7 +73,7 @@ export function IndicatorTaskListPage({
 
   return (
     <GridRow>
-      <GridColumn width="two-thirds">
+      <GridColumn width={requests === null ? 'two-thirds' : 'three-quarters'}>
         <DocumentTitle hasErrors={formError !== undefined} pageTitle="Indicator task list" />
         <ErrorSummary errors={[]} formError={formError} />
         <IndicatorHeading indicator={indicator} />
@@ -73,19 +81,29 @@ export function IndicatorTaskListPage({
           You can complete these sections in any order. If you exit at any point, any selections or
           text you've added will be saved.
         </InsetText>
-        {TASK_GROUPS.map((group) => (
-          <div key={group.id}>
-            <h2 className="govuk-heading-m">{group.title}</h2>
-            <TaskList
-              id={group.id}
-              items={group.tasks.map(({ key, path, title }) => ({
-                title,
-                href: path(indicator.id, tasks[key]),
-                status: <StatusTag type="task" status={tasks[key]} />,
-              }))}
+        {TASK_GROUPS.map((group) =>
+          requests === null ? (
+            <div key={group.id}>
+              <h2 className="govuk-heading-m">{group.title}</h2>
+              <TaskList
+                id={group.id}
+                items={group.tasks.map(({ key, path, title }) => ({
+                  title,
+                  href: path(indicator.id, tasks[key]),
+                  status: <StatusTag type="task" status={tasks[key]} />,
+                }))}
+              />
+            </div>
+          ) : (
+            <ReviewTaskTable
+              group={group}
+              id={indicator.id}
+              key={group.id}
+              requests={requests}
+              tasks={tasks}
             />
-          </div>
-        ))}
+          ),
+        )}
         {offersSampleAnswers && <SampleAnswersForm id={indicator.id} />}
         <SubmitForm taskList={taskList} />
       </GridColumn>

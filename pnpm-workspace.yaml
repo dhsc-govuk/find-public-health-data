@@ -93,6 +93,9 @@ catalog:
   http-graceful-shutdown: 4.0.0
   isbot: 5.2.0
   jsdom: 30.1.1
+  markdown-it: 15.0.3
+  markdown-it-sub: 2.0.0
+  markdown-it-sup: 2.0.0
   mssql: 12.7.2
   jose: 6.2.4
   pino: 10.3.1

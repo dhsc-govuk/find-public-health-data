@@ -77,7 +77,7 @@ export const TASK_GROUPS: readonly TaskGroup[] = [
   },
   {
     id: 'reviewer-notes',
-    title: 'Notes for reviewers (for internal use only)',
+    title: 'Notes for reviewers (not visible to consumers)',
     tasks: [task('variance-and-quality'), task('justifications'), task('other-comments')],
   },
 ];

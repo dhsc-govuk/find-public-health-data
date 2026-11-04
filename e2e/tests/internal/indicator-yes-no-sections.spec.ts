@@ -32,7 +32,11 @@ type YesNoSection = {
   /** Labels of the free-text questions a publisher may leave unanswered. */
   optionalText?: string[];
   questions: [YesNoQuestion, ...YesNoQuestion[]];
+  /** Set for the notes for reviewers, whose pages say the answers are for reviewers alone. */
+  forReviewers?: true;
 };
+
+const REVIEWER_USE_ONLY = 'The information you provide here is for reviewer use only';
 
 const SECTIONS: YesNoSection[] = [
   {
@@ -89,6 +93,7 @@ const SECTIONS: YesNoSection[] = [
     ],
   },
   {
+    forReviewers: true,
     section: { key: 'variance-and-quality', taskName: 'Variance and quality' },
     heading: 'Variance and quality',
     textQuestions: [
@@ -109,6 +114,7 @@ const SECTIONS: YesNoSection[] = [
     ],
   },
   {
+    forReviewers: true,
     section: { key: 'justifications', taskName: 'Justifications' },
     heading: 'Justifications',
     textQuestions: [
@@ -141,6 +147,7 @@ const SECTIONS: YesNoSection[] = [
     ],
   },
   {
+    forReviewers: true,
     section: { key: 'other-comments', taskName: 'Other comments' },
     heading: 'Other comments',
     textQuestions: [],
@@ -182,7 +189,14 @@ function continueForm(page: Page) {
 
 test.use({ storageState: PUBLISHER.storageState });
 
-for (const { section, heading, textQuestions, optionalText = [], questions } of SECTIONS) {
+for (const {
+  section,
+  heading,
+  textQuestions,
+  optionalText = [],
+  questions,
+  forReviewers = false,
+} of SECTIONS) {
   const [first, ...rest] = questions;
   const requiredText = textQuestions.map(({ label }) => label);
   const allText = [...optionalText, ...requiredText];
@@ -223,6 +237,7 @@ for (const { section, heading, textQuestions, optionalText = [], questions } of 
     describeSectionPage(section, {
       expectUnanswered: async (page) => {
         await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+        await expect(page.getByText(REVIEWER_USE_ONLY)).toHaveCount(forReviewers ? 1 : 0);
         for (const label of allText) {
           await expect(page.getByLabel(label)).toBeEmpty();
         }

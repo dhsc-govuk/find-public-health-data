@@ -32,7 +32,7 @@ const TASK_GROUPS = {
     'Copyright and data re-use',
   ],
   Publishing: ['Update frequency', 'Publishing date'],
-  'Notes for reviewers (for internal use only)': [
+  'Notes for reviewers (not visible to consumers)': [
     'Variance and quality',
     'Justifications',
     'Other comments',
@@ -83,12 +83,12 @@ test('offers no submission while a task is incomplete', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Submit for approval' })).toHaveCount(0);
 });
 
-test('marks the name as complete and everything else as not started', async ({ page }) => {
+test('marks the name as complete and everything else as incomplete', async ({ page }) => {
   await createIndicator(page, uniqueName());
 
   await expect(taskRow(page, 'Name')).toContainText('Completed');
   for (const taskName of TASKS.filter((name) => name !== 'Name')) {
-    await expect(taskRow(page, taskName)).toContainText('Not started');
+    await expect(taskRow(page, taskName)).toContainText('Incomplete');
   }
   for (const taskName of TASKS) {
     await expect(taskRow(page, taskName).getByRole('link')).toBeVisible();

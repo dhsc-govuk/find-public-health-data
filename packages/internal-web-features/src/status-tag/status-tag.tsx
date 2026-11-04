@@ -41,11 +41,18 @@ const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace
 
 const PUBLISHED: TagFace = { label: 'Published', colour: 'green' };
 
-// GOV.UK shows a completed task as plain text, and anything still to do as a tag.
+// GOV.UK's task list shows a completed task as plain text, and one still to do, started or not, as
+// a blue "Incomplete" tag.
 const TASK_STATUS: Record<IndicatorTaskStatus, TagFace | string> = {
-  not_started: { label: 'Not started', colour: 'blue' },
+  not_started: { label: 'Incomplete', colour: 'blue' },
   in_progress: { label: 'Incomplete', colour: 'blue' },
   completed: 'Completed',
+};
+
+// A task a review response flagged, until it is saved: advised before IMRG meets, needed after.
+const REVISION_STATUS: Record<'advised' | 'needed', TagFace> = {
+  advised: { label: 'Revisions advised', colour: 'orange' },
+  needed: { label: 'Revisions needed', colour: 'red' },
 };
 
 interface PublishingState {
@@ -89,6 +96,7 @@ export type StatusTagProps = (
   | { type: 'indicator'; status: IndicatorStatus }
   | ({ type: 'publishing' } & PublishingState)
   | { type: 'task'; status: IndicatorTaskStatus }
+  | { type: 'revision'; status: keyof typeof REVISION_STATUS }
 ) & {
   /**
    * Set false where something else, such as a column header, already names the status: the
@@ -111,6 +119,8 @@ function faceOf(props: StatusTagProps): TagFace | string | undefined {
       return publishingStatus(props);
     case 'task':
       return TASK_STATUS[props.status];
+    case 'revision':
+      return REVISION_STATUS[props.status];
   }
 }
 

@@ -15,6 +15,10 @@ const continueCreating = {
   href: `/publish/indicators/${ID}/task-list`,
   label: 'Continue creating indicator',
 };
+const respondToRevision = {
+  href: `/publish/indicators/${ID}/task-list`,
+  label: 'Respond to requested revision',
+};
 const withdraw = {
   href: `/publish/indicators/${ID}/withdraw-submission`,
   label: 'Withdraw submission',
@@ -37,11 +41,16 @@ const newDraft: State = {
   draftStatus: 'draft',
   draftLocked: false,
   draftSubmissionStatus: null,
+  draftResponse: null,
   publishedSlug: null,
 };
 const submitted: State = { ...newDraft, draftLocked: true, draftSubmissionStatus: 'submitted' };
 const inReview: State = { ...submitted, draftSubmissionStatus: 'in_review' };
-const sentBack: State = { ...newDraft, draftSubmissionStatus: 'changes_requested' };
+const sentBack: State = {
+  ...newDraft,
+  draftSubmissionStatus: 'changes_requested',
+  draftResponse: { kind: 'minor_revisions', flaggedTaskCount: 1 },
+};
 const approved: State = { ...submitted, draftSubmissionStatus: 'approved' };
 const live: State = {
   ...newDraft,
@@ -97,12 +106,12 @@ describe('actionsTabSections', () => {
       ]);
     });
 
-    it('offers the task list in the Actions section once the draft is sent back', () => {
+    it('offers the response to the revisions in the Actions section once the draft is sent back', () => {
       expect(
         sections({ ...sentBack, actions: ['resubmit'] }, { isReviewer: true, canEdit: true }),
       ).toEqual([
         { heading: 'Review', button: null, links: [] },
-        { heading: 'Actions', button: null, links: [continueCreating] },
+        { heading: 'Actions', button: respondToRevision, links: [] },
       ]);
     });
   });
@@ -166,6 +175,43 @@ describe('actionsTabSections', () => {
       expect(
         sections({ ...live, draftStatus: 'draft' }, { canEdit: true }).map(({ links }) => links),
       ).toEqual([[viewPublished, { ...continueCreating, label: 'Continue updating indicator' }]]);
+    });
+
+    it('offers a button to respond to the requested revision in place of the task list link', () => {
+      expect(sections({ ...sentBack, actions: ['resubmit'] }, { canEdit: true })).toEqual([
+        { heading: 'Actions', button: respondToRevision, links: [] },
+      ]);
+    });
+
+    it.each([
+      [
+        'pre-IMRG feedback',
+        { kind: 'pre_imrg_feedback', flaggedTaskCount: 2 },
+        'Respond to advised revisions',
+      ],
+      [
+        'major revisions',
+        { kind: 'major_revisions', flaggedTaskCount: 1 },
+        'Respond to requested revision',
+      ],
+      [
+        'a clarification request alone',
+        { kind: 'minor_revisions', flaggedTaskCount: 0 },
+        'Respond to clarification request',
+      ],
+      [
+        'pre-IMRG clarification alone',
+        { kind: 'pre_imrg_feedback', flaggedTaskCount: 0 },
+        'Respond to clarification request',
+      ],
+    ] as const)('words the button for %s', (_case, draftResponse, label) => {
+      const [actions] = sections({ ...sentBack, draftResponse }, { canEdit: true });
+
+      expect(actions?.button?.label).toBe(label);
+    });
+
+    it('offers no response to a publisher who may not edit the indicator', () => {
+      expect(sections(sentBack)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
     });
 
     it('offers the withdrawal of a submission in review', () => {

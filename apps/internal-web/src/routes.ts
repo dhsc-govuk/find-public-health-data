@@ -79,6 +79,10 @@ export default [
         '../../../packages/internal-web-features/src/indicator-task-list/route.tsx',
       ),
       route(
+        'publish/indicators/:id/revision-response',
+        '../../../packages/internal-web-features/src/indicator-revision-response/route.tsx',
+      ),
+      route(
         'publish/indicators/:id/sample-answers',
         '../../../packages/internal-web-features/src/indicator-sample-answers/route.ts',
       ),

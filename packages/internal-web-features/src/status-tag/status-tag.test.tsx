@@ -110,16 +110,26 @@ describe('StatusTag', () => {
     expect(document.querySelector('.govuk-visually-hidden')).toBeNull();
   });
 
-  it('shows a task that is not started as a tag', () => {
+  it('shows a task that is not started as incomplete, in the tag GOV.UK gives it', () => {
     render(<StatusTag type="task" status="not_started" />);
 
-    expect(tag('Not started')).toContain('govuk-tag--blue');
+    expect(tag('Incomplete')).toContain('govuk-tag--blue');
   });
 
   it('shows a task in progress as incomplete, in the tag GOV.UK gives it', () => {
     render(<StatusTag type="task" status="in_progress" />);
 
     expect(tag('Incomplete')).toContain('govuk-tag--blue');
+  });
+
+  it.each([
+    ['needed', 'Revisions needed', 'govuk-tag--red'],
+    ['advised', 'Revisions advised', 'govuk-tag--orange'],
+  ] as const)('tags a flagged task whose revisions are %s', (status, label, colour) => {
+    render(<StatusTag type="revision" status={status} />);
+
+    expect(tag(label)).toContain(colour);
+    expect(document.querySelector('.govuk-visually-hidden')).toBeNull();
   });
 
   it('shows a completed task as plain text, as GOV.UK does', () => {
