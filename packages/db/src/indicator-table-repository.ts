@@ -2,7 +2,7 @@ import { tableAreaSeries } from '@fphd/utils/observation-series';
 import { inArray } from 'drizzle-orm';
 import type { Database } from './client.ts';
 import {
-  getIndicatorObservationsForAreas,
+  getIndicatorObservationsByIds,
   getPublishedIndicatorsByIds,
 } from './indicator-repository.ts';
 import { publishedIndicator } from './schema/index.ts';
@@ -14,15 +14,10 @@ export async function getIndicatorTableData(db: Database, shortIds: number[], ar
     .from(publishedIndicator)
     .where(inArray(publishedIndicator.shortId, shortIds));
   const ids = identities.map(({ id }) => id);
-  const [details, observationEntries] = await Promise.all([
+  const [details, data] = await Promise.all([
     getPublishedIndicatorsByIds(db, ids),
-    Promise.all(
-      ids.map(
-        async (id) => [id, await getIndicatorObservationsForAreas(db, id, areaCodes)] as const,
-      ),
-    ),
+    getIndicatorObservationsByIds(db, ids, areaCodes, true),
   ]);
-  const data = new Map(observationEntries);
   const byShortId = new Map(identities.map(({ id, shortId }) => [shortId, id]));
   return shortIds.flatMap((shortId) => {
     const id = byShortId.get(shortId);

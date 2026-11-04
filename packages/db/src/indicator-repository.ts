@@ -46,18 +46,13 @@ import {
   publishedDataProvider as dataProvider,
   publishedDataProviderSource as dataProviderSource,
   publishedDataSource as dataSource,
-  publishedDimensionType as dimensionType,
-  publishedDimensionValue as dimensionValue,
   publishedIndicator as indicator,
   publishedIndicatorClassification as indicatorClassification,
   publishedIndicatorSlug as indicatorSlug,
   publishedIndicatorSource as indicatorSource,
   publishedIndicatorSubtopic as indicatorSubtopic,
   publishedIndicatorTopic as indicatorTopic,
-  publishedNoteType as noteType,
   publishedObservation as observation,
-  publishedObservationDimension as observationDimension,
-  publishedObservationNote as observationNote,
   publishedObservationRange as observationRange,
   publishedSubtopic as subtopic,
   publishedTopic as topic,
@@ -386,153 +381,14 @@ export async function getPublishedIndicatorsByIds(
   );
 }
 
-export interface ObservationDimensionValue {
-  type: string;
-  value: string;
-  dimensionClass: string;
-  sortOrder: number;
-}
-
-export interface IndicatorObservation {
-  fromDate: string;
-  toDate: string;
-  value: number | null;
-  lowerCi95: number | null;
-  upperCi95: number | null;
-  lowerCi998: number | null;
-  upperCi998: number | null;
-  count: number | null;
-  numerator: number | null;
-  denominator: number | null;
-  dimensions: ObservationDimensionValue[];
-  /** Note texts attached to the value, with their category ("quality", "disclosure"…). */
-  notes: { text: string; category: string }[];
-}
-
-export interface IndicatorAreaData {
-  areaCode: string;
-  areaName: string;
-  observations: IndicatorObservation[];
-}
-
-/**
- * All published observations for one indicator in one area, with their dimension labels.
- * An observation with no dimensions is the fully-aggregate value for its period.
- */
-export async function getIndicatorObservationsForAreas(
-  db: Database,
-  indicatorId: string,
-  areaCodes: string[],
-): Promise<IndicatorAreaData[]> {
-  if (areaCodes.length === 0) return [];
-  const rows = await db
-    .select({
-      obsId: observation.id,
-      fromDate: observation.fromDate,
-      toDate: observation.toDate,
-      value: observation.value,
-      lowerCi95: observation.lowerCi95,
-      upperCi95: observation.upperCi95,
-      lowerCi998: observation.lowerCi998,
-      upperCi998: observation.upperCi998,
-      count: observation.count,
-      numerator: observation.numerator,
-      denominator: observation.denominator,
-      areaCode: area.code,
-      areaName: area.name,
-    })
-    .from(observation)
-    .innerJoin(area, and(eq(observation.areaId, area.id), inArray(area.code, areaCodes)))
-    .where(eq(observation.indicatorId, indicatorId))
-    .orderBy(asc(observation.fromDate), asc(observation.toDate));
-
-  const names = new Map(rows.map(({ areaCode, areaName }) => [areaCode, areaName]));
-  const missing = areaCodes.filter((code) => !names.has(code));
-  if (missing.length > 0) {
-    const known = await db
-      .select({ code: area.code, name: area.name })
-      .from(area)
-      .where(inArray(area.code, missing));
-    for (const { code, name } of known) names.set(code, name);
-  }
-  if (rows.length === 0)
-    return areaCodes.flatMap((areaCode) => {
-      const areaName = names.get(areaCode);
-      return areaName ? [{ areaCode, areaName, observations: [] }] : [];
-    });
-
-  // One array parameter keeps large observation batches below PostgreSQL's bind limit.
-  const observationIds = `{${rows.map(({ obsId }) => obsId).join(',')}}`;
-
-  const dimensionRows = await db
-    .select({
-      observationId: observationDimension.observationId,
-      type: dimensionType.name,
-      value: dimensionValue.name,
-      dimensionClass: dimensionType.dimensionClass,
-      sortOrder: dimensionValue.sortOrder,
-    })
-    .from(observationDimension)
-    .innerJoin(dimensionValue, eq(observationDimension.dimensionValueId, dimensionValue.id))
-    .innerJoin(dimensionType, eq(observationDimension.dimensionTypeId, dimensionType.id))
-    .where(sql`${observationDimension.observationId} = any(${observationIds}::uuid[])`);
-
-  const dimensionsByObservation = new Map<string, ObservationDimensionValue[]>();
-  for (const { observationId, ...dimension } of dimensionRows) {
-    const existing = dimensionsByObservation.get(observationId);
-    if (existing) {
-      existing.push(dimension);
-    } else {
-      dimensionsByObservation.set(observationId, [dimension]);
-    }
-  }
-
-  const noteRows = await db
-    .select({
-      observationId: observationNote.observationId,
-      text: noteType.text,
-      category: noteType.category,
-    })
-    .from(observationNote)
-    .innerJoin(noteType, eq(observationNote.noteTypeId, noteType.id))
-    .where(sql`${observationNote.observationId} = any(${observationIds}::uuid[])`);
-  const notesByObservation = new Map<string, { text: string; category: string }[]>();
-  for (const { observationId, ...note } of noteRows) {
-    const existing = notesByObservation.get(observationId);
-    if (existing) {
-      existing.push(note);
-    } else {
-      notesByObservation.set(observationId, [note]);
-    }
-  }
-
-  const observationsByArea = new Map<string, IndicatorObservation[]>();
-  for (const { obsId, areaCode, areaName: _areaName, ...observationRow } of rows) {
-    const observations = observationsByArea.get(areaCode) ?? [];
-    observations.push({
-      ...observationRow,
-      dimensions: (dimensionsByObservation.get(obsId) ?? []).sort((a, b) =>
-        a.type.localeCompare(b.type),
-      ),
-      notes: notesByObservation.get(obsId) ?? [],
-    });
-    observationsByArea.set(areaCode, observations);
-  }
-  return areaCodes.flatMap((areaCode) => {
-    const areaName = names.get(areaCode);
-    return areaName
-      ? [{ areaCode, areaName, observations: observationsByArea.get(areaCode) ?? [] }]
-      : [];
-  });
-}
-
-export async function getIndicatorObservations(
-  db: Database,
-  indicatorId: string,
-  areaCode: string,
-): Promise<IndicatorAreaData | undefined> {
-  return (await getIndicatorObservationsForAreas(db, indicatorId, [areaCode]))[0];
-}
+export {
+  getIndicatorObservations,
+  getIndicatorObservationsByIds,
+  getIndicatorObservationsForAreas,
+  type IndicatorAreaData,
+  type IndicatorObservation,
+  type ObservationDimensionValue,
+} from './indicator-observation-repository.ts';
 
 export interface ObservationRangePeriod {
   fromDate: string;

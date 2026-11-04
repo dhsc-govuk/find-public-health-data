@@ -456,6 +456,34 @@
       "when": 1793973433023,
       "tag": "0064_delete-retired-fake-user",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793973434023,
+      "tag": "0065_public-observation-dimension-key",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793973435023,
+      "tag": "0066_selective-published-observations",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793973436023,
+      "tag": "0067_published-observation-index-filters",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1793973437023,
+      "tag": "0068_published-observation-visibility",
+      "breakpoints": true
     }
   ]
 }
