@@ -7,8 +7,9 @@ import { type ActionFunctionArgs, useLoaderData } from 'react-router';
 
 import { saveIndicatorSection } from '../indicator-section.ts';
 import { sectionBackLinkHandle, useSectionForm } from '../indicator-section-route.ts';
+import { publishingDateControlNames } from '../publishing-date-form.ts';
 import { loadPublishingDate } from './loader.ts';
-import { PublishingDatePage, publishingDateControlNames } from './page.tsx';
+import { PublishingDatePage } from './page.tsx';
 
 export const loader = loadPublishingDate;
 

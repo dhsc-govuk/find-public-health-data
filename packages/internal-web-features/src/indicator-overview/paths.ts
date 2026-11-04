@@ -9,6 +9,11 @@ export function indicatorAssignReviewersPath(id: string): string {
   return `${indicatorOverviewPath(id)}/assign-reviewers`;
 }
 
+/** Where an admin confirms the approved draft's publication date, or changes it once confirmed. */
+export function indicatorPublicationDatePath(id: string): string {
+  return `${indicatorOverviewPath(id)}/publication-date`;
+}
+
 /** The query parameter naming the reviewer's note the overview's form edits. */
 export const EDIT_NOTE_PARAM = 'note';
 

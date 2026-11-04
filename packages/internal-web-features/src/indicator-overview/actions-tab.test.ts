@@ -32,6 +32,15 @@ const changeReviewers = {
   label: 'Change reviewers for this indicator',
 };
 
+const confirmDate = {
+  href: `/dashboard/indicators/${ID}/publication-date`,
+  label: 'Confirm publication date',
+};
+const changeDate = {
+  href: `/dashboard/indicators/${ID}/publication-date`,
+  label: 'Change publication date',
+};
+
 type State = ActionsTabInput['indicator'];
 
 const newDraft: State = {
@@ -52,6 +61,7 @@ const sentBack: State = {
   draftResponse: { kind: 'minor_revisions', flaggedTaskCount: 1 },
 };
 const approved: State = { ...submitted, draftSubmissionStatus: 'approved' };
+const scheduled: State = { ...approved, draftStatus: 'scheduled' };
 const live: State = {
   ...newDraft,
   indicatorStatus: 'live',
@@ -154,6 +164,20 @@ describe('actionsTabSections', () => {
       ).toEqual([
         { heading: 'Review', button: respond, links: [] },
         { heading: 'Actions', button: null, links: [changeReviewers] },
+      ]);
+    });
+  });
+
+  describe('for an admin', () => {
+    it('offers a button to confirm the publication date of an approved draft', () => {
+      expect(sections({ ...approved, actions: ['schedule'] })).toEqual([
+        { heading: 'Actions', button: confirmDate, links: [] },
+      ]);
+    });
+
+    it('offers a link to change the date once it is confirmed, and no button', () => {
+      expect(sections({ ...scheduled, actions: ['change_publication_date'] })).toEqual([
+        { heading: 'Actions', button: null, links: [changeDate] },
       ]);
     });
   });

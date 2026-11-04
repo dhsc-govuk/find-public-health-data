@@ -16,6 +16,7 @@ interface FormProps {
   formError?: string;
   questionIsHeading?: boolean;
   continueOnEnter?: boolean;
+  submitLabel?: string;
   version?: string;
 }
 
@@ -67,6 +68,13 @@ describe('IndicatorSectionForm', () => {
     expect(form?.getAttribute('method')).toBe('post');
     expect(form?.getAttribute('action')).toBeNull();
     expect(within(form as HTMLElement).getByRole('button', { name: 'Continue' })).toBeTruthy();
+  });
+
+  it('words its button as the page asks', () => {
+    renderForm({ submitLabel: 'Submit' });
+
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
   });
 
   it('sends back the version of the answers it was shown', () => {
