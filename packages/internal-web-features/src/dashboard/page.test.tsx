@@ -378,6 +378,86 @@ describe('DashboardPage', () => {
     expect(screen.queryByRole('button', { name: 'Create new indicator' })).toBeNull();
   });
 
+  describe('for an admin', () => {
+    const pending: IndicatorAdminListItem = {
+      ...submitted,
+      draftSubmissionStatus: 'approved',
+      draftResponseKind: 'approved',
+    };
+    const scheduled: IndicatorAdminListItem = {
+      ...pending,
+      id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5d',
+      name: 'Hip fractures',
+      draftStatus: 'scheduled',
+    };
+
+    function renderAdminPage(scheduledIndicators: IndicatorAdminListItem[]) {
+      return render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <DashboardPage
+            underReview={null}
+            toReview={null}
+            scheduled={scheduledIndicators}
+            list={{ canCreate: false, indicators: [indicator], page: 1, totalPages: 1 }}
+          />
+        </MemoryRouter>,
+      );
+    }
+
+    it('offers a Scheduled indicators tab, counting them, first and open, then All indicators', () => {
+      renderAdminPage([scheduled, pending]);
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'Scheduled indicators (2)',
+        'All indicators',
+      ]);
+      expect(
+        screen.getByRole('tab', { name: 'Scheduled indicators (2)' }).getAttribute('aria-selected'),
+      ).toBe('true');
+    });
+
+    it("lists the scheduled indicators in the list's columns, with their publishing status", () => {
+      renderAdminPage([scheduled, pending]);
+
+      const table = screen.getByRole('table', {
+        name: 'Scheduled indicators, soonest publication date first',
+      });
+      const rows = within(table).getAllByRole('row').slice(1);
+
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((header) => header.textContent),
+      ).toEqual([
+        'Indicator name',
+        'Team',
+        'Created by',
+        'Last edited',
+        'Last edited by',
+        'Indicator status',
+        'Publishing status',
+      ]);
+      expect(
+        rows.map((row) => [...row.querySelectorAll('.govuk-tag')].map((tag) => tag.textContent)),
+      ).toEqual([
+        ['New', 'Publishing scheduled'],
+        ['New', 'Pending scheduling'],
+      ]);
+    });
+
+    it('says so when nothing is scheduled, leaving the count off the tab', () => {
+      renderAdminPage([]);
+
+      expect(screen.getByRole('tab', { name: 'Scheduled indicators' })).toBeTruthy();
+      expect(
+        within(screen.getByRole('tabpanel', { name: 'Scheduled indicators' })).getByText(
+          'There are no scheduled indicators.',
+        ),
+      ).toBeTruthy();
+    });
+  });
+
   it('shows what the page before left to say in an important banner', () => {
     render(
       <MemoryRouter initialEntries={['/dashboard']}>

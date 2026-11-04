@@ -58,6 +58,10 @@ test.describe('as a publisher whose team holds no indicators', () => {
 test.describe('as an admin, who sees every team', () => {
   test.use({ storageState: ADMIN.storageState });
 
+  test.beforeEach(async ({ page }) => {
+    await page.getByRole('tab', { name: 'All indicators' }).click();
+  });
+
   // The seed holds more indicators than one page, all in Fingertips, and specs only add to it.
   test('lists a page of indicators', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Indicators' })).toBeVisible();
@@ -79,12 +83,12 @@ test.describe('as an admin, who sees every team', () => {
   test('moves between pages', async ({ page }) => {
     await page.getByRole('link', { name: 'Next page' }).click();
 
-    await expect(page).toHaveURL('/dashboard?page=2');
+    await expect(page).toHaveURL('/dashboard?page=2&tab=all-indicators');
     await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible();
 
     await page.getByRole('link', { name: 'Previous page' }).click();
 
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/dashboard?tab=all-indicators');
   });
 
   test('offers an admin no create action', async ({ page }) => {
