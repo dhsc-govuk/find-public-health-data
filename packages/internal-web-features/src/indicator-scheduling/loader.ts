@@ -39,6 +39,11 @@ function requireScheduler(context: LoaderFunctionArgs['context']): void {
   }
 }
 
+function noneIfNotFound(error: unknown): null {
+  if (error instanceof Response && error.status === 404) return null;
+  throw error;
+}
+
 function toOverview(context: ActionFunctionArgs['context'], id: string, flash: OverviewFlash) {
   setOverviewFlash(context, flash);
   return redirect(indicatorOverviewPath(id));
@@ -104,14 +109,17 @@ export async function confirmPublicationDate({
     };
   }
 
+  // A version published since the page opened leaves none unpublished, which the API answers 404.
   const result = await context
     .get(apiContext)
     .postToMember(
       apiPath`/api/internal/indicators/${id}/schedule`,
       { ...values, shownScheduledPublishAt },
       indicatorScheduleErrorSchema,
-    );
+    )
+    .catch(noneIfNotFound);
 
+  if (result === null) return toOverview(context, id, 'publication-date-refused');
   if (result.ok) return toOverview(context, id, 'publication-date-confirmed');
   if (result.error.error === 'validation_failed') {
     return { values, shownScheduledPublishAt, ...formRefusal(result.error) };

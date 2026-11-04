@@ -196,6 +196,18 @@ describe('confirmPublicationDate', () => {
     expect(await redirectWithFlash(response)).toEqual({ status: 302, location: OVERVIEW, flash });
   });
 
+  it('says on the overview that the date can no longer be changed once nothing is unpublished', async () => {
+    const postToMember = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
+
+    const { response } = await respond(confirmPublicationDate, { postToMember }, post());
+
+    expect(await redirectWithFlash(response)).toEqual({
+      status: 302,
+      location: OVERVIEW,
+      flash: 'publication-date-refused',
+    });
+  });
+
   it.each(OTHER_ROLES)('is not found for a %s, who may not schedule publication', async (role) => {
     const postToMember = vi.fn();
 
