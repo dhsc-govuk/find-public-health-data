@@ -11,7 +11,7 @@ import { TopicSubtopicFilter } from './subtopic-filter.tsx';
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 
 export function TopicPage(data: TopicData) {
-  const { topic, tab, content, overview, areas } = data;
+  const { topic, content, overview, areas } = data;
   const location = useLocation();
   const tableData = content ? { topic, ...content } : null;
   const areaData = areas ? { topic, ...areas } : null;
@@ -38,7 +38,6 @@ export function TopicPage(data: TopicData) {
       <h1 className="govuk-heading-xl">{topic.title}</h1>
       <Tabs
         sectionHeadings
-        waitForNavigation
         history="push"
         paramKey="tab-topic"
         title={`${topic.title} contents`}
@@ -47,7 +46,11 @@ export function TopicPage(data: TopicData) {
             id: 'topic-overview',
             param: 'overview',
             label: 'Overview',
-            content: overview ? <TopicOverview topic={topic} overview={overview} /> : undefined,
+            content: overview ? (
+              <TopicOverview topic={topic} overview={overview} />
+            ) : (
+              <p className="govuk-body">{topic.description}</p>
+            ),
           },
           {
             id: 'topic-data',
@@ -86,7 +89,7 @@ export function TopicPage(data: TopicData) {
                     <TopicListing data={tableData} />
                   </GridColumn>
                 </GridRow>
-              ) : undefined,
+              ) : null,
           },
           {
             id: 'topic-area-summaries',
@@ -124,35 +127,34 @@ export function TopicPage(data: TopicData) {
                     <TopicListing data={areaData} areas />
                   </GridColumn>
                 </GridRow>
-              ) : undefined,
+              ) : null,
           },
           {
             id: 'topic-publications',
             param: 'publications',
             label: 'More information',
-            content:
-              tab !== 'publications' ? undefined : topic.content ? (
-                <div className="fphd-topic-more-information">
-                  <p className="govuk-body">{topic.content.moreInformation.intro}</p>
-                  {topic.content.moreInformation.sections.map((section) => (
-                    <section key={section.heading}>
-                      <h2 className="govuk-heading-m">{section.heading}</h2>
-                      <ul className="govuk-list govuk-list--bullet">
-                        {section.links.map(({ label, url, note }) => (
-                          <li key={url}>
-                            <a className="govuk-link" href={url}>
-                              {label}
-                            </a>
-                            {note ? ` (${note})` : null}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                </div>
-              ) : (
-                <p className="govuk-body">No further information is available for this topic.</p>
-              ),
+            content: topic.content ? (
+              <div className="fphd-topic-more-information">
+                <p className="govuk-body">{topic.content.moreInformation.intro}</p>
+                {topic.content.moreInformation.sections.map((section) => (
+                  <section key={section.heading}>
+                    <h2 className="govuk-heading-m">{section.heading}</h2>
+                    <ul className="govuk-list govuk-list--bullet">
+                      {section.links.map(({ label, url, note }) => (
+                        <li key={url}>
+                          <a className="govuk-link" href={url}>
+                            {label}
+                          </a>
+                          {note ? ` (${note})` : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="govuk-body">No further information is available for this topic.</p>
+            ),
           },
         ]}
       />

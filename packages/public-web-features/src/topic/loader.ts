@@ -6,14 +6,13 @@ import {
   topicTrendSummarySchema,
 } from '@fphd/public-api-features/contract';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
-import { apiPath } from '@fphd/web-server/api-client';
+import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import type { LoaderFunctionArgs } from 'react-router';
+import { type LoaderFunctionArgs, RouterContextProvider } from 'react-router';
 import { areasInGeographyGroup } from '../geography/groups.ts';
 import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
-import { topicTab } from './filters.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
 export type { TopicDetail, TopicSummary } from '@fphd/public-api-features/contract';
@@ -27,25 +26,58 @@ export async function loadTopics({ context }: LoaderFunctionArgs) {
 }
 
 export async function loadTopicPage(args: LoaderFunctionArgs) {
-  const tab = topicTab(new URL(args.request.url));
-  const { topic, content, overview } = await loadTopic(args, tab);
-  const listing = content && {
-    ...content,
-    data: {
-      selectedAreas: content.data.selectedAreas,
-      areasLimited: content.data.areasLimited,
+  const api = args.context.get(apiContext);
+  const reads = new Map<object, Map<string, Promise<unknown>>>();
+  const sharedApi: ApiClient = {
+    ...api,
+    get<T>(path: string, schema: ApiResponseSchema<T>): Promise<T> {
+      let paths = reads.get(schema);
+      if (!paths) {
+        paths = new Map();
+        reads.set(schema, paths);
+      }
+      const existing = paths.get(path);
+      if (existing) return existing as Promise<T>;
+      const pending = api.get(path, schema);
+      paths.set(path, pending);
+      return pending;
     },
-    table:
-      tab === 'areas'
-        ? topicAreaTableModel(content.data.selected, content.data.benchmarkGeography, topic.slug)
-        : topicDataTableModel(content.data.selected, topic.slug),
   };
+  const context = new RouterContextProvider();
+  context.set(apiContext, sharedApi);
+  const view = (tab: string) => loadTopic({ ...args, context }, tab);
+  const [overview, data, areas] = await Promise.all([
+    view('overview'),
+    view('data'),
+    view('areas'),
+  ]);
   return {
-    topic,
-    tab,
-    overview,
-    content: tab === 'data' ? listing : null,
-    areas: tab === 'areas' ? listing : null,
+    topic: overview.topic,
+    overview: overview.overview,
+    content: data.content
+      ? {
+          ...data.content,
+          data: {
+            selectedAreas: data.content.data.selectedAreas,
+            areasLimited: data.content.data.areasLimited,
+          },
+          table: topicDataTableModel(data.content.data.selected, overview.topic.slug),
+        }
+      : null,
+    areas: areas.content
+      ? {
+          ...areas.content,
+          data: {
+            selectedAreas: areas.content.data.selectedAreas,
+            areasLimited: areas.content.data.areasLimited,
+          },
+          table: topicAreaTableModel(
+            areas.content.data.selected,
+            areas.content.data.benchmarkGeography,
+            overview.topic.slug,
+          ),
+        }
+      : null,
   };
 }
 

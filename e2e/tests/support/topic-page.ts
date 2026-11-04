@@ -11,7 +11,7 @@ async function openTopicPage(page: Page, path: string) {
 }
 
 export function topicPageTests() {
-  test('loads only the open topic section and keeps the mobile sections stacked', async ({
+  test('shows every topic section together on mobile and switches desktop tabs locally', async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -22,10 +22,13 @@ export function topicPageTests() {
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
     await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeVisible();
     await expect(areas.getByRole('heading', { name: 'Area summaries', exact: true })).toBeVisible();
-    await expect(data.getByRole('table')).toHaveCount(0);
-    await expect(areas.getByRole('table')).toHaveCount(0);
+    await expect(data.getByRole('table')).toBeVisible();
+    await expect(areas.getByRole('table')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
+    ).toBeVisible();
     await page.getByRole('link', { name: 'Data', exact: true }).click();
-    await expect(page).toHaveURL(/tab-topic=data#topic-data$/);
+    await expect(page).toHaveURL(/#topic-data$/);
     await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeInViewport();
     await expect(data.getByRole('table')).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
@@ -34,15 +37,20 @@ export function topicPageTests() {
       'aria-selected',
       'true',
     );
+    const reads: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/topics/diabetes.data')) reads.push(request.url());
+    });
     await page.getByRole('tab', { name: 'Area summaries', exact: true }).click();
     await expect(areas.getByRole('table')).toBeVisible();
     await page.goBack();
     await expect(data.getByRole('table')).toBeVisible();
     await page.goForward();
     await expect(areas.getByRole('table')).toBeVisible();
+    expect(reads).toEqual([]);
   });
 
-  test('opens every topic tab without JavaScript by navigation', async ({
+  test('shows every topic section without JavaScript and follows the contents links', async ({
     page,
     browser,
     baseURL,
@@ -75,7 +83,7 @@ export function topicPageTests() {
           withoutJs.getByRole('heading', { name: 'Highlighted indicators' }),
         ],
       ] as const) {
-        await expect(content).toHaveCount(0);
+        await expect(content).toBeVisible();
         await withoutJs.getByRole('link', { name: label, exact: true }).click();
         await expect(withoutJs).toHaveURL(new RegExp(`#${anchor}$`));
         await expect(content).toBeVisible();

@@ -92,22 +92,7 @@ describe('public application routes', () => {
             Component: TopicRoute,
             loader: () => ({
               topic,
-              tab: 'overview',
               content: null,
-              areas: null,
-              overview: {
-                search: searchLoaderData,
-                selected: [],
-                trends: {
-                  total: 0,
-                  better: 0,
-                  worse: 0,
-                  unchanged: 0,
-                  increasing: 0,
-                  decreasing: 0,
-                  unavailable: 0,
-                },
-              },
             }),
           },
         ],
