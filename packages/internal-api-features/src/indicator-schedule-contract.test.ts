@@ -55,6 +55,15 @@ describe('scheduleSchemaFor', () => {
     });
   });
 
+  it('takes a time the autumn clock change repeats as its second, GMT, occurrence', () => {
+    // 01:30 BST on 31 October 2027, inside the hour the clocks then repeat.
+    const inRepeatedHour = new Date('2027-10-31T00:30:00.000Z');
+
+    expect(
+      scheduleSchemaFor(inRepeatedHour).parse(answers('31', '10', '2027', '01', '15')),
+    ).toEqual({ scheduledPublishAt: new Date('2027-10-31T01:15:00.000Z') });
+  });
+
   it('gives the form rules first, such as a real date', () => {
     expect(fieldErrors(answers('31', '2', '2028'))).toEqual({
       publishingDateDay: 'Publishing date must be a real date',
