@@ -1,6 +1,7 @@
 import {
   areaDisplayGroupListSchema,
   indicatorDetailSchema,
+  indicatorPeriodFiltersSchema,
   topicDetailSchema,
   topicSummaryListSchema,
   topicTrendSummarySchema,
@@ -12,6 +13,7 @@ import { type LoaderFunctionArgs, RouterContextProvider } from 'react-router';
 import { areasInGeographyGroup } from '../geography/groups.ts';
 import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
+import { DIMENSIONS } from '../search/url.ts';
 import { TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
@@ -45,39 +47,53 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
   };
   const context = new RouterContextProvider();
   context.set(apiContext, sharedApi);
-  const view = (tab: string) => loadTopic({ ...args, context }, tab);
-  const [overview, data, areas] = await Promise.all([
-    view('overview'),
-    view('data'),
-    view('areas'),
-  ]);
-  return {
-    topic: overview.topic,
-    overview: overview.overview,
-    content: data.content
+  const sharedArgs = { ...args, context };
+  const { slug } = args.params;
+  if (!slug) throw new Error('loadTopicPage expects a slug param');
+  const topic = await sharedApi.get(apiPath`/api/topics/${slug}`, topicDetailSchema);
+  const url = new URL(args.request.url);
+  indicatorPeriodFiltersSchema.parse(Object.fromEntries(url.searchParams));
+  // Filter forms redirect before any streaming response has started.
+  if (DIMENSIONS.some(({ param }) => url.searchParams.has(`${param}-add`))) {
+    await loadTopic(sharedArgs, url.searchParams.get('tab-topic') === 'areas' ? 'areas' : 'data');
+  }
+  const overview = loadTopic(sharedArgs, 'overview').then((view) => view.overview);
+  const content = loadTopic(sharedArgs, 'data').then(({ content }) =>
+    content
       ? {
-          ...data.content,
+          ...content,
           data: {
-            selectedAreas: data.content.data.selectedAreas,
-            areasLimited: data.content.data.areasLimited,
+            selectedAreas: content.data.selectedAreas,
+            areasLimited: content.data.areasLimited,
           },
-          table: topicDataTableModel(data.content.data.selected, overview.topic.slug),
+          table: topicDataTableModel(content.data.selected, topic.slug),
         }
       : null,
-    areas: areas.content
+  );
+  const areas = loadTopic(sharedArgs, 'areas').then(({ content }) =>
+    content
       ? {
-          ...areas.content,
+          ...content,
           data: {
-            selectedAreas: areas.content.data.selectedAreas,
-            areasLimited: areas.content.data.areasLimited,
+            selectedAreas: content.data.selectedAreas,
+            areasLimited: content.data.areasLimited,
           },
           table: topicAreaTableModel(
-            areas.content.data.selected,
-            areas.content.data.benchmarkGeography,
-            overview.topic.slug,
+            content.data.selected,
+            content.data.benchmarkGeography,
+            topic.slug,
           ),
         }
       : null,
+  );
+  const complete = url.searchParams.get('render') === 'complete';
+  const completed = complete ? await Promise.all([overview, content, areas]) : undefined;
+  return {
+    topic,
+    overview: completed ? completed[0] : overview,
+    content: completed ? completed[1] : content,
+    areas: completed ? completed[2] : areas,
+    complete,
   };
 }
 

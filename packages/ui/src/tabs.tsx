@@ -16,6 +16,7 @@ interface TabsProps {
   history?: 'push' | 'replace';
   defaultParam?: string | undefined;
   sectionHeadings?: boolean;
+  contentReady?: boolean;
 }
 
 // Query parameters preserve the server-rendered view in shared links; NotGovUK tabs only track hashes.
@@ -36,6 +37,7 @@ function TabPanels({
   history = 'replace',
   defaultParam,
   sectionHeadings = false,
+  contentReady = true,
   navigation,
 }: TabsProps & { navigation?: ReturnType<typeof useNavigation> }) {
   const location = useLocation();
@@ -86,13 +88,13 @@ function TabPanels({
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || (!tabMode && !contentReady)) return;
     const enteredContents = !tabMode && previousTabMode.current !== false;
     previousTabMode.current = tabMode;
-    if (enteredContents && committedIndex > 0 && !location.hash) {
+    if (enteredContents && committedIndex > 0) {
       panels.current[committedIndex]?.scrollIntoView({ block: 'start' });
     }
-  }, [mounted, tabMode, committedIndex, location.hash]);
+  }, [mounted, tabMode, committedIndex, contentReady]);
 
   const previousParam = useRef(fromParam);
   useEffect(() => {

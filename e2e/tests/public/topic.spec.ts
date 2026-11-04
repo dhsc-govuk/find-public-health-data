@@ -6,7 +6,9 @@ test('shows a topic', async ({ page }) => {
   await page.goto('/topics/health-behaviours');
 
   await expect(page.getByRole('heading', { level: 1, name: 'Health behaviours' })).toBeVisible();
-  await expect(page.getByText('Everyday behaviours that affect health')).toBeVisible();
+  await expect(
+    page.locator('#topic-overview').getByText('Everyday behaviours that affect health'),
+  ).toBeVisible();
 });
 
 test('answers a topic that does not exist with the not-found page', async ({ page }) => {

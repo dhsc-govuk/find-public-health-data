@@ -8,6 +8,22 @@ test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
 });
 
+test('streams the indicator heading and navigation before observations and rankings', async ({
+  page,
+}) => {
+  const response = await page.request.get(MORTALITY_PATH, {
+    headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36' },
+  });
+  expect(response.ok()).toBe(true);
+  const html = await response.text();
+  const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+  expect(shell).toContain(MORTALITY_NAME);
+  expect(shell).toContain('indicator-compare-areas');
+  expect(shell).toContain('Loading indicator data');
+  expect(shell).toContain('Loading area comparisons');
+  expect(html).toContain('<table');
+});
+
 test('keeps Compare areas in view when changing to mobile and opening its shared link', async ({
   page,
 }, testInfo) => {
@@ -125,7 +141,7 @@ test('switches between loaded indicator sections without another data request', 
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('shows every indicator section without JavaScript and keeps comparison search in view', async ({
+test('loads every indicator section through the JavaScript-free fallback and keeps comparison search in view', async ({
   browser,
   baseURL,
 }) => {
@@ -138,6 +154,7 @@ test('shows every indicator section without JavaScript and keeps comparison sear
   const withoutJs = await context.newPage();
   try {
     await withoutJs.goto(MORTALITY_PATH);
+    await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
     for (const [label, anchor, content] of [
       [
         'Compare areas',

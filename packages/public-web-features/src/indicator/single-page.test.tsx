@@ -74,12 +74,30 @@ function page(
       path: 'indicator/:slug',
       Component: () => (
         <SingleIndicatorPage
-          selected={entries}
-          compareAreasData={areas}
-          selection={{
-            areaCodes: [],
-            areaLevels: [],
-            shortIds: entries.map(({ detail }) => detail.shortId),
+          detail={entries[0]?.detail as IndicatorDetail}
+          comparedDetail={entries[1]?.detail}
+          complete={true}
+          data={{
+            selected: entries,
+            selectedAreas: [],
+            displayGroups: [],
+            benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+            findSubject: '',
+            findResults: [],
+            geographyOptions: undefined,
+            areasLimited: false,
+            selection: {
+              areaCodes: [],
+              areaLevels: [],
+              shortIds: entries.map(({ detail }) => detail.shortId),
+            },
+          }}
+          comparison={{
+            compareAreasData: areas,
+            comparedAreasData: [],
+            compareAreaOptions: [],
+            compareAreaGroup: 'Local authorities',
+            comparisonDisplayGroups: [],
           }}
         />
       ),

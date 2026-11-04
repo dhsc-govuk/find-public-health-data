@@ -1,10 +1,9 @@
 import { Button, CollapsibleFilterCard, GeographyTree, Radios } from '@fphd/ui';
 import { useEffect, useState } from 'react';
-import { Form, useLocation, useNavigate } from 'react-router';
+import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 import { HiddenFilters } from '../search/filter-fields.tsx';
 import { SearchGeographies } from '../search/geographies.tsx';
 import type { loadSearch } from '../search/loader.ts';
-import { searchUrl } from '../search/url.ts';
 import { TOPIC_AREA_GROUPS } from './data.ts';
 
 type Search = Awaited<ReturnType<typeof loadSearch>>;
@@ -19,19 +18,38 @@ export function TopicGeographies({
   tab: 'overview' | 'data' | 'areas';
 }) {
   const navigate = useNavigate();
-  const params = new URLSearchParams(useLocation().search);
+  const location = useLocation();
+  const navigation = useNavigation();
+  const params = new URLSearchParams(
+    navigation.location?.pathname === location.pathname
+      ? navigation.location.search
+      : location.search,
+  );
   const extraParams = {
-    ...Object.fromEntries([...params].filter(([key]) => key === 'sort' || key === 'columns-topic')),
+    ...Object.fromEntries(
+      [...params].filter(([key]) => key === 'sort' || key === 'columns-topic' || key === 'render'),
+    ),
     'tab-topic': tab,
   };
-  const urlFor = (gaCodes: string[], geoLevels: string[]) =>
-    searchUrl({ ...search, gaCodes, geoLevels }, path, extraParams);
-  const group = search.geoLevels[0] ?? 'NHS regions';
-  const [selectedGroup, setSelectedGroup] = useState(group);
-  useEffect(() => setSelectedGroup(group), [group]);
-  const [selectedCodes, setSelectedCodes] = useState(search.gaCodes);
-  useEffect(() => setSelectedCodes(search.gaCodes), [search.gaCodes]);
+  const urlFor = (gaCodes: string[], geoLevels: string[]) => {
+    const next = new URLSearchParams(params);
+    next.delete('ga');
+    next.delete('geo');
+    next.delete('page');
+    next.set('tab-topic', tab);
+    for (const code of gaCodes) next.append('ga', code);
+    for (const level of geoLevels) next.append('geo', level);
+    return `${path}?${next}`;
+  };
   const action = `${path}#${tab === 'areas' ? 'topic-area-summaries' : `topic-${tab}`}`;
+  const requestedGroup = TOPIC_AREA_GROUPS.includes(params.get('geo') ?? '')
+    ? (params.get('geo') ?? 'NHS regions')
+    : 'NHS regions';
+  const codesKey = params.getAll('ga').join(',');
+  const [selectedGroup, setSelectedGroup] = useState(requestedGroup);
+  useEffect(() => setSelectedGroup(requestedGroup), [requestedGroup]);
+  const [selectedCodes, setSelectedCodes] = useState(params.getAll('ga'));
+  useEffect(() => setSelectedCodes(codesKey ? codesKey.split(',') : []), [codesKey]);
   if (tab === 'areas') {
     return (
       <div className="fphd-topic-geographies">
@@ -82,7 +100,9 @@ export function TopicGeographies({
               onLevelsChange={() => {}}
               onChange={(codes) => {
                 setSelectedCodes(codes);
-                void navigate(urlFor(codes, [selectedGroup]), { preventScrollReset: true });
+                void navigate(urlFor(codes, [selectedGroup]), {
+                  preventScrollReset: true,
+                });
               }}
             />
             <noscript>

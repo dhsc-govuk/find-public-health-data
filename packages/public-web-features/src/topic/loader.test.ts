@@ -124,6 +124,45 @@ function topicApi(
 }
 
 describe('loadTopic', () => {
+  it('returns the topic before its overview and tables have loaded', async () => {
+    const read = topicApi([{ shortId: 1, name: 'Indicator', slug: 'indicator' }]);
+    const gate = Promise.withResolvers<void>();
+    const get = vi.fn(async (path: string) => {
+      if (path.endsWith('/trends') || path.startsWith('/api/indicator-data?')) await gate.promise;
+      return read(path);
+    });
+    const page = await loadTopicPage(
+      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
+    );
+    try {
+      expect(page.topic.title).toBe('Topic A');
+      expect(page.overview).toBeInstanceOf(Promise);
+      expect(page.content).toBeInstanceOf(Promise);
+      expect(page.areas).toBeInstanceOf(Promise);
+      expect(read.mock.calls.some(([path]) => path.endsWith('/trends'))).toBe(false);
+    } finally {
+      gate.resolve();
+    }
+    const [overview, content, areas] = await Promise.all([page.overview, page.content, page.areas]);
+    expect(overview?.selected).toHaveLength(1);
+    expect(content?.listing.indicators).toHaveLength(1);
+    expect(areas?.listing.indicators).toHaveLength(1);
+  });
+
+  it('returns complete HTML data for the JavaScript-free fallback', async () => {
+    const page = await loadTopicPage(
+      loaderArgs(
+        { get: topicApi() } as unknown as ApiClient,
+        { slug: 'topic-a' },
+        '?render=complete',
+      ),
+    );
+    expect(page.complete).toBe(true);
+    expect(page.overview).not.toBeInstanceOf(Promise);
+    expect(page.content).not.toBeInstanceOf(Promise);
+    expect(page.areas).not.toBeInstanceOf(Promise);
+  });
+
   it.each(['data', 'areas'])(
     'keeps the active %s tab when normalising filter inputs',
     async (tab) => {
@@ -144,8 +183,28 @@ describe('loadTopic', () => {
     },
   );
 
+  it('keeps the area-summary geography when normalising a filter form', async () => {
+    const read = topicApi();
+    const get = vi.fn((path: string) =>
+      path === '/api/areas/display-groups'
+        ? Promise.resolve(['Local authorities', 'NHS regions'])
+        : read(path),
+    );
+    const result = await loadTopicPage(
+      loaderArgs(
+        { get } as unknown as ApiClient,
+        { slug: 'topic-a' },
+        '?tab-topic=areas&geo=Local+authorities&src-add=',
+      ),
+    ).catch((error: unknown) => error);
+    if (!(result instanceof Response)) throw new Error('Expected a filter redirect');
+    expect(
+      new URL(result.headers.get('Location') ?? '', 'http://localhost').searchParams.getAll('geo'),
+    ).toEqual(['Local authorities']);
+  });
+
   it.each(['overview', 'data', 'areas', 'publications'])(
-    'preloads every page section once when opening %s',
+    'starts every page section once when opening %s',
     async (tab) => {
       const indicators = Array.from({ length: 8 }, (_, index) => ({
         shortId: index + 1,
@@ -156,11 +215,16 @@ describe('loadTopic', () => {
       const page = await loadTopicPage(
         loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }, `?tab-topic=${tab}`),
       );
-      expect(page.overview?.selected).toHaveLength(4);
-      expect(page.content?.listing.indicators).toHaveLength(8);
-      expect(page.areas?.listing.indicators).toHaveLength(8);
-      expect(page.content?.data).not.toHaveProperty('selected');
-      expect(page.areas?.data).not.toHaveProperty('selected');
+      const [overview, content, areas] = await Promise.all([
+        page.overview,
+        page.content,
+        page.areas,
+      ]);
+      expect(overview?.selected).toHaveLength(4);
+      expect(content?.listing.indicators).toHaveLength(8);
+      expect(areas?.listing.indicators).toHaveLength(8);
+      expect(content?.data).not.toHaveProperty('selected');
+      expect(areas?.data).not.toHaveProperty('selected');
       expect(get.mock.calls.filter(([path]) => path === '/api/topics/topic-a')).toHaveLength(1);
       expect(
         get.mock.calls.filter(([path]) => /^\/api\/indicators\/\d+(?:\/data\?)?$/.test(path)),

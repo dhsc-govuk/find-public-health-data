@@ -1,69 +1,37 @@
 import { InsetText, Tabs } from '@fphd/ui';
 import { Link } from 'react-router';
-import type { GeographyOptions } from '../geography/loader.ts';
+import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
-import { AREA_COMPARISON_GROUPS } from './area-comparison.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
 import { CompareIndicatorsTab } from './compare-tab.tsx';
 import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
-import type {
-  AreaSummary,
-  BenchmarkGeography,
-  IndicatorAreaData,
-  IndicatorSelection,
-  IndicatorSummary as IndicatorSummaryData,
-  SelectedArea,
-  SelectedIndicator,
-} from './loader.ts';
+import type { SelectedIndicator } from './loader.ts';
 import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
+import type { loadIndicatorPage } from './single-loader.ts';
 
-export function SingleIndicatorPage({
-  selected,
-  selectedAreas = [],
-  compareAreasData = [],
-  comparedAreasData = [],
-  compareAreaOptions = [],
-  compareAreaGroup = 'Local authorities',
-  displayGroups = [],
-  comparisonDisplayGroups = displayGroups.filter((group) => AREA_COMPARISON_GROUPS.has(group)),
-  benchmarkGeography = { regionByCode: {}, levelByCode: {} },
-  findResults = [],
-  findSubject = '',
-  geographyOptions,
-  areasLimited = false,
-  selection,
-}: {
-  selected: SelectedIndicator[];
-  selectedAreas?: SelectedArea[];
-  compareAreasData?: IndicatorAreaData[];
-  comparedAreasData?: IndicatorAreaData[];
-  compareAreaOptions?: AreaSummary[];
-  compareAreaGroup?: string;
-  displayGroups?: string[];
-  comparisonDisplayGroups?: string[];
-  benchmarkGeography?: BenchmarkGeography;
-  findResults?: IndicatorSummaryData[];
-  findSubject?: string;
-  geographyOptions?: GeographyOptions | undefined;
-  areasLimited?: boolean;
-  selection: IndicatorSelection;
-}) {
+function primaryIndicator(selected: SelectedIndicator[]) {
   const primary = selected[0];
   if (!primary) throw new Error('The indicator page needs one indicator');
-  const compared = selected[1];
-  const { detail, areaData } = primary;
-  const allObservations =
-    areaData.find(({ areaCode }) => areaCode === 'E92000001')?.observations ??
-    areaData[0]?.observations ??
-    [];
-  const comparisonProps = {
-    primary,
-    compareAreasData,
-    compareAreaOptions,
-    compareAreaGroup,
-    comparisonDisplayGroups,
-  };
+  return primary;
+}
+
+function observations(primary: SelectedIndicator) {
+  return (
+    primary.areaData.find(({ areaCode }) => areaCode === 'E92000001')?.observations ??
+    primary.areaData[0]?.observations ??
+    []
+  );
+}
+
+export function SingleIndicatorPage({
+  detail,
+  comparedDetail,
+  data,
+  comparison,
+  complete,
+}: Awaited<ReturnType<typeof loadIndicatorPage>>) {
+  const contentReady = useDataReady(data, comparison);
   return (
     <div className="fphd-wide-layout fphd-single-indicator-page">
       <nav aria-label="Breadcrumb" className="govuk-breadcrumbs">
@@ -88,16 +56,27 @@ export function SingleIndicatorPage({
         </ol>
       </nav>
       <h1 className="govuk-heading-l govuk-!-margin-bottom-3">{detail.name}</h1>
-      <IndicatorSummary indicator={detail} observations={allObservations} />
-      {areasLimited ? (
-        <InsetText>
-          Showing the first {MAX_SELECTED_AREAS + 1} selected areas. Select fewer areas to change
-          which ones are shown.
-        </InsetText>
-      ) : null}
+      <CompletePageLink complete={complete} />
+      <DataSection label="indicator summary" resolve={data}>
+        {({ selected, areasLimited }) => (
+          <>
+            <IndicatorSummary
+              indicator={detail}
+              observations={observations(primaryIndicator(selected))}
+            />
+            {areasLimited ? (
+              <InsetText>
+                Showing the first {MAX_SELECTED_AREAS + 1} selected areas. Select fewer areas to
+                change which ones are shown.
+              </InsetText>
+            ) : null}
+          </>
+        )}
+      </DataSection>
       <Tabs
+        contentReady={contentReady}
         history="push"
-        defaultParam={compared ? 'compare' : undefined}
+        defaultParam={comparedDetail ? 'compare' : undefined}
         paramKey="tab-indicator"
         title={`${detail.name} contents`}
         items={[
@@ -106,41 +85,67 @@ export function SingleIndicatorPage({
             param: 'indicator',
             label: 'Indicator',
             content: (
-              <IndicatorTab
-                primary={primary}
-                selectedAreas={selectedAreas}
-                benchmarkGeography={benchmarkGeography}
-                displayGroups={displayGroups}
-                geographyOptions={geographyOptions}
-                selection={selection}
-              />
+              <DataSection label="indicator data" resolve={data}>
+                {(data) => (
+                  <IndicatorTab
+                    primary={primaryIndicator(data.selected)}
+                    selectedAreas={data.selectedAreas}
+                    benchmarkGeography={data.benchmarkGeography}
+                    displayGroups={data.displayGroups}
+                    geographyOptions={data.geographyOptions}
+                    selection={data.selection}
+                  />
+                )}
+              </DataSection>
             ),
           },
           {
             id: 'indicator-compare-areas',
             param: 'areas',
             label: 'Compare areas',
-            content: <CompareAreasTab {...comparisonProps} />,
+            content: (
+              <DataSection label="area comparisons" resolve={comparison}>
+                {(comparison) => (
+                  <DataSection label="indicator data" resolve={data}>
+                    {({ selected }) => (
+                      <CompareAreasTab primary={primaryIndicator(selected)} {...comparison} />
+                    )}
+                  </DataSection>
+                )}
+              </DataSection>
+            ),
           },
           {
             id: 'indicator-compare-indicators',
             param: 'compare',
             label: 'Compare indicators',
             content: (
-              <CompareIndicatorsTab
-                {...comparisonProps}
-                compared={compared}
-                comparedAreasData={comparedAreasData}
-                findResults={findResults}
-                findSubject={findSubject}
-              />
+              <DataSection label="indicator comparisons" resolve={comparison}>
+                {(comparison) => (
+                  <DataSection label="indicator data" resolve={data}>
+                    {({ selected, findResults, findSubject }) => (
+                      <CompareIndicatorsTab
+                        {...comparison}
+                        primary={primaryIndicator(selected)}
+                        compared={selected[1]}
+                        findResults={findResults}
+                        findSubject={findSubject}
+                      />
+                    )}
+                  </DataSection>
+                )}
+              </DataSection>
             ),
           },
           {
             id: 'indicator-inequalities',
             param: 'inequalities',
             label: 'Inequalities',
-            content: <InequalitiesTab primary={primary} />,
+            content: (
+              <DataSection label="inequalities" resolve={data}>
+                {({ selected }) => <InequalitiesTab primary={primaryIndicator(selected)} />}
+              </DataSection>
+            ),
           },
           {
             id: 'indicator-about',
@@ -149,7 +154,14 @@ export function SingleIndicatorPage({
             content: (
               <>
                 <h2 className="govuk-heading-l">About this indicator</h2>
-                <BackgroundInformation indicator={detail} observations={allObservations} />
+                <DataSection label="background information" resolve={data}>
+                  {({ selected }) => (
+                    <BackgroundInformation
+                      indicator={detail}
+                      observations={observations(primaryIndicator(selected))}
+                    />
+                  )}
+                </DataSection>
               </>
             ),
           },

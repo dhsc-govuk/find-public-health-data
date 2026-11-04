@@ -156,34 +156,53 @@ describe('public application routes', () => {
             path: 'indicator/:slug',
             Component: IndicatorRoute,
             loader: () => ({
-              selectedAreas: [{ code: 'E06000052', name: 'Cornwall', level: 'Local authorities' }],
-              selected: [
-                {
-                  detail,
-                  areaData: [
-                    {
-                      areaCode: 'E06000052',
-                      areaName: 'Cornwall',
-                      // Rolling-only: no single-year series exists for the picked area.
-                      observations: [observation('2021-01-01', '2023-12-31', 10.2)],
-                    },
-                    {
-                      areaCode: 'E92000001',
-                      areaName: 'England',
-                      // England publishes both shapes, but must not put a period
-                      // choice on a page whose picked area cannot honour it.
-                      observations: [
-                        observation('2021-01-01', '2023-12-31', 11.4),
-                        observation('2023-01-01', '2023-12-31', 11.9),
-                      ],
-                    },
-                  ],
+              detail,
+              comparedDetail: undefined,
+              complete: true,
+              comparison: {
+                compareAreasData: [],
+                comparedAreasData: [],
+                compareAreaOptions: [],
+                compareAreaGroup: '',
+                comparisonDisplayGroups: [],
+              },
+              data: {
+                displayGroups: [],
+                findResults: [],
+                findSubject: '',
+                areasLimited: false,
+                benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+                selectedAreas: [
+                  { code: 'E06000052', name: 'Cornwall', level: 'Local authorities' },
+                ],
+                selected: [
+                  {
+                    detail,
+                    areaData: [
+                      {
+                        areaCode: 'E06000052',
+                        areaName: 'Cornwall',
+                        // Rolling-only: no single-year series exists for the picked area.
+                        observations: [observation('2021-01-01', '2023-12-31', 10.2)],
+                      },
+                      {
+                        areaCode: 'E92000001',
+                        areaName: 'England',
+                        // England publishes both shapes, but must not put a period
+                        // choice on a page whose picked area cannot honour it.
+                        observations: [
+                          observation('2021-01-01', '2023-12-31', 11.4),
+                          observation('2023-01-01', '2023-12-31', 11.9),
+                        ],
+                      },
+                    ],
+                  },
+                ],
+                selection: {
+                  areaCodes: ['E06000052'],
+                  areaLevels: [],
+                  shortIds: [93995],
                 },
-              ],
-              selection: {
-                areaCodes: ['E06000052'],
-                areaLevels: [],
-                shortIds: [93995],
               },
             }),
           },
@@ -269,43 +288,61 @@ describe('public application routes', () => {
             path: 'indicator/:slug',
             Component: IndicatorRoute,
             loader: () => ({
-              selectedAreas: [{ code: 'E06000052', name: 'Cornwall', level: 'Local authorities' }],
-              benchmarkGeography: {
-                regionByCode: { E06000052: { code: 'E12000009', name: 'South West' } },
-                levelByCode: { E06000052: 'Local authorities' },
+              detail,
+              comparedDetail: undefined,
+              complete: true,
+              comparison: {
+                compareAreasData: [],
+                comparedAreasData: [],
+                compareAreaOptions: [],
+                compareAreaGroup: '',
+                comparisonDisplayGroups: [],
               },
-              selected: [
-                {
-                  detail,
-                  areaData: [
-                    {
-                      areaCode: 'E06000052',
-                      areaName: 'Cornwall',
-                      observations: [observationFor(395.6)],
-                    },
-                    {
-                      areaCode: 'E92000001',
-                      areaName: 'England',
-                      observations: [observationFor(410.3)],
-                    },
-                  ],
-                  regionData: [
-                    {
-                      areaCode: 'E12000009',
-                      areaName: 'South West',
-                      observations: [observationFor(400.2)],
-                    },
-                  ],
-                  ranges: {
-                    'Local authorities': [rangePeriod],
-                    'Statistical regions': [rangePeriod],
-                  },
+              data: {
+                displayGroups: [],
+                findResults: [],
+                findSubject: '',
+                areasLimited: false,
+                selectedAreas: [
+                  { code: 'E06000052', name: 'Cornwall', level: 'Local authorities' },
+                ],
+                benchmarkGeography: {
+                  regionByCode: { E06000052: { code: 'E12000009', name: 'South West' } },
+                  levelByCode: { E06000052: 'Local authorities' },
                 },
-              ],
-              selection: {
-                areaCodes: ['E06000052'],
-                areaLevels: [],
-                shortIds: [108],
+                selected: [
+                  {
+                    detail,
+                    areaData: [
+                      {
+                        areaCode: 'E06000052',
+                        areaName: 'Cornwall',
+                        observations: [observationFor(395.6)],
+                      },
+                      {
+                        areaCode: 'E92000001',
+                        areaName: 'England',
+                        observations: [observationFor(410.3)],
+                      },
+                    ],
+                    regionData: [
+                      {
+                        areaCode: 'E12000009',
+                        areaName: 'South West',
+                        observations: [observationFor(400.2)],
+                      },
+                    ],
+                    ranges: {
+                      'Local authorities': [rangePeriod],
+                      'Statistical regions': [rangePeriod],
+                    },
+                  },
+                ],
+                selection: {
+                  areaCodes: ['E06000052'],
+                  areaLevels: [],
+                  shortIds: [108],
+                },
               },
             }),
           },
@@ -337,7 +374,9 @@ describe('public application routes', () => {
     expect(screen.getByRole('img', { name: /Cornwall 395.6 against England 410.3/ })).toBeTruthy();
 
     // The statistical-region benchmark takes the parent region's name and values.
-    fireEvent.change(select, { target: { value: 'region' } });
+    fireEvent.change(screen.getByLabelText('Select a geography or goal to compare with'), {
+      target: { value: 'region' },
+    });
     expect(
       await screen.findByRole('columnheader', { name: 'South West (Statistical region)' }),
     ).toBeTruthy();

@@ -16,7 +16,7 @@ import { TopicGeographies } from './geographies.tsx';
 import type { loadTopicPage } from './loader.ts';
 
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
-type Overview = NonNullable<TopicData['overview']>;
+type Overview = NonNullable<Awaited<TopicData['overview']>>;
 
 /** A row for each raw number the series has, or a Count row saying there is no data. */
 function measureItems(series: IndicatorObservation[], latest: IndicatorObservation | undefined) {
