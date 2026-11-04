@@ -5,17 +5,17 @@ import {
   indicatorScheduleErrorSchema,
   type PublishingDateField,
   publishingDateSection,
+  publishingDateValues,
   scheduleSchemaFor,
   toFieldErrors,
 } from '@fphd/internal-api-features/contract';
-import { ukDateTime } from '@fphd/utils/uk-time';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { getSession } from '@fphd/web-server/session';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
 
 import { formRefusal } from '../form-refusal.ts';
-import { type FormValues, readFormValues } from '../form-values.ts';
+import { readFormValues } from '../form-values.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { type OverviewFlash, setOverviewFlash } from '../indicator-overview/notifications.ts';
 import { indicatorOverviewPath } from '../indicator-overview/paths.ts';
@@ -24,8 +24,6 @@ import { publishingDateControlNames } from '../publishing-date-form.ts';
 
 /** The hidden field carrying the date the page showed, which the save sends back. */
 export const SHOWN_FIELD = 'shownScheduledPublishAt';
-
-type Values = FormValues<PublishingDateField>;
 
 /** The page as the action re-renders it after a refusal, with the date it first showed. */
 export type PublicationDateRefusal = FormFailure<PublishingDateField> & {
@@ -39,20 +37,6 @@ function requireScheduler(context: LoaderFunctionArgs['context']): void {
   if (session === undefined || !canSchedulePublication(session)) {
     throw new Response('Not Found', { status: 404 });
   }
-}
-
-/** The date and time an instant falls on in the UK, as the publisher's page shows them. */
-function publicationDateValues(at: string): Values {
-  const { year, month, day, hour, minute } = ukDateTime(new Date(at));
-  const twoDigits = (value: number) => String(value).padStart(2, '0');
-
-  return {
-    publishingDateDay: String(day),
-    publishingDateMonth: String(month),
-    publishingDateYear: String(year),
-    publishingTimeHour: twoDigits(hour),
-    publishingTimeMinute: twoDigits(minute),
-  };
 }
 
 function toOverview(context: ActionFunctionArgs['context'], id: string, flash: OverviewFlash) {
@@ -80,7 +64,7 @@ export async function loadPublicationDate({ context, params }: LoaderFunctionArg
 
   return {
     id,
-    values: publicationDateValues(draftScheduledPublishAt),
+    values: publishingDateValues(new Date(draftScheduledPublishAt)),
     shownScheduledPublishAt: draftScheduledPublishAt,
   };
 }

@@ -2,6 +2,7 @@ import { z } from '@fphd/config/zod';
 import { ukInstant } from '@fphd/utils/uk-time';
 
 import {
+  addIssues,
   type PublishingDateField,
   publishingDateSection,
   REAL_PUBLISHING_TIME,
@@ -35,10 +36,6 @@ export const indicatorScheduleBodySchema = z.object({
  */
 export function scheduleSchemaFor(now: Date) {
   return publishingDateSection.schema.transform((answers, ctx) => {
-    const every = (parts: readonly PublishingDateField[], message: string) => {
-      for (const part of parts) ctx.addIssue({ code: 'custom', path: [part], message });
-      return z.NEVER;
-    };
     const scheduledPublishAt = ukInstant({
       year: Number(answers.publishingDateYear),
       month: Number(answers.publishingDateMonth),
@@ -47,8 +44,14 @@ export function scheduleSchemaFor(now: Date) {
       minute: Number(answers.publishingTimeMinute),
     });
 
-    if (scheduledPublishAt === null) return every(TIME_PARTS, REAL_PUBLISHING_TIME);
-    if (scheduledPublishAt <= now) return every(DATE_PARTS, FUTURE_PUBLISHING_DATE);
+    if (scheduledPublishAt === null) {
+      addIssues(ctx, TIME_PARTS, REAL_PUBLISHING_TIME);
+      return z.NEVER;
+    }
+    if (scheduledPublishAt <= now) {
+      addIssues(ctx, DATE_PARTS, FUTURE_PUBLISHING_DATE);
+      return z.NEVER;
+    }
     return { scheduledPublishAt };
   });
 }

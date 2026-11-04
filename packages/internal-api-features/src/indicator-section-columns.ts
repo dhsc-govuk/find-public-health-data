@@ -1,5 +1,4 @@
 import { isYearType } from '@fphd/utils/period-type';
-import { ukDateTime } from '@fphd/utils/uk-time';
 import { standardisationOf, UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 
 import {
@@ -33,6 +32,7 @@ import {
   type PublishingDate,
   type PublishingDateField,
   polaritySection,
+  publishingDateValues,
   updateFrequencySection,
   type ValueTypeAndUnits,
   type ValueTypeAndUnitsField,
@@ -255,17 +255,7 @@ function publishingDateAnswers(
     };
   }
 
-  const { year, month, day, hour, minute } = ukDateTime(scheduledPublishAt);
-  const twoDigits = (value: number) => String(value).padStart(2, '0');
-
-  // Day and month as the hint's example gives them; hour and minute as the clock shows them.
-  return {
-    publishingDateDay: String(day),
-    publishingDateMonth: String(month),
-    publishingDateYear: String(year),
-    publishingTimeHour: twoDigits(hour),
-    publishingTimeMinute: twoDigits(minute),
-  };
+  return publishingDateValues(scheduledPublishAt);
 }
 
 export const publishingDateColumns: IndicatorSectionColumns<
