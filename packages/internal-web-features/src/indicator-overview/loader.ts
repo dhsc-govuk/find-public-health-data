@@ -20,6 +20,7 @@ import { getSession } from '@fphd/web-server/session';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { requireIndicatorId } from '../indicator-id.ts';
+import { historyItems } from './history.ts';
 import { overviewNotification } from './notifications.ts';
 import { reviewerNoteFormFor } from './reviewer-notes.ts';
 
@@ -28,6 +29,7 @@ export type {
   NotesForReviewers,
   ReviewerNote,
 } from '@fphd/internal-api-features/contract';
+export type { HistoryItem, HistoryRow } from './history.ts';
 export type { OverviewNotification } from './notifications.ts';
 export type { ReviewerNoteForm } from './reviewer-notes.ts';
 
@@ -62,6 +64,7 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
     session !== undefined && canSeeIndicatorHistory(session, access)
       ? api
           .get(apiPath`/api/internal/indicators/${id}/history`, indicatorHistorySchema)
+          .then(historyItems)
           .catch(noneIfNotFound)
       : null,
   ]);

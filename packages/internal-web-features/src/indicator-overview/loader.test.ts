@@ -22,6 +22,14 @@ const indicator = {
 const history = {
   entries: [{ kind: 'created', at: '2026-01-02T00:00:00.000Z', by: 'Sam Taylor' }],
 };
+const historyShown = [
+  {
+    date: '2026-01-02T00:00:00.000Z',
+    action: 'Indicator first created',
+    by: 'Sam Taylor',
+    rows: [],
+  },
+];
 
 /** Answers the history and the notes as `answers` says, and anything else with `detail`. */
 function apiGet(detail: object, answers: Readonly<Record<string, () => Promise<unknown>>> = {}) {
@@ -74,7 +82,7 @@ describe('loadIndicatorOverview', () => {
       indicator,
       notesForReviewers: notes,
       reviewerNotes: null,
-      history,
+      history: historyShown,
       notification: undefined,
     });
   });
@@ -316,7 +324,7 @@ describe('loadIndicatorOverview', () => {
       const outcome = await load(indicator.id, get, roles, teams);
 
       expect(get).toHaveBeenCalledWith(historyPath, expect.anything());
-      expect(outcome.history).toBe(history);
+      expect(outcome.history).toEqual(historyShown);
     });
 
     it.each([
