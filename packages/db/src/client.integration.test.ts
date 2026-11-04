@@ -1,3 +1,4 @@
+import postgres from 'postgres';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createDb, type Database, pingDb } from './client.ts';
@@ -34,5 +35,27 @@ describe('pingDb', () => {
     await expect(pingDb(connect('wrong-password'))).rejects.toMatchObject({
       code: '28P01',
     });
+  });
+});
+
+// An Entra token fetch that fails rejects the password function. postgres.js left that rejection
+// unhandled, which ends the process, until patches/postgres@3.4.9.patch.
+describe('a password function that rejects', () => {
+  it('fails the query with its error, not the process', async () => {
+    const sql = postgres({
+      host: env.DB_HOST,
+      port: env.DB_PORT,
+      database: 'postgres',
+      username: env.POSTGRES_USER,
+      pass: () => Promise.reject(new Error('no token for this identity')),
+      ssl: resolveDbTls(env.APP_ENV, env.DB_TLS),
+      max: 1,
+      connect_timeout: 5,
+    });
+    try {
+      await expect(sql`select 1`).rejects.toThrow('no token for this identity');
+    } finally {
+      await sql.end({ timeout: 1 });
+    }
   });
 });

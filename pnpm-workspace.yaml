@@ -119,4 +119,5 @@ catalog:
 
 patchedDependencies:
   # COPY errors must settle the writable: https://github.com/porsager/postgres/pull/1183.
+  # A password function that rejects must fail the connection, not leave the rejection unhandled.
   postgres@3.4.9: patches/postgres@3.4.9.patch

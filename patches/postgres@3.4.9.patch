@@ -1,5 +1,5 @@
 diff --git a/src/connection.js b/src/connection.js
-index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..230973c52614eeef1f5d117c71003e095341754d 100644
+index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..2ac9d184d46521045cdbda79973cff8421b419af 100644
 --- a/src/connection.js
 +++ b/src/connection.js
 @@ -389,6 +389,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
@@ -10,3 +10,32 @@ index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..230973c52614eeef1f5d117c71003e09
      query && queryError(query, err)
      initial && (queryError(initial, err), initial = null)
    }
+@@ -671,15 +672,19 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+   }
+ 
+   async function Authentication(x, type = x.readUInt32BE(5)) {
+-    (
+-      type === 3 ? AuthenticationCleartextPassword :
+-      type === 5 ? AuthenticationMD5Password :
+-      type === 10 ? SASL :
+-      type === 11 ? SASLContinue :
+-      type === 12 ? SASLFinal :
+-      type !== 0 ? UnknownAuth :
+-      noop
+-    )(x, type)
++    try {
++      await (
++        type === 3 ? AuthenticationCleartextPassword :
++        type === 5 ? AuthenticationMD5Password :
++        type === 10 ? SASL :
++        type === 11 ? SASLContinue :
++        type === 12 ? SASLFinal :
++        type !== 0 ? UnknownAuth :
++        noop
++      )(x, type)
++    } catch (err) {
++      errored(err)
++    }
+   }
+ 
+   /* c8 ignore next 5 */
