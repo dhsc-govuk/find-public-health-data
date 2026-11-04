@@ -5,6 +5,7 @@ import { describe, expect } from 'vitest';
 
 import { confirmDataTable } from './data-table-check-repository.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
+import { historyEntries } from './indicator-history-entries.ts';
 import { findIndicatorHistory } from './indicator-history-repository.ts';
 import {
   ACTOR,
@@ -187,6 +188,15 @@ describe('findIndicatorHistory', () => {
       },
     ]);
     expect(JSON.stringify(row)).not.toContain(PRIVATE_NOTE);
+    // The real saves' audit fields, read through the task field map.
+    expect(historyEntries(row).find(({ kind }) => kind === 'resubmitted')).toMatchObject({
+      flags: [
+        { task: 'data-table', revised: true },
+        { task: 'definition-and-rationale', revised: true },
+        { task: 'polarity', revised: false },
+      ],
+      reply: 'Done as asked',
+    });
   });
 
   repositoryTest('reads a withdrawal and the submission after it', async ({ db }) => {

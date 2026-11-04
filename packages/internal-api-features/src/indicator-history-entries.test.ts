@@ -104,9 +104,7 @@ describe('historyEntries', () => {
           ],
         }),
       ],
-      assignments: [
-        { at: at('02T10:00:00'), by: 'Avery Clarke', reviewers: ['Jamie Evans'] },
-      ],
+      assignments: [{ at: at('02T10:00:00'), by: 'Avery Clarke', reviewers: ['Jamie Evans'] }],
     });
 
     expect(entries).toEqual([
@@ -128,6 +126,41 @@ describe('historyEntries', () => {
       { kind: 'submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor' },
       { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
     ]);
+  });
+
+  it('gives a response its flags in task list order, with their notes and the clarification', () => {
+    const entries = historyEntries({
+      ...noRecords,
+      submissions: [
+        submission({
+          status: 'changes_requested',
+          responses: [
+            response({
+              kind: 'pre_imrg_feedback',
+              clarificationRequest: 'Which **year** is this?',
+              flags: [
+                { task: 'tagging', notes: 'Add a topic' },
+                { task: 'polarity', notes: 'Higher is better' },
+                { task: 'name', notes: 'Shorter, please' },
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(entries[0]).toEqual({
+      kind: 'responded',
+      at: '2026-06-03T15:00:00.000Z',
+      by: 'Jamie Evans',
+      response: 'pre_imrg_feedback',
+      flags: [
+        { task: 'name', notes: 'Shorter, please' },
+        { task: 'polarity', notes: 'Higher is better' },
+        { task: 'tagging', notes: 'Add a topic' },
+      ],
+      clarificationRequest: 'Which **year** is this?',
+    });
   });
 
   it('puts an IMRG meeting on an earlier day at the end of that day', () => {
