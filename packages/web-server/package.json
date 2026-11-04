@@ -40,6 +40,11 @@
       "types": "./src/fake-auth-react-router-app.ts",
       "default": "./dist/fake-auth-react-router-app.js"
     },
+    "./logger-context": {
+      "development": "./src/logger-context.ts",
+      "types": "./src/logger-context.ts",
+      "default": "./dist/logger-context.js"
+    },
     "./page-url": {
       "development": "./src/page-url.ts",
       "types": "./src/page-url.ts",

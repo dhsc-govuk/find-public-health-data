@@ -1,6 +1,6 @@
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { createRequestHandler } from '@react-router/express';
-import express, { type Express, type Request, type RequestHandler } from 'express';
+import express, { type Express, type Request, type RequestHandler, type Response } from 'express';
 import type { RouterContextProvider, ServerBuild } from 'react-router';
 
 import { loggerContext } from './logger-context.ts';
@@ -42,10 +42,25 @@ interface ReactRouterAppOptions {
   /** Proxies in front of the app whose X-Forwarded-* headers are trusted; 0 trusts none. */
   trustedProxyHops: number;
   /**
-   * Runs after the nonce is set, so it can add further values to the loader/action context. The
-   * request lets a value be request-scoped, such as the internal app's API client.
+   * Runs after the nonce and logger are set, so it can add further values to the loader/action
+   * context. The request lets a value be request-scoped, such as the API client. The signal
+   * aborts as the loader's `request.signal` does, when the browser leaves before the response
+   * finishes.
    */
-  extendContext?: (context: RouterContextProvider, request: Request) => void;
+  extendContext?: (context: RouterContextProvider, request: Request, signal: AbortSignal) => void;
+}
+
+/** The signal `@react-router/express` gives the loader's request, built the same way. */
+function abortedOnClose(response: Response): AbortSignal {
+  const controller = new AbortController();
+  let finished = false;
+  response.on('finish', () => {
+    finished = true;
+  });
+  response.on('close', () => {
+    if (!finished) controller.abort();
+  });
+  return controller.signal;
 }
 
 export function createReactRouterApp(
@@ -72,7 +87,7 @@ export function createReactRouterApp(
         const context = createSessionContext(session);
         context.set(nonceContext, response.locals.nonce);
         context.set(loggerContext, response.locals.logger);
-        extendContext?.(context, request);
+        extendContext?.(context, request, abortedOnClose(response));
         return context;
       },
     }),

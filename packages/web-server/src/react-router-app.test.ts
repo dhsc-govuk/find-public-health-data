@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events';
+
 import { createJwtSessionService } from '@fphd/auth/jwt-session';
 import { request } from '@fphd/express/testing';
 import express, { type Request, type Response } from 'express';
@@ -49,9 +51,13 @@ const session = createJwtSessionService({
 
 const logger = { name: 'test-web' };
 
-function loadContext(nonce: string) {
-  const response = { locals: { logger, nonce } } as unknown as Response;
-  const context = captured.getLoadContext?.({} as Request, response);
+/** An Express response as far as the load context reads it: its locals and its events. */
+function fakeResponse(nonce: string) {
+  return Object.assign(new EventEmitter(), { locals: { logger, nonce } });
+}
+
+function loadContext(nonce: string, response = fakeResponse(nonce)) {
+  const context = captured.getLoadContext?.({} as Request, response as unknown as Response);
 
   if (context === undefined) {
     throw new Error('Expected getLoadContext to have been captured');
@@ -109,6 +115,47 @@ describe('createReactRouterApp', () => {
     );
 
     expect(loadContext('test-nonce').get(nonceContext)).toBe('test-nonce-extended');
+  });
+
+  describe("extendContext's signal", () => {
+    function signalFor(response: ReturnType<typeof fakeResponse>) {
+      let signal: AbortSignal | undefined;
+      createReactRouterApp(
+        () => {
+          throw new Error('build should not load while asserting context wiring');
+        },
+        {
+          session,
+          trustedProxyHops: 2,
+          extendContext: (_context, _request, given) => {
+            signal = given;
+          },
+        },
+      );
+      loadContext('test-nonce', response);
+
+      if (signal === undefined) throw new Error('Expected extendContext to have been called');
+      return signal;
+    }
+
+    it('aborts when the response closes before it finishes, as when the browser leaves', () => {
+      const response = fakeResponse('test-nonce');
+      const signal = signalFor(response);
+
+      response.emit('close');
+
+      expect(signal.aborted).toBe(true);
+    });
+
+    it('does not abort when the response closes after it finished', () => {
+      const response = fakeResponse('test-nonce');
+      const signal = signalFor(response);
+
+      response.emit('finish');
+      response.emit('close');
+
+      expect(signal.aborted).toBe(false);
+    });
   });
 
   describe('behind Front Door and Container Apps ingress', () => {
