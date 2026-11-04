@@ -446,6 +446,21 @@ describe('createDraftFromPublished', () => {
     });
   });
 
+  repositoryTest('refuses a draft beside a scheduled version', async ({ db }) => {
+    const { indicatorId } = await indicatorWithTwoPublications(db, 'Drafted beside a schedule');
+    const first = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+    if (!first.ok) throw new Error('expected a draft');
+    await db
+      .update(indicatorVersion)
+      .set({ status: 'scheduled', isLocked: true })
+      .where(eq(indicatorVersion.id, first.versionId));
+
+    await expect(createDraftFromPublished(db, indicatorId, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'draft_exists',
+    });
+  });
+
   repositoryTest('refuses an indicator with nothing published', async ({ db }) => {
     const created = await newDraft(db, 'Never published');
 

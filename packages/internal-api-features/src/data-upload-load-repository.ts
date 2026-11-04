@@ -18,7 +18,7 @@ import { DATA_TABLE_PROBLEM_ITEMS, type DataTableProblem } from './data-upload-c
 import { loadDataTableReferences } from './data-upload-repository.ts';
 import { elapsedMs, TimedUploadError, timed, type UploadTimings } from './data-upload-timings.ts';
 
-const { uploadBatch } = schema;
+const { UNPUBLISHED_STATUS_LITERALS, uploadBatch } = schema;
 
 // Scopes the per-draft upload locks within the two-key advisory lock space.
 const UPLOAD_LOCK_NAMESPACE = 0x75706c64; // 'upld'
@@ -136,7 +136,7 @@ class DraftGoneError extends Error {
  */
 async function draftGone(tx: TransactionSql, versionId: string): Promise<DraftGoneError> {
   const [draft] = await tx`
-    SELECT 1 FROM indicator_version WHERE id = ${versionId} AND status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)}`;
+    SELECT 1 FROM indicator_version WHERE id = ${versionId} AND status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)})`;
   return new DraftGoneError(draft === undefined ? 'no_draft' : 'locked');
 }
 
@@ -167,7 +167,7 @@ async function loadInTransaction(
     const [draft] = await tx<{ id: string; isLocked: boolean }[]>`
       SELECT id, is_locked AS "isLocked"
       FROM indicator_version
-      WHERE indicator_id = ${upload.indicatorId} AND status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)}`;
+      WHERE indicator_id = ${upload.indicatorId} AND status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)})`;
 
     if (draft === undefined) return { ok: false, reason: 'no_draft', timings };
     if (draft.isLocked) return { ok: false, reason: 'locked', timings };
@@ -194,7 +194,7 @@ async function loadInTransaction(
       // Held until commit, so the version cannot stop being a draft before the failure is kept.
       const [stillDraft] = await tx`
         SELECT id FROM indicator_version
-        WHERE id = ${draft.id} AND status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)} AND NOT is_locked FOR SHARE`;
+        WHERE id = ${draft.id} AND status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)}) AND NOT is_locked FOR SHARE`;
       if (stillDraft === undefined) throw await draftGone(tx, draft.id);
       const deleted = await time('deleteEarlierMs', () =>
         deleteEarlierBatches(tx, draft.id, upload.batchId, 'failed', signal),
@@ -221,7 +221,7 @@ async function loadInTransaction(
       UPDATE indicator_version
       SET upload_batch_id = ${upload.batchId}, data_table_confirmed_at = NULL,
         updated_at = now(), updated_by = ${upload.actor.userId}
-      WHERE id = ${draft.id} AND status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)} AND NOT is_locked`;
+      WHERE id = ${draft.id} AND status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)}) AND NOT is_locked`;
     if (pointed.count === 0) throw await draftGone(tx, draft.id);
 
     const deleted = await time('deleteEarlierMs', () =>

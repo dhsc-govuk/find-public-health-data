@@ -5,6 +5,8 @@ import { MIGRATION_USER_ID } from './data-migration-actors.ts';
 import { copyInto, type DataMigrationProgressReporter } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-table-import.ts';
 
+const { UNPUBLISHED_STATUS_LITERALS } = schema;
+
 const VERSION_CHILD_TABLES = [
   'indicator_version_topic',
   'indicator_version_classification',
@@ -53,7 +55,7 @@ export async function prepareVersionDeletes(tx: postgres.TransactionSql): Promis
     WHERE deleting.id IN (SELECT id FROM data_migration_delete_indicator_version)
       AND EXISTS (
         SELECT 1 FROM indicator_version v WHERE v.indicator_id = i.id
-          AND (v.status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)}
+          AND (v.status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)})
             OR v.created_by IS DISTINCT FROM ${MIGRATION_USER_ID}
             OR v.updated_by IS DISTINCT FROM ${MIGRATION_USER_ID})
       )

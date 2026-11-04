@@ -49,10 +49,11 @@ export function violatesConstraint(error: unknown, constraint: string): boolean 
 }
 
 /**
- * The draft is the indicator's unpublished version, a draft or a scheduled one: the
- * `draft*` names below mean that version. The one-unpublished index makes the draft join one row, and currentPublishedVersion is one row
- * per indicator, so an indicator's draft and published versions can be read side by side.
- * The view names the published version; its columns come from the version table by id.
+ * The draft is the indicator's unpublished version, a draft or a scheduled one: the `draft*`
+ * names below mean that version. The one-unpublished index makes the draft join one row, and
+ * currentPublishedVersion is one row per indicator, so an indicator's draft and published versions
+ * can be read side by side. The view names the published version; its columns come from the
+ * version table by id.
  */
 export const draftVersion = alias(indicatorVersion, 'draft_version');
 export const publishedVersion = alias(indicatorVersion, 'published_version');

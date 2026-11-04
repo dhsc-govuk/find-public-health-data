@@ -79,6 +79,14 @@ export const UNPUBLISHED_VERSION_STATUSES = [
 ] as const satisfies readonly IndicatorVersionStatus[];
 
 /**
+ * The unpublished statuses as SQL literals, for raw SQL: postgres.js nests them with `unsafe`,
+ * so a statement's predicate matches the one-unpublished index's under any plan.
+ */
+export const UNPUBLISHED_STATUS_LITERALS = UNPUBLISHED_VERSION_STATUSES.map(
+  (status) => `'${status}'`,
+).join(', ');
+
+/**
  * Whether `status` names an unpublished version. The statuses are literals, as the one-unpublished
  * index's predicate has them, so the planner can use it.
  */

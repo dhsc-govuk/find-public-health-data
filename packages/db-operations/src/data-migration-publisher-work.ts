@@ -4,10 +4,7 @@ import type postgres from 'postgres';
 import { MIGRATION_USER_ID } from './data-migration-actors.ts';
 import { quoteIdentifiers } from './data-migration-copy.ts';
 
-// For the statements built as text, which postgres.js cannot bind a list into.
-const UNPUBLISHED_STATUSES = schema.UNPUBLISHED_VERSION_STATUSES.map(
-  (status) => `'${status}'`,
-).join(', ');
+const { UNPUBLISHED_STATUS_LITERALS } = schema;
 
 const observationOwner = `
   JOIN observation o ON o.id = rows.observation_id
@@ -36,7 +33,7 @@ export async function assertMigrationPublisherRowsUnchanged(
   const [publisher] = await tx<{ present: boolean }[]>`
     SELECT EXISTS (
       SELECT 1 FROM indicator_version
-      WHERE status IN ${tx(schema.UNPUBLISHED_VERSION_STATUSES)}
+      WHERE status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)})
         OR created_by IS DISTINCT FROM ${MIGRATION_USER_ID}
         OR updated_by IS DISTINCT FROM ${MIGRATION_USER_ID}
     ) AS present
@@ -57,7 +54,7 @@ export async function assertMigrationPublisherRowsUnchanged(
   const conflicts = await tx.unsafe<{ shortId: number }[]>(`
     WITH protected_indicators AS (
       SELECT DISTINCT v.indicator_id FROM indicator_version v
-      WHERE v.status IN (${UNPUBLISHED_STATUSES}) OR (
+      WHERE v.status IN (${UNPUBLISHED_STATUS_LITERALS}) OR (
         v.id IN (SELECT id FROM current_published_version)
         AND (v.created_by IS DISTINCT FROM '${MIGRATION_USER_ID}'
           OR v.updated_by IS DISTINCT FROM '${MIGRATION_USER_ID}')
