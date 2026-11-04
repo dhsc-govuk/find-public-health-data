@@ -10,6 +10,7 @@ const {
   indicatorVersionReviewNote,
   indicatorVersionSubmission,
   indicatorVersionSubmissionReviewer,
+  isUnpublished,
 } = schema;
 
 type Reader = Database | Transaction;
@@ -45,7 +46,7 @@ const noteColumns = {
 
 const ofDraft = and(
   eq(indicatorVersion.id, indicatorVersionSubmission.indicatorVersionId),
-  eq(indicatorVersion.status, 'draft'),
+  isUnpublished(indicatorVersion.status),
 );
 
 /** The id of the indicator's draft's latest submission, as a scalar subquery. */

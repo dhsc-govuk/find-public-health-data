@@ -40,6 +40,7 @@ const {
   indicatorVersion,
   indicatorVersionSubmission,
   indicatorVersionSubmissionReviewer,
+  isUnpublished,
 } = schema;
 
 type Submission = typeof indicatorVersionSubmission.$inferSelect;
@@ -171,7 +172,7 @@ export async function takeIndicatorStep<Reason extends string = never>(
       .select()
       .from(indicatorVersion)
       .where(
-        and(eq(indicatorVersion.indicatorId, indicatorId), eq(indicatorVersion.status, 'draft')),
+        and(eq(indicatorVersion.indicatorId, indicatorId), isUnpublished(indicatorVersion.status)),
       )
       .for('no key update');
 

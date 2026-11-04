@@ -23,6 +23,7 @@ const INDICATOR_STATUS: Record<IndicatorStatus, TagFace> = {
 
 const DRAFT_STATUS: Record<DraftStatus, TagFace> = {
   draft: { label: 'Incomplete', colour: 'blue' },
+  scheduled: { label: 'Publishing scheduled', colour: 'yellow' },
 };
 
 // A withdrawn submission leaves the draft as it was before it was submitted, and one sent back for
