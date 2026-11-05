@@ -1,10 +1,12 @@
 import { GridColumn, GridRow } from '@fphd/ui';
 import { SearchFilterPane } from './filter-pane.tsx';
-import type { loadSearch } from './loader.ts';
+import { SearchGeographies } from './geographies.tsx';
+import { SearchKeywords } from './keyword-search.tsx';
+import type { loadSearchPage } from './loader.ts';
 import { SearchResults } from './results.tsx';
 import type { SearchState } from './url.ts';
 
-type SearchData = Awaited<ReturnType<typeof loadSearch>>;
+type SearchData = Awaited<ReturnType<typeof loadSearchPage>>;
 
 function stateFrom(data: SearchData): SearchState {
   return {
@@ -20,6 +22,9 @@ function stateFrom(data: SearchData): SearchState {
     yearTypes: data.yearTypes,
     geoLevels: data.geoLevels,
     gaCodes: data.gaCodes,
+    fromYear: data.fromYear,
+    toYear: data.toYear,
+    updatedWithin: data.updatedWithin,
   };
 }
 
@@ -31,16 +36,15 @@ export function SearchPage(data: SearchData) {
       <div className="fphd-results-header">
         <h1 className="govuk-heading-xl govuk-!-margin-bottom-0">Search for data</h1>
       </div>
+      <GridRow className="govuk-!-margin-top-6 govuk-!-margin-bottom-4">
+        <GridColumn width="two-thirds">
+          <SearchKeywords state={state} extraParams={{}} />
+        </GridColumn>
+      </GridRow>
       <GridRow>
         <GridColumn width="one-third">
-          <SearchFilterPane
-            displayGroups={data.displayGroups}
-            facets={data.facets}
-            gaAreaNames={data.gaAreaNames}
-            geographyOptions={data.geographyOptions}
-            areasLimited={data.areasLimited}
-            state={state}
-          />
+          <SearchGeographies search={data} replace />
+          <SearchFilterPane includeDataPeriod facets={data.facets} state={state} />
         </GridColumn>
         <GridColumn width="two-thirds">
           <SearchResults

@@ -22,10 +22,7 @@ export const PERIOD_PARAMS = ['fromYear', 'toYear', 'updatedWithin'] as const;
 export interface DimensionConfig {
   param: string;
   stateKey: keyof SearchState;
-  selectedLabel: string;
-  autocompleteLabel: string;
-  addButtonLabel: string;
-  noResultsMessage: string;
+  label: string;
   classificationDimension?: string;
   isTopicDimension?: boolean;
   valueIsLabel?: boolean;
@@ -35,90 +32,62 @@ export const DIMENSIONS: DimensionConfig[] = [
   {
     param: 't',
     stateKey: 'topics',
-    selectedLabel: 'Selected topics',
-    autocompleteLabel: 'Search for a topic',
-    addButtonLabel: 'Add topic',
-    noResultsMessage: 'No topics found',
+    label: 'Topics',
     isTopicDimension: true,
   },
   {
     param: 'it',
     stateKey: 'indicatorTypes',
-    selectedLabel: 'Selected measure types',
-    autocompleteLabel: 'Search for a measure type',
-    addButtonLabel: 'Add measure type',
-    noResultsMessage: 'No measure types found',
+    label: 'Measure types',
     classificationDimension: 'indicator_type',
   },
   {
     param: 'ls',
     stateKey: 'lifeStages',
-    selectedLabel: 'Selected life stages',
-    autocompleteLabel: 'Search for a life stage',
-    addButtonLabel: 'Add life stage',
-    noResultsMessage: 'No life stages found',
+    label: 'Life stages',
     classificationDimension: 'life_stage',
   },
   {
     param: 'fw',
     stateKey: 'frameworks',
-    selectedLabel: 'Selected frameworks',
-    autocompleteLabel: 'Search for a framework',
-    addButtonLabel: 'Add framework',
-    noResultsMessage: 'No frameworks found',
+    label: 'Frameworks',
     classificationDimension: 'framework',
   },
   {
     param: 'pg',
     stateKey: 'populations',
-    selectedLabel: 'Selected population groups',
-    autocompleteLabel: 'Search for a population group',
-    addButtonLabel: 'Add population group',
-    noResultsMessage: 'No population groups found',
+    label: 'Population groups',
     classificationDimension: 'population',
   },
   {
     param: 'eq',
     stateKey: 'inequalities',
-    selectedLabel: 'Selected inequality categories',
-    autocompleteLabel: 'Search for an inequality category',
-    addButtonLabel: 'Add inequality category',
-    noResultsMessage: 'No inequality categories found',
+    label: 'Inequality categories',
     classificationDimension: 'inequality',
   },
   {
     param: 'src',
     stateKey: 'sources',
-    selectedLabel: 'Selected data sources',
-    autocompleteLabel: 'Search for a data source',
-    addButtonLabel: 'Add data source',
-    noResultsMessage: 'No data sources found',
+    label: 'Data sources',
     valueIsLabel: true,
   },
   {
     param: 'vt',
     stateKey: 'valueTypes',
-    selectedLabel: 'Selected value types',
-    autocompleteLabel: 'Search for a value type',
-    addButtonLabel: 'Add value type',
-    noResultsMessage: 'No value types found',
+    label: 'Value types',
     valueIsLabel: true,
   },
   {
     param: 'per',
     stateKey: 'yearTypes',
-    selectedLabel: 'Selected reporting periods',
-    autocompleteLabel: 'Search for a reporting period',
-    addButtonLabel: 'Add reporting period',
-    noResultsMessage: 'No reporting periods found',
+    label: 'Reporting periods',
     valueIsLabel: true,
   },
 ];
 
 /**
- * Every list-valued param, in URL order: the nine filter dimensions plus the two geography
- * ones, which have no autocomplete of their own and so are absent from DIMENSIONS. Deriving
- * both the URL and the hidden form fields from this keeps a new dimension to a single edit.
+ * The nine filter dimensions and the two geography fields, in URL order. Sharing the list
+ * keeps generated URLs and hidden form fields in sync.
  */
 export const LIST_PARAMS: { param: string; stateKey: keyof SearchState }[] = [
   ...DIMENSIONS.map(({ param, stateKey }) => ({ param, stateKey })),
@@ -156,8 +125,3 @@ export const EMPTY_SEARCH_STATE: SearchState = {
   geoLevels: [],
   gaCodes: [],
 };
-
-export function removeFrom(state: SearchState, key: keyof SearchState, value: string): SearchState {
-  const list = state[key] as string[];
-  return { ...state, [key]: list.filter((v) => v !== value) };
-}

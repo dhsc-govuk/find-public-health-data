@@ -26,14 +26,19 @@ describe('CollapsibleFilterCard', () => {
       </CollapsibleFilterCard>,
     );
 
-    const toggle = screen.getByRole('button', { name: 'Topics and types Expand' });
+    const toggle = screen.getByRole('button', { name: 'Topics and types' });
     const body = screen.getByText('Filters');
 
     expect(body.hidden).toBe(true);
 
     fireEvent.click(toggle);
 
-    expect(screen.getByText('Collapse')).toBeTruthy();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(body.hidden).toBe(false);
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(body.hidden).toBe(true);
   });
 });

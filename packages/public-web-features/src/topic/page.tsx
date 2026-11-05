@@ -76,14 +76,7 @@ export function TopicPage(data: TopicData) {
                       }}
                       includeTopics={false}
                       includeDataPeriod
-                      includeGeography={false}
-                      includeSearch={false}
-                      variant="accordion"
                       facets={content.search.facets}
-                      displayGroups={content.search.displayGroups}
-                      gaAreaNames={content.search.gaAreaNames}
-                      geographyOptions={content.search.geographyOptions}
-                      areasLimited={content.search.areasLimited}
                       state={content.search}
                       subtopicFilter={
                         <TopicSubtopicFilter
@@ -129,13 +122,8 @@ export function TopicPage(data: TopicData) {
                         sort: areas.listing.sort,
                       }}
                       includeTopics={false}
-                      includeGeography={false}
-                      includeSearch={false}
-                      variant="accordion"
                       compact
                       facets={areas.search.facets}
-                      displayGroups={areas.search.displayGroups}
-                      gaAreaNames={areas.search.gaAreaNames}
                       state={areas.search}
                       subtopicFilter={
                         <TopicSubtopicFilter

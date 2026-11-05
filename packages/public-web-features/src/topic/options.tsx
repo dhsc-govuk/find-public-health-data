@@ -58,12 +58,7 @@ export function TopicTableColumns() {
   return (
     <>
       <h2 className="govuk-heading-m">Display options</h2>
-      <CollapsibleFilterCard
-        active={false}
-        variant="accordion"
-        headingLevel={3}
-        title="Table columns"
-      >
+      <CollapsibleFilterCard active={false} headingLevel={3} title="Table columns">
         <Form method="get" action={location.pathname} preventScrollReset>
           {[...params]
             .filter(([key]) => key !== 'columns-topic')

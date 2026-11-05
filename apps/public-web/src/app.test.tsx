@@ -464,7 +464,7 @@ describe('public application routes', () => {
     render(<Routes initialEntries={['/search']} />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Search for data' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Filters' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Indicator filters' })).toBeTruthy();
   });
 
   it('renders empty state inset text when there are no results', async () => {
@@ -570,9 +570,9 @@ describe('public application routes', () => {
     await screen.findByRole('heading', { level: 1, name: 'Search for data' });
     // Bodies are always in the DOM so no-JS users can reach every filter.
     // Closed cards carry the hidden attribute; open cards do not.
-    const noneSelected = document.querySelector('.fphd-collapsible-body');
-    expect(noneSelected).toBeTruthy();
-    expect(noneSelected?.textContent).toContain('None selected');
+    const body = document.querySelector('.fphd-topic-indicator-filters .fphd-filter-card__footer');
+    expect(body).toBeTruthy();
+    expect(body?.querySelector('input[type=checkbox]')).toBeTruthy();
   });
 
   it('opens a card automatically when it has an active filter (body not hidden)', async () => {
@@ -595,9 +595,9 @@ describe('public application routes', () => {
     render(<Routes initialEntries={['/search?t=mortality']} />);
 
     await screen.findByRole('heading', { level: 1, name: 'Search for data' });
-    const selectedTopicsEl = screen.getByText('Selected topics');
-    // The card body must not have the hidden attribute when a filter is active.
-    expect(selectedTopicsEl.closest('.fphd-collapsible-body')?.hasAttribute('hidden')).toBe(false);
+    const selectedTopic = screen.getByRole('checkbox', { name: 'Mortality' });
+    expect((selectedTopic as HTMLInputElement).checked).toBe(true);
+    expect(selectedTopic.closest('.fphd-collapsible-body')?.hasAttribute('hidden')).toBe(false);
   });
 
   it('shows cap message when total exceeds 200', async () => {

@@ -47,7 +47,7 @@ export function AreaControls({
   return (
     <>
       <h2 className="govuk-heading-m">Geographies</h2>
-      <CollapsibleFilterCard active variant="accordion" headingLevel={3} title="Geographies">
+      <CollapsibleFilterCard active headingLevel={3} title="Geographies">
         <Form method="get" action={location.pathname}>
           {hidden(['areaType', 'highlight', 'geo-q'])}
           <Select
@@ -92,12 +92,7 @@ export function AreaControls({
       {displayOptions ? (
         <>
           <h2 className="govuk-heading-m">Display options</h2>
-          <CollapsibleFilterCard
-            active
-            variant="accordion"
-            headingLevel={3}
-            title="Table and map options"
-          >
+          <CollapsibleFilterCard active headingLevel={3} title="Table and map options">
             <Form method="get" action={location.pathname}>
               {hidden(['areaSort', 'areaColour'])}
               <Select

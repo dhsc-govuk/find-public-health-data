@@ -46,7 +46,7 @@ export {
   firstRadioId,
 } from './error-summary.tsx';
 export { initNewErrorSummaries } from './error-summary-init.ts';
-export { CollapsibleFilterCard, FilterCard, FilterChip, FilterChips } from './filter-card.tsx';
+export { CollapsibleFilterCard, FilterChip, FilterChips } from './filter-card.tsx';
 export { type DateFormat, DISPLAY_TIME_ZONE, formatDate } from './format-date.ts';
 export { type GeographyArea, GeographyTree } from './geography-tree.tsx';
 export { GridColumn, GridRow, SectionBreak } from './layout.tsx';

@@ -26,6 +26,10 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { DIMENSIONS, PERIOD_PARAMS } from './url.ts';
 
+export async function loadSearchPage(args: LoaderFunctionArgs) {
+  return loadSearch(args, { publicGeographies: true });
+}
+
 export type {
   IndicatorFacets,
   IndicatorSearchResult,
@@ -83,7 +87,14 @@ export async function loadSearch(
     path = '/search',
     geographyGroup,
     complete = false,
-  }: { topicSlug?: string; path?: string; geographyGroup?: string; complete?: boolean } = {},
+    publicGeographies = false,
+  }: {
+    topicSlug?: string;
+    path?: string;
+    geographyGroup?: string;
+    complete?: boolean;
+    publicGeographies?: boolean;
+  } = {},
 ) {
   const url = new URL(request.url);
   const params = new URLSearchParams(url.searchParams);
@@ -114,7 +125,7 @@ export async function loadSearch(
         )
       : Promise.resolve<AreaLookup[]>([]),
   ]);
-  const publicOnly = Boolean(topicSlug && !geographyGroup);
+  const publicOnly = publicGeographies || Boolean(topicSlug && !geographyGroup);
   const displayGroups = publicOnly ? publicGeographyLevels(catalogueGroups) : catalogueGroups;
   if (publicOnly) {
     const levels = normalizePublicLevels(params.getAll('geo'));
