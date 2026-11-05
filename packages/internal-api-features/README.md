@@ -17,6 +17,9 @@ Built package; consumed by `internal-api`, and by `@fphd/internal-web-features` 
 Queries live in this package's repository files rather than `@fphd/db`, which is the public read
 surface.
 
+The workflow's state machine, its step engine and scheduled publication are in
+`@fphd/internal-workflow`; the step functions the routes call, and who may take each step, are here.
+
 Each user sees the indicators their roles allow: the dashboard list is filtered in its query by
 `indicatorListScope`, or by `ownTeamsListScope` under `teams=own`. A reviewer's list of indicators to
 review is filtered by their reviewer rows instead. The overview read answers 404 when

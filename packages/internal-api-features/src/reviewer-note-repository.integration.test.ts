@@ -2,17 +2,14 @@ import { FAKE_USER_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
 import type { EditPrecondition } from './edit-version.ts';
 import { AS_ACTOR, newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
-import {
-  assignReviewers,
-  submitIndicator,
-  takeIndicatorStep,
-} from './indicator-workflow-repository.ts';
+import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import {
   addReviewerNote,
   listReviewerNotes,

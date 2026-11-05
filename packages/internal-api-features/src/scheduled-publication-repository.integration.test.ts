@@ -1,6 +1,7 @@
 import { schema } from '@fphd/db';
 import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
 import { rebuildReadModelTables } from '@fphd/internal-read-models';
+import { publishDueVersions, publishNextDueVersion } from '@fphd/internal-workflow';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
@@ -16,7 +17,6 @@ import {
   readModelRowsOf,
   versionOf,
 } from './scheduled-publication.testing.ts';
-import { publishDueVersions, publishNextDueVersion } from './scheduled-publication-repository.ts';
 
 const { SYSTEM_USER_IDS } = schema;
 

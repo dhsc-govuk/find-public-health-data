@@ -2,6 +2,7 @@ import { PassThrough, Readable } from 'node:stream';
 
 import { FAKE_USER_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
+import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { eq } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
@@ -24,7 +25,6 @@ import {
   assignReviewers,
   replaceReviewers,
   submitIndicator,
-  takeIndicatorStep,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
 import {

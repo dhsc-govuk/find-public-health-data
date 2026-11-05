@@ -22,7 +22,6 @@ import { internalValueTypesAndUnitsRouter } from './value-types-and-units.ts';
 
 export { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
 export { createInternalRepositories, type InternalRepositories } from './repositories.ts';
-export { type PublicationSweep, publishDueVersions } from './scheduled-publication-repository.ts';
 
 export interface InternalApiDependencies {
   repositories: InternalRepositories;
