@@ -50,6 +50,7 @@ export async function validateMigrationHeader(
         name === 'id' ||
         (table === 'indicator' && name === 'short_id') ||
         (table === 'area' && name === 'is_current') ||
+        (table === 'indicator_version' && name === 'is_locked') ||
         (notNull && !hasDefault),
     )
     .map(({ name }) => name)

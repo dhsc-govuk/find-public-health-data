@@ -83,8 +83,8 @@ async function stepEntriesFor(db: Database, indicatorId: string) {
 }
 
 /**
- * Versions whose lock disagrees with their latest submission: a version is locked exactly when
- * it is unpublished and its latest submission is one under review or approved.
+ * Versions whose lock disagrees with their status and latest submission: a version is locked
+ * exactly when it is published or its latest submission is one under review or approved.
  */
 async function lockMismatches(db: Database): Promise<string[]> {
   const rows = (await db.execute(sql`
@@ -94,7 +94,7 @@ async function lockMismatches(db: Database): Promise<string[]> {
       WHERE s.indicator_version_id = v.id ORDER BY s.number DESC LIMIT 1
     ) latest ON true
     WHERE v.is_locked IS DISTINCT FROM
-      (v.status <> 'published' AND coalesce(latest.status IN ('submitted', 'in_review', 'approved'), false))
+      (v.status = 'published' OR coalesce(latest.status IN ('submitted', 'in_review', 'approved'), false))
   `)) as unknown as { id: string }[];
   return rows.map(({ id }) => id);
 }
