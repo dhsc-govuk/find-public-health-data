@@ -71,6 +71,7 @@ async function snapshot(
         id: 108,
         indicator_id: 108,
         status: 'published',
+        is_locked: true,
         published_at: enteredAt,
         name: 'Round trip indicator',
         upload_batch_id: 108,
@@ -122,6 +123,7 @@ async function snapshot(
     id: 109,
     indicator_id: 109,
     status: 'published',
+    is_locked: true,
     published_at: enteredAt,
     name: 'Retained indicator',
     upload_batch_id: null,
@@ -197,15 +199,18 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
   expect(
     await sql`SELECT valid_from, valid_to, is_current FROM published.area WHERE code = 'E92000001'`,
   ).toEqual([{ valid_from: null, valid_to: null, is_current: true }]);
-  const [version] = await sql<{ batch: string; confirmed: boolean; owner: string }[]>`
+  const [version] = await sql<
+    { batch: string; confirmed: boolean; owner: string; locked: boolean }[]
+  >`
     SELECT v.upload_batch_id AS batch, v.data_table_confirmed_at IS NOT NULL AS confirmed,
-      b.indicator_version_id AS owner
+      b.indicator_version_id AS owner, v.is_locked AS locked
     FROM indicator_version v JOIN upload_batch b ON b.id = v.upload_batch_id
   `;
   expect(version).toEqual({
     batch: deterministicUuid('upload_batch', '108'),
     confirmed: true,
     owner: deterministicUuid('indicator_version', '108'),
+    locked: true,
   });
   const [female] = await sql<{ id: string }[]>`
     SELECT value.id FROM dimension_value value JOIN dimension_type type ON type.id = value.dimension_type_id
