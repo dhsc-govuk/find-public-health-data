@@ -315,6 +315,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       id,
       indicator_id: id,
       status: 'published',
+      is_locked: true,
       published_at: enteredAt,
       scheduled_publish_at: null,
       upload_batch_id: uploadBatchId(id),
