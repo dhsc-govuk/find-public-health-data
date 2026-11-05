@@ -111,6 +111,19 @@ export function canSeeNotesForReviewers(user: SessionUser, indicator: IndicatorA
   );
 }
 
+/**
+ * Whether the user may read the indicator's history. It admits the users `canSeeIndicator` does,
+ * and is kept apart from it so a wider overview access decides the history on its own.
+ */
+export function canSeeIndicatorHistory(user: SessionUser, indicator: IndicatorAccess): boolean {
+  return (
+    holds(user, 'admin') ||
+    holds(user, 'imrg-manager') ||
+    canEditIndicator(user, indicator) ||
+    canReviewIndicator(user, indicator)
+  );
+}
+
 export function canSeeIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
     holds(user, 'admin') ||

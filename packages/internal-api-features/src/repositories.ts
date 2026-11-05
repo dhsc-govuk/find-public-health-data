@@ -46,6 +46,7 @@ import {
   type UpdateIndicatorDraftResult,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
+import { findIndicatorHistory, type IndicatorHistoryRow } from './indicator-history-repository.ts';
 import {
   findIndicatorAccess,
   findIndicatorTeamId,
@@ -139,6 +140,8 @@ export interface InternalIndicatorRepository {
   findDraftState(id: string): Promise<IndicatorDraftStateRow | undefined>;
   /** The notes for reviewers, from the draft or else the published version, with their access. */
   findNotesForReviewers(id: string): Promise<IndicatorNotesForReviewersRow | undefined>;
+  /** What the indicator's history is made from, with its access, or undefined with none. */
+  findHistory(id: string): Promise<IndicatorHistoryRow | undefined>;
   createDraft(
     attributes: NewIndicatorDraftAttributes,
     actor: Actor,
@@ -301,6 +304,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findTeamId: (id) => findIndicatorTeamId(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
+      findHistory: (id) => findIndicatorHistory(db, id),
       createDraft: (attributes, actor, teamId) =>
         createIndicatorDraft(db, attributes, actor, teamId),
       updateDraft: (indicatorId, task, attributes, lists, actor, precondition) =>

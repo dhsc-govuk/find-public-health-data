@@ -57,6 +57,7 @@ describe('public API', () => {
     ['get', '/api/internal/topics'],
     ['get', `/api/internal/indicators/${anyId}/reviewer-options`],
     ['get', `/api/internal/indicators/${anyId}/notes-for-reviewers`],
+    ['get', `/api/internal/indicators/${anyId}/history`],
     ['post', `/api/internal/indicators/${anyId}/assign-reviewers`],
     ['post', `/api/internal/indicators/${anyId}/review-response`],
     ['get', `/api/internal/indicators/${anyId}/reviewer-notes`],

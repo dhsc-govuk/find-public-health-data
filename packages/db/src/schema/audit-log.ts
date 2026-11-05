@@ -16,7 +16,12 @@ export const CORE_DATA_TABLES = [
   'comparator_method',
 ] as const;
 
-/** Every change the log records, named `<entity type>.<what happened>`. */
+/**
+ * Every change the log records, named `<entity type>.<what happened>`. An indicator's history
+ * reads three shapes, which must stay as they are: the `reviewerIds.after` of
+ * `indicator.reviewers_assigned`, the field names of `indicator.draft_updated`, and the
+ * `dataTableConfirmedAt.before` of `indicator.data_table_confirmed`.
+ */
 export const AUDIT_ACTIONS = [
   'topic.created',
   'topic.updated',
