@@ -30,13 +30,23 @@ export function createApiApp({
   logger,
   serviceName,
   bodyLimits = [],
+  cacheControl,
 }: {
   logger: Logger;
   serviceName: string;
   /** The routes that raise their own body limit; every other route keeps the default. */
   bodyLimits?: readonly BodyLimit[];
+  /** The `Cache-Control` header on every response but the probes; none is sent without it. */
+  cacheControl?: string;
 }): Express {
   const app = createBaseApp({ serviceName });
+
+  if (cacheControl !== undefined) {
+    app.use((_request, response, next) => {
+      response.setHeader('Cache-Control', cacheControl);
+      next();
+    });
+  }
 
   // Ahead of every route, so a miss is logged as well as a hit. The probes sit on the base app
   // above and never reach it. The id a web app forwarded is kept, so both logs share it.
