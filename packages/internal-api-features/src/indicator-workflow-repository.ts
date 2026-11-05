@@ -58,14 +58,18 @@ export type IndicatorStepPrecondition<Reason extends string> = (
   state: { draft: IndicatorDraftVersion; latest: Submission | undefined },
 ) => Promise<Reason | undefined>;
 
+/** The version's workflow columns as the step left them. */
+export type SteppedVersion = Pick<IndicatorDraftVersion, 'status' | 'isLocked' | 'publishedAt'>;
+
 /**
  * A step's write of its own rows beside the submission's, answering their changes for the audit.
- * `draft` is the version as the lock read it, before the step.
+ * `draft` is the version as the lock read it, before the step, and `version` as the step left it.
  */
 export type IndicatorStepWrite = (
   tx: Transaction,
   submission: Submission,
   draft: IndicatorDraftVersion,
+  version: SteppedVersion,
 ) => Promise<AuditChanges>;
 
 /** The step to take, chosen by where the draft and its latest submission stand under the lock. */
@@ -83,6 +87,7 @@ const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   resubmit: 'indicator.resubmitted',
   schedule: 'indicator.publication_scheduled',
   change_publication_date: 'indicator.publication_date_changed',
+  publish: 'indicator.published',
 };
 
 interface SubmissionWrite {
@@ -164,7 +169,14 @@ const SUBMISSION_WRITES: Readonly<
   resubmit: insertNextSubmission,
   schedule: keepLatestSubmission,
   change_publication_date: keepLatestSubmission,
+  publish: keepLatestSubmission,
 };
+
+/** A step's own check before it is taken, and its own rows written with it. */
+export interface IndicatorStepOptions<Reason extends string> {
+  precondition?: IndicatorStepPrecondition<Reason>;
+  write?: IndicatorStepWrite;
+}
 
 /**
  * Takes a workflow step on the indicator's draft in one transaction: the version's lock, its
@@ -172,88 +184,107 @@ const SUBMISSION_WRITES: Readonly<
  * not at all. A step that changes nothing records nothing. A step is not an edit, so the version's
  * `updated_at` and `updated_by` stay as the last edit left them.
  */
-export async function takeIndicatorStep<Reason extends string = never>(
+export function takeIndicatorStep<Reason extends string = never>(
   db: Database,
   indicatorId: string,
   choice: IndicatorStepChoice,
   actor: Actor,
-  {
-    precondition,
-    write,
-  }: { precondition?: IndicatorStepPrecondition<Reason>; write?: IndicatorStepWrite } = {},
+  options: IndicatorStepOptions<Reason> = {},
 ): Promise<IndicatorStepResult<Reason>> {
-  return db.transaction(async (tx): Promise<IndicatorStepResult<Reason>> => {
-    // No key update, so an upload's foreign key share on the version does not hold the step up.
-    // A refused load's FOR SHARE does until it commits, but it never writes the row: no deadlock.
-    const [draft] = await tx
-      .select()
-      .from(indicatorVersion)
-      .where(
-        and(eq(indicatorVersion.indicatorId, indicatorId), isUnpublished(indicatorVersion.status)),
-      )
-      .for('no key update');
+  return db.transaction((tx) => takeIndicatorStepIn(tx, indicatorId, choice, actor, options));
+}
 
-    if (draft === undefined) return { ok: false, reason: 'no_draft' };
+/**
+ * Takes a workflow step as `takeIndicatorStep` does, inside the caller's transaction, for a caller
+ * that chose the indicator under a lock of its own. A refusal writes nothing.
+ */
+export async function takeIndicatorStepIn<Reason extends string = never>(
+  tx: Transaction,
+  indicatorId: string,
+  choice: IndicatorStepChoice,
+  actor: Actor,
+  { precondition, write }: IndicatorStepOptions<Reason> = {},
+): Promise<IndicatorStepResult<Reason>> {
+  // No key update, so an upload's foreign key share on the version does not hold the step up.
+  // A refused load's FOR SHARE does until it commits, but it never writes the row: no deadlock.
+  const [draft] = await tx
+    .select()
+    .from(indicatorVersion)
+    .where(
+      and(eq(indicatorVersion.indicatorId, indicatorId), isUnpublished(indicatorVersion.status)),
+    )
+    .for('no key update');
 
-    const [latest] = await tx
-      .select()
-      .from(indicatorVersionSubmission)
-      .where(eq(indicatorVersionSubmission.indicatorVersionId, draft.id))
-      .orderBy(desc(indicatorVersionSubmission.number))
-      .limit(1);
-    const step = typeof choice === 'function' ? choice(latest, draft) : choice;
-    const context: IndicatorWorkflowContext = {
-      indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
-      versionStatus: draft.status,
-      isLocked: draft.isLocked,
-      latestSubmissionStatus: latest?.status ?? null,
-    };
+  if (draft === undefined) return { ok: false, reason: 'no_draft' };
 
-    if (!allowedSteps(context).includes(step)) return { ok: false, reason: 'not_allowed' };
+  const [latest] = await tx
+    .select()
+    .from(indicatorVersionSubmission)
+    .where(eq(indicatorVersionSubmission.indicatorVersionId, draft.id))
+    .orderBy(desc(indicatorVersionSubmission.number))
+    .limit(1);
+  const step = typeof choice === 'function' ? choice(latest, draft) : choice;
+  const context: IndicatorWorkflowContext = {
+    indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
+    versionStatus: draft.status,
+    isLocked: draft.isLocked,
+    latestSubmissionStatus: latest?.status ?? null,
+  };
 
-    const carried: CarriedReviewer[] =
-      carriesReviewers(step) && latest !== undefined
-        ? await carriedReviewersOf(tx, indicatorId, latest.id, actor.userId)
-        : [];
-    const next = nextState(context, step, { carriedReviewerCount: carried.length });
+  if (!allowedSteps(context).includes(step)) return { ok: false, reason: 'not_allowed' };
 
-    if (!next.ok) return next;
+  const carried: CarriedReviewer[] =
+    carriesReviewers(step) && latest !== undefined
+      ? await carriedReviewersOf(tx, indicatorId, latest.id, actor.userId)
+      : [];
+  const next = nextState(context, step, { carriedReviewerCount: carried.length });
 
-    const refusal = await precondition?.(tx, { draft, latest });
-    if (refusal !== undefined) return { ok: false, reason: refusal };
+  if (!next.ok) return next;
 
-    const [version] = await tx
-      .update(indicatorVersion)
-      .set({ status: next.state.versionStatus, isLocked: next.state.isLocked })
-      .where(eq(indicatorVersion.id, draft.id))
-      .returning({ status: indicatorVersion.status, isLocked: indicatorVersion.isLocked });
-    if (version === undefined)
-      throw new Error(`${step} locked draft ${draft.id} but updated no row`);
+  const refusal = await precondition?.(tx, { draft, latest });
+  if (refusal !== undefined) return { ok: false, reason: refusal };
 
-    const submission = await SUBMISSION_WRITES[step]({
-      tx,
-      draft,
-      latest,
-      status: next.state.submissionStatus,
-      actor,
+  // The publication time is set with the status: `indicator_version_published_at_check` holds at
+  // the end of each statement.
+  const [version] = await tx
+    .update(indicatorVersion)
+    .set({
+      status: next.state.versionStatus,
+      isLocked: next.state.isLocked,
+      ...(next.state.versionStatus === 'published' && { publishedAt: sql`clock_timestamp()` }),
+    })
+    .where(eq(indicatorVersion.id, draft.id))
+    .returning({
+      status: indicatorVersion.status,
+      isLocked: indicatorVersion.isLocked,
+      publishedAt: indicatorVersion.publishedAt,
     });
-    const reviewersCarried = await carryReviewers(tx, submission.after.id, carried);
-    const written = (await write?.(tx, submission.after, draft)) ?? {};
-    const changes = {
-      ...changesBetween({ status: draft.status, isLocked: draft.isLocked }, version),
-      ...(isDeepStrictEqual(submission.before, submission.after) ? {} : { submission }),
-      ...reviewersCarried,
-      ...written,
-    };
+  if (version === undefined) throw new Error(`${step} locked draft ${draft.id} but updated no row`);
 
-    if (Object.keys(changes).length > 0) {
-      await recordAudit(tx, actor, [
-        { action: STEP_ACTIONS[step], entityId: indicatorId, changes },
-      ]);
-    }
-
-    return { ok: true };
+  const submission = await SUBMISSION_WRITES[step]({
+    tx,
+    draft,
+    latest,
+    status: next.state.submissionStatus,
+    actor,
   });
+  const reviewersCarried = await carryReviewers(tx, submission.after.id, carried);
+  const written = (await write?.(tx, submission.after, draft, version)) ?? {};
+  const changes = {
+    ...changesBetween(
+      { status: draft.status, isLocked: draft.isLocked, publishedAt: draft.publishedAt },
+      version,
+    ),
+    ...(isDeepStrictEqual(submission.before, submission.after) ? {} : { submission }),
+    ...reviewersCarried,
+    ...written,
+  };
+
+  if (Object.keys(changes).length > 0) {
+    await recordAudit(tx, actor, [{ action: STEP_ACTIONS[step], entityId: indicatorId, changes }]);
+  }
+
+  return { ok: true };
 }
 
 async function ciMethodKindOf(tx: Transaction, id: string | null): Promise<CiMethodKind | null> {
