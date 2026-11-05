@@ -71,13 +71,13 @@ function createTestApp(
 async function get(app: ReturnType<typeof createTestApp>, path = DATA_TABLE) {
   return request(app)
     .get(path)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+    .set('Cookie', await testSessionCookie(['publisher']));
 }
 
 async function put(app: ReturnType<typeof createTestApp>, body: object) {
   return request(app)
     .put(CONFIRMATION)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+    .set('Cookie', await testSessionCookie(['publisher']))
     .send(body);
 }
 
@@ -155,7 +155,7 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
   it('refuses a session without the publisher role', async () => {
     const response = await request(createTestApp())
       .get(DATA_TABLE)
-      .set('Cookie', await testSessionCookie(['internal']));
+      .set('Cookie', await testSessionCookie(['public']));
 
     expect(response.status).toBe(403);
   });

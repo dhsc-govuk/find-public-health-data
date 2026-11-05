@@ -31,7 +31,7 @@ function createTestApp(
   return { app, findTeamId };
 }
 
-const publisher = () => testSessionCookie(['internal', 'publisher']);
+const publisher = () => testSessionCookie(['publisher']);
 
 describe('requireIndicatorEditor', () => {
   it("lets a publisher through to their own team's indicator", async () => {
@@ -114,7 +114,7 @@ describe('requireIndicatorEditor', () => {
 
     const response = await request(app)
       .put(`/indicators/${ID}`)
-      .set('Cookie', await testSessionCookie(['internal', 'admin']));
+      .set('Cookie', await testSessionCookie(['admin']));
 
     expect(response.status).toBe(403);
     expect(findTeamId).not.toHaveBeenCalled();

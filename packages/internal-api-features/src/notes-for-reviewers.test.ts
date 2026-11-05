@@ -56,8 +56,8 @@ function createTestApp(
   );
 }
 
-const asManager = () => testSessionCookie(['internal', 'imrg-manager'], []);
-const asReviewer = () => testSessionCookie(['internal', 'imrg-reviewer'], []);
+const asManager = () => testSessionCookie(['imrg-manager'], []);
+const asReviewer = () => testSessionCookie(['imrg-reviewer'], []);
 
 describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
   it('serves an IMRG manager the answers as the section endpoints give them', async () => {
@@ -100,8 +100,8 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
   });
 
   it.each([
-    ['an admin', ['internal', 'admin'], []],
-    ['a publisher in its team', ['internal', 'publisher'], [TEST_TEAM_ID]],
+    ['an admin', ['admin'], []],
+    ['a publisher in its team', ['publisher'], [TEST_TEAM_ID]],
   ])('serves %s', async (_, roles, teams) => {
     const response = await request(createTestApp())
       .get(path)
@@ -117,8 +117,8 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
   });
 
   it.each([
-    ['a publisher in another team', ['internal', 'publisher'], [TEAM_IDS.teamB]],
-    ['a reviewer not assigned to it', ['internal', 'imrg-reviewer'], []],
+    ['a publisher in another team', ['publisher'], [TEAM_IDS.teamB]],
+    ['a reviewer not assigned to it', ['imrg-reviewer'], []],
   ])('answers %s as if it did not exist', async (_, roles, teams) => {
     const response = await request(createTestApp())
       .get(path)

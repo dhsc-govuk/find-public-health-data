@@ -67,7 +67,7 @@ const assignedToTestUser: IndicatorAdminDetailRow = {
 
 /** An IMRG reviewer who also publishes for a team other than the indicator's. */
 function reviewerCookie() {
-  return testSessionCookie(['internal', 'publisher', 'imrg-reviewer'], [TEAM_ID]);
+  return testSessionCookie(['publisher', 'imrg-reviewer'], [TEAM_ID]);
 }
 
 // Inside `createApiApp`, whose request logging gives the handlers their `request.log`.
@@ -85,7 +85,7 @@ function createTestApp(
   );
 }
 
-function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
+function publisherCookie(roles: readonly string[] = ['publisher']) {
   return testSessionCookie(roles, [TEAM_ID]);
 }
 
@@ -100,7 +100,7 @@ describe('GET /api/internal/indicators', () => {
   it('rejects a signed-in user who holds none of the four internal roles', async () => {
     const response = await request(createTestApp())
       .get('/api/internal/indicators')
-      .set('Cookie', await publisherCookie(['internal']));
+      .set('Cookie', await publisherCookie(['public']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -156,9 +156,9 @@ describe('GET /api/internal/indicators', () => {
   });
 
   it.each([
-    ['an admin', ['internal', 'admin'], { all: true }],
-    ['an IMRG manager', ['internal', 'imrg-manager'], { all: true }],
-    ['an IMRG reviewer', ['internal', 'imrg-reviewer'], { all: false, teamIds: [] }],
+    ['an admin', ['admin'], { all: true }],
+    ['an IMRG manager', ['imrg-manager'], { all: true }],
+    ['an IMRG reviewer', ['imrg-reviewer'], { all: false, teamIds: [] }],
   ])('lists for %s the indicators their roles let them see', async (_who, roles, scope) => {
     const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
 
@@ -175,7 +175,7 @@ describe('GET /api/internal/indicators', () => {
 
     const response = await request(createTestApp({ listPage }))
       .get('/api/internal/indicators?teams=own')
-      .set('Cookie', await testSessionCookie(['internal', 'publisher', 'imrg-manager'], [TEAM_ID]));
+      .set('Cookie', await testSessionCookie(['publisher', 'imrg-manager'], [TEAM_ID]));
 
     expect(response.status).toBe(200);
     expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, {
@@ -217,7 +217,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it('rejects a signed-in user who holds none of the four internal roles', async () => {
     const response = await request(createTestApp())
       .get(`/api/internal/indicators/${row.id}`)
-      .set('Cookie', await publisherCookie(['internal']));
+      .set('Cookie', await publisherCookie(['public']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -298,7 +298,7 @@ describe('GET /api/internal/indicators/:id', () => {
 
     const response = await request(createTestApp({ findById }))
       .get(`/api/internal/indicators/${row.id}`)
-      .set('Cookie', await testSessionCookie(['internal', 'imrg-manager'], []));
+      .set('Cookie', await testSessionCookie(['imrg-manager'], []));
 
     expect(response.status).toBe(200);
     expect(response.body.actions).toEqual(['assign_reviewers']);
@@ -345,7 +345,7 @@ describe('GET /api/internal/indicators/:id', () => {
 
     const response = await request(createTestApp({ findById }))
       .get(`/api/internal/indicators/${row.id}`)
-      .set('Cookie', await testSessionCookie(['internal', 'admin']));
+      .set('Cookie', await testSessionCookie(['admin']));
 
     expect(response.status).toBe(200);
     expect(response.body.actions).toEqual([]);
@@ -363,8 +363,8 @@ describe('GET /api/internal/indicators/:id', () => {
   });
 
   it.each([
-    ['an admin', ['internal', 'admin']],
-    ['an IMRG manager', ['internal', 'imrg-manager']],
+    ['an admin', ['admin']],
+    ['an IMRG manager', ['imrg-manager']],
   ])("serves %s any team's indicator", async (_who, roles) => {
     const findById = vi.fn().mockResolvedValue({ ...detailRow, teamId: OTHER_TEAM_ID });
 
@@ -450,7 +450,7 @@ describe('POST /api/internal/indicators', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .post('/api/internal/indicators')
-      .set('Cookie', await publisherCookie(['internal']))
+      .set('Cookie', await publisherCookie(['public']))
       .send({ name: 'A new indicator', teamId: TEAM_ID });
 
     expect(response.status).toBe(403);
@@ -462,7 +462,7 @@ describe('POST /api/internal/indicators', () => {
 
     const response = await request(createTestApp({ createDraft }))
       .post('/api/internal/indicators')
-      .set('Cookie', await testSessionCookie(['internal', 'publisher'], []))
+      .set('Cookie', await testSessionCookie(['publisher'], []))
       .send({ name: 'A new indicator', teamId: TEAM_ID });
 
     expect(response.status).toBe(403);
@@ -503,7 +503,7 @@ describe('POST /api/internal/indicators', () => {
 
     const response = await request(createTestApp({ createDraft, findById: async () => draftRow }))
       .post('/api/internal/indicators')
-      .set('Cookie', await testSessionCookie(['internal', 'publisher'], [TEAM_ID, OTHER_TEAM_ID]))
+      .set('Cookie', await testSessionCookie(['publisher'], [TEAM_ID, OTHER_TEAM_ID]))
       .send({ name: 'Life expectancy at birth', teamId: OTHER_TEAM_ID });
 
     expect(response.status).toBe(201);
@@ -663,7 +663,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .patch(path)
-      .set('Cookie', await publisherCookie(['internal']))
+      .set('Cookie', await publisherCookie(['public']))
       .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(403);
@@ -966,7 +966,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .get(`/api/internal/indicators/${row.id}/task-list`)
-      .set('Cookie', await publisherCookie(['internal']));
+      .set('Cookie', await publisherCookie(['public']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -1171,7 +1171,7 @@ describe('an IMRG reviewer assigned to an indicator', () => {
 
   it.each([
     ['who publishes for another team', reviewerCookie],
-    ['who does not publish', () => testSessionCookie(['internal', 'imrg-reviewer'], [])],
+    ['who does not publish', () => testSessionCookie(['imrg-reviewer'], [])],
   ])('may not rename it, %s', async (_who, cookie) => {
     const updateDraft = vi.fn();
 

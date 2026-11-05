@@ -83,7 +83,7 @@ describe('indicatorSectionsRouter', () => {
         createRouterTestApp(indicatorSectionsRouter(repositories, testSessionVerifier)),
       )
         .get(`/api/internal/indicators/00000000-0000-7000-8000-000000000001/${section.key}`)
-        .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+        .set('Cookie', await testSessionCookie(['publisher']));
 
       expect(response.status).toBe(200);
       expect(Object.keys(response.body.answers).sort()).toEqual(
@@ -111,7 +111,7 @@ describe('indicatorSectionsRouter', () => {
       createRouterTestApp(indicatorSectionsRouter(repositories, testSessionVerifier)),
     )
       .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/links')
-      .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+      .set('Cookie', await testSessionCookie(['publisher']))
       .send({ answers: { hasLinks: 'yes', links }, version: editVersion({}) });
 
     expect(response.status).toBe(200);

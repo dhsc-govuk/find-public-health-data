@@ -50,7 +50,6 @@ describe('public API', () => {
   // check:artefacts keeps every @fphd/internal-* package out of this app; these confirm nothing
   // answers under /api/internal all the same.
   it.each([
-    ['get', '/api/internal'],
     ['put', `/api/internal/indicators/${anyId}/tagging`],
     ['post', `/api/internal/indicators/${anyId}/data-uploads`],
     ['put', `/api/internal/indicators/${anyId}/data-table/confirmation`],

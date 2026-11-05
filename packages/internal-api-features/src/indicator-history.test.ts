@@ -58,7 +58,7 @@ function createTestApp(findHistory: Indicators['findHistory'] = async () => foun
   return createRouterTestApp(indicatorHistoryRouter({ findHistory }, testSessionVerifier));
 }
 
-const asManager = () => testSessionCookie(['internal', 'imrg-manager'], []);
+const asManager = () => testSessionCookie(['imrg-manager'], []);
 
 describe('GET /api/internal/indicators/:id/history', () => {
   it('serves the entries newest first, as the contract gives them', async () => {
@@ -83,8 +83,8 @@ describe('GET /api/internal/indicators/:id/history', () => {
   });
 
   it.each([
-    ['an admin', ['internal', 'admin'], []],
-    ['a publisher in its team', ['internal', 'publisher'], [TEST_TEAM_ID]],
+    ['an admin', ['admin'], []],
+    ['a publisher in its team', ['publisher'], [TEST_TEAM_ID]],
   ])('serves %s', async (_, roles, teams) => {
     const response = await request(createTestApp())
       .get(path)
@@ -97,7 +97,7 @@ describe('GET /api/internal/indicators/:id/history', () => {
     const assigned = { ...found, draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }] };
     const response = await request(createTestApp(async () => assigned))
       .get(path)
-      .set('Cookie', await testSessionCookie(['internal', 'imrg-reviewer'], []));
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));
 
     expect(response.status).toBe(200);
   });
@@ -109,8 +109,8 @@ describe('GET /api/internal/indicators/:id/history', () => {
   });
 
   it.each([
-    ['a publisher in another team', ['internal', 'publisher'], [TEAM_IDS.teamB]],
-    ['a reviewer not assigned to it', ['internal', 'imrg-reviewer'], []],
+    ['a publisher in another team', ['publisher'], [TEAM_IDS.teamB]],
+    ['a reviewer not assigned to it', ['imrg-reviewer'], []],
   ])('answers %s as if it did not exist', async (_, roles, teams) => {
     const response = await request(createTestApp())
       .get(path)

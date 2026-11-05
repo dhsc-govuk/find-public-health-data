@@ -239,7 +239,7 @@ describe('requireJwtRole', () => {
   it('refuses a session without the role', async () => {
     const response = await request(createGuardedApp())
       .get('/guarded')
-      .set('Cookie', await cookieFor('someone', ['internal']));
+      .set('Cookie', await cookieFor('someone', ['public']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -248,11 +248,11 @@ describe('requireJwtRole', () => {
   it('hands the verified subject, roles and teams to the handler behind it', async () => {
     const response = await request(createGuardedApp())
       .get('/guarded')
-      .set('Cookie', await cookieFor('publisher-1', ['internal', 'publisher'], ['team-1']));
+      .set('Cookie', await cookieFor('publisher-1', ['publisher'], ['team-1']));
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      roles: ['internal', 'publisher'],
+      roles: ['publisher'],
       sub: 'publisher-1',
       teams: ['team-1'],
     });
@@ -264,10 +264,10 @@ describe('requireJwtSession', () => {
     const app = createGuardedApp();
     const admitted = await request(app)
       .get('/checked')
-      .set('Cookie', await cookieFor('in-team', ['internal'], ['team-1']));
+      .set('Cookie', await cookieFor('in-team', ['public'], ['team-1']));
     const refused = await request(app)
       .get('/checked')
-      .set('Cookie', await cookieFor('elsewhere', ['internal'], ['team-2']));
+      .set('Cookie', await cookieFor('elsewhere', ['public'], ['team-2']));
 
     expect(admitted.status).toBe(200);
     expect(admitted.body).toMatchObject({ sub: 'in-team' });

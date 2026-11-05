@@ -71,7 +71,7 @@ function createTestApp(
   );
 }
 
-function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
+function publisherCookie(roles: readonly string[] = ['publisher']) {
   return testSessionCookie(roles);
 }
 
@@ -92,7 +92,7 @@ describe.each([
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .post(path)
-      .set('Cookie', await publisherCookie(['internal', 'admin']))
+      .set('Cookie', await publisherCookie(['admin']))
       .send(body);
 
     expect(response.status).toBe(403);
@@ -113,8 +113,8 @@ describe.each([
   });
 
   it.each([
-    ['who publishes for another team', ['internal', 'publisher', 'imrg-reviewer']],
-    ['who does not publish', ['internal', 'imrg-reviewer']],
+    ['who publishes for another team', ['publisher', 'imrg-reviewer']],
+    ['who does not publish', ['imrg-reviewer']],
   ])('refuses an IMRG reviewer assigned to the indicator, %s', async (_who, roles) => {
     const takeStep = vi.fn();
 
@@ -295,7 +295,7 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
   const body = { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [REVIEWER] };
 
   function managerCookie() {
-    return testSessionCookie(['internal', 'imrg-manager'], []);
+    return testSessionCookie(['imrg-manager'], []);
   }
 
   it('rejects an anonymous request', async () => {
@@ -305,9 +305,9 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
   });
 
   it.each([
-    ['a publisher in its team', ['internal', 'publisher']],
-    ['an admin', ['internal', 'admin']],
-    ['a reviewer', ['internal', 'imrg-reviewer']],
+    ['a publisher in its team', ['publisher']],
+    ['an admin', ['admin']],
+    ['a reviewer', ['imrg-reviewer']],
   ])('refuses %s', async (_, roles) => {
     const assignReviewers = vi.fn();
 
@@ -434,7 +434,7 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
   }
 
   function reviewerCookie() {
-    return testSessionCookie(['internal', 'imrg-reviewer'], []);
+    return testSessionCookie(['imrg-reviewer'], []);
   }
 
   it('rejects an anonymous request', async () => {
@@ -444,9 +444,9 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
   });
 
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['the IMRG manager', ['internal', 'imrg-manager']],
-    ['an admin', ['internal', 'admin']],
+    ['a publisher', ['publisher']],
+    ['the IMRG manager', ['imrg-manager']],
+    ['an admin', ['admin']],
   ])('refuses %s', async (_, roles) => {
     const respond = vi.fn();
 
@@ -490,7 +490,7 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
 
     const response = await request(createTestApp({ ...inOwnTeam, respond }))
       .post(path)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher', 'imrg-reviewer']))
+      .set('Cookie', await testSessionCookie(['publisher', 'imrg-reviewer']))
       .send(minorRevisions);
 
     expect(response.status).toBe(403);

@@ -54,7 +54,7 @@ function createTestApp(indicators: Partial<Indicators> = {}): Express {
   );
 }
 
-const asPublisher = () => testSessionCookie(['internal', 'publisher']);
+const asPublisher = () => testSessionCookie(['publisher']);
 
 describe('GET the revision response', () => {
   it('answers the reply, what the round asked for and the reply’s version', async () => {
@@ -107,9 +107,9 @@ describe('GET the revision response', () => {
   });
 
   it.each([
-    ['an IMRG reviewer', ['internal', 'imrg-reviewer'], [TEST_TEAM_ID], 403],
-    ['the IMRG manager', ['internal', 'imrg-manager'], [TEST_TEAM_ID], 403],
-    ['a publisher in another team', ['internal', 'publisher'], [TEAM_IDS.teamB], 404],
+    ['an IMRG reviewer', ['imrg-reviewer'], [TEST_TEAM_ID], 403],
+    ['the IMRG manager', ['imrg-manager'], [TEST_TEAM_ID], 403],
+    ['a publisher in another team', ['publisher'], [TEAM_IDS.teamB], 404],
   ])('refuses %s', async (_case, roles, teams, status) => {
     const findRevisionRound = vi.fn();
     const response = await request(createTestApp({ findRevisionRound }))
@@ -247,7 +247,7 @@ describe('PUT the revision response', () => {
     const saveRevisionResponse = vi.fn();
     const response = await request(createTestApp({ saveRevisionResponse }))
       .put(path)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher'], [TEAM_IDS.teamB]))
+      .set('Cookie', await testSessionCookie(['publisher'], [TEAM_IDS.teamB]))
       .send({ revisionResponse: 'A reply', version: VERSION });
 
     expect(response.status).toBe(403);

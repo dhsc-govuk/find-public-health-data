@@ -124,7 +124,7 @@ it('accepts an upload after core-data setup with no seed or live-data package', 
 async function upload(indicatorId: string, content: string, filename = 'data.csv') {
   return request(app)
     .post(`/api/internal/indicators/${indicatorId}/data-uploads`)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+    .set('Cookie', await testSessionCookie(['publisher']))
     .attach('dataTable', Buffer.from(content), filename);
 }
 
@@ -321,7 +321,7 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
 
     const response = await request(logged)
       .post(`/api/internal/indicators/${indicatorId}/data-uploads`)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+      .set('Cookie', await testSessionCookie(['publisher']))
       .attach('dataTable', Buffer.from(VALID_CSV), 'data.csv');
 
     expect(response.status).toBe(201);
@@ -641,7 +641,7 @@ describe('GET /api/internal/indicators/:id/data-uploads/latest', () => {
       (
         await request(app)
           .get(`/api/internal/indicators/${indicatorId}/data-uploads/latest`)
-          .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+          .set('Cookie', await testSessionCookie(['publisher']))
       ).body;
 
     expect(await latest()).toEqual({ latestUpload: null });

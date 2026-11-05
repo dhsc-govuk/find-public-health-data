@@ -60,7 +60,7 @@ describe('fake users', () => {
   });
 
   it('keeps publisher off the admin', () => {
-    expect(requireFakeUser(FAKE_USER_IDS.admin).roles).toEqual(['public', 'internal', 'admin']);
+    expect(requireFakeUser(FAKE_USER_IDS.admin).roles).toEqual(['public', 'admin']);
   });
 
   it('gives every user an id of their own', () => {
@@ -74,7 +74,7 @@ describe('sessionAccessForAudience', () => {
 
     expect(sessionAccessForAudience(publisher, 'public')).toEqual({ roles: ['public'], teams: [] });
     expect(sessionAccessForAudience(publisher, 'internal')).toEqual({
-      roles: ['public', 'internal', 'publisher'],
+      roles: ['public', 'publisher'],
       teams: [TEAM_IDS.teamA, TEAM_IDS.teamB],
     });
   });

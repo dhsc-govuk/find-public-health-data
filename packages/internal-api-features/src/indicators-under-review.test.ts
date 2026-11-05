@@ -70,7 +70,7 @@ function createTestApp(
 }
 
 function managerCookie() {
-  return testSessionCookie(['internal', 'imrg-manager'], []);
+  return testSessionCookie(['imrg-manager'], []);
 }
 
 describe('GET /api/internal/indicators-under-review', () => {
@@ -104,9 +104,9 @@ describe('GET /api/internal/indicators-under-review', () => {
   });
 
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['an admin', ['internal', 'admin']],
-    ['a reviewer', ['internal', 'imrg-reviewer']],
+    ['a publisher', ['publisher']],
+    ['an admin', ['admin']],
+    ['a reviewer', ['imrg-reviewer']],
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(path)
@@ -118,7 +118,7 @@ describe('GET /api/internal/indicators-under-review', () => {
 
 describe('GET /api/internal/indicators-to-review', () => {
   function reviewerCookie() {
-    return testSessionCookie(['internal', 'imrg-reviewer'], []);
+    return testSessionCookie(['imrg-reviewer'], []);
   }
 
   it('answers the list in the shape the contract describes', async () => {
@@ -138,7 +138,7 @@ describe('GET /api/internal/indicators-to-review', () => {
 
     await request(createTestApp(undefined, listToReview))
       .get(toReviewPath)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher', 'imrg-reviewer']));
+      .set('Cookie', await testSessionCookie(['publisher', 'imrg-reviewer']));
 
     expect(listToReview).toHaveBeenCalledWith(TEST_USER_ID);
   });
@@ -150,9 +150,9 @@ describe('GET /api/internal/indicators-to-review', () => {
   });
 
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['an admin', ['internal', 'admin']],
-    ['an IMRG manager', ['internal', 'imrg-manager']],
+    ['a publisher', ['publisher']],
+    ['an admin', ['admin']],
+    ['an IMRG manager', ['imrg-manager']],
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(toReviewPath)
@@ -166,7 +166,7 @@ describe('GET /api/internal/indicators-scheduled', () => {
   const scheduledPath = '/api/internal/indicators-scheduled';
 
   function adminCookie() {
-    return testSessionCookie(['internal', 'admin'], []);
+    return testSessionCookie(['admin'], []);
   }
 
   it('answers the list in the shape the contract describes', async () => {
@@ -198,9 +198,9 @@ describe('GET /api/internal/indicators-scheduled', () => {
   });
 
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['the IMRG manager', ['internal', 'imrg-manager']],
-    ['a reviewer', ['internal', 'imrg-reviewer']],
+    ['a publisher', ['publisher']],
+    ['the IMRG manager', ['imrg-manager']],
+    ['a reviewer', ['imrg-reviewer']],
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(scheduledPath)

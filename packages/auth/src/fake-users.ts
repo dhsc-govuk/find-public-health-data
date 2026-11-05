@@ -1,4 +1,5 @@
 import type { AppAudience } from './audience.ts';
+import { canUseInternalService } from './permissions.ts';
 import type { Role } from './roles.ts';
 import { TEAM_IDS } from './teams.ts';
 
@@ -24,8 +25,6 @@ export const FAKE_USER_IDS = Object.freeze({
   admin: '01a13c69-96ac-700c-9c28-8a01ee1fdfa8',
 });
 
-const INTERNAL: readonly Role[] = ['public', 'internal'];
-
 function fakeUser(
   id: string,
   name: string,
@@ -42,45 +41,35 @@ function fakeUser(
 
 export const fakeUsers: readonly FakeUser[] = Object.freeze([
   fakeUser(FAKE_USER_IDS.publicUser, 'Alex Morgan', ['public']),
-  fakeUser(
-    FAKE_USER_IDS.publisherTeamA,
-    'Sam Taylor',
-    [...INTERNAL, 'publisher'],
-    [TEAM_IDS.teamA],
-  ),
+  fakeUser(FAKE_USER_IDS.publisherTeamA, 'Sam Taylor', ['public', 'publisher'], [TEAM_IDS.teamA]),
   fakeUser(
     FAKE_USER_IDS.secondPublisherTeamA,
     'Charlie Owen',
-    [...INTERNAL, 'publisher'],
+    ['public', 'publisher'],
     [TEAM_IDS.teamA],
   ),
-  fakeUser(
-    FAKE_USER_IDS.publisherTeamB,
-    'Jordan Lee',
-    [...INTERNAL, 'publisher'],
-    [TEAM_IDS.teamB],
-  ),
+  fakeUser(FAKE_USER_IDS.publisherTeamB, 'Jordan Lee', ['public', 'publisher'], [TEAM_IDS.teamB]),
   fakeUser(
     FAKE_USER_IDS.publisherTeamsAAndB,
     'Casey Patel',
-    [...INTERNAL, 'publisher'],
+    ['public', 'publisher'],
     [TEAM_IDS.teamA, TEAM_IDS.teamB],
   ),
   fakeUser(
     FAKE_USER_IDS.publisherAndReviewer,
     'Morgan Hughes',
-    [...INTERNAL, 'publisher', 'imrg-reviewer'],
+    ['public', 'publisher', 'imrg-reviewer'],
     [TEAM_IDS.teamC],
   ),
-  fakeUser(FAKE_USER_IDS.publisherTeamC, 'Drew Kaur', [...INTERNAL, 'publisher'], [TEAM_IDS.teamC]),
-  fakeUser(FAKE_USER_IDS.imrgManager, 'Avery Clarke', [...INTERNAL, 'imrg-manager']),
-  fakeUser(FAKE_USER_IDS.imrgReviewer, 'Jamie Evans', [...INTERNAL, 'imrg-reviewer']),
-  fakeUser(FAKE_USER_IDS.secondImrgReviewer, 'Robin Shaw', [...INTERNAL, 'imrg-reviewer']),
-  fakeUser(FAKE_USER_IDS.admin, 'Riley Singh', [...INTERNAL, 'admin']),
+  fakeUser(FAKE_USER_IDS.publisherTeamC, 'Drew Kaur', ['public', 'publisher'], [TEAM_IDS.teamC]),
+  fakeUser(FAKE_USER_IDS.imrgManager, 'Avery Clarke', ['public', 'imrg-manager']),
+  fakeUser(FAKE_USER_IDS.imrgReviewer, 'Jamie Evans', ['public', 'imrg-reviewer']),
+  fakeUser(FAKE_USER_IDS.secondImrgReviewer, 'Robin Shaw', ['public', 'imrg-reviewer']),
+  fakeUser(FAKE_USER_IDS.admin, 'Riley Singh', ['public', 'admin']),
 ]);
 
 export function canAccessAudience(user: FakeUser, audience: AppAudience): boolean {
-  return audience === 'public' || user.roles.includes('internal');
+  return audience === 'public' || canUseInternalService(user);
 }
 
 export function fakeUsersForAudience(audience: AppAudience): readonly FakeUser[] {

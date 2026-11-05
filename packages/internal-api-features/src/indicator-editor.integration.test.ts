@@ -21,7 +21,7 @@ describe("the publish journey's endpoints, for a publisher in another team", () 
           storage: createFakeBlobStorage(),
         }),
       );
-      const teamB = await testSessionCookie(['internal', 'publisher'], [TEAM_IDS.teamB]);
+      const teamB = await testSessionCookie(['publisher'], [TEAM_IDS.teamB]);
       const path = `/api/internal/indicators/${indicatorId}`;
 
       const writes = {
@@ -51,7 +51,7 @@ describe("the publish journey's endpoints, for a publisher in another team", () 
 
       const own = await request(app)
         .patch(path)
-        .set('Cookie', await testSessionCookie(['internal', 'publisher'], [TEAM_IDS.teamA]))
+        .set('Cookie', await testSessionCookie(['publisher'], [TEAM_IDS.teamA]))
         .send({ name: 'Renamed by Team A', version: editVersion({ name: 'A Team A draft' }) });
       expect(own.status).toBe(200);
     },

@@ -66,7 +66,7 @@ function createTestApp(
 }
 
 function adminCookie() {
-  return testSessionCookie(['internal', 'admin'], []);
+  return testSessionCookie(['admin'], []);
 }
 
 describe('POST /api/internal/indicators/:id/schedule', () => {
@@ -77,9 +77,9 @@ describe('POST /api/internal/indicators/:id/schedule', () => {
   });
 
   it.each([
-    ['a publisher of its team', ['internal', 'publisher'], [OTHER_TEAM_ID]],
-    ['the IMRG manager', ['internal', 'imrg-manager'], []],
-    ['its reviewer', ['internal', 'imrg-reviewer'], []],
+    ['a publisher of its team', ['publisher'], [OTHER_TEAM_ID]],
+    ['the IMRG manager', ['imrg-manager'], []],
+    ['its reviewer', ['imrg-reviewer'], []],
   ])('refuses %s', async (_, roles, teams) => {
     const schedule = vi.fn();
 

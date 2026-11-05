@@ -1,4 +1,4 @@
-import { addFallbackHandlers, createApiApp, requireJwtRole } from '@fphd/api-server';
+import { addFallbackHandlers, createApiApp } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import type { Repositories } from '@fphd/db';
 import {
@@ -32,13 +32,6 @@ export function createApp({
   });
 
   app.use(publicApiRoutes(repositories));
-
-  app.get('/api/internal', requireJwtRole(session, 'internal'), (_request, response) => {
-    response.status(200).json({
-      service: 'find-public-health-data',
-      audience: 'internal',
-    });
-  });
 
   app.use(internalApiRoutes({ repositories: internalRepositories, session, storage }));
 

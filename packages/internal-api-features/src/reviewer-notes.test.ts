@@ -64,17 +64,17 @@ function createTestApp(
   );
 }
 
-const asReviewer = () => testSessionCookie(['internal', 'imrg-reviewer'], []);
+const asReviewer = () => testSessionCookie(['imrg-reviewer'], []);
 
 /** Everyone the notes are closed to, each with access the test user could otherwise use. */
 const REFUSED = [
-  ['another reviewer', ['internal', 'imrg-reviewer'], [], assignedToSomeoneElse],
-  ['the IMRG manager', ['internal', 'imrg-manager'], [], assignedToSomeoneElse],
-  ['an admin', ['internal', 'admin'], [], assignedToSomeoneElse],
-  ['a publisher in its team', ['internal', 'publisher'], [TEST_TEAM_ID], assignedToSomeoneElse],
+  ['another reviewer', ['imrg-reviewer'], [], assignedToSomeoneElse],
+  ['the IMRG manager', ['imrg-manager'], [], assignedToSomeoneElse],
+  ['an admin', ['admin'], [], assignedToSomeoneElse],
+  ['a publisher in its team', ['publisher'], [TEST_TEAM_ID], assignedToSomeoneElse],
   [
     'an assigned publisher without the reviewer role',
-    ['internal', 'publisher'],
+    ['publisher'],
     [TEAM_IDS.teamB],
     assignedToTestUser,
   ],

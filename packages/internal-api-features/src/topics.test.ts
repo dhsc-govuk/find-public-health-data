@@ -40,7 +40,7 @@ function createTestApp(overrides: FakeInternalRepositoryOverrides['topics'] = {}
   return app;
 }
 
-function adminCookie(roles: readonly string[] = ['internal', 'publisher', 'admin']) {
+function adminCookie(roles: readonly string[] = ['publisher', 'admin']) {
   return testSessionCookie(roles);
 }
 
@@ -63,7 +63,7 @@ describe('the internal topics surface', () => {
   it.each(paths)('rejects a signed-in non-admin %s %s', async (method, path) => {
     const response = await request(createTestApp())
       [method](path)
-      .set('Cookie', await adminCookie(['internal', 'publisher']));
+      .set('Cookie', await adminCookie(['publisher']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });

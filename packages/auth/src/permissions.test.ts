@@ -18,6 +18,7 @@ import {
   canSeeNotesForReviewers,
   canSeeTeamsAndUsers,
   canSubmitIndicator,
+  canUseInternalService,
   canWithdrawSubmission,
   canWriteReviewerNotes,
   type IndicatorAccess,
@@ -31,7 +32,7 @@ const teamA = 'team-a';
 const teamB = 'team-b';
 
 function user(sub: string, roles: string[], teams: string[] = []): SessionUser {
-  return { roles: ['public', 'internal', ...roles], sub, teams };
+  return { roles: ['public', ...roles], sub, teams };
 }
 
 const publisherA = user('publisher-a', ['publisher'], [teamA]);
@@ -100,7 +101,16 @@ describe('canListIndicators', () => {
     for (const asking of [publisherA, reviewer, manager, admin]) {
       expect(canListIndicators(asking), asking.sub).toBe(true);
     }
-    expect(canListIndicators(user('internal-only', []))).toBe(false);
+    expect(canListIndicators(user('public-only', []))).toBe(false);
+  });
+});
+
+describe('canUseInternalService', () => {
+  it('lets anyone holding one of the four internal roles use the internal service', () => {
+    for (const asking of [publisherA, reviewer, manager, admin]) {
+      expect(canUseInternalService(asking), asking.sub).toBe(true);
+    }
+    expect(canUseInternalService(user('public-only', []))).toBe(false);
   });
 });
 

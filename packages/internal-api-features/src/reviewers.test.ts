@@ -54,7 +54,7 @@ function createTestApp(
 }
 
 function managerCookie() {
-  return testSessionCookie(['internal', 'imrg-manager'], []);
+  return testSessionCookie(['imrg-manager'], []);
 }
 
 describe('GET /api/internal/indicators/:id/reviewer-options', () => {
@@ -78,9 +78,9 @@ describe('GET /api/internal/indicators/:id/reviewer-options', () => {
   });
 
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['an admin', ['internal', 'admin']],
-    ['a reviewer', ['internal', 'imrg-reviewer']],
+    ['a publisher', ['publisher']],
+    ['an admin', ['admin']],
+    ['a reviewer', ['imrg-reviewer']],
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(path)

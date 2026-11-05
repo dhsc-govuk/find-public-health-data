@@ -21,7 +21,7 @@ describe('submitting and withdrawing through the API', () => {
           storage: createFakeBlobStorage(),
         }),
       );
-      const cookie = await testSessionCookie(['internal', 'publisher']);
+      const cookie = await testSessionCookie(['publisher']);
       const path = `/api/internal/indicators/${created.indicatorId}`;
       const taskList = async () =>
         (await request(app).get(`${path}/task-list`).set('Cookie', cookie)).body;

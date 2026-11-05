@@ -196,16 +196,16 @@ describe('session role middleware', () => {
     });
     const url = new URL(request.url);
     const args = { context, params: {}, pattern: '/manage', request, url };
-    const requireInternal = createRequireSessionRoleMiddleware({
+    const requirePublisher = createRequireSessionRoleMiddleware({
       forbiddenPath: '/access-denied',
-      role: 'internal',
+      role: 'publisher',
       signInPath: '/sign-in',
     });
 
     const result = await sessionMiddleware(args, async () => {
-      const protectedResult = await requireInternal(
+      const protectedResult = await requirePublisher(
         args,
-        async () => new Response('Internal content'),
+        async () => new Response('Publisher content'),
       );
 
       if (!(protectedResult instanceof Response)) {
@@ -260,21 +260,21 @@ describe('session role middleware', () => {
     expect(response.headers.get('Set-Cookie')).toContain('Max-Age=0');
   });
 
-  it('rejects an authenticated user without the internal role', async () => {
+  it('rejects an authenticated user without the role', async () => {
     const service = createTestService();
     const response = await getRedirect(await issueCookie(service, { roles: ['public'] }));
 
     expect(response.headers.get('Location')).toBe('/access-denied');
   });
 
-  it('allows a user with the internal role', async () => {
+  it('allows a user with the role', async () => {
     const service = createTestService();
     const response = await runProtectedRequest(
-      await issueCookie(service, { roles: ['public', 'internal'] }),
+      await issueCookie(service, { roles: ['public', 'publisher'] }),
     );
 
     expect(response.status).toBe(200);
-    expect(await response.text()).toBe('Internal content');
+    expect(await response.text()).toBe('Publisher content');
   });
 });
 
@@ -283,7 +283,7 @@ describe('session check middleware', () => {
     const service = createTestService();
     const token = await service.issueToken({
       expiresInSeconds: 900,
-      roles: ['internal'],
+      roles: ['public'],
       subject: 'user-123',
       teams,
     });

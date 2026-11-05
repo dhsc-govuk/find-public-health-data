@@ -70,7 +70,7 @@ function createTestApp(
   );
 }
 
-function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
+function publisherCookie(roles: readonly string[] = ['publisher']) {
   return testSessionCookie(roles);
 }
 
@@ -85,7 +85,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       [method](path)
-      .set('Cookie', await publisherCookie(['internal']))
+      .set('Cookie', await publisherCookie(['public']))
       .send(save);
 
     expect(response.status).toBe(403);

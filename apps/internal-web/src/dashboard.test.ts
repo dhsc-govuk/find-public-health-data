@@ -16,7 +16,7 @@ const session = createJwtSessionService({
 async function outcome(roles: readonly string[]): Promise<string> {
   const token = await session.issueToken({
     expiresInSeconds: 900,
-    roles: ['public', 'internal', ...roles],
+    roles: ['public', ...roles],
     subject: 'test-user',
     teams: [],
   });

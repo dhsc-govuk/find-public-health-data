@@ -17,7 +17,7 @@ const service = createJwtSessionService({
 describe('verifyToken', () => {
   it('rejects a session issued without teams', async () => {
     const issuedAt = Math.floor(now.getTime() / 1_000);
-    const token = await new SignJWT({ roles: ['internal', 'publisher'] })
+    const token = await new SignJWT({ roles: ['publisher'] })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
       .setIssuer('fphd-auth')
       .setAudience('fphd-internal')
@@ -36,7 +36,7 @@ describe('issueToken', () => {
     await expect(
       service.issueToken({
         expiresInSeconds: 900,
-        roles: ['internal'],
+        roles: ['public'],
         subject: 'a',
         teams: [' '],
       }),
