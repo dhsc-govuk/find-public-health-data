@@ -105,26 +105,14 @@ async function upsertGeography(
     table === 'area'
       ? 'existing.code = source.code AND existing.area_type_id = source.area_type_id'
       : 'existing.parent_area_id = source.parent_area_id AND existing.child_area_id = source.child_area_id';
-  const assignments = columns
-    .filter((column) => column !== 'id')
-    .map((column) => `"${column}" = excluded."${column}"`)
-    .join(', ');
-  const old = columns
-    .filter((column) => column !== 'id')
-    .map((column) => `"${table}"."${column}"`)
-    .join(', ');
-  const incoming = columns
-    .filter((column) => column !== 'id')
-    .map((column) => `excluded."${column}"`)
-    .join(', ');
-  const existingFields = columns
-    .filter((column) => column !== 'id')
-    .map((column) => `existing."${column}"`)
-    .join(', ');
-  const sourceFields = columns
-    .filter((column) => column !== 'id')
-    .map((column) => `source."${column}"`)
-    .join(', ');
+  const dataColumns = columns.filter((column) => column !== 'id');
+  const qualified = (alias: string) =>
+    dataColumns.map((column) => `${alias}."${column}"`).join(', ');
+  const assignments = dataColumns.map((column) => `"${column}" = excluded."${column}"`).join(', ');
+  const old = qualified(`"${table}"`);
+  const incoming = qualified('excluded');
+  const existingFields = qualified('existing');
+  const sourceFields = qualified('source');
   const selected = columns
     .map((column) => (column === 'id' ? 'coalesce(existing.id, source.id)' : `source."${column}"`))
     .join(', ');
