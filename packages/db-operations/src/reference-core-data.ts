@@ -2,12 +2,10 @@ import { readFileSync } from 'node:fs';
 
 import { z } from '@fphd/config';
 import { schema } from '@fphd/db';
-import { recordAudit } from '@fphd/db/audit-log';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { toSnakeCase } from 'drizzle-orm/casing';
 import type postgres from 'postgres';
 
-import { CORE_DATA_IMPORT, upsertEntries } from './core-data-audit.ts';
 import { findDuplicates } from './parse-topics-file.ts';
 import { summarizeUpsert, type UpsertSummary } from './topic-import.ts';
 
@@ -131,24 +129,16 @@ export async function importReferenceCoreData(
           Object.entries(row).map(([field, value]) => [toSnakeCase(field), value]),
         ),
       );
-      const rows = await tx.unsafe<
-        {
-          id: string;
-          wasInsert: boolean;
-          before: Record<string, unknown> | null;
-          after: Record<string, unknown>;
-        }[]
-      >(
+      const rows = await tx.unsafe<{ id: string; wasInsert: boolean }[]>(
         `
         INSERT INTO "${tableName}" (${columnList})
         SELECT ${columnList} FROM jsonb_populate_recordset(NULL::"${tableName}", $1::text::jsonb)
         ON CONFLICT (id) DO UPDATE SET ${assignments}
         WHERE (${oldFields}) IS DISTINCT FROM (${newFields})
-        RETURNING id, xmax = 0 AS "wasInsert", to_jsonb(old) AS before, to_jsonb(new) AS after
+        RETURNING id, xmax = 0 AS "wasInsert"
       `,
         [JSON.stringify(payload)],
       );
-      await recordAudit(tx, CORE_DATA_IMPORT, upsertEntries(table, rows));
       const labelColumn = key === 'noteTypes' ? 'text' : 'name';
       const orphaned = await tx.unsafe<{ id: string; name: string }[]>(
         `

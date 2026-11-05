@@ -74,7 +74,7 @@ function readJson(file: string): unknown {
 
 /**
  * Load the permanent content and upload reference catalogs every environment needs.
- * Idempotent upserts audit each changed row and report rows absent from the files.
+ * Idempotent upserts report rows absent from the files and record nothing in the audit log.
  * Future core reference or content data joins this function.
  */
 export async function importCoreData(sql: postgres.Sql): Promise<CoreDataImport> {

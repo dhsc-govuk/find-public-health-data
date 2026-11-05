@@ -8,7 +8,6 @@ import { getTableColumns } from 'drizzle-orm';
 import { toSnakeCase } from 'drizzle-orm/casing';
 import type postgres from 'postgres';
 
-import { CORE_DATA_IMPORT } from './core-data-audit.ts';
 import { copyInto, quoteIdentifiers } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
 import type { UpsertSummary } from './topic-import.ts';
@@ -126,7 +125,6 @@ async function upsertGeography(
     .filter((column) => column !== 'id')
     .map((column) => `source."${column}"`)
     .join(', ');
-  const pairs = fields.map((field) => `('${field}', '${toSnakeCase(field)}')`).join(', ');
   const selected = columns
     .map((column) => (column === 'id' ? 'coalesce(existing.id, source.id)' : `source."${column}"`))
     .join(', ');
@@ -139,20 +137,11 @@ async function upsertGeography(
       WHERE existing.id IS NULL OR (${existingFields}) IS DISTINCT FROM (${sourceFields})
       ON CONFLICT (id) DO UPDATE SET ${assignments}
       WHERE (${old}) IS DISTINCT FROM (${incoming})
-      RETURNING id, xmax = 0 AS was_insert, to_jsonb(old) AS before, to_jsonb(new) AS after
-    ), audited AS (
-      INSERT INTO audit_log (actor_id, action, entity_type, entity_id, changes, request_id)
-      SELECT $1::uuid, '${table}.' || CASE WHEN was_insert THEN 'created' ELSE 'updated' END,
-        '${table}', id::text,
-        (SELECT jsonb_object_agg(property, jsonb_build_object('before', before -> col, 'after', after -> col))
-         FROM (VALUES ${pairs}) fields(property, col)
-         WHERE before IS NULL OR before -> col IS DISTINCT FROM after -> col), NULL
-      FROM changed
+      RETURNING xmax = 0 AS was_insert
     )
     SELECT count(*) FILTER (WHERE was_insert)::int AS inserted,
       count(*) FILTER (WHERE NOT was_insert)::int AS updated FROM changed
   `,
-    [CORE_DATA_IMPORT.userId],
   );
   if (!changed) throw new Error(`No core geography result for ${table}`);
   const [orphaned] = await tx.unsafe<{ count: number }[]>(`

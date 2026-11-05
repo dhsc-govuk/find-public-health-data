@@ -149,8 +149,7 @@ those ids and updates their foreign keys, observation dimension keys and area re
 records the source backup digest, row counts, file sizes and SHA-256 digests. The import
 verifies these before writing, copies both files into temporary tables and performs
 set-based upserts in one transaction. This keeps the parameter count constant for the
-73,302 areas and 158,929 relationships. Each changed geography row gets an audit entry
-in the same SQL statement. A no-op rerun writes no audit entries.
+73,302 areas and 158,929 relationships.
 
 Areas match on code and area type. Relationships match on their parent and child areas.
 Existing ids are retained when those keys match. Multiple matching area or relationship
@@ -178,8 +177,7 @@ from `@fphd/db-operations/testing`.
 
 The integration setup builds schema, core-data and seeded templates once per run. Use
 `createTestDb({ template: 'core' })` for an empty service with its required reference
-catalogs. Reusable templates omit setup audit history to keep database copies small.
-Fresh-import tests use the schema template and verify the import and its audit history.
+catalogs. Fresh-import tests use the schema template.
 
 A migration's own test puts rows in the shape the migration meets with `migrateBefore`, then
 runs it with `migrateThrough`, which stops there, so a later migration never breaks it. Both are

@@ -50,11 +50,7 @@ async function buildTemplate(
   const template = createOwnerClient(name);
   try {
     if (stage === 'schema') await migrateToLatest(template);
-    if (stage === 'core') {
-      await importCoreData(template);
-      // Core fixtures omit setup audit history to keep template copies small.
-      await template`TRUNCATE audit_log`;
-    }
+    if (stage === 'core') await importCoreData(template);
     if (stage === 'seeded') {
       await template.begin((tx) => seedDummyTables(tx));
       await rebuildReadModels(template);

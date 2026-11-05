@@ -30,9 +30,7 @@ describe('fresh core-data setup', () => {
       });
       expect(first.references[key].orphaned).toEqual([]);
     }
-    expect(
-      await database.sql`SELECT count(*)::int AS count FROM audit_log WHERE entity_type IN ('area', 'area_relationship')`,
-    ).toEqual([{ count: 232231 }]);
+    await expect(database.sql`SELECT 1 FROM audit_log`).resolves.toHaveLength(0);
     expect(first.geography.area.summary).toEqual({ inserted: 73302, updated: 0, unchanged: 0 });
     expect(first.geography.area_relationship.summary).toEqual({
       inserted: 158929,
@@ -43,14 +41,8 @@ describe('fresh core-data setup', () => {
     await expect(assertCoreDataPresent(database.sql)).resolves.toBeUndefined();
   });
 
-  it('leaves reference rows and their audit history unchanged on a repeat import', async () => {
-    const [before] = await database.sql<
-      { count: number }[]
-    >`SELECT count(*)::int AS count FROM audit_log`;
+  it('leaves reference rows unchanged on a repeat import', async () => {
     const again = await importCoreData(database.sql);
-    const [after] = await database.sql<
-      { count: number }[]
-    >`SELECT count(*)::int AS count FROM audit_log`;
     for (const key of Object.keys(records) as (keyof typeof records)[]) {
       expect(again.references[key].summary).toEqual({
         inserted: 0,
@@ -59,7 +51,6 @@ describe('fresh core-data setup', () => {
       });
       expect(again.references[key].orphaned).toEqual([]);
     }
-    expect(after).toEqual(before);
     expect(again.geography.area.summary).toEqual({ inserted: 0, updated: 0, unchanged: 73302 });
     expect(again.geography.area_relationship.summary).toEqual({
       inserted: 0,
@@ -69,7 +60,7 @@ describe('fresh core-data setup', () => {
   });
 });
 
-it('reports extra reference rows and audits a changed row in its transaction', async () => {
+it('reports extra reference rows and records nothing in the audit log for a changed row', async () => {
   const database = await createTestDb({ template: 'core' });
   try {
     const [extra] = await database.sql<{ id: string }[]>`
@@ -88,14 +79,7 @@ it('reports extra reference rows and audits a changed row in its transaction', a
     expect(result.noteTypes.orphaned).toEqual([
       { id: extra.id, name: 'An additional publisher note' },
     ]);
-    const entries = await database.sql`
-      SELECT actor_id, action, changes FROM audit_log WHERE entity_id = ${note.id} ORDER BY occurred_at
-    `;
-    expect(entries.at(-1)).toMatchObject({
-      actor_id: schema.SYSTEM_USER_IDS.coreDataImport,
-      action: 'note_type.updated',
-      changes: { text: { before: records.noteTypes[0]?.text, after: note.text } },
-    });
+    await expect(database.sql`SELECT 1 FROM audit_log`).resolves.toHaveLength(0);
   } finally {
     await database.drop();
   }
