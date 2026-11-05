@@ -4,8 +4,8 @@ import { refreshIndicatorReadModels } from '@fphd/internal-read-models';
 import type { Logger } from '@fphd/logger';
 import { and, asc, eq, lt, lte, notInArray, sql } from 'drizzle-orm';
 
-import { hasSqlState, type Transaction } from './indicator-repository-sql.ts';
-import { type IndicatorStepResult, takeIndicatorStepIn } from './indicator-workflow-repository.ts';
+import { hasSqlState, type Transaction } from './database.ts';
+import { type IndicatorStepResult, takeIndicatorStepIn } from './indicator-step-repository.ts';
 
 const { indicator, indicatorVersion, isScheduled, SYSTEM_USER_IDS } = schema;
 

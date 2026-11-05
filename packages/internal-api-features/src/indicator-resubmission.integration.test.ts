@@ -3,6 +3,7 @@ import { canSeeIndicator } from '@fphd/auth/permissions';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { asc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
@@ -14,7 +15,6 @@ import { completeDraft } from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
-  takeIndicatorStep,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
 

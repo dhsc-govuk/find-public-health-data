@@ -1,16 +1,16 @@
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import {
+  type SteppedVersion,
+  takeIndicatorStep,
+  takeIndicatorStepIn,
+} from '@fphd/internal-workflow';
 import { asc, eq, sql } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
 import { repositoryTest } from './indicator-repository.testing.ts';
 import { scheduledDraft, sentBackDraft } from './indicator-workflow.testing.ts';
-import {
-  type SteppedVersion,
-  takeIndicatorStep,
-  takeIndicatorStepIn,
-} from './indicator-workflow-repository.ts';
 
 const { indicatorVersion, indicatorVersionSubmission, SYSTEM_USER_IDS } = schema;
 

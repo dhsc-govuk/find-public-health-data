@@ -1,16 +1,16 @@
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
+import {
+  type IndicatorStepResult,
+  type IndicatorStepWrite,
+  takeIndicatorStep,
+} from '@fphd/internal-workflow';
 import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
 import { and, eq, sql } from 'drizzle-orm';
 
 import type { IndicatorStep } from './contract.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
-import {
-  type IndicatorStepResult,
-  type IndicatorStepWrite,
-  takeIndicatorStep,
-} from './indicator-workflow-repository.ts';
 import { assignedReviewerIds } from './reviewer-repository.ts';
 
 const {
