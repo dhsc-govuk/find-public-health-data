@@ -1,7 +1,7 @@
 import type { HistoryEntry } from '@fphd/internal-api-features/contract';
 import { describe, expect, it } from 'vitest';
 
-import { historyItems } from './history.ts';
+import { historyItems } from './history-items.ts';
 
 const at = '2026-11-03T10:15:00.000Z';
 

@@ -20,7 +20,7 @@ import { getSession } from '@fphd/web-server/session';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { requireIndicatorId } from '../indicator-id.ts';
-import { historyItems } from './history.ts';
+import { historyItems } from './history-items.ts';
 import { overviewNotification } from './notifications.ts';
 import { reviewerNoteFormFor } from './reviewer-notes.ts';
 
@@ -29,7 +29,7 @@ export type {
   NotesForReviewers,
   ReviewerNote,
 } from '@fphd/internal-api-features/contract';
-export type { HistoryItem, HistoryRow } from './history.ts';
+export type { HistoryItem, HistoryRow } from './history-items.ts';
 export type { OverviewNotification } from './notifications.ts';
 export type { ReviewerNoteForm } from './reviewer-notes.ts';
 
