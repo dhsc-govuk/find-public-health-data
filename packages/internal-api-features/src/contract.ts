@@ -1,5 +1,7 @@
 import type { IndicatorAccess } from '@fphd/auth/permissions';
 import { z } from '@fphd/config/zod';
+import { INDICATOR_STATUSES, type IndicatorStatus } from '@fphd/utils/indicator-status';
+import { INDICATOR_STEPS, type IndicatorStep } from '@fphd/utils/indicator-step';
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
@@ -95,8 +97,9 @@ export type TopicUpdateResponse = z.infer<typeof topicUpdateResponseSchema>;
 export type TopicUpdateError = z.infer<typeof topicUpdateErrorSchema>;
 export type TopicDeleteError = z.infer<typeof topicDeleteErrorSchema>;
 
-/** What the public has: live once any version is published, new until then. */
-export const indicatorStatusSchema = z.enum(['new', 'live']);
+export { INDICATOR_STEPS, type IndicatorStatus, type IndicatorStep };
+
+export const indicatorStatusSchema = z.enum(INDICATOR_STATUSES);
 
 /**
  * The unpublished version's status: a draft, or scheduled once an admin confirms its publication
@@ -106,20 +109,6 @@ export const draftStatusSchema = z.enum(['draft', 'scheduled']);
 
 /** Where the draft's latest submission for review stands. */
 export const draftSubmissionStatusSchema = z.enum(INDICATOR_SUBMISSION_STATUSES);
-
-/** The steps a version takes through review, in the order the workflow allows them. */
-export const INDICATOR_STEPS = [
-  'submit',
-  'withdraw',
-  'assign_reviewers',
-  'give_feedback',
-  'request_changes',
-  'approve',
-  'resubmit',
-  'schedule',
-  'change_publication_date',
-  'publish',
-] as const;
 
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
 
@@ -311,11 +300,9 @@ export type IndicatorAdminPage = z.infer<typeof indicatorAdminPageSchema>;
 export type IndicatorsUnderReview = z.infer<typeof indicatorsUnderReviewSchema>;
 export type IndicatorsToReview = z.infer<typeof indicatorsToReviewSchema>;
 export type IndicatorsScheduled = z.infer<typeof indicatorsScheduledSchema>;
-export type IndicatorStatus = z.infer<typeof indicatorStatusSchema>;
 export type DraftStatus = z.infer<typeof draftStatusSchema>;
 export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;
 export type DraftReviewer = z.infer<typeof draftReviewerSchema>;
-export type IndicatorStep = z.infer<typeof indicatorStepSchema>;
 export type IndicatorAdminDetail = z.infer<typeof indicatorAdminDetailSchema>;
 export type DraftResponse = NonNullable<IndicatorAdminDetail['draftResponse']>;
 export type IndicatorName = z.infer<typeof indicatorNameSchema>;
