@@ -21,6 +21,8 @@ const indicator: IndicatorDetail = {
   ciConfidenceLevel: null,
   comparatorMethod: null,
   dataUpdatedAt: null,
+  firstPublishedAt: '2026-04-20T00:00:00.000Z',
+  lastPublishedAt: '2026-04-20T00:00:00.000Z',
   definition: null,
   rationale: null,
   methodology: null,
@@ -80,6 +82,35 @@ it('links each subtopic to the filtered topic data page', () => {
   expect(screen.getByRole('link', { name: 'Prevalence and risk' }).getAttribute('href')).toBe(
     '/topics/diabetes?tab-topic=data&subtopic=prevalence-and-risk',
   );
+});
+
+describe('IndicatorSummary', () => {
+  function renderSummary(detail: IndicatorDetail) {
+    render(
+      <MemoryRouter>
+        <IndicatorSummary indicator={detail} observations={[]} />
+      </MemoryRouter>,
+    );
+  }
+
+  function summaryRow(name: string) {
+    const term = screen.getAllByRole('term').find((entry) => entry.textContent === name);
+
+    return term?.nextElementSibling?.textContent;
+  }
+
+  it('reads Updated once a later version has been published', () => {
+    renderSummary({ ...indicator, lastPublishedAt: '2026-09-01T09:00:00.000Z' });
+
+    expect(summaryRow('Status')).toBe('Updated');
+  });
+
+  it('gives no status to an indicator published once, though its data has a date', () => {
+    renderSummary({ ...indicator, dataUpdatedAt: '2026-04-20T00:00:00.000Z' });
+
+    expect(summaryRow('Status')).toBeUndefined();
+    expect(summaryRow('Last updated')).toBe('20 April 2026');
+  });
 });
 
 describe('BackgroundInformation', () => {
