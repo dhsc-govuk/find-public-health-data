@@ -161,6 +161,7 @@ const noRoles: Config['roles'] = {
   internalApiPassword: undefined,
   publicApiPrincipal: undefined,
   internalApiPrincipal: undefined,
+  internalWorkerPrincipal: undefined,
 };
 
 describe('rolesToBootstrap', () => {
@@ -200,18 +201,30 @@ describe('principalsToBootstrap', () => {
     objectId: '33333333-3333-3333-3333-333333333333',
   };
 
-  it('puts each identity in its API group', () => {
-    expect(principalsToBootstrap({ ...noRoles, publicApiPrincipal, internalApiPrincipal })).toEqual(
-      [
-        { group: 'public_api', ...publicApiPrincipal },
-        { group: 'internal_api', ...internalApiPrincipal },
-      ],
-    );
+  const internalWorkerPrincipal = {
+    name: 'id-internal-worker',
+    objectId: '44444444-4444-4444-4444-444444444444',
+  };
+
+  it('puts each identity in its group, the worker beside the internal API', () => {
+    expect(
+      principalsToBootstrap({
+        ...noRoles,
+        publicApiPrincipal,
+        internalApiPrincipal,
+        internalWorkerPrincipal,
+      }),
+    ).toEqual([
+      { group: 'public_api', ...publicApiPrincipal },
+      { group: 'internal_api', ...internalApiPrincipal },
+      { group: 'internal_api', ...internalWorkerPrincipal },
+    ]);
   });
 
-  it('refuses a half-configured pair, naming what is missing', () => {
+  it('refuses a partial set, naming what is missing', () => {
     expect(() => principalsToBootstrap({ ...noRoles, publicApiPrincipal })).toThrow(
-      'db bootstrap needs INTERNAL_API_DB_USER, INTERNAL_API_OBJECT_ID in the environment',
+      'db bootstrap needs INTERNAL_API_DB_USER, INTERNAL_API_OBJECT_ID, ' +
+        'INTERNAL_WORKER_DB_USER, INTERNAL_WORKER_OBJECT_ID in the environment',
     );
   });
 });
@@ -237,6 +250,7 @@ describe('bootstrap under DB_AUTH=entra', () => {
         ...noRoles,
         publicApiPrincipal: principal('id-public-api'),
         internalApiPrincipal: principal('id-internal-api'),
+        internalWorkerPrincipal: principal('id-internal-worker'),
       },
     } as Config;
     return { sql, config, logger };
@@ -260,6 +274,7 @@ describe('bootstrap under DB_AUTH=entra', () => {
     expect(mocks.bootstrapEntra).toHaveBeenCalledWith(server, [
       { group: 'public_api', ...principal('id-public-api') },
       { group: 'internal_api', ...principal('id-internal-api') },
+      { group: 'internal_api', ...principal('id-internal-worker') },
     ]);
     expect(server.end).toHaveBeenCalledOnce();
     expect(mocks.createOwnerGroup).toHaveBeenCalledOnce();

@@ -497,11 +497,13 @@ These commands are worth noting:
 
 `db bootstrap` needs `PUBLIC_API_PASSWORD` and `INTERNAL_API_PASSWORD`; the other commands do not,
 and fail naming them rather than requiring every job to hold role passwords. Under `DB_AUTH=entra`
-it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER` and
-`INTERNAL_API_OBJECT_ID` instead. It makes `public_api` and `internal_api` roles that can't log in,
-creates an Entra principal for each API identity from its object ID, and adds it to its role. All
-of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API role. `db migrate`
-applies migrations as the `fphd_owner` group, which the owner login is made a member of.
+it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER`,
+`INTERNAL_API_OBJECT_ID`, `INTERNAL_WORKER_DB_USER` and `INTERNAL_WORKER_OBJECT_ID` instead. It
+makes `public_api` and `internal_api` roles that can't log in, creates an Entra principal for each
+app identity from its object ID, and adds it to its role. The worker's principal joins
+`internal_api`. All of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API
+role. `db migrate` applies migrations as the `fphd_owner` group, which the owner login is made a
+member of.
 
 ### Invoking them from a deployed environment
 
@@ -509,7 +511,7 @@ Deployment lives in the infrastructure repository, which owns the jobs that call
 `node dist/cli.js <command>`:
 
 ```sh
-db bootstrap             # additionally needs the API passwords, or the API principals under entra
+db bootstrap             # additionally needs the API passwords, or the app principals under entra
 db migrate
 db status
 db import-core-data
