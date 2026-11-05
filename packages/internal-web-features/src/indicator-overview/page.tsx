@@ -9,8 +9,8 @@ import {
 } from '@fphd/ui';
 
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
-import { actionsTabSections } from './actions-tab.ts';
 import { ActionsTab } from './actions-tab.tsx';
+import { actionsTabSections } from './actions-tab-sections.ts';
 import { History } from './history.tsx';
 import type {
   HistoryItem,
@@ -21,7 +21,7 @@ import type {
   ReviewerNoteForm,
 } from './loader.ts';
 import { NotesForReviewers } from './notes-for-reviewers.tsx';
-import { REVIEWER_NOTE_FIELD } from './reviewer-notes.ts';
+import { REVIEWER_NOTE_FIELD } from './reviewer-note-form.ts';
 import { ReviewerNotes } from './reviewer-notes.tsx';
 
 const OVERVIEW_TITLE = 'Indicator overview';

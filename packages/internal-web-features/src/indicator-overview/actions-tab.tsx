@@ -1,7 +1,7 @@
 import { A, Button } from '@fphd/ui';
 import type { ReactNode } from 'react';
 
-import type { ActionsTabSection } from './actions-tab.ts';
+import type { ActionsTabSection } from './actions-tab-sections.ts';
 
 interface ActionsTabProps {
   sections: readonly ActionsTabSection[];

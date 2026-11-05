@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
 import { signedInContext } from '../session.testing.ts';
-import { NOTE_CHANGED, saveReviewerNote } from './reviewer-notes.ts';
+import { NOTE_CHANGED, saveReviewerNote } from './reviewer-note-form.ts';
 
 const ID = '00000000-0000-7000-8000-000000000001';
 const NOTE_ID = '00000000-0000-7000-8000-0000000000e1';
