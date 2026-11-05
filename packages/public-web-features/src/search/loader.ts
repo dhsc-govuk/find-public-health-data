@@ -82,8 +82,17 @@ export async function loadSearch(
     topicSlug,
     path = '/search',
     geographyGroup,
+    geographyPreviews,
     complete = false,
-  }: { topicSlug?: string; path?: string; geographyGroup?: string; complete?: boolean } = {},
+  }: {
+    topicSlug?: string;
+    path?: string;
+    geographyGroup?: string;
+    geographyPreviews?: Promise<
+      { displayGroup: string; areas: { code: string; name: string }[] }[]
+    >;
+    complete?: boolean;
+  } = {},
 ) {
   const url = new URL(request.url);
   const params = new URLSearchParams(url.searchParams);
@@ -183,7 +192,11 @@ export async function loadSearch(
       `/api/indicators/search${searchQuery ? `?${searchQuery}` : ''}`,
       indicatorSearchResultSchema,
     ),
-    loadGeographyOptions(api, params, displayGroups, { publicOnly }),
+    geographyPreviews
+      ? geographyPreviews.then((previews) =>
+          loadGeographyOptions(api, params, displayGroups, { publicOnly, previews }),
+        )
+      : loadGeographyOptions(api, params, displayGroups, { publicOnly }),
   ]);
 
   let searchResult = firstResult;

@@ -258,12 +258,43 @@ export function topicPageTests() {
     await expect(
       table.getByRole('columnheader', { name: 'South West', exact: true }),
     ).toBeVisible();
+    await expect(page.locator('#topic-data [aria-busy]')).toHaveAttribute('aria-busy', 'false');
     await page.getByRole('searchbox', { name: 'Search for a geography (optional)' }).fill('London');
-    await page.getByRole('checkbox', { name: 'London', exact: true }).check();
+    const responseGate = Promise.withResolvers<void>();
+    let responseHeld = false;
+    await page.route(`**${TOPIC_PATH}.data?*`, async (route) => {
+      responseHeld = true;
+      await responseGate.promise;
+      await route.continue();
+    });
+    try {
+      await page.getByRole('checkbox', { name: 'London', exact: true }).check();
+      await expect.poll(() => responseHeld).toBe(true);
+      await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
+      await expect(
+        table.getByRole('columnheader', { name: 'South West', exact: true }),
+      ).toHaveCount(0);
+      await expect(page.locator('#topic-area-summaries [aria-busy]')).toHaveAttribute(
+        'aria-busy',
+        'true',
+      );
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.locator('#topic-data').getByRole('table')).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
+      await expect(
+        table.getByRole('columnheader', { name: 'South West', exact: true }),
+      ).toHaveCount(0);
+    } finally {
+      responseGate.resolve();
+    }
     await expect(page).toHaveURL(/ga=E12000007/);
     await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'South West', exact: true })).toHaveCount(
       0,
+    );
+    await expect(page.locator('#topic-area-summaries [aria-busy]')).toHaveAttribute(
+      'aria-busy',
+      'false',
     );
     await expectNoAccessibilityViolations(page, testInfo);
   });
