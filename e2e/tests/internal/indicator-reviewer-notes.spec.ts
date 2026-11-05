@@ -122,10 +122,10 @@ test.describe('as an assigned IMRG reviewer', () => {
     await addNote(page, id, 'Original.');
     await page.getByRole('link', { name: /^Edit the note from/ }).click();
 
+    // Not closed afterwards: closing a tab still starting its scripts after a save has hung the test.
     const other = await page.context().newPage();
     await other.goto(overviewPath(id));
     await editNote(other, 'From the other tab.');
-    await other.close();
 
     await page.getByLabel(NOTE_LABEL).fill('From this tab.');
     await page.getByRole('button', { name: 'Update notes' }).click();
