@@ -556,19 +556,21 @@ export async function searchIndicators(
     );
   }
 
-  if (filters.areaCodes.length > 0) {
-    conditions.push(
-      inArray(
-        indicator.id,
-        db
-          .select({ id: observation.indicatorId })
-          .from(observation)
-          .innerJoin(area, eq(observation.areaId, area.id))
-          .where(and(inArray(area.code, filters.areaCodes), isNotNull(observation.value)))
-          .groupBy(observation.indicatorId)
-          .having(eq(countDistinct(area.code), filters.areaCodes.length)),
-      ),
-    );
+  for (const code of filters.areaCodes) {
+    // A bounded scalar lookup keeps the probe on each candidate indicator's area index.
+    const usablePoint = db
+      .select({ id: observation.id })
+      .from(observation)
+      .innerJoin(area, eq(observation.areaId, area.id))
+      .where(
+        and(
+          eq(observation.indicatorId, indicator.id),
+          eq(area.code, code),
+          isNotNull(observation.value),
+        ),
+      )
+      .limit(1);
+    conditions.push(isNotNull(sql`(${usablePoint})`));
   }
 
   if (filters.sources.length > 0) {
