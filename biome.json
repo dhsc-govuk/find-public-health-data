@@ -33,6 +33,7 @@
               "@fphd/internal-web": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
               "@fphd/public-api": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
               "@fphd/internal-api": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
+              "@fphd/internal-worker": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
               "supertest": "Use request from @fphd/express/testing: it listens on 127.0.0.1, where supertest sends requests, so no other local server can answer them.",
               "@fphd/db-operations": "Only apps/operations and tests change a database. Read through the @fphd/db repositories instead."
             },
@@ -65,6 +66,7 @@
                   "@fphd/internal-web": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
                   "@fphd/public-api": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
                   "@fphd/internal-api": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
+                  "@fphd/internal-worker": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
                   "supertest": "Use request from @fphd/express/testing: it listens on 127.0.0.1, where supertest sends requests, so no other local server can answer them.",
                   "@fphd/db-operations": "Only apps/operations and tests change a database. Read through the @fphd/db repositories instead.",
                   "drizzle-orm": "Queries belong in a *-repository.ts file. Call a repository method from here instead."
@@ -101,6 +103,7 @@
                   "@fphd/internal-web": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
                   "@fphd/public-api": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
                   "@fphd/internal-api": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
+                  "@fphd/internal-worker": "Deployable apps must never import one another. Move the shared code into a packages/* workspace package.",
                   "supertest": "Use request from @fphd/express/testing: it listens on 127.0.0.1, where supertest sends requests, so no other local server can answer them."
                 }
               }
