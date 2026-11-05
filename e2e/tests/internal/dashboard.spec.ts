@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { assignReviewers } from '../support/assign-reviewers.ts';
 import { submitNewIndicator } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
+import { approvedIndicator } from '../support/review-response.ts';
 import {
   ADMIN,
   IMRG_MANAGER,
@@ -58,6 +59,10 @@ test.describe('as a publisher whose team holds no indicators', () => {
 test.describe('as an admin, who sees every team', () => {
   test.use({ storageState: ADMIN.storageState });
 
+  test.beforeEach(async ({ page }) => {
+    await page.getByRole('tab', { name: 'All indicators' }).click();
+  });
+
   // The seed holds more indicators than one page, all in Fingertips, and specs only add to it.
   test('lists a page of indicators', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Indicators' })).toBeVisible();
@@ -79,16 +84,64 @@ test.describe('as an admin, who sees every team', () => {
   test('moves between pages', async ({ page }) => {
     await page.getByRole('link', { name: 'Next page' }).click();
 
-    await expect(page).toHaveURL('/dashboard?page=2');
+    await expect(page).toHaveURL('/dashboard?page=2&tab=all-indicators');
     await expect(page.getByRole('table').getByRole('row').nth(1)).toBeVisible();
 
     await page.getByRole('link', { name: 'Previous page' }).click();
 
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/dashboard?tab=all-indicators');
   });
 
   test('offers an admin no create action', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'Create new indicator' })).toHaveCount(0);
+  });
+});
+
+test.describe('as an admin, scheduling publication', () => {
+  test.use({ storageState: ADMIN.storageState });
+
+  function scheduledRow(page: Page, name: string) {
+    return page
+      .getByRole('table', { name: 'Scheduled indicators, soonest publication date first' })
+      .getByRole('row')
+      .filter({ hasText: name });
+  }
+
+  test('the Scheduled indicators tab comes first and lists an approved indicator, pending scheduling then publishing scheduled', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const { id, name } = await approvedIndicator(browser, 'scheduled tab');
+    await page.goto('/dashboard');
+
+    await expect(page.getByRole('tab')).toHaveText([
+      /^Scheduled indicators \(\d+\)$/,
+      'All indicators',
+    ]);
+    await expect(page.getByRole('tab', { name: /^Scheduled indicators/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(scheduledRow(page, name).locator('.govuk-tag')).toHaveText([
+      'New',
+      'Pending scheduling',
+    ]);
+    await expectNoAccessibilityViolations(page, testInfo);
+
+    await scheduledRow(page, name).getByRole('link', { name }).click();
+    await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
+    await page.getByRole('button', { name: 'Confirm publication date' }).click();
+    await page
+      .getByRole('group', { name: 'Date' })
+      .getByLabel('Year')
+      .fill(String(new Date().getFullYear() + 2));
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.goto('/dashboard');
+
+    await expect(scheduledRow(page, name).locator('.govuk-tag')).toHaveText([
+      'New',
+      'Publishing scheduled',
+    ]);
   });
 });
 
@@ -121,7 +174,7 @@ test.describe('as an IMRG manager', () => {
       .getByRole('row')
       .filter({ hasText: name });
 
-    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending approval']);
+    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending review']);
     await expectNoAccessibilityViolations(page, testInfo);
 
     await row.getByRole('link', { name }).click();
@@ -160,7 +213,7 @@ test.describe('as an IMRG reviewer', () => {
       IMRG_REVIEWER.name,
       PUBLISHER_AND_REVIEWER.name,
     ]);
-    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending approval']);
+    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Pending review']);
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

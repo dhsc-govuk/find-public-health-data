@@ -58,13 +58,20 @@ export type IndicatorStepPrecondition<Reason extends string> = (
   state: { draft: IndicatorDraftVersion; latest: Submission | undefined },
 ) => Promise<Reason | undefined>;
 
-/** A step's write of its own rows beside the submission's, answering their changes for the audit. */
-export type IndicatorStepWrite = (tx: Transaction, submission: Submission) => Promise<AuditChanges>;
+/**
+ * A step's write of its own rows beside the submission's, answering their changes for the audit.
+ * `draft` is the version as the lock read it, before the step.
+ */
+export type IndicatorStepWrite = (
+  tx: Transaction,
+  submission: Submission,
+  draft: IndicatorDraftVersion,
+) => Promise<AuditChanges>;
 
-/** The step to take, chosen by where the draft's latest submission stands under the lock. */
+/** The step to take, chosen by where the draft and its latest submission stand under the lock. */
 export type IndicatorStepChoice =
   | IndicatorStep
-  | ((latest: Submission | undefined) => IndicatorStep);
+  | ((latest: Submission | undefined, draft: IndicatorDraftVersion) => IndicatorStep);
 
 const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   submit: 'indicator.submitted',
@@ -74,6 +81,8 @@ const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   request_changes: 'indicator.changes_requested',
   approve: 'indicator.approved',
   resubmit: 'indicator.resubmitted',
+  schedule: 'indicator.publication_scheduled',
+  change_publication_date: 'indicator.publication_date_changed',
 };
 
 interface SubmissionWrite {
@@ -125,6 +134,12 @@ async function endLatestSubmission({
   return { before: latest, after };
 }
 
+/** Answers the latest submission as it stands, for a step that leaves it alone. */
+async function keepLatestSubmission({ latest }: SubmissionWrite): Promise<SubmissionWriteResult> {
+  if (latest === undefined) throw new Error('found no submission to keep');
+  return { before: latest, after: latest };
+}
+
 /** Each step's write of a submission, answering the row before (null when inserted) and after. */
 const SUBMISSION_WRITES: Readonly<
   Record<IndicatorStep, (write: SubmissionWrite) => Promise<SubmissionWriteResult>>
@@ -147,6 +162,8 @@ const SUBMISSION_WRITES: Readonly<
   request_changes: endLatestSubmission,
   approve: endLatestSubmission,
   resubmit: insertNextSubmission,
+  schedule: keepLatestSubmission,
+  change_publication_date: keepLatestSubmission,
 };
 
 /**
@@ -184,7 +201,7 @@ export async function takeIndicatorStep<Reason extends string = never>(
       .where(eq(indicatorVersionSubmission.indicatorVersionId, draft.id))
       .orderBy(desc(indicatorVersionSubmission.number))
       .limit(1);
-    const step = typeof choice === 'function' ? choice(latest) : choice;
+    const step = typeof choice === 'function' ? choice(latest, draft) : choice;
     const context: IndicatorWorkflowContext = {
       indicatorStatus: (await isPublished(tx, indicatorId)) ? 'live' : 'new',
       versionStatus: draft.status,
@@ -221,7 +238,7 @@ export async function takeIndicatorStep<Reason extends string = never>(
       actor,
     });
     const reviewersCarried = await carryReviewers(tx, submission.after.id, carried);
-    const written = (await write?.(tx, submission.after)) ?? {};
+    const written = (await write?.(tx, submission.after, draft)) ?? {};
     const changes = {
       ...changesBetween({ status: draft.status, isLocked: draft.isLocked }, version),
       ...(isDeepStrictEqual(submission.before, submission.after) ? {} : { submission }),

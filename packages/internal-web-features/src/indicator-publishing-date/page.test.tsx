@@ -3,9 +3,9 @@ import { serviceName } from '@fphd/ui';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
-
+import { publishingDateControlNames } from '../publishing-date-form.ts';
 import { noRefusal } from '../testing.ts';
-import { PublishingDatePage, publishingDateControlNames } from './page.tsx';
+import { PublishingDatePage } from './page.tsx';
 
 afterEach(cleanup);
 

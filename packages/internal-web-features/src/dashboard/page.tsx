@@ -3,7 +3,7 @@ import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
 import { ALL_INDICATORS_TAB, CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
-import { ReviewTable, UnderReviewTables } from './under-review-tables.tsx';
+import { ReviewTable, ScheduledTable, UnderReviewTables } from './under-review-tables.tsx';
 
 export interface IndicatorList {
   canCreate: boolean;
@@ -62,13 +62,15 @@ function countedLabel(label: string, count: number): string {
 interface DashboardPageProps {
   underReview: IndicatorsUnderReview | null;
   toReview: IndicatorAdminListItem[] | null;
+  /** The approved indicators an admin schedules; null for anyone else. */
+  scheduled: IndicatorAdminListItem[] | null;
   list: IndicatorList | null;
   /** Something the page the user came from left to tell them. */
   notification?: string | undefined;
 }
 
-function sectionCount({ underReview, toReview, list }: DashboardPageProps): number {
-  return [underReview, toReview, list].filter((section) => section !== null).length;
+function sectionCount({ underReview, toReview, scheduled, list }: DashboardPageProps) {
+  return [underReview, toReview, scheduled, list].filter((section) => section !== null).length;
 }
 
 /** The page's h1, which its document title follows; plain "Indicators" without the data. */
@@ -88,9 +90,13 @@ function listSection(list: IndicatorList, tabbed: boolean) {
 
 /**
  * One section for each role the user holds: Assign for an IMRG manager, Review for an IMRG
- * reviewer, then the indicator list, whose page links keep its tab open when `tabbed`.
+ * reviewer, Scheduled indicators for an admin, then the indicator list, whose page links keep
+ * its tab open when `tabbed`.
  */
-function dashboardSections({ underReview, toReview, list }: DashboardPageProps, tabbed: boolean) {
+function dashboardSections(
+  { underReview, toReview, scheduled, list }: DashboardPageProps,
+  tabbed: boolean,
+) {
   return [
     underReview === null
       ? null
@@ -111,14 +117,21 @@ function dashboardSections({ underReview, toReview, list }: DashboardPageProps, 
           ),
           content: <ReviewTable indicators={toReview} />,
         },
+    scheduled === null
+      ? null
+      : {
+          id: 'scheduled',
+          label: countedLabel('Scheduled indicators', scheduled.length),
+          content: <ScheduledTable indicators={scheduled} />,
+        },
     list === null ? null : listSection(list, tabbed),
   ].filter((section) => section !== null);
 }
 
 /**
  * Shows an IMRG manager the indicators under review, an IMRG reviewer the indicators assigned to
- * them, and anyone else a page of their indicators. A user with more than one of these gets a tab
- * for each.
+ * them, an admin the indicators waiting to be published, and anyone else a page of their
+ * indicators. A user with more than one of these gets a tab for each.
  */
 export function DashboardPage(props: DashboardPageProps) {
   const tabbed = sectionCount(props) > 1;

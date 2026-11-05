@@ -27,8 +27,8 @@ describe('StatusTag', () => {
 
   it.each([
     ['new', 'draft', null, null, 'Incomplete', 'blue'],
-    ['new', 'draft', 'submitted', null, 'Pending approval', 'yellow'],
-    ['new', 'draft', 'in_review', null, 'Pending approval', 'yellow'],
+    ['new', 'draft', 'submitted', null, 'Pending review', 'yellow'],
+    ['new', 'draft', 'in_review', null, 'Pending review', 'yellow'],
     ['new', 'draft', 'withdrawn', null, 'Incomplete', 'blue'],
     [
       'new',
@@ -40,8 +40,10 @@ describe('StatusTag', () => {
     ],
     ['new', 'draft', 'changes_requested', 'minor_revisions', 'Minor revisions needed', 'orange'],
     ['new', 'draft', 'changes_requested', 'major_revisions', 'Major revisions needed', 'red'],
-    ['new', 'draft', 'approved', 'approved', 'Publishing scheduled', 'yellow'],
+    ['new', 'draft', 'approved', 'approved', 'Pending scheduling', 'yellow'],
     ['new', 'scheduled', 'approved', 'approved', 'Publishing scheduled', 'yellow'],
+    ['live', 'draft', 'approved', 'approved', 'Update pending scheduling', 'yellow'],
+    ['live', 'scheduled', 'approved', 'approved', 'Update publishing scheduled', 'yellow'],
     ['live', null, null, null, 'Published', 'green'],
     ['live', 'draft', null, null, 'Update incomplete', 'blue'],
   ] as const)(
@@ -58,6 +60,28 @@ describe('StatusTag', () => {
       );
 
       expect(tag(label)).toContain(`govuk-tag--${colour}`);
+    },
+  );
+
+  it.each([
+    ['submitted', null],
+    ['in_review', null],
+    ['changes_requested', 'major_revisions'],
+    [null, null],
+  ] as const)(
+    'names a scheduled version as scheduled over a submission %s',
+    (draftSubmissionStatus, draftResponseKind) => {
+      render(
+        <StatusTag
+          type="publishing"
+          indicatorStatus="new"
+          draftStatus="scheduled"
+          draftSubmissionStatus={draftSubmissionStatus}
+          draftResponseKind={draftResponseKind}
+        />,
+      );
+
+      expect(tag('Publishing scheduled')).toContain('govuk-tag--yellow');
     },
   );
 

@@ -1,5 +1,6 @@
 import { z } from '@fphd/config/zod';
 import { isDayOfMonth } from '@fphd/utils/period-type';
+import { ukDateTime } from '@fphd/utils/uk-time';
 
 import { type IndicatorSection, isSmallNumber, textSection } from './indicator-section-contract.ts';
 
@@ -41,6 +42,30 @@ const REAL_DATE = 'Publishing date must be a real date';
 export const REAL_PUBLISHING_TIME = 'Publishing time must be a real time';
 
 const listWithAnd = new Intl.ListFormat('en-GB', { type: 'conjunction' });
+
+/** Gives `message` on each of `fields`, as a check after the form's schema refuses them. */
+export function addIssues(
+  ctx: z.RefinementCtx,
+  fields: readonly PublishingDateField[],
+  message: string,
+): void {
+  for (const field of fields) ctx.addIssue({ code: 'custom', path: [field], message });
+}
+
+/** The date and time an instant falls on in the UK, as the form shows them. */
+export function publishingDateValues(instant: Date): Answers {
+  const { year, month, day, hour, minute } = ukDateTime(instant);
+  const twoDigits = (value: number) => String(value).padStart(2, '0');
+
+  // Day and month as the hint's example gives them; hour and minute as the clock shows them.
+  return {
+    publishingDateDay: String(day),
+    publishingDateMonth: String(month),
+    publishingDateYear: String(year),
+    publishingTimeHour: twoDigits(hour),
+    publishingTimeMinute: twoDigits(minute),
+  };
+}
 
 function each(parts: readonly PublishingDateField[], message: string): Problems {
   return Object.fromEntries(parts.map((part) => [part, message]));

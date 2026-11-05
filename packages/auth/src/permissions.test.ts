@@ -12,6 +12,7 @@ import {
   canRespondToReview,
   canReviewIndicator,
   canReviewIndicators,
+  canSchedulePublication,
   canSeeIndicator,
   canSeeIndicatorHistory,
   canSeeNotesForReviewers,
@@ -260,6 +261,13 @@ describe('the role-wide checks', () => {
     expect(canBrowseAllIndicators(user('admin-reviewer', ['admin', 'imrg-reviewer']))).toBe(true);
     for (const asking of [publisherAB, manager, reviewer]) {
       expect(canBrowseAllIndicators(asking), asking.sub).toBe(false);
+    }
+  });
+
+  it("lets an admin, and no one else, confirm and change an indicator's publication date", () => {
+    expect(canSchedulePublication(admin)).toBe(true);
+    for (const asking of [publisherAB, publisherReviewer, manager, reviewer]) {
+      expect(canSchedulePublication(asking), asking.sub).toBe(false);
     }
   });
 

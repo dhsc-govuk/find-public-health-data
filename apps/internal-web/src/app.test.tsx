@@ -202,6 +202,7 @@ describe('the role-gated route tables', () => {
     expect(dashboard?.children?.map((child) => child.path)).toEqual(gated);
     expect(gated).toContain('dashboard/indicators/:id');
     expect(gated).toContain('dashboard/indicators/:id/assign-reviewers');
+    expect(gated).toContain('dashboard/indicators/:id/publication-date');
     expect(gated).toContain('dashboard/indicators/:id/review/revisions');
   });
 

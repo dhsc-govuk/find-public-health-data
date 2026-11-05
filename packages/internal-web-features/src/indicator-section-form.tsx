@@ -41,6 +41,8 @@ type IndicatorSectionFormProps<Field extends string> = {
   continueOnEnter?: boolean;
   /** Shown under the h1, before the form, such as who the answers are for. */
   intro?: ReactNode;
+  /** The submit button's wording, where the page does not continue to another. */
+  submitLabel?: string;
   children: ReactNode;
 } & (
   | {
@@ -65,6 +67,7 @@ export function IndicatorSectionForm<Field extends string>(
     form: { fieldErrors, formError, version },
     intro = null,
     questionIsHeading = false,
+    submitLabel = 'Continue',
     title,
   } = props;
   const fieldIds: Partial<Record<Field, string>> = props.fieldIds ?? {};
@@ -102,7 +105,7 @@ export function IndicatorSectionForm<Field extends string>(
             ) : null}
             {children}
             <Button preventDoubleClick type="submit">
-              Continue
+              {submitLabel}
             </Button>
           </form>
         </GridColumn>

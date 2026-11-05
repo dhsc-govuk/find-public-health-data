@@ -39,7 +39,7 @@ async function submit(page: Page, id: string) {
   await expect(page).toHaveURL(overviewPath(id));
 }
 
-test('submitting from a complete task list lands on the overview with the banner and the Pending approval tag', async ({
+test('submitting from a complete task list lands on the overview with the banner and the Pending review tag', async ({
   page,
 }, testInfo) => {
   const id = await openCompleteTaskList(page);
@@ -54,7 +54,7 @@ test('submitting from a complete task list lands on the overview with the banner
   await submit(page, id);
 
   await expect(page.getByText(SUBMITTED)).toBeVisible();
-  await expect(publishingTag(page)).toHaveText('Publishing status: Pending approval');
+  await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
   await expect(page.getByRole('link', { name: 'Continue creating indicator' })).toHaveCount(0);
   await expectNoAccessibilityViolations(page, testInfo);
 });
@@ -149,7 +149,7 @@ test('the confirmation page cancels back to the overview', async ({ page }) => {
   await page.getByRole('link', { name: 'Cancel' }).click();
 
   await expect(page).toHaveURL(overviewPath(id));
-  await expect(publishingTag(page)).toHaveText('Publishing status: Pending approval');
+  await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
 });
 
 test('a confirmation page left open does not withdraw a submission made since', async ({
@@ -170,7 +170,7 @@ test('a confirmation page left open does not withdraw a submission made since', 
 
   await expect(stale).toHaveURL(overviewPath(id));
   await expect(stale.getByRole('region', { name: 'Important' })).toContainText(NOT_WITHDRAWN);
-  await expect(publishingTag(stale)).toHaveText('Publishing status: Pending approval');
+  await expect(publishingTag(stale)).toHaveText('Publishing status: Pending review');
 });
 
 test.describe('without JavaScript', () => {

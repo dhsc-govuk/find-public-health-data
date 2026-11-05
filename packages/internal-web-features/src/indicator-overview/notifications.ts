@@ -72,6 +72,15 @@ const NOTIFICATIONS = {
     type: 'important',
     text: 'This indicator cannot be approved because it has no publication date.',
   },
+  'publication-date-confirmed': { type: 'success', text: 'Indicator publication date confirmed' },
+  'publication-date-refused': {
+    type: 'important',
+    text: 'The publication date of this indicator can no longer be changed.',
+  },
+  'publication-date-changed': {
+    type: 'important',
+    text: 'The publication date was changed while you were on this page. Check it and try again.',
+  },
 } as const satisfies Record<string, OverviewNotification>;
 
 export type OverviewFlash = keyof typeof NOTIFICATIONS;

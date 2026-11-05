@@ -137,6 +137,11 @@ export function canAssignReviewers(user: SessionUser): boolean {
   return holds(user, 'imrg-manager');
 }
 
+/** Whether the user may confirm an approved indicator's publication date, and change it after. */
+export function canSchedulePublication(user: SessionUser): boolean {
+  return holds(user, 'admin');
+}
+
 /** Whether the user may manage the service's shared content, such as its topics. */
 export function canManage(user: SessionUser): boolean {
   return holds(user, 'admin');

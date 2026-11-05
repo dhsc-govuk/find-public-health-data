@@ -165,7 +165,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  test('approval lands on the overview with the success banner and Publishing scheduled', async ({
+  test('approval lands on the overview with the success banner and Pending scheduling', async ({
     browser,
     page,
   }, testInfo) => {
@@ -178,8 +178,8 @@ test.describe('as an assigned IMRG reviewer', () => {
 
     await expect(page).toHaveURL(overviewPath(id));
     await expect(page.getByRole('alert')).toContainText('Indicator approved for publishing');
-    await expect(publishingTag(page)).toHaveText('Publishing status: Publishing scheduled');
-    await expect(page.getByText(/^Scheduled publication date:/)).toBeVisible();
+    await expect(publishingTag(page)).toHaveText('Publishing status: Pending scheduling');
+    await expect(page.getByText(/^Proposed publication date:/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Submit review response' })).toHaveCount(0);
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -255,7 +255,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     await expect(page.getByRole('region', { name: 'Important' })).toContainText(
       'This indicator has been resubmitted since you opened this page.',
     );
-    await expect(publishingTag(page)).toHaveText('Publishing status: Pending approval');
+    await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
   });
 
   test.describe('without JavaScript', () => {
@@ -270,7 +270,7 @@ test.describe('as an assigned IMRG reviewer', () => {
       await page.getByRole('button', { name: 'Continue' }).click();
 
       await expect(page).toHaveURL(overviewPath(id));
-      await expect(publishingTag(page)).toHaveText('Publishing status: Publishing scheduled');
+      await expect(publishingTag(page)).toHaveText('Publishing status: Pending scheduling');
     });
 
     test('re-renders the revisions page with its error summary when nothing is ticked', async ({

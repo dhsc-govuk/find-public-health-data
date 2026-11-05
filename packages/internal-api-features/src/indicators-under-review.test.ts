@@ -3,7 +3,11 @@ import { request } from '@fphd/express/testing';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import { indicatorsToReviewSchema, indicatorsUnderReviewSchema } from './contract.ts';
+import {
+  indicatorsScheduledSchema,
+  indicatorsToReviewSchema,
+  indicatorsUnderReviewSchema,
+} from './contract.ts';
 import type { IndicatorAdminListRow } from './indicator-list-repository.ts';
 import { internalIndicatorsUnderReviewRouter } from './indicators-under-review.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
@@ -40,14 +44,28 @@ const inReview: IndicatorAdminListRow = {
   draftReviewers: [{ id: '00000000-0000-7000-8000-0000000000a1', name: 'Jamie Evans' }],
 };
 
+const scheduled: IndicatorAdminListRow = {
+  ...inReview,
+  id: '00000000-0000-7000-8000-000000000003',
+  draftStatus: 'scheduled',
+  draftSubmissionStatus: 'approved',
+  draftResponseKind: 'approved',
+};
+
 function createTestApp(
   listUnderReview: InternalIndicatorRepository['listUnderReview'] = vi
     .fn()
     .mockResolvedValue({ unassigned: [row], assigned: [inReview] }),
   listToReview: InternalIndicatorRepository['listToReview'] = vi.fn().mockResolvedValue([inReview]),
+  listScheduled: InternalIndicatorRepository['listScheduled'] = vi
+    .fn()
+    .mockResolvedValue([scheduled]),
 ): Express {
   return createRouterTestApp(
-    internalIndicatorsUnderReviewRouter({ listUnderReview, listToReview }, testSessionVerifier),
+    internalIndicatorsUnderReviewRouter(
+      { listUnderReview, listToReview, listScheduled },
+      testSessionVerifier,
+    ),
   );
 }
 
@@ -138,6 +156,54 @@ describe('GET /api/internal/indicators-to-review', () => {
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(toReviewPath)
+      .set('Cookie', await testSessionCookie(roles));
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('GET /api/internal/indicators-scheduled', () => {
+  const scheduledPath = '/api/internal/indicators-scheduled';
+
+  function adminCookie() {
+    return testSessionCookie(['internal', 'admin'], []);
+  }
+
+  it('answers the list in the shape the contract describes', async () => {
+    const response = await request(createTestApp())
+      .get(scheduledPath)
+      .set('Cookie', await adminCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      indicators: [{ ...scheduled, updatedAt: '2026-08-04T10:00:00.000Z' }],
+    });
+    expect(indicatorsScheduledSchema.safeParse(response.body).success).toBe(true);
+  });
+
+  it("lists the indicators the admin's scope lets them see", async () => {
+    const listScheduled = vi.fn().mockResolvedValue([]);
+
+    await request(createTestApp(undefined, undefined, listScheduled))
+      .get(scheduledPath)
+      .set('Cookie', await adminCookie());
+
+    expect(listScheduled).toHaveBeenCalledWith({ all: true });
+  });
+
+  it('rejects an anonymous request', async () => {
+    const response = await request(createTestApp()).get(scheduledPath);
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    ['a publisher', ['internal', 'publisher']],
+    ['the IMRG manager', ['internal', 'imrg-manager']],
+    ['a reviewer', ['internal', 'imrg-reviewer']],
+  ])('rejects %s', async (_, roles) => {
+    const response = await request(createTestApp())
+      .get(scheduledPath)
       .set('Cookie', await testSessionCookie(roles));
 
     expect(response.status).toBe(403);

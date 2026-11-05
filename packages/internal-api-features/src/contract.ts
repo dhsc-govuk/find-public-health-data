@@ -116,6 +116,8 @@ export const INDICATOR_STEPS = [
   'request_changes',
   'approve',
   'resubmit',
+  'schedule',
+  'change_publication_date',
 ] as const;
 
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
@@ -199,6 +201,14 @@ export const indicatorsUnderReviewSchema = z.object({
  * submission first.
  */
 export const indicatorsToReviewSchema = z.object({
+  indicators: z.array(indicatorAdminListItemSchema),
+});
+
+/**
+ * The approved indicators waiting to be published, whether their date is confirmed or not,
+ * soonest publication date first.
+ */
+export const indicatorsScheduledSchema = z.object({
   indicators: z.array(indicatorAdminListItemSchema),
 });
 
@@ -299,6 +309,7 @@ export type IndicatorAdminListItem = z.infer<typeof indicatorAdminListItemSchema
 export type IndicatorAdminPage = z.infer<typeof indicatorAdminPageSchema>;
 export type IndicatorsUnderReview = z.infer<typeof indicatorsUnderReviewSchema>;
 export type IndicatorsToReview = z.infer<typeof indicatorsToReviewSchema>;
+export type IndicatorsScheduled = z.infer<typeof indicatorsScheduledSchema>;
 export type IndicatorStatus = z.infer<typeof indicatorStatusSchema>;
 export type DraftStatus = z.infer<typeof draftStatusSchema>;
 export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;
@@ -479,6 +490,7 @@ export * from './indicator-other-notes-and-caveats-contract.ts';
 export * from './indicator-period-type-contract.ts';
 export * from './indicator-polarity-contract.ts';
 export * from './indicator-publishing-date-contract.ts';
+export * from './indicator-schedule-contract.ts';
 export * from './indicator-section-contract.ts';
 export * from './indicator-sex-and-ages-contract.ts';
 export * from './indicator-tagging-contract.ts';

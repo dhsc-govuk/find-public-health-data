@@ -2,6 +2,7 @@ import { z } from '@fphd/config/zod';
 import { ukDaysUntil, ukInstant } from '@fphd/utils/uk-time';
 
 import {
+  addIssues,
   areProviderSourcesOffered,
   type ConfidenceIntervalsField,
   confidenceIntervalsSection,
@@ -133,14 +134,6 @@ export function valueTypeAndUnitsServerSection(
       return refused ? z.NEVER : answers;
     }),
   };
-}
-
-function addIssues(
-  ctx: z.RefinementCtx,
-  fields: readonly PublishingDateField[],
-  message: string,
-): void {
-  for (const field of fields) ctx.addIssue({ code: 'custom', path: [field], message });
 }
 
 /**

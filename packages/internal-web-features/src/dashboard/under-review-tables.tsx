@@ -67,3 +67,17 @@ export function ReviewTable({ indicators }: { indicators: IndicatorAdminListItem
     />
   );
 }
+
+/** The approved indicators waiting to be published, soonest publication date first. */
+export function ScheduledTable({ indicators }: { indicators: IndicatorAdminListItem[] }) {
+  return indicators.length === 0 ? (
+    <p className="govuk-body">There are no scheduled indicators.</p>
+  ) : (
+    <Table
+      aria-label="Scheduled indicators, soonest publication date first"
+      headings={INDICATOR_HEADINGS}
+      keys={INDICATOR_KEYS}
+      data={indicators.map(indicatorCells)}
+    />
+  );
+}

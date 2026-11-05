@@ -38,6 +38,7 @@ const submitted = { ...unsubmitted, isLocked: true, latestSubmissionStatus: 'sub
 const inReview = { ...submitted, latestSubmissionStatus: 'in_review' } as const;
 const changesRequested = { ...unsubmitted, latestSubmissionStatus: 'changes_requested' } as const;
 const approved = { ...submitted, latestSubmissionStatus: 'approved' } as const;
+const scheduled = { ...approved, versionStatus: 'scheduled' } as const;
 
 describe('submit', () => {
   it.each([
@@ -179,6 +180,36 @@ describe('resubmit', () => {
   });
 });
 
+describe('schedule', () => {
+  it("schedules a new indicator's approved draft, still locked and approved", () => {
+    expect(nextState(approved, 'schedule')).toEqual({
+      ok: true,
+      state: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
+    });
+  });
+
+  it('is refused in every other context', () => {
+    const open = CONTEXTS.filter((context) => nextState(context, 'schedule').ok);
+
+    expect(open).toEqual([approved]);
+  });
+});
+
+describe('change_publication_date', () => {
+  it('keeps a scheduled version scheduled, locked and approved', () => {
+    expect(nextState(scheduled, 'change_publication_date')).toEqual({
+      ok: true,
+      state: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
+    });
+  });
+
+  it('is refused in every other context', () => {
+    const open = CONTEXTS.filter((context) => nextState(context, 'change_publication_date').ok);
+
+    expect(open).toEqual([scheduled]);
+  });
+});
+
 describe('allowedSteps', () => {
   it.each([
     ['a draft never submitted', unsubmitted, ['submit']],
@@ -190,17 +221,21 @@ describe('allowedSteps', () => {
       ['withdraw', 'assign_reviewers', 'give_feedback', 'request_changes', 'approve'],
     ],
     ['a draft sent back for changes', changesRequested, ['resubmit']],
-    ['an approved draft', approved, []],
+    ['an approved draft', approved, ['schedule']],
+    ['a scheduled version', scheduled, ['change_publication_date']],
     ['a published version', { ...unsubmitted, versionStatus: 'published' }, []],
   ] as const)('offers %s only the steps open to it', (_, context, steps) => {
     expect(allowedSteps(context)).toEqual(steps);
   });
 
-  it('offers a scheduled version nothing, locked or not, whatever its latest submission', () => {
-    const scheduled = CONTEXTS.filter(({ versionStatus }) => versionStatus === 'scheduled');
+  it('offers a scheduled version only a change of date, and only while locked and approved', () => {
+    const contexts = CONTEXTS.filter(({ versionStatus }) => versionStatus === 'scheduled');
+    const offered = contexts.flatMap((context) =>
+      allowedSteps(context).map((step) => [context, step]),
+    );
 
-    expect(scheduled).toHaveLength(2 * 2 * (INDICATOR_SUBMISSION_STATUSES.length + 1));
-    expect(scheduled.flatMap((context) => allowedSteps(context))).toEqual([]);
+    expect(contexts).toHaveLength(2 * 2 * (INDICATOR_SUBMISSION_STATUSES.length + 1));
+    expect(offered).toEqual([[scheduled, 'change_publication_date']]);
   });
 });
 
@@ -240,6 +275,11 @@ const changesRequestedRow: IndicatorWorkflowRow = {
   draftLocked: false,
   draftSubmissionStatus: 'changes_requested',
 };
+const approvedRow: IndicatorWorkflowRow = {
+  ...inReviewRow,
+  draftSubmissionStatus: 'approved',
+};
+const scheduledRow: IndicatorWorkflowRow = { ...approvedRow, draftStatus: 'scheduled' };
 const RESPONSE_STEPS = ['give_feedback', 'request_changes', 'approve'] as const;
 
 describe('mayTakeStep', () => {
@@ -261,6 +301,13 @@ describe('mayTakeStep', () => {
     expect(mayTakeStep(manager, inTeam, 'assign_reviewers')).toBe(true);
     for (const user of [publisher, admin, reviewer]) {
       expect(mayTakeStep(user, assigned, 'assign_reviewers')).toBe(false);
+    }
+  });
+
+  it.each(['schedule', 'change_publication_date'] as const)('lets an admin alone %s', (step) => {
+    expect(mayTakeStep(admin, inTeam, step)).toBe(true);
+    for (const user of [publisher, manager, reviewer, publishingReviewer]) {
+      expect(mayTakeStep(user, assigned, step)).toBe(false);
     }
   });
 
@@ -299,6 +346,20 @@ describe('stepsOpenTo', () => {
     expect(stepsOpenTo(reviewer, inReviewRow)).toEqual([...RESPONSE_STEPS]);
     expect(stepsOpenTo(reviewer, changesRequestedRow)).toEqual([]);
     expect(stepsOpenTo(otherReviewer, inReviewRow)).toEqual([]);
+  });
+
+  it.each([
+    ['confirm the publication date of an approved draft', approvedRow, ['schedule']],
+    [
+      'change the publication date of a scheduled version',
+      scheduledRow,
+      ['change_publication_date'],
+    ],
+  ] as const)('lets an admin %s, and nobody else', (_, row, steps) => {
+    expect(stepsOpenTo(admin, row)).toEqual(steps);
+    for (const user of [publisher, manager, reviewer]) {
+      expect(stepsOpenTo(user, row)).toEqual([]);
+    }
   });
 
   it("lets a reviewer in the indicator's team respond as well as withdraw", () => {

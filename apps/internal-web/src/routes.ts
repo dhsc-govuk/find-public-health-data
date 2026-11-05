@@ -45,6 +45,10 @@ export default [
         '../../../packages/internal-web-features/src/indicator-reviewer-assignment/route.tsx',
       ),
       route(
+        'dashboard/indicators/:id/publication-date',
+        '../../../packages/internal-web-features/src/indicator-scheduling/route.tsx',
+      ),
+      route(
         'dashboard/indicators/:id/review/response-type',
         '../../../packages/internal-web-features/src/indicator-review-response/response-type-route.tsx',
       ),

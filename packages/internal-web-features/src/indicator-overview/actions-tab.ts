@@ -8,7 +8,7 @@ import { indicatorPath } from '@fphd/utils/indicator-path';
 
 import { reviewResponsePath } from '../indicator-review-response/paths.ts';
 import { indicatorTaskListPath, indicatorWithdrawalPath } from '../publish-paths.ts';
-import { indicatorAssignReviewersPath } from './paths.ts';
+import { indicatorAssignReviewersPath, indicatorPublicationDatePath } from './paths.ts';
 
 export interface ActionLink {
   href: string;
@@ -60,7 +60,8 @@ function respondLabel(response: DraftResponse | null): string {
 
 // An editor continues from the task list while the draft is unlocked, or responds from it once a
 // round sends the draft back, and withdraws what the workflow lets them; an IMRG manager assigns
-// the first reviewers with a button, then changes them.
+// the first reviewers with a button, then changes them; an admin confirms an approved draft's
+// publication date with a button, then changes it.
 function actionsSection({ canEdit, indicator }: ActionsTabInput): ActionsTabSection {
   const mayAssign = indicator.actions.includes('assign_reviewers');
   const assignFirst = mayAssign && indicator.draftSubmissionStatus === 'submitted';
@@ -85,6 +86,9 @@ function actionsSection({ canEdit, indicator }: ActionsTabInput): ActionsTabSect
           label: 'Change reviewers for this indicator',
         }
       : undefined,
+    indicator.actions.includes('change_publication_date')
+      ? { href: indicatorPublicationDatePath(indicator.id), label: 'Change publication date' }
+      : undefined,
   ].filter((link) => link !== undefined);
 
   return {
@@ -99,7 +103,9 @@ function actionsSection({ canEdit, indicator }: ActionsTabInput): ActionsTabSect
             href: indicatorTaskListPath(indicator.id),
             label: respondLabel(indicator.draftResponse),
           }
-        : null,
+        : indicator.actions.includes('schedule')
+          ? { href: indicatorPublicationDatePath(indicator.id), label: 'Confirm publication date' }
+          : null,
     links,
   };
 }

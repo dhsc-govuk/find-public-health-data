@@ -115,3 +115,13 @@ export async function respondToReview(
     await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
   });
 }
+
+/**
+ * A new indicator IMRG approved, pending scheduling, its date proposed for 09:30 on 1 April next
+ * year. For specs whose user, such as an admin, acts once it is approved.
+ */
+export async function approvedIndicator(browser: Browser, label: string) {
+  const indicator = await inReview(browser, label);
+  await respondToReview(browser, indicator.id, { kind: 'approved' });
+  return indicator;
+}

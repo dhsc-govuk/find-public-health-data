@@ -17,6 +17,7 @@ import {
   newDraft,
   onsSources,
 } from './indicator-repository.testing.ts';
+import { schedulePublication } from './indicator-scheduling-repository.ts';
 import { completeTaskListDraft } from './indicator-task-list.testing.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
@@ -109,6 +110,18 @@ export function ukToday(): string {
 
 export const AS_REVIEWER: Actor = { userId: FAKE_USER_IDS.imrgReviewer, requestId: null };
 
+export const AS_ADMIN: Actor = { userId: FAKE_USER_IDS.admin, requestId: null };
+
+/** The version's publication date, as the confirm page would show it. */
+export async function scheduledPublishAtOf(db: Database, versionId: string): Promise<Date> {
+  const [row] = await db
+    .select({ at: indicatorVersion.scheduledPublishAt })
+    .from(indicatorVersion)
+    .where(eq(indicatorVersion.id, versionId));
+  if (!row?.at) throw new Error(`no publication date on ${versionId}`);
+  return row.at;
+}
+
 /** A draft sent back for changes, the `updatedAt` its task list shows, and its data table. */
 export interface SentBackDraft {
   indicatorId: string;
@@ -169,14 +182,18 @@ export async function sentBackDraft(
 }
 
 /**
- * A complete new draft IMRG approved, then scheduled, as an admin's confirmation of its
- * publication date leaves it. The reviewer stays assigned to the approved submission.
+ * A complete new draft IMRG approved, then scheduled by an admin confirming its publication date
+ * as it stands. The reviewer stays assigned to the approved submission.
  */
 export async function scheduledDraft(db: Database, name: string): Promise<SentBackDraft> {
   const draft = await sentBackDraft(db, name, [], { kind: 'approved' });
-  await db
-    .update(indicatorVersion)
-    .set({ status: 'scheduled' })
-    .where(eq(indicatorVersion.id, draft.versionId));
+  const at = await scheduledPublishAtOf(db, draft.versionId);
+  const scheduled = await schedulePublication(
+    db,
+    draft.indicatorId,
+    { scheduledPublishAt: at, shownScheduledPublishAt: at },
+    AS_ADMIN,
+  );
+  if (!scheduled.ok) throw new Error(`scheduledDraft could not schedule: ${scheduled.reason}`);
   return draft;
 }

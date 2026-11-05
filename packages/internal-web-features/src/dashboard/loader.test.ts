@@ -50,6 +50,7 @@ describe('loadDashboard', () => {
     expect(outcome).toEqual({
       underReview: null,
       toReview: null,
+      scheduled: null,
       list: { canCreate: true, indicators: [indicator], page: 1, totalPages: 3 },
       notification: undefined,
     });
@@ -76,6 +77,21 @@ describe('loadDashboard', () => {
     const outcome = await load('https://internal.test/dashboard', apiPage(1, 0, []));
 
     expect(outcome.list).toMatchObject({ indicators: [], page: 1, totalPages: 1 });
+  });
+
+  it('shows an admin the scheduled indicators beside the list', async () => {
+    const get = vi
+      .fn()
+      .mockImplementation(async (path: string) =>
+        path === '/api/internal/indicators-scheduled'
+          ? { indicators: [indicator] }
+          : { indicators: [], page: 1, pageSize: 10, total: 0 },
+      );
+
+    const outcome = await load('https://internal.test/dashboard', get, ['admin'], []);
+
+    expect(outcome.scheduled).toEqual([indicator]);
+    expect(outcome.list).toMatchObject({ indicators: [], page: 1 });
   });
 
   it('offers an admin no create action', async () => {
@@ -118,7 +134,13 @@ describe('loadDashboard', () => {
     const outcome = await load('https://internal.test/dashboard', get, ['imrg-manager'], []);
 
     expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-under-review']);
-    expect(outcome).toEqual({ underReview, toReview: null, list: null, notification: undefined });
+    expect(outcome).toEqual({
+      underReview,
+      toReview: null,
+      scheduled: null,
+      list: null,
+      notification: undefined,
+    });
   });
 
   it('responds 404 to a second page for an IMRG manager, whose tables are not paged', async () => {
@@ -152,6 +174,7 @@ describe('loadDashboard', () => {
     expect(outcome).toEqual({
       underReview,
       toReview: null,
+      scheduled: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
       notification: undefined,
     });
@@ -166,6 +189,7 @@ describe('loadDashboard', () => {
     expect(outcome).toEqual({
       underReview: null,
       toReview: [indicator],
+      scheduled: null,
       list: null,
       notification: undefined,
     });
@@ -195,6 +219,7 @@ describe('loadDashboard', () => {
     expect(outcome).toEqual({
       underReview,
       toReview: [indicator],
+      scheduled: null,
       list: null,
       notification: undefined,
     });
@@ -202,13 +227,21 @@ describe('loadDashboard', () => {
 
   it.each([
     ['a publisher', ['publisher'], ['/api/internal/indicators?page=1']],
-    ['an admin', ['admin'], ['/api/internal/indicators?page=1']],
+    [
+      'an admin',
+      ['admin'],
+      ['/api/internal/indicators-scheduled', '/api/internal/indicators?page=1'],
+    ],
     ['an IMRG manager', ['imrg-manager'], ['/api/internal/indicators-under-review']],
     ['an IMRG reviewer', ['imrg-reviewer'], ['/api/internal/indicators-to-review']],
     [
       'an admin who reviews',
       ['admin', 'imrg-reviewer'],
-      ['/api/internal/indicators-to-review', '/api/internal/indicators?page=1'],
+      [
+        '/api/internal/indicators-scheduled',
+        '/api/internal/indicators-to-review',
+        '/api/internal/indicators?page=1',
+      ],
     ],
     [
       'an IMRG manager and reviewer who publishes',
@@ -223,6 +256,7 @@ describe('loadDashboard', () => {
     const get = vi.fn().mockImplementation(async (path: string) => {
       if (path === '/api/internal/indicators-under-review') return { unassigned: [], assigned: [] };
       if (path === '/api/internal/indicators-to-review') return { indicators: [] };
+      if (path === '/api/internal/indicators-scheduled') return { indicators: [] };
       return { indicators: [], page: 1, pageSize: 10, total: 0 };
     });
 
@@ -263,6 +297,7 @@ describe('loadDashboard', () => {
     expect(outcome).toEqual({
       underReview: null,
       toReview: [indicator],
+      scheduled: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
       notification: undefined,
     });

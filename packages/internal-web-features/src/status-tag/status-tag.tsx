@@ -29,9 +29,9 @@ const DRAFT_STATUS: Record<DraftStatus, TagFace> = {
 // A withdrawn submission leaves the draft as it was before it was submitted, and one sent back for
 // changes is named by what its response asked for.
 const SUBMISSION_STATUS: Partial<Record<DraftSubmissionStatus, TagFace>> = {
-  submitted: { label: 'Pending approval', colour: 'yellow' },
-  in_review: { label: 'Pending approval', colour: 'yellow' },
-  approved: { label: 'Publishing scheduled', colour: 'yellow' },
+  submitted: { label: 'Pending review', colour: 'yellow' },
+  in_review: { label: 'Pending review', colour: 'yellow' },
+  approved: { label: 'Pending scheduling', colour: 'yellow' },
 };
 
 const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace> = {
@@ -77,16 +77,20 @@ function submissionFace({
 }
 
 /**
- * What is in flight: the draft, or where its latest submission stands. A draft of a live
- * indicator is an update, so its label says so; a live indicator with no draft is published as
- * it stands. A new indicator with no draft cannot be made, so it has no label.
+ * What is in flight: the draft, or where its latest submission stands, except that a scheduled
+ * version is named as scheduled whatever its submission says. A draft of a live indicator is an
+ * update, so its label says so; a live indicator with no draft is published as it stands. A new
+ * indicator with no draft cannot be made, so it has no label.
  */
 function publishingStatus(state: PublishingState): TagFace | undefined {
   const { indicatorStatus, draftStatus } = state;
 
   if (draftStatus === null) return indicatorStatus === 'live' ? PUBLISHED : undefined;
 
-  const { colour, label } = submissionFace(state) ?? DRAFT_STATUS[draftStatus];
+  const { colour, label } =
+    draftStatus === 'scheduled'
+      ? DRAFT_STATUS.scheduled
+      : (submissionFace(state) ?? DRAFT_STATUS[draftStatus]);
 
   return indicatorStatus === 'live'
     ? { colour, label: `Update ${label.toLowerCase()}` }

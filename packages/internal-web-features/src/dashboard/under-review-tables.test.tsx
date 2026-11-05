@@ -75,7 +75,7 @@ describe('UnderReviewTables', () => {
       '5 Aug 2026',
       'Casey Patel',
       'New',
-      'Pending approval',
+      'Pending review',
     ]);
   });
 
@@ -99,7 +99,7 @@ describe('UnderReviewTables', () => {
     expect(
       [...(reviewers?.querySelectorAll('li') ?? [])].map((reviewer) => reviewer.textContent),
     ).toEqual(['Jamie Evans', 'Morgan Hughes']);
-    expect(rest.at(-1)?.textContent).toBe('Pending approval');
+    expect(rest.at(-1)?.textContent).toBe('Pending review');
   });
 
   it('links each indicator to its overview, where its reviewers are assigned', () => {
@@ -156,7 +156,7 @@ describe('ReviewTable', () => {
       '5 Aug 2026',
       'Casey Patel',
       'New',
-      'Pending approval',
+      'Pending review',
     ]);
     expect(screen.getByRole('link', { name: 'Smoking prevalence' }).getAttribute('href')).toBe(
       `/dashboard/indicators/${inReview.id}`,
