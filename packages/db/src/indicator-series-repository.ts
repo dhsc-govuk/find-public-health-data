@@ -18,10 +18,9 @@ import {
 } from './schema/index.ts';
 
 type Result = Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>;
-type Target = { indicator_id: string; dimension_key: string; from_date: string; to_date: string };
 
-async function readPoints(db: Database, ids: string[], targets: Target[], englandId?: string) {
-  if (!ids.length && !targets.length) return [];
+async function readPoints(db: Database, ids: string[], benchmarkIds: string[], englandId?: string) {
+  if (!ids.length && !benchmarkIds.length) return [];
   return db.execute<{
     id: string;
     indicatorId: string;
@@ -29,10 +28,12 @@ async function readPoints(db: Database, ids: string[], targets: Target[], englan
     point: IndicatorObservation;
   }>(sql`
     with benchmarks as (
-      select o.id from jsonb_to_recordset(${JSON.stringify(targets)}::jsonb)
-        t(indicator_id uuid, dimension_key text, from_date date, to_date date)
-      join ${observation} o on o.indicator_id = t.indicator_id and o.area_id = ${englandId ?? null}::uuid
-        and o.dimension_key = t.dimension_key and o.from_date = t.from_date and o.to_date = t.to_date
+      select benchmark.id from ${observation} source
+      join ${observation} benchmark on benchmark.indicator_id = source.indicator_id
+        and benchmark.area_id = ${englandId ?? null}::uuid
+        and benchmark.dimension_key = source.dimension_key
+        and benchmark.from_date = source.from_date and benchmark.to_date = source.to_date
+      where source.id = any(${`{${benchmarkIds.join(',')}}`}::uuid[])
     ), wanted as (select unnest(${`{${ids.join(',')}}`}::uuid[]) as id union select id from benchmarks)
     , points as materialized (
       select o.* from ${observation} o where o.id = any(array(select id from wanted))
@@ -74,6 +75,7 @@ export async function getIndicatorSeriesData(
     .select({ id: area.id, code: area.code, name: area.name })
     .from(area)
     .where(inArray(area.code, codes));
+  if (new Set(areas.map(({ code }) => code)).size !== areas.length) return undefined;
   const loaded = await db
     .select({
       indicatorId: batches.indicatorId,
@@ -144,39 +146,19 @@ export async function getIndicatorSeriesData(
       wanted.add(row.latestObservationId);
       if (mode === 'recent') for (const id of row.recentObservationIds) wanted.add(id);
     }
-  const extra = [...(await readPoints(db, [...wanted], []))];
-  const byId = new Map(extra.map((row) => [row.id, row.point]));
   const england = areas.find((a) => a.code === 'E92000001');
-  if (england && mode !== 'ranking') {
-    const known = new Set(
-      extra
-        .filter((row) => row.areaId === england.id)
-        .map(
-          (row) =>
-            `${row.indicatorId}:${row.point.fromDate}:${row.point.toDate}:${observationSegmentKey(row.point)}`,
-        ),
-    );
-    const targets = new Map<string, Target>();
-    for (const row of rows) {
-      const point = byId.get(row.latestObservationId);
-      if (
-        !point ||
-        row.areaId === england.id ||
-        known.has(
-          `${row.indicatorId}:${point.fromDate}:${point.toDate}:${observationSegmentKey(point)}`,
-        )
-      )
-        continue;
-      const target = {
-        indicator_id: row.indicatorId,
-        dimension_key: row.dimensionKey,
-        from_date: point.fromDate,
-        to_date: point.toDate,
-      };
-      targets.set(JSON.stringify(target), target);
-    }
-    extra.push(...(await readPoints(db, [], [...targets.values()], england.id)));
-  }
+  const benchmarkIds =
+    england && mode !== 'ranking'
+      ? [
+          ...new Set(
+            rows.filter((row) => row.areaId !== england.id).map((row) => row.latestObservationId),
+          ),
+        ]
+      : [];
+  const extra = await readPoints(db, [...wanted], benchmarkIds, england?.id);
+  const byId = new Map(extra.map((row) => [row.id, row.point]));
+  // A publication can change after the marker read and hide the selected points.
+  if ([...wanted].some((id) => !byId.has(id))) return undefined;
   const result: Result = new Map();
   for (const indicatorId of indicatorIds) {
     const selected = rows.filter((row) => row.indicatorId === indicatorId);
