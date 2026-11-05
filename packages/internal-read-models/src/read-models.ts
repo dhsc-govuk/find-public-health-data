@@ -1,11 +1,18 @@
 import type { Database } from '@fphd/db';
 import { type SQL, sql } from 'drizzle-orm';
 
+import { replaceObservationSeries } from './observation-series.ts';
+
 /** A transaction opened on a `Database`, as its `transaction` callback receives it. */
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /** The derived tables, so the rebuild, the seed's truncate and the row-count report agree. */
-export const READ_MODEL_TABLES = ['available_data', 'observation_range'] as const;
+export const READ_MODEL_TABLES = [
+  'available_data',
+  'observation_range',
+  'observation_series',
+  'observation_series_batch',
+] as const;
 
 /** Matches `column` to `indicatorId`, or every row when it is undefined. */
 function forIndicator(column: SQL, indicatorId: string | undefined): SQL {
@@ -78,6 +85,8 @@ async function replaceReadModelRows(
     FROM range_observations ro
     GROUP BY ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment
   `);
+
+  await replaceObservationSeries(tx, indicatorId);
 }
 
 /**
@@ -95,6 +104,8 @@ export function refreshIndicatorReadModels(tx: Transaction, indicatorId: string)
  * commit between the rebuild's DELETE and its INSERT and collide with it on a primary key.
  */
 export async function rebuildReadModelTables(tx: Database | Transaction): Promise<void> {
-  await tx.execute(sql`LOCK TABLE available_data, observation_range IN SHARE ROW EXCLUSIVE MODE`);
+  await tx.execute(
+    sql`LOCK TABLE ${sql.raw(READ_MODEL_TABLES.join(', '))} IN SHARE ROW EXCLUSIVE MODE`,
+  );
   await replaceReadModelRows(tx, undefined);
 }

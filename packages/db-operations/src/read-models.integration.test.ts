@@ -166,6 +166,41 @@ describe('bridge/registry schema', () => {
     }
   });
 
+  it('rebuilds the same observation series as the migration backfill', async () => {
+    await rebuildReadModels(sql);
+    const insert = readFileSync(
+      new URL('../drizzle/0069_cache-observation-series.sql', import.meta.url),
+      'utf8',
+    )
+      .split('--> statement-breakpoint')
+      .find((statement) => statement.includes('WITH source_points'));
+    if (!insert) throw new Error('No observation-series migration insert found');
+    await sql.begin(async (tx) => {
+      await tx`CREATE TEMP TABLE migration_observation_series (LIKE observation_series INCLUDING ALL) ON COMMIT DROP`;
+      await tx`CREATE TEMP TABLE migration_observation_series_batch (LIKE observation_series_batch INCLUDING ALL) ON COMMIT DROP`;
+      await tx.unsafe(
+        insert
+          .replace('INSERT INTO observation_series (', 'INSERT INTO migration_observation_series (')
+          .replace(
+            'INSERT INTO observation_series_batch (',
+            'INSERT INTO migration_observation_series_batch (',
+          ),
+      );
+      const differences = await tx`
+        (SELECT * FROM observation_series EXCEPT ALL SELECT * FROM migration_observation_series)
+        UNION ALL
+        (SELECT * FROM migration_observation_series EXCEPT ALL SELECT * FROM observation_series)
+      `;
+      expect(differences).toEqual([]);
+      const batches = await tx`
+        (SELECT upload_batch_id, indicator_id FROM observation_series_batch EXCEPT ALL SELECT upload_batch_id, indicator_id FROM migration_observation_series_batch)
+        UNION ALL
+        (SELECT upload_batch_id, indicator_id FROM migration_observation_series_batch EXCEPT ALL SELECT upload_batch_id, indicator_id FROM observation_series_batch)
+      `;
+      expect(batches).toEqual([]);
+    });
+  });
+
   it('produces the same observation ranges as the migration query', async () => {
     await rebuildReadModels(sql);
     const journal = JSON.parse(

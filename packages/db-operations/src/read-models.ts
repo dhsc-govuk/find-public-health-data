@@ -16,4 +16,6 @@ export function rebuildReadModelTables(tx: postgres.TransactionSql): Promise<voi
 export async function analyzeReadModels(sql: postgres.Sql): Promise<void> {
   await sql`ANALYZE available_data`;
   await sql`ANALYZE observation_range`;
+  await sql`ANALYZE observation_series`;
+  await sql`ANALYZE observation_series_batch`;
 }

@@ -105,6 +105,12 @@ async function insertDraftOnlyIndicator(): Promise<void> {
     UPDATE indicator_version SET upload_batch_id = ${batch?.id ?? ''} WHERE id = ${versionId}
   `;
   draftObservationId = await insertObservation(draftIndicatorId, batch?.id ?? '', '2024-01-01');
+  await owner`INSERT INTO observation_series_batch (upload_batch_id, indicator_id)
+    VALUES (${batch?.id ?? ''}, ${draftIndicatorId})`;
+  await owner`INSERT INTO observation_series
+    SELECT ${batch?.id ?? ''}, ${draftIndicatorId}, area_id, dimension_key, sex, period_type,
+           variants, latest_observation_id, ranking_observation_id, recent_observation_ids, recent_values
+    FROM observation_series LIMIT 1`;
 
   await owner`
     INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
@@ -221,6 +227,8 @@ describe('the public role', () => {
     'current_published_version',
     'observation',
     'data_migration',
+    'observation_series',
+    'observation_series_batch',
   ])('is refused a direct read of %s', async (relation) => {
     await expect(member.unsafe(`SELECT 1 FROM public.${relation} LIMIT 1`)).rejects.toMatchObject({
       code: '42501',
@@ -355,27 +363,33 @@ describe('an indicator whose only version is a draft', () => {
         FROM published.available_data WHERE indicator_id = ${draftIndicatorId}
       UNION ALL SELECT 'observation_range', count(*)::int
         FROM published.observation_range WHERE indicator_id = ${draftIndicatorId}
+      UNION ALL SELECT 'observation_series', count(*)::int
+        FROM published.observation_series WHERE indicator_id = ${draftIndicatorId}
+      UNION ALL SELECT 'observation_series_batch', count(*)::int
+        FROM published.observation_series_batch WHERE indicator_id = ${draftIndicatorId}
     `;
 
     expect(counts.filter(({ rows }) => rows > 0)).toEqual([]);
-    expect(counts).toHaveLength(10);
+    expect(counts).toHaveLength(12);
   });
 
-  it.each(['available_data', 'observation_range'])(
-    'serves every row %s holds for a published indicator',
-    async (readModel) => {
-      const [stored] = await owner.unsafe<{ rows: number }[]>(
-        `SELECT count(*)::int AS rows FROM public.${readModel} WHERE indicator_id <> $1`,
-        [draftIndicatorId],
-      );
-      const [served] = await member.unsafe<{ rows: number }[]>(
-        `SELECT count(*)::int AS rows FROM published.${readModel}`,
-      );
+  it.each([
+    'available_data',
+    'observation_range',
+    'observation_series',
+    'observation_series_batch',
+  ])('serves every row %s holds for a published indicator', async (readModel) => {
+    const [stored] = await owner.unsafe<{ rows: number }[]>(
+      `SELECT count(*)::int AS rows FROM public.${readModel} WHERE indicator_id <> $1`,
+      [draftIndicatorId],
+    );
+    const [served] = await member.unsafe<{ rows: number }[]>(
+      `SELECT count(*)::int AS rows FROM published.${readModel}`,
+    );
 
-      expect(stored?.rows).toBeGreaterThan(0);
-      expect(served?.rows).toBe(stored?.rows);
-    },
-  );
+    expect(stored?.rows).toBeGreaterThan(0);
+    expect(served?.rows).toBe(stored?.rows);
+  });
 
   it('does not stop the seeded published indicators being served', async () => {
     const [seeded] = await member<{ rows: number }[]>`
@@ -489,11 +503,29 @@ describe('an indicator published again with new data', () => {
     const everyView = ['observation', 'observation_dimension', 'observation_note'];
     const first = await publishWithData('2030-01-01T00:00:00Z', '2023-01-01');
     expect(await viewsShowing(first)).toEqual(everyView);
+    await owner`INSERT INTO observation_series_batch (upload_batch_id, indicator_id)
+      SELECT upload_batch_id, indicator_id FROM observation WHERE id = ${first}`;
+    await owner`INSERT INTO observation_series
+      SELECT o.upload_batch_id, o.indicator_id, s.area_id, s.dimension_key, s.sex, s.period_type,
+             s.variants, s.latest_observation_id, s.ranking_observation_id, s.recent_observation_ids, s.recent_values
+      FROM observation o CROSS JOIN (SELECT * FROM observation_series LIMIT 1) s WHERE o.id = ${first}`;
+    expect(
+      await member`SELECT indicator_id FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,
+    ).toHaveLength(1);
+    expect(
+      await member`SELECT indicator_id FROM published.observation_series WHERE indicator_id = ${indicatorId}`,
+    ).toHaveLength(1);
 
     const second = await publishWithData('2031-01-01T00:00:00Z', '2024-01-01');
 
     expect(await viewsShowing(first)).toEqual([]);
     expect(await viewsShowing(second)).toEqual(everyView);
+    expect(
+      await member`SELECT indicator_id FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,
+    ).toEqual([]);
+    expect(
+      await member`SELECT indicator_id FROM published.observation_series WHERE indicator_id = ${indicatorId}`,
+    ).toEqual([]);
   });
 });
 

@@ -1,12 +1,26 @@
+import { readFileSync } from 'node:fs';
+
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { rebuildReadModels } from './read-models.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
 const MIGRATION = '0043_tidy-reference-names';
+const HISTORICAL_READ_MODELS = ['indicator_dimension_values', 'observation_range'] as const;
+
+async function rebuildHistoricalReadModels(sql: postgres.Sql): Promise<void> {
+  const statements = readFileSync(
+    new URL(`../drizzle/${MIGRATION}.sql`, import.meta.url),
+    'utf8',
+  ).split('--> statement-breakpoint');
+  for (const table of HISTORICAL_READ_MODELS) {
+    const insert = statements.find((statement) => statement.includes(`INSERT INTO ${table}`));
+    if (!insert) throw new Error(`No historical rebuild for ${table}`);
+    await sql.unsafe(`DELETE FROM ${table}`);
+    await sql.unsafe(insert);
+  }
+}
 
 const id = (n: number) => `019de000-0000-7000-8000-${n.toString(16).padStart(12, '0')}`;
 
@@ -101,7 +115,7 @@ async function withReferenceRows(fixture: Fixture): Promise<[TestDb, postgres.Sq
       VALUES (${row.id}, ${observation(row.observation)}, ${row.note})
     `;
   }
-  await rebuildReadModels(sql);
+  await rebuildHistoricalReadModels(sql);
 
   return [testDb, sql];
 }
@@ -145,7 +159,7 @@ const DIRTY: Fixture = {
 
 async function readModels(sql: postgres.Sql): Promise<Record<string, string[]>> {
   const entries = await Promise.all(
-    READ_MODEL_TABLES.map(async (table) => {
+    HISTORICAL_READ_MODELS.map(async (table) => {
       const rows = await sql.unsafe(`SELECT * FROM "${table}"`);
       return [table, rows.map((row) => JSON.stringify(row)).sort()] as const;
     }),
@@ -231,7 +245,7 @@ describe(`migration ${MIGRATION} over names differing only in whitespace`, () =>
 
   it('leaves the read models as a rebuild makes them', async () => {
     const migrated = await readModels(sql);
-    await rebuildReadModels(sql);
+    await rebuildHistoricalReadModels(sql);
 
     expect(migrated).toEqual(await readModels(sql));
   });

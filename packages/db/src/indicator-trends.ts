@@ -1,7 +1,11 @@
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { inArray, sql } from 'drizzle-orm';
 import type { Database } from './client.ts';
-import { publishedArea as area, publishedObservation as observation } from './schema/index.ts';
+import {
+  publishedArea as area,
+  publishedObservationSeriesBatch as batches,
+  publishedObservation as observation,
+} from './schema/index.ts';
 
 /** The least-disaggregated, longest England series, with only its five latest valid values returned. */
 export async function indicatorTrendDirections(
@@ -9,6 +13,17 @@ export async function indicatorTrendDirections(
   ids: string[],
 ): Promise<Map<string, TrendDirection>> {
   if (ids.length === 0) return new Map();
+  const cached = await db
+    .select({ id: batches.indicatorId, values: batches.trendValues })
+    .from(batches)
+    .where(inArray(batches.indicatorId, ids));
+  const result = new Map(
+    cached.flatMap(({ id, values }) =>
+      values === null ? [] : [[id, recentTrendDirection([...values].reverse())] as const],
+    ),
+  );
+  const missing = ids.filter((id) => !result.has(id));
+  if (!missing.length) return result;
   const rows = await db.execute<{ indicator_id: string; values: number[] }>(sql`
     with points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
@@ -16,7 +31,7 @@ export async function indicatorTrendDirections(
         ${observation.dimensionKey} as segment
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = 'E92000001'
-      where ${inArray(observation.indicatorId, ids)}
+      where ${inArray(observation.indicatorId, missing)}
     ), series as (
       select distinct on (indicator_id) indicator_id, segment
       from points group by indicator_id, segment
@@ -29,10 +44,11 @@ export async function indicatorTrendDirections(
     group by s.indicator_id
 
   `);
-  return new Map(
-    rows.map(({ indicator_id, values }) => [
-      indicator_id,
-      recentTrendDirection([...values].reverse()),
-    ]),
-  );
+  return new Map([
+    ...result,
+    ...rows.map(
+      ({ indicator_id, values }) =>
+        [indicator_id, recentTrendDirection([...values].reverse())] as const,
+    ),
+  ]);
 }

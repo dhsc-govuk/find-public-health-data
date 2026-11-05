@@ -1,7 +1,9 @@
 # @fphd/internal-read-models
 
-The statements that write the read models, `available_data` and `observation_range`: the tables
-derived from the published views that list which areas and value ranges each indicator has. They
+The statements that write the read models: the tables derived from the published views.
+`available_data` and `observation_range` list which areas and value ranges each indicator has;
+`observation_series` and `observation_series_batch` hold the series each table and ranking shows,
+by area, sex and period type, and the England trend a topic page shows. They
 live apart from `@fphd/db`, the public read surface, and the `internal-` prefix keeps them out of
 the public images, as `tools/artefact-boundary` checks.
 
