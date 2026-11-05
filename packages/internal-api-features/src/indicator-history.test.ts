@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { indicatorHistorySchema } from './contract.ts';
 import { indicatorHistoryRouter } from './indicator-history.ts';
 import type { IndicatorHistoryRow } from './indicator-history-repository.ts';
+import type { IndicatorAccessRow } from './indicator-list-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 import {
   createRouterTestApp,
@@ -18,9 +19,13 @@ import {
 const ID = '00000000-0000-7000-8000-000000000001';
 const path = `/api/internal/indicators/${ID}/history`;
 
-const found: IndicatorHistoryRow = {
+/** What the guard reads of the indicator: in the test team, with someone else reviewing it. */
+const access: IndicatorAccessRow = {
   teamId: TEST_TEAM_ID,
   draftReviewers: [{ id: '00000000-0000-7000-8000-0000000000a1', name: 'Jamie Evans' }],
+};
+
+const found: IndicatorHistoryRow = {
   versions: [
     {
       createdAt: '2026-06-01T09:00:00.123456+00:00',
@@ -54,11 +59,12 @@ const found: IndicatorHistoryRow = {
 
 type Indicators = Pick<InternalIndicatorRepository, 'findHistory'>;
 
-// The guard reads its access row from the same indicator the history comes from.
-
-function createTestApp(findHistory: Indicators['findHistory'] = async () => found): Express {
+function createTestApp(
+  findAccess: () => Promise<IndicatorAccessRow | undefined> = async () => access,
+  findHistory: Indicators['findHistory'] = async () => found,
+): Express {
   return createRouterTestApp(
-    indicatorHistoryRouter({ findAccess: findHistory, findHistory }, testSessionVerifier),
+    indicatorHistoryRouter({ findAccess, findHistory }, testSessionVerifier),
   );
 }
 
@@ -98,7 +104,7 @@ describe('GET /api/internal/indicators/:id/history', () => {
   });
 
   it('serves a reviewer assigned to the indicator', async () => {
-    const assigned = { ...found, draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }] };
+    const assigned = { ...access, draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }] };
     const response = await request(createTestApp(async () => assigned))
       .get(path)
       .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));

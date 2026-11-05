@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { notesForReviewersSchema } from './contract.ts';
 import type { IndicatorNotesForReviewersRow } from './indicator-draft-repository.ts';
+import type { IndicatorAccessRow } from './indicator-list-repository.ts';
 import { internalNotesForReviewersRouter } from './notes-for-reviewers.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 import {
@@ -20,8 +21,6 @@ const path = `/api/internal/indicators/${ID}/notes-for-reviewers`;
 
 // Whether these come from the draft or the published version is the repository's choice.
 const found: IndicatorNotesForReviewersRow = {
-  teamId: TEST_TEAM_ID,
-  draftReviewers: [{ id: '00000000-0000-7000-8000-0000000000a1', name: 'Jamie Evans' }],
   version: {
     id: '00000000-0000-7000-8000-0000000000d1',
     variation: 'Little.',
@@ -41,23 +40,25 @@ const found: IndicatorNotesForReviewersRow = {
   },
 };
 
-const assignedToTestUser: IndicatorNotesForReviewersRow = {
-  ...found,
+/** What the guard reads of the indicator: in the test team, with someone else reviewing it. */
+const access: IndicatorAccessRow = {
+  teamId: TEST_TEAM_ID,
+  draftReviewers: [{ id: '00000000-0000-7000-8000-0000000000a1', name: 'Jamie Evans' }],
+};
+
+const assignedToTestUser: IndicatorAccessRow = {
+  ...access,
   draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }],
 };
 
 type Indicators = Pick<InternalIndicatorRepository, 'findNotesForReviewers'>;
 
-// The guard reads its access row from the same indicator the notes come from.
-
 function createTestApp(
+  findAccess: () => Promise<IndicatorAccessRow | undefined> = async () => access,
   findNotesForReviewers: Indicators['findNotesForReviewers'] = async () => found,
 ): Express {
   return createRouterTestApp(
-    internalNotesForReviewersRouter(
-      { findAccess: findNotesForReviewers, findNotesForReviewers },
-      testSessionVerifier,
-    ),
+    internalNotesForReviewersRouter({ findAccess, findNotesForReviewers }, testSessionVerifier),
   );
 }
 
