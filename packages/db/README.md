@@ -101,8 +101,8 @@ src/
   in `schema/audit-log.ts`, whose check constraint then needs a migration. `internal_api` may insert
   and select entries, never update or delete them; entries name people by `app_user` id alone, so
   anonymising one never touches the log. The log records changes made through the service once the
-  data is in it: the core data import, live-data packages, seeding and resets load or rebuild data,
-  and record nothing.
+  data is in it: the core data import, live-data packages, seeding, the published snapshot import,
+  the read-model rebuild and resets load or rebuild data, and record nothing.
 - **Slugs**: `indicator_version.slug` is derived from the version's name by `slugify` in
   `@fphd/utils/slug`. An exclusion constraint,
   `EXCLUDE USING gist (slug WITH =, indicator_id WITH <>)`, keeps a slug to one indicator for

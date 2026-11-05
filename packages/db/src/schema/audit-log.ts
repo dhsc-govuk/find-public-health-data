@@ -61,7 +61,7 @@ export const auditLog = pgTable(
     actorId: actorId().notNull(),
     action: text({ enum: AUDIT_ACTIONS }).notNull(),
     entityType: text().notNull(),
-    // Text, so an entity whose id is not a UUID can be logged.
+    // Text, because data migrations, whose ids are not UUIDs, were once logged.
     entityId: text().notNull(),
     changes: jsonb().$type<AuditChanges>().notNull(),
     requestId: uuid(),

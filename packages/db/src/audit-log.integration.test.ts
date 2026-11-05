@@ -63,7 +63,7 @@ describe('recordAudit', () => {
 
   it('records the changes as an object in a raw transaction', async () => {
     const entityId = newEntityId();
-    // A client Drizzle has never wrapped, as the operations commands' is.
+    // A client Drizzle has never wrapped.
     const raw = testDb.connect({ max: 1 });
 
     await raw.begin((tx) =>
