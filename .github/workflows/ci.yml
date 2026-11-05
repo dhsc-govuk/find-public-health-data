@@ -152,12 +152,12 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-webkit-${{ steps.playwright-version.outputs.version }}
+          key: playwright-chromium-${{ steps.playwright-version.outputs.version }}
 
       # Skips the download on a cache hit but still installs the OS packages, which
       # live outside the cached directory.
-      - name: Install Chromium and WebKit
-        run: pnpm --filter @fphd/e2e exec playwright install --with-deps chromium webkit
+      - name: Install Chromium
+        run: pnpm --filter @fphd/e2e exec playwright install --with-deps chromium
 
       - name: Download the app images
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
