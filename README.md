@@ -18,7 +18,8 @@ command-line application, run as a job — see [Operational commands](#operation
 `@fphd/internal-worker` serves no traffic either. It publishes each scheduled indicator version
 at its publication time, checking for due versions one second past each minute. Its only routes
 are the `/livez` and `/readyz` probes, on port 4002. It connects to the database as the
-`internal_api` role, as the internal API does. `pnpm dev` and `pnpm dev:internal` start it.
+`internal_api` role, as the internal API does. `pnpm dev` and `pnpm dev:internal` start it, and the
+publishing e2e test needs it running.
 
 ## Requirements
 
@@ -106,14 +107,15 @@ pnpm dev
 pnpm dev:public
 pnpm dev:internal
 pnpm check
-pnpm check:artefacts   # assert no internal code, secret or database operation reaches an artifact
-pnpm check:e2e-coverage # assert every page route has an e2e spec and every spec scans with axe
-pnpm check:migrations  # assert the schema holds no change its migrations do not
+pnpm check:artefacts     # assert no internal code, secret or database operation reaches an artifact
+pnpm check:e2e-coverage  # assert every page route has an e2e spec and every spec scans with axe
+pnpm check:migrations    # assert the schema holds no change its migrations do not
 pnpm build
-pnpm test              # unit then integration tests (not e2e)
-pnpm test:unit         # unit tests
-pnpm test:integration  # integration tests — need the local database and Azurite running
-pnpm test:e2e          # end-to-end tests — need the stack serving and the database seeded
+pnpm test                # unit then integration tests (not e2e)
+pnpm test:unit           # unit tests
+pnpm test:integration    # integration tests — need the local database and Azurite running
+pnpm test:e2e            # end-to-end tests — need the stack serving and the database seeded
+pnpm test:e2e:publishing # the publishing e2e test, after publishing, workflow or worker changes
 ```
 
 Each application builds to its own `dist` directory, giving CI and deployment tooling four
@@ -174,7 +176,9 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   the production images the image build job made (see [Container images](#container-images)),
   restores the database a seed job seeded once for the run, with the same commands a developer
   runs, runs its share of the suite, and uploads its own Playwright report when it fails. Add a
-  shard to the matrix as the suite grows.
+  shard to the matrix as the suite grows. After its share, the first shard runs
+  `pnpm test:e2e:publishing`, the `publishing` project, on its own: publishing an indicator changes
+  the public search total and a topic's indicators, which other specs read.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
@@ -205,8 +209,9 @@ To add real ones:
   is not. Specs drive the applications over HTTP and never import application code; the spec's
   directory picks the target — `e2e/tests/public` uses `PUBLIC_WEB_URL` (default
   `http://127.0.0.1:3000`), `e2e/tests/internal` uses `INTERNAL_WEB_URL` (default
-  `http://127.0.0.1:3001`). Nothing starts the stack for the suite: serve it in another terminal
-  and seed the database, then run the tests —
+  `http://127.0.0.1:3001`), and `e2e/tests/publishing` uses `INTERNAL_WEB_URL` and checks the
+  public site at `PUBLIC_WEB_URL`. Nothing starts the stack for the suite: serve it in another
+  terminal and seed the database, then run the tests —
 
   ```sh
   pnpm --filter @fphd/e2e exec playwright install chromium   # once
@@ -217,7 +222,14 @@ To add real ones:
   `pnpm --filter @fphd/e2e exec playwright test --ui` opens UI mode, and `--headed` and `-g`
   filters pass through the same way. Specs run in parallel workers against the shared seed, so a
   spec never mutates data another spec reads — a test of a write flow creates its own rows and
-  asserts on those.
+  asserts on those. The `publishing` project (`e2e/tests/publishing`) is the exception: it
+  publishes an indicator, so it exists only when `E2E_PUBLISHING=1` is set, as
+  `pnpm test:e2e:publishing` sets it, and neither `pnpm test:e2e` nor a bare `playwright test` runs
+  it. Run it when publishing, workflow or worker code changes, with the worker running. The
+  indicator stays published, so the next `pnpm test:e2e`, whose search specs count the published
+  indicators, needs the database re-seeded, and the re-seed wipes every indicator in that database.
+  Never run it against a development database that holds drafts you want to keep; use a worktree's
+  own database.
 
   Internal specs start signed in. The `internal sign-in` setup project
   (`e2e/tests/internal/sign-in.setup.ts`) signs each internal user in once a run and saves the
