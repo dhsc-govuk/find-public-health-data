@@ -50,8 +50,8 @@ function toOverview(context: ActionFunctionArgs['context'], id: string, flash: O
 }
 
 /**
- * The indicator's publication date, which the page opens with. One the workflow no longer lets the
- * admin confirm or change sends them to the overview, which says so.
+ * The indicator's publication date, which the page opens with. If the workflow no longer lets the
+ * admin confirm or change the date, the page sends them to the overview, which says so.
  */
 export async function loadPublicationDate({ context, params }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
