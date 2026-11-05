@@ -83,6 +83,16 @@ async function publishNewObservation(indicatorId: string): Promise<void> {
   if (inserted.length !== 1) throw new Error(`published no observation for ${indicatorId}`);
 }
 
+/** Sessions in this test's database waiting on a table lock. */
+async function tableLockWaiters(): Promise<number> {
+  const [row] = (await db.execute(sql`
+    SELECT count(*)::int AS waiting FROM pg_stat_activity
+    WHERE wait_event_type = 'Lock' AND wait_event = 'relation'
+      AND datname = current_database()
+  `)) as unknown as { waiting: number }[];
+  return row?.waiting ?? 0;
+}
+
 describe('refreshIndicatorReadModels', () => {
   it("leaves the indicator's rows as a whole rebuild would", async () => {
     const [indicatorId] = await seededIndicatorIds();
@@ -131,5 +141,37 @@ describe('refreshIndicatorReadModels', () => {
     await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
 
     expect(await readModelRowsOf(db, indicatorId)).toEqual([]);
+  });
+
+  it('waits for a whole rebuild in progress, then commits', async () => {
+    const indicatorId = (await seededIndicatorIds()).at(-1);
+    if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');
+    await publishNewObservation(indicatorId);
+    const expected = await rowsAfterWholeRebuild(indicatorId);
+
+    let rebuilt: () => void = () => {};
+    let release: () => void = () => {};
+    const rebuilding = new Promise<void>((resolve) => {
+      rebuilt = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const rebuild = db.transaction(async (tx) => {
+      await rebuildReadModelTables(tx);
+      rebuilt();
+      await released;
+    });
+    await rebuilding;
+    const refresh = db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+    try {
+      await expect.poll(tableLockWaiters, { timeout: 10_000 }).toBe(1);
+    } finally {
+      release();
+    }
+
+    await expect(rebuild).resolves.toBeUndefined();
+    await expect(refresh).resolves.toBeUndefined();
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(expected);
   });
 });

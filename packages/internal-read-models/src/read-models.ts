@@ -16,7 +16,8 @@ function forIndicator(column: SQL, indicatorId: string | undefined): SQL {
  * Replaces the read models' rows from the published views, for one indicator or for all.
  * DELETE rather than TRUNCATE takes only row locks, so readers see the previous rows until the
  * caller commits. Dimension rows are reached only through `published.observation`:
- * `published.observation_dimension` would join the observations again.
+ * `published.observation_dimension` would join the observations again. The tables are deleted
+ * from in `READ_MODEL_TABLES` order, as the rebuild locks them.
  */
 async function replaceReadModelRows(
   tx: Database | Transaction,
@@ -88,7 +89,12 @@ export function refreshIndicatorReadModels(tx: Transaction, indicatorId: string)
   return replaceReadModelRows(tx, indicatorId);
 }
 
-/** Rebuilds every indicator's read-model rows inside the caller's transaction. */
-export function rebuildReadModelTables(tx: Database | Transaction): Promise<void> {
-  return replaceReadModelRows(tx, undefined);
+/**
+ * Rebuilds every indicator's read-model rows inside the caller's transaction. The lock lets
+ * readers through but holds back a per-indicator refresh until the rebuild commits, so none can
+ * commit between the rebuild's DELETE and its INSERT and collide with it on a primary key.
+ */
+export async function rebuildReadModelTables(tx: Database | Transaction): Promise<void> {
+  await tx.execute(sql`LOCK TABLE available_data, observation_range IN SHARE ROW EXCLUSIVE MODE`);
+  await replaceReadModelRows(tx, undefined);
 }
