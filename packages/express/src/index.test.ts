@@ -32,6 +32,21 @@ describe('createBaseApp', () => {
     expect(live.status).toBe(200);
   });
 
+  it('fails liveness while the app says it is not live, and stays ready', async () => {
+    let live = false;
+    const app = createBaseApp({ serviceName: 'internal-worker', isLive: () => live });
+
+    const stalled = await request(app).get('/livez');
+    const ready = await request(app).get('/readyz');
+    live = true;
+    const recovered = await request(app).get('/livez');
+
+    expect(stalled.status).toBe(503);
+    expect(stalled.body).toEqual({ status: 'stalled', service: 'internal-worker' });
+    expect(ready.status).toBe(200);
+    expect(recovered.status).toBe(200);
+  });
+
   it('names the app that answered, where four sit behind one front door', async () => {
     const app = createBaseApp({ serviceName: 'internal-web' });
 

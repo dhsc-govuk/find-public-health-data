@@ -19,8 +19,15 @@ export {
 export { universalSecurityHeaders } from './security-headers.ts';
 export { serverLogging } from './server-logging.ts';
 
-/** Base app for all four servers: shared configuration and routes go here. */
-export function createBaseApp({ serviceName }: { serviceName: string }): Express {
+/** Base app for every server: shared configuration and routes go here. */
+export function createBaseApp({
+  serviceName,
+  isLive = () => true,
+}: {
+  serviceName: string;
+  /** False asks the platform to restart the process, as when a worker's loop has hung. */
+  isLive?: () => boolean;
+}): Express {
   const app = express();
 
   app.disable('x-powered-by');
@@ -28,7 +35,10 @@ export function createBaseApp({ serviceName }: { serviceName: string }): Express
 
   // Stays 200 while draining: the process is alive, and failing this asks for a restart.
   app.get('/livez', (_request, response) => {
-    response.status(200).json({ status: 'ok', service: serviceName });
+    const live = isLive();
+    response
+      .status(live ? 200 : 503)
+      .json({ status: live ? 'ok' : 'stalled', service: serviceName });
   });
 
   // Off `app.locals` so the drain can flip it without a capability threaded through every app
