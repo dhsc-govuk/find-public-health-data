@@ -278,8 +278,9 @@ story against the spec titles.
 ## The public artifact boundary
 
 `pnpm check:artefacts` (`tools/artefact-boundary`, also its own CI job) fails if internal code or a
-repository secret has reached a public artifact, or the database operations a server app. It
-applies six checks, cheapest first so the common failure is reported without waiting for a build:
+repository secret has reached a public artifact, the database operations a server app, or the
+internal API's code the internal worker. It applies seven checks, cheapest first so the common
+failure is reported without waiting for a build:
 
 - no reference to the `secrets` context can reach a `docker build` step in any workflow — not in
   the step's `run`, `with` or `env`, and not in `env` inherited from its job or the workflow. The
@@ -287,8 +288,10 @@ applies six checks, cheapest first so the common failure is reported without wai
   scan in CI inspects the built layers for the patterns it knows, and this refuses the route
   whatever the value looks like;
 - the two public apps' transitive workspace dependency closures contain no `internal-*` package;
-- the four server apps' closures do not contain `@fphd/db-operations`, so only the operations
-  image carries the migrations, seeding and the core data import;
+- the four server apps' and the internal worker's closures do not contain `@fphd/db-operations`, so
+  only the operations image carries the migrations, seeding and the core data import;
+- the internal worker's closure contains none of `@fphd/internal-api-features`, `@fphd/api-server`
+  and `@fphd/auth`: it publishes through `@fphd/internal-workflow` alone;
 - no route module in `public-web`'s route table is internal. React Router declares routes as path
   strings rather than imports, so `route('manage', '../../packages/internal-web-features/…')` is
   invisible to an import linter — `react-router routes --json` names those paths directly;
@@ -305,8 +308,9 @@ applies six checks, cheapest first so the common failure is reported without wai
 The rule the four code checks share is "a module reference naming an `@fphd/internal-*` package or
 living under a directory named `internal-*`", unit-tested in
 `tools/artefact-boundary/src/internal.test.ts`. The build-input check is unit-tested in
-`tools/artefact-boundary/src/builds.test.ts`, and the operations rule in
-`tools/artefact-boundary/src/operations.test.ts`.
+`tools/artefact-boundary/src/builds.test.ts`, the operations rule in
+`tools/artefact-boundary/src/operations.test.ts`, and the worker rule in
+`tools/artefact-boundary/src/worker.test.ts`.
 
 Three of the checks would pass vacuously if they silently found nothing to inspect, so all refuse
 to: no workflow building an image is an error, an app name absent from the workspace refuses to be

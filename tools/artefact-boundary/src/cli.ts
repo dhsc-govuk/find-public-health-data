@@ -8,6 +8,7 @@ import { findOperationsPackages } from './operations.ts';
 import { collectRouteFiles } from './routes.ts';
 import { collectSourcemapSources } from './sourcemaps.ts';
 import { extractImportSpecifiers } from './specifiers.ts';
+import { findPackagesKeptFromWorker } from './worker.ts';
 import { collectDependencyClosure, readWorkspacePackages } from './workspace.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..', '..');
@@ -19,13 +20,15 @@ const PUBLIC_WEB: PublicApp = { pkg: '@fphd/public-web', dir: 'apps/public-web',
 const PUBLIC_API: PublicApp = { pkg: '@fphd/public-api', dir: 'apps/public-api', bundled: false };
 const PUBLIC_APPS = [PUBLIC_WEB, PUBLIC_API];
 
+const INTERNAL_WORKER = '@fphd/internal-worker';
+
 /** The apps that serve requests. Only the operations image may change a database. */
 const SERVER_APPS: Pick<PublicApp, 'pkg' | 'bundled'>[] = [
   PUBLIC_WEB,
   PUBLIC_API,
   { pkg: '@fphd/internal-web', bundled: true },
   { pkg: '@fphd/internal-api', bundled: false },
-  { pkg: '@fphd/internal-worker', bundled: false },
+  { pkg: INTERNAL_WORKER, bundled: false },
 ];
 
 type Violation = {
@@ -40,6 +43,7 @@ async function main(): Promise<void> {
     ...(await checkImageBuildInputs()),
     ...(await checkDependencyClosures()),
     ...(await checkOperationsClosures()),
+    ...(await checkWorkerClosure()),
     ...checkWebRouteTable(),
     ...(await checkApiOutput()),
     ...(await checkWebBundle()),
@@ -100,6 +104,18 @@ async function checkOperationsClosures(): Promise<Violation[]> {
       ? []
       : [{ check: 'operations closure', detail: pkg, references }];
   });
+}
+
+async function checkWorkerClosure(): Promise<Violation[]> {
+  console.log(`Checking ${INTERNAL_WORKER}’s workspace dependency closure…`);
+  const packages = await readWorkspacePackages(repoRoot);
+  const references = findPackagesKeptFromWorker(
+    collectDependencyClosure(INTERNAL_WORKER, packages, { bundled: false }),
+    packages,
+  );
+  return references.length === 0
+    ? []
+    : [{ check: 'worker closure', detail: INTERNAL_WORKER, references }];
 }
 
 /**
