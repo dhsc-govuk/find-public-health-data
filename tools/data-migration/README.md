@@ -145,9 +145,10 @@ carry topics or classifications. `indicatorTopics` accepts `isPrimary` and
 `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId, isPrimary }` rows.
 Packages use format version 5 and `canonical-v5`, including explicit area status and nullable
 area validity dates. Every area file requires `is_current`; missing status is rejected rather
-than filled from the database default. Migrate the receiver's schema and regenerate older packages before
-importing; the receiver refuses an older format rather than applying different area or
-measure semantics.
+than filled from the database default. Every `indicator_version` file requires `is_locked` in
+the same way, so a published version never arrives unlocked. Migrate the receiver's schema and
+regenerate older packages before importing; the receiver refuses an older format rather than
+applying different area or measure semantics.
 Preparation checks coverage before writing prepared output; the importer verifies all
 applied topic, subtopic and classification links before committing.
 
