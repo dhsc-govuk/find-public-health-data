@@ -45,6 +45,13 @@ export interface HistoryAssignmentRecord {
   reviewers: string[];
 }
 
+/** An admin confirming the publication date, or changing it once confirmed. */
+export interface HistorySchedulingRecord {
+  at: string;
+  by: string;
+  action: 'indicator.publication_scheduled' | 'indicator.publication_date_changed';
+}
+
 /** A save of the draft after a response asked for changes: the fields it changed, never their values. */
 export interface HistorySaveRecord {
   at: string;
@@ -58,6 +65,7 @@ export interface IndicatorHistoryRow extends IndicatorAccessRow {
   versions: HistoryVersionRecord[];
   submissions: HistorySubmissionRecord[];
   assignments: HistoryAssignmentRecord[];
+  scheduling: HistorySchedulingRecord[];
   saves: HistorySaveRecord[];
 }
 
@@ -129,6 +137,21 @@ const assignments = sql<HistoryAssignmentRecord[]>`coalesce((
     and a.entity_id = ${indicator.id}::text
 ), '[]'::json)`;
 
+// Who confirmed or changed the publication date, and when; never the date. The entity index finds
+// the indicator's entries and the action narrows them, as for the assignments.
+const scheduling = sql<HistorySchedulingRecord[]>`coalesce((
+  select json_agg(json_build_object(
+    'at', a.occurred_at,
+    'by', actor.display_name,
+    'action', a.action
+  ) order by a.occurred_at)
+  from audit_log a
+  join app_user actor on actor.id = a.actor_id
+  where a.action in ('indicator.publication_scheduled', 'indicator.publication_date_changed')
+    and a.entity_type = 'indicator'
+    and a.entity_id = ${indicator.id}::text
+), '[]'::json)`;
+
 // Only the field names: the values are the draft's, which this history never shows. The entity
 // index finds the indicator's entries and the action narrows them, as for the assignments.
 const saves = sql<HistorySaveRecord[]>`coalesce((
@@ -167,6 +190,7 @@ export async function findIndicatorHistory(
       versions,
       submissions,
       assignments,
+      scheduling,
       saves,
     })
     .from(indicator)

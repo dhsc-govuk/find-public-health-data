@@ -14,10 +14,14 @@ import {
   newDraft,
   repositoryTest,
 } from './indicator-repository.testing.ts';
+import { schedulePublication } from './indicator-scheduling-repository.ts';
 import {
+  AS_ADMIN,
   AS_REVIEWER,
   completeDraft,
   draftUpdatedAt,
+  scheduledDraft,
+  scheduledPublishAtOf,
   sentBackDraft,
   ukToday,
 } from './indicator-workflow.testing.ts';
@@ -219,6 +223,38 @@ describe('findIndicatorHistory', () => {
       { status: 'submitted', previousStatus: 'withdrawn', endedBy: null },
     ]);
     expect(saves).toEqual([]);
+  });
+
+  repositoryTest('reads the publication date confirmed, then changed', async ({ db }) => {
+    const { indicatorId, versionId } = await scheduledDraft(db, 'History of a publication date');
+    const confirmed = await scheduledPublishAtOf(db, versionId);
+    expect(
+      await schedulePublication(
+        db,
+        indicatorId,
+        {
+          scheduledPublishAt: new Date('2030-12-01T15:00:00.000Z'),
+          shownScheduledPublishAt: confirmed,
+        },
+        AS_ADMIN,
+      ),
+    ).toEqual({ ok: true });
+
+    const row = await history(db, indicatorId);
+
+    expect(row.scheduling).toEqual([
+      { at: expect.any(String), by: 'Riley Singh', action: 'indicator.publication_scheduled' },
+      { at: expect.any(String), by: 'Riley Singh', action: 'indicator.publication_date_changed' },
+    ]);
+    expect(historyEntries(row).map(({ kind }) => kind)).toEqual([
+      'publication_date_changed',
+      'publication_scheduled',
+      'responded',
+      'imrg_reviewed',
+      'reviewers_assigned',
+      'submitted',
+      'created',
+    ]);
   });
 
   repositoryTest('reads each version with its publication time', async ({ db }) => {
