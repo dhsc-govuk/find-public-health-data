@@ -43,7 +43,7 @@ test.describe('as the publisher', () => {
     const id = await submitNewIndicator(browser, uniqueIndicatorName('notes'));
 
     await openOverview(page, id);
-    await expect(page.getByRole('tab')).toHaveText(['Actions', 'Notes for reviewers']);
+    await expect(page.getByRole('tab')).toHaveText(['Actions', 'Notes for reviewers', 'History']);
     await expectNotesForReviewers(page);
 
     await expectNoAccessibilityViolations(page, testInfo);

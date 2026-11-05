@@ -2,12 +2,14 @@
 import {
   canEditIndicator,
   canReviewIndicator,
+  canSeeIndicatorHistory,
   canSeeNotesForReviewers,
   canWriteReviewerNotes,
 } from '@fphd/auth/permissions';
 import {
   indicatorAccess,
   indicatorAdminDetailSchema,
+  indicatorHistorySchema,
   notesForReviewersSchema,
   reviewerNotesSchema,
 } from '@fphd/internal-api-features/contract';
@@ -18,6 +20,7 @@ import { getSession } from '@fphd/web-server/session';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { requireIndicatorId } from '../indicator-id.ts';
+import { historyItems } from './history-items.ts';
 import { overviewNotification } from './notifications.ts';
 import { reviewerNoteFormFor } from './reviewer-notes.ts';
 
@@ -26,10 +29,11 @@ export type {
   NotesForReviewers,
   ReviewerNote,
 } from '@fphd/internal-api-features/contract';
+export type { HistoryItem, HistoryRow } from './history-items.ts';
 export type { OverviewNotification } from './notifications.ts';
 export type { ReviewerNoteForm } from './reviewer-notes.ts';
 
-// A reviewer unassigned since the detail was read gets no notes of either kind, not a missing page.
+// A reviewer unassigned since the detail was read gets no notes or history, not a missing page.
 function noneIfNotFound(error: unknown): null {
   if (error instanceof Response && error.status === 404) return null;
   throw error;
@@ -45,7 +49,7 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
 
   const session = getSession(context);
   const access = indicatorAccess(indicator);
-  const [notesForReviewers, reviewerNotes] = await Promise.all([
+  const [notesForReviewers, reviewerNotes, history] = await Promise.all([
     session !== undefined && canSeeNotesForReviewers(session, access)
       ? api
           .get(apiPath`/api/internal/indicators/${id}/notes-for-reviewers`, notesForReviewersSchema)
@@ -55,6 +59,12 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
       ? api
           .get(apiPath`/api/internal/indicators/${id}/reviewer-notes`, reviewerNotesSchema)
           .then(({ notes }) => ({ notes, form: reviewerNoteFormFor(notes, new URL(request.url)) }))
+          .catch(noneIfNotFound)
+      : null,
+    session !== undefined && canSeeIndicatorHistory(session, access)
+      ? api
+          .get(apiPath`/api/internal/indicators/${id}/history`, indicatorHistorySchema)
+          .then(historyItems)
           .catch(noneIfNotFound)
       : null,
   ]);
@@ -68,6 +78,7 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
     indicator,
     notesForReviewers,
     reviewerNotes,
+    history,
     notification,
   };
 }

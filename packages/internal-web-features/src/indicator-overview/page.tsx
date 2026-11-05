@@ -11,7 +11,9 @@ import {
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
 import { actionsTabSections } from './actions-tab.ts';
 import { ActionsTab } from './actions-tab.tsx';
+import { History } from './history.tsx';
 import type {
+  HistoryItem,
   IndicatorAdminDetail,
   NotesForReviewers as Notes,
   OverviewNotification,
@@ -34,6 +36,8 @@ interface OverviewProps {
   notesForReviewers?: Notes | null;
   /** The assigned reviewer's own notes and the form for them, for them alone. */
   reviewerNotes?: { notes: readonly ReviewerNote[]; form: ReviewerNoteForm } | null;
+  /** What has happened to the indicator, for those who may read it. */
+  history?: readonly HistoryItem[] | null;
   /** What the page the publisher came from left to tell them. */
   notification?: OverviewNotification | undefined;
 }
@@ -54,6 +58,7 @@ export function IndicatorOverviewPage({
   indicator,
   notesForReviewers = null,
   reviewerNotes = null,
+  history = null,
   notification,
 }: OverviewProps) {
   const tabs = [
@@ -80,6 +85,9 @@ export function IndicatorOverviewPage({
             content: <NotesForReviewers notes={notesForReviewers} indicator={indicator} />,
           },
         ]),
+    ...(history === null
+      ? []
+      : [{ id: 'history', label: 'History', content: <History items={history} /> }]),
   ];
 
   const noteError = reviewerNotes?.form.fieldErrors.reviewerNote;

@@ -176,6 +176,39 @@ describe('IndicatorOverviewPage', () => {
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Actions']);
   });
 
+  it('offers the history in a tab after the notes for reviewers to someone who may read it', () => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          indicator={{ ...indicator, draftStatus: 'draft' }}
+          notesForReviewers={ANSWERED_NOTES}
+          history={[
+            {
+              date: '2026-08-04T23:30:00.000Z',
+              action: 'Indicator first created',
+              by: 'Sam Taylor',
+              rows: [],
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Actions',
+      'Notes for reviewers',
+      'History',
+    ]);
+    expect(screen.getByRole('heading', { level: 2, name: 'History' })).toBeTruthy();
+  });
+
+  it('offers no history to someone who may not read it', () => {
+    renderPage({ draftStatus: 'draft' });
+
+    expect(screen.queryByRole('tab', { name: 'History' })).toBeNull();
+  });
+
   it('shows something the publisher needs to know in an important banner', () => {
     render(
       <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>

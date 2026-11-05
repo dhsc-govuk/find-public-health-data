@@ -14,8 +14,15 @@ export const meta = titleFromPage;
 export const handle = backLinkHandle(DASHBOARD_PATH, 'Back to indicators');
 
 export function IndicatorOverviewRoute() {
-  const { canEdit, isReviewer, indicator, notesForReviewers, reviewerNotes, notification } =
-    useLoaderData<typeof loader>();
+  const {
+    canEdit,
+    isReviewer,
+    indicator,
+    notesForReviewers,
+    reviewerNotes,
+    history,
+    notification,
+  } = useLoaderData<typeof loader>();
   // A refused save shows the form as it was sent, in place of the one the address asks for.
   const refused = useActionData<ReviewerNoteForm | undefined>();
   return (
@@ -27,6 +34,7 @@ export function IndicatorOverviewRoute() {
       reviewerNotes={
         reviewerNotes === null ? null : { ...reviewerNotes, form: refused ?? reviewerNotes.form }
       }
+      history={history}
       notification={notification}
     />
   );

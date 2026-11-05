@@ -144,6 +144,35 @@
   margin-bottom: 0;
 }
 
+// The overview's History tab, laid out as the prototype lays it out.
+.fphd-history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid $govuk-border-colour;
+}
+
+.fphd-history-entry {
+  padding: govuk-spacing(4) 0;
+  border-bottom: 1px solid $govuk-border-colour;
+}
+
+// Doubled to outrank GOV.UK Frontend's own table margin, which loads after this file.
+.fphd-history-table.fphd-history-table {
+  margin-top: govuk-spacing(4);
+  margin-bottom: 0;
+
+  .govuk-table__header,
+  .govuk-table__cell {
+    @include govuk-font-size($size: 16);
+  }
+
+  .govuk-table__header:first-child,
+  .govuk-table__cell:first-child {
+    width: 35%;
+  }
+}
+
 .fphd-filter-card {
   margin-bottom: govuk-spacing(4);
   border: 1px solid govuk-colour("black", $variant: "tint-80");
