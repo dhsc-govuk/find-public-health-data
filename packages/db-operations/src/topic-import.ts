@@ -1,8 +1,5 @@
 import { type Database, schema } from '@fphd/db';
-import { recordAudit } from '@fphd/db/audit-log';
 import { sql } from 'drizzle-orm';
-
-import { CORE_DATA_IMPORT, upsertEntries, upsertedRow } from './core-data-audit.ts';
 
 const { SYSTEM_USER_IDS, topic } = schema;
 
@@ -98,9 +95,8 @@ export async function upsertTopics(
           })
           // xmax = 0 is the standard postgres upsert idiom for "this row was just inserted, not
           // updated" — a fresh tuple has never been superseded, so its xmax is unset.
-          .returning({ id: topic.id, wasInsert: sql<boolean>`xmax = 0`, ...upsertedRow })
+          .returning({ id: topic.id, wasInsert: sql<boolean>`xmax = 0` })
       : [];
-    await recordAudit(tx, CORE_DATA_IMPORT, upsertEntries(topic, outcomes));
 
     return { summary: summarizeUpsert(records.length, outcomes), orphaned };
   });

@@ -102,8 +102,8 @@ Upserts matched on `id`: a rename — even one that changes the slug — updates
 place without changing the primary key. Rows in the database but absent from the file
 are reported and left alone, never deleted. Re-runs are true no-ops (`updated_at`
 untouched), so the import is safe to run repeatedly, in any environment. The import writes
-as the Core data import system user, and each row it inserts or rewrites records an audit
-entry in the upsert's transaction.
+as the Core data import system user. It records nothing in the audit log, which is for
+changes made through the service.
 
 Lookups a publisher chooses from are core data under the service's own names, with fixed
 ids, so every environment holds the same rows and the seed's relationship files can name

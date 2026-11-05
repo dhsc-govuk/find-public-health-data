@@ -127,13 +127,7 @@ describe('upsertOrderedNames', () => {
       unchanged: VALUE_TYPES.length - 2,
     });
     expect(swapped.orphaned).toEqual([{ id: stray?.id, name: 'A value type no file lists' }]);
-    expect((await auditEntriesFor(db, first.id)).at(-1)).toEqual(
-      expect.objectContaining({
-        actorId: SYSTEM_USER_IDS.coreDataImport,
-        action: 'value_type.updated',
-        changes: { position: { before: 0, after: 1 } },
-      }),
-    );
+    expect(await auditEntriesFor(db, first.id)).toEqual([]);
     expect((await positions()).slice(0, 3)).toEqual([
       { name: 'A value type no file lists', position: 0 },
       { name: second.name, position: 0 },
@@ -186,10 +180,7 @@ describe('upsertComparatorMethods', () => {
     expect(again.summary).toEqual({ inserted: 0, updated: 0, unchanged: 1 });
     expect(renamed.summary).toEqual({ inserted: 0, updated: 1, unchanged: 0 });
     expect(renamed.orphaned).toEqual([{ id: stray?.id, name: 'A method no file lists' }]);
-    expect((await auditEntriesFor(db, method.id)).map(({ action }) => action)).toEqual([
-      'comparator_method.created',
-      'comparator_method.updated',
-    ]);
+    expect(await auditEntriesFor(db, method.id)).toEqual([]);
   });
 });
 

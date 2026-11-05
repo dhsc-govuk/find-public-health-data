@@ -53,7 +53,7 @@ async function count(sql: SqlClient, table: string): Promise<number> {
 }
 
 describe('db import-core-data (integration)', () => {
-  it('loads topics and CI methods, is idempotent on a re-run, and runs in any environment', async () => {
+  it('loads topics and CI methods, audits nothing, is idempotent and runs in any environment', async () => {
     // 'production' deliberately: core data is required content, so the command must not
     // carry the dummy seed's environment gate.
     const context = testContext(emptySql, emptyDb.name, 'production');
@@ -62,6 +62,7 @@ describe('db import-core-data (integration)', () => {
     const topics = await count(emptySql, 'topic');
     expect(topics).toBeGreaterThan(0);
     expect(await count(emptySql, 'ci_method')).toBeGreaterThan(0);
+    expect(await count(emptySql, 'audit_log')).toBe(0);
     const before = await emptySql`SELECT id, updated_at::text AS updated_at FROM topic ORDER BY id`;
 
     await importCoreData(context);

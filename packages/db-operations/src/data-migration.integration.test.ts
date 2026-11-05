@@ -457,25 +457,8 @@ describe('applyDataMigration', () => {
     );
     expect(first.applied).toBe(true);
     expect(second.applied).toBe(false);
-    // Read raw: a Drizzle handle over this client would change how it sends the package's JSON.
-    const entries = await sql`
-      SELECT actor_id, action, entity_type, request_id, changes FROM audit_log
-      WHERE entity_id = ${fixture.manifest.migration_id}
-    `;
-    expect(entries).toEqual([
-      {
-        actor_id: SYSTEM_USER_IDS.pholioMigration,
-        action: 'data_migration.applied',
-        entity_type: 'data_migration',
-        request_id: null,
-        changes: expect.objectContaining({
-          id: { before: null, after: fixture.manifest.migration_id },
-          kind: { before: null, after: 'incremental' },
-          packageSha256: { before: null, after: fixture.sha256 },
-          tableChanges: { before: null, after: first.changes },
-        }),
-      },
-    ]);
+    // The ledger records each package; the audit log is for changes made through the service.
+    await expect(sql`SELECT 1 FROM audit_log`).resolves.toHaveLength(0);
     await expect(
       sql.begin((tx) => applyDataMigration(tx, directory, fixture.manifest, 'f'.repeat(64))),
     ).rejects.toThrow('already applied with another package');
@@ -1389,9 +1372,6 @@ describe('applyDataMigration', () => {
       }),
     ).rejects.toThrow('Migrated indicators have no topic: 108 (Changed name)');
     await assertRolledBack();
-    await expect(
-      sql`SELECT 1 FROM audit_log WHERE entity_id = 'refused-increment'`,
-    ).resolves.toHaveLength(0);
   });
   it.each(['link', 'age range'])(
     'protects publisher %s rows when source versions are deleted',

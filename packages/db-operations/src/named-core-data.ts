@@ -1,9 +1,7 @@
 import { z } from '@fphd/config';
 import { type Database, schema } from '@fphd/db';
-import { recordAudit } from '@fphd/db/audit-log';
 import { sql } from 'drizzle-orm';
 
-import { CORE_DATA_IMPORT, upsertEntries, upsertedRow } from './core-data-audit.ts';
 import { findDuplicates } from './parse-topics-file.ts';
 import { summarizeUpsert, type UpsertSummary } from './topic-import.ts';
 
@@ -68,8 +66,7 @@ export async function upsertOrderedNames(
               },
               setWhere: sql`(${table.name}, ${table.position}) IS DISTINCT FROM (excluded.name, excluded.position)`,
             })
-            .returning({ id: table.id, wasInsert: sql<boolean>`xmax = 0`, ...upsertedRow });
-    await recordAudit(tx, CORE_DATA_IMPORT, upsertEntries(table, outcomes));
+            .returning({ id: table.id, wasInsert: sql<boolean>`xmax = 0` });
 
     return {
       summary: summarizeUpsert(records.length, outcomes),
@@ -102,9 +99,7 @@ export async function upsertComparatorMethods(
             .returning({
               id: comparatorMethod.id,
               wasInsert: sql<boolean>`xmax = 0`,
-              ...upsertedRow,
             });
-    await recordAudit(tx, CORE_DATA_IMPORT, upsertEntries(comparatorMethod, outcomes));
 
     return {
       summary: summarizeUpsert(records.length, outcomes),
