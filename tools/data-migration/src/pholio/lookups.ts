@@ -1,4 +1,6 @@
-import type { PholioExportOptions } from './context.ts';
+import { tidyName } from '@fphd/utils/tidy-name';
+
+import type { PholioSource } from './context.ts';
 import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 
@@ -11,7 +13,7 @@ const QUALITY_NOTES = new Set([
 
 export function noteCategory(text: string | null): string {
   if (!text) return 'contextual';
-  if (QUALITY_NOTES.has(text)) return 'quality';
+  if (QUALITY_NOTES.has(tidyName(text))) return 'quality';
   const t = text.toLowerCase();
   if (/boundar|geograph|merg|area.*change|reconfig/.test(t)) return 'geographic';
   if (/suppress|disclosure|small number/.test(t)) return 'disclosure';
@@ -23,15 +25,13 @@ export function noteCategory(text: string | null): string {
 }
 
 /** Exports ci_method, comparator_method, data_source, numerator_denominator_source and note_type from Pholio. */
-export async function exportLookups(context: PholioExportOptions) {
+export async function exportLookups(context: PholioSource) {
   const { pool, outDir } = context;
-  const noteTypeCategory = new Map<number, string>();
 
   const ciMethodWriter = new TableWriter(outDir, 'ci_method');
   const comparatorMethodWriter = new TableWriter(outDir, 'comparator_method');
   const dataSourceWriter = new TableWriter(outDir, 'data_source');
   const numDenSourceWriter = new TableWriter(outDir, 'numerator_denominator_source');
-  const noteTypeWriter = new TableWriter(outDir, 'note_type');
 
   const ciMethodRows = await queryPholio<{
     CIMethodID: number;
@@ -92,6 +92,23 @@ export async function exportLookups(context: PholioExportOptions) {
     })),
   );
 
+  const { file, noteTypeCategory } = await exportNoteTypes(context);
+
+  return {
+    noteTypeCategory,
+    tables: {
+      ci_method: await ciMethodWriter.close(),
+      comparator_method: await comparatorMethodWriter.close(),
+      data_source: await dataSourceWriter.close(),
+      numerator_denominator_source: await numDenSourceWriter.close(),
+      note_type: file,
+    },
+  };
+}
+
+export async function exportNoteTypes({ pool, outDir }: PholioSource) {
+  const noteTypeWriter = new TableWriter(outDir, 'note_type');
+  const noteTypeCategory = new Map<number, string>();
   // note_type: exclude ValueNoteID 0 (no note) and 506 (Fingertips placeholder)
   const noteTypeRows = await queryPholio<{ ValueNoteID: number; Text: string | null }>(
     pool,
@@ -105,14 +122,5 @@ export async function exportLookups(context: PholioExportOptions) {
     }),
   );
 
-  return {
-    noteTypeCategory,
-    tables: {
-      ci_method: await ciMethodWriter.close(),
-      comparator_method: await comparatorMethodWriter.close(),
-      data_source: await dataSourceWriter.close(),
-      numerator_denominator_source: await numDenSourceWriter.close(),
-      note_type: await noteTypeWriter.close(),
-    },
-  };
+  return { file: await noteTypeWriter.close(), noteTypeCategory };
 }

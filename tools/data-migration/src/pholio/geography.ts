@@ -1,4 +1,4 @@
-import type { PholioExportOptions } from './context.ts';
+import type { PholioSource } from './context.ts';
 import { areaId, areaRelationshipId } from './ids.ts';
 import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
@@ -25,7 +25,7 @@ export function areaTypeHierarchyType(areaTypeClass: string | null, areaTypeId: 
 }
 
 /** Exports area_type, area and area_relationship from Pholio. */
-export async function exportGeography(context: PholioExportOptions) {
+export async function exportGeography(context: PholioSource) {
   const { pool, outDir } = context;
   const areaIdByPholioCode = new Map<string, number>();
 

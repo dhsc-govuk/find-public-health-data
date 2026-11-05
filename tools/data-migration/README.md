@@ -95,6 +95,30 @@ publishing moves to this service. The operations image applies the packages with
 - Topic and classification assignments must be supplied as a separately reviewed file.
   The demo profile heuristic is never accepted implicitly.
 
+## Refresh upload reference data
+
+Restore the reviewed Pholio backup as a read-only SQL Server database and point
+`PHOLIO_CONNECTION_STRING` at it. Compute the SHA-256 of that backup. From the repository root,
+run the export with the restore's name, the backup digest and a new output directory.
+
+```sh
+pnpm --filter @fphd/data-migration data-migration export-core-reference-data \
+  --expected-database pholio_live_b \
+  --backup-sha256 "$PHOLIO_BACKUP_SHA256" \
+  --out-dir /path/to/core-reference-refresh
+```
+
+The command checks the database name and read-only status. It uses the same lookup and
+geography exporters, name tidying and UUID mapping as the baseline workflow. The output
+contains four lookup JSON files and a `geography/` directory with two gzipped CSVs and a
+manifest. The supplied digest records which backup was restored, and the manifest records
+the row counts, sizes and SHA-256 digests of the CSVs.
+
+Review the lookup changes and geography counts, then copy the four JSON files and the
+three geography files into the corresponding paths under `packages/db-operations/data/`.
+Review any lookup rename against existing database references and upload labels before
+deploying the refreshed catalog.
+
 ## Reviewed relationship file
 
 The prepare step requires JSON accepted by the existing indicator relationship schema,

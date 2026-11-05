@@ -8,9 +8,12 @@ export type IndicatorSelection =
   | { kind: 'approved'; indicators: readonly number[] }
   | { kind: 'development-snapshot' };
 
-export interface PholioExportOptions {
+export interface PholioSource {
   pool: mssql.ConnectionPool;
   outDir: string;
+}
+
+export interface PholioExportOptions extends PholioSource {
   excludedIndicators: readonly number[];
   indicatorSelection: IndicatorSelection;
 }

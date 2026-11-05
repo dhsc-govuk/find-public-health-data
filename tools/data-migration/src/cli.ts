@@ -8,6 +8,7 @@ import {
   parseIndicatorIds,
 } from './indicator-checks.ts';
 import { exportLegacySeed } from './legacy-seed.ts';
+import { exportCoreReferenceData } from './pholio/export-core-reference-data.ts';
 import { exportPholio } from './pholio/export-pholio.ts';
 import { prepareBaseline } from './prepare-baseline.ts';
 import { importPrototypeSeed } from './prototype-seed.ts';
@@ -61,6 +62,14 @@ async function main(argv: readonly string[]): Promise<void> {
       });
       return;
     }
+    case 'export-core-reference-data':
+      await exportCoreReferenceData({
+        connectionString: requiredEnvironment('PHOLIO_CONNECTION_STRING'),
+        expectedDatabase: required(values, 'expected-database'),
+        backupSha256: required(values, 'backup-sha256'),
+        outDir: required(values, 'out-dir'),
+      });
+      return;
     case 'prepare-baseline':
       await prepareBaseline(
         required(values, 'directory'),
@@ -118,7 +127,7 @@ async function main(argv: readonly string[]): Promise<void> {
       return;
     default:
       throw new Error(
-        'Usage: data-migration <export-pholio|prepare-baseline|create-incremental|archive|generate-taxonomy-relationships|export-legacy-seed|import-prototype-seed|export-dev-snapshot> --option value',
+        'Usage: data-migration <export-pholio|export-core-reference-data|prepare-baseline|create-incremental|archive|generate-taxonomy-relationships|export-legacy-seed|import-prototype-seed|export-dev-snapshot> --option value',
       );
   }
 }

@@ -76,54 +76,63 @@ export function deterministicUuid(table: string, sourceId: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+export async function rekeyTable(path: string, table: string, expectedRows?: number) {
+  let fkIndexes = new Map<number, string>();
+  const rows = await transformGzipCsv(
+    path,
+    (row, header) => {
+      const idIndex = header.indexOf('id');
+      if (idIndex === -1) throw new Error(`${table} has no id column`);
+      const oldId = row[idIndex];
+      if (oldId === undefined) throw new Error(`${table} has an empty id`);
+      let rekeyed = row.map((value, index) => {
+        if (index === idIndex) return deterministicUuid(table, oldId);
+        const target = fkIndexes.get(index);
+        if (target && value !== '' && value !== DATA_MIGRATION_NULL)
+          return deterministicUuid(target, value);
+        if (table === 'observation' && header[index] === 'dimension_key')
+          return dimensionKey(
+            value === ''
+              ? []
+              : value.split(',').map((id) => deterministicUuid('dimension_value', id)),
+          );
+        return value;
+      });
+      // Positions come from the source header, so normalising, which can add columns, runs last.
+      rekeyed = normaliseRow(table, header, rekeyed);
+      if (table === 'indicator') {
+        return [...rekeyed.slice(0, idIndex + 1), oldId, ...rekeyed.slice(idIndex + 1)];
+      }
+      return rekeyed;
+    },
+    (header) => {
+      fkIndexes = new Map(foreignKeyIndexes(table, header));
+      header = normaliseHeader(table, header);
+      if (table !== 'indicator') return header;
+      const idIndex = header.indexOf('id');
+      return [...header.slice(0, idIndex + 1), 'short_id', ...header.slice(idIndex + 1)];
+    },
+  );
+  if (expectedRows !== undefined && rows !== expectedRows) {
+    throw new Error(`${table} row count changed during rekeying`);
+  }
+  return fileRecord(path, `${table}.csv.gz`, rows);
+}
+
 export async function rekeyDirectory(
   directory: string,
   expectedRows: Record<string, { rows: number }> | undefined,
 ): Promise<BaselineManifest['tables']> {
   const tables: BaselineManifest['tables'] = {};
   for (const table of TABLES) {
-    const path = join(directory, `${table}.csv.gz`);
-    let fkIndexes = new Map<number, string>();
-    const rows = await transformGzipCsv(
-      path,
-      (row, header) => {
-        const idIndex = header.indexOf('id');
-        if (idIndex === -1) throw new Error(`${table} has no id column`);
-        const oldId = row[idIndex];
-        if (oldId === undefined) throw new Error(`${table} has an empty id`);
-        let rekeyed = row.map((value, index) => {
-          if (index === idIndex) return deterministicUuid(table, oldId);
-          const target = fkIndexes.get(index);
-          if (target && value !== '' && value !== DATA_MIGRATION_NULL)
-            return deterministicUuid(target, value);
-          if (table === 'observation' && header[index] === 'dimension_key')
-            return dimensionKey(
-              value === ''
-                ? []
-                : value.split(',').map((id) => deterministicUuid('dimension_value', id)),
-            );
-          return value;
-        });
-        // Positions come from the source header, so normalising, which can add columns, runs last.
-        rekeyed = normaliseRow(table, header, rekeyed);
-        if (table === 'indicator') {
-          return [...rekeyed.slice(0, idIndex + 1), oldId, ...rekeyed.slice(idIndex + 1)];
-        }
-        return rekeyed;
-      },
-      (header) => {
-        fkIndexes = new Map(foreignKeyIndexes(table, header));
-        header = normaliseHeader(table, header);
-        if (table !== 'indicator') return header;
-        const idIndex = header.indexOf('id');
-        return [...header.slice(0, idIndex + 1), 'short_id', ...header.slice(idIndex + 1)];
-      },
+    if (expectedRows && !expectedRows[table]) throw new Error(`No source row count for ${table}`);
+    const file = await rekeyTable(
+      join(directory, `${table}.csv.gz`),
+      table,
+      expectedRows?.[table]?.rows,
     );
-    if (expectedRows && rows !== expectedRows[table]?.rows) {
-      throw new Error(`${table} row count changed during rekeying`);
-    }
-    tables[table] = await fileRecord(path, `${table}.csv.gz`, rows);
-    console.log(`${table}: ${rows.toLocaleString()} rows rekeyed`);
+    tables[table] = file;
+    console.log(`${table}: ${file.rows.toLocaleString()} rows rekeyed`);
   }
   return tables;
 }

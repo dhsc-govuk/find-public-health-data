@@ -58,6 +58,7 @@ export {
   rebuildReadModels,
   rebuildReadModelTables,
 } from './read-models.ts';
+export { parseReferenceData } from './reference-core-data.ts';
 export { resetDatabase } from './reset.ts';
 export {
   assertResetAllowed,

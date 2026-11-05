@@ -163,7 +163,8 @@ Lookup names identify area types, dimension types and notes. A value matches by 
 type and name, and an area by code and mapped area type. A referenced value with no core
 counterpart stops the load. Core reference rows are retained when loading the dummy seed.
 
-Refresh the committed catalogs from a reviewed Pholio cut when reference data changes.
+Refresh the committed catalogs when reference data changes.
+See [Refresh upload reference data](../../tools/data-migration/README.md#refresh-upload-reference-data).
 Deploy the operations image and run `db import-core-data` before applying a package that
 uses those new rows. The export and receiver share format version 5, which carries the
 reference catalogs in full in incremental packages.
