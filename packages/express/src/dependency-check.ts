@@ -2,7 +2,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { Logger } from '@fphd/logger';
 
-/** Something an API serves data from, checked from start-up until it answers. */
+/** Something a server works from, such as its database, checked from start-up until it answers. */
 export interface Dependency {
   name: string;
   check: () => Promise<unknown>;
@@ -14,7 +14,7 @@ export interface CheckDependenciesOptions {
 
 /**
  * Logs each failed check and retries it until it passes, so the alert on the line stays fired while
- * the dependency is down. Never rejects: the API serves on regardless.
+ * the dependency is down. Never rejects: the server serves on regardless.
  */
 export async function checkDependencies(
   logger: Logger,
