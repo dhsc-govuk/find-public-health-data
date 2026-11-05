@@ -189,23 +189,26 @@ it('resends unchanged versions when reference names change', async () => {
   ]);
 });
 
-it('carries a changed core catalog without resending unchanged indicator versions', async () => {
+it('carries the whole changed core catalog without resending unchanged indicator versions', async () => {
   const versionId = deterministicUuid('indicator_version', '1');
-  const areaId = deterministicUuid('area', '1');
+  const [areaId, unchangedAreaId] = ['1', '2'].map((key) => deterministicUuid('area', key)).sort();
+  const unchangedArea = [unchangedAreaId as string, 'Unchanged area'];
   const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {
     indicator_version: [[versionId, 'Unchanged version']],
-    area: [[areaId, 'Old area name']],
+    area: [[areaId as string, 'Old area name'], unchangedArea],
   });
   const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', {
     indicator_version: [[versionId, 'Unchanged version']],
-    area: [[areaId, 'New area name']],
+    area: [[areaId as string, 'New area name'], unchangedArea],
   });
   const output = await outputDirectory();
   await createIncremental(previous, current, output, 'increment-2');
   expect(await records(join(output, 'indicator_version.csv.gz'))).toEqual([['id', 'name']]);
+  // The receiver maps observation areas using only the package's area rows.
   expect(await records(join(output, 'area.csv.gz'))).toEqual([
     ['id', 'name'],
     [areaId, 'New area name'],
+    unchangedArea,
   ]);
 });
 
