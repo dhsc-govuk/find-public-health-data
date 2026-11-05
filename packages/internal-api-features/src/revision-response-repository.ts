@@ -26,6 +26,7 @@ const {
   indicatorVersionSubmission,
   indicatorVersionSubmissionFlag,
   indicatorVersionSubmissionResponse,
+  isUnpublished,
 } = schema;
 
 /** One flag of the round, and whether the publisher has saved its task since. */
@@ -145,7 +146,7 @@ export function saveRevisionResponse(
       .select({ id: indicatorVersion.id, isLocked: indicatorVersion.isLocked })
       .from(indicatorVersion)
       .where(
-        and(eq(indicatorVersion.indicatorId, indicatorId), eq(indicatorVersion.status, 'draft')),
+        and(eq(indicatorVersion.indicatorId, indicatorId), isUnpublished(indicatorVersion.status)),
       )
       .for('no key update');
 

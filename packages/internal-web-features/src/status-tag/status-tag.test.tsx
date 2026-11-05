@@ -41,6 +41,7 @@ describe('StatusTag', () => {
     ['new', 'draft', 'changes_requested', 'minor_revisions', 'Minor revisions needed', 'orange'],
     ['new', 'draft', 'changes_requested', 'major_revisions', 'Major revisions needed', 'red'],
     ['new', 'draft', 'approved', 'approved', 'Publishing scheduled', 'yellow'],
+    ['new', 'scheduled', 'approved', 'approved', 'Publishing scheduled', 'yellow'],
     ['live', null, null, null, 'Published', 'green'],
     ['live', 'draft', null, null, 'Update incomplete', 'blue'],
   ] as const)(

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import { createDbFromTransaction } from '@fphd/db';
+import { createDbFromTransaction, schema } from '@fphd/db';
 import type postgres from 'postgres';
 
 import { MIGRATION_USER_ID } from './data-migration-actors.ts';
@@ -11,6 +11,8 @@ import {
   parseDataMigrationRelationships,
 } from './data-migration-relationships.ts';
 import { applyIndicatorTopics } from './indicator-topic-import.ts';
+
+const { UNPUBLISHED_STATUS_LITERALS } = schema;
 
 export async function readMigrationRelationships(
   directory: string,
@@ -35,7 +37,7 @@ export async function assertMigrationPublisherWorkUnchanged(
       AND EXISTS (
         SELECT 1 FROM indicator_version v
         WHERE v.indicator_id = i.id AND (
-          v.status = 'draft' OR (
+          v.status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)}) OR (
             v.id IN (SELECT id FROM current_published_version)
             AND (v.created_by IS DISTINCT FROM ${MIGRATION_USER_ID}
               OR v.updated_by IS DISTINCT FROM ${MIGRATION_USER_ID})

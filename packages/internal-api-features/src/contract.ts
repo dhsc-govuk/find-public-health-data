@@ -98,8 +98,11 @@ export type TopicDeleteError = z.infer<typeof topicDeleteErrorSchema>;
 /** What the public has: live once any version is published, new until then. */
 export const indicatorStatusSchema = z.enum(['new', 'live']);
 
-/** The open draft's workflow state. */
-export const draftStatusSchema = z.enum(['draft']);
+/**
+ * The unpublished version's status: a draft, or scheduled once an admin confirms its publication
+ * date. Both are the indicator's working version.
+ */
+export const draftStatusSchema = z.enum(['draft', 'scheduled']);
 
 /** Where the draft's latest submission for review stands. */
 export const draftSubmissionStatusSchema = z.enum(INDICATOR_SUBMISSION_STATUSES);

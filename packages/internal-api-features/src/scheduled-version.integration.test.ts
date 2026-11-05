@@ -1,0 +1,170 @@
+import { FAKE_USER_IDS } from '@fphd/auth';
+import type { Actor } from '@fphd/db/audit-log';
+import { describe, expect } from 'vitest';
+
+import { confirmDataTable, findDraftDataTable } from './data-table-check-repository.ts';
+import { processDataUpload } from './data-upload-load-repository.ts';
+import { findUploadDraftVersion } from './data-upload-repository.ts';
+import {
+  getIndicatorDraftState,
+  getIndicatorNotesForReviewers,
+  updateIndicatorDraft,
+} from './indicator-draft-repository.ts';
+import {
+  getIndicatorById,
+  listIndicatorsPage,
+  listIndicatorsUnderReview,
+} from './indicator-list-repository.ts';
+import { AS_ACTOR, repositoryTest } from './indicator-repository.testing.ts';
+import { scheduledDraft } from './indicator-workflow.testing.ts';
+import { withdrawSubmission } from './indicator-workflow-repository.ts';
+import { addReviewerNote, listReviewerNotes } from './reviewer-note-repository.ts';
+import { revisionReplyVersion, saveRevisionResponse } from './revision-response-repository.ts';
+
+const REVIEWER = FAKE_USER_IDS.imrgReviewer;
+const AS_REVIEWER: Actor = { userId: REVIEWER, requestId: null };
+const ALL = { all: true } as const;
+
+// A scheduled version is still the indicator's working version: every read of the draft, and the
+// step's own, finds it locked.
+describe('a scheduled version, read as the draft', () => {
+  repositoryTest('is the draft of its list and detail rows', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled rows indicator');
+
+    const detail = await getIndicatorById(db, indicatorId);
+    const { indicators } = await listIndicatorsPage(db, 1, 1000, ALL);
+
+    expect(detail).toMatchObject({
+      name: 'Scheduled rows indicator',
+      indicatorStatus: 'new',
+      draftStatus: 'scheduled',
+      draftLocked: true,
+      draftSubmissionStatus: 'approved',
+      draftSubmissionNumber: 1,
+      draftReviewers: [expect.objectContaining({ id: REVIEWER })],
+    });
+    expect(detail?.draftScheduledPublishAt).toBeInstanceOf(Date);
+    expect(indicators.find(({ id }) => id === indicatorId)).toMatchObject({
+      draftStatus: 'scheduled',
+      draftSubmissionStatus: 'approved',
+    });
+  });
+
+  repositoryTest('stays with the reviewers who approved it', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled queue indicator');
+
+    const { assigned } = await listIndicatorsUnderReview(db, ALL);
+
+    expect(assigned.map(({ id }) => id)).toContain(indicatorId);
+  });
+
+  repositoryTest('is the draft of its task list and notes for reviewers', async ({ db }) => {
+    const { indicatorId, versionId } = await scheduledDraft(db, 'Scheduled draft indicator');
+
+    const state = await getIndicatorDraftState(db, indicatorId);
+    const notes = await getIndicatorNotesForReviewers(db, indicatorId);
+
+    expect(state).toMatchObject({ draftStatus: 'scheduled', draft: { id: versionId } });
+    expect(state?.draft?.isLocked).toBe(true);
+    expect(notes?.version.id).toBe(versionId);
+  });
+
+  repositoryTest('answers its data table and uploads as locked', async ({ db }) => {
+    const { indicatorId, versionId } = await scheduledDraft(db, 'Scheduled table indicator');
+
+    await expect(findDraftDataTable(db, indicatorId)).resolves.toEqual({
+      found: false,
+      reason: 'locked',
+    });
+    await expect(findUploadDraftVersion(db, indicatorId)).resolves.toEqual({
+      id: versionId,
+      isLocked: true,
+    });
+  });
+
+  repositoryTest("keeps its reviewer's notes", async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled notes indicator');
+
+    const added = await addReviewerNote(db, indicatorId, 'Checked the sources', AS_REVIEWER);
+
+    expect(added.ok).toBe(true);
+    await expect(listReviewerNotes(db, indicatorId, REVIEWER)).resolves.toEqual([
+      expect.objectContaining({ text: 'Checked the sources' }),
+    ]);
+  });
+
+  repositoryTest('answers a step as not allowed rather than as no draft', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled step indicator');
+
+    await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'not_allowed',
+    });
+  });
+});
+
+const LOCKED = { ok: false, reason: 'locked' };
+
+// Every edit finds the scheduled version and refuses it as locked, never as a missing draft.
+describe('a scheduled version, edited', () => {
+  repositoryTest('refuses a section save and a rename', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled edit indicator');
+
+    await expect(
+      updateIndicatorDraft(
+        db,
+        indicatorId,
+        'definition-and-rationale',
+        { definition: 'Edited after scheduling' },
+        {},
+        AS_ACTOR,
+      ),
+    ).resolves.toEqual(LOCKED);
+    await expect(
+      updateIndicatorDraft(
+        db,
+        indicatorId,
+        'name',
+        { name: 'Renamed after scheduling' },
+        {},
+        AS_ACTOR,
+      ),
+    ).resolves.toEqual(LOCKED);
+  });
+
+  repositoryTest('refuses a data table confirmation and an upload', async ({ db }) => {
+    const { indicatorId, batchId } = await scheduledDraft(db, 'Scheduled upload indicator');
+
+    await expect(confirmDataTable(db, indicatorId, batchId, AS_ACTOR)).resolves.toEqual(LOCKED);
+    await expect(
+      processDataUpload(
+        db,
+        {
+          batchId: crypto.randomUUID(),
+          indicatorId,
+          blobName: 'never-read',
+          originalFilename: 'data.csv',
+          byteSize: 0,
+          sha256: '',
+          actor: AS_ACTOR,
+        },
+        () => Promise.reject(new Error('a locked version reads no file')),
+        new AbortController().signal,
+      ),
+    ).resolves.toMatchObject(LOCKED);
+  });
+
+  repositoryTest('refuses a revision response', async ({ db }) => {
+    const { indicatorId } = await scheduledDraft(db, 'Scheduled reply indicator');
+
+    await expect(
+      saveRevisionResponse(
+        db,
+        indicatorId,
+        'Replied after scheduling',
+        { version: '', versionOf: revisionReplyVersion },
+        AS_ACTOR,
+      ),
+    ).resolves.toEqual(LOCKED);
+  });
+});

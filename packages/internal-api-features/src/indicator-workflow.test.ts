@@ -195,6 +195,13 @@ describe('allowedSteps', () => {
   ] as const)('offers %s only the steps open to it', (_, context, steps) => {
     expect(allowedSteps(context)).toEqual(steps);
   });
+
+  it('offers a scheduled version nothing, locked or not, whatever its latest submission', () => {
+    const scheduled = CONTEXTS.filter(({ versionStatus }) => versionStatus === 'scheduled');
+
+    expect(scheduled).toHaveLength(2 * 2 * (INDICATOR_SUBMISSION_STATUSES.length + 1));
+    expect(scheduled.flatMap((context) => allowedSteps(context))).toEqual([]);
+  });
 });
 
 const TEAM = '00000000-0000-7000-8000-00000000000a';

@@ -21,7 +21,9 @@ export type CreateDraftFromPublishedResult =
   | { ok: false; reason: 'draft_exists' | 'not_published' };
 
 /**
- * Opens a draft from the most recently published version: columns, slug and lists alike. The one-draft index refuses a second one rather than this reading first and racing.
+ * Opens a draft from the most recently published version: columns, slug and lists alike. The
+ * one-unpublished index refuses it beside a draft or a scheduled version, rather than this reading
+ * first and racing.
  */
 export async function createDraftFromPublished(
   db: Database,

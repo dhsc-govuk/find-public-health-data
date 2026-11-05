@@ -20,6 +20,7 @@ const {
   indicatorVersionSubmissionFlag,
   indicatorVersionSubmissionResponse,
   indicatorVersionSubmissionReviewer,
+  isUnpublished,
 } = schema;
 
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -48,9 +49,11 @@ export function violatesConstraint(error: unknown, constraint: string): boolean 
 }
 
 /**
- * The one-draft index makes the draft join one row, and currentPublishedVersion is one row
- * per indicator, so an indicator's draft and published versions can be read side by side.
- * The view names the published version; its columns come from the version table by id.
+ * The draft is the indicator's unpublished version, a draft or a scheduled one: the `draft*`
+ * names below mean that version. The one-unpublished index makes the draft join one row, and
+ * currentPublishedVersion is one row per indicator, so an indicator's draft and published versions
+ * can be read side by side. The view names the published version; its columns come from the
+ * version table by id.
  */
 export const draftVersion = alias(indicatorVersion, 'draft_version');
 export const publishedVersion = alias(indicatorVersion, 'published_version');
@@ -58,7 +61,7 @@ const firstVersion = alias(indicatorVersion, 'first_version');
 
 export const draftJoin = and(
   eq(draftVersion.indicatorId, indicator.id),
-  eq(draftVersion.status, 'draft'),
+  isUnpublished(draftVersion.status),
 );
 export const publishedJoin = eq(currentPublishedVersion.indicatorId, indicator.id);
 export const publishedVersionJoin = eq(publishedVersion.id, currentPublishedVersion.id);
@@ -77,7 +80,7 @@ export const latestUpdatedBy = sql<string | null>`case
   then ${draftVersion.updatedBy} else ${publishedVersion.updatedBy} end`;
 // Both statuses are read from the versions as SQL, so a filter or sort on either is a WHERE clause.
 export const indicatorStatus = sql<IndicatorStatus>`case when ${currentPublishedVersion.id} is not null then 'live' else 'new' end`;
-// The draft join fixes the status it matches, which narrows the column from the version enum.
+// The draft join fixes the statuses it matches, which narrows the column from the version enum.
 export const draftStatus = sql<DraftStatus | null>`${draftVersion.status}`;
 export const draftLocked = sql<boolean>`coalesce(${draftVersion.isLocked}, false)`;
 const latestDraftSubmission = new QueryBuilder({ casing: 'snake_case' })

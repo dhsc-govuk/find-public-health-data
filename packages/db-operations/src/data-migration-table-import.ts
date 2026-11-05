@@ -1,3 +1,4 @@
+import { schema } from '@fphd/db';
 import type postgres from 'postgres';
 import {
   assertPackageActors,
@@ -14,6 +15,8 @@ import {
 } from './data-migration-copy.ts';
 import { assertMigrationPublisherRowsUnchanged } from './data-migration-publisher-work.ts';
 import { readCsvHeader } from './seeding.ts';
+
+const { UNPUBLISHED_STATUS_LITERALS } = schema;
 
 const LEGACY_SOURCE_COLUMNS = ['numerator_source_id', 'denominator_source_id'] as const;
 
@@ -228,7 +231,7 @@ export async function applyIndicatorVersionRows(
     FROM migration_source_indicator_version staged
     JOIN indicator i ON i.id = staged.indicator_id
     JOIN indicator_version existing ON existing.indicator_id = i.id
-    WHERE existing.status = 'draft' OR (
+    WHERE existing.status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)}) OR (
       (existing.id = staged.id OR existing.id IN (SELECT id FROM current_published_version))
       AND (existing.created_by IS DISTINCT FROM ${MIGRATION_USER_ID}
         OR existing.updated_by IS DISTINCT FROM ${MIGRATION_USER_ID})

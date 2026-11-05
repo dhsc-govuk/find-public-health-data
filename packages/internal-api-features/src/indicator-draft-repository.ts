@@ -48,7 +48,7 @@ import {
 } from './indicator-version-lists-repository.ts';
 import { clearFlag } from './review-flag-repository.ts';
 
-const { ciMethod, currentPublishedVersion, indicator, indicatorVersion } = schema;
+const { ciMethod, currentPublishedVersion, indicator, indicatorVersion, isUnpublished } = schema;
 
 /** Every column of one version, as a section reads its answers from the draft. */
 export type IndicatorDraftVersion = typeof indicatorVersion.$inferSelect;
@@ -338,7 +338,7 @@ export async function updateIndicatorDraft(
 
       const isDraft = and(
         eq(indicatorVersion.indicatorId, indicatorId),
-        eq(indicatorVersion.status, 'draft'),
+        isUnpublished(indicatorVersion.status),
       );
       // The update's own lock, taken first so the before values are the ones this save replaces.
       const [current] = await tx
@@ -408,7 +408,7 @@ async function draftSlugOf(tx: Transaction, indicatorId: string): Promise<string
     .select({ slug: indicatorVersion.slug })
     .from(indicatorVersion)
     .where(
-      and(eq(indicatorVersion.indicatorId, indicatorId), eq(indicatorVersion.status, 'draft')),
+      and(eq(indicatorVersion.indicatorId, indicatorId), isUnpublished(indicatorVersion.status)),
     );
 
   return draft?.slug;

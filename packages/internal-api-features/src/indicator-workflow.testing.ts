@@ -167,3 +167,16 @@ export async function sentBackDraft(
     shown: await draftUpdatedAt(db, draft.versionId),
   };
 }
+
+/**
+ * A complete new draft IMRG approved, then scheduled, as an admin's confirmation of its
+ * publication date leaves it. The reviewer stays assigned to the approved submission.
+ */
+export async function scheduledDraft(db: Database, name: string): Promise<SentBackDraft> {
+  const draft = await sentBackDraft(db, name, [], { kind: 'approved' });
+  await db
+    .update(indicatorVersion)
+    .set({ status: 'scheduled' })
+    .where(eq(indicatorVersion.id, draft.versionId));
+  return draft;
+}

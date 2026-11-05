@@ -1420,15 +1420,16 @@ describe('applyDataMigration', () => {
   );
 });
 
-describe('a publisher draft locked for review', () => {
-  /** A locked draft of the baseline's indicator, holding a topic the package never names. */
+// An approved draft and a scheduled one are both publisher work the package must not touch.
+describe.each(['draft', 'scheduled'])('a publisher %s locked for review', (status) => {
+  /** A locked unpublished version of the baseline's indicator, holding a topic the package never names. */
   async function lockedDraft(): Promise<{ draftId: string; draftTopicId: string }> {
     const [otherTopic] = await sql<
       { id: string }[]
     >`SELECT id FROM topic WHERE id <> ${topicId} LIMIT 1`;
     const [draft] = await sql<{ id: string }[]>`
-      INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by, is_locked)
-      VALUES (${INDICATOR_ID}, 'Submitted draft', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}, true)
+      INSERT INTO indicator_version (indicator_id, status, name, slug, created_by, updated_by, is_locked)
+      VALUES (${INDICATOR_ID}, ${status}, 'Submitted draft', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}, true)
       RETURNING id
     `;
     if (!otherTopic || !draft) throw new Error('Missing locked draft fixture');

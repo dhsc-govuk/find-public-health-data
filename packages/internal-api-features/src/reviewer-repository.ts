@@ -12,6 +12,7 @@ const {
   indicatorVersion,
   indicatorVersionSubmission,
   indicatorVersionSubmissionReviewer,
+  isUnpublished,
 } = schema;
 
 type Reader = Database | Transaction;
@@ -40,7 +41,7 @@ async function latestDraftSubmitterOf(
       indicatorVersion,
       and(
         eq(indicatorVersion.id, indicatorVersionSubmission.indicatorVersionId),
-        eq(indicatorVersion.status, 'draft'),
+        isUnpublished(indicatorVersion.status),
       ),
     )
     .where(eq(indicatorVersionSubmission.indicatorId, indicatorId))
