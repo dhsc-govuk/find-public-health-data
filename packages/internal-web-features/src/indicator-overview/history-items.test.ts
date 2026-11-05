@@ -35,6 +35,8 @@ describe('historyItems', () => {
     ['created', 'Indicator first created'],
     ['submitted', 'Indicator submitted for approval'],
     ['withdrawn', 'Indicator submission withdrawn'],
+    ['publication_scheduled', 'Publication date confirmed'],
+    ['publication_date_changed', 'Publication date changed'],
   ] as const)('words a %s entry and names who did it', (kind, action) => {
     expect(itemOf({ kind, at, by: 'Sam Taylor' })).toEqual({
       date: at,
