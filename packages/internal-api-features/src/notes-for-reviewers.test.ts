@@ -48,11 +48,16 @@ const assignedToTestUser: IndicatorNotesForReviewersRow = {
 
 type Indicators = Pick<InternalIndicatorRepository, 'findNotesForReviewers'>;
 
+// The guard reads its access row from the same indicator the notes come from.
+
 function createTestApp(
   findNotesForReviewers: Indicators['findNotesForReviewers'] = async () => found,
 ): Express {
   return createRouterTestApp(
-    internalNotesForReviewersRouter({ findNotesForReviewers }, testSessionVerifier),
+    internalNotesForReviewersRouter(
+      { findAccess: findNotesForReviewers, findNotesForReviewers },
+      testSessionVerifier,
+    ),
   );
 }
 

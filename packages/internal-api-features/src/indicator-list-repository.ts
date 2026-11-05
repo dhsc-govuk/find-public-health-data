@@ -269,16 +269,3 @@ export async function findIndicatorAccess(
 
   return row;
 }
-
-/** The team the indicator is in, null when it has none, or undefined when there is no such indicator. */
-export async function findIndicatorTeamId(
-  db: Database,
-  id: string,
-): Promise<string | null | undefined> {
-  const [row] = await db
-    .select({ teamId: indicator.teamId })
-    .from(indicator)
-    .where(eq(indicator.id, id));
-
-  return row?.teamId;
-}

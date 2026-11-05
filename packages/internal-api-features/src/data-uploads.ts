@@ -1,10 +1,10 @@
 import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canEditIndicator } from '@fphd/auth/permissions';
 import type { BlobStorage } from '@fphd/internal-storage';
 import { type Request, type Response, Router } from 'express';
 import { v7 as uuidv7 } from 'uuid';
 
-import { indicatorIdSchema } from './contract.ts';
 import type {
   DataUploadCreated,
   DataUploadError,
@@ -12,25 +12,25 @@ import type {
 } from './data-upload-contract.ts';
 import { drainRequest, receiveDataTable, UploadAbortedError } from './data-upload-receive.ts';
 import { elapsedMs, TimedUploadError, type UploadTimings } from './data-upload-timings.ts';
-import { type IndicatorTeams, requireIndicatorEditor } from './indicator-editor.ts';
+import {
+  guardedIndicator,
+  type IndicatorAccessReader,
+  requireIndicatorAccess,
+} from './indicator-access.ts';
 import type { InternalDataUploadRepository } from './repositories.ts';
 
 /** An upload route's draft, or the answer to give when the address names none. */
 export type UploadDraftLookup =
   | { ok: true; indicatorId: string; draftId: string }
-  | { ok: false; status: 400; body: Extract<DataUploadError, { error: 'invalid_id' }> }
   | { ok: false; status: 404; body: { error: 'not_found' | 'no_draft' } }
   | { ok: false; status: 409; body: { error: 'locked' } };
 
-/** Finds the draft an upload route's id names, without answering the request. */
+/** Finds the draft of the indicator an upload route guards, without answering the request. */
 export async function findUploadDraft(
   dataUploads: InternalDataUploadRepository,
-  rawId: unknown,
+  indicatorId: string,
 ): Promise<UploadDraftLookup> {
-  const id = indicatorIdSchema.safeParse(rawId);
-  if (!id.success) return { ok: false, status: 400, body: { error: 'invalid_id' } };
-
-  const draft = await dataUploads.findDraft(id.data);
+  const draft = await dataUploads.findDraft(indicatorId);
 
   // A published indicator is edited by opening a draft first, so until then there is nothing
   // to upload to.
@@ -38,7 +38,7 @@ export async function findUploadDraft(
   if (draft === null) return { ok: false, status: 404, body: { error: 'no_draft' } };
   if (draft.isLocked) return { ok: false, status: 409, body: { error: 'locked' } };
 
-  return { ok: true, indicatorId: id.data, draftId: draft.id };
+  return { ok: true, indicatorId, draftId: draft.id };
 }
 
 /** Answers once the request is read to its end, so the answer never races an upload body. */
@@ -53,19 +53,19 @@ async function refuse(request: Request, response: Response, status: number, body
  */
 export function dataUploadsRouter(
   dataUploads: InternalDataUploadRepository,
-  indicators: IndicatorTeams,
+  indicators: IndicatorAccessReader,
   storage: BlobStorage,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const requireEditor = requireIndicatorEditor(session, indicators);
+  const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
 
   router.post(
     '/api/internal/indicators/:id/data-uploads',
     requireEditor,
     async (request, response) => {
       const started = performance.now();
-      const draft = await findUploadDraft(dataUploads, request.params.id);
+      const draft = await findUploadDraft(dataUploads, guardedIndicator(response).id);
       if (!draft.ok) {
         await refuse(request, response, draft.status, draft.body);
         return;
@@ -169,7 +169,7 @@ export function dataUploadsRouter(
     '/api/internal/indicators/:id/data-uploads/latest',
     requireEditor,
     async (request, response) => {
-      const draft = await findUploadDraft(dataUploads, request.params.id);
+      const draft = await findUploadDraft(dataUploads, guardedIndicator(response).id);
       if (!draft.ok) {
         await refuse(request, response, draft.status, draft.body);
         return;

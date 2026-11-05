@@ -1,9 +1,9 @@
-import { requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canListIndicators, canSeeNotesForReviewers } from '@fphd/auth/permissions';
+import { canSeeNotesForReviewers } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import { indicatorAccess, indicatorIdSchema, type NotesForReviewers } from './contract.ts';
+import type { NotesForReviewers } from './contract.ts';
+import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import {
   justificationsColumns,
   otherCommentsColumns,
@@ -14,28 +14,23 @@ import type { InternalIndicatorRepository } from './repositories.ts';
 /**
  * GET `/api/internal/indicators/:id/notes-for-reviewers`: the answers to the sections the
  * publisher writes for its reviewers, from the draft or, with none, the published version, for
- * those `canSeeNotesForReviewers` allows. Anyone else gets 404 `not_found`.
+ * those `canSeeNotesForReviewers` allows.
  */
 export function internalNotesForReviewersRouter(
-  indicators: Pick<InternalIndicatorRepository, 'findNotesForReviewers'>,
+  indicators: Pick<InternalIndicatorRepository, 'findAccess' | 'findNotesForReviewers'>,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
 
   router.get(
     '/api/internal/indicators/:id/notes-for-reviewers',
-    requireJwtSession(session, canListIndicators),
-    async (request, response) => {
-      const id = indicatorIdSchema.safeParse(request.params.id);
+    requireIndicatorAccess(session, indicators, canSeeNotesForReviewers),
+    async (_request, response) => {
+      const { id } = guardedIndicator(response);
 
-      if (!id.success) {
-        response.status(400).json({ error: 'invalid_id' });
-        return;
-      }
+      const row = await indicators.findNotesForReviewers(id);
 
-      const row = await indicators.findNotesForReviewers(id.data);
-
-      if (!row || !canSeeNotesForReviewers(requireApiSession(response), indicatorAccess(row))) {
+      if (!row) {
         response.status(404).json({ error: 'not_found' });
         return;
       }

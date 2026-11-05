@@ -54,8 +54,12 @@ const found: IndicatorHistoryRow = {
 
 type Indicators = Pick<InternalIndicatorRepository, 'findHistory'>;
 
+// The guard reads its access row from the same indicator the history comes from.
+
 function createTestApp(findHistory: Indicators['findHistory'] = async () => found): Express {
-  return createRouterTestApp(indicatorHistoryRouter({ findHistory }, testSessionVerifier));
+  return createRouterTestApp(
+    indicatorHistoryRouter({ findAccess: findHistory, findHistory }, testSessionVerifier),
+  );
 }
 
 const asManager = () => testSessionCookie(['imrg-manager'], []);

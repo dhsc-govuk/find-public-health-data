@@ -1,8 +1,8 @@
 import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canEditIndicator } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import { indicatorIdSchema } from './contract.ts';
 import {
   type DataTableCheck,
   type DataTableConfirmationError,
@@ -10,28 +10,27 @@ import {
   dataTableConfirmationSchema,
   dataTablePageQuerySchema,
 } from './data-table-check-contract.ts';
-import { type IndicatorTeams, requireIndicatorEditor } from './indicator-editor.ts';
+import {
+  guardedIndicator,
+  type IndicatorAccessReader,
+  requireIndicatorAccess,
+} from './indicator-access.ts';
 import type { InternalDataUploadRepository } from './repositories.ts';
 
 /** Routes for paging through the draft's uploaded data table and confirming it. */
 export function dataTableCheckRouter(
   dataUploads: InternalDataUploadRepository,
-  indicators: IndicatorTeams,
+  indicators: IndicatorAccessReader,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const requireEditor = requireIndicatorEditor(session, indicators);
+  const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
 
   router.get(
     '/api/internal/indicators/:id/data-table',
     requireEditor,
     async (request, response) => {
-      const id = indicatorIdSchema.safeParse(request.params.id);
-
-      if (!id.success) {
-        response.status(400).json({ error: 'invalid_id' });
-        return;
-      }
+      const { id } = guardedIndicator(response);
 
       const query = dataTablePageQuerySchema.safeParse(request.query);
 
@@ -40,7 +39,7 @@ export function dataTableCheckRouter(
         return;
       }
 
-      const found = await dataUploads.findDraftDataTable(id.data);
+      const found = await dataUploads.findDraftDataTable(id);
 
       // A published indicator has no data table to check until someone opens a draft of it.
       if (!found.found) {
@@ -67,18 +66,13 @@ export function dataTableCheckRouter(
     '/api/internal/indicators/:id/data-table/confirmation',
     requireEditor,
     async (request, response) => {
-      const id = indicatorIdSchema.safeParse(request.params.id);
-
-      if (!id.success) {
-        response.status(400).json({ error: 'invalid_id' } satisfies DataTableConfirmationError);
-        return;
-      }
+      const { id } = guardedIndicator(response);
 
       const submission = dataTableConfirmationSchema.safeParse(request.body);
 
       if (!submission.success) {
         // As a section save does, a locked draft answers locked before its refused answers.
-        if ((await dataUploads.findDraft(id.data))?.isLocked) {
+        if ((await dataUploads.findDraft(id))?.isLocked) {
           response.status(409).json({ error: 'locked' });
           return;
         }
@@ -91,7 +85,7 @@ export function dataTableCheckRouter(
 
       const actor = requireApiActor(request, response);
       const { batchId } = submission.data;
-      const result = await dataUploads.confirm(id.data, batchId, actor);
+      const result = await dataUploads.confirm(id, batchId, actor);
 
       if (!result.ok) {
         if (result.reason === 'data_table_changed' || result.reason === 'locked') {
@@ -102,7 +96,7 @@ export function dataTableCheckRouter(
         return;
       }
 
-      request.log.info({ indicatorId: id.data, uploadBatchId: batchId }, 'Data table confirmed');
+      request.log.info({ indicatorId: id, uploadBatchId: batchId }, 'Data table confirmed');
       response.status(200).json({
         confirmedAt: result.confirmedAt.toISOString(),
       } satisfies DataTableConfirmed);

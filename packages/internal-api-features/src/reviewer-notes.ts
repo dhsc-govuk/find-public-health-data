@@ -1,11 +1,9 @@
-import { requireApiActor, requireApiSession, requireJwtSession } from '@fphd/api-server';
+import { requireApiActor, requireApiSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canListIndicators, canWriteReviewerNotes } from '@fphd/auth/permissions';
-import { type Request, type Response, Router } from 'express';
+import { canWriteReviewerNotes } from '@fphd/auth/permissions';
+import { type Response, Router } from 'express';
 
 import {
-  indicatorAccess,
-  indicatorIdSchema,
   type ReviewerNote,
   type ReviewerNoteError,
   type ReviewerNotes,
@@ -16,6 +14,7 @@ import {
   reviewerNoteUpdateBodySchema,
   toFieldErrors,
 } from './contract.ts';
+import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import type {
   InternalIndicatorRepository,
   InternalReviewerNoteRepository,
@@ -47,44 +46,17 @@ function checkedText(text: string, response: Response): string | undefined {
   return undefined;
 }
 
-/**
- * An assigned reviewer's own notes on an indicator, which nobody else reads. Anyone else gets
- * 404 `not_found`, as for any indicator the user may not see.
- */
+/** An assigned reviewer's own notes on an indicator, which nobody else reads. */
 export function reviewerNotesRouter(
   reviewerNotes: InternalReviewerNoteRepository,
   indicators: Pick<InternalIndicatorRepository, 'findAccess'>,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const guard = requireJwtSession(session, canListIndicators);
+  const guard = requireIndicatorAccess(session, indicators, canWriteReviewerNotes);
 
-  /** The indicator `:id` names, once the user may keep notes on it; undefined once refused. */
-  async function notedIndicatorId(request: Request, response: Response) {
-    const id = indicatorIdSchema.safeParse(request.params.id);
-
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' } satisfies ReviewerNoteError);
-      return undefined;
-    }
-
-    const row = await indicators.findAccess(id.data);
-
-    if (
-      row === undefined ||
-      !canWriteReviewerNotes(requireApiSession(response), indicatorAccess(row))
-    ) {
-      response.status(404).json({ error: 'not_found' });
-      return undefined;
-    }
-
-    return id.data;
-  }
-
-  router.get(PATH, guard, async (request, response) => {
-    const id = await notedIndicatorId(request, response);
-
-    if (id === undefined) return;
+  router.get(PATH, guard, async (_request, response) => {
+    const { id } = guardedIndicator(response);
 
     const notes = await reviewerNotes.list(id, requireApiSession(response).sub);
 
@@ -92,9 +64,7 @@ export function reviewerNotesRouter(
   });
 
   router.post(PATH, guard, async (request, response) => {
-    const id = await notedIndicatorId(request, response);
-
-    if (id === undefined) return;
+    const { id } = guardedIndicator(response);
 
     const body = reviewerNoteAddBodySchema.safeParse(request.body);
 
@@ -119,9 +89,7 @@ export function reviewerNotesRouter(
   });
 
   router.put(`${PATH}/:noteId`, guard, async (request, response) => {
-    const id = await notedIndicatorId(request, response);
-
-    if (id === undefined) return;
+    const { id } = guardedIndicator(response);
 
     const noteId = reviewerNoteIdSchema.safeParse(request.params.noteId);
 

@@ -1,36 +1,31 @@
-import { requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canListIndicators, canSeeIndicatorHistory } from '@fphd/auth/permissions';
+import { canSeeIndicatorHistory } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import { type IndicatorHistory, indicatorAccess, indicatorIdSchema } from './contract.ts';
+import type { IndicatorHistory } from './contract.ts';
+import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import { historyEntries } from './indicator-history-entries.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**
  * GET `/api/internal/indicators/:id/history`: what has happened to the indicator, newest first,
- * for those `canSeeIndicatorHistory` allows. Anyone else gets 404 `not_found`.
+ * for those `canSeeIndicatorHistory` allows.
  */
 export function indicatorHistoryRouter(
-  indicators: Pick<InternalIndicatorRepository, 'findHistory'>,
+  indicators: Pick<InternalIndicatorRepository, 'findAccess' | 'findHistory'>,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
 
   router.get(
     '/api/internal/indicators/:id/history',
-    requireJwtSession(session, canListIndicators),
-    async (request, response) => {
-      const id = indicatorIdSchema.safeParse(request.params.id);
+    requireIndicatorAccess(session, indicators, canSeeIndicatorHistory),
+    async (_request, response) => {
+      const { id } = guardedIndicator(response);
 
-      if (!id.success) {
-        response.status(400).json({ error: 'invalid_id' });
-        return;
-      }
+      const row = await indicators.findHistory(id);
 
-      const row = await indicators.findHistory(id.data);
-
-      if (!row || !canSeeIndicatorHistory(requireApiSession(response), indicatorAccess(row))) {
+      if (!row) {
         response.status(404).json({ error: 'not_found' });
         return;
       }

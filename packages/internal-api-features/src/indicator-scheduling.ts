@@ -1,6 +1,5 @@
-import { requireApiActor, requireJwtSession } from '@fphd/api-server';
+import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canSchedulePublication } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
 import {
@@ -10,7 +9,8 @@ import {
   scheduleSchemaFor,
   toFieldErrors,
 } from './contract.ts';
-import { refuse, stepIndicator } from './indicator-submissions.ts';
+import { guardedIndicator } from './indicator-access.ts';
+import { refuse, requireStep } from './indicator-submissions.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**
@@ -18,7 +18,7 @@ import type { InternalIndicatorRepository } from './repositories.ts';
  * `now` is the clock the date must come after.
  */
 export function indicatorSchedulingRouter(
-  indicators: Pick<InternalIndicatorRepository, 'findById' | 'schedule'>,
+  indicators: Pick<InternalIndicatorRepository, 'findAccess' | 'schedule'>,
   session: JwtSessionVerifier,
   now: () => Date = () => new Date(),
 ): Router {
@@ -26,12 +26,10 @@ export function indicatorSchedulingRouter(
 
   router.post(
     '/api/internal/indicators/:id/schedule',
-    requireJwtSession(session, canSchedulePublication),
+    // Both scheduling steps take the same permission, so either one checks it.
+    requireStep(session, indicators, 'schedule'),
     async (request, response) => {
-      // Both scheduling steps take the same permission, so either one checks it.
-      const id = (await stepIndicator(indicators, 'schedule', request, response))?.id;
-
-      if (id === undefined) return;
+      const { id } = guardedIndicator(response);
 
       const body = indicatorScheduleBodySchema.safeParse(request.body);
 

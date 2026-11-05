@@ -1,16 +1,13 @@
-import { requireApiActor, requireApiSession, requireJwtSession } from '@fphd/api-server';
+import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canAssignReviewers, canReviewIndicators, canSeeIndicator } from '@fphd/auth/permissions';
-import { type Request, type Response, Router } from 'express';
+import { type RequestHandler, type Response, Router } from 'express';
 
 import {
   type IndicatorAssignReviewersError,
   type IndicatorStep,
   type IndicatorSubmitError,
   type IndicatorWithdrawError,
-  indicatorAccess,
   indicatorAssignReviewersSchema,
-  indicatorIdSchema,
   indicatorSubmitSchema,
   indicatorWithdrawSchema,
   type ReviewResponseError,
@@ -20,44 +17,24 @@ import {
   reviewResponseSchemaFor,
   toFieldErrors,
 } from './contract.ts';
-import { requireIndicatorEditor } from './indicator-editor.ts';
-import type { IndicatorAdminDetailRow } from './indicator-list-repository.ts';
+import {
+  guardedIndicator,
+  type IndicatorAccessReader,
+  requireIndicatorAccess,
+} from './indicator-access.ts';
 import { mayTakeStep } from './indicator-workflow.ts';
 import type { IndicatorStepResult } from './indicator-workflow-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
-/**
- * The indicator `:id` names, once the user may take `step` on it, or undefined once the answer is
- * sent: 400 for an id that is not one, 404 for no such indicator or one the user may not see, 403
- * for a user who may see it but not take the step.
- */
-export async function stepIndicator(
-  indicators: Pick<InternalIndicatorRepository, 'findById'>,
+/** The guard on a workflow step's route: `requireIndicatorAccess` with the step's permission. */
+export function requireStep(
+  session: JwtSessionVerifier,
+  indicators: IndicatorAccessReader,
   step: IndicatorStep,
-  request: Request,
-  response: Response,
-): Promise<IndicatorAdminDetailRow | undefined> {
-  const id = indicatorIdSchema.safeParse(request.params.id);
-
-  if (!id.success) {
-    response.status(400).json({ error: 'invalid_id' });
-    return undefined;
-  }
-
-  const row = await indicators.findById(id.data);
-  const session = requireApiSession(response);
-
-  if (row === undefined || !canSeeIndicator(session, indicatorAccess(row))) {
-    response.status(404).json({ error: 'not_found' });
-    return undefined;
-  }
-
-  if (!mayTakeStep(session, indicatorAccess(row), step)) {
-    response.status(403).json({ error: 'forbidden' });
-    return undefined;
-  }
-
-  return row;
+): RequestHandler {
+  return requireIndicatorAccess(session, indicators, (user, indicator) =>
+    mayTakeStep(user, indicator, step),
+  );
 }
 
 /** Where a reviewer posts their response, which may carry many long flags. */
@@ -91,73 +68,74 @@ export function indicatorSubmissionsRouter(
   now: () => Date = () => new Date(),
 ): Router {
   const router = Router();
-  const requireEditor = requireIndicatorEditor(session, indicators);
 
-  router.post('/api/internal/indicators/:id/submit', requireEditor, async (request, response) => {
-    const id = (await stepIndicator(indicators, 'submit', request, response))?.id;
+  router.post(
+    '/api/internal/indicators/:id/submit',
+    requireStep(session, indicators, 'submit'),
+    async (request, response) => {
+      const { id } = guardedIndicator(response);
 
-    if (id === undefined) return;
+      const body = indicatorSubmitSchema.safeParse(request.body);
 
-    const body = indicatorSubmitSchema.safeParse(request.body);
+      if (!body.success) {
+        response
+          .status(400)
+          .json({ error: 'invalid_draft_updated_at' } satisfies IndicatorSubmitError);
+        return;
+      }
 
-    if (!body.success) {
-      response
-        .status(400)
-        .json({ error: 'invalid_draft_updated_at' } satisfies IndicatorSubmitError);
-      return;
-    }
+      const result = await indicators.submit(
+        id,
+        new Date(body.data.draftUpdatedAt),
+        requireApiActor(request, response),
+      );
 
-    const result = await indicators.submit(
-      id,
-      new Date(body.data.draftUpdatedAt),
-      requireApiActor(request, response),
-    );
+      if (!result.ok) {
+        refuse(response, result);
+        return;
+      }
 
-    if (!result.ok) {
-      refuse(response, result);
-      return;
-    }
+      request.log.info({ indicatorId: id }, 'Indicator submitted');
+      response.status(204).end();
+    },
+  );
 
-    request.log.info({ indicatorId: id }, 'Indicator submitted');
-    response.status(204).end();
-  });
+  router.post(
+    '/api/internal/indicators/:id/withdraw',
+    requireStep(session, indicators, 'withdraw'),
+    async (request, response) => {
+      const { id } = guardedIndicator(response);
 
-  router.post('/api/internal/indicators/:id/withdraw', requireEditor, async (request, response) => {
-    const id = (await stepIndicator(indicators, 'withdraw', request, response))?.id;
+      const body = indicatorWithdrawSchema.safeParse(request.body);
 
-    if (id === undefined) return;
+      if (!body.success) {
+        response
+          .status(400)
+          .json({ error: 'invalid_submission_number' } satisfies IndicatorWithdrawError);
+        return;
+      }
 
-    const body = indicatorWithdrawSchema.safeParse(request.body);
+      const result = await indicators.withdraw(
+        id,
+        body.data.submissionNumber,
+        requireApiActor(request, response),
+      );
 
-    if (!body.success) {
-      response
-        .status(400)
-        .json({ error: 'invalid_submission_number' } satisfies IndicatorWithdrawError);
-      return;
-    }
+      if (!result.ok) {
+        refuse(response, result);
+        return;
+      }
 
-    const result = await indicators.withdraw(
-      id,
-      body.data.submissionNumber,
-      requireApiActor(request, response),
-    );
-
-    if (!result.ok) {
-      refuse(response, result);
-      return;
-    }
-
-    request.log.info({ indicatorId: id }, 'Indicator submission withdrawn');
-    response.status(204).end();
-  });
+      request.log.info({ indicatorId: id }, 'Indicator submission withdrawn');
+      response.status(204).end();
+    },
+  );
 
   router.post(
     '/api/internal/indicators/:id/assign-reviewers',
-    requireJwtSession(session, canAssignReviewers),
+    requireStep(session, indicators, 'assign_reviewers'),
     async (request, response) => {
-      const id = (await stepIndicator(indicators, 'assign_reviewers', request, response))?.id;
-
-      if (id === undefined) return;
+      const { id } = guardedIndicator(response);
 
       const body = indicatorAssignReviewersSchema.safeParse(request.body);
 
@@ -193,12 +171,10 @@ export function indicatorSubmissionsRouter(
 
   router.post(
     REVIEW_RESPONSE_PATH,
-    requireJwtSession(session, canReviewIndicators),
+    // Every response step takes the same permission, so any one of them checks it.
+    requireStep(session, indicators, 'give_feedback'),
     async (request, response) => {
-      // Every response step takes the same permission, so any one of them checks it.
-      const row = await stepIndicator(indicators, 'give_feedback', request, response);
-
-      if (row === undefined) return;
+      const { id } = guardedIndicator(response);
 
       if (!reviewResponseBodySchema.safeParse(request.body).success) {
         response.status(400).json({ error: 'invalid_request' } satisfies ReviewResponseError);
@@ -215,20 +191,18 @@ export function indicatorSubmissionsRouter(
         return;
       }
 
-      const result = await indicators.respond(
-        row.id,
-        sent.data,
-        requireApiActor(request, response),
-      );
+      const result = await indicators.respond(id, sent.data, requireApiActor(request, response));
 
       if (!result.ok && result.reason === 'reviewed_before_submission') {
-        if (row.draftFirstSubmittedAt === null) {
-          throw new Error(`indicator ${row.id} refused a date before a submission it never had`);
+        const firstSubmittedAt = (await indicators.findById(id))?.draftFirstSubmittedAt;
+
+        if (firstSubmittedAt == null) {
+          throw new Error(`indicator ${id} refused a date before a submission it never had`);
         }
         response.status(400).json({
           error: 'validation_failed',
           fieldErrors: {
-            imrgReviewedOn: reviewedBeforeSubmissionMessage(row.draftFirstSubmittedAt),
+            imrgReviewedOn: reviewedBeforeSubmissionMessage(firstSubmittedAt),
           },
         } satisfies ReviewResponseError);
         return;
@@ -239,7 +213,7 @@ export function indicatorSubmissionsRouter(
         return;
       }
 
-      request.log.info({ indicatorId: row.id, kind: sent.data.kind }, 'Review response recorded');
+      request.log.info({ indicatorId: id, kind: sent.data.kind }, 'Review response recorded');
       response.status(204).end();
     },
   );

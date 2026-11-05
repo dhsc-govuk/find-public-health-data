@@ -226,7 +226,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it('serves the indicator with its public identifiers and derived statuses', async () => {
     const findById = vi.fn().mockResolvedValue(detailRow);
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
@@ -261,7 +261,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftScheduledPublishAt: new Date('2027-04-01T08:30:00.000Z'),
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
@@ -280,7 +280,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftReviewers,
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
@@ -296,7 +296,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftSubmissionStatus: 'submitted',
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await testSessionCookie(['imrg-manager'], []));
 
@@ -313,7 +313,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftSubmissionStatus: 'submitted',
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
@@ -329,7 +329,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftSubmissionStatus: 'submitted',
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
@@ -343,7 +343,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftStatus: 'draft',
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await testSessionCookie(['admin']));
 
@@ -354,7 +354,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it("answers 404 for another team's indicator, as for one that does not exist", async () => {
     const findById = vi.fn().mockResolvedValue({ ...detailRow, teamId: OTHER_TEAM_ID });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
@@ -368,7 +368,7 @@ describe('GET /api/internal/indicators/:id', () => {
   ])("serves %s any team's indicator", async (_who, roles) => {
     const findById = vi.fn().mockResolvedValue({ ...detailRow, teamId: OTHER_TEAM_ID });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await testSessionCookie(roles));
 
@@ -378,7 +378,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it("serves an IMRG reviewer another team's indicator assigned to them, offering the responses", async () => {
     const findById = vi.fn().mockResolvedValue(assignedToTestUser);
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await reviewerCookie());
 
@@ -392,7 +392,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftReviewers: [{ id: OTHER_REVIEWER_ID, name: 'Jamie Evans' }],
     });
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await reviewerCookie());
 
@@ -403,7 +403,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it('answers 404 for an indicator that does not exist', async () => {
     const findById = vi.fn().mockResolvedValue(undefined);
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get('/api/internal/indicators/00000000-0000-7000-8000-000000000000')
       .set('Cookie', await publisherCookie());
 
@@ -414,7 +414,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it('rejects an id that is not a UUID without asking the repository', async () => {
     const findById = vi.fn();
 
-    const response = await request(createTestApp({ findById }))
+    const response = await request(createTestApp({ findAccess: findById, findById }))
       .get('/api/internal/indicators/108')
       .set('Cookie', await publisherCookie());
 
@@ -817,11 +817,10 @@ describe('PATCH /api/internal/indicators/:id', () => {
   });
 
   it('answers not_found when there is no indicator to rename', async () => {
+    const updateDraft = vi.fn();
+
     const response = await request(
-      createTestApp({
-        updateDraft: async () => ({ ok: false, reason: 'no_draft' }),
-        findById: async () => undefined,
-      }),
+      createTestApp({ findAccess: async () => undefined, updateDraft }),
     )
       .patch(path)
       .set('Cookie', await publisherCookie())
@@ -829,6 +828,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
+    expect(updateDraft).not.toHaveBeenCalled();
   });
 
   it('reports a name another indicator already holds against the field, reading nothing back', async () => {
@@ -1166,8 +1166,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
 });
 
 describe('an IMRG reviewer assigned to an indicator', () => {
-  const findTeamId = async () => OTHER_TEAM_ID;
-  const findById = async () => assignedToTestUser;
+  const findAccess = async () => assignedToTestUser;
 
   it.each([
     ['who publishes for another team', reviewerCookie],
@@ -1175,7 +1174,7 @@ describe('an IMRG reviewer assigned to an indicator', () => {
   ])('may not rename it, %s', async (_who, cookie) => {
     const updateDraft = vi.fn();
 
-    const response = await request(createTestApp({ findTeamId, findById, updateDraft }))
+    const response = await request(createTestApp({ findAccess, updateDraft }))
       .patch(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await cookie())
       .send({ name: 'A better name', version: nameVersion });
@@ -1184,12 +1183,12 @@ describe('an IMRG reviewer assigned to an indicator', () => {
     expect(updateDraft).not.toHaveBeenCalled();
   });
 
-  it('reads its task list as not found', async () => {
-    const response = await request(createTestApp({ findTeamId, findById }))
+  it('may see it, so is refused its task list', async () => {
+    const response = await request(createTestApp({ findAccess }))
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await reviewerCookie());
 
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'not_found' });
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'forbidden' });
   });
 });

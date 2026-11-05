@@ -11,7 +11,7 @@ import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './t
 
 describe("the publish journey's endpoints, for a publisher in another team", () => {
   repositoryTest(
-    'refuses every write to a Team A indicator and every read of it',
+    'answers every write to a Team A indicator and every read of it as not found',
     async ({ db }) => {
       const { indicatorId } = await newDraft(db, 'A Team A draft');
       const app = createRouterTestApp(
@@ -36,7 +36,7 @@ describe("the publish journey's endpoints, for a publisher in another team", () 
       };
       for (const [write, pending] of Object.entries(writes)) {
         const response = await pending.set('Cookie', teamB);
-        expect(response.status, write).toBe(403);
+        expect(response.status, write).toBe(404);
       }
 
       for (const read of [

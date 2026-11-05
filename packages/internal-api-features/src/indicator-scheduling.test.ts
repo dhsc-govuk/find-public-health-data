@@ -56,7 +56,7 @@ function createTestApp(
   logger?: Logger,
 ): Express {
   const repositories = createFakeInternalRepositories({
-    indicators: { findById: async () => approvedRow, ...overrides },
+    indicators: { findAccess: async () => approvedRow, ...overrides },
   });
 
   return createRouterTestApp(
@@ -79,7 +79,6 @@ describe('POST /api/internal/indicators/:id/schedule', () => {
   it.each([
     ['a publisher of its team', ['publisher'], [OTHER_TEAM_ID]],
     ['the IMRG manager', ['imrg-manager'], []],
-    ['its reviewer', ['imrg-reviewer'], []],
   ])('refuses %s', async (_, roles, teams) => {
     const schedule = vi.fn();
 
@@ -90,6 +89,19 @@ describe('POST /api/internal/indicators/:id/schedule', () => {
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  it('answers a reviewer not assigned to it, who may not see it, as not found', async () => {
+    const schedule = vi.fn();
+
+    const response = await request(createTestApp({ schedule }))
+      .post(PATH)
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []))
+      .send(body);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
     expect(schedule).not.toHaveBeenCalled();
   });
 
@@ -104,7 +116,7 @@ describe('POST /api/internal/indicators/:id/schedule', () => {
   });
 
   it('answers 404 for an indicator that does not exist', async () => {
-    const response = await request(createTestApp({ findById: async () => undefined }))
+    const response = await request(createTestApp({ findAccess: async () => undefined }))
       .post(PATH)
       .set('Cookie', await adminCookie())
       .send(body);
