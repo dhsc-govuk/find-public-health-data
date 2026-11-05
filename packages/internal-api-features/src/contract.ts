@@ -322,17 +322,22 @@ export const indicatorTaskStatusesSchema = z.record(
   indicatorTaskStatusSchema,
 );
 
-/** One task a review response flagged, with the reviewer's notes, and whether it is saved since. */
-export const indicatorTaskFlagSchema = z.object({
-  task: flaggableTaskKeySchema,
+/** Something a reviewer wrote in a review response, with their display name. */
+export const reviewerCommentSchema = z.object({
   notes: z.string(),
+  reviewerName: z.string(),
+});
+
+/** One task a review response flagged, with the reviewer's notes, and whether it is saved since. */
+export const indicatorTaskFlagSchema = reviewerCommentSchema.extend({
+  task: flaggableTaskKeySchema,
   cleared: z.boolean(),
 });
 
 /** What the round of review that sent the draft back asked for, and the publisher's reply. */
 export const indicatorTaskListReviewSchema = z.object({
   kind: revisionKindSchema,
-  clarificationRequest: z.string().nullable(),
+  clarificationRequest: reviewerCommentSchema.nullable(),
   flags: z.array(indicatorTaskFlagSchema),
   revisionResponse: z.string().nullable(),
 });
@@ -446,6 +451,7 @@ export type IndicatorTaskStatuses = z.infer<typeof indicatorTaskStatusesSchema>;
 export type IndicatorTaskList = z.infer<typeof indicatorTaskListSchema>;
 export type IndicatorTaskListReview = z.infer<typeof indicatorTaskListReviewSchema>;
 export type IndicatorTaskFlag = z.infer<typeof indicatorTaskFlagSchema>;
+export type ReviewerComment = z.infer<typeof reviewerCommentSchema>;
 export type IndicatorTaskListError = z.infer<typeof indicatorTaskListErrorSchema>;
 export type IndicatorSubmit = z.infer<typeof indicatorSubmitSchema>;
 export type IndicatorSubmitError = z.infer<typeof indicatorSubmitErrorSchema>;

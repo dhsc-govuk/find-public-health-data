@@ -6,7 +6,6 @@ import { asUser, type FlaggedTask, inReview, respondToReview } from '../support/
 import { IMRG_REVIEWER, PUBLISHER, SECOND_TEAM_A_PUBLISHER } from '../support/sign-in.ts';
 
 const REPLY = 'Response to revisions or clarifications';
-const NOTES_FOR_REVIEWERS = 'Notes for reviewers (not visible to consumers)';
 const SUBMITTED = 'Indicator successfully submitted for approval.';
 
 const POLARITY: FlaggedTask = {
@@ -35,11 +34,10 @@ function reply(page: Page) {
   return page.getByRole('textbox', { name: REPLY });
 }
 
-/** A task's row in the table of its group, while a round of review has sent the draft back. */
-function requestRow(page: Page, groupTitle: string, task: string) {
+/** A task's item in the task list, while a round of review has sent the draft back. */
+function requestRow(page: Page, task: string) {
   return page
-    .getByRole('table', { name: groupTitle })
-    .getByRole('row')
+    .getByRole('listitem')
     .filter({ has: page.getByRole('link', { name: task, exact: true }) });
 }
 
@@ -79,12 +77,11 @@ test.describe('after minor revisions', () => {
     await page.getByRole('button', { name: 'Respond to requested revision' }).click();
 
     await expect(page).toHaveURL(taskListPath(id));
-    const polarity = requestRow(page, 'Data', 'Polarity');
+    const polarity = requestRow(page, 'Polarity');
+    await expect(polarity).toContainText(`Comment from ${IMRG_REVIEWER.name}:`);
     await expect(polarity.locator('.fphd-markdown strong')).toHaveText('higher');
     await expect(polarity.getByText('Revisions needed')).toBeVisible();
-    await expect(
-      requestRow(page, NOTES_FOR_REVIEWERS, REPLY).getByText('Incomplete'),
-    ).toBeVisible();
+    await expect(requestRow(page, REPLY).getByText('Incomplete')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Submit for approval' })).toHaveCount(0);
     await expectNoAccessibilityViolations(page, testInfo);
 
@@ -100,7 +97,7 @@ test.describe('after minor revisions', () => {
       'Enter your response to the requested revisions',
     );
     await writeReply(page, id, 'Higher is better, as stated.');
-    await expect(requestRow(page, NOTES_FOR_REVIEWERS, REPLY)).toContainText('Completed');
+    await expect(requestRow(page, REPLY)).toContainText('Completed');
 
     await resubmit(page, id);
     await expect(page.getByRole('alert')).toContainText(SUBMITTED);
@@ -139,12 +136,10 @@ test.describe('after pre-IMRG feedback', () => {
     );
     await page.getByRole('button', { name: 'Respond to advised revisions' }).click();
 
-    await expect(requestRow(page, 'Data', 'Polarity').getByText('Revisions advised')).toBeVisible();
-    await expect(requestRow(page, NOTES_FOR_REVIEWERS, REPLY)).toContainText(
-      'Which years does the table cover?',
-    );
+    await expect(requestRow(page, 'Polarity').getByText('Revisions advised')).toBeVisible();
+    await expect(requestRow(page, REPLY)).toContainText('Which years does the table cover?');
 
-    await requestRow(page, NOTES_FOR_REVIEWERS, REPLY).getByRole('link').click();
+    await requestRow(page, REPLY).getByRole('link').click();
     await expect(page.getByRole('heading', { level: 1, name: REPLY })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expectErrorSummaryReady(page);
@@ -169,7 +164,7 @@ test.describe('after a clarification request alone', () => {
     await page.goto(overviewPath(id));
     await expect(publishingTag(page)).toHaveText('Publishing status: Major revisions needed');
     await page.getByRole('button', { name: 'Respond to clarification request' }).click();
-    await requestRow(page, NOTES_FOR_REVIEWERS, REPLY).getByRole('link').click();
+    await requestRow(page, REPLY).getByRole('link').click();
 
     await expect(
       page.getByRole('heading', { level: 2, name: 'High-level clarification request' }),
@@ -259,7 +254,7 @@ test.describe('without JavaScript', () => {
     await respondToReview(browser, id, { kind: 'minor_revisions', flags: [POLARITY] });
 
     await saveUnchanged(page, id, 'polarity');
-    await expect(requestRow(page, 'Data', 'Polarity')).toContainText('Completed');
+    await expect(requestRow(page, 'Polarity')).toContainText('Completed');
     await page.goto(replyPath(id));
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('alert')).toContainText(

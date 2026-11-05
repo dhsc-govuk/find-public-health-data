@@ -80,11 +80,11 @@ describe('getRevisionRound', () => {
       submissionNumber: 1,
       submissionStatus: 'changes_requested',
       kind: 'minor_revisions',
-      clarificationRequest: 'Which years?',
+      clarificationRequest: { notes: 'Which years?', reviewerName: 'Jamie Evans' },
       revisionResponse: null,
       flags: [
-        { task: 'name', notes: 'Revise name', cleared: true },
-        { task: 'polarity', notes: 'Revise polarity', cleared: false },
+        { task: 'name', notes: 'Revise name', reviewerName: 'Jamie Evans', cleared: true },
+        { task: 'polarity', notes: 'Revise polarity', reviewerName: 'Jamie Evans', cleared: false },
       ],
     });
     expect(await latestReplyOf(db, versionId)).toBeNull();
