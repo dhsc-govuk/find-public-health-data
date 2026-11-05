@@ -82,6 +82,10 @@ function historyItem(entry: HistoryEntry): HistoryItem {
             : [markdownRow('Response to revisions or clarifications', entry.reply)]),
         ],
       };
+    case 'publication_scheduled':
+      return { date: entry.at, action: 'Publication date confirmed', by: entry.by, rows: [] };
+    case 'publication_date_changed':
+      return { date: entry.at, action: 'Publication date changed', by: entry.by, rows: [] };
   }
 }
 

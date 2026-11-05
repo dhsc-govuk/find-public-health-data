@@ -31,6 +31,8 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
     flags: z.array(z.object({ task: flaggableTaskKeySchema, revised: z.boolean() })),
     reply: z.string().nullable(),
   }),
+  z.object({ kind: z.literal('publication_scheduled'), ...doneBy }),
+  z.object({ kind: z.literal('publication_date_changed'), ...doneBy }),
 ]);
 
 /** What has happened to an indicator, newest first. */

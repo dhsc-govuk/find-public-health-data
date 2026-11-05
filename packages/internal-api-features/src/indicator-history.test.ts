@@ -48,6 +48,7 @@ const found: IndicatorHistoryRow = {
       reviewers: ['Jamie Evans'],
     },
   ],
+  scheduling: [],
   saves: [],
 };
 

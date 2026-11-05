@@ -369,6 +369,7 @@ describe('internal API', () => {
           versions: [],
           submissions: [],
           assignments: [],
+          scheduling: [],
           saves: [],
         }),
       },

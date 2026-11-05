@@ -50,7 +50,13 @@ function save(time: string, fields: string[]): HistorySaveRecord {
   return { at: at(time), action: 'indicator.draft_updated', fields, reloaded: false };
 }
 
-const noRecords = { versions: [version()], submissions: [], assignments: [], saves: [] };
+const noRecords = {
+  versions: [version()],
+  submissions: [],
+  assignments: [],
+  scheduling: [],
+  saves: [],
+};
 
 describe('historyEntries', () => {
   it('starts with the first version’s creation', () => {
@@ -125,6 +131,28 @@ describe('historyEntries', () => {
       },
       { kind: 'submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor' },
       { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
+    ]);
+  });
+
+  it('lists the publication date’s confirmation and each change after the approval', () => {
+    const entries = historyEntries({
+      ...noRecords,
+      submissions: [
+        submission({
+          status: 'approved',
+          responses: [response({ kind: 'approved', respondedAt: at('03T15:00:00') })],
+        }),
+      ],
+      scheduling: [
+        { at: at('04T09:00:00'), by: 'Riley Singh', action: 'indicator.publication_scheduled' },
+        { at: at('05T09:00:00'), by: 'Riley Singh', action: 'indicator.publication_date_changed' },
+      ],
+    });
+
+    expect(entries.slice(0, 3)).toEqual([
+      { kind: 'publication_date_changed', at: '2026-06-05T09:00:00.000Z', by: 'Riley Singh' },
+      { kind: 'publication_scheduled', at: '2026-06-04T09:00:00.000Z', by: 'Riley Singh' },
+      expect.objectContaining({ kind: 'responded', response: 'approved' }),
     ]);
   });
 

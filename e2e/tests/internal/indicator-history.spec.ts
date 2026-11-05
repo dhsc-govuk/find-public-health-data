@@ -3,6 +3,7 @@ import { type Browser, expect, type Page, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { submitNewIndicator } from '../support/complete-draft.ts';
 import { uniqueIndicatorName } from '../support/create-indicator.ts';
+import { historyEntries, historyPanel, historyToday, openHistory } from '../support/history.ts';
 import { MORTALITY_ID } from '../support/indicator-page.ts';
 import { asUser, type FlaggedTask, inReview, respondToReview } from '../support/review-response.ts';
 import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
@@ -27,31 +28,6 @@ function overviewPath(id: string) {
 
 function taskListPath(id: string) {
   return `/publish/indicators/${id}/task-list`;
-}
-
-/** Today as the History tab dates it. */
-function today() {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Europe/London',
-  }).format(new Date());
-}
-
-function historyPanel(page: Page) {
-  return page.locator('#history');
-}
-
-/** The history's entries, newest first. */
-function entries(page: Page) {
-  return historyPanel(page).getByRole('listitem');
-}
-
-async function openHistory(page: Page, id: string) {
-  await page.goto(overviewPath(id));
-  await page.getByRole('tab', { name: 'History' }).click();
-  await expect(page.getByRole('heading', { level: 2, name: 'History' })).toBeVisible();
 }
 
 async function save(page: Page, id: string, key: string, change?: (page: Page) => Promise<void>) {
@@ -84,7 +60,7 @@ async function reviewedRound(page: Page, browser: Browser) {
 }
 
 function roundHistory() {
-  const on = today();
+  const on = historyToday();
   return [
     `${on} Indicator approved for publishing By ${IMRG_REVIEWER.name}`,
     `${on} Indicator reviewed by IMRG By ${IMRG_REVIEWER.name}`,
@@ -111,7 +87,7 @@ test('lists what has happened to the indicator, newest first, the same for the p
   const expected = roundHistory();
 
   await openHistory(page, id);
-  await expect(entries(page)).toHaveText(expected, { useInnerText: true });
+  await expect(historyEntries(page)).toHaveText(expected, { useInnerText: true });
   await expect(
     historyPanel(page)
       .getByRole('row', { name: /^Polarity/ })
@@ -121,7 +97,7 @@ test('lists what has happened to the indicator, newest first, the same for the p
 
   await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
     await openHistory(reviewer, id);
-    await expect(entries(reviewer)).toHaveText(expected, { useInnerText: true });
+    await expect(historyEntries(reviewer)).toHaveText(expected, { useInnerText: true });
   });
 });
 
@@ -136,12 +112,12 @@ test("never shows a reviewer's own notes", async ({ browser, page }) => {
     await expect(reviewer.getByRole('table')).toContainText(REVIEWER_NOTE);
 
     await openHistory(reviewer, id);
-    await expect(entries(reviewer)).toHaveCount(3);
+    await expect(historyEntries(reviewer)).toHaveCount(3);
     await expect(historyPanel(reviewer)).not.toContainText(REVIEWER_NOTE);
   });
 
   await openHistory(page, id);
-  await expect(entries(page)).toHaveCount(3);
+  await expect(historyEntries(page)).toHaveCount(3);
   await expect(historyPanel(page)).not.toContainText(REVIEWER_NOTE);
 });
 
@@ -153,11 +129,11 @@ test.describe('as an admin', () => {
   }) => {
     await openHistory(page, MORTALITY_ID);
 
-    await expect(entries(page)).toHaveCount(2);
-    await expect(entries(page).first()).toContainText('Indicator published');
-    await expect(entries(page).first()).not.toContainText('By ');
-    await expect(entries(page).last()).toContainText('Indicator first created');
-    await expect(entries(page).last()).toContainText('By PHOLIO migration');
+    await expect(historyEntries(page)).toHaveCount(2);
+    await expect(historyEntries(page).first()).toContainText('Indicator published');
+    await expect(historyEntries(page).first()).not.toContainText('By ');
+    await expect(historyEntries(page).last()).toContainText('Indicator first created');
+    await expect(historyEntries(page).last()).toContainText('By PHOLIO migration');
   });
 });
 
@@ -171,10 +147,10 @@ test.describe('without JavaScript', () => {
     await page.getByRole('link', { name: 'History', exact: true }).click();
     await expect(page).toHaveURL(/#history$/);
 
-    await expect(entries(page)).toHaveText(
+    await expect(historyEntries(page)).toHaveText(
       [
-        `${today()} Indicator submitted for approval By ${PUBLISHER.name}`,
-        `${today()} Indicator first created By ${PUBLISHER.name}`,
+        `${historyToday()} Indicator submitted for approval By ${PUBLISHER.name}`,
+        `${historyToday()} Indicator first created By ${PUBLISHER.name}`,
       ],
       { useInnerText: true },
     );

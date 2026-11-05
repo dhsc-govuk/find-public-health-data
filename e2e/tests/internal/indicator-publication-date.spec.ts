@@ -2,8 +2,9 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
+import { historyEntries, historyToday, openHistory } from '../support/history.ts';
 import { approvedIndicator, asUser } from '../support/review-response.ts';
-import { ADMIN, PUBLISHER } from '../support/sign-in.ts';
+import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 
 const CONFIRMED = 'Indicator publication date confirmed';
 const IN_THE_PAST = 'Publishing date and time must be in the future';
@@ -75,7 +76,7 @@ test('an admin confirms the publication date of an approved indicator, which sho
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('an admin changes a confirmed publication date, which stays Publishing scheduled', async ({
+test('an admin changes a confirmed publication date, which stays Publishing scheduled and shows in History', async ({
   browser,
   page,
 }) => {
@@ -100,6 +101,21 @@ test('an admin changes a confirmed publication date, which stays Publishing sche
   await expect(publishingTag(page)).toHaveText('Publishing status: Publishing scheduled');
   await expect(dateLine(page)).toHaveText(
     `Scheduled publication date: 15 June ${CHANGED_YEAR} at 2:00pm`,
+  );
+
+  const on = historyToday();
+  await openHistory(page, id);
+  await expect(historyEntries(page)).toHaveText(
+    [
+      `${on} Publication date changed By ${ADMIN.name}`,
+      `${on} Publication date confirmed By ${ADMIN.name}`,
+      `${on} Indicator approved for publishing By ${IMRG_REVIEWER.name}`,
+      `${on} Indicator reviewed by IMRG By ${IMRG_REVIEWER.name}`,
+      `${on} Indicator assigned for review by ${IMRG_REVIEWER.name}. By ${IMRG_MANAGER.name}`,
+      `${on} Indicator submitted for approval By ${PUBLISHER.name}`,
+      `${on} Indicator first created By ${PUBLISHER.name}`,
+    ],
+    { useInnerText: true },
   );
 });
 

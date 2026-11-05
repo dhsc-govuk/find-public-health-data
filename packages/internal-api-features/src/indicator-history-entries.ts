@@ -5,6 +5,7 @@ import type { HistoryEntry } from './indicator-history-contract.ts';
 import type {
   HistoryResponseRecord,
   HistorySaveRecord,
+  HistorySchedulingRecord,
   HistorySubmissionRecord,
   IndicatorHistoryRow,
 } from './indicator-history-repository.ts';
@@ -12,8 +13,13 @@ import { changesTask } from './indicator-task-audit-fields.ts';
 
 type HistoryRecords = Pick<
   IndicatorHistoryRow,
-  'versions' | 'submissions' | 'assignments' | 'saves'
+  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'saves'
 >;
+
+const SCHEDULING_KINDS = {
+  'indicator.publication_scheduled': 'publication_scheduled',
+  'indicator.publication_date_changed': 'publication_date_changed',
+} as const satisfies Record<HistorySchedulingRecord['action'], HistoryEntry['kind']>;
 
 /** An entry with the instant it sorts by. */
 interface Dated {
@@ -164,7 +170,7 @@ function versionEntries({ versions }: HistoryRecords): Dated[] {
  * at the same instant keep the order they happened in, the later first.
  */
 export function historyEntries(records: HistoryRecords): HistoryEntry[] {
-  const { submissions, assignments, saves } = records;
+  const { submissions, assignments, scheduling, saves } = records;
   const happened = [
     ...versionEntries(records),
     ...submissions.flatMap((submission, index) =>
@@ -176,6 +182,9 @@ export function historyEntries(records: HistoryRecords): HistoryEntry[] {
     ),
     ...assignments.map(({ at, by, reviewers }) =>
       dated({ kind: 'reviewers_assigned', at: iso(at), by, reviewers }, at),
+    ),
+    ...scheduling.map(({ at, by, action }) =>
+      dated({ kind: SCHEDULING_KINDS[action], at: iso(at), by }, at),
     ),
   ];
 
