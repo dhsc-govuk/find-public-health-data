@@ -1,7 +1,7 @@
 import type { IndicatorStep } from '@fphd/internal-api-features/contract';
 import { describe, expect, it } from 'vitest';
 
-import { type ActionsTabInput, actionsTabSections } from './actions-tab.ts';
+import { type ActionsTabInput, actionsTabSections } from './actions-tab-sections.ts';
 
 const ID = '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b';
 const RESPOND: IndicatorStep[] = ['give_feedback', 'request_changes', 'approve'];

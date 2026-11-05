@@ -9,8 +9,8 @@ import {
 } from '@fphd/ui';
 
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
-import { actionsTabSections } from './actions-tab.ts';
 import { ActionsTab } from './actions-tab.tsx';
+import { actionsTabSections } from './actions-tab-sections.ts';
 import { History } from './history.tsx';
 import type {
   HistoryItem,
