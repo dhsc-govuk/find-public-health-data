@@ -6,7 +6,7 @@ import { createCapturingLogger } from '@fphd/logger/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import { checkDependencies } from './dependency-check.ts';
-import { createApiApp } from './index.ts';
+import { createBaseApp } from './index.ts';
 
 function connectionRefused(): Error {
   return Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:5432'), { code: 'ECONNREFUSED' });
@@ -84,9 +84,9 @@ describe('checkDependencies', () => {
     expect(lines).toEqual([]);
   });
 
-  it('leaves an API with an unreachable database answering its probes', async () => {
+  it('leaves a server with an unreachable database answering its probes', async () => {
     const { lines, logger } = createCapturingLogger('test-api');
-    const app = createApiApp({ logger, serviceName: 'test-api' });
+    const app = createBaseApp({ serviceName: 'test-api' });
     let reachable = false;
     const checking = checkDependencies(
       logger,

@@ -12,4 +12,4 @@ Built package; consumed by the API apps and by `@fphd/internal-api-features`.
 | `addFallbackHandlers` | Mounted after every router: the JSON `not_found` fallback, and an error handler that returns JSON and attaches the error to the request log line |
 | `requireJwtRole`      | Middleware that reads the session cookie, verifies the JWT and checks a role  |
 | `requireJwtSession`   | The same, admitting the sessions a check such as one from `@fphd/auth/permissions` admits |
-| `serverLogging`, `startServer` | Re-exported from `@fphd/express` so an API app depends on this package alone |
+| `checkDependencies`, `serverLogging`, `startServer` | Re-exported from `@fphd/express` so an API app depends on this package alone |
