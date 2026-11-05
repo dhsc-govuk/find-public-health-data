@@ -1,4 +1,4 @@
-# The four app images the e2e stack runs, built from docker/Dockerfile in one invocation so
+# The app images the e2e stack runs, built from docker/Dockerfile in one invocation so
 # BuildKit runs the shared builder stage once and the per-app builds in parallel. ci.yml's
 # build-app-images job; operations builds on its own because e2e does not need it. By hand:
 #
@@ -19,6 +19,7 @@ target "app" {
       { app = "internal-web", target = "web" },
       { app = "public-api", target = "api" },
       { app = "internal-api", target = "api" },
+      { app = "internal-worker", target = "api" },
     ]
   }
   context    = "."
@@ -38,5 +39,5 @@ target "app" {
 }
 
 group "default" {
-  targets = ["public-web", "internal-web", "public-api", "internal-api"]
+  targets = ["public-web", "internal-web", "public-api", "internal-api", "internal-worker"]
 }

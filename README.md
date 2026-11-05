@@ -548,14 +548,15 @@ docker build -f docker/Dockerfile --target web --build-arg APP=public-web   -t p
 docker build -f docker/Dockerfile --target web --build-arg APP=internal-web -t internal-web .
 docker build -f docker/Dockerfile --target api --build-arg APP=public-api   -t public-api   .
 docker build -f docker/Dockerfile --target api --build-arg APP=internal-api -t internal-api .
+docker build -f docker/Dockerfile --target api --build-arg APP=internal-worker -t internal-worker .
 docker build -f docker/Dockerfile --target operations --build-arg APP=operations -t operations .
 ```
 
-Five images, three targets. The two web apps have identical runtime stages — same base, same
-init, same start command — and so do the two APIs; only *which* app the builder compiled into
-the image differs. A per-app target would be a copy with nothing changed in it, so the targets
-split only where the runtime genuinely does: `dist/server.js` for an API, `server.ts` for a web
-app, and the CLI-plus-`psql` image for operations.
+Six images, three targets. The two web apps have identical runtime stages — same base, same
+init, same start command — and so do the two APIs and the worker; only *which* app the builder
+compiled into the image differs. A per-app target would be a copy with nothing changed in it, so
+the targets split only where the runtime genuinely does: `dist/server.js` for an API or the worker,
+`server.ts` for a web app, and the CLI-plus-`psql` image for operations.
 
 `pnpm deploy --prod --legacy` prunes devDependencies and copies only the workspace packages the app
 actually depends on, so no image carries pnpm, TypeScript, drizzle-kit or another app's code.
@@ -572,7 +573,7 @@ This is separate from `docker/app.Dockerfile`, which is the development image us
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and
 its devDependencies — exactly what the production images must not do.
 
-On a pull request, CI builds the four server images in one `docker buildx bake` run from
+On a pull request, CI builds the server images in one `docker buildx bake` run from
 `docker/docker-bake.hcl`, so the shared builder stage runs once. It smoke-tests them, checks their
 contents with `scripts/check-image-contents.sh` and saves them as an artifact. The contents check
 fails if an image carries TypeScript, npm, yarn or corepack, or if a server image carries
@@ -585,12 +586,12 @@ the same images alongside it. The operations image, which e2e does not use, is b
 contents-checked and scanned in a job of its own.
 
 On a push to `main`, CI runs the same jobs and then, once every check has passed, calls
-`.github/workflows/publish-images.yml`, which pushes the five images that run built and tested to
+`.github/workflows/publish-images.yml`, which pushes the six images that run built and tested to
 GitHub Container Registry under the repository that ran it —
 `ghcr.io/<owner>/find-public-health-data/fphd-<app>`, lowercased — tagged with the commit SHA and
 `latest`. A commit whose CI fails publishes nothing, and `latest` only moves forward: re-running an
 older commit's CI publishes its SHA tag but leaves `latest` on the newer commit. The `fphd-` prefix
-groups the five in the organisation's package list. OCI labels, set when CI builds the images, carry
+groups the six in the organisation's package list. OCI labels, set when CI builds the images, carry
 the repository, commit and build time rather than encoding them in the tag. There is no registry
 credential on either side: the workflow authenticates with its own run-scoped `GITHUB_TOKEN`, and
 the packages are public, so deployments pull anonymously. GHCR does not reliably create a new

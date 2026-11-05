@@ -41,7 +41,7 @@ jobs:
       id-token: write
       attestations: write
     strategy:
-      # One app failing to push must not stop the other four publishing.
+      # One app failing to push must not stop the others publishing.
       fail-fast: false
       matrix:
         include:
@@ -53,12 +53,14 @@ jobs:
             artifact: app-images
           - app: internal-api
             artifact: app-images
+          - app: internal-worker
+            artifact: app-images
           - app: operations
             artifact: operations-image
     steps:
       # Derived from the run so the workflow publishes under whichever repository it is in.
       # Repo-prefixed so a generic name like `operations` isn't loose in the organisation
-      # namespace, and `fphd-` prefixed so the five group together in the organisation's package
+      # namespace, and `fphd-` prefixed so the images group together in the organisation's package
       # list; lowercased because image references must be and an owner or repository name need
       # not be. The packages are linked to that repository and inherit its permissions because
       # their first push comes from this workflow's token — the prefixes alone do nothing. They

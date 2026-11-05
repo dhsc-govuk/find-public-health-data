@@ -2,18 +2,19 @@
 
 # Production images, one per deployable app. The builder stage is shared, so the install and
 # the workspace build are cached once across all of them. `--target` picks the runtime shape
-# and `APP` picks the app, which is why five images come out of three targets — the two web
-# apps have identical runtime stages, as do the two APIs:
+# and `APP` picks the app, which is why six images come out of three targets — the two web
+# apps have identical runtime stages, as do the two APIs and the worker:
 #
 #   docker build -f docker/Dockerfile --target web --build-arg APP=public-web    -t public-web    .
 #   docker build -f docker/Dockerfile --target web --build-arg APP=internal-web  -t internal-web  .
 #   docker build -f docker/Dockerfile --target api --build-arg APP=public-api    -t public-api    .
 #   docker build -f docker/Dockerfile --target api --build-arg APP=internal-api  -t internal-api  .
+#   docker build -f docker/Dockerfile --target api --build-arg APP=internal-worker -t internal-worker .
 #   docker build -f docker/Dockerfile --target operations --build-arg APP=operations -t operations .
 #
 # Add `--build-arg REVISION=$(git rev-parse HEAD)` to any of these to log the commit on start-up.
 #
-# ci.yml builds the four servers in one go from docker/docker-bake.hcl and operations through
+# ci.yml builds the servers in one go from docker/docker-bake.hcl and operations through
 # .github/actions/build-image, then smoke-tests and scans them. On a push to main,
 # publish-images.yml pushes those images once every check has passed.
 #
@@ -36,7 +37,7 @@ WORKDIR /repo
 
 FROM base AS builder
 
-# Cache dependency files and patches before source; all five app images share this layer.
+# Cache dependency files and patches before source; every app image shares this layer.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches/ patches/
 RUN pnpm fetch

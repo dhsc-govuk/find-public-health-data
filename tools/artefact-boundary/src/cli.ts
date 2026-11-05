@@ -25,6 +25,7 @@ const SERVER_APPS: Pick<PublicApp, 'pkg' | 'bundled'>[] = [
   PUBLIC_API,
   { pkg: '@fphd/internal-web', bundled: true },
   { pkg: '@fphd/internal-api', bundled: false },
+  { pkg: '@fphd/internal-worker', bundled: false },
 ];
 
 type Violation = {
