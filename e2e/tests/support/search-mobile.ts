@@ -1,5 +1,34 @@
 import { expect, type Page, type TestInfo, test } from '@playwright/test';
 
+export function mobileSearchTests(scan: (page: Page, testInfo: TestInfo) => Promise<void>) {
+  test('search tabs switch results with touch and keep the selected tab after reload', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/search?q=diabetes');
+    await expect(page.getByRole('tab')).toHaveCount(2);
+    for (const tab of ['topics', 'indicators']) {
+      await page.getByRole('tab', { name: new RegExp(`^${tab}`, 'i') }).tap();
+      await expect(page).toHaveURL(
+        tab === 'topics' ? '/search?q=diabetes&tab-search=topics' : '/search?q=diabetes',
+      );
+      await expect(page.locator(`#search-${tab}`)).toBeVisible();
+      await expect(
+        page.locator(`#search-${tab === 'topics' ? 'indicators' : 'topics'}`),
+      ).toBeHidden();
+      await scan(page, testInfo);
+    }
+    await page.reload();
+    await expect(page.getByRole('tab', { name: /^Indicators/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.locator('#search-indicators')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+      page.viewportSize()?.width,
+    );
+  });
+}
+
 export function mobileFilterTests(scan: (page: Page, testInfo: TestInfo) => Promise<void>) {
   test('tapping a filter header expands and collapses its controls', async ({ page }, testInfo) => {
     await page.goto('/search?q=diabetes');
