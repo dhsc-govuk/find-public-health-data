@@ -12,6 +12,7 @@ import {
   MAX_INDICATOR_QUERY_LENGTH,
   pickAreaCodes,
   queryText,
+  topicSummaryListSchema,
 } from '@fphd/public-api-features/contract';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { apiContext } from '@fphd/web-server/api-context';
@@ -27,10 +28,15 @@ import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { DIMENSIONS, PERIOD_PARAMS } from './url.ts';
 
 export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies: boolean) {
-  const search = await loadSearch(args, { publicGeographies });
+  const [search, topicResults] = await Promise.all([
+    loadSearch(args, { publicGeographies }),
+    args.context.get(apiContext).get('/api/topics', topicSummaryListSchema),
+  ]);
   return {
     ...search,
+    q: new URL(args.request.url).searchParams.get('q') ?? '',
     geographyLookupUrl: publicGeographies ? '/geographies?scheme=public' : '/geographies',
+    topicResults,
   };
 }
 

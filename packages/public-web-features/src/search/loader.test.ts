@@ -4,7 +4,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
-import { loadSearch } from './loader.ts';
+import { loadSearch, loadSearchPage } from './loader.ts';
 
 const DISPLAY_GROUPS = [
   'Local authorities',
@@ -61,6 +61,32 @@ function loaderArgs(client: ApiClient, url = 'http://localhost/search'): LoaderF
   context.set(apiContext, client);
   return { context, params: {}, request: new Request(url) } as unknown as LoaderFunctionArgs;
 }
+
+describe('loadSearchPage', () => {
+  it('loads topic results while indicator search is still waiting for geography data', async () => {
+    const groups = Promise.withResolvers<string[]>();
+    const { client, get } = api();
+    const respond = get.getMockImplementation();
+    const topics = [{ slug: 'diabetes', title: 'Diabetes', description: 'Diabetes data' }];
+    get.mockImplementation((path: string) => {
+      if (path === '/api/areas/display-groups') return groups.promise;
+      if (path === '/api/topics') return Promise.resolve(topics);
+      return respond?.(path);
+    });
+
+    const loading = loadSearchPage(loaderArgs(client, 'http://localhost/search?q=diabetes'), true);
+
+    expect(get).toHaveBeenCalledWith('/api/topics', expect.anything());
+    expect(get.mock.calls.some(([path]) => path.startsWith('/api/indicators/search'))).toBe(false);
+    groups.resolve(DISPLAY_GROUPS);
+
+    await expect(loading).resolves.toMatchObject({
+      q: 'diabetes',
+      topicResults: topics,
+      searchResult: EMPTY_RESULT,
+    });
+  });
+});
 
 describe('loadSearch', () => {
   it('discards invalid period filters from both the page and API query', async () => {

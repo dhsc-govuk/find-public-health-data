@@ -16,6 +16,8 @@ interface TabsProps {
   history?: 'push' | 'replace';
   defaultParam?: string | undefined;
   sectionHeadings?: boolean;
+  mobileTabs?: boolean;
+  linkSelection?: boolean;
 }
 
 // Query parameters preserve the server-rendered view in shared links; NotGovUK tabs only track hashes.
@@ -36,19 +38,21 @@ function TabPanels({
   history = 'replace',
   defaultParam,
   sectionHeadings = false,
+  mobileTabs = false,
+  linkSelection = false,
   navigation,
 }: TabsProps & { navigation?: ReturnType<typeof useNavigation> }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const fromParam = new URLSearchParams(location.search).get(paramKey) ?? defaultParam;
+  const tabParam = new URLSearchParams(location.search).get(paramKey);
+  const fromParam = tabParam ?? defaultParam;
   const defaultIndex = Math.max(
     0,
     items.findIndex(({ id, param }) => (param ?? id) === defaultParam),
   );
-  const paramIndex = Math.max(
-    0,
-    items.findIndex(({ id, param }) => (param ?? id) === fromParam),
-  );
+  const matchingIndex = items.findIndex(({ id, param }) => (param ?? id) === fromParam);
+  const paramIndex = Math.max(0, matchingIndex);
+  const hasLinkedSelection = linkSelection && tabParam !== null && matchingIndex >= 0;
   const [selected, setSelected] = useState(paramIndex);
   const [mounted, setMounted] = useState(false);
   const [tabMode, setTabMode] = useState(false);
@@ -79,11 +83,11 @@ function TabPanels({
       typeof window.matchMedia === 'function'
         ? window.matchMedia('(min-width: 40.0625em)')
         : undefined;
-    const update = () => setTabMode(media?.matches ?? true);
+    const update = () => setTabMode(mobileTabs || (media?.matches ?? true));
     update();
     media?.addEventListener('change', update);
     return () => media?.removeEventListener('change', update);
-  }, []);
+  }, [mobileTabs]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -101,10 +105,10 @@ function TabPanels({
     setSelected(paramIndex);
   }, [fromParam, paramIndex]);
 
-  const searchFor = (index: number) => {
+  const searchFor = (index: number, includeDefault = false) => {
     const params = new URLSearchParams(location.search);
     const item = items[index];
-    if (index === defaultIndex || !item) params.delete(paramKey);
+    if ((!includeDefault && index === defaultIndex) || !item) params.delete(paramKey);
     else params.set(paramKey, item.param ?? item.id);
     return `?${params.toString()}`;
   };
@@ -133,7 +137,10 @@ function TabPanels({
   };
 
   return (
-    <div className={`govuk-tabs fphd-tabs${mounted ? '' : ' fphd-tabs--ssr'}`} data-module="">
+    <div
+      className={`govuk-tabs fphd-tabs${mobileTabs ? ' fphd-tabs--mobile' : ''}${mounted ? '' : ' fphd-tabs--ssr'}`}
+      data-module=""
+    >
       <h2 className="govuk-tabs__title">{title}</h2>
       <ul className="govuk-tabs__list" role={tabMode ? 'tablist' : undefined}>
         {items.map(({ id, label }, index) => (
@@ -147,7 +154,11 @@ function TabPanels({
                 ? { role: 'tab', 'aria-controls': id, 'aria-selected': index === visibleIndex }
                 : {})}
               className="govuk-tabs__tab"
-              href={tabMode && waitForNavigation ? `${searchFor(index)}#${id}` : `#${id}`}
+              href={
+                linkSelection || (tabMode && waitForNavigation)
+                  ? `${searchFor(index, linkSelection)}#${id}`
+                  : `#${id}`
+              }
               id={`tab_${id}`}
               onClick={(event) => {
                 if (!tabMode) return;
@@ -170,6 +181,7 @@ function TabPanels({
           {...(tabMode ? { role: 'tabpanel', 'aria-labelledby': `tab_${id}` } : {})}
           aria-busy={loading && index === visibleIndex ? true : undefined}
           className={`govuk-tabs__panel${index === visibleIndex ? ' fphd-tabs__panel--open' : ''}${mounted && tabMode && index !== visibleIndex ? ' govuk-tabs__panel--hidden' : ''}`}
+          hidden={!mounted && hasLinkedSelection && index !== visibleIndex}
           id={id}
           key={id}
           ref={(element) => {
