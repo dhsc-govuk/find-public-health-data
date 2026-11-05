@@ -15,6 +15,11 @@ workspace packages. Deployable applications do not import one another.
 Alongside them sits `@fphd/operations`, which serves no traffic and has no port. It is a
 command-line application, run as a job — see [Operational commands](#operational-commands).
 
+`@fphd/internal-worker` serves no traffic either. It publishes each scheduled indicator version
+at its publication time, checking one second past each minute, and answers only the `/livez` and
+`/readyz` probes, on port 4002. It connects to the database as the internal API does. `pnpm dev`
+and `pnpm dev:internal` start it.
+
 ## Requirements
 
 - Node.js at the version in `.nvmrc`, the one the production images run
@@ -165,11 +170,11 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   project without any still passes because of `--passWithNoTests`.
 - `pnpm test:e2e` names the one suite directly (`pnpm --filter @fphd/e2e run test:e2e`), so broken
   e2e wiring is an error rather than a silent skip. In CI the job is a matrix of shards, each
-  running `--shard=i/n`: every shard runs the four apps as compose containers from the production
-  images the image build job made (see [Container images](#container-images)), restores the
-  database a seed job seeded once for the run, with the same commands a developer runs, runs its
-  share of the suite, and uploads its own Playwright report when it fails. Add a shard to the
-  matrix as the suite grows.
+  running `--shard=i/n`: every shard runs the four apps and the worker as compose containers from
+  the production images the image build job made (see [Container images](#container-images)),
+  restores the database a seed job seeded once for the run, with the same commands a developer
+  runs, runs its share of the suite, and uploads its own Playwright report when it fails. Add a
+  shard to the matrix as the suite grows.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
@@ -327,7 +332,7 @@ docker compose down -v    # stop and delete all data
 
 `pnpm services:up` starts every compose service that carries no `profiles:` key, so a service added
 to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The four
-app services are profile-gated and belong to `pnpm dev:mixed`.
+app services and the worker's are profile-gated and belong to `pnpm dev:mixed`.
 
 Each API connects with its own login role (`public_api`, `internal_api`) rather than as the owner,
 so access can be constrained per audience at the grant level. The roles, and the `fphd_owner` group
@@ -409,9 +414,11 @@ here; it comes out of the budget rather than adding to it, and is zero locally, 
 elsewhere. A server logs `Stopping`, with the signal and each phase's budget, as the signal arrives,
 and `Stopped` once cleanup is done.
 
-All four apps serve the same two probes, so one configuration covers every app: `/livez` stays 200
-throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the moment a signal
-arrives.
+The four apps and the worker serve the same two probes, so one configuration covers every app:
+`/livez` stays 200 throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the
+moment a signal arrives. The worker's `/livez` also answers 503 with `"status": "stalled"` once no
+publication sweep has ended for five minutes, so the platform restarts a worker whose sweep has
+hung.
 
 ## Operational commands
 
@@ -639,7 +646,8 @@ never be the first to notice.
 
 ## Mixed local/Docker development
 
-Any subset of the four applications can run as Docker containers while the rest run locally.
+Any subset of the four applications and the worker can run as Docker containers while the rest run
+locally.
 `pnpm dev:mixed` takes the apps to run **locally** and starts everything else (plus the database) as
 containers:
 
