@@ -463,6 +463,27 @@
       "when": 1793896583524,
       "tag": "0065_published-observation-visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793896583525,
+      "tag": "0066_cache-observation-series",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793896583526,
+      "tag": "0067_share-published-batch-lookup",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1793896583527,
+      "tag": "0068_cache-topic-trend-inputs",
+      "breakpoints": true
     }
   ]
 }

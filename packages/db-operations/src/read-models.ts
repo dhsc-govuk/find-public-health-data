@@ -1,8 +1,14 @@
 import type postgres from 'postgres';
+import { rebuildObservationSeries } from './observation-series.ts';
 
 /** The derived tables, in one place so the rebuild, the seed's truncate and the
  * operations CLI's row-count report cannot disagree about what a read model is. */
-export const READ_MODEL_TABLES = ['available_data', 'observation_range'] as const;
+export const READ_MODEL_TABLES = [
+  'available_data',
+  'observation_range',
+  'observation_series',
+  'observation_series_batch',
+] as const;
 
 /**
  * Rebuild the derived read-model tables from the published views, atomically, so they hold
@@ -20,6 +26,8 @@ export async function rebuildReadModelTables(tx: postgres.TransactionSql): Promi
   // the previous read models until the rebuild commits.
   await tx`DELETE FROM available_data`;
   await tx`DELETE FROM observation_range`;
+  await tx`DELETE FROM observation_series`;
+  await tx`DELETE FROM observation_series_batch`;
 
   await tx`
       INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
@@ -67,9 +75,12 @@ export async function rebuildReadModelTables(tx: postgres.TransactionSql): Promi
       FROM range_observations ro
       GROUP BY ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment
     `;
+  await rebuildObservationSeries(tx);
 }
 
 export async function analyzeReadModels(sql: postgres.Sql): Promise<void> {
   await sql`ANALYZE available_data`;
   await sql`ANALYZE observation_range`;
+  await sql`ANALYZE observation_series`;
+  await sql`ANALYZE observation_series_batch`;
 }

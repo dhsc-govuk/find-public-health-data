@@ -4,6 +4,7 @@ import {
   getIndicatorObservationData,
   getPublishedIndicatorsByIds,
 } from './indicator-repository.ts';
+import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import { publishedIndicator } from './schema/index.ts';
 
 export async function getIndicatorRankingData(
@@ -11,7 +12,9 @@ export async function getIndicatorRankingData(
   indicatorId: string,
   areaCodes: string[],
 ) {
-  const data = await getIndicatorObservationData(db, [indicatorId], areaCodes, 'ranking');
+  const data =
+    (await getIndicatorSeriesData(db, [indicatorId], areaCodes, 'ranking')) ??
+    (await getIndicatorObservationData(db, [indicatorId], areaCodes, 'ranking'));
   return data.get(indicatorId)?.areaData ?? [];
 }
 
@@ -29,7 +32,11 @@ export async function getIndicatorTableData(
   const ids = identities.map(({ id }) => id);
   const [details, data] = await Promise.all([
     getPublishedIndicatorsByIds(db, ids),
-    getIndicatorObservationData(db, ids, areaCodes, points === 'latest' ? 'summary' : 'table'),
+    getIndicatorSeriesData(db, ids, areaCodes, points).then(
+      (cached) =>
+        cached ??
+        getIndicatorObservationData(db, ids, areaCodes, points === 'latest' ? 'summary' : 'table'),
+    ),
   ]);
   const byShortId = new Map(identities.map(({ id, shortId }) => [shortId, id]));
   return shortIds.flatMap((shortId) => {

@@ -67,7 +67,7 @@ export async function getIndicatorObservationData(
 ): Promise<Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>> {
   if (indicatorIds.length === 0 || areaCodes.length === 0) return new Map();
   const requestedAreas =
-    projection === 'ranking'
+    projection === 'ranking' || projection === undefined
       ? await db
           .select({ id: area.id, code: area.code, name: area.name })
           .from(area)

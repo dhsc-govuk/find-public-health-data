@@ -39,6 +39,8 @@ src/
                       applyIndicatorTopics — the indicator relationship files
   seeding.ts          seedDummyTables — loads data/seed and the indicator relationships
   read-models.ts      rebuildReadModels — repopulates the cache tables from the published views
+  observation-series.ts
+                      Elects table and ranking series, point IDs and recent trend inputs
   reset.ts            resetDatabase — drops all application schema objects
   data-migration.ts   applyDataMigration — applies a live data migration package
   data-migration-contract.ts
