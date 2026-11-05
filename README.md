@@ -87,11 +87,10 @@ Authentication currently uses fixed fake users. The sign-in form posts to the we
 creates a one-use authorization code; its callback exchanges that code for an eight-hour JWT
 cookie. Public routes remain available anonymously, and the public app offers no sign-in for now.
 Internal routes send a signed-out visitor to a landing page that leads to sign-in, and accept only
-fake users carrying the `internal` role. Both internal users are publishers, which the dashboard
-requires; the management navigation, the `/manage` routes and the topics API require the `admin`
-role, which only one of them holds. The public surface of the internal API remains open, but
-`/api/internal` independently validates the JWT and requires the role each route names. Sign-out
-clears the JWT cookie.
+fake users holding one of the internal roles: publisher, IMRG manager, IMRG reviewer or admin. The
+management navigation, the `/manage` routes and the topics API are for admins. The public surface
+of the internal API remains open, but every `/api/internal` route independently validates the JWT
+and applies the permission check it names. Sign-out clears the JWT cookie.
 
 ## Commands
 

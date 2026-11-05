@@ -91,10 +91,10 @@ describe('findUploadDraft', () => {
 });
 
 describe('POST /api/internal/indicators/:id/data-uploads', () => {
-  it('rejects a signed-in non-publisher', async () => {
+  it('rejects an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .post(UPLOADS)
-      .set('Cookie', await publisherCookie(['public']))
+      .set('Cookie', await publisherCookie(['admin']))
       .attach('dataTable', Buffer.from(CSV), 'data.csv');
 
     expect(response.status).toBe(403);

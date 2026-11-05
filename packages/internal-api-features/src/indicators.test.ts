@@ -660,10 +660,10 @@ describe('PATCH /api/internal/indicators/:id', () => {
     expect(response.body).toEqual({ error: 'authentication_required' });
   });
 
-  it('rejects a signed-in non-publisher', async () => {
+  it('rejects an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .patch(path)
-      .set('Cookie', await publisherCookie(['public']))
+      .set('Cookie', await publisherCookie(['admin']))
       .send({ name: 'A better name', version: nameVersion });
 
     expect(response.status).toBe(403);
@@ -963,10 +963,10 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     expect(response.body).toEqual({ error: 'authentication_required' });
   });
 
-  it('rejects a signed-in non-publisher', async () => {
+  it('rejects an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .get(`/api/internal/indicators/${row.id}/task-list`)
-      .set('Cookie', await publisherCookie(['public']));
+      .set('Cookie', await publisherCookie(['admin']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });

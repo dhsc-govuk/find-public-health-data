@@ -152,10 +152,10 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
     expect(response.body).toEqual({ error: 'invalid_id' });
   });
 
-  it('refuses a session without the publisher role', async () => {
+  it('refuses an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .get(DATA_TABLE)
-      .set('Cookie', await testSessionCookie(['public']));
+      .set('Cookie', await testSessionCookie(['admin']));
 
     expect(response.status).toBe(403);
   });

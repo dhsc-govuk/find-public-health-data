@@ -243,8 +243,7 @@ export function indicatorSectionRouter<
 
     // With no name in the write there is no slug to collide on, so this refusal means no draft.
     if (!result.ok) {
-      const exists = (await indicators.findDraftState(id)) !== undefined;
-      response.status(404).json({ error: exists ? 'no_draft' : 'not_found' });
+      response.status(404).json({ error: 'no_draft' });
       return;
     }
 

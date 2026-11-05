@@ -142,9 +142,9 @@ export interface InternalIndicatorRepository {
   findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
   /** The draft and whether anything is published, read together for the task list. */
   findDraftState(id: string): Promise<IndicatorDraftStateRow | undefined>;
-  /** The notes for reviewers, from the draft or else the published version, with their access. */
+  /** The notes for reviewers, from the draft or else the published version. */
   findNotesForReviewers(id: string): Promise<IndicatorNotesForReviewersRow | undefined>;
-  /** What the indicator's history is made from, with its access, or undefined with none. */
+  /** What the indicator's history is made from, or undefined with none. */
   findHistory(id: string): Promise<IndicatorHistoryRow | undefined>;
   createDraft(
     attributes: NewIndicatorDraftAttributes,

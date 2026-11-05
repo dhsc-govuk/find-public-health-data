@@ -53,9 +53,9 @@ export function reviewerNotesRouter(
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const guard = requireIndicatorAccess(session, indicators, canWriteReviewerNotes);
+  const requireNoteWriter = requireIndicatorAccess(session, indicators, canWriteReviewerNotes);
 
-  router.get(PATH, guard, async (_request, response) => {
+  router.get(PATH, requireNoteWriter, async (_request, response) => {
     const { id } = guardedIndicator(response);
 
     const notes = await reviewerNotes.list(id, requireApiSession(response).sub);
@@ -63,7 +63,7 @@ export function reviewerNotesRouter(
     response.status(200).json({ notes: notes.map(toNote) } satisfies ReviewerNotes);
   });
 
-  router.post(PATH, guard, async (request, response) => {
+  router.post(PATH, requireNoteWriter, async (request, response) => {
     const { id } = guardedIndicator(response);
 
     const body = reviewerNoteAddBodySchema.safeParse(request.body);
@@ -88,7 +88,7 @@ export function reviewerNotesRouter(
     response.status(204).end();
   });
 
-  router.put(`${PATH}/:noteId`, guard, async (request, response) => {
+  router.put(`${PATH}/:noteId`, requireNoteWriter, async (request, response) => {
     const { id } = guardedIndicator(response);
 
     const noteId = reviewerNoteIdSchema.safeParse(request.params.noteId);

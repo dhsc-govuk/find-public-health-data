@@ -112,8 +112,24 @@ describe('internal API', () => {
   });
 
   // Each section is found from the contract, so a new one is checked without an entry here.
+  it('mounts the indicator list behind the internal roles', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: { listPage: async () => ({ indicators: [], total: 0 }) },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+
+    const asReviewer = await request(app)
+      .get('/api/internal/indicators')
+      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
+    const asPublic = await request(app)
+      .get('/api/internal/indicators')
+      .set('Cookie', await createCookie(['public']));
+
+    expect(asReviewer.status).toBe(200);
+    expect(asPublic.status).toBe(403);
+  });
+
   it.each([
-    '/api/internal/indicators',
     '/api/internal/ci-methods',
     '/api/internal/tags',
     '/api/internal/data-providers',
@@ -125,7 +141,6 @@ describe('internal API', () => {
   ])('mounts %s behind the publisher role', async (path) => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        listPage: async () => ({ indicators: [], total: 0 }),
         findAccess: async () => ({ teamId: TEAM_IDS.teamA, draftReviewers: [] }),
         // The handlers read only the draft's section columns.
         findDraftState: vi.fn().mockResolvedValue({ draft: unansweredDraft }),
@@ -153,12 +168,12 @@ describe('internal API', () => {
     const asPublisher = await request(app)
       .get(path)
       .set('Cookie', await createCookie(['public', 'publisher']));
-    const asInternal = await request(app)
+    const asAdmin = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public']));
+      .set('Cookie', await createCookie(['public', 'admin']));
 
     expect(asPublisher.status).toBe(200);
-    expect(asInternal.status).toBe(403);
+    expect(asAdmin.status).toBe(403);
   });
 
   it.each([
@@ -179,13 +194,13 @@ describe('internal API', () => {
       .post(path)
       .set('Cookie', await createCookie(['public', 'publisher']))
       .send(body);
-    const asInternal = await request(app)
+    const asAdmin = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public']))
+      .set('Cookie', await createCookie(['public', 'admin']))
       .send(body);
 
     expect(asPublisher.status).toBe(204);
-    expect(asInternal.status).toBe(403);
+    expect(asAdmin.status).toBe(403);
   });
 
   it('mounts the assign reviewers step behind the IMRG manager role', async () => {
