@@ -3,7 +3,7 @@ import { A, Button, formatDate, Table, Textarea } from '@fphd/ui';
 import { VERSION_FIELD } from '../edit-version.ts';
 import type { ReviewerNote } from './loader.ts';
 import { reviewerNoteEditPath } from './paths.ts';
-import { NOTE_ID_FIELD, REVIEWER_NOTE_FIELD, type ReviewerNoteForm } from './reviewer-notes.ts';
+import { NOTE_ID_FIELD, REVIEWER_NOTE_FIELD, type ReviewerNoteForm } from './reviewer-note-form.ts';
 
 interface ReviewerNotesProps {
   /** The indicator the notes are on, whose overview the edit links fill the form on. */

@@ -22,7 +22,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { historyItems } from './history-items.ts';
 import { overviewNotification } from './notifications.ts';
-import { reviewerNoteFormFor } from './reviewer-notes.ts';
+import { reviewerNoteFormFor } from './reviewer-note-form.ts';
 
 export type {
   IndicatorAdminDetail,
@@ -31,7 +31,7 @@ export type {
 } from '@fphd/internal-api-features/contract';
 export type { HistoryItem, HistoryRow } from './history-items.ts';
 export type { OverviewNotification } from './notifications.ts';
-export type { ReviewerNoteForm } from './reviewer-notes.ts';
+export type { ReviewerNoteForm } from './reviewer-note-form.ts';
 
 // A reviewer unassigned since the detail was read gets no notes or history, not a missing page.
 function noneIfNotFound(error: unknown): null {

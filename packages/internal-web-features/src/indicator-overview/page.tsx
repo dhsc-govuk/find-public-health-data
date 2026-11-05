@@ -21,7 +21,7 @@ import type {
   ReviewerNoteForm,
 } from './loader.ts';
 import { NotesForReviewers } from './notes-for-reviewers.tsx';
-import { REVIEWER_NOTE_FIELD } from './reviewer-notes.ts';
+import { REVIEWER_NOTE_FIELD } from './reviewer-note-form.ts';
 import { ReviewerNotes } from './reviewer-notes.tsx';
 
 const OVERVIEW_TITLE = 'Indicator overview';

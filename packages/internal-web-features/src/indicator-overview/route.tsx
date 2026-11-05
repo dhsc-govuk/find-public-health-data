@@ -3,7 +3,7 @@ import { useActionData, useLoaderData } from 'react-router';
 import { DASHBOARD_PATH } from '../dashboard/paths.ts';
 import { loadIndicatorOverview } from './loader.ts';
 import { IndicatorOverviewPage } from './page.tsx';
-import { type ReviewerNoteForm, saveReviewerNote } from './reviewer-notes.ts';
+import { type ReviewerNoteForm, saveReviewerNote } from './reviewer-note-form.ts';
 
 export const loader = loadIndicatorOverview;
 
