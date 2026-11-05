@@ -6,6 +6,7 @@ import { createGunzip } from 'node:zlib';
 
 import { DEV_CLASS_APP_ENVS, isDevClassEnv } from '@fphd/config';
 import { createDbFromTransaction, schema } from '@fphd/db';
+import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
 import type postgres from 'postgres';
 
 import { type IndicatorTopicFile, parseIndicatorTopicFile } from './indicator-topic-file.ts';
@@ -14,7 +15,6 @@ import {
   type IndicatorTopicImportSummary,
 } from './indicator-topic-import.ts';
 import { type LegacySourceMap, mapLegacySources, readLegacySourceMap } from './legacy-sources.ts';
-import { READ_MODEL_TABLES } from './read-models.ts';
 import {
   needsReferenceMapping,
   remapReferenceColumns,

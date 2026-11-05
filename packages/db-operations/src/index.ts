@@ -3,6 +3,8 @@
  * migrate, import, seed, reset and rebuild. A package of its own so the API images ship none
  * of it, nor the migrations and data files it reads.
  */
+
+export { READ_MODEL_TABLES } from '@fphd/internal-read-models';
 export {
   API_ROLES,
   bootstrapEntraPrincipals,
@@ -52,12 +54,7 @@ export {
 } from './migration-status.ts';
 export { migrateToLatest } from './migrations.ts';
 export { createOwnerGroup } from './owner-group.ts';
-export {
-  analyzeReadModels,
-  READ_MODEL_TABLES,
-  rebuildReadModels,
-  rebuildReadModelTables,
-} from './read-models.ts';
+export { analyzeReadModels, rebuildReadModels, rebuildReadModelTables } from './read-models.ts';
 export { parseReferenceData } from './reference-core-data.ts';
 export { resetDatabase } from './reset.ts';
 export {

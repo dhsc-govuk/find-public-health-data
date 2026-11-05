@@ -41,6 +41,7 @@
   "dependencies": {
     "@fphd/config": "workspace:*",
     "@fphd/db": "workspace:*",
+    "@fphd/internal-read-models": "workspace:*",
     "@fphd/utils": "workspace:*",
     "drizzle-orm": "catalog:",
     "postgres": "catalog:"

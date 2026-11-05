@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
+import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { READ_MODEL_TABLES, rebuildReadModels } from './read-models.ts';
+import { rebuildReadModels } from './read-models.ts';
 
 const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 
