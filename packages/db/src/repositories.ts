@@ -13,6 +13,7 @@ import {
   searchAreas,
 } from './area-repository.ts';
 import type { Database } from './client.ts';
+import { coalescedReads } from './coalesced-reads.ts';
 import {
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
@@ -102,7 +103,7 @@ export interface Repositories {
 }
 
 export function createRepositories(db: Database): Repositories {
-  return {
+  const repositories: Repositories = {
     areas: {
       listByType: (areaTypeName) => listAreasByType(db, areaTypeName),
       listDisplayGroups: () => listDisplayGroups(db),
@@ -138,5 +139,10 @@ export function createRepositories(db: Database): Repositories {
       trendSummary: (slug) => getTopicTrendSummary(db, slug),
       listSubtopics: (slug) => listTopicSubtopics(db, slug),
     },
+  };
+  return {
+    areas: coalescedReads(repositories.areas),
+    indicators: coalescedReads(repositories.indicators),
+    topics: coalescedReads(repositories.topics),
   };
 }
