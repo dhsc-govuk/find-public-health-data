@@ -48,11 +48,16 @@ export function canCreateIndicatorInTeam(user: SessionUser, teamId: string): boo
   return teamsForNewIndicator(user).includes(teamId);
 }
 
+/** Whether the user edits indicators at all; `canEditIndicator` decides which ones. */
+export function canEditIndicators(user: SessionUser): boolean {
+  return holds(user, 'publisher');
+}
+
 export function canEditIndicator(
   user: SessionUser,
   { teamId }: Pick<IndicatorAccess, 'teamId'>,
 ): boolean {
-  return holds(user, 'publisher') && teamId !== null && user.teams.includes(teamId);
+  return canEditIndicators(user) && teamId !== null && user.teams.includes(teamId);
 }
 
 /** Whether the user may submit the indicator's draft for approval. The editors, for now. */

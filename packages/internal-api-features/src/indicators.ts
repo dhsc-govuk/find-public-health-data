@@ -1,11 +1,7 @@
-import {
-  requireApiActor,
-  requireApiSession,
-  requireJwtRole,
-  requireJwtSession,
-} from '@fphd/api-server';
+import { requireApiActor, requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import {
+  canCreateIndicator,
   canCreateIndicatorInTeam,
   canListIndicators,
   canSeeIndicator,
@@ -108,7 +104,7 @@ export function internalIndicatorsRouter(
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const requirePublisher = requireJwtRole(session, 'publisher');
+  const requireCreator = requireJwtSession(session, canCreateIndicator);
   const requireLister = requireJwtSession(session, canListIndicators);
   const requireEditor = requireIndicatorEditor(session, indicators);
 
@@ -142,7 +138,7 @@ export function internalIndicatorsRouter(
     response.status(200).json(body);
   });
 
-  router.post('/api/internal/indicators', requirePublisher, async (request, response) => {
+  router.post('/api/internal/indicators', requireCreator, async (request, response) => {
     const session = requireApiSession(response);
     const team = indicatorTeamSchema.safeParse(request.body);
 

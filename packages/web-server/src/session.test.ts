@@ -7,7 +7,6 @@ import type { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import {
   createRequireSessionMiddleware,
-  createRequireSessionRoleMiddleware,
   createSessionContext,
   getSession,
   sessionMiddleware,
@@ -184,7 +183,7 @@ describe('JWT session service', () => {
   });
 });
 
-describe('session role middleware', () => {
+describe('session check middleware', () => {
   async function runProtectedRequest(
     cookie?: string,
     requestUrl = 'https://example.test/manage?view=drafts',
@@ -196,9 +195,9 @@ describe('session role middleware', () => {
     });
     const url = new URL(request.url);
     const args = { context, params: {}, pattern: '/manage', request, url };
-    const requirePublisher = createRequireSessionRoleMiddleware({
+    const requirePublisher = createRequireSessionMiddleware({
+      allows: (session) => session.roles.includes('publisher'),
       forbiddenPath: '/access-denied',
-      role: 'publisher',
       signInPath: '/sign-in',
     });
 
@@ -209,7 +208,7 @@ describe('session role middleware', () => {
       );
 
       if (!(protectedResult instanceof Response)) {
-        throw new Error('Role middleware did not return a response');
+        throw new Error('The check returned no response');
       }
 
       return protectedResult;
@@ -260,14 +259,14 @@ describe('session role middleware', () => {
     expect(response.headers.get('Set-Cookie')).toContain('Max-Age=0');
   });
 
-  it('rejects an authenticated user without the role', async () => {
+  it('turns away a session its check refuses', async () => {
     const service = createTestService();
     const response = await getRedirect(await issueCookie(service, { roles: ['public'] }));
 
     expect(response.headers.get('Location')).toBe('/access-denied');
   });
 
-  it('allows a user with the role', async () => {
+  it('admits a session its check admits', async () => {
     const service = createTestService();
     const response = await runProtectedRequest(
       await issueCookie(service, { roles: ['public', 'publisher'] }),
@@ -275,50 +274,6 @@ describe('session role middleware', () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe('Publisher content');
-  });
-});
-
-describe('session check middleware', () => {
-  async function outcome(teams: readonly string[]): Promise<string> {
-    const service = createTestService();
-    const token = await service.issueToken({
-      expiresInSeconds: 900,
-      roles: ['public'],
-      subject: 'user-123',
-      teams,
-    });
-    const request = new Request('https://example.test/dashboard', {
-      headers: { Cookie: service.createCookieHeader(token, 900) },
-    });
-    const args = {
-      context: createSessionContext(service),
-      params: {},
-      pattern: '/dashboard',
-      request,
-      url: new URL(request.url),
-    };
-    const requireTeam = createRequireSessionMiddleware({
-      allows: (session) => session.teams.includes('team-1'),
-      forbiddenPath: '/access-denied',
-      signInPath: '/sign-in',
-    });
-
-    try {
-      const response = await sessionMiddleware(args, async () => {
-        const admitted = await requireTeam(args, async () => new Response('Team content'));
-        if (!(admitted instanceof Response)) throw new Error('The check returned no response');
-        return admitted;
-      });
-      return response instanceof Response ? await response.text() : 'no response';
-    } catch (error) {
-      if (error instanceof Response) return error.headers.get('Location') ?? '';
-      throw error;
-    }
-  }
-
-  it('admits a session its check admits and turns any other away', async () => {
-    expect(await outcome(['team-1'])).toBe('Team content');
-    expect(await outcome(['team-2'])).toBe('/access-denied');
   });
 });
 

@@ -1,5 +1,6 @@
-import { requireApiActor, requireJwtRole } from '@fphd/api-server';
+import { requireApiActor, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canManage } from '@fphd/auth/permissions';
 import type { Topic } from '@fphd/db';
 import { Router } from 'express';
 
@@ -45,13 +46,13 @@ export function internalTopicsRouter(
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const requireAdmin = requireJwtRole(session, 'admin');
+  const requireManager = requireJwtSession(session, canManage);
 
-  router.get('/api/internal/topics', requireAdmin, async (_request, response) => {
+  router.get('/api/internal/topics', requireManager, async (_request, response) => {
     response.status(200).json((await topics.list()).map(toSummary));
   });
 
-  router.post('/api/internal/topics', requireAdmin, async (request, response) => {
+  router.post('/api/internal/topics', requireManager, async (request, response) => {
     const submission = topicUpdateSchema.safeParse(request.body);
 
     if (!submission.success) {
@@ -74,7 +75,7 @@ export function internalTopicsRouter(
     response.status(201).json({ topic: toDetail(result.topic) });
   });
 
-  router.get('/api/internal/topics/:id', requireAdmin, async (request, response) => {
+  router.get('/api/internal/topics/:id', requireManager, async (request, response) => {
     const id = topicIdSchema.safeParse(request.params.id);
 
     // Handing an unparseable id to the database would surface as a 500; it is a bad request.
@@ -98,7 +99,7 @@ export function internalTopicsRouter(
       .json({ ...toDetail(topic), linkedIndicatorCount } satisfies TopicAdminDetailWithLinkCount);
   });
 
-  router.put('/api/internal/topics/:id', requireAdmin, async (request, response) => {
+  router.put('/api/internal/topics/:id', requireManager, async (request, response) => {
     const id = topicIdSchema.safeParse(request.params.id);
 
     if (!id.success) {
@@ -151,7 +152,7 @@ export function internalTopicsRouter(
     response.status(200).json({ changed: result.changed, topic: toDetail(result.topic) });
   });
 
-  router.delete('/api/internal/topics/:id', requireAdmin, async (request, response) => {
+  router.delete('/api/internal/topics/:id', requireManager, async (request, response) => {
     const id = topicIdSchema.safeParse(request.params.id);
 
     if (!id.success) {

@@ -1,5 +1,6 @@
-import { requireJwtRole } from '@fphd/api-server';
+import { requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canEditIndicators } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
 import type { CiMethod } from './contract.ts';
@@ -14,7 +15,7 @@ export function internalCiMethodsRouter(
 
   router.get(
     '/api/internal/ci-methods',
-    requireJwtRole(session, 'publisher'),
+    requireJwtSession(session, canEditIndicators),
     async (_request, response) => {
       const methods: CiMethod[] = (await ciMethods.list()).map(
         ({ id, name, description, kind }) => ({ id, name, description, kind }),

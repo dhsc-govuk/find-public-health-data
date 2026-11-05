@@ -6,6 +6,7 @@ import {
   canCreateIndicator,
   canCreateIndicatorInTeam,
   canEditIndicator,
+  canEditIndicators,
   canListIndicators,
   canManage,
   canMoveIndicatorBetweenTeams,
@@ -62,6 +63,15 @@ describe('canSeeIndicator', () => {
     ['an admin', admin, inTeamB, true],
   ])('answers whether %s sees an indicator', (_who, asking, indicator, expected) => {
     expect(canSeeIndicator(asking, indicator)).toBe(expected);
+  });
+});
+
+describe('canEditIndicators', () => {
+  it('lets a publisher edit indicators, with or without a team', () => {
+    expect(canEditIndicators(publisherA)).toBe(true);
+    expect(canEditIndicators(teamless)).toBe(true);
+    expect(canEditIndicators(reviewer)).toBe(false);
+    expect(canEditIndicators(admin)).toBe(false);
   });
 });
 

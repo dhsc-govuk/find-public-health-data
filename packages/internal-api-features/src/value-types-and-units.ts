@@ -1,5 +1,6 @@
-import { requireJwtRole } from '@fphd/api-server';
+import { requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canEditIndicators } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
 import type { InternalValueTypeAndUnitRepository } from './repositories.ts';
@@ -13,7 +14,7 @@ export function internalValueTypesAndUnitsRouter(
 
   router.get(
     '/api/internal/value-types-and-units',
-    requireJwtRole(session, 'publisher'),
+    requireJwtSession(session, canEditIndicators),
     async (_request, response) => {
       response.status(200).json(await valueTypesAndUnits.listOptions());
     },

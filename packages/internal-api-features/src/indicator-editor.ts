@@ -1,6 +1,6 @@
-import { requireApiSession, requireJwtRole } from '@fphd/api-server';
+import { requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canEditIndicator } from '@fphd/auth/permissions';
+import { canEditIndicator, canEditIndicators } from '@fphd/auth/permissions';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 import { indicatorIdSchema } from './contract.ts';
@@ -17,7 +17,7 @@ export function requireIndicatorEditor(
   session: JwtSessionVerifier,
   indicators: IndicatorTeams,
 ): RequestHandler {
-  const requirePublisher = requireJwtRole(session, 'publisher');
+  const requirePublisher = requireJwtSession(session, canEditIndicators);
   async function requireTeam(request: Request, response: Response, next: NextFunction) {
     const id = indicatorIdSchema.safeParse(request.params.id);
     const teamId = id.success ? await indicators.findTeamId(id.data) : undefined;
@@ -34,7 +34,7 @@ export function requireIndicatorEditor(
     }
   }
 
-  // requireJwtRole drops whatever its next returns, so the team check hands its own failure on.
+  // requireJwtSession drops whatever its next returns, so the team check hands its own failure on.
   return (request, response, next) =>
     requirePublisher(request, response, (error?: unknown) => {
       if (error === undefined) {

@@ -13,7 +13,7 @@ imported by `root.tsx`, `entry.server.tsx` and the feature packages' loaders.
 | `./api-client`            | The `ApiClient` loaders call the APIs through, with path encoding, timeouts and error mapping in one place |
 | `./api-context`           | `apiContext`, the React Router context that hands loaders the client               |
 | `./logger-context`        | `loggerContext`, the request's logger, set before `extendContext` runs              |
-| `./session`               | `sessionMiddleware`, `getSession`, `createSessionContext`, `createRequireSessionRoleMiddleware`, `createRequireSessionMiddleware` |
+| `./session`               | `sessionMiddleware`, `getSession`, `createSessionContext`, `createRequireSessionMiddleware` |
 | `./flash`                 | The cookie-backed flash session for one-shot messages between requests             |
 | `./fake-auth`, `./fake-auth-react-router` | Local sign-in for development and tests                              |
 | `./request-id-headers`    | `forwardedRequestIdHeaders`, so an API logs a call under the page request's id     |

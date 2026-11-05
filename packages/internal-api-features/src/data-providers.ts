@@ -1,5 +1,6 @@
-import { requireJwtRole } from '@fphd/api-server';
+import { requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canEditIndicators } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
 import type { DataProvider } from './contract.ts';
@@ -14,7 +15,7 @@ export function internalDataProvidersRouter(
 
   router.get(
     '/api/internal/data-providers',
-    requireJwtRole(session, 'publisher'),
+    requireJwtSession(session, canEditIndicators),
     async (_request, response) => {
       const providers: DataProvider[] = await dataProviders.list();
 
