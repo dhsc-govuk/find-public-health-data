@@ -7,7 +7,7 @@ import { importReferenceCoreData, readReferenceData } from './reference-core-dat
 import { migrateBefore, migrateThrough } from './testing.ts';
 
 const records = readReferenceData();
-const migration = '0059_core-upload-reference-data';
+const migration = '0062_core-upload-reference-data';
 
 describe('fresh core-data setup', () => {
   let database: TestDb;

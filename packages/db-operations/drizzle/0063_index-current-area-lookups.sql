@@ -1,0 +1,1 @@
+CREATE INDEX "idx_area_type_current_name_code_id" ON "area" USING btree ("area_type_id","is_current","name","code","id");
