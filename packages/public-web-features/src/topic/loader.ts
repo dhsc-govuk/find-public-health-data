@@ -15,6 +15,7 @@ import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
 import { TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
+import { topicDataKey } from './filters.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
 export type { TopicDetail, TopicSummary } from '@fphd/public-api-features/contract';
@@ -174,13 +175,7 @@ export async function loadTopic(
   const summaryGroup = TOPIC_AREA_GROUPS.includes(url.searchParams.get('geo') ?? '')
     ? (url.searchParams.get('geo') ?? 'NHS regions')
     : 'NHS regions';
-  const [loadedSearch, areaGroups] = await Promise.all([
-    loadSearch(args, {
-      topicSlug: slug,
-      path,
-      complete: true,
-      ...(tab === 'areas' ? { geographyGroup: summaryGroup } : {}),
-    }),
+  const areaGroups =
     tab === 'areas'
       ? context
           .get(apiContext)
@@ -188,7 +183,15 @@ export async function loadTopic(
             `/api/areas?${TOPIC_AREA_GROUPS.map((group) => `displayGroup=${encodeURIComponent(group)}`).join('&')}`,
             areaDisplayGroupListSchema,
           )
-      : Promise.resolve([]),
+      : Promise.resolve([]);
+  const [loadedSearch, groups] = await Promise.all([
+    loadSearch(args, {
+      topicSlug: slug,
+      path,
+      complete: true,
+      ...(tab === 'areas' ? { geographyGroup: summaryGroup, geographyPreviews: areaGroups } : {}),
+    }),
+    areaGroups,
   ]);
   const search = loadedSearch;
   const listing = {
@@ -219,13 +222,14 @@ export async function loadTopic(
     topic,
     overview: null,
     content: {
+      dataKey: topicDataKey({ pathname: path, search: url.search }),
       search:
         tab === 'areas'
           ? {
               ...search,
               geographyOptions: {
                 ...search.geographyOptions,
-                previews: areaGroups.map(({ displayGroup, areas }) => ({
+                previews: groups.map(({ displayGroup, areas }) => ({
                   name: displayGroup,
                   areas: areasInGeographyGroup(
                     areas,

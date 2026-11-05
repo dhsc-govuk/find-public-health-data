@@ -124,6 +124,49 @@ function topicApi(
 }
 
 describe('loadTopic', () => {
+  it('identifies streamed filter results by the page URL rather than its data transport', async () => {
+    const args = loaderArgs({ get: topicApi() } as unknown as ApiClient, { slug: 'topic-a' });
+    args.request = new Request('http://localhost/topics/topic-a.data?tab-topic=areas');
+    const { content } = await loadTopic(args);
+    expect(content?.dataKey).toBe('/topics/topic-a?sort=subtopic-asc');
+  });
+
+  it('uses the area summary catalogue for its picker without loading unrelated previews', async () => {
+    const read = topicApi();
+    const groups = [
+      {
+        displayGroup: 'Integrated care boards',
+        areas: [{ code: 'E54000040', name: 'Bath and North East Somerset' }],
+      },
+    ];
+    const get = vi.fn(async (path: string) => {
+      if (path === '/api/areas/display-groups') return ['Integrated care boards'];
+      if (path.startsWith('/api/areas?')) {
+        expect(path).not.toContain('limit=101');
+        return groups;
+      }
+      if (path.startsWith('/api/areas/lookup?'))
+        return [
+          {
+            ...groups[0]?.areas[0],
+            areaType: 'Integrated care boards',
+            displayGroup: 'Integrated care boards',
+          },
+        ];
+      return read(path);
+    });
+    const { content } = await loadTopic(
+      loaderArgs(
+        { get } as unknown as ApiClient,
+        { slug: 'topic-a' },
+        '?tab-topic=areas&geo=Integrated+care+boards',
+      ),
+    );
+    expect(content?.search.geographyOptions.previews).toEqual([
+      { name: 'Integrated care boards', areas: groups[0]?.areas },
+    ]);
+  });
+
   it('returns the topic before its overview and tables have loaded', async () => {
     const read = topicApi([{ shortId: 1, name: 'Indicator', slug: 'indicator' }]);
     const gate = Promise.withResolvers<void>();
