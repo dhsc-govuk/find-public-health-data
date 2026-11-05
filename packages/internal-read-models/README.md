@@ -6,11 +6,12 @@ live apart from `@fphd/db`, the public read surface, and the `internal-` prefix 
 the public images, as `tools/artefact-boundary` checks.
 
 Built package; consumed by `@fphd/db-operations`, whose commands rebuild the read models. It depends
-only on `@fphd/db` and `drizzle-orm`, so whatever runs it carries nothing else.
+only on `@fphd/db` and `drizzle-orm`, so whatever runs it carries nothing else. Publishing an
+indicator refreshes that indicator's rows in the same transaction as its status change.
 
 | Entry | Purpose                                                                                     |
 | ----- | ------------------------------------------------------------------------------------------- |
-| `.`   | `READ_MODEL_TABLES`, and `rebuildReadModelTables`, the whole rebuild inside the caller's transaction |
+| `.`   | `READ_MODEL_TABLES`; `refreshIndicatorReadModels`, one indicator's refresh, and `rebuildReadModelTables`, the whole rebuild, each inside the caller's transaction |
 
 ## Tests
 

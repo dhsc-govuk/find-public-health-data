@@ -1,1 +1,5 @@
-export { READ_MODEL_TABLES, rebuildReadModelTables } from './read-models.ts';
+export {
+  READ_MODEL_TABLES,
+  rebuildReadModelTables,
+  refreshIndicatorReadModels,
+} from './read-models.ts';
