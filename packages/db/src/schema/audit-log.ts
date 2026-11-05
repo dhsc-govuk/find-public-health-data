@@ -4,18 +4,6 @@ import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm
 import { literals, uuidPrimaryKey } from './helpers.ts';
 import { actorId } from './user.ts';
 
-/** The tables whose core data the import loads, each recording a created and an updated action. */
-export const CORE_DATA_TABLES = [
-  'subtopic',
-  'ci_method',
-  'classification',
-  'data_provider',
-  'data_provider_source',
-  'value_type',
-  'unit',
-  'comparator_method',
-] as const;
-
 /**
  * Every change the log records, named `<entity type>.<what happened>`. An indicator's history
  * reads three shapes, which must stay as they are: the `reviewerIds.after` of
@@ -46,8 +34,6 @@ export const AUDIT_ACTIONS = [
   'upload_batch.loaded',
   'upload_batch.refused',
   'upload_batch.deleted',
-  'data_migration.applied',
-  ...CORE_DATA_TABLES.flatMap((table) => [`${table}.created`, `${table}.updated`] as const),
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -61,8 +47,10 @@ export interface FieldChange {
 export type AuditChanges = Record<string, FieldChange>;
 
 /**
- * Who changed what, and when, for every write the internal API or an operations command makes.
- * Rows name people by `app_user` id alone, so anonymising a person never touches the log.
+ * Who changed what, and when, for every change made through the service: the internal API's
+ * writes. Imports, data migrations, seeding and resets load data rather than change it, and
+ * record nothing. Rows name people by `app_user` id alone, so anonymising a person never touches
+ * the log.
  */
 export const auditLog = pgTable(
   'audit_log',
@@ -73,7 +61,7 @@ export const auditLog = pgTable(
     actorId: actorId().notNull(),
     action: text({ enum: AUDIT_ACTIONS }).notNull(),
     entityType: text().notNull(),
-    // Text, because a data migration's id is.
+    // Text, because data migrations, whose ids are not UUIDs, were once logged.
     entityId: text().notNull(),
     changes: jsonb().$type<AuditChanges>().notNull(),
     requestId: uuid(),

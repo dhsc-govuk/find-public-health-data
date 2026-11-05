@@ -63,23 +63,68 @@ describe('recordAudit', () => {
 
   it('records the changes as an object in a raw transaction', async () => {
     const entityId = newEntityId();
-    // A client Drizzle has never wrapped, as the operations commands' is.
+    // A client Drizzle has never wrapped.
     const raw = testDb.connect({ max: 1 });
 
     await raw.begin((tx) =>
       recordAudit(tx, { ...ACTOR, requestId: null }, [
-        { action: 'data_migration.applied', entityId, changes },
+        { action: 'upload_batch.loaded', entityId, changes },
       ]),
     );
     await raw.end();
 
     expect(await entriesFor(entityId)).toMatchObject([
-      { entity_type: 'data_migration', request_id: null, changes_type: 'object', changes },
+      { entity_type: 'upload_batch', request_id: null, changes_type: 'object', changes },
     ]);
   });
 
   it('records nothing for no entries', async () => {
     await expect(db.transaction((tx) => recordAudit(tx, ACTOR, []))).resolves.toBeUndefined();
+  });
+
+  it("sorts an entity's entries in the order they committed, though a writer that waited started first", async () => {
+    const entityId = newEntityId();
+    const holder = testDb.connect({ max: 1 });
+    const waiter = testDb.connect({ max: 1 });
+    const editor = testDb.connect({ max: 1 });
+    const lock = 677;
+    /** Sessions in this test's database waiting on another transaction's lock. */
+    const lockWaiters = async () => {
+      const [row] = await sql<{ waiting: number }[]>`
+        SELECT count(*)::int AS waiting FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND datname = current_database()
+      `;
+      return row?.waiting ?? 0;
+    };
+    const entry = (title: string) => ({
+      action: 'topic.updated' as const,
+      entityId,
+      changes: { title: { before: null, after: title } },
+    });
+    let waiting: Promise<unknown> = Promise.resolve();
+
+    try {
+      // The waiter starts, then waits on a lock the holder has; meanwhile the editor commits.
+      await holder.begin(async (tx) => {
+        await tx`SELECT pg_advisory_xact_lock(${lock})`;
+        waiting = waiter.begin(async (wait) => {
+          await wait`SELECT 1`;
+          await wait`SELECT pg_advisory_xact_lock(${lock})`;
+          await recordAudit(wait, ACTOR, [entry('Waited')]);
+        });
+        await expect.poll(lockWaiters).toBe(1);
+        await editor.begin((edit) => recordAudit(edit, ACTOR, [entry('Edited')]));
+      });
+      await waiting;
+    } finally {
+      await Promise.all([holder.end(), waiter.end(), editor.end()]);
+    }
+
+    const history = await sql<{ title: string }[]>`
+      SELECT changes -> 'title' ->> 'after' AS title FROM audit_log
+      WHERE entity_id = ${entityId} ORDER BY occurred_at, id
+    `;
+    expect(history).toEqual([{ title: 'Edited' }, { title: 'Waited' }]);
   });
 });
 

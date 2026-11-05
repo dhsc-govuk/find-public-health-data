@@ -1,9 +1,7 @@
 import { z } from '@fphd/config';
 import { type Database, schema } from '@fphd/db';
-import { recordAudit } from '@fphd/db/audit-log';
 import { sql } from 'drizzle-orm';
 
-import { CORE_DATA_IMPORT, upsertEntries, upsertedRow } from './core-data-audit.ts';
 import { findDuplicates } from './parse-topics-file.ts';
 import { summarizeUpsert, type UpsertSummary } from './topic-import.ts';
 
@@ -83,7 +81,7 @@ export async function upsertDataProviders(
               set: { name: sql`excluded.name`, updatedAt: sql`now()` },
               setWhere: sql`${dataProvider.name} IS DISTINCT FROM excluded.name`,
             })
-            .returning({ id: dataProvider.id, wasInsert: sql<boolean>`xmax = 0`, ...upsertedRow });
+            .returning({ id: dataProvider.id, wasInsert: sql<boolean>`xmax = 0` });
     const sourceOutcomes =
       sources.length === 0
         ? []
@@ -102,12 +100,7 @@ export async function upsertDataProviders(
             .returning({
               id: dataProviderSource.id,
               wasInsert: sql<boolean>`xmax = 0`,
-              ...upsertedRow,
             });
-    await recordAudit(tx, CORE_DATA_IMPORT, [
-      ...upsertEntries(dataProvider, providerOutcomes),
-      ...upsertEntries(dataProviderSource, sourceOutcomes),
-    ]);
 
     return {
       providers: summarizeUpsert(records.length, providerOutcomes),

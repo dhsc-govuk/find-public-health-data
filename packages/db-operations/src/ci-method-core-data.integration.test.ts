@@ -109,7 +109,7 @@ describe('upsertCiMethods', () => {
     expect(renamed.orphaned).toEqual([{ id: stray?.id, name: 'A method no file lists' }]);
   });
 
-  it('records the methods it writes as the core data import, and nothing for the rest', async () => {
+  it('records nothing in the audit log for the methods it inserts or rewrites', async () => {
     const { db } = testDb;
     const recorded = { ...method, id: '019fa38f-073f-764e-9ac6-1c4d03b1cb93', name: 'Recorded' };
 
@@ -117,18 +117,7 @@ describe('upsertCiMethods', () => {
     await upsertCiMethods(db, [recorded]);
     await upsertCiMethods(db, [{ ...recorded, name: 'Recorded, renamed' }]);
 
-    expect(await auditEntriesFor(db, recorded.id)).toEqual([
-      expect.objectContaining({
-        actorId: SYSTEM_USER_IDS.coreDataImport,
-        action: 'ci_method.created',
-        changes: expect.objectContaining({ name: { before: null, after: 'Recorded' } }),
-      }),
-      expect.objectContaining({
-        actorId: SYSTEM_USER_IDS.coreDataImport,
-        action: 'ci_method.updated',
-        changes: { name: { before: 'Recorded', after: 'Recorded, renamed' } },
-      }),
-    ]);
+    expect(await auditEntriesFor(db, recorded.id)).toEqual([]);
   });
 
   it('touches updated_at only on a method it rewrites', async () => {

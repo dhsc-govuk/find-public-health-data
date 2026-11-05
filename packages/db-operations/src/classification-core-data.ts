@@ -1,9 +1,7 @@
 import { z } from '@fphd/config';
 import { type Database, schema } from '@fphd/db';
-import { recordAudit } from '@fphd/db/audit-log';
 import { sql } from 'drizzle-orm';
 
-import { CORE_DATA_IMPORT, upsertEntries, upsertedRow } from './core-data-audit.ts';
 import { findDuplicates } from './parse-topics-file.ts';
 import { summarizeUpsert, type UpsertSummary } from './topic-import.ts';
 
@@ -68,9 +66,8 @@ export async function upsertClassifications(
             },
             setWhere: sql`(${classification.dimension}, ${classification.slug}, ${classification.name}) IS DISTINCT FROM (excluded.dimension, excluded.slug, excluded.name)`,
           })
-          .returning({ id: classification.id, wasInsert: sql<boolean>`xmax = 0`, ...upsertedRow })
+          .returning({ id: classification.id, wasInsert: sql<boolean>`xmax = 0` })
       : [];
-    await recordAudit(tx, CORE_DATA_IMPORT, upsertEntries(classification, outcomes));
 
     return {
       summary: summarizeUpsert(records.length, outcomes),

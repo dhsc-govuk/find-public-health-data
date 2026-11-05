@@ -111,19 +111,8 @@ describe('upsertDataProviders', () => {
       sources: { inserted: 0, updated: 1, unchanged: 0 },
     });
     expect(renamed.orphaned).toEqual([{ id: stray?.id, name: 'A provider no file lists' }]);
-    expect((await auditEntriesFor(db, provider.id)).map(({ action }) => action)).toEqual([
-      'data_provider.created',
-    ]);
-    expect(await auditEntriesFor(db, '01a0d858-9885-764e-8d53-6826aec67002')).toEqual([
-      expect.objectContaining({
-        actorId: SYSTEM_USER_IDS.coreDataImport,
-        action: 'data_provider_source.created',
-      }),
-      expect.objectContaining({
-        action: 'data_provider_source.updated',
-        changes: { name: { before: 'Live births', after: 'Births' } },
-      }),
-    ]);
+    expect(await auditEntriesFor(db, provider.id)).toEqual([]);
+    expect(await auditEntriesFor(db, '01a0d858-9885-764e-8d53-6826aec67002')).toEqual([]);
   });
 
   it('touches updated_at only on a row it rewrites', async () => {

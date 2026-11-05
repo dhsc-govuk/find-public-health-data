@@ -1,10 +1,8 @@
 import { z } from '@fphd/config';
 import { type Database, schema } from '@fphd/db';
-import { recordAudit } from '@fphd/db/audit-log';
 import { CI_METHOD_KINDS } from '@fphd/utils/ci-method-kind';
 import { sql } from 'drizzle-orm';
 
-import { CORE_DATA_IMPORT, upsertEntries, upsertedRow } from './core-data-audit.ts';
 import { findDuplicates } from './parse-topics-file.ts';
 import { summarizeUpsert, type UpsertSummary } from './topic-import.ts';
 
@@ -68,8 +66,7 @@ export async function upsertCiMethods(
         },
         setWhere: sql`(${ciMethod.name}, ${ciMethod.kind}, ${ciMethod.description}) IS DISTINCT FROM (excluded.name, excluded.kind, excluded.description)`,
       })
-      .returning({ id: ciMethod.id, wasInsert: sql<boolean>`xmax = 0`, ...upsertedRow });
-    await recordAudit(tx, CORE_DATA_IMPORT, upsertEntries(ciMethod, outcomes));
+      .returning({ id: ciMethod.id, wasInsert: sql<boolean>`xmax = 0` });
 
     return {
       summary: summarizeUpsert(records.length, outcomes),

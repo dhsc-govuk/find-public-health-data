@@ -1,5 +1,4 @@
 import { type Database, schema } from '@fphd/db';
-import { type Actor, recordAudit } from '@fphd/db/audit-log';
 import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -62,21 +61,8 @@ describe('topics import (integration)', () => {
     expect(rows).toHaveLength(2);
   });
 
-  it('records each topic it inserted as created by the core data import', async () => {
-    expect(await auditEntriesFor(db, topicA.id)).toEqual([
-      {
-        actorId: SYSTEM_USER_IDS.coreDataImport,
-        action: 'topic.created',
-        entityType: 'topic',
-        requestId: null,
-        changes: {
-          id: { before: null, after: topicA.id },
-          slug: { before: null, after: topicA.slug },
-          title: { before: null, after: topicA.title },
-          description: { before: null, after: topicA.description },
-        },
-      },
-    ]);
+  it('records nothing in the audit log for the topics it inserts', async () => {
+    expect(await auditEntriesFor(db, topicA.id)).toEqual([]);
   });
 
   it('writes the rows as the core data import', async () => {
@@ -99,7 +85,6 @@ describe('topics import (integration)', () => {
 
     const after = await requireRow(topicA.id);
     expect(after.updatedAtText).toBe(before.updatedAtText);
-    expect(await auditEntriesFor(db, topicA.id)).toHaveLength(1);
   });
 
   it('updates a renamed title in place and bumps updated_at and updated_by', async () => {
@@ -117,10 +102,7 @@ describe('topics import (integration)', () => {
     const after = await requireRow(topicA.id);
     expect(after.title).toBe('Topic A Renamed');
     expect(after.updatedBy).toBe(SYSTEM_USER_IDS.coreDataImport);
-    expect((await auditEntriesFor(db, topicA.id)).at(-1)).toMatchObject({
-      action: 'topic.updated',
-      changes: { title: { before: 'Topic A', after: 'Topic A Renamed' } },
-    });
+    expect(await auditEntriesFor(db, topicA.id)).toEqual([]);
     expect(after.updatedAtText).not.toBe(before.updatedAtText);
     expect(after.updatedAt.getTime()).toBeGreaterThanOrEqual(before.updatedAt.getTime());
   });
@@ -157,81 +139,5 @@ describe('topics import (integration)', () => {
 
     // Left in place, not deleted.
     await expect(requireRow(topicA.id)).resolves.toBeDefined();
-  });
-});
-
-describe("an entity's entries", () => {
-  /** Sessions in this test's database waiting on another transaction's lock. */
-  async function lockWaiters(): Promise<number> {
-    const [row] = await db.$client<{ waiting: number }[]>`
-      SELECT count(*)::int AS waiting FROM pg_stat_activity
-      WHERE wait_event_type = 'Lock' AND datname = current_database()
-    `;
-    return row?.waiting ?? 0;
-  }
-
-  it('sort in the order their changes committed, though a writer that waited started first', async () => {
-    const holder = testDb.connect({ max: 1 });
-    const importer = testDb.connectDb({ max: 1 });
-    const editor = testDb.connectDb({ max: 1 });
-    const first = {
-      id: '00000000-0000-4000-8000-000000000003',
-      slug: 'held',
-      title: 'Held',
-      description: 'Held.',
-    };
-    const second = {
-      id: '00000000-0000-4000-8000-000000000004',
-      slug: 'edited',
-      title: 'Edited',
-      description: 'Edited.',
-    };
-    const editorActor: Actor = { userId: SYSTEM_USER_IDS.testSeed, requestId: null };
-    let importing: Promise<unknown> = Promise.resolve();
-
-    try {
-      await upsertTopics(importer, [first, second]);
-
-      // The import starts, then waits on a topic another writer holds; meanwhile an edit commits.
-      await holder.begin(async (tx) => {
-        await tx`SELECT 1 FROM topic WHERE id = ${first.id} FOR UPDATE`;
-        importing = upsertTopics(importer, [
-          { ...first, title: 'Held, imported' },
-          { ...second, title: 'Edited, imported' },
-        ]);
-        await expect.poll(lockWaiters).toBe(1);
-        await editor.transaction(async (edit) => {
-          await edit
-            .update(topic)
-            .set({ title: 'Edited by hand', updatedBy: editorActor.userId })
-            .where(eq(topic.id, second.id));
-          await recordAudit(edit, editorActor, [
-            {
-              action: 'topic.updated',
-              entityId: second.id,
-              changes: { title: { before: 'Edited', after: 'Edited by hand' } },
-            },
-          ]);
-        });
-      });
-      await importing;
-    } finally {
-      await Promise.all([holder.end(), importer.$client.end(), editor.$client.end()]);
-    }
-
-    const history = await db.$client<{ actor_id: string; changes: unknown }[]>`
-      SELECT actor_id, changes FROM audit_log
-      WHERE entity_id = ${second.id} ORDER BY occurred_at, id
-    `;
-    expect(history.slice(1)).toEqual([
-      {
-        actor_id: editorActor.userId,
-        changes: { title: { before: 'Edited', after: 'Edited by hand' } },
-      },
-      {
-        actor_id: SYSTEM_USER_IDS.coreDataImport,
-        changes: { title: { before: 'Edited by hand', after: 'Edited, imported' } },
-      },
-    ]);
   });
 });

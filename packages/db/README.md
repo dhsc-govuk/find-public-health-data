@@ -83,27 +83,26 @@ src/
   it is about to bridge to: `dimensionKey` in TypeScript, or the `string_agg` it documents in
   SQL, as the seed load does.
 - **Repository functions**: pure, `db` first argument, one file per aggregate.
-- **Audit log**: every write the internal API or an operations command makes records an `audit_log`
-  entry with `recordAudit` from `@fphd/db/audit-log`, in the transaction of the change, so both
-  commit or neither. It records the entry after its own row write, while it holds the row, and an
-  entry's `occurred_at` is the time of its insert (`clock_timestamp()`), not of its transaction's
-  start, so one entity's entries sort in the order their changes committed even when a writer
-  started first and waited. The writer is an `Actor`: the `app_user` and the request id a handler
-  gets from `requireApiActor`, or a system user and no request for a command. `changes` maps each
-  field to its `before` and `after`, keyed by property name: a created row records every column
+- **Audit log**: every write the internal API makes records an `audit_log` entry with `recordAudit`
+  from `@fphd/db/audit-log`, in the transaction of the change, so both commit or neither. It records
+  the entry after its own row write, while it holds the row, and an entry's `occurred_at` is the
+  time of its insert (`clock_timestamp()`), not of its transaction's start, so one entity's entries
+  sort in the order their changes committed even when a writer started first and waited. The writer
+  is an `Actor`: the `app_user` and the request id a handler gets from `requireApiActor`, or a
+  system user and no request for a write the service makes on its own. `changes` maps each field to
+  its `before` and `after`, keyed by property name: a created row records every column
   (`changesBetween(null, row)`), an update the columns it changed, a deleted row every column it
   had, and a replaced list (`listChanges`) its whole contents. A list a write replaces in parts is
   one field per part, as a draft's classifications are one per dimension
   (`classificationIds.riskFactor`). Before values come from the row the write locks, from `RETURNING
   OLD` or from the rows its delete returns, never from a read another write could overtake. A write
-  that changes nothing records nothing. A bulk load, an upload's observations or a live-data
-  package, records one entry for its batch or package, with its counts, never one per row loaded.
-  The core data import is the exception: its rows are entities in their own right, a few hundred at
-  most, so it records an entry for each row it inserts or rewrites. A new kind of write adds its
-  action to `AUDIT_ACTIONS` in `schema/audit-log.ts`, whose check constraint then needs a migration.
-  `internal_api` may insert and select entries, never update or delete them; entries name people by
-  `app_user` id alone, so anonymising one never touches the log. Seeding and resets rebuild the
-  database rather than change it, and record nothing.
+  that changes nothing records nothing. An upload's observations record one entry for the batch,
+  with its counts, never one per row loaded. A new kind of write adds its action to `AUDIT_ACTIONS`
+  in `schema/audit-log.ts`, whose check constraint then needs a migration. `internal_api` may insert
+  and select entries, never update or delete them; entries name people by `app_user` id alone, so
+  anonymising one never touches the log. The log records changes made through the service once the
+  data is in it: the core data import, live-data packages, seeding, the published snapshot import,
+  the read-model rebuild and resets load or rebuild data, and record nothing.
 - **Slugs**: `indicator_version.slug` is derived from the version's name by `slugify` in
   `@fphd/utils/slug`. An exclusion constraint,
   `EXCLUDE USING gist (slug WITH =, indicator_id WITH <>)`, keeps a slug to one indicator for

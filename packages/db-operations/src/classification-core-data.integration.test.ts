@@ -1,14 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { schema } from '@fphd/db';
+import type { schema } from '@fphd/db';
 import { auditEntriesFor, createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseClassificationsFile, upsertClassifications } from './classification-core-data.ts';
-
-const { SYSTEM_USER_IDS } = schema;
 
 const committed = parseClassificationsFile(
   JSON.parse(
@@ -95,19 +93,7 @@ describe('upsertClassifications', () => {
 
     expect(first.summary).toEqual({ inserted: 1, updated: 0, unchanged: 0 });
     expect(again.summary).toEqual({ inserted: 0, updated: 0, unchanged: 1 });
-    expect(await auditEntriesFor(db, outcome.id)).toEqual([
-      expect.objectContaining({
-        actorId: SYSTEM_USER_IDS.coreDataImport,
-        action: 'classification.created',
-      }),
-      expect.objectContaining({
-        action: 'classification.updated',
-        changes: {
-          slug: { before: outcome.slug, after: renamed.slug },
-          name: { before: outcome.name, after: renamed.name },
-        },
-      }),
-    ]);
+    expect(await auditEntriesFor(db, outcome.id)).toEqual([]);
     expect(rewritten.summary).toEqual({ inserted: 0, updated: 1, unchanged: 0 });
     expect(rows).toEqual([renamed]);
     expect(rewritten.orphaned).toEqual([{ id: stray?.id, slug: 'population-no-file-lists' }]);
