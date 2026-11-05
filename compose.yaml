@@ -1,6 +1,6 @@
 # Local development services. Not for production.
 #
-# `docker compose up` starts only the database and Azurite; the four app services sit behind
+# `docker compose up` starts only the database and Azurite; the app services sit behind
 # profiles matching their names, so they start only when asked for:
 #   docker compose --profile public-api --profile public-web up -d --build
 # scripts/dev.sh derives the profile set from whichever apps you run locally.
@@ -183,6 +183,36 @@ services:
           'node',
           '-e',
           "fetch('http://localhost:4001/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # No published port: it serves only the probes, which its healthcheck reaches in the container.
+  internal-worker:
+    profiles: [internal-worker]
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      args:
+        APP: internal-worker
+    container_name: fphd-internal-worker
+    init: true
+    environment:
+      APP_ENV: ${APP_ENV:?set APP_ENV in .env (see .env.example)}
+      DB_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-fphd}
+      INTERNAL_API_PASSWORD: ${INTERNAL_API_PASSWORD:?set INTERNAL_API_PASSWORD in .env (see .env.example)}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:4002/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
         ]
       interval: 10s
       timeout: 5s

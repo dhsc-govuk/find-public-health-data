@@ -26,7 +26,7 @@
     "db:seed-dummy-data": "pnpm --filter @fphd/operations cli db seed-dummy-data",
     "db:studio": "pnpm --filter \"@fphd/db...\" build && pnpm --filter @fphd/db-operations db:studio",
     "dev": "pnpm services:up && pnpm --recursive --parallel run dev",
-    "dev:internal": "pnpm services:up && pnpm --parallel --filter @fphd/internal-web --filter @fphd/internal-api run dev",
+    "dev:internal": "pnpm services:up && pnpm --parallel --filter @fphd/internal-web --filter @fphd/internal-api --filter @fphd/internal-worker run dev",
     "dev:mixed": "scripts/dev.sh",
     "dev:public": "pnpm services:up && pnpm --parallel --filter @fphd/public-web --filter @fphd/public-api run dev",
     "format": "biome format --write .",

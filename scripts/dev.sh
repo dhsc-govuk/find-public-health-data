@@ -2,17 +2,17 @@
 # Mixed local/Docker development: apps named as arguments run locally via pnpm;
 # the rest run as Docker containers (built fresh, plus the database).
 #
-#   pnpm dev:mixed internal-api                 # internal-api local, other three in containers
-#   pnpm dev:mixed internal-web internal-api    # internal pair local, public pair in containers
-#   pnpm dev:mixed public-web internal-web      # both webs local, both APIs in containers
+#   pnpm dev:mixed internal-api                 # internal-api local, the other apps in containers
+#   pnpm dev:mixed internal-web internal-api    # internal pair local, public pair and worker in containers
+#   pnpm dev:mixed public-web internal-web      # both webs local, both APIs and the worker in containers
 #
 # Ctrl-C stops the local apps and the app containers; the database stays up.
-# All four local is `pnpm dev`; all four in containers is
-# `docker compose --profile public-web --profile internal-web --profile public-api --profile internal-api up --build`.
+# All local is `pnpm dev`; all in containers is
+# `docker compose --profile public-web --profile internal-web --profile public-api --profile internal-api --profile internal-worker up --build`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-all_apps=(public-web internal-web public-api internal-api)
+all_apps=(public-web internal-web public-api internal-api internal-worker)
 
 usage() {
   echo "usage: pnpm dev:mixed <app>...   (equivalently: scripts/dev.sh <app>...)" >&2

@@ -207,6 +207,7 @@ jobs:
           docker compose -f compose.yaml -f compose.e2e.yaml \
             --profile public-web --profile internal-web \
             --profile public-api --profile internal-api \
+            --profile internal-worker \
             up --detach --wait
 
       - name: Run the e2e tests
@@ -252,7 +253,8 @@ jobs:
           name: seeded-database
           path: ${{ runner.temp }}
 
-      # As e2e starts it, plus compose.perf.yaml's database settings.
+      # As e2e starts it, plus compose.perf.yaml's database settings, and without the worker, whose
+      # sweeps would add their statements to whichever route is being measured.
       #
       # The database first, with seed-database's dump restored, then the apps. Each API checks the
       # database at start-up as its own login, which bootstrap creates, and a failed check retries a
