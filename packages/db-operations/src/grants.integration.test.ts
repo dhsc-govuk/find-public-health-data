@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 
-import { schema } from '@fphd/db';
+import { createDbFromClient, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
+import { READ_MODEL_TABLES, refreshIndicatorReadModels } from '@fphd/internal-read-models';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -551,6 +552,53 @@ describe('the audit log', () => {
       /permission denied/,
     );
     await expect(internal()`DELETE FROM audit_log`).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe('the read models', () => {
+  const internal = internalMemberOfBlock();
+
+  // Publishing refreshes one indicator's rows; only a whole rebuild truncates.
+  it.each(
+    READ_MODEL_TABLES.flatMap((table) =>
+      ['SELECT', 'INSERT', 'DELETE'].map((privilege) => [privilege, table]),
+    ),
+  )('lets the internal role %s %s', async (privilege, table) => {
+    const [row] = await owner<{ granted: boolean }[]>`
+      SELECT has_table_privilege(${API_ROLES.internalApi}, ${`public.${table}`}, ${privilege}) AS granted
+    `;
+
+    expect(row?.granted).toBe(true);
+  });
+
+  it.each(READ_MODEL_TABLES.flatMap((table) => ['UPDATE', 'TRUNCATE'].map((p) => [p, table])))(
+    'holds no %s on %s',
+    async (privilege, table) => {
+      const [row] = await owner<{ granted: boolean }[]>`
+      SELECT has_table_privilege(${API_ROLES.internalApi}, ${`public.${table}`}, ${privilege}) AS granted
+    `;
+
+      expect(row?.granted).toBe(false);
+    },
+  );
+
+  it("lets the internal role refresh one indicator's rows", async () => {
+    const [indicator] = await owner<{ id: string }[]>`
+      SELECT id FROM published.indicator ORDER BY short_id LIMIT 1
+    `;
+    const id = indicator?.id ?? '';
+    const rowsOf = () => owner<{ row: string }[]>`
+      SELECT to_jsonb(a)::text AS row FROM available_data a WHERE indicator_id = ${id}
+      UNION ALL
+      SELECT to_jsonb(r)::text FROM observation_range r WHERE indicator_id = ${id}
+      ORDER BY row
+    `;
+    const before = await rowsOf();
+    expect(before.length).toBeGreaterThan(0);
+
+    await createDbFromClient(internal()).transaction((tx) => refreshIndicatorReadModels(tx, id));
+
+    expect(await rowsOf()).toEqual(before);
   });
 });
 
