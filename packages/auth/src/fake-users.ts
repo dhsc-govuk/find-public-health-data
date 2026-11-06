@@ -9,8 +9,8 @@ export interface FakeUser {
 }
 
 /**
- * The fake users' `app_user` row ids, which a migration in @fphd/db-operations inserts. It also
- * inserts Alex Morgan, once a public-only user, whose row stays for anything that names them.
+ * The fake users' `app_user` row ids, which a migration in @fphd/db-operations inserts. That
+ * migration also inserted Alex Morgan, once a public-only user, and migration 0064 removes them.
  */
 export const FAKE_USER_IDS = Object.freeze({
   publisherTeamA: '01a13c69-96ab-7598-9ce0-f84dbec3d5dd',
