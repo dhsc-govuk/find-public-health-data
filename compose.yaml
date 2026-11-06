@@ -70,6 +70,11 @@ services:
     environment:
       APP_ENV: ${APP_ENV:?set APP_ENV in .env (see .env.example)}
       API_URL: http://host.docker.internal:4000
+      # Optional: the private beta is off when BETA_ACCESS_INVITEES is empty.
+      BETA_ACCESS_INVITEES: ${BETA_ACCESS_INVITEES:-}
+      BETA_ACCESS_ENDS_AT: ${BETA_ACCESS_ENDS_AT:-}
+      BETA_ACCESS_SECRET: ${BETA_ACCESS_SECRET:-}
+      SITE_URL: ${SITE_URL:-}
     ports:
       - "3000:3000"
     extra_hosts:

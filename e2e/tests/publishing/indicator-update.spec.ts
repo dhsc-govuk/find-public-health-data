@@ -5,6 +5,7 @@ import { addReviewer, assignReviewers } from '../support/assign-reviewers.ts';
 import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
 import { openIndicatorPage } from '../support/indicator-page.ts';
+import { addInviteeAccess } from '../support/private-beta.ts';
 import {
   confirmPublicationAt,
   MINUTE,
@@ -802,6 +803,9 @@ test.describe('publishing an update', () => {
     await decide(page, renamed.id, 'Publish with visibility in history');
     const publishAt = nextPublicationTime(Date.now());
     await confirmPublicationAt(page, renamed.id, publishAt);
+    // Without the invitee's access, public-web would send every request for the indicator to the
+    // private beta page, which answers 200 whether or not the indicator is published.
+    await addInviteeAccess(page.context());
     expect((await page.request.get(publicIndicatorUrl(name))).status()).toBe(404);
 
     await waitForPublication(page, name, publishAt);

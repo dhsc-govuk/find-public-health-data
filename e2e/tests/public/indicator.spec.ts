@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { downloadFrom } from '../support/downloads.ts';
 import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
+import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
 
 test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
@@ -146,8 +147,10 @@ test('loads every indicator section through the JavaScript-free fallback and kee
   baseURL,
 }) => {
   if (baseURL === undefined) throw new Error('A base URL is required');
+  // A new context starts empty, so it takes the invitee's private beta access explicitly.
   const context = await browser.newContext({
     baseURL,
+    storageState: INVITEE_STORAGE_STATE,
     javaScriptEnabled: false,
     viewport: { width: 390, height: 844 },
   });
