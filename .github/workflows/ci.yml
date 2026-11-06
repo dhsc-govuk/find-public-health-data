@@ -198,6 +198,12 @@ jobs:
           # value, not a secret.
           SESSION_JWT_SECRET: ci-only-jwt-session-secret-at-least-32-bytes
           WEB_SESSION_SECRET: ci-only-web-session-secret-at-least-32-bytes
+          # public-web behind the private beta, as every deployed environment is. With no email
+          # service, the page shows each sign-in link, which the specs follow. CI-only values.
+          BETA_ACCESS_INVITEES: '[{"email":"developer@example.com","label":"e2e"}]'
+          BETA_ACCESS_ENDS_AT: 2099-12-31T23:59:59Z
+          BETA_ACCESS_SECRET: ci-only-beta-access-secret-at-least-32-bytes
+          SITE_URL: http://127.0.0.1:3000
         run: |
           docker compose -f compose.yaml -f compose.e2e.yaml up --detach --wait db
           pnpm db:bootstrap
