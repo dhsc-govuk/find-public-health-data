@@ -38,7 +38,8 @@ src/
   indicator-topic-import.ts
                       applyIndicatorTopics — the indicator relationship files
   seeding.ts          seedDummyTables — loads data/seed and the indicator relationships
-  read-models.ts      rebuildReadModels — repopulates the cache tables from the published views
+  read-models.ts      rebuildReadModels — repopulates the cache tables from the published views,
+                      through @fphd/internal-read-models
   reset.ts            resetDatabase — drops all application schema objects
   data-migration.ts   applyDataMigration — applies a live data migration package
   data-migration-contract.ts

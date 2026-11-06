@@ -685,6 +685,7 @@ Each package has a README describing its purpose and entry points:
 | [`@fphd/db-operations`](packages/db-operations/README.md)        | Migrations, bootstrap, imports, seed data and reset             |
 | [`@fphd/express`](packages/express/README.md)                    | The base Express app and middleware every server shares         |
 | [`@fphd/internal-api-features`](packages/internal-api-features/README.md) | Routes and queries only the internal API runs          |
+| [`@fphd/internal-read-models`](packages/internal-read-models/README.md) | The statements that write the read models               |
 | [`@fphd/internal-storage`](packages/internal-storage/README.md)  | Blob Storage for uploaded files, kept out of the public images  |
 | [`@fphd/internal-web-features`](packages/internal-web-features/README.md) | Pages and loaders only the internal web app mounts     |
 | [`@fphd/logger`](packages/logger/README.md)                      | pino, configured once                                           |

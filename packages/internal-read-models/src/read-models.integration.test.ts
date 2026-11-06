@@ -1,0 +1,177 @@
+import type { Database } from '@fphd/db';
+import { createTestDb, type TestDb } from '@fphd/db/testing';
+import { sql } from 'drizzle-orm';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  rebuildReadModelTables,
+  refreshIndicatorReadModels,
+  type Transaction,
+} from './read-models.ts';
+
+/** Thrown to roll a transaction back once the test has read what it wrote. */
+class RolledBack extends Error {}
+
+let testDb: TestDb;
+let db: Database;
+
+beforeAll(async () => {
+  testDb = await createTestDb({ template: 'seeded' });
+  db = testDb.db;
+});
+
+afterAll(async () => {
+  await testDb.drop();
+});
+
+/** The indicator's read-model rows, each as JSON text, in a stable order. */
+async function readModelRowsOf(executor: Database | Transaction, indicatorId: string) {
+  const rows = (await executor.execute(sql`
+    SELECT 'available_data' AS model, to_jsonb(r)::text AS row
+    FROM available_data r WHERE r.indicator_id = ${indicatorId}
+    UNION ALL
+    SELECT 'observation_range', to_jsonb(r)::text
+    FROM observation_range r WHERE r.indicator_id = ${indicatorId}
+    ORDER BY model, row
+  `)) as unknown as { model: string; row: string }[];
+  return rows.map(({ model, row }) => `${model} ${row}`);
+}
+
+/** What a whole rebuild would leave for the indicator, read inside it and rolled back. */
+async function rowsAfterWholeRebuild(indicatorId: string) {
+  let rows: string[] = [];
+  await expect(
+    db.transaction(async (tx) => {
+      await rebuildReadModelTables(tx);
+      rows = await readModelRowsOf(tx, indicatorId);
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
+  return rows;
+}
+
+/** Seeded indicators with rows in both read models, so a change to either shows. */
+async function seededIndicatorIds(): Promise<string[]> {
+  const rows = (await db.execute(sql`
+    SELECT indicator_id AS id FROM observation_range
+    INTERSECT SELECT indicator_id FROM available_data
+    ORDER BY id
+  `)) as unknown as { id: string }[];
+  return rows.map(({ id }) => id);
+}
+
+/**
+ * Adds a published observation for the indicator in a year no seeded row reaches, in an area its
+ * read models group by, so a rebuild or refresh adds rows for it.
+ */
+async function publishNewObservation(indicatorId: string): Promise<void> {
+  const inserted = (await db.execute(sql`
+    INSERT INTO observation
+      (indicator_id, area_id, from_date, to_date, value, upload_batch_id, dimension_key)
+    SELECT ${indicatorId}, a.id, '2099-01-01', '2099-12-31', 1, v.upload_batch_id, ''
+    FROM current_published_version cpv
+    JOIN indicator_version v ON v.id = cpv.id
+    CROSS JOIN (
+      SELECT a.id FROM published.area a
+      JOIN published.area_type at ON at.id = a.area_type_id
+      WHERE at.display_group IS NOT NULL
+      ORDER BY a.id LIMIT 1
+    ) a
+    WHERE cpv.indicator_id = ${indicatorId}
+    RETURNING id
+  `)) as unknown as { id: string }[];
+  if (inserted.length !== 1) throw new Error(`published no observation for ${indicatorId}`);
+}
+
+/** Sessions in this test's database waiting on a table lock. */
+async function tableLockWaiters(): Promise<number> {
+  const [row] = (await db.execute(sql`
+    SELECT count(*)::int AS waiting FROM pg_stat_activity
+    WHERE wait_event_type = 'Lock' AND wait_event = 'relation'
+      AND datname = current_database()
+  `)) as unknown as { waiting: number }[];
+  return row?.waiting ?? 0;
+}
+
+describe('refreshIndicatorReadModels', () => {
+  it("leaves the indicator's rows as a whole rebuild would", async () => {
+    const [indicatorId] = await seededIndicatorIds();
+    if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');
+    await publishNewObservation(indicatorId);
+    const before = await readModelRowsOf(db, indicatorId);
+    const expected = await rowsAfterWholeRebuild(indicatorId);
+
+    await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+
+    const after = await readModelRowsOf(db, indicatorId);
+    expect(after).toEqual(expected);
+    expect(after).not.toEqual(before);
+  });
+
+  it("leaves another indicator's rows alone, even ones a rebuild would change", async () => {
+    const [, indicatorId, otherId] = await seededIndicatorIds();
+    if (indicatorId === undefined || otherId === undefined) {
+      throw new Error('The seed holds too few indicators with read models');
+    }
+    await publishNewObservation(otherId);
+    const otherBefore = await readModelRowsOf(db, otherId);
+    expect(await rowsAfterWholeRebuild(otherId)).not.toEqual(otherBefore);
+
+    await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+
+    expect(await readModelRowsOf(db, otherId)).toEqual(otherBefore);
+  });
+
+  it('leaves an indicator with nothing published with no rows', async () => {
+    const [created] = (await db.execute(
+      sql`INSERT INTO indicator DEFAULT VALUES RETURNING id`,
+    )) as unknown as { id: string }[];
+    if (created === undefined) throw new Error('inserted no indicator');
+    const indicatorId = created.id;
+    await db.execute(sql`
+      INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
+      VALUES (${indicatorId}, uuidv7(), 'Stale', 1)
+    `);
+    await db.execute(sql`
+      INSERT INTO observation_range
+        (indicator_id, display_group, from_date, to_date, segment, min, max)
+      VALUES (${indicatorId}, 'Stale', '2099-01-01', '2099-12-31', '', 1, 1)
+    `);
+
+    await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+
+    expect(await readModelRowsOf(db, indicatorId)).toEqual([]);
+  });
+
+  it('waits for a whole rebuild in progress, then commits', async () => {
+    const indicatorId = (await seededIndicatorIds()).at(-1);
+    if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');
+    await publishNewObservation(indicatorId);
+    const expected = await rowsAfterWholeRebuild(indicatorId);
+
+    let rebuilt: () => void = () => {};
+    let release: () => void = () => {};
+    const rebuilding = new Promise<void>((resolve) => {
+      rebuilt = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const rebuild = db.transaction(async (tx) => {
+      await rebuildReadModelTables(tx);
+      rebuilt();
+      await released;
+    });
+    await rebuilding;
+    const refresh = db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+    try {
+      await expect.poll(tableLockWaiters, { timeout: 10_000 }).toBe(1);
+    } finally {
+      release();
+    }
+
+    await expect(rebuild).resolves.toBeUndefined();
+    await expect(refresh).resolves.toBeUndefined();
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(expected);
+  });
+});
