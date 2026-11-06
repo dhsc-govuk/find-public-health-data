@@ -26,8 +26,12 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { DIMENSIONS, PERIOD_PARAMS } from './url.ts';
 
-export async function loadSearchPage(args: LoaderFunctionArgs) {
-  return loadSearch(args, { publicGeographies: true });
+export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies: boolean) {
+  const search = await loadSearch(args, { publicGeographies });
+  return {
+    ...search,
+    geographyLookupUrl: publicGeographies ? '/geographies?scheme=public' : '/geographies',
+  };
 }
 
 export type {

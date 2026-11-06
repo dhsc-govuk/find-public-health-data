@@ -422,6 +422,7 @@ describe('public application routes', () => {
   });
 
   const searchLoaderData = {
+    geographyLookupUrl: '/geographies?scheme=public',
     q: '',
     topics: [],
     indicatorTypes: [],

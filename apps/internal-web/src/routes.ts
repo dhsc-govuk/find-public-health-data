@@ -5,7 +5,7 @@ export default [
   route('sign-in', './sign-in.tsx'),
   route('access-denied', './access-denied.tsx'),
   layout('./authenticated.tsx', [
-    route('search', '../../../packages/public-web-features/src/search/route.tsx'),
+    route('search', './search.tsx'),
     route('topics', '../../../packages/public-web-features/src/topic/list-route.tsx'),
     route('topics/:slug', '../../../packages/public-web-features/src/topic/route.tsx'),
     route(

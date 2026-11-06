@@ -43,7 +43,7 @@ export function SearchPage(data: SearchData) {
       </GridRow>
       <GridRow>
         <GridColumn width="one-third">
-          <SearchGeographies search={data} replace />
+          <SearchGeographies search={data} lookupUrl={data.geographyLookupUrl} replace />
           <SearchFilterPane includeDataPeriod facets={data.facets} state={state} />
         </GridColumn>
         <GridColumn width="two-thirds">

@@ -11,7 +11,7 @@ export type {
 } from './indicator/loader.ts';
 export { IndicatorRoute } from './indicator/route.tsx';
 export { SingleIndicatorPage } from './indicator/single-page.tsx';
-export { SearchRoute } from './search/route.tsx';
+export { createSearchRoute, SearchRoute } from './search/route.tsx';
 export { SignInPage } from './sign-in/page.tsx';
 export { createSignInRoute } from './sign-in/route.tsx';
 export { TopicsRoute } from './topic/list-route.tsx';

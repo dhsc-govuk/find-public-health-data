@@ -11,12 +11,14 @@ export function SearchGeographies({
   extraParams = {},
   single = false,
   replace = false,
+  lookupUrl = '/geographies?scheme=public',
 }: {
   search: Awaited<ReturnType<typeof loadSearch>>;
   path?: string;
   extraParams?: Record<string, string>;
   single?: boolean;
   replace?: boolean;
+  lookupUrl?: string;
 }) {
   const navigate = useNavigate();
   const picked = search.gaCodes.length > 0 || search.geoLevels.length > 0;
@@ -32,7 +34,7 @@ export function SearchGeographies({
         onClear={picked ? urlFor([], []) : undefined}
         footer={
           <SearchGeographyPicker
-            lookupUrl="/geographies?scheme=public"
+            lookupUrl={lookupUrl}
             single={single}
             action={path}
             extraParams={extraParams}

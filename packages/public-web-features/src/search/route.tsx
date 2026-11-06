@@ -1,12 +1,20 @@
 import { createDocumentMeta } from '@fphd/ui';
-import { useLoaderData } from 'react-router';
+import { type LoaderFunctionArgs, useLoaderData } from 'react-router';
 
 import { loadSearchPage } from './loader.ts';
 import { SearchPage } from './page.tsx';
 
-export const loader = loadSearchPage;
+export function createSearchRoute(publicGeographies: boolean) {
+  return {
+    loader: (args: LoaderFunctionArgs) => loadSearchPage(args, publicGeographies),
+    meta: createDocumentMeta('Search for data'),
+    Component: SearchRoute,
+  };
+}
 
-export const meta = createDocumentMeta('Search for data');
+const publicSearch = createSearchRoute(true);
+export const loader = publicSearch.loader;
+export const meta = publicSearch.meta;
 
 export function SearchRoute() {
   const data = useLoaderData<typeof loader>();
