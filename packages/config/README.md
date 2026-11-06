@@ -8,7 +8,7 @@ Built package.
 
 | Entry     | Purpose                                                                                            |
 | --------- | -------------------------------------------------------------------------------------------------- |
-| `.`       | `z` (the single zod instance every schema is built with), the env fragments (`appEnvFields`, `serverEnvFields`, `logEnvFields`), the value schemas (`appEnvSchema`, `boolSchema`, `portSchema`), `parseEnv`, `loadWebServerConfig`, `resolveLog`, `resolveShutdown`, `isDeployedEnv` |
+| `.`       | `z` (the single zod instance every schema is built with), the env fragments (`appEnvFields`, `serverEnvFields`, `logEnvFields`), the value schemas (`appEnvSchema`, `boolSchema`, `portSchema`), `parseEnv`, `loadWebServerConfig` (public-web) and `loadSignInWebServerConfig` (internal-web, with the session secrets), `resolveLog`, `resolveShutdown`, `isDeployedEnv` |
 | `./zod`   | The same `z` for code that wants zod and nothing else                                              |
 
 Depend on this package rather than on `zod` directly, so schema fragments and app schemas never

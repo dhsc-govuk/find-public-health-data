@@ -1,8 +1,9 @@
 # @fphd/auth
 
 The session model shared by internal-web, the API apps and `@fphd/web-server`: which audience a
-session is for (internal-web is the only app with sign-in), the roles and teams, the fake users local sign-in offers, the JWT cookie that
-carries a session from a web app to its API, and the permission checks over it.
+session is for (internal-web is the only app with sign-in), the roles and teams, the fake users
+local sign-in offers, the JWT cookie that carries a session from a web app to its API, and the
+permission checks over it.
 
 Built package.
 

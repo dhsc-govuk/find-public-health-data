@@ -89,7 +89,7 @@ describe('createReactRouterApp', () => {
     expect(loadContext('test-nonce').get(nonceContext)).toBe('test-nonce');
   });
 
-  it('builds the load context without a session for an app nobody signs in to', () => {
+  it('needs no session to build the load context, for an app nobody signs in to', () => {
     createReactRouterApp(
       () => {
         throw new Error('build should not load while asserting context wiring');
