@@ -21,6 +21,8 @@ import { writePreparedDirectory } from './prepared-directory.ts';
 import { TABLES } from './tables.ts';
 import { verifyPackageFiles } from './verify.ts';
 
+const VERSION_REFERENCE_TABLES = ['ci_method', 'comparator_method', 'numerator_denominator_source'];
+
 async function write(stream: Gzip, value: string): Promise<void> {
   if (!stream.write(value)) await once(stream, 'drain');
 }
@@ -64,7 +66,7 @@ export async function createIncremental(
       join(staged, current.relationships.file),
     );
 
-    const referencesChanged = DATA_MIGRATION_REFERENCE_TABLES.some(
+    const referencesChanged = VERSION_REFERENCE_TABLES.some(
       (table) => previous.tables[table]?.sha256 !== current.tables[table]?.sha256,
     );
     const tables: IncrementalManifest['tables'] = {};

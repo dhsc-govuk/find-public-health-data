@@ -1,6 +1,6 @@
 import type postgres from 'postgres';
 import { copyInto } from './data-migration-copy.ts';
-import { validateMigrationHeader } from './data-migration-table-import.ts';
+import { validateMigrationHeader } from './data-migration-header.ts';
 import { type LegacySourceMap, mapLegacySources } from './legacy-sources.ts';
 
 /**

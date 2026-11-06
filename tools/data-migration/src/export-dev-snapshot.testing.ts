@@ -38,20 +38,23 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
         is_aggregate: false,
       },
     ],
-    area_type: [{ id: 1, name: 'LA unchanged', hierarchy_type: 'Administrative', level: 1 }],
+    area_type: [
+      { id: 1, name: 'UA unchanged', hierarchy_type: 'Administrative', level: 1 },
+      { id: 2, name: 'England', hierarchy_type: 'Administrative', level: 0 },
+    ],
     area: [
       {
         id: 1,
-        code: 'fixture-parent',
-        name: 'Parent area',
-        area_type_id: 1,
+        code: 'E92000001',
+        name: 'England',
+        area_type_id: 2,
         valid_from: null,
         is_current: true,
       },
       {
         id: 2,
-        code: 'fixture-child',
-        name: 'Child area',
+        code: 'E08000035',
+        name: 'Leeds',
         area_type_id: 1,
         valid_from: null,
         is_current: true,
@@ -83,7 +86,13 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
       uploaded_at: sourceTimestamp,
       status: 'processed',
     })),
-    note_type: [{ id: 1, text: ' Suppressed ', category: 'disclosure' }],
+    note_type: [
+      {
+        id: 1,
+        text: ' Interpret with caution - see Notes section in Definitions for details ',
+        category: 'quality',
+      },
+    ],
     observation: [
       {
         id: 2,

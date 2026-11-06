@@ -7,7 +7,6 @@ import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { importCoreData } from './core-data.ts';
 import {
   INDICATOR_ID,
   type MigrationFixtureOptions,
@@ -38,13 +37,7 @@ let frameworkId: string;
 let lifeStageId: string;
 
 beforeAll(async () => {
-  database = await createTestDb();
-  const core = database.connect({ max: 1 });
-  try {
-    await importCoreData(core);
-  } finally {
-    await core.end();
-  }
+  database = await createTestDb({ template: 'core' });
   sql = database.sql;
   const [topic] = await sql<{ id: string }[]>`SELECT id FROM topic LIMIT 1`;
   const [framework] = await sql<
@@ -246,7 +239,7 @@ describe('applyDataMigration', () => {
         upload_batch: batch(firstBatch),
         area_type: {
           columns: ['id', 'name', 'hierarchy_type', 'level'],
-          rows: [[areaId, 'Country', 'Administrative', 1]],
+          rows: [[areaId, 'England', 'Administrative', 1]],
         },
         area: {
           columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
@@ -305,7 +298,7 @@ describe('applyDataMigration', () => {
         upload_batch: batch(batchId),
         area_type: {
           columns: ['id', 'name', 'hierarchy_type', 'level'],
-          rows: [[areaId, 'Country', 'Administrative', 1]],
+          rows: [[areaId, 'England', 'Administrative', 1]],
         },
         area: {
           columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
@@ -1089,13 +1082,11 @@ describe('applyDataMigration', () => {
     `;
     if (!upload) throw new Error('Missing publisher upload');
     await sql`UPDATE indicator_version SET upload_batch_id = ${upload.id}, data_table_confirmed_at = '2026-01-01' WHERE id = ${publication.id}`;
-    const [areaType] = await sql<
-      { id: string }[]
-    >`INSERT INTO area_type (name, hierarchy_type, level) VALUES ('Country', 'Administrative', 1) RETURNING id`;
+    const [areaType] = await sql<{ id: string }[]>`SELECT id FROM area_type WHERE name = 'England'`;
     if (!areaType) throw new Error('Missing area type');
     const [area] = await sql<
       { id: string }[]
-    >`INSERT INTO area (area_type_id, code, name, valid_from) VALUES (${areaType.id}, 'E92000001', 'England', '2010-01-01') RETURNING id`;
+    >`INSERT INTO area (area_type_id, code, name, valid_from) VALUES (${areaType.id}, ${`publisher-${table}-${action}`}, 'Publisher area', '2010-01-01') RETURNING id`;
     if (!area) throw new Error('Missing area');
     const [observed] = await sql<{ id: string }[]>`
       INSERT INTO observation (indicator_id, area_id, upload_batch_id, from_date, to_date, value, dimension_key)
@@ -1104,18 +1095,18 @@ describe('applyDataMigration', () => {
     if (!observed) throw new Error('Missing observation');
     const [dimensionType] = await sql<
       { id: string }[]
-    >`INSERT INTO dimension_type (name, dimension_class) VALUES ('Sex', 'core') RETURNING id`;
+    >`SELECT id FROM dimension_type WHERE name = 'Sex'`;
     if (!dimensionType) throw new Error('Missing dimension type');
     const [dimensionValue] = await sql<
       { id: string }[]
-    >`INSERT INTO dimension_value (dimension_type_id, name) VALUES (${dimensionType.id}, 'Female') RETURNING id`;
+    >`SELECT id FROM dimension_value WHERE dimension_type_id = ${dimensionType.id} AND name = 'Female'`;
     if (!dimensionValue) throw new Error('Missing dimension value');
     const [dimension] = await sql<
       { id: string }[]
     >`INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id) VALUES (${observed.id}, ${dimensionValue.id}, ${dimensionType.id}) RETURNING id`;
     const [noteType] = await sql<
       { id: string }[]
-    >`INSERT INTO note_type (text, category) VALUES ('Publisher note', 'quality') RETURNING id`;
+    >`INSERT INTO note_type (text, category) VALUES ('Publisher note', 'quality') ON CONFLICT (text) DO UPDATE SET category = excluded.category RETURNING id`;
     if (!dimension || !noteType) throw new Error('Missing observation attributes');
     const [note] = await sql<
       { id: string }[]

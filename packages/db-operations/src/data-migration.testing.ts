@@ -90,6 +90,22 @@ export async function migrationFixture(
     ci_method: { columns: ['id', 'name', 'description'] },
     comparator_method: { columns: ['id', 'name'] },
     numerator_denominator_source: { columns: ['id', 'name', 'url'] },
+    area_type: {
+      columns: ['id', 'name', 'hierarchy_type', 'level'],
+      rows: [['44444444-4444-7444-8444-444444444444', 'England', 'Administrative', 1]],
+    },
+    area: {
+      columns: ['id', 'area_type_id', 'code', 'name', 'is_current'],
+      rows: [
+        [
+          '44444444-4444-7444-8444-444444444444',
+          '44444444-4444-7444-8444-444444444444',
+          'E92000001',
+          'England',
+          't',
+        ],
+      ],
+    },
     indicator_version: { columns: VERSION_COLUMNS, rows: options.baseline ? [VERSION_ROW] : [] },
     indicator: { columns: ['short_id', 'id'], rows: options.baseline ? [[108, INDICATOR_ID]] : [] },
   };

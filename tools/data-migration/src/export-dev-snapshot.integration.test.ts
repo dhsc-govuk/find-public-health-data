@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { importCoreData, rebuildReadModels, seedPublishedTables } from '@fphd/db-operations';
+import { rebuildReadModels, seedPublishedTables } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
@@ -19,9 +19,8 @@ let database: TestDb;
 let sql: postgres.Sql;
 let directory: string;
 beforeAll(async () => {
-  database = await createTestDb();
+  database = await createTestDb({ template: 'core' });
   sql = database.sql;
-  await importCoreData(sql);
   directory = await mkdtemp(join(tmpdir(), 'dev-snapshot-import-'));
 });
 afterAll(async () => {

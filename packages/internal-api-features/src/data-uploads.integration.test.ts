@@ -1,5 +1,8 @@
+import { execFile } from 'node:child_process';
 import { PassThrough, Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { type Database, dimensionKey, schema } from '@fphd/db';
 import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
@@ -74,6 +77,49 @@ const VALID_CSV = [
   'E92000001,2019-04-01,2020-03-31,83.1,1200,Persons,All ages,,,',
   'E08000035,2019-04-01,2020-03-31,,,,,Ethnic groups [4],White,Aggregated from values for merged CCGs',
 ].join('\n');
+
+it('accepts an upload after core-data setup with no seed or live-data package', async () => {
+  const fresh = await createTestDb();
+  try {
+    await promisify(execFile)(
+      process.execPath,
+      [
+        '--conditions=development',
+        fileURLToPath(new URL('../../../apps/operations/src/cli.ts', import.meta.url)),
+        'db',
+        'import-core-data',
+      ],
+      { env: { ...process.env, APP_ENV: 'test', POSTGRES_DB: fresh.name } },
+    );
+    expect(await fresh.sql`SELECT id FROM indicator`).toEqual([]);
+    expect(await fresh.sql`SELECT id FROM observation`).toEqual([]);
+    expect(await fresh.sql`SELECT id FROM data_migration`).toEqual([]);
+    const db = fresh.connectDb({ login: apiLogin('internal_api') });
+    const { indicatorId } = await newDraft(db, 'Upload with core data only');
+    const batchId = randomUuidV7();
+    const result = await processDataUpload(
+      db,
+      {
+        batchId,
+        indicatorId,
+        blobName: `${indicatorId}/${batchId}.csv`,
+        originalFilename: 'core-data.csv',
+        byteSize: Buffer.byteLength(VALID_CSV),
+        sha256: '0'.repeat(64),
+        actor: AS_ACTOR,
+      },
+      async () => Readable.from([VALID_CSV]),
+      new AbortController().signal,
+    );
+    expect(result).toMatchObject({ ok: true });
+    const [loaded] = await fresh.sql<
+      { count: number }[]
+    >`SELECT count(*)::int AS count FROM observation WHERE upload_batch_id = ${batchId}`;
+    expect(loaded?.count).toBe(3);
+  } finally {
+    await fresh.drop();
+  }
+});
 
 async function upload(indicatorId: string, content: string, filename = 'data.csv') {
   return request(app)

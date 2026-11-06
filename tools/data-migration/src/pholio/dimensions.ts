@@ -1,4 +1,4 @@
-import type { PholioExportOptions } from './context.ts';
+import type { PholioSource } from './context.ts';
 import {
   AGE_DIMENSION_TYPE_ID,
   ageDimensionValueId,
@@ -357,7 +357,7 @@ export function sexValueIdForObservation(sexId: number): number | null {
 
 // ─── main export ──────────────────────────────────────────────────────────────
 
-export async function exportDimensions(context: PholioExportOptions) {
+export async function exportDimensions(context: PholioSource) {
   const { pool, outDir } = context;
   const dimensionValueIds = new Set<number>();
 

@@ -6,8 +6,9 @@ additions come from the public Fingertips API and are imported through local Pos
 
 ## What is in it
 
-Reference and registry tables (lookups, dimension types and values, area types, note
-types) are complete. `ci_method.csv.gz` and `comparator_method.csv.gz` are Pholio's lists and
+Reference and registry CSVs provide the source ids used to map onto the committed core
+catalogs. Core-data setup owns dimensions, area types, note types, areas and area
+relationships. `ci_method.csv.gz` and `comparator_method.csv.gz` are Pholio's lists and
 are not loaded: the methods are core data (`../ci-methods.json`,
 `../comparator-methods.json`), and the seed maps its versions onto them by name. Areas,
 observations and bridge rows contain:
@@ -160,7 +161,8 @@ python3 export/split-count-and-numerator.py .
 
 `strip-metadata-html.py` converts the metadata prose from Pholio's HTML to the plain
 text the pages store and render; `enrich-area-display.py` stamps each area type's display
-group and strips the level suffixes from area names; `tidy-reference-names.py` tidies the
+group, copies explicit current status and validity dates from the verified core geography
+snapshot, and strips the level suffixes from area names; `tidy-reference-names.py` tidies the
 names uploaded data is matched to. Skipping any of them commits seeds the site would show
 or match wrong. `reshape-indicator-versions.py` splits the Pholio shape into the
 identity and version tables this service holds: `indicator.csv.gz` keeps

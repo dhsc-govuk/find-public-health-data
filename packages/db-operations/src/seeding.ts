@@ -15,7 +15,12 @@ import {
 } from './indicator-topic-import.ts';
 import { type LegacySourceMap, mapLegacySources, readLegacySourceMap } from './legacy-sources.ts';
 import { READ_MODEL_TABLES } from './read-models.ts';
-import { SEED_TABLES } from './seed-tables.ts';
+import {
+  needsReferenceMapping,
+  remapReferenceColumns,
+  stageReferenceMaps,
+} from './reference-data-maps.ts';
+import { CORE_REFERENCE_TABLES, GEOGRAPHY_CORE_TABLES, SEED_TABLES } from './seed-tables.ts';
 
 export { SEED_TABLES } from './seed-tables.ts';
 
@@ -25,11 +30,20 @@ const { IMPORTED_INDICATOR_TEAM_ID, UNPUBLISHED_STATUS_LITERALS } = schema;
 const STAGED_ONLY_TABLES: readonly string[] = ['numerator_denominator_source'];
 
 // Staged from the files, whose versions are pointed at the core data rows of the same name.
-const CORE_DATA_TABLES: readonly string[] = ['ci_method', 'comparator_method'];
+const CORE_DATA_TABLES: readonly string[] = [
+  'ci_method',
+  'comparator_method',
+  ...CORE_REFERENCE_TABLES,
+  ...GEOGRAPHY_CORE_TABLES,
+];
 
 /** Every table a seed writes, in load order, for a caller that analyzes them afterwards. */
 export const SEEDED_TABLES = [
-  ...SEED_TABLES.filter((table) => !STAGED_ONLY_TABLES.includes(table)),
+  ...SEED_TABLES.filter(
+    (table) =>
+      !STAGED_ONLY_TABLES.includes(table) &&
+      !([...CORE_REFERENCE_TABLES, ...GEOGRAPHY_CORE_TABLES] as readonly string[]).includes(table),
+  ),
   'indicator_version_source',
 ];
 
@@ -258,8 +272,7 @@ async function seedTables(
     ...READ_MODEL_TABLES,
   ];
   await tx.unsafe(`TRUNCATE ${replaced.map((t) => `"${t}"`).join(', ')} CASCADE`);
-
-  const counts: Record<string, number> = {};
+  const counts = await stageReferenceMaps(tx, directory);
   for (const table of SEED_TABLES) {
     if (CORE_DATA_TABLES.includes(table) || STAGED_ONLY_TABLES.includes(table)) continue;
 
@@ -282,7 +295,24 @@ async function seedTables(
       counts.observation = loaded.observations;
       counts.observation_dimension = loaded.dimensions;
     } else if (table !== 'observation_dimension') {
-      counts[table] = await loadTable(tx, table, directory, idleTimeoutMs, completionTimeoutMs);
+      if (needsReferenceMapping(table)) {
+        const stage = `source_${table}`;
+        await tx.unsafe(
+          `CREATE TEMP TABLE "${stage}" (LIKE "${table}" INCLUDING DEFAULTS) ON COMMIT DROP`,
+        );
+        counts[table] = await loadTable(
+          tx,
+          table,
+          directory,
+          idleTimeoutMs,
+          completionTimeoutMs,
+          stage,
+        );
+        await remapReferenceColumns(tx, table, stage);
+        await tx.unsafe(`INSERT INTO "${table}" SELECT * FROM "${stage}"`);
+      } else {
+        counts[table] = await loadTable(tx, table, directory, idleTimeoutMs, completionTimeoutMs);
+      }
     }
   }
   await tx`UPDATE indicator SET team_id = ${IMPORTED_INDICATOR_TEAM_ID} WHERE team_id IS NULL`;
@@ -355,6 +385,8 @@ async function loadObservations(
     completionTimeoutMs,
     'source_observation_dimension',
   );
+  await remapReferenceColumns(tx, 'observation_dimension', 'source_observation_dimension');
+  await remapReferenceColumns(tx, 'observation', 'source_observation');
 
   const columns = await tx<{ name: string }[]>`
     SELECT attname AS name FROM pg_attribute

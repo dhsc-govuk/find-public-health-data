@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { applyDataMigration, importCoreData, rebuildReadModels } from '@fphd/db-operations';
+import { applyDataMigration, rebuildReadModels } from '@fphd/db-operations';
 import {
   baselineManifestSchema,
   DATA_MIGRATION_NULL,
@@ -25,13 +25,7 @@ let directory: string;
 let topicId: string;
 
 beforeAll(async () => {
-  database = await createTestDb();
-  const core = database.connect({ max: 1 });
-  try {
-    await importCoreData(core);
-  } finally {
-    await core.end();
-  }
+  database = await createTestDb({ template: 'core' });
   sql = database.sql;
   const [topic] = await sql<{ id: string }[]>`SELECT id FROM topic ORDER BY id LIMIT 1`;
   if (!topic) throw new Error('Core topics are missing');
@@ -59,7 +53,7 @@ async function snapshot(
     dimension_value: [
       { id: 1, dimension_type_id: 1, name: 'Female', sort_order: 0, is_aggregate: false },
     ],
-    area_type: [{ id: 1, name: 'LA unchanged', hierarchy_type: 'Administrative', level: 1 }],
+    area_type: [{ id: 1, name: 'England', hierarchy_type: 'Administrative', level: 1 }],
     area: [
       {
         id: 1,
@@ -200,9 +194,9 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
     { id: 4, from_date: '2026-01-01', to_date: '2026-12-31', value: 11 },
   ]);
   await apply(first);
-  expect(await sql`SELECT valid_from, valid_to, is_current FROM published.area`).toEqual([
-    { valid_from: null, valid_to: null, is_current: true },
-  ]);
+  expect(
+    await sql`SELECT valid_from, valid_to, is_current FROM published.area WHERE code = 'E92000001'`,
+  ).toEqual([{ valid_from: null, valid_to: null, is_current: true }]);
   const [version] = await sql<{ batch: string; confirmed: boolean; owner: string }[]>`
     SELECT v.upload_batch_id AS batch, v.data_table_confirmed_at IS NOT NULL AS confirmed,
       b.indicator_version_id AS owner
@@ -213,9 +207,13 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
     confirmed: true,
     owner: deterministicUuid('indicator_version', '108'),
   });
+  const [female] = await sql<{ id: string }[]>`
+    SELECT value.id FROM dimension_value value JOIN dimension_type type ON type.id = value.dimension_type_id
+    WHERE type.name = 'Sex' AND value.name = 'Female'
+  `;
   expect(await sql`SELECT value, dimension_key FROM observation ORDER BY id`).toEqual([
-    { value: 10, dimension_key: deterministicUuid('dimension_value', '1') },
-    { value: 11, dimension_key: deterministicUuid('dimension_value', '1') },
+    { value: 10, dimension_key: female?.id },
+    { value: 11, dimension_key: female?.id },
   ]);
   expect((await sql`SELECT id FROM published.observation`).length).toBe(2);
 

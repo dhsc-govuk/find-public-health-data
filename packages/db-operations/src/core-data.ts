@@ -20,12 +20,23 @@ import {
   upsertDataProviders,
 } from './data-provider-core-data.ts';
 import {
+  type GeographyCoreDataImport,
+  importGeographyCoreData,
+  readGeographyManifest,
+} from './geography-core-data.ts';
+import {
   type NamedUpsertResult,
   parseNamedRecordsFile,
   upsertComparatorMethods,
   upsertOrderedNames,
 } from './named-core-data.ts';
 import { parseTopicsFile } from './parse-topics-file.ts';
+import {
+  assertReferenceCoreDataPresent,
+  importReferenceCoreData,
+  type ReferenceCoreDataImport,
+  readReferenceData,
+} from './reference-core-data.ts';
 import { parseSubtopicsFile, upsertSubtopics } from './subtopic-core-data.ts';
 import { type UpsertResult, upsertTopics } from './topic-import.ts';
 
@@ -45,6 +56,8 @@ const comparatorMethodsFile = fileURLToPath(
 );
 
 export interface CoreDataImport {
+  references: ReferenceCoreDataImport;
+  geography: GeographyCoreDataImport;
   topics: UpsertResult;
   subtopics: Awaited<ReturnType<typeof upsertSubtopics>>;
   ciMethods: CiMethodUpsertResult;
@@ -60,13 +73,9 @@ function readJson(file: string): unknown {
 }
 
 /**
- * Load the required core content — topics, the confidence interval methods, data providers,
- * value types, units and comparator methods a publisher chooses from, and the classifications
- * an indicator is tagged with — from the committed data files. This is permanent content every
- * environment needs, so unlike the dummy seed it carries no environment gate, and it is
- * idempotent: the upserts key on stable ids, re-runs are no-ops, and rows absent from a file are
- * reported rather than deleted. Future core reference or content data joins this function
- * rather than growing new commands.
+ * Load the permanent content and upload reference catalogs every environment needs.
+ * Idempotent upserts report rows absent from the files and record nothing in the audit log.
+ * Future core reference or content data joins this function.
  */
 export async function importCoreData(sql: postgres.Sql): Promise<CoreDataImport> {
   // Every file is read first, so a bad one fails before anything is written.
@@ -84,9 +93,13 @@ export async function importCoreData(sql: postgres.Sql): Promise<CoreDataImport>
     'comparator methods',
     readJson(comparatorMethodsFile),
   );
+  const referenceRecords = readReferenceData();
+  const geographyManifest = readGeographyManifest();
   const db = createDbFromClient(sql);
 
   return {
+    references: await importReferenceCoreData(sql, referenceRecords),
+    geography: await importGeographyCoreData(sql, geographyManifest),
     topics: await upsertTopics(db, topicRecords),
     subtopics: await upsertSubtopics(db, subtopicRecords),
     ciMethods: await upsertCiMethods(db, ciMethodRecords),
@@ -178,4 +191,5 @@ export async function assertCoreDataPresent(sql: postgres.Sql): Promise<void> {
       );
     }
   }
+  await assertReferenceCoreDataPresent(sql);
 }

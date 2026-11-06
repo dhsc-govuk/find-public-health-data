@@ -130,7 +130,26 @@ export async function importCoreData({ sql, logger }: CommandContext): Promise<v
     valueTypes,
     units,
     comparatorMethods,
+    references,
+    geography,
   } = await importCoreDataFromFiles(sql);
+  for (const [table, { summary, orphaned }] of Object.entries(geography)) {
+    logger.info({ table, ...summary }, 'Geography core data imported');
+    if (orphaned > 0)
+      logger.warn(
+        { table, count: orphaned },
+        'Geography rows absent from the core file; left in place',
+      );
+  }
+  for (const [table, { summary, orphaned }] of Object.entries(references)) {
+    logger.info({ ...summary }, `${table} imported`);
+    for (const row of orphaned) {
+      logger.warn(
+        { table, id: row.id, entryName: row.name },
+        'Reference in the database but absent from the core file; left in place',
+      );
+    }
+  }
   logger.info({ ...topics.summary }, 'Topics imported');
   logger.info({ ...subtopics.summary }, 'Subtopics imported');
   for (const row of subtopics.orphaned)

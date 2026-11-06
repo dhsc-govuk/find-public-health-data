@@ -1,0 +1,1379 @@
+[
+  {
+    "id": "019de0d5-c800-700a-8000-000000000002",
+    "name": "Sex",
+    "dimensionClass": "core",
+    "classificationScheme": "NHS-DD",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": true
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000004",
+    "name": "Age",
+    "dimensionClass": "core",
+    "classificationScheme": null,
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": true
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d2",
+    "name": "General Practice deprivation deciles in England (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d4",
+    "name": "County & UA deprivation deciles in England (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d6",
+    "name": "District & UA deprivation deciles in England (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d8",
+    "name": "Ethnic groups [4]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-7cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007da",
+    "name": "Limits for SII regression charts",
+    "dimensionClass": "demographic",
+    "classificationScheme": "sii-limits",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007dc",
+    "name": "LSOA11 deprivation quintiles in England (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007de",
+    "name": "Sexuality - 4 categories",
+    "dimensionClass": "inequality",
+    "classificationScheme": "sexuality-4cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e0",
+    "name": "CCG deprivation deciles in England (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e2",
+    "name": "LSOA11 deprivation deciles within area (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e4",
+    "name": "LSOA11 deprivation quintile within area (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e6",
+    "name": "CCG cluster shapes",
+    "dimensionClass": "demographic",
+    "classificationScheme": "cluster-shapes",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e8",
+    "name": "GP cluster shapes",
+    "dimensionClass": "demographic",
+    "classificationScheme": "cluster-shapes",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007ea",
+    "name": "Better care fund areas",
+    "dimensionClass": "demographic",
+    "classificationScheme": "bcf-areas",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007ec",
+    "name": "HIV Infection groups",
+    "dimensionClass": "clinical",
+    "classificationScheme": "hiv-infection",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007ee",
+    "name": "Ethnic groups [15]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "binary",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f0",
+    "name": "Ethnic groups [16]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-6cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f2",
+    "name": "Ethnic groups [17]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-17cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f4",
+    "name": "Ethnic groups [18]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-18cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f6",
+    "name": "Religion - 8 categories",
+    "dimensionClass": "inequality",
+    "classificationScheme": "religion-8cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f8",
+    "name": "Religion - 9 categories",
+    "dimensionClass": "inequality",
+    "classificationScheme": "religion-9cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007fa",
+    "name": "Household composition",
+    "dimensionClass": "demographic",
+    "classificationScheme": "household-composition",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007fc",
+    "name": "Client group",
+    "dimensionClass": "demographic",
+    "classificationScheme": "client-group",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007fe",
+    "name": "Tenure [23]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "tenure",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000800",
+    "name": "Sexuality",
+    "dimensionClass": "inequality",
+    "classificationScheme": "sexuality-default",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000802",
+    "name": "Working status [25]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "working-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000804",
+    "name": "Rurality [26]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "rurality",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000806",
+    "name": "Disability [27]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "disability-2cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000808",
+    "name": "LSOA11 deprivation quintiles within area - bottom- middle 3 - top (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080a",
+    "name": "Ethnic groups (w/o unknown)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-5cat-excl",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080c",
+    "name": "Country of birth [30]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "country-of-birth",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080e",
+    "name": "LSOA01 deprivation deciles within areas (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000810",
+    "name": "Socioeconomic class [32]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "sec",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000812",
+    "name": "Ethnic groups [33]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-5cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000814",
+    "name": "Employment type",
+    "dimensionClass": "demographic",
+    "classificationScheme": "employment-type",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000816",
+    "name": "IMD2010 - Employment domain",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000818",
+    "name": "Health status",
+    "dimensionClass": "demographic",
+    "classificationScheme": "health-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081a",
+    "name": "Survey response",
+    "dimensionClass": "demographic",
+    "classificationScheme": "survey-response",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081c",
+    "name": "General Practice deprivation deciles in England (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081e",
+    "name": "County & UA deprivation deciles in England (IMD2015, pre 4/19 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000820",
+    "name": "District & UA deprivation deciles in England (IMD2015, pre 4/19 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000822",
+    "name": "LSOA11 deprivation quintiles in England (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000824",
+    "name": "Exposure groups",
+    "dimensionClass": "clinical",
+    "classificationScheme": "exposure-group",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000826",
+    "name": "Ethnic groups [43]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-3cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000828",
+    "name": "LSOA11 deprivation deciles in England (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000082a",
+    "name": "First language status",
+    "dimensionClass": "demographic",
+    "classificationScheme": "first-language",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000082c",
+    "name": "Special educational needs (SEN) status",
+    "dimensionClass": "demographic",
+    "classificationScheme": "sen-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000082e",
+    "name": "Month born",
+    "dimensionClass": "demographic",
+    "classificationScheme": "month-born",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000830",
+    "name": "LSOA11 deprivation deciles within area (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000832",
+    "name": "Ethnic groups [49]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-12cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000834",
+    "name": "LSOA11 deprivation quintile within area (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000836",
+    "name": "Ethnic groups [51]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-9cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000838",
+    "name": "Country of birth [52]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "country-of-birth",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000083a",
+    "name": "Working status [53]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "working-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000083c",
+    "name": "Support Setting",
+    "dimensionClass": "demographic",
+    "classificationScheme": "support-setting",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000083e",
+    "name": "Mechanism of delivery",
+    "dimensionClass": "demographic",
+    "classificationScheme": "delivery-mechanism",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000840",
+    "name": "Service user full cost client",
+    "dimensionClass": "demographic",
+    "classificationScheme": "full-cost-client",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000842",
+    "name": "Primary support reason",
+    "dimensionClass": "demographic",
+    "classificationScheme": "primary-support",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000844",
+    "name": "Sexuality - 2 categories",
+    "dimensionClass": "inequality",
+    "classificationScheme": "sexuality-2cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000846",
+    "name": "Socioeconomic group (18-64 yrs)",
+    "dimensionClass": "demographic",
+    "classificationScheme": "seg",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000850",
+    "name": "Decile boundaries",
+    "dimensionClass": "inequality",
+    "classificationScheme": "decile-boundaries",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000854",
+    "name": "County & UA deprivation quintiles in England (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000085e",
+    "name": "LSOA11 deprivation deciles within area (IMD trend)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD-trend",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000886",
+    "name": "LSOA11 deprivation deciles within area (IDACI)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IDACI",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000888",
+    "name": "Low intensity therapies",
+    "dimensionClass": "clinical",
+    "classificationScheme": "iapt-low-intensity",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000088a",
+    "name": "High intensity therapies",
+    "dimensionClass": "clinical",
+    "classificationScheme": "iapt-high-intensity",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000088c",
+    "name": "Problem descriptor",
+    "dimensionClass": "demographic",
+    "classificationScheme": "problem-descriptor",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000088e",
+    "name": "Disability [95]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "disability-alt",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000089c",
+    "name": "Long term condition",
+    "dimensionClass": "clinical",
+    "classificationScheme": "ltc",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000089e",
+    "name": "Eligibility for free school meals",
+    "dimensionClass": "demographic",
+    "classificationScheme": "fsm",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a2",
+    "name": "County & UA deprivation deciles in England (IMD2015, 4/19 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a6",
+    "name": "District & UA deprivation deciles in England (IMD2015, 4/19 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a8",
+    "name": "Level of education",
+    "dimensionClass": "demographic",
+    "classificationScheme": "education-level",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008aa",
+    "name": "Ex-British Armed Forces and dependants",
+    "dimensionClass": "demographic",
+    "classificationScheme": "armed-forces",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ac",
+    "name": "Ethnic groups [110]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "NHS-5cat-excl",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ae",
+    "name": "Ethnic groups [111]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "NHS-6cat-incl",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b0",
+    "name": "Religion",
+    "dimensionClass": "inequality",
+    "classificationScheme": "religion-default",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b2",
+    "name": "County & UA deprivation deciles in England (IMD2019, 4/19 and 4/20 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b4",
+    "name": "District & UA deprivation deciles in England (IMD2019, 4/19 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b6",
+    "name": "LSOA11 deprivation deciles in England (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b8",
+    "name": "LSOA11 deprivation deciles within area (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ba",
+    "name": "LSOA11 deprivation quintiles in England (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008bc",
+    "name": "LSOA11 deprivation quintile within area (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008c6",
+    "name": "County & UA deprivation quintile (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008c8",
+    "name": "General Practice deprivation deciles in England (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ca",
+    "name": "Socioeconomic class [125]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "sec",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008cc",
+    "name": "Marital status - detailed",
+    "dimensionClass": "demographic",
+    "classificationScheme": "marital-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ce",
+    "name": "Marital status",
+    "dimensionClass": "demographic",
+    "classificationScheme": "marital-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d0",
+    "name": "School year group",
+    "dimensionClass": "demographic",
+    "classificationScheme": "school-year",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d2",
+    "name": "Ethnic groups [129]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-4cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d4",
+    "name": "Age of mother [130]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "age-of-mother",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d6",
+    "name": "Complex social factors (mother)",
+    "dimensionClass": "demographic",
+    "classificationScheme": "complex-social",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d8",
+    "name": "Prematurity",
+    "dimensionClass": "demographic",
+    "classificationScheme": "prematurity",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008da",
+    "name": "First or subsequent pregnancy",
+    "dimensionClass": "demographic",
+    "classificationScheme": "parity",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008de",
+    "name": "District & UA deprivation deciles in England (IMD2019, 4/20 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008e0",
+    "name": "School year",
+    "dimensionClass": "demographic",
+    "classificationScheme": "school-year",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008e2",
+    "name": "Housing tenure",
+    "dimensionClass": "demographic",
+    "classificationScheme": "housing-tenure",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008e8",
+    "name": "Ethnic groups [140]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-5cat-alt",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ea",
+    "name": "Rurality [141]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "rurality",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ec",
+    "name": "Sexuality 3grps + unknown",
+    "dimensionClass": "inequality",
+    "classificationScheme": "sexuality-3cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ee",
+    "name": "Working status [143]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "working-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008f4",
+    "name": "County & UA deprivation deciles in England (IMD2019, 4/21 geography)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fa",
+    "name": "District & UA deprivation deciles in England (IMD2019, 4/21 geography)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fc",
+    "name": "Status in geographical hierarchy",
+    "dimensionClass": "demographic",
+    "classificationScheme": "geo-hierarchy-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fe",
+    "name": "Age of mother [151]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "age-of-mother",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000900",
+    "name": "Ethnic groups [152]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-19cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000902",
+    "name": "LSOA11 deprivation deciles in England (IMD2010)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2010",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000904",
+    "name": "Ethnic groups (w unknown)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-16cat-incl",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000906",
+    "name": "Ethnic groups [155]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-11cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000908",
+    "name": "CCG deprivation deciles in England (IMD2019, 2021 CCGs)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000090c",
+    "name": "LSOA11 deprivation quintiles within area (IMD trend)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD-trend",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000910",
+    "name": "County & UA deprivation deciles in England (IMD2019, 4/23 geography)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000916",
+    "name": "District & UA deprivation deciles in England (IMD2019, 4/23 geography)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000918",
+    "name": "Birth status",
+    "dimensionClass": "demographic",
+    "classificationScheme": "birth-status",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000091a",
+    "name": "Tenure [165]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "tenure",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000091c",
+    "name": "SEN primary need (DfE) [166]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "sen-primary-need",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000924",
+    "name": "County & UA deprivation deciles in England (IMD2025, 4/23 geography)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000092a",
+    "name": "District & UA deprivation deciles in England (IMD2025, 4/23 geography)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000934",
+    "name": "Free School Meals",
+    "dimensionClass": "demographic",
+    "classificationScheme": "fsm",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000936",
+    "name": "Phase type grouping",
+    "dimensionClass": "clinical",
+    "classificationScheme": "phase-type",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000938",
+    "name": "Pregnancy type",
+    "dimensionClass": "demographic",
+    "classificationScheme": "pregnancy-type",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000093a",
+    "name": "Condition",
+    "dimensionClass": "clinical",
+    "classificationScheme": "condition",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000095a",
+    "name": "LSOA21 deprivation deciles within area (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000097c",
+    "name": "LSOA21 deprivation deciles within area (IMD trend)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD-trend",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000097e",
+    "name": "LSOA21 deprivation deciles within area (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000982",
+    "name": "LSOA21 deprivation quintiles within area (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000984",
+    "name": "LSOA21 deprivation quintiles within area (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000986",
+    "name": "LSOA21 deprivation quintiles within area (IMD trend)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD-trend",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000988",
+    "name": "LSOA21 deprivation deciles in England (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000098a",
+    "name": "LSOA21 deprivation deciles in England (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000098e",
+    "name": "LSOA21 deprivation quintiles in England (IMD2015)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000990",
+    "name": "LSOA21 deprivation quintiles in England (IMD2019)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2019",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000992",
+    "name": "Reasons for economic inactivity",
+    "dimensionClass": "demographic",
+    "classificationScheme": "economic-inactivity",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000994",
+    "name": "Child body mass index (BMI)",
+    "dimensionClass": "demographic",
+    "classificationScheme": "bmi-child",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000996",
+    "name": "Gambling premises",
+    "dimensionClass": "demographic",
+    "classificationScheme": "gambling-premises",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000998",
+    "name": "Ethnic groups [228]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "ONS-2021-6cat",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099a",
+    "name": "Birthweight",
+    "dimensionClass": "demographic",
+    "classificationScheme": "birthweight",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099c",
+    "name": "Severe mental illnesses",
+    "dimensionClass": "clinical",
+    "classificationScheme": "smi",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099e",
+    "name": "LSOA21 deprivation deciles within area (IMD2025)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a0",
+    "name": "LSOA21 deprivation quintiles within area (IMD2025)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a2",
+    "name": "LSOA21 deprivation deciles in England (IMD2025)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a4",
+    "name": "LSOA21 deprivation quintiles in England (IMD2025)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "quintiles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a6",
+    "name": "Socioeconomic group",
+    "dimensionClass": "demographic",
+    "classificationScheme": "seg",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009ac",
+    "name": "Pregnant quitters",
+    "dimensionClass": "demographic",
+    "classificationScheme": "pregnant-quitters",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009ae",
+    "name": "Free prescriptions",
+    "dimensionClass": "demographic",
+    "classificationScheme": "free-prescriptions",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b0",
+    "name": "Intervention type",
+    "dimensionClass": "clinical",
+    "classificationScheme": "intervention-type",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b2",
+    "name": "Intervention setting",
+    "dimensionClass": "clinical",
+    "classificationScheme": "intervention-setting",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b4",
+    "name": "Smoking aid",
+    "dimensionClass": "demographic",
+    "classificationScheme": "smoking-aid",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b8",
+    "name": "General Practice deprivation deciles in England (IMD2025)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2025",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009bc",
+    "name": "SEN primary need (DfE) [246]",
+    "dimensionClass": "demographic",
+    "classificationScheme": "sen-primary-need",
+    "granularity": null,
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009be",
+    "name": "County & UA deprivation deciles in England (IMD2015, 4/23 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009c0",
+    "name": "District & UA deprivation deciles in England (IMD2015, 4/23 geog.)",
+    "dimensionClass": "inequality",
+    "classificationScheme": "IMD2015",
+    "granularity": "deciles",
+    "schemeVersion": null,
+    "isRequired": false
+  }
+]

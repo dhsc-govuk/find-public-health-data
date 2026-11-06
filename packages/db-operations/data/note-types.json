@@ -1,0 +1,1177 @@
+[
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000c8",
+    "text": "Disclosure control applied",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000ca",
+    "text": "Value suppressed for disclosure control due to small count",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000cc",
+    "text": "Value suppressed for disclosure control due to small denominator",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000ce",
+    "text": "Value suppressed to avoid disclosure by differencing",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000d0",
+    "text": "Value for Cornwall and Isles of Scilly combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000d2",
+    "text": "Value for Hackney and City of London combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000d4",
+    "text": "Value for Leicestershire and Rutland combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000d6",
+    "text": "Value for Braintree and Uttlesford combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000d8",
+    "text": "Value for Brentwood and Epping Forest combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000da",
+    "text": "Value for Chelmsford and Maldon combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000dc",
+    "text": "Value for Rochford and Castle Point combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000de",
+    "text": "Value for Somerset county council",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000e0",
+    "text": "Value for Leicester and Rutland combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000e2",
+    "text": "Value for Cheshire East and Cheshire West and Chester combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000e4",
+    "text": "Value for Bedford and Central Bedfordshire combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000e6",
+    "text": "Value for all areas in the region combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000e8",
+    "text": "Value for Westminster and City of London combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000ea",
+    "text": "Value for NHS Sub-regions Lancashire and Greater Manchester combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000ec",
+    "text": "Value for East Dorset and Christchurch combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000ee",
+    "text": "Value for Worthing and Adur combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000f0",
+    "text": "Value for North East Derbyshire and Bolsover combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000f2",
+    "text": "Value for Bury and Rochdale combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000f4",
+    "text": "Value for Cheshire West and Chester, Halton and Warrington combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000f6",
+    "text": "Value for Bournemouth, Dorset and Poole combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000f8",
+    "text": "Value for Kingston upon Thames and Richmond upon Thames combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000fa",
+    "text": "Value for Middlesbrough and Redcar and Cleveland combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000fc",
+    "text": "Value for Tower Hamlets and City of London combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000000fe",
+    "text": "Value for Herefordshire, County of, Shropshire, Worcestershire and Telford and Wrekin combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000100",
+    "text": "Value suppressed for disclosure control reasons",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000102",
+    "text": "Value for Hammersmith and Fulham, Kensington and Chelsea, and Westminster combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000104",
+    "text": "Value for Gloucestershire and South Gloucestershire",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000106",
+    "text": "Value for former Hinchingbrooke Health Care and Peterborough and Stamford Hospitals NHS Trusts combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000108",
+    "text": "Value for Hinchingbrooke Health Care NHS Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000010a",
+    "text": "Value for Peterborough and Stamford Hospitals NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000010c",
+    "text": "Value for former Central Manchester University Hospitals and University Hospital of South Manchester NHS Foundation Trusts combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000010e",
+    "text": "Value for Central Manchester University Hospitals NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000110",
+    "text": "Value for University Hospital of South Manchester NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000112",
+    "text": "Value for former Heart of England NHS Foundation Trust and University Hospitals Birmingham NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000114",
+    "text": "Value for Heart of England NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000116",
+    "text": "Value for University Hospitals Birmingham NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000118",
+    "text": "Value for former Derby Teaching Hospitals NHS Foundation Trust and Burton Hospitals NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000011a",
+    "text": "Value Derby Teaching Hospitals NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000011c",
+    "text": "Value for Burton Hospitals NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000011e",
+    "text": "Value for former Colchester Hospital University NHS Foundation Trust and Ipswich Hospital NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000120",
+    "text": "Value Colchester Hospital University NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000122",
+    "text": "Value for Ipswich Hospital NHS Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000124",
+    "text": "Value randomly changed by a number between 1 and 5 for disclosure control",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000126",
+    "text": "Value for Dorset and Poole combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000128",
+    "text": "Value for Herefordshire, County of and Worcestershire combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000012a",
+    "text": "Value for Trafford and Salford combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000012c",
+    "text": "Value suppressed. Please check the indicators associated with this summary rank to find the reason(s) for suppression.",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000012e",
+    "text": "Value has had disclosure control applied and/or there are data quality issues with the underlying indicators. Please check the indicators associated with this summary rank to find the reason(s) for this.",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000130",
+    "text": "Value for Hounslow and Richmond upon Thames combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000132",
+    "text": "Value for Dorset, Bournemouth, Christchurch and Poole combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000134",
+    "text": "Value cannot be calculated as disclosure control for small count was applied to one or both components",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000136",
+    "text": "Value for Cheshire East, Cheshire West and Chester, Halton and Warrington combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000138",
+    "text": "Value for Bromsgrove, Malvern Hills, Redditch, Worcester, Wychavon and Wyre Forest combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000013a",
+    "text": "Value for Merton and Sutton combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000013c",
+    "text": "Value for West Berkshire, Wokingham and Bracknell Forest combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000013e",
+    "text": "Value for West and North Northamptonshire combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000140",
+    "text": "Value for Western Sussex Hospitals NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000142",
+    "text": "Value for former Western Sussex Hospitals NHS Foundation Trust and Brighton and Sussex University Hospitals NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000144",
+    "text": "Value presented but numerator and denominator suppressed for disclosure control due to small denominator",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000146",
+    "text": "Value presented but numerator and denominator suppressed to avoid disclosure by differencing",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000148",
+    "text": "Value available for the former county of Northamptonshire only",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000014a",
+    "text": "Value for Knowsley and Liverpool combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000014c",
+    "text": "Value for Brent and Harrow combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000014e",
+    "text": "Value for Bromsgrove, Redditch, Malvern Hills, Worcester City, Wychavon and Wyre Forest combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000150",
+    "text": "Value for North Yorkshire Cty applied to North Yorkshire UA",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000152",
+    "text": "Value for Somerset Cty applied to Somerset UA",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000154",
+    "text": "Value for former Yeovil District Hospital NHS Foundation Trust and Somerset NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000156",
+    "text": "Value for former Northern Devon Healthcare NHS Trust and Royal Devon and Exeter NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000158",
+    "text": "Value for combined Manchester University NHS Foundation Trust and 1/3 of former Pennine Acute Hospitals NHS Trust",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000015a",
+    "text": "Value for combined Salford Royal NHS Foundation Trust and 2/3 of former Pennine Acute Hospitals NHS Trust",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000015c",
+    "text": "Value for St Helens and Knowsley Teaching Hospitals NHS Trust and Southport and Ormskirk Hospital NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000015e",
+    "text": "Value suppressed as denominator age group count is too small to produce a reliable DSR",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000160",
+    "text": "Value for Hartlepool and Stockton-on-Tees combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000162",
+    "text": "Value for North Lincolnshire and North East Lincolnshire combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000164",
+    "text": "Value for Norfolk and Southend-on-Sea combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000166",
+    "text": "Value for Coventry and Dudley combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000168",
+    "text": "Value for Cornwall and Isles of Scilly combined. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000016e",
+    "text": "Value for Northamptonshire Cty applied to West Northamptonshire UA",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000170",
+    "text": "Denominators have been rounded where data from a single GP has been suppressed to prevent deductive disclosure",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000172",
+    "text": "Value for successor ICB sub-location applied to this area",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000174",
+    "text": "Value for successor ICB applied to this area",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000176",
+    "text": "Value for successor NHS region applied to this area",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000190",
+    "text": "Value estimated",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000192",
+    "text": "Value for Inner London boroughs combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000194",
+    "text": "Value for Outer London boroughs combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000196",
+    "text": "Value for the former metropolitan county of Greater Manchester",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000198",
+    "text": "Value for the former metropolitan county of Merseyside",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000019a",
+    "text": "Value for the former metropolitan county of South Yorkshire",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000019c",
+    "text": "Value for the former metropolitan county of Tyne and Wear",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000019e",
+    "text": "Value for the former metropolitan county of West Midlands",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001a0",
+    "text": "Value for the former metropolitan county of West Yorkshire",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001a2",
+    "text": "Value for the former primary care organisation in which the LA lies",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001a4",
+    "text": "Value estimated from former primary care organisations covered by the LA",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001a6",
+    "text": "Value is modelled or synthetic estimate",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001a8",
+    "text": "Value for the CCG in which the LA lies",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001aa",
+    "text": "Value estimated from CCGs covered by the LA",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001ac",
+    "text": "Value based on count rounded up to the nearest 5",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001ae",
+    "text": "Value for the LA constituting ‘best match’ for this CCG",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001b0",
+    "text": "Annual figure scaled up from three quarters’ data",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001b2",
+    "text": "Annual figure includes constituent area(s) with annual figure scaled up data from three quarters’ data",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001b4",
+    "text": "Some practices opted out of QOF and value may be based on incomplete data",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001b6",
+    "text": "Value includes estimated data for some constituent area(s)",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001b8",
+    "text": "Value based on an average of monthly counts",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001ba",
+    "text": "Value based on denominator rounded up to the nearest 5",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001bc",
+    "text": "Value for the community safety partnership in which the LA lies",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001be",
+    "text": "Ward value has been estimated from MSOA data",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001c0",
+    "text": "CCG value has been estimated from MSOA data",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001c2",
+    "text": "Due to boundary changes, historical values should be treated as estimates",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001c4",
+    "text": "LAs are allocated the rate of the police force area within which they sit",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001c6",
+    "text": "Value for The Christchurch Medical Centre prior to practice merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001c8",
+    "text": "Value derived from monthly figures where counts < 5 were suppressed, and all other counts rounded to the nearest 5",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001ca",
+    "text": "Interpret with caution - see Notes section in Definitions for details",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001cc",
+    "text": "Value calculated from a Count that has been rounded to the nearest 5",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001ce",
+    "text": "Value based on count rounded to the nearest 5",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001d0",
+    "text": "Value suppressed as sample size was too small to produce a reliable estimate",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001d2",
+    "text": "Value based on April 2023 data, as there were no data available for March 2023 for this geography",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001d4",
+    "text": "Data for ICBs aggregated from local authority values. Where ICB boundaries are not co-terminous with LA boundaries ICB values are estimated",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001d6",
+    "text": "Value is modelled or synthetic estimate. Confidence intervals could not be calculated",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001d8",
+    "text": "Value based on provisional population data",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000001da",
+    "text": "Value based on provisional mortality and population data",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000258",
+    "text": "Value missing",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000025a",
+    "text": "Value not published for data quality reasons",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000025c",
+    "text": "Value cannot be calculated as number of cases is too small",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000025e",
+    "text": "Value missing in source data",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000260",
+    "text": "Value missing due to small sample size",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000262",
+    "text": "Value suppressed due to incompleteness of source data",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000264",
+    "text": "Confidence intervals could not be calculated",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000266",
+    "text": "Value not available as there is no universal TB programme in this area",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000268",
+    "text": "Summary rank could not be calculated as data are not available for all component indicators",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000026a",
+    "text": "Value not available as there is no state-funded secondary school in this area",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000026c",
+    "text": "Data removed, awaiting new census based population",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000026e",
+    "text": "Value for related Primary Care Network (PCN) missing",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000270",
+    "text": "Value not published due to a data reporting error. See Notes section in Definitions for details",
+    "category": "methodological"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000272",
+    "text": "Value not calculated due to ONS best fit ward methods",
+    "category": "methodological"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000320",
+    "text": "Data quality note",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000322",
+    "text": "There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000324",
+    "text": "Value based on effective sample size <100",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000326",
+    "text": "Value excludes contribution from areas with suppressed values",
+    "category": "disclosure"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000328",
+    "text": "Value was corrected",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000032a",
+    "text": "Value for resident population",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000032c",
+    "text": "Value for GP registered population",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000032e",
+    "text": "Data quality issue due to low testing in at least one of the last four quarters",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000330",
+    "text": "Data quality issue due to low reporting in at least one of the last four quarters",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000332",
+    "text": "There is a data quality issue with this value. Area is in formal performance measures.",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000334",
+    "text": "Value over 100% - see metadata for caveat",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000336",
+    "text": "Data revised after the end of CQUIN scheme",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000338",
+    "text": "Data has been disputed",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000033a",
+    "text": "There is a data quality issue with this value. Potential underestimate of the value due to double counting of patients in QOF",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000033c",
+    "text": "Not presented due to East Sussex Healthcare Trust erroneously removing diagnosis codes from approximately 85,000 HES records in 2018/19. In 2018/19, over 10% of hospital patients from this area had records with missing diagnosis codes",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000033e",
+    "text": "Should be treated with caution due to East Sussex Healthcare Trust erroneously removing diagnosis codes from approximately 85,000 HES records in 2018/19. In 2018/19, between 1% and 10% of hospital patients from this area had records with missing diagnosis codes",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000340",
+    "text": "Should be treated with caution, as it contains areas for which values have not been presented due to East Sussex Healthcare Trust erroneously removing diagnosis codes from approximately 85,000 HES records in 2018/19",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000342",
+    "text": "Value based on effective sample size <100 and has a data quality issue",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000344",
+    "text": "Value for Bucks County applied to Bucks UA",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000346",
+    "text": "Data for 2019/20 is underrepresented due to paused measurements in March 2020 - see metadata for details",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000348",
+    "text": "There is a data quality issue with this value. Potential overestimate of the value due to double counting of patients in QOF",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000034a",
+    "text": "Value excludes contribution from areas with missing data",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000034c",
+    "text": "Value may be inflated due to potential duplicate reporting between online and physical reporters",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000034e",
+    "text": "Not presented due to Frimley Health Foundation Trust not submitting any HES data for June 2022 to March 2023. In 2021/22, over 10% of hospital patients from this area were treated at Frimley Health Foundation Trust",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000350",
+    "text": "Should be treated with caution due to Frimley Health Foundation Trust not submitting any HES data for June 2022 to March 2023. In 2021/22, between 1% and 10% of hospital patients from this area were treated at Frimley Health Foundation Trust",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000352",
+    "text": "Should be treated with caution, as it contains areas for which values have not been presented due to Frimley Health Foundation Trust not submitting any HES data for June 2022 to March 2023",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000354",
+    "text": "Denominator too small for meaningful comparisons",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000356",
+    "text": "Value is an underestimate - check Data view > Definitions for details",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000358",
+    "text": "Interpret this figure with caution as it is based on low coverage - see caveats in Data view > Definitions for details",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000035a",
+    "text": "Value for pre-2014 area boundaries applied to post-2014 footprint",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000035c",
+    "text": "Placeholder",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000035e",
+    "text": "Value for Cumbria Cty applied to Cumberland UA. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000360",
+    "text": "Value for Cumbria Cty applied to Westmorland and Furness UA. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000362",
+    "text": "Value for Northamptonshire Cty applied to North Northamptonshire UA. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000364",
+    "text": "Value for Northamptonshire Cty applied to West Northamptonshire UA. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000366",
+    "text": "Value for North Yorkshire Cty applied to North Yorkshire UA. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000368",
+    "text": "Value for Somerset Cty applied to Somerset UA. There is a data quality issue with this value",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000036a",
+    "text": "People aged 75 and over are excluded from NS-SeC (National Statistics Socio-economic Classification) economic activity questions in the Active Lives Adult Survey",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003e8",
+    "text": "Aggregated from all known lower geography values",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003ea",
+    "text": "Aggregated from values for merged CCGs",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003ec",
+    "text": "Estimate based on values for merged CCGs",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003ee",
+    "text": "Trust participated in a different mandatory orthopaedic category",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003f0",
+    "text": "Trust did not undertake mandatory surveillance in an orthopaedic category",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003f2",
+    "text": "Trust exempt from mandatory orthopaedic SSI surveillance",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003f6",
+    "text": "Value for Chelsea and Westminster Hospital NHS Foundation Trust and former West Middlesex University Hospital NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003f8",
+    "text": "This organisation has closed and its cases have been redistributed",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003fa",
+    "text": "Value for former Birmingham Women's and Birmingham Children's NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003fc",
+    "text": "Value for Cumbria CCG (pre April 2017 boundaries)",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-0000000003fe",
+    "text": "Value is a population weighted average (2015 MYE, persons, all ages) over contributing pre April 2017 CCG areas",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000400",
+    "text": "Value for CCG before April 2017 boundary change applied",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000402",
+    "text": "Not presented due to Nottingham University Hospitals Trust coding over 30% of HES records without valid geography of residence in 2016/17. In 2015/16, over 20% of hospital patients from this area were treated at Nottingham University Hospitals Trust",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000404",
+    "text": "Should be treated with caution due to Nottingham University Hospitals Trust coding over 30% of HES records without valid geography of residence in 2016/17. In 2015/16, between 10% and 20% of hospital patients from this area were treated at Nottingham University Hospitals Trust",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000406",
+    "text": "Should be treated with caution, as it contains areas for which values have not been presented due to Nottingham University Hospitals Trust coding over 30% of HES records without valid geography of residence in 2016/17",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000408",
+    "text": "Gap in favour of women",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000040a",
+    "text": "Aggregated from values for merged STPs",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000040c",
+    "text": "Aggregated from values for merged local authorities",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000040e",
+    "text": "Due to an issue with HES coding in Nottingham University Hospitals Trust in 2016/17, for which over 30% of records did not have a valid geography of residence assigned, this value should be treated with caution",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000410",
+    "text": "Gap in favour of women. There is a data quality issue with this value.",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000412",
+    "text": "Value for CCG based on the GPs belonging to the CCG since boundary change April 2019",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000414",
+    "text": "GP has changed CCG - see metadata for caveat",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000416",
+    "text": "Data provided by Trust to PHE",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000418",
+    "text": "Estimate based on values for superseded local authorities",
+    "category": "estimation"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000041c",
+    "text": "Value for former Aintree University Hospital NHS Foundation Trust and Royal Liverpool and Broadgreen University Hospitals NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000041e",
+    "text": "Value for Aintree University Hospital NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000420",
+    "text": "Value for former Cumbria Partnership NHS Foundation Trust and North Cumbria University Hospitals NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000422",
+    "text": "Value for Cumbria Partnership NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000424",
+    "text": "Value for former Taunton and Somerset NHS Foundation Trust and Somerset Partnership NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000426",
+    "text": "Value for Somerset Partnership NHS Foundation Trust prior to Trust merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000428",
+    "text": "Value for former Luton and Dunstable University Hospital NHS Foundation Trust and Bedford Hospital NHS Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000042a",
+    "text": "Value for Luton and Dunstable University Hospital NHS Foundation Trust prior to merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000042c",
+    "text": "Value for former Weston Area Health NHS Trust and University Hospitals Bristol NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000042e",
+    "text": "Value for University Hospitals Bristol NHS Foundation Trust prior to merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000430",
+    "text": "Value for former Mid Essex Hospital Services NHS Trust, Southend University Hospital NHS Foundation Trust and Basildon and Thurrock University Hospitals NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000432",
+    "text": "Value for Southend University Hospital NHS Foundation Trust prior to merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000434",
+    "text": "Value for former Royal Brompton and Harefield NHS Foundation Trust and Guy’s and St Thomas’ NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000436",
+    "text": "Value for Guy's and St Thomas' NHS Foundation Trust prior to merger",
+    "category": "geographic"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000438",
+    "text": "Value for former North Middlesex University Hospital NHS Trust and Royal Free London NHS Foundation Trust combined",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000044c",
+    "text": "Quintile 5 - Among the lowest 20% of compared areas",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000044e",
+    "text": "Quintile 4 - Among the second lowest 20% of compared areas",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000450",
+    "text": "Quintile 3 - Among the middle 20% of compared areas",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000452",
+    "text": "Quintile 2 - Among the second highest 20% of compared areas",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000454",
+    "text": "Quintile 1 - Among the highest 20% of compared areas",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000456",
+    "text": "Extreme outlier suppressed for data presentation purposes",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000458",
+    "text": "Value available for the former county of Cumbria only",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000045a",
+    "text": "Deprivation quintiles/deciles could not be assigned as there are fewer small areas than the number of quintiles/deciles",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000045e",
+    "text": "Value for the former STP Cambridgeshire and Peterborough",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000460",
+    "text": "Value for the former STP Northamptonshire",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000462",
+    "text": "Value for the former STP Birmingham and Solihull",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000464",
+    "text": "Value for the former STP The Black Country and West Birmingham",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000466",
+    "text": "Value for the former STP Nottingham and Nottinghamshire Health and Care",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000468",
+    "text": "Value for the former STP Joined Up Care Derbyshire",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000046a",
+    "text": "Value for the former STP South Yorkshire and Bassetlaw",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000046c",
+    "text": "Value for the former STP Greater Manchester Health and Social Care Partnership",
+    "category": "contextual"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-00000000046e",
+    "text": "Changes in local coding practices may have impacted rates. See Definitions for details.",
+    "category": "methodological"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000470",
+    "text": "Data has not been presented for males and females due to a system issue affecting the provider trust. Over 10% of all HES activity in this area has missing values in the sex field.",
+    "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000472",
+    "text": "Data for males and females should be treated with caution due to a system issue affecting the provider trust. Between 1% and 10% of all HES activity in this area has missing values in the sex field.",
+    "category": "quality"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000474",
+    "text": "Data has not been presented for males and females due to a system issue affecting the provider trust. Over 10% of the indicator count in this area has missing values in the sex field.",
+    "category": "missing"
+  }
+]

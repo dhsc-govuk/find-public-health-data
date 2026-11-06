@@ -3,7 +3,7 @@ import type postgres from 'postgres';
 
 import { MIGRATION_USER_ID } from './data-migration-actors.ts';
 import { copyInto, type DataMigrationProgressReporter } from './data-migration-copy.ts';
-import { validateMigrationHeader } from './data-migration-table-import.ts';
+import { validateMigrationHeader } from './data-migration-header.ts';
 
 const { UNPUBLISHED_STATUS_LITERALS } = schema;
 

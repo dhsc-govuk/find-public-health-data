@@ -13,7 +13,7 @@ const nameColumns = {
 } as const;
 
 /** Refuses ambiguous names before rewriting any reference table. */
-export async function tidyReferenceNames(directory: string): Promise<void> {
+export async function tidyReferenceTables(directory: string) {
   const noteAliases = new Map<string, string>();
   for (const [table, column] of Object.entries(nameColumns)) {
     let header: string[] | undefined;
@@ -52,8 +52,7 @@ export async function tidyReferenceNames(directory: string): Promise<void> {
       names.set(key, { id, row: normalised });
     }
   }
-  const path = join(directory, 'source-manifest.json');
-  const manifest = JSON.parse(await readFile(path, 'utf8'));
+  const tables: Record<string, Awaited<ReturnType<typeof fileRecord>>> = {};
   for (const [table, column] of Object.entries(nameColumns)) {
     const file = `${table}.csv.gz`;
     const rows = await transformGzipCsv(join(directory, file), (row, header) => {
@@ -61,8 +60,16 @@ export async function tidyReferenceNames(directory: string): Promise<void> {
         return undefined;
       return row.map((value, index) => (header[index] === column ? tidyName(value) : value));
     });
-    manifest.tables[table] = await fileRecord(join(directory, file), file, rows);
+    tables[table] = await fileRecord(join(directory, file), file, rows);
   }
+  return { tables, noteAliases };
+}
+
+export async function tidyReferenceNames(directory: string): Promise<void> {
+  const path = join(directory, 'source-manifest.json');
+  const manifest = JSON.parse(await readFile(path, 'utf8'));
+  const { tables, noteAliases } = await tidyReferenceTables(directory);
+  Object.assign(manifest.tables, tables);
   if (noteAliases.size > 0) {
     const file = 'observation_note.csv.gz';
     const rows = await transformGzipCsv(join(directory, file), (row, header) =>

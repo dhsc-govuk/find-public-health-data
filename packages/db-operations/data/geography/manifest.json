@@ -1,0 +1,21 @@
+{
+  "source": {
+    "name": "pholio_live_b",
+    "access": "READ_ONLY",
+    "backupSha256": "559a193b3dce6c05c97f3e7460bbcfbfe5cb41063890e841210d8190cd434de1"
+  },
+  "files": {
+    "area": {
+      "file": "area.csv.gz",
+      "rows": 73302,
+      "bytes": 1857279,
+      "sha256": "b5199f16d945970961554c156a9149d7e6d1b70a96327d0ed3b1ba6f3b64ee50"
+    },
+    "area_relationship": {
+      "file": "area_relationship.csv.gz",
+      "rows": 158929,
+      "bytes": 3716387,
+      "sha256": "b88d53169c266f6699ad0ef8ec39424f0db7d31c45a1e7242853785a386facd7"
+    }
+  }
+}

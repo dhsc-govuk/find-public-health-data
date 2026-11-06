@@ -1,0 +1,810 @@
+[
+  {
+    "id": "019de0d5-c800-700c-8000-000000000006",
+    "name": "MSOA",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Middle-layer super output areas",
+    "displayOrder": 5
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000008",
+    "name": "LSOA",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000000c",
+    "name": "Regions (statistical)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Statistical regions",
+    "displayOrder": 2
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000000e",
+    "name": "GPs",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": "GP practices",
+    "displayOrder": 6
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000010",
+    "name": "Electoral Wards (2024)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000012",
+    "name": "Merged Wards",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000014",
+    "name": "Constituencies",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000001c",
+    "name": "Acute Trust",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000001e",
+    "name": "England",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000028",
+    "name": "Mental Health Trust [20]",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000052",
+    "name": "Ambulance Trust",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000054",
+    "name": "PHE Region ",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000056",
+    "name": "NHS regions - obsolete with ICB introduction",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000058",
+    "name": "NHS region",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000005a",
+    "name": "NHS regions - new due to ICB changes",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000005c",
+    "name": "NHS region - local office",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000060",
+    "name": "PHE Centre 2013-2015",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000062",
+    "name": "PHE Centre from 2015",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000064",
+    "name": "PHE Centre from 2013",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000006a",
+    "name": "CCG old 2017",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000006c",
+    "name": "CCG new 2018",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000006e",
+    "name": "CCGs old 2018",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000070",
+    "name": "CCGs unchanged 2021",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000074",
+    "name": "CCGs new 2019",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000076",
+    "name": "CCGs old 2019",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000078",
+    "name": "CCGs new 2020",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000007c",
+    "name": "CCGs old 2020",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000007e",
+    "name": "CCGs new 2021",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000080",
+    "name": "CCGs old 2021",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000082",
+    "name": "CCGs new 2018 old 2021",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000084",
+    "name": "ICB sub-locations",
+    "hierarchyType": "NHS",
+    "level": 2022,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000ca",
+    "name": "Districts & UAs (pre Apr 2019)",
+    "hierarchyType": "Administrative",
+    "level": 2018,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000cc",
+    "name": "Counties & UAs (pre Apr 2019)",
+    "hierarchyType": "Administrative",
+    "level": 2018,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000ce",
+    "name": "PHE Centres (2013)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000d0",
+    "name": "PHE Centres (2015)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000da",
+    "name": "ONS 2001 cluster supergroup",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000dc",
+    "name": "ONS 2001 cluster group",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000de",
+    "name": "ONS 2001 cluster subgroup",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000e0",
+    "name": "Strategic Clinical Network",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000e6",
+    "name": "ONS 2011 group (superseded)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000e8",
+    "name": "ONS 2011 subgroup (superseded)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000ea",
+    "name": "MH and Acute Trust",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000ec",
+    "name": "Acute Trusts",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000ee",
+    "name": "Mental Health Trust [119]",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000f0",
+    "name": "STP (unchanged)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000f2",
+    "name": "AAA Screening Cohort",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000f4",
+    "name": "Bowel Cancer Screening Centres",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000f8",
+    "name": "Newborn Screening Sites",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000fa",
+    "name": "Maternity Services",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000000fc",
+    "name": "Combined authorities",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000102",
+    "name": "Laboratory",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000130",
+    "name": "CCGs (2017/18)",
+    "hierarchyType": "NHS",
+    "level": 2017,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000132",
+    "name": "CCGs (pre 4/2017)",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000134",
+    "name": "CCGs (2018/19)",
+    "hierarchyType": "NHS",
+    "level": 2018,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000138",
+    "name": "ONS 2011 group",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000013a",
+    "name": "ONS 2011 subgroup",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000013c",
+    "name": "Trust type",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000013e",
+    "name": "UK",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000140",
+    "name": "LA unchanged",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Local authorities",
+    "displayOrder": 1
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000142",
+    "name": "LA new 2019",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000144",
+    "name": "LA obsolete 2019",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000146",
+    "name": "LA obsolete 2020",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000148",
+    "name": "LA obsolete 2021",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000014a",
+    "name": "CCGs (2019/20)",
+    "hierarchyType": "NHS",
+    "level": 2019,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000014c",
+    "name": "CCGs (2020/21)",
+    "hierarchyType": "NHS",
+    "level": 2020,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000014e",
+    "name": "CCGs (from Apr 2021)",
+    "hierarchyType": "NHS",
+    "level": 2021,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000150",
+    "name": "LA obsolete 2023",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000152",
+    "name": "LA new 2019 obsolete 2023",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000154",
+    "name": "UA unchanged",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Local authorities",
+    "displayOrder": 1
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000156",
+    "name": "UA new 2019",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000158",
+    "name": "UA obsolete 2019",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000015a",
+    "name": "UA new 2020",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Local authorities",
+    "displayOrder": 1
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000015c",
+    "name": "UA new 2021",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Local authorities",
+    "displayOrder": 1
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000015e",
+    "name": "UA new 2023",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Local authorities",
+    "displayOrder": 1
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000168",
+    "name": "County unchanged",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": "Local authorities",
+    "displayOrder": 1
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000016c",
+    "name": "County obsolete 2019",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000016e",
+    "name": "County obsolete 2020",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000170",
+    "name": "County obsolete 2021",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000172",
+    "name": "County obsolete 2023",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000192",
+    "name": "Districts & UAs (2019/20)",
+    "hierarchyType": "Administrative",
+    "level": 2019,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000194",
+    "name": "Counties & UAs (2019/20)",
+    "hierarchyType": "Administrative",
+    "level": 2019,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000196",
+    "name": "IAPT services",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000198",
+    "name": "PCNs (v. 26/06/25)",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000019a",
+    "name": "Local Maternity System",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001aa",
+    "name": "MSOA21",
+    "hierarchyType": "Administrative",
+    "level": 2021,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001ac",
+    "name": "LSOA21",
+    "hierarchyType": "Administrative",
+    "level": 2021,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001b2",
+    "name": "STP (new 4/20)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001b4",
+    "name": "STP (obsolete)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001b6",
+    "name": "STPs (pre Apr 2020)",
+    "hierarchyType": "Administrative",
+    "level": 2019,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001b8",
+    "name": "STPs (from Apr 2020)",
+    "hierarchyType": "Administrative",
+    "level": 2020,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001ba",
+    "name": "ICBs",
+    "hierarchyType": "NHS",
+    "level": 2022,
+    "displayGroup": "Integrated care boards",
+    "displayOrder": 4
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001bc",
+    "name": "NHS regions (pre ICB)",
+    "hierarchyType": "Administrative",
+    "level": 0,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000001be",
+    "name": "NHS regions",
+    "hierarchyType": "NHS",
+    "level": 0,
+    "displayGroup": "NHS regions",
+    "displayOrder": 3
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000246",
+    "name": "ICBs Slivers",
+    "hierarchyType": "Administrative",
+    "level": 2022,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000248",
+    "name": "NHS regions Slivers",
+    "hierarchyType": "Administrative",
+    "level": 2022,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000025a",
+    "name": "Districts & UAs (2020/21)",
+    "hierarchyType": "Administrative",
+    "level": 2020,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-00000000025c",
+    "name": "Counties & UAs (2020/21)",
+    "hierarchyType": "Administrative",
+    "level": 2020,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000322",
+    "name": "Districts & UAs (2021/22-2022/23)",
+    "hierarchyType": "Administrative",
+    "level": 2021,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-000000000324",
+    "name": "Counties & UAs (2021/22-2022/23)",
+    "hierarchyType": "Administrative",
+    "level": 2021,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000003ea",
+    "name": "Districts & UAs (from Apr 2023)",
+    "hierarchyType": "Administrative",
+    "level": 2023,
+    "displayGroup": null,
+    "displayOrder": null
+  },
+  {
+    "id": "019de0d5-c800-700c-8000-0000000003ec",
+    "name": "Counties & UAs (from Apr 2023)",
+    "hierarchyType": "Administrative",
+    "level": 2023,
+    "displayGroup": null,
+    "displayOrder": null
+  }
+]
