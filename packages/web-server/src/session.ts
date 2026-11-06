@@ -8,7 +8,7 @@ import {
   redirect,
 } from 'react-router';
 
-import { pageSearch } from './page-url.ts';
+import { pagePath } from './page-url.ts';
 
 type SessionContextReader = {
   get<T>(context: RouterContext<T>): T;
@@ -16,15 +16,6 @@ type SessionContextReader = {
 
 const sessionServiceContext = createContext<JwtSessionVerifier>();
 const requestSessionContext = createContext<JwtSessionClaims | undefined>();
-
-// A client-side navigation arrives as a data request, `/manage.data?_routes=…` or `/_.data` for
-// the root; the return address must be the page the visitor was after, not its data endpoint.
-function pagePathFrom(requestUrl: URL): string {
-  const pathname = requestUrl.pathname.endsWith('/_.data')
-    ? requestUrl.pathname.replace(/_\.data$/, '')
-    : requestUrl.pathname.replace(/\.data$/, '');
-  return `${pathname}${pageSearch(requestUrl)}`;
-}
 
 /** Sends a visitor without a session to sign in, and one `allows` refuses to `forbiddenPath`. */
 export function createRequireSessionMiddleware({
@@ -42,7 +33,7 @@ export function createRequireSessionMiddleware({
     if (session === undefined) {
       const requestUrl = new URL(request.url);
       const signInUrl = new URL(signInPath, requestUrl);
-      signInUrl.searchParams.set('returnTo', pagePathFrom(requestUrl));
+      signInUrl.searchParams.set('returnTo', pagePath(requestUrl));
       throw redirect(`${signInUrl.pathname}${signInUrl.search}`);
     }
 
