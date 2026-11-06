@@ -60,7 +60,7 @@ describe('fake users', () => {
   });
 
   it('keeps publisher off the admin', () => {
-    expect(requireFakeUser(FAKE_USER_IDS.admin).roles).toEqual(['public', 'admin']);
+    expect(requireFakeUser(FAKE_USER_IDS.admin).roles).toEqual(['admin']);
   });
 
   it('gives every user an id of their own', () => {
@@ -69,12 +69,12 @@ describe('fake users', () => {
 });
 
 describe('sessionAccessForAudience', () => {
-  it('scopes a public session to the public role and no teams', () => {
+  it('gives a public session no roles and no teams', () => {
     const publisher = requireFakeUser(FAKE_USER_IDS.publisherTeamsAAndB);
 
-    expect(sessionAccessForAudience(publisher, 'public')).toEqual({ roles: ['public'], teams: [] });
+    expect(sessionAccessForAudience(publisher, 'public')).toEqual({ roles: [], teams: [] });
     expect(sessionAccessForAudience(publisher, 'internal')).toEqual({
-      roles: ['public', 'publisher'],
+      roles: ['publisher'],
       teams: [TEAM_IDS.teamA, TEAM_IDS.teamB],
     });
   });

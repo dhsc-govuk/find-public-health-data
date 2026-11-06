@@ -84,7 +84,7 @@ describe('internal API', () => {
   it('rejects a signed-in user who holds none of the internal roles', async () => {
     const response = await request(app)
       .get('/api/internal/indicators')
-      .set('Cookie', await createCookie(['public']));
+      .set('Cookie', await createCookie([]));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -120,10 +120,10 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .get('/api/internal/indicators')
-      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
+      .set('Cookie', await createCookie(['imrg-reviewer']));
     const asPublic = await request(app)
       .get('/api/internal/indicators')
-      .set('Cookie', await createCookie(['public']));
+      .set('Cookie', await createCookie([]));
 
     expect(asReviewer.status).toBe(200);
     expect(asPublic.status).toBe(403);
@@ -167,10 +167,10 @@ describe('internal API', () => {
 
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
     const asAdmin = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'admin']));
+      .set('Cookie', await createCookie(['admin']));
 
     expect(asPublisher.status).toBe(200);
     expect(asAdmin.status).toBe(403);
@@ -192,11 +192,11 @@ describe('internal API', () => {
 
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'publisher']))
+      .set('Cookie', await createCookie(['publisher']))
       .send(body);
     const asAdmin = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'admin']))
+      .set('Cookie', await createCookie(['admin']))
       .send(body);
 
     expect(asPublisher.status).toBe(204);
@@ -220,11 +220,11 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']))
+      .set('Cookie', await createCookie(['imrg-manager']))
       .send(body);
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'publisher']))
+      .set('Cookie', await createCookie(['publisher']))
       .send(body);
 
     expect(asManager.status).toBe(204);
@@ -251,11 +251,11 @@ describe('internal API', () => {
 
     const asAdmin = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'admin']))
+      .set('Cookie', await createCookie(['admin']))
       .send(body);
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'publisher']))
+      .set('Cookie', await createCookie(['publisher']))
       .send(body);
 
     expect(asAdmin.status).toBe(204);
@@ -284,11 +284,11 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'imrg-reviewer']))
+      .set('Cookie', await createCookie(['imrg-reviewer']))
       .send(body);
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'publisher']))
+      .set('Cookie', await createCookie(['publisher']))
       .send(body);
 
     expect(asReviewer.status).toBe(204);
@@ -297,7 +297,7 @@ describe('internal API', () => {
     // Its own body limit, over the default 100 kB.
     const long = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'imrg-reviewer']))
+      .set('Cookie', await createCookie(['imrg-reviewer']))
       .send({
         ...body,
         flags: flaggableTaskKeySchema.options.map((task) => ({ task, notes: '€'.repeat(10_000) })),
@@ -334,10 +334,10 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']));
+      .set('Cookie', await createCookie(['imrg-manager']));
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
 
     expect(asManager.status).toBe(200);
     expect(asPublisher.status).toBe(403);
@@ -358,7 +358,7 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']));
+      .set('Cookie', await createCookie(['imrg-manager']));
 
     expect(asManager.status).toBe(200);
   });
@@ -383,7 +383,7 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']));
+      .set('Cookie', await createCookie(['imrg-manager']));
 
     expect(asManager.status).toBe(200);
     expect(asManager.body).toEqual({ entries: [] });
@@ -404,7 +404,7 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
+      .set('Cookie', await createCookie(['imrg-reviewer']));
 
     expect(asReviewer.status).toBe(200);
     expect(asReviewer.body).toEqual({ notes: [] });
@@ -438,10 +438,10 @@ describe('internal API', () => {
 
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']));
+      .set('Cookie', await createCookie(['imrg-manager']));
 
     expect(asPublisher.status).toBe(200);
     expect(asPublisher.body).toMatchObject({ kind: 'minor_revisions', flaggedTaskCount: 1 });
@@ -457,10 +457,10 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']));
+      .set('Cookie', await createCookie(['imrg-manager']));
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
 
     expect(asManager.status).toBe(200);
     expect(asPublisher.status).toBe(403);
@@ -475,10 +475,10 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
+      .set('Cookie', await createCookie(['imrg-reviewer']));
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
 
     expect(asReviewer.status).toBe(200);
     expect(asPublisher.status).toBe(403);
@@ -493,10 +493,10 @@ describe('internal API', () => {
 
     const asAdmin = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'admin']));
+      .set('Cookie', await createCookie(['admin']));
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'imrg-manager']));
+      .set('Cookie', await createCookie(['imrg-manager']));
 
     expect(asAdmin.status).toBe(200);
     expect(asManager.status).toBe(403);
@@ -521,10 +521,10 @@ describe('internal API', () => {
 
     const asAdmin = await request(app)
       .get('/api/internal/topics')
-      .set('Cookie', await createCookie(['public', 'publisher', 'admin']));
+      .set('Cookie', await createCookie(['publisher', 'admin']));
     const asPublisher = await request(app)
       .get('/api/internal/topics')
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
 
     expect(asAdmin.status).toBe(200);
     expect(asAdmin.body[0]).toMatchObject({ id: '00000000-0000-7000-8000-000000000001' });
@@ -581,7 +581,7 @@ describe('the indicator routes', () => {
   it.each(routes)('answer a publisher in another team 404 on %s', async (_, method, path) => {
     const response = await request(createTeamBApp())
       [method](path)
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
@@ -592,7 +592,7 @@ describe('the indicator routes', () => {
     async (_, method, path) => {
       const response = await request(createTeamBApp())
         [method](path)
-        .set('Cookie', await createCookie(['public', 'admin']));
+        .set('Cookie', await createCookie(['admin']));
 
       expect(response.status).toBe(403);
       expect(response.body).toEqual({ error: 'forbidden' });
@@ -602,7 +602,7 @@ describe('the indicator routes', () => {
   it.each(routes)('answer 400 for an id that is not one on %s', async (_, method, path) => {
     const response = await request(createTeamBApp())
       [method](path.replace(id, 'not-an-id'))
-      .set('Cookie', await createCookie(['public', 'publisher']));
+      .set('Cookie', await createCookie(['publisher']));
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'invalid_id' });

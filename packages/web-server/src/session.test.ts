@@ -261,7 +261,7 @@ describe('session check middleware', () => {
 
   it('turns away a session its check refuses', async () => {
     const service = createTestService();
-    const response = await getRedirect(await issueCookie(service, { roles: ['public'] }));
+    const response = await getRedirect(await issueCookie(service, { roles: [] }));
 
     expect(response.headers.get('Location')).toBe('/access-denied');
   });
@@ -269,7 +269,7 @@ describe('session check middleware', () => {
   it('admits a session its check admits', async () => {
     const service = createTestService();
     const response = await runProtectedRequest(
-      await issueCookie(service, { roles: ['public', 'publisher'] }),
+      await issueCookie(service, { roles: ['publisher'] }),
     );
 
     expect(response.status).toBe(200);

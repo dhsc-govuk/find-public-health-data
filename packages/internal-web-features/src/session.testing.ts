@@ -17,7 +17,7 @@ export async function signedInContext(
 ): Promise<RouterContextProvider> {
   const token = await service.issueToken({
     expiresInSeconds: 900,
-    roles: ['public', ...roles],
+    roles,
     subject: 'test-user',
     teams,
   });

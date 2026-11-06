@@ -50,7 +50,7 @@ describe('GET /api/internal/data-providers', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .get(path)
-      .set('Cookie', await testSessionCookie(['public']));
+      .set('Cookie', await testSessionCookie([]));
 
     expect(response.status).toBe(403);
   });

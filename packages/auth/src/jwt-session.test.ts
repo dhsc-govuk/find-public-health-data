@@ -36,7 +36,7 @@ describe('issueToken', () => {
     await expect(
       service.issueToken({
         expiresInSeconds: 900,
-        roles: ['public'],
+        roles: ['publisher'],
         subject: 'a',
         teams: [' '],
       }),

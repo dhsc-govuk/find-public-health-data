@@ -99,12 +99,12 @@ describe('requireIndicatorAccess', () => {
     const { app, findAccess } = createTestApp(inTeam(TEST_TEAM_ID));
 
     const anonymous = await request(app).get(`/indicators/${ID}`);
-    const publicOnly = await request(app)
+    const noRole = await request(app)
       .get(`/indicators/${ID}`)
-      .set('Cookie', await testSessionCookie(['public']));
+      .set('Cookie', await testSessionCookie([]));
 
     expect(anonymous.status).toBe(401);
-    expect(publicOnly.status).toBe(403);
+    expect(noRole.status).toBe(403);
     expect(findAccess).not.toHaveBeenCalled();
   });
 
