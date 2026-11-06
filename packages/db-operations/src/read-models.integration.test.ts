@@ -51,6 +51,14 @@ describe('bridge/registry schema', () => {
     );
   });
 
+  it('locks every seeded published version', async () => {
+    const rows = await sql`
+      SELECT status, is_locked AS "isLocked", count(*)::int AS count
+      FROM indicator_version GROUP BY status, is_locked
+    `;
+    expect(rows).toEqual([{ status: 'published', isLocked: true, count: 12 }]);
+  });
+
   it('holds observations for every seeded indicator', async () => {
     const orphaned = await sql`
       SELECT i.id FROM indicator i

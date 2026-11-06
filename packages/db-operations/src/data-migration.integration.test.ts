@@ -516,6 +516,21 @@ describe('applyDataMigration', () => {
     expect(await sql`SELECT id FROM area_type WHERE id = ${id}`).toEqual([]);
     await assertRolledBack();
   });
+  it('rejects a version header without is_locked rather than leave it unlocked', async () => {
+    await baseline();
+    const lockedAt = VERSION_COLUMNS.indexOf('is_locked');
+    await expect(
+      apply({
+        upserts: {
+          indicator_version: {
+            columns: VERSION_COLUMNS.filter((_, index) => index !== lockedAt),
+            rows: [VERSION_ROW.filter((_, index) => index !== lockedAt)],
+          },
+        },
+      }),
+    ).rejects.toThrow('indicator_version CSV is missing required columns: is_locked');
+    await assertRolledBack();
+  });
   it.each(
     [VERSION_COLUMNS.slice(0, -2), VERSION_COLUMNS.slice(0, -1)].map((columns) => ({ columns })),
   )('rejects a version header missing legacy source columns: %j', async ({ columns }) => {
