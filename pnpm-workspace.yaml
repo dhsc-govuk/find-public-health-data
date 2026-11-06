@@ -14,6 +14,17 @@ minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   - '@not-govuk/*'
   - '@react-foundry/*'
+  - '@biomejs/biome@2.6.5'
+  - '@biomejs/cli-android-arm64@2.6.5'
+  - '@biomejs/cli-android-x64@2.6.5'
+  - '@biomejs/cli-darwin-arm64@2.6.5'
+  - '@biomejs/cli-darwin-x64@2.6.5'
+  - '@biomejs/cli-linux-arm64@2.6.5'
+  - '@biomejs/cli-linux-arm64-musl@2.6.5'
+  - '@biomejs/cli-linux-x64@2.6.5'
+  - '@biomejs/cli-linux-x64-musl@2.6.5'
+  - '@biomejs/cli-win32-arm64@2.6.5'
+  - '@biomejs/cli-win32-x64@2.6.5'
 
 overrides:
   # FIXME: remove once Azure Identity permits patched MSAL; GHSA-xcx6-jx8p-x3h5 affects its v6 dependency.
@@ -33,7 +44,7 @@ catalog:
   '@azure/identity': 4.13.3
   # Pinned with the Azurite image (compose.yaml, ci.yml), which must accept its storage API version.
   '@azure/storage-blob': 12.33.0
-  '@biomejs/biome': 2.5.9
+  '@biomejs/biome': 2.6.5
   '@date-fns/tz': 1.5.0
   '@fastify/busboy': 3.2.2
   accessible-autocomplete: 3.0.1
