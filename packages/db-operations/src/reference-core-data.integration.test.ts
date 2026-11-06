@@ -156,3 +156,35 @@ it('rekeys existing references, publisher bridges, parent values, dimension keys
     await database.drop();
   }
 });
+
+it('rekeys a core value and its core parent together', async () => {
+  const database = await createTestDb({ template: 'unmigrated' });
+  const sql = database.sql;
+  try {
+    await migrateBefore(sql, migration);
+    const age = records.dimensionTypes.find(({ name }) => name === 'Age');
+    const value = (name: string) =>
+      records.dimensionValues.find(
+        (candidate) => candidate.dimensionTypeId === age?.id && candidate.name === name,
+      );
+    const parent = value('<2 yrs');
+    const child = value('<1 yr');
+    if (!age || !parent || !child || child.parentId !== parent.id)
+      throw new Error('Missing reference fixture');
+    const old = {
+      age: '019de000-0000-7000-8000-000000000011',
+      parent: '019de000-0000-7000-8000-000000000012',
+      child: '019de000-0000-7000-8000-000000000013',
+    };
+    await sql`INSERT INTO dimension_type (id, name, dimension_class) VALUES (${old.age}, 'Age', 'core')`;
+    await sql`INSERT INTO dimension_value (id, dimension_type_id, name) VALUES (${old.parent}, ${old.age}, ${parent.name})`;
+    await sql`INSERT INTO dimension_value (id, dimension_type_id, parent_id, name) VALUES (${old.child}, ${old.age}, ${old.parent}, ${child.name})`;
+    await migrateThrough(sql, migration);
+    expect(await sql`SELECT id, parent_id FROM dimension_value ORDER BY name`).toEqual([
+      { id: child.id, parent_id: parent.id },
+      { id: parent.id, parent_id: null },
+    ]);
+  } finally {
+    await database.drop();
+  }
+});

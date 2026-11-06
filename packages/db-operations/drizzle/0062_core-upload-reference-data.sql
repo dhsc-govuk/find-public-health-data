@@ -1884,7 +1884,6 @@ ALTER TABLE area ADD CONSTRAINT area_area_type_id_area_type_id_fk FOREIGN KEY (a
 ALTER TABLE dimension_value DROP CONSTRAINT dimension_value_dimension_type_id_dimension_type_id_fk;--> statement-breakpoint
 ALTER TABLE dimension_value ADD CONSTRAINT dimension_value_dimension_type_id_dimension_type_id_fk FOREIGN KEY (dimension_type_id) REFERENCES dimension_type (id) ON UPDATE CASCADE;--> statement-breakpoint
 ALTER TABLE dimension_value DROP CONSTRAINT dimension_value_parent_id_dimension_value_id_fk;--> statement-breakpoint
-ALTER TABLE dimension_value ADD CONSTRAINT dimension_value_parent_id_dimension_value_id_fk FOREIGN KEY (parent_id) REFERENCES dimension_value (id) ON UPDATE CASCADE;--> statement-breakpoint
 ALTER TABLE observation_dimension DROP CONSTRAINT observation_dimension_value_type_fk;--> statement-breakpoint
 ALTER TABLE observation_dimension ADD CONSTRAINT observation_dimension_value_type_fk FOREIGN KEY (dimension_value_id, dimension_type_id) REFERENCES dimension_value (id, dimension_type_id) ON UPDATE CASCADE;--> statement-breakpoint
 ALTER TABLE observation_note DROP CONSTRAINT observation_note_note_type_id_note_type_id_fk;--> statement-breakpoint
@@ -1940,6 +1939,10 @@ CREATE TEMP TABLE core_rekeyed_observations ON COMMIT DROP AS
 SELECT DISTINCT od.observation_id FROM observation_dimension od
 JOIN core_dimension_value_rekey mapping ON mapping.old_id = od.dimension_value_id;--> statement-breakpoint
 CREATE UNIQUE INDEX ON core_rekeyed_observations (observation_id);--> statement-breakpoint
+-- The parent_id self-reference stays dropped until both ids change: ON UPDATE CASCADE fails
+-- when one UPDATE changes the ids of a parent and its child.
+UPDATE dimension_value child SET parent_id = mapping.new_id
+FROM core_dimension_value_rekey mapping WHERE child.parent_id = mapping.old_id;--> statement-breakpoint
 UPDATE dimension_value existing SET id = mapping.new_id
 FROM core_dimension_value_rekey mapping WHERE existing.id = mapping.old_id;--> statement-breakpoint
 CREATE TEMP TABLE core_note_type_rekey ON COMMIT DROP AS
@@ -1970,7 +1973,6 @@ ALTER TABLE area DROP CONSTRAINT area_area_type_id_area_type_id_fk;--> statement
 ALTER TABLE area ADD CONSTRAINT area_area_type_id_area_type_id_fk FOREIGN KEY (area_type_id) REFERENCES area_type (id);--> statement-breakpoint
 ALTER TABLE dimension_value DROP CONSTRAINT dimension_value_dimension_type_id_dimension_type_id_fk;--> statement-breakpoint
 ALTER TABLE dimension_value ADD CONSTRAINT dimension_value_dimension_type_id_dimension_type_id_fk FOREIGN KEY (dimension_type_id) REFERENCES dimension_type (id);--> statement-breakpoint
-ALTER TABLE dimension_value DROP CONSTRAINT dimension_value_parent_id_dimension_value_id_fk;--> statement-breakpoint
 ALTER TABLE dimension_value ADD CONSTRAINT dimension_value_parent_id_dimension_value_id_fk FOREIGN KEY (parent_id) REFERENCES dimension_value (id);--> statement-breakpoint
 ALTER TABLE observation_dimension DROP CONSTRAINT observation_dimension_value_type_fk;--> statement-breakpoint
 ALTER TABLE observation_dimension ADD CONSTRAINT observation_dimension_value_type_fk FOREIGN KEY (dimension_value_id, dimension_type_id) REFERENCES dimension_value (id, dimension_type_id);--> statement-breakpoint
