@@ -13,10 +13,10 @@ choice.
 Built package; consumed by `internal-api`, which builds the storage at startup, and by
 `@fphd/internal-api-features`, whose routes receive it.
 
-| Entry       | Purpose                                                                                              |
-| ----------- | ---------------------------------------------------------------------------------------------------- |
+| Entry       | Purpose                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `.`         | `createAzureBlobStorage`, the `BlobStorage` type and its errors, and `storageEnvFields` with `resolveStorage` for the API's config |
-| `./testing` | `createFakeBlobStorage`, an in-memory `BlobStorage` for unit tests                                   |
+| `./testing` | `createFakeBlobStorage`, an in-memory `BlobStorage` for unit tests                                                                 |
 
 ## Configuration
 
@@ -27,8 +27,7 @@ created if it is missing, since Azurite starts empty; in Azure the infrastructur
 
 ## Tests
 
-`vitest run --project @fphd/internal-storage`. The in-memory and Azure implementations run the
-same behaviour suite (`blob-storage.testing.ts`). The Azure one runs in the integration tier
-against Azurite, reached through `STORAGE_CONNECTION_STRING` from the repo `.env` or the
-environment, in a container of its own that it deletes afterwards. `pnpm services:up` starts
-Azurite.
+`vitest run --project @fphd/internal-storage`. The in-memory and Azure implementations run the same
+behaviour suite (`blob-storage.testing.ts`). The Azure one runs in the integration tier against
+Azurite, reached through `STORAGE_CONNECTION_STRING` from the repo `.env` or the environment, in a
+container of its own that it deletes afterwards. `pnpm services:up` starts Azurite.

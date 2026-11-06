@@ -186,10 +186,8 @@
   },
   "markdown": {
     "formatter": {
-      "enabled": false
-    },
-    "linter": {
-      "enabled": false
+      "lineWidth": 100,
+      "proseWrap": "always"
     }
   },
   "yaml": {
