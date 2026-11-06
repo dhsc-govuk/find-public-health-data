@@ -1,14 +1,10 @@
 import '@fphd/ui/styles.scss';
 
 import { AppDocument, AppShell, createDocumentMeta, RootErrorBoundary } from '@fphd/ui';
-import { sessionMiddleware } from '@fphd/web-server/session';
 import { href, Outlet } from 'react-router';
-
-import type { Route } from './+types/root';
 
 export const Layout = AppDocument;
 export const meta = createDocumentMeta();
-export const middleware: Route.MiddlewareFunction[] = [sessionMiddleware];
 
 const navigation = [
   { href: href('/'), text: 'Home' },

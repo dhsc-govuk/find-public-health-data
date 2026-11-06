@@ -1,7 +1,7 @@
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { createRequestHandler } from '@react-router/express';
 import express, { type Express, type Request, type RequestHandler, type Response } from 'express';
-import type { RouterContextProvider, ServerBuild } from 'react-router';
+import { RouterContextProvider, type ServerBuild } from 'react-router';
 
 import { loggerContext } from './logger-context.ts';
 import { nonceContext } from './nonce-context.ts';
@@ -38,7 +38,8 @@ function normalizeServerBuild({
 
 interface ReactRouterAppOptions {
   backendMiddleware?: readonly RequestHandler[];
-  session: JwtSessionVerifier;
+  /** What verifies a signed-in visitor's session; an app nobody signs in to has none. */
+  session?: JwtSessionVerifier;
   /** Proxies in front of the app whose X-Forwarded-* headers are trusted; 0 trusts none. */
   trustedProxyHops: number;
   /**
@@ -84,7 +85,8 @@ export function createReactRouterApp(
     createRequestHandler({
       build: async () => normalizeServerBuild(await loadBuild()),
       getLoadContext: (request, response) => {
-        const context = createSessionContext(session);
+        const context =
+          session === undefined ? new RouterContextProvider() : createSessionContext(session);
         context.set(nonceContext, response.locals.nonce);
         context.set(loggerContext, response.locals.logger);
         extendContext?.(context, request, abortedOnClose(response));
