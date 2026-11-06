@@ -9,6 +9,9 @@ catalogs:
     '@axe-core/playwright':
       specifier: 4.13.0
       version: 4.13.0
+    '@azure/communication-email':
+      specifier: 1.1.0
+      version: 1.1.0
     '@azure/identity':
       specifier: 4.13.3
       version: 4.13.3
@@ -483,6 +486,9 @@ importers:
 
   apps/public-web:
     dependencies:
+      '@fphd/beta-access':
+        specifier: workspace:*
+        version: link:../../packages/beta-access
       '@fphd/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -605,6 +611,40 @@ importers:
       uuid:
         specifier: 'catalog:'
         version: 14.0.2
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@types/node@24.13.3)(jsdom@30.1.1(@noble/hashes@1.8.0))(vite@8.3.4(@types/node@24.13.3)(esbuild@0.28.1)(sass@1.101.0)(tsx@4.23.0)(yaml@2.9.0))
+
+  packages/beta-access:
+    dependencies:
+      '@azure/communication-email':
+        specifier: 'catalog:'
+        version: 1.1.0
+      '@azure/identity':
+        specifier: 'catalog:'
+        version: 4.13.3
+      '@fphd/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@fphd/config':
+        specifier: workspace:*
+        version: link:../config
+      '@fphd/web-server':
+        specifier: workspace:*
+        version: link:../web-server
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.4
+      react-router:
+        specifier: 'catalog:'
+        version: 8.3.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -918,6 +958,15 @@ importers:
 
   packages/public-web-features:
     dependencies:
+      '@fphd/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@fphd/beta-access':
+        specifier: workspace:*
+        version: link:../beta-access
+      '@fphd/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@fphd/public-api-features':
         specifier: workspace:*
         version: link:../public-api-features
@@ -1304,6 +1353,14 @@ packages:
   '@azure/abort-controller@2.2.0':
     resolution: {integrity: sha512-fNAjWnA/nZ2jz31kxR/AqRaUT8ewHBw/WuBIosK0moMy1C9e5ValbDfFdIxJzVOOYaYkV/b2F1S4H/aHiqfVQg==}
     engines: {node: '>=22.0.0'}
+
+  '@azure/communication-common@2.5.0':
+    resolution: {integrity: sha512-6Z5OSOk8tWlOAZHAxgHGfLt8V755BHOvMks/7xLx2auQLmS+DJObgtq+1yE9gVYLu66tzpX/J779H8D9HDVNAQ==}
+    engines: {node: '>=22.0.0'}
+
+  '@azure/communication-email@1.1.0':
+    resolution: {integrity: sha512-n9ATpXyxb4MIhEp/Vtv5BU8GdUZH0vYpm/1pKXVu9AeiQ78MG3OIaiQQ2PmQfA0XPdTx5/g+tUxkwVuD6U4u4w==}
+    engines: {node: '>=20.0.0'}
 
   '@azure/core-auth@1.11.0':
     resolution: {integrity: sha512-IUZydyTUkDnYdstOW9pFOOUQlBjAepK5teihDE3x6yxsPJs/hsAaaYpeGxdxrgtOiJbBKSjKW7MDk7AEhb4LRg==}
@@ -3537,6 +3594,10 @@ packages:
   jws@4.0.1:
     resolution: {integrity: sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==}
 
+  jwt-decode@4.0.0:
+    resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
+    engines: {node: '>=18'}
+
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==}
     engines: {node: '>= 12.0.0'}
@@ -4352,6 +4413,35 @@ snapshots:
   '@azure/abort-controller@2.2.0':
     dependencies:
       tslib: 2.8.1
+
+  '@azure/communication-common@2.5.0':
+    dependencies:
+      '@azure-rest/core-client': 2.9.0
+      '@azure/abort-controller': 2.2.0
+      '@azure/core-auth': 1.11.0
+      '@azure/core-rest-pipeline': 1.25.0
+      '@azure/core-tracing': 1.4.0
+      '@azure/core-util': 1.14.0
+      '@azure/logger': 1.4.0
+      events: 3.3.0
+      jwt-decode: 4.0.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
+
+  '@azure/communication-email@1.1.0':
+    dependencies:
+      '@azure/abort-controller': 2.2.0
+      '@azure/communication-common': 2.5.0
+      '@azure/core-auth': 1.11.0
+      '@azure/core-client': 1.11.1
+      '@azure/core-lro': 2.7.2
+      '@azure/core-rest-pipeline': 1.25.0
+      '@azure/core-util': 1.14.0
+      '@azure/logger': 1.4.0
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - supports-color
 
   '@azure/core-auth@1.11.0':
     dependencies:
@@ -6349,6 +6439,8 @@ snapshots:
       jwa: 2.0.1
       safe-buffer: 5.2.1
 
+  jwt-decode@4.0.0: {}
+
   lightningcss-android-arm64@1.33.0:
     optional: true
 
@@ -6525,7 +6617,7 @@ snapshots:
 
   parse5@8.0.1:
     dependencies:
-      entities: 8.0.0
+      entities: 8.1.0
 
   parseurl@1.3.3: {}
 
