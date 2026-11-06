@@ -6,6 +6,7 @@ import { completeDraft, submitDraft } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
 import { openIndicatorPage } from '../support/indicator-page.ts';
+import { addInviteeAccess } from '../support/private-beta.ts';
 import { asUser, respondToReview } from '../support/review-response.ts';
 import { ADMIN, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 import { ukDateTime } from '../support/uk-date-time.ts';
@@ -88,6 +89,9 @@ test('publishes a scheduled indicator at its publication time', async ({
   test.setTimeout(4 * MINUTE);
   const { id, name } = await approvedWithRegion(browser);
   const publicUrl = `${PUBLIC_WEB_URL}/indicator/${name.toLowerCase().replaceAll(' ', '-')}`;
+  // Without the invitee's access, public-web would send every request for the indicator to the
+  // private beta page, which answers 200 whether or not the indicator is published.
+  await addInviteeAccess(browser, page.context());
 
   const publishAt = nextPublicationTime(Date.now());
   await confirmPublicationAt(page, id, publishAt);

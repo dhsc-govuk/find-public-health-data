@@ -90,14 +90,21 @@ internal-web validates the JWT before exposing its subject and roles to route mi
 personalized responses are marked private and non-cacheable. public-web has no sign-in and takes
 neither secret.
 
+public-web sits behind a private beta while it is invite-only. `BETA_ACCESS_INVITEES` lists the
+invited email addresses. Each invitee asks for a sign-in link on `/private-beta`, and the link,
+emailed through Azure Communication Services (`EMAIL_ENDPOINT`), sets an access cookie signed with
+`BETA_ACCESS_SECRET`. `.env.example` turns it on with one local invitee, `developer@example.com`.
+With no email service, as in local dev and CI, the page shows the link instead of sending it. See
+[`@fphd/beta-access`](packages/beta-access/README.md).
+
 Authentication currently uses fixed fake users. The sign-in form posts to the web backend, which
 creates a one-use authorization code; its callback exchanges that code for an eight-hour JWT cookie.
-Public routes are anonymous, and the public app has no sign-in. Internal routes send a signed-out
-visitor to a landing page that leads to sign-in, and accept only fake users holding one of the
-internal roles: publisher, IMRG manager, IMRG reviewer or admin. The management navigation, the
-`/manage` routes and the topics API are for admins. The public surface of the internal API remains
-open, but every `/api/internal` route independently validates the JWT and applies the permission
-check it names. Sign-out clears the JWT cookie.
+Public routes are anonymous apart from the private beta, and the public app has no sign-in. Internal
+routes send a signed-out visitor to a landing page that leads to sign-in, and accept only fake users
+holding one of the internal roles: publisher, IMRG manager, IMRG reviewer or admin. The management
+navigation, the `/manage` routes and the topics API are for admins. The public surface of the
+internal API remains open, but every `/api/internal` route independently validates the JWT and
+applies the permission check it names. Sign-out clears the JWT cookie.
 
 ## Commands
 
@@ -703,6 +710,7 @@ Each package has a README describing its purpose and entry points:
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | [`@fphd/api-server`](packages/api-server/README.md)                       | The Express app both APIs are built from                                                   |
 | [`@fphd/auth`](packages/auth/README.md)                                   | Audiences, fake users and the JWT session cookie                                           |
+| [`@fphd/beta-access`](packages/beta-access/README.md)                     | public-web's private beta: invitees, emailed sign-in links, the gate                       |
 | [`@fphd/config`](packages/config/README.md)                               | Environment parsing fragments and the shared zod instance                                  |
 | [`@fphd/db`](packages/db/README.md)                                       | Schema, client and the repositories the APIs read through                                  |
 | [`@fphd/db-operations`](packages/db-operations/README.md)                 | Migrations, bootstrap, imports, seed data and reset                                        |
