@@ -754,9 +754,15 @@ importers:
       '@fphd/db':
         specifier: workspace:*
         version: link:../db
+      '@fphd/internal-read-models':
+        specifier: workspace:*
+        version: link:../internal-read-models
       '@fphd/internal-storage':
         specifier: workspace:*
         version: link:../internal-storage
+      '@fphd/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@fphd/utils':
         specifier: workspace:*
         version: link:../utils
@@ -782,9 +788,6 @@ importers:
       '@fphd/express':
         specifier: workspace:*
         version: link:../express
-      '@fphd/logger':
-        specifier: workspace:*
-        version: link:../logger
       '@types/express':
         specifier: 'catalog:'
         version: 5.0.6

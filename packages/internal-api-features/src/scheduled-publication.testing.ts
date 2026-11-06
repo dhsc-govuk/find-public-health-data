@@ -1,0 +1,131 @@
+import { type Database, schema } from '@fphd/db';
+import { type SQL, sql, TransactionRollbackError } from 'drizzle-orm';
+import { expect } from 'vitest';
+
+import { LOCK_WAIT } from './indicator-repository.testing.ts';
+import type { Transaction } from './indicator-repository-sql.ts';
+import { type SentBackDraft, scheduledDraft } from './indicator-workflow.testing.ts';
+
+const { indicator, indicatorVersion } = schema;
+
+/**
+ * A scheduled new indicator with one observation in its batch, due `minutesAgo` minutes ago: in
+ * the future when negative. The time is the database's, as the sweep reads it.
+ */
+export async function dueDraft(
+  db: Database,
+  name: string,
+  minutesAgo: number,
+): Promise<SentBackDraft> {
+  const draft = await scheduledDraft(db, name);
+  await db.execute(sql`
+    INSERT INTO observation
+      (indicator_id, area_id, from_date, to_date, value, upload_batch_id, dimension_key)
+    SELECT ${draft.indicatorId}, a.id, '2024-01-01', '2024-12-31', 1, ${draft.batchId}, ''
+    FROM published.area a
+    JOIN published.area_type at ON at.id = a.area_type_id
+    WHERE at.display_group IS NOT NULL
+    ORDER BY a.id LIMIT 1
+  `);
+  await db.execute(sql`
+    UPDATE indicator_version
+    SET scheduled_publish_at = clock_timestamp() - make_interval(secs => ${minutesAgo * 60}::float8)
+    WHERE id = ${draft.versionId}
+  `);
+  return draft;
+}
+
+/**
+ * Moves every scheduled version a year on, so a version a test left due is not published by the
+ * next test's sweep.
+ */
+export async function deferScheduledVersions(db: Database): Promise<void> {
+  await db.execute(sql`
+    UPDATE indicator_version SET scheduled_publish_at = clock_timestamp() + interval '1 year'
+    WHERE status = 'scheduled'
+  `);
+}
+
+export async function versionOf(db: Database, versionId: string) {
+  const [row] = await db
+    .select({
+      status: indicatorVersion.status,
+      isLocked: indicatorVersion.isLocked,
+      publishedAt: indicatorVersion.publishedAt,
+    })
+    .from(indicatorVersion)
+    .where(sql`${indicatorVersion.id} = ${versionId}`);
+  if (row === undefined) throw new Error(`no version ${versionId}`);
+  return row;
+}
+
+export async function dataUpdatedAtOf(db: Database, indicatorId: string): Promise<Date | null> {
+  const [row] = await db
+    .select({ dataUpdatedAt: indicator.dataUpdatedAt })
+    .from(indicator)
+    .where(sql`${indicator.id} = ${indicatorId}`);
+  if (row === undefined) throw new Error(`no indicator ${indicatorId}`);
+  return row.dataUpdatedAt;
+}
+
+/** The indicator's read-model rows, each as JSON text, in a stable order. */
+export async function readModelRowsOf(
+  db: Database | Transaction,
+  indicatorId: string,
+): Promise<string[]> {
+  const rows = (await db.execute(sql`
+    SELECT 'available_data' AS model, to_jsonb(r)::text AS row
+    FROM available_data r WHERE r.indicator_id = ${indicatorId}
+    UNION ALL
+    SELECT 'observation_range', to_jsonb(r)::text
+    FROM observation_range r WHERE r.indicator_id = ${indicatorId}
+    ORDER BY model, row
+  `)) as unknown as { model: string; row: string }[];
+  return rows.map(({ model, row }) => `${model} ${row}`);
+}
+
+/**
+ * Runs `statements` in a transaction of their own and keeps it open, holding whatever they
+ * locked, until `release` lets it roll back.
+ */
+export async function holdOpen(
+  db: Database,
+  statements: readonly SQL[],
+): Promise<{ release: () => Promise<void> }> {
+  let release: () => void = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const { promise: holding, resolve: held, reject: failed } = Promise.withResolvers<void>();
+  const done = db
+    .transaction(async (tx) => {
+      for (const statement of statements) await tx.execute(statement);
+      held();
+      await released;
+      tx.rollback();
+    })
+    .catch((error: unknown) => {
+      if (!(error instanceof TransactionRollbackError)) failed(error);
+    });
+  await holding;
+  return {
+    release: async () => {
+      release();
+      await done;
+    },
+  };
+}
+
+/** Waits until a session in this database is seen waiting on a lock of the kind given. */
+export async function lockWaitedOn(db: Database, waitEvent: 'advisory' | 'relation') {
+  await expect
+    .poll(async () => {
+      const [row] = (await db.execute(sql`
+        SELECT count(*)::int AS waiting FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND wait_event = ${waitEvent}
+          AND datname = current_database()
+      `)) as unknown as { waiting: number }[];
+      return row?.waiting ?? 0;
+    }, LOCK_WAIT)
+    .toBeGreaterThan(0);
+}
