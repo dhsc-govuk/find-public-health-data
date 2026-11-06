@@ -58,10 +58,10 @@ src/
   it, and its batch's uploader is its writer.
 - **Users and teams**: `app_user` and `team` rows are inserted by migration with fixed ids,
   which `@fphd/auth` uses for its fake users and their teams; `SYSTEM_USER_IDS` names the
-  system users imports write as, and `IMPORTED_INDICATOR_TEAM_ID` the Fingertips team their
-  indicators join. A publisher's new indicator joins the team they choose from their own. Roles
-  and team memberships are not stored: they live in `@fphd/auth` until sign-in through Entra
-  decides where they come from.
+  system users imports and scheduled publication write as, and `IMPORTED_INDICATOR_TEAM_ID` the
+  Fingertips team their indicators join. A publisher's new indicator joins the team they choose
+  from their own. Roles and team memberships are not stored: they live in `@fphd/auth` until
+  sign-in through Entra decides where they come from.
 - **Vocabularies**: a closed set whose values the code behaves on is a checked text column,
   `text({ enum })` beside a check written with `literals()` over the list in its
   `@fphd/utils` module, which also holds the labels and which the contracts and pages import,

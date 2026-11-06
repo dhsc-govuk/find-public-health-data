@@ -3,7 +3,7 @@ import { check, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { literals, timestamps, uuidPrimaryKey } from './helpers.ts';
 
-/** A person signs in; a system user stands for an import that wrote records. */
+/** A person signs in; a system user stands for an import or a scheduled job that wrote records. */
 export const APP_USER_KINDS = ['person', 'system'] as const;
 
 export type AppUserKind = (typeof APP_USER_KINDS)[number];
@@ -36,11 +36,15 @@ export const appUser = pgTable(
   ],
 );
 
-/** The system users imports write as; the migration inserts them with these ids. */
+/**
+ * The system users imports and scheduled publication write as; the migrations insert them with
+ * these ids.
+ */
 export const SYSTEM_USER_IDS = Object.freeze({
   pholioMigration: '01a13c69-96ab-7598-9ce0-f0c3bd77bded',
   testSeed: '01a13c69-96ab-7598-9ce0-f5fa1e68080a',
   coreDataImport: '01a154fb-1a99-7705-9016-05db53119b93',
+  scheduledPublication: '01a1ad2e-22f2-7894-b161-c39055b37600',
 });
 
 /** Who wrote a row: an `app_user`. */

@@ -456,6 +456,13 @@
       "when": 1793973433023,
       "tag": "0064_delete-retired-fake-user",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793985836033,
+      "tag": "0065_scheduled-publication",
+      "breakpoints": true
     }
   ]
 }
