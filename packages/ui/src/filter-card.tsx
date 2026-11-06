@@ -3,41 +3,6 @@ import type { ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 
-/**
- * Sidebar card for a filter dimension: a grey header carrying the title and a Clear all
- * link, a body listing what is selected, and a footer holding the control that adds more.
- */
-export function FilterCard({
-  body,
-  footer,
-  onClear,
-  title,
-}: {
-  body: ReactNode;
-  footer?: ReactNode | undefined;
-  onClear?: string | undefined;
-  title: string;
-}) {
-  return (
-    <div className="fphd-filter-card govuk-!-margin-bottom-4">
-      <div className="fphd-filter-card__header">
-        <h2 className="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">{title}</h2>
-        {onClear ? (
-          <Link
-            className="govuk-link govuk-body-s govuk-!-margin-bottom-0"
-            preventScrollReset
-            to={onClear}
-          >
-            Clear all
-          </Link>
-        ) : null}
-      </div>
-      <div className="fphd-filter-card__body">{body}</div>
-      {footer ? <div className="fphd-filter-card__footer">{footer}</div> : null}
-    </div>
-  );
-}
-
 export function CollapsibleFilterCard({
   children,
   footer,
@@ -45,16 +10,14 @@ export function CollapsibleFilterCard({
   active,
   onClear,
   title,
-  variant = 'card',
-  headingLevel = 2,
+  headingLevel = 3,
 }: {
-  children: ReactNode;
+  children?: ReactNode;
   footer?: ReactNode | undefined;
   hint?: string | undefined;
   active: boolean;
   onClear?: string | undefined;
   title: string;
-  variant?: 'card' | 'accordion';
   headingLevel?: 2 | 3;
 }) {
   const bodyId = useId();
@@ -65,9 +28,7 @@ export function CollapsibleFilterCard({
   }, [active]);
 
   return (
-    <div
-      className={`fphd-filter-card ${variant === 'accordion' ? 'fphd-filter-card--accordion' : 'govuk-!-margin-bottom-4'}`}
-    >
+    <div className="fphd-filter-card">
       <Heading
         aria-label={title}
         className="fphd-filter-card__header govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0"
@@ -76,22 +37,20 @@ export function CollapsibleFilterCard({
         <button
           aria-controls={bodyId}
           aria-expanded={open}
-          aria-label={variant === 'accordion' ? title : `${title} ${open ? 'Collapse' : 'Expand'}`}
+          aria-label={title}
           className="fphd-filter-card__toggle"
           onClick={() => setOpen((v) => !v)}
           type="button"
         >
-          {variant === 'accordion' ? (
-            <svg
-              className="fphd-filter-card__chevron"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path d="m5 9 7 7 7-7" fill="none" stroke="currentColor" strokeWidth="2.5" />
-            </svg>
-          ) : null}
-          {variant === 'accordion' ? title : open ? 'Collapse' : 'Expand'}
+          <svg
+            className="fphd-filter-card__chevron"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="m5 9 7 7 7-7" fill="none" stroke="currentColor" strokeWidth="2.5" />
+          </svg>
+          {title}
         </button>
       </Heading>
       {/* Always in the HTML: CSS reveals it without JavaScript, JS toggles hidden. */}

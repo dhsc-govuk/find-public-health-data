@@ -2,7 +2,7 @@
 
 React components and styles shared by both web apps: the GOV.UK components re-exported from
 `@not-govuk/*`, the service's own components (`AppShell`, `AppDocument`, `CardList`,
-`FilterCard`, `GeographyTree`, `ChartSection`, `PageIntro` and the rest of `src/*.tsx`), and the
+`CollapsibleFilterCard`, `GeographyTree`, `ChartSection`, `PageIntro` and the rest of `src/*.tsx`), and the
 helpers that go with them (`formatDate`, `createDocumentMeta`, `DocumentTitle`).
 
 Source-only package, bundled by Vite; no build step.

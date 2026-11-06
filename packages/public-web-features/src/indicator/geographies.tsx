@@ -28,18 +28,15 @@ export function IndicatorGeographies({
       <h2 className="govuk-heading-m">Geographies</h2>
       <CollapsibleFilterCard
         active
-        variant="accordion"
         headingLevel={3}
         title="Geographies"
         onClear={picked ? urlFor([], []) : undefined}
       >
         <GeographyPicker
-          autoApply
           lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&scheme=public`}
           searchLabel="Search for a geography"
           searchHint="Search by name, for example Leeds"
           action={location.pathname}
-          buttonClassName="govuk-!-margin-bottom-0"
           displayGroups={displayGroups}
           geographyOptions={geographyOptions}
           levelName="als"

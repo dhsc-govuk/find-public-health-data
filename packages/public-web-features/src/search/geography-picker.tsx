@@ -9,7 +9,6 @@ export function SearchGeographyPicker({
   displayGroups,
   geographyOptions,
   onApply,
-  autoApply = false,
   single = false,
   lookupUrl,
 }: {
@@ -19,19 +18,16 @@ export function SearchGeographyPicker({
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
   onApply: (next: SearchState) => void;
-  autoApply?: boolean;
   single?: boolean;
   lookupUrl?: string | undefined;
 }) {
   return (
     <GeographyPicker
       action={action}
-      autoApply={autoApply}
       lookupUrl={lookupUrl}
       single={single}
-      searchLabel={autoApply ? 'Search for a geography' : undefined}
-      searchHint={autoApply ? 'Search by name, for example Leeds' : undefined}
-      buttonClassName="govuk-!-margin-bottom-0 fphd-button--full-width fphd-add-geo-button"
+      searchLabel="Search for a geography"
+      searchHint="Search by name, for example Leeds"
       displayGroups={displayGroups}
       geographyOptions={geographyOptions}
       levelName="geo"

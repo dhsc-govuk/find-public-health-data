@@ -293,7 +293,7 @@ export function PanelOptionsPanel({
     </OptionsForm>
   );
   return accordion ? (
-    <CollapsibleFilterCard active={false} variant="accordion" headingLevel={3} title={label}>
+    <CollapsibleFilterCard active={false} headingLevel={3} title={label}>
       {content}
     </CollapsibleFilterCard>
   ) : (
@@ -391,7 +391,7 @@ export function InequalityOptions({
     </OptionsForm>
   );
   return accordion ? (
-    <CollapsibleFilterCard active variant="accordion" headingLevel={3} title="Chart options">
+    <CollapsibleFilterCard active headingLevel={3} title="Chart options">
       {content}
     </CollapsibleFilterCard>
   ) : (

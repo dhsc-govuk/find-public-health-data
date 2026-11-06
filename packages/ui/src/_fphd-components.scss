@@ -174,85 +174,14 @@
 }
 
 .fphd-filter-card {
-  margin-bottom: govuk-spacing(4);
-  border: 1px solid govuk-colour("black", $variant: "tint-80");
-}
-
-.fphd-filter-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: govuk-spacing(3) govuk-spacing(4);
-  // Light grey rather than mid: govuk-link on mid-grey measures 2.5:1, below AA's 4.5:1.
-  // The border keeps the header separate from the body, which shares the colour.
-  border-bottom: 1px solid govuk-colour("black", $variant: "tint-80");
-  background-color: govuk-colour("black", $variant: "tint-95");
-
-  > .govuk-body,
-  > .govuk-body-s {
-    margin-bottom: 0;
-  }
-}
-
-.fphd-filter-card__body {
-  padding: govuk-spacing(4);
-  background-color: govuk-colour("black", $variant: "tint-95");
-}
-
-// The class is repeated to lift specificity above @not-govuk/button@0.19's
-// `:where(.govuk-template__page) button:not([type=submit])` extension into
-// govuk-button--secondary — which otherwise wraps this toggle in secondary-
-// button styling. Same reason for the width/box-shadow/decoration resets.
-.fphd-filter-card__toggle.fphd-filter-card__toggle {
-  @include govuk-link-common;
-  @include govuk-link-style-default;
-  @include govuk-font($size: 16);
-
-  display: none;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: $govuk-link-colour;
-  cursor: pointer;
-  box-shadow: none;
-  width: auto;
-  text-decoration: underline;
-}
-
-body.govuk-frontend-supported .fphd-filter-card__toggle {
-  display: inline;
-}
-
-// Show all collapsible bodies when JavaScript has not run, so every filter is reachable.
-body:not(.govuk-frontend-supported) .fphd-collapsible-body[hidden] {
-  display: block;
-}
-
-body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
-  display: none;
-}
-
-.fphd-filter-card__footer {
-  padding: govuk-spacing(4);
-  background-color: govuk-colour("white");
-
-  .govuk-select {
-    width: 100%;
-    @include govuk-font($size: 19);
-  }
-}
-
-.fphd-filter-card .govuk-select,
-.fphd-filter-card .govuk-input {
-  width: 100%;
-}
-
-.fphd-filter-card--accordion {
   border: 0;
   border-bottom: 1px solid #cecece;
   margin-bottom: govuk-spacing(6);
 
   .fphd-filter-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 0;
     border: 0;
     background: transparent;
@@ -264,10 +193,19 @@ body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
     background: transparent;
   }
 
+  // Repeating the class keeps the reset above NotGovUK's secondary button styles.
   .fphd-filter-card__toggle.fphd-filter-card__toggle {
+    @include govuk-link-common;
+    @include govuk-link-style-default;
     @include govuk-font($size: 19, $weight: bold);
+
+    display: none;
     width: 100%;
+    border: 0;
+    background: transparent;
     color: $govuk-link-colour;
+    cursor: pointer;
+    box-shadow: none;
     text-align: left;
     text-decoration: none;
     gap: govuk-spacing(1);
@@ -281,6 +219,15 @@ body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
     &[aria-expanded="false"] .fphd-filter-card__chevron {
       transform: none;
     }
+  }
+
+  .fphd-filter-card__footer .govuk-select {
+    @include govuk-font($size: 19);
+  }
+
+  .govuk-select,
+  .govuk-input {
+    width: 100%;
   }
 
   .fphd-filter-card__chevron {
@@ -297,6 +244,33 @@ body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
   }
 }
 
+.fphd-topic-indicator-filters {
+  margin-bottom: govuk-spacing(6);
+
+  .govuk-checkboxes__label {
+    @include govuk-font-size($size: 16);
+  }
+
+  .fphd-filter-card {
+    margin-bottom: 0;
+  }
+
+  .fphd-search-bar__filters-row {
+    border-bottom: 1px solid $govuk-border-colour;
+    margin-bottom: 0;
+    padding-bottom: govuk-spacing(2);
+  }
+}
+
+// Show all collapsible bodies when JavaScript has not run, so every filter is reachable.
+body:not(.govuk-frontend-supported) .fphd-collapsible-body[hidden] {
+  display: block;
+}
+
+body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
+  display: none;
+}
+
 body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page) .govuk-width-container.govuk-width-container {
   max-width: 960px;
   @media (min-width: 40.0625em) {
@@ -310,24 +284,12 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page) .govu
   }
 
   .fphd-topic-geographies > .govuk-heading-m,
-  .govuk-grid-column-one-quarter > .govuk-heading-m,
-  .fphd-search-bar__filters-row {
+  .govuk-grid-column-one-quarter > .govuk-heading-m {
     border-bottom: 1px solid $govuk-border-colour;
     margin-bottom: 0;
     padding-bottom: govuk-spacing(2);
   }
 
-  .fphd-topic-indicator-filters {
-    .govuk-checkboxes__label {
-      @include govuk-font-size($size: 16);
-    }
-
-    margin-bottom: govuk-spacing(6);
-
-    .fphd-filter-card--accordion {
-      margin-bottom: 0;
-    }
-  }
   @media (min-width: 40.0625em) {
     > .govuk-tabs:has(#topic-data.fphd-tabs__panel--open, #topic-area-summaries.fphd-tabs__panel--open) {
       position: relative;
@@ -539,7 +501,7 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page) .govu
   margin-bottom: 40px;
 }
 
-body.govuk-frontend-supported .fphd-filter-card--accordion {
+body.govuk-frontend-supported .fphd-filter-card {
   .fphd-filter-card__body > a {
     min-height: 24px;
     box-sizing: border-box;
@@ -1396,12 +1358,6 @@ body.govuk-frontend-supported .fphd-filter-card--accordion {
   text-align: center;
 }
 
-// Hide the "Add selected geographies" button with JS when nothing is pending.
-// Without JS the button is always visible so no-JS users can still submit.
-body.govuk-frontend-supported .fphd-add-geo-button[data-empty] {
-  display: none;
-}
-
 // The benchmark columns are shaded so a comparison reads as context, not more data: a
 // darker band on the group header, a lighter wash down its cells.
 .fphd-trend-table__benchmark-group {
@@ -1420,10 +1376,6 @@ body.govuk-frontend-supported .fphd-add-geo-button[data-empty] {
 .fphd-compare-table td:has(.fphd-range-plot) {
   padding-top: 8px;
   padding-bottom: 8px;
-}
-
-.fphd-search-dimension .govuk-form-group {
-  margin-bottom: 0;
 }
 
 .fphd-results-header {

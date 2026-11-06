@@ -11,7 +11,7 @@ const results = (page: Page) => page.locator('.fphd-search-results');
 
 async function ready(page: Page, path = '/search') {
   await page.goto(path);
-  await page.locator('.autocomplete__wrapper').first().waitFor({ state: 'attached' });
+  await expect(page.getByRole('heading', { name: 'Indicator filters', exact: true })).toBeVisible();
 }
 
 test('loads the search page with h1', async ({ page }) => {
@@ -42,12 +42,12 @@ test('uses the compact NotGovUK search box', async ({ page }) => {
 
 test('keeps filter card geometry stable through hydration', async ({ page }) => {
   const geometry = async () =>
-    page.locator('.govuk-grid-column-one-third').evaluate((column) => {
+    page.locator('.fphd-wide-layout .govuk-grid-column-one-third').evaluate((column) => {
       const box = (element: Element) => {
         const { x, y, width, height } = element.getBoundingClientRect();
         return { x, y, width, height };
       };
-      const searchBox = column.querySelector('.fphd-search-bar');
+      const searchBox = document.querySelector('.fphd-search-bar');
       if (!searchBox) throw new Error('Search box is missing');
       return {
         column: box(column),
@@ -71,12 +71,26 @@ test('keeps filter card geometry stable through hydration', async ({ page }) => 
   expect(await geometry()).toEqual(serverGeometry);
 });
 
-test('styles filter card toggles as links', async ({ page }) => {
+test('search uses the shared accordion filters beneath geographies', async ({ page }, testInfo) => {
   await ready(page);
-
-  const toggle = page.getByRole('button', { name: 'Topics and types Expand' });
-  await expect(toggle).toHaveCSS('color', 'rgb(26, 101, 166)');
-  await expect(toggle).toHaveCSS('text-decoration-line', 'underline');
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Geographies', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Indicator filters', exact: true })).toBeVisible();
+  const filters = page.locator('.fphd-topic-indicator-filters');
+  for (const title of [
+    'Topics and types',
+    'Frameworks and programmes',
+    'About the data',
+    'Status',
+    'Years the data covers',
+    'Last updated',
+  ]) {
+    const toggle = filters.getByRole('button', { name: title, exact: true });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle.locator('..').locator('..')).toHaveClass('fphd-filter-card');
+  }
+  await expectNoAccessibilityViolations(page, testInfo);
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
@@ -214,78 +228,76 @@ test('keeps the results live region while searches update its count', async ({ p
   ).toBeVisible();
 });
 
-test('editing an autocomplete choice cancels it and adding resets the field', async ({ page }) => {
+test('topic checkboxes apply and remove filters immediately', async ({ page }, testInfo) => {
   await ready(page);
   const topics = card(page, 'Topics and types');
-  await topics.getByRole('button', { name: /Expand$/ }).click();
-  const input = topics.getByRole('combobox', { name: 'Search for a topic' });
-  await input.fill('Diabetes');
-  await page.getByRole('option', { name: 'Diabetes', exact: true }).click();
-  await expect(topics.getByRole('button', { name: 'Add topic', exact: true })).toBeVisible();
-  await input.fill('nonsense');
-  await input.press('Escape');
-  await expect(topics.getByRole('button', { name: 'Add topic', exact: true })).toBeHidden();
-  await input.fill('Diabetes');
-  await expect(page.getByRole('option', { name: 'Diabetes', exact: true })).toBeVisible();
-  await input.press('ArrowDown');
-  await expect(page.getByRole('option', { name: 'Diabetes', exact: true })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
-  await page.keyboard.press('Enter');
-  await topics.getByRole('button', { name: 'Add topic', exact: true }).click();
+  await topics.getByRole('button', { name: 'Topics and types', exact: true }).click();
+  const diabetes = topics.getByRole('checkbox', { name: 'Diabetes', exact: true });
+  await diabetes.check();
   await expect(page).toHaveURL(/t=diabetes/);
-  await expect(input).toHaveValue('');
-  await expect(topics.getByRole('link', { name: 'Remove Diabetes filter' })).toBeVisible();
+  await expect(diabetes).toBeChecked();
+  await expect(results(page).getByRole('link')).toHaveCount(2);
+  await expectNoAccessibilityViolations(page, testInfo);
+  await diabetes.uncheck();
+  await expect(page).toHaveURL('/search');
+  await expect(results(page).getByRole('link')).toHaveCount(12);
 });
 
-test('keeps long autocomplete values clear of the dropdown arrow', async ({ page }) => {
-  await ready(page, '/search?pg=population-infants-and-early-years-aged-4-years-and-under');
-
-  const input = page.getByRole('combobox', { name: 'Search for a population group' });
-  await expect(input).toBeVisible();
-  await expect(input).toHaveCSS('padding-right', '35px');
+test('years and last updated filters preserve the keyword and other filters', async ({ page }) => {
+  await ready(page, '/search?q=diabetes&t=diabetes&fromYear=2010&toYear=2025');
+  await expect(page.getByRole('textbox', { name: 'From', exact: true })).toHaveValue('2010');
+  await expect(page.getByRole('textbox', { name: 'To', exact: true })).toHaveValue('2025');
+  await card(page, 'Last updated')
+    .getByRole('button', { name: 'Last updated', exact: true })
+    .click();
+  await page.getByRole('combobox', { name: 'Last updated', exact: true }).selectOption('12');
+  await expect(page).toHaveURL(/updatedWithin=12/);
+  const params = new URL(page.url()).searchParams;
+  expect(params.get('q')).toBe('diabetes');
+  expect(params.get('t')).toBe('diabetes');
+  expect(params.get('fromYear')).toBe('2010');
+  expect(params.get('toYear')).toBe('2025');
 });
 
 test('a complete long data source remains selected and narrows results', async ({ page }) => {
   await ready(page);
-  const attributes = card(page, 'Data attributes');
-  await attributes.getByRole('button', { name: /Expand$/ }).click();
-  await attributes.getByRole('combobox', { name: 'Search for a data source' }).fill('Medicines');
-  const option = page.getByRole('option').first();
-  const source = (await option.innerText()).trim();
+  const attributes = card(page, 'About the data');
+  await attributes.getByRole('button', { name: 'About the data', exact: true }).click();
+  const option = attributes.getByRole('checkbox', { name: /Medicines/ }).first();
+  const source = await option.inputValue();
   expect(source.length).toBeGreaterThan(100);
-  await option.click();
-  await attributes.getByRole('button', { name: 'Add data source', exact: true }).click();
+  await option.check();
   await expect(page).toHaveURL(/src=/);
   expect(new URL(page.url()).searchParams.get('src')).toBe(source);
-  await expect(
-    attributes.getByRole('link', { name: `Remove ${source} filter`, exact: true }),
-  ).toBeVisible();
+  await expect(option).toBeChecked();
   await expect(results(page).getByRole('link')).toHaveCount(2);
   await page.reload();
-  await expect(
-    attributes.getByRole('link', { name: `Remove ${source} filter`, exact: true }),
-  ).toBeVisible();
+  await expect(option).toBeChecked();
 });
 
 test('lays out the geography levels and their first 100 areas as a compact tree', async ({
   page,
 }) => {
   await ready(page);
-  const geography = card(page, 'Geography');
-  await geography.getByRole('button', { name: /Expand$/ }).click();
+  const geography = card(page, 'Geographies');
   const levelRequests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/geographies?level=')) levelRequests.push(request.url());
   });
-  await geography.getByRole('button', { name: 'Expand Local authorities' }).click();
+  await geography.getByRole('button', { name: 'Expand Upper-tier local authorities' }).click();
 
-  const level = geography.getByText('Local authorities', { exact: true });
-  const longLevel = geography.getByText('Middle-layer super output areas', { exact: true });
+  const level = geography
+    .getByRole('group', { name: 'All of Upper-tier local authorities', exact: true })
+    .locator('label');
+  const longLevel = geography
+    .getByRole('group', { name: 'All of Middle layer super output areas (MSOAs)', exact: true })
+    .locator('label');
   const area = geography.getByText('County Durham', { exact: true });
-  const levelInput = geography.getByRole('checkbox', { name: 'Local authorities', exact: true });
-  const toggle = geography.getByRole('button', { name: 'Collapse Local authorities' });
+  const levelInput = geography.getByRole('checkbox', {
+    name: 'All Upper-tier local authorities (as one group)',
+    exact: true,
+  });
+  const toggle = geography.getByRole('button', { name: 'Collapse Upper-tier local authorities' });
   await expect(area).toBeVisible();
   await expect(geography.getByText('Loading…')).toHaveCount(0);
   await expect(
@@ -311,18 +323,19 @@ test('lays out the geography levels and their first 100 areas as a compact tree'
 
 test('geography can be unchecked or cleared without leaving pending ticks', async ({ page }) => {
   await ready(page, '/search?geo=Statistical+regions');
-  const geography = card(page, 'Geography');
-  const level = geography.getByRole('checkbox', { name: 'Statistical regions', exact: true });
+  const geography = card(page, 'Geographies');
+  const level = geography.getByRole('checkbox', {
+    name: 'All Statistical regions (as one group)',
+    exact: true,
+  });
   await level.uncheck();
-  await geography.getByRole('button', { name: 'Update selected geographies (1)' }).click();
   await expect(page).toHaveURL('/search');
   await level.check();
-  await geography.getByRole('button', { name: 'Add selected geographies (1)' }).click();
   await expect(page).toHaveURL(/geo=/);
   await geography.getByRole('link', { name: 'Clear filter' }).click();
   await expect(page).toHaveURL('/search');
   await expect(level).not.toBeChecked();
-  await expect(geography.getByRole('button', { name: /Add selected geographies/ })).toBeHidden();
+  await expect(geography.getByRole('button', { name: 'Apply geographies' })).toBeHidden();
 });
 
 test('selected areas return only indicators with data for every area', async ({ page }) => {
@@ -340,10 +353,14 @@ test('selected areas return only indicators with data for every area', async ({ 
   ).toHaveCount(0);
 });
 
-test('clear and remove links replace the current filter history entry', async ({ page }) => {
+test('changing and clearing filters replaces the current filter history entry', async ({
+  page,
+}) => {
   await ready(page, '/search?t=diabetes&geo=Statistical+regions');
   const before = await page.evaluate(() => history.length);
-  await page.getByRole('link', { name: 'Remove Diabetes filter', exact: true }).click();
+  await card(page, 'Topics and types')
+    .getByRole('checkbox', { name: 'Diabetes', exact: true })
+    .uncheck();
   await expect(page).not.toHaveURL(/t=diabetes/);
   await page.getByRole('link', { name: 'Clear all filters', exact: true }).click();
   await expect(page).toHaveURL('/search');
@@ -369,19 +386,22 @@ test('selected areas and whole levels reach the indicator view through a result 
 
 test('geography search reports failures, retries and empty results', async ({ page }) => {
   await ready(page);
-  const geography = card(page, 'Geography');
-  await geography.getByRole('button', { name: /Expand$/ }).click();
+  const geography = card(page, 'Geographies');
   await page.route('**/geographies?*', (route) =>
     route.fulfill({ status: 502, body: 'Unavailable' }),
   );
-  const input = geography.getByRole('searchbox', { name: 'Add geographies' });
+  const input = geography.getByRole('searchbox', { name: 'Search for a geography' });
   await input.fill('Cornwall');
   await expect(geography.locator('.fphd-geo-alt__tree').getByRole('status')).toContainText(
     'Geography search is not working',
   );
   await page.unroute('**/geographies?*');
   await geography.getByRole('button', { name: 'Try again', exact: true }).click();
-  await expect(geography.getByRole('checkbox', { name: 'Cornwall', exact: true })).toBeVisible();
+  await expect(
+    geography
+      .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
+      .getByRole('checkbox', { name: 'Cornwall', exact: true }),
+  ).toBeVisible();
   await input.fill('zzzzzzzzzzzz');
   await expect(geography.locator('.fphd-geo-alt__tree').getByRole('status')).toContainText(
     'No geographies found',
@@ -390,10 +410,9 @@ test('geography search reports failures, retries and empty results', async ({ pa
 
 test('geography failure stays visible after scrolling previous results', async ({ page }) => {
   await ready(page);
-  const geography = card(page, 'Geography');
-  await geography.getByRole('button', { name: /Expand$/ }).click();
+  const geography = card(page, 'Geographies');
   const tree = geography.locator('.fphd-geo-alt__tree');
-  const input = geography.getByRole('searchbox', { name: 'Add geographies' });
+  const input = geography.getByRole('searchbox', { name: 'Search for a geography' });
   await input.fill('E');
   await expect(
     tree
@@ -426,32 +445,29 @@ test('filter navigation preserves unsubmitted search text', async ({ page }) => 
   await ready(page);
   const keyword = page.getByRole('searchbox', { name: 'Search by keywords' });
   await keyword.fill('unfinished keyword');
-  const frameworks = card(page, 'Frameworks');
-  await frameworks.getByRole('button', { name: /Expand$/ }).click();
-  const framework = frameworks.getByRole('combobox', { name: 'Search for a framework' });
-  await framework.fill('unfinished framework');
-  const geography = card(page, 'Geography');
-  await geography.getByRole('button', { name: /Expand$/ }).click();
-  await geography.getByRole('button', { name: 'Expand Local authorities' }).click();
+  const frameworks = card(page, 'Frameworks and programmes');
+  await frameworks.getByRole('button', { name: 'Frameworks and programmes', exact: true }).click();
+  const geography = card(page, 'Geographies');
+  await geography.getByRole('button', { name: 'Expand Upper-tier local authorities' }).click();
   await geography.getByRole('checkbox', { name: 'County Durham' }).check();
-  await geography.getByRole('button', { name: 'Add selected geographies (1)' }).click();
   await expect(page).toHaveURL(/ga=E06000047/);
   await expect(keyword).toHaveValue('unfinished keyword');
-  await expect(framework).toHaveValue('unfinished framework');
+  await expect(
+    frameworks.getByRole('button', { name: 'Frameworks and programmes', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('geography searches keep existing areas visible while loading', async ({ page }, testInfo) => {
   await ready(page);
-  const geography = card(page, 'Geography');
-  await geography.getByRole('button', { name: /Expand$/ }).click();
-  await geography.getByRole('button', { name: 'Expand Local authorities' }).click();
+  const geography = card(page, 'Geographies');
+  await geography.getByRole('button', { name: 'Expand Upper-tier local authorities' }).click();
   await expect(geography.getByRole('checkbox', { name: 'County Durham' })).toBeVisible();
   let finishSearch: (() => Promise<void>) | undefined;
   await page.route('**/geographies?*', (route) => {
     finishSearch = () => route.fulfill({ json: { groups: [] } });
   });
   const requested = page.waitForRequest('**/geographies?*');
-  await geography.getByRole('searchbox', { name: 'Add geographies' }).fill('missing-place');
+  await geography.getByRole('searchbox', { name: 'Search for a geography' }).fill('missing-place');
   await requested;
 
   await expect(geography.getByRole('checkbox', { name: 'County Durham' })).toBeVisible();
@@ -471,11 +487,14 @@ test('geography searches keep existing areas visible while loading', async ({ pa
 
 test('geography searches keep previous results visible while loading', async ({ page }) => {
   await ready(page);
-  const geography = card(page, 'Geography');
-  await geography.getByRole('button', { name: /Expand$/ }).click();
-  const input = geography.getByRole('searchbox', { name: 'Add geographies' });
+  const geography = card(page, 'Geographies');
+  const input = geography.getByRole('searchbox', { name: 'Search for a geography' });
   await input.fill('Cornwall');
-  await expect(geography.getByRole('checkbox', { name: 'Cornwall', exact: true })).toBeVisible();
+  await expect(
+    geography
+      .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
+      .getByRole('checkbox', { name: 'Cornwall', exact: true }),
+  ).toBeVisible();
 
   let finishSearch: (() => Promise<void>) | undefined;
   await page.route('**/geographies?*', (route) => {
@@ -485,7 +504,11 @@ test('geography searches keep previous results visible while loading', async ({ 
   await input.fill('missing-place');
   await requested;
 
-  await expect(geography.getByRole('checkbox', { name: 'Cornwall', exact: true })).toBeVisible();
+  await expect(
+    geography
+      .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
+      .getByRole('checkbox', { name: 'Cornwall', exact: true }),
+  ).toBeVisible();
   await finishSearch?.();
   await expect(geography.locator('.fphd-geo-alt__tree').getByRole('status')).toContainText(
     'No geographies found',
@@ -494,7 +517,9 @@ test('geography searches keep previous results visible while loading', async ({ 
   const nextRequest = page.waitForRequest('**/geographies?*');
   await input.fill('another-place');
   await nextRequest;
-  await expect(geography.getByRole('button', { name: 'Expand Local authorities' })).toBeVisible();
+  await expect(
+    geography.getByRole('button', { name: 'Expand Upper-tier local authorities' }),
+  ).toBeVisible();
   await finishSearch?.();
 });
 
@@ -511,13 +536,13 @@ test('expanded filters have no WCAG 2.2 AA violations', async ({ page }, testInf
   const filterCards = page.locator('.fphd-filter-card');
   await expect(filterCards.first()).toBeVisible();
   for (const filterCard of await filterCards.all()) {
-    const expand = filterCard.getByRole('button', { name: /Expand$/ });
+    const expand = filterCard.locator('.fphd-filter-card__toggle[aria-expanded="false"]');
     if (await expand.count()) await expand.click();
   }
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-for (const width of [390, 768, 1024, 1440]) {
+for (const width of [320, 390, 640, 768, 1024, 1440]) {
   test(`search fits a ${width}px viewport with aligned titles`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await ready(page);
@@ -546,12 +571,15 @@ test.describe('without JavaScript', () => {
     await page.getByRole('searchbox', { name: 'Search by keywords' }).fill('mortality');
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(page).toHaveURL(/q=mortality/);
-    const geography = card(page, 'Geography');
-    await geography.getByRole('searchbox', { name: 'Add geographies' }).fill('Cornwall');
+    const geography = card(page, 'Geographies');
+    await geography.getByRole('searchbox', { name: 'Search for a geography' }).fill('Cornwall');
     await geography.getByRole('button', { name: 'Find geographies', exact: true }).click();
     await expect(page).toHaveURL(/geo-q=Cornwall/);
-    await geography.getByRole('checkbox', { name: 'Cornwall', exact: true }).check();
-    await geography.getByRole('button', { name: /Add selected geographies/ }).click();
+    await geography
+      .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
+      .getByRole('checkbox', { name: 'Cornwall', exact: true })
+      .check();
+    await geography.getByRole('button', { name: 'Apply geographies' }).click();
     await expect(page).toHaveURL(/ga=E06000052/);
     await results(page).getByRole('link').first().click();
     await expect(page).toHaveURL(/\/indicator\/.*as=E06000052/);
@@ -574,17 +602,20 @@ test.describe('without JavaScript', () => {
     page,
   }) => {
     await page.goto('/search?geo=NHS+regions');
-    const geography = card(page, 'Geography');
+    const geography = card(page, 'Geographies');
     await geography
       .getByRole('button', { name: 'Show areas in Statistical regions', exact: true })
       .click();
     await expect(
       geography.getByRole('checkbox', { name: 'North East', exact: true }),
     ).toBeVisible();
-    await geography.getByRole('searchbox', { name: 'Add geographies' }).fill('Cornwall');
+    await geography.getByRole('searchbox', { name: 'Search for a geography' }).fill('Cornwall');
     await geography.getByRole('button', { name: 'Find geographies', exact: true }).click();
-    await geography.getByRole('checkbox', { name: 'Cornwall', exact: true }).check();
-    await geography.getByRole('button', { name: /Add selected geographies/ }).click();
+    await geography
+      .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
+      .getByRole('checkbox', { name: 'Cornwall', exact: true })
+      .check();
+    await geography.getByRole('button', { name: 'Apply geographies' }).click();
     await expect(page).toHaveURL(/geo=NHS\+regions/);
     await expect(page).toHaveURL(/ga=E06000052/);
   });

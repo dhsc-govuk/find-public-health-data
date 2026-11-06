@@ -25,8 +25,6 @@ it('uses dimension and slug together for classification labels', () => {
             valueTypes: [],
             yearTypes: [],
           }}
-          displayGroups={[]}
-          gaAreaNames={{}}
         />
       ),
     },

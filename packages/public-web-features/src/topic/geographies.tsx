@@ -1,15 +1,8 @@
-import {
-  Button,
-  CollapsibleFilterCard,
-  FilterChip,
-  FilterChips,
-  GeographyTree,
-  Radios,
-} from '@fphd/ui';
+import { Button, CollapsibleFilterCard, GeographyTree, Radios } from '@fphd/ui';
 import { useEffect, useState } from 'react';
 import { Form, useLocation, useNavigate } from 'react-router';
 import { HiddenFilters } from '../search/filter-fields.tsx';
-import { SearchGeographyPicker } from '../search/geography-picker.tsx';
+import { SearchGeographies } from '../search/geographies.tsx';
 import type { loadSearch } from '../search/loader.ts';
 import { searchUrl } from '../search/url.ts';
 import { TOPIC_AREA_GROUPS } from './data.ts';
@@ -33,7 +26,6 @@ export function TopicGeographies({
   };
   const urlFor = (gaCodes: string[], geoLevels: string[]) =>
     searchUrl({ ...search, gaCodes, geoLevels }, path, extraParams);
-  const picked = search.gaCodes.length > 0 || search.geoLevels.length > 0;
   const group = search.geoLevels[0] ?? 'NHS regions';
   const [selectedGroup, setSelectedGroup] = useState(group);
   useEffect(() => setSelectedGroup(group), [group]);
@@ -43,12 +35,7 @@ export function TopicGeographies({
     return (
       <div className="fphd-topic-geographies">
         <h2 className="govuk-heading-m">Geographies</h2>
-        <CollapsibleFilterCard
-          active
-          variant="accordion"
-          headingLevel={3}
-          title="Type of geography"
-        >
+        <CollapsibleFilterCard active headingLevel={3} title="Type of geography">
           <Form action={path} method="get" preventScrollReset>
             <HiddenFilters
               state={search}
@@ -106,43 +93,11 @@ export function TopicGeographies({
     );
   }
   return (
-    <div className="fphd-topic-geographies">
-      <h2 className="govuk-heading-m">Geographies</h2>
-      <CollapsibleFilterCard
-        active
-        variant="accordion"
-        headingLevel={3}
-        title="Geographies"
-        onClear={picked ? urlFor([], []) : undefined}
-        footer={
-          <SearchGeographyPicker
-            autoApply
-            lookupUrl="/geographies?scheme=public"
-            single={tab === 'overview'}
-            action={path}
-            extraParams={extraParams}
-            state={search}
-            displayGroups={search.displayGroups}
-            geographyOptions={search.geographyOptions}
-            onApply={({ gaCodes, geoLevels }) =>
-              void navigate(urlFor(gaCodes, geoLevels), { preventScrollReset: true })
-            }
-          />
-        }
-      >
-        {tab === 'overview' ? (
-          <>
-            <p className="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1">
-              Showing figures for
-            </p>
-            <FilterChips>
-              <FilterChip value={search.gaCodes[0] ?? 'E92000001'}>
-                {search.gaAreaNames[search.gaCodes[0] ?? ''] ?? 'England'}
-              </FilterChip>
-            </FilterChips>
-          </>
-        ) : null}
-      </CollapsibleFilterCard>
-    </div>
+    <SearchGeographies
+      search={search}
+      path={path}
+      extraParams={extraParams}
+      single={tab === 'overview'}
+    />
   );
 }
