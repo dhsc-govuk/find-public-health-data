@@ -1,4 +1,4 @@
-import { type AppAudience, type FakeUser, type Role, TEAMS } from '@fphd/auth';
+import { type FakeUser, type Role, TEAMS } from '@fphd/auth';
 import { canUseInternalService } from '@fphd/auth/permissions';
 import { A, Button, PageIntro, Radios } from '@fphd/ui';
 
@@ -21,7 +21,7 @@ export function fakeUserAccess(user: FakeUser): string {
     return label === undefined ? [] : [label];
   });
 
-  return roles.length === 0 ? 'Public service only' : roles.map((role) => `${role}.`).join(' ');
+  return roles.map((role) => `${role}.`).join(' ');
 }
 
 export interface SignInSession {
@@ -30,13 +30,12 @@ export interface SignInSession {
 }
 
 interface SignInPageProps {
-  audience: AppAudience;
   returnTo: string;
   session?: SignInSession | undefined;
   users: readonly FakeUser[];
 }
 
-export function SignInPage({ audience, returnTo, session, users }: SignInPageProps) {
+export function SignInPage({ returnTo, session, users }: SignInPageProps) {
   if (session !== undefined) {
     const user = users.find((candidate) => candidate.id === session.subject);
 
@@ -45,7 +44,7 @@ export function SignInPage({ audience, returnTo, session, users }: SignInPagePro
         <p className="govuk-body">
           You are signed in as <strong>{user?.name ?? session.subject}</strong>.
         </p>
-        {audience === 'internal' && !canUseInternalService(session) ? (
+        {!canUseInternalService(session) ? (
           <p className="govuk-body">This account cannot access the internal service.</p>
         ) : (
           <p className="govuk-body">
@@ -63,7 +62,7 @@ export function SignInPage({ audience, returnTo, session, users }: SignInPagePro
   return (
     <PageIntro title="Sign in">
       <p className="govuk-body">
-        Select a fake user to test the {audience} service. No password is required.
+        Select a fake user to test the internal service. No password is required.
       </p>
       <p className="govuk-body">IMRG is the Indicator Methodology Review Group.</p>
       <form action="/auth/sign-in" method="post">

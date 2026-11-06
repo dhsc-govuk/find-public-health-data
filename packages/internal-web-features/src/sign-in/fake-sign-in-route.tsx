@@ -1,8 +1,8 @@
-import { type AppAudience, fakeUsersForAudience, normalizeReturnTo } from '@fphd/auth';
+import { fakeUsers, normalizeReturnTo } from '@fphd/auth';
 import { createDocumentMeta } from '@fphd/ui';
 import { type LoaderFunctionArgs, type RouterContext, useLoaderData } from 'react-router';
 
-import { SignInPage } from './page.tsx';
+import { SignInPage } from './fake-sign-in-page.tsx';
 
 type SessionReader = (context: { get<T>(context: RouterContext<T>): T }) =>
   | {
@@ -11,9 +11,7 @@ type SessionReader = (context: { get<T>(context: RouterContext<T>): T }) =>
     }
   | undefined;
 
-export function createSignInRoute(audience: AppAudience, readSession: SessionReader) {
-  const users = fakeUsersForAudience(audience);
-
+export function createSignInRoute(readSession: SessionReader) {
   async function loader({ context, request }: LoaderFunctionArgs) {
     const session = readSession(context);
     const returnTo = normalizeReturnTo(new URL(request.url).searchParams.get('returnTo'));
@@ -33,7 +31,7 @@ export function createSignInRoute(audience: AppAudience, readSession: SessionRea
   function SignInRoute() {
     const { returnTo, session } = useLoaderData<typeof loader>();
 
-    return <SignInPage audience={audience} returnTo={returnTo} session={session} users={users} />;
+    return <SignInPage returnTo={returnTo} session={session} users={fakeUsers} />;
   }
 
   return Object.freeze({

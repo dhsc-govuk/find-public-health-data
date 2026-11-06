@@ -77,15 +77,16 @@ Node's CA store — so it is not a way to accept an unknown certificate, and no 
 shipped. Set it only to override the default in a deployed environment.
 
 `SESSION_JWT_SECRET` signs JWT session cookies issued by the authentication backend. The example
-value is for local development only; each deployed service must receive a secret of at least 32
-bytes from the deployment environment. Services issuing and validating a session for the same
-audience must receive the same secret. Web applications validate the JWT before exposing its
-subject and roles to route middleware, and personalized responses are marked private and
-non-cacheable.
+value is for local development only; internal-web and the internal API must each receive a secret
+of at least 32 bytes from the deployment environment, and the same one, since internal-web issues
+the session and the API validates it. `WEB_SESSION_SECRET` signs internal-web's own cookie
+session. internal-web validates the JWT before exposing its subject and roles to route middleware,
+and personalized responses are marked private and non-cacheable. public-web has no sign-in and
+takes neither secret.
 
 Authentication currently uses fixed fake users. The sign-in form posts to the web backend, which
 creates a one-use authorization code; its callback exchanges that code for an eight-hour JWT
-cookie. Public routes remain available anonymously, and the public app offers no sign-in for now.
+cookie. Public routes are anonymous, and the public app has no sign-in.
 Internal routes send a signed-out visitor to a landing page that leads to sign-in, and accept only
 fake users holding one of the internal roles: publisher, IMRG manager, IMRG reviewer or admin. The
 management navigation, the `/manage` routes and the topics API are for admins. The public surface

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { fakeUsersForAudience } from '@fphd/auth';
 import {
   AdminTopicsPage,
   DeleteTopicPage,
@@ -8,7 +7,7 @@ import {
   NewTopicPage,
   SignInLandingPage,
 } from '@fphd/internal-web-features';
-import { SignInPage, TopicsRoute } from '@fphd/public-web-features';
+import { TopicsRoute } from '@fphd/public-web-features';
 import { backLinkHandle } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -57,21 +56,6 @@ describe('internal application routes', () => {
 
     expect(await screen.findByText('Internal')).toBeTruthy();
     expect(await screen.findByRole('heading', { name: 'Manage public health data' })).toBeTruthy();
-  });
-
-  it('offers only internal fake users on the internal sign-in page', () => {
-    render(
-      <SignInPage
-        audience="internal"
-        returnTo="/manage"
-        users={fakeUsersForAudience('internal')}
-      />,
-    );
-
-    expect(screen.getAllByRole('radio')).toHaveLength(10);
-    expect(screen.queryByText('Alex Morgan')).toBeNull();
-    expect(screen.getByText('Sam Taylor')).toBeTruthy();
-    expect(screen.getByText('Riley Singh')).toBeTruthy();
   });
 
   it('hides data management from publishers', async () => {

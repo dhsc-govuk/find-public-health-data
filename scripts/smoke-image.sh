@@ -29,9 +29,9 @@ fail() {
   exit 1
 }
 
-# The union of every app's required config; each app ignores the keys it does not read. DB_HOST
-# points at nothing: an API logs the unreachable database and carries on serving, and a service
-# container would add a minute per image for nothing this test checks.
+# The union of every app's required config, bar the session secrets; each app ignores the keys it
+# does not read. DB_HOST points at nothing: an API logs the unreachable database and carries on
+# serving, and a service container would add a minute per image for nothing this test checks.
 env_args=(
   -e APP_ENV=dev
   -e DB_HOST=127.0.0.1
@@ -41,12 +41,22 @@ env_args=(
   -e POSTGRES_PASSWORD=smoke-test-only
   -e PUBLIC_API_PASSWORD=smoke-test-only
   -e INTERNAL_API_PASSWORD=smoke-test-only
-  -e SESSION_JWT_SECRET=smoke-test-only-jwt-secret-at-least-32-bytes
-  -e WEB_SESSION_SECRET=smoke-test-only-web-secret-at-least-32-bytes
   -e STORAGE_CONTAINER=uploads
   -e STORAGE_ACCOUNT_URL=https://smoketestonly.blob.core.windows.net
   -e AZURE_CLIENT_ID=00000000-0000-0000-0000-000000000000
 )
+
+# Only the apps that sign or verify a session get its secrets, so public-web shows it starts
+# without them.
+case "${app}" in
+  internal-api) env_args+=(-e SESSION_JWT_SECRET=smoke-test-only-jwt-secret-at-least-32-bytes) ;;
+  internal-web)
+    env_args+=(
+      -e SESSION_JWT_SECRET=smoke-test-only-jwt-secret-at-least-32-bytes
+      -e WEB_SESSION_SECRET=smoke-test-only-web-secret-at-least-32-bytes
+    )
+    ;;
+esac
 
 if [ "${app}" = 'operations' ]; then
   # With no arguments the CLI prints its usage and exits 2, which means config.ts and every module

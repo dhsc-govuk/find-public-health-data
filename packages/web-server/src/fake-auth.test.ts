@@ -1,4 +1,4 @@
-import { FAKE_USER_IDS, fakeUsersForAudience, TEAM_IDS } from '@fphd/auth';
+import { FAKE_USER_IDS, fakeUsers, TEAM_IDS } from '@fphd/auth';
 import { createJwtSessionService } from '@fphd/auth/jwt-session';
 import { request } from '@fphd/express/testing';
 import express from 'express';
@@ -19,10 +19,9 @@ function createTestApp() {
   const app = express();
   app.use(
     createFakeAuthRouter({
-      audience: 'internal',
       isPagePath: (path) => !path.startsWith('/auth/'),
       session,
-      users: fakeUsersForAudience('internal'),
+      users: fakeUsers,
     }),
   );
   return app;
@@ -60,9 +59,9 @@ describe('fake authentication backend', () => {
     expect((await request(app).get(callbackPath)).status).toBe(400);
   });
 
-  it('does not allow a public-only fake user to sign into the internal service', async () => {
+  it('refuses to sign in a user it does not offer', async () => {
     const response = await request(createTestApp()).post('/auth/sign-in').type('form').send({
-      userId: FAKE_USER_IDS.publicUser,
+      userId: '01a13c69-96ac-700c-9c28-8f3a1d3968e2',
     });
 
     expect(response.status).toBe(403);
@@ -114,10 +113,9 @@ describe('fake authentication backend', () => {
     const app = express();
     app.use(
       createFakeAuthRouter({
-        audience: 'internal',
         isPagePath: () => true,
         session,
-        users: fakeUsersForAudience('internal'),
+        users: fakeUsers,
       }),
     );
     app.post('/manage/topics/1', async (request, response) => {

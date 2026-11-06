@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { FAKE_USER_IDS, fakeUsersForAudience, findFakeUser } from '@fphd/auth';
+import { FAKE_USER_IDS, fakeUsers, findFakeUser } from '@fphd/auth';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { fakeUserAccess, SignInPage } from './page.tsx';
+import { fakeUserAccess, SignInPage } from './fake-sign-in-page.tsx';
 
 afterEach(cleanup);
 
@@ -21,7 +21,6 @@ describe('fakeUserAccess', () => {
     [FAKE_USER_IDS.publisherAndReviewer, 'Publisher in Team C. IMRG reviewer.'],
     [FAKE_USER_IDS.imrgManager, 'IMRG manager.'],
     [FAKE_USER_IDS.admin, 'Admin.'],
-    [FAKE_USER_IDS.publicUser, 'Public service only'],
   ])('states the roles and teams of %s', (id, expected) => {
     expect(access(id)).toBe(expected);
   });
@@ -31,7 +30,7 @@ describe('SignInPage', () => {
   it("shows each fake user's roles and teams beside their name", () => {
     render(
       <MemoryRouter>
-        <SignInPage audience="internal" returnTo="/" users={fakeUsersForAudience('internal')} />
+        <SignInPage returnTo="/" users={fakeUsers} />
       </MemoryRouter>,
     );
 

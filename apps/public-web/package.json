@@ -26,7 +26,6 @@
     "react-router": "catalog:"
   },
   "devDependencies": {
-    "@fphd/auth": "workspace:*",
     "@fphd/public-web-features": "workspace:*",
     "@fphd/ui": "workspace:*",
     "@react-router/dev": "catalog:",

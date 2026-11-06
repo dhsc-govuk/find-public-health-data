@@ -1,14 +1,15 @@
 # @fphd/auth
 
-The session model shared by the web apps, the API apps and `@fphd/web-server`: which audience a
-session is for, the roles and teams, the fake users local sign-in offers, the JWT cookie that
-carries a session from a web app to its API, and the permission checks over it.
+The session model shared by internal-web, the API apps and `@fphd/web-server`: which audience a
+session is for (internal-web is the only app with sign-in), the roles and teams, the fake users
+local sign-in offers, the JWT cookie that carries a session from a web app to its API, and the
+permission checks over it.
 
 Built package.
 
 | Entry               | Purpose                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------- |
-| `.`                 | `AppAudience`, `sessionCookieName`, `ROLES`, `TEAMS`, the fake user list and the helpers that pick a session's roles and teams for an audience, `normalizeReturnTo` |
+| `.`                 | `AppAudience`, `sessionCookieName`, `ROLES`, `TEAMS`, the fake user list, `normalizeReturnTo` |
 | `./permissions`     | The `can*` checks each role decision goes through, and `indicatorListScope`, the list filter `canSeeIndicator` implies |
 | `./jwt-session`     | `createJwtSessionService` issues and verifies the session JWT; `createJwtSessionVerifier` narrows it to the verify-only shape the APIs need |
 | `./cookies`         | `readCookie`, the one cookie parser both sides use                                          |

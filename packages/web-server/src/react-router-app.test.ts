@@ -42,8 +42,8 @@ import { nonceContext } from './nonce-context.ts';
 import { createReactRouterApp } from './react-router-app.ts';
 
 const session = createJwtSessionService({
-  audience: 'fphd-public',
-  cookieName: 'fphd-public-session',
+  audience: 'fphd-internal',
+  cookieName: 'fphd-internal-session',
   issuer: 'fphd-auth',
   secret: 'a-jwt-session-secret-that-is-long-enough-for-tests',
   secure: false,
@@ -84,6 +84,17 @@ describe('createReactRouterApp', () => {
         throw new Error('build should not load while asserting context wiring');
       },
       { session, trustedProxyHops: 2 },
+    );
+
+    expect(loadContext('test-nonce').get(nonceContext)).toBe('test-nonce');
+  });
+
+  it('needs no session to build the load context, for an app nobody signs in to', () => {
+    createReactRouterApp(
+      () => {
+        throw new Error('build should not load while asserting context wiring');
+      },
+      { trustedProxyHops: 2 },
     );
 
     expect(loadContext('test-nonce').get(nonceContext)).toBe('test-nonce');

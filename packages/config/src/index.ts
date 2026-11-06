@@ -9,6 +9,7 @@ export {
   DEV_CLASS_APP_ENVS,
   isDeployedEnv,
   isDevClassEnv,
+  loadSignInWebServerConfig,
   loadWebServerConfig,
   logEnvFields,
   parseEnv,

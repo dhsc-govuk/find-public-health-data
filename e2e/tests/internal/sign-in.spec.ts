@@ -7,12 +7,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/sign-in');
 });
 
-test('offers the internal users only', async ({ page }) => {
+test('offers the fake users', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
   await expect(page.getByRole('radio')).toHaveCount(10);
   await expect(page.getByRole('radio', { name: 'Sam Taylor' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Riley Singh' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Alex Morgan' })).toHaveCount(0);
 });
 
 test("shows each fake user's roles and teams", async ({ page }) => {

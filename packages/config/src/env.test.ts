@@ -5,6 +5,7 @@ import {
   boolSchema,
   isDeployedEnv,
   isDevClassEnv,
+  loadSignInWebServerConfig,
   loadWebServerConfig,
   logEnvFields,
   parseEnv,
@@ -248,13 +249,10 @@ describe('parseEnv', () => {
 });
 
 describe('loadWebServerConfig', () => {
-  const sessionSecret = 'a-jwt-session-secret-that-is-long-enough';
-  const webSessionSecret = 'a-web-session-secret-that-is-long-enough';
-  const secrets = { SESSION_JWT_SECRET: sessionSecret, WEB_SESSION_SECRET: webSessionSecret };
   const defaults = { port: 3000, apiUrl: 'http://localhost:4000' };
 
   it('uses the app port, api url and local logging defaults', () => {
-    expect(loadWebServerConfig({ APP_ENV: 'local', ...secrets }, defaults)).toEqual({
+    expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults)).toEqual({
       offersDevTools: true,
       development: false,
       host: '0.0.0.0',
@@ -265,8 +263,6 @@ describe('loadWebServerConfig', () => {
       trustedProxyHops: 2,
       log: { level: 'debug', pretty: true, requestDetails: false },
       shutdown: { drainDelayMs: 0, gracePeriodMs: 25_000 },
-      session: { secret: sessionSecret, secure: false },
-      webSession: { secret: webSessionSecret, secure: false },
     });
   });
 
@@ -277,9 +273,7 @@ describe('loadWebServerConfig', () => {
     ['preview', false],
     ['production', false],
   ])('offers development tools under APP_ENV %s: %s', (appEnv, offered) => {
-    expect(loadWebServerConfig({ APP_ENV: appEnv, ...secrets }, defaults).offersDevTools).toBe(
-      offered,
-    );
+    expect(loadWebServerConfig({ APP_ENV: appEnv }, defaults).offersDevTools).toBe(offered);
   });
 
   it('parses runtime and logging configuration', () => {
@@ -296,7 +290,6 @@ describe('loadWebServerConfig', () => {
           TRUSTED_PROXY_HOPS: '1',
           LOG_LEVEL: 'debug',
           LOG_PRETTY: '1',
-          ...secrets,
         },
         defaults,
       ),
@@ -311,8 +304,88 @@ describe('loadWebServerConfig', () => {
       trustedProxyHops: 1,
       log: { level: 'debug', pretty: false, requestDetails: false },
       shutdown: { drainDelayMs: 5_000, gracePeriodMs: 25_000 },
-      session: { secret: sessionSecret, secure: true },
-      webSession: { secret: webSessionSecret, secure: true },
+    });
+  });
+
+  it('takes no session secret, as public-web has no sign-in', () => {
+    expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults)).not.toHaveProperty('session');
+  });
+
+  it('requires APP_ENV', () => {
+    expect(() => loadWebServerConfig({}, defaults)).toThrow(/APP_ENV/);
+  });
+
+  it('strips a trailing slash from the api url so callers can build paths without doubling it', () => {
+    expect(
+      loadWebServerConfig({ APP_ENV: 'local', API_URL: 'http://api.internal:9000/' }, defaults)
+        .apiUrl,
+    ).toBe('http://api.internal:9000');
+  });
+
+  it.each(['-1', '1.5', 'two'])('rejects %s trusted proxy hops', (value) => {
+    expect(() =>
+      loadWebServerConfig({ APP_ENV: 'local', TRUSTED_PROXY_HOPS: value }, defaults),
+    ).toThrow(/TRUSTED_PROXY_HOPS/);
+  });
+
+  it('rejects an invalid api url', () => {
+    expect(() => loadWebServerConfig({ APP_ENV: 'local', API_URL: 'not-a-url' }, defaults)).toThrow(
+      /API_URL/,
+    );
+  });
+
+  it('leaves basic auth off when neither credential is set', () => {
+    expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults).basicAuth).toBe(undefined);
+  });
+
+  it('turns basic auth on when both credentials are set', () => {
+    expect(
+      loadWebServerConfig(
+        {
+          APP_ENV: 'dev',
+          BASIC_AUTH_USERNAME: 'preview',
+          BASIC_AUTH_PASSWORD: 'pass:word',
+        },
+        defaults,
+      ).basicAuth,
+    ).toEqual({ username: 'preview', password: 'pass:word' });
+  });
+
+  it.each([{ BASIC_AUTH_USERNAME: 'preview' }, { BASIC_AUTH_PASSWORD: 'password' }])(
+    'refuses one basic auth credential without the other: %o',
+    (credential) => {
+      expect(() => loadWebServerConfig({ APP_ENV: 'dev', ...credential }, defaults)).toThrow(
+        /must be set together/,
+      );
+    },
+  );
+
+  it('refuses a basic auth username containing a colon', () => {
+    expect(() =>
+      loadWebServerConfig(
+        {
+          APP_ENV: 'dev',
+          BASIC_AUTH_USERNAME: 'pre:view',
+          BASIC_AUTH_PASSWORD: 'password',
+        },
+        defaults,
+      ),
+    ).toThrow(/BASIC_AUTH_USERNAME/);
+  });
+});
+
+describe('loadSignInWebServerConfig', () => {
+  const sessionSecret = 'a-jwt-session-secret-that-is-long-enough';
+  const webSessionSecret = 'a-web-session-secret-that-is-long-enough';
+  const secrets = { SESSION_JWT_SECRET: sessionSecret, WEB_SESSION_SECRET: webSessionSecret };
+  const defaults = { port: 3001, apiUrl: 'http://localhost:4001' };
+
+  it('adds the session secrets to the web app configuration', () => {
+    expect(loadSignInWebServerConfig({ APP_ENV: 'local', ...secrets }, defaults)).toMatchObject({
+      port: 3001,
+      apiUrl: 'http://localhost:4001',
+      session: { secret: sessionSecret, secure: false },
+      webSession: { secret: webSessionSecret, secure: false },
     });
   });
 
@@ -320,7 +393,7 @@ describe('loadWebServerConfig', () => {
     'uses secure session cookies in the %s environment',
     (appEnv) => {
       expect(
-        loadWebServerConfig(
+        loadSignInWebServerConfig(
           {
             APP_ENV: appEnv,
             NODE_ENV: 'development',
@@ -336,7 +409,7 @@ describe('loadWebServerConfig', () => {
     'leaves session cookies insecure in the %s environment, which is served over http',
     (appEnv) => {
       expect(
-        loadWebServerConfig(
+        loadSignInWebServerConfig(
           {
             APP_ENV: appEnv,
             NODE_ENV: 'development',
@@ -348,81 +421,22 @@ describe('loadWebServerConfig', () => {
     },
   );
 
-  it('requires APP_ENV', () => {
-    expect(() => loadWebServerConfig(secrets, defaults)).toThrow(/APP_ENV/);
-  });
-
   it.each(['SESSION_JWT_SECRET', 'WEB_SESSION_SECRET'] as const)(
     'requires a %s of at least 32 characters',
     (name) => {
-      expect(() => loadWebServerConfig({ APP_ENV: 'local' }, defaults)).toThrow(name);
+      expect(() => loadSignInWebServerConfig({ APP_ENV: 'local' }, defaults)).toThrow(name);
       expect(() =>
-        loadWebServerConfig({ APP_ENV: 'local', ...secrets, [name]: 'too-short' }, defaults),
+        loadSignInWebServerConfig({ APP_ENV: 'local', ...secrets, [name]: 'too-short' }, defaults),
       ).toThrow(name);
     },
   );
 
-  it('strips a trailing slash from the api url so callers can build paths without doubling it', () => {
-    expect(
-      loadWebServerConfig(
-        { APP_ENV: 'local', API_URL: 'http://api.internal:9000/', ...secrets },
-        defaults,
-      ).apiUrl,
-    ).toBe('http://api.internal:9000');
-  });
-
-  it.each(['-1', '1.5', 'two'])('rejects %s trusted proxy hops', (value) => {
+  it('still refuses one basic auth credential without the other', () => {
     expect(() =>
-      loadWebServerConfig({ APP_ENV: 'local', TRUSTED_PROXY_HOPS: value, ...secrets }, defaults),
-    ).toThrow(/TRUSTED_PROXY_HOPS/);
-  });
-
-  it('rejects an invalid api url', () => {
-    expect(() =>
-      loadWebServerConfig({ APP_ENV: 'local', API_URL: 'not-a-url', ...secrets }, defaults),
-    ).toThrow(/API_URL/);
-  });
-
-  it('leaves basic auth off when neither credential is set', () => {
-    expect(loadWebServerConfig({ APP_ENV: 'local', ...secrets }, defaults).basicAuth).toBe(
-      undefined,
-    );
-  });
-
-  it('turns basic auth on when both credentials are set', () => {
-    expect(
-      loadWebServerConfig(
-        {
-          APP_ENV: 'dev',
-          BASIC_AUTH_USERNAME: 'preview',
-          BASIC_AUTH_PASSWORD: 'pass:word',
-          ...secrets,
-        },
-        defaults,
-      ).basicAuth,
-    ).toEqual({ username: 'preview', password: 'pass:word' });
-  });
-
-  it.each([{ BASIC_AUTH_USERNAME: 'preview' }, { BASIC_AUTH_PASSWORD: 'password' }])(
-    'refuses one basic auth credential without the other: %o',
-    (credential) => {
-      expect(() =>
-        loadWebServerConfig({ APP_ENV: 'dev', ...credential, ...secrets }, defaults),
-      ).toThrow(/must be set together/);
-    },
-  );
-
-  it('refuses a basic auth username containing a colon', () => {
-    expect(() =>
-      loadWebServerConfig(
-        {
-          APP_ENV: 'dev',
-          BASIC_AUTH_USERNAME: 'pre:view',
-          BASIC_AUTH_PASSWORD: 'password',
-          ...secrets,
-        },
+      loadSignInWebServerConfig(
+        { APP_ENV: 'dev', BASIC_AUTH_USERNAME: 'preview', ...secrets },
         defaults,
       ),
-    ).toThrow(/BASIC_AUTH_USERNAME/);
+    ).toThrow(/must be set together/);
   });
 });

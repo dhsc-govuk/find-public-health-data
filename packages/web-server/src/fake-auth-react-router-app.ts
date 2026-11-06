@@ -1,4 +1,4 @@
-import { type AppAudience, fakeUsersForAudience, sessionCookieName } from '@fphd/auth';
+import { type AppAudience, fakeUsers, sessionCookieName } from '@fphd/auth';
 import {
   createJwtSessionService,
   createJwtSessionVerifier,
@@ -33,11 +33,10 @@ export function createFakeAuthReactRouterApp(
   return createReactRouterApp(loadBuild, {
     backendMiddleware: [
       createFakeAuthRouter({
-        audience,
         // Per call rather than once: in development the build is reloaded as routes change.
         isPagePath: async (path) => createPagePathCheck(await loadBuild())(path),
         session: sessionService,
-        users: fakeUsersForAudience(audience),
+        users: fakeUsers,
       }),
     ],
     session: createJwtSessionVerifier(sessionService),

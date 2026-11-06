@@ -6,6 +6,8 @@ export { devToolsContext } from './dev-tools.ts';
 export { IndicatorOverviewPage } from './indicator-overview/page.tsx';
 export { indicatorOverviewPath } from './indicator-overview/paths.ts';
 export { ManageDataPage } from './manage-data/page.tsx';
+export { fakeUserAccess, SignInPage } from './sign-in/fake-sign-in-page.tsx';
+export { createSignInRoute } from './sign-in/fake-sign-in-route.tsx';
 export { SignInLandingPage } from './sign-in/page.tsx';
 export { DeleteTopicRoute } from './topic-admin/delete-route.tsx';
 export { EditTopicRoute } from './topic-admin/edit-route.tsx';

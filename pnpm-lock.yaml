@@ -505,9 +505,6 @@ importers:
         specifier: 'catalog:'
         version: 8.3.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
     devDependencies:
-      '@fphd/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
       '@fphd/public-web-features':
         specifier: workspace:*
         version: link:../../packages/public-web-features
@@ -921,9 +918,6 @@ importers:
 
   packages/public-web-features:
     dependencies:
-      '@fphd/auth':
-        specifier: workspace:*
-        version: link:../auth
       '@fphd/public-api-features':
         specifier: workspace:*
         version: link:../public-api-features
