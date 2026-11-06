@@ -8,10 +8,16 @@
 // project then, not speculatively now.
 import { defineConfig, devices } from '@playwright/test';
 
+import { INVITEE_STORAGE_STATE } from './tests/support/private-beta.ts';
+
 // Default to 127.0.0.1: the apps listen on IPv4 and the request client tries ::1 first.
 const internalUse = {
   ...devices['Desktop Chrome'],
   baseURL: process.env.INTERNAL_WEB_URL ?? 'http://127.0.0.1:3001',
+};
+const publicUse = {
+  ...devices['Desktop Chrome'],
+  baseURL: process.env.PUBLIC_WEB_URL ?? 'http://127.0.0.1:3000',
 };
 
 export default defineConfig({
@@ -28,13 +34,18 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
+    // Signs the invitee in to the private beta once a run, saving the access the public specs use.
+    {
+      name: 'public sign-in',
+      testDir: './tests/public',
+      testMatch: 'private-beta.setup.ts',
+      use: publicUse,
+    },
     {
       name: 'public',
       testDir: './tests/public',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.PUBLIC_WEB_URL ?? 'http://127.0.0.1:3000',
-      },
+      dependencies: ['public sign-in'],
+      use: { ...publicUse, storageState: INVITEE_STORAGE_STATE },
     },
     // Signs each internal user in once a run, saving the sessions the internal specs start from.
     {
