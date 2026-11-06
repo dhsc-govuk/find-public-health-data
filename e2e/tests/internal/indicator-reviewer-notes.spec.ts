@@ -233,8 +233,8 @@ test.describe("the reviewers' notes are shared", () => {
       await asUser(browser, user, async (reader) => {
         await reader.goto(overviewPath(id));
         await expect(
-          reader.getByRole('heading', { level: 2, name: "Reviewers' notes" }),
-        ).toBeVisible();
+          reader.getByRole('tabpanel', { name: 'Actions' }).getByRole('heading', { level: 2 }),
+        ).toHaveText(['Actions']);
         await expect(notesBy(reader, IMRG_REVIEWER.name)).toContainText("Jamie's note.");
         await expect(notesBy(reader, SECOND_IMRG_REVIEWER.name)).toContainText('No notes added');
         await expect(reader.getByRole('heading', { name: 'Your notes' })).toHaveCount(0);
@@ -252,7 +252,7 @@ test.describe("the reviewers' notes are shared", () => {
     await asUser(browser, PUBLISHER, async (publisher) => {
       await publisher.goto(overviewPath(id));
       await expect(publisher.getByRole('heading', { level: 1 })).toBeVisible();
-      await expect(publisher.getByRole('heading', { name: "Reviewers' notes" })).toHaveCount(0);
+      await expect(publisher.getByRole('heading', { name: /'s notes$/ })).toHaveCount(0);
       await expect(publisher.getByRole('heading', { name: 'Your notes' })).toHaveCount(0);
       await expect(publisher.getByText('Not for the publisher.')).toHaveCount(0);
     });

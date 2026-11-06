@@ -228,7 +228,7 @@ describe("the reviewer's notes", () => {
     renderPage(null);
 
     expect(screen.queryByRole('heading', { name: 'Your notes' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: "Reviewers' notes" })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /'s notes$/ })).toBeNull();
   });
 });
 
@@ -256,7 +256,6 @@ describe("other reviewers' notes", () => {
       ['4 November 2026 at 9:30am', 'Denominator source is fine'],
     ]);
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
-    expect(screen.queryByRole('heading', { name: "Reviewers' notes" })).toBeNull();
   });
 
   it('say so for a reviewer who has written none', () => {
@@ -266,10 +265,10 @@ describe("other reviewers' notes", () => {
     expect(within(avery.parentElement as HTMLElement).getByText('No notes added')).toBeTruthy();
   });
 
-  it("go in a Reviewers' notes section, with no form, for a reader who is not reviewing", () => {
+  it('follow the Actions section, with no form, for a reader who is not reviewing', () => {
     renderPage(null, adding, false, others);
 
-    const heading = screen.getByRole('heading', { level: 2, name: "Reviewers' notes" });
+    const heading = screen.getByRole('heading', { level: 2, name: 'Actions' });
     const section = within(heading.parentElement as HTMLElement);
     expect(section.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       "Robin Shaw's notes",
