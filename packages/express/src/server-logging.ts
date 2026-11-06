@@ -18,7 +18,7 @@ interface ServerLogging {
   onError: (error: unknown) => void;
 }
 
-/** The lifecycle callbacks, identical in all four apps. Nothing here names the app — the logger
+/** The lifecycle callbacks, identical in every server. Nothing here names the app — the logger
  * already binds that to every line. */
 export function serverLogging(
   logger: Logger,

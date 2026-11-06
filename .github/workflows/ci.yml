@@ -207,6 +207,7 @@ jobs:
           docker compose -f compose.yaml -f compose.e2e.yaml \
             --profile public-web --profile internal-web \
             --profile public-api --profile internal-api \
+            --profile internal-worker \
             up --detach --wait
 
       - name: Run the e2e tests
@@ -252,7 +253,8 @@ jobs:
           name: seeded-database
           path: ${{ runner.temp }}
 
-      # As e2e starts it, plus compose.perf.yaml's database settings.
+      # As e2e starts it, plus compose.perf.yaml's database settings, and without the worker, whose
+      # sweeps would add their statements to whichever route is being measured.
       #
       # The database first, with seed-database's dump restored, then the apps. Each API checks the
       # database at start-up as its own login, which bootstrap creates, and a failed check retries a
@@ -358,7 +360,7 @@ jobs:
   #
   # No registry login: the images are built into the local daemon, then saved as an artifact for
   # e2e and scan-app-images, and on a push to main for publish-images.yml, which pushes these
-  # bytes. One bake invocation so the shared builder stage runs once and the four app builds run
+  # bytes. One bake invocation so the shared builder stage runs once and the app builds run
   # in parallel. No build cache: every layer after `COPY . .` misses on a pull request anyway,
   # exporting it costs more time than it restores, and a published image is then made only of
   # layers this run built.
@@ -396,18 +398,18 @@ jobs:
 
       - name: Smoke test the app images
         run: |
-          for app in public-web internal-web public-api internal-api; do
+          for app in public-web internal-web public-api internal-api internal-worker; do
             scripts/smoke-image.sh "${app}" "fphd-ci/${app}:ci"
           done
 
       - name: Check the app images' contents
         run: |
-          for app in public-web internal-web public-api internal-api; do
+          for app in public-web internal-web public-api internal-api internal-worker; do
             scripts/check-image-contents.sh "${app}" "fphd-ci/${app}:ci"
           done
 
       # The other jobs test on the Node .nvmrc names, and Dependabot's base image bumps move only
-      # the digest. All five images share the base, so one image stands for them.
+      # the digest. All the images share the base, so one image stands for them.
       - name: Check the images' Node matches .nvmrc
         run: |
           image_node=$(docker run --rm --entrypoint node fphd-ci/public-api:ci --version)
@@ -416,13 +418,14 @@ jobs:
             exit 1
           fi
 
-      # One archive for all four so the base layers they share are stored once. zstd rather than
+      # One archive for them all so the base layers they share are stored once. zstd rather than
       # the artifact's own zip compression, which is slower for the same size.
       - name: Save the app images
         run: >
           docker save
           fphd-ci/public-web:ci fphd-ci/internal-web:ci
           fphd-ci/public-api:ci fphd-ci/internal-api:ci
+          fphd-ci/internal-worker:ci
           | zstd -T0 -3 -o "${RUNNER_TEMP}/app-images.tar.zst"
 
       - name: Upload the app images
@@ -442,10 +445,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
-      # One image's findings must not mask the state of the other three.
+      # One image's findings must not mask the state of the others.
       fail-fast: false
       matrix:
-        app: [public-web, internal-web, public-api, internal-api]
+        app: [public-web, internal-web, public-api, internal-api, internal-worker]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -467,7 +470,7 @@ jobs:
           db-cache-key: ${{ needs.trivy-db.outputs.cache-key }}
 
   # Brings Trivy's vulnerability database up to date once a run and caches it under its update
-  # time; each of the five scans restores that copy and skips the update, or downloads its own if
+  # time; each of the scans restores that copy and skips the update, or downloads its own if
   # the restore fails. It starts from the newest copy cached before, so Trivy downloads only when
   # that copy is out of date.
   trivy-db:

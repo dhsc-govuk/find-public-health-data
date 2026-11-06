@@ -69,7 +69,10 @@ export function rolesToBootstrap(roles: Config['roles']): DatabaseRole[] {
   );
 }
 
-/** Under DB_AUTH=entra, the two API identities' principals, refusing half the pair as above. */
+/**
+ * Under DB_AUTH=entra, each app identity's principal, refusing a partial set as above. The worker
+ * has an identity of its own and joins `internal_api`, as the internal API does.
+ */
 export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] {
   const required = [
     { group: API_ROLES.publicApi, prefix: 'PUBLIC_API', principal: roles.publicApiPrincipal },
@@ -77,6 +80,11 @@ export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] 
       group: API_ROLES.internalApi,
       prefix: 'INTERNAL_API',
       principal: roles.internalApiPrincipal,
+    },
+    {
+      group: API_ROLES.internalApi,
+      prefix: 'INTERNAL_WORKER',
+      principal: roles.internalWorkerPrincipal,
     },
   ];
 
