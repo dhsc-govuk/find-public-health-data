@@ -100,7 +100,7 @@ describe('GET /api/internal/indicators', () => {
   it('rejects a signed-in user who holds none of the four internal roles', async () => {
     const response = await request(createTestApp())
       .get('/api/internal/indicators')
-      .set('Cookie', await publisherCookie(['public']));
+      .set('Cookie', await publisherCookie([]));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -217,7 +217,7 @@ describe('GET /api/internal/indicators/:id', () => {
   it('rejects a signed-in user who holds none of the four internal roles', async () => {
     const response = await request(createTestApp())
       .get(`/api/internal/indicators/${row.id}`)
-      .set('Cookie', await publisherCookie(['public']));
+      .set('Cookie', await publisherCookie([]));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -450,7 +450,7 @@ describe('POST /api/internal/indicators', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .post('/api/internal/indicators')
-      .set('Cookie', await publisherCookie(['public']))
+      .set('Cookie', await publisherCookie([]))
       .send({ name: 'A new indicator', teamId: TEAM_ID });
 
     expect(response.status).toBe(403);

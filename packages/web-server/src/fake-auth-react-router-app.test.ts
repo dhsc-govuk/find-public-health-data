@@ -40,7 +40,7 @@ describe('fake-auth React Router application', () => {
     if (token === undefined) throw new Error('Session cookie did not contain a token');
 
     await expect(session.verifyToken(token)).resolves.toMatchObject({
-      roles: ['public'],
+      roles: [],
       sub: FAKE_USER_IDS.publisherTeamA,
       teams: [],
     });

@@ -40,32 +40,27 @@ function fakeUser(
 }
 
 export const fakeUsers: readonly FakeUser[] = Object.freeze([
-  fakeUser(FAKE_USER_IDS.publicUser, 'Alex Morgan', ['public']),
-  fakeUser(FAKE_USER_IDS.publisherTeamA, 'Sam Taylor', ['public', 'publisher'], [TEAM_IDS.teamA]),
-  fakeUser(
-    FAKE_USER_IDS.secondPublisherTeamA,
-    'Charlie Owen',
-    ['public', 'publisher'],
-    [TEAM_IDS.teamA],
-  ),
-  fakeUser(FAKE_USER_IDS.publisherTeamB, 'Jordan Lee', ['public', 'publisher'], [TEAM_IDS.teamB]),
+  fakeUser(FAKE_USER_IDS.publicUser, 'Alex Morgan', []),
+  fakeUser(FAKE_USER_IDS.publisherTeamA, 'Sam Taylor', ['publisher'], [TEAM_IDS.teamA]),
+  fakeUser(FAKE_USER_IDS.secondPublisherTeamA, 'Charlie Owen', ['publisher'], [TEAM_IDS.teamA]),
+  fakeUser(FAKE_USER_IDS.publisherTeamB, 'Jordan Lee', ['publisher'], [TEAM_IDS.teamB]),
   fakeUser(
     FAKE_USER_IDS.publisherTeamsAAndB,
     'Casey Patel',
-    ['public', 'publisher'],
+    ['publisher'],
     [TEAM_IDS.teamA, TEAM_IDS.teamB],
   ),
   fakeUser(
     FAKE_USER_IDS.publisherAndReviewer,
     'Morgan Hughes',
-    ['public', 'publisher', 'imrg-reviewer'],
+    ['publisher', 'imrg-reviewer'],
     [TEAM_IDS.teamC],
   ),
-  fakeUser(FAKE_USER_IDS.publisherTeamC, 'Drew Kaur', ['public', 'publisher'], [TEAM_IDS.teamC]),
-  fakeUser(FAKE_USER_IDS.imrgManager, 'Avery Clarke', ['public', 'imrg-manager']),
-  fakeUser(FAKE_USER_IDS.imrgReviewer, 'Jamie Evans', ['public', 'imrg-reviewer']),
-  fakeUser(FAKE_USER_IDS.secondImrgReviewer, 'Robin Shaw', ['public', 'imrg-reviewer']),
-  fakeUser(FAKE_USER_IDS.admin, 'Riley Singh', ['public', 'admin']),
+  fakeUser(FAKE_USER_IDS.publisherTeamC, 'Drew Kaur', ['publisher'], [TEAM_IDS.teamC]),
+  fakeUser(FAKE_USER_IDS.imrgManager, 'Avery Clarke', ['imrg-manager']),
+  fakeUser(FAKE_USER_IDS.imrgReviewer, 'Jamie Evans', ['imrg-reviewer']),
+  fakeUser(FAKE_USER_IDS.secondImrgReviewer, 'Robin Shaw', ['imrg-reviewer']),
+  fakeUser(FAKE_USER_IDS.admin, 'Riley Singh', ['admin']),
 ]);
 
 export function canAccessAudience(user: FakeUser, audience: AppAudience): boolean {
@@ -81,11 +76,11 @@ export interface SessionAccess {
   readonly teams: readonly string[];
 }
 
-/** What a session for the audience grants: a public session holds no internal role or team. */
+/** What a session for the audience grants: a public session holds no role or team. */
 export function sessionAccessForAudience(user: FakeUser, audience: AppAudience): SessionAccess {
   return audience === 'public'
     ? Object.freeze({
-        roles: Object.freeze(user.roles.filter((role) => role === 'public')),
+        roles: Object.freeze([]),
         teams: Object.freeze([]),
       })
     : Object.freeze({ roles: user.roles, teams: user.teamIds });

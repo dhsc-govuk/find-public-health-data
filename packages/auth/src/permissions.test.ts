@@ -33,7 +33,7 @@ const teamA = 'team-a';
 const teamB = 'team-b';
 
 function user(sub: string, roles: string[], teams: string[] = []): SessionUser {
-  return { roles: ['public', ...roles], sub, teams };
+  return { roles, sub, teams };
 }
 
 const publisherA = user('publisher-a', ['publisher'], [teamA]);
