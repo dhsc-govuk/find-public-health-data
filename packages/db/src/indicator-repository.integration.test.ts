@@ -189,6 +189,29 @@ describe('getPublishedIndicatorById', () => {
     expect((await getPublishedIndicatorById(db, id))?.unit).toBeNull();
   });
 
+  it('dates the first and the latest publication', async () => {
+    const id = await resolvedId(RESIDENT_POPULATION);
+    const imported = await getPublishedIndicatorById(db, id);
+
+    // An imported indicator has one published version.
+    expect(imported?.firstPublishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(imported?.lastPublishedAt).toBe(imported?.firstPublishedAt);
+
+    const owner = testDb.connectDb();
+    await owner.execute(
+      sql`INSERT INTO indicator_version
+            (indicator_id, status, name, slug, published_at, is_locked, created_by, updated_by)
+          SELECT ${id}, 'published', 'An earlier name', 'resident-population-earlier',
+                 '2000-01-01T00:00:00Z', true, ${ACTOR}, ${ACTOR}`,
+    );
+    await owner.$client.end();
+
+    const withEarlier = await getPublishedIndicatorById(db, id);
+
+    expect(withEarlier?.firstPublishedAt).toBe('2000-01-01T00:00:00.000Z');
+    expect(withEarlier?.lastPublishedAt).toBe(imported?.lastPublishedAt);
+  });
+
   it('names an other unit as its publisher did', async () => {
     const id = await resolvedId(GASTROENTERITIS_ADMISSIONS);
     await db.execute(

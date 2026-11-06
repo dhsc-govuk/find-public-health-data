@@ -22,6 +22,8 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
     ciConfidenceLevel: null,
     comparatorMethod: null,
     dataUpdatedAt: '2026-04-20T00:00:00Z',
+    firstPublishedAt: '2026-04-20T00:00:00.000Z',
+    lastPublishedAt: '2026-04-20T00:00:00.000Z',
     definition: `${name} definition`,
     rationale: null,
     methodology: null,
