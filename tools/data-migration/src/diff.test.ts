@@ -109,6 +109,21 @@ describe('createIncremental', () => {
         [same as string, 'Same'],
       ],
     });
+    const currentManifestPath = join(current, 'manifest.json');
+    const currentManifest = JSON.parse(await readFile(currentManifestPath, 'utf8'));
+    const corrections = [
+      {
+        source_uid: 96485373,
+        indicator_id: 93607,
+        field: 'UpperCI99_8',
+        original_value: 0,
+        corrected_value: 91.73290567213279,
+        evidence_url:
+          'https://fingertips.phe.org.uk/static-reports/public-health-technical-guidance/Basic_statistics/Proportions.html',
+      },
+    ];
+    currentManifest.source.observation_corrections = corrections;
+    await writeFile(currentManifestPath, JSON.stringify(currentManifest));
     const output = await outputDirectory();
 
     await createIncremental(previous, current, output, 'increment-2');
@@ -117,6 +132,7 @@ describe('createIncremental', () => {
       JSON.parse(await readFile(join(output, 'manifest.json'), 'utf8')),
     );
     expect(manifest.predecessor).toBe('baseline-1');
+    expect(manifest.source.observation_corrections).toEqual(corrections);
     expect(manifest.tables.data_source?.upserts.rows).toBe(2);
     expect(manifest.tables.data_source?.deletes.rows).toBe(1);
     expect(await records(join(output, 'data_source.csv.gz'))).toEqual([

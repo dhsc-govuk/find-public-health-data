@@ -44,6 +44,13 @@ publishing moves to this service. The operations image applies the packages with
   No prefix is stripped and no area identities are merged. `L_Areas.IsCurrent` supplies
   `area.is_current`; area and relationship validity dates stay null because Pholio does
   not supply them. Current-area queries use the explicit status rather than inferred dates.
+- Missing-value sentinels are nullified before confidence-limit validation. Present inverted
+  limits stop export with the source uid and confidence level. Four verified vaccination
+  upper-limit repairs require matching source identity, method and original measures.
+  Applied repairs are retained as `observation_corrections` in package provenance and both
+  development manifests.
+  Numeric suppression follows the explicit source-note policy independently of the note's
+  display category, so recategorising a note cannot expose a hidden count or denominator.
 - Preparation combines note types only when their tidied text and every other field match.
   It preserves every observation-note link, records the source-id aliases in
   `reference_name_aliases`, and updates the prepared file counts and hashes. Conflicting

@@ -41,11 +41,23 @@ it('preserves profile metadata in both development archive manifests', async () 
       structured_frequency: null,
     },
   ];
+  const corrections = [
+    {
+      source_uid: 96485373,
+      indicator_id: 93607,
+      field: 'UpperCI99_8',
+      original_value: 0,
+      corrected_value: 91.73290567213279,
+      evidence_url:
+        'https://fingertips.phe.org.uk/static-reports/public-health-technical-guidance/Basic_statistics/Proportions.html',
+    },
+  ];
   vi.mocked(exportPholio).mockImplementation(async ({ outDir }) => {
     await writeDevelopmentSource(outDir);
     const path = join(outDir, 'source-manifest.json');
     const source = JSON.parse(await readFile(path, 'utf8'));
     source.source.profile_metadata = profileMetadata;
+    source.source.observation_corrections = corrections;
     await writeFile(path, JSON.stringify(source));
   });
   await exportDevSnapshot({ connectionString: 'test source', outDir: directory });
@@ -53,6 +65,7 @@ it('preserves profile metadata in both development archive manifests', async () 
   for (const file of ['manifest.json', 'source-manifest.json']) {
     const manifest = JSON.parse(await readFile(join(directory, file), 'utf8'));
     expect(manifest.profile_metadata).toEqual(profileMetadata);
+    expect(manifest.observation_corrections).toEqual(corrections);
   }
 });
 

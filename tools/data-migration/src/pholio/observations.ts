@@ -16,6 +16,11 @@ import {
   SEX_DIMENSION_TYPE_ID,
   sourceUidForObservationId,
 } from './ids.ts';
+import { suppressSourceMeasures } from './note-suppression.ts';
+import {
+  correctObservationInterval,
+  type ObservationCorrection,
+} from './observation-corrections.ts';
 import { computeDates } from './period.ts';
 import { queryPholio, streamPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
@@ -49,24 +54,20 @@ export function computeDenominator2(
   return nullIfSentinel(denominator2Raw);
 }
 
-/**
- * CI pair with the inversion-swap rule (Step 6, lines 757–767).
- * When value = -1: both → null.
- * When value present, lower > upper and neither is -1: swap.
- * Otherwise: NULLIF individually.
- */
 export function computeCiPair(
-  valueRaw: number,
+  valueRaw: number | null,
   lowerRaw: number | null,
   upperRaw: number | null,
+  source = 'Confidence interval',
 ): { lower: number | null; upper: number | null } {
-  if (valueRaw === -1) return { lower: null, upper: null };
-  const lo = lowerRaw ?? -1;
-  const hi = upperRaw ?? -1;
-  if (lo > hi && lo !== -1 && hi !== -1) {
-    return { lower: nullIfSentinel(hi), upper: nullIfSentinel(lo) };
-  }
-  return { lower: nullIfSentinel(lo), upper: nullIfSentinel(hi) };
+  if (nullIfSentinel(valueRaw) === null) return { lower: null, upper: null };
+  const lower = nullIfSentinel(lowerRaw);
+  const upper = nullIfSentinel(upperRaw);
+  if (lower !== null && upper !== null && lower > upper)
+    throw new Error(
+      `${source}: inverted confidence limits ${lower} > ${upper}; source correction required`,
+    );
+  return { lower, upper };
 }
 
 // ─── Compound sex+age ─────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ export function dedupKey(
 
 // ─── CoreDataSet row type ──────────────────────────────────────────────────────
 
-interface CdsRow {
+export interface CdsRow {
   uid: number;
   IndicatorID: number;
   AreaCode: string;
@@ -99,6 +100,7 @@ interface CdsRow {
   Quarter: number;
   YearRange: number;
   YearTypeID: number | null;
+  CIMethodID: number | null;
   SexID: number;
   AgeID: number;
   CategoryTypeID: number;
@@ -264,7 +266,7 @@ function exclusionReason(
 
 const observationQuery = `
   SELECT c.uid, c.IndicatorID, c.AreaCode,
-    c.Year, c.Month, c.Quarter, c.YearRange, im.YearTypeID,
+    c.Year, c.Month, c.Quarter, c.YearRange, im.YearTypeID, im.CIMethodID,
     c.SexID, c.AgeID, c.CategoryTypeID, c.CategoryID,
     c.Value, c.Count, c.Denominator, c.Denominator_2,
     c.LowerCI95, c.UpperCI95, c.LowerCI99_8, c.UpperCI99_8, c.ValueNoteId
@@ -305,7 +307,7 @@ async function assertDistinctObservations(
   let sourceObservations = 0;
   let scannedObservations = 0;
   await streamPholio(context.pool, `${observationQuery} ORDER BY c.IndicatorID, c.uid`, (raw) => {
-    const c = raw as unknown as CdsRow;
+    let c = raw as unknown as CdsRow;
     const reason = exclusionReason(c, excluded, context.indicatorSelection, selected, groupings);
     const observationsInRow = COMPOUND_AGE_IDS.has(c.AgeID) && c.SexID === 4 ? 2 : 1;
     scannedObservations += observationsInRow;
@@ -316,6 +318,7 @@ async function assertDistinctObservations(
       exclusions[reason] += observationsInRow;
       return;
     }
+    c = correctObservationInterval(c);
     const diagnostic = `CoreDataSet uid ${c.uid}, indicator ${c.IndicatorID}`;
     if (!context.indicatorIds.has(c.IndicatorID))
       throw new Error(`${diagnostic}: missing indicator metadata`);
@@ -323,6 +326,8 @@ async function assertDistinctObservations(
     if (areaId === undefined) throw new Error(`${diagnostic}: unknown area ${c.AreaCode}`);
     if (c.ValueNoteId !== 0 && !context.noteTypeCategory.has(c.ValueNoteId))
       throw new Error(`${diagnostic}: unknown note type ${c.ValueNoteId}`);
+    computeCiPair(c.Value, c.LowerCI95, c.UpperCI95, `${diagnostic}, 95%`);
+    computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     // Any other sex would silently lose the age, as only SexID 4 is split into the sexed bands.
     if (COMPOUND_AGE_IDS.has(c.AgeID) && c.SexID !== 4)
       throw new Error(`${diagnostic}: compound age ${c.AgeID} with SexID ${c.SexID}, expected 4`);
@@ -417,6 +422,7 @@ async function sourceRowsByUid(
 }
 
 export async function exportObservations(context: ObservationExportOptions) {
+  const appliedCorrections = new Map<number, ObservationCorrection>();
   const groupings = await loadObservationGroupings(context.pool);
   const { exclusions, dropped, sourceObservations, scannedObservations } =
     await assertDistinctObservations(context, groupings);
@@ -428,8 +434,9 @@ export async function exportObservations(context: ObservationExportOptions) {
     context.indicatorSelection.kind === 'approved' ? context.indicatorSelection.indicators : [],
   );
   await streamPholio(context.pool, `${observationQuery} ORDER BY c.uid`, async (raw) => {
-    const c = raw as unknown as CdsRow;
+    let c = raw as unknown as CdsRow;
     if (exclusionReason(c, excluded, context.indicatorSelection, selected, groupings)) return;
+    c = correctObservationInterval(c, appliedCorrections);
     const areaId = context.areaIdByPholioCode.get(c.AreaCode);
     const enteredAt = context.indicatorEnteredAt.get(c.IndicatorID);
     if (areaId === undefined || enteredAt === undefined)
@@ -442,10 +449,10 @@ export async function exportObservations(context: ObservationExportOptions) {
       c.YearTypeID ?? 1,
     );
     const value = nullIfSentinel(c.Value);
-    const suppressed =
-      value === null && context.noteTypeCategory.get(c.ValueNoteId) === 'disclosure';
-    const ci95 = computeCiPair(c.Value ?? -1, c.LowerCI95, c.UpperCI95);
-    const ci998 = computeCiPair(c.Value ?? -1, c.LowerCI99_8, c.UpperCI99_8);
+    const suppressed = suppressSourceMeasures(c.Value, c.ValueNoteId);
+    const diagnostic = `CoreDataSet uid ${c.uid}, indicator ${c.IndicatorID}`;
+    const ci95 = computeCiPair(c.Value, c.LowerCI95, c.UpperCI95, `${diagnostic}, 95%`);
+    const ci998 = computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     const halves = observationDimensions(c);
     for (const [split, dimensions] of halves.entries()) {
       const obsId = observationId(c.uid, split as 0 | 1);
@@ -510,6 +517,7 @@ export async function exportObservations(context: ObservationExportOptions) {
       `Observation accounting failed: wrote ${tables.observation.rows}, expected ${sourceObservations - excludedObservations} from ${sourceObservations} eligible source observations and ${excludedObservations} reviewed exclusions`,
     );
   return {
+    observationCorrections: [...appliedCorrections.values()],
     sourceObservations,
     scannedObservations,
     excludedObservations,

@@ -92,6 +92,7 @@ export async function exportPholio(options: ExportPholioOptions): Promise<void> 
             snapshot_at: snapshotAt,
             cutoff_at: snapshotAt,
             profile_metadata: indicators.profileMetadata,
+            observation_corrections: observations.observationCorrections,
           },
           exported_indicators: tables.indicator?.rows,
           scanned_observations: observations.scannedObservations,

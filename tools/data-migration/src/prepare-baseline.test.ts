@@ -110,6 +110,18 @@ describe('prepareBaseline', () => {
     const path = join(source.directory, 'source-manifest.json');
     const input = JSON.parse(await readFile(path, 'utf8'));
     input.source.profile_metadata = metadata;
+    const corrections = [
+      {
+        source_uid: 96485373,
+        indicator_id: 93607,
+        field: 'UpperCI99_8',
+        original_value: 0,
+        corrected_value: 91.73290567213279,
+        evidence_url:
+          'https://fingertips.phe.org.uk/static-reports/public-health-technical-guidance/Basic_statistics/Proportions.html',
+      },
+    ];
+    input.source.observation_corrections = corrections;
     await writeFile(path, JSON.stringify(input));
     await prepareBaseline(
       source.directory,
@@ -121,6 +133,7 @@ describe('prepareBaseline', () => {
       JSON.parse(await readFile(join(source.directory, 'prepared', 'manifest.json'), 'utf8')),
     );
     expect(manifest.source.profile_metadata).toEqual(metadata);
+    expect(manifest.source.observation_corrections).toEqual(corrections);
   });
 
   it('prepares the same source under two migration IDs without changing its files', async () => {
