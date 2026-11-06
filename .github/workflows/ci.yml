@@ -504,9 +504,9 @@ jobs:
           scan-type: fs
           scan-ref: ${{ runner.temp }}/empty
           scanners: vuln
-          cache: 'false'
+          cache: "false"
           cache-dir: ${{ runner.temp }}/trivy-cache
-          skip-setup-trivy: 'true'
+          skip-setup-trivy: "true"
 
       - name: Key the database by its update time
         id: key

@@ -186,10 +186,5 @@
       "lineWidth": 100,
       "proseWrap": "always"
     }
-  },
-  "yaml": {
-    "formatter": {
-      "enabled": false
-    }
   }
 }

@@ -12,84 +12,84 @@ minimumReleaseAge: 4320
 minimumReleaseAgeStrict: true
 
 minimumReleaseAgeExclude:
-  - '@not-govuk/*'
-  - '@react-foundry/*'
-  - '@biomejs/biome@2.6.5'
-  - '@biomejs/cli-android-arm64@2.6.5'
-  - '@biomejs/cli-android-x64@2.6.5'
-  - '@biomejs/cli-darwin-arm64@2.6.5'
-  - '@biomejs/cli-darwin-x64@2.6.5'
-  - '@biomejs/cli-linux-arm64@2.6.5'
-  - '@biomejs/cli-linux-arm64-musl@2.6.5'
-  - '@biomejs/cli-linux-x64@2.6.5'
-  - '@biomejs/cli-linux-x64-musl@2.6.5'
-  - '@biomejs/cli-win32-arm64@2.6.5'
-  - '@biomejs/cli-win32-x64@2.6.5'
+  - "@not-govuk/*"
+  - "@react-foundry/*"
+  - "@biomejs/biome@2.6.5"
+  - "@biomejs/cli-android-arm64@2.6.5"
+  - "@biomejs/cli-android-x64@2.6.5"
+  - "@biomejs/cli-darwin-arm64@2.6.5"
+  - "@biomejs/cli-darwin-x64@2.6.5"
+  - "@biomejs/cli-linux-arm64@2.6.5"
+  - "@biomejs/cli-linux-arm64-musl@2.6.5"
+  - "@biomejs/cli-linux-x64@2.6.5"
+  - "@biomejs/cli-linux-x64-musl@2.6.5"
+  - "@biomejs/cli-win32-arm64@2.6.5"
+  - "@biomejs/cli-win32-x64@2.6.5"
 
 overrides:
   # FIXME: remove once Azure Identity permits patched MSAL; GHSA-xcx6-jx8p-x3h5 affects its v6 dependency.
-  '@azure/identity>@azure/msal-node': 7.1.1
+  "@azure/identity>@azure/msal-node": 7.1.1
   # GHSA-67mh-4wv8-2f99 esbuild <=0.24.2 dev server answers any origin. Transitive via
   # drizzle-kit's deprecated @esbuild-kit loader, which pins ~0.18 and was merged into tsx, so
   # no fixed release is coming. Scoped so drizzle-kit's and tsx's own esbuild stay untouched.
-  '@esbuild-kit/core-utils>esbuild': '>=0.24.3 <0.26'
+  "@esbuild-kit/core-utils>esbuild": ">=0.24.3 <0.26"
 
 allowBuilds:
-  '@parcel/watcher': true
+  "@parcel/watcher": true
   esbuild: true
   fsevents: true
 
 catalog:
-  '@axe-core/playwright': 4.13.0
-  '@azure/identity': 4.13.3
+  "@axe-core/playwright": 4.13.0
+  "@azure/identity": 4.13.3
   # Pinned with the Azurite image (compose.yaml, ci.yml), which must accept its storage API version.
-  '@azure/storage-blob': 12.33.0
-  '@biomejs/biome': 2.6.5
-  '@date-fns/tz': 1.5.0
-  '@fastify/busboy': 3.2.2
+  "@azure/storage-blob": 12.33.0
+  "@biomejs/biome": 2.6.5
+  "@date-fns/tz": 1.5.0
+  "@fastify/busboy": 3.2.2
   accessible-autocomplete: 3.0.1
-  '@not-govuk/back-link': 0.19.5
-  '@not-govuk/button': 0.19.5
-  '@not-govuk/checkboxes': 0.19.5
-  '@not-govuk/date-input': 0.19.5
-  '@not-govuk/details': 0.19.5
-  '@not-govuk/error-message': 0.19.5
-  '@not-govuk/error-summary': 0.19.5
-  '@not-govuk/form-group': 0.19.5
-  '@not-govuk/hint': 0.19.5
-  '@not-govuk/input': 0.19.5
-  '@not-govuk/inset-text': 0.19.5
-  '@not-govuk/label': 0.19.5
-  '@not-govuk/link': 0.19.5
-  '@not-govuk/notification-banner': 0.19.5
-  '@not-govuk/page': 0.19.5
-  '@not-govuk/pagination': 0.19.5
-  '@not-govuk/radios': 0.19.5
-  '@not-govuk/sass-base': 0.19.5
-  '@not-govuk/search-box': 0.19.5
-  '@not-govuk/select': 0.19.5
-  '@not-govuk/summary-list': 0.19.5
-  '@not-govuk/table': 0.19.5
-  '@not-govuk/tag': 0.19.5
-  '@not-govuk/task-list': 0.19.5
-  '@not-govuk/text-input': 0.19.5
-  '@not-govuk/textarea': 0.19.5
-  '@playwright/test': 1.62.1
-  '@react-foundry/router': 0.7.1
-  '@react-router/dev': 8.3.0
-  '@react-router/express': 8.3.0
-  '@react-router/node': 8.3.0
-  '@testing-library/dom': 10.4.1
-  '@testing-library/react': 16.3.2
-  '@types/express': 5.0.6
-  '@types/govuk-frontend': 5.11.0
-  '@types/mssql': 12.3.0
+  "@not-govuk/back-link": 0.19.5
+  "@not-govuk/button": 0.19.5
+  "@not-govuk/checkboxes": 0.19.5
+  "@not-govuk/date-input": 0.19.5
+  "@not-govuk/details": 0.19.5
+  "@not-govuk/error-message": 0.19.5
+  "@not-govuk/error-summary": 0.19.5
+  "@not-govuk/form-group": 0.19.5
+  "@not-govuk/hint": 0.19.5
+  "@not-govuk/input": 0.19.5
+  "@not-govuk/inset-text": 0.19.5
+  "@not-govuk/label": 0.19.5
+  "@not-govuk/link": 0.19.5
+  "@not-govuk/notification-banner": 0.19.5
+  "@not-govuk/page": 0.19.5
+  "@not-govuk/pagination": 0.19.5
+  "@not-govuk/radios": 0.19.5
+  "@not-govuk/sass-base": 0.19.5
+  "@not-govuk/search-box": 0.19.5
+  "@not-govuk/select": 0.19.5
+  "@not-govuk/summary-list": 0.19.5
+  "@not-govuk/table": 0.19.5
+  "@not-govuk/tag": 0.19.5
+  "@not-govuk/task-list": 0.19.5
+  "@not-govuk/text-input": 0.19.5
+  "@not-govuk/textarea": 0.19.5
+  "@playwright/test": 1.62.1
+  "@react-foundry/router": 0.7.1
+  "@react-router/dev": 8.3.0
+  "@react-router/express": 8.3.0
+  "@react-router/node": 8.3.0
+  "@testing-library/dom": 10.4.1
+  "@testing-library/react": 16.3.2
+  "@types/express": 5.0.6
+  "@types/govuk-frontend": 5.11.0
+  "@types/mssql": 12.3.0
   # Match the minimum supported Node runtime; newer Node APIs must not enter accidentally.
-  '@types/node': 24.13.3
-  '@types/react': 19.3.0
-  '@types/react-dom': 19.3.0
-  '@types/compression': 1.8.1
-  '@types/supertest': 7.2.0
+  "@types/node": 24.13.3
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
+  "@types/compression": 1.8.1
+  "@types/supertest": 7.2.0
   basic-auth: 3.0.0
   compression: 1.8.2
   cross-env: 10.1.0
