@@ -5,6 +5,8 @@ export {
   type AppEnv,
   appEnvFields,
   appEnvSchema,
+  type BetaAccessConfig,
+  type BetaInvitee,
   boolSchema,
   DEV_CLASS_APP_ENVS,
   isDeployedEnv,

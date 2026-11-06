@@ -372,6 +372,127 @@ describe('loadWebServerConfig', () => {
       ),
     ).toThrow(/BASIC_AUTH_USERNAME/);
   });
+
+  describe('private beta access', () => {
+    const betaAccess = {
+      BETA_ACCESS_INVITEES: JSON.stringify([
+        { email: ' Sam.Taylor@Example.com ', label: 'Research round 1' },
+      ]),
+      BETA_ACCESS_ENDS_AT: '2027-01-31T23:59:59Z',
+      BETA_ACCESS_SECRET: 'a-beta-access-secret-that-is-long-enough',
+      SITE_URL: 'https://beta.example.com/',
+    };
+    const email = {
+      EMAIL_ENDPOINT: 'https://fphd.uk.communication.azure.com',
+      EMAIL_SENDER_ADDRESS: 'no-reply@mail.example.com',
+      AZURE_CLIENT_ID: 'client-id',
+    };
+
+    it('is off without invitees', () => {
+      expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults).betaAccess).toBe(undefined);
+    });
+
+    it('reads the invitees, normalising their email addresses', () => {
+      expect(loadWebServerConfig({ APP_ENV: 'local', ...betaAccess }, defaults).betaAccess).toEqual(
+        {
+          invitees: [{ email: 'sam.taylor@example.com', label: 'Research round 1' }],
+          endsAt: new Date('2027-01-31T23:59:59Z'),
+          secret: betaAccess.BETA_ACCESS_SECRET,
+          siteUrl: 'https://beta.example.com',
+          secure: false,
+          email: undefined,
+        },
+      );
+    });
+
+    it('emails links through the configured service, with secure cookies when deployed', () => {
+      expect(
+        loadWebServerConfig({ APP_ENV: 'production', ...betaAccess, ...email }, defaults)
+          .betaAccess,
+      ).toMatchObject({
+        secure: true,
+        email: {
+          endpoint: email.EMAIL_ENDPOINT,
+          senderAddress: email.EMAIL_SENDER_ADDRESS,
+          azureClientId: email.AZURE_CLIENT_ID,
+        },
+      });
+    });
+
+    it.each(['BETA_ACCESS_ENDS_AT', 'BETA_ACCESS_SECRET', 'SITE_URL'] as const)(
+      'refuses invitees without %s',
+      (name) => {
+        const { [name]: _omitted, ...rest } = betaAccess;
+        expect(() => loadWebServerConfig({ APP_ENV: 'local', ...rest }, defaults)).toThrow(
+          new RegExp(`${name} is required`),
+        );
+      },
+    );
+
+    it.each([
+      ['not JSON', 'not json', /must be a JSON array/],
+      ['an empty list', '[]', /BETA_ACCESS_INVITEES/],
+      ['an invalid address', JSON.stringify([{ email: 'nobody', label: 'x' }]), /email/],
+      ['a missing label', JSON.stringify([{ email: 'a@example.com' }]), /label/],
+    ])('refuses invitees given as %s', (_case, invitees, message) => {
+      expect(() =>
+        loadWebServerConfig(
+          { APP_ENV: 'local', ...betaAccess, BETA_ACCESS_INVITEES: invitees },
+          defaults,
+        ),
+      ).toThrow(message);
+    });
+
+    it('refuses an end date without an offset', () => {
+      expect(() =>
+        loadWebServerConfig(
+          { APP_ENV: 'local', ...betaAccess, BETA_ACCESS_ENDS_AT: '2027-01-31T23:59:59' },
+          defaults,
+        ),
+      ).toThrow(/BETA_ACCESS_ENDS_AT/);
+    });
+
+    it('refuses a short secret', () => {
+      expect(() =>
+        loadWebServerConfig(
+          { APP_ENV: 'local', ...betaAccess, BETA_ACCESS_SECRET: 'too-short' },
+          defaults,
+        ),
+      ).toThrow(/BETA_ACCESS_SECRET/);
+    });
+
+    it('refuses private beta access and basic auth together', () => {
+      expect(() =>
+        loadWebServerConfig(
+          {
+            APP_ENV: 'local',
+            ...betaAccess,
+            BASIC_AUTH_USERNAME: 'preview',
+            BASIC_AUTH_PASSWORD: 'password',
+          },
+          defaults,
+        ),
+      ).toThrow(/cannot both be on/);
+    });
+
+    it.each(['dev', 'preview', 'production'] as const)(
+      'refuses to show links on the page in the %s environment',
+      (appEnv) => {
+        expect(() => loadWebServerConfig({ APP_ENV: appEnv, ...betaAccess }, defaults)).toThrow(
+          /EMAIL_ENDPOINT is required/,
+        );
+      },
+    );
+
+    it.each([{ EMAIL_ENDPOINT: email.EMAIL_ENDPOINT }, { EMAIL_SENDER_ADDRESS: 'a@example.com' }])(
+      'refuses one email setting without the other: %o',
+      (setting) => {
+        expect(() =>
+          loadWebServerConfig({ APP_ENV: 'local', ...betaAccess, ...setting }, defaults),
+        ).toThrow(/must be set together/);
+      },
+    );
+  });
 });
 
 describe('loadSignInWebServerConfig', () => {

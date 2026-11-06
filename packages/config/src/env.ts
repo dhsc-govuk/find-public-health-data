@@ -200,6 +200,110 @@ const signInFields = {
   WEB_SESSION_SECRET: z.string().min(32),
 };
 
+const inviteeSchema = z.object({
+  // Compared as typed into the private beta form, which is lower-cased and trimmed the same way.
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+  label: z.string().trim().min(1),
+});
+
+export type BetaInvitee = z.output<typeof inviteeSchema>;
+
+const inviteesSchema = z
+  .string()
+  .transform((value, context) => {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      context.addIssue({ code: 'custom', message: 'must be a JSON array' });
+      return z.NEVER;
+    }
+  })
+  .pipe(z.array(inviteeSchema).min(1));
+
+/** public-web's private beta: only invitees, signed in by an emailed link, may use the site. */
+const betaAccessFields = {
+  BETA_ACCESS_INVITEES: inviteesSchema.optional(),
+  BETA_ACCESS_ENDS_AT: z.iso
+    .datetime({ offset: true })
+    .transform((value) => new Date(value))
+    .optional(),
+  BETA_ACCESS_SECRET: z.string().min(32).optional(),
+  // The address people reach the site at. Sign-in links are built from it, never from the
+  // request's Host header, which a client can set.
+  SITE_URL: z
+    .url()
+    .transform((value) => value.replace(/\/+$/, ''))
+    .optional(),
+  EMAIL_ENDPOINT: z.url().optional(),
+  EMAIL_SENDER_ADDRESS: z.email().optional(),
+  AZURE_CLIENT_ID: z.string().optional(),
+};
+
+type BetaAccessEnv = z.output<z.ZodObject<typeof betaAccessFields>> & {
+  APP_ENV: AppEnv;
+  BASIC_AUTH_USERNAME?: string | undefined;
+};
+
+function checkBetaAccess(value: BetaAccessEnv, context: z.RefinementCtx): void {
+  const issue = (path: string, message: string) =>
+    context.addIssue({ code: 'custom', path: [path], message });
+
+  if ((value.EMAIL_ENDPOINT === undefined) !== (value.EMAIL_SENDER_ADDRESS === undefined)) {
+    issue('EMAIL_SENDER_ADDRESS', 'EMAIL_ENDPOINT and EMAIL_SENDER_ADDRESS must be set together');
+  }
+  if (value.BETA_ACCESS_INVITEES === undefined) return;
+
+  for (const name of ['BETA_ACCESS_ENDS_AT', 'BETA_ACCESS_SECRET', 'SITE_URL'] as const) {
+    if (value[name] === undefined) issue(name, `${name} is required with BETA_ACCESS_INVITEES`);
+  }
+  if (value.BASIC_AUTH_USERNAME !== undefined) {
+    issue('BETA_ACCESS_INVITEES', 'private beta access and basic auth cannot both be on');
+  }
+  if (isDeployedEnv(value.APP_ENV) && value.EMAIL_ENDPOINT === undefined) {
+    issue(
+      'EMAIL_ENDPOINT',
+      'EMAIL_ENDPOINT is required outside local and test, which show sign-in links on the page instead',
+    );
+  }
+}
+
+function betaAccessConfig(parsed: BetaAccessEnv) {
+  const {
+    BETA_ACCESS_INVITEES: invitees,
+    BETA_ACCESS_ENDS_AT: endsAt,
+    BETA_ACCESS_SECRET: secret,
+    SITE_URL: siteUrl,
+  } = parsed;
+  // checkBetaAccess has already rejected invitees without the rest.
+  if (
+    invitees === undefined ||
+    endsAt === undefined ||
+    secret === undefined ||
+    siteUrl === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    invitees,
+    endsAt,
+    secret,
+    siteUrl,
+    secure: isDeployedEnv(parsed.APP_ENV),
+    // Without it, local and test show each sign-in link on the page rather than emailing it.
+    email:
+      parsed.EMAIL_ENDPOINT === undefined || parsed.EMAIL_SENDER_ADDRESS === undefined
+        ? undefined
+        : {
+            endpoint: parsed.EMAIL_ENDPOINT,
+            senderAddress: parsed.EMAIL_SENDER_ADDRESS,
+            azureClientId: parsed.AZURE_CLIENT_ID,
+          },
+  } as const;
+}
+
+export type BetaAccessConfig = NonNullable<ReturnType<typeof betaAccessConfig>>;
+
 function basicAuthSetTogether(value: {
   BASIC_AUTH_USERNAME?: string | undefined;
   BASIC_AUTH_PASSWORD?: string | undefined;
@@ -237,11 +341,14 @@ export function loadWebServerConfig(
   defaults: { apiUrl: string; port: number },
 ) {
   const parsed = parseEnv(
-    z.object(webServerFields(defaults)).refine(basicAuthSetTogether, basicAuthPairError),
+    z
+      .object({ ...webServerFields(defaults), ...betaAccessFields })
+      .refine(basicAuthSetTogether, basicAuthPairError)
+      .superRefine(checkBetaAccess),
     env,
   );
 
-  return webServerConfig(parsed);
+  return { ...webServerConfig(parsed), betaAccess: betaAccessConfig(parsed) } as const;
 }
 
 /** A web app people sign in to, such as internal-web: it signs their sessions. */
