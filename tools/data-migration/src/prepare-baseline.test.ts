@@ -2,15 +2,14 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-
 import {
   baselineManifestSchema,
   DATA_MIGRATION_NULL,
 } from '@fphd/db-operations/data-migration-contract';
 import { afterEach, describe, expect, it } from 'vitest';
-
 import { readGzipCsv } from './csv.ts';
 import { fileRecord } from './files.ts';
+import verifiedSettings from './pholio/verified-analytical-settings.ts';
 import { deterministicUuid, prepareBaseline, rekeyDirectory } from './prepare-baseline.ts';
 import { FOREIGN_KEYS, TABLES } from './tables.ts';
 import { verifyPackageFiles } from './verify.ts';
@@ -122,6 +121,7 @@ describe('prepareBaseline', () => {
       },
     ];
     input.source.observation_corrections = corrections;
+    input.source.analytical_reconciliations = verifiedSettings;
     await writeFile(path, JSON.stringify(input));
     await prepareBaseline(
       source.directory,
@@ -134,6 +134,7 @@ describe('prepareBaseline', () => {
     );
     expect(manifest.source.profile_metadata).toEqual(metadata);
     expect(manifest.source.observation_corrections).toEqual(corrections);
+    expect(manifest.source.analytical_reconciliations).toEqual(verifiedSettings);
   });
 
   it('prepares the same source under two migration IDs without changing its files', async () => {

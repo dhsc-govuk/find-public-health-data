@@ -75,6 +75,7 @@ export async function exportDevSnapshot(options: ExportDevSnapshotOptions): Prom
     source: devSource,
     profile_metadata: exported.source.profile_metadata,
     observation_corrections: exported.source.observation_corrections,
+    analytical_reconciliations: exported.source.analytical_reconciliations,
     source_database: devDatabase,
     source_indicators: sourceIndicators,
     source_observations: sourceObservations,

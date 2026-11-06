@@ -56,6 +56,29 @@ export const dataMigrationSourceSchema = z.object({
       }),
     )
     .optional(),
+  analytical_reconciliations: z
+    .array(
+      z.object({
+        indicator_id: z.number().int().positive(),
+        owner_profile_id: z.number().int().positive(),
+        polarity_id: z.number().int(),
+        comparator_method_id: z.number().int(),
+        verified_at: z.iso.date(),
+        reason: z.string().min(1),
+        evidence_urls: z.array(z.url()).min(1),
+        expected_groupings: z
+          .array(
+            z.object({
+              GroupID: z.number().int(),
+              ProfileId: z.number().int().nullable(),
+              PolarityID: z.number().int().nullable(),
+              ComparatorMethodID: z.number().int().nullable(),
+            }),
+          )
+          .min(1),
+      }),
+    )
+    .optional(),
 });
 
 const commonSchema = z.object({

@@ -1,4 +1,24 @@
 import type { PholioRow } from './source.ts';
+import verifiedSettings from './verified-analytical-settings.ts';
+
+type VerifiedSetting = (typeof verifiedSettings)[number];
+
+type GroupingSetting = Pick<
+  SourceGroupingSetting,
+  'GroupID' | 'ProfileId' | 'PolarityID' | 'ComparatorMethodID'
+>;
+
+function groupingSignature(rows: readonly GroupingSetting[]): string {
+  return [
+    ...new Set(
+      rows.map(
+        (row) => `${row.GroupID}:${row.ProfileId}:${row.PolarityID}:${row.ComparatorMethodID}`,
+      ),
+    ),
+  ]
+    .sort()
+    .join('|');
+}
 
 export interface SourceGroupingSetting extends PholioRow {
   IndicatorID: number;
@@ -12,9 +32,22 @@ export function indicatorAnalyticalSettings(
   indicatorId: number,
   ownerProfileId: number | null,
   groupings: readonly SourceGroupingSetting[],
-): { polarityId: number; comparatorMethodId: number | null } {
+): { polarityId: number; comparatorMethodId: number | null; reconciliation?: VerifiedSetting } {
   if (ownerProfileId === null)
     throw new Error(`Indicator ${indicatorId}: no owning profile; source decision required`);
+  const verified = verifiedSettings.find(
+    (entry) => entry.indicator_id === indicatorId && entry.owner_profile_id === ownerProfileId,
+  );
+  if (
+    verified &&
+    groupingSignature(groupings.filter((row) => row.IndicatorID === indicatorId)) ===
+      groupingSignature(verified.expected_groupings)
+  )
+    return {
+      polarityId: verified.polarity_id,
+      comparatorMethodId: verified.comparator_method_id,
+      reconciliation: verified,
+    };
   const selected = groupings.filter(
     (row) => row.IndicatorID === indicatorId && row.ProfileId === ownerProfileId,
   );

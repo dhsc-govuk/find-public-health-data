@@ -67,9 +67,12 @@ publishing moves to this service. The operations image applies the packages with
   rows, so an increment carries only real changes. The export time appears only in the
   manifest.
 - The expected live database name must match `DB_NAME()`.
-- Analytical settings use the owning profile's groupings. A missing owner, missing owner
-  groupings or missing polarity stops export. Conflicting polarity or comparator methods stop export
-  with the indicator and group ids; the exporter neither votes nor overrides individual ids.
+- Analytical settings use the owning profile's groupings. The verified 91871 and 93553
+  reconciliations require an exact match against the recorded owner and source grouping settings.
+  Their evidence and original settings are retained as `analytical_reconciliations` in package
+  provenance and both development manifests. For other indicators, a missing owner, missing owner
+  groupings or missing polarity stops export, and a missing comparator method stays null.
+  Conflicting polarity or comparator methods stop export with the indicator and group ids.
   Polarity 0 is lower-is-better. Neutral -1/99 polarities and their -1/15 comparator variants
   can be represented together without treating a directional disagreement as neutral.
 - UUIDs are deterministic from the source table and integer ID. The same source row keeps
