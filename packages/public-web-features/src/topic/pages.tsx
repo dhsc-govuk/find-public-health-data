@@ -1,8 +1,9 @@
-import { Button, CardList, GridColumn, GridRow, Input, Label, searchPattern } from '@fphd/ui';
+import { Button, GridColumn, GridRow, Input, Label } from '@fphd/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 
 import type { TopicSummary } from './loader.ts';
+import { matchingTopics, TopicResults } from './results.tsx';
 
 export function TopicsPage({ topics }: { topics: TopicSummary[] }) {
   const location = useLocation();
@@ -38,10 +39,7 @@ export function TopicsPage({ topics }: { topics: TopicSummary[] }) {
       input.value = urlQuery;
     }
   }, [location.key, updateQuery, urlQuery]);
-  const pattern = searchPattern(query);
-  const filteredTopics = pattern
-    ? topics.filter((topic) => pattern.test(topic.title) || pattern.test(topic.description))
-    : topics;
+  const filteredTopics = matchingTopics(topics, query);
   const resultCount = topics.length
     ? `${filteredTopics.length} ${filteredTopics.length === 1 ? 'topic' : 'topics'} found.`
     : '';
@@ -84,16 +82,7 @@ export function TopicsPage({ topics }: { topics: TopicSummary[] }) {
           {announcement}
         </p>
         {filteredTopics.length ? (
-          <CardList
-            columns="three"
-            headingLevel={2}
-            searchTerm={query}
-            items={filteredTopics.map((topic) => ({
-              description: topic.description,
-              href: `/topics/${topic.slug}`,
-              title: topic.title,
-            }))}
-          />
+          <TopicResults columns="three" headingLevel={2} query={query} topics={filteredTopics} />
         ) : (
           <p className="govuk-body">
             {topics.length ? 'No topics match your search.' : 'No topics are available.'}
