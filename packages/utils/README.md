@@ -3,9 +3,9 @@
 Small, side-effect-free helpers shared across the apps and packages that are not configuration.
 Configuration and the shared zod instance stay in `@fphd/config`.
 
-Built package with a `browser` export condition, so the same modules serve Node and the web
-bundles. Nothing here may import Node-only code: the tsconfig types the source against the browser
-and leaves out `@types/node`, so a `node:` import or a `process` reference fails `pnpm typecheck`.
+Built package with a `browser` export condition, so the same modules serve Node and the web bundles.
+Nothing here may import Node-only code: the tsconfig types the source against the browser and leaves
+out `@types/node`, so a `node:` import or a `process` reference fails `pnpm typecheck`.
 
 There is no root export; import each module by its subpath.
 
