@@ -1,9 +1,10 @@
-import { requireApiActor, requireApiSession } from '@fphd/api-server';
+import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canWriteReviewerNotes } from '@fphd/auth/permissions';
+import { canReadReviewerNotes, canWriteReviewerNotes } from '@fphd/auth/permissions';
 import { type Response, Router } from 'express';
 
 import {
+  type ListedReviewerNote,
   type ReviewerNote,
   type ReviewerNoteError,
   type ReviewerNotes,
@@ -19,7 +20,11 @@ import type {
   InternalIndicatorRepository,
   InternalReviewerNoteRepository,
 } from './repositories.ts';
-import { type ReviewerNoteRow, reviewerNoteVersion } from './reviewer-note-repository.ts';
+import {
+  type ListedReviewerNoteRow,
+  type ReviewerNoteRow,
+  reviewerNoteVersion,
+} from './reviewer-note-repository.ts';
 
 const PATH = '/api/internal/indicators/:id/reviewer-notes';
 
@@ -46,21 +51,29 @@ function checkedText(text: string, response: Response): string | undefined {
   return undefined;
 }
 
-/** An assigned reviewer's own notes on an indicator, which nobody else reads. */
+function toListedNote(note: ListedReviewerNoteRow): ListedReviewerNote {
+  return { ...toNote(note), author: note.author };
+}
+
+/**
+ * The assigned reviewers' notes on an indicator. Its reviewers, the IMRG manager and admins read
+ * them all; an assigned reviewer adds notes and edits only their own.
+ */
 export function reviewerNotesRouter(
   reviewerNotes: InternalReviewerNoteRepository,
   indicators: Pick<InternalIndicatorRepository, 'findAccess'>,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
+  const requireNoteReader = requireIndicatorAccess(session, indicators, canReadReviewerNotes);
   const requireNoteWriter = requireIndicatorAccess(session, indicators, canWriteReviewerNotes);
 
-  router.get(PATH, requireNoteWriter, async (_request, response) => {
+  router.get(PATH, requireNoteReader, async (_request, response) => {
     const { id } = guardedIndicator(response);
 
-    const notes = await reviewerNotes.list(id, requireApiSession(response).sub);
+    const notes = await reviewerNotes.list(id);
 
-    response.status(200).json({ notes: notes.map(toNote) } satisfies ReviewerNotes);
+    response.status(200).json({ notes: notes.map(toListedNote) } satisfies ReviewerNotes);
   });
 
   router.post(PATH, requireNoteWriter, async (request, response) => {

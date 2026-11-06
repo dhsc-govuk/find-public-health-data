@@ -29,6 +29,14 @@ const AS_REVIEWER: Actor = { userId: REVIEWER, requestId: null };
 const AS_SECOND_REVIEWER: Actor = { userId: SECOND_REVIEWER, requestId: null };
 const AS_MANAGER: Actor = { userId: FAKE_USER_IDS.imrgManager, requestId: null };
 
+const JAMIE = { id: REVIEWER, name: 'Jamie Evans' };
+const ROBIN = { id: SECOND_REVIEWER, name: 'Robin Shaw' };
+
+/** The note as `listReviewerNotes` lists it, by `author`. */
+function listedAs(note: ReviewerNoteRow, author: { id: string; name: string } = JAMIE) {
+  return { ...note, author };
+}
+
 const NOTE_ACTIONS = ['indicator.review_note_added', 'indicator.review_note_updated'];
 
 interface Round {
@@ -167,21 +175,33 @@ describe('addReviewerNote', () => {
     await expect(
       updateReviewerNote(db, indicatorId, note.id, 'Too late', shownAs(note), AS_REVIEWER),
     ).resolves.toEqual({ ok: false, reason: 'not_a_reviewer' });
-    expect(await listReviewerNotes(db, indicatorId, REVIEWER)).toEqual([note]);
+    expect(await listReviewerNotes(db, indicatorId)).toEqual([listedAs(note)]);
   });
 });
 
 describe('listReviewerNotes', () => {
-  repositoryTest("holds only the author's notes, newest first", async ({ db }) => {
+  repositoryTest("holds every reviewer's notes with their author, newest first", async ({ db }) => {
     const { indicatorId } = await inReview(db, 'Noted by two reviewers', [
       REVIEWER,
       SECOND_REVIEWER,
     ]);
     const first = await added(db, indicatorId, 'First');
-    await added(db, indicatorId, 'Theirs', AS_SECOND_REVIEWER);
+    const theirs = await added(db, indicatorId, 'Theirs', AS_SECOND_REVIEWER);
     const second = await added(db, indicatorId, 'Second');
 
-    expect(await listReviewerNotes(db, indicatorId, REVIEWER)).toEqual([second, first]);
+    expect(await listReviewerNotes(db, indicatorId)).toEqual([
+      listedAs(second),
+      listedAs(theirs, ROBIN),
+      listedAs(first),
+    ]);
+  });
+
+  repositoryTest("holds none of another indicator's notes", async ({ db }) => {
+    const first = await inReview(db, 'Noted indicator');
+    const second = await inReview(db, 'Unnoted indicator');
+    await added(db, first.indicatorId, 'On the first');
+
+    expect(await listReviewerNotes(db, second.indicatorId)).toEqual([]);
   });
 
   repositoryTest('carries notes across a resubmission', async ({ db }) => {
@@ -198,7 +218,10 @@ describe('listReviewerNotes', () => {
 
     const later = await added(db, round.indicatorId, 'Round two');
 
-    expect(await listReviewerNotes(db, round.indicatorId, REVIEWER)).toEqual([later, earlier]);
+    expect(await listReviewerNotes(db, round.indicatorId)).toEqual([
+      listedAs(later),
+      listedAs(earlier),
+    ]);
     await expect(
       updateReviewerNote(
         db,
@@ -269,7 +292,7 @@ describe('updateReviewerNote', () => {
     await expect(
       updateReviewerNote(db, indicatorId, note.id, 'Yours now', shownAs(note), AS_SECOND_REVIEWER),
     ).resolves.toEqual({ ok: false, reason: 'not_found' });
-    expect(await listReviewerNotes(db, indicatorId, REVIEWER)).toEqual([note]);
+    expect(await listReviewerNotes(db, indicatorId)).toEqual([listedAs(note)]);
   });
 
   repositoryTest("refuses a note through another indicator's address", async ({ db }) => {
@@ -296,7 +319,7 @@ describe('updateReviewerNote', () => {
         reason: 'changed',
         version: reviewerNoteVersion({ text: 'First tab' }),
       });
-      expect(await listReviewerNotes(db, indicatorId, REVIEWER)).toEqual([
+      expect(await listReviewerNotes(db, indicatorId)).toEqual([
         expect.objectContaining({ text: 'First tab' }),
       ]);
     },

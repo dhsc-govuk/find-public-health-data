@@ -10,6 +10,7 @@ import {
   canListIndicators,
   canManage,
   canMoveIndicatorBetweenTeams,
+  canReadReviewerNotes,
   canRespondToReview,
   canReviewIndicator,
   canReviewIndicators,
@@ -178,6 +179,23 @@ describe('canWriteReviewerNotes', () => {
     ['an admin', admin, assigned, false],
   ])('answers %s', (_who, asking, indicator, expected) => {
     expect(canWriteReviewerNotes(asking, indicator)).toBe(expected);
+  });
+});
+
+describe('canReadReviewerNotes', () => {
+  // A publisher in team B who is also assigned to review a team B indicator.
+  const assignedInOwnTeam: IndicatorAccess = { teamId: teamB, reviewerIds: ['publisher-reviewer'] };
+
+  it.each([
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['a reviewer assigned in their own team', publisherReviewer, assignedInOwnTeam, true],
+    ['an IMRG manager', manager, inTeamA, true],
+    ['an admin', admin, inTeamA, true],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+    ['a publisher in its team', publisherA, assigned, false],
+    ['a reviewer who publishes in its team, unassigned', publisherReviewer, inTeamB, false],
+  ])('answers %s with %s', (_who, asking, indicator, expected) => {
+    expect(canReadReviewerNotes(asking, indicator)).toBe(expected);
   });
 });
 

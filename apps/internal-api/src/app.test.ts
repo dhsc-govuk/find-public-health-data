@@ -389,7 +389,7 @@ describe('internal API', () => {
     expect(asManager.body).toEqual({ entries: [] });
   });
 
-  it("mounts a reviewer's own notes", async () => {
+  it("mounts the reviewers' notes", async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
         findAccess: async () => ({

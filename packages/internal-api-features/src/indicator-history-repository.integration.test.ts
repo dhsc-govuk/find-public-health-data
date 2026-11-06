@@ -36,7 +36,7 @@ import { addReviewerNote } from './reviewer-note-repository.ts';
 const { indicatorVersion, indicatorVersionSubmission, uploadBatch } = schema;
 
 const AS_MANAGER = { userId: FAKE_USER_IDS.imrgManager, requestId: null };
-const PRIVATE_NOTE = 'Only the reviewer reads this';
+const REVIEWER_NOTE = 'Kept from the publisher';
 
 async function history(db: Database, indicatorId: string) {
   const row = await findIndicatorHistory(db, indicatorId);
@@ -89,7 +89,7 @@ describe('findIndicatorHistory', () => {
       { clarificationRequest: 'Why this source?' },
     );
     const { indicatorId, versionId } = draft;
-    expect(await addReviewerNote(db, indicatorId, PRIVATE_NOTE, AS_REVIEWER)).toMatchObject({
+    expect(await addReviewerNote(db, indicatorId, REVIEWER_NOTE, AS_REVIEWER)).toMatchObject({
       ok: true,
     });
 
@@ -191,7 +191,7 @@ describe('findIndicatorHistory', () => {
         reloaded: true,
       },
     ]);
-    expect(JSON.stringify(row)).not.toContain(PRIVATE_NOTE);
+    expect(JSON.stringify(row)).not.toContain(REVIEWER_NOTE);
     // The real saves' audit fields, read through the task field map.
     expect(historyEntries(row).find(({ kind }) => kind === 'resubmitted')).toMatchObject({
       flags: [

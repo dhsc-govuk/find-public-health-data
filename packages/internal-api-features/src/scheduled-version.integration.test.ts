@@ -88,7 +88,7 @@ describe('a scheduled version, read as the draft', () => {
     const added = await addReviewerNote(db, indicatorId, 'Checked the sources', AS_REVIEWER);
 
     expect(added.ok).toBe(true);
-    await expect(listReviewerNotes(db, indicatorId, REVIEWER)).resolves.toEqual([
+    await expect(listReviewerNotes(db, indicatorId)).resolves.toEqual([
       expect.objectContaining({ text: 'Checked the sources' }),
     ]);
   });

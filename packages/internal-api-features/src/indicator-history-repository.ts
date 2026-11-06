@@ -175,8 +175,8 @@ const saves = sql<HistorySaveRecord[]>`coalesce((
 
 /**
  * Everything the indicator's history is made from, in one statement, or undefined when there is
- * no such indicator. It reads only the audit actions it names, so a reviewer's private notes never
- * reach it.
+ * no such indicator. It reads only the audit actions it names, so reviewers' notes, which the
+ * publisher may not read, never reach it.
  */
 export async function findIndicatorHistory(
   db: Database,

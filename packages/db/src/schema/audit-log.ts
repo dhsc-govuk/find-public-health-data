@@ -28,7 +28,7 @@ export const AUDIT_ACTIONS = [
   'indicator.revision_response_updated',
   'indicator.publication_scheduled',
   'indicator.publication_date_changed',
-  // A reviewer's private notes: never show these two in the indicator's history.
+  // Reviewers' notes, which publishers may not read: never show these in the indicator's history.
   'indicator.review_note_added',
   'indicator.review_note_updated',
   'upload_batch.loaded',

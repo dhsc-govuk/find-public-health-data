@@ -8,7 +8,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { reviewerNotesSchema } from './contract.ts';
 import type { IndicatorAccessRow } from './indicator-list-repository.ts';
 import type { InternalReviewerNoteRepository } from './repositories.ts';
-import { type ReviewerNoteRow, reviewerNoteVersion } from './reviewer-note-repository.ts';
+import {
+  type ListedReviewerNoteRow,
+  type ReviewerNoteRow,
+  reviewerNoteVersion,
+} from './reviewer-note-repository.ts';
 import { reviewerNotesRouter } from './reviewer-notes.ts';
 import {
   createRouterTestApp,
@@ -44,6 +48,19 @@ const note: ReviewerNoteRow = {
 
 const VERSION = reviewerNoteVersion(note);
 
+const ROBIN = { id: '00000000-0000-7000-8000-0000000000a2', name: 'Robin Shaw' };
+
+const listed: ListedReviewerNoteRow[] = [
+  {
+    id: '00000000-0000-7000-8000-0000000000e2',
+    text: 'Numerator checked',
+    createdAt: new Date('2026-11-04T09:00:00.000Z'),
+    updatedAt: new Date('2026-11-04T09:00:00.000Z'),
+    author: ROBIN,
+  },
+  { ...note, author: { id: TEST_USER_ID, name: 'Sam Taylor' } },
+];
+
 function createTestApp(
   reviewerNotes: Partial<InternalReviewerNoteRepository> = {},
   findAccess: () => Promise<IndicatorAccessRow | undefined> = async () => assignedToTestUser,
@@ -52,7 +69,7 @@ function createTestApp(
   return createRouterTestApp(
     reviewerNotesRouter(
       {
-        list: async () => [note],
+        list: async () => listed,
         add: async () => ({ ok: true, note }),
         update: async () => ({ ok: true, note, changed: true }),
         ...reviewerNotes,
@@ -67,11 +84,24 @@ function createTestApp(
 const asReviewer = () => testSessionCookie(['imrg-reviewer'], []);
 
 /**
- * Everyone the notes are closed to, each with access the test user could otherwise use: 404 for
- * those who may not see the indicator, 403 for those who may.
+ * Everyone who may not read the notes, each with access the test user could otherwise use: 404
+ * for those who may not see the indicator, 403 for those who may.
  */
-const REFUSED = [
-  ['another reviewer', ['imrg-reviewer'], [], assignedToSomeoneElse, 404],
+const NOT_READERS = [
+  ['an unassigned reviewer', ['imrg-reviewer'], [], assignedToSomeoneElse, 404],
+  ['a publisher in its team', ['publisher'], [TEST_TEAM_ID], assignedToSomeoneElse, 403],
+  [
+    'an assigned publisher without the reviewer role',
+    ['publisher'],
+    [TEAM_IDS.teamB],
+    assignedToTestUser,
+    404,
+  ],
+] as const;
+
+/** Everyone who may not write notes, with the answers as for `NOT_READERS`. */
+const NOT_WRITERS = [
+  ['an unassigned reviewer', ['imrg-reviewer'], [], assignedToSomeoneElse, 404],
   ['the IMRG manager', ['imrg-manager'], [], assignedToSomeoneElse, 403],
   ['an admin', ['admin'], [], assignedToSomeoneElse, 403],
   ['a publisher in its team', ['publisher'], [TEST_TEAM_ID], assignedToSomeoneElse, 403],
@@ -85,8 +115,8 @@ const REFUSED = [
 ] as const;
 
 describe('GET /api/internal/indicators/:id/reviewer-notes', () => {
-  it('serves an assigned reviewer their own notes, each with its version', async () => {
-    const list = vi.fn().mockResolvedValue([note]);
+  it("serves an assigned reviewer every reviewer's notes, each with its author and version", async () => {
+    const list = vi.fn().mockResolvedValue(listed);
 
     const response = await request(createTestApp({ list }))
       .get(path)
@@ -97,18 +127,39 @@ describe('GET /api/internal/indicators/:id/reviewer-notes', () => {
     expect(response.body).toEqual({
       notes: [
         {
+          id: '00000000-0000-7000-8000-0000000000e2',
+          text: 'Numerator checked',
+          createdAt: '2026-11-04T09:00:00.000Z',
+          updatedAt: '2026-11-04T09:00:00.000Z',
+          version: reviewerNoteVersion({ text: 'Numerator checked' }),
+          author: ROBIN,
+        },
+        {
           id: NOTE_ID,
           text: 'Check the 2019 dip',
           createdAt: '2026-11-03T10:15:00.123Z',
           updatedAt: '2026-11-03T11:00:00.456Z',
           version: VERSION,
+          author: { id: TEST_USER_ID, name: 'Sam Taylor' },
         },
       ],
     });
-    expect(list).toHaveBeenCalledWith(ID, TEST_USER_ID);
+    expect(list).toHaveBeenCalledWith(ID);
   });
 
-  it.each(REFUSED)('answers %s %i', async (_, roles, teams, access, status) => {
+  it.each([
+    ['the IMRG manager', ['imrg-manager']],
+    ['an admin', ['admin']],
+  ] as const)("serves %s every reviewer's notes", async (_, roles) => {
+    const response = await request(createTestApp({}, async () => assignedToSomeoneElse))
+      .get(path)
+      .set('Cookie', await testSessionCookie(roles, []));
+
+    expect(response.status).toBe(200);
+    expect(response.body.notes).toHaveLength(2);
+  });
+
+  it.each(NOT_READERS)('answers %s %i', async (_, roles, teams, access, status) => {
     const response = await request(createTestApp({}, async () => access))
       .get(path)
       .set('Cookie', await testSessionCookie(roles, teams));
@@ -197,7 +248,7 @@ describe('POST /api/internal/indicators/:id/reviewer-notes', () => {
     expect(response.body).toEqual({ error: 'not_a_reviewer' });
   });
 
-  it.each(REFUSED)('answers %s %i', async (_, roles, teams, access, status) => {
+  it.each(NOT_WRITERS)('answers %s %i', async (_, roles, teams, access, status) => {
     const add = vi.fn();
 
     const response = await request(createTestApp({ add }, async () => access))
@@ -316,7 +367,7 @@ describe('PUT /api/internal/indicators/:id/reviewer-notes/:noteId', () => {
     });
   });
 
-  it.each(REFUSED)('answers %s %i', async (_, roles, teams, access, status) => {
+  it.each(NOT_WRITERS)('answers %s %i', async (_, roles, teams, access, status) => {
     const update = vi.fn();
 
     const response = await request(createTestApp({ update }, async () => access))
