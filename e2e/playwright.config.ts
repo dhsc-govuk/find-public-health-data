@@ -5,13 +5,23 @@
 // Specs run in parallel workers against one shared seeded database, which makes one rule
 // load-bearing: a spec never mutates data another spec reads. A test of a write flow creates
 // its own rows and asserts on those; a flow that genuinely cannot own its data gets a serial
-// project then, not speculatively now.
+// project, which exists only when `E2E_PUBLISHING=1`, as `test:e2e:publishing` sets it, so neither
+// `test:e2e` nor a bare `playwright test` runs it.
 import { defineConfig, devices } from '@playwright/test';
 
-// Default to 127.0.0.1: the apps listen on IPv4 and the request client tries ::1 first.
-const internalUse = {
-  ...devices['Desktop Chrome'],
-  baseURL: process.env.INTERNAL_WEB_URL ?? 'http://127.0.0.1:3001',
+import { INTERNAL_WEB_URL, PUBLIC_WEB_URL } from './tests/support/web-urls.ts';
+
+const internalUse = { ...devices['Desktop Chrome'], baseURL: INTERNAL_WEB_URL };
+
+// Publishing changes what other specs read (the public search total, a topic's indicators), so
+// this project runs on its own, one test at a time, once the others have finished.
+const publishing = {
+  name: 'publishing',
+  testDir: './tests/publishing',
+  dependencies: ['internal sign-in'],
+  fullyParallel: false,
+  workers: 1,
+  use: internalUse,
 };
 
 export default defineConfig({
@@ -31,10 +41,7 @@ export default defineConfig({
     {
       name: 'public',
       testDir: './tests/public',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.PUBLIC_WEB_URL ?? 'http://127.0.0.1:3000',
-      },
+      use: { ...devices['Desktop Chrome'], baseURL: PUBLIC_WEB_URL },
     },
     // Signs each internal user in once a run, saving the sessions the internal specs start from.
     {
@@ -49,5 +56,6 @@ export default defineConfig({
       dependencies: ['internal sign-in'],
       use: internalUse,
     },
+    ...(process.env.E2E_PUBLISHING === '1' ? [publishing] : []),
   ],
 });

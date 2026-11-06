@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=public --project=internal",
+    "test:e2e:publishing": "cross-env E2E_PUBLISHING=1 playwright test --project=publishing",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@axe-core/playwright": "catalog:",
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
+    "cross-env": "catalog:",
     "typescript": "catalog:"
   }
 }
