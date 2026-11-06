@@ -75,33 +75,24 @@ describe('internal API', () => {
   });
 
   it('requires authentication for its internal surface', async () => {
-    const response = await request(app).get('/api/internal');
+    const response = await request(app).get('/api/internal/indicators');
 
     expect(response.status).toBe(401);
     expect(response.body).toEqual({ error: 'authentication_required' });
   });
 
-  it('rejects a signed-in user without the internal role', async () => {
+  it('rejects a signed-in user who holds none of the internal roles', async () => {
     const response = await request(app)
-      .get('/api/internal')
+      .get('/api/internal/indicators')
       .set('Cookie', await createCookie(['public']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
   });
 
-  it('allows an internal user', async () => {
-    const response = await request(app)
-      .get('/api/internal')
-      .set('Cookie', await createCookie(['public', 'internal']));
-
-    expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ audience: 'internal' });
-  });
-
   it('rejects and clears an invalid session', async () => {
     const response = await request(app)
-      .get('/api/internal')
+      .get('/api/internal/indicators')
       .set('Cookie', 'fphd-internal-session=not-a-jwt');
 
     expect(response.status).toBe(401);
@@ -121,8 +112,24 @@ describe('internal API', () => {
   });
 
   // Each section is found from the contract, so a new one is checked without an entry here.
+  it('mounts the indicator list behind the internal roles', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: { listPage: async () => ({ indicators: [], total: 0 }) },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+
+    const asReviewer = await request(app)
+      .get('/api/internal/indicators')
+      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
+    const asPublic = await request(app)
+      .get('/api/internal/indicators')
+      .set('Cookie', await createCookie(['public']));
+
+    expect(asReviewer.status).toBe(200);
+    expect(asPublic.status).toBe(403);
+  });
+
   it.each([
-    '/api/internal/indicators',
     '/api/internal/ci-methods',
     '/api/internal/tags',
     '/api/internal/data-providers',
@@ -134,8 +141,7 @@ describe('internal API', () => {
   ])('mounts %s behind the publisher role', async (path) => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        listPage: async () => ({ indicators: [], total: 0 }),
-        findTeamId: async () => TEAM_IDS.teamA,
+        findAccess: async () => ({ teamId: TEAM_IDS.teamA, draftReviewers: [] }),
         // The handlers read only the draft's section columns.
         findDraftState: vi.fn().mockResolvedValue({ draft: unansweredDraft }),
       },
@@ -161,13 +167,13 @@ describe('internal API', () => {
 
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
-    const asInternal = await request(app)
+      .set('Cookie', await createCookie(['public', 'publisher']));
+    const asAdmin = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal']));
+      .set('Cookie', await createCookie(['public', 'admin']));
 
     expect(asPublisher.status).toBe(200);
-    expect(asInternal.status).toBe(403);
+    expect(asAdmin.status).toBe(403);
   });
 
   it.each([
@@ -176,9 +182,7 @@ describe('internal API', () => {
   ])('mounts the %s step behind the publisher role', async (step, body) => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findTeamId: async () => TEAM_IDS.teamA,
-        // The step routes read only the indicator's id and access from its row.
-        findById: vi.fn().mockResolvedValue(stepRow),
+        findAccess: vi.fn().mockResolvedValue(stepRow),
         submit: async () => ({ ok: true }),
         withdraw: async () => ({ ok: true }),
       },
@@ -188,21 +192,21 @@ describe('internal API', () => {
 
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']))
+      .set('Cookie', await createCookie(['public', 'publisher']))
       .send(body);
-    const asInternal = await request(app)
+    const asAdmin = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal']))
+      .set('Cookie', await createCookie(['public', 'admin']))
       .send(body);
 
     expect(asPublisher.status).toBe(204);
-    expect(asInternal.status).toBe(403);
+    expect(asAdmin.status).toBe(403);
   });
 
   it('mounts the assign reviewers step behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findById: vi.fn().mockResolvedValue(stepRow),
+        findAccess: vi.fn().mockResolvedValue(stepRow),
         assignReviewers: async () => ({ ok: true }),
       },
     });
@@ -216,11 +220,11 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']))
+      .set('Cookie', await createCookie(['public', 'imrg-manager']))
       .send(body);
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']))
+      .set('Cookie', await createCookie(['public', 'publisher']))
       .send(body);
 
     expect(asManager.status).toBe(204);
@@ -230,7 +234,7 @@ describe('internal API', () => {
   it('mounts the publication date confirmation behind the admin role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findById: vi.fn().mockResolvedValue(stepRow),
+        findAccess: vi.fn().mockResolvedValue(stepRow),
         schedule: async () => ({ ok: true }),
       },
     });
@@ -247,11 +251,11 @@ describe('internal API', () => {
 
     const asAdmin = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'admin']))
+      .set('Cookie', await createCookie(['public', 'admin']))
       .send(body);
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']))
+      .set('Cookie', await createCookie(['public', 'publisher']))
       .send(body);
 
     expect(asAdmin.status).toBe(204);
@@ -261,7 +265,7 @@ describe('internal API', () => {
   it('mounts the review response behind the IMRG reviewer role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findById: vi.fn().mockResolvedValue({
+        findAccess: vi.fn().mockResolvedValue({
           ...stepRow,
           draftReviewers: [{ id: 'test-user', name: 'A reviewer' }],
         }),
@@ -280,11 +284,11 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']))
+      .set('Cookie', await createCookie(['public', 'imrg-reviewer']))
       .send(body);
     const asPublisher = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']))
+      .set('Cookie', await createCookie(['public', 'publisher']))
       .send(body);
 
     expect(asReviewer.status).toBe(204);
@@ -293,7 +297,7 @@ describe('internal API', () => {
     // Its own body limit, over the default 100 kB.
     const long = await request(app)
       .post(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']))
+      .set('Cookie', await createCookie(['public', 'imrg-reviewer']))
       .send({
         ...body,
         flags: flaggableTaskKeySchema.options.map((task) => ({ task, notes: '€'.repeat(10_000) })),
@@ -304,7 +308,7 @@ describe('internal API', () => {
   it('mounts the reviewer options behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findById: async () => ({
+        findAccess: async () => ({
           id: '00000000-0000-7000-8000-000000000001',
           shortId: 90366,
           name: 'Life expectancy at birth',
@@ -330,10 +334,10 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+      .set('Cookie', await createCookie(['public', 'imrg-manager']));
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
+      .set('Cookie', await createCookie(['public', 'publisher']));
 
     expect(asManager.status).toBe(200);
     expect(asPublisher.status).toBe(403);
@@ -343,9 +347,8 @@ describe('internal API', () => {
     const id = '00000000-0000-7000-8000-000000000001';
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
+        findAccess: async () => ({ teamId: TEAM_IDS.teamA, draftReviewers: [] }),
         findNotesForReviewers: async () => ({
-          teamId: TEAM_IDS.teamA,
-          draftReviewers: [],
           version: { ...unansweredDraft, id },
         }),
       },
@@ -355,7 +358,7 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+      .set('Cookie', await createCookie(['public', 'imrg-manager']));
 
     expect(asManager.status).toBe(200);
   });
@@ -363,6 +366,7 @@ describe('internal API', () => {
   it("mounts an indicator's history", async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
+        findAccess: async () => ({ teamId: TEAM_IDS.teamA, draftReviewers: [] }),
         findHistory: async () => ({
           teamId: TEAM_IDS.teamA,
           draftReviewers: [],
@@ -379,7 +383,7 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+      .set('Cookie', await createCookie(['public', 'imrg-manager']));
 
     expect(asManager.status).toBe(200);
     expect(asManager.body).toEqual({ entries: [] });
@@ -400,7 +404,7 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']));
+      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
 
     expect(asReviewer.status).toBe(200);
     expect(asReviewer.body).toEqual({ notes: [] });
@@ -409,7 +413,7 @@ describe('internal API', () => {
   it("mounts the publisher's reply to a review behind the editor guard", async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
-        findTeamId: async () => TEAM_IDS.teamA,
+        findAccess: async () => ({ teamId: TEAM_IDS.teamA, draftReviewers: [] }),
         findRevisionRound: async () => ({
           hasDraft: true,
           draftLocked: false,
@@ -434,14 +438,14 @@ describe('internal API', () => {
 
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
-    const asReviewer = await request(app)
+      .set('Cookie', await createCookie(['public', 'publisher']));
+    const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']));
+      .set('Cookie', await createCookie(['public', 'imrg-manager']));
 
     expect(asPublisher.status).toBe(200);
     expect(asPublisher.body).toMatchObject({ kind: 'minor_revisions', flaggedTaskCount: 1 });
-    expect(asReviewer.status).toBe(403);
+    expect(asManager.status).toBe(403);
   });
 
   it('mounts the indicators under review behind the IMRG manager role', async () => {
@@ -453,10 +457,10 @@ describe('internal API', () => {
 
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+      .set('Cookie', await createCookie(['public', 'imrg-manager']));
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
+      .set('Cookie', await createCookie(['public', 'publisher']));
 
     expect(asManager.status).toBe(200);
     expect(asPublisher.status).toBe(403);
@@ -471,10 +475,10 @@ describe('internal API', () => {
 
     const asReviewer = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-reviewer']));
+      .set('Cookie', await createCookie(['public', 'imrg-reviewer']));
     const asPublisher = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
+      .set('Cookie', await createCookie(['public', 'publisher']));
 
     expect(asReviewer.status).toBe(200);
     expect(asPublisher.status).toBe(403);
@@ -489,10 +493,10 @@ describe('internal API', () => {
 
     const asAdmin = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'admin']));
+      .set('Cookie', await createCookie(['public', 'admin']));
     const asManager = await request(app)
       .get(path)
-      .set('Cookie', await createCookie(['public', 'internal', 'imrg-manager']));
+      .set('Cookie', await createCookie(['public', 'imrg-manager']));
 
     expect(asAdmin.status).toBe(200);
     expect(asManager.status).toBe(403);
@@ -517,10 +521,10 @@ describe('internal API', () => {
 
     const asAdmin = await request(app)
       .get('/api/internal/topics')
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher', 'admin']));
+      .set('Cookie', await createCookie(['public', 'publisher', 'admin']));
     const asPublisher = await request(app)
       .get('/api/internal/topics')
-      .set('Cookie', await createCookie(['public', 'internal', 'publisher']));
+      .set('Cookie', await createCookie(['public', 'publisher']));
 
     expect(asAdmin.status).toBe(200);
     expect(asAdmin.body[0]).toMatchObject({ id: '00000000-0000-7000-8000-000000000001' });
@@ -555,5 +559,52 @@ describe('internal API', () => {
         updatedAt: '2024-01-02T00:00:00.000Z',
       },
     ]);
+  });
+});
+
+describe('the indicator routes', () => {
+  const id = '00000000-0000-7000-8000-000000000001';
+  const routes = [
+    ['a section read', 'get', `/api/internal/indicators/${id}/polarity`],
+    ['a section write', 'put', `/api/internal/indicators/${id}/polarity`],
+    ['a workflow step', 'post', `/api/internal/indicators/${id}/submit`],
+    ['the detail route', 'get', `/api/internal/indicators/${id}`],
+  ] as const;
+
+  function createTeamBApp() {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: { findAccess: async () => ({ teamId: TEAM_IDS.teamB, draftReviewers: [] }) },
+    });
+    return createTestApp(createFakeRepositories(), internalRepositories);
+  }
+
+  it.each(routes)('answer a publisher in another team 404 on %s', async (_, method, path) => {
+    const response = await request(createTeamBApp())
+      [method](path)
+      .set('Cookie', await createCookie(['public', 'publisher']));
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it.each(routes.slice(0, 3))(
+    'answer an admin, who may see the indicator but not edit it, 403 on %s',
+    async (_, method, path) => {
+      const response = await request(createTeamBApp())
+        [method](path)
+        .set('Cookie', await createCookie(['public', 'admin']));
+
+      expect(response.status).toBe(403);
+      expect(response.body).toEqual({ error: 'forbidden' });
+    },
+  );
+
+  it.each(routes)('answer 400 for an id that is not one on %s', async (_, method, path) => {
+    const response = await request(createTeamBApp())
+      [method](path.replace(id, 'not-an-id'))
+      .set('Cookie', await createCookie(['public', 'publisher']));
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_id' });
   });
 });

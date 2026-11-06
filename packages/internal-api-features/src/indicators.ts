@@ -1,12 +1,9 @@
-import {
-  requireApiActor,
-  requireApiSession,
-  requireJwtRole,
-  requireJwtSession,
-} from '@fphd/api-server';
+import { requireApiActor, requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import {
+  canCreateIndicator,
   canCreateIndicatorInTeam,
+  canEditIndicator,
   canListIndicators,
   canSeeIndicator,
   indicatorListScope,
@@ -22,9 +19,7 @@ import {
   type IndicatorAdminPage,
   type IndicatorAdminSummary,
   type IndicatorTaskList,
-  indicatorAccess,
   indicatorFieldSchema,
-  indicatorIdSchema,
   indicatorListTeamsQuerySchema,
   indicatorNameSchema,
   indicatorPageQuerySchema,
@@ -32,7 +27,7 @@ import {
   toFieldErrors,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
-import { requireIndicatorEditor } from './indicator-editor.ts';
+import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import type {
   IndicatorAdminDetailRow,
   IndicatorAdminListRow,
@@ -108,9 +103,10 @@ export function internalIndicatorsRouter(
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const requirePublisher = requireJwtRole(session, 'publisher');
+  const requireCreator = requireJwtSession(session, canCreateIndicator);
   const requireLister = requireJwtSession(session, canListIndicators);
-  const requireEditor = requireIndicatorEditor(session, indicators);
+  const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
+  const requireViewer = requireIndicatorAccess(session, indicators, canSeeIndicator);
 
   router.get('/api/internal/indicators', requireLister, async (request, response) => {
     const query = indicatorPageQuerySchema.safeParse(request.query);
@@ -142,7 +138,7 @@ export function internalIndicatorsRouter(
     response.status(200).json(body);
   });
 
-  router.post('/api/internal/indicators', requirePublisher, async (request, response) => {
+  router.post('/api/internal/indicators', requireCreator, async (request, response) => {
     const session = requireApiSession(response);
     const team = indicatorTeamSchema.safeParse(request.body);
 
@@ -192,12 +188,7 @@ export function internalIndicatorsRouter(
   });
 
   router.patch('/api/internal/indicators/:id', requireEditor, async (request, response) => {
-    const id = indicatorIdSchema.safeParse(request.params.id);
-
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' });
-      return;
-    }
+    const { id } = guardedIndicator(response);
 
     const versioned = editVersionedSchema.safeParse(request.body);
 
@@ -210,7 +201,7 @@ export function internalIndicatorsRouter(
 
     if (!submission.success) {
       // As a section save does, a locked draft answers locked before its refused answers.
-      if ((await indicators.findById(id.data))?.draftLocked) {
+      if ((await indicators.findById(id))?.draftLocked) {
         response.status(409).json({ error: 'locked' });
         return;
       }
@@ -224,7 +215,7 @@ export function internalIndicatorsRouter(
 
     const actor = requireApiActor(request, response);
     // No lists: the repository leaves the ones it is not given alone.
-    const result = await indicators.updateDraft(id.data, 'name', submission.data, {}, actor, {
+    const result = await indicators.updateDraft(id, 'name', submission.data, {}, actor, {
       version: versioned.data.version,
       versionOf: (draft) => nameVersion(draft.name),
     });
@@ -246,14 +237,12 @@ export function internalIndicatorsRouter(
       }
 
       // A published indicator is edited by opening a draft first, so until then there is no
-      // draft to rename and the page the publisher asked for does not exist. The read tells
-      // that apart from an indicator that does not exist at all.
-      const exists = (await indicators.findById(id.data)) !== undefined;
-      response.status(404).json({ error: exists ? 'no_draft' : 'not_found' });
+      // draft to rename and the page the publisher asked for does not exist.
+      response.status(404).json({ error: 'no_draft' });
       return;
     }
 
-    const row = await indicators.findById(id.data);
+    const row = await indicators.findById(id);
 
     if (!row) throw new Error('the indicator just renamed could not be read back');
 
@@ -261,75 +250,66 @@ export function internalIndicatorsRouter(
     response.status(200).json(toDetail(row, requireApiSession(response)));
   });
 
-  router.get('/api/internal/indicators/:id/task-list', requireEditor, async (request, response) => {
-    const id = indicatorIdSchema.safeParse(request.params.id);
+  router.get(
+    '/api/internal/indicators/:id/task-list',
+    requireEditor,
+    async (_request, response) => {
+      const { id } = guardedIndicator(response);
 
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' });
-      return;
-    }
+      // Apart, so the section reads that share findDraftState do not carry the round.
+      const [row, round] = await Promise.all([
+        indicators.findDraftState(id),
+        indicators.findRevisionRound(id),
+      ]);
 
-    // Apart, so the section reads that share findDraftState do not carry the round.
-    const [row, round] = await Promise.all([
-      indicators.findDraftState(id.data),
-      indicators.findRevisionRound(id.data),
-    ]);
+      if (!row) {
+        response.status(404).json({ error: 'not_found' });
+        return;
+      }
+
+      // A published indicator is edited by opening a draft first, so until then there is no
+      // task list to show and the page the publisher asked for does not exist.
+      if (!row.draft) {
+        response.status(404).json({ error: 'no_draft' });
+        return;
+      }
+
+      const body: IndicatorTaskList = {
+        ...indicatorTaskList({
+          indicator: {
+            id: row.id,
+            shortId: row.shortId,
+            indicatorStatus: row.indicatorStatus,
+            draftStatus: row.draftStatus,
+            draftSubmissionStatus: row.draftSubmissionStatus,
+            draftResponseKind: row.draftResponseKind,
+          },
+          draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
+          review: taskListReview(round),
+        }),
+        draftUpdatedAt: row.draft.updatedAt.toISOString(),
+        editable: !row.draft.isLocked,
+        actions: stepsOpenTo(requireApiSession(response), {
+          ...row,
+          draftLocked: row.draft.isLocked,
+        }),
+      };
+
+      response.status(200).json(body);
+    },
+  );
+
+  router.get('/api/internal/indicators/:id', requireViewer, async (_request, response) => {
+    const { id } = guardedIndicator(response);
+
+    const row = await indicators.findById(id);
 
     if (!row) {
       response.status(404).json({ error: 'not_found' });
       return;
     }
 
-    // A published indicator is edited by opening a draft first, so until then there is no
-    // task list to show and the page the publisher asked for does not exist.
-    if (!row.draft) {
-      response.status(404).json({ error: 'no_draft' });
-      return;
-    }
-
-    const body: IndicatorTaskList = {
-      ...indicatorTaskList({
-        indicator: {
-          id: row.id,
-          shortId: row.shortId,
-          indicatorStatus: row.indicatorStatus,
-          draftStatus: row.draftStatus,
-          draftSubmissionStatus: row.draftSubmissionStatus,
-          draftResponseKind: row.draftResponseKind,
-        },
-        draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
-        review: taskListReview(round),
-      }),
-      draftUpdatedAt: row.draft.updatedAt.toISOString(),
-      editable: !row.draft.isLocked,
-      actions: stepsOpenTo(requireApiSession(response), {
-        ...row,
-        draftLocked: row.draft.isLocked,
-      }),
-    };
-
-    response.status(200).json(body);
-  });
-
-  router.get('/api/internal/indicators/:id', requireLister, async (request, response) => {
-    const id = indicatorIdSchema.safeParse(request.params.id);
-
-    // Handing an unparseable id to the database would surface as a 500; it is a bad request.
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' });
-      return;
-    }
-
-    const row = await indicators.findById(id.data);
-    const session = requireApiSession(response);
-
-    // An indicator the user may not see answers 404, as if it did not exist.
-    if (!row || !canSeeIndicator(session, indicatorAccess(row))) {
-      response.status(404).json({ error: 'not_found' });
-      return;
-    }
-
-    response.status(200).json(toDetail(row, session));
+    response.status(200).json(toDetail(row, requireApiSession(response)));
   });
 
   return router;

@@ -19,15 +19,20 @@ export type IndicatorListScope =
   | { readonly all: true }
   | { readonly all: false; readonly teamIds: readonly string[] };
 
-function holds(user: SessionUser, role: Role): boolean {
+const INTERNAL_ROLES: readonly Role[] = ['publisher', 'imrg-manager', 'imrg-reviewer', 'admin'];
+
+function holds(user: Pick<SessionUser, 'roles'>, role: Role): boolean {
   return user.roles.includes(role);
+}
+
+/** Whether the user may use the internal service at all: they hold one of its four roles. */
+export function canUseInternalService(user: Pick<SessionUser, 'roles'>): boolean {
+  return INTERNAL_ROLES.some((role) => holds(user, role));
 }
 
 /** Whether the user may open the indicator list; `canSeeIndicator` decides which ones it shows. */
 export function canListIndicators(user: SessionUser): boolean {
-  return (['publisher', 'imrg-manager', 'imrg-reviewer', 'admin'] as const).some((role) =>
-    holds(user, role),
-  );
+  return INTERNAL_ROLES.some((role) => holds(user, role));
 }
 
 /** The teams a new indicator may join: its creator's, who chooses one when there are several. */
@@ -43,11 +48,16 @@ export function canCreateIndicatorInTeam(user: SessionUser, teamId: string): boo
   return teamsForNewIndicator(user).includes(teamId);
 }
 
+/** Whether the user edits indicators at all; `canEditIndicator` decides which ones. */
+export function canEditIndicators(user: SessionUser): boolean {
+  return holds(user, 'publisher');
+}
+
 export function canEditIndicator(
   user: SessionUser,
   { teamId }: Pick<IndicatorAccess, 'teamId'>,
 ): boolean {
-  return holds(user, 'publisher') && teamId !== null && user.teams.includes(teamId);
+  return canEditIndicators(user) && teamId !== null && user.teams.includes(teamId);
 }
 
 /** Whether the user may submit the indicator's draft for approval. The editors, for now. */
@@ -67,7 +77,7 @@ export function canWithdrawSubmission(
 }
 
 /** Whether the user may be assigned indicators to review; `canReviewIndicator` decides which. */
-export function canReviewIndicators(user: SessionUser): boolean {
+export function canReviewIndicators(user: Pick<SessionUser, 'roles'>): boolean {
   return holds(user, 'imrg-reviewer');
 }
 

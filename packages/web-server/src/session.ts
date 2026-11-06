@@ -26,22 +26,6 @@ function pagePathFrom(requestUrl: URL): string {
   return `${pathname}${pageSearch(requestUrl)}`;
 }
 
-export function createRequireSessionRoleMiddleware({
-  forbiddenPath,
-  role,
-  signInPath,
-}: {
-  forbiddenPath: string;
-  role: string;
-  signInPath: string;
-}): MiddlewareFunction<Response> {
-  return createRequireSessionMiddleware({
-    allows: (session) => session.roles.includes(role),
-    forbiddenPath,
-    signInPath,
-  });
-}
-
 /** Sends a visitor without a session to sign in, and one `allows` refuses to `forbiddenPath`. */
 export function createRequireSessionMiddleware({
   allows,

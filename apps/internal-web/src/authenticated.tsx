@@ -1,12 +1,13 @@
-import { createRequireSessionRoleMiddleware } from '@fphd/web-server/session';
+import { canUseInternalService } from '@fphd/auth/permissions';
+import { createRequireSessionMiddleware } from '@fphd/web-server/session';
 import { href, Outlet } from 'react-router';
 
 import type { Route } from './+types/authenticated';
 
 export const middleware: Route.MiddlewareFunction[] = [
-  createRequireSessionRoleMiddleware({
+  createRequireSessionMiddleware({
+    allows: canUseInternalService,
     forbiddenPath: href('/access-denied'),
-    role: 'internal',
     signInPath: href('/'),
   }),
 ];

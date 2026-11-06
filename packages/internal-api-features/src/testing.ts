@@ -10,7 +10,7 @@ import type { Express, Router } from 'express';
 
 import { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
 import { indicatorSectionFieldErrors } from './contract.ts';
-import type { IndicatorTeams } from './indicator-editor.ts';
+import type { IndicatorAccessReader } from './indicator-access.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
 import type { IndicatorSection } from './indicator-section-contract.ts';
 import type { InternalRepositories } from './repositories.ts';
@@ -58,8 +58,10 @@ export function testActor(response: { headers: Record<string, string> }): Actor 
 /** The test session's team, which `TEST_USER_ID` belongs to. */
 export const TEST_TEAM_ID = TEAM_IDS.teamA;
 
-/** Team lookups that put every indicator in the test session's team. */
-export const inTestTeam: IndicatorTeams = { findTeamId: async () => TEST_TEAM_ID };
+/** Access reads that put every indicator in the test session's team, with no reviewers. */
+export const inTestTeam: IndicatorAccessReader = {
+  findAccess: async () => ({ teamId: TEST_TEAM_ID, draftReviewers: [] }),
+};
 
 /** A session cookie for `TEST_USER_ID` holding the given roles, in the test team unless told. */
 export async function testSessionCookie(

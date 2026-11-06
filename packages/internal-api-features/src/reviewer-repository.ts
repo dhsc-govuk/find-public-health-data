@@ -1,4 +1,5 @@
 import { fakeUsers } from '@fphd/auth';
+import { canReviewIndicators } from '@fphd/auth/permissions';
 import { type Database, schema } from '@fphd/db';
 import { type AuditChanges, listChanges } from '@fphd/db/audit-log';
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
@@ -19,7 +20,7 @@ type Reader = Database | Transaction;
 
 /** Everyone holding the IMRG reviewer role: the fake users with it, until roles are stored. */
 function reviewerRoleHolderIds(): string[] {
-  return fakeUsers.filter(({ roles }) => roles.includes('imrg-reviewer')).map(({ id }) => id);
+  return fakeUsers.filter(canReviewIndicators).map(({ id }) => id);
 }
 
 async function creatorOf(db: Reader, indicatorId: string): Promise<string | null | undefined> {

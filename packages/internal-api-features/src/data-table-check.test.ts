@@ -71,13 +71,13 @@ function createTestApp(
 async function get(app: ReturnType<typeof createTestApp>, path = DATA_TABLE) {
   return request(app)
     .get(path)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+    .set('Cookie', await testSessionCookie(['publisher']));
 }
 
 async function put(app: ReturnType<typeof createTestApp>, body: object) {
   return request(app)
     .put(CONFIRMATION)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+    .set('Cookie', await testSessionCookie(['publisher']))
     .send(body);
 }
 
@@ -152,10 +152,10 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
     expect(response.body).toEqual({ error: 'invalid_id' });
   });
 
-  it('refuses a session without the publisher role', async () => {
+  it('refuses an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .get(DATA_TABLE)
-      .set('Cookie', await testSessionCookie(['internal']));
+      .set('Cookie', await testSessionCookie(['admin']));
 
     expect(response.status).toBe(403);
   });

@@ -6,6 +6,7 @@ import {
   canCreateIndicator,
   canCreateIndicatorInTeam,
   canEditIndicator,
+  canEditIndicators,
   canListIndicators,
   canManage,
   canMoveIndicatorBetweenTeams,
@@ -18,6 +19,7 @@ import {
   canSeeNotesForReviewers,
   canSeeTeamsAndUsers,
   canSubmitIndicator,
+  canUseInternalService,
   canWithdrawSubmission,
   canWriteReviewerNotes,
   type IndicatorAccess,
@@ -31,7 +33,7 @@ const teamA = 'team-a';
 const teamB = 'team-b';
 
 function user(sub: string, roles: string[], teams: string[] = []): SessionUser {
-  return { roles: ['public', 'internal', ...roles], sub, teams };
+  return { roles: ['public', ...roles], sub, teams };
 }
 
 const publisherA = user('publisher-a', ['publisher'], [teamA]);
@@ -61,6 +63,15 @@ describe('canSeeIndicator', () => {
     ['an admin', admin, inTeamB, true],
   ])('answers whether %s sees an indicator', (_who, asking, indicator, expected) => {
     expect(canSeeIndicator(asking, indicator)).toBe(expected);
+  });
+});
+
+describe('canEditIndicators', () => {
+  it('lets a publisher edit indicators, with or without a team', () => {
+    expect(canEditIndicators(publisherA)).toBe(true);
+    expect(canEditIndicators(teamless)).toBe(true);
+    expect(canEditIndicators(reviewer)).toBe(false);
+    expect(canEditIndicators(admin)).toBe(false);
   });
 });
 
@@ -100,7 +111,16 @@ describe('canListIndicators', () => {
     for (const asking of [publisherA, reviewer, manager, admin]) {
       expect(canListIndicators(asking), asking.sub).toBe(true);
     }
-    expect(canListIndicators(user('internal-only', []))).toBe(false);
+    expect(canListIndicators(user('public-only', []))).toBe(false);
+  });
+});
+
+describe('canUseInternalService', () => {
+  it('lets anyone holding one of the four internal roles use the internal service', () => {
+    for (const asking of [publisherA, reviewer, manager, admin]) {
+      expect(canUseInternalService(asking), asking.sub).toBe(true);
+    }
+    expect(canUseInternalService(user('public-only', []))).toBe(false);
   });
 });
 

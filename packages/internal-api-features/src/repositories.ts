@@ -49,7 +49,6 @@ import {
 import { findIndicatorHistory, type IndicatorHistoryRow } from './indicator-history-repository.ts';
 import {
   findIndicatorAccess,
-  findIndicatorTeamId,
   getIndicatorById,
   type IndicatorAccessRow,
   type IndicatorAdminDetailRow,
@@ -141,13 +140,11 @@ export interface InternalIndicatorRepository {
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
   /** The indicator's team and draft reviewers, for an access check, or undefined with none. */
   findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
-  /** The indicator's team, null when it has none, or undefined when there is no such indicator. */
-  findTeamId(id: string): Promise<string | null | undefined>;
   /** The draft and whether anything is published, read together for the task list. */
   findDraftState(id: string): Promise<IndicatorDraftStateRow | undefined>;
-  /** The notes for reviewers, from the draft or else the published version, with their access. */
+  /** The notes for reviewers, from the draft or else the published version. */
   findNotesForReviewers(id: string): Promise<IndicatorNotesForReviewersRow | undefined>;
-  /** What the indicator's history is made from, with its access, or undefined with none. */
+  /** What the indicator's history is made from, or undefined with none. */
   findHistory(id: string): Promise<IndicatorHistoryRow | undefined>;
   createDraft(
     attributes: NewIndicatorDraftAttributes,
@@ -318,7 +315,6 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       listScheduled: (scope) => listIndicatorsScheduled(db, scope),
       findById: (id) => getIndicatorById(db, id),
       findAccess: (id) => findIndicatorAccess(db, id),
-      findTeamId: (id) => findIndicatorTeamId(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
       findHistory: (id) => findIndicatorHistory(db, id),

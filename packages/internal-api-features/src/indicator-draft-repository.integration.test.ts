@@ -1,4 +1,4 @@
-import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
+import { TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { MAX_AGE } from '@fphd/utils/sex-and-ages';
@@ -32,7 +32,7 @@ import {
   typeClassification,
 } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
-import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
+import { submitIndicator } from './indicator-workflow-repository.ts';
 
 const { indicator, indicatorVersion } = schema;
 
@@ -933,8 +933,6 @@ describe('getIndicatorNotesForReviewers', () => {
     const found = await getIndicatorNotesForReviewers(db, created.indicatorId);
 
     expect(found).toMatchObject({
-      teamId: TEAM_IDS.teamA,
-      draftReviewers: [],
       version: {
         id: created.versionId,
         variation: 'Little.',
@@ -985,24 +983,6 @@ describe('getIndicatorNotesForReviewers', () => {
 
     expect(found?.version.id).not.toBe(published.currentId);
     expect(found?.version.variation).toBeNull();
-  });
-
-  repositoryTest("reads the reviewers of the draft's latest submission", async ({ db }) => {
-    const created = await newDraft(db, 'Notes under review');
-    const shown = await completeDraft(db, created);
-    await submitIndicator(db, created.indicatorId, shown, AS_ACTOR);
-    await assignReviewers(
-      db,
-      created.indicatorId,
-      { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
-      { userId: FAKE_USER_IDS.imrgManager, requestId: null },
-    );
-
-    const found = await getIndicatorNotesForReviewers(db, created.indicatorId);
-
-    expect(found?.draftReviewers).toEqual([
-      { id: FAKE_USER_IDS.imrgReviewer, name: 'Jamie Evans' },
-    ]);
   });
 
   repositoryTest('reads nothing for an id no indicator has', async ({ db }) => {

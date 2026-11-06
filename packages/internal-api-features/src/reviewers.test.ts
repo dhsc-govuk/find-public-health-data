@@ -44,7 +44,9 @@ const submitted: IndicatorAdminDetailRow = {
 
 function createTestApp(
   overrides: FakeInternalRepositoryOverrides['reviewers'] = {},
-  indicators: Pick<InternalIndicatorRepository, 'findById'> = { findById: async () => submitted },
+  indicators: Pick<InternalIndicatorRepository, 'findAccess'> = {
+    findAccess: async () => submitted,
+  },
 ): Express {
   const repositories = createFakeInternalRepositories({ reviewers: overrides });
 
@@ -54,7 +56,7 @@ function createTestApp(
 }
 
 function managerCookie() {
-  return testSessionCookie(['internal', 'imrg-manager'], []);
+  return testSessionCookie(['imrg-manager'], []);
 }
 
 describe('GET /api/internal/indicators/:id/reviewer-options', () => {
@@ -78,15 +80,22 @@ describe('GET /api/internal/indicators/:id/reviewer-options', () => {
   });
 
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['an admin', ['internal', 'admin']],
-    ['a reviewer', ['internal', 'imrg-reviewer']],
+    ['a publisher', ['publisher']],
+    ['an admin', ['admin']],
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(path)
       .set('Cookie', await testSessionCookie(roles));
 
     expect(response.status).toBe(403);
+  });
+
+  it('answers a reviewer, who may not see the indicator, as not found', async () => {
+    const response = await request(createTestApp())
+      .get(path)
+      .set('Cookie', await testSessionCookie(['imrg-reviewer']));
+
+    expect(response.status).toBe(404);
   });
 
   it('answers 400 for an id that is not one', async () => {
@@ -102,7 +111,7 @@ describe('GET /api/internal/indicators/:id/reviewer-options', () => {
     const listOptions = vi.fn();
 
     const response = await request(
-      createTestApp({ listOptions }, { findById: async () => undefined }),
+      createTestApp({ listOptions }, { findAccess: async () => undefined }),
     )
       .get(path)
       .set('Cookie', await managerCookie());

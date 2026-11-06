@@ -46,14 +46,10 @@ const submittedRow: IndicatorAdminDetailRow = {
 
 /** The indicator's lookups, for an indicator in `teamId`. */
 function inTeam(teamId: string): FakeInternalRepositoryOverrides['indicators'] {
-  return {
-    findTeamId: async () => teamId,
-    findById: async () => ({ ...submittedRow, teamId }),
-  };
+  return { findById: async () => ({ ...submittedRow, teamId }) };
 }
 
 const noIndicator: FakeInternalRepositoryOverrides['indicators'] = {
-  findTeamId: async () => undefined,
   findById: async () => undefined,
 };
 
@@ -61,8 +57,11 @@ function createTestApp(
   overrides: FakeInternalRepositoryOverrides['indicators'] = {},
   logger?: Logger,
 ): Express {
+  const indicators = { ...inTeam(TEST_TEAM_ID), ...overrides };
+  const { findById } = indicators;
+  // The guard reads its access row from the same indicator `findById` serves.
   const repositories = createFakeInternalRepositories({
-    indicators: { ...inTeam(TEST_TEAM_ID), ...overrides },
+    indicators: { ...(findById && { findAccess: findById }), ...indicators },
   });
 
   return createRouterTestApp(
@@ -71,7 +70,7 @@ function createTestApp(
   );
 }
 
-function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
+function publisherCookie(roles: readonly string[] = ['publisher']) {
   return testSessionCookie(roles);
 }
 
@@ -92,14 +91,14 @@ describe.each([
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .post(path)
-      .set('Cookie', await publisherCookie(['internal', 'admin']))
+      .set('Cookie', await publisherCookie(['admin']))
       .send(body);
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
   });
 
-  it("refuses a publisher another team's indicator", async () => {
+  it("answers a publisher another team's indicator as not found", async () => {
     const takeStep = vi.fn();
 
     const response = await request(createTestApp({ ...inTeam(OTHER_TEAM_ID), [method]: takeStep }))
@@ -107,18 +106,26 @@ describe.each([
       .set('Cookie', await publisherCookie())
       .send(body);
 
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({ error: 'forbidden' });
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
     expect(takeStep).not.toHaveBeenCalled();
   });
 
   it.each([
-    ['who publishes for another team', ['internal', 'publisher', 'imrg-reviewer']],
-    ['who does not publish', ['internal', 'imrg-reviewer']],
+    ['who publishes for another team', ['publisher', 'imrg-reviewer']],
+    ['who does not publish', ['imrg-reviewer']],
   ])('refuses an IMRG reviewer assigned to the indicator, %s', async (_who, roles) => {
     const takeStep = vi.fn();
 
-    const response = await request(createTestApp({ ...inTeam(OTHER_TEAM_ID), [method]: takeStep }))
+    const assigned = {
+      findById: async () => ({
+        ...submittedRow,
+        teamId: OTHER_TEAM_ID,
+        draftReviewers: [{ id: TEST_USER_ID, name: 'A reviewer' }],
+      }),
+    };
+
+    const response = await request(createTestApp({ ...assigned, [method]: takeStep }))
       .post(path)
       .set('Cookie', await testSessionCookie(roles))
       .send(body);
@@ -145,6 +152,21 @@ describe.each([
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('reads the indicator once, for its access', async () => {
+    const findAccess = vi.fn().mockResolvedValue(submittedRow);
+    const findById = vi.fn();
+    const takeStep = vi.fn().mockResolvedValue({ ok: true });
+
+    const response = await request(createTestApp({ findAccess, findById, [method]: takeStep }))
+      .post(path)
+      .set('Cookie', await publisherCookie())
+      .send(body);
+
+    expect(response.status).toBe(204);
+    expect(findAccess).toHaveBeenCalledOnce();
+    expect(findById).not.toHaveBeenCalled();
   });
 
   it('answers 404 for an indicator with no draft', async () => {
@@ -295,7 +317,7 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
   const body = { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [REVIEWER] };
 
   function managerCookie() {
-    return testSessionCookie(['internal', 'imrg-manager'], []);
+    return testSessionCookie(['imrg-manager'], []);
   }
 
   it('rejects an anonymous request', async () => {
@@ -304,10 +326,22 @@ describe('POST /api/internal/indicators/:id/assign-reviewers', () => {
     expect(response.status).toBe(401);
   });
 
+  it('answers a reviewer, who may not see it, as not found', async () => {
+    const assignReviewers = vi.fn();
+
+    const response = await request(createTestApp({ assignReviewers }))
+      .post(path)
+      .set('Cookie', await testSessionCookie(['imrg-reviewer']))
+      .send(body);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+    expect(assignReviewers).not.toHaveBeenCalled();
+  });
+
   it.each([
-    ['a publisher in its team', ['internal', 'publisher']],
-    ['an admin', ['internal', 'admin']],
-    ['a reviewer', ['internal', 'imrg-reviewer']],
+    ['a publisher in its team', ['publisher']],
+    ['an admin', ['admin']],
   ])('refuses %s', async (_, roles) => {
     const assignReviewers = vi.fn();
 
@@ -434,7 +468,7 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
   }
 
   function reviewerCookie() {
-    return testSessionCookie(['internal', 'imrg-reviewer'], []);
+    return testSessionCookie(['imrg-reviewer'], []);
   }
 
   it('rejects an anonymous request', async () => {
@@ -443,10 +477,21 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
     expect(response.status).toBe(401);
   });
 
+  it("answers a publisher another team's indicator as not found", async () => {
+    const respond = vi.fn();
+
+    const response = await request(createTestApp({ ...inReview(), respond }))
+      .post(path)
+      .set('Cookie', await testSessionCookie(['publisher']))
+      .send(minorRevisions);
+
+    expect(response.status).toBe(404);
+    expect(respond).not.toHaveBeenCalled();
+  });
+
   it.each([
-    ['a publisher', ['internal', 'publisher']],
-    ['the IMRG manager', ['internal', 'imrg-manager']],
-    ['an admin', ['internal', 'admin']],
+    ['the IMRG manager', ['imrg-manager']],
+    ['an admin', ['admin']],
   ])('refuses %s', async (_, roles) => {
     const respond = vi.fn();
 
@@ -490,7 +535,7 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
 
     const response = await request(createTestApp({ ...inOwnTeam, respond }))
       .post(path)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher', 'imrg-reviewer']))
+      .set('Cookie', await testSessionCookie(['publisher', 'imrg-reviewer']))
       .send(minorRevisions);
 
     expect(response.status).toBe(403);

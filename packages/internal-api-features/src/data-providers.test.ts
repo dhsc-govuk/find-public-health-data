@@ -34,7 +34,7 @@ describe('GET /api/internal/data-providers', () => {
   it('lists every provider with its sources in the order the repository gives, in the shape the contract describes', async () => {
     const response = await request(createTestApp({ list: vi.fn().mockResolvedValue(providers) }))
       .get(path)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+      .set('Cookie', await testSessionCookie(['publisher']));
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(providers);
@@ -50,7 +50,7 @@ describe('GET /api/internal/data-providers', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .get(path)
-      .set('Cookie', await testSessionCookie(['internal']));
+      .set('Cookie', await testSessionCookie(['public']));
 
     expect(response.status).toBe(403);
   });

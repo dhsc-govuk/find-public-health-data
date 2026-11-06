@@ -4,8 +4,7 @@ import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
 import { eq, sql } from 'drizzle-orm';
 
-import type { IndicatorAccessRow } from './indicator-list-repository.ts';
-import { draftJoin, draftReviewers, draftVersion } from './indicator-repository-sql.ts';
+import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
 
 const { indicator } = schema;
 
@@ -61,7 +60,7 @@ export interface HistorySaveRecord {
   reloaded: boolean;
 }
 
-export interface IndicatorHistoryRow extends IndicatorAccessRow {
+export interface IndicatorHistoryRow {
   versions: HistoryVersionRecord[];
   submissions: HistorySubmissionRecord[];
   assignments: HistoryAssignmentRecord[];
@@ -175,9 +174,9 @@ const saves = sql<HistorySaveRecord[]>`coalesce((
 ), '[]'::json)`;
 
 /**
- * Everything the indicator's history is made from, in one statement, with its access row; or
- * undefined when there is no such indicator. It reads only the audit actions it names, so a
- * reviewer's private notes never reach it.
+ * Everything the indicator's history is made from, in one statement, or undefined when there is
+ * no such indicator. It reads only the audit actions it names, so a reviewer's private notes never
+ * reach it.
  */
 export async function findIndicatorHistory(
   db: Database,
@@ -185,8 +184,6 @@ export async function findIndicatorHistory(
 ): Promise<IndicatorHistoryRow | undefined> {
   const [row] = await db
     .select({
-      teamId: indicator.teamId,
-      draftReviewers,
       versions,
       submissions,
       assignments,

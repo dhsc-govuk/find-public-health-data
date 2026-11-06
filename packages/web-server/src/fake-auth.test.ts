@@ -53,7 +53,7 @@ describe('fake authentication backend', () => {
     if (token === undefined) throw new Error('Session cookie did not contain a token');
 
     await expect(session.verifyToken(token)).resolves.toMatchObject({
-      roles: ['public', 'internal', 'publisher'],
+      roles: ['public', 'publisher'],
       sub: FAKE_USER_IDS.publisherTeamA,
       teams: [TEAM_IDS.teamA],
     });

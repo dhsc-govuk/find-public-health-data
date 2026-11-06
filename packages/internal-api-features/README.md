@@ -19,7 +19,7 @@ surface.
 
 Each user sees the indicators their roles allow: the dashboard list is filtered in its query by
 `indicatorListScope`, or by `ownTeamsListScope` under `teams=own`. A reviewer's list of indicators to
-review is filtered by their reviewer rows instead. The overview read answers 404 when
-`canSeeIndicator` refuses the row's `indicatorAccess`. Every
-route that edits an indicator sits behind `requireIndicatorEditor`, which checks `canEditIndicator`
-against the indicator's team: a read answers 404 and a write 403 for a publisher outside it.
+review is filtered by their reviewer rows instead. Every route that names an indicator by `:id`
+sits behind `requireIndicatorAccess` with its own check, such as `canEditIndicator`. The guard
+answers 404 for an indicator `canSeeIndicator` doesn't let the user see, whatever the method, and
+403 when the route's check refuses a user who may see it.

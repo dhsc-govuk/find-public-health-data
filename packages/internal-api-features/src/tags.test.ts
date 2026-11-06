@@ -34,7 +34,7 @@ describe('GET /api/internal/tags', () => {
       createTestApp({ listOptions: vi.fn().mockResolvedValue(options) }),
     )
       .get(path)
-      .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+      .set('Cookie', await testSessionCookie(['publisher']));
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(options);
@@ -50,7 +50,7 @@ describe('GET /api/internal/tags', () => {
   it('rejects a signed-in non-publisher', async () => {
     const response = await request(createTestApp())
       .get(path)
-      .set('Cookie', await testSessionCookie(['internal']));
+      .set('Cookie', await testSessionCookie(['public']));
 
     expect(response.status).toBe(403);
   });

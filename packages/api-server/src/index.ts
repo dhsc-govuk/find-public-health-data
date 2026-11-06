@@ -132,10 +132,6 @@ export function requireApiActor(request: Request, response: Response): ApiActor 
   return { userId: requireApiSession(response).sub, requestId: requestId(request) ?? null };
 }
 
-export function requireJwtRole(verifier: JwtSessionVerifier, role: string): RequestHandler {
-  return requireJwtSession(verifier, (session) => session.roles.includes(role));
-}
-
 /** Admits a verified session that `allows` admits, such as a check from `@fphd/auth/permissions`. */
 export function requireJwtSession(
   verifier: JwtSessionVerifier,

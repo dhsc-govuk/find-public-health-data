@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { indicatorHistorySchema } from './contract.ts';
 import { indicatorHistoryRouter } from './indicator-history.ts';
 import type { IndicatorHistoryRow } from './indicator-history-repository.ts';
+import type { IndicatorAccessRow } from './indicator-list-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 import {
   createRouterTestApp,
@@ -18,9 +19,13 @@ import {
 const ID = '00000000-0000-7000-8000-000000000001';
 const path = `/api/internal/indicators/${ID}/history`;
 
-const found: IndicatorHistoryRow = {
+/** What the guard reads of the indicator: in the test team, with someone else reviewing it. */
+const access: IndicatorAccessRow = {
   teamId: TEST_TEAM_ID,
   draftReviewers: [{ id: '00000000-0000-7000-8000-0000000000a1', name: 'Jamie Evans' }],
+};
+
+const found: IndicatorHistoryRow = {
   versions: [
     {
       createdAt: '2026-06-01T09:00:00.123456+00:00',
@@ -54,11 +59,16 @@ const found: IndicatorHistoryRow = {
 
 type Indicators = Pick<InternalIndicatorRepository, 'findHistory'>;
 
-function createTestApp(findHistory: Indicators['findHistory'] = async () => found): Express {
-  return createRouterTestApp(indicatorHistoryRouter({ findHistory }, testSessionVerifier));
+function createTestApp(
+  findAccess: () => Promise<IndicatorAccessRow | undefined> = async () => access,
+  findHistory: Indicators['findHistory'] = async () => found,
+): Express {
+  return createRouterTestApp(
+    indicatorHistoryRouter({ findAccess, findHistory }, testSessionVerifier),
+  );
 }
 
-const asManager = () => testSessionCookie(['internal', 'imrg-manager'], []);
+const asManager = () => testSessionCookie(['imrg-manager'], []);
 
 describe('GET /api/internal/indicators/:id/history', () => {
   it('serves the entries newest first, as the contract gives them', async () => {
@@ -83,8 +93,8 @@ describe('GET /api/internal/indicators/:id/history', () => {
   });
 
   it.each([
-    ['an admin', ['internal', 'admin'], []],
-    ['a publisher in its team', ['internal', 'publisher'], [TEST_TEAM_ID]],
+    ['an admin', ['admin'], []],
+    ['a publisher in its team', ['publisher'], [TEST_TEAM_ID]],
   ])('serves %s', async (_, roles, teams) => {
     const response = await request(createTestApp())
       .get(path)
@@ -94,10 +104,10 @@ describe('GET /api/internal/indicators/:id/history', () => {
   });
 
   it('serves a reviewer assigned to the indicator', async () => {
-    const assigned = { ...found, draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }] };
+    const assigned = { ...access, draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }] };
     const response = await request(createTestApp(async () => assigned))
       .get(path)
-      .set('Cookie', await testSessionCookie(['internal', 'imrg-reviewer'], []));
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));
 
     expect(response.status).toBe(200);
   });
@@ -109,8 +119,8 @@ describe('GET /api/internal/indicators/:id/history', () => {
   });
 
   it.each([
-    ['a publisher in another team', ['internal', 'publisher'], [TEAM_IDS.teamB]],
-    ['a reviewer not assigned to it', ['internal', 'imrg-reviewer'], []],
+    ['a publisher in another team', ['publisher'], [TEAM_IDS.teamB]],
+    ['a reviewer not assigned to it', ['imrg-reviewer'], []],
   ])('answers %s as if it did not exist', async (_, roles, teams) => {
     const response = await request(createTestApp())
       .get(path)

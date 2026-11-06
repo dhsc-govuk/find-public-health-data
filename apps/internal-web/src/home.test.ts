@@ -49,7 +49,7 @@ async function runLoader(path: string, roles?: readonly string[]) {
 
 describe('the internal home', () => {
   it('sends a signed-in user to the dashboard', async () => {
-    const result = await runLoader('/', ['public', 'internal', 'publisher']);
+    const result = await runLoader('/', ['public', 'publisher']);
 
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(302);

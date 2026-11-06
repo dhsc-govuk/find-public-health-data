@@ -1,4 +1,5 @@
 import { type AppAudience, type FakeUser, type Role, TEAMS } from '@fphd/auth';
+import { canUseInternalService } from '@fphd/auth/permissions';
 import { A, Button, PageIntro, Radios } from '@fphd/ui';
 
 const ROLE_LABELS: Partial<Record<Role, string>> = {
@@ -44,7 +45,7 @@ export function SignInPage({ audience, returnTo, session, users }: SignInPagePro
         <p className="govuk-body">
           You are signed in as <strong>{user?.name ?? session.subject}</strong>.
         </p>
-        {audience === 'internal' && !session.roles.includes('internal') ? (
+        {audience === 'internal' && !canUseInternalService(session) ? (
           <p className="govuk-body">This account cannot access the internal service.</p>
         ) : (
           <p className="govuk-body">

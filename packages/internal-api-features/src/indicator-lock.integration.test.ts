@@ -59,7 +59,7 @@ const EDIT_PATHS: [Method, string, object?][] = [
 async function send(method: Method, indicatorId: string, path: string, body?: object) {
   const call = request(app)
     [method](`/api/internal/indicators/${indicatorId}${path}`)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+    .set('Cookie', await testSessionCookie(['publisher']));
   if (method === 'post') {
     return call.attach('dataTable', Buffer.from('area_code\nE92000001\n'), 'data.csv');
   }

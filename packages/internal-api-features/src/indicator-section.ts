@@ -1,11 +1,12 @@
 import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import { canEditIndicator } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import { indicatorIdSchema, indicatorSectionFieldErrors } from './contract.ts';
+import { indicatorSectionFieldErrors } from './contract.ts';
 import { editVersion } from './edit-version.ts';
+import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import type { IndicatorDraft, IndicatorDraftAttributes } from './indicator-draft-repository.ts';
-import { requireIndicatorEditor } from './indicator-editor.ts';
 import {
   type DetailedQuestion,
   type IndicatorSection,
@@ -169,7 +170,7 @@ export function indicatorSectionRouter<
   columns: IndicatorSectionColumns<Field, Values, Answers>,
 ): Router {
   const router = Router();
-  const requireEditor = requireIndicatorEditor(session, indicators);
+  const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
   const path = `/api/internal/indicators/:id/${section.key}`;
   const versionOf = (draft: IndicatorSectionDraft) => editVersion(columns.fromDraft(draft));
   const withVersion = (draft: IndicatorSectionDraft) => ({
@@ -177,15 +178,10 @@ export function indicatorSectionRouter<
     version: versionOf(draft),
   });
 
-  router.get(path, requireEditor, async (request, response) => {
-    const id = indicatorIdSchema.safeParse(request.params.id);
+  router.get(path, requireEditor, async (_request, response) => {
+    const { id } = guardedIndicator(response);
 
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' });
-      return;
-    }
-
-    const row = await indicators.findDraftState(id.data);
+    const row = await indicators.findDraftState(id);
 
     if (!row?.draft) {
       response.status(404).json({ error: row ? 'no_draft' : 'not_found' });
@@ -201,12 +197,7 @@ export function indicatorSectionRouter<
   });
 
   router.put(path, requireEditor, async (request, response) => {
-    const id = indicatorIdSchema.safeParse(request.params.id);
-
-    if (!id.success) {
-      response.status(400).json({ error: 'invalid_id' });
-      return;
-    }
+    const { id } = guardedIndicator(response);
 
     const save = indicatorSectionSaveSchema.safeParse(request.body);
 
@@ -220,7 +211,7 @@ export function indicatorSectionRouter<
 
     if (!submission.success) {
       // A locked draft refuses every save, so a refused answer is not what to report.
-      if ((await indicators.findById(id.data))?.draftLocked) {
+      if ((await indicators.findById(id))?.draftLocked) {
         response.status(409).json({ error: 'locked' });
         return;
       }
@@ -235,7 +226,7 @@ export function indicatorSectionRouter<
     const actor = requireApiActor(request, response);
     const attributes = columns.toAttributes(submission.data);
     const lists = columns.toLists?.(submission.data) ?? {};
-    const result = await indicators.updateDraft(id.data, section.key, attributes, lists, actor, {
+    const result = await indicators.updateDraft(id, section.key, attributes, lists, actor, {
       version: save.data.version,
       versionOf,
     });
@@ -252,12 +243,11 @@ export function indicatorSectionRouter<
 
     // With no name in the write there is no slug to collide on, so this refusal means no draft.
     if (!result.ok) {
-      const exists = (await indicators.findDraftState(id.data)) !== undefined;
-      response.status(404).json({ error: exists ? 'no_draft' : 'not_found' });
+      response.status(404).json({ error: 'no_draft' });
       return;
     }
 
-    const row = await indicators.findDraftState(id.data);
+    const row = await indicators.findDraftState(id);
 
     if (!row?.draft) throw new Error('the draft just saved could not be read back');
 

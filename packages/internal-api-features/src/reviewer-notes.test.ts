@@ -64,19 +64,23 @@ function createTestApp(
   );
 }
 
-const asReviewer = () => testSessionCookie(['internal', 'imrg-reviewer'], []);
+const asReviewer = () => testSessionCookie(['imrg-reviewer'], []);
 
-/** Everyone the notes are closed to, each with access the test user could otherwise use. */
+/**
+ * Everyone the notes are closed to, each with access the test user could otherwise use: 404 for
+ * those who may not see the indicator, 403 for those who may.
+ */
 const REFUSED = [
-  ['another reviewer', ['internal', 'imrg-reviewer'], [], assignedToSomeoneElse],
-  ['the IMRG manager', ['internal', 'imrg-manager'], [], assignedToSomeoneElse],
-  ['an admin', ['internal', 'admin'], [], assignedToSomeoneElse],
-  ['a publisher in its team', ['internal', 'publisher'], [TEST_TEAM_ID], assignedToSomeoneElse],
+  ['another reviewer', ['imrg-reviewer'], [], assignedToSomeoneElse, 404],
+  ['the IMRG manager', ['imrg-manager'], [], assignedToSomeoneElse, 403],
+  ['an admin', ['admin'], [], assignedToSomeoneElse, 403],
+  ['a publisher in its team', ['publisher'], [TEST_TEAM_ID], assignedToSomeoneElse, 403],
   [
     'an assigned publisher without the reviewer role',
-    ['internal', 'publisher'],
+    ['publisher'],
     [TEAM_IDS.teamB],
     assignedToTestUser,
+    404,
   ],
 ] as const;
 
@@ -104,13 +108,13 @@ describe('GET /api/internal/indicators/:id/reviewer-notes', () => {
     expect(list).toHaveBeenCalledWith(ID, TEST_USER_ID);
   });
 
-  it.each(REFUSED)('answers %s 404', async (_, roles, teams, access) => {
+  it.each(REFUSED)('answers %s %i', async (_, roles, teams, access, status) => {
     const response = await request(createTestApp({}, async () => access))
       .get(path)
       .set('Cookie', await testSessionCookie(roles, teams));
 
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'not_found' });
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ error: status === 404 ? 'not_found' : 'forbidden' });
   });
 
   it('answers 404 for no such indicator', async () => {
@@ -193,7 +197,7 @@ describe('POST /api/internal/indicators/:id/reviewer-notes', () => {
     expect(response.body).toEqual({ error: 'not_a_reviewer' });
   });
 
-  it.each(REFUSED)('answers %s 404', async (_, roles, teams, access) => {
+  it.each(REFUSED)('answers %s %i', async (_, roles, teams, access, status) => {
     const add = vi.fn();
 
     const response = await request(createTestApp({ add }, async () => access))
@@ -201,7 +205,7 @@ describe('POST /api/internal/indicators/:id/reviewer-notes', () => {
       .set('Cookie', await testSessionCookie(roles, teams))
       .send({ text: 'Not mine' });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(status);
     expect(add).not.toHaveBeenCalled();
   });
 });
@@ -312,7 +316,7 @@ describe('PUT /api/internal/indicators/:id/reviewer-notes/:noteId', () => {
     });
   });
 
-  it.each(REFUSED)('answers %s 404', async (_, roles, teams, access) => {
+  it.each(REFUSED)('answers %s %i', async (_, roles, teams, access, status) => {
     const update = vi.fn();
 
     const response = await request(createTestApp({ update }, async () => access))
@@ -320,7 +324,7 @@ describe('PUT /api/internal/indicators/:id/reviewer-notes/:noteId', () => {
       .set('Cookie', await testSessionCookie(roles, teams))
       .send({ text: 'Not mine', version: VERSION });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(status);
     expect(update).not.toHaveBeenCalled();
   });
 });

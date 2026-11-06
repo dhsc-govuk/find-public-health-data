@@ -128,8 +128,6 @@ export type NotesForReviewersVersion = Pick<IndicatorDraftVersion, 'id' | NotesF
 
 /** Who may read an indicator's notes for reviewers, and the version they come from. */
 export interface IndicatorNotesForReviewersRow {
-  teamId: string | null;
-  draftReviewers: DraftReviewer[];
   /** The draft, or the published version while there is no draft. */
   version: NotesForReviewersVersion;
 }
@@ -148,8 +146,8 @@ function existing(version: { id: string | null } | null): version is NotesForRev
 }
 
 /**
- * The notes for reviewers and what the access checks need, in one statement: from the draft, or
- * the published version while there is no draft. Undefined when there is no such indicator.
+ * The notes for reviewers, in one statement: from the draft, or the published version while
+ * there is no draft. Undefined when there is no such indicator.
  */
 export async function getIndicatorNotesForReviewers(
   db: Database,
@@ -157,8 +155,6 @@ export async function getIndicatorNotesForReviewers(
 ): Promise<IndicatorNotesForReviewersRow | undefined> {
   const [row] = await db
     .select({
-      teamId: indicator.teamId,
-      draftReviewers,
       draft: { id: draftVersion.id, ...notesForReviewersColumns(draftVersion) },
       published: { id: publishedVersion.id, ...notesForReviewersColumns(publishedVersion) },
     })
@@ -170,13 +166,12 @@ export async function getIndicatorNotesForReviewers(
 
   if (row === undefined) return undefined;
 
-  const { draft, published, ...access } = row;
-  const version = [draft, published].find(existing);
+  const version = [row.draft, row.published].find(existing);
 
   // Every indicator has a draft, a published version or both.
   if (version === undefined) throw new Error('the indicator has no version to read');
 
-  return { ...access, version };
+  return { version };
 }
 
 /** The lists a draft holds in tables of its own, as the sections read them. */

@@ -103,13 +103,13 @@ async function seededPublished(nth: number) {
 async function check(indicatorId: string, query = '') {
   return request(app)
     .get(`/api/internal/indicators/${indicatorId}/data-table${query}`)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']));
+    .set('Cookie', await testSessionCookie(['publisher']));
 }
 
 async function confirm(indicatorId: string, batchId: string) {
   return request(app)
     .put(`/api/internal/indicators/${indicatorId}/data-table/confirmation`)
-    .set('Cookie', await testSessionCookie(['internal', 'publisher']))
+    .set('Cookie', await testSessionCookie(['publisher']))
     .send({ batchId });
 }
 

@@ -70,7 +70,7 @@ function createTestApp(
   );
 }
 
-function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
+function publisherCookie(roles: readonly string[] = ['publisher']) {
   return testSessionCookie(roles);
 }
 
@@ -82,10 +82,10 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
     expect(response.body).toEqual({ error: 'authentication_required' });
   });
 
-  it('rejects a signed-in non-publisher', async () => {
+  it('rejects an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       [method](path)
-      .set('Cookie', await publisherCookie(['internal']))
+      .set('Cookie', await publisherCookie(['admin']))
       .send(save);
 
     expect(response.status).toBe(403);
@@ -108,11 +108,10 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
   });
 
   it('answers not_found for an indicator that does not exist', async () => {
+    const updateDraft = vi.fn();
+
     const response = await request(
-      createTestApp({
-        findDraftState: vi.fn().mockResolvedValue(undefined),
-        updateDraft: async () => ({ ok: false, reason: 'no_draft' }),
-      }),
+      createTestApp({ findAccess: async () => undefined, updateDraft }),
     )
       [method](path)
       .set('Cookie', await publisherCookie())
@@ -120,6 +119,7 @@ describe.each(['get', 'put'] as const)('%s on a section', (method) => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
+    expect(updateDraft).not.toHaveBeenCalled();
   });
 
   it('answers no_draft for an indicator with no draft to edit', async () => {

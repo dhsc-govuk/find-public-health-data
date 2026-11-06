@@ -10,7 +10,6 @@ import {
   createApiApp,
   requireApiActor,
   requireApiSession,
-  requireJwtRole,
   requireJwtSession,
 } from './index.ts';
 
@@ -196,11 +195,8 @@ const verifier = createJwtSessionVerifier(session);
 function createGuardedApp(): Express {
   const app = express();
 
-  app.get('/guarded', requireJwtRole(verifier, 'publisher'), (_request, response) => {
-    response.status(200).json(requireApiSession(response));
-  });
   app.get(
-    '/checked',
+    '/guarded',
     requireJwtSession(verifier, (asking) => asking.teams.includes('team-1')),
     (_request, response) => {
       response.status(200).json(requireApiSession(response));
@@ -218,7 +214,7 @@ async function cookieFor(subject: string, roles: readonly string[], teams: reado
   return session.createCookieHeader(token, 900);
 }
 
-describe('requireJwtRole', () => {
+describe('requireJwtSession', () => {
   it('refuses a request carrying no session', async () => {
     const response = await request(createGuardedApp()).get('/guarded');
 
@@ -236,10 +232,10 @@ describe('requireJwtRole', () => {
     expect(response.get('Set-Cookie')?.[0]).toContain('Max-Age=0');
   });
 
-  it('refuses a session without the role', async () => {
+  it('refuses a session its check refuses', async () => {
     const response = await request(createGuardedApp())
       .get('/guarded')
-      .set('Cookie', await cookieFor('someone', ['internal']));
+      .set('Cookie', await cookieFor('elsewhere', ['publisher'], ['team-2']));
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -248,36 +244,19 @@ describe('requireJwtRole', () => {
   it('hands the verified subject, roles and teams to the handler behind it', async () => {
     const response = await request(createGuardedApp())
       .get('/guarded')
-      .set('Cookie', await cookieFor('publisher-1', ['internal', 'publisher'], ['team-1']));
+      .set('Cookie', await cookieFor('publisher-1', ['publisher'], ['team-1']));
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      roles: ['internal', 'publisher'],
+      roles: ['publisher'],
       sub: 'publisher-1',
       teams: ['team-1'],
     });
   });
 });
 
-describe('requireJwtSession', () => {
-  it('admits the sessions its check admits and refuses the rest', async () => {
-    const app = createGuardedApp();
-    const admitted = await request(app)
-      .get('/checked')
-      .set('Cookie', await cookieFor('in-team', ['internal'], ['team-1']));
-    const refused = await request(app)
-      .get('/checked')
-      .set('Cookie', await cookieFor('elsewhere', ['internal'], ['team-2']));
-
-    expect(admitted.status).toBe(200);
-    expect(admitted.body).toMatchObject({ sub: 'in-team' });
-    expect(refused.status).toBe(403);
-    expect(refused.body).toEqual({ error: 'forbidden' });
-  });
-});
-
 describe('requireApiSession', () => {
-  it('fails loudly in a handler no role guard runs before', async () => {
+  it('fails loudly in a handler no guard runs before', async () => {
     const response = await request(createGuardedApp()).get('/unguarded');
 
     expect(response.status).toBe(500);
@@ -285,9 +264,11 @@ describe('requireApiSession', () => {
 });
 
 describe('requireApiActor', () => {
+  const admitsAnyone = () => true;
+
   it("gives the signed-in user and the request's id", async () => {
     const app = createApiApp({ logger, serviceName: 'test-api' });
-    app.get('/acting', requireJwtRole(verifier, 'publisher'), (request, response) => {
+    app.get('/acting', requireJwtSession(verifier, admitsAnyone), (request, response) => {
       response.status(200).json(requireApiActor(request, response));
     });
 
@@ -303,7 +284,7 @@ describe('requireApiActor', () => {
 
   it('gives no request id where nothing assigned one', async () => {
     const app = express();
-    app.get('/acting', requireJwtRole(verifier, 'publisher'), (request, response) => {
+    app.get('/acting', requireJwtSession(verifier, admitsAnyone), (request, response) => {
       response.status(200).json(requireApiActor(request, response));
     });
 

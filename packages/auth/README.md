@@ -22,7 +22,6 @@ teams. A fake user's roles and teams are fixed here, keyed by the user's id; the
 `app_user` and `team` rows the migrations in `@fphd/db-operations` insert, which a test there
 checks.
 
-Beyond the publisher and admin guards on whole groups of routes, every decision about what a
-role may do goes through a `can*` function in `./permissions`, in the APIs and the web apps alike,
-so no route, loader, repository or page tests a role itself. The module is interim, until the
+Every decision about what a role may do goes through a `can*` function in `./permissions`, in the
+APIs and the web apps alike, so no guard, route, loader, repository or page tests a role itself. The module is interim, until the
 check mechanism is designed from the full permissions matrix.

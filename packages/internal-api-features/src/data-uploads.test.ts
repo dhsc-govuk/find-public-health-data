@@ -49,7 +49,7 @@ function createTestApp(
   );
 }
 
-function publisherCookie(roles: readonly string[] = ['internal', 'publisher']) {
+function publisherCookie(roles: readonly string[] = ['publisher']) {
   return testSessionCookie(roles);
 }
 
@@ -67,23 +67,15 @@ async function processedUpload(process: ReturnType<typeof vi.fn>) {
 }
 
 describe('findUploadDraft', () => {
-  function lookUp(draft: UploadDraftRow | null | undefined, rawId: unknown = INDICATOR) {
+  function lookUp(draft: UploadDraftRow | null | undefined) {
     const { dataUploads } = createFakeInternalRepositories({
       dataUploads: { findDraft: async () => draft },
     });
-    return findUploadDraft(dataUploads, rawId);
+    return findUploadDraft(dataUploads, INDICATOR);
   }
 
   it('finds the draft of the indicator the id names', async () => {
     expect(await lookUp(EDITABLE)).toEqual({ ok: true, indicatorId: INDICATOR, draftId: DRAFT });
-  });
-
-  it('answers 400 for an id that is not one', async () => {
-    expect(await lookUp(EDITABLE, 'not-an-id')).toEqual({
-      ok: false,
-      status: 400,
-      body: { error: 'invalid_id' },
-    });
   });
 
   it.each([
@@ -99,10 +91,10 @@ describe('findUploadDraft', () => {
 });
 
 describe('POST /api/internal/indicators/:id/data-uploads', () => {
-  it('rejects a signed-in non-publisher', async () => {
+  it('rejects an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .post(UPLOADS)
-      .set('Cookie', await publisherCookie(['internal']))
+      .set('Cookie', await publisherCookie(['admin']))
       .attach('dataTable', Buffer.from(CSV), 'data.csv');
 
     expect(response.status).toBe(403);

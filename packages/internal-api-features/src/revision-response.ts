@@ -1,9 +1,9 @@
 import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { type Request, type Response, Router } from 'express';
+import { canEditIndicator } from '@fphd/auth/permissions';
+import { type Response, Router } from 'express';
 
 import {
-  indicatorIdSchema,
   type RevisionResponse,
   type RevisionResponseError,
   revisionKindSchema,
@@ -12,7 +12,7 @@ import {
   revisionResponseSaveBodySchema,
   toFieldErrors,
 } from './contract.ts';
-import { requireIndicatorEditor } from './indicator-editor.ts';
+import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 import { type RevisionRoundRow, revisionReplyVersion } from './revision-response-repository.ts';
 
@@ -54,22 +54,12 @@ function replyOf(round: RevisionRoundRow | undefined): RevisionResponse | [numbe
 export function revisionResponseRouter(
   indicators: Pick<
     InternalIndicatorRepository,
-    'findTeamId' | 'findRevisionRound' | 'saveRevisionResponse'
+    'findAccess' | 'findRevisionRound' | 'saveRevisionResponse'
   >,
   session: JwtSessionVerifier,
 ): Router {
   const router = Router();
-  const requireEditor = requireIndicatorEditor(session, indicators);
-
-  /** The id `:id` names, or undefined once the refusal is sent. */
-  function indicatorId(request: Request, response: Response): string | undefined {
-    const id = indicatorIdSchema.safeParse(request.params.id);
-
-    if (id.success) return id.data;
-
-    response.status(400).json({ error: 'invalid_id' } satisfies Refusal);
-    return undefined;
-  }
+  const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
 
   /** The indicator's reply, or undefined once the refusal is sent. */
   async function currentReply(id: string, response: Response) {
@@ -82,17 +72,14 @@ export function revisionResponseRouter(
     return undefined;
   }
 
-  router.get(PATH, requireEditor, async (request, response) => {
-    const id = indicatorId(request, response);
-    const reply = id === undefined ? undefined : await currentReply(id, response);
+  router.get(PATH, requireEditor, async (_request, response) => {
+    const reply = await currentReply(guardedIndicator(response).id, response);
 
     if (reply !== undefined) response.status(200).json(reply);
   });
 
   router.put(PATH, requireEditor, async (request, response) => {
-    const id = indicatorId(request, response);
-
-    if (id === undefined) return;
+    const { id } = guardedIndicator(response);
 
     const body = revisionResponseSaveBodySchema.safeParse(request.body);
 
