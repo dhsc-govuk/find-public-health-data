@@ -1,9 +1,4 @@
-import {
-  type AppAudience,
-  type FakeUser,
-  normalizeReturnTo,
-  sessionAccessForAudience,
-} from '@fphd/auth';
+import { type FakeUser, normalizeReturnTo } from '@fphd/auth';
 import type { JwtSessionService } from '@fphd/auth/jwt-session';
 import express, { type Router } from 'express';
 import { v7 as uuidv7 } from 'uuid';
@@ -15,7 +10,6 @@ interface PendingSignIn {
 }
 
 export interface FakeAuthRouterOptions {
-  audience: AppAudience;
   clock?: () => Date;
   codeLifetimeSeconds?: number;
   defaultReturnTo?: string;
@@ -38,7 +32,6 @@ function readQueryValue(value: unknown): string | undefined {
 }
 
 export function createFakeAuthRouter({
-  audience,
   clock = () => new Date(),
   codeLifetimeSeconds = 300,
   defaultReturnTo = '/',
@@ -94,12 +87,11 @@ export function createFakeAuthRouter({
     }
 
     pendingSignIns.delete(code);
-    const { roles, teams } = sessionAccessForAudience(signIn.user, audience);
     const token = await session.issueToken({
       expiresInSeconds: sessionLifetimeSeconds,
-      roles,
+      roles: signIn.user.roles,
       subject: signIn.user.id,
-      teams,
+      teams: signIn.user.teamIds,
     });
 
     response.setHeader('Set-Cookie', session.createCookieHeader(token, sessionLifetimeSeconds));

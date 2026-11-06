@@ -21,7 +21,7 @@ export function fakeUserAccess(user: FakeUser): string {
     return label === undefined ? [] : [label];
   });
 
-  return roles.length === 0 ? 'Public service only' : roles.map((role) => `${role}.`).join(' ');
+  return roles.map((role) => `${role}.`).join(' ');
 }
 
 export interface SignInSession {

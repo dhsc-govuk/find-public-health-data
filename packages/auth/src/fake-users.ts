@@ -1,5 +1,3 @@
-import type { AppAudience } from './audience.ts';
-import { canUseInternalService } from './permissions.ts';
 import type { Role } from './roles.ts';
 import { TEAM_IDS } from './teams.ts';
 
@@ -10,9 +8,11 @@ export interface FakeUser {
   readonly teamIds: readonly string[];
 }
 
-/** The fake users' `app_user` row ids, which a migration in @fphd/db-operations inserts. */
+/**
+ * The fake users' `app_user` row ids, which a migration in @fphd/db-operations inserts. It also
+ * inserts Alex Morgan, once a public-only user, whose row stays for anything that names them.
+ */
 export const FAKE_USER_IDS = Object.freeze({
-  publicUser: '01a13c69-96ac-700c-9c28-8f3a1d3968e2',
   publisherTeamA: '01a13c69-96ab-7598-9ce0-f84dbec3d5dd',
   secondPublisherTeamA: '01a1a248-ca45-70b6-912d-21b990329653',
   publisherTeamB: '01a13c69-96ab-7598-9ce0-fc3b3433f586',
@@ -40,7 +40,6 @@ function fakeUser(
 }
 
 export const fakeUsers: readonly FakeUser[] = Object.freeze([
-  fakeUser(FAKE_USER_IDS.publicUser, 'Alex Morgan', []),
   fakeUser(FAKE_USER_IDS.publisherTeamA, 'Sam Taylor', ['publisher'], [TEAM_IDS.teamA]),
   fakeUser(FAKE_USER_IDS.secondPublisherTeamA, 'Charlie Owen', ['publisher'], [TEAM_IDS.teamA]),
   fakeUser(FAKE_USER_IDS.publisherTeamB, 'Jordan Lee', ['publisher'], [TEAM_IDS.teamB]),
@@ -62,29 +61,6 @@ export const fakeUsers: readonly FakeUser[] = Object.freeze([
   fakeUser(FAKE_USER_IDS.secondImrgReviewer, 'Robin Shaw', ['imrg-reviewer']),
   fakeUser(FAKE_USER_IDS.admin, 'Riley Singh', ['admin']),
 ]);
-
-export function canAccessAudience(user: FakeUser, audience: AppAudience): boolean {
-  return audience === 'public' || canUseInternalService(user);
-}
-
-export function fakeUsersForAudience(audience: AppAudience): readonly FakeUser[] {
-  return fakeUsers.filter((user) => canAccessAudience(user, audience));
-}
-
-export interface SessionAccess {
-  readonly roles: readonly string[];
-  readonly teams: readonly string[];
-}
-
-/** What a session for the audience grants: a public session holds no role or team. */
-export function sessionAccessForAudience(user: FakeUser, audience: AppAudience): SessionAccess {
-  return audience === 'public'
-    ? Object.freeze({
-        roles: Object.freeze([]),
-        teams: Object.freeze([]),
-      })
-    : Object.freeze({ roles: user.roles, teams: user.teamIds });
-}
 
 export function findFakeUser(id: string): FakeUser | undefined {
   return fakeUsers.find((user) => user.id === id);

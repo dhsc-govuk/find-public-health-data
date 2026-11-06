@@ -1,4 +1,4 @@
-import { FAKE_USER_IDS } from '@fphd/auth';
+import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import { createJwtSessionService } from '@fphd/auth/jwt-session';
 import { request } from '@fphd/express/testing';
 import { describe, expect, it } from 'vitest';
@@ -19,13 +19,13 @@ describe('fake-auth React Router application', () => {
       routes: { root: { id: 'root', path: '', module: { default: () => null } } },
     } as unknown as Awaited<ReturnType<Parameters<typeof createFakeAuthReactRouterApp>[0]>>;
     const app = createFakeAuthReactRouterApp(async () => build, {
-      audience: 'public',
+      audience: 'internal',
       session: { secret, secure: false },
       trustedProxyHops: 2,
     });
     const session = createJwtSessionService({
-      audience: 'fphd-public',
-      cookieName: 'fphd-public-session',
+      audience: 'fphd-internal',
+      cookieName: 'fphd-internal-session',
       issuer: 'fphd-auth',
       secret,
       secure: false,
@@ -40,9 +40,9 @@ describe('fake-auth React Router application', () => {
     if (token === undefined) throw new Error('Session cookie did not contain a token');
 
     await expect(session.verifyToken(token)).resolves.toMatchObject({
-      roles: [],
+      roles: ['publisher'],
       sub: FAKE_USER_IDS.publisherTeamA,
-      teams: [],
+      teams: [TEAM_IDS.teamA],
     });
     expect(signIn.headers['cache-control']).toBe('private, no-store');
     expect(callback.headers['cache-control']).toBe('private, no-store');

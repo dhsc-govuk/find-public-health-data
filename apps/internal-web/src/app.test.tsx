@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fakeUsersForAudience } from '@fphd/auth';
+import { fakeUsers } from '@fphd/auth';
 import {
   AdminTopicsPage,
   DeleteTopicPage,
@@ -60,11 +60,10 @@ describe('internal application routes', () => {
     expect(await screen.findByRole('heading', { name: 'Manage public health data' })).toBeTruthy();
   });
 
-  it('offers only internal fake users on the internal sign-in page', () => {
-    render(<SignInPage returnTo="/manage" users={fakeUsersForAudience('internal')} />);
+  it('offers every fake user on the sign-in page', () => {
+    render(<SignInPage returnTo="/manage" users={fakeUsers} />);
 
     expect(screen.getAllByRole('radio')).toHaveLength(10);
-    expect(screen.queryByText('Alex Morgan')).toBeNull();
     expect(screen.getByText('Sam Taylor')).toBeTruthy();
     expect(screen.getByText('Riley Singh')).toBeTruthy();
   });

@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  canAccessAudience,
-  FAKE_USER_IDS,
-  fakeUsers,
-  fakeUsersForAudience,
-  findFakeUser,
-  sessionAccessForAudience,
-} from './fake-users.ts';
-import { TEAM_IDS, TEAMS } from './teams.ts';
+import { FAKE_USER_IDS, fakeUsers, findFakeUser } from './fake-users.ts';
+import { canUseInternalService } from './permissions.ts';
+import { TEAMS } from './teams.ts';
 
 function requireFakeUser(id: string) {
   const user = findFakeUser(id);
@@ -17,12 +11,9 @@ function requireFakeUser(id: string) {
 }
 
 describe('fake users', () => {
-  it('keeps the public-only user out of the internal audience', () => {
-    const publicUser = requireFakeUser(FAKE_USER_IDS.publicUser);
-
-    expect(canAccessAudience(publicUser, 'public')).toBe(true);
-    expect(canAccessAudience(publicUser, 'internal')).toBe(false);
-    expect(fakeUsersForAudience('internal').map((user) => user.name)).toEqual([
+  it('offers only users who may use the internal service, the one app with sign-in', () => {
+    expect(fakeUsers.filter((user) => !canUseInternalService(user))).toEqual([]);
+    expect(fakeUsers.map((user) => user.name)).toEqual([
       'Sam Taylor',
       'Charlie Owen',
       'Jordan Lee',
@@ -34,7 +25,6 @@ describe('fake users', () => {
       'Robin Shaw',
       'Riley Singh',
     ]);
-    expect(fakeUsersForAudience('public')).toEqual(fakeUsers);
   });
 
   it('gives each internal role to at least one user', () => {
@@ -65,17 +55,5 @@ describe('fake users', () => {
 
   it('gives every user an id of their own', () => {
     expect(new Set(fakeUsers.map((user) => user.id)).size).toBe(fakeUsers.length);
-  });
-});
-
-describe('sessionAccessForAudience', () => {
-  it('gives a public session no roles and no teams', () => {
-    const publisher = requireFakeUser(FAKE_USER_IDS.publisherTeamsAAndB);
-
-    expect(sessionAccessForAudience(publisher, 'public')).toEqual({ roles: [], teams: [] });
-    expect(sessionAccessForAudience(publisher, 'internal')).toEqual({
-      roles: ['publisher'],
-      teams: [TEAM_IDS.teamA, TEAM_IDS.teamB],
-    });
   });
 });

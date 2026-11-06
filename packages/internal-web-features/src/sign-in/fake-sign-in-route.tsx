@@ -1,4 +1,4 @@
-import { fakeUsersForAudience, normalizeReturnTo } from '@fphd/auth';
+import { fakeUsers, normalizeReturnTo } from '@fphd/auth';
 import { createDocumentMeta } from '@fphd/ui';
 import { type LoaderFunctionArgs, type RouterContext, useLoaderData } from 'react-router';
 
@@ -12,8 +12,6 @@ type SessionReader = (context: { get<T>(context: RouterContext<T>): T }) =>
   | undefined;
 
 export function createSignInRoute(readSession: SessionReader) {
-  const users = fakeUsersForAudience('internal');
-
   async function loader({ context, request }: LoaderFunctionArgs) {
     const session = readSession(context);
     const returnTo = normalizeReturnTo(new URL(request.url).searchParams.get('returnTo'));
@@ -33,7 +31,7 @@ export function createSignInRoute(readSession: SessionReader) {
   function SignInRoute() {
     const { returnTo, session } = useLoaderData<typeof loader>();
 
-    return <SignInPage returnTo={returnTo} session={session} users={users} />;
+    return <SignInPage returnTo={returnTo} session={session} users={fakeUsers} />;
   }
 
   return Object.freeze({
