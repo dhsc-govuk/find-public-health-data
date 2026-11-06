@@ -16,7 +16,7 @@ import { TopicGeographies } from './geographies.tsx';
 import type { loadTopicPage } from './loader.ts';
 
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
-type Overview = NonNullable<TopicData['overview']>;
+type Overview = NonNullable<Awaited<TopicData['overview']>>;
 
 /** A row for each raw number the series has, or a Count row saying there is no data. */
 function measureItems(series: IndicatorObservation[], latest: IndicatorObservation | undefined) {
@@ -117,7 +117,11 @@ export function TopicOverview({
               entry.areaData.find(({ areaCode }) => areaCode !== 'E92000001') ?? entry.areaData[0];
             const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
             const latest = cell?.series.at(-1);
-            const trend = recentTrend(cell?.series ?? [], entry.detail.polarity);
+            const trend = recentTrend(
+              cell?.series ?? [],
+              entry.detail.polarity,
+              cell?.trendDirection,
+            );
             return (
               <article className="fphd-topic-highlight" key={entry.detail.shortId}>
                 <h3 className="govuk-heading-s govuk-!-margin-bottom-3">

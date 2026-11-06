@@ -6,11 +6,13 @@ import { type SearchState, searchUrl } from './url.ts';
 export function SearchPeriodFilter({
   state,
   action,
+  formAction = action,
   extraParams,
   variant = 'card',
 }: {
   state: SearchState;
   action: string;
+  formAction?: string;
   extraParams: Record<string, string>;
   variant?: 'card' | 'accordion';
 }) {
@@ -25,7 +27,7 @@ export function SearchPeriodFilter({
           onClear={searchUrl({ ...state, fromYear: '', toYear: '' }, action, extraParams)}
         >
           <Form
-            action={action}
+            action={formAction}
             method="get"
             preventScrollReset
             onBlur={(event) => {
@@ -76,7 +78,7 @@ export function SearchPeriodFilter({
           title="Last updated"
           onClear={searchUrl({ ...state, updatedWithin: '' }, action, extraParams)}
         >
-          <Form action={action} method="get" preventScrollReset>
+          <Form action={formAction} method="get" preventScrollReset>
             <HiddenFilters state={state} extraParams={extraParams} except="updatedWithin" />
             <Select
               id="topic-updated-within"
@@ -111,7 +113,7 @@ export function SearchPeriodFilter({
         extraParams,
       )}
     >
-      <Form action={action} method="get" preventScrollReset>
+      <Form action={formAction} method="get" preventScrollReset>
         <HiddenFilters state={state} extraParams={extraParams} includePeriod={false} />
         <Select
           id="topic-updated-within"

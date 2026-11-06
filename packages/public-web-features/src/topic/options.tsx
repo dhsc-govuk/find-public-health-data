@@ -15,7 +15,7 @@ export function TopicKeywordSearch({ title }: { title: string }) {
   return (
     <Form
       method="get"
-      action={location.pathname}
+      action={`${location.pathname}#topic-data`}
       preventScrollReset
       className="fphd-topic-keyword govuk-!-margin-bottom-6"
     >
@@ -64,7 +64,7 @@ export function TopicTableColumns() {
         headingLevel={3}
         title="Table columns"
       >
-        <Form method="get" action={location.pathname} preventScrollReset>
+        <Form method="get" action={`${location.pathname}#topic-data`} preventScrollReset>
           {[...params]
             .filter(([key]) => key !== 'columns-topic')
             .map(([name, value], index) => (

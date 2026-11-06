@@ -7,11 +7,10 @@ import {
   Radios,
 } from '@fphd/ui';
 import { useEffect, useState } from 'react';
-import { Form, useLocation, useNavigate } from 'react-router';
+import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 import { HiddenFilters } from '../search/filter-fields.tsx';
 import { SearchGeographyPicker } from '../search/geography-picker.tsx';
 import type { loadSearch } from '../search/loader.ts';
-import { searchUrl } from '../search/url.ts';
 import { TOPIC_AREA_GROUPS } from './data.ts';
 
 type Search = Awaited<ReturnType<typeof loadSearch>>;
@@ -26,19 +25,39 @@ export function TopicGeographies({
   tab: 'overview' | 'data' | 'areas';
 }) {
   const navigate = useNavigate();
-  const params = new URLSearchParams(useLocation().search);
+  const location = useLocation();
+  const navigation = useNavigation();
+  const params = new URLSearchParams(
+    navigation.location?.pathname === location.pathname
+      ? navigation.location.search
+      : location.search,
+  );
   const extraParams = {
-    ...Object.fromEntries([...params].filter(([key]) => key === 'sort' || key === 'columns-topic')),
+    ...Object.fromEntries(
+      [...params].filter(([key]) => key === 'sort' || key === 'columns-topic' || key === 'render'),
+    ),
     'tab-topic': tab,
   };
-  const urlFor = (gaCodes: string[], geoLevels: string[]) =>
-    searchUrl({ ...search, gaCodes, geoLevels }, path, extraParams);
+  const urlFor = (gaCodes: string[], geoLevels: string[]) => {
+    const next = new URLSearchParams(params);
+    next.delete('ga');
+    next.delete('geo');
+    next.delete('page');
+    next.set('tab-topic', tab);
+    for (const code of gaCodes) next.append('ga', code);
+    for (const level of geoLevels) next.append('geo', level);
+    return `${path}?${next}`;
+  };
+  const action = `${path}#${tab === 'areas' ? 'topic-area-summaries' : `topic-${tab}`}`;
   const picked = search.gaCodes.length > 0 || search.geoLevels.length > 0;
-  const group = search.geoLevels[0] ?? 'NHS regions';
-  const [selectedGroup, setSelectedGroup] = useState(group);
-  useEffect(() => setSelectedGroup(group), [group]);
-  const [selectedCodes, setSelectedCodes] = useState(search.gaCodes);
-  useEffect(() => setSelectedCodes(search.gaCodes), [search.gaCodes]);
+  const requestedGroup = TOPIC_AREA_GROUPS.includes(params.get('geo') ?? '')
+    ? (params.get('geo') ?? 'NHS regions')
+    : 'NHS regions';
+  const codesKey = params.getAll('ga').join(',');
+  const [selectedGroup, setSelectedGroup] = useState(requestedGroup);
+  useEffect(() => setSelectedGroup(requestedGroup), [requestedGroup]);
+  const [selectedCodes, setSelectedCodes] = useState(params.getAll('ga'));
+  useEffect(() => setSelectedCodes(codesKey ? codesKey.split(',') : []), [codesKey]);
   if (tab === 'areas') {
     return (
       <div className="fphd-topic-geographies">
@@ -49,7 +68,7 @@ export function TopicGeographies({
           headingLevel={3}
           title="Type of geography"
         >
-          <Form action={path} method="get" preventScrollReset>
+          <Form action={action} method="get" preventScrollReset>
             <HiddenFilters
               state={search}
               extraParams={extraParams}
@@ -94,7 +113,9 @@ export function TopicGeographies({
               onLevelsChange={() => {}}
               onChange={(codes) => {
                 setSelectedCodes(codes);
-                void navigate(urlFor(codes, [selectedGroup]), { preventScrollReset: true });
+                void navigate(urlFor(codes, [selectedGroup]), {
+                  preventScrollReset: true,
+                });
               }}
             />
             <noscript>
@@ -119,13 +140,16 @@ export function TopicGeographies({
             autoApply
             lookupUrl="/geographies?scheme=public"
             single={tab === 'overview'}
-            action={path}
+            action={action}
             extraParams={extraParams}
             state={search}
             displayGroups={search.displayGroups}
             geographyOptions={search.geographyOptions}
             onApply={({ gaCodes, geoLevels }) =>
-              void navigate(urlFor(gaCodes, geoLevels), { preventScrollReset: true })
+              void navigate(urlFor(gaCodes, geoLevels), {
+                preventScrollReset: true,
+                flushSync: true,
+              })
             }
           />
         }

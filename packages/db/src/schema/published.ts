@@ -8,12 +8,14 @@ import {
   date,
   doublePrecision,
   integer,
+  jsonb,
   pgSchema,
   smallint,
   text,
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { ObservationSeriesVariant } from './cache.ts';
 
 /**
  * The only objects `public_api` may read. The views carry the predicates that keep an
@@ -24,6 +26,28 @@ import {
  * table's name would otherwise inherit that table's column list.
  */
 export const publishedSchema = pgSchema('published');
+
+export const publishedObservationSeriesBatch = publishedSchema
+  .view('observation_series_batch', {
+    trendValues: doublePrecision('trend_values').array(),
+    indicatorId: uuid('indicator_id').notNull(),
+  })
+  .existing();
+
+export const publishedObservationSeries = publishedSchema
+  .view('observation_series', {
+    indicatorId: uuid('indicator_id').notNull(),
+    areaId: uuid('area_id').notNull(),
+    dimensionKey: text('dimension_key').notNull(),
+    sex: text('sex').notNull(),
+    periodType: text('period_type', { enum: ['all', '1-year', '3-year'] }).notNull(),
+    variants: jsonb('variants').$type<ObservationSeriesVariant[]>().notNull(),
+    latestObservationId: uuid('latest_observation_id').notNull(),
+    rankingObservationId: uuid('ranking_observation_id'),
+    recentObservationIds: uuid('recent_observation_ids').array().notNull(),
+    recentValues: doublePrecision('recent_values').array().notNull(),
+  })
+  .existing();
 
 export const publishedIndicator = publishedSchema
   .view('indicator', {
@@ -256,6 +280,7 @@ export const publishedObservation = publishedSchema
     upperCi998: doublePrecision('upper_ci_998'),
     distributionRank: smallint('distribution_rank'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    dimensionKey: text('dimension_key').notNull(),
   })
   .existing();
 

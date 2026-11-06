@@ -26,13 +26,19 @@ export function TopicSubtopicFilter({
   );
   const selected = params.getAll('subtopic');
   const extraParams = {
-    ...Object.fromEntries([...params].filter(([key]) => key === 'columns-topic')),
+    ...Object.fromEntries(
+      [...params].filter(([key]) => key === 'columns-topic' || key === 'render'),
+    ),
     'tab-topic': tab,
     sort: params.get('sort') ?? sort,
   };
   if (subtopics.length === 0) return null;
   return (
-    <Form action={path} method="get" preventScrollReset>
+    <Form
+      action={`${path}#${tab === 'areas' ? 'topic-area-summaries' : 'topic-data'}`}
+      method="get"
+      preventScrollReset
+    >
       <HiddenFilters state={state} except="subtopics" extraParams={extraParams} />
       <Checkboxes
         id={`topic-subtopic-${tab}`}

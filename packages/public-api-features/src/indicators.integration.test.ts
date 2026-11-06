@@ -1,6 +1,7 @@
 import { createRepositories, type Database, schema } from '@fphd/db';
 import { apiLogin, createTestDb, type TestDb } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
+import { rankingAreaSeries } from '@fphd/utils/observation-series';
 import { SLUG_PATTERN } from '@fphd/utils/slug';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -60,6 +61,20 @@ async function insertDraftOnlyIndicator(
 const MORTALITY_SLUG = 'under-75-mortality-rate-from-all-causes';
 
 describe('public routers against the seeded database', () => {
+  it('returns compact rankings at the same shared period as the full histories', async () => {
+    const path = '/api/indicators/108/data?areaCode=E06000052&areaCode=E92000001';
+    const full = await request(app).get(path);
+    const projected = await request(app).get(path.replace('/data?', '/ranking?'));
+    expect(projected.status).toBe(200);
+    expect(indicatorAreaDataListSchema.parse(projected.body)).toEqual(
+      rankingAreaSeries(indicatorAreaDataListSchema.parse(full.body)),
+    );
+    const draft = await insertDraftOnlyIndicator(600092, 'Draft projection', 'draft-projection');
+    expect(
+      (await request(app).get(`/api/indicators/${draft}/ranking?areaCode=E92000001`)).status,
+    ).toBe(404);
+  });
+
   it('loads public table batches in requested order and keeps known areas without observations', async () => {
     const response = await request(app).get(
       '/api/indicator-data?indicator=241&indicator=108&areaCode=E92000001&areaCode=E07000223',
