@@ -101,7 +101,7 @@ test('lists what has happened to the indicator, newest first, the same for the p
   });
 });
 
-test("never shows a reviewer's own notes", async ({ browser, page }) => {
+test("never shows the reviewers' notes", async ({ browser, page }) => {
   const { id } = await inReview(browser, 'history with notes');
   await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
     await reviewer.goto(overviewPath(id));

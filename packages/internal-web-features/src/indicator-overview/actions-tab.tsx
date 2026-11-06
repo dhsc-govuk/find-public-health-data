@@ -5,16 +5,26 @@ import type { ActionsTabSection } from './actions-tab-sections.ts';
 
 interface ActionsTabProps {
   sections: readonly ActionsTabSection[];
-  /** The reviewer's own notes, last in the Review section, when the user keeps any. */
+  /** The reviewer's own notes and their form, in the Review section, for an assigned reviewer. */
   reviewerNotes?: ReactNode;
+  /**
+   * Other reviewers' notes, read only: after the reviewer's own in the Review section, or last in
+   * the first section for a reader who is not reviewing.
+   */
+  otherReviewerNotes?: ReactNode;
 }
 
 /**
  * The Actions tab: each section under its heading, with its button and then its links. With
  * nothing to offer in any of them, the tab says so.
  */
-export function ActionsTab({ sections, reviewerNotes = null }: ActionsTabProps) {
-  const notes = sections.some(({ heading }) => heading === 'Review') ? reviewerNotes : null;
+export function ActionsTab({
+  sections,
+  reviewerNotes = null,
+  otherReviewerNotes = null,
+}: ActionsTabProps) {
+  const reviewing = sections.some(({ heading }) => heading === 'Review');
+  const notes = reviewing ? reviewerNotes : null;
   const empty =
     notes === null && sections.every(({ button, links }) => button === null && links.length === 0);
 
@@ -35,6 +45,7 @@ export function ActionsTab({ sections, reviewerNotes = null }: ActionsTabProps) 
       {empty && index === 0 ? (
         <p className="govuk-body">There are no actions available for this indicator yet.</p>
       ) : null}
+      {heading === 'Review' || (!reviewing && index === 0) ? otherReviewerNotes : null}
     </section>
   ));
 }

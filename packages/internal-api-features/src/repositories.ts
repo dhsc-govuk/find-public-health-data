@@ -84,6 +84,7 @@ import {
 import {
   type AddReviewerNoteResult,
   addReviewerNote,
+  type ListedReviewerNoteRow,
   listReviewerNotes,
   type ReviewerNoteRow,
   type UpdateReviewerNoteResult,
@@ -221,10 +222,10 @@ export interface InternalReviewerRepository {
   listOptions(indicatorId: string): Promise<ReviewerOption[]>;
 }
 
-/** An assigned reviewer's own notes on an indicator, which nobody else reads. */
+/** The assigned reviewers' notes on an indicator, which only their author edits. */
 export interface InternalReviewerNoteRepository {
-  /** The author's notes on the indicator's draft, newest first. */
-  list(indicatorId: string, authorId: string): Promise<ReviewerNoteRow[]>;
+  /** Every reviewer's notes on the indicator's draft, newest first. */
+  list(indicatorId: string): Promise<ListedReviewerNoteRow[]>;
   /** Adds a note, as long as the actor is assigned to the draft's latest submission. */
   add(indicatorId: string, text: string, actor: Actor): Promise<AddReviewerNoteResult>;
   /** Edits one of the actor's notes, unless it has changed since the form was shown. */
@@ -337,7 +338,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
         saveRevisionResponse(db, indicatorId, text, precondition, actor),
     },
     reviewerNotes: {
-      list: (indicatorId, authorId) => listReviewerNotes(db, indicatorId, authorId),
+      list: (indicatorId) => listReviewerNotes(db, indicatorId),
       add: (indicatorId, text, actor) => addReviewerNote(db, indicatorId, text, actor),
       update: (indicatorId, noteId, text, precondition, actor) =>
         updateReviewerNote(db, indicatorId, noteId, text, precondition, actor),

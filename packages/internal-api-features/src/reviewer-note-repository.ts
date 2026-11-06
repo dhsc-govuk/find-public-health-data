@@ -6,6 +6,7 @@ import { type EditPrecondition, editVersion } from './edit-version.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
 
 const {
+  appUser,
   indicatorVersion,
   indicatorVersionReviewNote,
   indicatorVersionSubmission,
@@ -15,12 +16,17 @@ const {
 
 type Reader = Database | Transaction;
 
-/** A reviewer's note as its author reads it. */
+/** A reviewer's note. */
 export interface ReviewerNoteRow {
   id: string;
   text: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** A reviewer's note as its readers list it, with who wrote it. */
+export interface ListedReviewerNoteRow extends ReviewerNoteRow {
+  author: { id: string; name: string };
 }
 
 export type AddReviewerNoteResult =
@@ -69,26 +75,21 @@ function reviewsLatest(db: Reader, indicatorId: string, actor: Actor): SQL | und
   );
 }
 
-/** The author's notes on every submission of the indicator's draft, newest first. */
+/** Every reviewer's notes on every submission of the indicator's draft, newest first. */
 export async function listReviewerNotes(
   db: Database,
   indicatorId: string,
-  authorId: string,
-): Promise<ReviewerNoteRow[]> {
+): Promise<ListedReviewerNoteRow[]> {
   return db
-    .select(noteColumns)
+    .select({ ...noteColumns, author: { id: appUser.id, name: appUser.displayName } })
     .from(indicatorVersionReviewNote)
     .innerJoin(
       indicatorVersionSubmission,
       eq(indicatorVersionSubmission.id, indicatorVersionReviewNote.submissionId),
     )
     .innerJoin(indicatorVersion, ofDraft)
-    .where(
-      and(
-        eq(indicatorVersionSubmission.indicatorId, indicatorId),
-        eq(indicatorVersionReviewNote.authorId, authorId),
-      ),
-    )
+    .innerJoin(appUser, eq(appUser.id, indicatorVersionReviewNote.authorId))
+    .where(eq(indicatorVersionSubmission.indicatorId, indicatorId))
     .orderBy(desc(indicatorVersionReviewNote.createdAt), desc(indicatorVersionReviewNote.id));
 }
 

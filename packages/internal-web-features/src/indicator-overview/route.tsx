@@ -20,6 +20,7 @@ export function IndicatorOverviewRoute() {
     indicator,
     notesForReviewers,
     reviewerNotes,
+    otherReviewerNotes,
     history,
     notification,
   } = useLoaderData<typeof loader>();
@@ -34,6 +35,7 @@ export function IndicatorOverviewRoute() {
       reviewerNotes={
         reviewerNotes === null ? null : { ...reviewerNotes, form: refused ?? reviewerNotes.form }
       }
+      otherReviewerNotes={otherReviewerNotes}
       history={history}
       notification={notification}
     />

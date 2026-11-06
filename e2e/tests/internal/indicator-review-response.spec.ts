@@ -391,7 +391,7 @@ test.describe("the overview's Actions tab", () => {
   test.describe('for the IMRG manager', () => {
     test.use({ storageState: IMRG_MANAGER.storageState });
 
-    test('shows only the Actions section, with the reviewer assignment link', async ({
+    test("shows the Actions section, with the reviewer assignment link, then each reviewer's notes", async ({
       browser,
       page,
     }) => {
@@ -399,9 +399,11 @@ test.describe("the overview's Actions tab", () => {
 
       await page.goto(overviewPath(id));
 
-      await expect(
-        page.getByRole('tabpanel', { name: 'Actions' }).getByRole('heading', { level: 2 }),
-      ).toHaveText(['Actions']);
+      const actions = page.getByRole('tabpanel', { name: 'Actions' });
+      await expect(actions.getByRole('heading', { level: 2 })).toHaveText(['Actions']);
+      await expect(actions.getByRole('heading', { level: 3 })).toHaveText([
+        `${IMRG_REVIEWER.name}'s notes`,
+      ]);
       await expect(
         page.getByRole('link', { name: 'Change reviewers for this indicator' }),
       ).toBeVisible();
@@ -411,7 +413,7 @@ test.describe("the overview's Actions tab", () => {
   test.describe('for an admin', () => {
     test.use({ storageState: ADMIN.storageState });
 
-    test('shows the Actions section with the no-actions text on a new indicator', async ({
+    test("shows the Actions section with the no-actions text, then each reviewer's notes, on a new indicator", async ({
       browser,
       page,
     }) => {
@@ -419,9 +421,11 @@ test.describe("the overview's Actions tab", () => {
 
       await page.goto(overviewPath(id));
 
-      await expect(
-        page.getByRole('tabpanel', { name: 'Actions' }).getByRole('heading', { level: 2 }),
-      ).toHaveText(['Actions']);
+      const actions = page.getByRole('tabpanel', { name: 'Actions' });
+      await expect(actions.getByRole('heading', { level: 2 })).toHaveText(['Actions']);
+      await expect(actions.getByRole('heading', { level: 3 })).toHaveText([
+        `${IMRG_REVIEWER.name}'s notes`,
+      ]);
       await expect(
         page.getByText('There are no actions available for this indicator yet.'),
       ).toBeVisible();

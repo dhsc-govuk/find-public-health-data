@@ -97,14 +97,25 @@ export function canRespondToReview(
 }
 
 /**
- * Whether the user may read and write their own notes on the indicator: one of its assigned
- * reviewers. Nobody reads another user's notes.
+ * Whether the user may add notes to the indicator's review: one of its assigned reviewers. Only
+ * a note's author edits it.
  */
 export function canWriteReviewerNotes(
   user: SessionUser,
   indicator: Pick<IndicatorAccess, 'reviewerIds'>,
 ): boolean {
   return canReviewIndicator(user, indicator);
+}
+
+/**
+ * Whether the user may read every reviewer's notes on the indicator: its assigned reviewers, the
+ * IMRG manager and admins. Never a publisher, for whom they are not written.
+ */
+export function canReadReviewerNotes(
+  user: SessionUser,
+  indicator: Pick<IndicatorAccess, 'reviewerIds'>,
+): boolean {
+  return holds(user, 'imrg-manager') || holds(user, 'admin') || canReviewIndicator(user, indicator);
 }
 
 /**

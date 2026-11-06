@@ -1,15 +1,13 @@
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { assignReviewers } from '../support/assign-reviewers.ts';
-import { submitNewIndicator } from '../support/complete-draft.ts';
-import { uniqueIndicatorName } from '../support/create-indicator.ts';
+import { asUser, inReview } from '../support/review-response.ts';
 import {
+  ADMIN,
   IMRG_MANAGER,
   IMRG_REVIEWER,
   PUBLISHER,
   SECOND_IMRG_REVIEWER,
-  type SignedInUser,
 } from '../support/sign-in.ts';
 
 const NOTE_LABEL = 'Enter any notes as part of your indicator review';
@@ -23,29 +21,16 @@ function savedOverview(id: string) {
   return new RegExp(`${overviewPath(id)}#actions$`);
 }
 
-/** A new indicator, submitted and in review with the named reviewers. */
-async function inReview(
-  browser: Browser,
-  label: string,
-  reviewers: readonly string[] = [IMRG_REVIEWER.name],
-) {
-  const id = await submitNewIndicator(browser, uniqueIndicatorName(label), PUBLISHER);
-  await assignReviewers(browser, id, reviewers);
-  return id;
-}
-
-/** Runs `act` as `user`, in a browser context of their own. */
-async function as<T>(browser: Browser, user: SignedInUser, act: (page: Page) => Promise<T>) {
-  const context = await browser.newContext({ storageState: user.storageState });
-  try {
-    return await act(await context.newPage());
-  } finally {
-    await context.close();
-  }
-}
-
+/** The reader's own notes: the one table with Edit links. */
 function notesTable(page: Page) {
-  return page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Notes' }) });
+  return page
+    .getByRole('table')
+    .filter({ has: page.getByRole('columnheader', { name: 'Edit link' }) });
+}
+
+/** The read-only section headed with another reviewer's name. */
+function notesBy(page: Page, name: string) {
+  return page.getByRole('heading', { level: 3, name: `${name}'s notes` }).locator('xpath=..');
 }
 
 async function addNote(page: Page, id: string, text: string) {
@@ -69,7 +54,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     browser,
     page,
   }, testInfo) => {
-    const id = await inReview(browser, 'reviewer adds a note');
+    const { id } = await inReview(browser, 'reviewer adds a note');
 
     await page.goto(overviewPath(id));
     await expect(page.getByRole('heading', { level: 3, name: 'Your notes' })).toBeVisible();
@@ -88,7 +73,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     browser,
     page,
   }, testInfo) => {
-    const id = await inReview(browser, 'reviewer edits a note');
+    const { id } = await inReview(browser, 'reviewer edits a note');
     await addNote(page, id, 'First thought.');
 
     await page.getByRole('link', { name: /^Edit the note from/ }).click();
@@ -104,7 +89,7 @@ test.describe('as an assigned IMRG reviewer', () => {
   });
 
   test('an empty note is refused with an error summary', async ({ browser, page }, testInfo) => {
-    const id = await inReview(browser, 'reviewer adds an empty note');
+    const { id } = await inReview(browser, 'reviewer adds an empty note');
 
     await page.goto(overviewPath(id));
     await page.getByRole('button', { name: 'Add notes' }).click();
@@ -118,7 +103,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     browser,
     page,
   }) => {
-    const id = await inReview(browser, 'note edited in two tabs');
+    const { id } = await inReview(browser, 'note edited in two tabs');
     await addNote(page, id, 'Original.');
     await page.getByRole('link', { name: /^Edit the note from/ }).click();
 
@@ -141,7 +126,7 @@ test.describe('as an assigned IMRG reviewer', () => {
     test.use({ javaScriptEnabled: false });
 
     test('a reviewer adds and edits a note with the same forms', async ({ browser, page }) => {
-      const id = await inReview(browser, 'notes without JavaScript');
+      const { id } = await inReview(browser, 'notes without JavaScript');
 
       await addNote(page, id, 'Written without scripts.');
       await expect(notesTable(page)).toContainText('Written without scripts.');
@@ -154,34 +139,122 @@ test.describe('as an assigned IMRG reviewer', () => {
   });
 });
 
-test.describe("the reviewer's notes are private", () => {
+test.describe("the reviewers' notes are shared", () => {
   test.use({ storageState: SECOND_IMRG_REVIEWER.storageState });
 
-  test("another assigned reviewer sees none of the reviewer's notes", async ({ browser, page }) => {
-    const id = await inReview(browser, 'notes kept from Robin', [
+  test("another assigned reviewer sees the reviewer's notes read only, under the reviewer's name", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const { id } = await inReview(browser, 'notes shared with Robin', [
       IMRG_REVIEWER.name,
       SECOND_IMRG_REVIEWER.name,
     ]);
-    await as(browser, IMRG_REVIEWER, (jamie) => addNote(jamie, id, "Jamie's private note."));
+    await asUser(browser, IMRG_REVIEWER, async (jamie) => {
+      await addNote(jamie, id, "Jamie's shared note.");
+      await expect(notesBy(jamie, SECOND_IMRG_REVIEWER.name)).toContainText('No notes added');
+    });
 
     await page.goto(overviewPath(id));
 
     await expect(page.getByRole('heading', { level: 3, name: 'Your notes' })).toBeVisible();
-    await expect(page.getByText("Jamie's private note.")).toHaveCount(0);
     await expect(notesTable(page)).toHaveCount(0);
+    await expect(notesBy(page, IMRG_REVIEWER.name)).toContainText("Jamie's shared note.");
+    await expect(page.getByRole('link', { name: /^Edit the note from/ })).toHaveCount(0);
+    await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  for (const user of [PUBLISHER, IMRG_MANAGER]) {
-    test(`the overview of ${user.name} shows no reviewer's notes`, async ({ browser }) => {
-      const id = await inReview(browser, `notes kept from ${user.name}`);
-      await as(browser, IMRG_REVIEWER, (jamie) => addNote(jamie, id, "Jamie's private note."));
+  test("another reviewer cannot edit the reviewer's note, from its address or by posting", async ({
+    browser,
+    page,
+  }) => {
+    const { id } = await inReview(browser, 'note Robin cannot edit', [
+      IMRG_REVIEWER.name,
+      SECOND_IMRG_REVIEWER.name,
+    ]);
+    // The note's id and version as Jamie's own edit form sends them.
+    const { editPath, noteId, version } = await asUser(browser, IMRG_REVIEWER, async (jamie) => {
+      await addNote(jamie, id, "Jamie's own words.");
+      await jamie.getByRole('link', { name: /^Edit the note from/ }).click();
+      await expect(jamie.getByRole('button', { name: 'Update notes' })).toBeVisible();
+      const hidden = (name: string) =>
+        jamie.locator(`input[type="hidden"][name="${name}"]`).inputValue();
+      return {
+        editPath: jamie.url(),
+        noteId: await hidden('noteId'),
+        version: await hidden('version'),
+      };
+    });
 
-      await as(browser, user, async (other) => {
-        await other.goto(overviewPath(id));
-        await expect(other.getByRole('heading', { level: 1 })).toBeVisible();
-        await expect(other.getByRole('heading', { name: 'Your notes' })).toHaveCount(0);
-        await expect(other.getByText("Jamie's private note.")).toHaveCount(0);
+    await page.goto(editPath);
+    await expect(page.getByLabel(NOTE_LABEL)).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Add notes' })).toBeVisible();
+
+    const response = await page.request.post(overviewPath(id), {
+      form: { reviewerNote: 'Overwritten by Robin.', noteId, version },
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(302);
+
+    await page.goto(overviewPath(id));
+    await expect(notesBy(page, IMRG_REVIEWER.name)).toContainText("Jamie's own words.");
+    await expect(page.getByText('Overwritten by Robin.')).toHaveCount(0);
+  });
+
+  test("a reviewer's notes stay visible under their name once they are unassigned", async ({
+    browser,
+    page,
+  }) => {
+    const { id } = await inReview(browser, 'notes outlast Jamie', [
+      IMRG_REVIEWER.name,
+      SECOND_IMRG_REVIEWER.name,
+    ]);
+    await asUser(browser, IMRG_REVIEWER, (jamie) => addNote(jamie, id, 'Written before leaving.'));
+    await asUser(browser, IMRG_MANAGER, async (manager) => {
+      await manager.goto(`${overviewPath(id)}/assign-reviewers`);
+      await manager.getByRole('button', { name: `Remove reviewer ${IMRG_REVIEWER.name}` }).click();
+      await manager.getByRole('button', { name: 'Continue' }).click();
+      await expect(manager).toHaveURL(overviewPath(id));
+    });
+
+    await page.goto(overviewPath(id));
+
+    await expect(notesBy(page, IMRG_REVIEWER.name)).toContainText('Written before leaving.');
+  });
+
+  for (const user of [IMRG_MANAGER, ADMIN]) {
+    test(`${user.name} sees every reviewer's notes read only`, async ({ browser }, testInfo) => {
+      const { id } = await inReview(browser, `notes read by ${user.name}`, [
+        IMRG_REVIEWER.name,
+        SECOND_IMRG_REVIEWER.name,
+      ]);
+      await asUser(browser, IMRG_REVIEWER, (jamie) => addNote(jamie, id, "Jamie's note."));
+
+      await asUser(browser, user, async (reader) => {
+        await reader.goto(overviewPath(id));
+        await expect(
+          reader.getByRole('tabpanel', { name: 'Actions' }).getByRole('heading', { level: 2 }),
+        ).toHaveText(['Actions']);
+        await expect(notesBy(reader, IMRG_REVIEWER.name)).toContainText("Jamie's note.");
+        await expect(notesBy(reader, SECOND_IMRG_REVIEWER.name)).toContainText('No notes added');
+        await expect(reader.getByRole('heading', { name: 'Your notes' })).toHaveCount(0);
+        await expect(reader.getByLabel(NOTE_LABEL)).toHaveCount(0);
+        await expect(reader.getByRole('link', { name: /^Edit the note from/ })).toHaveCount(0);
+        await expectNoAccessibilityViolations(reader, testInfo);
       });
     });
   }
+
+  test("the publisher's overview shows no reviewer's notes", async ({ browser }) => {
+    const { id } = await inReview(browser, 'notes kept from the publisher');
+    await asUser(browser, IMRG_REVIEWER, (jamie) => addNote(jamie, id, 'Not for the publisher.'));
+
+    await asUser(browser, PUBLISHER, async (publisher) => {
+      await publisher.goto(overviewPath(id));
+      await expect(publisher.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(publisher.getByRole('heading', { name: /'s notes$/ })).toHaveCount(0);
+      await expect(publisher.getByRole('heading', { name: 'Your notes' })).toHaveCount(0);
+      await expect(publisher.getByText('Not for the publisher.')).toHaveCount(0);
+    });
+  });
 });
