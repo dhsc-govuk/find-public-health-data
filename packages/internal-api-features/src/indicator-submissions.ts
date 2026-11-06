@@ -1,6 +1,7 @@
 import { requireApiActor, requireApiSession, requireJwtSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { canAssignReviewers, canReviewIndicators, canSeeIndicator } from '@fphd/auth/permissions';
+import type { IndicatorStepResult } from '@fphd/internal-workflow';
 import { type Request, type Response, Router } from 'express';
 
 import {
@@ -23,7 +24,6 @@ import {
 import { requireIndicatorEditor } from './indicator-editor.ts';
 import type { IndicatorAdminDetailRow } from './indicator-list-repository.ts';
 import { mayTakeStep } from './indicator-workflow.ts';
-import type { IndicatorStepResult } from './indicator-workflow-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 /**

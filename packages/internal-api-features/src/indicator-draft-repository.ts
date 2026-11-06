@@ -1,5 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, listChanges, recordAudit } from '@fphd/db/audit-log';
+import { type IndicatorDraftVersion, isPublished } from '@fphd/internal-workflow';
 import { slugify, slugProblem } from '@fphd/utils/slug';
 import { and, eq, sql } from 'drizzle-orm';
 
@@ -50,8 +51,7 @@ import { clearFlag } from './review-flag-repository.ts';
 
 const { ciMethod, currentPublishedVersion, indicator, indicatorVersion, isUnpublished } = schema;
 
-/** Every column of one version, as a section reads its answers from the draft. */
-export type IndicatorDraftVersion = typeof indicatorVersion.$inferSelect;
+export type { IndicatorDraftVersion };
 
 /** A draft as the sections read it: its columns, and the lists held in tables of their own. */
 export type IndicatorDraft = IndicatorDraftVersion &
@@ -412,13 +412,4 @@ async function draftSlugOf(tx: Transaction, indicatorId: string): Promise<string
     );
 
   return draft?.slug;
-}
-
-export async function isPublished(tx: Transaction, indicatorId: string): Promise<boolean> {
-  const [published] = await tx
-    .select({ id: currentPublishedVersion.id })
-    .from(currentPublishedVersion)
-    .where(eq(currentPublishedVersion.indicatorId, indicatorId));
-
-  return published !== undefined;
 }

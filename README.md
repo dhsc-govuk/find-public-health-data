@@ -687,6 +687,7 @@ Each package has a README describing its purpose and entry points:
 | [`@fphd/internal-api-features`](packages/internal-api-features/README.md) | Routes and queries only the internal API runs          |
 | [`@fphd/internal-read-models`](packages/internal-read-models/README.md) | The statements that write the read models               |
 | [`@fphd/internal-storage`](packages/internal-storage/README.md)  | Blob Storage for uploaded files, kept out of the public images  |
+| [`@fphd/internal-workflow`](packages/internal-workflow/README.md) | The indicator workflow's steps and scheduled publication |
 | [`@fphd/internal-web-features`](packages/internal-web-features/README.md) | Pages and loaders only the internal web app mounts     |
 | [`@fphd/logger`](packages/logger/README.md)                      | pino, configured once                                           |
 | [`@fphd/public-api-features`](packages/public-api-features/README.md) | The public API routes and their wire contract              |
