@@ -77,7 +77,7 @@ export function ReviewerAssignmentPage({
               ]}
             />
             <Button classModifiers="secondary" name="intent" value={ADD_INTENT}>
-              {listed.length === 0 ? 'Add reviewer' : 'Add another reviewer'}
+              Add reviewer
             </Button>
           </div>
         )}

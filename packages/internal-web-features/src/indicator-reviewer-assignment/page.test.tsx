@@ -110,7 +110,7 @@ describe('ReviewerAssignmentPage', () => {
         .getAllByRole('option')
         .map((option) => option.textContent),
     ).toEqual(['Select', 'Alex Moore (0 indicators currently assigned)']);
-    expect(screen.getByRole('button', { name: 'Add another reviewer' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add reviewer' })).toBeTruthy();
   });
 
   it('offers no select once every reviewer is listed, keeping Continue', () => {
