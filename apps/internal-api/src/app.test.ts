@@ -349,8 +349,6 @@ describe('internal API', () => {
       indicators: {
         findAccess: async () => ({ teamId: TEAM_IDS.teamA, draftReviewers: [] }),
         findNotesForReviewers: async () => ({
-          teamId: TEAM_IDS.teamA,
-          draftReviewers: [],
           version: { ...unansweredDraft, id },
         }),
       },

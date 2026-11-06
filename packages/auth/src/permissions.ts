@@ -77,7 +77,7 @@ export function canWithdrawSubmission(
 }
 
 /** Whether the user may be assigned indicators to review; `canReviewIndicator` decides which. */
-export function canReviewIndicators(user: SessionUser): boolean {
+export function canReviewIndicators(user: Pick<SessionUser, 'roles'>): boolean {
   return holds(user, 'imrg-reviewer');
 }
 

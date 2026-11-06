@@ -18,10 +18,10 @@
     "bytes": 15876
   },
   "internal-api /api/internal/indicators/01a00ab4-ce0a-70c1-b22b-f8192c94a59d": {
-    "statements": 1,
-    "buffers": 22,
-    "rows": 1,
-    "bytes": 218
+    "statements": 2,
+    "buffers": 14,
+    "rows": 2,
+    "bytes": 564
   },
   "internal-api /api/internal/topics": {
     "statements": 1,
@@ -36,10 +36,10 @@
     "bytes": 42420
   },
   "internal-web /dashboard/indicators/01a00ab4-ce0a-70c1-b22b-f8192c94a59d": {
-    "statements": 3,
-    "buffers": 32,
-    "rows": 3,
-    "bytes": 38188
+    "statements": 6,
+    "buffers": 41,
+    "rows": 6,
+    "bytes": 38592
   },
   "internal-web /manage/topics": {
     "statements": 1,
