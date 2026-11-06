@@ -7,8 +7,9 @@ import {
   ManageDataPage,
   NewTopicPage,
   SignInLandingPage,
+  SignInPage,
 } from '@fphd/internal-web-features';
-import { SignInPage, TopicsRoute } from '@fphd/public-web-features';
+import { TopicsRoute } from '@fphd/public-web-features';
 import { backLinkHandle } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -60,13 +61,7 @@ describe('internal application routes', () => {
   });
 
   it('offers only internal fake users on the internal sign-in page', () => {
-    render(
-      <SignInPage
-        audience="internal"
-        returnTo="/manage"
-        users={fakeUsersForAudience('internal')}
-      />,
-    );
+    render(<SignInPage returnTo="/manage" users={fakeUsersForAudience('internal')} />);
 
     expect(screen.getAllByRole('radio')).toHaveLength(10);
     expect(screen.queryByText('Alex Morgan')).toBeNull();

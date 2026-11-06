@@ -4,7 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { fakeUserAccess, SignInPage } from './page.tsx';
+import { fakeUserAccess, SignInPage } from './fake-sign-in-page.tsx';
 
 afterEach(cleanup);
 
@@ -31,7 +31,7 @@ describe('SignInPage', () => {
   it("shows each fake user's roles and teams beside their name", () => {
     render(
       <MemoryRouter>
-        <SignInPage audience="internal" returnTo="/" users={fakeUsersForAudience('internal')} />
+        <SignInPage returnTo="/" users={fakeUsersForAudience('internal')} />
       </MemoryRouter>,
     );
 
