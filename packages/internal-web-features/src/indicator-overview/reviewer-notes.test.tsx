@@ -5,7 +5,12 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { SHOWN_VERSION } from '../testing.ts';
-import type { IndicatorAdminDetail, ReviewerNote, ReviewerNoteForm } from './loader.ts';
+import type {
+  AuthorNotes,
+  IndicatorAdminDetail,
+  ReviewerNote,
+  ReviewerNoteForm,
+} from './loader.ts';
 import { IndicatorOverviewPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -53,10 +58,31 @@ const adding: ReviewerNoteForm = {
   fieldErrors: {},
 };
 
+const ROBIN = { id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4aa2', name: 'Robin Shaw' };
+const AVERY = { id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4aa3', name: 'Avery Clarke' };
+
+const others: AuthorNotes[] = [
+  {
+    author: ROBIN,
+    notes: [
+      {
+        id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4ae3',
+        text: 'Denominator source is fine',
+        createdAt: '2026-11-04T09:00:00.000Z',
+        updatedAt: '2026-11-04T09:30:00.000Z',
+        version: SHOWN_VERSION,
+        author: ROBIN,
+      },
+    ],
+  },
+  { author: AVERY, notes: [] },
+];
+
 function renderPage(
   shown: readonly ReviewerNote[] | null,
   form: ReviewerNoteForm = adding,
   isReviewer = shown !== null,
+  otherReviewerNotes: readonly AuthorNotes[] = [],
 ) {
   return render(
     <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
@@ -65,6 +91,7 @@ function renderPage(
         indicator={indicator}
         isReviewer={isReviewer}
         reviewerNotes={shown === null ? null : { notes: shown, form }}
+        otherReviewerNotes={otherReviewerNotes}
       />
     </MemoryRouter>,
   );
@@ -197,9 +224,59 @@ describe("the reviewer's notes", () => {
     expect(within(screen.getByRole('alert')).getByText(/This note has changed/)).toBeTruthy();
   });
 
-  it('shows nothing to someone who is not a reviewer', () => {
+  it('shows nothing to someone who may not read them', () => {
     renderPage(null);
 
     expect(screen.queryByRole('heading', { name: 'Your notes' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: "Reviewers' notes" })).toBeNull();
+  });
+});
+
+/** The rows of the table after the heading `name`, cell by cell. */
+function tableAfter(name: string): (string | null)[][] {
+  const section = screen.getByRole('heading', { level: 3, name }).parentElement;
+  if (section === null) throw new Error(`the ${name} heading has no section`);
+  return within(section)
+    .getAllByRole('row')
+    .map((row) => [...row.querySelectorAll('th, td')].map((cell) => cell.textContent));
+}
+
+describe("other reviewers' notes", () => {
+  it('follow the form in the Review section, read only, one section per reviewer', () => {
+    renderPage(notes, adding, true, others);
+
+    const review = within(reviewSection());
+    expect(review.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'Your notes',
+      "Robin Shaw's notes",
+      "Avery Clarke's notes",
+    ]);
+    expect(tableAfter("Robin Shaw's notes")).toEqual([
+      ['Date', 'Notes'],
+      ['4 November 2026 at 9:30am', 'Denominator source is fine'],
+    ]);
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: "Reviewers' notes" })).toBeNull();
+  });
+
+  it('say so for a reviewer who has written none', () => {
+    renderPage(notes, adding, true, others);
+
+    const avery = screen.getByRole('heading', { level: 3, name: "Avery Clarke's notes" });
+    expect(within(avery.parentElement as HTMLElement).getByText('No notes added')).toBeTruthy();
+  });
+
+  it("go in a Reviewers' notes section, with no form, for a reader who is not reviewing", () => {
+    renderPage(null, adding, false, others);
+
+    const heading = screen.getByRole('heading', { level: 2, name: "Reviewers' notes" });
+    const section = within(heading.parentElement as HTMLElement);
+    expect(section.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Robin Shaw's notes",
+      "Avery Clarke's notes",
+    ]);
+    expect(screen.queryByRole('heading', { name: 'Your notes' })).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Edit/ })).toBeNull();
   });
 });

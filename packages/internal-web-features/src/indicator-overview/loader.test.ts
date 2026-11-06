@@ -15,6 +15,7 @@ const indicator = {
   teamId: TEAM_IDS.teamA,
   indicatorStatus: 'live',
   draftStatus: null,
+  draftSubmissionStatus: null,
   draftReviewers: [],
   updatedAt: '2026-01-02T00:00:00.000Z',
 };
@@ -82,6 +83,7 @@ describe('loadIndicatorOverview', () => {
       indicator,
       notesForReviewers: notes,
       reviewerNotes: null,
+      otherReviewerNotes: [],
       history: historyShown,
       notification: undefined,
     });
@@ -196,32 +198,38 @@ describe('loadIndicatorOverview', () => {
     });
   });
 
-  describe("the reviewer's own notes", () => {
+  describe("the reviewers' notes", () => {
+    const JAMIE = { id: 'test-user', name: 'Jamie Evans' };
+    const ROBIN = { id: '00000000-0000-7000-8000-0000000000a2', name: 'Robin Shaw' };
     const inReview = {
       ...indicator,
       publishedSlug: null,
       indicatorStatus: 'new',
       draftStatus: 'draft',
-      draftReviewers: [{ id: 'test-user', name: 'Jamie Evans' }],
+      draftSubmissionStatus: 'in_review',
+      draftReviewers: [JAMIE, ROBIN],
     };
-    const reviewerNotes = [
-      {
-        id: '00000000-0000-7000-8000-0000000000e1',
-        text: 'Check the 2019 dip',
-        createdAt: '2026-11-03T10:15:00.000Z',
-        updatedAt: '2026-11-03T10:15:00.000Z',
-        version: 'a'.repeat(64),
-      },
-    ];
+    const assignedToOthers = { ...inReview, draftReviewers: [ROBIN] };
+    const note = (id: string, text: string, author: typeof JAMIE) => ({
+      id,
+      text,
+      createdAt: '2026-11-03T10:15:00.000Z',
+      updatedAt: '2026-11-03T10:15:00.000Z',
+      version: 'a'.repeat(64),
+      author,
+    });
+    const jamies = note('00000000-0000-7000-8000-0000000000e1', 'Check the 2019 dip', JAMIE);
+    const robins = note('00000000-0000-7000-8000-0000000000e2', 'Numerator checked', ROBIN);
+    const notesPath = `/api/internal/indicators/${indicator.id}/reviewer-notes`;
 
     function reviewerNotesGet(
       detail: object,
-      notesGet: () => Promise<unknown> = async () => ({ notes: reviewerNotes }),
+      notesGet: () => Promise<unknown> = async () => ({ notes: [robins, jamies] }),
     ) {
       return apiGet(detail, { '/reviewer-notes': notesGet });
     }
 
-    it('fetches them for an assigned reviewer beside the notes for reviewers', async () => {
+    it('fetches them for an assigned reviewer beside the notes for reviewers, theirs apart', async () => {
       const get = reviewerNotesGet(inReview);
 
       const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
@@ -229,66 +237,79 @@ describe('loadIndicatorOverview', () => {
       expect(get.mock.calls.map(([path]) => path)).toEqual([
         `/api/internal/indicators/${indicator.id}`,
         `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
-        `/api/internal/indicators/${indicator.id}/reviewer-notes`,
+        notesPath,
         `/api/internal/indicators/${indicator.id}/history`,
       ]);
       expect(outcome.reviewerNotes).toEqual({
-        notes: reviewerNotes,
+        notes: [jamies],
         form: { values: { reviewerNote: '', noteId: '', version: '' }, fieldErrors: {} },
       });
+      expect(outcome.otherReviewerNotes).toEqual([{ author: ROBIN, notes: [robins] }]);
+    });
+
+    it.each([
+      ['an IMRG manager', ['imrg-manager']],
+      ['an admin', ['admin']],
+    ])("gives %s every reviewer's notes read only", async (_who, roles) => {
+      const outcome = await load(indicator.id, reviewerNotesGet(inReview), roles, []);
+
+      expect(outcome.reviewerNotes).toBeNull();
+      expect(outcome.otherReviewerNotes).toEqual([
+        { author: JAMIE, notes: [jamies] },
+        { author: ROBIN, notes: [robins] },
+      ]);
     });
 
     it('fills the form with the note the address names', async () => {
-      const [note] = reviewerNotes;
       const outcome = await load(
         indicator.id,
         reviewerNotesGet(inReview),
         ['imrg-reviewer'],
         [],
         undefined,
-        `?note=${note?.id}`,
+        `?note=${jamies.id}`,
       );
 
       expect(outcome.reviewerNotes?.form.values).toEqual({
         reviewerNote: 'Check the 2019 dip',
-        noteId: note?.id,
-        version: note?.version,
+        noteId: jamies.id,
+        version: jamies.version,
       });
     });
 
-    it('leaves the form empty for a note that is not one of theirs', async () => {
+    it.each([
+      ['another reviewer', robins.id],
+      ['nobody', '00000000-0000-7000-8000-0000000000ff'],
+    ])('leaves the form empty for a note by %s', async (_who, noteId) => {
       const outcome = await load(
         indicator.id,
         reviewerNotesGet(inReview),
         ['imrg-reviewer'],
         [],
         undefined,
-        '?note=00000000-0000-7000-8000-0000000000ff',
+        `?note=${noteId}`,
       );
 
       expect(outcome.reviewerNotes?.form.values.noteId).toBe('');
     });
 
     it.each([
-      ['an IMRG manager', ['imrg-manager'], [], inReview],
-      ['an admin', ['admin'], [], inReview],
       ['a publisher in its team', ['publisher'], [indicator.teamId], inReview],
+      ['a reviewer assigned to someone else', ['imrg-reviewer'], [], assignedToOthers],
       [
-        'a reviewer assigned to someone else',
-        ['imrg-reviewer'],
+        'an admin, for a draft never submitted',
+        ['admin'],
         [],
-        { ...inReview, draftReviewers: [{ id: 'other', name: 'Robin Shaw' }] },
+        { ...inReview, draftSubmissionStatus: null, draftReviewers: [] },
       ],
     ])('does not fetch them for %s', async (_who, roles, teams, detail) => {
       const get = reviewerNotesGet(detail);
 
       const outcome = await load(indicator.id, get, roles, teams);
 
-      expect(get).not.toHaveBeenCalledWith(
-        `/api/internal/indicators/${indicator.id}/reviewer-notes`,
-        expect.anything(),
-      );
+      expect(get).not.toHaveBeenCalledWith(notesPath, expect.anything());
       expect(outcome.reviewerNotes).toBeNull();
+      expect(outcome.otherReviewerNotes).toEqual([]);
     });
 
     it('shows none to a reviewer unassigned after the indicator is read', async () => {
@@ -299,6 +320,7 @@ describe('loadIndicatorOverview', () => {
       const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
 
       expect(outcome.reviewerNotes).toBeNull();
+      expect(outcome.otherReviewerNotes).toEqual([]);
     });
   });
 

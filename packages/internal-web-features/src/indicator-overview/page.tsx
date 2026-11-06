@@ -13,6 +13,7 @@ import { ActionsTab } from './actions-tab.tsx';
 import { actionsTabSections } from './actions-tab-sections.ts';
 import { History } from './history.tsx';
 import type {
+  AuthorNotes,
   HistoryItem,
   IndicatorAdminDetail,
   NotesForReviewers as Notes,
@@ -22,7 +23,7 @@ import type {
 } from './loader.ts';
 import { NotesForReviewers } from './notes-for-reviewers.tsx';
 import { REVIEWER_NOTE_FIELD } from './reviewer-note-form.ts';
-import { ReviewerNotes } from './reviewer-notes.tsx';
+import { OtherReviewerNotes, ReviewerNotes } from './reviewer-notes.tsx';
 
 const OVERVIEW_TITLE = 'Indicator overview';
 
@@ -34,8 +35,10 @@ interface OverviewProps {
   indicator: IndicatorAdminDetail;
   /** What the publisher wrote for the reviewers, for those who may read it. */
   notesForReviewers?: Notes | null;
-  /** The assigned reviewer's own notes and the form for them, for them alone. */
+  /** The user's own notes and the form that adds and edits them, for an assigned reviewer. */
   reviewerNotes?: { notes: readonly ReviewerNote[]; form: ReviewerNoteForm } | null;
+  /** Every other reviewer's notes, read only, for those who may read them. */
+  otherReviewerNotes?: readonly AuthorNotes[];
   /** What has happened to the indicator, for those who may read it. */
   history?: readonly HistoryItem[] | null;
   /** What the page the publisher came from left to tell them. */
@@ -58,6 +61,7 @@ export function IndicatorOverviewPage({
   indicator,
   notesForReviewers = null,
   reviewerNotes = null,
+  otherReviewerNotes = [],
   history = null,
   notification,
 }: OverviewProps) {
@@ -71,6 +75,11 @@ export function IndicatorOverviewPage({
           reviewerNotes={
             reviewerNotes === null ? null : (
               <ReviewerNotes indicatorId={indicator.id} {...reviewerNotes} />
+            )
+          }
+          otherReviewerNotes={
+            otherReviewerNotes.length === 0 ? null : (
+              <OtherReviewerNotes authors={otherReviewerNotes} />
             )
           }
         />

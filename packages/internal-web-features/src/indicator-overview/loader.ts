@@ -1,6 +1,7 @@
 // No @fphd/ui imports here, so the loader unit-tests without the jsdom the components need.
 import {
   canEditIndicator,
+  canReadReviewerNotes,
   canReviewIndicator,
   canSeeIndicatorHistory,
   canSeeNotesForReviewers,
@@ -22,15 +23,17 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { historyItems } from './history-items.ts';
 import { overviewNotification } from './notifications.ts';
-import { reviewerNoteFormFor } from './reviewer-note-form.ts';
+import { overviewReviewerNotes } from './overview-reviewer-notes.ts';
 
 export type {
   IndicatorAdminDetail,
+  ListedReviewerNote,
   NotesForReviewers,
   ReviewerNote,
 } from '@fphd/internal-api-features/contract';
 export type { HistoryItem, HistoryRow } from './history-items.ts';
 export type { OverviewNotification } from './notifications.ts';
+export type { AuthorNotes } from './overview-reviewer-notes.ts';
 export type { ReviewerNoteForm } from './reviewer-note-form.ts';
 
 // A reviewer unassigned since the detail was read gets no notes or history, not a missing page.
@@ -49,16 +52,21 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
 
   const session = getSession(context);
   const access = indicatorAccess(indicator);
-  const [notesForReviewers, reviewerNotes, history] = await Promise.all([
+  const writerId =
+    session !== undefined && canWriteReviewerNotes(session, access) ? session.sub : undefined;
+  const [notesForReviewers, allReviewerNotes, history] = await Promise.all([
     session !== undefined && canSeeNotesForReviewers(session, access)
       ? api
           .get(apiPath`/api/internal/indicators/${id}/notes-for-reviewers`, notesForReviewersSchema)
           .catch(noneIfNotFound)
       : null,
-    session !== undefined && canWriteReviewerNotes(session, access)
+    // Reviewers write notes only once the draft is submitted, so a draft never submitted has none.
+    session !== undefined &&
+    indicator.draftSubmissionStatus !== null &&
+    canReadReviewerNotes(session, access)
       ? api
           .get(apiPath`/api/internal/indicators/${id}/reviewer-notes`, reviewerNotesSchema)
-          .then(({ notes }) => ({ notes, form: reviewerNoteFormFor(notes, new URL(request.url)) }))
+          .then(({ notes }) => notes)
           .catch(noneIfNotFound)
       : null,
     session !== undefined && canSeeIndicatorHistory(session, access)
@@ -77,7 +85,12 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
     isReviewer: session !== undefined && canReviewIndicator(session, access),
     indicator,
     notesForReviewers,
-    reviewerNotes,
+    ...overviewReviewerNotes(
+      allReviewerNotes,
+      indicator.draftReviewers,
+      writerId,
+      new URL(request.url),
+    ),
     history,
     notification,
   };

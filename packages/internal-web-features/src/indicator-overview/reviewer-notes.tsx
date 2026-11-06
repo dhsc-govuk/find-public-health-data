@@ -1,9 +1,17 @@
 import { A, Button, formatDate, Table, Textarea } from '@fphd/ui';
 
 import { VERSION_FIELD } from '../edit-version.ts';
-import type { ReviewerNote } from './loader.ts';
+import type { AuthorNotes, ReviewerNote } from './loader.ts';
 import { reviewerNoteEditPath } from './paths.ts';
 import { NOTE_ID_FIELD, REVIEWER_NOTE_FIELD, type ReviewerNoteForm } from './reviewer-note-form.ts';
+
+/** A note's date and text, as every notes table shows them. */
+function noteCells({ text, updatedAt }: ReviewerNote) {
+  return {
+    date: <time dateTime={updatedAt}>{formatDate(updatedAt, 'longWithTime')}</time>,
+    text: <span className="fphd-metadata-text">{text}</span>,
+  };
+}
 
 interface ReviewerNotesProps {
   /** The indicator the notes are on, whose overview the edit links fill the form on. */
@@ -13,8 +21,8 @@ interface ReviewerNotesProps {
 }
 
 /**
- * An assigned reviewer's own notes on the indicator, which nobody else sees, and the form that
- * adds one or, once an Edit link has filled it, saves the note it names.
+ * An assigned reviewer's own notes on the indicator and the form that adds one or, once an Edit
+ * link has filled it, saves the note it names.
  */
 export function ReviewerNotes({ indicatorId, notes, form }: ReviewerNotesProps) {
   const { values, fieldErrors } = form;
@@ -27,13 +35,12 @@ export function ReviewerNotes({ indicatorId, notes, form }: ReviewerNotesProps) 
         <Table
           headings={{ date: 'Date', text: 'Notes', edit: 'Edit link' }}
           keys={['date', 'text', 'edit']}
-          data={notes.map(({ id, text, updatedAt }) => {
-            const date = formatDate(updatedAt, 'longWithTime');
+          data={notes.map((note) => {
+            const date = formatDate(note.updatedAt, 'longWithTime');
             return {
-              date: <time dateTime={updatedAt}>{date}</time>,
-              text: <span className="fphd-metadata-text">{text}</span>,
+              ...noteCells(note),
               edit: (
-                <A href={reviewerNoteEditPath(indicatorId, id)}>
+                <A href={reviewerNoteEditPath(indicatorId, note.id)}>
                   Edit<span className="govuk-visually-hidden"> the note from {date}</span>
                 </A>
               ),
@@ -64,4 +71,22 @@ export function ReviewerNotes({ indicatorId, notes, form }: ReviewerNotesProps) 
       </form>
     </>
   );
+}
+
+/** Other reviewers' notes, read only: a section for each, headed with their name. */
+export function OtherReviewerNotes({ authors }: { authors: readonly AuthorNotes[] }) {
+  return authors.map(({ author, notes }) => (
+    <section key={author.id}>
+      <h3 className="govuk-heading-m govuk-!-margin-top-4">{author.name}'s notes</h3>
+      {notes.length === 0 ? (
+        <p className="govuk-body">No notes added</p>
+      ) : (
+        <Table
+          headings={{ date: 'Date', text: 'Notes' }}
+          keys={['date', 'text']}
+          data={notes.map(noteCells)}
+        />
+      )}
+    </section>
+  ));
 }
