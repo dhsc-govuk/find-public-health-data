@@ -33,7 +33,7 @@ catalog:
   '@azure/identity': 4.13.3
   # Pinned with the Azurite image (compose.yaml, ci.yml), which must accept its storage API version.
   '@azure/storage-blob': 12.33.0
-  '@biomejs/biome': 2.5.9
+  '@biomejs/biome': 2.6.5
   '@date-fns/tz': 1.5.0
   '@fastify/busboy': 3.2.2
   accessible-autocomplete: 3.0.1

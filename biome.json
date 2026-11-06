@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.5/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -22,7 +22,13 @@
         "noFloatingPromises": "error"
       },
       "correctness": {
-        "useImportExtensions": "error"
+        "useImportExtensions": "error",
+        "noUnknownFunction": {
+          "level": "error",
+          "options": {
+            "ignore": ["govuk-colour", "govuk-functional-colour", "govuk-spacing"]
+          }
+        }
       },
       "style": {
         "noRestrictedImports": {
@@ -141,6 +147,26 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**/*.scss"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDescendingSpecificity": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["e2e/**"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "useDomNodeTextContent": "off"
+          }
+        }
+      }
     }
   ],
   "assist": {
@@ -156,6 +182,19 @@
       "quoteStyle": "single",
       "semicolons": "always",
       "trailingCommas": "all"
+    }
+  },
+  "markdown": {
+    "formatter": {
+      "enabled": false
+    },
+    "linter": {
+      "enabled": false
+    }
+  },
+  "yaml": {
+    "formatter": {
+      "enabled": false
     }
   }
 }
