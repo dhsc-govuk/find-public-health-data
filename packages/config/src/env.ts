@@ -173,43 +173,46 @@ export function parseEnv<T extends z.ZodType>(
  */
 const apiUrlSchema = z.url().transform((value) => value.replace(/\/+$/, ''));
 
-export function loadWebServerConfig(
-  env: NodeJS.ProcessEnv,
-  defaults: { apiUrl: string; port: number },
-) {
-  const parsed = parseEnv(
-    z
-      .object({
-        ...serverEnvFields(defaults),
-        ...logEnvFields,
-        API_URL: apiUrlSchema.default(defaults.apiUrl),
-        // How long the web app waits for the API to answer an upload once it has been sent.
-        API_UPLOAD_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
-        NODE_ENV: nodeEnvSchema,
-        SESSION_JWT_SECRET: z.string().min(32),
-        // Proxies between the client and the app, whose X-Forwarded-* headers are trusted:
-        // Front Door then Container Apps ingress today. 0 trusts none.
-        TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(2),
-        // Signs the web app's own cookie session; rotates independently of the JWT secret.
-        WEB_SESSION_SECRET: z.string().min(32),
-        // RFC 7617 splits the credentials at the first colon, so a username cannot contain one.
-        BASIC_AUTH_USERNAME: z
-          .string()
-          .regex(/^[^:]*$/, 'must not contain a colon')
-          .optional(),
-        BASIC_AUTH_PASSWORD: z.string().optional(),
-      })
-      .refine(
-        (value) =>
-          (value.BASIC_AUTH_USERNAME === undefined) === (value.BASIC_AUTH_PASSWORD === undefined),
-        {
-          message: 'BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD must be set together',
-          path: ['BASIC_AUTH_PASSWORD'],
-        },
-      ),
-    env,
-  );
+function webServerFields(defaults: { apiUrl: string; port: number }) {
+  return {
+    ...serverEnvFields(defaults),
+    ...logEnvFields,
+    API_URL: apiUrlSchema.default(defaults.apiUrl),
+    // How long the web app waits for the API to answer an upload once it has been sent.
+    API_UPLOAD_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
+    NODE_ENV: nodeEnvSchema,
+    // Proxies between the client and the app, whose X-Forwarded-* headers are trusted:
+    // Front Door then Container Apps ingress today. 0 trusts none.
+    TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(2),
+    // RFC 7617 splits the credentials at the first colon, so a username cannot contain one.
+    BASIC_AUTH_USERNAME: z
+      .string()
+      .regex(/^[^:]*$/, 'must not contain a colon')
+      .optional(),
+    BASIC_AUTH_PASSWORD: z.string().optional(),
+  };
+}
 
+/** The secrets of a web app people sign in to. */
+const signInFields = {
+  SESSION_JWT_SECRET: z.string().min(32),
+  // Signs the web app's own cookie session; rotates independently of the JWT secret.
+  WEB_SESSION_SECRET: z.string().min(32),
+};
+
+function basicAuthSetTogether(value: {
+  BASIC_AUTH_USERNAME?: string | undefined;
+  BASIC_AUTH_PASSWORD?: string | undefined;
+}): boolean {
+  return (value.BASIC_AUTH_USERNAME === undefined) === (value.BASIC_AUTH_PASSWORD === undefined);
+}
+
+const basicAuthPairError = {
+  message: 'BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD must be set together',
+  path: ['BASIC_AUTH_PASSWORD'],
+};
+
+function webServerConfig(parsed: z.output<z.ZodObject<ReturnType<typeof webServerFields>>>) {
   return {
     offersDevTools: isDevClassEnv(parsed.APP_ENV),
     development: parsed.NODE_ENV === 'development',
@@ -221,17 +224,42 @@ export function loadWebServerConfig(
     trustedProxyHops: parsed.TRUSTED_PROXY_HOPS,
     shutdown: resolveShutdown(parsed.APP_ENV, parsed),
     log: resolveLog(parsed.APP_ENV, parsed),
-    session: {
-      secret: parsed.SESSION_JWT_SECRET,
-      secure: isDeployedEnv(parsed.APP_ENV),
-    },
-    webSession: {
-      secret: parsed.WEB_SESSION_SECRET,
-      secure: isDeployedEnv(parsed.APP_ENV),
-    },
     basicAuth:
       parsed.BASIC_AUTH_USERNAME === undefined || parsed.BASIC_AUTH_PASSWORD === undefined
         ? undefined
         : { username: parsed.BASIC_AUTH_USERNAME, password: parsed.BASIC_AUTH_PASSWORD },
+  } as const;
+}
+
+/** A web app nobody signs in to, such as public-web: it takes no session secret. */
+export function loadWebServerConfig(
+  env: NodeJS.ProcessEnv,
+  defaults: { apiUrl: string; port: number },
+) {
+  const parsed = parseEnv(
+    z.object(webServerFields(defaults)).refine(basicAuthSetTogether, basicAuthPairError),
+    env,
+  );
+
+  return webServerConfig(parsed);
+}
+
+/** A web app people sign in to, such as internal-web: it signs their sessions. */
+export function loadSignInWebServerConfig(
+  env: NodeJS.ProcessEnv,
+  defaults: { apiUrl: string; port: number },
+) {
+  const parsed = parseEnv(
+    z
+      .object({ ...webServerFields(defaults), ...signInFields })
+      .refine(basicAuthSetTogether, basicAuthPairError),
+    env,
+  );
+  const secure = isDeployedEnv(parsed.APP_ENV);
+
+  return {
+    ...webServerConfig(parsed),
+    session: { secret: parsed.SESSION_JWT_SECRET, secure },
+    webSession: { secret: parsed.WEB_SESSION_SECRET, secure },
   } as const;
 }

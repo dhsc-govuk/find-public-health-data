@@ -70,8 +70,6 @@ services:
     environment:
       APP_ENV: ${APP_ENV:?set APP_ENV in .env (see .env.example)}
       API_URL: http://host.docker.internal:4000
-      SESSION_JWT_SECRET: ${SESSION_JWT_SECRET:?set SESSION_JWT_SECRET in .env (see .env.example)}
-      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?set WEB_SESSION_SECRET in .env (see .env.example)}
     ports:
       - '3000:3000'
     extra_hosts:

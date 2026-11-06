@@ -9,7 +9,6 @@ export const {
   apiUrl,
   trustedProxyHops,
   log,
-  session,
   shutdown,
 } = loadWebServerConfig(process.env, {
   port: 3000,
