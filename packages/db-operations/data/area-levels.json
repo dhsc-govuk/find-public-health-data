@@ -1,0 +1,728 @@
+[
+  {
+    "id": "01a1bd97-6801-747b-92a4-c41f0fbd8994",
+    "slug": "united-kingdom",
+    "name": "United Kingdom",
+    "hierarchy": null,
+    "displayOrder": 1,
+    "parentLevels": [],
+    "areaTypes": [
+      "UK"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000013e"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-867d32687edf",
+    "slug": "england",
+    "name": "England",
+    "hierarchy": null,
+    "displayOrder": 2,
+    "parentLevels": [],
+    "areaTypes": [
+      "England"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000001e"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-89e26e0ce7f5",
+    "slug": "regions",
+    "name": "Regions",
+    "hierarchy": "administrative",
+    "displayOrder": 3,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Regions (statistical)"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000000c"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-8ccd2bcf024c",
+    "slug": "counties-and-unitary-authorities",
+    "name": "Counties and unitary authorities",
+    "hierarchy": "administrative",
+    "displayOrder": 4,
+    "parentLevels": [
+      "regions",
+      "england"
+    ],
+    "areaTypes": [
+      "County unchanged",
+      "County obsolete 2019",
+      "County obsolete 2020",
+      "County obsolete 2021",
+      "County obsolete 2023",
+      "UA unchanged",
+      "UA new 2019",
+      "UA new 2020",
+      "UA new 2021",
+      "UA new 2023",
+      "UA obsolete 2019"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000168",
+      "019de0d5-c800-700c-8000-00000000016c",
+      "019de0d5-c800-700c-8000-00000000016e",
+      "019de0d5-c800-700c-8000-000000000170",
+      "019de0d5-c800-700c-8000-000000000172",
+      "019de0d5-c800-700c-8000-000000000154",
+      "019de0d5-c800-700c-8000-000000000156",
+      "019de0d5-c800-700c-8000-00000000015a",
+      "019de0d5-c800-700c-8000-00000000015c",
+      "019de0d5-c800-700c-8000-00000000015e",
+      "019de0d5-c800-700c-8000-000000000158"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-918c49a8472e",
+    "slug": "districts-and-unitary-authorities",
+    "name": "Districts and unitary authorities",
+    "hierarchy": "administrative",
+    "displayOrder": 5,
+    "parentLevels": [
+      "regions",
+      "counties-and-unitary-authorities",
+      "england"
+    ],
+    "areaTypes": [
+      "LA unchanged",
+      "LA new 2019",
+      "LA new 2019 obsolete 2023",
+      "LA obsolete 2019",
+      "LA obsolete 2020",
+      "LA obsolete 2021",
+      "LA obsolete 2023",
+      "UA unchanged",
+      "UA new 2019",
+      "UA new 2020",
+      "UA new 2021",
+      "UA new 2023",
+      "UA obsolete 2019"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000140",
+      "019de0d5-c800-700c-8000-000000000142",
+      "019de0d5-c800-700c-8000-000000000152",
+      "019de0d5-c800-700c-8000-000000000144",
+      "019de0d5-c800-700c-8000-000000000146",
+      "019de0d5-c800-700c-8000-000000000148",
+      "019de0d5-c800-700c-8000-000000000150",
+      "019de0d5-c800-700c-8000-000000000154",
+      "019de0d5-c800-700c-8000-000000000156",
+      "019de0d5-c800-700c-8000-00000000015a",
+      "019de0d5-c800-700c-8000-00000000015c",
+      "019de0d5-c800-700c-8000-00000000015e",
+      "019de0d5-c800-700c-8000-000000000158"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-97a8e29dbd79",
+    "slug": "combined-authorities",
+    "name": "Combined authorities",
+    "hierarchy": "administrative",
+    "displayOrder": 6,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Combined authorities"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000fc"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-9b2d40f60ee5",
+    "slug": "wards",
+    "name": "Electoral wards",
+    "hierarchy": "administrative",
+    "displayOrder": 7,
+    "parentLevels": [
+      "districts-and-unitary-authorities",
+      "england"
+    ],
+    "areaTypes": [
+      "Electoral Wards (2024)"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000010"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-9f45d4dab981",
+    "slug": "merged-wards",
+    "name": "Merged wards",
+    "hierarchy": "administrative",
+    "displayOrder": 8,
+    "parentLevels": [
+      "districts-and-unitary-authorities",
+      "england"
+    ],
+    "areaTypes": [
+      "Merged Wards"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000012"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-a19b468eff62",
+    "slug": "msoas",
+    "name": "Middle layer super output areas",
+    "hierarchy": "administrative",
+    "displayOrder": 9,
+    "parentLevels": [
+      "districts-and-unitary-authorities",
+      "england"
+    ],
+    "areaTypes": [
+      "MSOA",
+      "MSOA21"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000006",
+      "019de0d5-c800-700c-8000-0000000001aa"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-a5e5069043b2",
+    "slug": "lsoas",
+    "name": "Lower layer super output areas",
+    "hierarchy": "administrative",
+    "displayOrder": 10,
+    "parentLevels": [
+      "districts-and-unitary-authorities",
+      "england"
+    ],
+    "areaTypes": [
+      "LSOA",
+      "LSOA21"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000008",
+      "019de0d5-c800-700c-8000-0000000001ac"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-a942e4dfbbd9",
+    "slug": "parliamentary-constituencies",
+    "name": "Parliamentary constituencies",
+    "hierarchy": "administrative",
+    "displayOrder": 11,
+    "parentLevels": [
+      "regions",
+      "england"
+    ],
+    "areaTypes": [
+      "Constituencies"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000014"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-ac3cd52471e2",
+    "slug": "phe-centres-2013",
+    "name": "PHE centres (2013)",
+    "hierarchy": "administrative",
+    "displayOrder": 12,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "PHE Centre from 2013"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000064"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-b0115153c2a5",
+    "slug": "phe-centres-2015",
+    "name": "PHE centres (2015)",
+    "hierarchy": "administrative",
+    "displayOrder": 13,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "PHE Centre from 2015"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000062"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-b68ee5e3cddb",
+    "slug": "phe-centres-2013-2015",
+    "name": "PHE centres (2013 to 2015)",
+    "hierarchy": "administrative",
+    "displayOrder": 14,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "PHE Centre 2013-2015"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000060"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-b8e4e64efd44",
+    "slug": "phe-regions",
+    "name": "PHE regions",
+    "hierarchy": "administrative",
+    "displayOrder": 15,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "PHE Region "
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000054"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-bde5d5b0cce3",
+    "slug": "nhs-regions",
+    "name": "NHS regions",
+    "hierarchy": "nhs",
+    "displayOrder": 16,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "NHS regions",
+      "NHS regions - obsolete with ICB introduction"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000001be",
+      "019de0d5-c800-700c-8000-000000000056"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-c3b97f9bb764",
+    "slug": "nhs-region-local-offices",
+    "name": "NHS region local offices",
+    "hierarchy": "nhs",
+    "displayOrder": 17,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "NHS region - local office"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000005c"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-c507d8c82eca",
+    "slug": "icbs",
+    "name": "Integrated care boards",
+    "hierarchy": "nhs",
+    "displayOrder": 18,
+    "parentLevels": [
+      "nhs-regions",
+      "england"
+    ],
+    "areaTypes": [
+      "ICBs"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000001ba"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-ca8ff0593628",
+    "slug": "sub-icb-locations",
+    "name": "Sub-ICB locations",
+    "hierarchy": "nhs",
+    "displayOrder": 19,
+    "parentLevels": [
+      "icbs",
+      "nhs-regions",
+      "england"
+    ],
+    "areaTypes": [
+      "ICB sub-locations"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000084"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-cc38a1996101",
+    "slug": "ccgs",
+    "name": "Clinical commissioning groups",
+    "hierarchy": "nhs",
+    "displayOrder": 20,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "CCG old 2017",
+      "CCG new 2018",
+      "CCGs old 2018",
+      "CCGs new 2018 old 2021",
+      "CCGs new 2019",
+      "CCGs old 2019",
+      "CCGs new 2020",
+      "CCGs old 2020",
+      "CCGs new 2021",
+      "CCGs old 2021",
+      "CCGs unchanged 2021"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000006a",
+      "019de0d5-c800-700c-8000-00000000006c",
+      "019de0d5-c800-700c-8000-00000000006e",
+      "019de0d5-c800-700c-8000-000000000082",
+      "019de0d5-c800-700c-8000-000000000074",
+      "019de0d5-c800-700c-8000-000000000076",
+      "019de0d5-c800-700c-8000-000000000078",
+      "019de0d5-c800-700c-8000-00000000007c",
+      "019de0d5-c800-700c-8000-00000000007e",
+      "019de0d5-c800-700c-8000-000000000080",
+      "019de0d5-c800-700c-8000-000000000070"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-d225c608829c",
+    "slug": "stps",
+    "name": "Sustainability and transformation partnerships",
+    "hierarchy": "nhs",
+    "displayOrder": 21,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "STP (unchanged)",
+      "STP (new 4/20)",
+      "STP (obsolete)"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000f0",
+      "019de0d5-c800-700c-8000-0000000001b2",
+      "019de0d5-c800-700c-8000-0000000001b4"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-d5be5f254c65",
+    "slug": "pcns",
+    "name": "Primary care networks",
+    "hierarchy": "nhs",
+    "displayOrder": 22,
+    "parentLevels": [
+      "sub-icb-locations",
+      "icbs",
+      "england"
+    ],
+    "areaTypes": [
+      "PCNs (v. 26/06/25)"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000198"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-d84743b190f2",
+    "slug": "gp-practices",
+    "name": "GP practices",
+    "hierarchy": "nhs",
+    "displayOrder": 23,
+    "parentLevels": [
+      "pcns",
+      "sub-icb-locations",
+      "icbs",
+      "england"
+    ],
+    "areaTypes": [
+      "GPs"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000000e"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-dd362bd6876a",
+    "slug": "acute-trusts",
+    "name": "Acute trusts",
+    "hierarchy": null,
+    "displayOrder": 24,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Acute Trust"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000001c"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-e37bee33e082",
+    "slug": "mental-health-trusts",
+    "name": "Mental health trusts",
+    "hierarchy": null,
+    "displayOrder": 25,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Mental Health Trust [20]"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000028"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-e44e43002809",
+    "slug": "mental-health-and-acute-trusts",
+    "name": "Mental health and acute trusts",
+    "hierarchy": null,
+    "displayOrder": 26,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "MH and Acute Trust"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000ea"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-eb85f8365f76",
+    "slug": "ambulance-trusts",
+    "name": "Ambulance trusts",
+    "hierarchy": null,
+    "displayOrder": 27,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Ambulance Trust"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000052"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-ef0ba07df353",
+    "slug": "trust-types",
+    "name": "Trust types",
+    "hierarchy": null,
+    "displayOrder": 28,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Trust type"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000013c"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-f100e6082d08",
+    "slug": "laboratories",
+    "name": "Laboratories",
+    "hierarchy": null,
+    "displayOrder": 29,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Laboratory"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000102"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-f6035761b3ac",
+    "slug": "maternity-services",
+    "name": "Maternity services",
+    "hierarchy": null,
+    "displayOrder": 30,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Maternity Services"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000fa"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-f943476e903e",
+    "slug": "local-maternity-systems",
+    "name": "Local maternity systems",
+    "hierarchy": null,
+    "displayOrder": 31,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Local Maternity System"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000019a"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e60-fc5f6490c1cf",
+    "slug": "iapt-services",
+    "name": "IAPT services",
+    "hierarchy": null,
+    "displayOrder": 32,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "IAPT services"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000196"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-01dbca2841eb",
+    "slug": "strategic-clinical-networks",
+    "name": "Strategic clinical networks",
+    "hierarchy": null,
+    "displayOrder": 33,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "Strategic Clinical Network"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000e0"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-0539bc918f0a",
+    "slug": "ons-2011-groups",
+    "name": "ONS 2011 area classification groups",
+    "hierarchy": null,
+    "displayOrder": 34,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2011 group"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-000000000138"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-09a66adc8082",
+    "slug": "ons-2011-subgroups",
+    "name": "ONS 2011 area classification subgroups",
+    "hierarchy": null,
+    "displayOrder": 35,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2011 subgroup"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-00000000013a"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-0f497ec6a3af",
+    "slug": "ons-2011-groups-superseded",
+    "name": "ONS 2011 area classification groups (superseded)",
+    "hierarchy": null,
+    "displayOrder": 36,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2011 group (superseded)"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000e6"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-1224abedd5a0",
+    "slug": "ons-2011-subgroups-superseded",
+    "name": "ONS 2011 area classification subgroups (superseded)",
+    "hierarchy": null,
+    "displayOrder": 37,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2011 subgroup (superseded)"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000e8"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-1597446d89f0",
+    "slug": "ons-2001-cluster-groups",
+    "name": "ONS 2001 area classification groups",
+    "hierarchy": null,
+    "displayOrder": 38,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2001 cluster group"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000dc"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-1b965562e0fd",
+    "slug": "ons-2001-cluster-subgroups",
+    "name": "ONS 2001 area classification subgroups",
+    "hierarchy": null,
+    "displayOrder": 39,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2001 cluster subgroup"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000de"
+    ]
+  },
+  {
+    "id": "01a1bd97-6802-71f9-8e61-1d426e26df94",
+    "slug": "ons-2001-cluster-supergroups",
+    "name": "ONS 2001 area classification supergroups",
+    "hierarchy": null,
+    "displayOrder": 40,
+    "parentLevels": [
+      "england"
+    ],
+    "areaTypes": [
+      "ONS 2001 cluster supergroup"
+    ],
+    "areaTypeIds": [
+      "019de0d5-c800-700c-8000-0000000000da"
+    ]
+  }
+]

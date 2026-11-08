@@ -3,6 +3,7 @@ import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { assertCoreDataPresent, importCoreData } from './core-data.ts';
+import { migrateToLatest } from './migrations.ts';
 import { importReferenceCoreData, readReferenceData } from './reference-core-data.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
@@ -151,7 +152,7 @@ it('rekeys existing references, publisher bridges, parent values, dimension keys
       { area_type_id: areaType.id },
     ]);
     // The import writes today's reference tables, so the later migrations come first.
-    await migrateThrough(sql, '0065_public-dimension-names');
+    await migrateToLatest(sql);
     await importCoreData(sql);
     expect(await sql`SELECT id FROM observation`).toEqual([{ id: observation.id }]);
   } finally {

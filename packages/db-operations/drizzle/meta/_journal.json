@@ -470,6 +470,13 @@
       "when": 1794179886572,
       "tag": "0066_public-dimension-names",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794182211282,
+      "tag": "0067_area-levels",
+      "breakpoints": true
     }
   ]
 }

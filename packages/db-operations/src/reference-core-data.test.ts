@@ -14,6 +14,7 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     dimensionTypesPublic: 153,
     dimensionValuesPublic: 1366,
     deprivationSchemes: 55,
+    areaLevels: 40,
     noteTypes: 235,
   });
 });
@@ -40,6 +41,61 @@ it('refuses a public name for a dimension value that does not exist', () => {
       dimensionValuesPublic: [{ ...first, id: '019de0d5-c800-7000-8000-000000000000' }],
     }),
   ).toThrow(/names no dimensionValues entry/);
+});
+
+it('refuses an area level whose area type names and ids disagree', () => {
+  const records = readReferenceData();
+  const [level] = records.areaLevels;
+
+  expect(() =>
+    parseReferenceData({
+      ...records,
+      areaLevels: [{ ...level, areaTypes: ['Not an area type'] }],
+    }),
+  ).toThrow(/names area types its ids don't/);
+});
+
+it('puts every area type with areas in a level, apart from those left out on purpose', () => {
+  const records = readReferenceData();
+  const inLevels = new Set(records.areaLevels.flatMap(({ areaTypeIds }) => areaTypeIds));
+  const leftOut = records.areaTypes
+    .filter(({ id }) => !inLevels.has(id))
+    .map(({ name }) => name)
+    .sort();
+
+  // Each holds no areas, or areas no data uses, such as screening sites.
+  expect(leftOut).toEqual([
+    'AAA Screening Cohort',
+    'Acute Trusts',
+    'Bowel Cancer Screening Centres',
+    'CCGs (2017/18)',
+    'CCGs (2018/19)',
+    'CCGs (2019/20)',
+    'CCGs (2020/21)',
+    'CCGs (from Apr 2021)',
+    'CCGs (pre 4/2017)',
+    'Counties & UAs (2019/20)',
+    'Counties & UAs (2020/21)',
+    'Counties & UAs (2021/22-2022/23)',
+    'Counties & UAs (from Apr 2023)',
+    'Counties & UAs (pre Apr 2019)',
+    'Districts & UAs (2019/20)',
+    'Districts & UAs (2020/21)',
+    'Districts & UAs (2021/22-2022/23)',
+    'Districts & UAs (from Apr 2023)',
+    'Districts & UAs (pre Apr 2019)',
+    'ICBs Slivers',
+    'Mental Health Trust [119]',
+    'NHS region',
+    'NHS regions (pre ICB)',
+    'NHS regions - new due to ICB changes',
+    'NHS regions Slivers',
+    'Newborn Screening Sites',
+    'PHE Centres (2013)',
+    'PHE Centres (2015)',
+    'STPs (from Apr 2020)',
+    'STPs (pre Apr 2020)',
+  ]);
 });
 
 it('refuses duplicate lookup ids and names before import', () => {

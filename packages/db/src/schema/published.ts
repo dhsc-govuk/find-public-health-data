@@ -243,6 +243,18 @@ export const publishedAreaType = publishedSchema
   })
   .existing();
 
+export const publishedAreaLevel = publishedSchema
+  .view('area_level', {
+    id: uuid('id').notNull(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    hierarchy: text('hierarchy'),
+    displayOrder: integer('display_order').notNull(),
+    parentLevels: text('parent_levels').array().notNull(),
+    areaTypeIds: uuid('area_type_ids').array().notNull(),
+  })
+  .existing();
+
 export const publishedArea = publishedSchema
   .view('area', {
     id: uuid('id').notNull(),

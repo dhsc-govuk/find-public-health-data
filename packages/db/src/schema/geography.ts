@@ -72,3 +72,31 @@ export const areaRelationship = pgTable(
     index('idx_area_rel_child').on(t.childAreaId),
   ],
 );
+
+/** The hierarchies the public API says an area level belongs to. */
+export const AREA_LEVEL_HIERARCHIES = ['administrative', 'nhs'] as const;
+
+/**
+ * An area type as the public API names it: a level of geography without a boundary vintage, made
+ * of the Fingertips area types that hold its areas. "UA unchanged" is in two levels, counties and
+ * districts. `parent_levels` are the levels above it, nearest first, as slugs: the first is the
+ * default parent for siblings, and each can be a benchmark. Hand-written reference data.
+ */
+export const areaLevel = pgTable(
+  'area_level',
+  {
+    id: uuidPrimaryKey(),
+    slug: text().notNull().unique(),
+    name: text().notNull(),
+    hierarchy: text({ enum: AREA_LEVEL_HIERARCHIES }),
+    displayOrder: integer().notNull(),
+    parentLevels: text().array().notNull(),
+    areaTypeIds: uuid().array().notNull(),
+  },
+  (t) => [
+    check(
+      'area_level_hierarchy_check',
+      sql`${t.hierarchy} IN (${literals(AREA_LEVEL_HIERARCHIES)})`,
+    ),
+  ],
+);
