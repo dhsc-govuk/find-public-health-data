@@ -12,6 +12,10 @@ export {
   type SqlClient,
 } from './client.ts';
 export { dimensionKey } from './dimension-key.ts';
+export type {
+  PublicDimensionTypeRow,
+  PublicDimensionValueRow,
+} from './dimension-repository.ts';
 export {
   checkDbLogin,
   type DbLogin,

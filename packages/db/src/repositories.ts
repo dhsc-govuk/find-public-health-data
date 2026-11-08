@@ -14,6 +14,11 @@ import {
 } from './area-repository.ts';
 import type { Database } from './client.ts';
 import {
+  listPublicDimensions,
+  type PublicDimensionTypeRow,
+  type PublicDimensionValueRow,
+} from './dimension-repository.ts';
+import {
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
   getObservationRange,
@@ -82,6 +87,8 @@ export interface AreaRepository {
 /** What the public API's v0 routes read besides indicators and areas. */
 export interface ReferenceRepository {
   listTags(): Promise<TagRow[]>;
+  /** The dimension types published data uses, with their public names and values. */
+  listDimensions(): Promise<{ types: PublicDimensionTypeRow[]; values: PublicDimensionValueRow[] }>;
   /** Changes whenever anything the public API serves changes, for its ETags. */
   dataVersion(): Promise<string>;
 }
@@ -135,6 +142,7 @@ export function createRepositories(db: Database): Repositories {
     },
     reference: {
       listTags: () => listTags(db),
+      listDimensions: () => listPublicDimensions(db),
       dataVersion: () => getDataVersion(db),
     },
     topics: {

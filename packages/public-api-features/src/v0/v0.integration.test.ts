@@ -50,3 +50,35 @@ describe('GET /v0/tags', () => {
     expect(second.status).toBe(304);
   });
 });
+
+describe('GET /v0/dimensions', () => {
+  it('matches the spec, and every dimension and scheme it lists can be looked up', async () => {
+    const list = await getJson('/v0/dimensions');
+
+    expect(list.status).toBe(200);
+    expectToMatchSpec('/v0/dimensions', 200, list.body);
+    const slugs: string[] = list.body.data.map((dimension: { slug: string }) => dimension.slug);
+    expect(slugs).toContain('sex');
+
+    for (const slug of slugs) {
+      const detail = await getJson(`/v0/dimensions/${slug}`);
+      expect(detail.status).toBe(200);
+      expectToMatchSpec('/v0/dimensions/{dimension}', 200, detail.body);
+
+      for (const scheme of detail.body.schemes as { slug: string }[]) {
+        const found = await getJson(`/v0/dimensions/${slug}/schemes/${scheme.slug}`);
+        expect(found.status).toBe(200);
+        expectToMatchSpec('/v0/dimensions/{dimension}/schemes/{scheme}', 200, found.body);
+      }
+    }
+  });
+
+  it('names sex m and f only', async () => {
+    const response = await getJson('/v0/dimensions/sex');
+
+    expect(response.body.values.map((value: { slug: string }) => value.slug).sort()).toEqual([
+      'f',
+      'm',
+    ]);
+  });
+});
