@@ -18,6 +18,7 @@
   },
   "files": [
     "dist",
+    "openapi.yaml",
     "!dist/**/*.map",
     "!dist/**/*.d.ts"
   ],
@@ -29,13 +30,17 @@
     "@fphd/config": "workspace:*",
     "@fphd/db": "workspace:*",
     "@fphd/utils": "workspace:*",
+    "csv-stringify": "catalog:",
     "express": "catalog:"
   },
   "devDependencies": {
     "@fphd/express": "workspace:*",
     "@types/express": "catalog:",
     "@types/node": "catalog:",
+    "ajv": "catalog:",
+    "ajv-formats": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "yaml": "catalog:"
   }
 }

@@ -45,6 +45,8 @@ catalog:
   diff: 9.0.0
   "@fastify/busboy": 3.2.5
   accessible-autocomplete: 3.0.2
+  ajv: 8.20.0
+  ajv-formats: 3.0.1
   "@not-govuk/back-link": 0.19.5
   "@not-govuk/button": 0.19.5
   "@not-govuk/checkboxes": 0.19.5
