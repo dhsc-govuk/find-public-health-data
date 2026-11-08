@@ -67,6 +67,7 @@ async function main(argv: readonly string[]): Promise<void> {
         connectionString: requiredEnvironment('PHOLIO_CONNECTION_STRING'),
         expectedDatabase: required(values, 'expected-database'),
         backupSha256: required(values, 'backup-sha256'),
+        codeHistoryCsv: required(values, 'code-history-csv'),
         outDir: required(values, 'out-dir'),
       });
       return;
