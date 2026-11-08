@@ -1,3 +1,4 @@
+import type { CodeValidity } from './code-history.ts';
 import type { PholioSource } from './context.ts';
 import { areaId, areaRelationshipId } from './ids.ts';
 import { queryPholio } from './source.ts';
@@ -25,7 +26,14 @@ export function areaTypeHierarchyType(areaTypeClass: string | null, areaTypeId: 
 }
 
 /** Exports area_type, area and area_relationship from Pholio. */
-export async function exportGeography(context: PholioSource) {
+/**
+ * `codeHistory` gives each GSS code's validity, from the ONS Code History Database. Without it, or
+ * for a code it doesn't hold, such as an NHS organisation's, the validity stays unknown.
+ */
+export async function exportGeography(
+  context: PholioSource,
+  codeHistory: ReadonlyMap<string, CodeValidity> = new Map(),
+) {
   const { pool, outDir } = context;
   const areaIdByPholioCode = new Map<string, number>();
 
@@ -77,8 +85,8 @@ export async function exportGeography(context: PholioSource) {
     code: string;
     name: string;
     area_type_id: number;
-    valid_from: null;
-    valid_to: null;
+    valid_from: string | null;
+    valid_to: string | null;
     is_current: boolean;
   }> = [];
 
@@ -100,8 +108,8 @@ export async function exportGeography(context: PholioSource) {
       code: r.AreaCode,
       name: r.AreaName ?? r.AreaCode,
       area_type_id: r.AreaTypeID,
-      valid_from: null,
-      valid_to: null,
+      valid_from: codeHistory.get(r.AreaCode)?.from ?? null,
+      valid_to: codeHistory.get(r.AreaCode)?.to ?? null,
       is_current: r.IsCurrent,
     });
   }

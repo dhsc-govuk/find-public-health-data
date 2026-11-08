@@ -8,6 +8,7 @@ import { readGzipCsv } from '../csv.ts';
 import { rekeyTable } from '../prepare-baseline.ts';
 import { writePreparedDirectory } from '../prepared-directory.ts';
 import { tidyReferenceTables } from '../reference-names.ts';
+import { readCodeHistory } from './code-history.ts';
 import { exportDimensions } from './dimensions.ts';
 import { exportGeography } from './geography.ts';
 import { exportNoteTypes } from './lookups.ts';
@@ -33,6 +34,8 @@ interface CoreReferenceOptions {
   connectionString: string;
   expectedDatabase: string;
   backupSha256: string;
+  /** The ONS Code History Database's `ChangeHistory.csv`, for each area's validity. */
+  codeHistoryCsv: string;
   outDir: string;
 }
 
@@ -66,6 +69,8 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
   if (!/^[a-f0-9]{64}$/.test(options.backupSha256))
     throw new Error('Expected a lowercase SHA-256 digest for --backup-sha256');
 
+  const codeHistory = await readCodeHistory(options.codeHistoryCsv);
+
   await writePreparedDirectory(options.outDir, async (staged) => {
     const raw = join(staged, 'source');
     await mkdir(raw);
@@ -84,7 +89,7 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
         );
 
       const context = { pool, outDir: raw };
-      const geography = await exportGeography(context);
+      const geography = await exportGeography(context, codeHistory.validity);
       const dimensions = await exportDimensions(context);
       const notes = await exportNoteTypes(context);
       const ages = await queryPholio<{ AgeID: number; MinYears: number; MaxYears: number }>(
@@ -145,7 +150,11 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       await rename(path, join(geographyDir, file.file));
       files[table] = file;
     }
-    const manifest = { source: { ...source, backupSha256: options.backupSha256 }, files };
+    const manifest = {
+      source: { ...source, backupSha256: options.backupSha256 },
+      codeHistory: { sha256: codeHistory.sha256 },
+      files,
+    };
     await writeFile(join(geographyDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     await rm(raw, { recursive: true });
   });
