@@ -51,11 +51,13 @@ export {
 } from './indicator-topic-repository.ts';
 export { escapeLike } from './like-pattern.ts';
 export { observationRangeSql, observationSegmentSql } from './observation-range-sql.ts';
+export type { TagRow } from './reference-repository.ts';
 export {
   type AreaRepository,
   createRepositories,
   createRepositoriesOn,
   type IndicatorRepository,
+  type ReferenceRepository,
   type Repositories,
   type RunRead,
   type TopicRepository,

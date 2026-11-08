@@ -40,6 +40,7 @@ import {
 } from './indicator-repository.ts';
 import { getPublishedIndicatorScatterData } from './indicator-scatter-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
+import { getDataVersion, listTags, type TagRow } from './reference-repository.ts';
 import { publishedViews, type ViewSet } from './schema/index.ts';
 import {
   getTopicBySlug,
@@ -109,6 +110,13 @@ export interface AreaRepository {
   listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
 }
 
+/** What the public API's v0 routes read besides indicators and areas. */
+export interface ReferenceRepository {
+  listTags(): Promise<TagRow[]>;
+  /** Changes whenever anything the public API serves changes, for its ETags. */
+  dataVersion(): Promise<string>;
+}
+
 export interface TopicRepository {
   list(): Promise<Topic[]>;
   findBySlug(slug: string): Promise<Topic | undefined>;
@@ -124,6 +132,7 @@ export interface TopicRepository {
 export interface Repositories {
   areas: AreaRepository;
   indicators: IndicatorRepository;
+  reference: ReferenceRepository;
   topics: TopicRepository;
 }
 
@@ -180,6 +189,10 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
       searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
       listFacets: () => run((db) => listIndicatorFacets(db, views)),
     },
+    reference: {
+      listTags: () => run((db) => listTags(db)),
+      dataVersion: () => run((db) => getDataVersion(db)),
+    },
     topics: {
       list: () => run((db) => listTopics(db, views)),
       findBySlug: (slug) => run((db) => getTopicBySlug(db, views, slug)),
@@ -198,6 +211,7 @@ export function createRepositories(db: Database): Repositories {
   return {
     areas: coalescedReads(repositories.areas),
     indicators: { ...coalescedReads(repositories.indicators), resolveId, resolveIdBySlug },
+    reference: coalescedReads(repositories.reference),
     topics: coalescedReads(repositories.topics),
   };
 }
