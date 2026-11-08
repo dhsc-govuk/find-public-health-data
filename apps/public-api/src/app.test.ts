@@ -40,6 +40,17 @@ describe('public API', () => {
     expect(response.body).toEqual({ status: 'ok', service: 'public-api' });
   });
 
+  it('mounts the v0 public surface', async () => {
+    const listTags = vi.fn().mockResolvedValue([]);
+    const dataVersion = vi.fn().mockResolvedValue('v1');
+    const response = await request(
+      createTestApp(createFakeRepositories({ reference: { listTags, dataVersion } })),
+    ).get('/v0/tags');
+
+    expect(response.status).toBe(200);
+    expect(listTags).toHaveBeenCalled();
+  });
+
   it('describes itself as the public surface', async () => {
     const response = await request(createTestApp()).get('/api');
 

@@ -239,6 +239,7 @@ export function createFakeRepositories(overrides: FakeRepositoryOverrides = {}):
   return {
     areas: withThrowingDefaults('areas', overrides.areas),
     indicators: withThrowingDefaults('indicators', overrides.indicators),
+    reference: withThrowingDefaults('reference', overrides.reference),
     topics: withThrowingDefaults('topics', overrides.topics),
   };
 }

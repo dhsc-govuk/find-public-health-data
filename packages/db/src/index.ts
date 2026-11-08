@@ -46,10 +46,12 @@ export {
   listTopicsForIndicator,
   type TopicSummaryForIndicator,
 } from './indicator-topic-repository.ts';
+export type { TagRow } from './reference-repository.ts';
 export {
   type AreaRepository,
   createRepositories,
   type IndicatorRepository,
+  type ReferenceRepository,
   type Repositories,
   type TopicRepository,
 } from './repositories.ts';

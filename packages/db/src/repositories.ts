@@ -33,6 +33,7 @@ import {
   searchPublishedIndicators,
 } from './indicator-repository.ts';
 import { getIndicatorTableData } from './indicator-table-repository.ts';
+import { getDataVersion, listTags, type TagRow } from './reference-repository.ts';
 import {
   getTopicBySlug,
   getTopicTrendSummary,
@@ -78,6 +79,13 @@ export interface AreaRepository {
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
 }
 
+/** What the public API's v0 routes read besides indicators and areas. */
+export interface ReferenceRepository {
+  listTags(): Promise<TagRow[]>;
+  /** Changes whenever anything the public API serves changes, for its ETags. */
+  dataVersion(): Promise<string>;
+}
+
 export interface TopicRepository {
   list(): Promise<Topic[]>;
   findBySlug(slug: string): Promise<Topic | undefined>;
@@ -93,6 +101,7 @@ export interface TopicRepository {
 export interface Repositories {
   areas: AreaRepository;
   indicators: IndicatorRepository;
+  reference: ReferenceRepository;
   topics: TopicRepository;
 }
 
@@ -123,6 +132,10 @@ export function createRepositories(db: Database): Repositories {
         getObservationRange(db, indicatorId, displayGroup),
       searchWithFilters: (filters) => searchIndicators(db, filters),
       listFacets: () => listIndicatorFacets(db),
+    },
+    reference: {
+      listTags: () => listTags(db),
+      dataVersion: () => getDataVersion(db),
     },
     topics: {
       list: () => listTopics(db),
