@@ -680,6 +680,13 @@
       "when": 1795025659745,
       "tag": "0096_public-dimension-names",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795078778541,
+      "tag": "0097_area-levels",
+      "breakpoints": true
     }
   ]
 }

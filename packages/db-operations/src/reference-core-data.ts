@@ -63,6 +63,17 @@ const deprivationSchemeRecord = z.object({
   boundaries: name.nullable(),
   groups: z.union([z.literal(5), z.literal(10)]),
 });
+const areaLevelRecord = z.object({
+  id,
+  slug,
+  name,
+  hierarchy: z.enum(schema.AREA_LEVEL_HIERARCHIES).nullable(),
+  displayOrder: z.int(),
+  parentLevels: z.array(slug),
+  // The names are there for a reviewer: the import checks they match the ids, and loads the ids.
+  areaTypes: z.array(name).min(1),
+  areaTypeIds: z.array(id).min(1),
+});
 const noteTypeRecord = z.object({
   id,
   text: name,
@@ -76,6 +87,7 @@ export const referenceDataSchema = z.object({
   dimensionTypesPublic: z.array(dimensionTypePublicRecord),
   dimensionValuesPublic: z.array(dimensionValuePublicRecord),
   deprivationSchemes: z.array(deprivationSchemeRecord),
+  areaLevels: z.array(areaLevelRecord),
   noteTypes: z.array(noteTypeRecord),
 });
 
@@ -108,6 +120,7 @@ const lists = {
     table: schema.deprivationScheme,
     label: 'release',
   },
+  areaLevels: { file: 'area-levels.json', table: schema.areaLevel, label: 'slug' },
   noteTypes: { file: 'note-types.json', table: schema.noteType, label: 'text' },
 } as const;
 
@@ -145,6 +158,20 @@ export function parseReferenceData(data: unknown): ReferenceData {
     }
     if (value.parentId !== null && !valueTypes.has(value.parentId)) {
       throw new Error(`Dimension value ${value.id} names an unknown parent`);
+    }
+  }
+  const areaTypeNames = new Map(records.areaTypes.map(({ id, name }) => [id, name]));
+  const levelSlugs = new Set(records.areaLevels.map(({ slug }) => slug));
+  for (const level of records.areaLevels) {
+    const names = level.areaTypeIds.map((typeId) => areaTypeNames.get(typeId));
+    if (names.join('\n') !== level.areaTypes.join('\n')) {
+      throw new Error(
+        `Area level ${level.slug} names area types its ids don't: ${names.join(', ')}`,
+      );
+    }
+    const unknown = level.parentLevels.filter((parent) => !levelSlugs.has(parent));
+    if (unknown.length > 0) {
+      throw new Error(`Area level ${level.slug} names unknown parents: ${unknown.join(', ')}`);
     }
   }
   for (const [list, owner] of publicNameOwners) {
