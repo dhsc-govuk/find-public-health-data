@@ -1,7 +1,7 @@
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { parseReferenceData } from '@fphd/db-operations';
+import { parseReferenceData, referenceDataSchema } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 
 import { readGzipCsv } from '../csv.ts';
@@ -11,6 +11,7 @@ import { tidyReferenceTables } from '../reference-names.ts';
 import { exportDimensions } from './dimensions.ts';
 import { exportGeography } from './geography.ts';
 import { exportNoteTypes } from './lookups.ts';
+import { publicDimensions } from './public-dimensions.ts';
 import { connectToPholio, queryPholio } from './source.ts';
 
 const lookupTables = {
@@ -18,6 +19,12 @@ const lookupTables = {
   dimensionTypes: 'dimension_type',
   dimensionValues: 'dimension_value',
   noteTypes: 'note_type',
+} as const;
+// The public API's names for dimensions, derived from the lookups above.
+const publicNameFiles = {
+  dimensionTypesPublic: 'dimension-types-public.json',
+  dimensionValuesPublic: 'dimension-values-public.json',
+  deprivationSchemes: 'deprivation-schemes.json',
 } as const;
 const integerColumns = new Set(['level', 'display_order', 'sort_order']);
 const booleanColumns = new Set(['is_required', 'is_aggregate']);
@@ -65,6 +72,7 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
     const pool = await connectToPholio(options.connectionString);
     const source = { name: options.expectedDatabase, access: 'READ_ONLY' };
     const rowCounts = new Map<string, number>();
+    const ageYears = new Map<string, { min: number; max: number }>();
     try {
       const [identity] = await queryPholio<{ name: string; access: string }>(
         pool,
@@ -79,6 +87,13 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       const geography = await exportGeography(context);
       const dimensions = await exportDimensions(context);
       const notes = await exportNoteTypes(context);
+      const ages = await queryPholio<{ AgeID: number; MinYears: number; MaxYears: number }>(
+        pool,
+        'SELECT AgeID, MinYears, MaxYears FROM L_Ages WHERE MinYears IS NOT NULL AND MaxYears IS NOT NULL',
+      );
+      for (const age of ages) {
+        ageYears.set(String(age.AgeID), { min: age.MinYears, max: age.MaxYears });
+      }
       for (const [table, file] of Object.entries({
         ...geography.tables,
         ...dimensions.tables,
@@ -99,9 +114,25 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       if (rows.length !== file.rows) throw new Error(`Missing lookup rows for ${table}`);
       lookupRows[key] = rows;
     }
-    const lookups = parseReferenceData(lookupRows);
+    const names = publicDimensions(
+      referenceDataSchema.shape.dimensionTypes.parse(lookupRows.dimensionTypes),
+      referenceDataSchema.shape.dimensionValues.parse(lookupRows.dimensionValues),
+      ageYears,
+    );
+    const lookups = parseReferenceData({
+      ...lookupRows,
+      dimensionTypesPublic: names.types,
+      dimensionValuesPublic: names.values,
+      deprivationSchemes: names.deprivationSchemes,
+    });
     for (const key of Object.keys(lookupTables) as (keyof typeof lookupTables)[]) {
       const file = `${lookupTables[key].replace('_', '-')}s.json`;
+      await writeFile(join(staged, file), `${JSON.stringify(lookups[key], null, 2)}\n`);
+    }
+    for (const [key, file] of Object.entries(publicNameFiles) as [
+      keyof typeof publicNameFiles,
+      string,
+    ][]) {
       await writeFile(join(staged, file), `${JSON.stringify(lookups[key], null, 2)}\n`);
     }
 

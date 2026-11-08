@@ -11,6 +11,9 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     areaTypes: 101,
     dimensionTypes: 153,
     dimensionValues: 1384,
+    dimensionTypesPublic: 153,
+    dimensionValuesPublic: 1366,
+    deprivationSchemes: 55,
     noteTypes: 235,
   });
 });
@@ -25,6 +28,18 @@ it.each([
     'quality',
   );
   expect(readSeedTable('note_type').find((note) => note.text === text)?.category).toBe('quality');
+});
+
+it('refuses a public name for a dimension value that does not exist', () => {
+  const records = readReferenceData();
+  const [first] = records.dimensionValuesPublic;
+
+  expect(() =>
+    parseReferenceData({
+      ...records,
+      dimensionValuesPublic: [{ ...first, id: '019de0d5-c800-7000-8000-000000000000' }],
+    }),
+  ).toThrow(/names no dimensionValues entry/);
 });
 
 it('refuses duplicate lookup ids and names before import', () => {

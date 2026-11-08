@@ -150,6 +150,8 @@ it('rekeys existing references, publisher bridges, parent values, dimension keys
     expect(await sql`SELECT area_type_id FROM available_data`).toEqual([
       { area_type_id: areaType.id },
     ]);
+    // The import writes today's reference tables, so the later migrations come first.
+    await migrateThrough(sql, '0065_public-dimension-names');
     await importCoreData(sql);
     expect(await sql`SELECT id FROM observation`).toEqual([{ id: observation.id }]);
   } finally {

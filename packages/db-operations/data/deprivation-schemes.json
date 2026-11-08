@@ -1,0 +1,442 @@
+[
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d2",
+    "release": "IMD2010",
+    "ranked": "gp",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d4",
+    "release": "IMD2010",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d6",
+    "release": "IMD2010",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007dc",
+    "release": "IMD2010",
+    "ranked": "lsoa11",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e0",
+    "release": "IMD2010",
+    "ranked": "ccg",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e2",
+    "release": "IMD2010",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e4",
+    "release": "IMD2010",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080e",
+    "release": "IMD2010",
+    "ranked": "lsoa01",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081c",
+    "release": "IMD2015",
+    "ranked": "gp",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081e",
+    "release": "IMD2015",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "pre-2019",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000820",
+    "release": "IMD2015",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "pre-2019",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000822",
+    "release": "IMD2015",
+    "ranked": "lsoa11",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000828",
+    "release": "IMD2015",
+    "ranked": "lsoa11",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000830",
+    "release": "IMD2015",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000834",
+    "release": "IMD2015",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000854",
+    "release": "IMD2015",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000085e",
+    "release": "IMD trend",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000886",
+    "release": "IDACI",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a2",
+    "release": "IMD2015",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "2019",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a6",
+    "release": "IMD2015",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2019",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b2",
+    "release": "IMD2019",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "2019-2020",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b4",
+    "release": "IMD2019",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2019",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b6",
+    "release": "IMD2019",
+    "ranked": "lsoa11",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b8",
+    "release": "IMD2019",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ba",
+    "release": "IMD2019",
+    "ranked": "lsoa11",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008bc",
+    "release": "IMD2019",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008c6",
+    "release": "IMD2019",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008c8",
+    "release": "IMD2019",
+    "ranked": "gp",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008de",
+    "release": "IMD2019",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2020",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008f4",
+    "release": "IMD2019",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "2021",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fa",
+    "release": "IMD2019",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2021",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000902",
+    "release": "IMD2010",
+    "ranked": "lsoa11",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000908",
+    "release": "IMD2019",
+    "ranked": "ccg",
+    "within": "england",
+    "boundaries": "2021",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000090c",
+    "release": "IMD trend",
+    "ranked": "lsoa11",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000910",
+    "release": "IMD2019",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "2023",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000916",
+    "release": "IMD2019",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2023",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000924",
+    "release": "IMD2025",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "2023",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000092a",
+    "release": "IMD2025",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2023",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000095a",
+    "release": "IMD2015",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000097c",
+    "release": "IMD trend",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000097e",
+    "release": "IMD2019",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000982",
+    "release": "IMD2015",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000984",
+    "release": "IMD2019",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000986",
+    "release": "IMD trend",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000988",
+    "release": "IMD2015",
+    "ranked": "lsoa21",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000098a",
+    "release": "IMD2019",
+    "ranked": "lsoa21",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000098e",
+    "release": "IMD2015",
+    "ranked": "lsoa21",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000990",
+    "release": "IMD2019",
+    "ranked": "lsoa21",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099e",
+    "release": "IMD2025",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a0",
+    "release": "IMD2025",
+    "ranked": "lsoa21",
+    "within": "area",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a2",
+    "release": "IMD2025",
+    "ranked": "lsoa21",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a4",
+    "release": "IMD2025",
+    "ranked": "lsoa21",
+    "within": "england",
+    "boundaries": null,
+    "groups": 5
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b8",
+    "release": "IMD2025",
+    "ranked": "gp",
+    "within": "england",
+    "boundaries": null,
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009be",
+    "release": "IMD2015",
+    "ranked": "county-ua",
+    "within": "england",
+    "boundaries": "2023",
+    "groups": 10
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009c0",
+    "release": "IMD2015",
+    "ranked": "district-ua",
+    "within": "england",
+    "boundaries": "2023",
+    "groups": 10
+  }
+]

@@ -2,6 +2,7 @@ import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { POLARITIES } from '@fphd/utils/polarity';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
+import { AGE_UNITS, STANDARD_DIMENSIONS } from '@fphd/utils/standard-dimension';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 import {
   boolean,
@@ -196,6 +197,38 @@ export const publishedDimensionValue = publishedSchema
     code: text('code'),
     sortOrder: integer('sort_order').notNull(),
     isAggregate: boolean('is_aggregate').notNull(),
+  })
+  .existing();
+
+/** How the public API names each dimension type: see `dimension_type_public`. */
+export const publishedDimensionTypePublic = publishedSchema
+  .view('dimension_type_public', {
+    id: uuid('id').notNull(),
+    standardDimension: text('standard_dimension', { enum: STANDARD_DIMENSIONS }),
+    slug: text('slug'),
+  })
+  .existing();
+
+export const publishedDimensionValuePublic = publishedSchema
+  .view('dimension_value_public', {
+    id: uuid('id').notNull(),
+    slug: text('slug').notNull(),
+    ageFromValue: smallint('age_from_value'),
+    ageFromUnit: text('age_from_unit', { enum: AGE_UNITS }),
+    ageUnderValue: smallint('age_under_value'),
+    ageUnderUnit: text('age_under_unit', { enum: AGE_UNITS }),
+    deprivationGroup: smallint('deprivation_group'),
+  })
+  .existing();
+
+export const publishedDeprivationScheme = publishedSchema
+  .view('deprivation_scheme', {
+    id: uuid('id').notNull(),
+    release: text('release').notNull(),
+    ranked: text('ranked').notNull(),
+    within: text('within').notNull(),
+    boundaries: text('boundaries'),
+    groups: smallint('groups').notNull(),
   })
   .existing();
 
