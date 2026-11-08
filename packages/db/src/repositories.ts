@@ -18,6 +18,11 @@ import {
 import type { Database, DatabaseReader } from './client.ts';
 import { coalescedReads } from './coalesced-reads.ts';
 import {
+  listPublicDimensions,
+  type PublicDimensionTypeRow,
+  type PublicDimensionValueRow,
+} from './dimension-repository.ts';
+import {
   type FoundIndicatorDetail,
   getIndicatorDetailById,
   getIndicatorObservations,
@@ -113,6 +118,8 @@ export interface AreaRepository {
 /** What the public API's v0 routes read besides indicators and areas. */
 export interface ReferenceRepository {
   listTags(): Promise<TagRow[]>;
+  /** The dimension types published data uses, with their public names and values. */
+  listDimensions(): Promise<{ types: PublicDimensionTypeRow[]; values: PublicDimensionValueRow[] }>;
   /** Changes whenever anything the public API serves changes, for its ETags. */
   dataVersion(): Promise<string>;
 }
@@ -191,6 +198,7 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
     },
     reference: {
       listTags: () => run((db) => listTags(db)),
+      listDimensions: () => run((db) => listPublicDimensions(db)),
       dataVersion: () => run((db) => getDataVersion(db)),
     },
     topics: {

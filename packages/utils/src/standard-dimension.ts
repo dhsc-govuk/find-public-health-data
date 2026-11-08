@@ -14,6 +14,19 @@ export const STANDARD_DIMENSIONS = [
 
 export type StandardDimension = (typeof STANDARD_DIMENSIONS)[number];
 
+export const STANDARD_DIMENSION_LABELS: Readonly<Record<StandardDimension, string>> = {
+  sex: 'Sex',
+  age: 'Age',
+  deprivation: 'Deprivation',
+  ethnicity: 'Ethnicity',
+  'socioeconomic-group': 'Socioeconomic group',
+  religion: 'Religion',
+  sexuality: 'Sexuality',
+};
+
+/** The standard dimensions whose rows name a scheme in a column of their own. */
+export const SCHEMELESS_DIMENSIONS: readonly StandardDimension[] = ['sex', 'age'];
+
 /** The units an age band's ends are written in, as ISO 8601 duration designators. */
 export const AGE_UNITS = ['year', 'month', 'week', 'day'] as const;
 
