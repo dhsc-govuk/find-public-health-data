@@ -738,7 +738,7 @@ components:
       description: Area codes. Can't be combined with `areaType`.
       schema:
         type: string
-        pattern: "^[A-Za-z0-9]+(,[A-Za-z0-9]+)*$"
+        pattern: "^[A-Za-z0-9._~-]+(,[A-Za-z0-9._~-]+)*$"
       example: E06000047,E06000005
 
     areaType:
@@ -1129,8 +1129,11 @@ components:
 
     AreaCode:
       type: string
-      description: A GSS code, such as `E06000047`, or an NHS code, such as `A81001`.
-      pattern: "^[A-Za-z0-9]+$"
+      description: |
+        A GSS code, such as `E06000047`, or an NHS code, such as `A81001`. Some areas that aren't
+        geographies, such as laboratories, have other codes, such as `LAB_429`. Codes use only
+        characters that never need percent-encoding.
+      pattern: "^[A-Za-z0-9._~-]+$"
       maxLength: 100
 
     PartialDate:

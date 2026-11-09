@@ -1,4 +1,13 @@
 import {
+  type AreaFilters,
+  type AreaLevelRow,
+  type AreaParentRow,
+  type AreaRow,
+  findAreas,
+  listAreaAncestors,
+  listAreaLevels,
+} from './area-level-repository.ts';
+import {
   type AreaLookup,
   type AreaParent,
   type AreaSummary,
@@ -82,6 +91,11 @@ export interface AreaRepository {
   listByCodes(codes: string[]): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
+  /** The area levels published data covers, for the public API. */
+  listLevels(): Promise<AreaLevelRow[]>;
+  find(filters: AreaFilters): Promise<AreaRow[]>;
+  /** Every area above an area, nearest first, with England last. */
+  listAncestors(code: string): Promise<AreaParentRow[]>;
 }
 
 /** What the public API's v0 routes read besides indicators and areas. */
@@ -122,6 +136,9 @@ export function createRepositories(db: Database): Repositories {
       listByCodes: (codes) => listAreasByCodes(db, codes),
       search: (query, limit) => searchAreas(db, query, limit),
       listParents: (childCodes, parentTypeName) => listAreaParents(db, childCodes, parentTypeName),
+      listLevels: () => listAreaLevels(db),
+      find: (filters) => findAreas(db, filters),
+      listAncestors: (code) => listAreaAncestors(db, code),
     },
     indicators: {
       findTableData: (shortIds, areaCodes) => getIndicatorTableData(db, shortIds, areaCodes),

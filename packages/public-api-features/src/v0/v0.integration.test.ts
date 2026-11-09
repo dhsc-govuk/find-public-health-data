@@ -82,3 +82,47 @@ describe('GET /v0/dimensions', () => {
     ]);
   });
 });
+
+describe('areas', () => {
+  it('lists area types that match the spec', async () => {
+    const response = await getJson('/v0/area-types');
+
+    expectToMatchSpec('/v0/area-types', 200, response.body);
+    expect(response.body.data.map((type: { slug: string }) => type.slug)).toContain('regions');
+  });
+
+  it("lists today's counties without Northamptonshire, and 2020's with it", async () => {
+    const today = await getJson('/v0/areas?areaType=counties-and-unitary-authorities');
+    const in2020 = await getJson(
+      '/v0/areas?areaType=counties-and-unitary-authorities&boundaries=2020',
+    );
+    const codes = (response: typeof today) =>
+      response.body.data.map((area: { code: string }) => area.code);
+
+    expectToMatchSpec('/v0/areas', 200, today.body);
+    expect(codes(today)).toContain('E06000063');
+    expect(codes(today)).not.toContain('E10000021');
+    expect(codes(in2020)).toContain('E10000021');
+    expect(codes(in2020)).not.toContain('E06000063');
+  });
+
+  it('finds the areas within a parent', async () => {
+    const response = await getJson(
+      '/v0/areas?areaType=counties-and-unitary-authorities&parent=E12000001',
+    );
+    const codes = response.body.data.map((area: { code: string }) => area.code);
+
+    expect(codes).toContain('E06000047');
+    expect(codes).not.toContain('E10000006');
+  });
+
+  it('returns an area with its region and England above it', async () => {
+    const response = await getJson('/v0/areas/E06000047');
+
+    expect(response.status).toBe(200);
+    expectToMatchSpec('/v0/areas/{code}', 200, response.body);
+    const parents = response.body.parents.map((parent: { code: string }) => parent.code);
+    expect(parents).toContain('E12000001');
+    expect(parents.at(-1)).toBe('E92000001');
+  });
+});
