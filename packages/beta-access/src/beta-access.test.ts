@@ -104,6 +104,52 @@ describe('createBetaAccess', () => {
       expect(sent.map(({ to }) => to)).toEqual([sam.email, alex.email, sam.email]);
     });
 
+    it('sends one link when requests arrive while the first is still sending', async () => {
+      const sent: SignInEmail[] = [];
+      const sending = Promise.withResolvers<void>();
+      const finishSending = Promise.withResolvers<void>();
+      const betaAccess = createBetaAccess({
+        config,
+        sendEmail: async (email) => {
+          sent.push(email);
+          // Only the first send waits, so a second one shows up in `sent` rather than hanging.
+          if (sent.length === 1) {
+            sending.resolve();
+            await finishSending.promise;
+          }
+        },
+        now: createClock('2026-11-10T09:00:00Z').now,
+      });
+
+      const first = betaAccess.requestLink(sam.email, '/');
+      await sending.promise;
+      const second = await betaAccess.requestLink(sam.email, '/');
+      finishSending.resolve();
+
+      expect(second).toEqual({ outcome: 'already_sent', invitee: sam });
+      await expect(first).resolves.toEqual({ outcome: 'sent', invitee: sam });
+      expect(sent).toHaveLength(1);
+    });
+
+    it('lets an invitee ask again at once when sending fails', async () => {
+      const attempts: SignInEmail[] = [];
+      const betaAccess = createBetaAccess({
+        config,
+        sendEmail: async (email) => {
+          attempts.push(email);
+          if (attempts.length === 1) throw new Error('The email service is down');
+        },
+        now: createClock('2026-11-10T09:00:00Z').now,
+      });
+
+      await expect(betaAccess.requestLink(sam.email, '/')).rejects.toThrow('down');
+      await expect(betaAccess.requestLink(sam.email, '/')).resolves.toEqual({
+        outcome: 'sent',
+        invitee: sam,
+      });
+      expect(attempts).toHaveLength(2);
+    });
+
     it('drops a return address that leaves the site', async () => {
       const { betaAccess, sent } = createEmailing();
 
