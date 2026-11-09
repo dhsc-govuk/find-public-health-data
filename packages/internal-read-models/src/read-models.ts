@@ -78,7 +78,7 @@ async function replaceReadModelRows(
         ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment,
         min(ro.value) AS min, max(ro.value) AS max,
         percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ro.value) AS quartiles,
-        array_agg(ro.value ORDER BY ro.value) AS ordered_values,
+        percentile_disc(ARRAY[0.2, 0.4, 0.6, 0.8]) WITHIN GROUP (ORDER BY ro.value) AS quintiles,
         count(*) AS n
       FROM range_observations ro
       GROUP BY ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment
@@ -86,14 +86,9 @@ async function replaceReadModelRows(
     SELECT
       indicator_id, display_group, from_date, to_date, segment, min, max,
       quartiles[1], quartiles[2],
-      -- Each cutoff is the last rank before the next fifth. Tied values stay in the
-      -- group of their first rank because the chart advances only past a cutoff.
-      CASE WHEN n >= 5 THEN ARRAY[
-        ordered_values[ceil(n * 0.2)::int],
-        ordered_values[ceil(n * 0.4)::int],
-        ordered_values[ceil(n * 0.6)::int],
-        ordered_values[ceil(n * 0.8)::int]
-      ] END
+      -- Each cutoff is the value at rank ceil(n × fifth). Tied values stay in the group
+      -- of their first rank because the chart advances only past a cutoff.
+      CASE WHEN n >= 5 THEN quintiles END
     FROM distributions
   `);
 
