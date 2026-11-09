@@ -98,6 +98,8 @@ function page(
             compareAreaOptions: [],
             compareAreaGroup: 'Local authorities',
             comparisonDisplayGroups: [],
+            compareAreaRanges: [],
+            scatter: undefined,
           }}
         />
       ),
@@ -122,7 +124,7 @@ it('opens one indicator with the five prototype tabs and no selection controls',
     within(screen.getByRole('tabpanel', { name: 'Indicator' })).getByRole('region', {
       name: 'Diabetes prevalence trend chart',
     }).textContent,
-  ).toContain('Data visualisation to follow');
+  ).toContain('View chart data as a table');
 });
 
 it('offers the table columns for the raw numbers the indicator has', () => {
@@ -157,20 +159,24 @@ it('keeps England as the benchmark when comparing local areas', () => {
       observations: england.observations.map((observation) => ({ ...observation, value: 11 })),
     },
   ]);
-  expect(screen.getByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
-  expect(screen.getByRole('rowheader', { name: 'Slough' })).toBeTruthy();
   const table = within(screen.getByRole('table', { name: /Table of area comparisons/ }));
+  expect(table.getByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
+  expect(table.getByRole('rowheader', { name: 'Slough' })).toBeTruthy();
   expect(table.getByRole('cell', { name: '7.9' })).toBeTruthy();
   expect(table.getByRole('cell', { name: '11.0' })).toBeTruthy();
   expect(table.getByRole('cell', { name: 'Higher' })).toBeTruthy();
-  const slough = screen.getByRole('rowheader', { name: 'Slough' }).closest('tr');
+  const slough = table.getByRole('rowheader', { name: 'Slough' }).closest('tr');
   const bar = slough?.querySelector('svg rect:nth-of-type(2)');
   expect(bar?.getAttribute('fill')).toBe('#254BA4');
   expect(Number(bar?.getAttribute('width'))).toBeCloseTo((11 / 15) * 100);
-  const map = within(screen.getByRole('tabpanel', { name: 'Compare areas' })).getByRole('region', {
-    name: 'Diabetes prevalence map',
-  });
-  expect(map.textContent).toContain('Data visualisation to follow');
+  const chart = within(screen.getByRole('tabpanel', { name: 'Compare areas' })).getByRole(
+    'region',
+    {
+      name: /^Compare areas: Diabetes prevalence/,
+    },
+  );
+  expect(chart.textContent).toContain('View chart data as a table');
+  expect(screen.getByLabelText('Colour areas by')).toBeTruthy();
 });
 
 it('shows one compared indicator in an area-aligned comparison table', () => {
@@ -184,10 +190,16 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
   expect(screen.getByRole('table', { name: /Table of indicator comparison/ })).toBeTruthy();
   expect(
     within(screen.getByRole('tabpanel', { name: 'Compare indicators' })).getByRole('region', {
-      name: 'Indicator comparison scatter chart',
+      name: /^Diabetes mortality compared with Diabetes prevalence/,
     }).textContent,
-  ).toContain('Data visualisation to follow');
-  expect(screen.getByRole('rowheader', { name: 'England' })).toBeTruthy();
+  ).toContain('View chart data as a table');
+  expect(screen.getByRole('button', { name: 'Swap axes' })).toBeTruthy();
+  expect(
+    within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
+      'rowheader',
+      { name: 'England' },
+    ),
+  ).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Clear search' }).getAttribute('href')).toBe(
     '/indicator/indicator-241?tab-indicator=compare',
   );

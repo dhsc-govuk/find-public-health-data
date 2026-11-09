@@ -2,6 +2,7 @@ import { Button, Checkboxes, CollapsibleFilterCard, Details, Hint, Radios, Selec
 import { type ReactNode, useId } from 'react';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 
+import { quintileParam } from './charts/chart-data.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import {
   type ConfidenceLevel,
@@ -142,6 +143,8 @@ export function PanelOptionsPanel({
   measures = [],
   onChange,
   options,
+  panel = 'table',
+  colourByQuintile = false,
   periodTypes,
   scope,
   sexes,
@@ -159,6 +162,8 @@ export function PanelOptionsPanel({
   measures?: Measure[];
   onChange: (options: PanelOptions) => void;
   options: PanelOptions;
+  panel?: 'table' | 'chart' | 'compare-areas';
+  colourByQuintile?: boolean;
   periodTypes: PeriodType[];
   scope: OptionScope;
   sexes: string[];
@@ -171,7 +176,10 @@ export function PanelOptionsPanel({
     period: useId(),
     range: useId(),
     sex: useId(),
+    colour: useId(),
   };
+  const apply = useOptionParamNavigation();
+  const colourParam = quintileParam(scope);
   const names = panelOptionNames(scope);
   const rangeOptions = [
     { label: 'Yes', value: 'yes', checked: options.range },
@@ -194,7 +202,18 @@ export function PanelOptionsPanel({
     : [];
 
   const content = (
-    <OptionsForm names={[...Object.values(names), `columns-${scope}`]} target={target}>
+    <OptionsForm
+      names={[
+        ...Object.values(names).filter(
+          (name) =>
+            (name !== names.range || (panel === 'table' && !!benchmarks)) &&
+            (name !== names.benchmark || !!benchmarks),
+        ),
+        ...(columns ? [`columns-${scope}`] : []),
+        ...(panel === 'compare-areas' ? [colourParam] : []),
+      ]}
+      target={target}
+    >
       {columns && onColumnsChange ? (
         <>
           <input type="hidden" name={`columns-${scope}`} value="" />
@@ -236,7 +255,7 @@ export function PanelOptionsPanel({
           value={options.benchmark}
         />
       ) : null}
-      {benchmarks && options.benchmark !== 'none' ? (
+      {panel === 'table' && benchmarks && options.benchmark !== 'none' ? (
         <Radios
           classModifiers="inline"
           id={ids.range}
@@ -247,6 +266,19 @@ export function PanelOptionsPanel({
         />
       ) : null}
       <div className="fphd-segmentation-options__selects">
+        {panel === 'compare-areas' ? (
+          <Select
+            id={ids.colour}
+            label="Colour areas by"
+            name={colourParam}
+            onChange={(event) => apply([[colourParam, event.currentTarget.value, '']])}
+            options={[
+              { label: 'Comparison with England', value: '' },
+              { label: '5 equal groups (quintiles)', value: 'yes' },
+            ]}
+            value={colourByQuintile ? 'yes' : ''}
+          />
+        ) : null}
         {sexes.length > (accordion ? 1 : 0) ? (
           <Select
             id={ids.sex}

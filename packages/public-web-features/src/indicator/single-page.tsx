@@ -128,6 +128,7 @@ export function SingleIndicatorPage({
                         {...comparison}
                         primary={primaryIndicator(selected)}
                         compared={selected[1]}
+                        selected={selected}
                         findResults={findResults}
                         findSubject={findSubject}
                       />

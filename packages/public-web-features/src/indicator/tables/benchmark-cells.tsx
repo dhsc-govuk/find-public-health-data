@@ -1,67 +1,7 @@
 import type { ReactNode } from 'react';
-import { type BenchmarkJudgement, benchmarkJudgement, formatCalculatedValue } from '../data.ts';
+import { SpineChart } from '../charts/spine-chart.tsx';
+import { benchmarkJudgement, formatCalculatedValue, withUnit } from '../data.ts';
 import type { IndicatorDetail, IndicatorObservation, IndicatorRangePeriod } from '../loader.ts';
-
-// Fingertips' marker colours: RAG significance, BOB sides, an open ring for no comparison.
-const DOT_STYLES: Record<BenchmarkJudgement, { fill: string; stroke?: string }> = {
-  better: { fill: '#8ED973' },
-  similar: { fill: '#FFC000' },
-  worse: { fill: '#D4351C' },
-  lower: { fill: '#12436D' },
-  higher: { fill: '#5694CA' },
-  none: { fill: '#ffffff', stroke: '#505a5f' },
-};
-
-/**
- * Dot-and-whisker comparison: the grey line spans the min–max range across every area
- * of the benchmark's level, the black tick is the benchmark's own value, and the dot
- * is this area's value.
- */
-function RangePlot({
-  value,
-  benchmarkValue,
-  min,
-  max,
-  judgement,
-  label,
-}: {
-  value: number;
-  benchmarkValue: number;
-  min: number;
-  max: number;
-  judgement: BenchmarkJudgement;
-  label: string;
-}) {
-  const span = max - min;
-  const toX = (v: number) =>
-    span <= 0 ? 60 : Math.max(10, Math.min(110, 10 + ((v - min) / span) * 100));
-  const benchmarkX = toX(benchmarkValue);
-  const areaX = toX(value);
-  const dot = DOT_STYLES[judgement];
-  return (
-    <svg
-      aria-label={label}
-      className="fphd-range-plot"
-      height="24"
-      role="img"
-      viewBox="0 0 120 24"
-      width="120"
-    >
-      <line stroke="#b1b4b6" strokeWidth="2" x1="10" x2="110" y1="12" y2="12" />
-      <line stroke="#b1b4b6" strokeWidth="2" x1="10" x2="10" y1="8" y2="16" />
-      <line stroke="#b1b4b6" strokeWidth="2" x1="110" x2="110" y1="8" y2="16" />
-      <line stroke="#0b0c0c" strokeWidth="2" x1={benchmarkX} x2={benchmarkX} y1="5" y2="19" />
-      <circle
-        cx={areaX}
-        cy="12"
-        fill={dot.fill}
-        r="5"
-        stroke={dot.stroke}
-        strokeWidth={dot.stroke ? 1.5 : 0}
-      />
-    </svg>
-  );
-}
 
 const BENCHMARK_HEADER = 'govuk-table__header fphd-trend-table__benchmark-cell';
 const BENCHMARK_CELL = 'govuk-table__cell fphd-trend-table__benchmark-cell';
@@ -112,8 +52,10 @@ export function BenchmarkCells({
   indicator,
   rangePeriod,
   showRange,
+  unit = null,
 }: {
   areaName: string;
+  unit?: string | null;
   areaObservation: ComparableObservation | undefined;
   benchmarkName: string;
   benchmarkValue: number | null;
@@ -123,6 +65,7 @@ export function BenchmarkCells({
   rangePeriod: IndicatorRangePeriod | undefined;
   showRange: boolean;
 }) {
+  const labelValue = (value: number) => withUnit(formatCalculatedValue(value), unit);
   const areaValue = areaObservation?.value ?? null;
   return (
     <>
@@ -133,18 +76,23 @@ export function BenchmarkCells({
           <td className={BENCHMARK_CELL}>{rangePeriod ? format(rangePeriod.max) : '-'}</td>
           <td className={BENCHMARK_CELL}>
             {rangePeriod && areaValue != null && benchmarkValue != null ? (
-              <RangePlot
+              <SpineChart
                 value={areaValue}
                 benchmarkValue={benchmarkValue}
                 min={rangePeriod.min}
                 max={rangePeriod.max}
+                p25={rangePeriod.p25}
+                p75={rangePeriod.p75}
+                unit={unit}
                 judgement={benchmarkJudgement(
                   areaObservation,
                   benchmarkValue,
                   indicator,
                   confidence,
                 )}
-                label={`${areaName} ${formatCalculatedValue(areaValue)} against ${benchmarkName} ${formatCalculatedValue(benchmarkValue)}, range ${formatCalculatedValue(rangePeriod.min)} to ${formatCalculatedValue(rangePeriod.max)}`}
+                valueLabel={`${areaName}: ${labelValue(areaValue)}`}
+                benchmarkLabel={`${benchmarkName}: ${labelValue(benchmarkValue)}`}
+                rangeLabel={`Range: ${labelValue(rangePeriod.min)} to ${labelValue(rangePeriod.max)}`}
               />
             ) : (
               '-'

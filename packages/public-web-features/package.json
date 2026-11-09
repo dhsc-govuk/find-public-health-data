@@ -15,7 +15,9 @@
     "@fphd/ui": "workspace:*",
     "@fphd/utils": "workspace:*",
     "@fphd/web-server": "workspace:*",
-    "csv-stringify": "catalog:"
+    "csv-stringify": "catalog:",
+    "react-is": "catalog:",
+    "recharts": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

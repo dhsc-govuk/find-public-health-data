@@ -113,12 +113,97 @@
 }
 
 .fphd-chart-section {
-  margin-bottom: 50px;
+  margin-bottom: govuk-spacing(6);
+  min-width: 0;
 }
 
-.fphd-chart-placeholder {
-  padding: govuk-spacing(4);
-  border: 1px solid #bfc1c3;
+.fphd-chart-canvas {
+  min-width: 0;
+  margin-bottom: govuk-spacing(3);
+
+  .recharts-text {
+    fill: $govuk-text-colour;
+    @include govuk-font-size($size: 16);
+  }
+
+  .recharts-surface:focus-visible,
+  .recharts-wrapper:focus-visible {
+    outline: 3px solid $govuk-focus-colour;
+    box-shadow: 0 0 0 5px $govuk-focus-text-colour;
+  }
+
+  .recharts-default-tooltip,
+  .fphd-chart-tooltip {
+    @include govuk-font-size($size: 16);
+    background: #ffffff;
+    color: $govuk-text-colour;
+    border: 2px solid $govuk-text-colour;
+    padding: govuk-spacing(2);
+    white-space: normal;
+    max-width: min(280px, 70vw);
+  }
+
+  .recharts-tooltip-item {
+    color: $govuk-text-colour !important;
+  }
+}
+
+.fphd-chart-series-label {
+  @include govuk-font($size: 16, $weight: bold);
+}
+
+.fphd-chart-canvas .fphd-chart-tooltip {
+  border: 0;
+  border-radius: 3px;
+  padding: 8px 12px;
+  pointer-events: auto;
+}
+
+.fphd-chart-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: govuk-spacing(2) govuk-spacing(4);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: govuk-spacing(1);
+    margin: 0;
+  }
+
+  svg { flex-shrink: 0; }
+}
+
+.fphd-sparkline .fphd-chart-canvas { margin-bottom: govuk-spacing(1); }
+
+.fphd-sparkline__endpoints {
+  display: flex;
+  justify-content: space-between;
+  gap: govuk-spacing(2);
+  margin-bottom: govuk-spacing(2);
+  line-height: 1.2;
+
+  span:last-child { text-align: right; }
+}
+
+.fphd-chart-axis-title {
+  margin-bottom: govuk-spacing(1);
+}
+
+.fphd-scatter-axis-title { text-align: center; }
+
+.fphd-chart-canvas .fphd-bar-value {
+  @include govuk-font-size($size: 16);
+}
+
+.fphd-chart-source {
+  font-style: italic;
+}
+
+.fphd-chart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: govuk-spacing(3);
 }
 
 // Metadata prose arrives from the database with meaningful line breaks.
@@ -1368,8 +1453,62 @@ body.govuk-frontend-supported .fphd-filter-card {
   background-color: govuk-colour("black", $variant: "tint-95");
 }
 
+.fphd-range-slot {
+  width: 100%;
+  min-width: 60px;
+  max-width: 213px;
+}
+
 .fphd-range-plot {
   display: block;
+  position: relative;
+  height: 24px;
+
+  svg { display: block; }
+
+  &:focus-visible {
+    outline: 3px solid $govuk-focus-colour;
+    box-shadow: 0 0 0 5px $govuk-focus-text-colour;
+  }
+}
+
+.fphd-range-fallback {
+  display: block;
+  max-width: 15em;
+}
+
+.fphd-range-tooltip {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 100%;
+  padding: govuk-spacing(2);
+  width: max-content;
+  max-width: min(19em, 75vw);
+  color: #ffffff;
+  background: #0b0c0c;
+  border-radius: 3px;
+  @include govuk-font-size($size: 16);
+
+  strong, span { display: block; }
+}
+
+.fphd-range-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  max-width: 540px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: govuk-spacing(2);
+  }
+}
+
+.fphd-range-key-example {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 // Fit the range plot within a normal text-height row so toggling it does not resize rows.
@@ -1663,14 +1802,6 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   .govuk-summary-list,
   .fphd-chart-section { margin-bottom: 0; }
 
-  .fphd-chart-placeholder {
-    box-sizing: border-box;
-    min-height: 120px;
-    padding: govuk-spacing(3);
-
-    .govuk-body,
-    .govuk-hint { @include govuk-font-size($size: 16); }
-  }
 
   .govuk-summary-list__row {
     border-bottom: 0;

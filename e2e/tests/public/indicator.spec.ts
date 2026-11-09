@@ -399,14 +399,15 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(metadata.text).toContain('Numerator definition:');
 });
 
-test('shows scaled comparison bars and visible placeholders in every chart position', async ({
+test('plots trends, area comparisons, inequalities and paired indicators', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openIndicatorPage(page, '/indicator/diabetes-qof-prevalence');
   const trend = page.getByRole('region', { name: 'Diabetes: QOF prevalence trend chart' });
-  await expect(trend).toContainText('Data visualisation to follow');
-  await expect(trend).toBeVisible();
+  await expect(trend.getByRole('application').locator('.recharts-line-curve')).toBeVisible();
+  await trend.getByText('View chart data as a table', { exact: true }).click();
+  await expect(trend.getByRole('table')).toContainText('7.9%');
   await page.getByRole('tab', { name: 'Compare areas', exact: true }).click();
   const table = page.getByRole('table', { name: /Table of area comparisons/ });
   const slough = table
@@ -416,28 +417,54 @@ test('shows scaled comparison bars and visible placeholders in every chart posit
   await expect(bar).toHaveAttribute('fill', /^#[0-9a-f]{6}$/i);
   expect(Number(await bar.getAttribute('width'))).toBeGreaterThan(70);
   expect(Number(await bar.getAttribute('width'))).toBeLessThan(80);
-  const map = page.getByRole('region', { name: 'Diabetes: QOF prevalence map' });
-  await expect(map).toContainText('Data visualisation to follow');
+  const chart = page.getByRole('region', { name: /^Compare areas: Diabetes: QOF prevalence/ });
+  await expect(
+    chart.getByRole('application').locator('.recharts-bar-rectangle').first(),
+  ).toBeVisible();
   const tableBox = await table.boundingBox();
-  const mapBox = await map.boundingBox();
-  expect(mapBox?.x).toBeGreaterThan((tableBox?.x ?? 0) + (tableBox?.width ?? 0));
+  const chartBox = await chart.boundingBox();
+  expect(chartBox?.x).toBeGreaterThan((tableBox?.x ?? 0) + (tableBox?.width ?? 0));
   await page.getByRole('tablist').evaluate((element) => element.scrollIntoView({ block: 'start' }));
-  await page.screenshot({ path: testInfo.outputPath('comparison-bars-and-map.png') });
+  await page.screenshot({ path: testInfo.outputPath('comparison-charts.png') });
   await expectNoAccessibilityViolations(page, testInfo);
   await page.getByRole('combobox', { name: 'Colour geographies by' }).selectOption('quintiles');
   await expect(bar).toHaveAttribute('fill', /#440154|#3E4A89|#26828E|#35B779|#B4DE2C/);
+  await page.getByLabel('Colour areas by', { exact: true }).selectOption('yes');
+  await expect(page).toHaveURL(/quintile-241=yes/);
+  await expect(chart).toContainText(
+    'Quintiles rank values across all areas of the same geography level.',
+  );
+  await expect(chart.locator('.recharts-bar-rectangle path').first()).toHaveAttribute(
+    'fill',
+    /#c5eee9|#84cac2|#27a096|#027068|#004842/,
+  );
   await openIndicatorPage(page, `${MORTALITY_PATH}?tab-indicator=inequalities`);
   await expect(
-    page.getByRole('region', { name: `${MORTALITY_NAME} inequalities chart` }),
-  ).toContainText('Data visualisation to follow');
+    page
+      .getByRole('application', { name: /^Inequalities:/ })
+      .locator('.recharts-bar-rectangle')
+      .first(),
+  ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
   await openIndicatorPage(
     page,
-    '/indicator/diabetes-qof-prevalence?compareWith=under-75-mortality-rate-from-all-causes',
+    `${MORTALITY_PATH}?compareWith=under-75-mortality-rate-from-cancer`,
   );
+  const scatter = page.getByRole('application', {
+    name: /^Under 75 mortality rate from cancer compared with Under 75 mortality rate from all causes/,
+  });
+  await expect(scatter.locator('.recharts-scatter-symbol').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Swap axes' }).click();
   await expect(
-    page.getByRole('region', { name: 'Indicator comparison scatter chart' }),
-  ).toContainText('Data visualisation to follow');
+    page.getByRole('application', {
+      name: /^Under 75 mortality rate from all causes compared with Under 75 mortality rate from cancer/,
+    }),
+  ).toBeVisible();
+  const comparisonChart = page.locator('#compare-chart-section');
+  await comparisonChart.getByText('View chart data as a table', { exact: true }).click();
+  await expect(
+    comparisonChart.getByRole('rowheader', { name: 'England', exact: true }),
+  ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
 });
 

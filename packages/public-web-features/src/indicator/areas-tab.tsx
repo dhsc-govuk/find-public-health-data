@@ -1,9 +1,18 @@
-import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
+import { FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
 import { areaComparisonRows } from './area-comparison.ts';
 import { AreaControls } from './area-controls.tsx';
+import { CompareAreasChart } from './charts/bar-chart.tsx';
+import { englandCode, quintileParam } from './charts/chart-data.ts';
 import type { ComparisonTabProps } from './compare-tab.tsx';
+import {
+  availableConfidenceLevels,
+  availablePeriodTypes,
+  dimensionValues,
+  filterObservations,
+} from './data.ts';
+import { PanelOptionsPanel, usePanelOptions } from './options.tsx';
 import { AreaComparisonTable } from './tables/area-comparison-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
 
@@ -13,9 +22,31 @@ export function CompareAreasTab({
   compareAreaOptions,
   compareAreaGroup,
   comparisonDisplayGroups,
+  compareAreaRanges = [],
 }: ComparisonTabProps) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
+  const [options, applyOptions] = usePanelOptions(detail.shortId);
+  const observations = compareAreasData.flatMap(({ observations }) => observations);
+  const confidenceLevels = availableConfidenceLevels(observations);
+  const periodTypes = availablePeriodTypes(observations);
+  const sexes = dimensionValues(observations, 'Sex');
+  const confidence = confidenceLevels.includes(options.confidence as '95' | '99.8')
+    ? options.confidence
+    : 'none';
+  const colourByQuintile = params.get(quintileParam(detail.shortId)) === 'yes';
+  const chartAreas = [
+    ...compareAreasData,
+    ...primary.areaData.filter(({ areaCode }) => areaCode === englandCode),
+  ].map((area) => ({
+    ...area,
+    observations: filterObservations(area.observations, {
+      sex: sexes.includes(options.sex) ? options.sex : '',
+      periodType: periodTypes.includes(options.periodType as '1-year' | '3-year')
+        ? options.periodType
+        : 'all',
+    }),
+  }));
   const comparison = areaComparisonRows(primary, compareAreasData, 'descending');
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
@@ -64,15 +95,34 @@ export function CompareAreasTab({
               />
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">
-              <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Map view</h3>
-              <p className="govuk-body-s">
-                Map of {detail.name} by {geographyGroupLabel(compareAreaGroup)} in England.
-              </p>
-              <div className="fphd-indicator-chart fphd-indicator-chart--map">
-                <ChartSection
-                  id="indicator-area-map"
-                  title={`${detail.name} map`}
-                  description="Map visualisation"
+              <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Chart of area comparison</h3>
+              <div className="fphd-indicator-chart fphd-indicator-chart--areas">
+                <PanelOptionsPanel
+                  confidenceLevels={confidenceLevels}
+                  colourByQuintile={colourByQuintile}
+                  label="Area comparison options"
+                  onChange={applyOptions}
+                  options={options}
+                  panel="compare-areas"
+                  periodTypes={periodTypes}
+                  scope={detail.shortId}
+                  sexes={sexes}
+                  showConfidence
+                  target={{
+                    tabParam: 'tab-indicator',
+                    tabValue: 'areas',
+                    anchor: 'indicator-compare-areas',
+                  }}
+                />
+                <CompareAreasChart
+                  areas={chartAreas}
+                  confidence={confidence}
+                  indicator={detail}
+                  colourByQuintile={colourByQuintile}
+                  levelByCode={Object.fromEntries(
+                    compareAreaOptions.map(({ code }) => [code, compareAreaGroup]),
+                  )}
+                  ranges={{ [compareAreaGroup]: compareAreaRanges }}
                 />
               </div>
             </GridColumn>

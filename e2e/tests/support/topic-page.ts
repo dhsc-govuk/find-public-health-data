@@ -121,9 +121,12 @@ export function topicPageTests() {
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Diabetes: QOF prevalence' })).toBeVisible();
-    await expect(
-      page.getByRole('region', { name: 'Diabetes: QOF prevalence, England: trend chart' }),
-    ).toContainText('Data visualisation to follow');
+    const highlight = page.getByRole('region', {
+      name: 'Diabetes: QOF prevalence, England: trend chart',
+    });
+    await expect(highlight.getByRole('application').locator('.recharts-line-curve')).toBeVisible();
+    await highlight.getByText('View chart data as a table', { exact: true }).click();
+    await expect(highlight.getByRole('table')).toContainText('7.9%');
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -164,7 +167,10 @@ export function topicPageTests() {
     });
     await choices.getByRole('radio', { name: 'Manchester', exact: true }).check();
     await expect(page).toHaveURL(/ga=E08000003/);
-    await expect(panel.getByText('Manchester', { exact: true })).toHaveCount(2);
+    await expect(choices.getByRole('radio', { name: 'Manchester', exact: true })).toBeChecked();
+    await expect(
+      panel.getByRole('region', { name: 'Diabetes: QOF prevalence, Manchester: trend chart' }),
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

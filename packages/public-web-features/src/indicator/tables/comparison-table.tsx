@@ -2,6 +2,7 @@ import { TableScrollRegion } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { Fragment } from 'react';
 import { Link } from 'react-router';
+import { SpineChartKey } from '../charts/spine-chart.tsx';
 import { type BenchmarkChoice, comparisonTable } from '../comparison.ts';
 import { formatCalculatedValue, formatValue, withUnit } from '../data.ts';
 import type { BenchmarkGeography, SelectedIndicator } from '../loader.ts';
@@ -38,6 +39,9 @@ export function ComparisonTable({
     withUnit(formatCalculatedValue(value), row.unit);
   return (
     <>
+      {showRange && areas.some(({ areaCode }) => benchmarkNameFor(areaCode)) ? (
+        <SpineChartKey />
+      ) : null}
       <TableScrollRegion label={label}>
         <table className="govuk-table fphd-compare-table">
           <caption className="govuk-table__caption govuk-visually-hidden">{label}</caption>
@@ -144,6 +148,7 @@ export function ComparisonTable({
                                   }
                                 }
                                 rangePeriod={benchmarkCell?.rangePeriod}
+                                unit={row.unit}
                                 showRange={showRange}
                               />
                             );

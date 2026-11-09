@@ -1,6 +1,5 @@
 import {
   Button,
-  ChartSection,
   CollapsibleFilterCard,
   FilterChip,
   FilterChips,
@@ -9,7 +8,8 @@ import {
   Select,
 } from '@fphd/ui';
 import { Form, useLocation, useNavigation } from 'react-router';
-import { inequalityCategoryLabel } from './data.ts';
+import { InequalitiesChart } from './charts/bar-chart.tsx';
+import { englandCode } from './charts/chart-data.ts';
 import { inequalityTableModel } from './inequalities.ts';
 import type { SelectedIndicator } from './loader.ts';
 import { providerSourceText } from './metadata-data.ts';
@@ -117,11 +117,16 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
             <>
               <IndicatorViewDownload slug={detail.slug} tab="inequalities" />
               <div className="fphd-indicator-chart fphd-indicator-chart--inequalities">
-                <h3 className="govuk-heading-s">Chart of inequalities: {detail.name}</h3>
-                <ChartSection
+                <InequalitiesChart
                   id="indicator-inequalities-chart"
-                  title={`${detail.name} inequalities chart`}
-                  description={`${inequalityCategoryLabel(category, true)}, ${inequalityArea?.areaName ?? 'England'}, ${periods.find(({ value }) => value === period)?.label ?? ''}.`}
+                  indicator={detail}
+                  confidence={inequality.confidence}
+                  observations={inequalityRows}
+                  areaName={inequalityArea?.areaName ?? 'England'}
+                  englandObservations={
+                    primary.areaData.find(({ areaCode }) => areaCode === englandCode)
+                      ?.observations ?? []
+                  }
                 />
               </div>
               <InequalitiesTable

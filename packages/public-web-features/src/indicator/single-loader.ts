@@ -5,6 +5,7 @@ import {
   type IndicatorDetail,
   indicatorAreaDataListSchema,
   indicatorDetailSchema,
+  indicatorRangeSchema,
   MAX_AREA_PREVIEW,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
@@ -13,6 +14,8 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import { englandCode, quintileParam } from './charts/chart-data.ts';
+import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { loadIndicatorData } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 
@@ -68,7 +71,7 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
     }),
   );
   const comparison = groups.then((groups) =>
-    loadIndicatorComparison(args, routeDetail, comparedDetail, groups),
+    loadIndicatorComparison(args, routeDetail, comparedDetail, groups, data),
   );
   const complete = url.searchParams.get('render') === 'complete';
   const completed = complete ? await Promise.all([data, comparison]) : undefined;
@@ -92,6 +95,7 @@ async function loadIndicatorComparison(
   routeDetail: IndicatorDetail,
   comparedDetail: IndicatorDetail | undefined,
   indicatorGroups: { displayGroup: string }[],
+  data: ReturnType<typeof loadIndicatorData>,
 ) {
   const api = context.get(apiContext);
   const url = new URL(request.url);
@@ -148,11 +152,40 @@ async function loadIndicatorComparison(
       comparedDetail ? loadRanking(comparedDetail) : Promise.resolve([]),
     ]);
   }
+  const { selected } = await data;
+  const primary = selected[0];
+  const compareAreaRanges =
+    compareAreaGroup && url.searchParams.get(quintileParam(routeDetail.shortId)) === 'yes'
+      ? (primary?.ranges?.[compareAreaGroup] ??
+        (
+          await api.get(
+            `${apiPath`/api/indicators/${String(routeDetail.shortId)}/range`}?displayGroup=${encodeURIComponent(compareAreaGroup)}`,
+            indicatorRangeSchema,
+          )
+        ).periods)
+      : [];
+  const scatter = comparedDetail
+    ? await loadScatterComparison(
+        api,
+        selected.map((entry, index) => ({
+          ...entry,
+          areaData: [
+            ...(index === 0 ? compareAreasData : comparedAreasData),
+            ...entry.areaData.filter(({ areaCode }) => areaCode === englandCode),
+          ],
+        })),
+        url.searchParams,
+        compareAreaOptions.map(({ code }) => code),
+        false,
+      )
+    : undefined;
   return {
     compareAreasData,
     comparedAreasData,
     compareAreaOptions,
     compareAreaGroup,
     comparisonDisplayGroups,
+    compareAreaRanges,
+    scatter,
   };
 }

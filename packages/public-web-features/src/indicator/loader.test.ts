@@ -5,9 +5,11 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
+import { observation } from './view.testing.ts';
 
 function api() {
-  const get = vi.fn(async (path: string) => {
+  const get = vi.fn(async (path: string): Promise<unknown> => {
+    if (path.startsWith('/api/indicator-data?')) return [];
     if (/\/api\/indicators\/[^/]+\/areas\?/.test(path))
       return [
         {
@@ -291,5 +293,104 @@ describe('loadIndicator', () => {
       const histories = get.mock.calls.filter(([path]) => path.includes('/108/data?'));
       expect(histories).toHaveLength(1);
     }
+  });
+
+  it('loads quintile distributions for picked levels and the current comparison group only when needed', async () => {
+    const { client, get } = api();
+    await loadIndicator(args(client));
+    expect(get.mock.calls.some(([path]) => path.includes('/range?'))).toBe(false);
+
+    get.mockClear();
+    await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?quintile-108=yes'));
+    expect(
+      get.mock.calls.filter(([path]) => path.includes('/range?')).map(([path]) => path),
+    ).toEqual(['/api/indicators/108/range?displayGroup=Local%20authorities']);
+
+    get.mockClear();
+    await loadIndicator(
+      args(client, 'http://localhost/indicator/indicator-108?quintile-108=yes&as=E06000052'),
+    );
+    expect(get.mock.calls.filter(([path]) => path.includes('/range?'))).toHaveLength(1);
+  });
+
+  it('pairs the full comparison geography group even when the indicator tab has a picked area', async () => {
+    const { client, get } = api();
+    const read = get.getMockImplementation();
+    if (!read) throw new Error('Missing test API implementation');
+    get.mockImplementation(async (path) => {
+      const result = await read(path);
+      if (!path.includes('/data?') && !path.includes('/ranking?')) return result;
+      return (result as { areaCode: string; areaName: string }[]).map((area) => ({
+        ...area,
+        observations: [
+          {
+            fromDate: '2024-01-01',
+            toDate: '2024-12-31',
+            value: path.includes('/108/') ? 10 : 20,
+            count: null,
+            numerator: null,
+            denominator: null,
+            lowerCi95: null,
+            upperCi95: null,
+            lowerCi998: null,
+            upperCi998: null,
+            notes: [],
+            dimensions: [],
+          },
+        ],
+      }));
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&as=E06000052',
+      ),
+    );
+    expect(result.scatter?.points).toHaveLength(26);
+    expect(result.scatter?.points.find(({ code }) => code === 'E92000001')).toMatchObject({
+      x: 10,
+      y: 20,
+    });
+    expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
+    expect(get.mock.calls.filter(([path]) => path.includes('/ranking?'))).toHaveLength(2);
+  });
+
+  it('finds a shared scatter period when the two rankings end in different years', async () => {
+    const { client, get } = api();
+    const read = get.getMockImplementation();
+    if (!read) throw new Error('Missing test API implementation');
+    const point = (year: number, value: number) => ({
+      ...observation(value),
+      fromDate: `${year}-01-01`,
+      toDate: `${year}-12-31`,
+    });
+    get.mockImplementation(async (path) => {
+      if (path.startsWith('/api/indicator-data?')) {
+        const params = new URL(`http://localhost${path}`).searchParams;
+        return params.getAll('indicator').map((id) => ({
+          detail: { shortId: Number(id) },
+          areaData: params.getAll('areaCode').map((code) => ({
+            areaCode: code,
+            areaName: code,
+            observations: id === '108' ? [point(2023, 10), point(2024, 11)] : [point(2023, 20)],
+          })),
+        }));
+      }
+      const result = await read(path);
+      if (!path.includes('/data?') && !path.includes('/ranking?')) return result;
+      return (result as { areaCode: string; areaName: string }[]).map((area) => ({
+        ...area,
+        observations: [point(path.includes('/108/') ? 2024 : 2023, 12)],
+      }));
+    });
+    const result = await loadIndicator(
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+    );
+    expect(result.scatter?.points).toHaveLength(26);
+    expect(
+      result.scatter?.points.every(
+        ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 10 && y === 20,
+      ),
+    ).toBe(true);
   });
 });

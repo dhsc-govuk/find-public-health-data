@@ -1,6 +1,7 @@
-import { ChartSection, GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
+import { GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { Link } from 'react-router';
+import { Sparkline } from '../indicator/charts/sparkline.tsx';
 import {
   availableMeasures,
   comparisonRows,
@@ -129,11 +130,12 @@ export function TopicOverview({
                     {entry.detail.name}
                   </Link>
                 </h3>
-                {(cell?.series.filter(({ value }) => value !== null).length ?? 0) >= 2 ? (
-                  <ChartSection
+                {area && cell && cell.series.filter(({ value }) => value !== null).length >= 2 ? (
+                  <Sparkline
                     id={`topic-highlight-chart-${entry.detail.shortId}`}
-                    title={`${entry.detail.name}, ${area?.areaName ?? 'England'}: trend chart`}
-                    description={`How this indicator has changed over time in ${area?.areaName ?? 'England'}.`}
+                    title={`${entry.detail.name}, ${area.areaName}: trend chart`}
+                    indicator={entry.detail}
+                    areas={[{ ...area, observations: cell.series }]}
                   />
                 ) : (
                   <p className="govuk-hint fphd-topic-highlight__no-trend">
