@@ -30,3 +30,9 @@ services:
     build: !reset null
     pull_policy: never
     init: false
+
+  internal-worker:
+    image: fphd-ci/internal-worker:ci
+    build: !reset null
+    pull_policy: never
+    init: false

@@ -77,7 +77,7 @@ EOF
     [ -z "${missing}" ] || fail "${app} is missing:
 ${missing}"
     ;;
-  public-web | internal-web | public-api | internal-api)
+  public-web | internal-web | public-api | internal-api | internal-worker)
     operations=$(find_in_image \
       -path '*/node_modules/@fphd/db-operations' -o -name '*.sql' -o -name '*.csv.gz' \
       -o -name 'drizzle.config.*')

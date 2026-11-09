@@ -15,6 +15,11 @@ workspace packages. Deployable applications do not import one another.
 Alongside them sits `@fphd/operations`, which serves no traffic and has no port. It is a
 command-line application, run as a job — see [Operational commands](#operational-commands).
 
+`@fphd/internal-worker` serves no traffic either. It publishes each scheduled indicator version
+at its publication time, checking for due versions one second past each minute. Its only routes
+are the `/livez` and `/readyz` probes, on port 4002. It connects to the database as the
+`internal_api` role, as the internal API does. `pnpm dev` and `pnpm dev:internal` start it.
+
 ## Requirements
 
 - Node.js at the version in `.nvmrc`, the one the production images run
@@ -165,11 +170,11 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   project without any still passes because of `--passWithNoTests`.
 - `pnpm test:e2e` names the one suite directly (`pnpm --filter @fphd/e2e run test:e2e`), so broken
   e2e wiring is an error rather than a silent skip. In CI the job is a matrix of shards, each
-  running `--shard=i/n`: every shard runs the four apps as compose containers from the production
-  images the image build job made (see [Container images](#container-images)), restores the
-  database a seed job seeded once for the run, with the same commands a developer runs, runs its
-  share of the suite, and uploads its own Playwright report when it fails. Add a shard to the
-  matrix as the suite grows.
+  running `--shard=i/n`: every shard runs the four apps and the worker as compose containers from
+  the production images the image build job made (see [Container images](#container-images)),
+  restores the database a seed job seeded once for the run, with the same commands a developer
+  runs, runs its share of the suite, and uploads its own Playwright report when it fails. Add a
+  shard to the matrix as the suite grows.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
@@ -273,8 +278,9 @@ story against the spec titles.
 ## The public artifact boundary
 
 `pnpm check:artefacts` (`tools/artefact-boundary`, also its own CI job) fails if internal code or a
-repository secret has reached a public artifact, or the database operations a server app. It
-applies six checks, cheapest first so the common failure is reported without waiting for a build:
+repository secret has reached a public artifact, if the database operations have reached a server
+app, or if the internal API's code has reached the internal worker. It applies seven checks,
+cheapest first so the common failure is reported without waiting for a build:
 
 - no reference to the `secrets` context can reach a `docker build` step in any workflow — not in
   the step's `run`, `with` or `env`, and not in `env` inherited from its job or the workflow. The
@@ -282,8 +288,10 @@ applies six checks, cheapest first so the common failure is reported without wai
   scan in CI inspects the built layers for the patterns it knows, and this refuses the route
   whatever the value looks like;
 - the two public apps' transitive workspace dependency closures contain no `internal-*` package;
-- the four server apps' closures do not contain `@fphd/db-operations`, so only the operations
-  image carries the migrations, seeding and the core data import;
+- the four server apps' and the internal worker's closures do not contain `@fphd/db-operations`, so
+  only the operations image carries the migrations, seeding and the core data import;
+- the internal worker's closure contains none of `@fphd/internal-api-features`, `@fphd/api-server`
+  and `@fphd/auth`: it publishes through `@fphd/internal-workflow` alone;
 - no route module in `public-web`'s route table is internal. React Router declares routes as path
   strings rather than imports, so `route('manage', '../../packages/internal-web-features/…')` is
   invisible to an import linter — `react-router routes --json` names those paths directly;
@@ -300,8 +308,9 @@ applies six checks, cheapest first so the common failure is reported without wai
 The rule the four code checks share is "a module reference naming an `@fphd/internal-*` package or
 living under a directory named `internal-*`", unit-tested in
 `tools/artefact-boundary/src/internal.test.ts`. The build-input check is unit-tested in
-`tools/artefact-boundary/src/builds.test.ts`, and the operations rule in
-`tools/artefact-boundary/src/operations.test.ts`.
+`tools/artefact-boundary/src/builds.test.ts`, the operations rule in
+`tools/artefact-boundary/src/operations.test.ts`, and the worker rule in
+`tools/artefact-boundary/src/worker.test.ts`.
 
 Three of the checks would pass vacuously if they silently found nothing to inspect, so all refuse
 to: no workflow building an image is an error, an app name absent from the workspace refuses to be
@@ -326,8 +335,8 @@ docker compose down -v    # stop and delete all data
 ```
 
 `pnpm services:up` starts every compose service that carries no `profiles:` key, so a service added
-to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The four
-app services are profile-gated and belong to `pnpm dev:mixed`.
+to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The
+services for the four apps and the worker are profile-gated and belong to `pnpm dev:mixed`.
 
 Each API connects with its own login role (`public_api`, `internal_api`) rather than as the owner,
 so access can be constrained per audience at the grant level. The roles, and the `fphd_owner` group
@@ -409,9 +418,11 @@ here; it comes out of the budget rather than adding to it, and is zero locally, 
 elsewhere. A server logs `Stopping`, with the signal and each phase's budget, as the signal arrives,
 and `Stopped` once cleanup is done.
 
-All four apps serve the same two probes, so one configuration covers every app: `/livez` stays 200
-throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the moment a signal
-arrives.
+The four apps and the worker serve the same two probes, so one configuration covers every app:
+`/livez` stays 200 throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the
+moment a signal arrives. The worker's `/livez` also answers 503 with `"status": "stalled"` once no
+publication sweep has ended for five minutes, so the platform restarts a worker whose sweep has
+hung.
 
 ## Operational commands
 
@@ -497,11 +508,13 @@ These commands are worth noting:
 
 `db bootstrap` needs `PUBLIC_API_PASSWORD` and `INTERNAL_API_PASSWORD`; the other commands do not,
 and fail naming them rather than requiring every job to hold role passwords. Under `DB_AUTH=entra`
-it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER` and
-`INTERNAL_API_OBJECT_ID` instead. It makes `public_api` and `internal_api` roles that can't log in,
-creates an Entra principal for each API identity from its object ID, and adds it to its role. All
-of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API role. `db migrate`
-applies migrations as the `fphd_owner` group, which the owner login is made a member of.
+it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER`,
+`INTERNAL_API_OBJECT_ID`, `INTERNAL_WORKER_DB_USER` and `INTERNAL_WORKER_OBJECT_ID` instead. It
+makes `public_api` and `internal_api` roles that can't log in, creates an Entra principal for each
+app identity from its object ID, and adds it to its role. The worker's principal joins
+`internal_api`. All of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API
+role. `db migrate` applies migrations as the `fphd_owner` group, which the owner login is made a
+member of.
 
 ### Invoking them from a deployed environment
 
@@ -509,7 +522,7 @@ Deployment lives in the infrastructure repository, which owns the jobs that call
 `node dist/cli.js <command>`:
 
 ```sh
-db bootstrap             # additionally needs the API passwords, or the API principals under entra
+db bootstrap             # additionally needs the API passwords, or the app principals under entra
 db migrate
 db status
 db import-core-data
@@ -546,14 +559,15 @@ docker build -f docker/Dockerfile --target web --build-arg APP=public-web   -t p
 docker build -f docker/Dockerfile --target web --build-arg APP=internal-web -t internal-web .
 docker build -f docker/Dockerfile --target api --build-arg APP=public-api   -t public-api   .
 docker build -f docker/Dockerfile --target api --build-arg APP=internal-api -t internal-api .
+docker build -f docker/Dockerfile --target api --build-arg APP=internal-worker -t internal-worker .
 docker build -f docker/Dockerfile --target operations --build-arg APP=operations -t operations .
 ```
 
-Five images, three targets. The two web apps have identical runtime stages — same base, same
-init, same start command — and so do the two APIs; only *which* app the builder compiled into
-the image differs. A per-app target would be a copy with nothing changed in it, so the targets
-split only where the runtime genuinely does: `dist/server.js` for an API, `server.ts` for a web
-app, and the CLI-plus-`psql` image for operations.
+Six images, three targets. The two web apps have identical runtime stages — same base, same
+init, same start command — and so do the two APIs and the worker; only *which* app the builder
+compiled into the image differs. A per-app target would be a copy with nothing changed in it, so
+the targets split only where the runtime genuinely does: `dist/server.js` for an API or the worker,
+`server.ts` for a web app, and the CLI-plus-`psql` image for operations.
 
 `pnpm deploy --prod --legacy` prunes devDependencies and copies only the workspace packages the app
 actually depends on, so no image carries pnpm, TypeScript, drizzle-kit or another app's code.
@@ -570,7 +584,7 @@ This is separate from `docker/app.Dockerfile`, which is the development image us
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and
 its devDependencies — exactly what the production images must not do.
 
-On a pull request, CI builds the four server images in one `docker buildx bake` run from
+On a pull request, CI builds the server images in one `docker buildx bake` run from
 `docker/docker-bake.hcl`, so the shared builder stage runs once. It smoke-tests them, checks their
 contents with `scripts/check-image-contents.sh` and saves them as an artifact. The contents check
 fails if an image carries TypeScript, npm, yarn or corepack, or if a server image carries
@@ -583,12 +597,12 @@ the same images alongside it. The operations image, which e2e does not use, is b
 contents-checked and scanned in a job of its own.
 
 On a push to `main`, CI runs the same jobs and then, once every check has passed, calls
-`.github/workflows/publish-images.yml`, which pushes the five images that run built and tested to
+`.github/workflows/publish-images.yml`, which pushes the six images that run built and tested to
 GitHub Container Registry under the repository that ran it —
 `ghcr.io/<owner>/find-public-health-data/fphd-<app>`, lowercased — tagged with the commit SHA and
 `latest`. A commit whose CI fails publishes nothing, and `latest` only moves forward: re-running an
 older commit's CI publishes its SHA tag but leaves `latest` on the newer commit. The `fphd-` prefix
-groups the five in the organisation's package list. OCI labels, set when CI builds the images, carry
+groups the six in the organisation's package list. OCI labels, set when CI builds the images, carry
 the repository, commit and build time rather than encoding them in the tag. There is no registry
 credential on either side: the workflow authenticates with its own run-scoped `GITHUB_TOKEN`, and
 the packages are public, so deployments pull anonymously. GHCR does not reliably create a new
@@ -636,7 +650,8 @@ never be the first to notice.
 
 ## Mixed local/Docker development
 
-Any subset of the four applications can run as Docker containers while the rest run locally.
+Any subset of the four applications and the worker can run as Docker containers while the rest run
+locally.
 `pnpm dev:mixed` takes the apps to run **locally** and starts everything else (plus the database) as
 containers:
 
