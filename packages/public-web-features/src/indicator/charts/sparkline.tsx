@@ -3,7 +3,7 @@ import { periodLabel } from '@fphd/utils/period-label';
 import { availablePeriodTypes, filterObservations } from '../data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
 import { alignedSeries, periodKey } from './chart-data.ts';
-import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
+import { ChartDataTable, chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
 
 export function Sparkline({
   id,
@@ -30,6 +30,7 @@ export function Sparkline({
     .sort((a, b) => periodKey(a).localeCompare(periodKey(b)))
     .slice(-8)
     .map((observation) => ({
+      key: periodKey(observation),
       label: periodLabel(observation, indicator.yearType),
       value: observation.value,
     }));
@@ -90,6 +91,15 @@ export function Sparkline({
             {endpoint(first)}
             {endpoint(latest)}
           </p>
+          <ChartDataTable
+            title={title}
+            columns={['Period', primary?.name ?? 'Value']}
+            rows={points.map(({ key, label, value }) => ({
+              key,
+              label,
+              values: [chartValue(value, indicator.unit)],
+            }))}
+          />
         </div>
       ) : (
         <NoChartData>No trend available (not enough data).</NoChartData>

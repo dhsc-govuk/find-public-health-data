@@ -12,7 +12,7 @@ import { indicatorPath } from '@fphd/utils/indicator-path';
 import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
-import { type LoaderFunctionArgs, RouterContextProvider, redirect } from 'react-router';
+import { type LoaderFunctionArgs, redirect } from 'react-router';
 import {
   AREA_COMPARISON_GROUPS,
   areaComparisonOptions,
@@ -42,9 +42,8 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
       return loaded;
     },
   };
-  const sharedContext = new RouterContextProvider();
-  sharedContext.set(apiContext, sharedApi);
-  args = { ...args, context: sharedContext };
+  // The request's own context, so its other values reach the loaders unchanged.
+  args.context.set(apiContext, sharedApi);
   const { context, params, request } = args;
   const url = new URL(request.url);
 

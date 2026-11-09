@@ -27,7 +27,7 @@ function markup(values: (number | null)[]) {
   );
 }
 
-it('renders the trend on the server with values available as an accessible description', () => {
+it('renders the trend on the server with its values as a description and a table', () => {
   const html = markup([10, 12, 14]);
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const svg = doc.querySelector('svg');
@@ -37,8 +37,12 @@ it('renders the trend on the server with values available as an accessible descr
   expect(svg?.querySelector('polyline')?.getAttribute('points')).toBe(
     '5.0,51.0 140.0,28.0 275.0,5.0',
   );
-  expect(doc.querySelector('table')).toBeNull();
-  expect(html.length).toBeLessThan(1000);
+  expect(doc.querySelector('summary')?.textContent).toBe('View chart data as a table');
+  expect([...doc.querySelectorAll('tbody tr')].map((row) => row.textContent)).toEqual([
+    '202010.0%',
+    '202112.0%',
+    '202214.0%',
+  ]);
 });
 
 it('keeps gaps and constant values finite and requires two values', () => {
