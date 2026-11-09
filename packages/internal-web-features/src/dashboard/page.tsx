@@ -113,13 +113,10 @@ function underReviewSections({ unassigned, assigned }: IndicatorsUnderReview) {
 /**
  * One section for each table the user may see: Unassigned and Assigned indicators for an IMRG
  * manager, Review for an IMRG reviewer, Scheduled indicators for an admin, then the indicator
- * list, whose page links keep its tab open when `tabbed`.
+ * list.
  */
-function dashboardSections(
-  { underReview, toReview, scheduled, list }: DashboardPageProps,
-  tabbed: boolean,
-) {
-  return [
+function dashboardSections({ underReview, toReview, scheduled, list }: DashboardPageProps) {
+  const sectionsBeforeList = [
     ...(underReview === null ? [] : underReviewSections(underReview)),
     toReview === null
       ? null
@@ -140,8 +137,13 @@ function dashboardSections(
           label: countedLabel('Scheduled indicators', scheduled.length),
           content: <ScheduledTable indicators={scheduled} />,
         },
-    list === null ? null : listSection(list, tabbed),
   ].filter((section) => section !== null);
+
+  // The list comes last, so it is on a tab, and its page links keep that tab open, only when
+  // other sections come before it.
+  return list === null
+    ? sectionsBeforeList
+    : [...sectionsBeforeList, listSection(list, sectionsBeforeList.length > 0)];
 }
 
 /**
@@ -150,9 +152,8 @@ function dashboardSections(
  * indicators. Each table gets a tab of its own whenever there is more than one.
  */
 export function DashboardPage(props: DashboardPageProps) {
-  // Only the IMRG manager's role brings two tables, so any second role means more than one.
-  const tabbed = props.underReview !== null || roleCount(props) > 1;
-  const sections = dashboardSections(props, tabbed);
+  const sections = dashboardSections(props);
+  const tabbed = sections.length > 1;
 
   return (
     <GridRow>
