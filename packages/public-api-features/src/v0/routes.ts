@@ -1,6 +1,7 @@
 import type { Repositories } from '@fphd/db';
 import { Router } from 'express';
 
+import { areasRouter } from './areas.ts';
 import { dimensionsRouter } from './dimensions.ts';
 import { cors, handleError, notFound } from './http.ts';
 import { openApiRouter } from './openapi.ts';
@@ -17,6 +18,7 @@ export function v0Routes(repositories: Repositories): Router {
   router.use(openApiRouter());
   router.use(tagsRouter(repositories.reference));
   router.use(dimensionsRouter(repositories.reference));
+  router.use(areasRouter(repositories.areas, repositories.reference));
   router.use('/v0', notFound);
   router.use('/v0', handleError);
 
