@@ -25,7 +25,11 @@ export function createBaseApp({
   isLive = () => true,
 }: {
   serviceName: string;
-  /** False asks the platform to restart the process, as when a worker's loop has hung. */
+  /**
+   * Called on each `/livez` request. Returning false makes `/livez` answer 503 with the status
+   * 'stalled', which asks the platform to restart the process. The internal worker uses this to
+   * report that its sweep loop has hung.
+   */
   isLive?: () => boolean;
 }): Express {
   const app = express();

@@ -16,9 +16,9 @@ Alongside them sits `@fphd/operations`, which serves no traffic and has no port.
 command-line application, run as a job — see [Operational commands](#operational-commands).
 
 `@fphd/internal-worker` serves no traffic either. It publishes each scheduled indicator version
-at its publication time, checking one second past each minute, and answers only the `/livez` and
-`/readyz` probes, on port 4002. It connects to the database as the internal API does. `pnpm dev`
-and `pnpm dev:internal` start it.
+at its publication time, checking for due versions one second past each minute. Its only routes
+are the `/livez` and `/readyz` probes, on port 4002. It connects to the database as the
+`internal_api` role, as the internal API does. `pnpm dev` and `pnpm dev:internal` start it.
 
 ## Requirements
 
@@ -278,9 +278,9 @@ story against the spec titles.
 ## The public artifact boundary
 
 `pnpm check:artefacts` (`tools/artefact-boundary`, also its own CI job) fails if internal code or a
-repository secret has reached a public artifact, the database operations a server app, or the
-internal API's code the internal worker. It applies seven checks, cheapest first so the common
-failure is reported without waiting for a build:
+repository secret has reached a public artifact, if the database operations have reached a server
+app, or if the internal API's code has reached the internal worker. It applies seven checks,
+cheapest first so the common failure is reported without waiting for a build:
 
 - no reference to the `secrets` context can reach a `docker build` step in any workflow — not in
   the step's `run`, `with` or `env`, and not in `env` inherited from its job or the workflow. The
@@ -335,8 +335,8 @@ docker compose down -v    # stop and delete all data
 ```
 
 `pnpm services:up` starts every compose service that carries no `profiles:` key, so a service added
-to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The four
-app services and the worker's are profile-gated and belong to `pnpm dev:mixed`.
+to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The
+services for the four apps and the worker are profile-gated and belong to `pnpm dev:mixed`.
 
 Each API connects with its own login role (`public_api`, `internal_api`) rather than as the owner,
 so access can be constrained per audience at the grant level. The roles, and the `fphd_owner` group

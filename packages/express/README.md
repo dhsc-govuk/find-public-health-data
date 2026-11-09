@@ -7,7 +7,7 @@ only routes are the probes. No other app uses it directly.
 
 | Export                       | Purpose                                                                          |
 | ---------------------------- | -------------------------------------------------------------------------------- |
-| `createBaseApp`              | The `/livez` and `/readyz` probes and the security headers every response carries. `isLive` lets an app fail `/livez` |
+| `createBaseApp`              | The `/livez` and `/readyz` probes and the security headers every response carries. An app can pass `isLive` to make `/livez` answer 503, which asks the platform to restart it |
 | `checkDependencies`          | Checks each dependency from start-up, logging "Dependency unreachable at start-up" and retrying until it answers |
 | `requestId`, `REQUEST_ID_HEADER` | The per-request id middleware and the header it is carried in between the web apps and the APIs |
 | `requestLogging`             | pino-http request logging, mounted by the consumer after any routes it wants kept out of the log |

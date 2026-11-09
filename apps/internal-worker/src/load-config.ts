@@ -17,13 +17,14 @@ import {
 
 const envSchema = z
   .object({
-    // The port serves only the probes.
+    // The worker listens on this port only for its /livez and /readyz probes.
     ...serverEnvFields({ port: 4002 }),
     ...logEnvFields,
     ...dbEnvFields,
     ...dbAuthEnvFields,
     INTERNAL_API_PASSWORD: z.string().min(1).optional(),
-    // The worker identity's Entra principal, a member of internal_api.
+    // Under DB_AUTH=entra, the role name of the worker's Entra principal, which `db bootstrap`
+    // creates for the worker's managed identity and makes a member of internal_api.
     DB_USER: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => checkDbLogin(dbLogin(env), ctx));
@@ -44,8 +45,10 @@ function dbLogin(env: {
   };
 }
 
-/** Every process.env read in this app happens via this module. The parse of the real environment
- * happens once, in config.ts. */
+/**
+ * Every read of process.env in this app goes through this function. It is pure, so tests can call
+ * it with their own environment. config.ts calls it once with the real environment.
+ */
 export function loadConfig(env: NodeJS.ProcessEnv) {
   const parsed = parseEnv(envSchema, env);
 

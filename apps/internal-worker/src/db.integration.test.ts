@@ -3,8 +3,9 @@ import { publishDueVersions } from '@fphd/internal-workflow';
 import { createLogger } from '@fphd/logger';
 import { afterAll, describe, expect, it } from 'vitest';
 
-// config.ts parses the environment at import, so POSTGRES_DB must point at this file's own
-// database before db.ts is imported. The global setup has already loaded the repo .env.
+// config.ts parses the environment when it is first imported, so POSTGRES_DB must name this
+// file's own test database before db.ts, which imports config.ts, is imported. The global test
+// setup has already loaded the repository's .env file.
 const testDb = await createTestDb({ template: 'seeded' });
 process.env.POSTGRES_DB = testDb.name;
 

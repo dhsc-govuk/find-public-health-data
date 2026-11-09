@@ -34,7 +34,8 @@ const server = startServer({
   port: config.port,
   shutdown: config.shutdown,
   ...logging,
-  // From the first signal, no sweep starts and the one in flight takes no further version.
+  // When the first shutdown signal arrives, no new sweep starts, and a sweep that is running
+  // publishes no more versions after the one it is on. onShutdown waits for that sweep to end.
   onStopping: (signal, budgets) => {
     void sweeps.stop();
     logging.onStopping(signal, budgets);

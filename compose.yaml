@@ -188,7 +188,8 @@ services:
       timeout: 5s
       retries: 5
 
-  # No published port: it serves only the probes, which its healthcheck reaches in the container.
+  # The worker publishes no port to the host. Its only routes are the /livez and /readyz probes,
+  # and the healthcheck below calls /livez from inside the container.
   internal-worker:
     profiles: [internal-worker]
     build:

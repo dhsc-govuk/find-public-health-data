@@ -22,7 +22,11 @@ const PUBLIC_APPS = [PUBLIC_WEB, PUBLIC_API];
 
 const INTERNAL_WORKER = '@fphd/internal-worker';
 
-/** The apps that serve requests. Only the operations image may change a database. */
+/**
+ * The apps that run as servers: the four that serve requests, and the internal worker, which
+ * serves only its probes. None of them may carry the database operations, because only the
+ * operations image may change a database.
+ */
 const SERVER_APPS: Pick<PublicApp, 'pkg' | 'bundled'>[] = [
   PUBLIC_WEB,
   PUBLIC_API,

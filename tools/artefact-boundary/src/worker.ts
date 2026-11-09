@@ -1,14 +1,16 @@
 import type { WorkspacePackage } from './workspace.ts';
 
 /**
- * Packages the internal worker must not ship: the internal API's routes and uploads, the API
- * server and the sign-in code. It publishes through `@fphd/internal-workflow` alone.
+ * Packages that must not be in the internal worker's image: the internal API's routes and upload
+ * handling (`@fphd/internal-api-features`), the API server (`@fphd/api-server`) and the session
+ * and sign-in code (`@fphd/auth`). The worker publishes through `@fphd/internal-workflow` alone.
  */
 const KEPT_FROM_WORKER = ['@fphd/api-server', '@fphd/auth', '@fphd/internal-api-features'];
 
 /**
- * A name missing from the workspace throws rather than matching nothing: after a rename, an empty
- * result is indistinguishable from a clean one, so the check would silently stop checking.
+ * Returns the packages in the worker's dependency closure that the worker must not ship, sorted.
+ * It throws if any of those package names is missing from the workspace. Otherwise, after one of
+ * them was renamed, the check would find nothing and pass without checking anything.
  */
 export function findPackagesKeptFromWorker(
   closure: readonly string[],

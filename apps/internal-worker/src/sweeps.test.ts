@@ -12,7 +12,10 @@ function stubLogger() {
   return { info: vi.fn(), error: vi.fn() } as unknown as Logger;
 }
 
-/** A sweep whose every call stays in flight until the test finishes the calls made so far. */
+/**
+ * A stub sweep whose calls keep running until the test calls `finish`. Each call to `finish` ends
+ * every sweep call made before it.
+ */
 function heldSweep() {
   let pending: ((value: PublicationSweep) => void)[] = [];
   const sweep = vi.fn(
@@ -28,7 +31,10 @@ function heldSweep() {
   return { sweep, finish };
 }
 
-/** A sweep that publishes one of `versions` every 20 seconds until it is told to stop. */
+/**
+ * A stub sweep with `versions` versions due. It takes 20 seconds to publish each one, and checks
+ * `shouldStop` before it starts each one.
+ */
 function versionsSweep(versions: number) {
   return vi.fn(async (shouldStop: () => boolean): Promise<PublicationSweep> => {
     let published = 0;
@@ -143,7 +149,8 @@ describe('startSweeps', () => {
     const sweep = versionsSweep(5);
     const running = startSweeps({ sweep, logger });
 
-    // Versions end at 20, 40 and 60 seconds; the budget has passed by the third.
+    // The sweep finishes versions at 20, 40 and 60 seconds. The 50-second budget runs out while it
+    // is publishing the third, so it does not start a fourth.
     expect(SWEEP_BUDGET_MS).toBe(50_000);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(logger.info).toHaveBeenCalledWith(
@@ -151,7 +158,8 @@ describe('startSweeps', () => {
       'Publication sweep',
     );
 
-    // The 09:30:01 boundary came mid-sweep, so the next is at 09:31:01.
+    // The 09:30:01 start time came while the first sweep was still running, so it was skipped and
+    // the second sweep starts at 09:31:01.
     await vi.advanceTimersByTimeAsync(at('09:31:01.000') - at('09:30:30.000') - 1);
     expect(sweep).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);

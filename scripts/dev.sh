@@ -7,7 +7,7 @@
 #   pnpm dev:mixed public-web internal-web      # both webs local, both APIs and the worker in containers
 #
 # Ctrl-C stops the local apps and the app containers; the database stays up.
-# All local is `pnpm dev`; all in containers is
+# To run every app locally, use `pnpm dev`. To run every app in a container, use
 # `docker compose --profile public-web --profile internal-web --profile public-api --profile internal-api --profile internal-worker up --build`.
 set -euo pipefail
 cd "$(dirname "$0")/.."

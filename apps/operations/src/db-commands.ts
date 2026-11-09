@@ -70,8 +70,11 @@ export function rolesToBootstrap(roles: Config['roles']): DatabaseRole[] {
 }
 
 /**
- * Under DB_AUTH=entra, each app identity's principal, refusing a partial set as above. The worker
- * has an identity of its own and joins `internal_api`, as the internal API does.
+ * Under DB_AUTH=entra, the Entra principal to create for each app's managed identity, with the role
+ * it joins. Like `rolesToBootstrap`, it throws naming every missing variable unless all three
+ * principals are configured, rather than bootstrapping some of them and reporting success. The
+ * internal worker has a managed identity of its own, and its principal joins `internal_api` as the
+ * internal API's does.
  */
 export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] {
   const required = [

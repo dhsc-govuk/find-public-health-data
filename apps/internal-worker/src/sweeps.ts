@@ -3,32 +3,46 @@ import type { Logger } from '@fphd/logger';
 
 const MINUTE_MS = 60_000;
 
-// Publication times are whole minutes. The second absorbs a database clock running behind ours.
+// Publication times fall on whole minutes. Each sweep starts one second after a minute boundary,
+// so a version due on that minute is already due even if the database server's clock, which
+// decides what is due, runs slightly behind this process's clock.
 const AFTER_BOUNDARY_MS = 1_000;
 
-/** How long a sweep goes on taking versions; the rest wait for the next boundary. */
+/**
+ * How long a sweep keeps starting to publish versions. Once this has passed, the sweep finishes the
+ * version it is on and ends, and any versions still due wait for the next sweep.
+ */
 export const SWEEP_BUDGET_MS = 50_000;
 
-/** When the next sweep after `now` starts: one second past the next minute boundary. */
+/**
+ * The start time of the first sweep after `now`. That is the next time that falls one second past
+ * a minute boundary.
+ */
 export function nextSweepAt(now: number): number {
   return (Math.floor((now - AFTER_BOUNDARY_MS) / MINUTE_MS) + 1) * MINUTE_MS + AFTER_BOUNDARY_MS;
 }
 
 export interface Sweeps {
-  /** When the last sweep ended, or when the sweeps started if none has ended yet. */
+  /**
+   * When the last sweep ended, whether it succeeded or threw. Before any sweep has ended, it is
+   * when `startSweeps` was called.
+   */
   lastCompletedAt: () => number;
   /**
-   * Schedules no more sweeps, has the sweep in flight take no version after its current one, and
-   * resolves once that sweep ends.
+   * Stops scheduling sweeps, and tells a sweep that is running to publish no more versions after
+   * the one it is on. The returned promise resolves once that sweep has ended.
    */
   stop: () => Promise<void>;
 }
 
 /**
- * Sweeps once now, then at each `nextSweepAt`. One sweep runs at a time: a boundary reached while
- * one is still running is skipped. A sweep that throws is logged, and the next runs as usual. A
- * sweep is told to stop taking versions once `SWEEP_BUDGET_MS` has passed, or the sweeps are
- * stopping.
+ * Runs a publication sweep straight away, then at each start time `nextSweepAt` gives. Only one
+ * sweep runs at a time, so a start time that comes while a sweep is still running is skipped. A
+ * sweep that throws is logged as failed, and the next sweep runs as usual.
+ *
+ * Each sweep is given a `shouldStop` callback. It returns true once the sweep has run for
+ * `SWEEP_BUDGET_MS` or `stop` has been called, and the sweep then publishes no more versions after
+ * the one it is on.
  */
 export function startSweeps({
   sweep,
