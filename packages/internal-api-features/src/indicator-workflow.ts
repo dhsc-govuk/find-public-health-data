@@ -52,6 +52,10 @@ interface StepEntry {
   permission: (user: SessionUser, indicator: IndicatorAccess) => boolean;
 }
 
+// The permission for a step no user may take. Scheduled publication takes the publish step
+// itself when the publication time comes, so no route offers that step to a user.
+const noUser = () => false;
+
 const RESPONSE_FROM: StepEntry['from'] = {
   indicatorStatuses: ['new'],
   versionStatuses: ['draft'],
@@ -133,7 +137,8 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     leadsTo: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
     permission: canSchedulePublication,
   },
-  // The only step open from a scheduled version: it stays scheduled, with a new date.
+  // Changes the publication date of a scheduled version, which stays scheduled with the new date.
+  // The step stays open until the version is published.
   change_publication_date: {
     from: {
       indicatorStatuses: ['new'],
@@ -143,6 +148,18 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     },
     leadsTo: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
     permission: canSchedulePublication,
+  },
+  // Publishes the scheduled version of an indicator that has never been published, at its
+  // publication time. The version stays locked once it is published.
+  publish: {
+    from: {
+      indicatorStatuses: ['new'],
+      versionStatuses: ['scheduled'],
+      isLocked: true,
+      submissionStatuses: ['approved'],
+    },
+    leadsTo: { versionStatus: 'published', submissionStatus: 'approved', isLocked: true },
+    permission: noUser,
   },
 };
 

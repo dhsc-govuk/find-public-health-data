@@ -210,6 +210,21 @@ describe('change_publication_date', () => {
   });
 });
 
+describe('publish', () => {
+  it('publishes a scheduled new indicator, still locked and approved', () => {
+    expect(nextState(scheduled, 'publish')).toEqual({
+      ok: true,
+      state: { versionStatus: 'published', submissionStatus: 'approved', isLocked: true },
+    });
+  });
+
+  it('is refused in every other context', () => {
+    const open = CONTEXTS.filter((context) => nextState(context, 'publish').ok);
+
+    expect(open).toEqual([scheduled]);
+  });
+});
+
 describe('allowedSteps', () => {
   it.each([
     ['a draft never submitted', unsubmitted, ['submit']],
@@ -222,20 +237,30 @@ describe('allowedSteps', () => {
     ],
     ['a draft sent back for changes', changesRequested, ['resubmit']],
     ['an approved draft', approved, ['schedule']],
-    ['a scheduled version', scheduled, ['change_publication_date']],
+    ['a scheduled version', scheduled, ['change_publication_date', 'publish']],
     ['a published version', { ...unsubmitted, versionStatus: 'published' }, []],
   ] as const)('offers %s only the steps open to it', (_, context, steps) => {
     expect(allowedSteps(context)).toEqual(steps);
   });
 
-  it('offers a scheduled version only a change of date, and only while locked and approved', () => {
+  it('offers a scheduled version a change of date or publication, only while locked and approved', () => {
     const contexts = CONTEXTS.filter(({ versionStatus }) => versionStatus === 'scheduled');
     const offered = contexts.flatMap((context) =>
       allowedSteps(context).map((step) => [context, step]),
     );
 
     expect(contexts).toHaveLength(2 * 2 * (INDICATOR_SUBMISSION_STATUSES.length + 1));
-    expect(offered).toEqual([[scheduled, 'change_publication_date']]);
+    expect(offered).toEqual([
+      [scheduled, 'change_publication_date'],
+      [scheduled, 'publish'],
+    ]);
+  });
+
+  it('offers a published version no step at all', () => {
+    const contexts = CONTEXTS.filter(({ versionStatus }) => versionStatus === 'published');
+
+    expect(contexts.length).toBeGreaterThan(0);
+    expect(contexts.flatMap((context) => allowedSteps(context))).toEqual([]);
   });
 });
 
@@ -311,6 +336,12 @@ describe('mayTakeStep', () => {
     }
   });
 
+  it('lets no user publish', () => {
+    for (const user of [publisher, admin, manager, reviewer, publishingReviewer]) {
+      expect(mayTakeStep(user, assigned, 'publish')).toBe(false);
+    }
+  });
+
   it.each(RESPONSE_STEPS)('lets an assigned reviewer alone %s', (step) => {
     expect(mayTakeStep(reviewer, assigned, step)).toBe(true);
     for (const user of [otherReviewer, publisher, manager, admin]) {
@@ -359,6 +390,12 @@ describe('stepsOpenTo', () => {
     expect(stepsOpenTo(admin, row)).toEqual(steps);
     for (const user of [publisher, manager, reviewer]) {
       expect(stepsOpenTo(user, row)).toEqual([]);
+    }
+  });
+
+  it('offers nobody the publication of a scheduled version', () => {
+    for (const user of [publisher, admin, manager, reviewer, publishingReviewer]) {
+      expect(stepsOpenTo(user, scheduledRow)).not.toContain('publish');
     }
   });
 

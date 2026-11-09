@@ -94,6 +94,15 @@ export function isUnpublished(status: AnyColumn): SQL {
   return sql`${status} IN (${literals(UNPUBLISHED_VERSION_STATUSES)})`;
 }
 
+/**
+ * SQL that is true when `status` is 'scheduled'. It writes 'scheduled' as a literal rather than
+ * as a query parameter, so the planner can use the partial index of scheduled versions,
+ * `idx_indicator_version_scheduled_publish_at`, whose condition is built by this function too.
+ */
+export function isScheduled(status: AnyColumn): SQL {
+  return sql`${status} = ${literals(['scheduled'])}`;
+}
+
 /** A yes whose detail the contract requires: the detail is kept beside a yes and nothing else. */
 function detailBesideYes(answer: AnyPgColumn, detail: AnyPgColumn): SQL {
   return sql`(${answer} IS TRUE) = (${detail} IS NOT NULL)`;
@@ -453,6 +462,11 @@ export const indicatorVersion = pgTable(
     uniqueIndex('idx_indicator_version_one_unpublished')
       .on(t.indicatorId)
       .where(sql`${t.status} IN (${literals(UNPUBLISHED_VERSION_STATUSES)})`),
+    // Scheduled publication finds due versions through this index. It holds only scheduled
+    // versions, ordered by publication time and then id, which is the order they are published.
+    index('idx_indicator_version_scheduled_publish_at')
+      .on(t.scheduledPublishAt, t.id)
+      .where(isScheduled(t.status)),
     index('idx_indicator_version_indicator').on(t.indicatorId),
     index('idx_indicator_version_slug').on(t.slug),
     index('idx_indicator_version_name_trgm').using('gin', t.name.op('gin_trgm_ops')),
