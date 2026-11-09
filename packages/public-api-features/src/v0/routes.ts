@@ -5,6 +5,7 @@ import { areasRouter } from './areas.ts';
 import { dataRouter } from './data.ts';
 import { dimensionsRouter } from './dimensions.ts';
 import { cors, handleError, notFound } from './http.ts';
+import { indicatorsRouter } from './indicators.ts';
 import { openApiRouter } from './openapi.ts';
 import { tagsRouter } from './tags.ts';
 
@@ -21,6 +22,7 @@ export function v0Routes(repositories: Repositories): Router {
   router.use(dimensionsRouter(repositories.reference));
   router.use(areasRouter(repositories.areas, repositories.reference));
   router.use(dataRouter(repositories));
+  router.use(indicatorsRouter(repositories.indicators, repositories.reference));
   router.use('/v0', notFound);
   router.use('/v0', handleError);
 

@@ -24,6 +24,11 @@ import {
   listIndicatorAreas,
   searchAreas,
 } from './area-repository.ts';
+import {
+  type CatalogueEntry,
+  type CatalogueSelection,
+  listCatalogue,
+} from './catalogue-repository.ts';
 import type { Database, DatabaseReader } from './client.ts';
 import { coalescedReads } from './coalesced-reads.ts';
 import { type DataQuery, type DataRowRecord, streamData } from './data-repository.ts';
@@ -109,6 +114,8 @@ export interface IndicatorRepository {
   ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
+  /** Published indicators with everything the public API's catalogue gives them. */
+  listCatalogue(selection?: CatalogueSelection): Promise<CatalogueEntry[]>;
 }
 
 export interface AreaRepository {
@@ -223,6 +230,7 @@ export function createRepositoriesOn(
         run((db) => getObservationRangeByTier(db, views, indicatorId, tier, parentCode)),
       searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
       listFacets: () => run((db) => listIndicatorFacets(db, views)),
+      listCatalogue: (selection) => run((db) => listCatalogue(db, selection)),
     },
     data: {
       // A stream reads through a cursor that outlives any one read, so it needs the database
