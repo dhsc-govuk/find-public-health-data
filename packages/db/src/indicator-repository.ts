@@ -398,6 +398,9 @@ export interface ObservationRangePeriod {
   segment: string;
   min: number;
   max: number;
+  p25: number | null;
+  p75: number | null;
+  quintileCutoffs: number[] | null;
 }
 
 /** The precomputed per-period range for each least-disaggregated segment at a display level. */
@@ -413,6 +416,9 @@ export async function getObservationRange(
       segment: observationRange.segment,
       min: observationRange.min,
       max: observationRange.max,
+      p25: observationRange.p25,
+      p75: observationRange.p75,
+      quintileCutoffs: observationRange.quintileCutoffs,
     })
     .from(observationRange)
     .where(

@@ -51,7 +51,7 @@ async function replaceReadModelRows(
   // tables; a test runs both against a seed whose data is all published.
   await tx.execute(sql`
     INSERT INTO observation_range
-      (indicator_id, display_group, from_date, to_date, segment, min, max)
+      (indicator_id, display_group, from_date, to_date, segment, min, max, p25, p75, quintile_cutoffs)
     WITH range_observations AS (
       SELECT
         o.indicator_id,
@@ -73,17 +73,28 @@ async function replaceReadModelRows(
         AND at.display_group IS NOT NULL
         AND ${forIndicator(sql`o.indicator_id`, indicatorId)}
       GROUP BY o.id, o.indicator_id, at.display_group, o.from_date, o.to_date, o.value
+    ), distributions AS (
+      SELECT
+        ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment,
+        min(ro.value) AS min, max(ro.value) AS max,
+        percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ro.value) AS quartiles,
+        array_agg(ro.value ORDER BY ro.value) AS ordered_values,
+        count(*) AS n
+      FROM range_observations ro
+      GROUP BY ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment
     )
     SELECT
-      ro.indicator_id,
-      ro.display_group,
-      ro.from_date,
-      ro.to_date,
-      ro.segment,
-      min(ro.value),
-      max(ro.value)
-    FROM range_observations ro
-    GROUP BY ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment
+      indicator_id, display_group, from_date, to_date, segment, min, max,
+      quartiles[1], quartiles[2],
+      -- Each cutoff is the last rank before the next fifth. Tied values stay in the
+      -- group of their first rank because the chart advances only past a cutoff.
+      CASE WHEN n >= 5 THEN ARRAY[
+        ordered_values[ceil(n * 0.2)::int],
+        ordered_values[ceil(n * 0.4)::int],
+        ordered_values[ceil(n * 0.6)::int],
+        ordered_values[ceil(n * 0.8)::int]
+      ] END
+    FROM distributions
   `);
 
   await replaceObservationSeries(tx, indicatorId);

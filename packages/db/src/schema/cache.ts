@@ -69,6 +69,9 @@ export const observationRange = pgTable(
     segment: text().notNull(),
     min: doublePrecision().notNull(),
     max: doublePrecision().notNull(),
+    p25: doublePrecision(),
+    p75: doublePrecision(),
+    quintileCutoffs: doublePrecision().array(),
   },
   (t) => [
     primaryKey({

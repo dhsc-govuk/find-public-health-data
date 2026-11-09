@@ -245,6 +245,9 @@ export const indicatorRangeSchema = z.object({
       segment: z.string(),
       min: z.number(),
       max: z.number(),
+      p25: z.number().nullish(),
+      p75: z.number().nullish(),
+      quintileCutoffs: z.tuple([z.number(), z.number(), z.number(), z.number()]).nullish(),
     }),
   ),
 });

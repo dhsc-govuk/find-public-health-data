@@ -319,5 +319,8 @@ export const publishedObservationRange = publishedSchema
     segment: text('segment').notNull(),
     min: doublePrecision('min').notNull(),
     max: doublePrecision('max').notNull(),
+    p25: doublePrecision('p25'),
+    p75: doublePrecision('p75'),
+    quintileCutoffs: doublePrecision('quintile_cutoffs').array(),
   })
   .existing();
