@@ -78,8 +78,16 @@ export function createBetaAccess({
         return { outcome: 'already_sent', invitee };
       }
 
-      await sendEmail(signInEmail(invitee.email, link.href, LINK_LIFETIME_MINUTES));
-      lastSentAt.set(invitee.email, issuedAt.getTime());
+      // Recorded before sending, so requests that arrive while this one waits on the email
+      // service see it and send nothing. A failed send gives the invitee their next try at once.
+      const sentAt = issuedAt.getTime();
+      lastSentAt.set(invitee.email, sentAt);
+      try {
+        await sendEmail(signInEmail(invitee.email, link.href, LINK_LIFETIME_MINUTES));
+      } catch (error) {
+        if (lastSentAt.get(invitee.email) === sentAt) lastSentAt.delete(invitee.email);
+        throw error;
+      }
       return { outcome: 'sent', invitee };
     },
 
