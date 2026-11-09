@@ -1,8 +1,9 @@
+import { MAX_INDICATOR_QUERY_LENGTH, queryText } from '@fphd/public-api-features/contract';
 import { CardList, searchPattern } from '@fphd/ui';
 import type { TopicSummary } from './loader.ts';
 
 export function matchingTopics(topics: TopicSummary[], query: string) {
-  const pattern = searchPattern(query);
+  const pattern = searchPattern(queryText(query, MAX_INDICATOR_QUERY_LENGTH));
   return pattern
     ? topics.filter((topic) => pattern.test(topic.title) || pattern.test(topic.description))
     : topics;
@@ -23,7 +24,7 @@ export function TopicResults({
     <CardList
       columns={columns}
       headingLevel={headingLevel}
-      searchTerm={query}
+      searchTerm={queryText(query, MAX_INDICATOR_QUERY_LENGTH)}
       items={topics.map((topic) => ({
         description: topic.description,
         href: `/topics/${topic.slug}`,

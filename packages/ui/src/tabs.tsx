@@ -154,6 +154,7 @@ function TabPanels({
                 ? { role: 'tab', 'aria-controls': id, 'aria-selected': index === visibleIndex }
                 : {})}
               className="govuk-tabs__tab"
+              // The explicit default value preserves the selected tab through a no-JS form round-trip.
               href={
                 linkSelection || (tabMode && waitForNavigation)
                   ? `${searchFor(index, linkSelection)}#${id}`

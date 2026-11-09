@@ -8,13 +8,19 @@ import {
 import { loadSearchPage } from './loader.ts';
 import { SearchPage } from './page.tsx';
 
-export function shouldRevalidate({ currentUrl, nextUrl }: ShouldRevalidateFunctionArgs) {
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
   const searchKey = (url: URL) => {
     const params = new URLSearchParams(url.search);
     params.delete('tab-search');
-    return `${url.pathname}?${params}`;
+    return params.toString();
   };
-  return searchKey(currentUrl) !== searchKey(nextUrl);
+  const onlyTabChanged =
+    currentUrl.search !== nextUrl.search && searchKey(currentUrl) === searchKey(nextUrl);
+  return onlyTabChanged ? false : defaultShouldRevalidate;
 }
 
 export function createSearchRoute(publicGeographies: boolean) {

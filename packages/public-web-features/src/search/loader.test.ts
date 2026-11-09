@@ -1,3 +1,4 @@
+import { MAX_INDICATOR_QUERY_LENGTH } from '@fphd/public-api-features/contract';
 import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
@@ -63,6 +64,24 @@ function loaderArgs(client: ApiClient, url = 'http://localhost/search'): LoaderF
 }
 
 describe('loadSearchPage', () => {
+  it.each([
+    [' \u0000blood\t  pressure\r\n ', 'blood pressure'],
+    [`  ${'q'.repeat(MAX_INDICATOR_QUERY_LENGTH)} ignored`, 'q'.repeat(MAX_INDICATOR_QUERY_LENGTH)],
+    ['\u0000\t ', ''],
+  ])('uses the same cleaned query in the page and API for %j', async (query, expected) => {
+    const { client, get } = api();
+    const result = await loadSearchPage(
+      loaderArgs(client, `http://localhost/search?${new URLSearchParams({ q: query })}`),
+      true,
+    );
+
+    expect(result.q).toBe(expected);
+    expect(get).toHaveBeenCalledWith(
+      `/api/indicators/search${expected ? `?q=${encodeURIComponent(expected)}` : ''}`,
+      expect.anything(),
+    );
+  });
+
   it('loads topic results while indicator search is still waiting for geography data', async () => {
     const groups = Promise.withResolvers<string[]>();
     const { client, get } = api();

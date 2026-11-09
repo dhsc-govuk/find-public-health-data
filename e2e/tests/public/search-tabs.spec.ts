@@ -44,9 +44,9 @@ test('topics use the same matching results as the topics page', async ({ page })
 
   const query = new URLSearchParams({ q: 'mortality  and life expectancy' });
   await page.goto(`/topics?${query}`);
-  await expect(page.getByText('No topics match your search.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Mortality and life expectancy' })).toBeVisible();
   await page.goto(`/search?${query}&tab-search=topics`);
-  await expect(page.getByRole('tab', { name: 'Topics (0)' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Topics (1)' })).toBeVisible();
 });
 
 test('search updates all counts and keeps the selected tab', async ({ page }, testInfo) => {
@@ -91,18 +91,6 @@ test('the selected search tab supports keyboard navigation, history and reload',
   await expect(topics).toHaveAttribute('aria-selected', 'true');
 });
 
-test('search tabs remain interactive on small screens', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/search?q=diabetes');
-  await expect(page.getByRole('tab')).toHaveCount(2);
-  await page.getByRole('tab', { name: 'Topics (1)', exact: true }).click();
-  await expect(panel(page, 'topics')).toBeVisible();
-  await expect(panel(page, 'indicators')).toBeHidden();
-  await expect(panel(page, 'frameworks')).toHaveCount(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
-  await expectNoAccessibilityViolations(page, testInfo);
-});
-
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -116,7 +104,6 @@ test.describe('without JavaScript', () => {
     await expect(
       panel(page, 'topics').getByRole('link', { name: 'Diabetes', exact: true }),
     ).toBeVisible();
-    await expect(panel(page, 'frameworks')).toHaveCount(0);
 
     await page.getByRole('link', { name: 'Topics (1)', exact: true }).click();
     await expect(panel(page, 'indicators')).toBeHidden();

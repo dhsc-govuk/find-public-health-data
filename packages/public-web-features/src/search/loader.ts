@@ -34,7 +34,6 @@ export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies
   ]);
   return {
     ...search,
-    q: new URL(args.request.url).searchParams.get('q') ?? '',
     geographyLookupUrl: publicGeographies ? '/geographies?scheme=public' : '/geographies',
     topicResults,
   };
