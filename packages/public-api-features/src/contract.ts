@@ -49,6 +49,16 @@ export function queryText(value: unknown, max: number): string {
     : '';
 }
 
+/**
+ * A `limit` query parameter as a whole number from 1 up to `max`. A larger number is cut to
+ * `max`. A missing or malformed value returns undefined, so the caller picks the default.
+ */
+export function queryLimit(value: unknown, max: number): number | undefined {
+  return typeof value === 'string' && /^[1-9]\d*$/.test(value)
+    ? Math.min(Number(value), max)
+    : undefined;
+}
+
 export function pickAreaCodes(value: unknown, limit = MAX_AREA_CODES_PER_REQUEST): string[] {
   return [
     ...new Set(
