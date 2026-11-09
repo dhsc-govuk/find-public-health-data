@@ -124,7 +124,11 @@ export function topicPageTests() {
     const highlight = page.getByRole('region', {
       name: 'Diabetes: QOF prevalence, England: trend chart',
     });
-    await expect(highlight.getByRole('application').locator('.recharts-line-curve')).toBeVisible();
+    await expect(
+      highlight
+        .getByRole('img', { name: 'Diabetes: QOF prevalence, England: trend chart' })
+        .locator('polyline'),
+    ).toBeVisible();
     await highlight.getByText('View chart data as a table', { exact: true }).click();
     await expect(highlight.getByRole('table')).toContainText('7.9%');
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
