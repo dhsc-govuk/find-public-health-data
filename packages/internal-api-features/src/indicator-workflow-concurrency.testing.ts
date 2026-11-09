@@ -1,11 +1,12 @@
 import type { Database } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
+import { type IndicatorStepWrite, takeIndicatorStep } from '@fphd/internal-workflow';
 import { sql } from 'drizzle-orm';
 import { expect } from 'vitest';
 
 import type { IndicatorStep } from './contract.ts';
 import { AS_ACTOR, LOCK_WAIT, lockWaited, lockWaiters } from './indicator-repository.testing.ts';
-import { type IndicatorStepWrite, takeIndicatorStep } from './indicator-workflow-repository.ts';
+import { stillEligibleReviewers } from './indicator-workflow-repository.ts';
 
 /**
  * Takes `step` as `actor`, with `stepWrite` for its own rows, while it holds the draft's lock
@@ -32,6 +33,7 @@ export async function writeWhileStepHolds<Result>(
       await released;
       return undefined;
     },
+    reviewersToCarry: stillEligibleReviewers,
     ...(stepWrite === undefined ? {} : { write: stepWrite }),
   });
   await holding;

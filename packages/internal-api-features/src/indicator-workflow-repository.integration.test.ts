@@ -2,6 +2,7 @@ import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { asc, eq, sql } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
@@ -262,6 +263,22 @@ describe('submitIndicator', () => {
       reason: 'no_draft',
     });
   });
+});
+
+describe('takeIndicatorStep', () => {
+  repositoryTest(
+    'throws for a step that starts a submission without the reviewers to carry',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await completeNewDraft(db, 'Submitted without reviewers');
+
+      await expect(takeIndicatorStep(db, indicatorId, 'submit', AS_ACTOR)).rejects.toThrow(
+        'submit was given no reviewersToCarry',
+      );
+
+      expect((await versionOf(db, versionId)).isLocked).toBe(false);
+      expect(await submissionsOf(db, versionId)).toEqual([]);
+    },
+  );
 });
 
 describe('withdrawSubmission', () => {
