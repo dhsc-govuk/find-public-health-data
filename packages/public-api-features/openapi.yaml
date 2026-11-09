@@ -1365,6 +1365,9 @@ components:
         count:
           type: [number, "null"]
           description: The number of events, such as deaths, where the indicator has one.
+        numerator:
+          type: [number, "null"]
+          description: The number the value is calculated from, over the denominator.
         denominator:
           type: [number, "null"]
           description: The population the value is calculated from, where the indicator has one.
@@ -1493,6 +1496,10 @@ components:
         - type: object
           required:
             - definition
+            - firstPublishedAt
+            - lastPublishedAt
+            - numeratorSources
+            - denominatorSources
             - tags
             - comparatorMethod
             - areaTypes
@@ -1500,6 +1507,16 @@ components:
             - dimensions
             - notes
           properties:
+            firstPublishedAt:
+              type: string
+              format: date-time
+              description: When the indicator was first published.
+              example: "2025-11-04T09:30:00Z"
+            lastPublishedAt:
+              type: string
+              format: date-time
+              description: When the indicator's metadata or data was last published.
+              example: "2026-05-06T09:30:00+01:00"
             definition:
               type: [string, "null"]
             rationale:
@@ -1523,6 +1540,16 @@ components:
                 url:
                   type: [string, "null"]
                   format: uri
+            numeratorSources:
+              type: array
+              description: Who provides the numerator, and the source it comes from.
+              items:
+                $ref: "#/components/schemas/ProviderSource"
+            denominatorSources:
+              type: array
+              description: Who provides the denominator, and the source it comes from.
+              items:
+                $ref: "#/components/schemas/ProviderSource"
             ciMethod:
               type: [string, "null"]
             comparatorMethod:
@@ -1595,6 +1622,17 @@ components:
                   text:
                     type: string
                     example: Value suppressed because of small numbers.
+
+    ProviderSource:
+      type: object
+      required: [provider, source]
+      properties:
+        provider:
+          type: string
+          example: Office for National Statistics
+        source:
+          type: [string, "null"]
+          example: Annual mid-year population estimates
 
     Period:
       type: object

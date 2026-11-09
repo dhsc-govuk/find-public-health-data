@@ -45,6 +45,7 @@ const row: DataRowRecord = {
   lowerCi998: 80.7,
   upperCi998: 81.7,
   count: null,
+  numerator: null,
   denominator: null,
   note: 'n101',
   benchmarkCode: 'E92000001',
@@ -162,7 +163,7 @@ describe('GET /v0/data', () => {
     const [header, first] = response.text.split('\r\n');
     expect(header).toBe(DATA_COLUMNS.join(','));
     expect(first).toBe(
-      '90366,life-expectancy-at-birth,Life expectancy at birth,E06000047,County Durham,counties-and-unitary-authorities,2009-04-01,,2021-01-01,2023-12-31,f,0-4,P0Y,P5Y,,,,,,,,,,,,,,81.2,80.9,81.5,80.7,81.7,,,n101,E92000001,worse',
+      '90366,life-expectancy-at-birth,Life expectancy at birth,E06000047,County Durham,counties-and-unitary-authorities,2009-04-01,,2021-01-01,2023-12-31,f,0-4,P0Y,P5Y,,,,,,,,,,,,,,81.2,80.9,81.5,80.7,81.7,,,,n101,E92000001,worse',
     );
   });
 

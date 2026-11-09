@@ -59,6 +59,7 @@ export const DATA_COLUMNS = [
   'lowerCi998',
   'upperCi998',
   'count',
+  'numerator',
   'denominator',
   'note',
   'benchmark.code',
@@ -200,6 +201,7 @@ export function toDataRow(row: DataRowRecord) {
     lowerCi998: row.lowerCi998,
     upperCi998: row.upperCi998,
     count: row.count,
+    numerator: row.numerator,
     denominator: row.denominator,
     note: row.note,
     benchmark: { code: row.benchmarkCode },
@@ -420,6 +422,7 @@ const NUMBER_COLUMNS = new Set([
   'lowerCi998',
   'upperCi998',
   'count',
+  'numerator',
   'denominator',
 ]);
 const DATE_COLUMNS = new Set(['area.validFrom', 'area.validTo', 'fromDate', 'toDate']);

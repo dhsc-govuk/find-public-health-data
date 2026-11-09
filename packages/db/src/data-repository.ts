@@ -95,6 +95,7 @@ export type DataRowRecord = {
   lowerCi998: number | null;
   upperCi998: number | null;
   count: number | null;
+  numerator: number | null;
   denominator: number | null;
   note: string | null;
   benchmarkCode: string | null;
@@ -308,7 +309,7 @@ function run(
       r.value,
       r.lower_ci_95 AS "lowerCi95", r.upper_ci_95 AS "upperCi95",
       r.lower_ci_998 AS "lowerCi998", r.upper_ci_998 AS "upperCi998",
-      r.count, r.denominator,
+      r.count, r.numerator, r.denominator,
       nt.code AS note,
       bm.code AS "benchmarkCode",
       b.value AS "benchmarkValue"
