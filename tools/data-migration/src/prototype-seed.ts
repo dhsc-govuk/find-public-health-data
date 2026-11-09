@@ -290,7 +290,7 @@ async function addIndicators(
     const yt = yearTypeValues(item.YearType.Name);
     await tx`
       INSERT INTO indicator_version
-        (id, indicator_id, status, published_at, name, slug,
+        (id, indicator_id, status, is_locked, published_at, name, slug,
          value_type_id, unit_id, unit_detail, period_type, year_type, year_end_day, year_end_month,
          ci_method_id, polarity,
          update_frequency, comparator_method_id, ci_confidence_level,
@@ -302,7 +302,7 @@ async function addIndicators(
          has_other_notes, other_notes_detail,
          data_source_id,
          created_at, created_by, updated_at, updated_by)
-      VALUES (${versionId}, ${id}, 'published', ${updatedAt}, ${name}, ${slugify(name)},
+      VALUES (${versionId}, ${id}, 'published', true, ${updatedAt}, ${name}, ${slugify(name)},
         ${valueTypeId(item.ValueType.Name)},
         ${unit.unit_id}, ${unit.unit_detail},
         ${yt.period_type}, ${yt.year_type}, ${yt.year_end_day}, ${yt.year_end_month},

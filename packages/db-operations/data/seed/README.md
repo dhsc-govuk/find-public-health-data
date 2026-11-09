@@ -52,7 +52,7 @@ That yields 433,678 observations, 657,869 bridge rows and 67,978 observation not
   holds imported indicators and has no publishers, so only admins and IMRG managers see them.
   The files name the writer of each version and batch by user id: the PHOLIO migration system
   user for the nine Pholio indicators, and Test seed for the three from the Fingertips API.
-  There are no draft rows in the seed.
+  There are no draft rows in the seed, and every published version is locked (`is_locked`).
 - `observation.csv.gz` may carry a `created_by` column, which the load ignores: an
   observation's writer is its batch's uploader.
 - The files carry no `upload_batch.indicator_version_id`, `indicator_version.upload_batch_id`

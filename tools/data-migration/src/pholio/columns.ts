@@ -34,6 +34,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'id',
     'indicator_id',
     'status',
+    'is_locked',
     'published_at',
     'scheduled_publish_at',
     'upload_batch_id',
