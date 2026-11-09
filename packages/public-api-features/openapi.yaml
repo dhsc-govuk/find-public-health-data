@@ -1535,9 +1535,15 @@ components:
                 count:
                   type: integer
                 earliest:
-                  $ref: "#/components/schemas/Period"
+                  description: Empty if the indicator has no data yet.
+                  oneOf:
+                    - $ref: "#/components/schemas/Period"
+                    - type: "null"
                 latest:
-                  $ref: "#/components/schemas/Period"
+                  description: Empty if the indicator has no data yet.
+                  oneOf:
+                    - $ref: "#/components/schemas/Period"
+                    - type: "null"
             dimensions:
               type: array
               description: |

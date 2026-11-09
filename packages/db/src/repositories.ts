@@ -21,6 +21,11 @@ import {
   listIndicatorAreas,
   searchAreas,
 } from './area-repository.ts';
+import {
+  type CatalogueEntry,
+  type CatalogueSelection,
+  listCatalogue,
+} from './catalogue-repository.ts';
 import type { Database } from './client.ts';
 import { type DataQuery, type DataRowRecord, streamData } from './data-repository.ts';
 import {
@@ -79,6 +84,8 @@ export interface IndicatorRepository {
   ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
+  /** Published indicators with everything the public API's catalogue gives them. */
+  listCatalogue(selection?: CatalogueSelection): Promise<CatalogueEntry[]>;
 }
 
 export interface AreaRepository {
@@ -166,6 +173,7 @@ export function createRepositories(db: Database): Repositories {
         getObservationRange(db, indicatorId, displayGroup),
       searchWithFilters: (filters) => searchIndicators(db, filters),
       listFacets: () => listIndicatorFacets(db),
+      listCatalogue: (selection) => listCatalogue(db, selection),
     },
     reference: {
       listTags: () => listTags(db),

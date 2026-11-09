@@ -5,7 +5,8 @@ import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { DATA_COLUMNS } from './data.ts';
-import { expectToMatchSpec } from './openapi.testing.ts';
+import { INDICATOR_COLUMNS } from './indicators.ts';
+import { expectToMatchSpec, specColumns } from './openapi.testing.ts';
 import { v0Routes } from './routes.ts';
 
 let testDb: TestDb;
@@ -144,7 +145,7 @@ describe('GET /v0/data', () => {
     return response.body.data;
   };
 
-  it('writes CSV with the spec\'s columns', async () => {
+  it("writes CSV with the spec's columns", async () => {
     const response = await request(app).get('/v0/data?indicator=108&area=E92000001&latest=1');
 
     expect(response.status).toBe(200);
@@ -160,7 +161,7 @@ describe('GET /v0/data', () => {
     expect(data.every((row) => row.benchmark.code === 'E92000001')).toBe(true);
   });
 
-  it("compares each county with its region when asked", async () => {
+  it('compares each county with its region when asked', async () => {
     const data = await rows(
       'indicator=108&areaType=counties-and-unitary-authorities&parent=E12000001&latest=1&benchmark=regions',
     );
@@ -188,5 +189,52 @@ describe('GET /v0/data', () => {
     const data = await rows('indicator=94194&area=E92000001&ageFrom=P0Y&ageUnder=P5Y');
 
     expect(data.every((row) => row.ageFrom !== null)).toBe(true);
+  });
+});
+
+describe('indicators', () => {
+  it('lists the catalogue with full metadata in JSON, matching the spec', async () => {
+    const response = await getJson('/v0/indicators');
+
+    expect(response.status).toBe(200);
+    expectToMatchSpec('/v0/indicators', 200, response.body);
+    const [first] = response.body.data;
+    expect(first.periods.count).toBeGreaterThan(0);
+    expect(first.areaTypes.length).toBeGreaterThan(0);
+  });
+
+  it("writes summary rows with the spec's columns in CSV", async () => {
+    const response = await request(app).get('/v0/indicators?shortId=108');
+
+    expect(INDICATOR_COLUMNS).toEqual(specColumns('IndicatorSummary'));
+    expect(response.text.split('\r\n')[0]).toBe(INDICATOR_COLUMNS.join(','));
+    expect(response.text.split('\r\n')[1]).toMatch(/^108,/);
+  });
+
+  it('keeps only indicators with every tag asked for', async () => {
+    const all = await getJson('/v0/indicators?shortId=108');
+    const [tag] = all.body.data[0].tags as { slug: string }[];
+    if (!tag) throw new Error('Indicator 108 has no tags in the seed');
+
+    const tagged = await getJson(`/v0/indicators?tag=${tag.slug}`);
+    const both = await getJson(`/v0/indicators?tag=${tag.slug},no-such-tag`);
+
+    expect(tagged.body.data.map((entry: { shortId: number }) => entry.shortId)).toContain(108);
+    expect(both.body.data).toEqual([]);
+  });
+
+  it('returns one indicator by short id or slug', async () => {
+    const byShortId = await getJson('/v0/indicators/108');
+    const bySlug = await getJson(`/v0/indicators/${byShortId.body.slug}`);
+
+    expect(byShortId.status).toBe(200);
+    expectToMatchSpec('/v0/indicators/{indicator}', 200, byShortId.body);
+    expect(bySlug.body.shortId).toBe(108);
+  });
+
+  it('answers 404 for an identifier no indicator has', async () => {
+    const response = await getJson('/v0/indicators/no-such-indicator');
+
+    expect(response.status).toBe(404);
   });
 });

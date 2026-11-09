@@ -6,6 +6,7 @@ export {
   ENGLAND_CODE,
 } from './area-level-repository.ts';
 export { type AreaSummary, listAreasByType } from './area-repository.ts';
+export type { CatalogueEntry, CatalogueSelection } from './catalogue-repository.ts';
 export {
   closeDb,
   createDb,

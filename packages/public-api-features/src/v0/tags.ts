@@ -43,7 +43,7 @@ export function subtopicTagSlug(topicSlug: string, subtopicSlug: string): string
   return `${topicSlug}-${subtopicSlug}`;
 }
 
-function toTag(row: TagRow): Tag {
+export function toTag(row: TagRow): Tag {
   switch (row.kind) {
     case 'topic':
       return { slug: row.slug, name: row.name, type: 'topic', parent: null };
