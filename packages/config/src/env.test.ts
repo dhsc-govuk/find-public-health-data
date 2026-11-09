@@ -484,6 +484,27 @@ describe('loadWebServerConfig', () => {
       },
     );
 
+    it.each(['dev', 'preview', 'production'] as const)(
+      'refuses an http site URL in the %s environment',
+      (appEnv) => {
+        expect(() =>
+          loadWebServerConfig(
+            { APP_ENV: appEnv, ...betaAccess, ...email, SITE_URL: 'http://beta.example.com' },
+            defaults,
+          ),
+        ).toThrow(/SITE_URL must use https/);
+      },
+    );
+
+    it('allows an http site URL locally', () => {
+      expect(
+        loadWebServerConfig(
+          { APP_ENV: 'local', ...betaAccess, SITE_URL: 'http://127.0.0.1:3000' },
+          defaults,
+        ).betaAccess?.siteUrl,
+      ).toBe('http://127.0.0.1:3000');
+    });
+
     it.each([{ EMAIL_ENDPOINT: email.EMAIL_ENDPOINT }, { EMAIL_SENDER_ADDRESS: 'a@example.com' }])(
       'refuses one email setting without the other: %o',
       (setting) => {

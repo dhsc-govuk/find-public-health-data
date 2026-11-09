@@ -265,6 +265,11 @@ function checkBetaAccess(value: BetaAccessEnv, context: z.RefinementCtx): void {
       'EMAIL_ENDPOINT is required outside local and test, which show sign-in links on the page instead',
     );
   }
+  // A deployed site's access cookie is Secure, so an http link would send its token in the clear
+  // and then sign nobody in: the browser won't store the cookie from an http response.
+  if (isDeployedEnv(value.APP_ENV) && value.SITE_URL?.startsWith('https://') === false) {
+    issue('SITE_URL', 'SITE_URL must use https outside local and test');
+  }
 }
 
 function betaAccessConfig(parsed: BetaAccessEnv) {
