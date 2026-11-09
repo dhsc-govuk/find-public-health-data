@@ -558,7 +558,9 @@ describe('the audit log', () => {
 describe('the read models', () => {
   const internal = internalMemberOfBlock();
 
-  // Publishing refreshes one indicator's rows; only a whole rebuild truncates.
+  // Publishing replaces one indicator's rows in each read-model table, so the internal role
+  // needs INSERT and DELETE. It needs no UPDATE or TRUNCATE. Only the seed truncates these
+  // tables, and the seed does not run as the internal role.
   it.each(
     READ_MODEL_TABLES.flatMap((table) =>
       ['SELECT', 'INSERT', 'DELETE'].map((privilege) => [privilege, table]),

@@ -94,7 +94,11 @@ export function isUnpublished(status: AnyColumn): SQL {
   return sql`${status} IN (${literals(UNPUBLISHED_VERSION_STATUSES)})`;
 }
 
-/** Whether `status` names a scheduled version, as a literal the due-publication index matches. */
+/**
+ * SQL that is true when `status` is 'scheduled'. It writes 'scheduled' as a literal rather than
+ * as a query parameter, so the planner can use the partial index of scheduled versions,
+ * `idx_indicator_version_scheduled_publish_at`, whose condition is built by this function too.
+ */
 export function isScheduled(status: AnyColumn): SQL {
   return sql`${status} = ${literals(['scheduled'])}`;
 }
@@ -458,7 +462,8 @@ export const indicatorVersion = pgTable(
     uniqueIndex('idx_indicator_version_one_unpublished')
       .on(t.indicatorId)
       .where(sql`${t.status} IN (${literals(UNPUBLISHED_VERSION_STATUSES)})`),
-    // The scheduled versions in the order publication takes them.
+    // Scheduled publication finds due versions through this index. It holds only scheduled
+    // versions, ordered by publication time and then id, which is the order they are published.
     index('idx_indicator_version_scheduled_publish_at')
       .on(t.scheduledPublishAt, t.id)
       .where(isScheduled(t.status)),

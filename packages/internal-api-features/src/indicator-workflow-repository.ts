@@ -58,12 +58,13 @@ export type IndicatorStepPrecondition<Reason extends string> = (
   state: { draft: IndicatorDraftVersion; latest: Submission | undefined },
 ) => Promise<Reason | undefined>;
 
-/** The version's workflow columns as the step left them. */
+/** The draft version's status, lock and publication time after the step has updated them. */
 export type SteppedVersion = Pick<IndicatorDraftVersion, 'status' | 'isLocked' | 'publishedAt'>;
 
 /**
- * A step's write of its own rows beside the submission's, answering their changes for the audit.
- * `draft` is the version as the lock read it, before the step, and `version` as the step left it.
+ * Writes a step's own rows, beyond the version and submission rows every step writes, and returns
+ * their changes for the step's audit entry. `draft` is the version as it was read when the step
+ * locked it, before any change. `version` is the version after the step updated it.
  */
 export type IndicatorStepWrite = (
   tx: Transaction,
@@ -172,7 +173,11 @@ const SUBMISSION_WRITES: Readonly<
   publish: keepLatestSubmission,
 };
 
-/** A step's own check before it is taken, and its own rows written with it. */
+/**
+ * Extras for one kind of step. `precondition` can refuse the step with a reason, after the
+ * workflow allows the step and before anything is written. `write` adds the step's own rows in the
+ * same transaction.
+ */
 export interface IndicatorStepOptions<Reason extends string> {
   precondition?: IndicatorStepPrecondition<Reason>;
   write?: IndicatorStepWrite;
@@ -195,8 +200,10 @@ export function takeIndicatorStep<Reason extends string = never>(
 }
 
 /**
- * Takes a workflow step as `takeIndicatorStep` does, inside the caller's transaction, for a caller
- * that chose the indicator under a lock of its own. A refusal writes nothing.
+ * Takes a workflow step as `takeIndicatorStep` does, but inside a transaction the caller has
+ * already opened. Use it when the caller has picked the indicator and locked its version earlier
+ * in that transaction, as scheduled publication does. The step then commits or rolls back with the
+ * caller's other writes. When the step is refused, it returns the reason and writes nothing.
  */
 export async function takeIndicatorStepIn<Reason extends string = never>(
   tx: Transaction,
@@ -205,8 +212,11 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
   actor: Actor,
   { precondition, write }: IndicatorStepOptions<Reason> = {},
 ): Promise<IndicatorStepResult<Reason>> {
-  // No key update, so an upload's foreign key share on the version does not hold the step up.
-  // A refused load's FOR SHARE does until it commits, but it never writes the row: no deadlock.
+  // Locks the draft version's row FOR NO KEY UPDATE. An upload being loaded inserts an
+  // upload_batch row that references this row, and that foreign key takes FOR KEY SHARE on it.
+  // The two locks don't conflict, so the step does not wait for the upload.
+  // When an upload's file fails validation, the upload locks this row FOR SHARE until it commits,
+  // and the step waits for it. That upload never updates this row, so the wait cannot deadlock.
   const [draft] = await tx
     .select()
     .from(indicatorVersion)
@@ -244,8 +254,9 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
   const refusal = await precondition?.(tx, { draft, latest });
   if (refusal !== undefined) return { ok: false, reason: refusal };
 
-  // The publication time is set with the status: `indicator_version_published_at_check` holds at
-  // the end of each statement.
+  // `indicator_version_published_at_check` requires `published_at` to be set exactly when the
+  // status is 'published'. Postgres checks it on every UPDATE, so the status and the publication
+  // time must change in this one statement.
   const [version] = await tx
     .update(indicatorVersion)
     .set({
