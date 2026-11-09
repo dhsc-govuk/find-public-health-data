@@ -546,6 +546,58 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('keeps area sorting and CSV order without JavaScript', async ({
+    page,
+    browser,
+    baseURL,
+  }) => {
+    if (baseURL === undefined) throw new Error('A base URL is required');
+    const context = await browser.newContext({
+      baseURL,
+      storageState: await page.context().storageState(),
+      javaScriptEnabled: false,
+    });
+    const withoutJs = await context.newPage();
+    try {
+      await withoutJs.goto(`${TOPIC_PATH}?tab-topic=areas&render=complete`);
+      const panel = withoutJs.locator('#topic-area-summaries');
+      const names = panel.getByRole('rowheader').getByRole('link');
+      const expected = (await names.allTextContents()).sort((a, b) => b.localeCompare(a));
+      await panel.getByRole('combobox', { name: 'Sort indicators by:' }).selectOption('name-desc');
+      await panel.getByRole('button', { name: 'Sort indicators', exact: true }).click();
+      await expect(names).toHaveText(expected);
+      const row = panel
+        .getByRole('row')
+        .filter({
+          has: withoutJs.getByRole('link', {
+            name: 'Mortality rate for deaths involving diabetes, all ages',
+            exact: true,
+          }),
+        })
+        .first();
+      await row.getByRole('link', { name: /^Sort best to worst for/ }).click();
+      await expect(row.getByRole('rowheader')).toHaveAttribute('aria-sort', 'ascending');
+      await row.getByRole('link', { name: /^Sort worst to best for/ }).click();
+      await expect(row.getByRole('rowheader')).toHaveAttribute('aria-sort', 'descending');
+      await expect(names).toHaveText(expected);
+      await expect(withoutJs).toHaveURL(/areaRowSort=name-desc/);
+      const headers = await panel.getByRole('columnheader').allTextContents();
+      await panel.getByText('Download or share data', { exact: true }).click();
+      const href = await panel
+        .getByRole('link', { name: 'Download filtered data (CSV)' })
+        .getAttribute('href');
+      if (!href) throw new Error('Expected a CSV download URL');
+      const response = await withoutJs.request.get(href);
+      expect(response.ok()).toBe(true);
+      const header = (await response.text()).split('\n')[0] ?? '';
+      const positions = headers.slice(4).map((area) => header.indexOf(`${area} period`));
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect(positions).toEqual(positions.toSorted((a, b) => a - b));
+    } finally {
+      await context.close();
+    }
+  });
+
   test('sorts area columns by an indicator and downloads them in that order', async ({
     page,
   }, testInfo) => {
