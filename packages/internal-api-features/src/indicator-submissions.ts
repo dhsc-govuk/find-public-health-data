@@ -1,5 +1,6 @@
 import { requireApiActor } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
+import type { IndicatorStepResult } from '@fphd/internal-workflow';
 import { type RequestHandler, type Response, Router } from 'express';
 
 import {
@@ -23,7 +24,6 @@ import {
   requireIndicatorAccess,
 } from './indicator-access.ts';
 import { mayTakeStep } from './indicator-workflow.ts';
-import type { IndicatorStepResult } from './indicator-workflow-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 /** The guard on a workflow step's route: `requireIndicatorAccess` with the step's permission. */

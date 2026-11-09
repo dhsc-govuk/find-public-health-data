@@ -47,11 +47,23 @@
       "types": "./src/indicator-path.ts",
       "default": "./dist/indicator-path.js"
     },
+    "./indicator-status": {
+      "browser": "./src/indicator-status.ts",
+      "development": "./src/indicator-status.ts",
+      "types": "./src/indicator-status.ts",
+      "default": "./dist/indicator-status.js"
+    },
     "./indicator-submission-status": {
       "browser": "./src/indicator-submission-status.ts",
       "development": "./src/indicator-submission-status.ts",
       "types": "./src/indicator-submission-status.ts",
       "default": "./dist/indicator-submission-status.js"
+    },
+    "./indicator-step": {
+      "browser": "./src/indicator-step.ts",
+      "development": "./src/indicator-step.ts",
+      "types": "./src/indicator-step.ts",
+      "default": "./dist/indicator-step.js"
     },
     "./indicator-task-key": {
       "browser": "./src/indicator-task-key.ts",

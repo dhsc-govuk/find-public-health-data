@@ -7,9 +7,10 @@ by area, sex and period type, and the England trend a topic page shows. They
 live apart from `@fphd/db`, the public read surface, and the `internal-` prefix keeps them out of
 the public images, as `tools/artefact-boundary` checks.
 
-Built package; consumed by `@fphd/db-operations`, whose commands rebuild the read models. It depends
-only on `@fphd/db` and `drizzle-orm`, so whatever runs it carries nothing else. Publishing an
-indicator refreshes that indicator's rows in the same transaction as its status change.
+Built package; consumed by `@fphd/db-operations`, whose commands rebuild the read models, and by
+`@fphd/internal-workflow`, whose scheduled publication refreshes them. It depends only on
+`@fphd/db` and `drizzle-orm`, so whatever runs it carries nothing else. Publishing an indicator
+refreshes that indicator's rows in the same transaction as its status change.
 
 | Entry | Purpose                                                                                     |
 | ----- | ------------------------------------------------------------------------------------------- |

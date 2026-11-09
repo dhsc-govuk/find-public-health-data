@@ -34,6 +34,10 @@ JOIN indicator_version v ON v.id = cpv.id AND v.upload_batch_id = s.upload_batch
 --> statement-breakpoint
 GRANT SELECT ON published.observation_series, published.observation_series_batch TO public_api, internal_api;
 --> statement-breakpoint
+-- Scheduled publication refreshes the published indicator's read models as internal_api, and
+-- these two tables are now part of that refresh.
+GRANT SELECT, INSERT, DELETE ON "observation_series", "observation_series_batch" TO internal_api;
+--> statement-breakpoint
 DO $$
 DECLARE selected_indicator uuid;
 BEGIN

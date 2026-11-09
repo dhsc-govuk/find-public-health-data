@@ -38,10 +38,12 @@ it('imports a generated development snapshot with version batch pointers and pub
   await rebuildReadModels(sql);
   const versionId = deterministicUuid('indicator_version', '108');
   const batchId = deterministicUuid('upload_batch', '108');
-  const [version] = await sql<{ batch: string; confirmed: boolean; owner: string }[]>`
+  const [version] = await sql<
+    { batch: string; confirmed: boolean; owner: string; locked: boolean }[]
+  >`
     SELECT v.upload_batch_id AS batch,
       v.data_table_confirmed_at = ${sourceConfirmation}::timestamptz AS confirmed,
-      b.indicator_version_id AS owner
+      b.indicator_version_id AS owner, v.is_locked AS locked
     FROM indicator_version v JOIN upload_batch b ON b.id=v.upload_batch_id
     WHERE v.id=${versionId}
   `;
@@ -49,6 +51,7 @@ it('imports a generated development snapshot with version batch pointers and pub
     batch: batchId,
     confirmed: true,
     owner: versionId,
+    locked: true,
   });
   // The archive is seed files, which name their writers by user id.
   const migrated = schema.SYSTEM_USER_IDS.pholioMigration;

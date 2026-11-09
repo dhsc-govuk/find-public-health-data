@@ -200,33 +200,61 @@ describe('DashboardPage', () => {
     );
   });
 
-  it('heads the page for an IMRG manager with the indicators under review, offering no tabs', () => {
-    renderManagerPage({ unassigned: [submitted], assigned: [] });
+  describe('for an IMRG manager', () => {
+    it('heads the page with the indicators under review, a tab for each table', () => {
+      renderManagerPage({ unassigned: [submitted], assigned: [inReview] });
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Indicators under review' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'Unassigned indicators' })).toBeTruthy();
-    expect(screen.queryByRole('tablist')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Create new indicator' })).toBeNull();
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Indicators under review' }),
+      ).toBeTruthy();
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'Unassigned indicators',
+        'Assigned indicators',
+      ]);
+      expect(
+        within(screen.getByRole('tabpanel', { name: 'Unassigned indicators' })).getByRole('table', {
+          name: 'Unassigned indicators, oldest submission first',
+        }),
+      ).toBeTruthy();
+      expect(
+        within(screen.getByRole('tabpanel', { name: 'Assigned indicators' })).getByRole('table', {
+          name: 'Assigned indicators, oldest submission first',
+        }),
+      ).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Create new indicator' })).toBeNull();
+    });
+
+    it('opens the Assigned indicators tab named in the address', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard?tab=assigned']}>
+          <DashboardPage
+            underReview={{ unassigned: [submitted], assigned: [inReview] }}
+            toReview={null}
+            scheduled={null}
+            list={null}
+          />
+        </MemoryRouter>,
+      );
+
+      expect(
+        screen.getByRole('tab', { name: 'Assigned indicators' }).getAttribute('aria-selected'),
+      ).toBe('true');
+    });
   });
 
   describe('for an IMRG manager who also publishes', () => {
-    it('offers an Assign tab, counting the unassigned indicators, then Create and edit', () => {
+    it('offers the two review tabs, then Create and edit', () => {
       renderPage({}, '/dashboard', { unassigned: [submitted], assigned: [] });
 
       expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-        'Assign (1)',
+        'Unassigned indicators',
+        'Assigned indicators',
         'Create and edit',
       ]);
-      expect(screen.getByRole('tabpanel', { name: 'Assign (1)' }).textContent).toContain(
+      expect(screen.getByRole('tabpanel', { name: 'Unassigned indicators' }).textContent).toContain(
         'Smoking prevalence',
       );
-    });
-
-    it('leaves the count off the Assign tab when nothing waits for reviewers', () => {
-      renderPage({}, '/dashboard', { unassigned: [], assigned: [submitted] });
-
-      expect(screen.getByRole('tab', { name: 'Assign' })).toBeTruthy();
     });
 
     it('puts the create action and their indicators under Create and edit', () => {
@@ -317,7 +345,7 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('offers an IMRG manager who reviews an Assign tab then a Review tab, headed Indicators', () => {
+  it('offers an IMRG manager who reviews the Unassigned, Assigned and Review tabs, headed Indicators', () => {
     render(
       <MemoryRouter initialEntries={['/dashboard']}>
         <DashboardPage
@@ -331,15 +359,10 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      'Assign (1)',
+      'Unassigned indicators',
+      'Assigned indicators',
       'Review (1)',
     ]);
-    expect(
-      within(screen.getByRole('tabpanel', { name: 'Assign (1)' })).getByRole('heading', {
-        level: 2,
-        name: 'Unassigned indicators',
-      }),
-    ).toBeTruthy();
   });
 
   it('offers an IMRG manager who reviews and publishes a tab for each role, in order', () => {
@@ -347,7 +370,8 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      'Assign',
+      'Unassigned indicators',
+      'Assigned indicators',
       'Review',
       'Create and edit',
     ]);

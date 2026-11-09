@@ -156,6 +156,8 @@ export const indicatorDetailSchema = z.object({
   ciConfidenceLevel: z.enum(CI_CONFIDENCE_LEVELS).nullable(),
   comparatorMethod: z.string().nullable(),
   dataUpdatedAt: z.iso.datetime().nullable(),
+  firstPublishedAt: z.iso.datetime(),
+  lastPublishedAt: z.iso.datetime(),
   definition: z.string().nullable(),
   rationale: z.string().nullable(),
   methodology: z.string().nullable(),

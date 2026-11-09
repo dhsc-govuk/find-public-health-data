@@ -346,8 +346,8 @@ def add_indicators(cur, metadata, seed_dir):
         cur.execute(
             """
             INSERT INTO indicator_version
-              (id, indicator_id, status, published_at, name, slug, value_type_id, unit_id,
-               unit_detail, period_type, year_type, year_end_day, year_end_month,
+              (id, indicator_id, status, is_locked, published_at, name, slug, value_type_id,
+               unit_id, unit_detail, period_type, year_type, year_end_day, year_end_month,
                ci_method_id, polarity, update_frequency, comparator_method_id,
                ci_confidence_level, definition, rationale, methodology,
                numerator_definition, denominator_definition, disclosure_control,
@@ -355,8 +355,8 @@ def add_indicators(cur, metadata, seed_dir):
                caveats_detail, has_other_notes, other_notes_detail, data_source_id,
                created_at, created_by, updated_at, updated_by)
             VALUES
-              (%s, %s, 'published', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+              (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                %s, %s, %s, %s)
             """,
             (

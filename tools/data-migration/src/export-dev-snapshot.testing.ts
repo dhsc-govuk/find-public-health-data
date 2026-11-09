@@ -67,6 +67,7 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
       indicator_id: id,
       name: `Indicator ${id}`,
       status: 'published',
+      is_locked: true,
       published_at: sourceTimestamp,
       upload_batch_id: id,
       data_table_confirmed_at: sourceConfirmation,

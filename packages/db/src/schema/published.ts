@@ -80,8 +80,10 @@ export const publishedIndicator = publishedSchema
     otherNotesDetail: text('other_notes_detail'),
     dataSourceId: uuid('data_source_id'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
-    firstPublishedAt: timestamp('first_published_at', { withTimezone: true }),
-    lastPublishedAt: timestamp('last_published_at', { withTimezone: true }),
+    // The view joins only indicators with a published version, and
+    // `indicator_version_published_at_check` gives every published version a `published_at`.
+    firstPublishedAt: timestamp('first_published_at', { withTimezone: true }).notNull(),
+    lastPublishedAt: timestamp('last_published_at', { withTimezone: true }).notNull(),
   })
   .existing();
 
