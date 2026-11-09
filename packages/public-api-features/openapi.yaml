@@ -247,6 +247,23 @@ paths:
         - $ref: "#/components/parameters/to"
         - $ref: "#/components/parameters/latest"
         - $ref: "#/components/parameters/benchmark"
+        - $ref: "#/components/parameters/sex"
+        - $ref: "#/components/parameters/age"
+        - $ref: "#/components/parameters/ageFrom"
+        - $ref: "#/components/parameters/ageUnder"
+        - $ref: "#/components/parameters/deprivation"
+        - $ref: "#/components/parameters/deprivationGroups"
+        - $ref: "#/components/parameters/deprivationScheme"
+        - $ref: "#/components/parameters/ethnicity"
+        - $ref: "#/components/parameters/ethnicityScheme"
+        - $ref: "#/components/parameters/socioeconomicGroup"
+        - $ref: "#/components/parameters/socioeconomicGroupScheme"
+        - $ref: "#/components/parameters/religion"
+        - $ref: "#/components/parameters/religionScheme"
+        - $ref: "#/components/parameters/sexuality"
+        - $ref: "#/components/parameters/sexualityScheme"
+        - $ref: "#/components/parameters/category1Type"
+        - $ref: "#/components/parameters/category1"
         - $ref: "#/components/parameters/ifNoneMatch"
       responses:
         "200":
@@ -774,9 +791,10 @@ components:
       name: include
       in: query
       description: |
-        Adds areas related to the ones selected:
+        Adds areas related to the ones selected with `area`. Can't be used with `areaType`, which
+        already selects every area of the level:
 
-        - `parents`: every area above each one, up to England.
+        - `parents`: each area's parents, of the types its area type lists in `parentTypes`.
         - `siblings`: the other areas of the same type that share a parent of the type's default
           parent type, the first in its `parentTypes`.
         - `statistical-neighbours`: each area's statistical neighbours. Each area type has one
@@ -1643,7 +1661,7 @@ components:
           properties:
             parents:
               type: array
-              description: Every area above this one, nearest first, up to England.
+              description: The areas of the types this area's type lists in `parentTypes`, in that order.
               items:
                 $ref: "#/components/schemas/AreaRef"
             statisticalNeighbours:
