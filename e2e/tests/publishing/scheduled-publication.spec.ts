@@ -1,5 +1,6 @@
 import { type Browser, expect, type Page, test } from '@playwright/test';
 
+import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { assignReviewers } from '../support/assign-reviewers.ts';
 import { completeDraft, submitDraft } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
@@ -70,7 +71,10 @@ async function approvedWithRegion(browser: Browser) {
 
 test.use({ storageState: ADMIN.storageState });
 
-test('publishes a scheduled indicator at its publication time', async ({ browser, page }) => {
+test('publishes a scheduled indicator at its publication time', async ({
+  browser,
+  page,
+}, testInfo) => {
   // The setup, up to a minute and a quarter before the publication time, and up to 65 seconds
   // after it for the sweep.
   test.setTimeout(4 * MINUTE);
@@ -83,6 +87,7 @@ test('publishes a scheduled indicator at its publication time', async ({ browser
     'Indicator status: New indicator',
     'Publishing status: Publishing scheduled',
   ]);
+  await expectNoAccessibilityViolations(page, testInfo);
   expect((await page.request.get(publicUrl)).status()).toBe(404);
 
   await expect
@@ -111,12 +116,14 @@ test('publishes a scheduled indicator at its publication time', async ({ browser
     'England (benchmark)',
     'London',
   ]);
+  await expectNoAccessibilityViolations(page, testInfo);
 
   await page.goto(`/dashboard/indicators/${id}`);
   await expect(page.getByRole('main').locator('h1 ~ p .govuk-tag')).toHaveText([
     'Indicator status: Live indicator',
     'Publishing status: Published',
   ]);
+  await expectNoAccessibilityViolations(page, testInfo);
   await openHistory(page, id);
   await expect(historyEntries(page).first()).toHaveText(`${historyToday()} Indicator published`, {
     useInnerText: true,
