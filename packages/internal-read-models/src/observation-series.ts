@@ -58,31 +58,45 @@ async function insertSeries(
       .where(eq(dimensionType.name, 'Sex')),
   );
 
+  // Read once: `source` is referenced twice below, so Postgres materializes it rather than
+  // evaluating the published view's visibility predicates for each reference.
+  const source = tx.$with('source').as(
+    tx
+      .select({
+        id: observation.id,
+        areaId: observation.areaId,
+        dimensionKey: observation.dimensionKey,
+        fromDate: observation.fromDate,
+        toDate: observation.toDate,
+        value: observation.value,
+      })
+      .from(observation)
+      .where(eq(observation.indicatorId, indicatorId)),
+  );
+
   // Every point counts towards the 'all' series and towards its own period type's.
-  const pointColumns = {
-    id: observation.id,
-    areaId: observation.areaId,
-    dimensionKey: observation.dimensionKey,
-    fromDate: observation.fromDate,
-    toDate: observation.toDate,
-    value: observation.value,
+  const sourceColumns = {
+    id: source.id,
+    areaId: source.areaId,
+    dimensionKey: source.dimensionKey,
+    fromDate: source.fromDate,
+    toDate: source.toDate,
+    value: source.value,
   };
   const points = tx.$with('points').as(
     tx
-      .select({ ...pointColumns, periodType: sql<PeriodType>`'all'`.as('period_type') })
-      .from(observation)
-      .where(eq(observation.indicatorId, indicatorId))
+      .select({ ...sourceColumns, periodType: sql<PeriodType>`'all'`.as('period_type') })
+      .from(source)
       .unionAll(
         tx
           .select({
-            ...pointColumns,
+            ...sourceColumns,
             periodType: sql<PeriodType>`CASE
-              WHEN ${observation.toDate} - ${observation.fromDate} <= 400 THEN '1-year'
+              WHEN ${source.toDate} - ${source.fromDate} <= 400 THEN '1-year'
               ELSE '3-year'
             END`.as('period_type'),
           })
-          .from(observation)
-          .where(eq(observation.indicatorId, indicatorId)),
+          .from(source),
       ),
   );
 
@@ -217,7 +231,7 @@ async function insertSeries(
     );
 
   await tx
-    .with(sexValues, points, segments, areas, choices, variants, candidates, winners)
+    .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
     .insert(observationSeries)
     .select(
       tx
