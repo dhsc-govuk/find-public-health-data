@@ -306,8 +306,9 @@ async function assertDistinctObservations(
   let indicator: number | undefined;
   let sourceObservations = 0;
   let scannedObservations = 0;
-  await streamPholio(context.pool, `${observationQuery} ORDER BY c.IndicatorID, c.uid`, (raw) => {
-    let c = raw as unknown as CdsRow;
+  const scanQuery = `${observationQuery} ORDER BY c.IndicatorID, c.uid`;
+  await streamPholio<CdsRow>(context.pool, scanQuery, (raw) => {
+    let c = raw;
     const reason = exclusionReason(c, excluded, context.indicatorSelection, selected, groupings);
     const observationsInRow = COMPOUND_AGE_IDS.has(c.AgeID) && c.SexID === 4 ? 2 : 1;
     scannedObservations += observationsInRow;
@@ -415,8 +416,7 @@ async function sourceRowsByUid(
   for (let index = 0; index < uids.length; index += 500) {
     const chunk = uids.slice(index, index + 500);
     const query = `${observationQuery} WHERE c.uid IN (${chunk.join(', ')})`;
-    for (const row of (await queryPholio(context.pool, query)) as unknown as CdsRow[])
-      rows.set(row.uid, row);
+    for (const row of await queryPholio<CdsRow>(context.pool, query)) rows.set(row.uid, row);
   }
   return rows;
 }
@@ -433,8 +433,8 @@ export async function exportObservations(context: ObservationExportOptions) {
   const selected = new Set(
     context.indicatorSelection.kind === 'approved' ? context.indicatorSelection.indicators : [],
   );
-  await streamPholio(context.pool, `${observationQuery} ORDER BY c.uid`, async (raw) => {
-    let c = raw as unknown as CdsRow;
+  await streamPholio<CdsRow>(context.pool, `${observationQuery} ORDER BY c.uid`, async (raw) => {
+    let c = raw;
     if (exclusionReason(c, excluded, context.indicatorSelection, selected, groupings)) return;
     c = correctObservationInterval(c, appliedCorrections);
     const areaId = context.areaIdByPholioCode.get(c.AreaCode);
