@@ -4,6 +4,7 @@ import { request } from '@fphd/express/testing';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { DATA_COLUMNS } from './data.ts';
 import { expectToMatchSpec } from './openapi.testing.ts';
 import { v0Routes } from './routes.ts';
 
@@ -124,5 +125,68 @@ describe('areas', () => {
     const parents = response.body.parents.map((parent: { code: string }) => parent.code);
     expect(parents).toContain('E12000001');
     expect(parents.at(-1)).toBe('E92000001');
+  });
+});
+
+describe('GET /v0/data', () => {
+  type Row = {
+    area: { code: string; type: string };
+    sex: string | null;
+    toDate: string;
+    benchmark: { code: string | null };
+    comparedToBenchmark: string | null;
+    ageFrom: string | null;
+  };
+  const rows = async (query: string): Promise<Row[]> => {
+    const response = await getJson(`/v0/data?${query}`);
+    expect(response.status).toBe(200);
+    expectToMatchSpec('/v0/data', 200, response.body);
+    return response.body.data;
+  };
+
+  it('writes CSV with the spec\'s columns', async () => {
+    const response = await request(app).get('/v0/data?indicator=108&area=E92000001&latest=1');
+
+    expect(response.status).toBe(200);
+    expect(response.text.split('\r\n')[0]).toBe(DATA_COLUMNS.join(','));
+    expect(response.text.split('\r\n').length).toBeGreaterThan(2);
+  });
+
+  it('gives the latest period only, compared with England', async () => {
+    const data = await rows('indicator=108&areaType=regions&latest=1');
+
+    expect(new Set(data.map((row) => row.toDate)).size).toBe(1);
+    expect(new Set(data.map((row) => row.area.type))).toEqual(new Set(['regions']));
+    expect(data.every((row) => row.benchmark.code === 'E92000001')).toBe(true);
+  });
+
+  it("compares each county with its region when asked", async () => {
+    const data = await rows(
+      'indicator=108&areaType=counties-and-unitary-authorities&parent=E12000001&latest=1&benchmark=regions',
+    );
+
+    expect(data.length).toBeGreaterThan(0);
+    expect(data.every((row) => row.benchmark.code === 'E12000001')).toBe(true);
+  });
+
+  it('keeps only persons with sex=, and males and persons with sex=m,', async () => {
+    const persons = await rows('indicator=108&area=E92000001&latest=1&sex=');
+    const malesAndPersons = await rows('indicator=108&area=E92000001&latest=1&sex=m,');
+
+    expect(new Set(persons.map((row) => row.sex))).toEqual(new Set([null]));
+    expect(new Set(malesAndPersons.map((row) => row.sex))).toEqual(new Set([null, 'm']));
+  });
+
+  it('adds parents with include=parents', async () => {
+    const data = await rows('indicator=108&area=E06000047&include=parents&latest=1');
+    const codes = new Set(data.map((row) => row.area.code));
+
+    expect(codes).toEqual(new Set(['E06000047', 'E12000001', 'E92000001']));
+  });
+
+  it('keeps only age bands within an age range', async () => {
+    const data = await rows('indicator=94194&area=E92000001&ageFrom=P0Y&ageUnder=P5Y');
+
+    expect(data.every((row) => row.ageFrom !== null)).toBe(true);
   });
 });

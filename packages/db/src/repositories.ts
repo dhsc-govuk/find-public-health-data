@@ -22,6 +22,7 @@ import {
   searchAreas,
 } from './area-repository.ts';
 import type { Database } from './client.ts';
+import { type DataQuery, type DataRowRecord, streamData } from './data-repository.ts';
 import {
   listPublicDimensions,
   type PublicDimensionTypeRow,
@@ -107,6 +108,11 @@ export interface ReferenceRepository {
   dataVersion(): Promise<string>;
 }
 
+/** The rows of `/v0/data`. */
+export interface DataRepository {
+  stream(query: DataQuery): AsyncIterable<DataRowRecord[]>;
+}
+
 export interface TopicRepository {
   list(): Promise<Topic[]>;
   findBySlug(slug: string): Promise<Topic | undefined>;
@@ -121,6 +127,7 @@ export interface TopicRepository {
  */
 export interface Repositories {
   areas: AreaRepository;
+  data: DataRepository;
   indicators: IndicatorRepository;
   reference: ReferenceRepository;
   topics: TopicRepository;
@@ -139,6 +146,9 @@ export function createRepositories(db: Database): Repositories {
       listLevels: () => listAreaLevels(db),
       find: (filters) => findAreas(db, filters),
       listAncestors: (code) => listAreaAncestors(db, code),
+    },
+    data: {
+      stream: (query) => streamData(db, query),
     },
     indicators: {
       findTableData: (shortIds, areaCodes) => getIndicatorTableData(db, shortIds, areaCodes),

@@ -18,6 +18,14 @@ export {
   type Schema,
   type SqlClient,
 } from './client.ts';
+export {
+  type AgeEndDays,
+  DATA_FILTER_COLUMNS,
+  type DataFilter,
+  type DataFilterColumn,
+  type DataQuery,
+  type DataRowRecord,
+} from './data-repository.ts';
 export { dimensionKey } from './dimension-key.ts';
 export type {
   PublicDimensionTypeRow,
