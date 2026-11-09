@@ -11,7 +11,7 @@ const results = (page: Page) => page.locator('.fphd-search-results');
 
 async function ready(page: Page, path = '/search') {
   await page.goto(path);
-  await expect(page.getByRole('heading', { name: 'Indicator filters', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /^Indicators/ })).toBeVisible();
 }
 
 test('loads the search page with h1', async ({ page }) => {
@@ -42,7 +42,7 @@ test('uses the compact NotGovUK search box', async ({ page }) => {
 
 test('keeps filter card geometry stable through hydration', async ({ page }) => {
   const geometry = async () =>
-    page.locator('.fphd-wide-layout .govuk-grid-column-one-third').evaluate((column) => {
+    page.locator('#search-indicators .govuk-grid-column-one-third').evaluate((column) => {
       const box = (element: Element) => {
         const { x, y, width, height } = element.getBoundingClientRect();
         return { x, y, width, height };

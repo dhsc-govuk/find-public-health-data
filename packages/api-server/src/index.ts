@@ -1,7 +1,10 @@
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { InvalidJwtSessionError } from '@fphd/auth/session-errors';
 import {
+  type CheckDependenciesOptions,
+  checkDependencies,
   createBaseApp,
+  type Dependency,
   requestId,
   requestLogging,
   type StartServerOptions,
@@ -11,12 +14,6 @@ import {
 import type { Logger } from '@fphd/logger';
 import type { ErrorRequestHandler, Express, Request, RequestHandler, Response } from 'express';
 import { json } from 'express';
-
-export {
-  type CheckDependenciesOptions,
-  checkDependencies,
-  type Dependency,
-} from './dependency-check.ts';
 
 /** A route whose JSON body may be larger than the default 100 kB, and the size it may reach. */
 export interface BodyLimit {
@@ -30,13 +27,23 @@ export function createApiApp({
   logger,
   serviceName,
   bodyLimits = [],
+  cacheControl,
 }: {
   logger: Logger;
   serviceName: string;
   /** The routes that raise their own body limit; every other route keeps the default. */
   bodyLimits?: readonly BodyLimit[];
+  /** The `Cache-Control` header on every response but the probes; none is sent without it. */
+  cacheControl?: string;
 }): Express {
   const app = createBaseApp({ serviceName });
+
+  if (cacheControl !== undefined) {
+    app.use((_request, response, next) => {
+      response.setHeader('Cache-Control', cacheControl);
+      next();
+    });
+  }
 
   // Ahead of every route, so a miss is logged as well as a hit. The probes sit on the base app
   // above and never reach it. The id a web app forwarded is kept, so both logs share it.
@@ -167,4 +174,11 @@ export function requireJwtSession(
 
 // Re-exported so an API app has one import source, but not wrapped: nothing about starting a
 // server is API-specific, and a `startApiServer` that only forwarded would imply otherwise.
-export { type StartServerOptions, serverLogging, startServer };
+export {
+  type CheckDependenciesOptions,
+  checkDependencies,
+  type Dependency,
+  type StartServerOptions,
+  serverLogging,
+  startServer,
+};

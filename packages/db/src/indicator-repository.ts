@@ -207,6 +207,10 @@ export interface IndicatorDetail {
   ciConfidenceLevel: CiConfidenceLevel | null;
   comparatorMethod: string | null;
   dataUpdatedAt: string | null;
+  /** When the first published version went live. */
+  firstPublishedAt: string;
+  /** When the latest published version went live; the same as the first until an update. */
+  lastPublishedAt: string;
   definition: string | null;
   rationale: string | null;
   methodology: string | null;
@@ -287,6 +291,8 @@ export async function getPublishedIndicatorsByIds(
       ciConfidenceLevel: indicator.ciConfidenceLevel,
       comparatorMethod: comparatorMethod.name,
       dataUpdatedAt: indicator.dataUpdatedAt,
+      firstPublishedAt: indicator.firstPublishedAt,
+      lastPublishedAt: indicator.lastPublishedAt,
       definition: indicator.definition,
       rationale: indicator.rationale,
       methodology: indicator.methodology,
@@ -355,6 +361,8 @@ export async function getPublishedIndicatorsByIds(
             ciConfidenceLevel: row.ciConfidenceLevel,
             comparatorMethod: row.comparatorMethod,
             dataUpdatedAt: row.dataUpdatedAt?.toISOString() ?? null,
+            firstPublishedAt: row.firstPublishedAt.toISOString(),
+            lastPublishedAt: row.lastPublishedAt.toISOString(),
             definition: row.definition,
             rationale: row.rationale,
             methodology: row.methodology,

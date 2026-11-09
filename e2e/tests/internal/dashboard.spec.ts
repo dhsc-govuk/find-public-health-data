@@ -148,16 +148,16 @@ test.describe('as an admin, scheduling publication', () => {
 test.describe('as an IMRG manager', () => {
   test.use({ storageState: IMRG_MANAGER.storageState });
 
-  test('shows the indicators under review, unassigned and assigned', async ({ page }) => {
+  test('shows the indicators under review, with a tab each for unassigned and assigned', async ({
+    page,
+  }) => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Indicators under review' }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Unassigned indicators' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Assigned indicators', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('tab')).toHaveText([
+      'Unassigned indicators',
+      'Assigned indicators',
+    ]);
     await expect(page.getByRole('button', { name: 'Create new indicator' })).toHaveCount(0);
   });
 

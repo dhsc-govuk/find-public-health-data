@@ -20,6 +20,7 @@ function renderTabs(
   loader?: LoaderFunction,
   defaultParam?: string,
   history?: 'push' | 'replace',
+  mobileTabs = false,
 ) {
   const router = createMemoryRouter(
     [
@@ -28,6 +29,7 @@ function renderTabs(
         ...(loader ? { loader } : {}),
         element: (
           <Tabs
+            mobileTabs={mobileTabs}
             history={history ?? 'replace'}
             waitForNavigation={waitForNavigation}
             defaultParam={defaultParam}
@@ -186,6 +188,22 @@ it('restores tab semantics when crossing the standard breakpoint', () => {
   expect(screen.queryByRole('tab')).toBeNull();
   expect(screen.getByText('Second panel').closest('.govuk-tabs__panel')?.className).not.toContain(
     'panel--hidden',
+  );
+});
+
+it('keeps opted-in tabs interactive below the tablet breakpoint', async () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const router = renderTabs(false, undefined, undefined, 'push', true);
+  expect(screen.getByRole('tab', { name: 'First' }).getAttribute('aria-selected')).toBe('true');
+  await act(async () => fireEvent.click(screen.getByRole('tab', { name: 'Second' })));
+  expect(router.state.location.search).toBe('?panel=second');
+  expect(screen.getByRole('tab', { name: 'Second' }).getAttribute('aria-selected')).toBe('true');
+  expect(screen.getByText('First panel').closest('.govuk-tabs__panel')?.className).toContain(
+    'govuk-tabs__panel--hidden',
   );
 });
 

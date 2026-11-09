@@ -38,6 +38,7 @@
     "@fphd/config": "workspace:*",
     "@fphd/db": "workspace:*",
     "@fphd/internal-storage": "workspace:*",
+    "@fphd/internal-workflow": "workspace:*",
     "@fphd/utils": "workspace:*",
     "csv-parse": "catalog:",
     "drizzle-orm": "catalog:",
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@azure/storage-blob": "catalog:",
     "@fphd/express": "workspace:*",
+    "@fphd/internal-read-models": "workspace:*",
     "@fphd/logger": "workspace:*",
     "@types/express": "catalog:",
     "@types/node": "catalog:",

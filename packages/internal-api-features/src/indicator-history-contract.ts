@@ -7,7 +7,8 @@ const doneBy = { at: z.iso.datetime(), by: z.string() };
 /** One thing that happened to an indicator, as its History tab lists it. */
 export const historyEntrySchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('created'), ...doneBy }),
-  // Nothing records who published a version.
+  // A version is published by scheduled publication or by an import, never by a person, so this
+  // entry names no one.
   z.object({ kind: z.literal('published'), at: z.iso.datetime(), by: z.null() }),
   z.object({ kind: z.literal('submitted'), ...doneBy }),
   z.object({ kind: z.literal('withdrawn'), ...doneBy }),
