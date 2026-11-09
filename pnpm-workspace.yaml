@@ -75,6 +75,7 @@ catalog:
   "@not-govuk/textarea": 0.19.5
   "@playwright/test": 1.65.0
   "@react-foundry/router": 0.7.1
+  "@redocly/cli": 2.76.0
   "@react-router/dev": 8.5.1
   "@react-router/express": 8.5.1
   "@react-router/node": 8.5.1
