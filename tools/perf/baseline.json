@@ -91,9 +91,9 @@
   },
   "public-api /api/indicators/241/range?displayGroup=GP%20practices": {
     "statements": 2,
-    "buffers": 34,
+    "buffers": 13,
     "rows": 17,
-    "bytes": 1757
+    "bytes": 3745
   },
   "public-api /api/indicators/search?q=diabetes": {
     "statements": 4,
