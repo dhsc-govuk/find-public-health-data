@@ -2,7 +2,7 @@ import { type Database, schema } from '@fphd/db';
 import { type Actor, type AuditChanges, changesBetween } from '@fphd/db/audit-log';
 import { refreshIndicatorReadModels } from '@fphd/internal-read-models';
 import type { Logger } from '@fphd/logger';
-import { and, asc, eq, lte, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, lt, lte, notInArray, sql } from 'drizzle-orm';
 
 import { hasSqlState, type Transaction } from './indicator-repository-sql.ts';
 import { type IndicatorStepResult, takeIndicatorStepIn } from './indicator-workflow-repository.ts';
@@ -180,7 +180,7 @@ async function overdueVersionIds(db: Database): Promise<string[]> {
     .where(
       and(
         isScheduled(indicatorVersion.status),
-        lte(
+        lt(
           indicatorVersion.scheduledPublishAt,
           sql`clock_timestamp() - ${OVERDUE_AFTER}::interval`,
         ),
