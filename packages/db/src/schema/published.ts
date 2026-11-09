@@ -285,6 +285,10 @@ export const publishedNoteType = publishedSchema
   })
   .existing();
 
+export const publishedNoteTypePublic = publishedSchema
+  .view('note_type_public', { id: uuid('id').notNull(), code: text('code').notNull() })
+  .existing();
+
 export const publishedObservation = publishedSchema
   .view('observation', {
     id: uuid('id').notNull(),

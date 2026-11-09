@@ -1,11 +1,11 @@
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { parseReferenceData, referenceDataSchema } from '@fphd/db-operations';
+import { parseReferenceData, readReferenceData, referenceDataSchema } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 
 import { readGzipCsv } from '../csv.ts';
-import { rekeyTable } from '../prepare-baseline.ts';
+import { deterministicUuid, rekeyTable } from '../prepare-baseline.ts';
 import { writePreparedDirectory } from '../prepared-directory.ts';
 import { tidyReferenceTables } from '../reference-names.ts';
 import { readCodeHistory } from './code-history.ts';
@@ -26,6 +26,7 @@ const publicNameFiles = {
   dimensionTypesPublic: 'dimension-types-public.json',
   dimensionValuesPublic: 'dimension-values-public.json',
   deprivationSchemes: 'deprivation-schemes.json',
+  noteTypesPublic: 'note-types-public.json',
 } as const;
 const integerColumns = new Set(['level', 'display_order', 'sort_order']);
 const booleanColumns = new Set(['is_required', 'is_aggregate']);
@@ -78,6 +79,7 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
     const source = { name: options.expectedDatabase, access: 'READ_ONLY' };
     const rowCounts = new Map<string, number>();
     const ageYears = new Map<string, { min: number; max: number }>();
+    const noteIds: number[] = [];
     try {
       const [identity] = await queryPholio<{ name: string; access: string }>(
         pool,
@@ -96,6 +98,11 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
         pool,
         'SELECT AgeID, MinYears, MaxYears FROM L_Ages WHERE MinYears IS NOT NULL AND MaxYears IS NOT NULL',
       );
+      const valueNotes = await queryPholio<{ ValueNoteID: number }>(
+        pool,
+        'SELECT ValueNoteID FROM L_ValueNotes WHERE ValueNoteID > 0',
+      );
+      noteIds.push(...valueNotes.map(({ ValueNoteID }) => ValueNoteID));
       for (const age of ages) {
         ageYears.set(String(age.AgeID), { min: age.MinYears, max: age.MaxYears });
       }
@@ -119,6 +126,9 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       if (rows.length !== file.rows) throw new Error(`Missing lookup rows for ${table}`);
       lookupRows[key] = rows;
     }
+    const noteTypeIds = new Set(
+      referenceDataSchema.shape.noteTypes.parse(lookupRows.noteTypes).map(({ id }) => id),
+    );
     const names = publicDimensions(
       referenceDataSchema.shape.dimensionTypes.parse(lookupRows.dimensionTypes),
       referenceDataSchema.shape.dimensionValues.parse(lookupRows.dimensionValues),
@@ -129,6 +139,15 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       dimensionTypesPublic: names.types,
       dimensionValuesPublic: names.values,
       deprivationSchemes: names.deprivationSchemes,
+      // Hand-written, so not exported, but checked against the area types just exported.
+      areaLevels: readReferenceData().areaLevels,
+      // The rekeyed id is a function of the source id, so each exported note finds its code.
+      noteTypesPublic: noteIds
+        .map((noteId) => ({
+          id: deterministicUuid('note_type', String(noteId)),
+          code: `n${noteId}`,
+        }))
+        .filter(({ id }) => noteTypeIds.has(id)),
     });
     for (const key of Object.keys(lookupTables) as (keyof typeof lookupTables)[]) {
       const file = `${lookupTables[key].replace('_', '-')}s.json`;

@@ -16,6 +16,7 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     deprivationSchemes: 55,
     areaLevels: 40,
     noteTypes: 235,
+    noteTypesPublic: 235,
   });
 });
 
