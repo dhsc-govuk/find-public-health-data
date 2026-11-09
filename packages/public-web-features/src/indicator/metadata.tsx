@@ -60,7 +60,9 @@ export function IndicatorSummary({
               name: 'Update frequency',
               children: UPDATE_FREQUENCY_LABELS[indicator.updateFrequency],
             },
-            ...(indicator.dataUpdatedAt ? [{ name: 'Status', children: 'Updated' }] : []),
+            ...(indicator.lastPublishedAt !== indicator.firstPublishedAt
+              ? [{ name: 'Status', children: 'Updated' }]
+              : []),
             { name: 'Trend (last 5 periods)', children: <TrendTag trend={trend} /> },
           ]}
         />

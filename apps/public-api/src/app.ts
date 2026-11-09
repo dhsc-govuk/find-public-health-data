@@ -9,7 +9,8 @@ export interface AppDependencies {
 }
 
 export function createApp({ logger, repositories }: AppDependencies) {
-  const app = createApiApp({ logger, serviceName: 'public-api' });
+  // Nothing in front may keep a copy: a newly published indicator must show on the next request.
+  const app = createApiApp({ logger, serviceName: 'public-api', cacheControl: 'no-store' });
 
   app.use(publicApiRoutes(repositories));
 

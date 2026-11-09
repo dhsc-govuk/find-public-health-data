@@ -18,6 +18,8 @@ const indicatorDetail = {
   ciConfidenceLevel: '95' as const,
   comparatorMethod: null,
   dataUpdatedAt: '2026-04-20T16:25:18.000Z',
+  firstPublishedAt: '2026-04-20T16:25:18.000Z',
+  lastPublishedAt: '2026-04-20T16:25:18.000Z',
   definition: 'Directly age-standardised mortality rate for all deaths.',
   rationale: null,
   methodology: null,
