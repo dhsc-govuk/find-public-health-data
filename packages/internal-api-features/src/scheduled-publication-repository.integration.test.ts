@@ -21,7 +21,8 @@ import { publishDueVersions, publishNextDueVersion } from './scheduled-publicati
 const { SYSTEM_USER_IDS } = schema;
 
 const testDb = await createTestDb({ template: 'seeded' });
-// The fixtures write as the owner; publication runs as internal_api, as it does deployed.
+// The fixtures write as the database owner. Publication connects as internal_api, the role it
+// uses when deployed.
 const db = testDb.db;
 const publisher = testDb.connectDb({ login: apiLogin('internal_api') });
 
@@ -33,7 +34,10 @@ afterAll(async () => {
 
 class RolledBack extends Error {}
 
-/** What a whole rebuild would leave for the indicator, read inside it and rolled back. */
+/**
+ * The read-model rows that rebuilding every indicator's read models would give this indicator. The
+ * rebuild runs in a transaction that is rolled back once the rows are read, so it changes nothing.
+ */
 async function rowsAfterWholeRebuild(indicatorId: string): Promise<string[]> {
   let rows: string[] = [];
   await expect(
@@ -53,8 +57,8 @@ function publishedEntriesFor(indicatorId: string) {
 }
 
 /**
- * Makes inserting the indicator's read-model rows fail with `sqlState`, until the returned function
- * is run.
+ * Adds a trigger that makes inserting the indicator's `available_data` rows fail with the error
+ * code `sqlState`. Run the returned function to remove the trigger.
  */
 async function breakReadModelsOf(
   indicatorId: string,
@@ -100,7 +104,8 @@ describe('publishNextDueVersion', () => {
       publishedAt: result.publishedAt,
     });
     expect(await dataUpdatedAtOf(db, indicatorId)).toEqual(result.publishedAt);
-    // Equal to the microsecond, which a Date cannot show.
+    // Compares the two times in the database, because a JavaScript Date drops the microseconds
+    // and could hide a difference.
     const [times] = await db.execute<{ same: boolean }>(sql`
       SELECT i.data_updated_at = v.published_at AS same
       FROM indicator i JOIN indicator_version v ON v.indicator_id = i.id
@@ -238,7 +243,8 @@ describe('publishDueVersions', () => {
 
   it('logs a refused version as failed and overdue, and still publishes the next', async () => {
     const refused = await dueDraft(db, 'Refused, overdue', 15);
-    // A scheduled version is always locked, so this one cannot take the publish step.
+    // Unlocks the scheduled version, which the workflow never does. The publish step only takes
+    // a locked version, so it refuses this one with 'not_allowed'.
     await db.execute(
       sql`UPDATE indicator_version SET is_locked = false WHERE id = ${refused.versionId}`,
     );
@@ -300,7 +306,8 @@ describe('publishDueVersions', () => {
   it('fails a publication that reaches the statement timeout, and still publishes the next', async () => {
     const slow = await dueDraft(db, 'Times out publishing', 2);
     const next = await dueDraft(db, 'Published after a timeout', 1);
-    // The SQLSTATE a statement timeout raises, from the slow publication's read-model insert.
+    // Makes the read-model insert fail with 57014, the SQLSTATE a statement timeout raises, to
+    // stand in for a publication that runs too long.
     const repair = await breakReadModelsOf(slow.indicatorId, '57014');
     const { logger, lines } = createCapturingLogger('internal-worker');
 

@@ -9,8 +9,9 @@ import { type SentBackDraft, scheduledDraft } from './indicator-workflow.testing
 const { indicator, indicatorVersion } = schema;
 
 /**
- * A scheduled new indicator with one observation in its batch, due `minutesAgo` minutes ago: in
- * the future when negative. The time is the database's, as the sweep reads it.
+ * Creates a new indicator with a scheduled version whose upload batch holds one observation, and
+ * sets the version's publication time to `minutesAgo` minutes ago. A negative `minutesAgo` puts the
+ * time in the future. The time is taken from the database's clock, which the sweep also uses.
  */
 export async function dueDraft(
   db: Database,
@@ -36,8 +37,8 @@ export async function dueDraft(
 }
 
 /**
- * Moves every scheduled version a year on, so a version a test left due is not published by the
- * next test's sweep.
+ * Moves every scheduled version's publication time a year into the future, so a version that one
+ * test left due is not published by the next test's sweep.
  */
 export async function deferScheduledVersions(db: Database): Promise<void> {
   await db.execute(sql`
@@ -85,8 +86,9 @@ export async function readModelRowsOf(
 }
 
 /**
- * Runs `statements` in a transaction of their own and keeps it open, holding whatever they
- * locked, until `release` lets it roll back.
+ * Runs `statements` in a new transaction and keeps that transaction open, so it goes on holding
+ * any locks the statements took. Calling `release` rolls the transaction back and waits for it to
+ * end.
  */
 export async function holdOpen(
   db: Database,
@@ -116,7 +118,10 @@ export async function holdOpen(
   };
 }
 
-/** Waits until a session in this database is seen waiting on a lock of the kind given. */
+/**
+ * Waits until some session in this database is waiting for a lock of the given kind: an advisory
+ * lock, or a lock on a table (`relation`).
+ */
 export async function lockWaitedOn(db: Database, waitEvent: 'advisory' | 'relation') {
   await expect
     .poll(async () => {

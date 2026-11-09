@@ -12,7 +12,8 @@ import {
 import { publishDueVersions, publishNextDueVersion } from './scheduled-publication-repository.ts';
 
 const testDb = await createTestDb({ template: 'seeded' });
-// The fixtures and the other transactions run as the owner; publication as internal_api.
+// The fixtures and the competing transactions connect as the database owner. Publication
+// connects as internal_api, the role it uses when deployed.
 const db = testDb.db;
 const publisher = testDb.connectDb({ login: apiLogin('internal_api') });
 
@@ -22,7 +23,8 @@ afterAll(async () => {
   await testDb.drop();
 });
 
-// What a live data package locks first, in its order, and then what its read-model rebuild locks.
+// The table locks a live-data package takes, in the order `applyDataMigration` takes them, and
+// then the lock a whole read-model rebuild takes on the read-model tables.
 const PACKAGE_LOCK = sql`LOCK TABLE indicator, indicator_version, indicator_version_topic,
   indicator_version_classification IN SHARE ROW EXCLUSIVE MODE`;
 const REBUILD_LOCK = sql`LOCK TABLE available_data, observation_range IN SHARE ROW EXCLUSIVE MODE`;
@@ -95,7 +97,9 @@ describe('publication beside other transactions', () => {
 
   it('holds back a live data package started mid-publication, rather than deadlocking', async () => {
     const { indicatorId, versionId } = await dueDraft(db, 'Published before a data package', 1);
-    // Pauses the publication on an advisory lock just after it writes the version's status.
+    // This trigger pauses the publication just after it sets the version's status to 'published'.
+    // It makes the publication wait for advisory lock 664, which the test holds until it releases
+    // `pause`.
     await db.execute(sql`
       CREATE FUNCTION pause_publication() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN PERFORM pg_advisory_xact_lock(664); RETURN NEW; END $$
