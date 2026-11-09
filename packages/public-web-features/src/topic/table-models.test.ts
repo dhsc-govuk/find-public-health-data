@@ -2,7 +2,7 @@ import { tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
 import { expect, it } from 'vitest';
 import { recentTrend } from '../indicator/data.ts';
 import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
-import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
+import { sortTopicAreaTable, topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
 const observation = (year: number, value: number): IndicatorObservation => ({
   fromDate: `${year}-01-01`,
@@ -158,4 +158,70 @@ it('keeps the same-period England comparison when an area has older data', () =>
   expect(model.rows[0]?.england).toMatchObject({ value: 28, period: '2023' });
   expect(model.rows[0]?.cells[0]).toMatchObject({ value: 18, period: '2023', judgement: 'better' });
   expect(JSON.stringify(model)).not.toContain('observations');
+});
+
+it('ranks areas by the selected row and keeps other rows aligned in both directions', () => {
+  const source = {
+    ...entry,
+    areaData: [
+      ...entry.areaData,
+      { areaCode: 'E12000002', areaName: 'North West', observations: [] },
+      { areaCode: 'E12000003', areaName: 'Yorkshire', observations: [observation(2023, 10)] },
+    ],
+  };
+  const second = {
+    ...source,
+    detail: { ...source.detail, shortId: 2, name: 'Second indicator' },
+    areaData: source.areaData.map((area, index) => ({
+      ...area,
+      observations: [observation(2023, index * 3)],
+    })),
+  };
+  const model = topicAreaTableModel(
+    [source, second],
+    { regionByCode: {}, levelByCode: {} },
+    'diabetes',
+  );
+  const params = new URLSearchParams({ sortAreas: 'first:1|' });
+  const first = sortTopicAreaTable(model, params);
+  expect(first.areas.map(({ areaName }) => areaName)).toEqual([
+    'Yorkshire',
+    'North East',
+    'North West',
+  ]);
+  expect(first.rows[1]?.cells.map(({ value }) => value)).toEqual([9, 3, 6]);
+
+  params.set('sortAreas', 'reverse:1|');
+  const reverse = sortTopicAreaTable(model, params);
+  expect(reverse.areas.map(({ areaName }) => areaName)).toEqual([
+    'North East',
+    'Yorkshire',
+    'North West',
+  ]);
+  expect(reverse.rows[1]?.cells.map(({ value }) => value)).toEqual([3, 9, 6]);
+});
+
+it('orders recently updated rows by the data update date and puts unknown dates last', () => {
+  const model = topicAreaTableModel(
+    [
+      entry,
+      { ...entry, detail: { ...entry.detail, shortId: 2, name: 'Unknown', dataUpdatedAt: null } },
+      {
+        ...entry,
+        detail: {
+          ...entry.detail,
+          shortId: 3,
+          name: 'Latest',
+          dataUpdatedAt: '2025-01-01T00:00:00Z',
+        },
+      },
+    ],
+    { regionByCode: {}, levelByCode: {} },
+    'diabetes',
+  );
+  const { rows } = sortTopicAreaTable(
+    model,
+    new URLSearchParams({ areaRowSort: 'recently-updated' }),
+  );
+  expect(rows.map(({ name }) => name)).toEqual(['Latest', 'Indicator', 'Unknown']);
 });

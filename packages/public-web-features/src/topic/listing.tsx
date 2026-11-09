@@ -3,7 +3,13 @@ import { useMemo } from 'react';
 import { Form, useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import { TOPIC_SORTS, topicColumns } from './data.ts';
+import {
+  AREA_SUMMARY_SORTS,
+  DEFAULT_TOPIC_AREA_GROUP,
+  TOPIC_SORTS,
+  topicAreaRowSort,
+  topicColumns,
+} from './data.ts';
 import { topicDataKey } from './filters.ts';
 import type { loadTopicPage } from './loader.ts';
 import { AreaSummariesTable } from './tables/area-summaries-table.tsx';
@@ -32,7 +38,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
   const columns = useMemo(() => topicColumns(new URLSearchParams(columnKey)), [columnKey]);
   const sourceTable = data.table;
   const areaKey = new URLSearchParams([...params].filter(([key]) => key === 'ga')).toString();
-  const sameGroup = search.geoLevels.includes(params.get('geo') ?? 'NHS regions');
+  const sameGroup = search.geoLevels.includes(params.get('geo') ?? DEFAULT_TOPIC_AREA_GROUP);
   const table = useMemo(() => {
     const selectedCodes = new URLSearchParams(areaKey).getAll('ga');
     if (
@@ -54,6 +60,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
   }, [sourceTable, areaKey, sameGroup]);
   const total = search.searchResult.total;
   const hasRows = table.rows.length > 0;
+  const sortParam = areas ? 'areaRowSort' : 'sort';
   const loading =
     data.dataKey !==
     topicDataKey(
@@ -90,28 +97,30 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
             </span>
           ) : null}
         </h2>
-        {!areas ? (
-          <Form action={`${path}#topic-data`} method="get" preventScrollReset>
-            {[...params]
-              .filter(([key]) => key !== 'sort' && key !== 'page')
-              .map(([name, value], index) => (
-                <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
-              ))}
-            <Select
-              id={`topic-sort-${tab}`}
-              label="Sort by"
-              name="sort"
-              options={TOPIC_SORTS}
-              value={params.get('sort') ?? listing.sort}
-              onChange={(event) => event.currentTarget.form?.requestSubmit()}
-            />
-            <noscript>
-              <button className="govuk-button govuk-button--secondary" type="submit">
-                Sort indicators
-              </button>
-            </noscript>
-          </Form>
-        ) : null}
+        <Form
+          action={`${path}#${areas ? 'topic-area-summaries' : 'topic-data'}`}
+          method="get"
+          preventScrollReset
+        >
+          {[...params]
+            .filter(([key]) => key !== sortParam && key !== 'page')
+            .map(([name, value], index) => (
+              <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
+            ))}
+          <Select
+            id={`topic-sort-${tab}`}
+            label={areas ? 'Sort indicators by:' : 'Sort by'}
+            name={sortParam}
+            options={areas ? [...AREA_SUMMARY_SORTS] : TOPIC_SORTS}
+            value={areas ? topicAreaRowSort(params) : (params.get('sort') ?? listing.sort)}
+            onChange={(event) => event.currentTarget.form?.requestSubmit()}
+          />
+          <noscript>
+            <button className="govuk-button govuk-button--secondary" type="submit">
+              Sort indicators
+            </button>
+          </noscript>
+        </Form>
       </div>
       {hasRows ? (
         <DownloadShareData
@@ -128,7 +137,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
           Showing the first {search.searchResult.limit} indicators. Add filters to narrow the list.
         </InsetText>
       ) : null}
-      {listing.sort.startsWith('trend-') ? (
+      {!areas && listing.sort.startsWith('trend-') ? (
         <p className="govuk-body-s">
           Trend sorting uses England's headline series. Indicators without a calculated trend appear
           last.
@@ -145,7 +154,13 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
             </InsetText>
           ) : null}
           <div aria-busy={loading}>
-            <AreaSummariesTable model={table} />
+            <AreaSummariesTable
+              model={table}
+              params={params}
+              path={path}
+              topicTitle={topic.title}
+              geographyGroup={search.geoLevels[0]}
+            />
           </div>
         </>
       ) : (

@@ -1,7 +1,13 @@
 import { comparisonTable } from '../indicator/comparison.ts';
-import { comparisonRows, recentTrend } from '../indicator/data.ts';
+import { comparisonRows, polarityGoodDirection, recentTrend } from '../indicator/data.ts';
 import type { BenchmarkGeography, SelectedIndicator } from '../indicator/loader.ts';
-import { englandObservation, observationPeriod, topicJudgement, topicSubtopics } from './data.ts';
+import {
+  englandObservation,
+  observationPeriod,
+  topicAreaRowSort,
+  topicJudgement,
+  topicSubtopics,
+} from './data.ts';
 
 export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: string) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
@@ -66,6 +72,8 @@ export function topicAreaTableModel(
           suffix: row.suffix,
           period: row.period,
           unit: row.unit,
+          updatedAt: entry.detail.dataUpdatedAt,
+          goodDirection: polarityGoodDirection(entry.detail.polarity),
           subtopics: topicSubtopics(entry, topicSlug),
           england: {
             value: england?.value ?? null,
@@ -96,3 +104,65 @@ export function topicAreaTableModel(
 
 export type TopicDataTableModel = ReturnType<typeof topicDataTableModel>;
 export type TopicAreaTableModel = ReturnType<typeof topicAreaTableModel>;
+
+export function sortTopicAreaTable(model: TopicAreaTableModel, params: URLSearchParams) {
+  const rowSort = topicAreaRowSort(params);
+  const rows = model.rows.toSorted((a, b) => {
+    const byName = a.name.localeCompare(b.name);
+    switch (rowSort) {
+      case 'name-asc':
+        return byName;
+      case 'name-desc':
+        return -byName;
+      case 'recently-updated':
+        return (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || byName;
+      default: {
+        const left = a.subtopics[0];
+        const right = b.subtopics[0];
+        if (left === undefined) return right === undefined ? byName : 1;
+        if (right === undefined) return -1;
+        const direction = rowSort === 'subtopic-asc' ? 1 : -1;
+        return direction * left.localeCompare(right) || byName;
+      }
+    }
+  });
+  const selection = /^(first|reverse):(.+)$/.exec(params.get('sortAreas') ?? '');
+  const row = selection && rows.find(({ key }) => key === selection[2]);
+  if (!row || model.areas.length < 2) return { ...model, rows, columnSort: null };
+
+  const reverse = selection[1] === 'reverse';
+  const descending = reverse === (row.goodDirection === 'low');
+  const values = new Map(row.cells.map(({ areaCode, value }) => [areaCode, value]));
+  const areas = model.areas.toSorted((a, b) => {
+    const left = values.get(a.areaCode);
+    const right = values.get(b.areaCode);
+    if (left == null) return right == null ? 0 : 1;
+    if (right == null) return -1;
+    return descending ? right - left : left - right;
+  });
+  return {
+    ...model,
+    areas,
+    rows: rows.map((entry) => {
+      const cells = new Map(entry.cells.map((cell) => [cell.areaCode, cell]));
+      return {
+        ...entry,
+        cells: areas.map(
+          ({ areaCode }) =>
+            cells.get(areaCode) ?? {
+              areaCode,
+              value: null,
+              notes: [],
+              period: 'No data',
+              judgement: 'none' as const,
+            },
+        ),
+      };
+    }),
+    columnSort: {
+      key: row.key,
+      reverse,
+      direction: descending ? 'descending' : 'ascending',
+    } as const,
+  };
+}

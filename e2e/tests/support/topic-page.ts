@@ -251,10 +251,12 @@ export function topicPageTests() {
   test('switches area summary geography and filters the areas without leaving the topic', async ({
     page,
   }, testInfo) => {
-    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas`);
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas&geo=NHS+regions`);
     await page.getByRole('radio', { name: 'Statistical regions', exact: true }).check();
     await expect(page).toHaveURL(/geo=Statistical/);
-    const table = page.getByRole('table', { name: 'Topic indicators by area' });
+    const table = page.getByRole('table', {
+      name: 'Mortality and life expectancy indicators by statistical region',
+    });
     await expect(
       table.getByRole('columnheader', { name: 'South West', exact: true }),
     ).toBeVisible();
@@ -305,7 +307,7 @@ export function topicPageTests() {
     for (const [tab, width] of [
       ['Overview', 960],
       ['Data', 1988],
-      ['Area summaries', 1442],
+      ['Area summaries', 1712],
       ['More information', 960],
     ] as const) {
       await page.getByRole('tab', { name: tab, exact: true }).click();
@@ -470,7 +472,7 @@ export function topicPageTests() {
   test('keeps geography search and choices available while changing the area type', async ({
     page,
   }, testInfo) => {
-    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas`);
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas&geo=NHS+regions`);
     const panel = page.getByRole('tabpanel', { name: 'Area summaries' });
     const search = panel.getByLabel('Search for a geography (optional)', { exact: true });
     let release!: () => void;
@@ -505,13 +507,16 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  test('opens area summaries on NHS regions with geography controls', async ({
+  test('opens area summaries on statistical regions with geography controls', async ({
     page,
   }, testInfo) => {
     await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas`);
     const panel = page.getByRole('tabpanel', { name: 'Area summaries' });
     await expect(panel.getByRole('heading', { name: 'Geographies' })).toBeVisible();
-    const table = panel.getByRole('table', { name: 'Topic indicators by area' });
+    await expect(panel.getByRole('radio', { name: 'Statistical regions' })).toBeChecked();
+    const table = panel.getByRole('table', {
+      name: 'Mortality and life expectancy indicators by statistical region',
+    });
     await expect(table).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
@@ -524,6 +529,66 @@ export function topicPageTests() {
       })
       .toBe(true);
     await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test('sorts indicator rows in Area summaries', async ({ page }, testInfo) => {
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas`);
+    const panel = page.getByRole('tabpanel', { name: 'Area summaries' });
+    const names = panel.getByRole('rowheader').getByRole('link');
+    const expected = (await names.allTextContents()).sort((a, b) => b.localeCompare(a));
+    expect(expected.length).toBeGreaterThan(1);
+    const sort = panel.getByRole('combobox', { name: 'Sort indicators by:' });
+    await sort.selectOption('name-desc');
+    await expect(names).toHaveText(expected);
+    await page.reload();
+    await expect(sort).toHaveValue('name-desc');
+    await expect(names).toHaveText(expected);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test('sorts area columns by an indicator and downloads them in that order', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas`);
+    const panel = page.getByRole('tabpanel', { name: 'Area summaries' });
+    const table = panel.getByRole('table', {
+      name: /^Mortality and life expectancy indicators by statistical region/,
+    });
+    const headers = table.getByRole('columnheader');
+    const original = await headers.allTextContents();
+    const row = table
+      .getByRole('row')
+      .filter({
+        has: page.getByRole('link', {
+          name: 'Mortality rate for deaths involving diabetes, all ages',
+          exact: true,
+        }),
+      })
+      .first();
+    await row.getByRole('link', { name: /^Sort best to worst for/ }).click();
+    await expect(row.getByRole('rowheader')).toHaveAttribute('aria-sort', 'ascending');
+    await expect(row.getByRole('rowheader').getByText('Areas sorted best to worst')).toBeVisible();
+    await expect(table).toHaveAccessibleName(
+      'Mortality and life expectancy indicators by statistical region, sorted by Mortality rate for deaths involving diabetes, all ages, best to worst',
+    );
+    await row.getByRole('link', { name: /^Sort worst to best for/ }).click();
+    await expect(row.getByRole('rowheader')).toHaveAttribute('aria-sort', 'descending');
+    const sorted = await headers.allTextContents();
+    expect(sorted.slice(0, 4)).toEqual(original.slice(0, 4));
+    expect(sorted).not.toEqual(original);
+    await panel.getByText('Download or share data', { exact: true }).click();
+    const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
+    const csvHeader = text.split('\n')[0] ?? '';
+    const areaPositions = sorted.slice(4).map((area) => csvHeader.indexOf(`${area} period`));
+    expect(areaPositions.every((position) => position >= 0)).toBe(true);
+    expect(areaPositions).toEqual(areaPositions.toSorted((a, b) => a - b));
+    await expectNoAccessibilityViolations(page, testInfo);
+    await row.getByRole('link', { name: /^Clear sort by/ }).press('Enter');
+    await expect(row.getByRole('link', { name: /^Sort best to worst for/ })).toBeFocused();
+    await expect(table).toHaveAccessibleName(
+      'Mortality and life expectancy indicators by statistical region',
+    );
+    await expect(headers).toHaveText(original);
   });
 
   test('shows API backed publication links on the more information tab', async ({
