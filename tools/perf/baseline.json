@@ -156,10 +156,10 @@
     "bytes": 269866
   },
   "public-web /search?q=mortality": {
-    "statements": 12,
-    "buffers": 265,
-    "rows": 630,
-    "bytes": 78914
+    "statements": 13,
+    "buffers": 266,
+    "rows": 649,
+    "bytes": 84715
   },
   "public-web /topics": {
     "statements": 1,
