@@ -5,16 +5,19 @@ import type { IndicatorSubmissionStatus } from '@fphd/utils/indicator-submission
 
 type VersionStatus = schema.IndicatorVersionStatus;
 
-/** What the workflow reads to decide which steps are open: the version and its latest submission. */
+/**
+ * What the workflow reads to decide which steps are open: whether the indicator has been
+ * published, and the state of its draft version and of that version's latest submission.
+ */
 export interface IndicatorWorkflowContext {
   indicatorStatus: IndicatorStatus;
   versionStatus: VersionStatus;
   isLocked: boolean;
-  /** Null until the version is first submitted. */
+  /** Null until the version is submitted for the first time. */
   latestSubmissionStatus: IndicatorSubmissionStatus | null;
 }
 
-/** Where a step leaves the version and the submission it writes. */
+/** The version's status and lock, and the status of its submission, after a step is taken. */
 export interface IndicatorWorkflowState {
   versionStatus: VersionStatus;
   submissionStatus: IndicatorSubmissionStatus;
@@ -29,7 +32,10 @@ interface StepEntry {
     submissionStatuses: readonly (IndicatorSubmissionStatus | null)[];
   };
   leadsTo: IndicatorWorkflowState;
-  /** True for a step that starts a submission, which goes straight to any reviewers carried. */
+  /**
+   * True for a step that starts a new submission. If reviewers from the latest submission are
+   * carried onto it, the new submission goes straight to 'in_review' instead of 'submitted'.
+   */
   carriesReviewers?: true;
 }
 
@@ -41,7 +47,8 @@ const RESPONSE_FROM: StepEntry['from'] = {
 };
 
 const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
-  // A new indicator only, until the update journey can be submitted.
+  // Only a new indicator can be submitted for now. An update to a live indicator will be
+  // submittable once its journey is built.
   submit: {
     from: {
       indicatorStatuses: ['new'],
@@ -52,7 +59,9 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     carriesReviewers: true,
   },
-  // Open until a response, which ends an `in_review` submission while a round holds one response.
+  // The publisher can withdraw a submission until a reviewer responds. Each review round takes one
+  // response, and that response ends the 'in_review' submission, so there is nothing left to
+  // withdraw.
   withdraw: {
     from: {
       indicatorStatuses: ['new', 'live'],
@@ -62,7 +71,8 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'withdrawn', isLocked: false },
   },
-  // Assigns the first reviewers, or changes them. A new indicator only: an update needs triage.
+  // Assigns the first reviewers to a submission, or changes them. Only for a new indicator for
+  // now, because an update to a live indicator will need triage first.
   assign_reviewers: {
     from: {
       indicatorStatuses: ['new'],
@@ -72,8 +82,8 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'in_review', isLocked: true },
   },
-  // A reviewer's response ends the round: feedback and revisions unlock the draft for the
-  // publisher, and an approval keeps it locked for publication.
+  // A reviewer's response ends the review round. Giving feedback and requesting changes both
+  // unlock the draft so the publisher can edit it. Approving keeps it locked, ready to schedule.
   give_feedback: {
     from: RESPONSE_FROM,
     leadsTo: { versionStatus: 'draft', submissionStatus: 'changes_requested', isLocked: false },
@@ -96,7 +106,8 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     carriesReviewers: true,
   },
-  // An admin confirms an approved new indicator's publication date, which schedules it.
+  // An admin confirms the publication date of an approved new indicator, and the version
+  // becomes scheduled.
   schedule: {
     from: {
       indicatorStatuses: ['new'],
@@ -130,9 +141,9 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
   },
 };
 
-/** What a step's write carries over from the submission before it. */
+/** What a step carries over from the latest submission onto the new one it starts. */
 export interface IndicatorStepCarry {
-  /** How many of the latest submission's reviewers may still review the indicator. */
+  /** How many of the latest submission's reviewers move onto the new submission. */
   carriedReviewerCount: number;
 }
 
@@ -150,8 +161,9 @@ function isOpen({ from }: StepEntry, context: IndicatorWorkflowContext): boolean
 }
 
 /**
- * Where taking `step` now leads, or why it may not be taken. A submission that carries reviewers
- * over starts in review; whether a step is open never depends on them.
+ * The state that taking `step` now would lead to, or 'not_allowed' if the step is not open.
+ * A new submission that carries reviewers over starts in 'in_review' rather than 'submitted'.
+ * The carried reviewers change only where the step leads, never whether it is open.
  */
 export function nextState(
   context: IndicatorWorkflowContext,
@@ -167,12 +179,15 @@ export function nextState(
     : { ok: true, state: entry.leadsTo };
 }
 
-/** Whether `step` starts a submission, which carries the latest submission's reviewers over. */
+/**
+ * Whether `step` starts a new submission, which takes over the latest submission's reviewers who
+ * may still review the indicator.
+ */
 export function carriesReviewers(step: IndicatorStep): boolean {
   return STEPS[step].carriesReviewers === true;
 }
 
-/** The steps open now, whoever may take them. */
+/** The steps open in this context, without checking which user may take them. */
 export function allowedSteps(context: IndicatorWorkflowContext): IndicatorStep[] {
   return INDICATOR_STEPS.filter((step) => isOpen(STEPS[step], context));
 }

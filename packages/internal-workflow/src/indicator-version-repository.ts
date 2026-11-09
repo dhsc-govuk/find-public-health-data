@@ -5,7 +5,7 @@ import type { Transaction } from './database.ts';
 
 const { currentPublishedVersion, indicatorVersion } = schema;
 
-/** Every column of one version, as a section reads its answers from the draft. */
+/** One `indicator_version` row with every column, as a step reads the draft version it locks. */
 export type IndicatorDraftVersion = typeof indicatorVersion.$inferSelect;
 
 export async function isPublished(tx: Transaction, indicatorId: string): Promise<boolean> {

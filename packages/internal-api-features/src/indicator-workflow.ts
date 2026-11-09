@@ -24,7 +24,7 @@ type StepPermission = (user: SessionUser, indicator: IndicatorAccess) => boolean
 // itself when the publication time comes, so no route offers that step to a user.
 const noUser = () => false;
 
-/** Who may take each step, a check from `@fphd/auth/permissions`. */
+/** For each step, the check from `@fphd/auth/permissions` that decides which users may take it. */
 const STEP_PERMISSIONS: Readonly<Record<IndicatorStep, StepPermission>> = {
   submit: canSubmitIndicator,
   withdraw: canWithdrawSubmission,

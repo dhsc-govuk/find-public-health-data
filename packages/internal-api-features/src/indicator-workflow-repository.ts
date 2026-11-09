@@ -26,8 +26,9 @@ const { ciMethod, indicatorVersionSubmission, indicatorVersionSubmissionReviewer
 type Submission = typeof indicatorVersionSubmission.$inferSelect;
 
 /**
- * The latest submission's reviewers who still hold the role and are neither the indicator's
- * creator nor the new submitter, for a step that starts a submission.
+ * Chooses the reviewers that a submit or resubmit step carries onto the new submission. They are
+ * the latest submission's reviewers who still hold the reviewer role and who are neither the
+ * indicator's creator nor the person submitting it now.
  */
 export const stillEligibleReviewers: ReviewersToCarry = (tx, { indicatorId, latest, actor }) =>
   carriedReviewersOf(tx, indicatorId, latest.id, actor.userId);

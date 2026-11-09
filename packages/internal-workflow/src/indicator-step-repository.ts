@@ -31,8 +31,9 @@ export type IndicatorStepResult<Reason extends string = never> =
   | { ok: false; reason: 'no_draft' | 'not_allowed' | Reason };
 
 /**
- * A step's own check of the draft and its latest submission, made under the draft's lock: why
- * the step is refused, or nothing.
+ * A step's own check of the draft version and its latest submission, run while the step holds the
+ * lock on the draft version's row. It returns the reason the step is refused, or undefined to let
+ * the step go ahead.
  */
 export type IndicatorStepPrecondition<Reason extends string> = (
   tx: Transaction,
@@ -54,7 +55,11 @@ export type IndicatorStepWrite = (
   version: SteppedVersion,
 ) => Promise<AuditChanges>;
 
-/** The step to take, chosen by where the draft and its latest submission stand under the lock. */
+/**
+ * The step to take, or a function that chooses it from the draft version and its latest
+ * submission as they are read under the lock. Submitting uses a function, so that a draft sent
+ * back for changes is resubmitted rather than submitted.
+ */
 export type IndicatorStepChoice =
   | IndicatorStep
   | ((latest: Submission | undefined, draft: IndicatorDraftVersion) => IndicatorStep);
@@ -82,7 +87,10 @@ interface SubmissionWrite {
 
 type SubmissionWriteResult = { before: Submission | null; after: Submission };
 
-/** Inserts the version's next submission, as a submission or resubmission does. */
+/**
+ * Inserts the draft version's next submission, numbered one after the latest, for the submit and
+ * resubmit steps. There is no row before, so it returns null as the row before.
+ */
 async function insertNextSubmission({
   tx,
   draft,
@@ -104,7 +112,10 @@ async function insertNextSubmission({
   return { before: null, after };
 }
 
-/** Ends the latest submission, as a withdrawal or a reviewer's response does. */
+/**
+ * Ends the latest submission with the step's status, recording who ended it and when. Withdrawal
+ * and a reviewer's response end a submission this way.
+ */
 async function endLatestSubmission({
   tx,
   latest,
@@ -121,19 +132,26 @@ async function endLatestSubmission({
   return { before: latest, after };
 }
 
-/** Answers the latest submission as it stands, for a step that leaves it alone. */
+/**
+ * Returns the latest submission unchanged, for a step that does not write to it, such as
+ * scheduling or publication.
+ */
 async function keepLatestSubmission({ latest }: SubmissionWrite): Promise<SubmissionWriteResult> {
   if (latest === undefined) throw new Error('found no submission to keep');
   return { before: latest, after: latest };
 }
 
-/** Each step's write of a submission, answering the row before (null when inserted) and after. */
+/**
+ * How each step writes its submission. Each returns the submission row before and after the
+ * write, with null as the row before when the step inserts a new submission.
+ */
 const SUBMISSION_WRITES: Readonly<
   Record<IndicatorStep, (write: SubmissionWrite) => Promise<SubmissionWriteResult>>
 > = {
   submit: insertNextSubmission,
   withdraw: endLatestSubmission,
-  // Changing the reviewers leaves a submission already in review as it is.
+  // The first assignment moves the submission from 'submitted' to 'in_review'. Changing the
+  // reviewers of a submission already in review leaves its row as it is.
   assign_reviewers: async ({ tx, latest, status }) => {
     if (latest === undefined) throw new Error('assign_reviewers found no submission');
     if (latest.status === status) return { before: latest, after: latest };
@@ -155,8 +173,9 @@ const SUBMISSION_WRITES: Readonly<
 };
 
 /**
- * The reviewers of the latest submission who may still review the indicator, to carry onto the
- * submission a step starts.
+ * Chooses which reviewers of the latest submission move onto the new submission that a submit or
+ * resubmit step starts. It returns only the reviewers who may still review the indicator. The
+ * caller supplies it because the rules for who may review live outside this package.
  */
 export type ReviewersToCarry = (
   tx: Transaction,
@@ -166,8 +185,8 @@ export type ReviewersToCarry = (
 /**
  * Extras for one kind of step. `precondition` can refuse the step with a reason, after the
  * workflow allows the step and before anything is written. `write` adds the step's own rows in the
- * same transaction. `reviewersToCarry` is required by a step that starts a new submission after an
- * earlier one, and chooses which of the earlier submission's reviewers move onto the new one.
+ * same transaction. `reviewersToCarry` must be given for a step that starts a submission, such as
+ * submit or resubmit, and chooses which of the latest submission's reviewers move onto the new one.
  */
 export interface IndicatorStepOptions<Reason extends string> {
   precondition?: IndicatorStepPrecondition<Reason>;
@@ -175,7 +194,11 @@ export interface IndicatorStepOptions<Reason extends string> {
   reviewersToCarry?: ReviewersToCarry;
 }
 
-/** The reviewers `step` carries over: none unless it starts a submission after an earlier one. */
+/**
+ * The reviewers that `step` carries onto the submission it starts. There are none when the step
+ * does not start a submission or when the draft has no earlier submission. Throws when a step that
+ * starts a submission was given no `reviewersToCarry`.
+ */
 async function reviewersCarriedBy(
   tx: Transaction,
   step: IndicatorStep,
@@ -189,10 +212,11 @@ async function reviewersCarriedBy(
 }
 
 /**
- * Takes a workflow step on the indicator's draft in one transaction: the version's lock, its
- * submission, the step's own rows that `write` adds and the audit entry are written together or
- * not at all. A step that changes nothing records nothing. A step is not an edit, so the version's
- * `updated_at` and `updated_by` stay as the last edit left them.
+ * Takes a workflow step on the indicator's draft version in one transaction. The version's status
+ * and `is_locked` flag, its submission, any rows that `write` adds and the audit entry are all
+ * written together or not at all. A step that changes nothing records no audit entry.
+ * A step is not an edit, so the version's `updated_at` and `updated_by` keep the values the last
+ * edit gave them.
  */
 export function takeIndicatorStep<Reason extends string = never>(
   db: Database,

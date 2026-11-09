@@ -2,7 +2,11 @@ import type { Database } from '@fphd/db';
 
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
-/** Drizzle wraps the driver error, so its fields are on a `cause` rather than the error thrown. */
+/**
+ * Whether `error`, or any error in its chain of causes, has `field` set to `value`. Drizzle wraps
+ * the Postgres driver's error, so fields such as `code` are on a `cause` rather than on the error
+ * that is thrown.
+ */
 function hasCause(error: unknown, field: 'code' | 'constraint_name', value: string): boolean {
   for (let current = error; current !== null && current !== undefined; ) {
     if (typeof current !== 'object') return false;

@@ -6,7 +6,10 @@ import { describe, expect, it } from 'vitest';
 
 import { allowedSteps, type IndicatorWorkflowContext, nextState } from './indicator-workflow.ts';
 
-/** Every context the workflow can be asked about. */
+/**
+ * Every context the workflow can be asked about: each combination of indicator status, version
+ * status, lock and latest submission status, including no submission at all.
+ */
 const CONTEXTS: IndicatorWorkflowContext[] = INDICATOR_STATUSES.flatMap((indicatorStatus) =>
   schema.INDICATOR_VERSION_STATUSES.flatMap((versionStatus) =>
     [false, true].flatMap((isLocked) =>

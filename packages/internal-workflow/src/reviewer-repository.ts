@@ -5,15 +5,16 @@ import type { Transaction } from './database.ts';
 
 const { indicatorVersionSubmissionReviewer } = schema;
 
-/** A reviewer of one submission to carry onto the next, with whoever first assigned them. */
+/** A reviewer of one submission to carry onto the next, with the user who first assigned them. */
 export interface CarriedReviewer {
   reviewerId: string;
   assignedBy: string;
 }
 
 /**
- * Assigns the carried reviewers to the new submission, each keeping who assigned them, and
- * answers the change for the audit; nothing when there are none.
+ * Assigns the carried reviewers to the new submission, each keeping the user who first assigned
+ * them, and returns the change for the audit entry. With no reviewers to carry, it writes nothing
+ * and returns no change.
  */
 export async function carryReviewers(
   tx: Transaction,

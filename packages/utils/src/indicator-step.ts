@@ -1,4 +1,7 @@
-/** The steps a version takes through review, in the order the workflow allows them. */
+/**
+ * The workflow steps a draft version can take, from submission through review to publication, in
+ * the order the workflow allows them.
+ */
 export const INDICATOR_STEPS = [
   'submit',
   'withdraw',
