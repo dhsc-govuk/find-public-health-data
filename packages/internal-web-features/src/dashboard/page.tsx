@@ -3,7 +3,12 @@ import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
 import { ALL_INDICATORS_TAB, CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
-import { ReviewTable, ScheduledTable, UnderReviewTables } from './under-review-tables.tsx';
+import {
+  AssignedTable,
+  ReviewTable,
+  ScheduledTable,
+  UnassignedTable,
+} from './under-review-tables.tsx';
 
 export interface IndicatorList {
   canCreate: boolean;
@@ -69,13 +74,14 @@ interface DashboardPageProps {
   notification?: string | undefined;
 }
 
-function sectionCount({ underReview, toReview, scheduled, list }: DashboardPageProps) {
-  return [underReview, toReview, scheduled, list].filter((section) => section !== null).length;
+/** How many of the dashboard's roles the user holds: managing, reviewing, scheduling, the list. */
+function roleCount({ underReview, toReview, scheduled, list }: DashboardPageProps) {
+  return [underReview, toReview, scheduled, list].filter((role) => role !== null).length;
 }
 
 /** The page's h1, which its document title follows; plain "Indicators" without the data. */
 export function dashboardHeading(data?: DashboardPageProps): string {
-  return data !== undefined && data.list === null && sectionCount(data) === 1
+  return data !== undefined && data.list === null && roleCount(data) === 1
     ? 'Indicators under review'
     : 'Indicators';
 }
@@ -88,23 +94,33 @@ function listSection(list: IndicatorList, tabbed: boolean) {
   return { ...tab, content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} /> };
 }
 
+/** An IMRG manager's two sections: the submissions waiting for reviewers, then those in review. */
+function underReviewSections({ unassigned, assigned }: IndicatorsUnderReview) {
+  return [
+    {
+      id: 'unassigned',
+      label: 'Unassigned indicators',
+      content: <UnassignedTable indicators={unassigned} />,
+    },
+    {
+      id: 'assigned',
+      label: 'Assigned indicators',
+      content: <AssignedTable indicators={assigned} />,
+    },
+  ];
+}
+
 /**
- * One section for each role the user holds: Assign for an IMRG manager, Review for an IMRG
- * reviewer, Scheduled indicators for an admin, then the indicator list, whose page links keep
- * its tab open when `tabbed`.
+ * One section for each table the user may see: Unassigned and Assigned indicators for an IMRG
+ * manager, Review for an IMRG reviewer, Scheduled indicators for an admin, then the indicator
+ * list, whose page links keep its tab open when `tabbed`.
  */
 function dashboardSections(
   { underReview, toReview, scheduled, list }: DashboardPageProps,
   tabbed: boolean,
 ) {
   return [
-    underReview === null
-      ? null
-      : {
-          id: 'assign',
-          label: countedLabel('Assign', underReview.unassigned.length),
-          content: <UnderReviewTables {...underReview} />,
-        },
+    ...(underReview === null ? [] : underReviewSections(underReview)),
     toReview === null
       ? null
       : {
@@ -131,10 +147,11 @@ function dashboardSections(
 /**
  * Shows an IMRG manager the indicators under review, an IMRG reviewer the indicators assigned to
  * them, an admin the indicators waiting to be published, and anyone else a page of their
- * indicators. A user with more than one of these gets a tab for each.
+ * indicators. Each table gets a tab of its own whenever there is more than one.
  */
 export function DashboardPage(props: DashboardPageProps) {
-  const tabbed = sectionCount(props) > 1;
+  // Only the IMRG manager's role brings two tables, so any second role means more than one.
+  const tabbed = props.underReview !== null || roleCount(props) > 1;
   const sections = dashboardSections(props, tabbed);
 
   return (
