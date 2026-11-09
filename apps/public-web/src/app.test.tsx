@@ -132,6 +132,8 @@ describe('public application routes', () => {
       ciConfidenceLevel: null,
       comparatorMethod: null,
       dataUpdatedAt: null,
+      firstPublishedAt: '2026-04-20T00:00:00.000Z',
+      lastPublishedAt: '2026-04-20T00:00:00.000Z',
       definition: null,
       rationale: null,
       methodology: null,
@@ -259,6 +261,8 @@ describe('public application routes', () => {
       ciConfidenceLevel: null,
       comparatorMethod: null,
       dataUpdatedAt: null,
+      firstPublishedAt: '2026-04-20T00:00:00.000Z',
+      lastPublishedAt: '2026-04-20T00:00:00.000Z',
       definition: null,
       rationale: null,
       methodology: null,
@@ -472,6 +476,7 @@ describe('public application routes', () => {
   });
 
   const searchLoaderData = {
+    topicResults: [],
     geographyLookupUrl: '/geographies?scheme=public',
     q: '',
     topics: [],

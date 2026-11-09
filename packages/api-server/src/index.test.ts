@@ -40,6 +40,17 @@ describe('API server', () => {
     expect(response.headers['x-content-type-options']).toBe('nosniff');
   });
 
+  it('sends the Cache-Control it was given, and none without one', async () => {
+    const noStore = createApiApp({ logger, serviceName: 'test-api', cacheControl: 'no-store' });
+    const plain = createApiApp({ logger, serviceName: 'test-api' });
+
+    const withHeader = await request(noStore).get('/api');
+    const withoutHeader = await request(plain).get('/api');
+
+    expect(withHeader.headers['cache-control']).toBe('no-store');
+    expect(withoutHeader.headers['cache-control']).toBeUndefined();
+  });
+
   it('serves only the shared public route table', async () => {
     const app = createApiApp({ logger, serviceName: 'test-api' });
     addFallbackHandlers(app);

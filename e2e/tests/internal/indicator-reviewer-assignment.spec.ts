@@ -23,6 +23,11 @@ function removeButtons(page: Page) {
   return page.getByRole('button', { name: /^Remove reviewer / });
 }
 
+/** The manager's dashboard, open on the tab that holds the table named. */
+async function openDashboardTab(page: Page, table: 'Unassigned' | 'Assigned') {
+  await page.goto(`/dashboard?tab=${table.toLowerCase()}`);
+}
+
 /** The manager's dashboard row for the indicator in the table named. */
 function dashboardRow(page: Page, table: 'Unassigned' | 'Assigned', name: string) {
   return page
@@ -39,7 +44,7 @@ test('assigns reviewers to an indicator opened from Unassigned indicators', asyn
 }, testInfo) => {
   const name = uniqueIndicatorName('assign reviewers');
   const id = await submitNewIndicator(browser, name);
-  await page.goto('/dashboard');
+  await openDashboardTab(page, 'Unassigned');
   await dashboardRow(page, 'Unassigned', name).getByRole('link', { name }).click();
 
   await page.getByRole('button', { name: 'Assign reviewers to indicator' }).click();
@@ -54,11 +59,12 @@ test('assigns reviewers to an indicator opened from Unassigned indicators', asyn
   await expect(
     page.getByRole('link', { name: 'Change reviewers for this indicator' }),
   ).toBeVisible();
-  await page.goto('/dashboard');
+  await openDashboardTab(page, 'Assigned');
   await expect(dashboardRow(page, 'Assigned', name).getByRole('listitem')).toHaveText([
     'Jamie Evans',
     'Morgan Hughes',
   ]);
+  await openDashboardTab(page, 'Unassigned');
   await expect(dashboardRow(page, 'Unassigned', name)).toHaveCount(0);
 });
 
@@ -78,7 +84,7 @@ test('changes the reviewers of an indicator in review', async ({ browser, page }
 
   await expect(page).toHaveURL(overviewPath(id));
   await expect(page.getByRole('alert')).toContainText(ASSIGNED);
-  await page.goto('/dashboard');
+  await openDashboardTab(page, 'Assigned');
   await expect(dashboardRow(page, 'Assigned', name).getByRole('listitem')).toHaveText([
     'Jamie Evans',
   ]);

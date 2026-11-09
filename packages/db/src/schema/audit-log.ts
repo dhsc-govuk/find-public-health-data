@@ -28,6 +28,7 @@ export const AUDIT_ACTIONS = [
   'indicator.revision_response_updated',
   'indicator.publication_scheduled',
   'indicator.publication_date_changed',
+  'indicator.published',
   // Reviewers' notes, which publishers may not read: never show these in the indicator's history.
   'indicator.review_note_added',
   'indicator.review_note_updated',
@@ -47,10 +48,10 @@ export interface FieldChange {
 export type AuditChanges = Record<string, FieldChange>;
 
 /**
- * Who changed what, and when, for every change made through the service: the internal API's
- * writes. Imports, data migrations, seeding and resets load data rather than change it, and
- * record nothing. Rows name people by `app_user` id alone, so anonymising a person never touches
- * the log.
+ * Who changed what, and when. The log records every change made through the service, which
+ * means each write by the internal API and each scheduled publication. Imports, data migrations,
+ * seeding and resets record nothing, because they load data rather than change it. Each row names
+ * a person only by their `app_user` id, so anonymising a person never touches the log.
  */
 export const auditLog = pgTable(
   'audit_log',

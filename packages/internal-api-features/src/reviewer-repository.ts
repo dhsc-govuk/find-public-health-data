@@ -1,7 +1,7 @@
 import { fakeUsers } from '@fphd/auth';
 import { canReviewIndicators } from '@fphd/auth/permissions';
 import { type Database, schema } from '@fphd/db';
-import { type AuditChanges, listChanges } from '@fphd/db/audit-log';
+import type { CarriedReviewer } from '@fphd/internal-workflow';
 import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 
 import type { ReviewerOption } from './contract.ts';
@@ -73,12 +73,6 @@ export async function assignedReviewerIds(db: Reader, submissionId: string): Pro
   return rows.map(({ reviewerId }) => reviewerId);
 }
 
-/** A reviewer of one submission to carry onto the next, with whoever first assigned them. */
-export interface CarriedReviewer {
-  reviewerId: string;
-  assignedBy: string;
-}
-
 /**
  * The reviewers of `submissionId` who may still review the indicator once `submitterId` submits
  * it again: those who still hold the role and are neither its creator nor the new submitter.
@@ -101,26 +95,6 @@ export async function carriedReviewersOf(
     findEligibleReviewerIds(db, indicatorId, submitterId),
   ]);
   return rows.filter(({ reviewerId }) => eligible.includes(reviewerId));
-}
-
-/**
- * Assigns the carried reviewers to the new submission, each keeping who assigned them, and
- * answers the change for the audit; nothing when there are none.
- */
-export async function carryReviewers(
-  tx: Transaction,
-  submissionId: string,
-  carried: readonly CarriedReviewer[],
-): Promise<AuditChanges> {
-  if (carried.length === 0) return {};
-  await tx
-    .insert(indicatorVersionSubmissionReviewer)
-    .values(carried.map((reviewer) => ({ submissionId, ...reviewer })));
-  return listChanges(
-    { reviewerIds: [] },
-    { reviewerIds: carried.map(({ reviewerId }) => reviewerId) },
-    ['reviewerIds'],
-  );
 }
 
 /**

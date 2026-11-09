@@ -1422,21 +1422,92 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin: 0;
 }
 
-@media (min-width: 40.0625em) {
-  .govuk-frontend-supported .fphd-tabs--ssr {
-    .govuk-tabs__panel:not(.fphd-tabs__panel--open) {
+@include govuk-media-query($until: tablet) {
+  .govuk-frontend-supported .fphd-tabs--mobile {
+    > .govuk-tabs__title {
       display: none;
     }
 
-    &:has(.govuk-tabs__panel:target) {
-      .govuk-tabs__panel:not(:target) {
-        display: none;
-      }
+    > .govuk-tabs__list {
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 0;
+      border-bottom: 1px solid $govuk-border-colour;
+    }
 
-      .govuk-tabs__panel:target {
-        display: block;
+    .govuk-tabs__list-item {
+      position: relative;
+      display: flex;
+      flex: 1 1 0;
+      min-width: 0;
+      margin: 0;
+      background-color: govuk-colour("black", $variant: "tint-95");
+
+      &::before {
+        content: none;
       }
     }
+
+    .govuk-tabs__tab {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      margin-bottom: 0;
+      padding: govuk-spacing(2) govuk-spacing(1);
+      color: govuk-colour("black");
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .govuk-tabs__list-item--selected {
+      margin-bottom: -1px;
+      border: 1px solid $govuk-border-colour;
+      border-bottom: 0;
+      background-color: govuk-colour("white");
+
+      .govuk-tabs__tab {
+        text-decoration: none;
+      }
+    }
+
+    .govuk-tabs__panel {
+      margin-bottom: 0;
+      padding: govuk-spacing(4) govuk-spacing(2);
+      border: 1px solid $govuk-border-colour;
+      border-top: 0;
+    }
+
+    .govuk-tabs__panel--hidden {
+      display: none;
+    }
+  }
+}
+
+@mixin fphd-ssr-tab-panels {
+  .govuk-tabs__panel:not(.fphd-tabs__panel--open) {
+    display: none;
+  }
+
+  &:has(.govuk-tabs__panel:target) {
+    .govuk-tabs__panel:not(:target) {
+      display: none;
+    }
+
+    .govuk-tabs__panel:target {
+      display: block;
+    }
+  }
+}
+
+.govuk-frontend-supported .fphd-tabs--mobile.fphd-tabs--ssr {
+  @include fphd-ssr-tab-panels;
+}
+
+@media (min-width: 40.0625em) {
+  .govuk-frontend-supported .fphd-tabs--ssr {
+    @include fphd-ssr-tab-panels;
   }
 }
 

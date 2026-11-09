@@ -79,6 +79,23 @@ describe('public API', () => {
     expect(response.body).toMatchObject({ audience: 'public' });
   });
 
+  it('asks every cache in front to keep no copy, whatever the outcome', async () => {
+    const repositories = createFakeRepositories({ topics: { list: async () => [topic] } });
+    const app = createTestApp(repositories);
+
+    const responses = await Promise.all([
+      request(app).get('/api'),
+      request(app).get('/api/topics'),
+      request(app).get('/api/nowhere'),
+      request(app).get('/api/indicators'),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 404, 500]);
+    for (const response of responses) {
+      expect(response.headers['cache-control']).toBe('no-store');
+    }
+  });
+
   // check:artefacts keeps every @fphd/internal-* package out of this app; these confirm nothing
   // answers under /api/internal all the same.
   it.each([

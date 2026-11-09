@@ -5,6 +5,11 @@ import express, { type Express } from 'express';
 import { universalSecurityHeaders } from './security-headers.ts';
 import { installShutdownHandlers, type ShutdownOptions } from './shutdown.ts';
 
+export {
+  type CheckDependenciesOptions,
+  checkDependencies,
+  type Dependency,
+} from './dependency-check.ts';
 export { REQUEST_ID_HEADER, requestId } from './request-id.ts';
 export {
   type RequestLoggingOptions,
