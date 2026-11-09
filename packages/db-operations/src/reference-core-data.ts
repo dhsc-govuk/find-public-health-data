@@ -74,6 +74,7 @@ const areaLevelRecord = z.object({
   areaTypes: z.array(name).min(1),
   areaTypeIds: z.array(id).min(1),
 });
+const noteTypePublicRecord = z.object({ id, code: z.string().regex(/^n\d+$/) });
 const noteTypeRecord = z.object({
   id,
   text: name,
@@ -89,6 +90,7 @@ export const referenceDataSchema = z.object({
   deprivationSchemes: z.array(deprivationSchemeRecord),
   areaLevels: z.array(areaLevelRecord),
   noteTypes: z.array(noteTypeRecord),
+  noteTypesPublic: z.array(noteTypePublicRecord),
 });
 
 export type ReferenceData = z.infer<typeof referenceDataSchema>;
@@ -122,6 +124,7 @@ const lists = {
   },
   areaLevels: { file: 'area-levels.json', table: schema.areaLevel, label: 'slug' },
   noteTypes: { file: 'note-types.json', table: schema.noteType, label: 'text' },
+  noteTypesPublic: { file: 'note-types-public.json', table: schema.noteTypePublic, label: 'code' },
 } as const;
 
 // The public names describe rows of their own lists, so they share those rows' ids.
@@ -129,6 +132,7 @@ const publicNameOwners = [
   ['dimensionTypesPublic', 'dimensionTypes'],
   ['deprivationSchemes', 'dimensionTypes'],
   ['dimensionValuesPublic', 'dimensionValues'],
+  ['noteTypesPublic', 'noteTypes'],
 ] as const;
 
 export function parseReferenceData(data: unknown): ReferenceData {

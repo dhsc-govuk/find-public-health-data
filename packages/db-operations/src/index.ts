@@ -55,7 +55,11 @@ export {
 export { migrateToLatest } from './migrations.ts';
 export { createOwnerGroup } from './owner-group.ts';
 export { analyzeReadModels, rebuildReadModels, rebuildReadModelTables } from './read-models.ts';
-export { parseReferenceData, referenceDataSchema } from './reference-core-data.ts';
+export {
+  parseReferenceData,
+  readReferenceData,
+  referenceDataSchema,
+} from './reference-core-data.ts';
 export { resetDatabase } from './reset.ts';
 export {
   assertResetAllowed,

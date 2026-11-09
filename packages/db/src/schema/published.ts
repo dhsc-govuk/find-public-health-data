@@ -215,6 +215,10 @@ export const publishedNoteType = publishedSchema
   })
   .existing();
 
+export const publishedNoteTypePublic = publishedSchema
+  .view('note_type_public', { id: uuid('id').notNull(), code: text('code').notNull() })
+  .existing();
+
 /**
  * The published views that depend on which version of an indicator is visible, declared in the
  * schema given. The internal apps declare the same views in another schema, whose definitions
