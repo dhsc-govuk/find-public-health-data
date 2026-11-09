@@ -72,7 +72,7 @@ export function CompareIndicatorsChart({
   const max = Math.max(...locals.map(({ x }) => x));
   const comparableFit = fit && fit.adjustedRSquared >= 0.5 ? fit : null;
   return (
-    <ChartSection id="compare-chart-section" title={title}>
+    <ChartSection id="compare-chart-section" title="Indicator comparison scatter chart">
       {points.length === 0 ? (
         <NoChartData>No values for these indicators match by area and period.</NoChartData>
       ) : (

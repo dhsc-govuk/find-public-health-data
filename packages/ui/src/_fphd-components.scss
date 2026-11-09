@@ -174,7 +174,10 @@
   svg { flex-shrink: 0; }
 }
 
-.fphd-sparkline .fphd-chart-canvas { margin-bottom: govuk-spacing(1); }
+.fphd-sparkline > svg {
+  display: block;
+  margin-bottom: govuk-spacing(1);
+}
 
 .fphd-sparkline__endpoints {
   display: flex;

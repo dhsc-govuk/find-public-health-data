@@ -292,6 +292,7 @@ export function InequalitiesChart({
   observations,
   indicator,
   confidence,
+  comparisonConfidence,
   areaName,
   englandObservations,
 }: {
@@ -299,6 +300,7 @@ export function InequalitiesChart({
   observations: IndicatorObservation[];
   indicator: IndicatorDetail;
   confidence: ConfidenceLevel;
+  comparisonConfidence: ConfidenceLevel;
   areaName: string;
   englandObservations: IndicatorObservation[];
 }) {
@@ -339,7 +341,7 @@ export function InequalitiesChart({
             observation,
             benchmarkValue,
             indicator,
-            confidence === '99.8' ? '99.8' : '95',
+            comparisonConfidence === '99.8' ? '99.8' : '95',
           ),
         }))}
         confidence={confidence}

@@ -9,7 +9,17 @@ import { observation } from './view.testing.ts';
 
 function api() {
   const get = vi.fn(async (path: string): Promise<unknown> => {
-    if (path.startsWith('/api/indicator-data?')) return [];
+    if (path.startsWith('/api/indicator-data?')) {
+      const params = new URL(`http://localhost${path}`).searchParams;
+      return params.getAll('indicator').map((id) => ({
+        detail: { shortId: Number(id) },
+        areaData: params.getAll('areaCode').map((code) => ({
+          areaCode: code,
+          areaName: `Area ${code}`,
+          observations: [],
+        })),
+      }));
+    }
     if (/\/api\/indicators\/[^/]+\/areas\?/.test(path))
       return [
         {
@@ -319,7 +329,21 @@ describe('loadIndicator', () => {
     if (!read) throw new Error('Missing test API implementation');
     get.mockImplementation(async (path) => {
       const result = await read(path);
-      if (!path.includes('/data?') && !path.includes('/ranking?')) return result;
+      if (path.startsWith('/api/indicator-data?')) {
+        return (
+          result as {
+            detail: { shortId: number };
+            areaData: { areaCode: string; areaName: string }[];
+          }[]
+        ).map((entry) => ({
+          ...entry,
+          areaData: entry.areaData.map((area) => ({
+            ...area,
+            observations: [observation(entry.detail.shortId === 108 ? 10 : 20)],
+          })),
+        }));
+      }
+      if (!path.includes('/data?')) return result;
       return (result as { areaCode: string; areaName: string }[]).map((area) => ({
         ...area,
         observations: [
@@ -352,10 +376,21 @@ describe('loadIndicator', () => {
       y: 20,
     });
     expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
-    expect(get.mock.calls.filter(([path]) => path.includes('/ranking?'))).toHaveLength(2);
+    expect(get.mock.calls.filter(([path]) => path.includes('/ranking?'))).toHaveLength(0);
+    expect(get.mock.calls.filter(([path]) => path.startsWith('/api/indicator-data?'))).toHaveLength(
+      2,
+    );
+    expect(get.mock.calls.filter(([path]) => path === '/api/indicators/241')).toHaveLength(0);
+    expect(
+      get.mock.calls.filter(
+        ([path]) => path === '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
+      ),
+    ).toHaveLength(1);
+    expect(result.compareAreasData).toHaveLength(25);
+    expect(result.compareAreasData[0]?.observations).toHaveLength(1);
   });
 
-  it('finds a shared scatter period when the two rankings end in different years', async () => {
+  it('shares recent histories between rankings and scatter when indicators end in different years', async () => {
     const { client, get } = api();
     const read = get.getMockImplementation();
     if (!read) throw new Error('Missing test API implementation');
@@ -380,13 +415,18 @@ describe('loadIndicator', () => {
       if (!path.includes('/data?') && !path.includes('/ranking?')) return result;
       return (result as { areaCode: string; areaName: string }[]).map((area) => ({
         ...area,
-        observations: [point(path.includes('/108/') ? 2024 : 2023, 12)],
+        observations: path.includes('/108/')
+          ? [point(2023, 10), point(2024, 11)]
+          : [point(2023, 20)],
       }));
     });
     const result = await loadIndicator(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
     );
     expect(result.scatter?.points).toHaveLength(26);
+    expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
+    expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
+    expect(get.mock.calls.some(([path]) => path.includes('/ranking?'))).toBe(false);
     expect(
       result.scatter?.points.every(
         ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 10 && y === 20,

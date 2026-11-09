@@ -355,10 +355,8 @@ export async function loadIndicatorData(
           };
           const comparison = comparisonFor(id);
           const [detail, areaData, regionData, rangeEntries] = await Promise.all([
-            // The page's own indicator is already loaded; only the compared ones are fetched.
-            id === routeDetail?.shortId
-              ? routeDetail
-              : api.get(apiPath`/api/indicators/${String(id)}`, indicatorDetailSchema),
+            [routeDetail, comparedDetail].find((detail) => detail?.shortId === id) ??
+              api.get(apiPath`/api/indicators/${String(id)}`, indicatorDetailSchema),
             // One request per indicator carrying every area, rather than one per pair: a
             // page comparing ten indicators across twenty areas would otherwise fire 200.
             dataFor(codesToLoad),

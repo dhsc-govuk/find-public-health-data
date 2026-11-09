@@ -20,6 +20,25 @@ export function areaComparisonOptions<T extends { code: string }>(areas: T[], gr
   return upperTier.length ? upperTier : areas;
 }
 
+export function comparisonRankingData(indicator: SelectedIndicator) {
+  const cells = comparisonRows([indicator])[0]?.cells ?? [];
+  const latest = cells
+    .flatMap(({ series }) => series)
+    .filter(({ value }) => value !== null)
+    .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
+    .at(-1);
+  return indicator.areaData.map((area) => ({
+    ...area,
+    observations:
+      cells
+        .find(({ areaCode }) => areaCode === area.areaCode)
+        ?.series.filter(
+          ({ fromDate, toDate, value }) =>
+            value !== null && fromDate === latest?.fromDate && toDate === latest?.toDate,
+        ) ?? [],
+  }));
+}
+
 export function areaComparisonRows(
   indicator: SelectedIndicator,
   areaData: SelectedIndicator['areaData'],

@@ -1,4 +1,4 @@
-import { FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
+import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
 import { areaComparisonRows } from './area-comparison.ts';
@@ -95,38 +95,49 @@ export function CompareAreasTab({
               />
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">
-              <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Chart of area comparison</h3>
-              <div className="fphd-indicator-chart fphd-indicator-chart--areas">
-                <PanelOptionsPanel
-                  confidenceLevels={confidenceLevels}
-                  colourByQuintile={colourByQuintile}
-                  label="Area comparison options"
-                  onChange={applyOptions}
-                  options={options}
-                  panel="compare-areas"
-                  periodTypes={periodTypes}
-                  scope={detail.shortId}
-                  sexes={sexes}
-                  showConfidence
-                  target={{
-                    tabParam: 'tab-indicator',
-                    tabValue: 'areas',
-                    anchor: 'indicator-compare-areas',
-                  }}
-                />
-                <CompareAreasChart
-                  areas={chartAreas}
-                  confidence={confidence}
-                  indicator={detail}
-                  colourByQuintile={colourByQuintile}
-                  levelByCode={Object.fromEntries(
-                    compareAreaOptions.map(({ code }) => [code, compareAreaGroup]),
-                  )}
-                  ranges={{ [compareAreaGroup]: compareAreaRanges }}
+              <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Map view</h3>
+              <p className="govuk-body-s">
+                Map of {detail.name} by {geographyGroupLabel(compareAreaGroup)} in England.
+              </p>
+              <div className="fphd-indicator-chart fphd-indicator-chart--map">
+                <ChartSection
+                  id="indicator-area-map"
+                  title={`${detail.name} map`}
+                  description="Map visualisation"
                 />
               </div>
             </GridColumn>
           </GridRow>
+          <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Chart of area comparison</h3>
+          <div className="fphd-indicator-chart fphd-indicator-chart--areas">
+            <PanelOptionsPanel
+              confidenceLevels={confidenceLevels}
+              colourByQuintile={colourByQuintile}
+              label="Area comparison options"
+              onChange={applyOptions}
+              options={options}
+              panel="compare-areas"
+              periodTypes={periodTypes}
+              scope={detail.shortId}
+              sexes={sexes}
+              showConfidence
+              target={{
+                tabParam: 'tab-indicator',
+                tabValue: 'areas',
+                anchor: 'indicator-compare-areas',
+              }}
+            />
+            <CompareAreasChart
+              areas={chartAreas}
+              confidence={confidence}
+              indicator={detail}
+              colourByQuintile={colourByQuintile}
+              levelByCode={Object.fromEntries(
+                compareAreaOptions.map(({ code }) => [code, compareAreaGroup]),
+              )}
+              ranges={{ [compareAreaGroup]: compareAreaRanges }}
+            />
+          </div>
         </GridColumn>
       </GridRow>
     </>

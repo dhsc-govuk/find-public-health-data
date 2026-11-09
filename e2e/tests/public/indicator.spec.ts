@@ -421,9 +421,11 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await expect(
     chart.getByRole('application').locator('.recharts-bar-rectangle').first(),
   ).toBeVisible();
-  const tableBox = await table.boundingBox();
+  const map = page.getByRole('region', { name: 'Diabetes: QOF prevalence map' });
+  await expect(map).toBeVisible();
+  const mapBox = await map.boundingBox();
   const chartBox = await chart.boundingBox();
-  expect(chartBox?.x).toBeGreaterThan((tableBox?.x ?? 0) + (tableBox?.width ?? 0));
+  expect(chartBox?.y).toBeGreaterThan((mapBox?.y ?? 0) + (mapBox?.height ?? 0));
   await page.getByRole('tablist').evaluate((element) => element.scrollIntoView({ block: 'start' }));
   await page.screenshot({ path: testInfo.outputPath('comparison-charts.png') });
   await expectNoAccessibilityViolations(page, testInfo);

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 interface ChartSectionProps {
-  children: ReactNode;
+  children?: ReactNode;
   description?: string;
   id: string;
   title: string;

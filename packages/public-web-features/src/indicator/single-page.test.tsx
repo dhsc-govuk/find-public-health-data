@@ -190,9 +190,12 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
   expect(screen.getByRole('table', { name: /Table of indicator comparison/ })).toBeTruthy();
   expect(
     within(screen.getByRole('tabpanel', { name: 'Compare indicators' })).getByRole('region', {
-      name: /^Diabetes mortality compared with Diabetes prevalence/,
+      name: 'Indicator comparison scatter chart',
     }).textContent,
   ).toContain('View chart data as a table');
+  expect(
+    screen.getByRole('heading', { name: /^Diabetes mortality compared with Diabetes prevalence/ }),
+  ).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Swap axes' })).toBeTruthy();
   expect(
     within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(

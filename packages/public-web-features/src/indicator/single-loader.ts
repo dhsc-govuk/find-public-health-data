@@ -9,17 +9,42 @@ import {
   MAX_AREA_PREVIEW,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
-import { apiPath } from '@fphd/web-server/api-client';
+import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
-import { type LoaderFunctionArgs, redirect } from 'react-router';
-import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import { type LoaderFunctionArgs, RouterContextProvider, redirect } from 'react-router';
+import {
+  AREA_COMPARISON_GROUPS,
+  areaComparisonOptions,
+  comparisonRankingData,
+} from './area-comparison.ts';
 import { englandCode, quintileParam } from './charts/chart-data.ts';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
-import { loadIndicatorData } from './loader.ts';
+import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { loadIndicatorTableEntries } from './table-loader.ts';
 
 export async function loadIndicatorPage(args: LoaderFunctionArgs) {
+  const originalApi = args.context.get(apiContext);
+  const reads = new Map<object, Map<string, Promise<unknown>>>();
+  const sharedApi: ApiClient = {
+    ...originalApi,
+    get<T>(path: string, schema: ApiResponseSchema<T>): Promise<T> {
+      let paths = reads.get(schema);
+      if (!paths) {
+        paths = new Map();
+        reads.set(schema, paths);
+      }
+      const pending = paths.get(path);
+      if (pending) return pending as Promise<T>;
+      const loaded = originalApi.get(path, schema);
+      paths.set(path, loaded);
+      return loaded;
+    },
+  };
+  const sharedContext = new RouterContextProvider();
+  sharedContext.set(apiContext, sharedApi);
+  args = { ...args, context: sharedContext };
   const { context, params, request } = args;
   const url = new URL(request.url);
 
@@ -118,6 +143,7 @@ async function loadIndicatorComparison(
       ? 'Local authorities'
       : (comparisonDisplayGroups[0] ?? '');
   let compareAreasData: IndicatorAreaData[] = [];
+  let comparisonHistories: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
   let compareAreaOptions: AreaSummary[] = [];
   if (compareAreaGroup) {
@@ -147,10 +173,21 @@ async function loadIndicatorComparison(
             indicatorAreaDataListSchema,
           )
         : Promise.resolve([]);
-    [compareAreasData, comparedAreasData] = await Promise.all([
-      loadRanking(routeDetail),
-      comparedDetail ? loadRanking(comparedDetail) : Promise.resolve([]),
-    ]);
+    if (comparedDetail) {
+      comparisonHistories = await loadIndicatorTableEntries(
+        api,
+        [routeDetail.shortId, comparedDetail.shortId],
+        codes,
+      );
+      compareAreasData = comparisonHistories[0]
+        ? comparisonRankingData(comparisonHistories[0])
+        : [];
+      comparedAreasData = comparisonHistories[1]
+        ? comparisonRankingData(comparisonHistories[1])
+        : [];
+    } else {
+      compareAreasData = await loadRanking(routeDetail);
+    }
   }
   const { selected } = await data;
   const primary = selected[0];
@@ -165,18 +202,16 @@ async function loadIndicatorComparison(
         ).periods)
       : [];
   const scatter = comparedDetail
-    ? await loadScatterComparison(
-        api,
-        selected.map((entry, index) => ({
+    ? loadScatterComparison(
+        selected.map((entry) => ({
           ...entry,
           areaData: [
-            ...(index === 0 ? compareAreasData : comparedAreasData),
+            ...(comparisonHistories.find(({ detail }) => detail.shortId === entry.detail.shortId)
+              ?.areaData ?? []),
             ...entry.areaData.filter(({ areaCode }) => areaCode === englandCode),
           ],
         })),
         url.searchParams,
-        compareAreaOptions.map(({ code }) => code),
-        false,
       )
     : undefined;
   return {

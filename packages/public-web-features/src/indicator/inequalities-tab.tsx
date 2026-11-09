@@ -121,6 +121,7 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                   id="indicator-inequalities-chart"
                   indicator={detail}
                   confidence={inequality.confidence}
+                  comparisonConfidence={inequalityConfidence}
                   observations={inequalityRows}
                   areaName={inequalityArea?.areaName ?? 'England'}
                   englandObservations={
