@@ -36,6 +36,7 @@ VERSION_COLUMNS = [
     "id",
     "indicator_id",
     "status",
+    "is_locked",
     "published_at",
     "name",
     "slug",
@@ -153,6 +154,7 @@ def main(seed_dir):
             )
         version.update(translated_value_type_and_unit(row, value_type_names, unit_names))
         version["status"] = "published"
+        version["is_locked"] = "t"
         version["published_at"] = row["updated_at"]
         versions.append(version)
 

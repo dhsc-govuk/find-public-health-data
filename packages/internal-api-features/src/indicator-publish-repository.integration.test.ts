@@ -417,12 +417,8 @@ describe('createDraftFromPublished', () => {
     });
   });
 
-  repositoryTest('opens the draft unlocked whatever the published version says', async ({ db }) => {
-    const { indicatorId, currentId } = await indicatorWithTwoPublications(db, 'Copied unlocked');
-    await db
-      .update(indicatorVersion)
-      .set({ isLocked: true })
-      .where(eq(indicatorVersion.id, currentId));
+  repositoryTest('opens the draft unlocked from a locked published version', async ({ db }) => {
+    const { indicatorId } = await indicatorWithTwoPublications(db, 'Copied unlocked');
 
     const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
 

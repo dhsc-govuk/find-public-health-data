@@ -2,6 +2,7 @@ import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { asc, eq, sql } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
@@ -83,8 +84,8 @@ async function stepEntriesFor(db: Database, indicatorId: string) {
 }
 
 /**
- * Versions whose lock disagrees with their latest submission: a version is locked exactly when
- * it is unpublished and its latest submission is one under review or approved.
+ * Versions whose lock disagrees with their status and latest submission: a version is locked
+ * exactly when it is published or its latest submission is one under review or approved.
  */
 async function lockMismatches(db: Database): Promise<string[]> {
   const rows = (await db.execute(sql`
@@ -94,7 +95,7 @@ async function lockMismatches(db: Database): Promise<string[]> {
       WHERE s.indicator_version_id = v.id ORDER BY s.number DESC LIMIT 1
     ) latest ON true
     WHERE v.is_locked IS DISTINCT FROM
-      (v.status <> 'published' AND coalesce(latest.status IN ('submitted', 'in_review', 'approved'), false))
+      (v.status = 'published' OR coalesce(latest.status IN ('submitted', 'in_review', 'approved'), false))
   `)) as unknown as { id: string }[];
   return rows.map(({ id }) => id);
 }
@@ -262,6 +263,22 @@ describe('submitIndicator', () => {
       reason: 'no_draft',
     });
   });
+});
+
+describe('takeIndicatorStep', () => {
+  repositoryTest(
+    'throws for a step that starts a submission without the reviewers to carry',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await completeNewDraft(db, 'Submitted without reviewers');
+
+      await expect(takeIndicatorStep(db, indicatorId, 'submit', AS_ACTOR)).rejects.toThrow(
+        'submit was given no reviewersToCarry',
+      );
+
+      expect((await versionOf(db, versionId)).isLocked).toBe(false);
+      expect(await submissionsOf(db, versionId)).toEqual([]);
+    },
+  );
 });
 
 describe('withdrawSubmission', () => {

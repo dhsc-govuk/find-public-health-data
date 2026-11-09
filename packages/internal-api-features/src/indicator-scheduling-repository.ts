@@ -1,12 +1,11 @@
 import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween } from '@fphd/db/audit-log';
-import { eq } from 'drizzle-orm';
-
 import {
   type IndicatorStepResult,
   type IndicatorStepWrite,
   takeIndicatorStep,
-} from './indicator-workflow-repository.ts';
+} from '@fphd/internal-workflow';
+import { eq } from 'drizzle-orm';
 
 const { indicatorVersion } = schema;
 

@@ -9,6 +9,19 @@ describe('searchPattern', () => {
     expect(pattern?.test('Health care services')).toBe(false);
   });
 
+  it('collapses inner whitespace before matching', () => {
+    const pattern = searchPattern('  mortality \t and\nlife\u00a0expectancy  ');
+    expect(pattern?.test('Mortality and life expectancy')).toBe(true);
+    expect(pattern?.test('Mortality and healthy life expectancy')).toBe(false);
+  });
+
+  it('matches long queries literally without truncating them', () => {
+    const query = '(care)+ '.repeat(1000).trim();
+    const pattern = searchPattern(query);
+    expect(pattern?.test(query)).toBe(true);
+    expect(pattern?.test(query.slice(0, -1))).toBe(false);
+  });
+
   it.each([
     ['İ', 'i', false],
     ['İ', 'İ', true],

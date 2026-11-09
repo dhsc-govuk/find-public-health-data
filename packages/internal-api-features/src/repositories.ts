@@ -3,6 +3,7 @@ import type { IndicatorListScope } from '@fphd/auth/permissions';
 
 import { type Database, listTopics, type Topic } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
+import type { IndicatorStepResult } from '@fphd/internal-workflow';
 
 import { type CiMethodRow, getCiMethodById, listCiMethods } from './ci-method-repository.ts';
 import type {
@@ -71,7 +72,6 @@ import {
 import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import {
   assignReviewers,
-  type IndicatorStepResult,
   type ReviewerAssignment,
   submitIndicator,
   withdrawSubmission,

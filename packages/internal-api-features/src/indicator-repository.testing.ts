@@ -112,6 +112,7 @@ export async function indicatorWithTwoPublications(
     .update(indicatorVersion)
     .set({
       status: 'published',
+      isLocked: true,
       publishedAt: new Date('2030-01-01T00:00:00Z'),
       updatedAt: new Date('2030-01-01T00:00:00Z'),
     })
@@ -122,6 +123,7 @@ export async function indicatorWithTwoPublications(
     .values({
       indicatorId: created.indicatorId,
       status: 'published',
+      isLocked: true,
       name: `${currentName}, superseded`,
       slug: `${currentSlug}-superseded`,
       publishedAt: new Date('2029-01-01T00:00:00Z'),

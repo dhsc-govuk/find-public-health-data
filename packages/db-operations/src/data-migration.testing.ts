@@ -28,6 +28,7 @@ export const VERSION_COLUMNS = [
   'updated_by',
   'ci_method_id',
   'comparator_method_id',
+  'is_locked',
   'numerator_source_id',
   'denominator_source_id',
 ];
@@ -42,6 +43,7 @@ export const VERSION_ROW = [
   'pholio-migration',
   null,
   null,
+  't',
   null,
   null,
 ];

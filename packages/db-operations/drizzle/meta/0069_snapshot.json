@@ -1,6 +1,6 @@
 {
-  "id": "449b2d31-c63d-4f10-8380-e7b19e6c41cf",
-  "prevId": "16141285-1fe4-45cb-86a6-a46cd01b20b3",
+  "id": "16141285-1fe4-45cb-86a6-a46cd01b20b3",
+  "prevId": "4fa7fe9e-a2b8-4325-ba28-9caca5dc1ece",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -109,7 +109,7 @@
       "checkConstraints": {
         "audit_log_action_check": {
           "name": "audit_log_action_check",
-          "value": "\"audit_log\".\"action\" IN ('topic.created', 'topic.updated', 'topic.deleted', 'indicator.draft_created', 'indicator.draft_updated', 'indicator.draft_created_from_published', 'indicator.data_table_confirmed', 'indicator.submitted', 'indicator.submission_withdrawn', 'indicator.reviewers_assigned', 'indicator.review_feedback_given', 'indicator.changes_requested', 'indicator.approved', 'indicator.resubmitted', 'indicator.revision_response_updated', 'indicator.publication_scheduled', 'indicator.publication_date_changed', 'indicator.review_note_added', 'indicator.review_note_updated', 'upload_batch.loaded', 'upload_batch.refused', 'upload_batch.deleted')"
+          "value": "\"audit_log\".\"action\" IN ('topic.created', 'topic.updated', 'topic.deleted', 'indicator.draft_created', 'indicator.draft_updated', 'indicator.draft_created_from_published', 'indicator.data_table_confirmed', 'indicator.submitted', 'indicator.submission_withdrawn', 'indicator.reviewers_assigned', 'indicator.review_feedback_given', 'indicator.changes_requested', 'indicator.approved', 'indicator.resubmitted', 'indicator.revision_response_updated', 'indicator.publication_scheduled', 'indicator.publication_date_changed', 'indicator.published', 'indicator.review_note_added', 'indicator.review_note_updated', 'upload_batch.loaded', 'upload_batch.refused', 'upload_batch.deleted')"
         },
         "audit_log_entity_type_check": {
           "name": "audit_log_entity_type_check",
@@ -1700,6 +1700,28 @@
           "with": {},
           "method": "gin",
           "concurrently": false
+        },
+        "idx_indicator_version_scheduled_publish_at": {
+          "name": "idx_indicator_version_scheduled_publish_at",
+          "columns": [
+            {
+              "expression": "scheduled_publish_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"indicator_version\".\"status\" = 'scheduled'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -4546,142 +4568,6 @@
         }
       },
       "isRLSEnabled": false
-    },
-    "public.observation_series": {
-      "name": "observation_series",
-      "schema": "",
-      "columns": {
-        "upload_batch_id": {
-          "name": "upload_batch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "indicator_id": {
-          "name": "indicator_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dimension_key": {
-          "name": "dimension_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sex": {
-          "name": "sex",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period_type": {
-          "name": "period_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "variants": {
-          "name": "variants",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "latest_observation_id": {
-          "name": "latest_observation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ranking_observation_id": {
-          "name": "ranking_observation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recent_observation_ids": {
-          "name": "recent_observation_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recent_values": {
-          "name": "recent_values",
-          "type": "double precision[]",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "idx_observation_series_indicator_area": {
-          "name": "idx_observation_series_indicator_area",
-          "columns": [
-            {
-              "expression": "indicator_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "area_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "observation_series_upload_batch_id_area_id_sex_period_type_pk": {
-          "name": "observation_series_upload_batch_id_area_id_sex_period_type_pk",
-          "columns": [
-            "upload_batch_id",
-            "area_id",
-            "sex",
-            "period_type"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.observation_series_batch": {
-      "name": "observation_series_batch",
-      "schema": "",
-      "columns": {
-        "upload_batch_id": {
-          "name": "upload_batch_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "indicator_id": {
-          "name": "indicator_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {},
@@ -4690,6 +4576,8 @@
   },
   "views": {
     "public.current_published_version": {
+      "name": "current_published_version",
+      "schema": "public",
       "columns": {
         "id": {
           "name": "id",
@@ -4706,12 +4594,12 @@
         }
       },
       "definition": "select distinct on (\"indicator_version\".\"indicator_id\") \"id\", \"indicator_id\" from \"indicator_version\" where \"indicator_version\".\"status\" = 'published' order by \"indicator_version\".\"indicator_id\" asc, \"indicator_version\".\"published_at\" desc, \"indicator_version\".\"id\" desc",
-      "name": "current_published_version",
-      "schema": "public",
-      "isExisting": false,
-      "materialized": false
+      "materialized": false,
+      "isExisting": false
     },
     "published.area": {
+      "name": "area",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -4756,12 +4644,12 @@
           "notNull": true
         }
       },
-      "name": "area",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.area_relationship": {
+      "name": "area_relationship",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -4794,12 +4682,12 @@
           "notNull": false
         }
       },
-      "name": "area_relationship",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.area_type": {
+      "name": "area_type",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -4838,12 +4726,12 @@
           "notNull": false
         }
       },
-      "name": "area_type",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.available_data": {
+      "name": "available_data",
+      "schema": "published",
       "columns": {
         "indicator_id": {
           "name": "indicator_id",
@@ -4870,12 +4758,12 @@
           "notNull": true
         }
       },
-      "name": "available_data",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.ci_method": {
+      "name": "ci_method",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -4896,12 +4784,12 @@
           "notNull": false
         }
       },
-      "name": "ci_method",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.classification": {
+      "name": "classification",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -4940,32 +4828,12 @@
           "notNull": true
         }
       },
-      "name": "classification",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.comparator_method": {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
       "name": "comparator_method",
       "schema": "published",
-      "isExisting": true,
-      "materialized": false
-    },
-    "published.data_provider": {
       "columns": {
         "id": {
           "name": "id",
@@ -4980,12 +4848,32 @@
           "notNull": true
         }
       },
+      "materialized": false,
+      "isExisting": true
+    },
+    "published.data_provider": {
       "name": "data_provider",
       "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "materialized": false,
+      "isExisting": true
     },
     "published.data_provider_source": {
+      "name": "data_provider_source",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5006,12 +4894,12 @@
           "notNull": true
         }
       },
-      "name": "data_provider_source",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.data_source": {
+      "name": "data_source",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5032,12 +4920,12 @@
           "notNull": false
         }
       },
-      "name": "data_source",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.dimension_type": {
+      "name": "dimension_type",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5082,12 +4970,12 @@
           "notNull": true
         }
       },
-      "name": "dimension_type",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.dimension_value": {
+      "name": "dimension_value",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5132,12 +5020,12 @@
           "notNull": true
         }
       },
-      "name": "dimension_value",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.indicator": {
+      "name": "indicator",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5305,21 +5193,21 @@
           "name": "first_published_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "last_published_at": {
           "name": "last_published_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
-      "name": "indicator",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.indicator_classification": {
+      "name": "indicator_classification",
+      "schema": "published",
       "columns": {
         "indicator_id": {
           "name": "indicator_id",
@@ -5334,12 +5222,12 @@
           "notNull": true
         }
       },
-      "name": "indicator_classification",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.indicator_slug": {
+      "name": "indicator_slug",
+      "schema": "published",
       "columns": {
         "slug": {
           "name": "slug",
@@ -5354,12 +5242,12 @@
           "notNull": true
         }
       },
-      "name": "indicator_slug",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.indicator_source": {
+      "name": "indicator_source",
+      "schema": "published",
       "columns": {
         "indicator_id": {
           "name": "indicator_id",
@@ -5392,12 +5280,12 @@
           "notNull": false
         }
       },
-      "name": "indicator_source",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.indicator_subtopic": {
+      "name": "indicator_subtopic",
+      "schema": "published",
       "columns": {
         "indicator_id": {
           "name": "indicator_id",
@@ -5424,12 +5312,12 @@
           "notNull": true
         }
       },
-      "name": "indicator_subtopic",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.indicator_topic": {
+      "name": "indicator_topic",
+      "schema": "published",
       "columns": {
         "indicator_id": {
           "name": "indicator_id",
@@ -5450,12 +5338,12 @@
           "notNull": true
         }
       },
-      "name": "indicator_topic",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.note_type": {
+      "name": "note_type",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5476,12 +5364,12 @@
           "notNull": true
         }
       },
-      "name": "note_type",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.observation": {
+      "name": "observation",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5578,20 +5466,14 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "dimension_key": {
-          "name": "dimension_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
         }
       },
-      "name": "observation",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.observation_dimension": {
+      "name": "observation_dimension",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5618,12 +5500,12 @@
           "notNull": true
         }
       },
-      "name": "observation_dimension",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.observation_note": {
+      "name": "observation_note",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5644,12 +5526,12 @@
           "notNull": true
         }
       },
-      "name": "observation_note",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.observation_range": {
+      "name": "observation_range",
+      "schema": "published",
       "columns": {
         "indicator_id": {
           "name": "indicator_id",
@@ -5694,94 +5576,12 @@
           "notNull": true
         }
       },
-      "name": "observation_range",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
-    },
-    "published.observation_series": {
-      "columns": {
-        "indicator_id": {
-          "name": "indicator_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dimension_key": {
-          "name": "dimension_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sex": {
-          "name": "sex",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period_type": {
-          "name": "period_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "variants": {
-          "name": "variants",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "latest_observation_id": {
-          "name": "latest_observation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ranking_observation_id": {
-          "name": "ranking_observation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recent_observation_ids": {
-          "name": "recent_observation_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recent_values": {
-          "name": "recent_values",
-          "type": "double precision[]",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "name": "observation_series",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
-    },
-    "published.observation_series_batch": {
-      "columns": {
-        "indicator_id": {
-          "name": "indicator_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "name": "observation_series_batch",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.subtopic": {
+      "name": "subtopic",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5820,12 +5620,12 @@
           "notNull": true
         }
       },
-      "name": "subtopic",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.topic": {
+      "name": "topic",
+      "schema": "published",
       "columns": {
         "id": {
           "name": "id",
@@ -5864,32 +5664,12 @@
           "notNull": true
         }
       },
-      "name": "topic",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "materialized": false,
+      "isExisting": true
     },
     "published.unit": {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
       "name": "unit",
       "schema": "published",
-      "isExisting": true,
-      "materialized": false
-    },
-    "published.value_type": {
       "columns": {
         "id": {
           "name": "id",
@@ -5904,10 +5684,28 @@
           "notNull": true
         }
       },
+      "materialized": false,
+      "isExisting": true
+    },
+    "published.value_type": {
       "name": "value_type",
       "schema": "published",
-      "isExisting": true,
-      "materialized": false
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "materialized": false,
+      "isExisting": true
     }
   },
   "sequences": {

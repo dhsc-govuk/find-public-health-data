@@ -2,7 +2,10 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import type { Logger } from '@fphd/logger';
 
-/** Something an API serves data from, checked from start-up until it answers. */
+/**
+ * A service the server needs, such as its database. `checkDependencies` checks it at start-up and
+ * keeps retrying until it answers.
+ */
 export interface Dependency {
   name: string;
   check: () => Promise<unknown>;
@@ -13,8 +16,10 @@ export interface CheckDependenciesOptions {
 }
 
 /**
- * Logs each failed check and retries it until it passes, so the alert on the line stays fired while
- * the dependency is down. Never rejects: the API serves on regardless.
+ * Checks each dependency, logging every failed check and retrying it until it passes. The error is
+ * logged again on each retry, so an alert on "Dependency unreachable at start-up" keeps firing for
+ * as long as the dependency is down. The returned promise never rejects, and the server goes on
+ * serving requests while a dependency is down.
  */
 export async function checkDependencies(
   logger: Logger,

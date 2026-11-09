@@ -805,6 +805,14 @@ it('exports only the approved indicators and uses plain text without damaging in
   expect(result.excludedNonApprovedIndicators).toBe(1);
   expect((await rows('indicator_version'))[0]?.definition).toBe('aged <16 and >64, high');
 });
+it('writes each exported version published and locked', async () => {
+  indicatorQueries();
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    status: 'published',
+    is_locked: 't',
+  });
+});
 it('writes the indicator frequency from source prose', async () => {
   indicatorQueries('No unit', undefined, [], { frequencyProse: 'Quarterly' });
   await exportIndicators(options);

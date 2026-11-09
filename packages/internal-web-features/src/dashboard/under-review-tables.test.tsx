@@ -5,7 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ReviewTable, UnderReviewTables } from './under-review-tables.tsx';
+import { AssignedTable, ReviewTable, UnassignedTable } from './under-review-tables.tsx';
 
 afterEach(cleanup);
 
@@ -37,10 +37,18 @@ const inReview: IndicatorAdminListItem = {
 };
 
 // The indicator links read router state.
-function renderTables(unassigned = [submitted], assigned = [inReview]) {
+function renderUnassigned(indicators = [submitted]) {
   return render(
     <MemoryRouter>
-      <UnderReviewTables unassigned={unassigned} assigned={assigned} />
+      <UnassignedTable indicators={indicators} />
+    </MemoryRouter>,
+  );
+}
+
+function renderAssigned(indicators = [inReview]) {
+  return render(
+    <MemoryRouter>
+      <AssignedTable indicators={indicators} />
     </MemoryRouter>,
   );
 }
@@ -55,11 +63,10 @@ function cellsOf(indicatorName: string) {
   return [...(row?.querySelectorAll('td') ?? [])];
 }
 
-describe('UnderReviewTables', () => {
+describe('UnassignedTable', () => {
   it('lists the unassigned indicators with the dashboard columns', () => {
-    renderTables();
+    renderUnassigned();
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Unassigned indicators' })).toBeTruthy();
     expect(headingsOf('Unassigned indicators, oldest submission first')).toEqual([
       'Indicator name',
       'Team',
@@ -79,10 +86,26 @@ describe('UnderReviewTables', () => {
     ]);
   });
 
-  it('lists the assigned indicators with their reviewers after the name', () => {
-    renderTables();
+  it('links each indicator to its overview, where its reviewers are assigned', () => {
+    renderUnassigned();
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Assigned indicators' })).toBeTruthy();
+    expect(
+      screen.getByRole('link', { name: 'Life expectancy at birth' }).getAttribute('href'),
+    ).toBe(`/dashboard/indicators/${submitted.id}`);
+  });
+
+  it('says so when no indicator waits for reviewers', () => {
+    renderUnassigned([]);
+
+    expect(screen.getByText('No unassigned indicators')).toBeTruthy();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('AssignedTable', () => {
+  it('lists the assigned indicators with their reviewers after the name', () => {
+    renderAssigned();
+
     expect(headingsOf('Assigned indicators, oldest submission first')).toEqual([
       'Indicator name',
       'Assigned reviewers',
@@ -102,21 +125,17 @@ describe('UnderReviewTables', () => {
     expect(rest.at(-1)?.textContent).toBe('Pending review');
   });
 
-  it('links each indicator to its overview, where its reviewers are assigned', () => {
-    renderTables();
+  it('links each indicator to its overview, where its reviewers are changed', () => {
+    renderAssigned();
 
-    expect(
-      screen.getByRole('link', { name: 'Life expectancy at birth' }).getAttribute('href'),
-    ).toBe(`/dashboard/indicators/${submitted.id}`);
     expect(screen.getByRole('link', { name: 'Smoking prevalence' }).getAttribute('href')).toBe(
       `/dashboard/indicators/${inReview.id}`,
     );
   });
 
-  it('says so when no indicator waits for reviewers or is in review', () => {
-    renderTables([], []);
+  it('says so when no indicator is in review', () => {
+    renderAssigned([]);
 
-    expect(screen.getByText('No unassigned indicators')).toBeTruthy();
     expect(screen.getByText('No assigned indicators')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
   });

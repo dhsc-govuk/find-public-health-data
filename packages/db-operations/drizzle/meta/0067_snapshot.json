@@ -1,6 +1,6 @@
 {
-  "id": "4fa7fe9e-a2b8-4325-ba28-9caca5dc1ece",
-  "prevId": "fcc2dbf8-3fa1-4005-a77f-ab19c58f9325",
+  "id": "fcc2dbf8-3fa1-4005-a77f-ab19c58f9325",
+  "prevId": "97ee9047-06af-4257-8d10-026fee1297f5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -109,7 +109,7 @@
       "checkConstraints": {
         "audit_log_action_check": {
           "name": "audit_log_action_check",
-          "value": "\"audit_log\".\"action\" IN ('topic.created', 'topic.updated', 'topic.deleted', 'indicator.draft_created', 'indicator.draft_updated', 'indicator.draft_created_from_published', 'indicator.data_table_confirmed', 'indicator.submitted', 'indicator.submission_withdrawn', 'indicator.reviewers_assigned', 'indicator.review_feedback_given', 'indicator.changes_requested', 'indicator.approved', 'indicator.resubmitted', 'indicator.revision_response_updated', 'indicator.publication_scheduled', 'indicator.publication_date_changed', 'indicator.review_note_added', 'indicator.review_note_updated', 'upload_batch.loaded', 'upload_batch.refused', 'upload_batch.deleted')"
+          "value": "\"audit_log\".\"action\" IN ('topic.created', 'topic.updated', 'topic.deleted', 'indicator.draft_created', 'indicator.draft_updated', 'indicator.draft_created_from_published', 'indicator.data_table_confirmed', 'indicator.submitted', 'indicator.submission_withdrawn', 'indicator.reviewers_assigned', 'indicator.review_feedback_given', 'indicator.changes_requested', 'indicator.approved', 'indicator.resubmitted', 'indicator.revision_response_updated', 'indicator.publication_scheduled', 'indicator.publication_date_changed', 'indicator.published', 'indicator.review_note_added', 'indicator.review_note_updated', 'upload_batch.loaded', 'upload_batch.refused', 'upload_batch.deleted')"
         },
         "audit_log_entity_type_check": {
           "name": "audit_log_entity_type_check",
@@ -1700,6 +1700,28 @@
           "with": {},
           "method": "gin",
           "concurrently": false
+        },
+        "idx_indicator_version_scheduled_publish_at": {
+          "name": "idx_indicator_version_scheduled_publish_at",
+          "columns": [
+            {
+              "expression": "scheduled_publish_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"indicator_version\".\"status\" = 'scheduled'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -5171,13 +5193,13 @@
           "name": "first_published_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "last_published_at": {
           "name": "last_published_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
       "materialized": false,
