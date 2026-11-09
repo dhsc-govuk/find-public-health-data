@@ -78,6 +78,8 @@ export function toIndicatorDetail(entry: CatalogueEntry) {
   const { detail } = entry;
   return {
     ...summaryOf(entry),
+    firstPublishedAt: detail.firstPublishedAt,
+    lastPublishedAt: detail.lastPublishedAt,
     definition: detail.definition,
     rationale: detail.rationale,
     methodology: detail.methodology,
@@ -86,6 +88,8 @@ export function toIndicatorDetail(entry: CatalogueEntry) {
     caveats: detail.caveats,
     disclosureControl: detail.disclosureControl,
     dataSource: detail.dataSource,
+    numeratorSources: detail.numeratorSources,
+    denominatorSources: detail.denominatorSources,
     ciMethod: detail.ciMethod,
     comparatorMethod: detail.comparatorMethod,
     tags: tagsOf(entry),
