@@ -34,6 +34,8 @@ jobs:
       # import order) but never writes and annotates the diff. `pnpm lint` is lint only, so it would
       # let formatting drift onto main ungated.
       - run: pnpm exec biome ci .
+      # The public API's OpenAPI document is its contract, so it is linted like code.
+      - run: pnpm check:openapi
 
   typecheck:
     name: Typecheck
