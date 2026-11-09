@@ -1,4 +1,5 @@
 import { A, ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
+import { isOneOf } from '@fphd/utils/is-one-of';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
@@ -56,12 +57,8 @@ export function IndicatorTab({
   const confidenceLevels = availableConfidenceLevels(shownObservations);
   const measures = availableMeasures(shownObservations);
   const columns = selectedTrendColumns(params, id, [...measures, ...confidenceLevels]);
-  const confidence = confidenceLevels.includes(options.confidence as '95' | '99.8')
-    ? options.confidence
-    : 'none';
-  const periodType = periodTypes.includes(options.periodType as '1-year' | '3-year')
-    ? options.periodType
-    : 'all';
+  const confidence = isOneOf(confidenceLevels, options.confidence) ? options.confidence : 'none';
+  const periodType = isOneOf(periodTypes, options.periodType) ? options.periodType : 'all';
   const narrow = (data: (typeof areaData)[number]) => ({
     ...data,
     observations: filterObservations(data.observations, {

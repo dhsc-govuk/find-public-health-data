@@ -9,6 +9,7 @@ import {
   MAX_AREA_CODES_PER_REQUEST,
   pickAreaCodes,
 } from '@fphd/public-api-features/contract';
+import { isOneOf } from '@fphd/utils/is-one-of';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
@@ -121,16 +122,15 @@ export async function loadIndicatorCsv(
       pickedCodes.length > 0 ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND) : areaData
     ).flatMap(({ observations }) => observations);
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
-    const periodType: PeriodType = availablePeriodTypes(shownObservations).includes(
-      requestedPeriod as '1-year' | '3-year',
-    )
-      ? (requestedPeriod as '1-year' | '3-year')
+    const periodType: PeriodType = isOneOf(availablePeriodTypes(shownObservations), requestedPeriod)
+      ? requestedPeriod
       : 'all';
     const requestedConfidence = url.searchParams.get(`ci-${shortId}`);
-    const confidence: ConfidenceLevel = availableConfidenceLevels(shownObservations).includes(
-      requestedConfidence as '95' | '99.8',
+    const confidence: ConfidenceLevel = isOneOf(
+      availableConfidenceLevels(shownObservations),
+      requestedConfidence,
     )
-      ? (requestedConfidence as '95' | '99.8')
+      ? requestedConfidence
       : 'none';
     const requestedBenchmark = url.searchParams.get(`cmp-${shortId}`);
     const benchmark =

@@ -1,3 +1,4 @@
+import { isOneOf } from '@fphd/utils/is-one-of';
 import type { DataTableFinding } from './data-table-problems.ts';
 
 /** Every column a data table may have, each under one heading. */
@@ -43,7 +44,7 @@ export interface Header {
 }
 
 function isColumn(heading: string): heading is DataTableColumn {
-  return (DATA_TABLE_COLUMNS as readonly string[]).includes(heading);
+  return isOneOf(DATA_TABLE_COLUMNS, heading);
 }
 
 /** Headings match regardless of case and surrounding spaces. */
