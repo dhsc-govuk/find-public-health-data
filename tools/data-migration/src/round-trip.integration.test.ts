@@ -198,7 +198,8 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
   await apply(first);
   expect(
     await sql`SELECT valid_from, valid_to, is_current FROM published.area WHERE code = 'E92000001'`,
-  ).toEqual([{ valid_from: null, valid_to: null, is_current: true }]);
+    // Validity comes from the core geography, which the package leaves as it is.
+  ).toEqual([{ valid_from: new Date('2009-01-01'), valid_to: null, is_current: true }]);
   const [version] = await sql<
     { batch: string; confirmed: boolean; owner: string; locked: boolean }[]
   >`

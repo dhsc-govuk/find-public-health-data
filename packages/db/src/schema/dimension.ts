@@ -69,7 +69,7 @@ export const dimensionTypePublic = pgTable(
   {
     id: uuid()
       .primaryKey()
-      .references(() => dimensionType.id),
+      .references(() => dimensionType.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
     standardDimension: text({ enum: STANDARD_DIMENSIONS }),
     slug: text(),
   },
@@ -91,7 +91,7 @@ export const dimensionValuePublic = pgTable(
   {
     id: uuid()
       .primaryKey()
-      .references(() => dimensionValue.id),
+      .references(() => dimensionValue.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
     slug: text().notNull(),
     ageFromValue: smallint(),
     ageFromUnit: text({ enum: AGE_UNITS }),
@@ -123,7 +123,7 @@ export const deprivationScheme = pgTable(
   {
     id: uuid()
       .primaryKey()
-      .references(() => dimensionType.id),
+      .references(() => dimensionType.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
     release: text().notNull(),
     ranked: text().notNull(),
     within: text({ enum: DEPRIVATION_WITHIN }).notNull(),

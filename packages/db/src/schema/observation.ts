@@ -50,7 +50,7 @@ export const noteType = pgTable(
 export const noteTypePublic = pgTable('note_type_public', {
   id: uuid()
     .primaryKey()
-    .references(() => noteType.id),
+    .references(() => noteType.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
   code: text().notNull().unique(),
 });
 
