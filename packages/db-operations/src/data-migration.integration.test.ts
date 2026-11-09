@@ -531,6 +531,15 @@ describe('applyDataMigration', () => {
     ).rejects.toThrow('indicator_version CSV is missing required columns: is_locked');
     await assertRolledBack();
   });
+  it('refuses a published version whose is_locked is false', async () => {
+    await baseline();
+    const row = [...VERSION_ROW];
+    row[VERSION_COLUMNS.indexOf('is_locked')] = 'f';
+    await expect(
+      apply({ upserts: { indicator_version: { columns: VERSION_COLUMNS, rows: [row] } } }),
+    ).rejects.toThrow('contains an unlocked published indicator version');
+    await assertRolledBack();
+  });
   it.each(
     [VERSION_COLUMNS.slice(0, -2), VERSION_COLUMNS.slice(0, -1)].map((columns) => ({ columns })),
   )('rejects a version header missing legacy source columns: %j', async ({ columns }) => {

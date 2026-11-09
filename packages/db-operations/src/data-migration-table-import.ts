@@ -139,6 +139,14 @@ export async function applyIndicatorVersionRows(
     throw new Error('Data migration contains a non-published indicator version');
   }
 
+  const [unlocked] = await tx<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM migration_source_indicator_version
+    WHERE is_locked IS NOT TRUE
+  `;
+  if (unlocked?.count) {
+    throw new Error('Data migration contains an unlocked published indicator version');
+  }
+
   const moved = await tx<{ id: string }[]>`
     SELECT existing.id FROM migration_source_indicator_version staged
     JOIN indicator_version existing ON existing.id = staged.id
