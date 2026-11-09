@@ -26,6 +26,7 @@ import {
 } from './area-repository.ts';
 import type { Database, DatabaseReader } from './client.ts';
 import { coalescedReads } from './coalesced-reads.ts';
+import { type DataQuery, type DataRowRecord, streamData } from './data-repository.ts';
 import {
   listPublicDimensions,
   type PublicDimensionTypeRow,
@@ -138,6 +139,11 @@ export interface ReferenceRepository {
   dataVersion(): Promise<string>;
 }
 
+/** The rows of `/v0/data`. */
+export interface DataRepository {
+  stream(query: DataQuery): AsyncIterable<DataRowRecord[]>;
+}
+
 export interface TopicRepository {
   list(): Promise<Topic[]>;
   findBySlug(slug: string): Promise<Topic | undefined>;
@@ -152,6 +158,7 @@ export interface TopicRepository {
  */
 export interface Repositories {
   areas: AreaRepository;
+  data: DataRepository;
   indicators: IndicatorRepository;
   reference: ReferenceRepository;
   topics: TopicRepository;
@@ -167,7 +174,11 @@ export type RunRead = <T>(read: (db: DatabaseReader) => Promise<T>) => Promise<T
  * The repositories over `views`, each method running its reads through `run`. They share no
  * reads, so a caller whose reads depend on more than their arguments can use them as they are.
  */
-export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories {
+export function createRepositoriesOn(
+  run: RunRead,
+  views: ViewSet,
+  streamFrom?: Database,
+): Repositories {
   return {
     areas: {
       listByType: (areaTypeName) => run((db) => listAreasByType(db, views, areaTypeName)),
@@ -213,6 +224,14 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
       searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
       listFacets: () => run((db) => listIndicatorFacets(db, views)),
     },
+    data: {
+      // A stream reads through a cursor that outlives any one read, so it needs the database
+      // itself rather than `run`. The preview, which reads in short transactions, has none.
+      stream: (query) => {
+        if (!streamFrom) throw new Error('These repositories cannot stream data');
+        return streamData(streamFrom, query);
+      },
+    },
     reference: {
       listTags: () => run((db) => listTags(db)),
       listDimensions: () => run((db) => listPublicDimensions(db)),
@@ -228,7 +247,7 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
 }
 
 export function createRepositories(db: Database): Repositories {
-  const repositories = createRepositoriesOn((read) => read(db), publishedViews);
+  const repositories = createRepositoriesOn((read) => read(db), publishedViews, db);
   // Resolving a short id or slug is a one-row index lookup, so it is never shared between
   // requests. Sharing it would make the number of statements a page costs depend on whether
   // its API requests happen to overlap.
@@ -236,6 +255,7 @@ export function createRepositories(db: Database): Repositories {
   return {
     areas: coalescedReads(repositories.areas),
     indicators: { ...coalescedReads(repositories.indicators), resolveId, resolveIdBySlug },
+    data: repositories.data,
     reference: coalescedReads(repositories.reference),
     topics: coalescedReads(repositories.topics),
   };

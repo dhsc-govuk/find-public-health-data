@@ -169,6 +169,18 @@ function cell(row: object, column: string): string {
   return String(value);
 }
 
+/** Rows as CSV lines, with each column a JSON field path joined by dots. */
+export function csvLines(
+  columns: readonly string[],
+  rows: readonly object[],
+  header: boolean,
+): string {
+  return stringify(
+    rows.map((row) => columns.map((column) => cell(row, column))),
+    { header, columns: [...columns], record_delimiter: '\r\n' },
+  );
+}
+
 /**
  * A table in the negotiated format. In JSON, rows go in `data` as they are. In CSV, the columns
  * are the JSON field paths joined with dots, in the order given.
@@ -184,12 +196,7 @@ export function sendTable(
     return;
   }
 
-  response.type('text/csv; charset=utf-8').send(
-    stringify(
-      rows.map((row) => columns.map((column) => cell(row, column))),
-      { header: true, columns: [...columns], record_delimiter: '\r\n' },
-    ),
-  );
+  response.type('text/csv; charset=utf-8').send(csvLines(columns, rows, true));
 }
 
 /** Lets any website call the API, and read the headers a client needs. */
