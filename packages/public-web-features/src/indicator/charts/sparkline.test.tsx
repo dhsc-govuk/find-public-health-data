@@ -38,6 +38,8 @@ it('renders the prototype geometry and endpoint narrative on the server without 
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const svg = doc.querySelector('svg');
   expect(svg?.getAttribute('role')).toBe('img');
+  expect(svg?.getAttribute('aria-describedby')).toBe('sparkline-description');
+  expect(svg?.querySelector('desc')?.id).toBe('sparkline-description');
   expect(svg?.querySelector('title')?.textContent).toBe('Indicator trend');
   expect(svg?.getAttribute('viewBox')).toBe('0 0 120 40');
   expect(svg?.getAttribute('height')).toBe('56');
@@ -84,7 +86,7 @@ it('limits the chart to the latest eight periods, including null gaps at its end
   );
 });
 
-it('uses short financial years in the endpoints and description', () => {
+it('expands financial years in the description and keeps the captions compact', () => {
   const periods = Array.from({ length: 8 }, (_, index) => ({
     fromDate: `${2017 + index}-04-01`,
     toDate: `${2018 + index}-03-31`,
@@ -94,14 +96,14 @@ it('uses short financial years in the endpoints and description', () => {
     'text/html',
   );
   expect(doc.querySelector('desc')?.textContent).toBe(
-    'Indicator 108, England: rising from 6.8% in 2017/18, to 7.9% in 2024/25',
+    'Indicator 108, England: rising from 6.8% in 2017 to 2018, to 7.9% in 2024 to 2025',
   );
   expect(
     [...doc.querySelectorAll('.fphd-sparkline__endpoints > span')].map((el) => el.innerHTML),
   ).toEqual(['6.8%<br>in 2017/18', '7.9%<br>in 2024/25']);
 });
 
-it('follows the prototype peak description with short ranges and the unit on its own caption line', () => {
+it('expands ranges in the prototype peak description and includes the rate unit only once', () => {
   const periods = Array.from({ length: 8 }, (_, index) => ({
     fromDate: `${2015 + index}-01-01`,
     toDate: `${2017 + index}-12-31`,
@@ -111,7 +113,7 @@ it('follows the prototype peak description with short ranges and the unit on its
     'text/html',
   );
   expect(doc.querySelector('desc')?.textContent).toBe(
-    'Indicator 108, England: rose from 92.3 per 100,000 in 2015-17, peaked at 125.6 in 2020-22, and has since decreased to 109.6 in 2022-24',
+    'Indicator 108, England: rose from 92.3 per 100,000 in 2015 to 2017, peaked at 125.6 in 2020 to 2022, and has since decreased to 109.6 in 2022 to 2024',
   );
   expect(
     [...doc.querySelectorAll('.fphd-sparkline__endpoints > span')].map((el) => el.innerHTML),

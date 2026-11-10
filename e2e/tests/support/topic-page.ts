@@ -135,7 +135,7 @@ export function topicPageTests() {
     await expect(sparkline.locator('polyline')).toHaveAttribute('points', /^(?:\S+ ){7}\S+$/);
     await expect(sparkline.locator('circle')).toHaveAttribute('r', '3');
     await expect(sparkline).toHaveAccessibleDescription(
-      /rising from .* in \d{4}\/\d{2}, to 7\.9% in \d{4}\/\d{2}/,
+      /rising from 6\.8% in 2017 to 2018, to 7\.9% in 2024 to 2025$/,
     );
     await expect(highlight.locator('.fphd-sparkline__endpoints')).toContainText('7.9%');
     await expect(highlight.locator('details, table')).toHaveCount(0);
@@ -145,8 +145,23 @@ export function topicPageTests() {
       /^(?:\S+ ){7}\S+$/,
     );
     await expect(mortality.getByRole('img')).toHaveAccessibleDescription(
-      /rose from .* in \d{4}-\d{2}, peaked at .* in \d{4}-\d{2}, and has since decreased to/,
+      /rose from 92\.3 per 100,000 in 2015 to 2017, peaked at 125\.6 in 2020 to 2022, and has since decreased to 109\.6 in 2022 to 2024$/,
     );
+    for (const [chart, period, count, value] of [
+      [highlight, '2024 to 2025', '4,109,134', '7.9%'],
+      [mortality, '2022 to 2024', '186,922', '109.6 per 100,000'],
+    ] as const) {
+      const card = page.locator('.fphd-topic-highlight').filter({ has: chart });
+      await expect(card.locator('.govuk-summary-list__key')).toHaveText([
+        'Most recent period',
+        'Count',
+        'Calculated value',
+        'Trend (last 5 periods)',
+      ]);
+      await expect(card.locator('.govuk-summary-list__value').nth(0)).toHaveText(period);
+      await expect(card.locator('.govuk-summary-list__value').nth(1)).toHaveText(count);
+      await expect(card.locator('.govuk-summary-list__value').nth(2)).toHaveText(value);
+    }
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });

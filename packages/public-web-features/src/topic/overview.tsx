@@ -1,16 +1,17 @@
 import { GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
+import { observationSegmentKey } from '@fphd/utils/observation-series';
+import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { Link } from 'react-router';
 import { Sparkline } from '../indicator/charts/sparkline.tsx';
 import {
-  availableMeasures,
+  availablePeriodTypes,
   comparisonRows,
+  filterObservations,
   formatCalculatedValue,
-  MEASURES,
   recentTrend,
   withUnit,
 } from '../indicator/data.ts';
-import type { IndicatorObservation } from '../indicator/loader.ts';
 import { TrendTag } from '../indicator/trend-tag.tsx';
 import { searchUrl } from '../search/url.ts';
 import { TopicGeographies } from './geographies.tsx';
@@ -18,16 +19,6 @@ import type { loadTopicPage } from './loader.ts';
 
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 type Overview = NonNullable<Awaited<TopicData['overview']>>;
-
-/** A row for each raw number the series has, or a Count row saying there is no data. */
-function measureItems(series: IndicatorObservation[], latest: IndicatorObservation | undefined) {
-  const available = availableMeasures(series);
-  const shown = MEASURES.filter(({ key }) => available.includes(key));
-  return (shown.length > 0 ? shown : MEASURES.slice(0, 1)).map(({ key, label }) => ({
-    name: label,
-    children: latest?.[key] == null ? 'No data' : latest[key].toLocaleString(),
-  }));
-}
 
 export function TopicOverview({
   topic,
@@ -117,12 +108,21 @@ export function TopicOverview({
             const area =
               entry.areaData.find(({ areaCode }) => areaCode !== 'E92000001') ?? entry.areaData[0];
             const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
-            const latest = cell?.series.at(-1);
-            const trend = recentTrend(
-              cell?.series ?? [],
-              entry.detail.polarity,
-              cell?.trendDirection,
+            const periodType = availablePeriodTypes(cell?.series ?? []).includes('3-year')
+              ? '3-year'
+              : '1-year';
+            const series = filterObservations(cell?.series ?? [], { periodType }).sort(
+              (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
             );
+            const latest = series.at(-1);
+            const selection = entry.tableSeries?.find(
+              (selection) => selection.sex === row?.sex && selection.periodType === periodType,
+            );
+            const direction =
+              area && latest && selection?.segments[area.areaCode] === observationSegmentKey(latest)
+                ? selection.trends?.[area.areaCode]
+                : undefined;
+            const trend = recentTrend(series, entry.detail.polarity, direction);
             return (
               <article className="fphd-topic-highlight" key={entry.detail.shortId}>
                 <h3 className="govuk-heading-s govuk-!-margin-bottom-3">
@@ -130,12 +130,12 @@ export function TopicOverview({
                     {entry.detail.name}
                   </Link>
                 </h3>
-                {area && cell && cell.series.filter(({ value }) => value !== null).length >= 2 ? (
+                {area && series.filter(({ value }) => value !== null).length >= 2 ? (
                   <Sparkline
                     id={`topic-highlight-chart-${entry.detail.shortId}`}
                     title={`${entry.detail.name}, ${area.areaName}: trend chart`}
                     indicator={entry.detail}
-                    areas={[{ ...area, observations: cell.series }]}
+                    areas={[{ ...area, observations: series }]}
                   />
                 ) : (
                   <p className="govuk-hint fphd-topic-highlight__no-trend">
@@ -146,8 +146,17 @@ export function TopicOverview({
                 )}
                 <SummaryList
                   items={[
-                    { name: 'Most recent period', children: row?.period || 'No data' },
-                    ...measureItems(cell?.series ?? [], latest),
+                    {
+                      name: 'Most recent period',
+                      children: latest
+                        ? expandedPeriodLabel(latest, entry.detail.yearType)
+                        : 'No data',
+                    },
+                    {
+                      name: 'Count',
+                      children:
+                        (latest?.count ?? latest?.numerator)?.toLocaleString('en-GB') ?? 'No data',
+                    },
                     {
                       name: 'Calculated value',
                       children:

@@ -84,3 +84,15 @@ export function shortPeriodLabel(period: Period, yearType?: PublicYearType | nul
     (_, from, to) => `${from}-${from.slice(0, -2) === to.slice(0, -2) ? to.slice(-2) : to}`,
   );
 }
+
+export function expandedPeriodLabel(period: Period, yearType?: PublicYearType | null): string {
+  const from = dayOf(period.fromDate);
+  const to = dayOf(period.toDate);
+  if (
+    wholeYears(from, to) > 0 &&
+    ((from.month === 1 && from.day === 1) || yearType?.value !== 'rolling')
+  ) {
+    return from.year === to.year ? String(from.year) : `${from.year} to ${to.year}`;
+  }
+  return periodLabel(period, yearType);
+}

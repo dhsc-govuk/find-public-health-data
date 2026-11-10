@@ -1,6 +1,6 @@
 import { ChartSection } from '@fphd/ui';
-import { shortPeriodLabel } from '@fphd/utils/period-label';
-import { availablePeriodTypes, filterObservations, formatCalculatedValue } from '../data.ts';
+import { expandedPeriodLabel, shortPeriodLabel } from '@fphd/utils/period-label';
+import { formatCalculatedValue } from '../data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
 import { alignedSeries, periodKey } from './chart-data.ts';
 import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
@@ -38,21 +38,13 @@ export function Sparkline({
   areas: IndicatorAreaData[];
   indicator: IndicatorDetail;
 }) {
-  const type =
-    availablePeriodTypes(areas.flatMap(({ observations }) => observations)).length > 1
-      ? '3-year'
-      : 'all';
-  const primary = alignedSeries(
-    areas.map((area) => ({
-      ...area,
-      observations: filterObservations(area.observations, { periodType: type }),
-    })),
-  ).find(({ observations }) => observations.size > 0);
+  const primary = alignedSeries(areas).find(({ observations }) => observations.size > 0);
   const points = [...(primary?.observations.values() ?? [])]
     .sort((a, b) => periodKey(a).localeCompare(periodKey(b)))
     .slice(-8)
     .map((observation) => ({
-      label: shortPeriodLabel(observation, indicator.yearType),
+      label: expandedPeriodLabel(observation, indicator.yearType),
+      shortLabel: shortPeriodLabel(observation, indicator.yearType),
       value: observation.value,
     }));
   const first = points.find(({ value }) => value !== null);
@@ -87,16 +79,22 @@ export function Sparkline({
           </>
         ) : null}
         <br />
-        in {point.label}
+        in {point.shortLabel}
       </span>
     ) : null;
   return (
     <ChartSection id={id} title={title}>
       {first && latest && first !== latest ? (
         <div className="fphd-sparkline">
-          <svg width="100%" height="56" viewBox="0 0 120 40" role="img">
+          <svg
+            width="100%"
+            height="56"
+            viewBox="0 0 120 40"
+            role="img"
+            aria-describedby={`${id}-description`}
+          >
             <title>{title}</title>
-            <desc>
+            <desc id={`${id}-description`}>
               {`${indicator.name}, ${primary?.name}: ${describeTrend(points, indicator.unit)}`}
             </desc>
             {lines
