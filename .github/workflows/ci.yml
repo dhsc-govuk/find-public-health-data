@@ -215,8 +215,9 @@ jobs:
           SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
         run: pnpm test:e2e --shard="${SHARD}"
 
-      # On its own after the shard's run, since publishing changes what the other specs read, and in
-      # one shard only, since it waits on the worker for up to a minute and a half.
+      # Runs after this shard's share of the suite has finished, because publishing an indicator
+      # changes data the other specs read. Only the first shard runs it, because the test can wait
+      # up to 2 minutes 20 seconds for its publication time to arrive and the worker to publish it.
       - name: Run the publishing e2e test
         if: ${{ matrix.shard == 1 }}
         run: pnpm test:e2e:publishing

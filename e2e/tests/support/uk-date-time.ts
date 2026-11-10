@@ -1,4 +1,8 @@
-/** A date and time as the publication date form's fields hold them. */
+/**
+ * A date and time split into the day, month, year, hour and minute fields that both publication
+ * date forms use: the publisher's Publishing date task and the admin's confirm publication date
+ * page. Each part is held as the text typed into its field.
+ */
 export type DateTime = { day: string; month: string; year: string; hour: string; minute: string };
 
 const UK_PARTS = new Intl.DateTimeFormat('en-GB', {
@@ -11,7 +15,10 @@ const UK_PARTS = new Intl.DateTimeFormat('en-GB', {
   hourCycle: 'h23',
 });
 
-/** An instant as the form's parts in UK time. */
+/**
+ * Splits `instant` into the publication date form's fields, giving the date and time in UK time
+ * (Europe/London), so the result allows for British Summer Time.
+ */
 export function ukDateTime(instant: Date): DateTime {
   const parts = Object.fromEntries(
     UK_PARTS.formatToParts(instant).map(({ type, value }) => [type, value]),

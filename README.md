@@ -115,7 +115,7 @@ pnpm test                # unit then integration tests (not e2e)
 pnpm test:unit           # unit tests
 pnpm test:integration    # integration tests — need the local database and Azurite running
 pnpm test:e2e            # end-to-end tests — need the stack serving and the database seeded
-pnpm test:e2e:publishing # the publishing e2e test, after publishing, workflow or worker changes
+pnpm test:e2e:publishing # end-to-end test of scheduled publication — needs the worker running
 ```
 
 Each application builds to its own `dist` directory, giving CI and deployment tooling four
@@ -176,9 +176,10 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   the production images the image build job made (see [Container images](#container-images)),
   restores the database a seed job seeded once for the run, with the same commands a developer
   runs, runs its share of the suite, and uploads its own Playwright report when it fails. Add a
-  shard to the matrix as the suite grows. After its share, the first shard runs
-  `pnpm test:e2e:publishing`, the `publishing` project, on its own: publishing an indicator changes
-  the public search total and a topic's indicators, which other specs read.
+  shard to the matrix as the suite grows. Once its share has finished, the first shard also runs
+  `pnpm test:e2e:publishing`, the `publishing` project. It runs separately because publishing an
+  indicator changes the public search total and a topic's list of indicators, which other specs
+  read.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
@@ -222,14 +223,14 @@ To add real ones:
   `pnpm --filter @fphd/e2e exec playwright test --ui` opens UI mode, and `--headed` and `-g`
   filters pass through the same way. Specs run in parallel workers against the shared seed, so a
   spec never mutates data another spec reads — a test of a write flow creates its own rows and
-  asserts on those. The `publishing` project (`e2e/tests/publishing`) is the exception: it
-  publishes an indicator, so it exists only when `E2E_PUBLISHING=1` is set, as
-  `pnpm test:e2e:publishing` sets it, and neither `pnpm test:e2e` nor a bare `playwright test` runs
-  it. Run it when publishing, workflow or worker code changes, with the worker running. The
-  indicator stays published, so the next `pnpm test:e2e`, whose search specs count the published
-  indicators, needs the database re-seeded, and the re-seed wipes every indicator in that database.
-  Never run it against a development database that holds drafts you want to keep; use a worktree's
-  own database.
+  asserts on those. The `publishing` project (`e2e/tests/publishing`) is the exception, because its
+  test publishes an indicator. Playwright defines that project only when `E2E_PUBLISHING=1` is set,
+  which `pnpm test:e2e:publishing` does, so neither `pnpm test:e2e` nor a bare `playwright test`
+  runs it. Run it, with the worker running, when publishing, workflow or worker code changes. The
+  indicator it publishes stays published, and the search specs count published indicators, so
+  re-seed the database before the next `pnpm test:e2e`. Re-seeding wipes every indicator in that
+  database, so never run the publishing test against a development database that holds drafts you
+  want to keep. Use a worktree's own database instead.
 
   Internal specs start signed in. The `internal sign-in` setup project
   (`e2e/tests/internal/sign-in.setup.ts`) signs each internal user in once a run and saves the

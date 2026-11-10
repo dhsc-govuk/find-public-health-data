@@ -4,17 +4,19 @@
 //
 // Specs run in parallel workers against one shared seeded database, which makes one rule
 // load-bearing: a spec never mutates data another spec reads. A test of a write flow creates
-// its own rows and asserts on those; a flow that genuinely cannot own its data gets a serial
-// project, which exists only when `E2E_PUBLISHING=1`, as `test:e2e:publishing` sets it, so neither
-// `test:e2e` nor a bare `playwright test` runs it.
+// its own rows and asserts on those. The one exception is the `publishing` project below, whose
+// test publishes an indicator. That project is defined only when `E2E_PUBLISHING=1` is set, which
+// `test:e2e:publishing` does, so neither `test:e2e` nor a bare `playwright test` runs it.
 import { defineConfig, devices } from '@playwright/test';
 
 import { INTERNAL_WEB_URL, PUBLIC_WEB_URL } from './tests/support/web-urls.ts';
 
 const internalUse = { ...devices['Desktop Chrome'], baseURL: INTERNAL_WEB_URL };
 
-// Publishing changes what other specs read (the public search total, a topic's indicators), so
-// this project runs on its own, one test at a time, once the others have finished.
+// Publishing an indicator changes data that other specs read: the public search total and a
+// topic's list of indicators. This project runs its tests one at a time in a single worker. It
+// does not depend on the `public` or `internal` projects, so it runs after their specs only
+// because `test:e2e:publishing` is a separate run from `test:e2e`.
 const publishing = {
   name: 'publishing',
   testDir: './tests/publishing',

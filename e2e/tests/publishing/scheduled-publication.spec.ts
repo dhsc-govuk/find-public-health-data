@@ -12,16 +12,20 @@ import { ukDateTime } from '../support/uk-date-time.ts';
 import { PUBLIC_WEB_URL } from '../support/web-urls.ts';
 
 const MINUTE = 60_000;
-// The confirm page refuses a time not in the future, so a minute this close is skipped.
+// The confirm publication date page refuses a time that is not in the future. The test leaves
+// itself at least 15 seconds to fill in and submit that form before the publication time arrives.
 const LEAST_NOTICE = 15_000;
 
-/** The next whole minute at least LEAST_NOTICE away. */
+/** The first whole minute after `now` that is at least `LEAST_NOTICE` away, in milliseconds. */
 function nextPublicationTime(now: number) {
   const next = (Math.floor(now / MINUTE) + 1) * MINUTE;
   return next - now < LEAST_NOTICE ? next + MINUTE : next;
 }
 
-/** Confirms the publication date and time as an admin does, the time in UK time. */
+/**
+ * Confirms the indicator's publication date and time as `at`, through the confirm publication
+ * date form an admin uses. The form takes the date and time in UK time.
+ */
 async function confirmPublicationAt(page: Page, id: string, at: number) {
   const { day, month, year, hour, minute } = ukDateTime(new Date(at));
   const field = (group: 'Date' | 'Time', label: string) =>
@@ -38,14 +42,18 @@ async function confirmPublicationAt(page: Page, id: string, at: number) {
   await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
 }
 
-// England and London, so the published indicator has areas to compare.
+// Values for England and for London. England is the benchmark, and London gives the published
+// indicator's Compare areas tab a region to compare with it.
 const DATA_TABLE = [
   'area_code,period_start,period_end,value',
   'E92000001,2019-04-01,2020-03-31,83.8',
   'E12000007,2019-04-01,2020-03-31,79.2',
 ].join('\n');
 
-/** A new indicator with DATA_TABLE as its data, IMRG approved and pending scheduling. */
+/**
+ * Creates a new indicator with `DATA_TABLE` as its data, submits it, and has the IMRG reviewer
+ * approve it. The indicator is then waiting for an admin to confirm its publication date.
+ */
 async function approvedWithRegion(browser: Browser) {
   const name = uniqueIndicatorName('publish on time');
   const id = await asUser(browser, PUBLISHER, async (page) => {
@@ -75,8 +83,8 @@ test('publishes a scheduled indicator at its publication time', async ({
   browser,
   page,
 }, testInfo) => {
-  // The setup, up to a minute and a quarter before the publication time, and up to 65 seconds
-  // after it for the sweep.
+  // Four minutes covers the setup, a wait of up to 75 seconds for the publication time, and up
+  // to 65 seconds more for the worker's sweep to publish the indicator.
   test.setTimeout(4 * MINUTE);
   const { id, name } = await approvedWithRegion(browser);
   const publicUrl = `${PUBLIC_WEB_URL}/indicator/${name.toLowerCase().replaceAll(' ', '-')}`;
@@ -92,7 +100,9 @@ test('publishes a scheduled indicator at its publication time', async ({
 
   await expect
     .poll(async () => (await page.request.get(publicUrl)).status(), {
-      // The sweep a second past the minute, or the next one should that be missed.
+      // The worker sweeps one second past each minute, so it should publish the indicator about
+      // a second after its publication time. Waiting 65 seconds also covers the following sweep,
+      // in case the first one misses the indicator.
       timeout: publishAt + 65_000 - Date.now(),
       intervals: [1_000],
     })
@@ -101,7 +111,9 @@ test('publishes a scheduled indicator at its publication time', async ({
 
   await openIndicatorPage(page, publicUrl);
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-  // The areas to compare are read from the read models, which publishing refreshes.
+  // The Compare areas tab offers only the area types listed for this indicator in the
+  // `available_data` read-model table. Publishing adds the indicator's rows to that table, so
+  // this checks that publishing refreshed the read models.
   await page.getByRole('tab', { name: 'Compare areas', exact: true }).click();
   const compareAreas = page.locator('#indicator-compare-areas');
   await expect(
