@@ -8,7 +8,7 @@ import {
   type Section,
   taskRow,
 } from '../support/section-page.ts';
-import { autocompleteInput, chooseOption } from '../support/select-autocomplete.ts';
+import { autocompleteInput, chooseOption, pickSuggestion } from '../support/select-autocomplete.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
 
 const NUMERATOR: Section = { key: 'numerator', taskName: 'Numerator' };
@@ -24,14 +24,14 @@ function sourceField(page: Page) {
   return page.getByLabel(/^Add the specific source/);
 }
 
-async function chooseSource(page: Page, provider: string, source: string) {
+/** Picks a provider, then one of its sources from the suggestions, which adds it at once. */
+async function pickSource(page: Page, provider: string, source: string) {
   await chooseOption(page, PROVIDER_FIELD, provider);
-  await chooseOption(page, `Add the specific source from ${provider}`, source);
+  await pickSuggestion(page, `Add the specific source from ${provider}`, source);
 }
 
 async function addSource(page: Page, provider: string, source: string) {
-  await chooseSource(page, provider, source);
-  await page.getByRole('button', { name: 'Add source' }).click();
+  await pickSource(page, provider, source);
   const added = source === 'No specific source' ? provider : `${provider}: ${source}`;
   await expect(addedSources(page).filter({ hasText: added })).toHaveCount(1);
 }
@@ -69,13 +69,15 @@ test("offers a provider's sources once the provider is chosen", async ({ page })
 
   const source = autocompleteInput(page, `Add the specific source from ${ONS}`);
   await expect(source).toBeVisible();
+  // Picking a source adds it, so the button that adds one is for browsers without JavaScript.
+  await expect(page.getByRole('button', { name: 'Add source' })).toBeHidden();
   await source.click();
   const suggestions = page.getByRole('listbox').getByRole('option');
   await expect(suggestions.first()).toHaveText('No specific source');
   await expect(suggestions.filter({ hasText: /^Live births$/ })).toHaveCount(1);
 });
 
-test('adds several providers and sources to a list, in the order they were added', async ({
+test('adds each source as it is picked, to a list in the order they were added', async ({
   page,
 }) => {
   await openSectionPage(page, NUMERATOR);
@@ -98,11 +100,14 @@ test('removes a source from the list', async ({ page }) => {
   await expect(addedSources(page)).toHaveText([DEFRA]);
 });
 
-test('asks for a source when Add source is selected without one', async ({ page }) => {
+test('asks for a source when Continue is selected with a provider chosen and no source', async ({
+  page,
+}) => {
   await openSectionPage(page, NUMERATOR);
   await chooseOption(page, PROVIDER_FIELD, ONS);
+  await page.getByLabel(DEFINITION_FIELD, { exact: true }).fill('Live births in the year.');
 
-  await page.getByRole('button', { name: 'Add source' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
 
   const summary = page.getByRole('alert');
   await expect(summary.getByRole('link')).toHaveText(['Select a source, or No specific source']);
@@ -117,8 +122,7 @@ test('refuses a provider and source already added', async ({ page }) => {
   await openSectionPage(page, NUMERATOR);
   await addSource(page, ONS, 'Live births');
 
-  await chooseSource(page, ONS, 'Live births');
-  await page.getByRole('button', { name: 'Add source' }).click();
+  await pickSource(page, ONS, 'Live births');
 
   await expect(page.getByRole('alert').getByRole('link')).toHaveText([
     'Select a source that has not already been added',
@@ -157,12 +161,18 @@ test('saves the sources and definition on Continue and shows the task as complet
   );
 });
 
-test('saves a provider and source chosen but not added when Continue is selected', async ({
+test('saves a source whose name was typed in full, not picked, when Continue is selected', async ({
   page,
 }) => {
   const taskListPath = await openSectionPage(page, NUMERATOR);
-  await chooseSource(page, ONS, 'Live births');
+  await chooseOption(page, PROVIDER_FIELD, ONS);
+  await autocompleteInput(page, `Add the specific source from ${ONS}`).fill('Live births');
   await page.getByLabel(DEFINITION_FIELD, { exact: true }).fill('Live births in the year.');
+  // Leaving the source field added nothing, or the page would have reloaded without the definition.
+  await expect(addedSources(page)).toHaveCount(0);
+  await expect(page.getByLabel(DEFINITION_FIELD, { exact: true })).toHaveValue(
+    'Live births in the year.',
+  );
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -178,8 +188,12 @@ test('asks the same of the denominator and saves it apart from the numerator', a
   ).toBeVisible();
 
   await chooseOption(page, 'Add a data provider for the denominator', ONS);
-  await chooseOption(page, `Add the specific source from ${ONS}`, 'Mid-year population estimates');
-  await page.getByRole('button', { name: 'Add source' }).click();
+  await pickSuggestion(
+    page,
+    `Add the specific source from ${ONS}`,
+    'Mid-year population estimates',
+  );
+  await expect(addedSources(page)).toHaveText([`${ONS}: Mid-year population estimates`]);
   await page
     .getByLabel('Enter the definition of the denominator', { exact: true })
     .fill('Resident population.');
@@ -203,7 +217,7 @@ test('has no WCAG 2.2 AA violations with sources added and a source refused', as
   await addSource(page, ONS, 'Live births');
   await addSource(page, DEFRA, 'No specific source');
   await chooseOption(page, PROVIDER_FIELD, ONS);
-  await page.getByRole('button', { name: 'Add source' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('alert')).toContainText('Select a source');
 
   await expectNoAccessibilityViolations(page, testInfo);

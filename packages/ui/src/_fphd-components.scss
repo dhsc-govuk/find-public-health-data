@@ -1127,6 +1127,12 @@ body.govuk-frontend-supported .fphd-filter-card {
   isolation: isolate;
 }
 
+// NotGovUK gives every list item on the page a bottom margin, which shows as a gap between
+// the suggestions.
+.autocomplete__option {
+  margin-bottom: 0;
+}
+
 // NotGovUK's input[type] rule is more specific than this modifier in the library's CSS.
 // Restore the library spacing that keeps the value clear of its dropdown arrow.
 .fphd-autocomplete .autocomplete__input--show-all-values {

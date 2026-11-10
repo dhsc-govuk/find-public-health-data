@@ -1,15 +1,20 @@
 // @vitest-environment jsdom
 import { serviceName } from '@fphd/ui';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { removeIntent } from '../list-form.ts';
+import { ADD_INTENT, removeIntent } from '../list-form.ts';
 import { noRefusal, SHOWN_VERSION } from '../testing.ts';
 import type { NumeratorDenominatorPageValues } from './form.ts';
 import { NumeratorDenominatorPage } from './page.tsx';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // Server-rendered HTML is put straight into the body, which cleanup leaves alone.
+  document.body.innerHTML = '';
+});
 
 const ons = {
   id: '01a0d858-9885-764e-8d53-6826aec67001',
@@ -33,9 +38,11 @@ const twoSources: NumeratorDenominatorPageValues = {
   ],
 };
 
+type Props = Parameters<typeof NumeratorDenominatorPage>[0];
+
 // The error summary's links read router state, so the page renders inside a router.
-function renderPage(props: Partial<Parameters<typeof NumeratorDenominatorPage>[0]> = {}) {
-  return render(
+function page(props: Partial<Props> = {}) {
+  return (
     <MemoryRouter>
       <NumeratorDenominatorPage
         {...noRefusal}
@@ -44,8 +51,17 @@ function renderPage(props: Partial<Parameters<typeof NumeratorDenominatorPage>[0
         values={empty}
         {...props}
       />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderPage(props: Partial<Props> = {}) {
+  return render(page(props));
+}
+
+/** The server's HTML alone, as a browser without JavaScript has it. */
+function renderWithoutJavaScript(props: Partial<Props> = {}) {
+  document.body.innerHTML = renderToString(page(props));
 }
 
 function providerSelect() {
@@ -105,6 +121,52 @@ describe('NumeratorDenominatorPage', () => {
 
     expect(sourceSelect().closest('[hidden]')).toBeNull();
     expect(optionsOf(sourceSelect())).toEqual(['Select a source', 'No specific source']);
+  });
+
+  it('sends the form as Add source would when a source is picked from the suggestions', async () => {
+    const { container } = renderPage({ values: { ...empty, providerId: ons.id } });
+    const submitters: (HTMLElement | null)[] = [];
+    container.querySelector('form')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      submitters.push(event.submitter);
+    });
+    // The select is a combobox too, so wait for the input that replaces it.
+    const combobox = await waitFor(() => {
+      const field = screen.getByRole('combobox', {
+        name: `Add the specific source from ${ons.name}`,
+      });
+      if (!(field instanceof HTMLInputElement)) throw new Error('Not enhanced yet');
+      return field;
+    });
+    const listbox = document.getElementById(combobox.getAttribute('aria-controls') ?? '');
+    if (listbox === null) throw new Error('No suggestions');
+    fireEvent.input(combobox, { target: { value: 'annual' } });
+
+    fireEvent.click(await waitFor(() => within(listbox).getByText('Annual mortality extract')));
+
+    expect(submitters.map((button) => button?.getAttribute('value'))).toEqual([ADD_INTENT]);
+    expect(container.querySelector('select[name="sourceId"]')).toHaveProperty(
+      'value',
+      ons.sources[0]?.id,
+    );
+  });
+
+  it('shows Add source without JavaScript', () => {
+    renderWithoutJavaScript({ values: { ...empty, providerId: ons.id } });
+
+    const addSource = screen.getByText('Add source');
+
+    expect(addSource.getAttribute('value')).toBe(ADD_INTENT);
+    expect(addSource.closest('[hidden]')).toBeNull();
+  });
+
+  it('hides Add source, but not the source field, once the page is hydrated', () => {
+    renderPage({ values: { ...empty, providerId: ons.id } });
+
+    const hidden = screen.getByText('Add source').closest('[hidden]');
+
+    expect(hidden).not.toBeNull();
+    expect(hidden?.contains(sourceSelect())).toBe(false);
   });
 
   it('lists the sources added, naming a provider alone where it has no specific source', () => {

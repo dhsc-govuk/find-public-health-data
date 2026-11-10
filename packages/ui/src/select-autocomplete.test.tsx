@@ -85,6 +85,62 @@ describe('SelectAutocomplete', () => {
     await waitFor(() => expect(combobox).toHaveProperty('value', 'Pear'));
   });
 
+  it('reports an option picked from the suggestions as a pick', async () => {
+    const onPick = vi.fn();
+    render(
+      <SelectAutocomplete label="Choose a fruit" name="fruit" onPick={onPick} options={OPTIONS} />,
+    );
+    const combobox = await enhancedCombobox();
+    fireEvent.input(combobox, { target: { value: 'pea' } });
+
+    fireEvent.click(await waitFor(() => within(screen.getByRole('listbox')).getByText('Pear')));
+
+    expect(onPick).toHaveBeenCalledExactlyOnceWith('pear-id');
+  });
+
+  it.each([
+    [
+      'Escape closes the suggestions',
+      (option: HTMLElement) => fireEvent.keyDown(option, { key: 'Escape', keyCode: 27 }),
+    ],
+    [
+      'the user leaves the field',
+      (option: HTMLElement) => fireEvent.blur(option, { relatedTarget: null }),
+    ],
+  ])('does not report a highlighted option as a pick when %s', async (_, leave) => {
+    const onPick = vi.fn();
+    render(
+      <SelectAutocomplete label="Choose a fruit" name="fruit" onPick={onPick} options={OPTIONS} />,
+    );
+    const combobox = await enhancedCombobox();
+    fireEvent.input(combobox, { target: { value: 'pea' } });
+    await waitFor(() => expect(suggestions()).toHaveLength(1));
+    fireEvent.keyDown(combobox, { key: 'ArrowDown', keyCode: 40 });
+    const highlighted = await waitFor(() => {
+      const option = document.querySelector('.autocomplete__option--focused');
+      if (!(option instanceof HTMLElement)) throw new Error('Nothing highlighted yet');
+      return option;
+    });
+
+    leave(highlighted);
+
+    expect(onPick).not.toHaveBeenCalled();
+    expect(hiddenSelect().value).toBe('');
+  });
+
+  it('does not report an option whose name is typed in full as a pick', async () => {
+    const onPick = vi.fn();
+    render(
+      <SelectAutocomplete label="Choose a fruit" name="fruit" onPick={onPick} options={OPTIONS} />,
+    );
+    const combobox = await enhancedCombobox();
+
+    fireEvent.input(combobox, { target: { value: 'apple' } });
+
+    expect(hiddenSelect().value).toBe('apple-id');
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('unsets the choice when the text no longer names it', async () => {
     const onChange = vi.fn();
     render(

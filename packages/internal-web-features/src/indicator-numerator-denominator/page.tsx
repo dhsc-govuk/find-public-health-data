@@ -6,6 +6,7 @@ import {
   providerSourceLabel,
 } from '@fphd/internal-api-features/contract';
 import { Button, fieldInputId, SelectAutocomplete, Textarea } from '@fphd/ui';
+import { useRef } from 'react';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 import { ADD_INTENT, removeIntent } from '../list-form.ts';
@@ -78,7 +79,9 @@ interface NumeratorDenominatorPageProps
 /**
  * The numerator's or denominator's sources and definition. A provider's sources are offered
  * once it is chosen: in the browser as soon as it is, and without JavaScript by Show sources,
- * which sends the form back with the provider chosen.
+ * which sends the form back with the provider chosen. In the browser, picking a source from the
+ * suggestions adds it at once, by sending the form as Add source would. Add source itself is
+ * shown only without JavaScript.
  */
 export function NumeratorDenominatorPage({
   part,
@@ -90,6 +93,11 @@ export function NumeratorDenominatorPage({
   const provider = providers.find(({ id }) => id === selected.value);
   // Nothing added yet is asked of the provider select, where the first source is chosen.
   const providerError = fieldErrors.providerId ?? fieldErrors.sources;
+  const addSource = useRef<HTMLDivElement>(null);
+  const pressAddSource = () => {
+    const button = addSource.current?.querySelector('button');
+    button?.form?.requestSubmit(button);
+  };
 
   return (
     <IndicatorSectionForm
@@ -130,15 +138,18 @@ export function NumeratorDenominatorPage({
           }
           labelHeading="h3"
           name="sourceId"
+          onPick={pressAddSource}
           options={[
             { label: 'Select a source', value: '' },
             { label: 'No specific source', value: NO_SPECIFIC_SOURCE },
             ...(provider?.sources ?? []).map(({ id, name }) => ({ label: name, value: id })),
           ]}
         />
-        <Button classModifiers="secondary" name="intent" value={ADD_INTENT}>
-          Add source
-        </Button>
+        <div hidden={selected.enhanced} ref={addSource}>
+          <Button classModifiers="secondary" name="intent" value={ADD_INTENT}>
+            Add source
+          </Button>
+        </div>
       </div>
       <Textarea
         defaultValue={values.definition}
