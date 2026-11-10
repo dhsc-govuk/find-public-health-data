@@ -36,8 +36,8 @@ export async function draftUpdatedAt(db: Database, versionId: string): Promise<D
 
 /**
  * Answers every task on a new draft, data table included, so it may be submitted, and answers
- * its `updatedAt` afterwards. The answers are the task list's complete ones, with the seed's ids
- * for everything a list or a batch refers to.
+ * its `updatedAt` afterwards. The answers are the task list's complete ones, with the core data's
+ * ids for everything a list refers to, and a batch of its own.
  */
 export async function completeDraft(
   db: Database,
@@ -68,7 +68,7 @@ export async function completeDraft(
     classificationIn(db, 'life_stage'),
     onsSources(db),
   ]);
-  if (firstTopic === undefined) throw new Error('The seed holds no topic');
+  if (firstTopic === undefined) throw new Error('The core data holds no topic');
   const [batch] = await db
     .insert(uploadBatch)
     .values({
