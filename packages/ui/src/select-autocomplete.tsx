@@ -18,37 +18,63 @@ interface SelectAutocompleteProps {
   name: string;
   label: ReactNode;
   labelHeading?: ElementType | undefined;
+  /**
+   * Advice shown under the label. The combobox also reads it out with its own instructions,
+   * because the library decides what describes its input and takes no id of ours.
+   */
+  hint?: string | undefined;
   error?: ReactNode;
   /** An option whose value is empty is the select's prompt, which the autocomplete leaves out. */
   options: readonly AutocompleteOption[];
   defaultValue?: string;
   onChange?: ChangeEventHandler<HTMLSelectElement>;
+  /**
+   * Called with an option's value when the user picks it from the suggestions, by a click or
+   * by Enter or Space on a highlighted one. Typing an option's name in full sets the select
+   * without calling this, because the user may still be typing a longer name. A field given
+   * this does not take the highlighted suggestion when the user leaves it or presses Escape,
+   * so that moving through the suggestions is never a pick.
+   */
+  onPick?: (value: string) => void;
 }
+
+// The library's own instructions for its input, repeated here so a hint can follow them.
+const KEYBOARD_INSTRUCTIONS =
+  'When autocomplete results are available use up and down arrows to review and enter to select.  Touch device users, explore by touch or with swipe gestures.';
 
 /**
  * A GOV.UK select that becomes type-to-search in the browser. The server renders the select,
  * which is the whole control without JavaScript; on mount accessible-autocomplete puts its
  * input in front, taking the select's id so the label and error summary link reach it, and the
  * select is hidden but still submits the choice. A choice in the input is set on the select
- * with a change event, so `onChange` hears it as it would from the select itself.
+ * with a change event, so `onChange` hears it as it would from the select itself. `onPick`
+ * hears only a choice made from the suggestions, for a page that acts on the choice at once.
  */
 export function SelectAutocomplete({
   name,
   label,
   labelHeading,
+  hint,
   error,
   options,
   defaultValue,
   onChange,
+  onPick,
 }: SelectAutocompleteProps) {
   const fieldId = fieldInputId(name);
   const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
+  const describedBy = [hint ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ');
   const containerRef = useRef<HTMLDivElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
   const [enhanced, setEnhanced] = useState(false);
   // Kept current so the mount-once effect never holds stale props.
   const latestOptions = useRef(options);
   latestOptions.current = options;
+  const latestOnPick = useRef(onPick);
+  latestOnPick.current = onPick;
+  const latestHint = useRef(hint);
+  latestHint.current = hint;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -86,6 +112,8 @@ export function SelectAutocomplete({
         defaultValue: initial?.label ?? '',
         minLength: 1,
         showAllValues: true,
+        // The library confirms the highlighted suggestion on blur and on Escape unless told not to.
+        confirmOnBlur: latestOnPick.current === undefined,
         source: (query, populateResults) => {
           const q = query.trim().toLowerCase();
           populateResults(choices().filter((option) => option.label.toLowerCase().includes(q)));
@@ -94,8 +122,14 @@ export function SelectAutocomplete({
           suggestion: (option) => escapeHtml(labelOf(option)),
           inputValue: (option) => labelOf(option),
         },
+        tAssistiveHint: () =>
+          latestHint.current
+            ? `${KEYBOARD_INSTRUCTIONS} ${latestHint.current}`
+            : KEYBOARD_INSTRUCTIONS,
         onConfirm: (option) => {
-          if (isOption(option)) choose(option.value);
+          if (!isOption(option)) return;
+          choose(option.value);
+          latestOnPick.current?.(option.value);
         },
       });
     });
@@ -113,13 +147,15 @@ export function SelectAutocomplete({
       error={error}
       errorId={errorId}
       fieldId={fieldId}
+      hint={hint}
+      hintId={hintId}
       id={name}
       label={label}
       labelHeading={labelHeading}
     >
       <div ref={containerRef} />
       <select
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy || undefined}
         className={[
           'govuk-select',
           error ? 'govuk-select--error' : '',
