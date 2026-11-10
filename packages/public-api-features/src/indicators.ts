@@ -25,6 +25,7 @@ import {
   MAX_SELECTED_AREAS,
   MAX_TABLE_INDICATORS_PER_REQUEST,
   pickAreaCodes,
+  queryLimit,
   queryText,
 } from './contract.ts';
 
@@ -120,11 +121,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     if (typeof page === 'string') {
       const requested = Number(page);
       filters.page = Number.isSafeInteger(requested) && requested > 0 ? requested : 1;
-      const limit = request.query.limit;
-      filters.limit =
-        typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-          ? Math.min(Number(limit), MAX_INDICATOR_FILTER_RESULTS)
-          : 10;
+      filters.limit = queryLimit(request.query.limit, MAX_INDICATOR_FILTER_RESULTS) ?? 10;
     }
     const requestedSort = indicatorSort(sort);
     if (requestedSort?.startsWith('trend-') && filters.topics.length !== 1) {
@@ -145,9 +142,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     const query = queryText(q, MAX_INDICATOR_QUERY_LENGTH);
     if (query) {
       const capped =
-        typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-          ? Math.min(Number(limit), MAX_INDICATOR_SEARCH_RESULTS)
-          : DEFAULT_INDICATOR_SEARCH_RESULTS;
+        queryLimit(limit, MAX_INDICATOR_SEARCH_RESULTS) ?? DEFAULT_INDICATOR_SEARCH_RESULTS;
       response.status(200).json({ indicators: await indicators.search(query, capped) });
       return;
     }
@@ -161,7 +156,8 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       return;
     }
     const { displayGroup, q, limit, scope } = request.query;
-    if (limit !== undefined && (typeof limit !== 'string' || !/^[1-9]\d*$/.test(limit))) {
+    const requestedLimit = queryLimit(limit, MAX_AREA_PREVIEW);
+    if (limit !== undefined && requestedLimit === undefined) {
       response.status(400).json({ error: 'invalid_limit' });
       return;
     }
@@ -180,11 +176,10 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
             : undefined,
         query,
         limit:
-          typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-            ? Math.min(Number(limit), MAX_AREA_PREVIEW)
-            : (typeof displayGroup === 'string' && displayGroup) || scope === 'all-data'
-              ? undefined
-              : MAX_AREA_PREVIEW,
+          requestedLimit ??
+          ((typeof displayGroup === 'string' && displayGroup) || scope === 'all-data'
+            ? undefined
+            : MAX_AREA_PREVIEW),
       }),
     );
   });

@@ -361,8 +361,8 @@ export async function exportDimensions(context: PholioSource) {
   const { pool, outDir } = context;
   const dimensionValueIds = new Set<number>();
 
-  const dtWriter = new TableWriter(outDir, 'dimension_type');
-  const dvWriter = new TableWriter(outDir, 'dimension_value');
+  await using dtWriter = new TableWriter(outDir, 'dimension_type');
+  await using dvWriter = new TableWriter(outDir, 'dimension_value');
 
   const dimTypes: ExportRow[] = [];
   const dimValues: Array<ExportRow & { parent_id: number | null; is_aggregate: boolean }> = [];

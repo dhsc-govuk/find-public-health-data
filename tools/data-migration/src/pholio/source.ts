@@ -14,7 +14,7 @@ export async function connectToPholio(connectionString: string): Promise<mssql.C
   return new mssql.ConnectionPool(config).connect();
 }
 
-export async function queryPholio<T extends PholioRow = PholioRow>(
+export async function queryPholio<T extends object = PholioRow>(
   pool: mssql.ConnectionPool,
   query: string,
 ): Promise<T[]> {
@@ -26,10 +26,10 @@ export async function queryPholio<T extends PholioRow = PholioRow>(
  * handler falls behind, so a 33-million-row table is exported in bounded memory. The driver can
  * still deliver rows it has already buffered after a pause, so every row joins one queue.
  */
-export async function streamPholio(
+export async function streamPholio<T extends object = PholioRow>(
   pool: mssql.ConnectionPool,
   query: string,
-  handle: (row: PholioRow) => Promise<void> | void,
+  handle: (row: T) => Promise<void> | void,
 ): Promise<number> {
   const request = pool.request();
   request.stream = true;
@@ -43,7 +43,7 @@ export async function streamPholio(
       failure ??= error;
       request.cancel();
     };
-    request.on('row', (row: PholioRow) => {
+    request.on('row', (row: T) => {
       rows += 1;
       queued += 1;
       if (queued >= PAUSE_AT && !paused) {

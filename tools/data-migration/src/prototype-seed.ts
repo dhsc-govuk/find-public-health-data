@@ -347,9 +347,9 @@ async function addIndicators(
 
     await tx`
       INSERT INTO upload_batch
-        (id, indicator_id, original_filename, uploaded_by, uploaded_at, status, validation_result)
+        (id, indicator_id, original_filename, uploaded_by, uploaded_at, status)
       VALUES (${batchId}, ${id}, ${`fingertips-${shortId}.csv`}, ${TEST_SEED_USER_ID},
-        ${updatedAt}, 'processed', ${tx.json({ source: 'Public Fingertips API', validated: true })})
+        ${updatedAt}, 'processed')
     `;
   }
   return { indicators, batches };

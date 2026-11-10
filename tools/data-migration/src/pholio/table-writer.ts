@@ -33,6 +33,7 @@ export class TableWriter {
   readonly #written: Promise<void>;
   #rows = 0;
   #lastId = 0;
+  #closed = false;
 
   constructor(directory: string, table: ExportTable) {
     this.#table = table;
@@ -68,8 +69,21 @@ export class TableWriter {
   }
 
   async close() {
+    this.#closed = true;
     this.#gzip.end();
     await this.#written;
     return fileRecord(this.#path, `${this.#table}.csv.gz`, this.#rows);
+  }
+
+  /**
+   * Ends a writer that its stage never closed, which happens when the stage throws. It waits for
+   * the file to finish writing, so the stage's error reaches the caller only after the file is
+   * closed. A write error here is ignored because the stage's own error is the one to report.
+   */
+  async [Symbol.asyncDispose]() {
+    if (this.#closed) return;
+    this.#closed = true;
+    this.#gzip.end();
+    await this.#written.catch(() => undefined);
   }
 }

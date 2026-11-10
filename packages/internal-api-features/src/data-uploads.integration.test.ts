@@ -662,6 +662,23 @@ describe('GET /api/internal/indicators/:id/data-uploads/latest', () => {
       latestUpload: { id: loaded.body.id, status: 'processed', problems: [] },
     });
   });
+
+  it('answers no problems for a processed upload, whatever validation_result holds', async () => {
+    const { indicatorId } = await newDraft(internalDb, 'Upload latest processed');
+    const loaded = await upload(indicatorId, VALID_CSV);
+    await ownerDb
+      .update(uploadBatch)
+      .set({ validationResult: { source: 'Public Fingertips API', validated: true } })
+      .where(eq(uploadBatch.id, loaded.body.id));
+
+    const response = await request(app)
+      .get(`/api/internal/indicators/${indicatorId}/data-uploads/latest`)
+      .set('Cookie', await testSessionCookie(['publisher']));
+
+    expect(response.body).toMatchObject({
+      latestUpload: { id: loaded.body.id, status: 'processed', problems: [] },
+    });
+  });
 });
 
 describe('processDataUpload', () => {
