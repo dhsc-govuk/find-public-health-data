@@ -129,6 +129,8 @@ export function NumeratorDenominatorPage({
         <SelectAutocomplete
           defaultValue={selected.value === values.providerId ? values.sourceId : ''}
           error={fieldErrors.sourceId}
+          // Only a browser with JavaScript adds on a pick, so only it is told so.
+          hint={selected.enhanced ? 'Selecting a source adds it to the list' : undefined}
           // Remounted for each provider, so the choice starts again with its sources.
           key={selected.value}
           label={

@@ -184,6 +184,37 @@ describe('SelectAutocomplete', () => {
     expect(combobox).toHaveProperty('value', 'Apple');
   });
 
+  it('shows a hint under the label, which describes the select', () => {
+    const html = renderToString(
+      <SelectAutocomplete
+        error="Select a fruit"
+        hint="Choosing a fruit eats it"
+        label="Choose a fruit"
+        name="fruit"
+        options={OPTIONS}
+      />,
+    );
+
+    expect(html).toMatch(/id="fruit-hint"[^>]*>Choosing a fruit eats it</);
+    expect(html).toContain('<select aria-describedby="fruit-hint fruit-error"');
+  });
+
+  it("reads the hint out after the combobox's own instructions", async () => {
+    render(
+      <SelectAutocomplete
+        hint="Choosing a fruit eats it"
+        label="Choose a fruit"
+        name="fruit"
+        options={OPTIONS}
+      />,
+    );
+    const combobox = await enhancedCombobox();
+
+    const describedBy = document.getElementById(combobox.getAttribute('aria-describedby') ?? '');
+
+    expect(describedBy?.textContent).toMatch(/enter to select\..* Choosing a fruit eats it$/);
+  });
+
   it('shows an error above the field and marks the select', () => {
     const html = renderToString(
       <SelectAutocomplete

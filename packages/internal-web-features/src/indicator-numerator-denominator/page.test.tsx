@@ -158,6 +158,15 @@ describe('NumeratorDenominatorPage', () => {
 
     expect(addSource.getAttribute('value')).toBe(ADD_INTENT);
     expect(addSource.closest('[hidden]')).toBeNull();
+    expect(screen.queryByText('Selecting a source adds it to the list')).toBeNull();
+  });
+
+  it('says that selecting a source adds it, once the page is hydrated', () => {
+    renderPage({ values: { ...empty, providerId: ons.id } });
+
+    const hint = screen.getByText('Selecting a source adds it to the list');
+
+    expect(sourceSelect().getAttribute('aria-describedby')).toBe(hint.id);
   });
 
   it('hides Add source, but not the source field, once the page is hydrated', () => {

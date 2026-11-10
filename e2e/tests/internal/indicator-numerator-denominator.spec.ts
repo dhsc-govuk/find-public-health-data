@@ -71,6 +71,10 @@ test("offers a provider's sources once the provider is chosen", async ({ page })
   await expect(source).toBeVisible();
   // Picking a source adds it, so the button that adds one is for browsers without JavaScript.
   await expect(page.getByRole('button', { name: 'Add source' })).toBeHidden();
+  await expect(source).toHaveAccessibleDescription(/Selecting a source adds it to the list$/);
+  await expect(
+    page.getByText('Selecting a source adds it to the list', { exact: true }),
+  ).toBeVisible();
   await source.click();
   const suggestions = page.getByRole('listbox').getByRole('option');
   await expect(suggestions.first()).toHaveText('No specific source');
