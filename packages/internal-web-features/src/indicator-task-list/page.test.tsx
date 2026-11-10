@@ -203,12 +203,14 @@ describe('IndicatorTaskListPage', () => {
     );
   });
 
-  it('tells the publisher the sections can be completed in any order', () => {
+  it('tells the publisher the sections can be completed in any order and completed ones are saved', () => {
     renderPage();
 
-    expect(screen.getByText(/You can complete these sections in any order/).className).toContain(
-      'govuk-inset-text',
-    );
+    expect(
+      screen.getByText(
+        'You can complete these sections in any order. If you exit at any point, any section you have completed will be saved.',
+      ).className,
+    ).toContain('govuk-inset-text');
   });
 
   it('tags a task that is not started as incomplete and leaves a completed one as text', () => {
