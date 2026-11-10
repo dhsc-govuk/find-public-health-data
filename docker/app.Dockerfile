@@ -3,7 +3,7 @@
 # and devDependencies, so one Dockerfile serves every app and the apps share cached
 # layers. Select the app with
 # --build-arg APP=<public-web|internal-web|public-api|internal-api|internal-worker>.
-FROM node:24-alpine3.24
+FROM node:26-alpine3.24
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
