@@ -27,7 +27,9 @@ needs it running.
 - pnpm 11.18.0
 - Docker, to run the development database and storage emulator
 
-Corepack will select the pinned pnpm version from `package.json`.
+Corepack will select the pinned pnpm version from `package.json`. Node stopped shipping corepack in
+version 25, so install it once with `scripts/install-corepack.sh`, which installs the version the
+catalog in `pnpm-workspace.yaml` pins and runs `corepack enable`.
 
 ## Getting started
 
@@ -581,13 +583,13 @@ for a web app, and the CLI-plus-`psql` image for operations.
 `pnpm deploy --prod --legacy` prunes devDependencies and copies only the workspace packages the app
 actually depends on, so no image carries pnpm, TypeScript, drizzle-kit or another app's code.
 `--legacy` is required because the current implementation expects injected workspace packages, which
-this workspace does not use. The runtime stage deletes the base image's npm, yarn and corepack,
-because every app starts with `node`. Images run as the `node` user and start under tini, which
-guarantees SIGTERM is delivered to a process running as PID 1 — the kernel discards a default-action
-signal sent to PID 1 unless that process installed a handler. Every server stops gracefully on that
-signal, well inside a thirty-second grace period. `HOST` and `PORT` come from the environment,
-defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg of that name,
-which CI sets to the commit, and a server logs it with `Listening`.
+this workspace does not use. The runtime stage deletes the base image's npm, because every app
+starts with `node`. Images run as the `node` user and start under tini, which guarantees SIGTERM is
+delivered to a process running as PID 1 — the kernel discards a default-action signal sent to PID 1
+unless that process installed a handler. Every server stops gracefully on that signal, well inside a
+thirty-second grace period. `HOST` and `PORT` come from the environment, defaulting to `0.0.0.0` and
+the app's own port. `REVISION` comes from the build arg of that name, which CI sets to the commit,
+and a server logs it with `Listening`.
 
 This is separate from `docker/app.Dockerfile`, which is the development image used by
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and
@@ -645,7 +647,7 @@ reads the source and CI's audit job resolves the npm tree from the lockfile, and
 the Alpine packages underneath, which is also why the scan covers OS packages only. The base image
 is pinned by digest and raised by Dependabot, and the runtime stage runs `apk upgrade`, so a red
 scan means a fix apk could not deliver rather than a stale pin. The pin names its Alpine release
-(`24-alpine3.24`) rather than using the floating `24-alpine` alias, so a Dependabot digest bump
+(`26-alpine3.24`) rather than using the floating `26-alpine` alias, so a Dependabot digest bump
 cannot move the base to a new Alpine release — and everything the operations image installs by name
 — without anyone choosing to.
 
