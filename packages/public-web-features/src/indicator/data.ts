@@ -667,7 +667,9 @@ export function periodCovered(
   }
   const span = rest.reduce(
     (covered, { fromDate, toDate }) => ({
+      // biome-ignore lint/complexity/useMathMinMax: ISO date strings, which Math.min turns into NaN.
       fromDate: fromDate < covered.fromDate ? fromDate : covered.fromDate,
+      // biome-ignore lint/complexity/useMathMinMax: ISO date strings, which Math.max turns into NaN.
       toDate: toDate > covered.toDate ? toDate : covered.toDate,
     }),
     { fromDate: first.fromDate, toDate: first.toDate },

@@ -3,9 +3,9 @@
 Small, side-effect-free helpers shared across the apps and packages that are not configuration.
 Configuration and the shared zod instance stay in `@fphd/config`.
 
-Built package with a `browser` export condition, so the same modules serve Node and the web
-bundles. Nothing here may import Node-only code: the tsconfig types the source against the browser
-and leaves out `@types/node`, so a `node:` import or a `process` reference fails `pnpm typecheck`.
+Built package with a `browser` export condition, so the same modules serve Node and the web bundles.
+Nothing here may import Node-only code: the tsconfig types the source against the browser and leaves
+out `@types/node`, so a `node:` import or a `process` reference fails `pnpm typecheck`.
 
 There is no root export; import each module by its subpath.
 
@@ -26,8 +26,8 @@ Text, names and addresses:
 - `./tidy-name`: `tidyName`, the form in which uploaded names are matched to reference data. It
   trims a name and makes each run of whitespace one space.
 
-Indicator vocabularies. Each module exports the allowed values as a constant list and the union
-type of those values. Most also export a `*_LABELS` record of the words the pages show.
+Indicator vocabularies. Each module exports the allowed values as a constant list and the union type
+of those values. Most also export a `*_LABELS` record of the words the pages show.
 
 - `./calculated-by`: who calculated an indicator.
 - `./ci-confidence-level`: the confidence levels of a version's intervals.
@@ -38,8 +38,8 @@ type of those values. Most also export a `*_LABELS` record of the words the page
 - `./indicator-sort`: the sort orders of the indicator search, and `indicatorSort`, which reads one
   from a query value.
 - `./indicator-status`: whether the public can see an indicator.
-- `./indicator-step`: the workflow steps a draft version can take, in the order the workflow
-  allows them.
+- `./indicator-step`: the workflow steps a draft version can take, in the order the workflow allows
+  them.
 - `./indicator-submission-status`: where a submission of a version for review stands.
 - `./indicator-task-key`: the tasks on an indicator's draft, and `isFlaggable` and
   `FLAGGABLE_TASK_KEYS`, the tasks a reviewer may flag.
@@ -48,22 +48,21 @@ type of those values. Most also export a `*_LABELS` record of the words the page
   `IMRG_DECISION_KINDS`, the responses that record a meeting's decision.
 - `./sex-and-ages`: the sexes an indicator can cover, how its ages are given, and the units an age
   is given in with their length in days.
-- `./source-part`: the numerator and the denominator, each of which names where its data comes
-  from.
+- `./source-part`: the numerator and the denominator, each of which names where its data comes from.
 - `./update-frequency`: how often an indicator's data is updated.
 - `./value-type-and-unit`: the value type and unit ids the code behaves on, the value types whose
-  count is the numerator, how a value type is standardised, and `unitLabel`, the unit as the
-  public reads it.
+  count is the numerator, how a value type is standardised, and `unitLabel`, the unit as the public
+  reads it.
 
 Periods, dates and observations:
 
 - `./period-label`: `periodLabel`, the label of a period from its dates, such as "January to March
   2023" or "2022/23".
 - `./period-type`: the period types and year types with their labels. `publicYearType` and
-  `yearTypeValuesLabelled` convert between a stored year type and year end and the label the
-  public reads.
-- `./uk-time`: conversions between an instant and a date and time on the UK's clocks, GMT or BST
-  as the date has it.
+  `yearTypeValuesLabelled` convert between a stored year type and year end and the label the public
+  reads.
+- `./uk-time`: conversions between an instant and a date and time on the UK's clocks, GMT or BST as
+  the date has it.
 - `./observation-series`: `headlineSeries`, an area's headline series in date order, and
   `tableAreaSeries`, which keeps each area's complete headline history for the trend table.
 - `./recent-trend`: `recentTrendDirection`, the direction of the last five values, with changes
