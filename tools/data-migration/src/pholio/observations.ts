@@ -426,9 +426,9 @@ export async function exportObservations(context: ObservationExportOptions) {
   const groupings = await loadObservationGroupings(context.pool);
   const { exclusions, dropped, sourceObservations, scannedObservations } =
     await assertDistinctObservations(context, groupings);
-  const obsWriter = new TableWriter(context.outDir, 'observation');
-  const dimWriter = new TableWriter(context.outDir, 'observation_dimension');
-  const noteWriter = new TableWriter(context.outDir, 'observation_note');
+  await using obsWriter = new TableWriter(context.outDir, 'observation');
+  await using dimWriter = new TableWriter(context.outDir, 'observation_dimension');
+  await using noteWriter = new TableWriter(context.outDir, 'observation_note');
   const excluded = new Set(context.excludedIndicators);
   const selected = new Set(
     context.indicatorSelection.kind === 'approved' ? context.indicatorSelection.indicators : [],
