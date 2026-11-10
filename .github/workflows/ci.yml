@@ -215,6 +215,13 @@ jobs:
           SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
         run: pnpm test:e2e --shard="${SHARD}"
 
+      # Runs after this shard's share of the suite has finished, because publishing an indicator
+      # changes data the other specs read. Only the first shard runs it, because the test can wait
+      # up to 2 minutes 20 seconds for its publication time to arrive and the worker to publish it.
+      - name: Run the publishing e2e test
+        if: ${{ matrix.shard == 1 }}
+        run: pnpm test:e2e:publishing
+
       - name: Upload the Playwright report
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
