@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { rankingAreaSeries, tableAreaSeries } from './observation-series.ts';
+import { rankingAreaSeries, tableAreaSeries, tableSummary } from './observation-series.ts';
 
 function series(age: string, years: number[]) {
   return years.map((year) => ({
@@ -9,6 +9,27 @@ function series(age: string, years: number[]) {
     dimensions: [{ type: 'Age', value: age }],
   }));
 }
+
+it('adds eight periods with null gaps for sparklines without changing recent inputs or trends', () => {
+  const observations = [20, 19, 18, 17, 16, 15, null, null, null, null, null, null, 2, 1].map(
+    (value, index) => ({
+      fromDate: `${2000 + index}-01-01`,
+      toDate: `${2000 + index}-12-31`,
+      dimensions: [],
+      value,
+    }),
+  );
+  const areas = [{ areaCode: 'E92000001', observations }];
+  const recent = tableSummary(areas);
+  const sparkline = tableSummary(areas, 'sparkline');
+  expect(sparkline.tableSeries).toEqual(recent.tableSeries);
+  expect(recent.areaData[0]?.observations).toEqual(
+    observations.filter(({ value }) => value !== null).slice(-5),
+  );
+  expect(sparkline.areaData[0]?.observations.slice(-8)).toEqual(observations.slice(-8));
+  expect(sparkline.areaData[0]?.observations).toHaveLength(11);
+  expect(tableSummary(areas, 'latest').areaData[0]?.observations).toEqual(observations.slice(-1));
+});
 
 it('keeps England histories matching another area even when its headline uses a different age', () => {
   const headline = series('All ages', [2019, 2020, 2021, 2022, 2023]);

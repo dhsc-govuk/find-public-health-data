@@ -82,6 +82,13 @@ describe('GET /api/indicators/:indicator/ranking', () => {
 });
 
 describe('GET /api/indicator-data', () => {
+  it('requests bounded sparkline periods separately from recent trend history', async () => {
+    const findTableData = vi.fn().mockResolvedValue([]);
+    await request(createTestApp({ findTableData })).get(
+      '/api/indicator-data?indicator=108&points=sparkline',
+    );
+    expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001'], 'sparkline');
+  });
   it('requests current table values with precomputed trends when selected', async () => {
     const findTableData = vi.fn().mockResolvedValue([]);
     await request(createTestApp({ findTableData })).get(

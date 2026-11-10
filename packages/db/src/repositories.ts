@@ -47,7 +47,7 @@ export interface IndicatorRepository {
   findTableData(
     shortIds: number[],
     areaCodes: string[],
-    points?: 'recent' | 'latest',
+    points?: 'recent' | 'latest' | 'sparkline',
   ): ReturnType<typeof getIndicatorTableData>;
   listAreas(
     indicatorId: string,

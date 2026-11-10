@@ -3,6 +3,7 @@ import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { observation, selected } from '../indicator/view.testing.ts';
 
 import { loadTopic, loadTopicPage, loadTopics } from './loader.ts';
 
@@ -299,6 +300,29 @@ describe('loadTopic', () => {
     expect(result.overview?.trends.total).toBe(1);
     expect(result.overview?.selected.map(({ detail }) => detail.shortId)).toEqual([241]);
     expect(get).toHaveBeenCalledWith('/api/topics/topic-a/trends', expect.anything());
+  });
+
+  it('requests bounded sparkline history for highlights and preserves eight periods and null gaps', async () => {
+    const read = topicApi([{ shortId: 241, name: 'Indicator', slug: 'indicator' }]);
+    const entry = selected(241);
+    const series = Array.from({ length: 10 }, (_, index) => ({
+      ...observation(),
+      fromDate: `${2015 + index}-01-01`,
+      toDate: `${2015 + index}-12-31`,
+      value: index === 7 ? null : index,
+    }));
+    entry.areaData = [{ areaCode: 'E92000001', areaName: 'England', observations: series }];
+    const get = vi.fn(async (path: string) =>
+      path.startsWith('/api/indicator-data?') ? [entry] : read(path),
+    );
+    const result = await loadTopic(
+      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
+    );
+    expect(get).toHaveBeenCalledWith(
+      '/api/indicator-data?indicator=241&areaCode=E92000001&points=sparkline',
+      expect.anything(),
+    );
+    expect(result.overview?.selected[0]?.areaData[0]?.observations).toEqual(series.slice(-8));
   });
 
   it('loads editorial highlights even when they are outside the first search page', async () => {

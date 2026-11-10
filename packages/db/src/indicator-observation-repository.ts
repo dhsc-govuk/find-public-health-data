@@ -63,7 +63,7 @@ export async function getIndicatorObservationData(
   db: Database,
   indicatorIds: string[],
   areaCodes: string[],
-  projection?: 'table' | 'summary' | 'ranking',
+  projection?: 'table' | 'summary' | 'ranking' | 'sparkline',
 ): Promise<Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>> {
   if (indicatorIds.length === 0 || areaCodes.length === 0) return new Map();
   const requestedAreas =
@@ -309,8 +309,15 @@ export async function getIndicatorObservationData(
     });
     return {
       id,
-      ...(projection === 'table' || projection === 'summary'
-        ? tableSummary(tableAreaSeries(areaData), projection === 'summary' ? 'latest' : 'recent')
+      ...(projection === 'table' || projection === 'summary' || projection === 'sparkline'
+        ? tableSummary(
+            tableAreaSeries(areaData),
+            projection === 'summary'
+              ? 'latest'
+              : projection === 'sparkline'
+                ? 'sparkline'
+                : 'recent',
+          )
         : { areaData }),
     };
   });

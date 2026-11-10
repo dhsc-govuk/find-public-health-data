@@ -99,7 +99,9 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     const entries =
       request.query.points === 'latest'
         ? await indicators.findTableData(shortIds, areaCodes, 'latest')
-        : await indicators.findTableData(shortIds, areaCodes);
+        : request.query.points === 'sparkline'
+          ? await indicators.findTableData(shortIds, areaCodes, 'sparkline')
+          : await indicators.findTableData(shortIds, areaCodes);
     if (entries.length !== shortIds.length || entries.some(({ areaData }) => !areaData.length)) {
       response.status(404).json({ error: 'not_found' });
       return;

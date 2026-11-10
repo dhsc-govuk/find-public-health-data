@@ -22,7 +22,7 @@ export async function getIndicatorTableData(
   db: Database,
   shortIds: number[],
   areaCodes: string[],
-  points: 'recent' | 'latest' = 'recent',
+  points: 'recent' | 'latest' | 'sparkline' = 'recent',
 ) {
   if (!shortIds.length || !areaCodes.length) return [];
   const identities = await db
@@ -35,7 +35,12 @@ export async function getIndicatorTableData(
     getIndicatorSeriesData(db, ids, areaCodes, points).then(
       (cached) =>
         cached ??
-        getIndicatorObservationData(db, ids, areaCodes, points === 'latest' ? 'summary' : 'table'),
+        getIndicatorObservationData(
+          db,
+          ids,
+          areaCodes,
+          points === 'latest' ? 'summary' : points === 'sparkline' ? 'sparkline' : 'table',
+        ),
     ),
   ]);
   const byShortId = new Map(identities.map(({ id, shortId }) => [shortId, id]));

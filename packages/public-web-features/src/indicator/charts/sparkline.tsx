@@ -1,9 +1,31 @@
 import { ChartSection } from '@fphd/ui';
-import { periodLabel } from '@fphd/utils/period-label';
-import { availablePeriodTypes, filterObservations } from '../data.ts';
+import { shortPeriodLabel } from '@fphd/utils/period-label';
+import { availablePeriodTypes, filterObservations, formatCalculatedValue } from '../data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
 import { alignedSeries, periodKey } from './chart-data.ts';
-import { ChartDataTable, chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
+import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
+
+function describeTrend(points: { label: string; value: number | null }[], unit: string | null) {
+  const values = points.flatMap(({ label, value }) => (value === null ? [] : [{ label, value }]));
+  const first = values[0];
+  const latest = values.at(-1);
+  if (!first || !latest) return '';
+  const peak = values.reduce((a, b) => (b.value > a.value ? b : a), first);
+  const low = values.reduce((a, b) => (b.value < a.value ? b : a), first);
+  const value = (point: typeof first) => chartValue(point.value, unit === '%' ? unit : null);
+  const start = `${chartValue(first.value, unit)} in ${first.label}`;
+  const end = `${value(latest)} in ${latest.label}`;
+  const description =
+    peak.value > first.value && peak.value > latest.value
+      ? `rose from ${start}, peaked at ${value(peak)} in ${peak.label}, and has since decreased to ${end}`
+      : low.value < first.value && low.value < latest.value
+        ? `fell from ${start}, reached a low of ${value(low)} in ${low.label}, and has since increased to ${end}`
+        : latest.value === first.value
+          ? `unchanged at ${chartValue(first.value, unit)} from ${first.label} to ${latest.label}`
+          : `${latest.value > first.value ? 'rising' : 'falling'} from ${start}, to ${end}`;
+  const missing = points.filter(({ value }) => value === null).map(({ label }) => label);
+  return missing.length ? `${description}. No data for ${missing.join(', ')}.` : description;
+}
 
 export function Sparkline({
   id,
@@ -30,8 +52,7 @@ export function Sparkline({
     .sort((a, b) => periodKey(a).localeCompare(periodKey(b)))
     .slice(-8)
     .map((observation) => ({
-      key: periodKey(observation),
-      label: periodLabel(observation, indicator.yearType),
+      label: shortPeriodLabel(observation, indicator.yearType),
       value: observation.value,
     }));
   const first = points.find(({ value }) => value !== null);
@@ -44,8 +65,8 @@ export function Sparkline({
     value === null
       ? null
       : {
-          x: 5 + (index * 270) / Math.max(1, points.length - 1),
-          y: max === min ? 28 : 51 - ((value - min) * 46) / (max - min),
+          x: 4 + (index * 112) / Math.max(1, points.length - 1),
+          y: max === min ? 20 : 36 - ((value - min) * 32) / (max - min),
         },
   );
   const lines: string[][] = [[]];
@@ -57,7 +78,14 @@ export function Sparkline({
   const endpoint = (point: typeof first) =>
     point ? (
       <span>
-        {chartValue(point.value, indicator.unit)}
+        {formatCalculatedValue(point.value)}
+        {indicator.unit === '%' ? '%' : null}
+        {indicator.unit && indicator.unit !== '%' ? (
+          <>
+            <br />
+            {indicator.unit}
+          </>
+        ) : null}
         <br />
         in {point.label}
       </span>
@@ -66,12 +94,10 @@ export function Sparkline({
     <ChartSection id={id} title={title}>
       {first && latest && first !== latest ? (
         <div className="fphd-sparkline">
-          <svg width="100%" height="56" viewBox="0 0 280 56" preserveAspectRatio="none" role="img">
+          <svg width="100%" height="56" viewBox="0 0 120 40" role="img">
             <title>{title}</title>
             <desc>
-              {points
-                .map(({ label, value }) => `${label}: ${chartValue(value, indicator.unit)}`)
-                .join('; ')}
+              {`${indicator.name}, ${primary?.name}: ${describeTrend(points, indicator.unit)}`}
             </desc>
             {lines
               .filter((line) => line.length > 1)
@@ -82,24 +108,14 @@ export function Sparkline({
                   fill="none"
                   stroke={colour}
                   strokeWidth="2"
-                  vectorEffect="non-scaling-stroke"
                 />
               ))}
-            {last ? <circle cx={last.x} cy={last.y} r="4" fill={colour} /> : null}
+            {last ? <circle cx={last.x} cy={last.y} r="3" fill={colour} /> : null}
           </svg>
-          <p className="govuk-hint fphd-sparkline__endpoints">
+          <p className="govuk-hint fphd-sparkline__endpoints" aria-hidden="true">
             {endpoint(first)}
             {endpoint(latest)}
           </p>
-          <ChartDataTable
-            title={title}
-            columns={['Period', primary?.name ?? 'Value']}
-            rows={points.map(({ key, label, value }) => ({
-              key,
-              label,
-              values: [chartValue(value, indicator.unit)],
-            }))}
-          />
         </div>
       ) : (
         <NoChartData>No trend available (not enough data).</NoChartData>

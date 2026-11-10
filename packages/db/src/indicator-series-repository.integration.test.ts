@@ -10,6 +10,7 @@ import type { Database } from './client.ts';
 import {
   getIndicatorObservationData,
   type IndicatorAreaData,
+  type IndicatorObservation,
 } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import { getIndicatorTableData } from './indicator-table-repository.ts';
@@ -41,7 +42,7 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], 
   'matches history-based table cells, trends and rankings for %j',
   async (areas) => {
     const full = await getIndicatorObservationData(db, ids, areas);
-    for (const mode of ['recent', 'latest', 'ranking'] as const) {
+    for (const mode of ['recent', 'latest', 'ranking', 'sparkline'] as const) {
       const cached = await getIndicatorSeriesData(db, ids, areas, mode);
       expect(cached).toBeDefined();
       for (const id of ids) {
@@ -79,6 +80,38 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], 
   },
 );
 
+it('falls back when a sparkline history point disappears before hydration', async () => {
+  const [indicator] = await db
+    .select({ id: publishedIndicator.id })
+    .from(publishedIndicator)
+    .where(eq(publishedIndicator.shortId, 241));
+  if (!indicator) throw new Error('Expected diabetes seed data');
+  const codes = ['E92000001'];
+  const recent = await getIndicatorSeriesData(db, [indicator.id], codes, 'recent');
+  const key = (point: IndicatorObservation) =>
+    `${point.fromDate}:${point.toDate}:${observationSegmentKey(point)}`;
+  const recentPoints = new Set(
+    recent?.get(indicator.id)?.areaData.flatMap((area) => area.observations.map(key)),
+  );
+  let disappeared = false;
+  const changing = new Proxy(db, {
+    get(target, property, receiver) {
+      if (property !== 'execute') return Reflect.get(target, property, receiver);
+      return async (...args: Parameters<Database['execute']>) => {
+        const points = await target.execute<{ id: string; point: IndicatorObservation }>(...args);
+        const history = points.find(({ point }) => !recentPoints.has(key(point)));
+        if (!history) throw new Error('Expected history beyond the five recent points');
+        disappeared = true;
+        return points.filter(({ id }) => id !== history.id);
+      };
+    },
+  });
+  expect(
+    await getIndicatorSeriesData(changing, [indicator.id], codes, 'sparkline'),
+  ).toBeUndefined();
+  expect(disappeared).toBe(true);
+});
+
 it('uses canonical data when the published batch has no completed read model', async () => {
   const id = ids[0];
   if (!id) throw new Error('Expected seed data');
@@ -88,9 +121,16 @@ it('uses canonical data when the published batch has no completed read model', a
   const [identity] = await database.sql<
     { shortId: number }[]
   >`select short_id as "shortId" from indicator where id = ${id}`;
-  const full = await getIndicatorObservationData(db, [id], areas, 'summary');
-  const [result] = await getIndicatorTableData(db, [identity?.shortId ?? 0], areas, 'latest');
-  expect(result?.areaData).toEqual(full.get(id)?.areaData);
+  for (const mode of ['latest', 'sparkline'] as const) {
+    const full = await getIndicatorObservationData(
+      db,
+      [id],
+      areas,
+      mode === 'latest' ? 'summary' : mode,
+    );
+    const [result] = await getIndicatorTableData(db, [identity?.shortId ?? 0], areas, mode);
+    expect(result?.areaData).toEqual(full.get(id)?.areaData);
+  }
 });
 
 it('matches canonical topic trends when published-batch trend inputs are available', async () => {
@@ -99,10 +139,10 @@ it('matches canonical topic trends when published-batch trend inputs are availab
   expect(await indicatorTrendDirections(db, ids)).toEqual(cached);
 });
 
-it.each(['latest', 'recent', 'ranking'] as const)(
+it.each(['latest', 'recent', 'ranking', 'sparkline'] as const)(
   'uses canonical reads if publication changes while fetching cached %s points',
   async (mode) => {
-    const id = ids[1 + ['latest', 'recent', 'ranking'].indexOf(mode)];
+    const id = ids[1 + ['latest', 'recent', 'ranking', 'sparkline'].indexOf(mode)];
     if (!id) throw new Error('Expected a seeded indicator');
     let switched = false;
     const changing = new Proxy(db, {

@@ -77,3 +77,10 @@ export function periodLabel(
 
   return `${dayLabel(from)} to ${dayLabel(to)}`;
 }
+
+export function shortPeriodLabel(period: Period, yearType?: PublicYearType | null): string {
+  return periodLabel(period, yearType).replace(
+    /^(\d+) to (\d+)$/,
+    (_, from, to) => `${from}-${from.slice(0, -2) === to.slice(0, -2) ? to.slice(-2) : to}`,
+  );
+}

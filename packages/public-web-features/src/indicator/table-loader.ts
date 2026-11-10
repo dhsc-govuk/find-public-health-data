@@ -11,7 +11,7 @@ export async function loadIndicatorTableEntries(
   api: ApiClient,
   shortIds: number[],
   areaCodes: string[],
-  points: 'recent' | 'latest' = 'recent',
+  points: 'recent' | 'latest' | 'sparkline' = 'recent',
 ) {
   const codes = areaCodes.includes('E92000001')
     ? ['E92000001', ...areaCodes.filter((code) => code !== 'E92000001')]
@@ -36,7 +36,7 @@ export async function loadIndicatorTableEntries(
           const params = new URLSearchParams();
           for (const id of ids) params.append('indicator', String(id));
           for (const code of areas) params.append('areaCode', code);
-          if (points === 'latest') params.set('points', 'latest');
+          if (points !== 'recent') params.set('points', points);
           return api.get(`/api/indicator-data?${params}`, indicatorTableDataSchema);
         })
       ).flat();

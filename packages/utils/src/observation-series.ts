@@ -67,7 +67,7 @@ export function tableSummary<
   },
 >(
   areas: T[],
-  points: 'recent' | 'latest' = 'recent',
+  points: 'recent' | 'latest' | 'sparkline' = 'recent',
 ): { tableSeries: TableSeriesSelection[]; areaData: T[] } {
   const sexes = new Set([
     '',
@@ -100,9 +100,10 @@ export function tableSummary<
         if (!latest) continue;
         selection.segments[area.areaCode] = observationSegmentKey(latest);
         trends[area.areaCode] = recentTrendDirection(series.map(({ value }) => value));
-        if (points === 'recent')
+        if (points !== 'latest')
           for (const point of series.filter(({ value }) => value !== null).slice(-5))
             keep.add(point);
+        if (points === 'sparkline') for (const point of series.slice(-8)) keep.add(point);
         keep.add(latest);
         for (const point of england?.observations ?? [])
           if (

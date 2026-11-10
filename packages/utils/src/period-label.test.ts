@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { periodLabel } from './period-label.ts';
+import { periodLabel, shortPeriodLabel } from './period-label.ts';
 import { publicYearType } from './period-type.ts';
 
 const period = (fromDate: string, toDate: string) => ({ fromDate, toDate });
 const financial = publicYearType('financial', null);
 const rolling = publicYearType('rolling', null);
+
+describe('shortPeriodLabel', () => {
+  it('abbreviates calendar ranges and preserves financial years and other period shapes', () => {
+    expect(shortPeriodLabel(period('2015-01-01', '2017-12-31'))).toBe('2015-17');
+    expect(shortPeriodLabel(period('2017-04-01', '2018-03-31'), financial)).toBe('2017/18');
+    expect(shortPeriodLabel(period('2023-01-01', '2023-12-31'))).toBe('2023');
+    expect(shortPeriodLabel(period('2026-01-01', '2026-03-31'))).toBe('January to March 2026');
+    expect(shortPeriodLabel(period('2022-04-01', '2023-03-31'), rolling)).toBe(
+      'April 2022 to March 2023',
+    );
+    expect(shortPeriodLabel(period('1999-01-01', '2001-12-31'))).toBe('1999-2001');
+  });
+});
 
 describe('periodLabel', () => {
   it('labels a calendar year with the year alone', () => {

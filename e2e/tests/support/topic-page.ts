@@ -124,13 +124,29 @@ export function topicPageTests() {
     const highlight = page.getByRole('region', {
       name: 'Diabetes: QOF prevalence, England: trend chart',
     });
-    await expect(
-      highlight
-        .getByRole('img', { name: 'Diabetes: QOF prevalence, England: trend chart' })
-        .locator('polyline'),
-    ).toBeVisible();
-    await highlight.getByText('View chart data as a table', { exact: true }).click();
-    await expect(highlight.getByRole('table')).toContainText('7.9%');
+    const sparkline = highlight.getByRole('img', {
+      name: 'Diabetes: QOF prevalence, England: trend chart',
+    });
+    await expect(sparkline.locator('polyline')).toBeVisible();
+    await expect(sparkline).toHaveAttribute('viewBox', '0 0 120 40');
+    await expect(sparkline).toHaveCSS('height', '56px');
+    await expect(sparkline.locator('polyline')).toHaveAttribute('stroke', '#12436d');
+    await expect(sparkline.locator('polyline')).toHaveAttribute('stroke-width', '2');
+    await expect(sparkline.locator('polyline')).toHaveAttribute('points', /^(?:\S+ ){7}\S+$/);
+    await expect(sparkline.locator('circle')).toHaveAttribute('r', '3');
+    await expect(sparkline).toHaveAccessibleDescription(
+      /rising from .* in \d{4}\/\d{2}, to 7\.9% in \d{4}\/\d{2}/,
+    );
+    await expect(highlight.locator('.fphd-sparkline__endpoints')).toContainText('7.9%');
+    await expect(highlight.locator('details, table')).toHaveCount(0);
+    const mortality = page.getByRole('region', { name: /Mortality.*England: trend chart/ });
+    await expect(mortality.getByRole('img').locator('polyline')).toHaveAttribute(
+      'points',
+      /^(?:\S+ ){7}\S+$/,
+    );
+    await expect(mortality.getByRole('img')).toHaveAccessibleDescription(
+      /rose from .* in \d{4}-\d{2}, peaked at .* in \d{4}-\d{2}, and has since decreased to/,
+    );
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -139,7 +155,7 @@ export function topicPageTests() {
     page,
   }) => {
     await openTopicPage(page, '/topics/diabetes');
-    for (const width of [320, 654, 960, 1020, 1280]) {
+    for (const width of [320, 640, 641, 654, 960, 1020, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
       const sidebar = await page
@@ -155,6 +171,25 @@ export function topicPageTests() {
         expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
           true,
         );
+      }
+      const cards = page.locator('#topic-overview .fphd-topic-highlight');
+      const first = await cards.nth(0).boundingBox();
+      const second = await cards.nth(1).boundingBox();
+      if (width < 641) {
+        expect(first?.x).toBe(second?.x);
+        expect((second?.y ?? 0) - (first?.y ?? 0) - (first?.height ?? 0)).toBeCloseTo(40, 1);
+      } else {
+        expect(first?.y).toBe(second?.y);
+        expect(second?.x).toBeGreaterThan(first?.x ?? 0);
+        for (const selector of [
+          'h3',
+          '.fphd-chart-section, .fphd-topic-highlight__no-trend',
+          '.govuk-summary-list',
+        ]) {
+          const left = await cards.nth(0).locator(selector).boundingBox();
+          const right = await cards.nth(1).locator(selector).boundingBox();
+          expect(left?.y).toBe(right?.y);
+        }
       }
     }
   });

@@ -131,7 +131,7 @@ export async function loadIndicatorData(
   }: {
     page?: IndicatorPageData;
     tableDisplayGroups?: string[];
-    tablePoints?: 'recent' | 'latest';
+    tablePoints?: 'recent' | 'latest' | 'sparkline';
     wholeAreaGroups?: boolean;
   } = {},
 ) {
@@ -398,7 +398,7 @@ export async function loadIndicatorTableData(
   args: LoaderFunctionArgs,
   displayGroups: string[],
   wholeAreaGroups = false,
-  points: 'recent' | 'latest' = 'latest',
+  points: 'recent' | 'latest' | 'sparkline' = 'latest',
 ) {
   return loadIndicatorData(args, {
     tableDisplayGroups: displayGroups,

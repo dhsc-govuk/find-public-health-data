@@ -176,17 +176,22 @@
 
 .fphd-sparkline > svg {
   display: block;
+  width: 100%;
+  height: 56px;
   margin-bottom: govuk-spacing(1);
 }
 
 .fphd-sparkline__endpoints {
-  display: flex;
-  justify-content: space-between;
-  gap: govuk-spacing(2);
-  margin-bottom: govuk-spacing(2);
+  display: flow-root;
+  margin: 0 0 govuk-spacing(1);
   line-height: 1.2;
 
-  span:last-child { text-align: right; }
+  > span { display: block; }
+  > span:first-child { float: left; }
+  > span:last-child {
+    float: right;
+    text-align: right;
+  }
 }
 
 .fphd-chart-axis-title {
@@ -1859,9 +1864,13 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 
 .fphd-topic-highlight-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: govuk-spacing(4);
   margin-top: govuk-spacing(4);
+
+  @include govuk-media-query($until: tablet) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .fphd-topic-highlight {
@@ -1871,7 +1880,14 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   min-width: 0;
   border: 1px solid $govuk-border-colour;
   padding: govuk-spacing(4);
+  box-sizing: border-box;
   overflow-wrap: anywhere;
+
+  @include govuk-media-query($until: tablet) {
+    grid-template-rows: auto;
+    grid-row: auto;
+    margin-bottom: govuk-spacing(4);
+  }
 
   .govuk-summary-list,
   .fphd-chart-section { margin-bottom: 0; }

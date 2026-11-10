@@ -160,10 +160,10 @@ export async function loadTopic(
             { ...args, params: {}, request: new Request(dataUrl) },
             search.displayGroups,
             false,
-            'recent',
+            'sparkline',
           )
         : null;
-      return { search, selected: data ? topicTableSelection(data.selected) : [] };
+      return { search, selected: data ? topicTableSelection(data.selected, 5, 8) : [] };
     };
     const [overview, trends] = await Promise.all([
       highlighted(),
