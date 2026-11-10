@@ -22,7 +22,12 @@ import {
   repositoryTest,
 } from './indicator-repository.testing.ts';
 import { indicatorTaskList } from './indicator-task-list.ts';
-import { completeDraft, draftUpdatedAt, ukToday } from './indicator-workflow.testing.ts';
+import {
+  completeDraft,
+  draftUpdatedAt,
+  sentBackDraft,
+  ukToday,
+} from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
@@ -267,16 +272,22 @@ describe('submitIndicator', () => {
 
 describe('takeIndicatorStep', () => {
   repositoryTest(
-    'throws for a step that starts a submission without the reviewers to carry',
+    'throws for a step that carries reviewers without the reviewers to carry',
     async ({ db }) => {
-      const { indicatorId, versionId } = await completeNewDraft(db, 'Submitted without reviewers');
+      const { indicatorId, versionId } = await sentBackDraft(
+        db,
+        'Resubmitted without reviewers',
+        [],
+      );
 
-      await expect(takeIndicatorStep(db, indicatorId, 'submit', AS_ACTOR)).rejects.toThrow(
-        'submit was given no reviewersToCarry',
+      await expect(takeIndicatorStep(db, indicatorId, 'resubmit', AS_ACTOR)).rejects.toThrow(
+        'resubmit was given no reviewersToCarry',
       );
 
       expect((await versionOf(db, versionId)).isLocked).toBe(false);
-      expect(await submissionsOf(db, versionId)).toEqual([]);
+      expect((await submissionsOf(db, versionId)).map(({ status }) => status)).toEqual([
+        'changes_requested',
+      ]);
     },
   );
 });

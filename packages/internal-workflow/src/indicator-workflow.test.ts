@@ -51,10 +51,10 @@ describe('submit', () => {
     });
   });
 
-  it('starts the submission in review when reviewers are carried over', () => {
+  it('never carries reviewers onto the submission', () => {
     expect(nextState(withdrawn, 'submit', { carriedReviewerCount: 2 })).toEqual({
       ok: true,
-      state: { versionStatus: 'draft', submissionStatus: 'in_review', isLocked: true },
+      state: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     });
   });
 

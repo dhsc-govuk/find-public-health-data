@@ -26,9 +26,9 @@ const { ciMethod, indicatorVersionSubmission, indicatorVersionSubmissionReviewer
 type Submission = typeof indicatorVersionSubmission.$inferSelect;
 
 /**
- * Chooses the reviewers that a submit or resubmit step carries onto the new submission. They are
- * the latest submission's reviewers who still hold the reviewer role and who are neither the
- * indicator's creator nor the person submitting it now.
+ * Chooses the reviewers that a resubmit step carries onto the new submission. They are the latest
+ * submission's reviewers who still hold the reviewer role and who are neither the indicator's
+ * creator nor the person submitting it now.
  */
 export const stillEligibleReviewers: ReviewersToCarry = (tx, { indicatorId, latest, actor }) =>
   carriedReviewersOf(tx, indicatorId, latest.id, actor.userId);
@@ -53,10 +53,10 @@ async function resubmissionProblem(
 
 /**
  * Submits a new indicator's complete draft for approval, or resubmits one sent back for changes
- * once every flagged task is saved and the reply is written. Either goes straight to the latest
- * submission's reviewers who may still review it. `draftUpdatedAt` is the draft's `updatedAt` as
- * the publisher was shown it: an edit since then refuses the submission as `changed`, so nobody
- * confirms a draft they have not seen.
+ * once every flagged task is saved and the reply is written. A resubmission goes straight to the
+ * latest submission's reviewers who may still review it. `draftUpdatedAt` is the draft's
+ * `updatedAt` as the publisher was shown it: an edit since then refuses the submission as
+ * `changed`, so nobody confirms a draft they have not seen.
  */
 export function submitIndicator(
   db: Database,
