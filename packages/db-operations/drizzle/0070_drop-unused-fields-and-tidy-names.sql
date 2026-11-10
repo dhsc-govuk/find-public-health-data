@@ -9,8 +9,8 @@ DROP VIEW published.observation;--> statement-breakpoint
 DROP VIEW published.dimension_type;--> statement-breakpoint
 DROP VIEW published.area_type;--> statement-breakpoint
 
--- Renamed rather than dropped and added again: the composite foreign keys of observation,
--- observation_dimension, upload_batch and indicator_version depend on three of these.
+-- Renamed rather than dropped and added again, because composite foreign keys depend on three of
+-- these.
 ALTER TABLE "indicator" RENAME CONSTRAINT "indicator_shortId_unique" TO "indicator_short_id_unique";--> statement-breakpoint
 ALTER TABLE "indicator_version" RENAME CONSTRAINT "indicator_version_id_indicatorId_unique" TO "indicator_version_id_indicator_id_unique";--> statement-breakpoint
 ALTER TABLE "upload_batch" RENAME CONSTRAINT "upload_batch_id_indicatorId_unique" TO "upload_batch_id_indicator_id_unique";--> statement-breakpoint

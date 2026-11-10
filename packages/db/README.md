@@ -53,8 +53,8 @@ src/
   wrote a row is an `actorId()`, as `upload_batch.uploaded_by` is. The core data import writes
   topics as its own system user. A version's child tables carry neither: their rows are deleted and
   reinserted on every save, and the version's own `updated_at` records that. `observation` records
-  only creation, since an upload replaces a batch's rows whole rather than editing them, and its
-  batch's uploader is its writer.
+  only creation, since each upload writes a new batch rather than editing rows, and its batch's
+  uploader is its writer.
 - **Users and teams**: `app_user` and `team` rows are inserted by migration with fixed ids, which
   `@fphd/auth` uses for its fake users and their teams; `SYSTEM_USER_IDS` names the system users
   imports and scheduled publication write as, and `IMPORTED_INDICATOR_TEAM_ID` the Fingertips team
