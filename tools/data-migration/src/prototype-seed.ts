@@ -419,7 +419,6 @@ async function addObservations(
       if (!dimension) throw new Error(`Missing dimension value: ${type}/${value}`);
       if (!dimension.aggregate)
         observationDimensions.push({
-          id: uuid7(),
           observation_id: id,
           dimension_value_id: dimension.valueId,
           dimension_type_id: dimension.typeId,
@@ -429,7 +428,7 @@ async function addObservations(
     if (note) {
       const noteId = notes.get(note);
       if (!noteId) throw new Error(`Missing note type: ${note}`);
-      observationNotes.push({ id: uuid7(), observation_id: id, note_type_id: noteId });
+      observationNotes.push({ observation_id: id, note_type_id: noteId });
     }
     if (observations.length >= 5_000) {
       await tx`INSERT INTO observation ${tx(observations.splice(0))}`;

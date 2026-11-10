@@ -474,7 +474,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
                 if aggregate:
                     continue
                 value_ids.append(str(value_id))
-                observation_dimensions.append((uuid7(), observation_id, value_id, type_id))
+                observation_dimensions.append((observation_id, value_id, type_id))
 
             observations.append(
                 (
@@ -501,7 +501,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
             if row["Value note"]:
                 if row["Value note"] not in notes:
                     raise ValueError(f"Missing note type: {row['Value note']}")
-                observation_notes.append((uuid7(), observation_id, notes[row["Value note"]]))
+                observation_notes.append((observation_id, notes[row["Value note"]]))
 
             source_type = registry[area_code]["area_type"]
             area_type_counts[source_type] = area_type_counts.get(source_type, 0) + 1
@@ -521,8 +521,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
     execute_values(
         cur,
         """
-        INSERT INTO observation_dimension
-          (id, observation_id, dimension_value_id, dimension_type_id)
+        INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id)
         VALUES %s
         """,
         observation_dimensions,
@@ -532,7 +531,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
         execute_values(
             cur,
             """
-            INSERT INTO observation_note (id, observation_id, note_type_id)
+            INSERT INTO observation_note (observation_id, note_type_id)
             VALUES %s
             """,
             observation_notes,

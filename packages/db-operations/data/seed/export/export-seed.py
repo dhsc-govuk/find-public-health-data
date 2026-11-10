@@ -99,14 +99,14 @@ TABLES = [
     ("observation", f"SELECT {OBS_COLS} FROM observation o WHERE {OBS_WHERE}"),
     (
         "observation_dimension",
-        "SELECT od.id,od.observation_id,od.dimension_value_id,dv.dimension_type_id "
+        "SELECT od.observation_id,od.dimension_value_id,dv.dimension_type_id "
         "FROM observation_dimension od "
         "JOIN dimension_value dv ON dv.id = od.dimension_value_id "
         f"JOIN observation o ON o.id = od.observation_id WHERE {OBS_WHERE}",
     ),
     (
         "observation_note",
-        "SELECT n.id,n.observation_id,n.note_type_id FROM observation_note n "
+        "SELECT n.observation_id,n.note_type_id FROM observation_note n "
         f"JOIN observation o ON o.id = n.observation_id WHERE {OBS_WHERE}",
     ),
 ]
