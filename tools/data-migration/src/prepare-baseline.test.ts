@@ -5,16 +5,29 @@ import { gzipSync } from 'node:zlib';
 import {
   baselineManifestSchema,
   DATA_MIGRATION_NULL,
+  dataMigrationKey,
 } from '@fphd/db-operations/data-migration-contract';
 import { afterEach, describe, expect, it } from 'vitest';
 import { readGzipCsv } from './csv.ts';
 import { fileRecord } from './files.ts';
 import verifiedSettings from './pholio/verified-analytical-settings.ts';
-import { deterministicUuid, prepareBaseline, rekeyDirectory } from './prepare-baseline.ts';
+import {
+  deterministicUuid,
+  prepareBaseline,
+  rekeyDirectory,
+  rekeyTable,
+} from './prepare-baseline.ts';
 import { FOREIGN_KEYS, TABLES } from './tables.ts';
 import { verifyPackageFiles } from './verify.ts';
 
 const directories: string[] = [];
+
+// A table's key and foreign keys. The bridge tables have no id: every column is a foreign key.
+function sourceHeader(table: (typeof TABLES)[number]): string {
+  return [...new Set([...dataMigrationKey(table), ...Object.keys(FOREIGN_KEYS[table] ?? {})])].join(
+    ',',
+  );
+}
 
 async function sourceExport(): Promise<{ directory: string; relationships: string }> {
   const directory = await mkdtemp(join(tmpdir(), 'fphd-source-test-'));
@@ -23,7 +36,7 @@ async function sourceExport(): Promise<{ directory: string; relationships: strin
   for (const table of TABLES) {
     const file = `${table}.csv.gz`;
     const rows = table === 'indicator' ? 1 : 0;
-    const header = ['id', ...Object.keys(FOREIGN_KEYS[table] ?? {})].join(',');
+    const header = sourceHeader(table);
     await writeFile(
       join(directory, file),
       gzipSync(table === 'indicator' ? `${header}\n1\n` : `${header}\n`),
@@ -232,10 +245,10 @@ describe('rekeyDirectory', () => {
       indicator: ['108'],
       upload_batch: ['5,108,108'],
       observation: ['2,108,40,5'],
-      observation_dimension: ['9,2,77,3'],
+      observation_dimension: ['2,3,77'],
     };
     for (const table of TABLES) {
-      const header = ['id', ...Object.keys(FOREIGN_KEYS[table] ?? {})].join(',');
+      const header = sourceHeader(table);
       const body = (rows[table] ?? []).map((row) =>
         row.replaceAll('__NULL__', DATA_MIGRATION_NULL),
       );
@@ -269,11 +282,21 @@ describe('rekeyDirectory', () => {
       deterministicUuid('upload_batch', '5'),
     ]);
     expect((await read('observation_dimension'))[1]).toEqual([
-      deterministicUuid('observation_dimension', '9'),
       deterministicUuid('observation', '2'),
-      deterministicUuid('dimension_value', '77'),
       deterministicUuid('dimension_type', '3'),
+      deterministicUuid('dimension_value', '77'),
     ]);
+  });
+
+  it('refuses a bridge file that still carries an id', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'fphd-rekey-test-'));
+    directories.push(directory);
+    const path = join(directory, 'observation_note.csv.gz');
+    await writeFile(path, gzipSync('id,observation_id,note_type_id\n2,2,7\n'));
+
+    await expect(rekeyTable(path, 'observation_note')).rejects.toThrow(
+      'observation_note has an id column',
+    );
   });
 });
 

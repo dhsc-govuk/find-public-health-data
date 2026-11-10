@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { finished } from 'node:stream/promises';
 import { createGzip } from 'node:zlib';
 
-import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
+import { DATA_MIGRATION_NULL, dataMigrationKey } from '@fphd/db-operations/data-migration-contract';
 
 import { encodeRow } from '../csv.ts';
 import { fileRecord } from '../files.ts';
@@ -21,34 +21,50 @@ function cell(value: ExportValue): string | number {
   return value;
 }
 
+function compareKeys(left: readonly number[], right: readonly number[]): number {
+  for (const [index, value] of left.entries()) {
+    const difference = value - (right[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
 /**
  * Writes one export table as gzipped CSV in the columns export-pholio writes. Rows must arrive in
- * ascending id order: rekeying keeps that order and the incremental diff depends on it.
+ * ascending order of the table's key columns, which are the id for every table but the two
+ * bridges. Rekeying keeps that order and the incremental diff depends on it.
  */
 export class TableWriter {
   readonly #table: ExportTable;
   readonly #path: string;
   readonly #columns: readonly string[];
+  readonly #key: readonly string[];
   readonly #gzip = createGzip({ level: 1 });
   readonly #written: Promise<void>;
   #rows = 0;
-  #lastId = 0;
+  #lastKey: readonly number[] | undefined;
   #closed = false;
 
   constructor(directory: string, table: ExportTable) {
     this.#table = table;
     this.#path = join(directory, `${table}.csv.gz`);
     this.#columns = PHOLIO_EXPORT_COLUMNS[table];
+    this.#key = dataMigrationKey(table);
     this.#written = finished(this.#gzip.pipe(createWriteStream(this.#path)));
     this.#gzip.write(`${this.#columns.join(',')}\r\n`);
   }
 
   async write(row: ExportRow): Promise<void> {
-    const id = row.id;
-    if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= this.#lastId) {
-      throw new Error(
-        `${this.#table} row id ${String(id)} is not above the previous ${this.#lastId}`,
-      );
+    const values = this.#key.map((column) => row[column]);
+    const key = values.filter(
+      (value): value is number => typeof value === 'number' && Number.isSafeInteger(value),
+    );
+    const named = `${this.#table} row ${this.#key.join(', ')} ${values.map(String).join(', ')}`;
+    if (key.length !== values.length || key.some((value) => value <= 0)) {
+      throw new Error(`${named} is not keyed by positive integers`);
+    }
+    if (this.#lastKey !== undefined && compareKeys(key, this.#lastKey) <= 0) {
+      throw new Error(`${named} is not above the previous ${this.#lastKey.join(', ')}`);
     }
     // Every row of a table is built by the same code, so checking the first one is enough.
     if (this.#rows === 0) {
@@ -57,7 +73,7 @@ export class TableWriter {
         throw new Error(`${this.#table} has no export column ${unknown.join(', ')}`);
       }
     }
-    this.#lastId = id;
+    this.#lastKey = key;
     this.#rows += 1;
     if (!this.#gzip.write(encodeRow(this.#columns.map((column) => cell(row[column]))))) {
       await once(this.#gzip, 'drain');
@@ -65,7 +81,9 @@ export class TableWriter {
   }
 
   async writeAll(rows: Iterable<ExportRow>): Promise<void> {
-    for (const row of [...rows].sort((a, b) => Number(a.id) - Number(b.id))) await this.write(row);
+    const keyOf = (row: ExportRow) => this.#key.map((column) => Number(row[column]));
+    for (const row of [...rows].sort((a, b) => compareKeys(keyOf(a), keyOf(b))))
+      await this.write(row);
   }
 
   async close() {

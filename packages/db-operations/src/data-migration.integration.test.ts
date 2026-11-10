@@ -288,6 +288,180 @@ describe('applyDataMigration', () => {
     ).toEqual([{ upload_batch_id: null, data_table_confirmed_at: null }]);
     expect(await sql`SELECT id FROM published.observation`).toEqual([]);
   });
+  it('upserts and deletes bridge rows by their observation and core dimension or note type', async () => {
+    const batchId = '22222222-2222-7222-8222-222222222222';
+    const observationId = '55555555-5555-7555-8555-555555555555';
+    // Package ids that differ from the core rows of the same name, so every bridge key is mapped.
+    const sexId = '66666666-6666-7666-8666-666666666666';
+    const maleId = '77777777-7777-7777-8777-777777777777';
+    const femaleId = '88888888-8888-7888-8888-888888888888';
+    const noteId = '99999999-9999-7999-8999-999999999999';
+    const references = {
+      dimension_type: {
+        columns: ['id', 'name', 'dimension_class'],
+        rows: [[sexId, 'Sex', 'core']],
+      },
+      dimension_value: {
+        columns: ['id', 'dimension_type_id', 'name'],
+        rows: [
+          [maleId, sexId, 'Male'],
+          [femaleId, sexId, 'Female'],
+        ],
+      },
+      note_type: {
+        columns: ['id', 'text', 'category'],
+        rows: [[noteId, 'Disclosure control applied', 'disclosure']],
+      },
+    };
+    const observation = (valueId: string) => ({
+      columns: [
+        'id',
+        'indicator_id',
+        'area_id',
+        'upload_batch_id',
+        'from_date',
+        'to_date',
+        'value',
+        'dimension_key',
+        'created_by',
+      ],
+      rows: [
+        [
+          observationId,
+          INDICATOR_ID,
+          '44444444-4444-7444-8444-444444444444',
+          batchId,
+          '2025-01-01',
+          '2025-12-31',
+          10,
+          valueId,
+          'pholio-migration',
+        ],
+      ],
+    });
+    const dimension = (valueId: string) => ({
+      columns: ['observation_id', 'dimension_value_id', 'dimension_type_id'],
+      rows: [[observationId, valueId, sexId]],
+    });
+    await baseline({
+      upserts: {
+        ...references,
+        indicator_version: versionWithBatch(batchId, '2026-01-01T00:00:00Z'),
+        upload_batch: batch(batchId),
+        observation: observation(maleId),
+        observation_dimension: dimension(maleId),
+        observation_note: {
+          columns: ['observation_id', 'note_type_id'],
+          rows: [[observationId, noteId]],
+        },
+      },
+    });
+    const bridges = () => sql`
+      SELECT t.name AS type, v.name AS value, (
+        SELECT count(*)::int FROM observation_note n WHERE n.observation_id = od.observation_id
+      ) AS notes
+      FROM observation_dimension od
+      JOIN dimension_type t ON t.id = od.dimension_type_id
+      JOIN dimension_value v ON v.id = od.dimension_value_id
+    `;
+    expect(await bridges()).toEqual([{ type: 'Sex', value: 'Male', notes: 1 }]);
+
+    await apply({
+      upserts: {
+        ...references,
+        observation: observation(femaleId),
+        observation_dimension: dimension(femaleId),
+      },
+      deletes: { observation_note: [`${observationId},${noteId}`] },
+    });
+
+    expect(await bridges()).toEqual([{ type: 'Sex', value: 'Female', notes: 0 }]);
+  });
+  /**
+   * Loads a baseline observation with one note, whose package note type is the core row for
+   * disclosure control under its core id, and returns that id.
+   */
+  async function baselineWithDisclosureNote(observationId: string): Promise<string> {
+    const batchId = '22222222-2222-7222-8222-222222222222';
+    const [disclosure] = await sql<{ id: string }[]>`
+      SELECT id FROM note_type WHERE text = 'Disclosure control applied'
+    `;
+    if (!disclosure) throw new Error('Missing core note type');
+    await baseline({
+      upserts: {
+        indicator_version: versionWithBatch(batchId, '2026-01-01T00:00:00Z'),
+        upload_batch: batch(batchId),
+        note_type: {
+          columns: ['id', 'text', 'category'],
+          rows: [[disclosure.id, 'Disclosure control applied', 'disclosure']],
+        },
+        observation: {
+          columns: [
+            'id',
+            'indicator_id',
+            'area_id',
+            'upload_batch_id',
+            'from_date',
+            'to_date',
+            'value',
+            'dimension_key',
+            'created_by',
+          ],
+          rows: [
+            [
+              observationId,
+              INDICATOR_ID,
+              '44444444-4444-7444-8444-444444444444',
+              batchId,
+              '2025-01-01',
+              '2025-12-31',
+              10,
+              '',
+              'pholio-migration',
+            ],
+          ],
+        },
+        observation_note: {
+          columns: ['observation_id', 'note_type_id'],
+          rows: [[observationId, disclosure.id]],
+        },
+      },
+    });
+    return disclosure.id;
+  }
+  it('keeps a bridge row an increment deletes under one type id and upserts under another', async () => {
+    const observationId = '55555555-5555-7555-8555-555555555555';
+    const disclosureId = await baselineWithDisclosureNote(observationId);
+    // The source dropped the note type the baseline named and lists another of the same text,
+    // which maps to the same core row.
+    const replacementId = '99999999-9999-7999-8999-999999999999';
+
+    await apply({
+      upserts: {
+        note_type: {
+          columns: ['id', 'text', 'category'],
+          rows: [[replacementId, 'Disclosure control applied', 'disclosure']],
+        },
+        observation_note: {
+          columns: ['observation_id', 'note_type_id'],
+          rows: [[observationId, replacementId]],
+        },
+      },
+      deletes: { observation_note: [`${observationId},${disclosureId}`] },
+    });
+
+    expect(await sql`SELECT observation_id, note_type_id FROM observation_note`).toEqual([
+      { observation_id: observationId, note_type_id: disclosureId },
+    ]);
+  });
+  it('deletes a bridge row whose type the package no longer lists by its core id', async () => {
+    const observationId = '55555555-5555-7555-8555-555555555555';
+    const disclosureId = await baselineWithDisclosureNote(observationId);
+
+    await apply({ deletes: { observation_note: [`${observationId},${disclosureId}`] } });
+
+    expect(await sql`SELECT observation_id FROM observation_note`).toEqual([]);
+  });
   it('withdraws an indicator, its version, batch and observations in one increment', async () => {
     const batchId = '22222222-2222-7222-8222-222222222222';
     const areaId = '44444444-4444-7444-8444-444444444444';
@@ -1132,17 +1306,12 @@ describe('applyDataMigration', () => {
       { id: string }[]
     >`SELECT id FROM dimension_value WHERE dimension_type_id = ${dimensionType.id} AND name = 'Female'`;
     if (!dimensionValue) throw new Error('Missing dimension value');
-    const [dimension] = await sql<
-      { id: string }[]
-    >`INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id) VALUES (${observed.id}, ${dimensionValue.id}, ${dimensionType.id}) RETURNING id`;
+    await sql`INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id) VALUES (${observed.id}, ${dimensionValue.id}, ${dimensionType.id})`;
     const [noteType] = await sql<
       { id: string }[]
     >`INSERT INTO note_type (text, category) VALUES ('Publisher note', 'quality') ON CONFLICT (text) DO UPDATE SET category = excluded.category RETURNING id`;
-    if (!dimension || !noteType) throw new Error('Missing observation attributes');
-    const [note] = await sql<
-      { id: string }[]
-    >`INSERT INTO observation_note (observation_id, note_type_id) VALUES (${observed.id}, ${noteType.id}) RETURNING id`;
-    if (!note) throw new Error('Missing note');
+    if (!noteType) throw new Error('Missing note type');
+    await sql`INSERT INTO observation_note (observation_id, note_type_id) VALUES (${observed.id}, ${noteType.id})`;
     const fixtures = {
       indicator: {
         columns: ['id', 'short_id', 'data_updated_at'],
@@ -1195,20 +1364,21 @@ describe('applyDataMigration', () => {
         ],
       },
       observation_dimension: {
-        columns: ['id', 'observation_id', 'dimension_value_id', 'dimension_type_id'],
-        rows: [[dimension.id, observed.id, dimensionValue.id, dimensionType.id]],
+        columns: ['observation_id', 'dimension_value_id', 'dimension_type_id'],
+        rows: [[observed.id, dimensionValue.id, dimensionType.id]],
       },
       observation_note: {
-        columns: ['id', 'observation_id', 'note_type_id'],
-        rows: [[note.id, observed.id, noteType.id]],
+        columns: ['observation_id', 'note_type_id'],
+        rows: [[observed.id, noteType.id]],
       },
     };
-    const ids = {
-      indicator: identity.id,
-      upload_batch: upload.id,
-      observation: observed.id,
-      observation_dimension: dimension.id,
-      observation_note: note.id,
+    // The bridge tables are keyed by their observation and dimension type or note type.
+    const keys = {
+      indicator: [identity.id],
+      upload_batch: [upload.id],
+      observation: [observed.id],
+      observation_dimension: [`${observed.id},${dimensionType.id}`],
+      observation_note: [`${observed.id},${noteType.id}`],
     };
     if (action === 'reassign') {
       const [sourceBatch] = await sql<{ id: string }[]>`
@@ -1232,7 +1402,7 @@ describe('applyDataMigration', () => {
       apply(
         action !== 'delete'
           ? { upserts: { [table]: fixtures[table] } }
-          : { deletes: { [table]: [ids[table]] } },
+          : { deletes: { [table]: keys[table] } },
       ),
     ).rejects.toThrow(
       `conflicts with FPHD publisher work on indicators: ${action === 'historical upsert' ? 108 : 109}`,
@@ -1243,12 +1413,12 @@ describe('applyDataMigration', () => {
     expect(await sql`SELECT original_filename FROM upload_batch WHERE id = ${upload.id}`).toEqual([
       { original_filename: 'publisher.csv' },
     ]);
-    expect(await sql`SELECT id FROM observation_dimension WHERE id = ${dimension.id}`).toEqual([
-      { id: dimension.id },
-    ]);
-    expect(await sql`SELECT id FROM observation_note WHERE id = ${note.id}`).toEqual([
-      { id: note.id },
-    ]);
+    expect(
+      await sql`SELECT dimension_value_id FROM observation_dimension WHERE observation_id = ${observed.id}`,
+    ).toEqual([{ dimension_value_id: dimensionValue.id }]);
+    expect(
+      await sql`SELECT note_type_id FROM observation_note WHERE observation_id = ${observed.id}`,
+    ).toEqual([{ note_type_id: noteType.id }]);
     expect(await sql`SELECT data_updated_at FROM indicator WHERE id = ${identity.id}`).toEqual([
       { data_updated_at: null },
     ]);

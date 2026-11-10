@@ -2,6 +2,7 @@ import type postgres from 'postgres';
 
 import { copyInto, type DataMigrationProgressReporter } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
+import { dataMigrationKey } from './data-migration-manifest.ts';
 import { CORE_REFERENCE_TABLES, GEOGRAPHY_CORE_TABLES } from './seed-tables.ts';
 
 const matches = {
@@ -77,6 +78,20 @@ export async function stageReferenceMaps(
   return counts;
 }
 
+/** Rewrites the stage's column from the package's ids to the core ids its reference maps give. */
+async function rewriteToCoreIds(
+  tx: postgres.TransactionSql,
+  stage: string,
+  column: string,
+  reference: string,
+): Promise<void> {
+  await tx.unsafe(`
+    UPDATE "${stage}" s SET "${column}" = m.core_id
+    FROM core_${reference}_map m WHERE s."${column}" = m.source_id
+      AND s."${column}" IS DISTINCT FROM m.core_id
+  `);
+}
+
 export async function remapReferenceColumns(
   tx: postgres.TransactionSql,
   table: string,
@@ -94,11 +109,7 @@ export async function remapReferenceColumns(
         `No core ${reference} for ${table}.${column} source ids: ${missing.map(({ id }) => id).join(', ')}. Update the core data and run \`db import-core-data\``,
       );
     }
-    await tx.unsafe(`
-      UPDATE "${stage}" s SET "${column}" = m.core_id
-      FROM core_${reference}_map m WHERE s."${column}" = m.source_id
-        AND s."${column}" IS DISTINCT FROM m.core_id
-    `);
+    await rewriteToCoreIds(tx, stage, column, reference);
   }
   if (table === 'observation') {
     const missing = await tx.unsafe<{ id: string }[]>(`
@@ -124,6 +135,28 @@ export async function remapReferenceColumns(
       ) WHERE s.dimension_key <> ''
     `);
   }
+}
+
+/**
+ * Rewrites the reference columns in a delete stage's key to core ids, so the stage names rows as
+ * the tables hold them, and says whether the key had any. Only a bridge's key has one: its
+ * dimension type or note type.
+ *
+ * A deleted row may name a type that has since left the source's lists, and so has no row in this
+ * package. Its id is kept as it is, which is still the core id, since core rows that came from
+ * Fingertips keep their package ids. applyDeletes then checks that every staged row was deleted.
+ */
+export async function remapKeyColumns(
+  tx: postgres.TransactionSql,
+  table: string,
+  stage: string,
+): Promise<boolean> {
+  const mapped = dataMigrationKey(table).flatMap((column) => {
+    const reference = references[table]?.[column];
+    return reference === undefined ? [] : [[column, reference] as const];
+  });
+  for (const [column, reference] of mapped) await rewriteToCoreIds(tx, stage, column, reference);
+  return mapped.length > 0;
 }
 
 export function needsReferenceMapping(table: string): boolean {

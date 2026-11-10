@@ -16,6 +16,21 @@ export const DATA_MIGRATION_REFERENCE_TABLES: readonly string[] = [
 ];
 export const DATA_MIGRATION_NULL = '__FPHD_NULL_5f92c66de4b849b4a717c23f5cbdb8a1__';
 
+// The two bridge tables have no id. A bridge row is identified by its observation and the
+// dimension type or note type it links the observation to.
+const BRIDGE_KEYS: Record<string, readonly string[]> = {
+  observation_dimension: ['observation_id', 'dimension_type_id'],
+  observation_note: ['observation_id', 'note_type_id'],
+};
+
+/**
+ * The columns that identify a row of the table in a package file. Package files are ordered by
+ * them, the incremental diff compares rows by them, and the receiver upserts and deletes by them.
+ */
+export function dataMigrationKey(table: string): readonly string[] {
+  return BRIDGE_KEYS[table] ?? ['id'];
+}
+
 const digestSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const fileSchema = z.object({
   file: z.string().regex(/^[a-z_]+(?:\.deletes)?\.csv\.gz$/),
