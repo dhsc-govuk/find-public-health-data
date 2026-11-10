@@ -4,6 +4,7 @@ import {
   assertPackageActors,
   hasPackageShape,
   MIGRATION_USER_ID,
+  receiverColumns,
   shapeStage,
   stagedValue,
 } from './data-migration-actors.ts';
@@ -279,12 +280,18 @@ export async function applyUpserts(
     .join(', ');
   const conflict = assignments.length === 0 ? 'DO NOTHING' : `DO UPDATE SET ${assignments}`;
   await tx.unsafe(
-    `INSERT INTO "${table}" (${quoteIdentifiers(columns)}) SELECT ${selectStaged(table, columns)} FROM "${stage}" s ON CONFLICT (id) ${conflict}`,
+    `INSERT INTO "${table}" ${insertStaged(table, columns, stage)} ON CONFLICT (id) ${conflict}`,
   );
 }
 
-function selectStaged(table: string, columns: readonly string[]): string {
-  return columns.map((column) => stagedValue(table, column, 's')).join(', ');
+/**
+ * The column list and SELECT that copy a stage's rows into its table. They add the columns the
+ * receiver writes, which the stage holds as defaults. An upsert's update leaves those alone.
+ */
+function insertStaged(table: string, columns: readonly string[], stage: string): string {
+  const inserted = [...columns, ...receiverColumns(table)];
+  const values = inserted.map((column) => stagedValue(table, column, 's')).join(', ');
+  return `(${quoteIdentifiers(inserted)}) SELECT ${values} FROM "${stage}" s`;
 }
 
 /**
@@ -318,9 +325,7 @@ export async function applyBaselineRows(
   await remapReferenceColumns(tx, table, stage);
   // For observations the insert takes longer than the copy, so it says when it starts.
   report({ ...progress, state: 'inserting' });
-  await tx.unsafe(
-    `INSERT INTO "${table}" (${quoteIdentifiers(columns)}) SELECT ${selectStaged(table, columns)} FROM "${stage}" s`,
-  );
+  await tx.unsafe(`INSERT INTO "${table}" ${insertStaged(table, columns, stage)}`);
   report({ ...progress, state: 'complete' });
   // Observations are most of a baseline, so their copy goes once they are in.
   await tx.unsafe(`DROP TABLE "${stage}"`);

@@ -277,7 +277,9 @@ async function seedTables(
   for (const table of SEED_TABLES) {
     if (CORE_DATA_TABLES.includes(table) || STAGED_ONLY_TABLES.includes(table)) continue;
 
-    if (table === 'indicator_version') {
+    if (table === 'indicator') {
+      counts.indicator = await loadIndicators(tx, directory, idleTimeoutMs, completionTimeoutMs);
+    } else if (table === 'indicator_version') {
       const loaded = await loadIndicatorVersions(tx, directory, idleTimeoutMs, completionTimeoutMs);
       counts.ci_method = loaded.ciMethods;
       counts.comparator_method = loaded.comparatorMethods;
@@ -316,9 +318,34 @@ async function seedTables(
       }
     }
   }
-  await tx`UPDATE indicator SET team_id = ${IMPORTED_INDICATOR_TEAM_ID} WHERE team_id IS NULL`;
   await pointVersionsAtBatches(tx);
   return counts;
+}
+
+/**
+ * Loads the indicators through a staging table whose team_id defaults to the Fingertips team.
+ * The files carry no team, so every imported indicator joins Fingertips as it is inserted.
+ */
+async function loadIndicators(
+  tx: postgres.TransactionSql,
+  directory: string,
+  idleTimeoutMs: number,
+  completionTimeoutMs: number,
+): Promise<number> {
+  await tx`CREATE TEMP TABLE source_indicator (LIKE indicator INCLUDING DEFAULTS) ON COMMIT DROP`;
+  await tx.unsafe(
+    `ALTER TABLE source_indicator ALTER COLUMN team_id SET DEFAULT '${IMPORTED_INDICATOR_TEAM_ID}'`,
+  );
+  await loadTable(
+    tx,
+    'indicator',
+    directory,
+    idleTimeoutMs,
+    completionTimeoutMs,
+    'source_indicator',
+  );
+  const inserted = await tx`INSERT INTO indicator SELECT * FROM source_indicator`;
+  return inserted.count;
 }
 
 /**
