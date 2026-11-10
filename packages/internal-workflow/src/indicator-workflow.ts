@@ -59,15 +59,14 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     carriesReviewers: true,
   },
-  // The publisher can withdraw a submission until a reviewer responds. Each review round takes one
-  // response, and that response ends the 'in_review' submission, so there is nothing left to
-  // withdraw.
+  // The publisher can withdraw a submission until reviewers are assigned to it. A resubmission that
+  // carries its reviewers over starts in 'in_review', so it cannot be withdrawn.
   withdraw: {
     from: {
       indicatorStatuses: ['new', 'live'],
       versionStatuses: ['draft'],
       isLocked: true,
-      submissionStatuses: ['submitted', 'in_review'],
+      submissionStatuses: ['submitted'],
     },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'withdrawn', isLocked: false },
   },

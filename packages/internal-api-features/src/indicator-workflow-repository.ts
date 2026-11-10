@@ -85,10 +85,9 @@ export function submitIndicator(
 }
 
 /**
- * Withdraws the draft's submission before any response, unlocking the draft and keeping its
- * reviewers for the next submission. `submissionNumber` is the submission the publisher was shown:
- * one withdrawn and resubmitted since is refused as `changed`, so an old confirmation page never
- * withdraws a newer submission.
+ * Withdraws the draft's submission before reviewers are assigned, unlocking the draft.
+ * `submissionNumber` is the submission the publisher was shown: one withdrawn and resubmitted since
+ * is refused as `changed`, so an old confirmation page never withdraws a newer submission.
  */
 export function withdrawSubmission(
   db: Database,

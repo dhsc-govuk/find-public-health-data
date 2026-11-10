@@ -625,18 +625,19 @@ describe('assignReviewers', () => {
   });
 
   repositoryTest(
-    'lets the publisher withdraw the submission, keeping its reviewers',
+    'stops the publisher withdrawing the submission, writing nothing',
     async ({ db }) => {
       const { indicatorId, versionId } = await submittedDraft(db, 'Withdrawn after assignment');
       await assign(db, indicatorId, [REVIEWER]);
 
-      await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({ ok: true });
+      await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
+        ok: false,
+        reason: 'not_allowed',
+      });
       const [submission] = await submissionsOf(db, versionId);
-      expect(submission?.status).toBe('withdrawn');
-      expect(
-        (await reviewersOf(db, submission?.id ?? '')).map(({ reviewerId }) => reviewerId),
-      ).toEqual([REVIEWER]);
-      expect((await versionOf(db, versionId)).isLocked).toBe(false);
+      expect(submission?.status).toBe('in_review');
+      expect((await versionOf(db, versionId)).isLocked).toBe(true);
+      expect(await stepEntriesFor(db, indicatorId)).toHaveLength(2);
     },
   );
 });
@@ -671,15 +672,13 @@ describe('the lock', () => {
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
       () => assign(db, indicatorId, [REVIEWER], [], 2),
       () => assign(db, indicatorId, [PUBLISHING_REVIEWER], [REVIEWER], 2),
-      () => withdrawSubmission(db, indicatorId, 2, AS_ACTOR),
-      () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
-      () => respond(3, 'pre_imrg_feedback'),
+      () => respond(2, 'pre_imrg_feedback'),
       replied,
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
-      () => respond(4, 'major_revisions'),
+      () => respond(3, 'major_revisions'),
       replied,
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
-      () => respond(5, 'approved'),
+      () => respond(4, 'approved'),
     ];
 
     for (const step of steps) {

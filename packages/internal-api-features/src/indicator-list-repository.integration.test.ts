@@ -529,10 +529,14 @@ describe('listIndicatorsToReview', () => {
     async ({ db }) => {
       const created = await newDraft(db, 'Reviewed once, in review again with someone else');
       const shown = await completeDraft(db, created);
-      const { indicatorId } = created;
+      const { indicatorId, versionId } = created;
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
       await assign(db, indicatorId, [REVIEWER]);
-      await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
+      await respond(db, indicatorId, 'pre_imrg_feedback');
+      await db
+        .update(schema.indicatorVersionSubmission)
+        .set({ revisionResponse: 'Revised as asked' })
+        .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
       // The second submission carries the reviewer over, and the manager then replaces them.
       await submitIndicator(db, indicatorId, shown, AS_ACTOR);
       await assignReviewers(
