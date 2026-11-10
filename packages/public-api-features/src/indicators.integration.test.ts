@@ -40,7 +40,7 @@ async function insertDraftOnlyIndicator(
 ): Promise<number> {
   const [inserted] = await owner`
     WITH new_indicator AS (
-      INSERT INTO indicator (short_id) VALUES (${shortId}) RETURNING id, short_id
+      INSERT INTO indicator (short_id, team_id) VALUES (${shortId}, ${schema.IMPORTED_INDICATOR_TEAM_ID}) RETURNING id, short_id
     )
     INSERT INTO indicator_version
       (indicator_id, status, name, slug, value_type_id, unit_id, period_type, year_type,

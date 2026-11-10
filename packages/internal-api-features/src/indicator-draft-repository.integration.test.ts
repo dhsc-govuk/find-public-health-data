@@ -147,7 +147,10 @@ describe('createIndicatorDraft', () => {
       'a-name-created-twice',
       () => createIndicatorDraft(db, { name: 'A name created twice' }, AS_ACTOR, TEAM_IDS.teamA),
       async (tx) => {
-        const [identity] = await tx.insert(indicator).values({}).returning({ id: indicator.id });
+        const [identity] = await tx
+          .insert(indicator)
+          .values({ teamId: TEAM_IDS.teamA })
+          .returning({ id: indicator.id });
         if (!identity) throw new Error('inserted no indicator');
         await tx.insert(indicatorVersion).values({
           indicatorId: identity.id,

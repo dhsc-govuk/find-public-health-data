@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CiMethodRecord, upsertCiMethods } from './ci-method-core-data.ts';
 import { loadIndicatorVersions } from './seeding.ts';
 
-const { SYSTEM_USER_IDS } = schema;
+const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 
 // The service's list, in the order the publisher's form shows it.
 const SERVICE_CI_METHODS = [
@@ -148,7 +148,9 @@ describe('loadIndicatorVersions', () => {
   beforeAll(async () => {
     testDb = await createTestDb({ template: 'core' });
     sql = testDb.sql;
-    const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
+    const [row] = await sql<
+      { id: string }[]
+    >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     indicatorId = row?.id ?? '';
     directory = await mkdtemp(join(tmpdir(), 'fphd-ci-methods-'));
   });

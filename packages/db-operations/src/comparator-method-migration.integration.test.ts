@@ -8,9 +8,10 @@ import { migrateToLatest } from './migrations.ts';
 import { upsertComparatorMethods } from './named-core-data.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
-const { SYSTEM_USER_IDS } = schema;
+const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 
 const MIGRATION = '0037_value-type-and-unit-core-data';
+const TEAMS_MIGRATION = '0046_teams';
 
 const CORE: { id: string; name: string }[] = JSON.parse(
   readFileSync(new URL('../data/comparator-methods.json', import.meta.url), 'utf-8'),
@@ -84,6 +85,10 @@ describe(`migration ${MIGRATION} followed by the comparator core-data import`, (
 
   beforeAll(async () => {
     [testDb, sql] = await withSnapshotRows([QUINTILES, NO_COMPARISON], NO_COMPARISON.id);
+    // The snapshot's indicator predates teams. A later migration requires one, so the indicator
+    // joins Fingertips first, as an import would put it.
+    await migrateThrough(sql, TEAMS_MIGRATION);
+    await sql`UPDATE indicator SET team_id = ${IMPORTED_INDICATOR_TEAM_ID}`;
     await migrateToLatest(sql);
   });
 
