@@ -1,0 +1,767 @@
+[
+  {
+    "id": "019de0d5-c800-700a-8000-000000000002",
+    "standardDimension": "sex",
+    "slug": null
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000004",
+    "standardDimension": "age",
+    "slug": null
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d2",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-gp"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d4",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-county-ua"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d6",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-district-ua"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007d8",
+    "standardDimension": "ethnicity",
+    "slug": "broad-7"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007da",
+    "standardDimension": null,
+    "slug": "limits-for-sii-regression-charts"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007dc",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-lsoa11-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007de",
+    "standardDimension": "sexuality",
+    "slug": "behaviour-and-sex-4"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e0",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-ccg"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e2",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e4",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e6",
+    "standardDimension": null,
+    "slug": "ccg-cluster-shapes"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007e8",
+    "standardDimension": null,
+    "slug": "gp-cluster-shapes"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007ea",
+    "standardDimension": null,
+    "slug": "better-care-fund-areas"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007ec",
+    "standardDimension": null,
+    "slug": "hiv-infection-groups"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007ee",
+    "standardDimension": "ethnicity",
+    "slug": "white-and-ethnic-minority"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f0",
+    "standardDimension": "ethnicity",
+    "slug": "black-and-south-asian-6"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f2",
+    "standardDimension": "ethnicity",
+    "slug": "nhs-2001-17"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f4",
+    "standardDimension": "ethnicity",
+    "slug": "census-2011-18"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f6",
+    "standardDimension": "religion",
+    "slug": "religion-8"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007f8",
+    "standardDimension": "religion",
+    "slug": "religion-9"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007fa",
+    "standardDimension": null,
+    "slug": "household-composition"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007fc",
+    "standardDimension": null,
+    "slug": "client-group"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000007fe",
+    "standardDimension": null,
+    "slug": "tenure-4"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000800",
+    "standardDimension": "sexuality",
+    "slug": "gss-5"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000802",
+    "standardDimension": null,
+    "slug": "working-status-3"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000804",
+    "standardDimension": null,
+    "slug": "rurality-3"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000806",
+    "standardDimension": null,
+    "slug": "disability"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000808",
+    "standardDimension": null,
+    "slug": "imd2010-bottom-middle-top"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080a",
+    "standardDimension": "ethnicity",
+    "slug": "broad-6"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080c",
+    "standardDimension": null,
+    "slug": "uk-born"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000080e",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-lsoa01-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000810",
+    "standardDimension": "socioeconomic-group",
+    "slug": "nssec-4"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000812",
+    "standardDimension": "ethnicity",
+    "slug": "census-2011-5"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000814",
+    "standardDimension": null,
+    "slug": "employment-type"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000816",
+    "standardDimension": null,
+    "slug": "imd2010-employment-domain"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000818",
+    "standardDimension": null,
+    "slug": "health-status"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081a",
+    "standardDimension": null,
+    "slug": "survey-response"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081c",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-gp"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000081e",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-county-ua-pre-2019"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000820",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-district-ua-pre-2019"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000822",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa11-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000824",
+    "standardDimension": null,
+    "slug": "exposure-groups"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000826",
+    "standardDimension": "ethnicity",
+    "slug": "black-split-7"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000828",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa11-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000082a",
+    "standardDimension": null,
+    "slug": "first-language-status"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000082c",
+    "standardDimension": null,
+    "slug": "special-educational-needs-sen-status"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000082e",
+    "standardDimension": null,
+    "slug": "month-born"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000830",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000832",
+    "standardDimension": "ethnicity",
+    "slug": "south-asian-split-6"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000834",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000836",
+    "standardDimension": "ethnicity",
+    "slug": "white-split-7"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000838",
+    "standardDimension": null,
+    "slug": "country-of-birth"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000083a",
+    "standardDimension": null,
+    "slug": "working-status-6"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000083c",
+    "standardDimension": null,
+    "slug": "support-setting"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000083e",
+    "standardDimension": null,
+    "slug": "mechanism-of-delivery"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000840",
+    "standardDimension": null,
+    "slug": "service-user-full-cost-client"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000842",
+    "standardDimension": null,
+    "slug": "primary-support-reason"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000844",
+    "standardDimension": "sexuality",
+    "slug": "heterosexual-or-not-3"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000846",
+    "standardDimension": "socioeconomic-group",
+    "slug": "nssec-4-aged-18-64"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000850",
+    "standardDimension": null,
+    "slug": "decile-boundaries"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000854",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-county-ua"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000085e",
+    "standardDimension": "deprivation",
+    "slug": "imd-trend-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000886",
+    "standardDimension": "deprivation",
+    "slug": "idaci-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000888",
+    "standardDimension": null,
+    "slug": "low-intensity-therapies"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000088a",
+    "standardDimension": null,
+    "slug": "high-intensity-therapies"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000088c",
+    "standardDimension": null,
+    "slug": "problem-descriptor"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000088e",
+    "standardDimension": null,
+    "slug": "disability-type"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000089c",
+    "standardDimension": null,
+    "slug": "long-term-condition"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000089e",
+    "standardDimension": null,
+    "slug": "eligibility-for-free-school-meals"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a2",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-county-ua-2019"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a6",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-district-ua-2019"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008a8",
+    "standardDimension": null,
+    "slug": "level-of-education"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008aa",
+    "standardDimension": null,
+    "slug": "ex-british-armed-forces-and-dependants"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ac",
+    "standardDimension": "ethnicity",
+    "slug": "bame-and-white"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ae",
+    "standardDimension": "ethnicity",
+    "slug": "broad-8"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b0",
+    "standardDimension": "religion",
+    "slug": "religion-13"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b2",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-county-ua-2019-2020"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b4",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-district-ua-2019"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b6",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa11-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008b8",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ba",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa11-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008bc",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008c6",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-county-ua"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008c8",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-gp"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ca",
+    "standardDimension": "socioeconomic-group",
+    "slug": "nssec-8"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008cc",
+    "standardDimension": null,
+    "slug": "marital-status-detailed"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ce",
+    "standardDimension": null,
+    "slug": "marital-status"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d0",
+    "standardDimension": null,
+    "slug": "school-year-group"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d2",
+    "standardDimension": "ethnicity",
+    "slug": "white-split-6"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d4",
+    "standardDimension": null,
+    "slug": "age-of-mother-8"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d6",
+    "standardDimension": null,
+    "slug": "complex-social-factors-mother"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008d8",
+    "standardDimension": null,
+    "slug": "prematurity"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008da",
+    "standardDimension": null,
+    "slug": "first-or-subsequent-pregnancy"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008de",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-district-ua-2020"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008e0",
+    "standardDimension": null,
+    "slug": "school-year"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008e2",
+    "standardDimension": null,
+    "slug": "housing-tenure"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008e8",
+    "standardDimension": "ethnicity",
+    "slug": "broad-3"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ea",
+    "standardDimension": null,
+    "slug": "rurality-2"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ec",
+    "standardDimension": "sexuality",
+    "slug": "lgb-4"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008ee",
+    "standardDimension": null,
+    "slug": "working-status-8"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008f4",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-county-ua-2021"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fa",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-district-ua-2021"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fc",
+    "standardDimension": null,
+    "slug": "status-in-geographical-hierarchy"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000008fe",
+    "standardDimension": null,
+    "slug": "age-of-mother-6"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000900",
+    "standardDimension": "ethnicity",
+    "slug": "census-2021-19"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000902",
+    "standardDimension": "deprivation",
+    "slug": "imd2010-lsoa11-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000904",
+    "standardDimension": "ethnicity",
+    "slug": "census-2011-5-with-unknown"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000906",
+    "standardDimension": "ethnicity",
+    "slug": "detailed-9"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000908",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-ccg-2021"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000090c",
+    "standardDimension": "deprivation",
+    "slug": "imd-trend-lsoa11-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000910",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-county-ua-2023"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000916",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-district-ua-2023"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000918",
+    "standardDimension": null,
+    "slug": "birth-status"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000091a",
+    "standardDimension": null,
+    "slug": "tenure-3"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000091c",
+    "standardDimension": null,
+    "slug": "sen-primary-need-15"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000924",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-county-ua-2023"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000092a",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-district-ua-2023"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000934",
+    "standardDimension": null,
+    "slug": "free-school-meals"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000936",
+    "standardDimension": null,
+    "slug": "phase-type-grouping"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000938",
+    "standardDimension": null,
+    "slug": "pregnancy-type"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000093a",
+    "standardDimension": null,
+    "slug": "condition"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000095a",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000097c",
+    "standardDimension": "deprivation",
+    "slug": "imd-trend-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000097e",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000982",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000984",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000986",
+    "standardDimension": "deprivation",
+    "slug": "imd-trend-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000988",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa21-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000098a",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa21-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000098e",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-lsoa21-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000990",
+    "standardDimension": "deprivation",
+    "slug": "imd2019-lsoa21-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000992",
+    "standardDimension": null,
+    "slug": "reasons-for-economic-inactivity"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000994",
+    "standardDimension": null,
+    "slug": "child-body-mass-index-bmi"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000996",
+    "standardDimension": null,
+    "slug": "gambling-premises"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-000000000998",
+    "standardDimension": "ethnicity",
+    "slug": "broad-4"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099a",
+    "standardDimension": null,
+    "slug": "birthweight"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099c",
+    "standardDimension": null,
+    "slug": "severe-mental-illnesses"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-00000000099e",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a0",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-lsoa21-within-area"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a2",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-lsoa21-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a4",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-lsoa21-england"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009a6",
+    "standardDimension": "socioeconomic-group",
+    "slug": "nssec-and-activity-10"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009ac",
+    "standardDimension": null,
+    "slug": "pregnant-quitters"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009ae",
+    "standardDimension": null,
+    "slug": "free-prescriptions"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b0",
+    "standardDimension": null,
+    "slug": "intervention-type"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b2",
+    "standardDimension": null,
+    "slug": "intervention-setting"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b4",
+    "standardDimension": null,
+    "slug": "smoking-aid"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009b8",
+    "standardDimension": "deprivation",
+    "slug": "imd2025-gp"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009bc",
+    "standardDimension": null,
+    "slug": "sen-primary-need-16"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009be",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-county-ua-2023"
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009c0",
+    "standardDimension": "deprivation",
+    "slug": "imd2015-district-ua-2023"
+  }
+]

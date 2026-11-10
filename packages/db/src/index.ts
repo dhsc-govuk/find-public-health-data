@@ -1,4 +1,12 @@
+export {
+  type AreaFilters,
+  type AreaLevelRow,
+  type AreaParentRow,
+  type AreaRow,
+  ENGLAND_CODE,
+} from './area-level-repository.ts';
 export { type AreaSummary, listAreasByType } from './area-repository.ts';
+export type { CatalogueEntry, CatalogueSelection } from './catalogue-repository.ts';
 export {
   closeDb,
   createDb,
@@ -11,7 +19,19 @@ export {
   type Schema,
   type SqlClient,
 } from './client.ts';
+export {
+  type AgeEndDays,
+  DATA_FILTER_COLUMNS,
+  type DataFilter,
+  type DataFilterColumn,
+  type DataQuery,
+  type DataRowRecord,
+} from './data-repository.ts';
 export { dimensionKey } from './dimension-key.ts';
+export type {
+  PublicDimensionTypeRow,
+  PublicDimensionValueRow,
+} from './dimension-repository.ts';
 export {
   checkDbLogin,
   type DbLogin,
@@ -46,10 +66,12 @@ export {
   listTopicsForIndicator,
   type TopicSummaryForIndicator,
 } from './indicator-topic-repository.ts';
+export type { TagRow } from './reference-repository.ts';
 export {
   type AreaRepository,
   createRepositories,
   type IndicatorRepository,
+  type ReferenceRepository,
   type Repositories,
   type TopicRepository,
 } from './repositories.ts';

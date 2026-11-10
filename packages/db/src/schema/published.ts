@@ -2,6 +2,7 @@ import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { POLARITIES } from '@fphd/utils/polarity';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
+import { AGE_UNITS, STANDARD_DIMENSIONS } from '@fphd/utils/standard-dimension';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 import {
   boolean,
@@ -199,6 +200,38 @@ export const publishedDimensionValue = publishedSchema
   })
   .existing();
 
+/** How the public API names each dimension type: see `dimension_type_public`. */
+export const publishedDimensionTypePublic = publishedSchema
+  .view('dimension_type_public', {
+    id: uuid('id').notNull(),
+    standardDimension: text('standard_dimension', { enum: STANDARD_DIMENSIONS }),
+    slug: text('slug'),
+  })
+  .existing();
+
+export const publishedDimensionValuePublic = publishedSchema
+  .view('dimension_value_public', {
+    id: uuid('id').notNull(),
+    slug: text('slug').notNull(),
+    ageFromValue: smallint('age_from_value'),
+    ageFromUnit: text('age_from_unit', { enum: AGE_UNITS }),
+    ageUnderValue: smallint('age_under_value'),
+    ageUnderUnit: text('age_under_unit', { enum: AGE_UNITS }),
+    deprivationGroup: smallint('deprivation_group'),
+  })
+  .existing();
+
+export const publishedDeprivationScheme = publishedSchema
+  .view('deprivation_scheme', {
+    id: uuid('id').notNull(),
+    release: text('release').notNull(),
+    ranked: text('ranked').notNull(),
+    within: text('within').notNull(),
+    boundaries: text('boundaries'),
+    groups: smallint('groups').notNull(),
+  })
+  .existing();
+
 export const publishedAreaType = publishedSchema
   .view('area_type', {
     id: uuid('id').notNull(),
@@ -207,6 +240,18 @@ export const publishedAreaType = publishedSchema
     level: integer('level').notNull(),
     displayGroup: text('display_group'),
     displayOrder: integer('display_order'),
+  })
+  .existing();
+
+export const publishedAreaLevel = publishedSchema
+  .view('area_level', {
+    id: uuid('id').notNull(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    hierarchy: text('hierarchy'),
+    displayOrder: integer('display_order').notNull(),
+    parentLevels: text('parent_levels').array().notNull(),
+    areaTypeIds: uuid('area_type_ids').array().notNull(),
   })
   .existing();
 
@@ -240,6 +285,10 @@ export const publishedNoteType = publishedSchema
   })
   .existing();
 
+export const publishedNoteTypePublic = publishedSchema
+  .view('note_type_public', { id: uuid('id').notNull(), code: text('code').notNull() })
+  .existing();
+
 export const publishedObservation = publishedSchema
   .view('observation', {
     id: uuid('id').notNull(),
@@ -258,6 +307,8 @@ export const publishedObservation = publishedSchema
     upperCi998: doublePrecision('upper_ci_998'),
     distributionRank: smallint('distribution_rank'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    /** The observation's dimension value ids, sorted and joined: the same for the same breakdown. */
+    dimensionKey: text('dimension_key').notNull(),
   })
   .existing();
 

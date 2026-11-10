@@ -463,6 +463,41 @@
       "when": 1793985836033,
       "tag": "0065_scheduled-publication",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1794179886572,
+      "tag": "0066_public-dimension-names",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794182211282,
+      "tag": "0067_area-levels",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794182823212,
+      "tag": "0068_note-codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794183113910,
+      "tag": "0069_published-observation-dimension-key",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1794184933437,
+      "tag": "0070_public-names-follow-their-rows",
+      "breakpoints": true
     }
   ]
 }

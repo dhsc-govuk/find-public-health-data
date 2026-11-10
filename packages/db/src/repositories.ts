@@ -1,4 +1,13 @@
 import {
+  type AreaFilters,
+  type AreaLevelRow,
+  type AreaParentRow,
+  type AreaRow,
+  findAreas,
+  listAreaAncestors,
+  listAreaLevels,
+} from './area-level-repository.ts';
+import {
   type AreaLookup,
   type AreaParent,
   type AreaSummary,
@@ -12,7 +21,18 @@ import {
   listIndicatorAreas,
   searchAreas,
 } from './area-repository.ts';
+import {
+  type CatalogueEntry,
+  type CatalogueSelection,
+  listCatalogue,
+} from './catalogue-repository.ts';
 import type { Database } from './client.ts';
+import { type DataQuery, type DataRowRecord, streamData } from './data-repository.ts';
+import {
+  listPublicDimensions,
+  type PublicDimensionTypeRow,
+  type PublicDimensionValueRow,
+} from './dimension-repository.ts';
 import {
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
@@ -33,6 +53,7 @@ import {
   searchPublishedIndicators,
 } from './indicator-repository.ts';
 import { getIndicatorTableData } from './indicator-table-repository.ts';
+import { getDataVersion, listTags, type TagRow } from './reference-repository.ts';
 import {
   getTopicBySlug,
   getTopicTrendSummary,
@@ -63,6 +84,8 @@ export interface IndicatorRepository {
   ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
+  /** Published indicators with everything the public API's catalogue gives them. */
+  listCatalogue(selection?: CatalogueSelection): Promise<CatalogueEntry[]>;
 }
 
 export interface AreaRepository {
@@ -76,6 +99,25 @@ export interface AreaRepository {
   listByCodes(codes: string[]): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
+  /** The area levels published data covers, for the public API. */
+  listLevels(): Promise<AreaLevelRow[]>;
+  find(filters: AreaFilters): Promise<AreaRow[]>;
+  /** Every area above an area, nearest first, with England last. */
+  listAncestors(code: string): Promise<AreaParentRow[]>;
+}
+
+/** What the public API's v0 routes read besides indicators and areas. */
+export interface ReferenceRepository {
+  listTags(): Promise<TagRow[]>;
+  /** The dimension types published data uses, with their public names and values. */
+  listDimensions(): Promise<{ types: PublicDimensionTypeRow[]; values: PublicDimensionValueRow[] }>;
+  /** Changes whenever anything the public API serves changes, for its ETags. */
+  dataVersion(): Promise<string>;
+}
+
+/** The rows of `/v0/data`. */
+export interface DataRepository {
+  stream(query: DataQuery): AsyncIterable<DataRowRecord[]>;
 }
 
 export interface TopicRepository {
@@ -92,7 +134,9 @@ export interface TopicRepository {
  */
 export interface Repositories {
   areas: AreaRepository;
+  data: DataRepository;
   indicators: IndicatorRepository;
+  reference: ReferenceRepository;
   topics: TopicRepository;
 }
 
@@ -106,6 +150,12 @@ export function createRepositories(db: Database): Repositories {
       listByCodes: (codes) => listAreasByCodes(db, codes),
       search: (query, limit) => searchAreas(db, query, limit),
       listParents: (childCodes, parentTypeName) => listAreaParents(db, childCodes, parentTypeName),
+      listLevels: () => listAreaLevels(db),
+      find: (filters) => findAreas(db, filters),
+      listAncestors: (code) => listAreaAncestors(db, code),
+    },
+    data: {
+      stream: (query) => streamData(db, query),
     },
     indicators: {
       findTableData: (shortIds, areaCodes) => getIndicatorTableData(db, shortIds, areaCodes),
@@ -123,6 +173,12 @@ export function createRepositories(db: Database): Repositories {
         getObservationRange(db, indicatorId, displayGroup),
       searchWithFilters: (filters) => searchIndicators(db, filters),
       listFacets: () => listIndicatorFacets(db),
+      listCatalogue: (selection) => listCatalogue(db, selection),
+    },
+    reference: {
+      listTags: () => listTags(db),
+      listDimensions: () => listPublicDimensions(db),
+      dataVersion: () => getDataVersion(db),
     },
     topics: {
       list: () => listTopics(db),

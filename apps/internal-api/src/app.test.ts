@@ -67,6 +67,17 @@ describe('internal API', () => {
     expect(response.status).toBe(404);
     expect(findTableData).toHaveBeenCalledWith([108], ['E92000001']);
   });
+  it('mounts the v0 public surface', async () => {
+    const listTags = vi.fn().mockResolvedValue([]);
+    const dataVersion = vi.fn().mockResolvedValue('v1');
+    const response = await request(
+      createTestApp(createFakeRepositories({ reference: { listTags, dataVersion } })),
+    ).get('/v0/tags');
+
+    expect(response.status).toBe(200);
+    expect(listTags).toHaveBeenCalled();
+  });
+
   it('keeps the public surface open', async () => {
     const response = await request(app).get('/api');
 

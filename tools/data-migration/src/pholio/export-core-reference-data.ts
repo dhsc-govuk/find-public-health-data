@@ -1,16 +1,18 @@
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { parseReferenceData } from '@fphd/db-operations';
+import { parseReferenceData, readReferenceData, referenceDataSchema } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 
 import { readGzipCsv } from '../csv.ts';
-import { rekeyTable } from '../prepare-baseline.ts';
+import { deterministicUuid, rekeyTable } from '../prepare-baseline.ts';
 import { writePreparedDirectory } from '../prepared-directory.ts';
 import { tidyReferenceTables } from '../reference-names.ts';
+import { readCodeHistory } from './code-history.ts';
 import { exportDimensions } from './dimensions.ts';
 import { exportGeography } from './geography.ts';
 import { exportNoteTypes } from './lookups.ts';
+import { publicDimensions } from './public-dimensions.ts';
 import { connectToPholio, queryPholio } from './source.ts';
 
 const lookupTables = {
@@ -19,6 +21,13 @@ const lookupTables = {
   dimensionValues: 'dimension_value',
   noteTypes: 'note_type',
 } as const;
+// The public API's names for dimensions, derived from the lookups above.
+const publicNameFiles = {
+  dimensionTypesPublic: 'dimension-types-public.json',
+  dimensionValuesPublic: 'dimension-values-public.json',
+  deprivationSchemes: 'deprivation-schemes.json',
+  noteTypesPublic: 'note-types-public.json',
+} as const;
 const integerColumns = new Set(['level', 'display_order', 'sort_order']);
 const booleanColumns = new Set(['is_required', 'is_aggregate']);
 
@@ -26,6 +35,8 @@ interface CoreReferenceOptions {
   connectionString: string;
   expectedDatabase: string;
   backupSha256: string;
+  /** The ONS Code History Database's `ChangeHistory.csv`, for each area's validity. */
+  codeHistoryCsv: string;
   outDir: string;
 }
 
@@ -59,12 +70,16 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
   if (!/^[a-f0-9]{64}$/.test(options.backupSha256))
     throw new Error('Expected a lowercase SHA-256 digest for --backup-sha256');
 
+  const codeHistory = await readCodeHistory(options.codeHistoryCsv);
+
   await writePreparedDirectory(options.outDir, async (staged) => {
     const raw = join(staged, 'source');
     await mkdir(raw);
     const pool = await connectToPholio(options.connectionString);
     const source = { name: options.expectedDatabase, access: 'READ_ONLY' };
     const rowCounts = new Map<string, number>();
+    const ageYears = new Map<string, { min: number; max: number }>();
+    const noteIds: number[] = [];
     try {
       const [identity] = await queryPholio<{ name: string; access: string }>(
         pool,
@@ -76,9 +91,21 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
         );
 
       const context = { pool, outDir: raw };
-      const geography = await exportGeography(context);
+      const geography = await exportGeography(context, codeHistory.validity);
       const dimensions = await exportDimensions(context);
       const notes = await exportNoteTypes(context);
+      const ages = await queryPholio<{ AgeID: number; MinYears: number; MaxYears: number }>(
+        pool,
+        'SELECT AgeID, MinYears, MaxYears FROM L_Ages WHERE MinYears IS NOT NULL AND MaxYears IS NOT NULL',
+      );
+      const valueNotes = await queryPholio<{ ValueNoteID: number }>(
+        pool,
+        'SELECT ValueNoteID FROM L_ValueNotes WHERE ValueNoteID > 0',
+      );
+      noteIds.push(...valueNotes.map(({ ValueNoteID }) => ValueNoteID));
+      for (const age of ages) {
+        ageYears.set(String(age.AgeID), { min: age.MinYears, max: age.MaxYears });
+      }
       for (const [table, file] of Object.entries({
         ...geography.tables,
         ...dimensions.tables,
@@ -99,9 +126,37 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       if (rows.length !== file.rows) throw new Error(`Missing lookup rows for ${table}`);
       lookupRows[key] = rows;
     }
-    const lookups = parseReferenceData(lookupRows);
+    const noteTypeIds = new Set(
+      referenceDataSchema.shape.noteTypes.parse(lookupRows.noteTypes).map(({ id }) => id),
+    );
+    const names = publicDimensions(
+      referenceDataSchema.shape.dimensionTypes.parse(lookupRows.dimensionTypes),
+      referenceDataSchema.shape.dimensionValues.parse(lookupRows.dimensionValues),
+      ageYears,
+    );
+    const lookups = parseReferenceData({
+      ...lookupRows,
+      dimensionTypesPublic: names.types,
+      dimensionValuesPublic: names.values,
+      deprivationSchemes: names.deprivationSchemes,
+      // Hand-written, so not exported, but checked against the area types just exported.
+      areaLevels: readReferenceData().areaLevels,
+      // The rekeyed id is a function of the source id, so each exported note finds its code.
+      noteTypesPublic: noteIds
+        .map((noteId) => ({
+          id: deterministicUuid('note_type', String(noteId)),
+          code: `n${noteId}`,
+        }))
+        .filter(({ id }) => noteTypeIds.has(id)),
+    });
     for (const key of Object.keys(lookupTables) as (keyof typeof lookupTables)[]) {
       const file = `${lookupTables[key].replace('_', '-')}s.json`;
+      await writeFile(join(staged, file), `${JSON.stringify(lookups[key], null, 2)}\n`);
+    }
+    for (const [key, file] of Object.entries(publicNameFiles) as [
+      keyof typeof publicNameFiles,
+      string,
+    ][]) {
       await writeFile(join(staged, file), `${JSON.stringify(lookups[key], null, 2)}\n`);
     }
 
@@ -114,7 +169,11 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       await rename(path, join(geographyDir, file.file));
       files[table] = file;
     }
-    const manifest = { source: { ...source, backupSha256: options.backupSha256 }, files };
+    const manifest = {
+      source: { ...source, backupSha256: options.backupSha256 },
+      codeHistory: { sha256: codeHistory.sha256 },
+      files,
+    };
     await writeFile(join(geographyDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     await rm(raw, { recursive: true });
   });

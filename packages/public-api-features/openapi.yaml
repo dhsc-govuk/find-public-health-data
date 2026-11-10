@@ -1,0 +1,1854 @@
+openapi: 3.1.0
+
+info:
+  title: Find Public Health Data API
+  version: 0.1.0
+  summary: Public health indicator data for England, from the Department of Health and Social Care.
+  description: |
+    Read-only access to the public health indicators published on Find Public Health Data. The
+    service's own pages use the same API, and each page shows the call behind it.
+
+    This is version 0. It can change without notice until private beta ends. Version 1 will be the
+    first stable version.
+
+    ## Formats
+
+    Routes that return a table send CSV by default, so a link pasted into a browser, Excel or Power
+    BI returns CSV. Send `Accept: application/json` for JSON. The `Accept` header is the only way to
+    choose a format, and every response sends `Vary: Accept`.
+
+    In JSON, a table is an object with a `data` array, one item per row. CSV columns are the JSON
+    field paths joined with dots: `area.code` in CSV is `area.code` in JSON. An empty CSV cell is
+    `null` in JSON.
+
+    Resources that aren't tables, such as one indicator's metadata, are JSON only.
+
+    CSV follows the government tabular data standard: RFC 4180, UTF-8 without a byte-order mark, and
+    one header row.
+
+    ## Identifiers
+
+    Identifiers are readable. There are no database ids.
+
+    - **Indicators** have a short id (`90366`) and a slug (`life-expectancy-at-birth`). A path takes
+      either. A list in a query string takes short ids only, to keep URLs short.
+    - **Areas** use their GSS or NHS code (`E06000047`).
+    - **Everything else**, such as area types, tags, dimensions and their values, uses a slug of
+      lower-case letters, digits and hyphens. Slugs never need percent-encoding.
+
+    ## Lists in query strings
+
+    A parameter that takes several values separates them with commas: `area=E06000047,E06000005`.
+
+    ## "Not broken down"
+
+    An empty dimension value means the row isn't broken down by that dimension. For `sex`, an empty
+    value is persons. A filter asks for it the same way: `sex=` returns only rows not broken down by
+    sex, and `sex=m,` returns males and the rows not broken down.
+
+    ## Area types and boundaries
+
+    An area type names a level of geography, such as `counties-and-unitary-authorities`, without a
+    boundary vintage. Selecting an area type returns, for each indicator, the most recent boundaries
+    it has data for. Each area carries the dates its boundaries took effect and ended.
+
+    ## Ambiguous requests
+
+    The API rejects a request it would otherwise have to guess at, with `400`. That includes unknown
+    parameters, so a misspelt parameter doesn't silently return everything.
+
+    ## Caching
+
+    Every response sends `Cache-Control` and `ETag`. Send `If-None-Match` with the `ETag` you have,
+    and the API returns `304 Not Modified` if nothing has changed. Data changes only when an
+    indicator is published.
+
+    ## Browsers
+
+    Any website can call the API. Responses allow cross-origin requests from any origin.
+
+    ## Errors
+
+    Errors are problem details (RFC 9457), with `error` as a machine-readable code.
+
+    ## Limits
+
+    The query string can be up to 4,096 bytes. There is no pagination: every response holds the
+    whole result. Requests may be rate limited, and a `429` response says when to try again.
+  contact:
+    name: Find Public Health Data team
+    email: ProfileFeedback@dhsc.gov.uk
+  license:
+    name: Open Government Licence v3.0
+    url: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+
+# No credentials. The empty requirement leaves room for optional credentials later.
+security:
+  - {}
+
+servers:
+  - url: /
+    description: |
+      The host that serves this document. The API serves its own spec, so documentation and tools
+      use whichever environment they read it from.
+
+tags:
+  - name: data
+    description: Indicator values.
+  - name: indicators
+    description: The indicator catalogue and each indicator's metadata.
+  - name: tags
+    description: Topics, subtopics and other tags that group indicators.
+  - name: areas
+    description: Area types and areas.
+  - name: dimensions
+    description: The dimensions that data is broken down by, their schemes and their values.
+
+paths:
+  /v0/data:
+    get:
+      operationId: getData
+      tags: [data]
+      summary: Get indicator values
+      description: |
+        Returns indicator values, one row per observation. Every parameter is optional, and with
+        none the response holds every published value.
+
+        Every response has the same columns, whatever the request. A column that doesn't apply to a
+        row is empty.
+
+        ## Areas
+
+        - `area` selects areas by code.
+        - `areaType` selects every area of a type, at the most recent boundaries each indicator has
+          data for. With `parent`, it selects only those within that area:
+          `areaType=districts-and-unitary-authorities&parent=E12000001` is every district and
+          unitary authority in the North East.
+        - `boundaries` selects areas as they stood on a date instead.
+        - `area` and `areaType` can't be combined.
+        - `include` adds areas related to the ones selected.
+        - With no area parameters, the response covers every area.
+
+        ## Periods
+
+        A period is in range if it ends within it. `from=2020&to=2022` includes the 2020-22 pooled
+        period and financial year 2021/22, but not financial year 2022/23, which ends in 2023.
+
+        `latest=5` returns the five most recent periods of each indicator, for each area type. It
+        can be combined with `to`, but not with `from`.
+
+        ## Dimensions
+
+        A dimension parameter keeps only the rows whose value is in the list. An empty item in the
+        list keeps the rows not broken down by that dimension. Leaving a parameter out keeps every
+        row.
+
+        `ageFrom` and `ageUnder` keep the age bands that lie wholly within the range. Unlike
+        periods, a band that reaches outside the range is left out.
+
+        ## Metadata
+
+        The `Link` header has two `describedby` links. The first is a CSV on the Web (CSVW) metadata
+        document describing the columns. The second is the catalogue, filtered to the indicators in
+        the response, which holds their metadata and the text of each note code.
+      parameters:
+        - $ref: "#/components/parameters/indicatorList"
+        - $ref: "#/components/parameters/area"
+        - $ref: "#/components/parameters/areaType"
+        - $ref: "#/components/parameters/parent"
+        - $ref: "#/components/parameters/boundaries"
+        - $ref: "#/components/parameters/include"
+        - $ref: "#/components/parameters/from"
+        - $ref: "#/components/parameters/to"
+        - $ref: "#/components/parameters/latest"
+        - $ref: "#/components/parameters/benchmark"
+        - $ref: "#/components/parameters/sex"
+        - $ref: "#/components/parameters/age"
+        - $ref: "#/components/parameters/ageFrom"
+        - $ref: "#/components/parameters/ageUnder"
+        - $ref: "#/components/parameters/deprivation"
+        - $ref: "#/components/parameters/deprivationGroups"
+        - $ref: "#/components/parameters/deprivationScheme"
+        - $ref: "#/components/parameters/ethnicity"
+        - $ref: "#/components/parameters/ethnicityScheme"
+        - $ref: "#/components/parameters/socioeconomicGroup"
+        - $ref: "#/components/parameters/socioeconomicGroupScheme"
+        - $ref: "#/components/parameters/religion"
+        - $ref: "#/components/parameters/religionScheme"
+        - $ref: "#/components/parameters/sexuality"
+        - $ref: "#/components/parameters/sexualityScheme"
+        - $ref: "#/components/parameters/category1Type"
+        - $ref: "#/components/parameters/category1"
+        - $ref: "#/components/parameters/accept"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The matching rows.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Vary:
+              $ref: "#/components/headers/Vary"
+            Link:
+              $ref: "#/components/headers/LinkDescribedBy"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: |
+                  One header row, then one row per observation. The columns are `DataRow`'s
+                  properties in order, with nested objects joined by dots.
+              example: |
+                indicator.shortId,indicator.slug,indicator.name,area.code,area.name,area.type,area.validFrom,area.validTo,fromDate,toDate,sex,age,ageFrom,ageUnder,deprivation,deprivationGroups,deprivationScheme,ethnicity,ethnicityScheme,socioeconomicGroup,socioeconomicGroupScheme,religion,religionScheme,sexuality,sexualityScheme,category1Type,category1,value,lowerCi95,upperCi95,lowerCi998,upperCi998,count,denominator,note,benchmark.code,comparedToBenchmark
+                90366,life-expectancy-at-birth,Life expectancy at birth,E06000047,County Durham,counties-and-unitary-authorities,2009-04-01,,2021-01-01,2023-12-31,f,,,,,,,,,,,,,,,,,81.2,80.9,81.5,80.7,81.7,,,,E92000001,worse
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DataRow"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "414":
+          $ref: "#/components/responses/UriTooLong"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/data/metadata:
+    get:
+      operationId: getDataMetadata
+      tags: [data]
+      summary: Describe a data response's columns
+      description: |
+        Returns a CSV on the Web (CSVW) metadata document for the `/v0/data` response with the same
+        query string. `/v0/data` links here first in its `Link` header, so that CSVW tools find it.
+
+        The document describes each column and the licence. It doesn't repeat the indicators'
+        metadata. It points at the catalogue for that, with `rdfs:seeAlso`.
+      parameters:
+        - $ref: "#/components/parameters/indicatorList"
+        - $ref: "#/components/parameters/area"
+        - $ref: "#/components/parameters/areaType"
+        - $ref: "#/components/parameters/parent"
+        - $ref: "#/components/parameters/boundaries"
+        - $ref: "#/components/parameters/include"
+        - $ref: "#/components/parameters/from"
+        - $ref: "#/components/parameters/to"
+        - $ref: "#/components/parameters/latest"
+        - $ref: "#/components/parameters/benchmark"
+        - $ref: "#/components/parameters/sex"
+        - $ref: "#/components/parameters/age"
+        - $ref: "#/components/parameters/ageFrom"
+        - $ref: "#/components/parameters/ageUnder"
+        - $ref: "#/components/parameters/deprivation"
+        - $ref: "#/components/parameters/deprivationGroups"
+        - $ref: "#/components/parameters/deprivationScheme"
+        - $ref: "#/components/parameters/ethnicity"
+        - $ref: "#/components/parameters/ethnicityScheme"
+        - $ref: "#/components/parameters/socioeconomicGroup"
+        - $ref: "#/components/parameters/socioeconomicGroupScheme"
+        - $ref: "#/components/parameters/religion"
+        - $ref: "#/components/parameters/religionScheme"
+        - $ref: "#/components/parameters/sexuality"
+        - $ref: "#/components/parameters/sexualityScheme"
+        - $ref: "#/components/parameters/category1Type"
+        - $ref: "#/components/parameters/category1"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The CSVW metadata document.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            application/csvm+json:
+              schema:
+                $ref: "#/components/schemas/CsvwMetadata"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "414":
+          $ref: "#/components/responses/UriTooLong"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/indicators:
+    get:
+      operationId: listIndicators
+      tags: [indicators]
+      summary: List indicators
+      description: |
+        Returns the indicator catalogue, one row per published indicator.
+
+        In JSON, each item is the indicator's full metadata, including the text of its note codes.
+        In CSV, each row is a summary.
+      parameters:
+        - $ref: "#/components/parameters/shortIdList"
+        - name: tag
+          in: query
+          description: |
+            Only indicators with every tag listed. Tag slugs are unique across tag types.
+          schema:
+            type: string
+          example: smoking,children-and-young-people
+        - name: areaType
+          in: query
+          description: Only indicators with data for this area type.
+          schema:
+            $ref: "#/components/schemas/Slug"
+          example: counties-and-unitary-authorities
+        - $ref: "#/components/parameters/accept"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The matching indicators.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Vary:
+              $ref: "#/components/headers/Vary"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: One row per indicator. The columns are `IndicatorSummary`'s properties.
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IndicatorDetail"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "414":
+          $ref: "#/components/responses/UriTooLong"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/indicators/{indicator}:
+    get:
+      operationId: getIndicator
+      tags: [indicators]
+      summary: Get an indicator's metadata
+      description: |
+        Returns one indicator's metadata: its definition and methods, its tags, and what data it
+        has. The availability lists its area types, periods, dimensions, schemes and values, worked
+        out from its data.
+      parameters:
+        - name: indicator
+          in: path
+          required: true
+          description: The indicator's short id or slug.
+          schema:
+            type: string
+          examples:
+            shortId:
+              value: "90366"
+            slug:
+              value: life-expectancy-at-birth
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The indicator's metadata.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndicatorDetail"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/tags:
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: List tags
+      description: |
+        Returns every tag. Topics and subtopics are tags, as are indicator types, populations,
+        inequalities, frameworks and life stages. Find a tag's indicators with
+        `/v0/indicators?tag={slug}`.
+      parameters:
+        - name: type
+          in: query
+          description: Only tags of these types.
+          schema:
+            type: string
+          example: topic,subtopic
+        - $ref: "#/components/parameters/accept"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The tags.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Vary:
+              $ref: "#/components/headers/Vary"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: One row per tag. The columns are `Tag`'s properties.
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Tag"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/area-types:
+    get:
+      operationId: listAreaTypes
+      tags: [areas]
+      summary: List area types
+      description: |
+        Returns every area type that has published data. An area type is a level of geography,
+        without a boundary vintage.
+      parameters:
+        - $ref: "#/components/parameters/accept"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The area types.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Vary:
+              $ref: "#/components/headers/Vary"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: |
+                  One row per area type. The columns are `AreaType`'s properties, with
+                  `parentTypes` as slugs separated by spaces.
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AreaType"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/areas:
+    get:
+      operationId: listAreas
+      tags: [areas]
+      summary: Find areas
+      description: |
+        Returns areas, one row per area. With no parameters it returns every current area.
+        `areaType` returns the most recent boundaries there are data for. `area` and `areaType`
+        can't be combined.
+      parameters:
+        - $ref: "#/components/parameters/area"
+        - $ref: "#/components/parameters/areaType"
+        - $ref: "#/components/parameters/parent"
+        - $ref: "#/components/parameters/boundaries"
+        - name: name
+          in: query
+          description: |
+            Only areas whose name contains this text, ignoring case.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          example: durham
+        - $ref: "#/components/parameters/accept"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The matching areas.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Vary:
+              $ref: "#/components/headers/Vary"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: One row per area. The columns are `AreaSummary`'s properties.
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AreaSummary"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "414":
+          $ref: "#/components/responses/UriTooLong"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/areas/{code}:
+    get:
+      operationId: getArea
+      tags: [areas]
+      summary: Get an area
+      description: |
+        Returns one area, with every area above it and its statistical neighbours.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: The area's GSS or NHS code.
+          schema:
+            $ref: "#/components/schemas/AreaCode"
+          example: E06000047
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The area.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AreaDetail"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/dimensions:
+    get:
+      operationId: listDimensions
+      tags: [dimensions]
+      summary: List dimensions
+      description: |
+        Returns every dimension that data is broken down by. Standard dimensions have their own
+        columns in `/v0/data`. Custom dimensions appear in `category1Type`, with their values in
+        `category1`.
+      parameters:
+        - $ref: "#/components/parameters/accept"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The dimensions.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Vary:
+              $ref: "#/components/headers/Vary"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: One row per dimension. The columns are `Dimension`'s properties.
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Dimension"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "406":
+          $ref: "#/components/responses/NotAcceptable"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/dimensions/{dimension}:
+    get:
+      operationId: getDimension
+      tags: [dimensions]
+      summary: Get a dimension's schemes and values
+      description: |
+        Returns one dimension, with its schemes and their values. A dimension with no schemes,
+        such as `sex` or `age`, or a custom dimension, lists its values directly.
+      parameters:
+        - $ref: "#/components/parameters/dimension"
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The dimension.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DimensionDetail"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /v0/dimensions/{dimension}/schemes/{scheme}:
+    get:
+      operationId: getScheme
+      tags: [dimensions]
+      summary: Get a scheme
+      description: |
+        Returns one scheme and its values, so that a `deprivationScheme` or `ethnicityScheme` value
+        from `/v0/data` can be looked up directly.
+      parameters:
+        - $ref: "#/components/parameters/dimension"
+        - name: scheme
+          in: path
+          required: true
+          description: The scheme's slug.
+          schema:
+            $ref: "#/components/schemas/Slug"
+          example: imd2019-lsoa21-england
+        - $ref: "#/components/parameters/ifNoneMatch"
+      responses:
+        "200":
+          description: The scheme.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            Access-Control-Allow-Origin:
+              $ref: "#/components/headers/AccessControlAllowOrigin"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scheme"
+        "304":
+          $ref: "#/components/responses/NotModified"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+components:
+  parameters:
+    accept:
+      name: Accept
+      in: header
+      description: |
+        `text/csv` (the default) or `application/json`.
+      schema:
+        type: string
+        default: text/csv
+      example: application/json
+
+    ifNoneMatch:
+      name: If-None-Match
+      in: header
+      description: The `ETag` of a copy you already have. If it is current, the API returns `304`.
+      schema:
+        type: string
+
+    shortIdList:
+      name: shortId
+      in: query
+      description: |
+        Only these indicators, by short id. The name matches the `shortId` field, so a value read
+        from a response can be used here.
+      schema:
+        type: string
+        pattern: '^\d+(,\d+)*$'
+      example: 90366,93553
+
+    indicatorList:
+      name: indicator
+      in: query
+      description: |
+        Indicator short ids. Leave out for every indicator.
+      schema:
+        type: string
+        pattern: '^\d+(,\d+)*$'
+      example: 90366,93553
+
+    area:
+      name: area
+      in: query
+      description: Area codes. Can't be combined with `areaType`.
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9._~-]+(,[A-Za-z0-9._~-]+)*$"
+      example: E06000047,E06000005
+
+    areaType:
+      name: areaType
+      in: query
+      description: |
+        Every area of this type, at the most recent boundaries each indicator has data for, even if
+        they are out of date. Can't be combined with `area`.
+      schema:
+        $ref: "#/components/schemas/Slug"
+      example: counties-and-unitary-authorities
+
+    parent:
+      name: parent
+      in: query
+      description: |
+        Only areas within this area. Use it with `areaType`.
+      schema:
+        $ref: "#/components/schemas/AreaCode"
+      example: E12000001
+
+    boundaries:
+      name: boundaries
+      in: query
+      description: |
+        Areas as they stood on this date, rather than at the most recent boundaries. Use it with
+        `areaType`. A year or month means its first day: `2021` is 1 January 2021.
+      schema:
+        $ref: "#/components/schemas/PartialDate"
+      example: "2021"
+
+    include:
+      name: include
+      in: query
+      description: |
+        Adds areas related to the ones selected with `area`. Can't be used with `areaType`, which
+        already selects every area of the level:
+
+        - `parents`: each area's parents, of the types its area type lists in `parentTypes`.
+        - `siblings`: the other areas of the same type that share a parent of the type's default
+          parent type, the first in its `parentTypes`.
+        - `statistical-neighbours`: each area's statistical neighbours. Each area type has one
+          neighbour model.
+      schema:
+        type: string
+        pattern: "^(parents|siblings|statistical-neighbours)(,(parents|siblings|statistical-neighbours))*$"
+      example: parents,statistical-neighbours
+
+    from:
+      name: from
+      in: query
+      description: |
+        The start of the range, as an ISO 8601 date at any precision. `2020` means 1 January 2020.
+        Periods that end before it are left out. Can't be used with `latest`.
+      schema:
+        $ref: "#/components/schemas/PartialDate"
+      example: "2020"
+
+    to:
+      name: to
+      in: query
+      description: |
+        The end of the range, as an ISO 8601 date at any precision. `2022` means 31 December 2022.
+        Periods that end after it are left out. Defaults to the latest.
+      schema:
+        $ref: "#/components/schemas/PartialDate"
+      example: 2022-03
+
+    latest:
+      name: latest
+      in: query
+      description: |
+        Only the N most recent periods of each indicator, for each area type. `latest=1` is the
+        latest period. Can be combined with `to`, but not with `from`.
+      schema:
+        type: integer
+        minimum: 1
+      example: 5
+
+    benchmark:
+      name: benchmark
+      in: query
+      description: |
+        What `comparedToBenchmark` compares each area with:
+
+        - `england`, the default.
+        - An area type in the area's `parentTypes`, such as `regions`, for each area's parent of
+          that type. Rows for an area with no parent of that type have an empty `benchmark.code`.
+      schema:
+        $ref: "#/components/schemas/Slug"
+        default: england
+      example: regions
+
+    sex:
+      name: sex
+      in: query
+      description: |
+        Only these sexes. An empty item keeps rows not broken down by sex: `sex=` is persons only,
+        and `sex=m,` is males and persons.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: m,f
+
+    age:
+      name: age
+      in: query
+      description: |
+        Only these age bands, by `age` slug. An empty item keeps rows not broken down by age.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: 0-4,5-9
+
+    ageFrom:
+      name: ageFrom
+      in: query
+      description: |
+        Only age bands that lie wholly within a range starting at this age, inclusive. Rows not
+        broken down by age are left out.
+      schema:
+        $ref: "#/components/schemas/Duration"
+      example: P50Y
+
+    ageUnder:
+      name: ageUnder
+      in: query
+      description: |
+        Only age bands that lie wholly within a range ending below this age. With
+        `ageFrom=P50Y&ageUnder=P70Y`, the response has 50-54 up to 65-69, but not 45-54 or 70+.
+        Rows not broken down by age are left out.
+      schema:
+        $ref: "#/components/schemas/Duration"
+      example: P70Y
+
+    deprivation:
+      name: deprivation
+      in: query
+      description: |
+        Only these deprivation groups, where 1 is the most deprived. An empty item keeps rows not
+        broken down by deprivation.
+      schema:
+        type: string
+        pattern: '^(\d{1,2})?(,(\d{1,2})?)*$'
+      example: 1,10
+
+    deprivationGroups:
+      name: deprivationGroups
+      in: query
+      description: Only deciles (`10`) or quintiles (`5`).
+      schema:
+        type: integer
+        enum: [5, 10]
+      example: 10
+
+    deprivationScheme:
+      name: deprivationScheme
+      in: query
+      description: Only these deprivation schemes.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: imd2019-lsoa21-england
+
+    ethnicity:
+      name: ethnicity
+      in: query
+      description: |
+        Only these ethnic groups. An empty item keeps rows not broken down by ethnicity. Values are
+        unique within a scheme, not across schemes, so use this with `ethnicityScheme`.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: white-british,indian
+
+    ethnicityScheme:
+      name: ethnicityScheme
+      in: query
+      description: Only these ethnicity schemes.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: census-2021-19
+
+    socioeconomicGroup:
+      name: socioeconomicGroup
+      in: query
+      description: |
+        Only these socioeconomic groups. An empty item keeps rows not broken down by socioeconomic
+        group.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: routine-manual
+
+    socioeconomicGroupScheme:
+      name: socioeconomicGroupScheme
+      in: query
+      description: Only these socioeconomic group schemes.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+
+    religion:
+      name: religion
+      in: query
+      description: Only these religions. An empty item keeps rows not broken down by religion.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: none,muslim
+
+    religionScheme:
+      name: religionScheme
+      in: query
+      description: Only these religion schemes.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+
+    sexuality:
+      name: sexuality
+      in: query
+      description: Only these sexualities. An empty item keeps rows not broken down by sexuality.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: bisexual
+
+    sexualityScheme:
+      name: sexualityScheme
+      in: query
+      description: Only these sexuality schemes.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+
+    category1Type:
+      name: category1Type
+      in: query
+      description: |
+        Only these custom dimensions. An empty item keeps rows with no custom dimension.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: housing-tenure
+
+    category1:
+      name: category1
+      in: query
+      description: |
+        Only these custom dimension values. Values are unique within a custom dimension, so use this
+        with `category1Type`.
+      schema:
+        $ref: "#/components/schemas/DimensionFilter"
+      example: owner-occupied
+
+    dimension:
+      name: dimension
+      in: path
+      required: true
+      description: |
+        The dimension's slug: a standard dimension such as `deprivation`, or a custom one such as
+        `housing-tenure`.
+      schema:
+        $ref: "#/components/schemas/Slug"
+      example: deprivation
+
+  headers:
+    CacheControl:
+      description: How long the response can be cached for.
+      schema:
+        type: string
+      example: public, max-age=3600
+
+    ETag:
+      description: The version of the response. Send it back in `If-None-Match`.
+      schema:
+        type: string
+      example: '"5f1c2a"'
+
+    Vary:
+      description: Always `Accept`, because the format depends on it.
+      schema:
+        type: string
+        const: Accept
+
+    AccessControlAllowOrigin:
+      description: Always `*`. Any website can call the API.
+      schema:
+        type: string
+        const: "*"
+
+    LinkDescribedBy:
+      description: |
+        Two `describedby` links. The first is the CSVW metadata document for this response. The
+        second is the catalogue, filtered to the indicators in the response.
+      schema:
+        type: string
+      example: >-
+        </v0/data/metadata?indicator=90366&areaType=regions>; rel="describedby";
+        type="application/csvm+json", </v0/indicators?shortId=90366>; rel="describedby";
+        type="application/json"
+
+    RetryAfter:
+      description: How many seconds to wait before trying again.
+      schema:
+        type: integer
+      example: 30
+
+  responses:
+    NotModified:
+      description: The copy named in `If-None-Match` is current.
+      headers:
+        Cache-Control:
+          $ref: "#/components/headers/CacheControl"
+        ETag:
+          $ref: "#/components/headers/ETag"
+
+    BadRequest:
+      description: |
+        A parameter is invalid or unknown, or the request combines parameters that can't be used
+        together.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            combination:
+              value:
+                type: about:blank
+                title: Bad Request
+                status: 400
+                error: invalid_parameter
+                detail: "`area` and `areaType` cannot be used together."
+                invalidParams:
+                  - name: areaType
+                    reason: cannot be used with area
+            unknown:
+              value:
+                type: about:blank
+                title: Bad Request
+                status: 400
+                error: unknown_parameter
+                detail: The API has no parameter called `areatype`.
+                invalidParams:
+                  - name: areatype
+                    reason: unknown parameter
+
+    NotFound:
+      description: Nothing has that identifier.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            error: not_found
+            detail: No indicator has the identifier 'life-expectancy-at-brith'.
+
+    NotAcceptable:
+      description: The `Accept` header asks for a format this route can't return.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Not Acceptable
+            status: 406
+            error: not_acceptable
+            detail: This route returns text/csv or application/json.
+
+    UriTooLong:
+      description: |
+        The query string is longer than 4,096 bytes. Split the request, or select areas by
+        `areaType` and `parent` rather than listing them.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    TooManyRequests:
+      description: Too many requests. Wait for the number of seconds in `Retry-After`.
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    Slug:
+      type: string
+      description: Lower-case letters, digits and hyphens.
+      pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+      maxLength: 100
+
+    AreaCode:
+      type: string
+      description: |
+        A GSS code, such as `E06000047`, or an NHS code, such as `A81001`. Some areas that aren't
+        geographies, such as laboratories, have other codes, such as `LAB_429`. Codes use only
+        characters that never need percent-encoding.
+      pattern: "^[A-Za-z0-9._~-]+$"
+      maxLength: 100
+
+    PartialDate:
+      type: string
+      description: An ISO 8601 date as a year, a year and month, or a full date.
+      pattern: '^\d{4}(-\d{2}(-\d{2})?)?$'
+
+    Duration:
+      type: string
+      description: |
+        An ISO 8601 duration in one unit: years, months, weeks or days. Age ranges follow HL7's
+        Time Period Ranges: the lower bound is inclusive and the upper bound exclusive.
+      pattern: '^P\d+[YMWD]$'
+      examples: [P0Y, P5Y, P28D, P6W]
+
+    DimensionFilter:
+      type: string
+      description: |
+        Slugs separated by commas. An empty item asks for rows not broken down by the dimension.
+      pattern: "^([a-z0-9]+(-[a-z0-9]+)*)?(,([a-z0-9]+(-[a-z0-9]+)*)?)*$"
+
+    IndicatorRef:
+      type: object
+      required: [shortId, slug, name]
+      properties:
+        shortId:
+          type: integer
+          example: 90366
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+          description: Included so that a table is ready to chart without looking names up.
+          example: Life expectancy at birth
+
+    AreaRef:
+      type: object
+      required: [code, name, type, validFrom, validTo]
+      properties:
+        code:
+          $ref: "#/components/schemas/AreaCode"
+        name:
+          type: string
+          description: Included so that a table is ready to chart without looking names up.
+          example: County Durham
+        type:
+          allOf:
+            - $ref: "#/components/schemas/Slug"
+          description: The area type's slug.
+          example: counties-and-unitary-authorities
+        validFrom:
+          type: [string, "null"]
+          format: date
+          description: When the area's boundaries took effect. Empty if not known.
+          example: "2009-04-01"
+        validTo:
+          type: [string, "null"]
+          format: date
+          description: When the area's boundaries ended. Empty if they are current.
+
+    DataRow:
+      type: object
+      description: |
+        One observation. In CSV, the columns are these properties in this order, with nested objects
+        joined by dots. Every row has every property. An empty CSV cell is `null` in JSON.
+      required:
+        - indicator
+        - area
+        - fromDate
+        - toDate
+        - sex
+        - age
+        - ageFrom
+        - ageUnder
+        - deprivation
+        - deprivationGroups
+        - deprivationScheme
+        - ethnicity
+        - ethnicityScheme
+        - socioeconomicGroup
+        - socioeconomicGroupScheme
+        - religion
+        - religionScheme
+        - sexuality
+        - sexualityScheme
+        - category1Type
+        - category1
+        - value
+        - lowerCi95
+        - upperCi95
+        - lowerCi998
+        - upperCi998
+        - count
+        - denominator
+        - note
+        - benchmark
+        - comparedToBenchmark
+      properties:
+        indicator:
+          $ref: "#/components/schemas/IndicatorRef"
+        area:
+          $ref: "#/components/schemas/AreaRef"
+        fromDate:
+          type: string
+          format: date
+          description: The first day of the period.
+          example: "2021-01-01"
+        toDate:
+          type: string
+          format: date
+          description: The last day of the period, inclusive.
+          example: "2023-12-31"
+        sex:
+          type: [string, "null"]
+          enum: [m, f, null]
+          description: "`m` or `f`. Empty for persons."
+        age:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+          description: The age band's slug. Empty if not broken down by age.
+          example: 0-4
+        ageFrom:
+          oneOf:
+            - $ref: "#/components/schemas/Duration"
+            - type: "null"
+          description: The youngest age in the band, inclusive.
+          example: P0Y
+        ageUnder:
+          oneOf:
+            - $ref: "#/components/schemas/Duration"
+            - type: "null"
+          description: |
+            The age everyone in the band is under, exclusive: `P5Y` for 0-4 yrs. Empty if the band
+            has no upper limit.
+          example: P5Y
+        deprivation:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 10
+          description: The deprivation group, from 1 (most deprived) to `deprivationGroups`.
+        deprivationGroups:
+          type: [integer, "null"]
+          enum: [5, 10, null]
+          description: "`10` for deciles and `5` for quintiles."
+        deprivationScheme:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+          description:
+            How areas were ranked. Look it up at `/v0/dimensions/deprivation/schemes/{scheme}`.
+          example: imd2019-lsoa21-england
+        ethnicity:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        ethnicityScheme:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+          example: census-2021-19
+        socioeconomicGroup:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        socioeconomicGroupScheme:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        religion:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        religionScheme:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        sexuality:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        sexualityScheme:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+        category1Type:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+          description: The custom dimension's slug, such as `housing-tenure`.
+        category1:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+          description: The custom dimension's value, such as `owner-occupied`.
+        value:
+          type: [number, "null"]
+          example: 81.2
+        lowerCi95:
+          type: [number, "null"]
+          description: The lower 95% confidence limit.
+        upperCi95:
+          type: [number, "null"]
+          description: The upper 95% confidence limit.
+        lowerCi998:
+          type: [number, "null"]
+          description: The lower 99.8% confidence limit.
+        upperCi998:
+          type: [number, "null"]
+          description: The upper 99.8% confidence limit.
+        count:
+          type: [number, "null"]
+          description: The number of events, such as deaths, where the indicator has one.
+        numerator:
+          type: [number, "null"]
+          description: The number the value is calculated from, over the denominator.
+        denominator:
+          type: [number, "null"]
+          description: The population the value is calculated from, where the indicator has one.
+        note:
+          type: [string, "null"]
+          description: |
+            The code of the note on this value, if it has one. The indicator's metadata holds the
+            note's text.
+          example: n3
+        benchmark:
+          type: object
+          required: [code]
+          properties:
+            code:
+              oneOf:
+                - $ref: "#/components/schemas/AreaCode"
+                - type: "null"
+              description: The area this row is compared with.
+              example: E92000001
+        comparedToBenchmark:
+          type: [string, "null"]
+          enum: [better, similar, worse, lower, higher, not-compared, null]
+          description: |
+            How the value compares with the benchmark's value for the same indicator, period and
+            breakdown, using the indicator's comparison method:
+
+            - `better`, `similar` or `worse` where higher or lower is better.
+            - `lower`, `similar` or `higher` where the polarity is `no-polarity`.
+            - `not-compared` where no comparison is possible, the method makes none, or a value is
+              missing.
+
+            Empty for the benchmark's own row.
+
+    CsvwMetadata:
+      type: object
+      description: |
+        A CSV on the Web metadata document (W3C, 2015). It describes the columns and the licence,
+        and points at the catalogue for the indicators' metadata.
+      required: ["@context", url, tableSchema]
+      properties:
+        "@context":
+          const: http://www.w3.org/ns/csvw
+        url:
+          type: string
+          description: The data response this document describes.
+          example: /v0/data?indicator=90366&areaType=regions
+        "dc:title":
+          type: string
+          example: Find Public Health Data
+        "dc:license":
+          type: string
+          example: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+        "rdfs:seeAlso":
+          type: string
+          description: The catalogue, filtered to the indicators in the response.
+          example: /v0/indicators?shortId=90366
+        tableSchema:
+          type: object
+          required: [columns]
+          properties:
+            columns:
+              type: array
+              items:
+                type: object
+                required: [name, titles, datatype]
+                properties:
+                  name:
+                    type: string
+                    example: area.code
+                  titles:
+                    type: string
+                    example: area.code
+                  datatype:
+                    type: string
+                    example: string
+                  "dc:description":
+                    type: string
+
+    IndicatorSummary:
+      type: object
+      description: One indicator in the catalogue.
+      required:
+        - shortId
+        - slug
+        - name
+        - valueType
+        - unit
+        - polarity
+        - updateFrequency
+        - dataUpdatedAt
+      properties:
+        shortId:
+          type: integer
+          example: 90366
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+          example: Life expectancy at birth
+        valueType:
+          type: string
+          example: Life expectancy
+        unit:
+          type: [string, "null"]
+          example: years
+        polarity:
+          type: string
+          enum: [higher-is-better, lower-is-better, no-polarity, no-comparison-possible]
+          description: |
+            Which way the values are better, which decides how `comparedToBenchmark` reads. The
+            values are the service's own.
+        updateFrequency:
+          type: string
+          enum: [monthly, quarterly, annually, every-2-years, no-fixed-frequency, no-longer-updated]
+          description: How often the data is updated. The values are the service's own.
+        dataUpdatedAt:
+          type: [string, "null"]
+          format: date-time
+          description: When the indicator's data was last published.
+          example: "2026-05-06T09:30:00+01:00"
+
+    IndicatorDetail:
+      description: One indicator's metadata.
+      allOf:
+        - $ref: "#/components/schemas/IndicatorSummary"
+        - type: object
+          required:
+            - definition
+            - firstPublishedAt
+            - lastPublishedAt
+            - numeratorSources
+            - denominatorSources
+            - tags
+            - comparatorMethod
+            - areaTypes
+            - periods
+            - dimensions
+            - notes
+          properties:
+            firstPublishedAt:
+              type: string
+              format: date-time
+              description: When the indicator was first published.
+              example: "2025-11-04T09:30:00Z"
+            lastPublishedAt:
+              type: string
+              format: date-time
+              description: When the indicator's metadata or data was last published.
+              example: "2026-05-06T09:30:00+01:00"
+            definition:
+              type: [string, "null"]
+            rationale:
+              type: [string, "null"]
+            methodology:
+              type: [string, "null"]
+            numeratorDefinition:
+              type: [string, "null"]
+            denominatorDefinition:
+              type: [string, "null"]
+            caveats:
+              type: [string, "null"]
+            disclosureControl:
+              type: [string, "null"]
+            dataSource:
+              type: [object, "null"]
+              required: [name, url]
+              properties:
+                name:
+                  type: string
+                url:
+                  type: [string, "null"]
+                  format: uri
+            numeratorSources:
+              type: array
+              description: Who provides the numerator, and the source it comes from.
+              items:
+                $ref: "#/components/schemas/ProviderSource"
+            denominatorSources:
+              type: array
+              description: Who provides the denominator, and the source it comes from.
+              items:
+                $ref: "#/components/schemas/ProviderSource"
+            ciMethod:
+              type: [string, "null"]
+            comparatorMethod:
+              type: [string, "null"]
+              description: How areas are compared with their benchmark.
+              example: Confidence intervals overlapping reference value (95.0)
+            tags:
+              type: array
+              items:
+                $ref: "#/components/schemas/Tag"
+            areaTypes:
+              type: array
+              description: The area types the indicator has data for.
+              items:
+                type: object
+                required: [slug, name, areaCount]
+                properties:
+                  slug:
+                    $ref: "#/components/schemas/Slug"
+                  name:
+                    type: string
+                  areaCount:
+                    type: integer
+            periods:
+              type: object
+              required: [count, earliest, latest]
+              properties:
+                count:
+                  type: integer
+                earliest:
+                  description: Empty if the indicator has no data yet.
+                  oneOf:
+                    - $ref: "#/components/schemas/Period"
+                    - type: "null"
+                latest:
+                  description: Empty if the indicator has no data yet.
+                  oneOf:
+                    - $ref: "#/components/schemas/Period"
+                    - type: "null"
+            dimensions:
+              type: array
+              description: |
+                The dimensions the indicator is broken down by, with the schemes and values its data
+                uses.
+              items:
+                type: object
+                required: [slug, schemes, values]
+                properties:
+                  slug:
+                    $ref: "#/components/schemas/Slug"
+                  schemes:
+                    type: array
+                    description: Empty for a dimension without schemes.
+                    items:
+                      $ref: "#/components/schemas/Slug"
+                  values:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Slug"
+            notes:
+              type: array
+              description: The notes that the indicator's values carry, by code.
+              items:
+                type: object
+                required: [code, text]
+                properties:
+                  code:
+                    type: string
+                    example: n3
+                  text:
+                    type: string
+                    example: Value suppressed because of small numbers.
+
+    ProviderSource:
+      type: object
+      required: [provider, source]
+      properties:
+        provider:
+          type: string
+          example: Office for National Statistics
+        source:
+          type: [string, "null"]
+          example: Annual mid-year population estimates
+
+    Period:
+      type: object
+      required: [fromDate, toDate]
+      properties:
+        fromDate:
+          type: string
+          format: date
+        toDate:
+          type: string
+          format: date
+
+    Tag:
+      type: object
+      required: [slug, name, type, parent]
+      properties:
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+          example: Smoking
+        type:
+          type: string
+          enum: [topic, subtopic, indicator-type, population, inequality, framework, life-stage]
+        parent:
+          oneOf:
+            - $ref: "#/components/schemas/Slug"
+            - type: "null"
+          description: A subtopic's topic. Empty for every other tag.
+
+    AreaType:
+      type: object
+      required: [slug, name, hierarchy, parentTypes]
+      properties:
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+          example: Counties and unitary authorities
+        hierarchy:
+          type: [string, "null"]
+          enum: [administrative, nhs, null]
+          description: |
+            The hierarchy the area type belongs to. Empty for area types in neither, such as trusts.
+        parentTypes:
+          type: array
+          description: |
+            The area types above this one. Each can be a `benchmark`. The first is the default
+            parent type, which `include=siblings` uses.
+          items:
+            $ref: "#/components/schemas/Slug"
+          example: [regions, england]
+
+    AreaSummary:
+      description: One area.
+      allOf:
+        - $ref: "#/components/schemas/AreaRef"
+
+    AreaDetail:
+      allOf:
+        - $ref: "#/components/schemas/AreaRef"
+        - type: object
+          required: [parents, statisticalNeighbours]
+          properties:
+            parents:
+              type: array
+              description: The areas of the types this area's type lists in `parentTypes`, in that order.
+              items:
+                $ref: "#/components/schemas/AreaRef"
+            statisticalNeighbours:
+              type: object
+              required: [model, areas]
+              properties:
+                model:
+                  type: [string, "null"]
+                  description: The neighbour model used for this area type.
+                  example: CIPFA nearest neighbours (2021)
+                areas:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/AreaRef"
+
+    Dimension:
+      type: object
+      required: [slug, name, standard, hasSchemes]
+      properties:
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+          example: Deprivation
+        standard:
+          type: boolean
+          description: |
+            True for a standard dimension, with its own columns in `/v0/data`. False for a custom
+            dimension, which appears in `category1Type`.
+        hasSchemes:
+          type: boolean
+          description: True if rows name a scheme for this dimension.
+
+    DimensionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Dimension"
+        - type: object
+          required: [schemes, values]
+          properties:
+            schemes:
+              type: array
+              description: The dimension's schemes. Empty for a dimension without schemes.
+              items:
+                $ref: "#/components/schemas/Scheme"
+            values:
+              type: array
+              description: The dimension's values. Empty for a dimension with schemes.
+              items:
+                $ref: "#/components/schemas/DimensionValue"
+
+    Scheme:
+      type: object
+      required: [slug, name, values]
+      properties:
+        slug:
+          $ref: "#/components/schemas/Slug"
+        name:
+          type: string
+          example: LSOA21 deprivation deciles in England (IMD2019)
+        structure:
+          description: The scheme's parts, where it has them. Deprivation schemes do.
+          oneOf:
+            - $ref: "#/components/schemas/DeprivationSchemeStructure"
+            - type: "null"
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/DimensionValue"
+
+    DeprivationSchemeStructure:
+      type: object
+      required: [release, ranked, within, boundaries, groups]
+      properties:
+        release:
+          type: string
+          example: IMD2019
+        ranked:
+          type: string
+          description: What was ranked.
+          example: lsoa21
+        within:
+          type: string
+          description: Where it was ranked.
+          enum: [england, area]
+        boundaries:
+          type: [string, "null"]
+          description: The boundary vintage, for council schemes.
+          example: "2023"
+        groups:
+          type: array
+          description: The numbers of groups the scheme's data uses.
+          items:
+            type: integer
+            enum: [5, 10]
+
+    DimensionValue:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+          description: The value as it appears in `/v0/data`.
+          example: 0-4
+        name:
+          type: string
+          example: 0-4 yrs
+        ageFrom:
+          $ref: "#/components/schemas/Duration"
+        ageUnder:
+          oneOf:
+            - $ref: "#/components/schemas/Duration"
+            - type: "null"
+          description: Age bands only. Empty if the band has no upper limit.
+
+    Problem:
+      type: object
+      description: |
+        A problem details object (RFC 9457), with `error` as a machine-readable code.
+      required: [type, title, status, error]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          example: about:blank
+        title:
+          type: string
+          example: Bad Request
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        error:
+          type: string
+          description: |
+            A machine-readable code, such as `not_found`, `invalid_parameter` or
+            `unknown_parameter`.
+          example: invalid_parameter
+        invalidParams:
+          type: array
+          description: The parameters that are invalid, and why.
+          items:
+            type: object
+            required: [name, reason]
+            properties:
+              name:
+                type: string
+              reason:
+                type: string

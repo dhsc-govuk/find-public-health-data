@@ -43,6 +43,17 @@ export const noteType = pgTable(
   ],
 );
 
+/**
+ * A note type's code in the public API, such as `n101`: short, because rows carry it, and the
+ * Fingertips ValueNoteID users know. Reference data the core data import loads.
+ */
+export const noteTypePublic = pgTable('note_type_public', {
+  id: uuid()
+    .primaryKey()
+    .references(() => noteType.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
+  code: text().notNull().unique(),
+});
+
 // Explicit column names where Drizzle's snake_case transform would drop the
 // underscore before digits (denominator2 -> denominator2, lowerCi95 -> lower_ci95).
 export const observation = pgTable(
