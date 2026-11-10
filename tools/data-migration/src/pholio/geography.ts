@@ -33,13 +33,12 @@ export async function exportGeography(context: PholioSource) {
   await using areaWriter = new TableWriter(outDir, 'area');
   await using areaRelWriter = new TableWriter(outDir, 'area_relationship');
 
-  // area_type: deduplicate names, assign hierarchy_type and level from Pholio
+  // area_type: deduplicate names, assign hierarchy_type from Pholio
   const areaTypeRows = await queryPholio<{
     AreaTypeID: number;
     AreaType: string;
     AreaTypeClass: string | null;
-    Sequence: number | null;
-  }>(pool, 'SELECT AreaTypeID, AreaType, AreaTypeClass, Sequence FROM L_AreaTypes');
+  }>(pool, 'SELECT AreaTypeID, AreaType, AreaTypeClass FROM L_AreaTypes');
 
   // Find which names appear more than once, matching SQL Server collation:
   // trailing spaces and case differences are ignored.
@@ -58,7 +57,6 @@ export async function exportGeography(context: PholioSource) {
         (nameCounts.get(normalizeAreaTypeName(r.AreaType)) ?? 1) > 1,
       ),
       hierarchy_type: areaTypeHierarchyType(r.AreaTypeClass, r.AreaTypeID),
-      level: r.Sequence ?? 0,
     })),
   );
 

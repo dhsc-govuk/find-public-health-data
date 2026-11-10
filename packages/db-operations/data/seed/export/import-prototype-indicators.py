@@ -187,10 +187,8 @@ def add_imd_dimension(cur):
         cur.execute(
             """
             INSERT INTO dimension_type
-              (id, name, dimension_class, classification_scheme, granularity,
-               scheme_version, is_required)
-            VALUES (%s, %s, 'inequality', 'English indices of deprivation', 'decile',
-                    'IMD trend', false)
+              (id, name, dimension_class, classification_scheme, granularity, is_required)
+            VALUES (%s, %s, 'inequality', 'English indices of deprivation', 'decile', false)
             """,
             (dimension_type_id, IMD_TREND_TYPE),
         )
@@ -493,7 +491,6 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
                     number(row["Upper CI 95.0 limit"]),
                     number(row["Lower CI 99.8 limit"]),
                     number(row["Upper CI 99.8 limit"]),
-                    published_at,
                     batch_ids[fingertips_id],
                     # dimensionKey in @fphd/db: the dimension value ids sorted and joined.
                     ",".join(sorted(value_ids)),
@@ -514,7 +511,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
         """
         INSERT INTO observation
           (id, indicator_id, area_id, from_date, to_date, value, count, numerator, denominator,
-           lower_ci_95, upper_ci_95, lower_ci_998, upper_ci_998, published_at,
+           lower_ci_95, upper_ci_95, lower_ci_998, upper_ci_998,
            upload_batch_id, dimension_key, created_at)
         VALUES %s
         """,

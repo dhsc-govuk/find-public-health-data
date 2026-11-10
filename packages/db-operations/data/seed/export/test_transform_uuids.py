@@ -58,13 +58,13 @@ class PublishedCsvTest(unittest.TestCase):
             )
             path = Path(directory, "area_type.csv.gz")
             with gzip.open(path, "wt", newline="") as output:
-                output.write("id,name,hierarchy_type,level\r\n1,Other,Administrative,1\r\n")
+                output.write("id,name,hierarchy_type\r\n1,Other,Administrative\r\n")
 
             enrich_area["enrich_area_types"](str(path))
 
             with gzip.open(path, "rt", newline="") as result:
                 self.assertIn(
-                    f'"1","Other","Administrative","1",{transform["NULL_MARKER"]},{transform["NULL_MARKER"]}\r\n',
+                    f'"1","Other","Administrative",{transform["NULL_MARKER"]},{transform["NULL_MARKER"]}\r\n',
                     result.read(),
                 )
 

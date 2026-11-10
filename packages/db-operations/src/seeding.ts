@@ -472,7 +472,7 @@ async function pointVersionsAtBatches(tx: postgres.TransactionSql): Promise<void
     FROM observation o
     JOIN current_published_version cpv ON cpv.indicator_id = o.indicator_id
     JOIN indicator_version v ON v.id = cpv.id
-    WHERE o.deleted_at IS NULL AND o.upload_batch_id IS DISTINCT FROM v.upload_batch_id
+    WHERE o.upload_batch_id IS DISTINCT FROM v.upload_batch_id
   `;
   if (hidden?.count) {
     throw new Error(

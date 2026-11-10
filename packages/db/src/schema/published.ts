@@ -206,7 +206,6 @@ export const publishedDimensionType = publishedSchema
     dimensionClass: text('dimension_class').notNull(),
     classificationScheme: text('classification_scheme'),
     granularity: text('granularity'),
-    schemeVersion: text('scheme_version'),
     isRequired: boolean('is_required').notNull(),
   })
   .existing();
@@ -228,7 +227,6 @@ export const publishedAreaType = publishedSchema
     id: uuid('id').notNull(),
     name: text('name').notNull(),
     hierarchyType: text('hierarchy_type').notNull(),
-    level: integer('level').notNull(),
     displayGroup: text('display_group'),
     displayOrder: integer('display_order'),
   })
@@ -280,7 +278,6 @@ export const publishedObservation = publishedSchema
     upperCi95: doublePrecision('upper_ci_95'),
     lowerCi998: doublePrecision('lower_ci_998'),
     upperCi998: doublePrecision('upper_ci_998'),
-    distributionRank: smallint('distribution_rank'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     dimensionKey: text('dimension_key').notNull(),
   })
