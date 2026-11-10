@@ -10,8 +10,8 @@ Built package; consumed by `@fphd/internal-api-features`, whose routes take ever
 `@fphd/internal-read-models`, `@fphd/logger`, `@fphd/utils` and `drizzle-orm`, and not on
 `@fphd/auth`, Express or the upload code, so an app that uses it only to publish does not take those
 on through it. The checks on who may take a step stay in `@fphd/internal-api-features`, with the
-fake users' roles. A step that starts a submission is passed the reviewers it carries over
-(`reviewersToCarry`), and refuses to run without them.
+fake users' roles. A step that carries reviewers onto a new submission, such as resubmit, is passed
+the reviewers to carry (`reviewersToCarry`), and refuses to run without them.
 
 | Entry | Purpose                                                                                                                                                                                                                         |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

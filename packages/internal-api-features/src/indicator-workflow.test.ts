@@ -108,8 +108,8 @@ describe('stepsOpenTo', () => {
     expect(stepsOpenTo(manager, row)).toEqual(['assign_reviewers']);
   });
 
-  it('lets a publisher withdraw a draft in review', () => {
-    expect(stepsOpenTo(publisher, inReviewRow)).toEqual(['withdraw']);
+  it('offers a publisher no step once reviewers are assigned', () => {
+    expect(stepsOpenTo(publisher, inReviewRow)).toEqual([]);
   });
 
   it('lets a publisher resubmit a draft sent back for changes', () => {
@@ -142,8 +142,8 @@ describe('stepsOpenTo', () => {
     }
   });
 
-  it("lets a reviewer in the indicator's team respond as well as withdraw", () => {
-    expect(stepsOpenTo(publishingReviewer, inReviewRow)).toEqual(['withdraw', ...RESPONSE_STEPS]);
+  it("lets a reviewer in the indicator's team respond, but not withdraw", () => {
+    expect(stepsOpenTo(publishingReviewer, inReviewRow)).toEqual([...RESPONSE_STEPS]);
   });
 
   it('offers no step to a user who may not take it', () => {

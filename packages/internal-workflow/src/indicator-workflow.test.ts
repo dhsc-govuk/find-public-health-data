@@ -51,10 +51,10 @@ describe('submit', () => {
     });
   });
 
-  it('starts the submission in review when reviewers are carried over', () => {
+  it('never carries reviewers onto the submission', () => {
     expect(nextState(withdrawn, 'submit', { carriedReviewerCount: 2 })).toEqual({
       ok: true,
-      state: { versionStatus: 'draft', submissionStatus: 'in_review', isLocked: true },
+      state: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     });
   });
 
@@ -76,7 +76,6 @@ describe('withdraw', () => {
   it.each([
     ['submitted', 'new', submitted],
     ['submitted', 'live', submitted],
-    ['in review', 'new', inReview],
   ] as const)(
     'unlocks the draft of a %s submission of a %s indicator and ends it as withdrawn',
     (_, indicatorStatus, context) => {
@@ -90,15 +89,11 @@ describe('withdraw', () => {
   it('is refused in every other context', () => {
     const open = CONTEXTS.filter((context) => nextState(context, 'withdraw').ok);
 
-    expect(open).toEqual([
-      submitted,
-      inReview,
-      { ...submitted, indicatorStatus: 'live' },
-      { ...inReview, indicatorStatus: 'live' },
-    ]);
+    expect(open).toEqual([submitted, { ...submitted, indicatorStatus: 'live' }]);
   });
 
   it.each([
+    ['in review', inReview],
     ['withdrawn', withdrawn],
     ['answered with changes requested', changesRequested],
     ['approved', approved],
@@ -107,7 +102,7 @@ describe('withdraw', () => {
   });
 
   it('never carries reviewers into the withdrawn state', () => {
-    expect(nextState(inReview, 'withdraw', { carriedReviewerCount: 1 })).toEqual({
+    expect(nextState(submitted, 'withdraw', { carriedReviewerCount: 1 })).toEqual({
       ok: true,
       state: { versionStatus: 'draft', submissionStatus: 'withdrawn', isLocked: false },
     });
@@ -233,7 +228,7 @@ describe('allowedSteps', () => {
     [
       'a draft in review',
       inReview,
-      ['withdraw', 'assign_reviewers', 'give_feedback', 'request_changes', 'approve'],
+      ['assign_reviewers', 'give_feedback', 'request_changes', 'approve'],
     ],
     ['a draft sent back for changes', changesRequested, ['resubmit']],
     ['an approved draft', approved, ['schedule']],
