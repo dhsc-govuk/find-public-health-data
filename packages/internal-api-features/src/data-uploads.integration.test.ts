@@ -663,8 +663,8 @@ describe('GET /api/internal/indicators/:id/data-uploads/latest', () => {
     });
   });
 
-  it('answers no problems for a processed upload holding the seed note', async () => {
-    const { indicatorId } = await newDraft(internalDb, 'Upload latest seeded');
+  it('answers no problems for a processed upload, whatever validation_result holds', async () => {
+    const { indicatorId } = await newDraft(internalDb, 'Upload latest processed');
     const loaded = await upload(indicatorId, VALID_CSV);
     await ownerDb
       .update(uploadBatch)

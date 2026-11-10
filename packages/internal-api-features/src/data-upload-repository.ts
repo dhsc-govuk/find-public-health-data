@@ -9,8 +9,7 @@ import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
 
 const { area, dimensionType, dimensionValue, indicator, noteType, uploadBatch } = schema;
 
-// A failed upload stores its problems as JSON in validation_result. A processed upload stores
-// nothing there, except the prototype seed, which stores a note of where its data came from.
+// Only a failed upload stores problems, as JSON in validation_result.
 const storedProblemsSchema = z.array(dataTableProblemSchema);
 
 // Sex and age have columns of their own, so a category never names them.
