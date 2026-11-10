@@ -16,7 +16,7 @@ import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './t
 
 const { indicatorVersion } = schema;
 
-const testDb = await createTestDb({ template: 'seeded' });
+const testDb = await createTestDb({ template: 'core' });
 // The routes run as internal_api, as they do deployed.
 const db = testDb.connectDb({ login: apiLogin('internal_api') });
 const storage = createFakeBlobStorage();

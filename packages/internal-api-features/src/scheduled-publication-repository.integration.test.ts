@@ -20,7 +20,7 @@ import {
 
 const { SYSTEM_USER_IDS } = schema;
 
-const testDb = await createTestDb({ template: 'seeded' });
+const testDb = await createTestDb({ template: 'core' });
 // The fixtures write as the database owner. Publication connects as internal_api, the role it
 // uses when deployed.
 const db = testDb.db;

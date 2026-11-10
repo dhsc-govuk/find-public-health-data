@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 // config.ts parses the environment when it is first imported, so POSTGRES_DB must name this
 // file's own test database before db.ts, which imports config.ts, is imported. The global test
 // setup has already loaded the repository's .env file.
-const testDb = await createTestDb({ template: 'seeded' });
+const testDb = await createTestDb({ template: 'core' });
 process.env.POSTGRES_DB = testDb.name;
 
 const { db } = await import('./db.ts');
@@ -21,7 +21,7 @@ describe('worker database connection', () => {
     expect(row?.user).toBe('internal_api');
   });
 
-  it('sweeps the seed, where nothing is due', async () => {
+  it('sweeps a database where nothing is due', async () => {
     const logger = createLogger({ name: 'internal-worker', level: 'silent' });
 
     expect(await publishDueVersions(db, logger)).toEqual({
