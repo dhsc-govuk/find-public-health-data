@@ -130,7 +130,7 @@ export const indicatorAdminSummarySchema = z.object({
   id: z.uuid(),
   name: z.string().min(1),
   /** The team whose publishers own it. */
-  teamId: z.uuid().nullable(),
+  teamId: z.uuid(),
   updatedAt: z.iso.datetime(),
   indicatorStatus: indicatorStatusSchema,
   /** Null while the indicator has no draft, which for a live one means it is published as is. */
@@ -163,8 +163,7 @@ export const indicatorListTeamsQuerySchema = z.object({ teams: z.literal('own').
 
 /** A dashboard row, which names the team and the people for the publisher to read. */
 export const indicatorAdminListItemSchema = indicatorAdminSummarySchema.extend({
-  /** Null while the indicator is in no team. */
-  teamName: z.string().nullable(),
+  teamName: z.string(),
   /** The display name of whoever wrote the indicator's first version. */
   createdBy: z.string().nullable(),
   /** The display name of whoever made the edit `updatedAt` dates. */

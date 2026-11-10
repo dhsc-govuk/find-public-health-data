@@ -36,7 +36,7 @@ function createTestApp(
   return { app, findAccess };
 }
 
-const inTeam = (teamId: string | null): IndicatorAccessRow => ({ teamId, draftReviewers: [] });
+const inTeam = (teamId: string): IndicatorAccessRow => ({ teamId, draftReviewers: [] });
 const publisher = () => testSessionCookie(['publisher']);
 
 describe('requireIndicatorAccess', () => {
@@ -68,7 +68,6 @@ describe('requireIndicatorAccess', () => {
   it.each([
     ['no such indicator', undefined],
     ["another team's indicator", inTeam(OTHER_TEAM_ID)],
-    ['an indicator in no team', inTeam(null)],
   ])('answers a read or a write of %s as one that does not exist', async (_case, row) => {
     const { app } = createTestApp(row);
 
