@@ -189,8 +189,13 @@ export async function createTestDb({
       // Nothing else connects to the default template, so no need to queue for the lock.
       await admin.unsafe(`CREATE DATABASE "${name}"`);
     } else {
+      // FILE_COPY copies the template's files directly. The default, WAL_LOG, writes the whole
+      // copy to the write-ahead log (391 MB for the seeded template), which is slower and fills
+      // the server's disk when several files copy at once.
       await withCopyLock(admin, run, () =>
-        admin.unsafe(`CREATE DATABASE "${name}" TEMPLATE "${templateName(run, template)}"`),
+        admin.unsafe(
+          `CREATE DATABASE "${name}" TEMPLATE "${templateName(run, template)}" STRATEGY FILE_COPY`,
+        ),
       );
     }
   } finally {

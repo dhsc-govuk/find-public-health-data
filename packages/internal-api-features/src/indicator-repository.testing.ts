@@ -9,17 +9,23 @@ import { expect, test } from 'vitest';
 
 import { type CreatedIndicatorDraft, createIndicatorDraft } from './indicator-draft-repository.ts';
 
-/**
- * A test given its file's own copy of the seeded database as `db`. The seed carries the lookup
- * rows an indicator references, which the schema template lacks.
- */
-export const repositoryTest = test
+function testWithDb(template: 'core' | 'seeded') {
   // biome-ignore lint/correctness/noEmptyPattern: vitest reads a fixture's dependencies from this pattern
-  .extend('db', { scope: 'file' }, async ({}, { onCleanup }) => {
-    const testDb = await createTestDb({ template: 'seeded' });
+  return test.extend('db', { scope: 'file' }, async ({}, { onCleanup }) => {
+    const testDb = await createTestDb({ template });
     onCleanup(() => testDb.drop());
     return testDb.db;
-  })
+  });
+}
+
+/**
+ * A test given its file's own copy of the core data as `db`. The core data holds the lookup rows
+ * an indicator references, which the schema template lacks.
+ */
+export const repositoryTest = testWithDb('core');
+
+/** A test given its file's own copy of the seeded database, for tests that read the seed. */
+export const seededRepositoryTest = testWithDb('seeded')
   // Captured before the file's first test writes, so the later cases still know what the seed held.
   .extend('seededIds', { scope: 'file', auto: true }, ({ db }) => idsNewestFirst(db));
 
