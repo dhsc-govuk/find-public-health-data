@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { agesSection } from './indicator-ages-contract.ts';
 import { benchmarkingSection } from './indicator-benchmarking-contract.ts';
 import { calculationSection } from './indicator-calculation-contract.ts';
 import { confidenceIntervalsSection } from './indicator-confidence-intervals-contract.ts';
@@ -13,7 +14,6 @@ import {
 import { otherCommentsSection } from './indicator-other-comments-contract.ts';
 import { otherNotesAndCaveatsSection } from './indicator-other-notes-and-caveats-contract.ts';
 import type { IndicatorSection } from './indicator-section-contract.ts';
-import { sexAndAgesSection } from './indicator-sex-and-ages-contract.ts';
 import { updateFrequencySection } from './indicator-update-frequency-contract.ts';
 import { valueTypeAndUnitsSection } from './indicator-value-type-and-units-contract.ts';
 import { varianceAndQualitySection } from './indicator-variance-and-quality-contract.ts';
@@ -133,11 +133,7 @@ function refusalsOf<Field extends string, ErrorField extends string>(
   return (answers) => sectionFieldErrors(section, { ...blank, ...answers });
 }
 
-const blankSexAndAges = {
-  demographics: [],
-  sexes: [],
-  genders: [],
-  ethnicGroups: [],
+const blankAges = {
   ageType: '',
   ageRanges: [],
   specificAge: '',
@@ -247,12 +243,7 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
       sourceDataIssuesDetail: 'Data quality improvement notes',
     },
   ],
-  [
-    'sex and ages',
-    300,
-    refusalsOf(sexAndAgesSection, blankSexAndAges),
-    { ageDetail: 'Ages included' },
-  ],
+  ['ages', 300, refusalsOf(agesSection, blankAges), { ageDetail: 'Ages included' }],
   [
     'value type and units',
     300,

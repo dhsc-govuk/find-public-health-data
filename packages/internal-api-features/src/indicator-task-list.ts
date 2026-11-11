@@ -1,4 +1,5 @@
 import {
+  agesSection,
   benchmarkingSection,
   type CiMethodKind,
   calculationSection,
@@ -46,6 +47,7 @@ import {
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
 import {
+  agesColumns,
   denominatorColumns,
   numeratorColumns,
   sexAndAgesColumns,
@@ -146,6 +148,7 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
     ),
     benchmarking: complete(benchmarkingSection, benchmarkingColumns),
     'sex-and-ages': complete(sexAndAgesSection, sexAndAgesColumns),
+    ages: complete(agesSection, agesColumns),
     tagging: complete(taggingSection, taggingColumns),
   };
 }

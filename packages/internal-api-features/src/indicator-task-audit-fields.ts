@@ -1,6 +1,7 @@
 import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 
 import {
+  agesSection,
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
@@ -45,6 +46,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   'copyright-and-data-reuse': copyrightAndDataReuseSection.fields.options,
   benchmarking: benchmarkingSection.fields.options,
   'sex-and-ages': sexAndAgesSection.fields.options,
+  ages: agesSection.fields.options,
   tagging: [...UNORDERED_LISTS, 'primaryTopicId', 'isAreaContext', 'hasLifeStage', 'hasFramework'],
 };
 

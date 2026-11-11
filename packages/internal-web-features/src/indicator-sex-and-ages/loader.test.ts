@@ -1,4 +1,3 @@
-import { type AgeRangeFormValues, ageRangeFieldName } from '@fphd/internal-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
 import { createFakeApiClient, type FakeApiClient, refused } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
@@ -10,24 +9,11 @@ import { loadSexAndAges, submitSexAndAges } from './loader.ts';
 const id = '00000000-0000-7000-8000-000000000001';
 const sectionPath = `/api/internal/indicators/${id}/sex-and-ages`;
 
-const blank: AgeRangeFormValues = {
-  lowerLimit: '',
-  lowerLimitUnit: '',
-  upperLimit: '',
-  upperLimitUnit: '',
-};
-const sixteenPlus = { ...blank, lowerLimit: '16', lowerLimitUnit: 'years' };
-
 const unanswered = {
   demographics: [],
   sexes: [],
   genders: [],
   ethnicGroups: [],
-  ageType: null,
-  ageRanges: [],
-  specificAge: null,
-  specificAgeUnit: null,
-  ageDetail: null,
 };
 
 function context(api: FakeApiClient) {
@@ -44,13 +30,8 @@ function load(indicatorId: string, api: FakeApiClient) {
   } as never);
 }
 
-function submit(fields: [string, string][], ranges: AgeRangeFormValues[], api: FakeApiClient) {
+function submit(fields: [string, string][], api: FakeApiClient) {
   const body = new URLSearchParams([...fields, ['version', SHOWN_VERSION]]);
-  ranges.forEach((range, index) => {
-    for (const [part, value] of Object.entries(range)) {
-      body.append(ageRangeFieldName(index, part as keyof AgeRangeFormValues), value);
-    }
-  });
 
   return submitSexAndAges({
     context: context(api),
@@ -71,7 +52,7 @@ function isRedirectToTaskList(outcome: unknown) {
 }
 
 describe('loadSexAndAges', () => {
-  it("fills the form with the draft's answers, each age as text", async () => {
+  it("fills the form with the draft's answers", async () => {
     const api = createFakeApiClient({
       [`GET ${sectionPath}`]: {
         answers: {
@@ -79,10 +60,6 @@ describe('loadSexAndAges', () => {
           demographics: ['sex', 'gender'],
           sexes: ['persons'],
           genders: ['non-binary'],
-          ageType: 'range',
-          ageRanges: [
-            { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
-          ],
         },
         version: SHOWN_VERSION,
       },
@@ -95,60 +72,17 @@ describe('loadSexAndAges', () => {
         sexes: ['persons'],
         genders: ['non-binary'],
         ethnicGroups: [],
-        ageType: 'range',
-        ageRanges: [sixteenPlus],
-        specificAge: '',
-        specificAgeUnit: '',
-        ageDetail: '',
       },
       version: SHOWN_VERSION,
-    });
-  });
-
-  it('offers one blank range while the draft holds none', async () => {
-    const api = createFakeApiClient({
-      [`GET ${sectionPath}`]: { answers: unanswered, version: SHOWN_VERSION },
-    });
-
-    await expect(load(id, api)).resolves.toMatchObject({
-      values: { demographics: [], sexes: [], ageType: '', ageRanges: [blank] },
     });
   });
 });
 
 describe('submitSexAndAges', () => {
-  it('adds a range without saving anything', async () => {
-    const api = createFakeApiClient();
-
-    const outcome = await submit([['intent', 'add']], [sixteenPlus], api);
-
-    expect(outcome).toMatchObject({
-      values: { ageType: 'range', ageRanges: [sixteenPlus, blank] },
-      fieldErrors: {},
-    });
-    expect(api.calls).toEqual([]);
-  });
-
-  it('removes a range without saving anything', async () => {
-    const api = createFakeApiClient();
-
-    const outcome = await submit([['intent', 'remove-1']], [sixteenPlus, blank], api);
-
-    expect(outcome).toMatchObject({ values: { ageRanges: [sixteenPlus] }, fieldErrors: {} });
-    expect(api.calls).toEqual([]);
-  });
-
   it('saves the answers on Continue and returns to the task list', async () => {
     const api = createFakeApiClient({
       [`PUT ${sectionPath}`]: {
-        answers: {
-          ...unanswered,
-          sexes: ['persons', 'males'],
-          ageType: 'range',
-          ageRanges: [
-            { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
-          ],
-        },
+        answers: { ...unanswered, sexes: ['persons', 'males'] },
         version: SAVED_VERSION,
       },
     });
@@ -159,9 +93,7 @@ describe('submitSexAndAges', () => {
         ['sexes', 'males'],
         ['sexes', 'persons'],
         ['genders', 'other'],
-        ['ageType', 'range'],
       ],
-      [sixteenPlus],
       api,
     );
 
@@ -171,28 +103,16 @@ describe('submitSexAndAges', () => {
         sexes: ['persons', 'males'],
         genders: ['other'],
         ethnicGroups: [],
-        ageType: 'range',
-        ageRanges: [sixteenPlus],
-        specificAge: '',
-        specificAgeUnit: '',
-        ageDetail: '',
       },
       version: SHOWN_VERSION,
     });
     expect(outcome).toSatisfy(isRedirectToTaskList);
   });
 
-  it('saves nothing while the answers are refused, keying a range refusal by its row', async () => {
+  it('saves nothing while the answers are refused', async () => {
     const api = createFakeApiClient();
 
-    const outcome = await submit(
-      [
-        ['demographics', 'sex'],
-        ['ageType', 'range'],
-      ],
-      [sixteenPlus, blank],
-      api,
-    );
+    const outcome = await submit([['demographics', 'sex']], api);
 
     expect(outcome).toEqual({
       values: {
@@ -200,17 +120,8 @@ describe('submitSexAndAges', () => {
         sexes: [],
         genders: [],
         ethnicGroups: [],
-        ageType: 'range',
-        ageRanges: [sixteenPlus, blank],
-        specificAge: '',
-        specificAgeUnit: '',
-        ageDetail: '',
       },
-      fieldErrors: {
-        sexes: 'Select the sexes included',
-        [ageRangeFieldName(1, 'lowerLimit')]:
-          'You must enter at least a lower or upper limit for range 2',
-      },
+      fieldErrors: { sexes: 'Select the sexes included' },
       version: SHOWN_VERSION,
     });
     expect(api.calls).toEqual([]);
@@ -220,7 +131,7 @@ describe('submitSexAndAges', () => {
     const api = createFakeApiClient({
       [`PUT ${sectionPath}`]: refused(400, {
         error: 'validation_failed',
-        fieldErrors: { ageType: 'Refused by the API' },
+        fieldErrors: { sexes: 'Refused by the API' },
       }),
     });
 
@@ -229,12 +140,9 @@ describe('submitSexAndAges', () => {
         [
           ['demographics', 'sex'],
           ['sexes', 'persons'],
-          ['ageType', 'other'],
-          ['ageDetail', 'Year 6'],
         ],
-        [],
         api,
       ),
-    ).resolves.toMatchObject({ fieldErrors: { ageType: 'Refused by the API' } });
+    ).resolves.toMatchObject({ fieldErrors: { sexes: 'Refused by the API' } });
   });
 });

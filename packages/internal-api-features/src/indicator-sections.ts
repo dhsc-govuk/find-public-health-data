@@ -2,6 +2,7 @@ import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { Router } from 'express';
 
 import {
+  agesSection,
   benchmarkingSection,
   calculationSection,
   copyrightAndDataReuseSection,
@@ -37,6 +38,7 @@ import {
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
 import {
+  agesColumns,
   denominatorColumns,
   numeratorColumns,
   sexAndAgesColumns,
@@ -130,6 +132,7 @@ export function indicatorSectionsRouter(
     ),
     indicatorSectionRouter(indicators, session, benchmarkingSection, benchmarkingColumns),
     indicatorSectionRouter(indicators, session, sexAndAgesSection, sexAndAgesColumns),
+    indicatorSectionRouter(indicators, session, agesSection, agesColumns),
     indicatorSectionRouter(indicators, session, taggingServerSection(tags), taggingColumns),
   );
 }

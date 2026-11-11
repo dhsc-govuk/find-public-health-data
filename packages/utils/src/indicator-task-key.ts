@@ -22,6 +22,7 @@ export const INDICATOR_TASK_KEYS = [
   'copyright-and-data-reuse',
   'benchmarking',
   'sex-and-ages',
+  'ages',
   'tagging',
 ] as const;
 

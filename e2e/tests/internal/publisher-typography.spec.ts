@@ -25,6 +25,7 @@ const SECTIONS = [
   'copyright-and-data-reuse',
   'benchmarking',
   'sex-and-ages',
+  'ages',
   'tagging',
 ];
 

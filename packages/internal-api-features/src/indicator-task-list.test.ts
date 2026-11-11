@@ -176,6 +176,30 @@ describe('indicatorTaskList', () => {
     },
   );
 
+  // A draft saved when one page asked both has both or neither. Imported versions have neither.
+  it.each([
+    [
+      'what was collected alone',
+      { demographics: complete.demographics, sexes: complete.sexes },
+      'completed',
+      'not_started',
+    ],
+    [
+      'the ages alone',
+      { ageType: complete.ageType, ageRanges: complete.ageRanges },
+      'not_started',
+      'completed',
+    ],
+    ['both', complete, 'completed', 'completed'],
+  ] satisfies [string, Partial<IndicatorTaskListDraft>, string, string][])(
+    'judges sex, gender and ethnicity apart from the ages, given %s',
+    (_, draft, sexStatus, agesStatus) => {
+      const { tasks } = indicatorTaskList(withDraft(draft));
+
+      expect([tasks['sex-and-ages'], tasks.ages]).toEqual([sexStatus, agesStatus]);
+    },
+  );
+
   it('judges the denominator from its own answers', () => {
     const numeratorOnly = { numeratorSources: [ons], numeratorDefinition: 'Deaths' };
 

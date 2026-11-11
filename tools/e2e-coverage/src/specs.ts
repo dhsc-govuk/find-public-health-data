@@ -52,6 +52,7 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
   '/publish/indicators/:id/copyright-and-data-reuse': 'indicator-yes-no-sections.spec.ts',
   '/publish/indicators/:id/benchmarking': 'indicator-benchmarking.spec.ts',
   '/publish/indicators/:id/sex-and-ages': 'indicator-sex-and-ages.spec.ts',
+  '/publish/indicators/:id/ages': 'indicator-ages.spec.ts',
   '/publish/indicators/:id/tagging': 'indicator-tagging.spec.ts',
   '/manage': 'manage.spec.ts',
   '/manage/topics': 'manage-topics.spec.ts',

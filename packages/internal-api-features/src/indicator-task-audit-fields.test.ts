@@ -23,6 +23,7 @@ import {
   valueTypeAndUnitsColumns,
 } from './indicator-section-columns.ts';
 import {
+  agesColumns,
   denominatorColumns,
   numeratorColumns,
   sexAndAgesColumns,
@@ -177,6 +178,9 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       sexes: ['females'],
       genders: ['other'],
       ethnicGroups: ['asian'],
+    }),
+  ages: () =>
+    savedFields(agesColumns, {
       ageType: 'range',
       ageRanges: [
         { lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' },

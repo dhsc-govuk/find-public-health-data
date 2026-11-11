@@ -86,7 +86,7 @@ describe('IndicatorTaskListPage', () => {
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
     ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
-    expect(group('Data').getAllByRole('listitem')).toHaveLength(6);
+    expect(group('Data').getAllByRole('listitem')).toHaveLength(7);
     expect(group('Metadata').getAllByRole('listitem')).toHaveLength(10);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
@@ -147,6 +147,7 @@ describe('IndicatorTaskListPage', () => {
       'Data table',
       'Value type and units',
       'Sex, gender and ethnicity',
+      'Ages',
       'Period type',
       'Polarity',
       'Data quality',
@@ -173,6 +174,7 @@ describe('IndicatorTaskListPage', () => {
   it.each([
     ['Data', 'Value type and units', 'value-type-and-units'],
     ['Data', 'Sex, gender and ethnicity', 'sex-and-ages'],
+    ['Data', 'Ages', 'ages'],
     ['Data', 'Period type', 'period-type'],
     ['Data', 'Polarity', 'polarity'],
     ['Data', 'Data quality', 'data-quality'],
