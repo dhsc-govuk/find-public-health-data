@@ -2,6 +2,12 @@ import { createJwtSessionService, createJwtSessionVerifier } from '@fphd/auth/jw
 import { createSessionContext, sessionMiddleware } from '@fphd/web-server/session';
 import type { RouterContextProvider } from 'react-router';
 
+/**
+ * The signed-in user's id. A user id is a UUID, so an API answer naming this user, such as a
+ * draft's reviewer, passes the contract.
+ */
+export const SIGNED_IN_USER_ID = '00000000-0000-7000-8000-0000000000aa';
+
 const service = createJwtSessionService({
   audience: 'fphd-internal',
   cookieName: 'fphd-internal-session',
@@ -18,7 +24,7 @@ export async function signedInContext(
   const token = await service.issueToken({
     expiresInSeconds: 900,
     roles,
-    subject: 'test-user',
+    subject: SIGNED_IN_USER_ID,
     teams,
   });
   const request = new Request('https://internal.test/', {
