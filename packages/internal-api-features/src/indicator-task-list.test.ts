@@ -196,7 +196,7 @@ describe('indicatorTaskList', () => {
     (_, draft, sexStatus, agesStatus) => {
       const { tasks } = indicatorTaskList(withDraft(draft));
 
-      expect([tasks['sex-and-ages'], tasks.ages]).toEqual([sexStatus, agesStatus]);
+      expect([tasks['sex-gender-and-ethnicity'], tasks.ages]).toEqual([sexStatus, agesStatus]);
     },
   );
 

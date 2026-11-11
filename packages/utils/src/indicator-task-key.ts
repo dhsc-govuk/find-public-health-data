@@ -21,7 +21,7 @@ export const INDICATOR_TASK_KEYS = [
   'other-comments',
   'copyright-and-data-reuse',
   'benchmarking',
-  'sex-and-ages',
+  'sex-gender-and-ethnicity',
   'ages',
   'tagging',
 ] as const;

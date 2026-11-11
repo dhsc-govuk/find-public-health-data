@@ -104,7 +104,7 @@ export const sexGenderAndEthnicitySection: IndicatorSection<
   SexGenderAndEthnicityField,
   SexGenderAndEthnicityAnswers
 > = {
-  key: 'sex-and-ages',
+  key: 'sex-gender-and-ethnicity',
   fields,
   schema,
   formValues: (answers) => ({

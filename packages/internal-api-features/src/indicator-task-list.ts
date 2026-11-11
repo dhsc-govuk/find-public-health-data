@@ -147,7 +147,10 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
       copyrightAndDataReuseColumns,
     ),
     benchmarking: complete(benchmarkingSection, benchmarkingColumns),
-    'sex-and-ages': complete(sexGenderAndEthnicitySection, sexGenderAndEthnicityColumns),
+    'sex-gender-and-ethnicity': complete(
+      sexGenderAndEthnicitySection,
+      sexGenderAndEthnicityColumns,
+    ),
     ages: complete(agesSection, agesColumns),
     tagging: complete(taggingSection, taggingColumns),
   };

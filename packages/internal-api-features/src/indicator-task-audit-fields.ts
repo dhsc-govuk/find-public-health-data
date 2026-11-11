@@ -45,7 +45,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   'publishing-date': ['scheduledPublishAt'],
   'copyright-and-data-reuse': copyrightAndDataReuseSection.fields.options,
   benchmarking: benchmarkingSection.fields.options,
-  'sex-and-ages': sexGenderAndEthnicitySection.fields.options,
+  'sex-gender-and-ethnicity': sexGenderAndEthnicitySection.fields.options,
   ages: agesSection.fields.options,
   tagging: [...UNORDERED_LISTS, 'primaryTopicId', 'isAreaContext', 'hasLifeStage', 'hasFramework'],
 };

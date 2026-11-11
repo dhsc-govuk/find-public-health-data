@@ -172,7 +172,7 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       goalPolarity: 'higher-is-better',
       goalPolicyDetail: 'An ambition',
     }),
-  'sex-and-ages': () =>
+  'sex-gender-and-ethnicity': () =>
     savedFields(sexGenderAndEthnicityColumns, {
       demographics: ['sex', 'gender', 'ethnicity'],
       sexes: ['females'],

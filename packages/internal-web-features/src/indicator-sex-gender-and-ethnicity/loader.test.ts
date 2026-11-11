@@ -7,7 +7,7 @@ import { SAVED_VERSION, SHOWN_VERSION } from '../testing.ts';
 import { loadSexGenderAndEthnicity, submitSexGenderAndEthnicity } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
-const sectionPath = `/api/internal/indicators/${id}/sex-and-ages`;
+const sectionPath = `/api/internal/indicators/${id}/sex-gender-and-ethnicity`;
 
 const unanswered = {
   demographics: [],
@@ -26,7 +26,9 @@ function load(indicatorId: string, api: FakeApiClient) {
   return loadSexGenderAndEthnicity({
     context: context(api),
     params: { id: indicatorId },
-    request: new Request(`https://internal.test/publish/indicators/${indicatorId}/sex-and-ages`),
+    request: new Request(
+      `https://internal.test/publish/indicators/${indicatorId}/sex-gender-and-ethnicity`,
+    ),
   } as never);
 }
 
@@ -36,10 +38,13 @@ function submit(fields: [string, string][], api: FakeApiClient) {
   return submitSexGenderAndEthnicity({
     context: context(api),
     params: { id },
-    request: new Request(`https://internal.test/publish/indicators/${id}/sex-and-ages`, {
-      method: 'POST',
-      body,
-    }),
+    request: new Request(
+      `https://internal.test/publish/indicators/${id}/sex-gender-and-ethnicity`,
+      {
+        method: 'POST',
+        body,
+      },
+    ),
   } as never);
 }
 
