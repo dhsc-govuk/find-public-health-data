@@ -1,6 +1,6 @@
 import { z } from '@fphd/config/zod';
 
-import type { ApiClient, ApiWriteResult } from './api-client.ts';
+import { type ApiClient, type ApiWriteResult, REFUSAL_STATUSES } from './api-client.ts';
 
 export type FakeApiMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
 
@@ -69,19 +69,6 @@ export interface FakeApiClient extends ApiClient {
   /** Every call the client received, in order. */
   readonly calls: readonly FakeApiCall[];
 }
-
-/**
- * The statuses each write can refuse with, as the real client returns them. The client throws
- * for any other refusal, so a stub of one would describe an answer no loader sees.
- */
-const REFUSAL_STATUSES = {
-  put: [400, 409],
-  patch: [400, 409],
-  post: [400, 409],
-  postToMember: [400, 409],
-  postStream: [400, 409, 422],
-  delete: [409],
-} as const;
 
 type WriteName = keyof typeof REFUSAL_STATUSES;
 
