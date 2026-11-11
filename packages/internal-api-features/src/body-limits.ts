@@ -14,11 +14,12 @@ const SECTION_KEYS = indicatorTaskKeySchema.options.filter(
 
 /**
  * The largest valid section save is the justifications section's five textareas of 10,000
- * characters. The internal web app sends each character in at most 4 bytes of JSON: a character
- * outside the Basic Multilingual Plane, such as an emoji, is 4 bytes of UTF-8, and a Windows line
- * break, which the contract counts as one character, is sent as the escapes `\r\n`. That makes
- * 200,000 bytes. The links section's 20 links of up to 2,300 characters come to 184,000. The
- * limit leaves room for the field names, the version and the other answers.
+ * characters. The internal web app sends the answers after the section's schema has read them,
+ * so line breaks are already LF and each answer is trimmed. In the JSON it sends, a character
+ * takes at most 4 bytes: a character outside the Basic Multilingual Plane, such as an emoji, is
+ * 4 bytes of UTF-8, and a line break is the 2-byte escape `\n`. That makes 200,000 bytes.
+ * The links section's 20 links of up to 2,300 characters come to 184,000. The limit leaves room
+ * for the field names, the version and the other answers.
  */
 const SECTION_BODY_LIMIT = '256kb';
 

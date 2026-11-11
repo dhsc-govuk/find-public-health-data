@@ -365,7 +365,6 @@ describe('PUT on a section', () => {
   });
 });
 
-// Checked by the typecheck: each @ts-expect-error fails it if the call compiles.
 describe('PUT on the justifications section', () => {
   // Five textareas of 10,000 emoji, each 4 bytes in UTF-8: the largest save any section takes.
   const longest = '\u{1F600}'.repeat(LONG_TEXT_MAX_LENGTH);
@@ -416,6 +415,7 @@ describe('PUT on the justifications section', () => {
   });
 });
 
+// Checked by the typecheck: each @ts-expect-error fails it if the call compiles.
 describe('yesNoDetailColumns', () => {
   it('needs a question for every yes/no column', () => {
     yesNoDetailColumns(
