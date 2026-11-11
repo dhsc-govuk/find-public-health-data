@@ -303,10 +303,10 @@ export function topicPageTests() {
     await page.setViewportSize({ width: 2048, height: 1200 });
     await openTopicPage(page, '/topics/diabetes');
     for (const [tab, width] of [
-      ['Overview', 960],
+      ['Overview', 1020],
       ['Data', 1988],
       ['Area summaries', 1442],
-      ['More information', 960],
+      ['More information', 1020],
     ] as const) {
       await page.getByRole('tab', { name: tab, exact: true }).click();
       const panel = page.getByRole('tabpanel', { name: tab, exact: true });

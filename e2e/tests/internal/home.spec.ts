@@ -54,7 +54,7 @@ test.describe('signed out', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  // Wider than the public app's 960px, for the internal app's tables and forms.
+  // Wider than the public app's 1020px, for the internal app's tables and forms.
   test('frames the page and header at the internal content width', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto('/');
