@@ -14,6 +14,7 @@ declare module 'accessible-autocomplete' {
       inputValue?: (selected?: Option) => string;
       suggestion?: (suggestion?: Option) => string;
     };
+    tAssistiveHint?: () => string;
     tNoResults?: () => string;
     tStatusNoResults?: () => string;
     showAllValues?: boolean;

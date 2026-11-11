@@ -156,7 +156,7 @@ export function PanelOptionsPanel({
   onColumnsChange?: (columns: TrendColumns) => void;
   /** Which comparisons the shown areas support; absent when only England is shown. */
   benchmarks?: { region: boolean } | undefined;
-  confidenceLevels: string[];
+  confidenceLevels: Exclude<ConfidenceLevel, 'none'>[];
   label: string;
   /** The raw numbers the data has, which the table columns offer. */
   measures?: Measure[];
@@ -196,7 +196,7 @@ export function PanelOptionsPanel({
         ...confidenceLevels.map((value) => ({
           value,
           label: `${value}% confidence intervals`,
-          checked: columns.confidence.includes(value as '95' | '99.8'),
+          checked: columns.confidence.includes(value),
         })),
       ]
     : [];
@@ -354,7 +354,7 @@ export function InequalityOptions({
   categories: string[];
   category: string;
   confidence: ConfidenceLevel;
-  confidenceLevels: string[];
+  confidenceLevels: Exclude<ConfidenceLevel, 'none'>[];
   onCategoryChange: (value: string) => void;
   onConfidenceChange: (value: ConfidenceLevel) => void;
   onPeriodChange: (value: string) => void;

@@ -58,7 +58,7 @@ function fetchIndicator(context: Context, id: string): Promise<IndicatorAdminDet
 
 /**
  * The indicator, while the user may still respond to it. Once they may not, because the round was
- * answered or withdrawn, the overview says so.
+ * answered or they no longer review it, the overview says so.
  */
 async function waitingIndicator(context: Context, id: string): Promise<IndicatorAdminDetail> {
   const indicator = await fetchIndicator(context, id);

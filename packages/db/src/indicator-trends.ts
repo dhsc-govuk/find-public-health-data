@@ -1,3 +1,4 @@
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { inArray, sql } from 'drizzle-orm';
 import type { Database } from './client.ts';
@@ -30,7 +31,7 @@ export async function indicatorTrendDirections(
         ${observation.toDate} as to_date, ${observation.value} as value,
         ${observation.dimensionKey} as segment
       from ${observation}
-      join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = 'E92000001'
+      join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${ENGLAND_AREA_CODE}
       where ${inArray(observation.indicatorId, missing)}
     ), series as (
       select distinct on (indicator_id) indicator_id, segment

@@ -319,7 +319,7 @@ describe('loadTopic', () => {
       loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
     );
     expect(get).toHaveBeenCalledWith(
-      '/api/indicator-data?indicator=241&areaCode=E92000001&points=sparkline',
+      '/api/indicator-data?indicator=241&areaCode=E92000001&observationHistory=lastEightPeriodsPerSeries',
       expect.anything(),
     );
     expect(result.overview?.selected[0]?.areaData[0]?.observations).toEqual(series.slice(-8));

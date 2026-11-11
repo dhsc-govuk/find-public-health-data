@@ -28,7 +28,6 @@
   color: inherit;
 }
 
-
 .fphd-card-list {
   display: grid;
   column-gap: govuk-spacing(6);
@@ -171,7 +170,9 @@
     margin: 0;
   }
 
-  svg { flex-shrink: 0; }
+  svg {
+    flex-shrink: 0;
+  }
 }
 
 .fphd-sparkline > svg {
@@ -186,8 +187,12 @@
   margin: 0 0 govuk-spacing(1);
   line-height: 1.2;
 
-  > span { display: block; }
-  > span:first-child { float: left; }
+  > span {
+    display: block;
+  }
+  > span:first-child {
+    float: left;
+  }
   > span:last-child {
     float: right;
     text-align: right;
@@ -198,7 +203,9 @@
   margin-bottom: govuk-spacing(1);
 }
 
-.fphd-scatter-axis-title { text-align: center; }
+.fphd-scatter-axis-title {
+  text-align: center;
+}
 
 .fphd-chart-canvas .fphd-bar-value {
   @include govuk-font-size($size: 16);
@@ -364,7 +371,8 @@ body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
   display: none;
 }
 
-body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page) .govuk-width-container.govuk-width-container {
+body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
+  .govuk-width-container.govuk-width-container {
   max-width: 960px;
   @media (min-width: 40.0625em) {
     width: calc(100% - 60px);
@@ -384,7 +392,10 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page) .govu
   }
 
   @media (min-width: 40.0625em) {
-    > .govuk-tabs:has(#topic-data.fphd-tabs__panel--open, #topic-area-summaries.fphd-tabs__panel--open) {
+    > .govuk-tabs:has(
+        #topic-data.fphd-tabs__panel--open,
+        #topic-area-summaries.fphd-tabs__panel--open
+      ) {
       position: relative;
       left: 50%;
       transform: translateX(-50%);
@@ -397,9 +408,21 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page) .govu
       }
 
       &:has(#topic-area-summaries.fphd-tabs__panel--open) {
-        .govuk-grid-row { display: flex; align-items: flex-start; }
-        .govuk-grid-column-one-quarter { flex: 0 0 320px; width: 320px; float: none; }
-        .govuk-grid-column-three-quarters { flex: 1 1 auto; min-width: 0; width: auto; float: none; }
+        .govuk-grid-row {
+          display: flex;
+          align-items: flex-start;
+        }
+        .govuk-grid-column-one-quarter {
+          flex: 0 0 320px;
+          width: 320px;
+          float: none;
+        }
+        .govuk-grid-column-three-quarters {
+          flex: 1 1 auto;
+          min-width: 0;
+          width: auto;
+          float: none;
+        }
       }
 
       .govuk-tabs__list {
@@ -616,7 +639,9 @@ body.govuk-frontend-supported .fphd-filter-card {
   gap: govuk-spacing(2);
   margin-bottom: govuk-spacing(4);
 
-  > p { font-weight: 700; }
+  > p {
+    font-weight: 700;
+  }
 }
 
 .fphd-inline-download .govuk-details__summary {
@@ -925,7 +950,10 @@ body.govuk-frontend-supported .fphd-filter-card {
   top: 13px;
 }
 
-.fphd-geo-alt__tree .govuk-radios__item:hover .govuk-radios__input:not(:disabled):not(:focus) + .govuk-radios__label::before {
+.fphd-geo-alt__tree
+  .govuk-radios__item:hover
+  .govuk-radios__input:not(:disabled):not(:focus)
+  + .govuk-radios__label::before {
   box-shadow: none;
 }
 
@@ -975,26 +1003,35 @@ body.govuk-frontend-supported .fphd-filter-card {
   .fphd-geo-alt__toggle-label {
     color: $govuk-link-colour;
     text-decoration: underline;
-    text-decoration-thickness: max(1px, .0625rem);
-    text-underline-offset: .1578em;
+    text-decoration-thickness: max(1px, 0.0625rem);
+    text-underline-offset: 0.1578em;
   }
 
-  .fphd-geo-alt__chevron { border-left-color: $govuk-link-colour; flex-shrink: 0; }
+  .fphd-geo-alt__chevron {
+    border-left-color: $govuk-link-colour;
+    flex-shrink: 0;
+  }
 
   &:hover .fphd-geo-alt__toggle-label {
     color: $govuk-link-hover-colour;
-    text-decoration-thickness: max(3px, .1875rem);
+    text-decoration-thickness: max(3px, 0.1875rem);
   }
 
-  &:hover .fphd-geo-alt__chevron { border-left-color: $govuk-link-hover-colour; }
+  &:hover .fphd-geo-alt__chevron {
+    border-left-color: $govuk-link-hover-colour;
+  }
 
   &:focus-visible {
     outline: none;
     background: none;
     box-shadow: none;
 
-    .fphd-geo-alt__toggle-label { @include govuk-focused-text; }
-    .fphd-geo-alt__chevron { border-left-color: $govuk-focus-text-colour; }
+    .fphd-geo-alt__toggle-label {
+      @include govuk-focused-text;
+    }
+    .fphd-geo-alt__chevron {
+      border-left-color: $govuk-focus-text-colour;
+    }
   }
 }
 
@@ -1189,6 +1226,12 @@ body.govuk-frontend-supported .fphd-filter-card {
 // Keep the library's negative-z-index arrow above the filter background.
 .fphd-autocomplete .autocomplete__wrapper {
   isolation: isolate;
+}
+
+// NotGovUK gives every list item on the page a bottom margin, which shows as a gap between
+// the suggestions.
+.autocomplete__option {
+  margin-bottom: 0;
 }
 
 // NotGovUK's input[type] rule is more specific than this modifier in the library's CSS.
@@ -1388,7 +1431,6 @@ body.govuk-frontend-supported .fphd-filter-card {
     // Balance the selected tab's negative margins so wrapping cannot resize the row.
     padding-bottom: calc(#{govuk-spacing(2)} + 1px);
   }
-
 }
 
 @include govuk-media-query($from: tablet, $until: desktop) {
@@ -1543,7 +1585,9 @@ body.govuk-frontend-supported .fphd-filter-card {
   position: relative;
   height: 24px;
 
-  svg { display: block; }
+  svg {
+    display: block;
+  }
 
   &:focus-visible {
     outline: 3px solid $govuk-focus-colour;
@@ -1569,7 +1613,10 @@ body.govuk-frontend-supported .fphd-filter-card {
   border-radius: 3px;
   @include govuk-font-size($size: 16);
 
-  strong, span { display: block; }
+  strong,
+  span {
+    display: block;
+  }
 }
 
 .fphd-range-key {
@@ -1697,13 +1744,22 @@ body.govuk-frontend-supported .fphd-filter-card {
   table-layout: fixed;
   width: max-content;
 
-  col { width: 90px; }
-  col:first-child { width: 240px; }
-  col:nth-child(2) { width: 120px; }
+  col {
+    width: 90px;
+  }
+  col:first-child {
+    width: 240px;
+  }
+  col:nth-child(2) {
+    width: 120px;
+  }
 }
 
 .fphd-topic-page .govuk-grid-column-three-quarters:has(.fphd-rug-table) {
-  > p, .fphd-rug-key { max-width: 1080px; }
+  > p,
+  .fphd-rug-key {
+    max-width: 1080px;
+  }
 }
 
 .fphd-rug-table th,
@@ -1743,13 +1799,26 @@ body.govuk-frontend-supported .fphd-filter-card {
   line-height: 1.25;
 }
 
-.fphd-rug-cell--better { background: #8ed973; }
-.fphd-rug-cell--similar { background: #ffc000; }
-.fphd-rug-cell--worse { background: #c00000; color: #fff; }
-.fphd-rug-cell--lower { background: #12436d; color: #fff; }
-.fphd-rug-cell--higher { background: #5694ca; }
-.fphd-rug-cell--none { background: #bfbfbf; }
-
+.fphd-rug-cell--better {
+  background: #8ed973;
+}
+.fphd-rug-cell--similar {
+  background: #ffc000;
+}
+.fphd-rug-cell--worse {
+  background: #c00000;
+  color: #fff;
+}
+.fphd-rug-cell--lower {
+  background: #12436d;
+  color: #fff;
+}
+.fphd-rug-cell--higher {
+  background: #5694ca;
+}
+.fphd-rug-cell--none {
+  background: #bfbfbf;
+}
 
 .fphd-topic-toolbar {
   align-items: center;
@@ -1803,7 +1872,7 @@ body.govuk-frontend-supported .fphd-filter-card {
   width: 400px;
   max-width: calc(100vw - 60px);
   padding: govuk-spacing(3);
-  background: govuk-colour('white');
+  background: govuk-colour("white");
   border: 1px solid $govuk-border-colour;
 }
 
@@ -1815,7 +1884,6 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   display: none;
 }
 
-
 .fphd-topic-data .fphd-compare-table th,
 .fphd-topic-data .fphd-compare-table td {
   box-sizing: border-box;
@@ -1824,8 +1892,12 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   padding: 4px 25px 4px 0;
 }
 
-.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__period { width: 16.5%; }
-.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__updated { width: 13.5%; }
+.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__period {
+  width: 16.5%;
+}
+.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__updated {
+  width: 13.5%;
+}
 
 .fphd-topic-data .fphd-compare-table {
   width: 100%;
@@ -1893,7 +1965,9 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
     margin-bottom: govuk-spacing(4);
   }
 
-  .fphd-chart-section { margin-bottom: govuk-spacing(1); }
+  .fphd-chart-section {
+    margin-bottom: govuk-spacing(1);
+  }
 
   .govuk-summary-list {
     display: table;
@@ -1901,6 +1975,17 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 0;
+  }
+
+  .fphd-chart-placeholder {
+    box-sizing: border-box;
+    min-height: 120px;
+    padding: govuk-spacing(3);
+
+    .govuk-body,
+    .govuk-hint {
+      @include govuk-font-size($size: 16);
+    }
   }
 
   .govuk-summary-list__row {

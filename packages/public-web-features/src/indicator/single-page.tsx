@@ -31,7 +31,7 @@ export function SingleIndicatorPage({
   comparison,
   complete,
 }: Awaited<ReturnType<typeof loadIndicatorPage>>) {
-  const contentReady = useDataReady(data, comparison);
+  const contentReady = useDataReady([data, comparison]);
   return (
     <div className="fphd-wide-layout fphd-single-indicator-page">
       <nav aria-label="Breadcrumb" className="govuk-breadcrumbs">

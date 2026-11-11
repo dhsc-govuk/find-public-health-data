@@ -304,6 +304,23 @@ it.each([
   },
 );
 
+it('finishes writing its files before it reports a failure', async () => {
+  sourceObservations([observation()]);
+  vi.mocked(streamPholio)
+    .mockImplementationOnce(async (_pool, _query, consume) => {
+      await consume(observation());
+      return 1;
+    })
+    .mockImplementationOnce(async (_pool, _query, consume) => {
+      await consume(observation({ LowerCI95: 12, UpperCI95: 8 }));
+      return 1;
+    });
+
+  await expect(exportObservations(observationOptions())).rejects.toThrow('inverted');
+
+  expect(await rows('observation')).toEqual([]);
+});
+
 it('counts every intentional observation exclusion separately', async () => {
   sourceObservations([
     observation(),

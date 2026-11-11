@@ -1,3 +1,5 @@
+import { isOneOf } from './is-one-of.ts';
+
 /** The tasks a publisher completes on an indicator's draft: the name, the data table and each section. */
 export const INDICATOR_TASK_KEYS = [
   'name',
@@ -39,7 +41,7 @@ export type FlaggableTaskKey = Exclude<IndicatorTaskKey, NotesForReviewersTaskKe
 
 /** Whether a reviewer may flag the task: every task but the notes for reviewers. */
 export function isFlaggable(key: IndicatorTaskKey): key is FlaggableTaskKey {
-  return !(NOTES_FOR_REVIEWERS_TASK_KEYS as readonly IndicatorTaskKey[]).includes(key);
+  return !isOneOf(NOTES_FOR_REVIEWERS_TASK_KEYS, key);
 }
 
 /** The tasks a reviewer may flag for revision: every task but the notes for reviewers. */

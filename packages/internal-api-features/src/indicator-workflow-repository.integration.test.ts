@@ -22,7 +22,12 @@ import {
   repositoryTest,
 } from './indicator-repository.testing.ts';
 import { indicatorTaskList } from './indicator-task-list.ts';
-import { completeDraft, draftUpdatedAt, ukToday } from './indicator-workflow.testing.ts';
+import {
+  completeDraft,
+  draftUpdatedAt,
+  sentBackDraft,
+  ukToday,
+} from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
@@ -267,16 +272,22 @@ describe('submitIndicator', () => {
 
 describe('takeIndicatorStep', () => {
   repositoryTest(
-    'throws for a step that starts a submission without the reviewers to carry',
+    'throws for a step that carries reviewers without the reviewers to carry',
     async ({ db }) => {
-      const { indicatorId, versionId } = await completeNewDraft(db, 'Submitted without reviewers');
+      const { indicatorId, versionId } = await sentBackDraft(
+        db,
+        'Resubmitted without reviewers',
+        [],
+      );
 
-      await expect(takeIndicatorStep(db, indicatorId, 'submit', AS_ACTOR)).rejects.toThrow(
-        'submit was given no reviewersToCarry',
+      await expect(takeIndicatorStep(db, indicatorId, 'resubmit', AS_ACTOR)).rejects.toThrow(
+        'resubmit was given no reviewersToCarry',
       );
 
       expect((await versionOf(db, versionId)).isLocked).toBe(false);
-      expect(await submissionsOf(db, versionId)).toEqual([]);
+      expect((await submissionsOf(db, versionId)).map(({ status }) => status)).toEqual([
+        'changes_requested',
+      ]);
     },
   );
 });
@@ -625,18 +636,19 @@ describe('assignReviewers', () => {
   });
 
   repositoryTest(
-    'lets the publisher withdraw the submission, keeping its reviewers',
+    'stops the publisher withdrawing the submission, writing nothing',
     async ({ db }) => {
       const { indicatorId, versionId } = await submittedDraft(db, 'Withdrawn after assignment');
       await assign(db, indicatorId, [REVIEWER]);
 
-      await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({ ok: true });
+      await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
+        ok: false,
+        reason: 'not_allowed',
+      });
       const [submission] = await submissionsOf(db, versionId);
-      expect(submission?.status).toBe('withdrawn');
-      expect(
-        (await reviewersOf(db, submission?.id ?? '')).map(({ reviewerId }) => reviewerId),
-      ).toEqual([REVIEWER]);
-      expect((await versionOf(db, versionId)).isLocked).toBe(false);
+      expect(submission?.status).toBe('in_review');
+      expect((await versionOf(db, versionId)).isLocked).toBe(true);
+      expect(await stepEntriesFor(db, indicatorId)).toHaveLength(2);
     },
   );
 });
@@ -671,15 +683,13 @@ describe('the lock', () => {
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
       () => assign(db, indicatorId, [REVIEWER], [], 2),
       () => assign(db, indicatorId, [PUBLISHING_REVIEWER], [REVIEWER], 2),
-      () => withdrawSubmission(db, indicatorId, 2, AS_ACTOR),
-      () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
-      () => respond(3, 'pre_imrg_feedback'),
+      () => respond(2, 'pre_imrg_feedback'),
       replied,
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
-      () => respond(4, 'major_revisions'),
+      () => respond(3, 'major_revisions'),
       replied,
       () => submitIndicator(db, indicatorId, shown, AS_ACTOR),
-      () => respond(5, 'approved'),
+      () => respond(4, 'approved'),
     ];
 
     for (const step of steps) {

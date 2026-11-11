@@ -25,11 +25,14 @@ const envSchema = z
     // so the command that uses them asserts them instead.
     PUBLIC_API_PASSWORD: z.string().min(1).optional(),
     INTERNAL_API_PASSWORD: z.string().min(1).optional(),
-    // Under DB_AUTH=entra, `db bootstrap` creates these Entra principals for the API identities.
+    // Under DB_AUTH=entra, `db bootstrap` creates an Entra principal for each app's managed
+    // identity, named by its *_DB_USER variable and identified by its *_OBJECT_ID variable.
     PUBLIC_API_DB_USER: z.string().min(1).optional(),
     PUBLIC_API_OBJECT_ID: z.guid().optional(),
     INTERNAL_API_DB_USER: z.string().min(1).optional(),
     INTERNAL_API_OBJECT_ID: z.guid().optional(),
+    INTERNAL_WORKER_DB_USER: z.string().min(1).optional(),
+    INTERNAL_WORKER_OBJECT_ID: z.guid().optional(),
     PUBLISHED_SNAPSHOT_URL: z.url().optional(),
     PUBLISHED_SNAPSHOT_SHA256: z
       .string()
@@ -81,6 +84,10 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
       internalApiPassword: parsed.INTERNAL_API_PASSWORD,
       publicApiPrincipal: principal(parsed.PUBLIC_API_DB_USER, parsed.PUBLIC_API_OBJECT_ID),
       internalApiPrincipal: principal(parsed.INTERNAL_API_DB_USER, parsed.INTERNAL_API_OBJECT_ID),
+      internalWorkerPrincipal: principal(
+        parsed.INTERNAL_WORKER_DB_USER,
+        parsed.INTERNAL_WORKER_OBJECT_ID,
+      ),
     },
     publishedSnapshot: {
       url: parsed.PUBLISHED_SNAPSHOT_URL,

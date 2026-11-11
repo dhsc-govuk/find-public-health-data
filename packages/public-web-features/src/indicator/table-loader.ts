@@ -2,8 +2,9 @@ import {
   indicatorTableDataSchema,
   MAX_AREA_CODES_PER_REQUEST,
   MAX_TABLE_INDICATORS_PER_REQUEST,
+  type ObservationHistory,
 } from '@fphd/public-api-features/contract';
-import type { TableSeriesSelection } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, type TableSeriesSelection } from '@fphd/utils/observation-series';
 import type { ApiClient } from '@fphd/web-server/api-client';
 import { loadInBatches } from './batches.ts';
 
@@ -11,10 +12,10 @@ export async function loadIndicatorTableEntries(
   api: ApiClient,
   shortIds: number[],
   areaCodes: string[],
-  points: 'recent' | 'latest' | 'sparkline' = 'recent',
+  observationHistory: ObservationHistory = 'recentPerSeries',
 ) {
-  const codes = areaCodes.includes('E92000001')
-    ? ['E92000001', ...areaCodes.filter((code) => code !== 'E92000001')]
+  const codes = areaCodes.includes(ENGLAND_AREA_CODE)
+    ? [ENGLAND_AREA_CODE, ...areaCodes.filter((code) => code !== ENGLAND_AREA_CODE)]
     : areaCodes;
   const indicatorBatches = Array.from(
     { length: Math.ceil(shortIds.length / MAX_TABLE_INDICATORS_PER_REQUEST) },
@@ -36,7 +37,8 @@ export async function loadIndicatorTableEntries(
           const params = new URLSearchParams();
           for (const id of ids) params.append('indicator', String(id));
           for (const code of areas) params.append('areaCode', code);
-          if (points !== 'recent') params.set('points', points);
+          if (observationHistory !== 'recentPerSeries')
+            params.set('observationHistory', observationHistory);
           return api.get(`/api/indicator-data?${params}`, indicatorTableDataSchema);
         })
       ).flat();

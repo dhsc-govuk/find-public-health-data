@@ -1,4 +1,9 @@
-import { observationSegmentKey, type TableSeriesSelection } from '@fphd/utils/observation-series';
+import {
+  ENGLAND_AREA_CODE,
+  observationSegmentKey,
+  ROLLING_PERIOD_THRESHOLD_DAYS,
+  type TableSeriesSelection,
+} from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, gt, inArray, lte, or, sql } from 'drizzle-orm';
 import { unionAll } from 'drizzle-orm/pg-core';
@@ -100,8 +105,8 @@ async function readSparklineHistory(
             periodType === 'all'
               ? undefined
               : periodType === '3-year'
-                ? gt(duration, 400)
-                : lte(duration, 400),
+                ? gt(duration, ROLLING_PERIOD_THRESHOLD_DAYS)
+                : lte(duration, ROLLING_PERIOD_THRESHOLD_DAYS),
           ),
         ),
     ];
@@ -165,7 +170,7 @@ export async function getIndicatorSeriesData(
       const selected = rows.filter((row) => row.indicatorId === indicatorId);
       const forArea = (id: string) => selected.filter((row) => row.areaId === id);
       const first = ordered.find((a) => forArea(a.id).length);
-      const locals = ordered.filter((a) => a.code !== 'E92000001');
+      const locals = ordered.filter((a) => a.code !== ENGLAND_AREA_CODE);
       const compared = locals.length ? locals : ordered;
       const variant = (first ? forArea(first.id)[0]?.variants : [])?.find((variant) =>
         compared.some((a) =>
@@ -196,7 +201,7 @@ export async function getIndicatorSeriesData(
     }
   if (mode === 'sparkline')
     for (const { id } of await readSparklineHistory(db, rows)) wanted.add(id);
-  const england = areas.find((a) => a.code === 'E92000001');
+  const england = areas.find((a) => a.code === ENGLAND_AREA_CODE);
   const benchmarkIds =
     england && mode !== 'ranking'
       ? [

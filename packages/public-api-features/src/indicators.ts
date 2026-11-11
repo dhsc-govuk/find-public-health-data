@@ -1,6 +1,7 @@
 import type { IndicatorSearchFilters, Repositories } from '@fphd/db';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { Router } from 'express';
@@ -13,6 +14,7 @@ import type {
 } from './contract.ts';
 import {
   DEFAULT_INDICATOR_SEARCH_RESULTS,
+  indicatorDataQuerySchema,
   indicatorPeriodFiltersSchema,
   MAX_AREA_NAME_LENGTH,
   MAX_AREA_PREVIEW,
@@ -26,10 +28,9 @@ import {
   MAX_SELECTED_AREAS,
   MAX_TABLE_INDICATORS_PER_REQUEST,
   pickAreaCodes,
+  queryLimit,
   queryText,
 } from './contract.ts';
-
-const DEFAULT_AREA_CODE = 'E92000001';
 
 /**
  * An indicator is addressed by short id or by slug, and both answer 200: a client that
@@ -91,15 +92,16 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
           .map(Number),
       ),
     ].slice(0, MAX_TABLE_INDICATORS_PER_REQUEST);
-    const areaCodes = pickAreaCodes(request.query.areaCode ?? DEFAULT_AREA_CODE);
+    const areaCodes = pickAreaCodes(request.query.areaCode ?? ENGLAND_AREA_CODE);
     if (!shortIds.length || !areaCodes.length) {
       response.status(404).json({ error: 'not_found' });
       return;
     }
+    const { observationHistory } = indicatorDataQuerySchema.parse(request.query);
     const entries =
-      request.query.points === 'latest'
+      observationHistory === 'latestPerSeries'
         ? await indicators.findTableData(shortIds, areaCodes, 'latest')
-        : request.query.points === 'sparkline'
+        : observationHistory === 'lastEightPeriodsPerSeries'
           ? await indicators.findTableData(shortIds, areaCodes, 'sparkline')
           : await indicators.findTableData(shortIds, areaCodes);
     if (entries.length !== shortIds.length || entries.some(({ areaData }) => !areaData.length)) {
@@ -139,11 +141,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     if (typeof page === 'string') {
       const requested = Number(page);
       filters.page = Number.isSafeInteger(requested) && requested > 0 ? requested : 1;
-      const limit = request.query.limit;
-      filters.limit =
-        typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-          ? Math.min(Number(limit), MAX_INDICATOR_FILTER_RESULTS)
-          : 10;
+      filters.limit = queryLimit(request.query.limit, MAX_INDICATOR_FILTER_RESULTS) ?? 10;
     }
     const requestedSort = indicatorSort(sort);
     if (requestedSort?.startsWith('trend-') && filters.topics.length !== 1) {
@@ -164,9 +162,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     const query = queryText(q, MAX_INDICATOR_QUERY_LENGTH);
     if (query) {
       const capped =
-        typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-          ? Math.min(Number(limit), MAX_INDICATOR_SEARCH_RESULTS)
-          : DEFAULT_INDICATOR_SEARCH_RESULTS;
+        queryLimit(limit, MAX_INDICATOR_SEARCH_RESULTS) ?? DEFAULT_INDICATOR_SEARCH_RESULTS;
       response.status(200).json({ indicators: await indicators.search(query, capped) });
       return;
     }
@@ -180,7 +176,8 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       return;
     }
     const { displayGroup, q, limit, scope } = request.query;
-    if (limit !== undefined && (typeof limit !== 'string' || !/^[1-9]\d*$/.test(limit))) {
+    const requestedLimit = queryLimit(limit, MAX_AREA_PREVIEW);
+    if (limit !== undefined && requestedLimit === undefined) {
       response.status(400).json({ error: 'invalid_limit' });
       return;
     }
@@ -199,18 +196,17 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
             : undefined,
         query,
         limit:
-          typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-            ? Math.min(Number(limit), MAX_AREA_PREVIEW)
-            : (typeof displayGroup === 'string' && displayGroup) || scope === 'all-data'
-              ? undefined
-              : MAX_AREA_PREVIEW,
+          requestedLimit ??
+          ((typeof displayGroup === 'string' && displayGroup) || scope === 'all-data'
+            ? undefined
+            : MAX_AREA_PREVIEW),
       }),
     );
   });
 
   router.get('/api/indicators/:indicator/data', async (request, response) => {
     // Repeatable, so a page comparing many areas asks once rather than once per area.
-    const requested = request.query.areaCode ?? DEFAULT_AREA_CODE;
+    const requested = request.query.areaCode ?? ENGLAND_AREA_CODE;
     const areaCodes = pickAreaCodes(requested);
 
     if (areaCodes.length === 0) {

@@ -8,7 +8,7 @@ import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
 import { IMRG_MANAGER, PUBLISHER } from '../support/sign-in.ts';
 
 const ASSIGNED = 'Reviewers successfully assigned to indicator.';
-const WITHDRAWN = 'Submission withdrawn. You can now edit the indicator.';
+const NOT_WITHDRAWN = 'This submission can no longer be withdrawn.';
 
 function overviewPath(id: string) {
   return `/dashboard/indicators/${id}`;
@@ -108,7 +108,7 @@ test('asks for a reviewer when none is chosen', async ({ browser, page }, testIn
   await expect(page.getByLabel('Reviewer', { exact: true })).toBeFocused();
 });
 
-test('once reviewers are assigned, the publisher can still withdraw the submission', async ({
+test('once reviewers are assigned, the publisher can no longer withdraw the submission', async ({
   browser,
   page,
 }) => {
@@ -122,11 +122,11 @@ test('once reviewers are assigned, the publisher can still withdraw the submissi
     await browser.newContext({ storageState: PUBLISHER.storageState })
   ).newPage();
   await publisher.goto(overviewPath(id));
-  await publisher.getByRole('link', { name: 'Withdraw submission' }).click();
-  await publisher.getByRole('button', { name: 'Withdraw submission' }).click();
+  await expect(publisher.getByRole('link', { name: 'Withdraw submission' })).toHaveCount(0);
 
+  await publisher.goto(`/publish/indicators/${id}/withdraw-submission`);
   await expect(publisher).toHaveURL(overviewPath(id));
-  await expect(publisher.getByText(WITHDRAWN)).toBeVisible();
+  await expect(publisher.getByRole('region', { name: 'Important' })).toContainText(NOT_WITHDRAWN);
   await publisher.context().close();
 });
 

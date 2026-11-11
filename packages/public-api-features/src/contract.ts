@@ -26,6 +26,14 @@ export const MAX_FILTER_LABEL_LENGTH = 500;
 export const MAX_FILTER_VALUE_LENGTH = 100;
 export const MAX_FILTER_VALUES = 100;
 
+export const indicatorDataQuerySchema = z.object({
+  observationHistory: z
+    .enum(['recentPerSeries', 'latestPerSeries', 'lastEightPeriodsPerSeries'])
+    .catch('recentPerSeries'),
+});
+
+export type ObservationHistory = z.infer<typeof indicatorDataQuerySchema>['observationHistory'];
+
 export const indicatorPeriodFiltersSchema = z.object({
   fromYear: z
     .string()
@@ -48,6 +56,16 @@ export function queryText(value: unknown, max: number): string {
   return typeof value === 'string'
     ? tidyName(value.replaceAll(CONTROL_CHARACTERS, ' ')).slice(0, max)
     : '';
+}
+
+/**
+ * A `limit` query parameter as a whole number from 1 up to `max`. A larger number is cut to
+ * `max`. A missing or malformed value returns undefined, so the caller picks the default.
+ */
+export function queryLimit(value: unknown, max: number): number | undefined {
+  return typeof value === 'string' && /^[1-9]\d*$/.test(value)
+    ? Math.min(Number(value), max)
+    : undefined;
 }
 
 export function pickAreaCodes(value: unknown, limit = MAX_AREA_CODES_PER_REQUEST): string[] {

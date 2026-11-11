@@ -1,4 +1,5 @@
 import { INDICATOR_SORTS, type IndicatorSort } from '@fphd/utils/indicator-sort';
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
   availablePeriodTypes,
@@ -60,7 +61,7 @@ export function englandObservation(
   entry: SelectedIndicator,
   row: Pick<ComparisonRow, 'sex' | 'periodType' | 'series'>,
 ) {
-  const england = entry.areaData.find(({ areaCode }) => areaCode === 'E92000001');
+  const england = entry.areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
   const period = row.series.at(-1);
   const series = trendSeries(
     filterObservations(england?.observations ?? [], row).filter(
@@ -97,7 +98,7 @@ export function topicTableSelection(
         keep.add(point);
     };
     for (const row of rows) {
-      const england = entry.areaData.find(({ areaCode }) => areaCode === 'E92000001');
+      const england = entry.areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
       const benchmarkSeries = trendSeries(filterObservations(england?.observations ?? [], row));
       keepSparkline(benchmarkSeries);
       for (const point of trendPoints

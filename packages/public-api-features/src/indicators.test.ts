@@ -85,14 +85,24 @@ describe('GET /api/indicator-data', () => {
   it('requests bounded sparkline periods separately from recent trend history', async () => {
     const findTableData = vi.fn().mockResolvedValue([]);
     await request(createTestApp({ findTableData })).get(
-      '/api/indicator-data?indicator=108&points=sparkline',
+      '/api/indicator-data?indicator=108&observationHistory=lastEightPeriodsPerSeries',
     );
     expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001'], 'sparkline');
   });
+  it.each(['', '&observationHistory=recentPerSeries', '&observationHistory=invalid'])(
+    'defaults to recent history for query %s',
+    async (query) => {
+      const findTableData = vi.fn().mockResolvedValue([]);
+      await request(createTestApp({ findTableData })).get(
+        `/api/indicator-data?indicator=108${query}`,
+      );
+      expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001']);
+    },
+  );
   it('requests current table values with precomputed trends when selected', async () => {
     const findTableData = vi.fn().mockResolvedValue([]);
     await request(createTestApp({ findTableData })).get(
-      '/api/indicator-data?indicator=108&points=latest',
+      '/api/indicator-data?indicator=108&observationHistory=latestPerSeries',
     );
     expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001'], 'latest');
   });

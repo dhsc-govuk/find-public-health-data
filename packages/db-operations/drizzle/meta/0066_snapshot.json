@@ -1,5 +1,5 @@
 {
-  "id": "97ee9047-06af-4257-8d10-026fee1297f5",
+  "id": "28af2d6c-4444-43da-bdac-9312d1e3c9f3",
   "prevId": "9079368f-2bfa-47ea-a3dc-0621130adfcf",
   "version": "7",
   "dialect": "postgresql",
@@ -1639,6 +1639,28 @@
           "where": "\"indicator_version\".\"status\" IN ('draft', 'scheduled')",
           "concurrently": false
         },
+        "idx_indicator_version_scheduled_publish_at": {
+          "name": "idx_indicator_version_scheduled_publish_at",
+          "columns": [
+            {
+              "expression": "scheduled_publish_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"indicator_version\".\"status\" = 'scheduled'",
+          "concurrently": false
+        },
         "idx_indicator_version_indicator": {
           "name": "idx_indicator_version_indicator",
           "columns": [
@@ -1700,28 +1722,6 @@
           "with": {},
           "method": "gin",
           "concurrently": false
-        },
-        "idx_indicator_version_scheduled_publish_at": {
-          "name": "idx_indicator_version_scheduled_publish_at",
-          "columns": [
-            {
-              "expression": "scheduled_publish_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"indicator_version\".\"status\" = 'scheduled'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
