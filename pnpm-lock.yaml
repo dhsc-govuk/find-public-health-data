@@ -186,9 +186,6 @@ catalogs:
     http-graceful-shutdown:
       specifier: 4.0.0
       version: 4.0.0
-    isbot:
-      specifier: 5.2.0
-      version: 5.2.0
     jose:
       specifier: 6.2.4
       version: 6.2.4
@@ -1236,9 +1233,6 @@ importers:
       express:
         specifier: 'catalog:'
         version: 5.2.1
-      isbot:
-        specifier: 'catalog:'
-        version: 5.2.0
       react:
         specifier: 'catalog:'
         version: 19.3.1

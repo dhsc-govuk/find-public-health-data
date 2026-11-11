@@ -167,16 +167,16 @@ describe('loadTopic', () => {
     ]);
   });
 
-  it('returns the topic before its overview and tables have loaded', async () => {
+  it('defers the overview and tables on client navigations', async () => {
     const read = topicApi([{ shortId: 1, name: 'Indicator', slug: 'indicator' }]);
     const gate = Promise.withResolvers<void>();
     const get = vi.fn(async (path: string) => {
       if (path.endsWith('/trends') || path.startsWith('/api/indicator-data?')) await gate.promise;
       return read(path);
     });
-    const page = await loadTopicPage(
-      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
-    );
+    const args = loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' });
+    args.request = new Request('http://localhost/topics/topic-a.data');
+    const page = await loadTopicPage(args);
     try {
       expect(page.topic.title).toBe('Topic A');
       expect(page.overview).toBeInstanceOf(Promise);
@@ -192,18 +192,35 @@ describe('loadTopic', () => {
     expect(areas?.listing.indicators).toHaveLength(1);
   });
 
-  it('returns complete HTML data for the JavaScript-free fallback', async () => {
+  it('settles every section for a document request without a rendering parameter', async () => {
     const page = await loadTopicPage(
-      loaderArgs(
-        { get: topicApi() } as unknown as ApiClient,
-        { slug: 'topic-a' },
-        '?render=complete',
-      ),
+      loaderArgs({ get: topicApi() } as unknown as ApiClient, { slug: 'topic-a' }),
     );
-    expect(page.complete).toBe(true);
     expect(page.overview).not.toBeInstanceOf(Promise);
     expect(page.content).not.toBeInstanceOf(Promise);
     expect(page.areas).not.toBeInstanceOf(Promise);
+  });
+
+  it('waits for slow document sections beyond the rendering deadline', async () => {
+    vi.useFakeTimers();
+    const read = topicApi();
+    const get = vi.fn(async (path: string) => {
+      if (path.endsWith('/trends')) await new Promise((resolve) => setTimeout(resolve, 7_000));
+      return read(path);
+    });
+    const ready = vi.fn();
+    try {
+      const pending = loadTopicPage(
+        loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
+      ).then(ready);
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(ready).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await pending;
+      expect(ready).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each(['data', 'areas'])(

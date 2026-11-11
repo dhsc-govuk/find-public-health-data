@@ -1,6 +1,6 @@
 import { InsetText, Tabs } from '@fphd/ui';
 import { Link } from 'react-router';
-import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
+import { DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
 import { CompareIndicatorsTab } from './compare-tab.tsx';
@@ -29,7 +29,6 @@ export function SingleIndicatorPage({
   comparedDetail,
   data,
   comparison,
-  complete,
 }: Awaited<ReturnType<typeof loadIndicatorPage>>) {
   const contentReady = useDataReady([data, comparison]);
   return (
@@ -56,7 +55,6 @@ export function SingleIndicatorPage({
         </ol>
       </nav>
       <h1 className="govuk-heading-l govuk-!-margin-bottom-3">{detail.name}</h1>
-      <CompletePageLink complete={complete} />
       <DataSection label="indicator summary" resolve={data}>
         {({ selected, areasLimited }) => (
           <>

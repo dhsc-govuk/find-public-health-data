@@ -1,8 +1,6 @@
 import { PassThrough } from 'node:stream';
 import { NonceProvider } from '@fphd/ui/nonce';
 import { createReadableStreamFromReadable } from '@react-router/node';
-import { isbot } from 'isbot';
-import type { RenderToPipeableStreamOptions } from 'react-dom/server';
 import { renderToPipeableStream } from 'react-dom/server';
 import {
   type EntryContext,
@@ -40,6 +38,7 @@ export default function handleRequest(
   const logger = loadContext.get(loggerContext);
   return new Promise<Response>((resolve, reject) => {
     let abortTimeout: ReturnType<typeof setTimeout> | undefined;
+    let aborted = false;
     let shellRendered = false;
     const clearAbortTimeout = () => {
       if (abortTimeout !== undefined) {
@@ -47,19 +46,14 @@ export default function handleRequest(
         abortTimeout = undefined;
       }
     };
-    const userAgent = request.headers.get('user-agent');
-    const readyOption: keyof RenderToPipeableStreamOptions =
-      (userAgent && isbot(userAgent)) || entryContext.isSpaMode ? 'onAllReady' : 'onShellReady';
-
     const { abort, pipe } = renderToPipeableStream(
       <NonceProvider value={nonce}>
         <ServerRouter context={entryContext} nonce={nonce} url={request.url} />
       </NonceProvider>,
       {
-        // React's own boundary-completion scripts are injected inline as the stream
-        // resolves; without this they carry no nonce and the CSP blocks them.
         nonce,
-        [readyOption]() {
+        onAllReady() {
+          if (aborted) return;
           shellRendered = true;
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
@@ -84,6 +78,11 @@ export default function handleRequest(
       },
     );
 
-    abortTimeout = setTimeout(abort, streamTimeout + 1_000);
+    abortTimeout = setTimeout(() => {
+      // Aborting can call onAllReady with unfinished boundaries that require JavaScript.
+      aborted = true;
+      reject(new Error('Document rendering timed out'));
+      abort();
+    }, streamTimeout + 1_000);
   });
 }

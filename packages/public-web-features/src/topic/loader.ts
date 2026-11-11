@@ -87,14 +87,15 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
         }
       : null,
   );
-  const complete = url.searchParams.get('render') === 'complete';
-  const completed = complete ? await Promise.all([overview, content, areas]) : undefined;
+  // Settle document data before React Router starts its deferred-data timeout.
+  const completed = url.pathname.endsWith('.data')
+    ? undefined
+    : await Promise.allSettled([overview, content, areas]);
   return {
     topic,
-    overview: completed ? completed[0] : overview,
-    content: completed ? completed[1] : content,
-    areas: completed ? completed[2] : areas,
-    complete,
+    overview: completed?.[0].status === 'fulfilled' ? completed[0].value : overview,
+    content: completed?.[1].status === 'fulfilled' ? completed[1].value : content,
+    areas: completed?.[2].status === 'fulfilled' ? completed[2].value : areas,
   };
 }
 

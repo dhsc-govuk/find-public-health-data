@@ -57,20 +57,3 @@ export function useDataReady(values: unknown[]) {
   }, [values, ready]);
   return ready;
 }
-
-export function CompletePageLink({ complete }: { complete: boolean }) {
-  const location = useLocation();
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
-  if (complete || hydrated) return null;
-  const params = new URLSearchParams(location.search);
-  params.set('render', 'complete');
-  return (
-    <p className="govuk-body">
-      <a className="govuk-link" href={`${location.pathname}?${params}${location.hash}`}>
-        Show all sections
-      </a>{' '}
-      to load this page without JavaScript.
-    </p>
-  );
-}

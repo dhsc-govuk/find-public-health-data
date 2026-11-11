@@ -1,6 +1,6 @@
 import { GridColumn, GridRow, Tabs } from '@fphd/ui';
 import { Link, useLocation } from 'react-router';
-import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
+import { DataSection, useDataReady } from '../data-section.tsx';
 import { SearchFilterPane } from '../search/filter-pane.tsx';
 import { TopicGeographies } from './geographies.tsx';
 import { TopicListing } from './listing.tsx';
@@ -12,14 +12,12 @@ import { TopicSubtopicFilter } from './subtopic-filter.tsx';
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 
 export function TopicPage(data: TopicData) {
-  const { topic, content, overview, areas, complete } = data;
+  const { topic, content, overview, areas } = data;
   const contentReady = useDataReady([overview, content, areas]);
   const location = useLocation();
   const path = `/topics/${topic.slug}`;
   const columnParams = Object.fromEntries(
-    [...new URLSearchParams(location.search)].filter(
-      ([key]) => key === 'columns-topic' || key === 'render',
-    ),
+    [...new URLSearchParams(location.search)].filter(([key]) => key === 'columns-topic'),
   );
   return (
     <div className="fphd-wide-layout fphd-topic-page">
@@ -38,7 +36,6 @@ export function TopicPage(data: TopicData) {
         </ol>
       </nav>
       <h1 className="govuk-heading-xl">{topic.title}</h1>
-      <CompletePageLink complete={complete} />
       <Tabs
         contentReady={contentReady}
         sectionHeadings

@@ -85,7 +85,6 @@
     "basic-auth": "catalog:",
     "compression": "catalog:",
     "express": "catalog:",
-    "isbot": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-router": "catalog:",

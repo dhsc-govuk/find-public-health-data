@@ -68,7 +68,7 @@ function args(
 }
 
 describe('loadIndicator', () => {
-  it('returns the page metadata while observations and rankings are still pending', async () => {
+  it('defers observations and rankings on client navigations', async () => {
     const { client, get } = api();
     const gate = Promise.withResolvers<void>();
     const read = client.get;
@@ -79,7 +79,9 @@ describe('loadIndicator', () => {
         return read(path, schema);
       }),
     } as ApiClient;
-    const page = await loadIndicatorPage(args(delayed));
+    const page = await loadIndicatorPage(
+      args(delayed, 'http://localhost/indicator/indicator-108.data'),
+    );
     try {
       expect(page.detail.shortId).toBe(108);
       expect(page.data).toBeInstanceOf(Promise);
@@ -93,14 +95,35 @@ describe('loadIndicator', () => {
     expect(comparison.compareAreaOptions).toHaveLength(25);
   });
 
-  it('waits for complete content only when explicitly requested', async () => {
+  it('settles every section for a document request without a rendering parameter', async () => {
     const { client } = api();
-    const page = await loadIndicatorPage(
-      args(client, 'http://localhost/indicator/indicator-108?render=complete'),
-    );
-    expect(page.complete).toBe(true);
+    const page = await loadIndicatorPage(args(client));
     expect(page.data).not.toBeInstanceOf(Promise);
     expect(page.comparison).not.toBeInstanceOf(Promise);
+  });
+
+  it('waits for slow document sections beyond the rendering deadline', async () => {
+    vi.useFakeTimers();
+    const { client } = api();
+    const delayed = {
+      ...client,
+      get: vi.fn(async (path, schema) => {
+        if (path.includes('/data?') || path.includes('/ranking?'))
+          await new Promise((resolve) => setTimeout(resolve, 7_000));
+        return client.get(path, schema);
+      }),
+    } as ApiClient;
+    const ready = vi.fn();
+    try {
+      const pending = loadIndicatorPage(args(delayed)).then(ready);
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(ready).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await pending;
+      expect(ready).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('requires one route indicator before any API request', async () => {

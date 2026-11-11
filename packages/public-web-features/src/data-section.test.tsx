@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
-import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { DataSection, useDataReady } from './data-section.tsx';
@@ -27,19 +26,6 @@ it('waits for every section in an array and tracks replacement promises', async 
   expect(result.current).toBe(false);
   await act(async () => replacement.resolve());
   expect(result.current).toBe(true);
-});
-
-it('puts completed content in the initial HTML without a loading fallback', () => {
-  const html = renderToString(
-    <MemoryRouter>
-      <DataSection label="data" resolve={{ value: 'Complete table' }}>
-        {({ value }) => <p>{value}</p>}
-      </DataSection>
-    </MemoryRouter>,
-  );
-  expect(html).toContain('Complete table');
-  expect(html).not.toContain('Loading');
-  expect(html).not.toContain('<template');
 });
 
 it('renders navigation while sections load and reveals each section independently', async () => {

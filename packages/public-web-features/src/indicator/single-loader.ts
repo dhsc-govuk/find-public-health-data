@@ -71,14 +71,15 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
   const comparison = groups.then((groups) =>
     loadIndicatorComparison(args, routeDetail, comparedDetail, groups),
   );
-  const complete = url.searchParams.get('render') === 'complete';
-  const completed = complete ? await Promise.all([data, comparison]) : undefined;
+  // Settle document data before React Router starts its deferred-data timeout.
+  const completed = url.pathname.endsWith('.data')
+    ? undefined
+    : await Promise.allSettled([data, comparison]);
   return {
     detail: routeDetail,
     comparedDetail,
-    data: completed ? completed[0] : data,
-    comparison: completed ? completed[1] : comparison,
-    complete,
+    data: completed?.[0].status === 'fulfilled' ? completed[0].value : data,
+    comparison: completed?.[1].status === 'fulfilled' ? completed[1].value : comparison,
   };
 }
 
