@@ -584,6 +584,7 @@ test.describe('without JavaScript', () => {
     await results(page).getByRole('link').first().click();
     await expect(page).toHaveURL(/\/indicator\/.*as=E06000052/);
     await expect(page.getByRole('tab')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Show all sections', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Compare areas', exact: true })).toBeVisible();
     const indicator = page.locator('#indicator-data');
     await expect(

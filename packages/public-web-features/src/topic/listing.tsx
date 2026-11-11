@@ -11,7 +11,7 @@ import { TopicDataTable } from './tables/data-table.tsx';
 
 type TopicPageData = Awaited<ReturnType<typeof loadTopicPage>>;
 type TopicData = { topic: TopicPageData['topic'] } & NonNullable<
-  TopicPageData['content'] | TopicPageData['areas']
+  Awaited<TopicPageData['content'] | TopicPageData['areas']>
 >;
 
 export function TopicListing({ data, areas = false }: { data: TopicData; areas?: boolean }) {
@@ -30,13 +30,35 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
     [...params].filter(([key]) => key === 'columns-topic'),
   ).toString();
   const columns = useMemo(() => topicColumns(new URLSearchParams(columnKey)), [columnKey]);
-  const table = data.table;
+  const sourceTable = data.table;
+  const areaKey = new URLSearchParams([...params].filter(([key]) => key === 'ga')).toString();
+  const sameGroup = search.geoLevels.includes(params.get('geo') ?? 'NHS regions');
+  const table = useMemo(() => {
+    const selectedCodes = new URLSearchParams(areaKey).getAll('ga');
+    if (
+      sourceTable.kind !== 'areas' ||
+      !sameGroup ||
+      selectedCodes.length === 0 ||
+      !selectedCodes.every((code) => sourceTable.areas.some(({ areaCode }) => areaCode === code))
+    )
+      return sourceTable;
+    const selectedAreas = new Set(selectedCodes);
+    return {
+      ...sourceTable,
+      areas: sourceTable.areas.filter(({ areaCode }) => selectedAreas.has(areaCode)),
+      rows: sourceTable.rows.map((row) => ({
+        ...row,
+        cells: row.cells.filter(({ areaCode }) => selectedAreas.has(areaCode)),
+      })),
+    };
+  }, [sourceTable, areaKey, sameGroup]);
   const total = search.searchResult.total;
   const hasRows = table.rows.length > 0;
   const loading =
-    navigation.state === 'loading' &&
-    navigation.location.pathname === location.pathname &&
-    topicDataKey(navigation.location) !== topicDataKey(location);
+    data.dataKey !==
+    topicDataKey(
+      navigation.location?.pathname === location.pathname ? navigation.location : location,
+    );
   return (
     <>
       <div className="fphd-indicator-showing">
@@ -69,7 +91,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
           ) : null}
         </h2>
         {!areas ? (
-          <Form action={path} method="get" preventScrollReset>
+          <Form action={`${path}#topic-data`} method="get" preventScrollReset>
             {[...params]
               .filter(([key]) => key !== 'sort' && key !== 'page')
               .map(([name, value], index) => (

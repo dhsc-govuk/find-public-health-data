@@ -4,14 +4,18 @@ import type {
   IndicatorObservation,
 } from '@fphd/public-api-features/contract';
 import {
+  comparisonVariants,
+  ENGLAND_AREA_CODE,
+  filterSeries,
   headlineSeries,
   isRollingPeriod,
   observationSegmentKey,
+  type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import type { PublicYearType } from '@fphd/utils/period-type';
 import type { Polarity } from '@fphd/utils/polarity';
-import { recentTrendDirection } from '@fphd/utils/recent-trend';
+import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 
 export function segmentLabel(observation: IndicatorObservation): string {
   if (observation.dimensions.length === 0) {
@@ -173,6 +177,7 @@ export function formatConfidenceInterval(observation: IndicatorObservation): str
 }
 
 export interface ComparisonCell {
+  trendDirection?: TrendDirection;
   areaCode: string;
   areaName: string;
   value: number | null;
@@ -210,7 +215,7 @@ export interface ComparisonRow {
  * England steps back once real areas are picked — the same rule as the trend table.
  */
 export function comparisonAreas(areaData: IndicatorAreaData[]): IndicatorAreaData[] {
-  const nonEngland = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
+  const nonEngland = areaData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
   return nonEngland.length > 0 ? nonEngland : areaData;
 }
 
@@ -226,42 +231,53 @@ const PERIOD_TYPE_SUFFIX: Record<Exclude<PeriodType, 'all'>, string> = {
  * does. Indicators with no data still get a row rather than vanishing.
  */
 export function comparisonRows(
-  selected: { detail: IndicatorDetail; areaData: IndicatorAreaData[] }[],
+  selected: {
+    detail: IndicatorDetail;
+    areaData: IndicatorAreaData[];
+    tableSeries?: TableSeriesSelection[];
+  }[],
 ): ComparisonRow[] {
-  return selected.flatMap(({ detail, areaData }) => {
+  return selected.flatMap(({ detail, areaData, tableSeries }) => {
     const first = areaData[0];
-    const observations =
-      areaData.find(({ observations }) => observations.length > 0)?.observations ?? [];
-    const sexes = dimensionValues(observations, 'Sex');
-    const hasAggregate = observations.some(
-      (observation) => !observation.dimensions.some(({ type }) => type === 'Sex'),
-    );
-    const periodTypes = availablePeriodTypes(observations);
-
-    const variants =
-      sexes.length === 0 || hasAggregate
-        ? [{ sex: '', periodType: 'all' as PeriodType, suffix: '' }]
-        : sexes.flatMap((sex) =>
-            (periodTypes.length > 1 ? periodTypes : (['all'] as PeriodType[])).map(
-              (periodType) => ({
-                sex,
-                periodType,
-                suffix:
-                  periodType === 'all' ? `(${sex})` : `(${sex}, ${PERIOD_TYPE_SUFFIX[periodType]})`,
-              }),
-            ),
-          );
+    const source = areaData.find(({ observations }) => observations.length > 0);
+    const observations = source?.observations ?? [];
+    const storedVariants = source
+      ? tableSeries
+          ?.filter((series) => series.rowOrder?.[source.areaCode] !== undefined)
+          .sort(
+            (a, b) => (a.rowOrder?.[source.areaCode] ?? 0) - (b.rowOrder?.[source.areaCode] ?? 0),
+          )
+      : undefined;
+    const variants = (
+      storedVariants?.length ? storedVariants : comparisonVariants(observations)
+    ).map(({ sex, periodType }) => ({
+      sex,
+      periodType,
+      suffix: !sex
+        ? ''
+        : periodType === 'all'
+          ? `(${sex})`
+          : `(${sex}, ${PERIOD_TYPE_SUFFIX[periodType]})`,
+    }));
 
     const areas = comparisonAreas(areaData);
     const cellFor = (data: IndicatorAreaData, variant: (typeof variants)[number]) => {
-      const series = trendSeries(
-        filterObservations(data.observations, {
-          sex: variant.sex,
-          periodType: variant.periodType,
-        }),
+      const points = filterObservations(data.observations, {
+        sex: variant.sex,
+        periodType: variant.periodType,
+      });
+      const selection = tableSeries?.find(
+        (entry) => entry.sex === variant.sex && entry.periodType === variant.periodType,
       );
+      const series = selection
+        ? points.filter(
+            (point) => observationSegmentKey(point) === selection.segments[data.areaCode],
+          )
+        : trendSeries(points);
       const latest = series.at(-1);
+      const trendDirection = selection?.trends?.[data.areaCode];
       return {
+        ...(trendDirection !== undefined ? { trendDirection } : {}),
         areaCode: data.areaCode,
         areaName: data.areaName,
         value: latest?.value ?? null,
@@ -430,15 +446,7 @@ export function filterObservations(
   observations: IndicatorObservation[],
   { sex, periodType = 'all' }: ObservationFilter,
 ): IndicatorObservation[] {
-  return observations.filter((observation) => {
-    if (periodType !== 'all' && isRolling(observation) !== (periodType === '3-year')) {
-      return false;
-    }
-    if (!sex) {
-      return true;
-    }
-    return observation.dimensions.some(({ type, value }) => type === 'Sex' && value === sex);
-  });
+  return filterSeries(observations, { ...(sex ? { sex } : {}), periodType });
 }
 
 export type ConfidenceLevel = 'none' | '95' | '99.8';
@@ -690,8 +698,12 @@ export type RecentTrend =
 export function recentTrend(
   observations: IndicatorObservation[],
   polarity: Polarity | null,
+  precomputed?: TrendDirection,
 ): RecentTrend {
-  const direction = recentTrendDirection(trendSeries(observations).map(({ value }) => value));
+  const direction =
+    precomputed === undefined
+      ? recentTrendDirection(trendSeries(observations).map(({ value }) => value))
+      : precomputed;
   if (direction === null)
     return { direction: null, label: 'Trend cannot be calculated', tone: 'grey' };
   if (direction === 'right') return { direction, label: 'No significant change', tone: 'yellow' };

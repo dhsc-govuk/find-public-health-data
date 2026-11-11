@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { createMemoryRouter, type LoaderFunction, RouterProvider } from 'react-router';
+import {
+  createMemoryRouter,
+  type LoaderFunction,
+  MemoryRouter,
+  RouterProvider,
+} from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Tabs } from './tabs.tsx';
 
@@ -210,3 +215,31 @@ it.each(['replace', 'push'] as const)(
     expect(router.state.historyAction).toBe(history.toUpperCase());
   },
 );
+
+it('positions a shared mobile section after its streamed content has rendered', () => {
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const view = (contentReady: boolean) => (
+    <MemoryRouter initialEntries={['/?panel=second']}>
+      <Tabs
+        paramKey="panel"
+        contentReady={contentReady}
+        items={[
+          { id: 'first', param: 'first', label: 'First', content: 'First panel' },
+          { id: 'second', param: 'second', label: 'Second', content: 'Second panel' },
+        ]}
+      />
+    </MemoryRouter>
+  );
+  const { rerender } = render(view(false));
+  const panel = screen.getByText('Second panel').closest('.govuk-tabs__panel');
+  if (!panel) throw new Error('Expected the second panel');
+  const scroll = vi.fn();
+  panel.scrollIntoView = scroll;
+  expect(scroll).not.toHaveBeenCalled();
+  rerender(view(true));
+  expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: 'start' });
+});

@@ -59,6 +59,19 @@ async function createCookie(roles: readonly string[]): Promise<string> {
 }
 
 describe('internal API', () => {
+  it('mounts compact public rankings without requiring an internal session', async () => {
+    const data = [{ areaCode: 'E06000052', areaName: 'Cornwall', observations: [] }];
+    const findRankingData = vi.fn().mockResolvedValue(data);
+    const repositories = createFakeRepositories({
+      indicators: { resolveId: async () => 'published-id', findRankingData },
+    });
+    const response = await request(createTestApp(repositories)).get(
+      '/api/indicators/108/ranking?areaCode=E06000052',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(data);
+    expect(findRankingData).toHaveBeenCalledWith('published-id', ['E06000052']);
+  });
   it('mounts bulk public table data without requiring an internal session', async () => {
     const findTableData = vi.fn().mockResolvedValue([]);
     const response = await request(

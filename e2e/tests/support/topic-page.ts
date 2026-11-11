@@ -11,7 +11,22 @@ async function openTopicPage(page: Page, path: string) {
 }
 
 export function topicPageTests() {
-  test('preloads every section, uses mobile anchors and switches desktop tabs without reloading topic data', async ({
+  test('streams the topic heading and navigation before its section data', async ({ page }) => {
+    const response = await page.request.get('/topics/diabetes', {
+      headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36' },
+    });
+    expect(response.ok()).toBe(true);
+    const html = await response.text();
+    const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+    expect(shell).toContain('Diabetes');
+    expect(shell).toContain('topic-area-summaries');
+    expect(shell).toContain('Loading overview');
+    expect(shell).toContain('Loading data');
+    expect(html).toContain('Highlighted indicators');
+    expect(html).toContain('<table');
+  });
+
+  test('shows every topic section together on mobile and switches desktop tabs locally', async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -20,77 +35,75 @@ export function topicPageTests() {
     const areas = page.locator('#topic-area-summaries');
     await expect(page.getByRole('tablist')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
+    await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeVisible();
+    await expect(areas.getByRole('heading', { name: 'Area summaries', exact: true })).toBeVisible();
     await expect(data.getByRole('table')).toBeVisible();
     await expect(areas.getByRole('table')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
     ).toBeVisible();
-    const requests: string[] = [];
-    page.on('request', (request) => {
-      const url = new URL(request.url());
-      if (
-        request.isNavigationRequest() ||
-        (url.pathname.endsWith('.data') && url.searchParams.get('_routes') !== 'root')
-      )
-        requests.push(request.url());
-    });
-    await expect(page.getByRole('link', { name: 'Data', exact: true })).toHaveAttribute(
-      'href',
-      '#topic-data',
-    );
     await page.getByRole('link', { name: 'Data', exact: true }).click();
     await expect(page).toHaveURL(/#topic-data$/);
     await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeInViewport();
-    await page.getByRole('link', { name: 'More information', exact: true }).click();
-    await expect(page).toHaveURL(/#topic-publications$/);
-    await page.getByRole('link', { name: 'Overview', exact: true }).click();
-    await expect(page).toHaveURL(/#topic-overview$/);
+    await expect(data.getByRole('table')).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.getByRole('tab', { name: 'Data', exact: true }).click();
-    await expect(data.getByRole('table')).toBeVisible();
-    await expect(page.locator('.govuk-tabs__panel[aria-busy="true"]')).toHaveCount(0);
-    await page.goBack();
-    await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('tab', { name: 'Data', exact: true })).toHaveAttribute(
       'aria-selected',
       'true',
     );
-    await page.goForward();
-    await expect(data.getByRole('table')).toBeVisible();
-    expect(requests).toEqual([]);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await expect(data.getByRole('table')).toBeVisible();
+    const reads: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/topics/diabetes.data')) reads.push(request.url());
+    });
+    await page.getByRole('tab', { name: 'Area summaries', exact: true }).click();
     await expect(areas.getByRole('table')).toBeVisible();
+    await page.goBack();
+    await expect(data.getByRole('table')).toBeVisible();
+    await page.goForward();
+    await expect(areas.getByRole('table')).toBeVisible();
+    expect(reads).toEqual([]);
   });
 
-  test('shows every topic section without JavaScript and follows native Contents anchors', async ({
+  test('loads every topic section through the JavaScript-free fallback and follows the contents links', async ({
     page,
+    browser,
     baseURL,
   }) => {
     if (baseURL === undefined) throw new Error('A base URL is required');
-    const context = await page
-      .context()
-      .browser()
-      ?.newContext({
-        baseURL,
-        storageState: await page.context().storageState(),
-        javaScriptEnabled: false,
-      });
-    if (!context) throw new Error('A browser context is required');
+    const context = await browser.newContext({
+      baseURL,
+      storageState: await page.context().storageState(),
+      javaScriptEnabled: false,
+      viewport: { width: 390, height: 844 },
+    });
     const withoutJs = await context.newPage();
     try {
-      await withoutJs.setViewportSize({ width: 390, height: 844 });
       await withoutJs.goto('/topics/diabetes');
-      await expect(withoutJs.locator('#topic-data').getByRole('table')).toBeVisible();
-      await expect(withoutJs.locator('#topic-area-summaries').getByRole('table')).toBeVisible();
-      await expect(
-        withoutJs.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
-      ).toBeVisible();
-      await withoutJs.getByRole('link', { name: 'Data', exact: true }).click();
-      await expect(withoutJs).toHaveURL(/#topic-data$/);
-      await expect(
-        withoutJs.locator('#topic-data').getByRole('heading', { name: 'Data', exact: true }),
-      ).toBeInViewport();
+      await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
+      for (const [label, anchor, content] of [
+        ['Data', 'topic-data', withoutJs.locator('#topic-data').getByRole('table')],
+        [
+          'Area summaries',
+          'topic-area-summaries',
+          withoutJs.locator('#topic-area-summaries').getByRole('table'),
+        ],
+        [
+          'More information',
+          'topic-publications',
+          withoutJs.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
+        ],
+        [
+          'Overview',
+          'topic-overview',
+          withoutJs.getByRole('heading', { name: 'Highlighted indicators' }),
+        ],
+      ] as const) {
+        await expect(content).toBeVisible();
+        await withoutJs.getByRole('link', { name: label, exact: true }).click();
+        await expect(withoutJs).toHaveURL(new RegExp(`#${anchor}$`));
+        await expect(content).toBeVisible();
+      }
     } finally {
       await context.close();
     }
@@ -103,7 +116,9 @@ export function topicPageTests() {
     await expect(
       page.getByRole('heading', { name: /Diabetes has \d+ indicators in total/ }),
     ).toBeVisible();
-    await expect(page.getByText(/(?:are|is) getting better/)).toBeVisible();
+    await expect(
+      page.locator('#topic-overview').getByText(/(?:are|is) getting better/),
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Diabetes: QOF prevalence' })).toBeVisible();
     await expect(
@@ -121,15 +136,15 @@ export function topicPageTests() {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
       const sidebar = await page
-        .locator('.fphd-topic-overview > .govuk-grid-column-one-quarter')
+        .locator('#topic-overview .fphd-topic-overview > .govuk-grid-column-one-quarter')
         .boundingBox();
       const content = await page
-        .locator('.fphd-topic-overview > .govuk-grid-column-three-quarters')
+        .locator('#topic-overview .fphd-topic-overview > .govuk-grid-column-three-quarters')
         .boundingBox();
       if (width <= 1020)
         expect(content?.y).toBeGreaterThanOrEqual((sidebar?.y ?? 0) + (sidebar?.height ?? 0));
       else expect(content?.y).toBe(sidebar?.y);
-      for (const card of await page.locator('.fphd-topic-highlight').all()) {
+      for (const card of await page.locator('#topic-overview .fphd-topic-highlight').all()) {
         expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
           true,
         );
@@ -243,12 +258,43 @@ export function topicPageTests() {
     await expect(
       table.getByRole('columnheader', { name: 'South West', exact: true }),
     ).toBeVisible();
+    await expect(page.locator('#topic-data [aria-busy]')).toHaveAttribute('aria-busy', 'false');
     await page.getByRole('searchbox', { name: 'Search for a geography (optional)' }).fill('London');
-    await page.getByRole('checkbox', { name: 'London', exact: true }).check();
+    const responseGate = Promise.withResolvers<void>();
+    let responseHeld = false;
+    await page.route(`**${TOPIC_PATH}.data?*`, async (route) => {
+      responseHeld = true;
+      await responseGate.promise;
+      await route.continue();
+    });
+    try {
+      await page.getByRole('checkbox', { name: 'London', exact: true }).check();
+      await expect.poll(() => responseHeld).toBe(true);
+      await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
+      await expect(
+        table.getByRole('columnheader', { name: 'South West', exact: true }),
+      ).toHaveCount(0);
+      await expect(page.locator('#topic-area-summaries [aria-busy]')).toHaveAttribute(
+        'aria-busy',
+        'true',
+      );
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.locator('#topic-data').getByRole('table')).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
+      await expect(
+        table.getByRole('columnheader', { name: 'South West', exact: true }),
+      ).toHaveCount(0);
+    } finally {
+      responseGate.resolve();
+    }
     await expect(page).toHaveURL(/ga=E12000007/);
     await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'South West', exact: true })).toHaveCount(
       0,
+    );
+    await expect(page.locator('#topic-area-summaries [aria-busy]')).toHaveAttribute(
+      'aria-busy',
+      'false',
     );
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -284,7 +330,7 @@ export function topicPageTests() {
     for (const width of [641, 834, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       const initial = await position();
-      for (const label of ['Overview', 'Data', 'Area summaries', 'More information']) {
+      for (const label of ['More information', 'Overview']) {
         await page.getByRole('tab', { name: label, exact: true }).click();
         await expect(page.getByRole('tabpanel', { name: label, exact: true })).not.toHaveAttribute(
           'aria-busy',
@@ -469,8 +515,14 @@ export function topicPageTests() {
     await expect(table).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
-    const ids = await page.locator('[id]').evaluateAll((elements) => elements.map(({ id }) => id));
-    expect(ids.length).toBe(new Set(ids).size);
+    await expect
+      .poll(async () => {
+        const ids = await page
+          .locator('[id]')
+          .evaluateAll((elements) => elements.map(({ id }) => id));
+        return ids.length === new Set(ids).size;
+      })
+      .toBe(true);
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

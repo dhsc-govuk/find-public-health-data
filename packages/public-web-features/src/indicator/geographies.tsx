@@ -36,7 +36,7 @@ export function IndicatorGeographies({
           lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&scheme=public`}
           searchLabel="Search for a geography"
           searchHint="Search by name, for example Leeds"
-          action={location.pathname}
+          action={`${location.pathname}#indicator-data`}
           displayGroups={displayGroups}
           geographyOptions={geographyOptions}
           levelName="als"

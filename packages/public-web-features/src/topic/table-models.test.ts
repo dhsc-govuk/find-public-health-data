@@ -1,4 +1,4 @@
-import { tableAreaSeries } from '@fphd/utils/observation-series';
+import { tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
 import { expect, it } from 'vitest';
 import { recentTrend } from '../indicator/data.ts';
 import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
@@ -71,6 +71,47 @@ it('keeps identical table values, trends and benchmarks after compacting unused 
   );
 });
 
+it('preserves table values, trends, missing values and older England benchmarks with bounded histories', () => {
+  const source = structuredClone(entry);
+  const local = source.areaData[1];
+  if (!local) throw new Error('Expected a local area');
+  local.observations = local.observations.slice(0, 2);
+  local.observations.push({ ...observation(2017, 0), value: null });
+  const compact = { ...source, ...tableSummary(source.areaData, 'latest') };
+  expect(compact.areaData[0]?.observations.length).toBeLessThan(
+    source.areaData[0]?.observations.length ?? 0,
+  );
+  expect(topicDataTableModel([compact], 'diabetes')).toEqual(
+    topicDataTableModel([source], 'diabetes'),
+  );
+  expect(topicAreaTableModel([compact], { regionByCode: {}, levelByCode: {} }, 'diabetes')).toEqual(
+    topicAreaTableModel([source], { regionByCode: {}, levelByCode: {} }, 'diabetes'),
+  );
+});
+
+it('elects the same series when trimming would make two histories the same length', () => {
+  const source = structuredClone(entry);
+  for (const area of source.areaData) {
+    const long = area.observations.map((point) => ({
+      ...point,
+      dimensions: [{ type: 'Age', value: '45+', sortOrder: 1, dimensionClass: 'core' }],
+    }));
+    const short = long.slice(-6).map((point) => ({
+      ...point,
+      value: (point.value ?? 0) + 100,
+      dimensions: [{ type: 'Age', value: '65+', sortOrder: 2, dimensionClass: 'core' }],
+    }));
+    area.observations = [...short, ...long];
+  }
+  const compact = { ...source, ...tableSummary(source.areaData, 'latest') };
+  expect(topicDataTableModel([compact], 'diabetes')).toEqual(
+    topicDataTableModel([source], 'diabetes'),
+  );
+  expect(topicAreaTableModel([compact], { regionByCode: {}, levelByCode: {} }, 'diabetes')).toEqual(
+    topicAreaTableModel([source], { regionByCode: {}, levelByCode: {} }, 'diabetes'),
+  );
+});
+
 it('serialises calculated table cells and trends without observation histories', () => {
   const model = topicDataTableModel([entry], 'diabetes');
   const cell = model.rows[0]?.cells.find(({ areaCode }) => areaCode === 'E12000001');
@@ -83,6 +124,32 @@ it('serialises calculated table cells and trends without observation histories',
   expect(model.rows[0]).toMatchObject({ slug: 'indicator', subtopics: ['Care and treatment'] });
   expect(JSON.stringify(model)).not.toContain('observations');
   expect(JSON.stringify(model).length).toBeLessThan(JSON.stringify([entry]).length / 3);
+});
+
+it('preserves aggregate row choices when the winning headline contains a sex dimension', () => {
+  const source = structuredClone(entry);
+  for (const area of source.areaData) {
+    area.observations = area.observations.map((point) => ({
+      ...point,
+      dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
+    }));
+    area.observations.push({
+      ...observation(2024, 100),
+      dimensions: [
+        { type: 'Age', value: '45+', dimensionClass: 'core', sortOrder: 1 },
+        {
+          type: 'Deprivation',
+          value: 'Least deprived',
+          dimensionClass: 'inequality',
+          sortOrder: 1,
+        },
+      ],
+    });
+  }
+  const compact = { ...source, ...tableSummary(source.areaData, 'latest') };
+  expect(topicDataTableModel([compact], 'diabetes')).toEqual(
+    topicDataTableModel([source], 'diabetes'),
+  );
 });
 
 it('keeps the same-period England comparison when an area has older data', () => {

@@ -13,6 +13,7 @@ import {
   searchAreas,
 } from './area-repository.ts';
 import type { Database } from './client.ts';
+import { coalescedReads } from './coalesced-reads.ts';
 import {
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
@@ -32,7 +33,7 @@ import {
   searchIndicators,
   searchPublishedIndicators,
 } from './indicator-repository.ts';
-import { getIndicatorTableData } from './indicator-table-repository.ts';
+import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
 import {
   getTopicBySlug,
   getTopicTrendSummary,
@@ -43,7 +44,11 @@ import {
 } from './topic-repository.ts';
 
 export interface IndicatorRepository {
-  findTableData(shortIds: number[], areaCodes: string[]): ReturnType<typeof getIndicatorTableData>;
+  findTableData(
+    shortIds: number[],
+    areaCodes: string[],
+    points?: 'recent' | 'latest',
+  ): ReturnType<typeof getIndicatorTableData>;
   listAreas(
     indicatorId: string,
     filters?: IndicatorAreaFilters,
@@ -57,6 +62,7 @@ export interface IndicatorRepository {
   findPublishedById(indicatorId: string): Promise<IndicatorDetail | undefined>;
   findObservations(indicatorId: string, areaCode: string): Promise<IndicatorAreaData | undefined>;
   findObservationsForAreas(indicatorId: string, areaCodes: string[]): Promise<IndicatorAreaData[]>;
+  findRankingData(indicatorId: string, areaCodes: string[]): Promise<IndicatorAreaData[]>;
   findObservationRange(
     indicatorId: string,
     displayGroup: string,
@@ -97,7 +103,7 @@ export interface Repositories {
 }
 
 export function createRepositories(db: Database): Repositories {
-  return {
+  const repositories: Repositories = {
     areas: {
       listByType: (areaTypeName) => listAreasByType(db, areaTypeName),
       listDisplayGroups: () => listDisplayGroups(db),
@@ -108,7 +114,8 @@ export function createRepositories(db: Database): Repositories {
       listParents: (childCodes, parentTypeName) => listAreaParents(db, childCodes, parentTypeName),
     },
     indicators: {
-      findTableData: (shortIds, areaCodes) => getIndicatorTableData(db, shortIds, areaCodes),
+      findTableData: (shortIds, areaCodes, points) =>
+        getIndicatorTableData(db, shortIds, areaCodes, points),
       listAreas: (indicatorId, filters) => listIndicatorAreas(db, indicatorId, filters),
       listPublished: () => listPublishedIndicators(db),
       search: (query, limit) => searchPublishedIndicators(db, query, limit),
@@ -119,6 +126,8 @@ export function createRepositories(db: Database): Repositories {
         getIndicatorObservations(db, indicatorId, areaCode),
       findObservationsForAreas: (indicatorId, areaCodes) =>
         getIndicatorObservationsForAreas(db, indicatorId, areaCodes),
+      findRankingData: (indicatorId, areaCodes) =>
+        getIndicatorRankingData(db, indicatorId, areaCodes),
       findObservationRange: (indicatorId, displayGroup) =>
         getObservationRange(db, indicatorId, displayGroup),
       searchWithFilters: (filters) => searchIndicators(db, filters),
@@ -130,5 +139,10 @@ export function createRepositories(db: Database): Repositories {
       trendSummary: (slug) => getTopicTrendSummary(db, slug),
       listSubtopics: (slug) => listTopicSubtopics(db, slug),
     },
+  };
+  return {
+    areas: coalescedReads(repositories.areas),
+    indicators: coalescedReads(repositories.indicators),
+    topics: coalescedReads(repositories.topics),
   };
 }

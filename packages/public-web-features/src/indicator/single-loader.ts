@@ -4,9 +4,7 @@ import {
   type IndicatorAreaData,
   type IndicatorDetail,
   indicatorAreaDataListSchema,
-  indicatorAreaDataSchema,
   indicatorDetailSchema,
-  MAX_AREA_CODES_PER_REQUEST,
   MAX_AREA_PREVIEW,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
@@ -16,12 +14,10 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
-import { loadInBatches } from './batches.ts';
-import { comparisonRows } from './data.ts';
-import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
+import { loadIndicatorData } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 
-export async function loadIndicator(args: LoaderFunctionArgs) {
+export async function loadIndicatorPage(args: LoaderFunctionArgs) {
   const { context, params, request } = args;
   const url = new URL(request.url);
 
@@ -63,14 +59,43 @@ export async function loadIndicator(args: LoaderFunctionArgs) {
     }
   }
 
-  const indicatorGroups = await api.get(
+  const groups = api.get(
     `${apiPath`/api/indicators/${routeDetail.slug}/areas`}?limit=${MAX_AREA_PREVIEW}`,
     areaDisplayGroupListSchema,
   );
-  const data = await loadIndicatorData(args, {
-    page: { detail: routeDetail, compared: comparedDetail, groups: indicatorGroups },
-  });
-  const selected = data.selected;
+  const data = groups.then((groups) =>
+    loadIndicatorData(args, {
+      page: { detail: routeDetail, compared: comparedDetail, groups },
+    }),
+  );
+  const comparison = groups.then((groups) =>
+    loadIndicatorComparison(args, routeDetail, comparedDetail, groups),
+  );
+  const complete = url.searchParams.get('render') === 'complete';
+  const completed = complete ? await Promise.all([data, comparison]) : undefined;
+  return {
+    detail: routeDetail,
+    comparedDetail,
+    data: completed ? completed[0] : data,
+    comparison: completed ? completed[1] : comparison,
+    complete,
+  };
+}
+
+export async function loadIndicator(args: LoaderFunctionArgs) {
+  const page = await loadIndicatorPage(args);
+  const [data, comparison] = await Promise.all([page.data, page.comparison]);
+  return { ...data, ...comparison };
+}
+
+async function loadIndicatorComparison(
+  { context, request }: LoaderFunctionArgs,
+  routeDetail: IndicatorDetail,
+  comparedDetail: IndicatorDetail | undefined,
+  indicatorGroups: { displayGroup: string }[],
+) {
+  const api = context.get(apiContext);
+  const url = new URL(request.url);
   const catalogueGroups = indicatorGroups.map(({ displayGroup }) => displayGroup);
   const comparisonGroups = comparedDetail
     ? await api.get(
@@ -113,55 +138,19 @@ export async function loadIndicator(args: LoaderFunctionArgs) {
       compareAreaGroup,
     );
     const codes = compareAreaOptions.map(({ code }) => code);
-    const batches = Array.from(
-      { length: Math.ceil(codes.length / MAX_AREA_CODES_PER_REQUEST) },
-      (_, index) =>
-        codes.slice(index * MAX_AREA_CODES_PER_REQUEST, (index + 1) * MAX_AREA_CODES_PER_REQUEST),
-    );
-    const loadRanking = async (indicator: SelectedIndicator) => {
-      const data = (
-        await loadInBatches(batches, (batch) =>
-          api.get(
-            `${apiPath`/api/indicators/${String(indicator.detail.shortId)}/data`}?${batch.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
-            batch.length === 1
-              ? indicatorAreaDataSchema.transform((one) => [one])
-              : indicatorAreaDataListSchema,
-          ),
-        )
-      ).flat();
-      const row = comparisonRows([{ detail: indicator.detail, areaData: data }])[0];
-      const latestPeriod = row?.cells
-        .flatMap(({ series }) => series)
-        .filter(({ value }) => value !== null)
-        .sort(
-          (a, b) => b.toDate.localeCompare(a.toDate) || b.fromDate.localeCompare(a.fromDate),
-        )[0];
-      const latest = new Map(
-        row?.cells.map((cell) => [
-          cell.areaCode,
-          cell.series.findLast(
-            ({ value, fromDate, toDate }) =>
-              value !== null &&
-              fromDate === latestPeriod?.fromDate &&
-              toDate === latestPeriod?.toDate,
-          ),
-        ]),
-      );
-      return data.map((area) => {
-        const observation = latest.get(area.areaCode);
-        return { ...area, observations: observation ? [observation] : [] };
-      });
-    };
-    const primary = selected[0];
-    const other = selected[1];
-    if (primary)
-      [compareAreasData, comparedAreasData] = await Promise.all([
-        loadRanking(primary),
-        other ? loadRanking(other) : Promise.resolve([]),
-      ]);
+    const loadRanking = (detail: IndicatorDetail): Promise<IndicatorAreaData[]> =>
+      codes.length
+        ? api.get(
+            `${apiPath`/api/indicators/${String(detail.shortId)}/ranking`}?${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+            indicatorAreaDataListSchema,
+          )
+        : Promise.resolve([]);
+    [compareAreasData, comparedAreasData] = await Promise.all([
+      loadRanking(routeDetail),
+      comparedDetail ? loadRanking(comparedDetail) : Promise.resolve([]),
+    ]);
   }
   return {
-    ...data,
     compareAreasData,
     comparedAreasData,
     compareAreaOptions,

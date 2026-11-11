@@ -463,6 +463,20 @@
       "when": 1793985836033,
       "tag": "0065_scheduled-publication",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1794392055491,
+      "tag": "0066_published-observation-visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794392101963,
+      "tag": "0067_cache-observation-series",
+      "breakpoints": true
     }
   ]
 }

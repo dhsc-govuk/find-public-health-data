@@ -18,13 +18,13 @@ export function ComparePicker({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const urlFor = (slug: string | null) => {
+  const urlFor = (slug: string | null, hash = '') => {
     const params = new URLSearchParams(location.search);
     params.delete('find');
     if (slug) params.set('compareWith', slug);
     else params.delete('compareWith');
     params.set('tab-indicator', 'compare');
-    return `${location.pathname}?${params}`;
+    return `${location.pathname}?${params}${hash}`;
   };
   const searchIndicators = useCallback(
     async (query: string, signal: AbortSignal) => {
@@ -45,15 +45,16 @@ export function ComparePicker({
       </p>
       <Form
         className="fphd-compare-search"
-        action={location.pathname}
+        action={`${location.pathname}#indicator-compare-indicators`}
         method="get"
         preventScrollReset
       >
         {[...new URLSearchParams(location.search)]
-          .filter(([key]) => key !== 'find' && key !== 'compareWith')
+          .filter(([key]) => key !== 'find' && key !== 'compareWith' && key !== 'tab-indicator')
           .map(([key, value], index) => (
             <input key={`${key}-${index}`} name={key} type="hidden" value={value} />
           ))}
+        <input type="hidden" name="tab-indicator" value="compare" />
         <Autocomplete
           defaultValue={compared?.name ?? findSubject}
           label="Search for an indicator"
@@ -80,7 +81,11 @@ export function ComparePicker({
         <ul className="govuk-list">
           {findResults.map((result) => (
             <li key={result.slug}>
-              <Link className="govuk-link" to={urlFor(result.slug)} preventScrollReset>
+              <Link
+                className="govuk-link"
+                to={urlFor(result.slug, '#indicator-compare-indicators')}
+                preventScrollReset
+              >
                 {result.name}
               </Link>
             </li>

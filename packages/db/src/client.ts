@@ -59,7 +59,11 @@ export function createPostgresClient(
  * connects as its own database user.
  */
 export function createDb(connection: DbConnection): Database {
-  return drizzle(createPostgresClient(connection), { schema, casing: 'snake_case' });
+  // Just-in-time compilation adds latency to short API reads.
+  return drizzle(createPostgresClient(connection, { connection: { jit: 'off' } }), {
+    schema,
+    casing: 'snake_case',
+  });
 }
 
 /** Rejects when the database refuses the connection or the login, or cannot be reached. */

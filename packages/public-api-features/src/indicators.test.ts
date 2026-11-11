@@ -46,7 +46,59 @@ function createTestApp(overrides: FakeRepositoryOverrides['indicators'] = {}): E
   return app;
 }
 
+describe('GET /api/indicators/:indicator/ranking', () => {
+  it('returns one bounded ranking batch in the requested area order', async () => {
+    const data = [{ areaCode: 'E06000052', areaName: 'Cornwall', observations: [] }];
+    const findRankingData = vi.fn().mockResolvedValue(data);
+    const app = createTestApp({ resolveId: async () => 'ind-1', findRankingData });
+    const response = await request(app).get(
+      '/api/indicators/108/ranking?areaCode=E06000052&areaCode=E06000052',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(data);
+    expect(findRankingData).toHaveBeenCalledExactlyOnceWith('ind-1', ['E06000052']);
+  });
+
+  it('caps ranking areas and rejects missing areas and unpublished indicators', async () => {
+    const findRankingData = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ resolveId: async () => 'ind-1', findRankingData });
+    const query = new URLSearchParams(
+      Array.from({ length: 501 }, (_, i): [string, string] => [
+        'areaCode',
+        `E${String(i).padStart(8, '0')}`,
+      ]),
+    );
+    expect((await request(app).get(`/api/indicators/108/ranking?${query}`)).status).toBe(404);
+    expect(findRankingData.mock.calls[0]?.[1]).toHaveLength(500);
+    expect((await request(createTestApp()).get('/api/indicators/108/ranking')).status).toBe(404);
+    expect(
+      (
+        await request(createTestApp({ resolveId: async () => undefined })).get(
+          '/api/indicators/108/ranking?areaCode=E92000001',
+        )
+      ).status,
+    ).toBe(404);
+  });
+});
+
 describe('GET /api/indicator-data', () => {
+  it.each(['', '&observationHistory=recentPerSeries', '&observationHistory=invalid'])(
+    'defaults to recent history for query %s',
+    async (query) => {
+      const findTableData = vi.fn().mockResolvedValue([]);
+      await request(createTestApp({ findTableData })).get(
+        `/api/indicator-data?indicator=108${query}`,
+      );
+      expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001']);
+    },
+  );
+  it('requests current table values with precomputed trends when selected', async () => {
+    const findTableData = vi.fn().mockResolvedValue([]);
+    await request(createTestApp({ findTableData })).get(
+      '/api/indicator-data?indicator=108&observationHistory=latestPerSeries',
+    );
+    expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001'], 'latest');
+  });
   it('returns a bounded batch of public table data with its contract metadata', async () => {
     const entries = [
       {

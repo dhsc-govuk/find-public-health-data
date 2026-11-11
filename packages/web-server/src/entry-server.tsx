@@ -77,7 +77,7 @@ export default function handleRequest(
         onError(error: unknown) {
           responseStatusCode = 500;
           // Before the shell is out, onShellError rejects and React Router reports it instead.
-          if (shellRendered) {
+          if (shellRendered && !request.signal.aborted) {
             logger.error({ err: error }, 'Streaming failed');
           }
         },

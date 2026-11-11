@@ -46,6 +46,16 @@ function api() {
         .map(Number)
         .map((shortId) => ({
           detail: { shortId, slug: `indicator-${shortId}`, areaTypes: [] },
+          tableSeries: [
+            {
+              sex: '',
+              periodType: 'all',
+              segments: Object.fromEntries(
+                params.getAll('areaCode').map((code) => [code, 'Age:All ages']),
+              ),
+              trends: Object.fromEntries(params.getAll('areaCode').map((code) => [code, 'up'])),
+            },
+          ],
           areaData: params.getAll('areaCode').map((code) => ({
             areaCode: code,
             areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
@@ -99,6 +109,8 @@ describe('shared table data', () => {
       true,
     );
     expect(result.selected[0]?.areaData).toHaveLength(26);
+    expect(Object.keys(result.selected[0]?.tableSeries?.[0]?.segments ?? {})).toHaveLength(26);
+    expect(Object.keys(result.selected[0]?.tableSeries?.[0]?.trends ?? {})).toHaveLength(26);
     expect(result.selectedAreas).toHaveLength(25);
     expect(result.areasLimited).toBe(false);
     const batches = get.mock.calls
@@ -106,5 +118,14 @@ describe('shared table data', () => {
       .filter((path) => path.startsWith('/api/indicator-data?'))
       .map((path) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode'));
     expect(batches.map((batch) => batch.length)).toEqual([20, 6]);
+    expect(
+      get.mock.calls
+        .filter(([path]) => path.startsWith('/api/indicator-data?'))
+        .every(
+          ([path]) =>
+            new URL(`http://localhost${path}`).searchParams.get('observationHistory') ===
+            'latestPerSeries',
+        ),
+    ).toBe(true);
   });
 });

@@ -165,6 +165,13 @@ Deploy the operations image and run `db import-core-data` before applying a pack
 new rows. The export and receiver share format version 5, which carries the reference catalogs in
 full in incremental packages.
 
+The observation-series migrations create empty read models. For an existing environment, run
+`db rebuild-read-models` after `db migrate` and before rolling the apps to populate them for every
+published indicator. The public API uses full-history fallbacks until the rebuild completes.
+`db import-core-data` only imports reference data; the dummy seed, published-snapshot import and
+live-data import rebuild read models themselves. Scheduled publication refreshes the published
+indicator in the publication transaction.
+
 ## Integration tests
 
 `src/*.integration.test.ts` need the local docker database up (`docker compose up -d db`), and take

@@ -8,6 +8,7 @@ import { searchUrl } from './url.ts';
 export function SearchGeographies({
   search,
   path = '/search',
+  formAction = path,
   extraParams = {},
   single = false,
   replace = false,
@@ -15,6 +16,7 @@ export function SearchGeographies({
 }: {
   search: Awaited<ReturnType<typeof loadSearch>>;
   path?: string;
+  formAction?: string;
   extraParams?: Record<string, string>;
   single?: boolean;
   replace?: boolean;
@@ -36,7 +38,7 @@ export function SearchGeographies({
           <SearchGeographyPicker
             lookupUrl={lookupUrl}
             single={single}
-            action={path}
+            action={formAction}
             extraParams={extraParams}
             state={search}
             displayGroups={search.displayGroups}

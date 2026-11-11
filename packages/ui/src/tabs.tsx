@@ -16,6 +16,7 @@ interface TabsProps {
   history?: 'push' | 'replace';
   defaultParam?: string | undefined;
   sectionHeadings?: boolean;
+  contentReady?: boolean;
   mobileTabs?: boolean;
   linkSelection?: boolean;
 }
@@ -38,6 +39,7 @@ function TabPanels({
   history = 'replace',
   defaultParam,
   sectionHeadings = false,
+  contentReady = true,
   mobileTabs = false,
   linkSelection = false,
   navigation,
@@ -90,13 +92,13 @@ function TabPanels({
   }, [mobileTabs]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || (!tabMode && !contentReady)) return;
     const enteredContents = !tabMode && previousTabMode.current !== false;
     previousTabMode.current = tabMode;
-    if (enteredContents && committedIndex > 0 && !location.hash) {
+    if (enteredContents && committedIndex > 0) {
       panels.current[committedIndex]?.scrollIntoView({ block: 'start' });
     }
-  }, [mounted, tabMode, committedIndex, location.hash]);
+  }, [mounted, tabMode, committedIndex, contentReady]);
 
   const previousParam = useRef(fromParam);
   useEffect(() => {
@@ -162,6 +164,7 @@ function TabPanels({
               }
               id={`tab_${id}`}
               onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                 if (!tabMode) return;
                 event.preventDefault();
                 choose(index);

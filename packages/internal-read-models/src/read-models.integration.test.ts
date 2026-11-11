@@ -32,6 +32,12 @@ async function readModelRowsOf(executor: Database | Transaction, indicatorId: st
     UNION ALL
     SELECT 'observation_range', to_jsonb(r)::text
     FROM observation_range r WHERE r.indicator_id = ${indicatorId}
+    UNION ALL
+    SELECT 'observation_series', to_jsonb(r)::text
+    FROM observation_series r WHERE r.indicator_id = ${indicatorId}
+    UNION ALL
+    SELECT 'observation_series_batch', to_jsonb(r)::text
+    FROM observation_series_batch r WHERE r.indicator_id = ${indicatorId}
     ORDER BY model, row
   `)) as unknown as { model: string; row: string }[];
   return rows.map(({ model, row }) => `${model} ${row}`);
@@ -50,11 +56,12 @@ async function rowsAfterWholeRebuild(indicatorId: string) {
   return rows;
 }
 
-/** Seeded indicators with rows in both read models, so a change to either shows. */
+/** Seeded indicators with rows in every read model, so a change to any shows. */
 async function seededIndicatorIds(): Promise<string[]> {
   const rows = (await db.execute(sql`
     SELECT indicator_id AS id FROM observation_range
     INTERSECT SELECT indicator_id FROM available_data
+    INTERSECT SELECT indicator_id FROM observation_series
     ORDER BY id
   `)) as unknown as { id: string }[];
   return rows.map(({ id }) => id);
@@ -136,6 +143,10 @@ describe('refreshIndicatorReadModels', () => {
       INSERT INTO observation_range
         (indicator_id, display_group, from_date, to_date, segment, min, max)
       VALUES (${indicatorId}, 'Stale', '2099-01-01', '2099-12-31', '', 1, 1)
+    `);
+    await db.execute(sql`
+      INSERT INTO observation_series_batch (upload_batch_id, indicator_id, trend_values)
+      VALUES (uuidv7(), ${indicatorId}, '{1}')
     `);
 
     await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));

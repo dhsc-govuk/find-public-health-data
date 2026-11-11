@@ -95,12 +95,16 @@ export async function loadSearch(
     topicSlug,
     path = '/search',
     geographyGroup,
+    geographyPreviews,
     complete = false,
     publicGeographies = false,
   }: {
     topicSlug?: string;
     path?: string;
     geographyGroup?: string;
+    geographyPreviews?: Promise<
+      { displayGroup: string; areas: { code: string; name: string }[] }[]
+    >;
     complete?: boolean;
     publicGeographies?: boolean;
   } = {},
@@ -203,7 +207,11 @@ export async function loadSearch(
       `/api/indicators/search${searchQuery ? `?${searchQuery}` : ''}`,
       indicatorSearchResultSchema,
     ),
-    loadGeographyOptions(api, params, displayGroups, { publicOnly }),
+    geographyPreviews
+      ? geographyPreviews.then((previews) =>
+          loadGeographyOptions(api, params, displayGroups, { publicOnly, previews }),
+        )
+      : loadGeographyOptions(api, params, displayGroups, { publicOnly }),
   ]);
 
   let searchResult = firstResult;

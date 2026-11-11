@@ -1,4 +1,6 @@
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import {
+  type ComparisonCell,
   comparisonAreas,
   comparisonRows,
   filterObservations,
@@ -23,9 +25,11 @@ export function comparisonTable(
   }));
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   const polarities = new Map(selected.map(({ detail }) => [detail.shortId, detail.polarity]));
-  const trendOf = (row: (typeof rows)[number], cell: { series: (typeof rows)[number]['series'] }) =>
-    recentTrend(cell.series, polarities.get(row.shortId) ?? null);
-  const hasPickedAreas = areas.some(({ areaCode }) => areaCode !== 'E92000001');
+  const trendOf = (
+    row: (typeof rows)[number],
+    cell: Pick<ComparisonCell, 'series' | 'trendDirection'>,
+  ) => recentTrend(cell.series, polarities.get(row.shortId) ?? null, cell.trendDirection);
+  const hasPickedAreas = areas.some(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
   const regionAvailable = areas.some(({ areaCode }) => geography.regionByCode[areaCode]);
   const benchmark = hasPickedAreas ? choice : 'none';
   const benchmarkActive = benchmark !== 'none';
@@ -51,7 +55,7 @@ export function comparisonTable(
     }
     const source =
       benchmark === 'england'
-        ? entry.areaData.find(({ areaCode }) => areaCode === 'E92000001')
+        ? entry.areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE)
         : (entry.regionData ?? []).find(
             ({ areaCode }) => areaCode === geography.regionByCode[cell.areaCode]?.code,
           );

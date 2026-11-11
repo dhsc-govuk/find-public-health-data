@@ -33,6 +33,7 @@
     "format:check": "biome format .",
     "lint": "biome lint .",
     "perf:accept": "pnpm --filter @fphd/perf run perf:accept",
+    "perf:load": "pnpm --filter @fphd/perf run perf:load",
     "services:up": "scripts/services.sh",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:e2e": "pnpm --filter @fphd/e2e run test:e2e",

@@ -4,6 +4,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { loadIndicator } from './loader.ts';
+import { loadIndicatorPage } from './single-loader.ts';
 
 function api() {
   const get = vi.fn(async (path: string) => {
@@ -39,7 +40,7 @@ function api() {
         },
       ];
     if (path.startsWith('/api/areas')) return [{ areaType: 'England', areas: [] }];
-    if (path.includes('/data?'))
+    if (path.includes('/data?') || path.includes('/ranking?'))
       return new URL(`http://localhost${path}`).searchParams.getAll('areaCode').map((code) => ({
         areaCode: code,
         areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
@@ -67,6 +68,41 @@ function args(
 }
 
 describe('loadIndicator', () => {
+  it('returns the page metadata while observations and rankings are still pending', async () => {
+    const { client, get } = api();
+    const gate = Promise.withResolvers<void>();
+    const read = client.get;
+    const delayed = {
+      ...client,
+      get: vi.fn(async (path, schema) => {
+        if (path.includes('/data?') || path.includes('/ranking?')) await gate.promise;
+        return read(path, schema);
+      }),
+    } as ApiClient;
+    const page = await loadIndicatorPage(args(delayed));
+    try {
+      expect(page.detail.shortId).toBe(108);
+      expect(page.data).toBeInstanceOf(Promise);
+      expect(page.comparison).toBeInstanceOf(Promise);
+      expect(get.mock.calls.some(([path]) => path.includes('/data?'))).toBe(false);
+    } finally {
+      gate.resolve();
+    }
+    const [data, comparison] = await Promise.all([page.data, page.comparison]);
+    expect(data.selected[0]?.detail.shortId).toBe(108);
+    expect(comparison.compareAreaOptions).toHaveLength(25);
+  });
+
+  it('waits for complete content only when explicitly requested', async () => {
+    const { client } = api();
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?render=complete'),
+    );
+    expect(page.complete).toBe(true);
+    expect(page.data).not.toBeInstanceOf(Promise);
+    expect(page.comparison).not.toBeInstanceOf(Promise);
+  });
+
   it('requires one route indicator before any API request', async () => {
     const { client, get } = api();
     await expect(
@@ -224,39 +260,36 @@ describe('loadIndicator', () => {
     expect(result.selection.areaCodes).toEqual(codes.slice(0, 19));
     expect(result.areasLimited).toBe(true);
     const [path] =
-      get.mock.calls.find(([candidate]) => String(candidate).includes('/108/data?')) ?? [];
+      get.mock.calls.find(
+        ([candidate]) =>
+          String(candidate).includes('/108/data?') && String(candidate).includes('E92000001'),
+      ) ?? [];
     expect(new URL(`http://localhost${path}`).searchParams.getAll('areaCode')).toEqual([
       ...codes.slice(0, 19),
       'E92000001',
     ]);
   });
 
-  it('loads every section in bounded batches regardless of the selected tab', async () => {
+  it('loads every section and requests compact rankings for all comparison areas', async () => {
     const { client, get } = api();
-    const initial = await loadIndicator(args(client));
-    expect(initial.compareAreasData).toHaveLength(25);
-    expect(
-      get.mock.calls
-        .filter(([path]) => path.includes('/108/data?'))
-        .map(([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length),
-    ).toEqual([1, 20, 5]);
-
-    get.mockClear();
-    const compared = await loadIndicator(
-      args(client, 'http://localhost/indicator/indicator-108?tab-indicator=areas'),
-    );
-    expect(compared.compareAreaGroup).toBe('Local authorities');
-    expect(compared.compareAreaOptions).toHaveLength(25);
-    expect(compared.compareAreasData).toHaveLength(25);
-    expect(get).toHaveBeenCalledWith(
-      '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
-      expect.anything(),
-    );
-    const batches = get.mock.calls.filter(([path]) => String(path).includes('/108/data?'));
-    expect(
-      batches.map(
-        ([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length,
-      ),
-    ).toEqual([1, 20, 5]);
+    for (const query of ['', '?tab-indicator=areas']) {
+      get.mockClear();
+      const result = await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108${query}`),
+      );
+      expect(result.compareAreasData).toHaveLength(25);
+      expect(result.compareAreaOptions).toHaveLength(25);
+      expect(get).toHaveBeenCalledWith(
+        '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
+        expect.anything(),
+      );
+      const rankings = get.mock.calls.filter(([path]) => path.includes('/108/ranking?'));
+      expect(rankings).toHaveLength(1);
+      expect(
+        new URL(`http://localhost${rankings[0]?.[0]}`).searchParams.getAll('areaCode'),
+      ).toHaveLength(25);
+      const histories = get.mock.calls.filter(([path]) => path.includes('/108/data?'));
+      expect(histories).toHaveLength(1);
+    }
   });
 });

@@ -140,6 +140,21 @@ and its grants. One that renames a column uses `ALTER VIEW ... RENAME COLUMN`; o
 a column drops and recreates the view, and grants it again. The grants test's "reads the same
 columns of each indicator view as it always has" case catches a view that changed by accident.
 
+The `observation_series` read model stores the elected table and ranking series for each area, sex
+and period choice. Its latest point IDs and recent trend inputs avoid aggregating history during
+navigation. The selected points are fetched by primary key. The published views expose only the
+current upload batch. A batch marker confirms the rebuild completed, including batches with no
+observations. It also stores the recent England trend inputs used by topic totals and trend sorting.
+`indicator-series-repository.ts` uses these rows for tables and rankings and falls back to the
+canonical history query when a newly published batch awaits its rebuild. The fallback reads complete
+histories and applies the shared `tableSummary` and `rankingAreaSeries` utilities before returning
+table or ranking data.
+
+`GET /api/indicator-data` accepts `observationHistory=recentPerSeries` (the default) or
+`observationHistory=latestPerSeries`. Both return the latest point of each elected series, trend
+directions and England benchmarks; the default also returns the five most recent non-null points
+used by trend charts.
+
 ## Adding a table
 
 1. Add the table to the `src/schema/` file for its domain, or create one and re-export it from

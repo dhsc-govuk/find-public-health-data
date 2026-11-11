@@ -1,3 +1,4 @@
+import type { ObservationHistory } from '@fphd/public-api-features/contract';
 import {
   areaDisplayGroupListSchema,
   areaLookupListSchema,
@@ -18,6 +19,7 @@ import {
   MAX_INDICATOR_QUERY_LENGTH,
   pickAreaCodes,
 } from '@fphd/public-api-features/contract';
+import type { TableSeriesSelection } from '@fphd/utils/observation-series';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
@@ -56,6 +58,7 @@ export interface IndicatorSelection {
 export interface SelectedIndicator {
   detail: IndicatorDetail;
   areaData: IndicatorAreaData[];
+  tableSeries?: TableSeriesSelection[];
   /** The statistical regions the selected areas roll up to, for the region benchmark. */
   regionData?: IndicatorAreaData[];
   /** Per display level ('Local authorities', 'Statistical regions'…): min/max of the
@@ -124,10 +127,12 @@ export async function loadIndicatorData(
   {
     page,
     tableDisplayGroups,
+    observationHistory = 'recentPerSeries',
     wholeAreaGroups = false,
   }: {
     page?: IndicatorPageData;
     tableDisplayGroups?: string[];
+    observationHistory?: ObservationHistory;
     wholeAreaGroups?: boolean;
   } = {},
 ) {
@@ -310,9 +315,9 @@ export async function loadIndicatorData(
           )
         ).indicators
       : [];
-  const selected =
+  const selected: SelectedIndicator[] =
     tableDisplayGroups !== undefined
-      ? await loadIndicatorTableEntries(api, shortIds, codesToLoad)
+      ? await loadIndicatorTableEntries(api, shortIds, codesToLoad, observationHistory)
       : await loadInBatches(shortIds, async (id) => {
           const dataBatch = (codes: string[]) =>
             api.get(
@@ -393,6 +398,11 @@ export async function loadIndicatorTableData(
   args: LoaderFunctionArgs,
   displayGroups: string[],
   wholeAreaGroups = false,
+  observationHistory: ObservationHistory = 'latestPerSeries',
 ) {
-  return loadIndicatorData(args, { tableDisplayGroups: displayGroups, wholeAreaGroups });
+  return loadIndicatorData(args, {
+    tableDisplayGroups: displayGroups,
+    wholeAreaGroups,
+    observationHistory,
+  });
 }

@@ -26,6 +26,14 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((db) => db.$client.end()));
 });
 
+describe('createDb', () => {
+  it('opens API connections without query compilation overhead', async () => {
+    const db = connect(env.POSTGRES_PASSWORD);
+    const [row] = await db.$client`show jit`;
+    expect(row?.jit).toBe('off');
+  });
+});
+
 describe('pingDb', () => {
   it('resolves against a database that accepts the login', async () => {
     await expect(pingDb(connect(env.POSTGRES_PASSWORD))).resolves.toBeUndefined();
