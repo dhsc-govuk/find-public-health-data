@@ -63,6 +63,19 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: fphd
+          POSTGRES_PASSWORD: fphd
+          POSTGRES_DB: fphd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fphd -d fphd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
       # Runs the image's default command; a service container cannot override it.
       azurite:
         image: mcr.microsoft.com/azure-storage/azurite:3.37.0
@@ -78,20 +91,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
-      # Postgres starts here rather than as a service container, because a service container
-      # cannot be given a command. Its data directory is in memory and it never waits for a write
-      # to reach the disk, since nothing it holds outlives the job. On the runner's disk, waiting
-      # for writes made the tests that write most several times slower than they run locally.
-      # While the image initialises the database it runs a temporary server that listens only on
-      # a Unix socket. pg_isready connects over TCP, so it succeeds only once the real server is
-      # up. If the server never comes up, the step prints its log before failing.
-      - name: Start Postgres
-        run: |
-          docker run --detach --name postgres --tmpfs /var/lib/postgresql --publish 5432:5432 \
-            --env POSTGRES_USER=fphd --env POSTGRES_PASSWORD=fphd --env POSTGRES_DB=fphd \
-            postgres:18.4 -c fsync=off -c synchronous_commit=off
-          timeout 60 bash -c 'until docker exec postgres pg_isready --host=127.0.0.1 --username=fphd --dbname=fphd; do sleep 1; done' \
-            || { docker logs postgres; exit 1; }
       # The grant migrations reference the per-API roles, so they must exist before the global
       # setup migrates the template databases. Same command locally (`pnpm db:bootstrap`) and
       # in a deployed environment — this is the only bootstrap path.
