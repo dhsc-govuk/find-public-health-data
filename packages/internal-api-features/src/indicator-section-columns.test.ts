@@ -4,6 +4,7 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
+  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
@@ -339,7 +340,44 @@ describe('otherNotesAndCaveatsColumns', () => {
   });
 });
 
-// yesNoDetailColumns, shown through the first section built on it alone.
+// yesNoDetailColumns, shown through a section built on it alone.
+describe('copyrightAndDataReuseColumns', () => {
+  const answered = {
+    hasCustomCopyright: 'yes',
+    customCopyrightDetail: 'NHS England.',
+    hasCustomDataReuse: 'no',
+    customDataReuseDetail: 'Typed before No was chosen.',
+  } as const;
+
+  it('writes a yes as true beside its details, and a no as false without them', () => {
+    expect(copyrightAndDataReuseColumns.toAttributes(answered)).toEqual({
+      hasCustomCopyright: true,
+      customCopyrightDetail: 'NHS England.',
+      hasCustomDataReuse: false,
+      customDataReuseDetail: null,
+    });
+  });
+
+  it.each([
+    [true, 'yes'],
+    [false, 'no'],
+    [null, null],
+  ])('reads a stored %s as %s, beside its details as they are', (hasCustomCopyright, answer) => {
+    expect(
+      copyrightAndDataReuseColumns.fromDraft({
+        ...unansweredDraft,
+        hasCustomCopyright,
+        customCopyrightDetail: 'NHS England.',
+      }),
+    ).toEqual({
+      hasCustomCopyright: answer,
+      customCopyrightDetail: 'NHS England.',
+      hasCustomDataReuse: null,
+      customDataReuseDetail: null,
+    });
+  });
+});
+
 describe('varianceAndQualityColumns', () => {
   const answered = {
     variation: 'Varies by area.',
