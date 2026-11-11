@@ -477,6 +477,13 @@
       "when": 1794392101963,
       "tag": "0067_cache-observation-series",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794392102963,
+      "tag": "0068_observation-range-percentiles",
+      "breakpoints": true
     }
   ]
 }

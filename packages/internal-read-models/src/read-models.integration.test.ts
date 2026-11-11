@@ -186,3 +186,66 @@ describe('refreshIndicatorReadModels', () => {
     expect(await readModelRowsOf(db, indicatorId)).toEqual(expected);
   });
 });
+
+describe('observation_range distributions', () => {
+  it('orders quartiles and quintile cutoffs within each range, with cutoffs from five values', async () => {
+    const rows = (await db.execute(sql`
+      SELECT
+        count(*)::int AS ranges,
+        count(*) FILTER (WHERE quintile_cutoffs IS NOT NULL)::int AS with_cutoffs,
+        count(*) FILTER (WHERE NOT (
+          p25 BETWEEN min AND max AND p75 BETWEEN p25 AND max
+          AND (quintile_cutoffs IS NULL OR (
+            cardinality(quintile_cutoffs) = 4
+            AND min <= quintile_cutoffs[1]
+            AND quintile_cutoffs[1] <= quintile_cutoffs[2]
+            AND quintile_cutoffs[2] <= quintile_cutoffs[3]
+            AND quintile_cutoffs[3] <= quintile_cutoffs[4]
+            AND quintile_cutoffs[4] <= max
+          ))
+        ))::int AS disordered
+      FROM observation_range
+    `)) as unknown as { ranges: number; with_cutoffs: number; disordered: number }[];
+    expect(rows[0]?.ranges).toBeGreaterThan(0);
+    expect(rows[0]?.with_cutoffs).toBeGreaterThan(0);
+    expect(rows[0]?.disordered).toBe(0);
+  });
+
+  it('places each cutoff at the last value before the next fifth', async () => {
+    const [indicatorId] = await seededIndicatorIds();
+    if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');
+    await db
+      .transaction(async (tx) => {
+        await tx.execute(sql`DELETE FROM observation WHERE indicator_id = ${indicatorId}`);
+        await tx.execute(sql`
+        INSERT INTO observation
+          (indicator_id, area_id, from_date, to_date, value, upload_batch_id, dimension_key)
+        SELECT ${indicatorId}, a.id, '2099-01-01', '2099-12-31', a.value, v.upload_batch_id, ''
+        FROM current_published_version cpv
+        JOIN indicator_version v ON v.id = cpv.id
+        CROSS JOIN (
+          SELECT a.id, row_number() OVER (ORDER BY a.id) * 10 AS value
+          FROM published.area a
+          JOIN published.area_type at ON at.id = a.area_type_id
+          WHERE at.display_group = (
+            SELECT display_group FROM published.area_type
+            WHERE display_group IS NOT NULL ORDER BY display_group LIMIT 1
+          )
+          ORDER BY a.id LIMIT 7
+        ) a
+        WHERE cpv.indicator_id = ${indicatorId}
+      `);
+        await refreshIndicatorReadModels(tx, indicatorId);
+        const ranges = (await tx.execute(sql`
+        SELECT min, max, p25, p75, quintile_cutoffs AS cutoffs FROM observation_range
+        WHERE indicator_id = ${indicatorId}
+      `)) as unknown as { min: number; max: number; p25: number; p75: number; cutoffs: number[] }[];
+        // Seven values 10..70: ranks ceil(7 × 0.2) = 2, 3, 5 and 6.
+        expect(ranges).toEqual([{ min: 10, max: 70, p25: 25, p75: 55, cutoffs: [20, 30, 50, 60] }]);
+        throw new RolledBack();
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof RolledBack)) throw error;
+      });
+  });
+});
