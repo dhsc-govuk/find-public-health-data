@@ -52,6 +52,18 @@ describe('requestLogging', () => {
     expect(lines[0]?.res).toEqual({ statusCode: 200 });
   });
 
+  it('redacts token query parameters, so a sign-in link in the log cannot be used', async () => {
+    const { app, lines } = createApp();
+
+    await request(app).get('/topics?token=eyJ.secret.sig&returnTo=%2F&page=2&token=other');
+    await settled(lines);
+
+    expect(JSON.stringify(lines[0])).not.toContain('secret');
+    expect(lines[0]?.req).toMatchObject({
+      url: '/topics?token=[redacted]&returnTo=%2F&page=2&token=[redacted]',
+    });
+  });
+
   it('gives every request its own id', async () => {
     const { app, lines } = createApp();
 

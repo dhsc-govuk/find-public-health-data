@@ -9,18 +9,21 @@
 // `test:e2e:publishing` does, so neither `test:e2e` nor a bare `playwright test` runs it.
 import { defineConfig, devices } from '@playwright/test';
 
+import { INVITEE_STORAGE_STATE } from './tests/support/private-beta.ts';
 import { INTERNAL_WEB_URL, PUBLIC_WEB_URL } from './tests/support/web-urls.ts';
 
 const internalUse = { ...devices['Desktop Chrome'], baseURL: INTERNAL_WEB_URL };
+const publicUse = { ...devices['Desktop Chrome'], baseURL: PUBLIC_WEB_URL };
 
 // Publishing an indicator changes data that other specs read: the public search total and a
 // topic's list of indicators. This project runs its tests one at a time in a single worker. It
 // does not depend on the `public` or `internal` projects, so it runs after their specs only
-// because `test:e2e:publishing` is a separate run from `test:e2e`.
+// because `test:e2e:publishing` is a separate run from `test:e2e`. It depends on `public sign-in`
+// because its test opens the published indicator on public-web, behind the private beta.
 const publishing = {
   name: 'publishing',
   testDir: './tests/publishing',
-  dependencies: ['internal sign-in'],
+  dependencies: ['internal sign-in', 'public sign-in'],
   fullyParallel: false,
   workers: 1,
   use: internalUse,
@@ -40,10 +43,18 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
+    // Signs the invitee in to the private beta once a run, saving the access the public specs use.
+    {
+      name: 'public sign-in',
+      testDir: './tests/public',
+      testMatch: 'private-beta.setup.ts',
+      use: publicUse,
+    },
     {
       name: 'public',
       testDir: './tests/public',
-      use: { ...devices['Desktop Chrome'], baseURL: PUBLIC_WEB_URL },
+      dependencies: ['public sign-in'],
+      use: { ...publicUse, storageState: INVITEE_STORAGE_STATE },
     },
     // Signs each internal user in once a run, saving the sessions the internal specs start from.
     {
