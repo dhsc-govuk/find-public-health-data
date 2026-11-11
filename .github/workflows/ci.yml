@@ -325,9 +325,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-node-pnpm
-      # pnpm audit resolves the tree from pnpm-lock.yaml, so this job never installs — and so the
-      # job that hunts for malicious dependencies never executes one. (Every installing job runs
-      # esbuild's postinstall, per `allowBuilds` in pnpm-workspace.yaml.)
+      # pnpm audit resolves the tree from pnpm-lock.yaml, so this job never installs the workspace's
+      # dependencies — and so the job that hunts for malicious dependencies never executes one.
+      # (Every installing job runs esbuild's postinstall, per `allowBuilds` in pnpm-workspace.yaml.)
+      # The only package it installs is corepack, at the version the catalog pins, which has no
+      # dependencies or install scripts and is itself in the lockfile, and so in this audit.
       # Deliberately no --ignore-registry-errors: a registry outage must redden the gate rather than
       # silently pass it.
       - name: Audit dependencies
