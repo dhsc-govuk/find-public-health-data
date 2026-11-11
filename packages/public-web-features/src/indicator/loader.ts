@@ -1,3 +1,4 @@
+import type { ObservationHistory } from '@fphd/public-api-features/contract';
 import {
   areaDisplayGroupListSchema,
   areaLookupListSchema,
@@ -126,12 +127,12 @@ export async function loadIndicatorData(
   {
     page,
     tableDisplayGroups,
-    tablePoints = 'recent',
+    observationHistory = 'recentPerSeries',
     wholeAreaGroups = false,
   }: {
     page?: IndicatorPageData;
     tableDisplayGroups?: string[];
-    tablePoints?: 'recent' | 'latest';
+    observationHistory?: ObservationHistory;
     wholeAreaGroups?: boolean;
   } = {},
 ) {
@@ -316,7 +317,7 @@ export async function loadIndicatorData(
       : [];
   const selected: SelectedIndicator[] =
     tableDisplayGroups !== undefined
-      ? await loadIndicatorTableEntries(api, shortIds, codesToLoad, tablePoints)
+      ? await loadIndicatorTableEntries(api, shortIds, codesToLoad, observationHistory)
       : await loadInBatches(shortIds, async (id) => {
           const dataBatch = (codes: string[]) =>
             api.get(
@@ -397,11 +398,11 @@ export async function loadIndicatorTableData(
   args: LoaderFunctionArgs,
   displayGroups: string[],
   wholeAreaGroups = false,
-  points: 'recent' | 'latest' = 'latest',
+  observationHistory: ObservationHistory = 'latestPerSeries',
 ) {
   return loadIndicatorData(args, {
     tableDisplayGroups: displayGroups,
     wholeAreaGroups,
-    tablePoints: points,
+    observationHistory,
   });
 }

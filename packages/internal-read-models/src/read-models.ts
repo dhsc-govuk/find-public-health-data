@@ -1,5 +1,15 @@
-import type { Database } from '@fphd/db';
-import { type SQL, sql } from 'drizzle-orm';
+import { type Database, schema } from '@fphd/db';
+import {
+  type AnyColumn,
+  and,
+  count,
+  countDistinct,
+  eq,
+  isNotNull,
+  max,
+  min,
+  sql,
+} from 'drizzle-orm';
 
 import { replaceObservationSeries } from './observation-series.ts';
 
@@ -14,9 +24,8 @@ export const READ_MODEL_TABLES = [
   'observation_series_batch',
 ] as const;
 
-/** Matches `column` to `indicatorId`, or every row when it is undefined. */
-function forIndicator(column: SQL, indicatorId: string | undefined): SQL {
-  return indicatorId === undefined ? sql`TRUE` : sql`${column} = ${indicatorId}`;
+function forIndicator(column: AnyColumn, indicatorId: string | undefined) {
+  return indicatorId === undefined ? undefined : eq(column, indicatorId);
 }
 
 /**
@@ -30,67 +39,102 @@ async function replaceReadModelRows(
   tx: Database | Transaction,
   indicatorId: string | undefined,
 ): Promise<void> {
-  await tx.execute(
-    sql`DELETE FROM available_data WHERE ${forIndicator(sql`indicator_id`, indicatorId)}`,
-  );
-  await tx.execute(
-    sql`DELETE FROM observation_range WHERE ${forIndicator(sql`indicator_id`, indicatorId)}`,
-  );
+  const {
+    availableData,
+    observationRange,
+    publishedObservation: o,
+    publishedArea: a,
+    publishedAreaType: at,
+    observationDimension: od,
+    publishedDimensionType: dt,
+    publishedDimensionValue: dv,
+  } = schema;
 
-  await tx.execute(sql`
-    INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
-    SELECT o.indicator_id, a.area_type_id, MAX(at.name), COUNT(DISTINCT o.area_id)
-    FROM published.observation o
-    JOIN published.area a ON a.id = o.area_id
-    JOIN published.area_type at ON at.id = a.area_type_id
-    WHERE ${forIndicator(sql`o.indicator_id`, indicatorId)}
-    GROUP BY o.indicator_id, a.area_type_id
-  `);
+  await tx.delete(availableData).where(forIndicator(availableData.indicatorId, indicatorId));
+  await tx.delete(observationRange).where(forIndicator(observationRange.indicatorId, indicatorId));
+
+  await tx.insert(availableData).select(
+    tx
+      .select({
+        indicatorId: o.indicatorId,
+        areaTypeId: a.areaTypeId,
+        areaTypeName: max(at.name).as('area_type_name'),
+        areaCount: countDistinct(o.areaId).as('area_count'),
+      })
+      .from(o)
+      .innerJoin(a, eq(a.id, o.areaId))
+      .innerJoin(at, eq(at.id, a.areaTypeId))
+      .where(forIndicator(o.indicatorId, indicatorId))
+      .groupBy(o.indicatorId, a.areaTypeId),
+  );
 
   // Keep aligned with the newest migration inserting into observation_range, which reads the
   // tables; a test runs both against a seed whose data is all published.
-  await tx.execute(sql`
-    INSERT INTO observation_range
-      (indicator_id, display_group, from_date, to_date, segment, min, max, p25, p75, quintile_cutoffs)
-    WITH range_observations AS (
-      SELECT
-        o.indicator_id,
-        at.display_group,
-        o.from_date,
-        o.to_date,
-        o.value,
-        coalesce(
-          string_agg(dv.name, '|' ORDER BY dt.name COLLATE "C"),
-          ''
-        ) AS segment
-      FROM published.observation o
-      JOIN published.area a ON a.id = o.area_id
-      JOIN published.area_type at ON at.id = a.area_type_id
-      LEFT JOIN observation_dimension od ON od.observation_id = o.id
-      LEFT JOIN published.dimension_type dt ON dt.id = od.dimension_type_id
-      LEFT JOIN published.dimension_value dv ON dv.id = od.dimension_value_id
-      WHERE o.value IS NOT NULL
-        AND at.display_group IS NOT NULL
-        AND ${forIndicator(sql`o.indicator_id`, indicatorId)}
-      GROUP BY o.id, o.indicator_id, at.display_group, o.from_date, o.to_date, o.value
-    ), distributions AS (
-      SELECT
-        ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment,
-        min(ro.value) AS min, max(ro.value) AS max,
-        percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ro.value) AS quartiles,
-        percentile_disc(ARRAY[0.2, 0.4, 0.6, 0.8]) WITHIN GROUP (ORDER BY ro.value) AS quintiles,
-        count(*) AS n
-      FROM range_observations ro
-      GROUP BY ro.indicator_id, ro.display_group, ro.from_date, ro.to_date, ro.segment
-    )
-    SELECT
-      indicator_id, display_group, from_date, to_date, segment, min, max,
-      quartiles[1], quartiles[2],
-      -- Each cutoff is the value at rank ceil(n × fifth). Tied values stay in the group
-      -- of their first rank because the chart advances only past a cutoff.
-      CASE WHEN n >= 5 THEN quintiles END
-    FROM distributions
-  `);
+  const rangeObservations = tx.$with('range_observations').as(
+    tx
+      .select({
+        indicatorId: o.indicatorId,
+        displayGroup: at.displayGroup,
+        fromDate: o.fromDate,
+        toDate: o.toDate,
+        value: o.value,
+        segment:
+          sql<string>`coalesce(string_agg(${dv.name}, '|' ORDER BY ${dt.name} COLLATE "C"), '')`.as(
+            'segment',
+          ),
+      })
+      .from(o)
+      .innerJoin(a, eq(a.id, o.areaId))
+      .innerJoin(at, eq(at.id, a.areaTypeId))
+      .leftJoin(od, eq(od.observationId, o.id))
+      .leftJoin(dt, eq(dt.id, od.dimensionTypeId))
+      .leftJoin(dv, eq(dv.id, od.dimensionValueId))
+      .where(
+        and(
+          isNotNull(o.value),
+          isNotNull(at.displayGroup),
+          forIndicator(o.indicatorId, indicatorId),
+        ),
+      )
+      .groupBy(o.id, o.indicatorId, at.displayGroup, o.fromDate, o.toDate, o.value),
+  );
+
+  await tx
+    .with(rangeObservations)
+    .insert(observationRange)
+    .select(
+      tx
+        .select({
+          indicatorId: rangeObservations.indicatorId,
+          displayGroup: rangeObservations.displayGroup,
+          fromDate: rangeObservations.fromDate,
+          toDate: rangeObservations.toDate,
+          segment: rangeObservations.segment,
+          min: min(rangeObservations.value).as('min'),
+          max: max(rangeObservations.value).as('max'),
+          p25: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[1]`.as(
+            'p25',
+          ),
+          p75: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[2]`.as(
+            'p75',
+          ),
+          // Each cutoff is the value at rank ceil(n × fifth). Tied values stay in the group
+          // of their first rank because the chart advances only past a cutoff.
+          quintileCutoffs: sql<number[] | null>`
+            CASE WHEN ${count()} >= 5 THEN
+              percentile_disc(ARRAY[0.2, 0.4, 0.6, 0.8]) WITHIN GROUP (ORDER BY ${rangeObservations.value})
+            END
+          `.as('quintile_cutoffs'),
+        })
+        .from(rangeObservations)
+        .groupBy(
+          rangeObservations.indicatorId,
+          rangeObservations.displayGroup,
+          rangeObservations.fromDate,
+          rangeObservations.toDate,
+          rangeObservations.segment,
+        ),
+    );
 
   await replaceObservationSeries(tx, indicatorId);
 }

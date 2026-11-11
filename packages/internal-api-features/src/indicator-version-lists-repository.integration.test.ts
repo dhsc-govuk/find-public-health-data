@@ -82,7 +82,7 @@ describe('updateIndicatorDraft', () => {
     const created = await newDraft(db, 'Keeps its links');
     const [topic] = await db.select({ id: schema.topic.id }).from(schema.topic).limit(1);
     const classified = await typeClassification(db);
-    if (!topic || !classified) throw new Error('The seed holds no topics or classifications');
+    if (!topic || !classified) throw new Error('The core data holds no topics or classifications');
     await updateIndicatorDraft(
       db,
       created.indicatorId,
@@ -396,7 +396,7 @@ describe('indicator_version_classification', () => {
   repositoryTest('follows the draft rather than the indicator', async ({ db }) => {
     const created = await newDraft(db, 'Classified');
     const classified = await typeClassification(db);
-    if (!classified) throw new Error('The seed holds no classifications');
+    if (!classified) throw new Error('The core data holds no classifications');
 
     await updateIndicatorDraft(
       db,

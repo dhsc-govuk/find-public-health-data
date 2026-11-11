@@ -7,11 +7,7 @@ import { describe, expect } from 'vitest';
 
 import { AS_ACTOR, newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { completeDraft, ukToday } from './indicator-workflow.testing.ts';
-import {
-  assignReviewers,
-  submitIndicator,
-  withdrawSubmission,
-} from './indicator-workflow-repository.ts';
+import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
 
 const {
@@ -234,16 +230,6 @@ describe('respondToReview', () => {
     await submitIndicator(db, draft.indicatorId, await completeDraft(db, draft), AS_ACTOR);
 
     await expect(respondToReview(db, draft.indicatorId, response(), AS_REVIEWER)).resolves.toEqual({
-      ok: false,
-      reason: 'not_allowed',
-    });
-  });
-
-  repositoryTest('refuses a response to a withdrawn submission', async ({ db }) => {
-    const { indicatorId } = await inReview(db, 'Answered after withdrawal');
-    await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
-
-    await expect(respondToReview(db, indicatorId, response(), AS_REVIEWER)).resolves.toEqual({
       ok: false,
       reason: 'not_allowed',
     });

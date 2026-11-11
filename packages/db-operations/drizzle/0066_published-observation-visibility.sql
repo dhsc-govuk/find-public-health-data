@@ -1,5 +1,4 @@
--- Bulk reads use the area/indicator indexes. Bridge lookups gather published
--- batch ids once so each matched observation needs only its primary-key read.
+-- Share the publication lookup across every observation read in a statement.
 CREATE OR REPLACE VIEW published.observation AS
 SELECT
   o.id,
@@ -21,11 +20,12 @@ SELECT
   o.dimension_key
 FROM observation o
 WHERE o.deleted_at IS NULL
-  AND o.upload_batch_id IN (
+  AND o.upload_batch_id = ANY (ARRAY(
     SELECT v.upload_batch_id
     FROM current_published_version cpv
     JOIN indicator_version v ON v.id = cpv.id
-  );--> statement-breakpoint
+  ));
+--> statement-breakpoint
 
 CREATE OR REPLACE VIEW published.observation_note AS
 SELECT onote.id, onote.observation_id, onote.note_type_id

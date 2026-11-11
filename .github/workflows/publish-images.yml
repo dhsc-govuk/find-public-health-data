@@ -41,7 +41,7 @@ jobs:
       id-token: write
       attestations: write
     strategy:
-      # One app failing to push must not stop the other four publishing.
+      # If one app's image fails to push, the other apps' images still publish.
       fail-fast: false
       matrix:
         include:
@@ -53,17 +53,20 @@ jobs:
             artifact: app-images
           - app: internal-api
             artifact: app-images
+          - app: internal-worker
+            artifact: app-images
           - app: operations
             artifact: operations-image
     steps:
       # Derived from the run so the workflow publishes under whichever repository it is in.
-      # Repo-prefixed so a generic name like `operations` isn't loose in the organisation
-      # namespace, and `fphd-` prefixed so the five group together in the organisation's package
-      # list; lowercased because image references must be and an owner or repository name need
-      # not be. The packages are linked to that repository and inherit its permissions because
-      # their first push comes from this workflow's token — the prefixes alone do nothing. They
-      # are public, so deployments pull anonymously. GHCR does not reliably create a new package
-      # public, so check a new one's visibility after its first push.
+      # The repository prefix keeps a generic name like `operations` from sitting loose in the
+      # organisation namespace, and the `fphd-` prefix groups the images together in the
+      # organisation's package list. The name is lowercased because image references must be
+      # lowercase and an owner or repository name need not be. The packages are linked to that
+      # repository and inherit its permissions because their first push comes from this
+      # workflow's token — the prefixes alone do nothing. They are public, so deployments pull
+      # anonymously. GHCR does not reliably create a new package public, so check a new one's
+      # visibility after its first push.
       - name: Derive the image name from this repository
         env:
           APP: ${{ matrix.app }}

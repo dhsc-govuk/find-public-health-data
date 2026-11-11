@@ -9,10 +9,9 @@ import {
   taskRow,
 } from '../support/section-page.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
+import { type DateTime, ukDateTime } from '../support/uk-date-time.ts';
 
 const SECTION: Section = { key: 'publishing-date', taskName: 'Publishing date' };
-
-type DateTime = { day: string; month: string; year: string; hour: string; minute: string };
 
 // Far enough ahead to be accepted whenever the suite runs.
 const LATER: DateTime = {
@@ -22,30 +21,6 @@ const LATER: DateTime = {
   hour: '15',
   minute: '05',
 };
-
-const UK_PARTS = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/London',
-  day: 'numeric',
-  month: 'numeric',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-
-/** An instant as the form's parts in UK time. */
-function ukDateTime(instant: Date): DateTime {
-  const parts = Object.fromEntries(
-    UK_PARTS.formatToParts(instant).map(({ type, value }) => [type, value]),
-  );
-  return {
-    day: parts.day ?? '',
-    month: parts.month ?? '',
-    year: parts.year ?? '',
-    hour: parts.hour ?? '',
-    minute: parts.minute ?? '',
-  };
-}
 
 /** The UK date `days` after today's. */
 function ukDateInDays(days: number): Pick<DateTime, 'day' | 'month' | 'year'> {

@@ -2,18 +2,24 @@
 
 A pnpm monorepo containing four independently deployable applications:
 
-| Application | Package | Default port |
-| --- | --- | ---: |
-| Public web | `@fphd/public-web` | 3000 |
-| Internal web | `@fphd/internal-web` | 3001 |
-| Public API | `@fphd/public-api` | 4000 |
-| Internal API | `@fphd/internal-api` | 4001 |
+| Application  | Package              | Default port |
+| ------------ | -------------------- | -----------: |
+| Public web   | `@fphd/public-web`   |         3000 |
+| Internal web | `@fphd/internal-web` |         3001 |
+| Public API   | `@fphd/public-api`   |         4000 |
+| Internal API | `@fphd/internal-api` |         4001 |
 
 The internal applications are functional supersets of the public applications through shared
 workspace packages. Deployable applications do not import one another.
 
 Alongside them sits `@fphd/operations`, which serves no traffic and has no port. It is a
 command-line application, run as a job — see [Operational commands](#operational-commands).
+
+`@fphd/internal-worker` serves no traffic either. It publishes each scheduled indicator version at
+its publication time, checking for due versions one second past each minute. Its only routes are the
+`/livez` and `/readyz` probes, on port 4002. It connects to the database as the `internal_api` role,
+as the internal API does. `pnpm dev` and `pnpm dev:internal` start it, and the publishing e2e test
+needs it running.
 
 ## Requirements
 
@@ -77,21 +83,21 @@ Node's CA store — so it is not a way to accept an unknown certificate, and no 
 shipped. Set it only to override the default in a deployed environment.
 
 `SESSION_JWT_SECRET` signs JWT session cookies issued by the authentication backend. The example
-value is for local development only; internal-web and the internal API must each receive a secret
-of at least 32 bytes from the deployment environment, and the same one, since internal-web issues
-the session and the API validates it. `WEB_SESSION_SECRET` signs internal-web's own cookie
-session. internal-web validates the JWT before exposing its subject and roles to route middleware,
-and personalized responses are marked private and non-cacheable. public-web has no sign-in and
-takes neither secret.
+value is for local development only; internal-web and the internal API must each receive a secret of
+at least 32 bytes from the deployment environment, and the same one, since internal-web issues the
+session and the API validates it. `WEB_SESSION_SECRET` signs internal-web's own cookie session.
+internal-web validates the JWT before exposing its subject and roles to route middleware, and
+personalized responses are marked private and non-cacheable. public-web has no sign-in and takes
+neither secret.
 
 Authentication currently uses fixed fake users. The sign-in form posts to the web backend, which
-creates a one-use authorization code; its callback exchanges that code for an eight-hour JWT
-cookie. Public routes are anonymous, and the public app has no sign-in.
-Internal routes send a signed-out visitor to a landing page that leads to sign-in, and accept only
-fake users holding one of the internal roles: publisher, IMRG manager, IMRG reviewer or admin. The
-management navigation, the `/manage` routes and the topics API are for admins. The public surface
-of the internal API remains open, but every `/api/internal` route independently validates the JWT
-and applies the permission check it names. Sign-out clears the JWT cookie.
+creates a one-use authorization code; its callback exchanges that code for an eight-hour JWT cookie.
+Public routes are anonymous, and the public app has no sign-in. Internal routes send a signed-out
+visitor to a landing page that leads to sign-in, and accept only fake users holding one of the
+internal roles: publisher, IMRG manager, IMRG reviewer or admin. The management navigation, the
+`/manage` routes and the topics API are for admins. The public surface of the internal API remains
+open, but every `/api/internal` route independently validates the JWT and applies the permission
+check it names. Sign-out clears the JWT cookie.
 
 ## Commands
 
@@ -101,14 +107,15 @@ pnpm dev
 pnpm dev:public
 pnpm dev:internal
 pnpm check
-pnpm check:artefacts   # assert no internal code, secret or database operation reaches an artifact
-pnpm check:e2e-coverage # assert every page route has an e2e spec and every spec scans with axe
-pnpm check:migrations  # assert the schema holds no change its migrations do not
+pnpm check:artefacts     # assert no internal code, secret or database operation reaches an artifact
+pnpm check:e2e-coverage  # assert every page route has an e2e spec and every spec scans with axe
+pnpm check:migrations    # assert the schema holds no change its migrations do not
 pnpm build
-pnpm test              # unit then integration tests (not e2e)
-pnpm test:unit         # unit tests
-pnpm test:integration  # integration tests — need the local database and Azurite running
-pnpm test:e2e          # end-to-end tests — need the stack serving and the database seeded
+pnpm test                # unit then integration tests (not e2e)
+pnpm test:unit           # unit tests
+pnpm test:integration    # integration tests — need the local database and Azurite running
+pnpm test:e2e            # end-to-end tests — need the stack serving and the database seeded
+pnpm test:e2e:publishing # end-to-end test of scheduled publication — needs the worker running
 ```
 
 Each application builds to its own `dist` directory, giving CI and deployment tooling four
@@ -138,25 +145,25 @@ a generous limit. An intended increase is accepted with `pnpm perf:accept <run-i
 integration tests, build, the artefact boundary and the e2e coverage checks. It needs the local
 database and blob storage running (`docker compose up -d db azurite`) for the integration tier, but
 no apps: it leaves out the e2e tests, which CI runs on pull requests. Run `pnpm test:e2e` yourself
-for front-end work (see the e2e notes below). CI additionally runs
-`pnpm audit --audit-level high`, which fails on high and critical advisories, so a newly published
-advisory can redden a pull request that changed nothing. Where a real advisory has no fix and
-blocks all work, `pnpm.auditConfig.ignoreGhsas` is the escape hatch; each entry is a reviewable
-decision.
+for front-end work (see the e2e notes below). CI additionally runs `pnpm audit --audit-level high`,
+which fails on high and critical advisories, so a newly published advisory can redden a pull request
+that changed nothing. Where a real advisory has no fix and blocks all work,
+`pnpm.auditConfig.ignoreGhsas` is the escape hatch; each entry is a reviewable decision.
 
 `pnpm install` also refuses any version published within the last three days, transitive
-dependencies included: `minimumReleaseAge` in `pnpm-workspace.yaml` is set explicitly so the
-policy is visible and does not move with pnpm's own default. It is enforced both when resolving a
-bump and when CI installs from the lockfile, so a too-new version fails locally rather than only in
-CI. The NotGovUK and react-foundry packages are permanently excluded, because they are maintained
-alongside this project and their releases are often taken straight away. To take any other version
-that is still inside the window, add a `name@version` entry to `minimumReleaseAgeExclude` with a
-note of when it can go, and remove it once the version has aged out. Do not pass
-`--trust-lockfile`: it skips the verification entirely.
+dependencies included: `minimumReleaseAge` in `pnpm-workspace.yaml` is set explicitly so the policy
+is visible and does not move with pnpm's own default. It is enforced both when resolving a bump and
+when CI installs from the lockfile, so a too-new version fails locally rather than only in CI. The
+NotGovUK and react-foundry packages are permanently excluded, because they are maintained alongside
+this project and their releases are often taken straight away. To take any other version that is
+still inside the window, add a `name@version` entry to `minimumReleaseAgeExclude` with a note of
+when it can go, and remove it once the version has aged out. Do not pass `--trust-lockfile`: it
+skips the verification entirely.
 
-`postgres@3.4.9` has a pnpm patch for [upstream COPY error handling](https://github.com/porsager/postgres/pull/1183):
-a server error after COPY finishes sending must reject the writable so the transaction rolls back.
-Remove the patch when a released version includes that fix.
+`postgres@3.4.9` has a pnpm patch for
+[upstream COPY error handling](https://github.com/porsager/postgres/pull/1183): a server error after
+COPY finishes sending must reject the writable so the transaction rolls back. Remove the patch when
+a released version includes that fix.
 
 Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integration` and
 `pnpm test:e2e` individually.
@@ -165,11 +172,14 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   project without any still passes because of `--passWithNoTests`.
 - `pnpm test:e2e` names the one suite directly (`pnpm --filter @fphd/e2e run test:e2e`), so broken
   e2e wiring is an error rather than a silent skip. In CI the job is a matrix of shards, each
-  running `--shard=i/n`: every shard runs the four apps as compose containers from the production
-  images the image build job made (see [Container images](#container-images)), restores the
-  database a seed job seeded once for the run, with the same commands a developer runs, runs its
-  share of the suite, and uploads its own Playwright report when it fails. Add a shard to the
-  matrix as the suite grows.
+  running `--shard=i/n`: every shard runs the four apps and the worker as compose containers from
+  the production images the image build job made (see [Container images](#container-images)),
+  restores the database a seed job seeded once for the run, with the same commands a developer runs,
+  runs its share of the suite, and uploads its own Playwright report when it fails. Add a shard to
+  the matrix as the suite grows. Once its share has finished, the first shard also runs
+  `pnpm test:e2e:publishing`, the `publishing` project. It runs separately because publishing an
+  indicator changes the public search total and a topic's list of indicators, which other specs
+  read.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
@@ -183,25 +193,25 @@ vitest run -t 'partial test name'            # one test
 
 To add real ones:
 
-- An integration test is any file whose name contains `integration.test`, colocated in `src/` like
-  a unit test. Conventionally that is `<subject>.integration.test.ts`, but neither the prefix nor
-  the extension is part of the contract, so `.integration.test.tsx` and a bare `integration.test.ts`
+- An integration test is any file whose name contains `integration.test`, colocated in `src/` like a
+  unit test. Conventionally that is `<subject>.integration.test.ts`, but neither the prefix nor the
+  extension is part of the contract, so `.integration.test.tsx` and a bare `integration.test.ts`
   both qualify. The two tiers are the same run under different filters — `test:unit` excludes that
-  pattern and `test:integration` selects it — so a package needs no per-tier wiring.
-  The integration job has Postgres and Azurite services and creates the per-API login roles. The root
-  Vitest global setup (gated on `INTEGRATION_DB=1`, set by `test:integration`) builds a
-  migrated, seeded template database once per run; each test file calls
-  `createTestDb()` from `@fphd/db/testing` for its own copy, so files run in parallel
-  against isolated databases and never touch the development database. Every database a run
-  creates carries the run's id, so two runs against one server (from two worktrees, say)
-  leave each other alone.
+  pattern and `test:integration` selects it — so a package needs no per-tier wiring. The integration
+  job has Postgres and Azurite services and creates the per-API login roles. The root Vitest global
+  setup (gated on `INTEGRATION_DB=1`, set by `test:integration`) builds a migrated, seeded template
+  database once per run; each test file calls `createTestDb()` from `@fphd/db/testing` for its own
+  copy, so files run in parallel against isolated databases and never touch the development
+  database. Every database a run creates carries the run's id, so two runs against one server (from
+  two worktrees, say) leave each other alone.
 - E2e tests are Playwright specs in the top-level `e2e` workspace package (`@fphd/e2e`), not in
   `packages/*`: a package there is shared code the applications are built from, which an e2e suite
   is not. Specs drive the applications over HTTP and never import application code; the spec's
   directory picks the target — `e2e/tests/public` uses `PUBLIC_WEB_URL` (default
   `http://127.0.0.1:3000`), `e2e/tests/internal` uses `INTERNAL_WEB_URL` (default
-  `http://127.0.0.1:3001`). Nothing starts the stack for the suite: serve it in another terminal
-  and seed the database, then run the tests —
+  `http://127.0.0.1:3001`), and `e2e/tests/publishing` uses `INTERNAL_WEB_URL` and checks the public
+  site at `PUBLIC_WEB_URL`. Nothing starts the stack for the suite: serve it in another terminal and
+  seed the database, then run the tests —
 
   ```sh
   pnpm --filter @fphd/e2e exec playwright install chromium   # once
@@ -209,10 +219,17 @@ To add real ones:
   pnpm test:e2e
   ```
 
-  `pnpm --filter @fphd/e2e exec playwright test --ui` opens UI mode, and `--headed` and `-g`
-  filters pass through the same way. Specs run in parallel workers against the shared seed, so a
-  spec never mutates data another spec reads — a test of a write flow creates its own rows and
-  asserts on those.
+  `pnpm --filter @fphd/e2e exec playwright test --ui` opens UI mode, and `--headed` and `-g` filters
+  pass through the same way. Specs run in parallel workers against the shared seed, so a spec never
+  mutates data another spec reads — a test of a write flow creates its own rows and asserts on
+  those. The `publishing` project (`e2e/tests/publishing`) is the exception, because its test
+  publishes an indicator. Playwright defines that project only when `E2E_PUBLISHING=1` is set, which
+  `pnpm test:e2e:publishing` does, so neither `pnpm test:e2e` nor a bare `playwright test` runs it.
+  Run it, with the worker running, when publishing, workflow or worker code changes. The indicator
+  it publishes stays published, and the search specs count published indicators, so re-seed the
+  database before the next `pnpm test:e2e`. Re-seeding wipes every indicator in that database, so
+  never run the publishing test against a development database that holds drafts you want to keep.
+  Use a worktree's own database instead.
 
   Internal specs start signed in. The `internal sign-in` setup project
   (`e2e/tests/internal/sign-in.setup.ts`) signs each internal user in once a run and saves the
@@ -223,13 +240,13 @@ To add real ones:
   Every page has a spec with a test that it renders and a separate test that it has no WCAG 2.2 AA
   violations, scanned with axe-core through `expectNoAccessibilityViolations` from
   `e2e/tests/support/accessibility.ts`; a new page gets a spec with both, and
-  `pnpm check:e2e-coverage` (below) fails until it does. A spec that drives a page
-  into a further state — a validation error, a selection — scans that state too. A ticketed defect
-  that is waiting on a fix goes in `KNOWN_VIOLATIONS` in the same file, scoped to one rule and one
-  selector so the rest of the page is still held to the bar; the scan also checks each entry is
-  still seen, so the fix landing without removing it goes red. Automated checks catch around a third
-  of WCAG issues, so this is a regression net rather than an audit: keyboard operation, zoom and
-  reflow, and screen-reader behaviour still need manual testing.
+  `pnpm check:e2e-coverage` (below) fails until it does. A spec that drives a page into a further
+  state — a validation error, a selection — scans that state too. A ticketed defect that is waiting
+  on a fix goes in `KNOWN_VIOLATIONS` in the same file, scoped to one rule and one selector so the
+  rest of the page is still held to the bar; the scan also checks each entry is still seen, so the
+  fix landing without removing it goes red. Automated checks catch around a third of WCAG issues, so
+  this is a regression net rather than an audit: keyboard operation, zoom and reflow, and
+  screen-reader behaviour still need manual testing.
 
 Every job runs the whole workspace rather than only the changed packages. When CI wall-clock starts
 to hurt, `pnpm --filter "...[origin/main]"` selects changed packages plus their dependents, with no
@@ -241,30 +258,30 @@ satisfied.
 
 ## E2e coverage of new work
 
-Two checks keep the e2e tier growing with the apps. Neither is a coverage percentage: a threshold
-is met by visiting pages without asserting anything.
+Two checks keep the e2e tier growing with the apps. Neither is a coverage percentage: a threshold is
+met by visiting pages without asserting anything.
 
 `pnpm check:e2e-coverage` (`tools/e2e-coverage`, also its own CI job and the last step of
 `pnpm check`) reads both apps' route tables through `react-router routes --json` and fails, naming
 the route, when a page route has no spec. The route-to-spec mapping is spelt out in
 `tools/e2e-coverage/src/specs.ts` rather than derived from the path, so adding a page means adding
 the route there and the spec under `e2e/tests/public` or `e2e/tests/internal`; a group of routes
-that make one journey can share a spec, as the `manage/topics/*` routes do. A route whose module
-has no default export is a resource route by React Router's own definition — a data lookup, a CSV
-download, a redirect — and needs no spec, since it has no page; the check reads each route module
-to tell the two apart. It also fails a mapping entry no app declares any more, and a spec file
-that never calls `expectNoAccessibilityViolations`, since one axe scan per page state is the
-convention above. A spec that only resource routes map to, such as one covering where a redirect
-lands, is exempt from the scan; the mapped spec must still exist, since the entry is what
-exempts it.
+that make one journey can share a spec, as the `manage/topics/*` routes do. A route whose module has
+no default export is a resource route by React Router's own definition — a data lookup, a CSV
+download, a redirect — and needs no spec, since it has no page; the check reads each route module to
+tell the two apart. It also fails a mapping entry no app declares any more, and a spec file that
+never calls `expectNoAccessibilityViolations`, since one axe scan per page state is the convention
+above. A spec that only resource routes map to, such as one covering where a redirect lands, is
+exempt from the scan; the mapped spec must still exist, since the entry is what exempts it.
 
 The `Web changes carry e2e changes` CI job covers the gap the route check cannot see: new behaviour
 on an existing page. A pull request that changes `apps/*-web`, `packages/*-web-features`,
-`packages/ui`, `packages/utils`, `packages/web-server` or `packages/auth` without touching `e2e/` fails until it carries the `no-e2e-needed` label and a line in its body reading
+`packages/ui`, `packages/utils`, `packages/web-server` or `packages/auth` without touching `e2e/`
+fails until it carries the `no-e2e-needed` label and a line in its body reading
 `No e2e needed: <reason>`. The job reads the label and body live rather than from the event that
 started the run, so adding them and re-running the failed job is enough. It is blunt by design — a
-copy change earns the label with a one-line reason — because the point is that the reviewer sees
-the "why not".
+copy change earns the label with a one-line reason — because the point is that the reviewer sees the
+"why not".
 
 Behaviour rather than pages is covered by convention, not tooling: the pull request for a story adds
 one e2e test per acceptance criterion, titled in the criterion's words, and the reviewer checks the
@@ -273,35 +290,39 @@ story against the spec titles.
 ## The public artifact boundary
 
 `pnpm check:artefacts` (`tools/artefact-boundary`, also its own CI job) fails if internal code or a
-repository secret has reached a public artifact, or the database operations a server app. It
-applies six checks, cheapest first so the common failure is reported without waiting for a build:
+repository secret has reached a public artifact, if the database operations have reached a server
+app, or if the internal API's code has reached the internal worker. It applies seven checks,
+cheapest first so the common failure is reported without waiting for a build:
 
-- no reference to the `secrets` context can reach a `docker build` step in any workflow — not in
-  the step's `run`, `with` or `env`, and not in `env` inherited from its job or the workflow. The
-  images are public, so a secret passed as a build arg is a secret published; the Trivy secret
-  scan in CI inspects the built layers for the patterns it knows, and this refuses the route
-  whatever the value looks like;
+- no reference to the `secrets` context can reach a `docker build` step in any workflow — not in the
+  step's `run`, `with` or `env`, and not in `env` inherited from its job or the workflow. The images
+  are public, so a secret passed as a build arg is a secret published; the Trivy secret scan in CI
+  inspects the built layers for the patterns it knows, and this refuses the route whatever the value
+  looks like;
 - the two public apps' transitive workspace dependency closures contain no `internal-*` package;
-- the four server apps' closures do not contain `@fphd/db-operations`, so only the operations
-  image carries the migrations, seeding and the core data import;
+- the four server apps' and the internal worker's closures do not contain `@fphd/db-operations`, so
+  only the operations image carries the migrations, seeding and the core data import;
+- the internal worker's closure contains none of `@fphd/internal-api-features`, `@fphd/api-server`
+  and `@fphd/auth`: it publishes through `@fphd/internal-workflow` alone;
 - no route module in `public-web`'s route table is internal. React Router declares routes as path
   strings rather than imports, so `route('manage', '../../packages/internal-web-features/…')` is
   invisible to an import linter — `react-router routes --json` names those paths directly;
 - no import specifier in `apps/public-api/dist` resolves to internal code — this is the one that
   catches a deep relative import, which never appears in a `package.json`;
 - no module in the `public-web` bundle comes from an internal package. The bundle is minified, so
-  module identity survives only in sourcemaps. The check builds with `--sourcemapClient hidden
-  --sourcemapServer hidden`, reads each map's `sources` across `dist/client` and `dist/server`, then
-  deletes the maps: `hidden` omits the `sourceMappingURL` comment that would point at them, so what
-  remains in `dist/` is byte-identical to a plain `react-router build`. React Router prints a
-  "source maps are enabled in production" warning during this build; it does not apply to what
-  ships, because the maps do not survive the check.
+  module identity survives only in sourcemaps. The check builds with
+  `--sourcemapClient hidden   --sourcemapServer hidden`, reads each map's `sources` across
+  `dist/client` and `dist/server`, then deletes the maps: `hidden` omits the `sourceMappingURL`
+  comment that would point at them, so what remains in `dist/` is byte-identical to a plain
+  `react-router build`. React Router prints a "source maps are enabled in production" warning during
+  this build; it does not apply to what ships, because the maps do not survive the check.
 
 The rule the four code checks share is "a module reference naming an `@fphd/internal-*` package or
 living under a directory named `internal-*`", unit-tested in
 `tools/artefact-boundary/src/internal.test.ts`. The build-input check is unit-tested in
-`tools/artefact-boundary/src/builds.test.ts`, and the operations rule in
-`tools/artefact-boundary/src/operations.test.ts`.
+`tools/artefact-boundary/src/builds.test.ts`, the operations rule in
+`tools/artefact-boundary/src/operations.test.ts`, and the worker rule in
+`tools/artefact-boundary/src/worker.test.ts`.
 
 Three of the checks would pass vacuously if they silently found nothing to inspect, so all refuse
 to: no workflow building an image is an error, an app name absent from the workspace refuses to be
@@ -326,25 +347,25 @@ docker compose down -v    # stop and delete all data
 ```
 
 `pnpm services:up` starts every compose service that carries no `profiles:` key, so a service added
-to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The four
-app services are profile-gated and belong to `pnpm dev:mixed`.
+to `compose.yaml` without a profile becomes a dev prerequisite without the script changing. The
+services for the four apps and the worker are profile-gated and belong to `pnpm dev:mixed`.
 
 Each API connects with its own login role (`public_api`, `internal_api`) rather than as the owner,
 so access can be constrained per audience at the grant level. The roles, and the `fphd_owner` group
-below, are created by `pnpm db:bootstrap` — run it once against a fresh database, before the first migration: the grant
-migrations reference the roles, so migrating a database that has never been bootstrapped fails.
-It is idempotent, and it sets the passwords every time, so re-running it is also how a password
-change in `.env` reaches the database.
+below, are created by `pnpm db:bootstrap` — run it once against a fresh database, before the first
+migration: the grant migrations reference the roles, so migrating a database that has never been
+bootstrapped fails. It is idempotent, and it sets the passwords every time, so re-running it is also
+how a password change in `.env` reaches the database.
 
 Every application object is owned by `fphd_owner`, a group role with no login. `db migrate` creates
 the group if it is missing, makes the connecting login a member and applies migrations under
-`SET ROLE fphd_owner`, so objects belong to the group whichever login runs the migrations. `db
-migrate` refuses a database migrated before the group existed, with a message to run
+`SET ROLE fphd_owner`, so objects belong to the group whichever login runs the migrations.
+`db migrate` refuses a database migrated before the group existed, with a message to run
 `pnpm db:reset` and migrate again. Objects that `pnpm --filter @fphd/db-operations db:push` creates
 belong to the login, so `db migrate` refuses that database too.
 
-Only a role with ADMIN on `fphd_owner` can add a member, and that is the login that created it. If
-a different login is to run migrations, such as a replacement managed identity, the old login must
+Only a role with ADMIN on `fphd_owner` can add a member, and that is the login that created it. If a
+different login is to run migrations, such as a replacement managed identity, the old login must
 first run both of these:
 
 ```sql
@@ -352,9 +373,9 @@ GRANT fphd_owner TO "<new login>" WITH ADMIN TRUE;
 ALTER DATABASE <database> OWNER TO fphd_owner;
 ```
 
-The second gives every member of the group the database owner's rights. The new login needs those
-to run `db reset`, and to grant the group `CREATE` on the `public` schema that a reset recreates.
-The old login can't give the database to the new login directly, because it can't `SET ROLE` to it.
+The second gives every member of the group the database owner's rights. The new login needs those to
+run `db reset`, and to grant the group `CREATE` on the `public` schema that a reset recreates. The
+old login can't give the database to the new login directly, because it can't `SET ROLE` to it.
 
 The Drizzle schema lives in `packages/db` and its migrations in `packages/db-operations`:
 
@@ -369,15 +390,14 @@ pnpm db:reset                 # back to a freshly created database, for db:migra
 pnpm db:studio                # browse the database
 ```
 
-The schema implements the bridge/registry canonical model ratified in ADR023: governed
-registries for dimension types and values, observations linked to dimension values through
-bridge records, and derived read-model tables rebuilt from the published views of it. Surrogate
-keys are UUIDv7 (native `uuidv7()` default in PostgreSQL 18); the public indicator
-number lives in `indicator.short_id`, carried over from Fingertips where there was one
-and minted by a sequence otherwise. Grants are explicit: `public_api` reads only the
-published surface (not `upload_batch`), `internal_api` additionally reads and writes the
-publisher's tables and upload state, and a table added by a future migration gets no access
-until granted deliberately.
+The schema implements the bridge/registry canonical model ratified in ADR023: governed registries
+for dimension types and values, observations linked to dimension values through bridge records, and
+derived read-model tables rebuilt from the published views of it. Surrogate keys are UUIDv7 (native
+`uuidv7()` default in PostgreSQL 18); the public indicator number lives in `indicator.short_id`,
+carried over from Fingertips where there was one and minted by a sequence otherwise. Grants are
+explicit: `public_api` reads only the published surface (not `upload_batch`), `internal_api`
+additionally reads and writes the publisher's tables and upload state, and a table added by a future
+migration gets no access until granted deliberately.
 
 The schema's layout, naming conventions and the add-a-table checklist are documented in
 [`packages/db/README.md`](packages/db/README.md), and the migrations and the core data import's
@@ -393,9 +413,9 @@ The dev scripts start the database but deliberately do not migrate it: applying 
 something that should happen as a side effect of running the apps. So a first run — or any run after
 `docker compose down -v` — needs the command above before the pages have data.
 
-The seed is real Pholio data for 12 indicators and the prototype's geography catalogue,
-committed as gzipped CSVs — see `packages/db-operations/data/seed/README.md` for what is in it
-and how to regenerate it.
+The seed is real Pholio data for 12 indicators and the prototype's geography catalogue, committed as
+gzipped CSVs — see `packages/db-operations/data/seed/README.md` for what is in it and how to
+regenerate it.
 
 ## Graceful shutdown
 
@@ -409,13 +429,15 @@ here; it comes out of the budget rather than adding to it, and is zero locally, 
 elsewhere. A server logs `Stopping`, with the signal and each phase's budget, as the signal arrives,
 and `Stopped` once cleanup is done.
 
-All four apps serve the same two probes, so one configuration covers every app: `/livez` stays 200
-throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the moment a signal
-arrives.
+The four apps and the worker serve the same two probes, so one configuration covers every app:
+`/livez` stays 200 throughout a stop, `/readyz` answers 503 with `"status": "draining"` from the
+moment a signal arrives. The worker's `/livez` also answers 503 with `"status": "stalled"` once no
+publication sweep has ended for five minutes, so the platform restarts a worker whose sweep has
+hung.
 
 ## Operational commands
 
-`apps/operations` is a command-line application for work done *to* a deployed environment rather
+`apps/operations` is a command-line application for work done _to_ a deployed environment rather
 than by it. The `pnpm db:*` scripts above cover a developer machine, where the database is a
 container on localhost and drizzle-kit is installed; neither is true of a managed server, which has
 no public endpoint and can only be reached from inside its network. This is what runs there, as a
@@ -447,61 +469,61 @@ These commands are worth noting:
 
 - `db bootstrap` is the only bootstrap path: the local compose database (via `pnpm db:bootstrap`),
   CI's integration job and a managed server all create the per-API roles through it. It is
-  idempotent — safe against a server where the roles already exist — and it sets the passwords
-  every time, so it is also how a credential is rotated.
+  idempotent — safe against a server where the roles already exist — and it sets the passwords every
+  time, so it is also how a credential is rotated.
 - `db import-core-data` loads the required starting data the service relies on from
   `packages/db-operations/data/`: topics, the classifications indicators are tagged with, and the
   lists a publisher chooses from — CI methods, data providers, value types, units and comparator
   methods. It is idempotent (upserts keyed on stable ids, rows absent from the file are reported
-  rather than deleted) and runs in any environment: this is permanent content preview and
-  production need, not dummy data.
+  rather than deleted) and runs in any environment: this is permanent content preview and production
+  need, not dummy data.
 - `db seed-dummy-data` replaces the dummy data — the committed indicators, observations and the
   links tying those indicators to topics — and rebuilds the read models, in one command and one
   transaction. A job runs one command, and a seeded database whose read models are still empty
-  serves an empty site. It refuses to run unless `APP_ENV` is `local`, `test` or `dev`, and fails
-  if the core data has not been imported: no topics, CI methods or data providers, or any
+  serves an empty site. It refuses to run unless `APP_ENV` is `local`, `test` or `dev`, and fails if
+  the core data has not been imported: no topics, CI methods or data providers, or any
   classification, value type, unit or comparator method whose id its file holds missing from the
   database. Dummy data may depend on core data, never the reverse. The core-data tables are left
   alone.
-- `db import-published-snapshot` replaces the dev seed with the `PHOLIO_LIVE_B`
-  development snapshot built by `export-dev-snapshot` in
-  [the migration tool](tools/data-migration/README.md). Set `PUBLISHED_SNAPSHOT_URL`
-  to its private HTTPS archive and `PUBLISHED_SNAPSHOT_SHA256` to its checksum.
-  The command verifies source lineage, recorded counts, tidied reference names and
-  every table checksum, applies provisional demo topic links and rebuilds the read
-  models in one transaction. It has the same dev-only gate as seeding. It locks
-  canonical tables during loading, so run it when a beta interruption is acceptable.
-  This development corpus is separate from the approved production indicator list.
-- `db migrate-live-data` applies a checksum-verified approved-live baseline to empty
-  canonical tables, or the next incremental package in its recorded predecessor chain.
-  It applies reviewed topic and classification relationships, rebuilds the read models and
-  records the package in `data_migration` in one transaction. Publisher writes to indicators,
-  versions, topic assignments and classification assignments wait until the transaction finishes.
-  Version batch pointers are connected after the batches load, allowing their mutual references
-  and batch replacements. Versions being withdrawn have their batch pointers cleared before
-  either row is deleted. Packages name their writer `pholio-migration`, which the import loads as
-  the PHOLIO migration user, so imported versions and batches carry that user's id. A baseline's
-  indicators join the Fingertips team, as does any indicator an increment adds without a team.
-  Increments stop and roll back when a migrated indicator has an FPHD draft or a publisher
-  publication or edit; resolve that conflict before retrying. FPHD-only published indicators are
-  outside the migration's relationship coverage and keep their topics, classifications and answers.
-  Batch, observation and observation attribute changes check both incoming and existing owners
-  before writing, including withdrawals. A version cannot move to another indicator. Relationship
-  updates leave historical versions unchanged.
-  The manifest's `source_csv_null` describes the source export only: prepared package CSVs
-  use unquoted empty fields for SQL NULL and quoted empty fields for empty strings.
-- `db reset` returns the database to its freshly created state (recreating the `public` schema
-  and dropping the migration watermark) so `db migrate` rebuilds from empty — recreate rather than
+- `db import-published-snapshot` replaces the dev seed with the `PHOLIO_LIVE_B` development snapshot
+  built by `export-dev-snapshot` in [the migration tool](tools/data-migration/README.md). Set
+  `PUBLISHED_SNAPSHOT_URL` to its private HTTPS archive and `PUBLISHED_SNAPSHOT_SHA256` to its
+  checksum. The command verifies source lineage, recorded counts, tidied reference names and every
+  table checksum, applies provisional demo topic links and rebuilds the read models in one
+  transaction. It has the same dev-only gate as seeding. It locks canonical tables during loading,
+  so run it when a beta interruption is acceptable. This development corpus is separate from the
+  approved production indicator list.
+- `db migrate-live-data` applies a checksum-verified approved-live baseline to empty canonical
+  tables, or the next incremental package in its recorded predecessor chain. It applies reviewed
+  topic and classification relationships, rebuilds the read models and records the package in
+  `data_migration` in one transaction. Publisher writes to indicators, versions, topic assignments
+  and classification assignments wait until the transaction finishes. Version batch pointers are
+  connected after the batches load, allowing their mutual references and batch replacements.
+  Versions being withdrawn have their batch pointers cleared before either row is deleted. Packages
+  name their writer `pholio-migration`, which the import loads as the PHOLIO migration user, so
+  imported versions and batches carry that user's id. A baseline's indicators join the Fingertips
+  team, as does any indicator an increment adds without a team. Increments stop and roll back when a
+  migrated indicator has an FPHD draft or a publisher publication or edit; resolve that conflict
+  before retrying. FPHD-only published indicators are outside the migration's relationship coverage
+  and keep their topics, classifications and answers. Batch, observation and observation attribute
+  changes check both incoming and existing owners before writing, including withdrawals. A version
+  cannot move to another indicator. Relationship updates leave historical versions unchanged. The
+  manifest's `source_csv_null` describes the source export only: prepared package CSVs use unquoted
+  empty fields for SQL NULL and quoted empty fields for empty strings.
+- `db reset` returns the database to its freshly created state (recreating the `public` schema and
+  dropping the migration watermark) so `db migrate` rebuilds from empty — recreate rather than
   truncate, so it also recovers from a broken migration state. It refuses outside
   `local`/`test`/`dev` and never touches database roles.
 
 `db bootstrap` needs `PUBLIC_API_PASSWORD` and `INTERNAL_API_PASSWORD`; the other commands do not,
 and fail naming them rather than requiring every job to hold role passwords. Under `DB_AUTH=entra`
-it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER` and
-`INTERNAL_API_OBJECT_ID` instead. It makes `public_api` and `internal_api` roles that can't log in,
-creates an Entra principal for each API identity from its object ID, and adds it to its role. All
-of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API role. `db migrate`
-applies migrations as the `fphd_owner` group, which the owner login is made a member of.
+it needs `PUBLIC_API_DB_USER`, `PUBLIC_API_OBJECT_ID`, `INTERNAL_API_DB_USER`,
+`INTERNAL_API_OBJECT_ID`, `INTERNAL_WORKER_DB_USER` and `INTERNAL_WORKER_OBJECT_ID` instead. It
+makes `public_api` and `internal_api` roles that can't log in, creates an Entra principal for each
+app identity from its object ID, and adds it to its role. The worker's principal joins
+`internal_api`. All of the commands connect as the owner login (`POSTGRES_USER`), not as a per-API
+role. `db migrate` applies migrations as the `fphd_owner` group, which the owner login is made a
+member of.
 
 ### Invoking them from a deployed environment
 
@@ -509,7 +531,7 @@ Deployment lives in the infrastructure repository, which owns the jobs that call
 `node dist/cli.js <command>`:
 
 ```sh
-db bootstrap             # additionally needs the API passwords, or the API principals under entra
+db bootstrap             # additionally needs the API passwords, or the app principals under entra
 db migrate
 db status
 db import-core-data
@@ -546,31 +568,32 @@ docker build -f docker/Dockerfile --target web --build-arg APP=public-web   -t p
 docker build -f docker/Dockerfile --target web --build-arg APP=internal-web -t internal-web .
 docker build -f docker/Dockerfile --target api --build-arg APP=public-api   -t public-api   .
 docker build -f docker/Dockerfile --target api --build-arg APP=internal-api -t internal-api .
+docker build -f docker/Dockerfile --target api --build-arg APP=internal-worker -t internal-worker .
 docker build -f docker/Dockerfile --target operations --build-arg APP=operations -t operations .
 ```
 
-Five images, three targets. The two web apps have identical runtime stages — same base, same
-init, same start command — and so do the two APIs; only *which* app the builder compiled into
-the image differs. A per-app target would be a copy with nothing changed in it, so the targets
-split only where the runtime genuinely does: `dist/server.js` for an API, `server.ts` for a web
-app, and the CLI-plus-`psql` image for operations.
+Six images, three targets. The two web apps have identical runtime stages — same base, same init,
+same start command — and so do the two APIs and the worker; only _which_ app the builder compiled
+into the image differs. A per-app target would be a copy with nothing changed in it, so the targets
+split only where the runtime genuinely does: `dist/server.js` for an API or the worker, `server.ts`
+for a web app, and the CLI-plus-`psql` image for operations.
 
 `pnpm deploy --prod --legacy` prunes devDependencies and copies only the workspace packages the app
 actually depends on, so no image carries pnpm, TypeScript, drizzle-kit or another app's code.
 `--legacy` is required because the current implementation expects injected workspace packages, which
 this workspace does not use. The runtime stage deletes the base image's npm, yarn and corepack,
 because every app starts with `node`. Images run as the `node` user and start under tini, which
-guarantees SIGTERM is delivered to a process running as PID 1 — the kernel discards a
-default-action signal sent to PID 1 unless that process installed a handler. Every server stops
-gracefully on that signal, well inside a thirty-second grace period. `HOST` and `PORT` come from
-the environment, defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg
-of that name, which CI sets to the commit, and a server logs it with `Listening`.
+guarantees SIGTERM is delivered to a process running as PID 1 — the kernel discards a default-action
+signal sent to PID 1 unless that process installed a handler. Every server stops gracefully on that
+signal, well inside a thirty-second grace period. `HOST` and `PORT` come from the environment,
+defaulting to `0.0.0.0` and the app's own port. `REVISION` comes from the build arg of that name,
+which CI sets to the commit, and a server logs it with `Listening`.
 
 This is separate from `docker/app.Dockerfile`, which is the development image used by
 [mixed local/Docker development](#mixed-localdocker-development) and keeps the whole workspace and
 its devDependencies — exactly what the production images must not do.
 
-On a pull request, CI builds the four server images in one `docker buildx bake` run from
+On a pull request, CI builds the server images in one `docker buildx bake` run from
 `docker/docker-bake.hcl`, so the shared builder stage runs once. It smoke-tests them, checks their
 contents with `scripts/check-image-contents.sh` and saves them as an artifact. The contents check
 fails if an image carries TypeScript, npm, yarn or corepack, or if a server image carries
@@ -583,12 +606,12 @@ the same images alongside it. The operations image, which e2e does not use, is b
 contents-checked and scanned in a job of its own.
 
 On a push to `main`, CI runs the same jobs and then, once every check has passed, calls
-`.github/workflows/publish-images.yml`, which pushes the five images that run built and tested to
+`.github/workflows/publish-images.yml`, which pushes the six images that run built and tested to
 GitHub Container Registry under the repository that ran it —
 `ghcr.io/<owner>/find-public-health-data/fphd-<app>`, lowercased — tagged with the commit SHA and
 `latest`. A commit whose CI fails publishes nothing, and `latest` only moves forward: re-running an
 older commit's CI publishes its SHA tag but leaves `latest` on the newer commit. The `fphd-` prefix
-groups the five in the organisation's package list. OCI labels, set when CI builds the images, carry
+groups the six in the organisation's package list. OCI labels, set when CI builds the images, carry
 the repository, commit and build time rather than encoding them in the tag. There is no registry
 credential on either side: the workflow authenticates with its own run-scoped `GITHUB_TOKEN`, and
 the packages are public, so deployments pull anonymously. GHCR does not reliably create a new
@@ -617,28 +640,28 @@ That is what a revision should reference, and what `app_images` in the infrastru
 should be set to. Deploys are manual for now, so the summary is where to copy it from.
 
 Trivy scans each image in CI, before the push, and a fixable high or critical vulnerability in an
-operating system package stops it reaching the registry. That layer is otherwise unscanned —
-CodeQL reads the source and CI's audit job resolves the npm tree from the lockfile, and neither
-looks at the Alpine packages underneath, which is also why the scan covers OS packages only. The
-base image is pinned by digest and raised by Dependabot, and the runtime stage runs `apk upgrade`,
-so a red scan means a fix apk could not deliver rather than a stale pin. The pin names its Alpine
-release (`24-alpine3.24`) rather than using the floating `24-alpine` alias, so a Dependabot digest
-bump cannot move the base to a new Alpine release — and everything the operations image installs
-by name — without anyone choosing to.
+operating system package stops it reaching the registry. That layer is otherwise unscanned — CodeQL
+reads the source and CI's audit job resolves the npm tree from the lockfile, and neither looks at
+the Alpine packages underneath, which is also why the scan covers OS packages only. The base image
+is pinned by digest and raised by Dependabot, and the runtime stage runs `apk upgrade`, so a red
+scan means a fix apk could not deliver rather than a stale pin. The pin names its Alpine release
+(`24-alpine3.24`) rather than using the floating `24-alpine` alias, so a Dependabot digest bump
+cannot move the base to a new Alpine release — and everything the operations image installs by name
+— without anyone choosing to.
 
 A second Trivy pass scans each image for secrets — in its files and, with
-`TRIVY_IMAGE_CONFIG_SCANNERS=secret`, in its config and layer history, which is where a build arg
-or `ENV` lands. It is a separate step because the vulnerability scan's `HIGH,CRITICAL` floor would
-drop the generic credential patterns Trivy rates lower. CI runs it on every pull request and every
-push to `main`, and `check:artefacts` refuses any workflow that lets a repository secret reach an
-image build (`docker build`, `docker buildx bake` or their actions) at all, so this step should
-never be the first to notice.
+`TRIVY_IMAGE_CONFIG_SCANNERS=secret`, in its config and layer history, which is where a build arg or
+`ENV` lands. It is a separate step because the vulnerability scan's `HIGH,CRITICAL` floor would drop
+the generic credential patterns Trivy rates lower. CI runs it on every pull request and every push
+to `main`, and `check:artefacts` refuses any workflow that lets a repository secret reach an image
+build (`docker build`, `docker buildx bake` or their actions) at all, so this step should never be
+the first to notice.
 
 ## Mixed local/Docker development
 
-Any subset of the four applications can run as Docker containers while the rest run locally.
-`pnpm dev:mixed` takes the apps to run **locally** and starts everything else (plus the database) as
-containers:
+Any subset of the four applications and the worker can run as Docker containers while the rest run
+locally. `pnpm dev:mixed` takes the apps to run **locally** and starts everything else (plus the
+database) as containers:
 
 ```sh
 pnpm dev:mixed internal-api                 # internal-api local; other three in containers
@@ -659,13 +682,13 @@ time the script starts (cheap when nothing changed, thanks to layer caching), so
 up source changes on the next start, not live.
 
 Every app is reachable on the host at its canonical port (3000/3001/4000/4001) whether local or
-containerised, because containers publish those ports. Any URL by which one app reaches another
-must be env-driven with a localhost default; a containerised app overrides it with
+containerised, because containers publish those ports. Any URL by which one app reaches another must
+be env-driven with a localhost default; a containerised app overrides it with
 `host.docker.internal:<port>`, which reaches whatever runs behind that port on the host — local
 process or published container alike. This one rule is what makes every combination work without
 per-combination configuration. (The APIs' database connection is the exception: containerised APIs
-reach Postgres directly over the compose network via `DB_HOST=db`, and a containerised
-internal-api reaches Azurite there too.)
+reach Postgres directly over the compose network via `DB_HOST=db`, and a containerised internal-api
+reaches Azurite there too.)
 
 ## Structure
 
@@ -676,22 +699,22 @@ four, but it serves no traffic — see [Operational commands](#operational-comma
 
 Each package has a README describing its purpose and entry points:
 
-| Package                                                          | Purpose                                                        |
-| ---------------------------------------------------------------- | -------------------------------------------------------------- |
-| [`@fphd/api-server`](packages/api-server/README.md)              | The Express app both APIs are built from                        |
-| [`@fphd/auth`](packages/auth/README.md)                          | Audiences, fake users and the JWT session cookie                |
-| [`@fphd/config`](packages/config/README.md)                      | Environment parsing fragments and the shared zod instance       |
-| [`@fphd/db`](packages/db/README.md)                              | Schema, client and the repositories the APIs read through       |
-| [`@fphd/db-operations`](packages/db-operations/README.md)        | Migrations, bootstrap, imports, seed data and reset             |
-| [`@fphd/express`](packages/express/README.md)                    | The base Express app and middleware every server shares         |
-| [`@fphd/internal-api-features`](packages/internal-api-features/README.md) | Routes and queries only the internal API runs          |
-| [`@fphd/internal-read-models`](packages/internal-read-models/README.md) | The statements that write the read models               |
-| [`@fphd/internal-storage`](packages/internal-storage/README.md)  | Blob Storage for uploaded files, kept out of the public images  |
-| [`@fphd/internal-workflow`](packages/internal-workflow/README.md) | The indicator workflow's steps and scheduled publication |
-| [`@fphd/internal-web-features`](packages/internal-web-features/README.md) | Pages and loaders only the internal web app mounts     |
-| [`@fphd/logger`](packages/logger/README.md)                      | pino, configured once                                           |
-| [`@fphd/public-api-features`](packages/public-api-features/README.md) | The public API routes and their wire contract              |
-| [`@fphd/public-web-features`](packages/public-web-features/README.md) | The public site's pages and loaders                        |
-| [`@fphd/ui`](packages/ui/README.md)                              | Shared React components and styles                              |
-| [`@fphd/utils`](packages/utils/README.md)                        | Side-effect-free helpers shared by Node and the browser: slugs, short ids, indicator paths |
-| [`@fphd/web-server`](packages/web-server/README.md)              | The Node host for the web apps and their server-side plumbing   |
+| Package                                                                   | Purpose                                                                                    |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [`@fphd/api-server`](packages/api-server/README.md)                       | The Express app both APIs are built from                                                   |
+| [`@fphd/auth`](packages/auth/README.md)                                   | Audiences, fake users and the JWT session cookie                                           |
+| [`@fphd/config`](packages/config/README.md)                               | Environment parsing fragments and the shared zod instance                                  |
+| [`@fphd/db`](packages/db/README.md)                                       | Schema, client and the repositories the APIs read through                                  |
+| [`@fphd/db-operations`](packages/db-operations/README.md)                 | Migrations, bootstrap, imports, seed data and reset                                        |
+| [`@fphd/express`](packages/express/README.md)                             | The base Express app and middleware every server shares                                    |
+| [`@fphd/internal-api-features`](packages/internal-api-features/README.md) | Routes and queries only the internal API runs                                              |
+| [`@fphd/internal-read-models`](packages/internal-read-models/README.md)   | The statements that write the read models                                                  |
+| [`@fphd/internal-storage`](packages/internal-storage/README.md)           | Blob Storage for uploaded files, kept out of the public images                             |
+| [`@fphd/internal-workflow`](packages/internal-workflow/README.md)         | The indicator workflow's steps and scheduled publication                                   |
+| [`@fphd/internal-web-features`](packages/internal-web-features/README.md) | Pages and loaders only the internal web app mounts                                         |
+| [`@fphd/logger`](packages/logger/README.md)                               | pino, configured once                                                                      |
+| [`@fphd/public-api-features`](packages/public-api-features/README.md)     | The public API routes and their wire contract                                              |
+| [`@fphd/public-web-features`](packages/public-web-features/README.md)     | The public site's pages and loaders                                                        |
+| [`@fphd/ui`](packages/ui/README.md)                                       | Shared React components and styles                                                         |
+| [`@fphd/utils`](packages/utils/README.md)                                 | Side-effect-free helpers shared by Node and the browser: slugs, short ids, indicator paths |
+| [`@fphd/web-server`](packages/web-server/README.md)                       | The Node host for the web apps and their server-side plumbing                              |

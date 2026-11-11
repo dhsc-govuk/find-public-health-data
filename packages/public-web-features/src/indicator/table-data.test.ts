@@ -122,7 +122,9 @@ describe('shared table data', () => {
       get.mock.calls
         .filter(([path]) => path.startsWith('/api/indicator-data?'))
         .every(
-          ([path]) => new URL(`http://localhost${path}`).searchParams.get('points') === 'latest',
+          ([path]) =>
+            new URL(`http://localhost${path}`).searchParams.get('observationHistory') ===
+            'latestPerSeries',
         ),
     ).toBe(true);
   });

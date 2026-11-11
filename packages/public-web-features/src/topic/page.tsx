@@ -13,7 +13,7 @@ type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 
 export function TopicPage(data: TopicData) {
   const { topic, content, overview, areas, complete } = data;
-  const contentReady = useDataReady(overview, content, areas);
+  const contentReady = useDataReady([overview, content, areas]);
   const location = useLocation();
   const path = `/topics/${topic.slug}`;
   const columnParams = Object.fromEntries(

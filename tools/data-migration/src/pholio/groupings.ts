@@ -28,7 +28,7 @@ function samePeriodicity(grouping: Grouping, row: ObservationSeries): boolean {
 }
 
 export async function loadObservationGroupings(pool: mssql.ConnectionPool) {
-  const rows = await queryPholio<Grouping & Record<string, unknown>>(
+  const rows = await queryPholio<Grouping>(
     pool,
     `SELECT DISTINCT IndicatorID, SexID, AgeID, YearRange, BaselineQuarter, BaselineMonth
      FROM dbo.Grouping`,

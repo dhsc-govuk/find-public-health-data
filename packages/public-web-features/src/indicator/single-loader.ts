@@ -8,6 +8,7 @@ import {
   MAX_AREA_PREVIEW,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
+import { isOneOf } from '@fphd/utils/is-one-of';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
@@ -108,8 +109,9 @@ async function loadIndicatorComparison(
       )
     : catalogueGroups;
   const comparisonDisplayGroups = sharedGroups.filter((group) => AREA_COMPARISON_GROUPS.has(group));
-  const compareAreaGroup = comparisonDisplayGroups.includes(url.searchParams.get('areaType') ?? '')
-    ? (url.searchParams.get('areaType') as string)
+  const requestedAreaGroup = url.searchParams.get('areaType');
+  const compareAreaGroup = isOneOf(comparisonDisplayGroups, requestedAreaGroup)
+    ? requestedAreaGroup
     : comparisonDisplayGroups.includes('Local authorities')
       ? 'Local authorities'
       : (comparisonDisplayGroups[0] ?? '');

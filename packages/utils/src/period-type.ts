@@ -1,3 +1,5 @@
+import { isOneOf } from './is-one-of.ts';
+
 /** How long each of an indicator's periods is. */
 export const PERIOD_TYPES = ['years', 'quarters', 'months'] as const;
 
@@ -35,7 +37,7 @@ export const YEAR_TYPE_LABELS: Readonly<Record<YearType, string>> = {
 };
 
 export function isYearType(value: string): value is YearType {
-  return (YEAR_TYPES as readonly string[]).includes(value);
+  return isOneOf(YEAR_TYPES, value);
 }
 
 const MONTH_NAMES = [

@@ -98,16 +98,10 @@ describe('actionsTabSections', () => {
   });
 
   describe('for a publisher who is also an assigned reviewer', () => {
-    it('offers the response, then the withdrawal the workflow allows them', () => {
+    it('offers the response alone while the draft is in review', () => {
       expect(
-        sections(
-          { ...inReview, actions: ['withdraw', ...RESPOND] },
-          { isReviewer: true, canEdit: true },
-        ),
-      ).toEqual([
-        { heading: 'Review', button: respond, links: [] },
-        { heading: 'Actions', button: null, links: [withdraw] },
-      ]);
+        sections({ ...inReview, actions: RESPOND }, { isReviewer: true, canEdit: true }),
+      ).toEqual([{ heading: 'Review', button: respond, links: [] }]);
     });
 
     it('shows only the Review section while the draft is locked and they have nothing to do', () => {
@@ -147,9 +141,9 @@ describe('actionsTabSections', () => {
       expect(
         sections({ ...submitted, actions: ['withdraw', 'assign_reviewers'] }, { canEdit: true }),
       ).toEqual([{ heading: 'Actions', button: assignFirst, links: [withdraw] }]);
-      expect(
-        sections({ ...inReview, actions: ['withdraw', 'assign_reviewers'] }, { canEdit: true }),
-      ).toEqual([{ heading: 'Actions', button: null, links: [withdraw, changeReviewers] }]);
+      expect(sections({ ...inReview, actions: ['assign_reviewers'] }, { canEdit: true })).toEqual([
+        { heading: 'Actions', button: null, links: [changeReviewers] },
+      ]);
     });
 
     it('leaves a manager who reviewed it only the Review section once the round is answered', () => {
@@ -238,8 +232,8 @@ describe('actionsTabSections', () => {
       expect(sections(sentBack)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
     });
 
-    it('offers the withdrawal of a submission in review', () => {
-      expect(sections({ ...inReview, actions: ['withdraw'] }, { canEdit: true })).toEqual([
+    it('offers the withdrawal of a submission waiting for reviewers', () => {
+      expect(sections({ ...submitted, actions: ['withdraw'] }, { canEdit: true })).toEqual([
         { heading: 'Actions', button: null, links: [withdraw] },
       ]);
     });

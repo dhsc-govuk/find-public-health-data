@@ -1,3 +1,4 @@
+import { isOneOf } from '@fphd/utils/is-one-of';
 import { type ControlNames, type FormValues, readFormValues } from './form-values.ts';
 
 /**
@@ -32,9 +33,9 @@ export function readListIntent<List extends string = never>(
 ): ListIntent<List> {
   const intent = formData.get('intent');
   const [, to, list, index] = (typeof intent === 'string' && INTENT.exec(intent)) || [];
-  const named = list === undefined ? {} : { list: list as List };
+  if (list !== undefined && !isOneOf(lists, list)) return { to: 'continue' };
 
-  if (list !== undefined && !(lists as readonly string[]).includes(list)) return { to: 'continue' };
+  const named = list === undefined ? {} : { list };
   if (to === 'add' && index === undefined) return { to: 'add', ...named };
   if (to === 'remove' && index !== undefined)
     return { to: 'remove', index: Number(index), ...named };

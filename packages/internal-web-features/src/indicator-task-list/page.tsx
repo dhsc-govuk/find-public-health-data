@@ -78,8 +78,8 @@ export function IndicatorTaskListPage({
         <ErrorSummary errors={[]} formError={formError} />
         <IndicatorHeading indicator={indicator} />
         <InsetText>
-          You can complete these sections in any order. If you exit at any point, any selections or
-          text you've added will be saved.
+          You can complete these sections in any order. If you exit at any point, any section you
+          have completed will be saved.
         </InsetText>
         {TASK_GROUPS.map((group) =>
           requests === null ? (

@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { percentile } from './budget.ts';
+import { measureNavigation, openNavigationBrowser } from './navigation.ts';
 
 const { values } = parseArgs({
   options: {
@@ -10,21 +11,27 @@ const { values } = parseArgs({
     rounds: { type: 'string', default: '3' },
     output: { type: 'string' },
     mixed: { type: 'boolean', default: false },
+    navigation: { type: 'boolean', default: false },
     'skip-warmup': { type: 'boolean', default: false },
   },
 });
 
-const base = new URL(values['base-url'] ?? '');
+const parsedBase = URL.parse(values['base-url'] ?? '');
 const paths = values.path ?? [];
 const levels = values.concurrency.split(',').map(Number);
 const rounds = Number(values.rounds);
 if (
-  !['http:', 'https:'].includes(base.protocol) ||
+  !parsedBase ||
+  !['http:', 'https:'].includes(parsedBase.protocol) ||
   !paths.length ||
   paths.some((path) => !path.startsWith('/') || path.startsWith('//')) ||
   [...levels, rounds].some((n) => !Number.isSafeInteger(n) || n < 1)
 ) {
   throw new Error('Supply --base-url, --path and positive integer concurrency levels and rounds');
+}
+const base = parsedBase;
+if (values.navigation && paths.some((path) => !/^\/(indicator|topics)\/[^/?#]+/.test(path))) {
+  throw new Error('--navigation requires indicator or topic detail page paths');
 }
 
 type Sample = {
@@ -86,46 +93,59 @@ if (!values['skip-warmup'])
     const warmup = await load(path);
     if (warmup.error) throw new Error(`${path}: ${warmup.error}`);
   }
-for (const concurrency of levels) {
-  for (const routes of values.mixed ? [paths] : paths.map((path) => [path])) {
-    const samples: Sample[] = [];
-    const total = Math.max(6, concurrency * rounds);
-    let next = 0;
-    await Promise.all(
-      Array.from({ length: concurrency }, async () => {
-        while (next < total) {
-          const index = next++;
-          samples.push(await load(routes[index % routes.length] as string));
-        }
-      }),
-    );
-    const summary = {
-      paths: routes,
-      concurrency,
-      requests: total,
-      failures: samples.filter((sample) => sample.error).length,
-      p50FullMs: percentile(
-        samples.map((sample) => sample.fullMs),
-        50,
-      ),
-      p95FullMs: percentile(
-        samples.map((sample) => sample.fullMs),
-        95,
-      ),
-      p95HeadersMs: percentile(
-        samples.map((sample) => sample.headersMs),
-        95,
-      ),
-      maxFullMs: Math.max(...samples.map((sample) => sample.fullMs)),
-    };
-    results.push({ ...summary, samples });
-    console.log(JSON.stringify(summary));
-    if (values.output) {
-      await writeFile(
-        values.output,
-        `${JSON.stringify({ measuredAt: new Date().toISOString(), base, results }, null, 2)}\n`,
-      );
+const browser = values.navigation ? await openNavigationBrowser() : undefined;
+try {
+  for (const concurrency of levels) {
+    for (const routes of values.mixed ? [paths] : paths.map((path) => [path])) {
+      const samples: Sample[] = [];
+      const total = Math.max(6, concurrency * rounds);
+      let next = 0;
+      const [navigation] = await Promise.all([
+        browser
+          ? Promise.all(routes.map((path) => measureNavigation(browser, new URL(path, base))))
+          : undefined,
+        Promise.all(
+          Array.from({ length: concurrency }, async () => {
+            while (next < total) {
+              const index = next++;
+              samples.push(await load(routes[index % routes.length] as string));
+            }
+          }),
+        ),
+      ]);
+      const summary = {
+        paths: routes,
+        concurrency,
+        requests: total,
+        failures:
+          samples.filter((sample) => sample.error).length +
+          (navigation?.filter((sample) => sample.error).length ?? 0),
+        ...(navigation ? { navigation } : {}),
+        p50FullMs: percentile(
+          samples.map((sample) => sample.fullMs),
+          50,
+        ),
+        p95FullMs: percentile(
+          samples.map((sample) => sample.fullMs),
+          95,
+        ),
+        p95HeadersMs: percentile(
+          samples.map((sample) => sample.headersMs),
+          95,
+        ),
+        maxFullMs: Math.max(...samples.map((sample) => sample.fullMs)),
+      };
+      results.push({ ...summary, samples });
+      console.log(JSON.stringify(summary));
+      if (values.output) {
+        await writeFile(
+          values.output,
+          `${JSON.stringify({ measuredAt: new Date().toISOString(), base, results }, null, 2)}\n`,
+        );
+      }
+      if (summary.failures) process.exitCode = 1;
     }
-    if (summary.failures) process.exitCode = 1;
   }
+} finally {
+  await browser?.close();
 }

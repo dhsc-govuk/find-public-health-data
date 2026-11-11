@@ -64,7 +64,7 @@ export async function bootstrapRoles(
 export interface EntraPrincipal {
   /** The role the principal joins, which holds the grants: public_api or internal_api. */
   group: string;
-  /** The principal's role name, which the API connects as. */
+  /** The principal's role name, which the app connects as. */
   name: string;
   /** The managed identity's object (principal) ID in Entra. */
   objectId: string;
@@ -72,7 +72,7 @@ export interface EntraPrincipal {
 
 /**
  * The Entra counterpart of `bootstrapRoles`, for a server that only accepts Entra sign-in. Makes
- * each group a role with no login, creates a principal for each API's managed identity, and
+ * each group a role with no login, creates a principal for each app's managed identity, and
  * adds the principal to its group. Idempotent, and run as the server's Entra admin, the only
  * role that can create principals.
  *
