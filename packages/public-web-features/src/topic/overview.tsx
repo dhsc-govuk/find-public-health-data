@@ -10,7 +10,6 @@ import {
   filterObservations,
   formatCalculatedValue,
   recentTrend,
-  withUnit,
 } from '../indicator/data.ts';
 import { TrendTag } from '../indicator/trend-tag.tsx';
 import { searchUrl } from '../search/url.ts';
@@ -160,9 +159,21 @@ export function TopicOverview({
                     {
                       name: 'Calculated value',
                       children:
-                        latest?.value == null
-                          ? 'No data'
-                          : withUnit(formatCalculatedValue(latest.value), entry.detail.unit),
+                        latest?.value == null ? (
+                          'No data'
+                        ) : (
+                          <>
+                            {formatCalculatedValue(latest.value)}
+                            {entry.detail.unit === '%' ? (
+                              '%'
+                            ) : entry.detail.unit ? (
+                              <>
+                                {' '}
+                                <span className="govuk-hint">{entry.detail.unit}</span>
+                              </>
+                            ) : null}
+                          </>
+                        ),
                     },
                     { name: 'Trend (last 5 periods)', children: <TrendTag trend={trend} /> },
                   ]}

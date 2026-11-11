@@ -1858,6 +1858,8 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 
 .fphd-topic-highlight .fphd-trend-tag {
   @include govuk-font-size($size: 16);
+  box-sizing: border-box;
+  min-width: 0;
   max-width: 100%;
   white-space: normal;
 }
@@ -1865,6 +1867,8 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 .fphd-topic-highlight-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: none;
+  grid-auto-flow: row;
   gap: govuk-spacing(4);
   margin-top: govuk-spacing(4);
 
@@ -1889,23 +1893,37 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
     margin-bottom: govuk-spacing(4);
   }
 
-  .govuk-summary-list,
-  .fphd-chart-section { margin-bottom: 0; }
+  .fphd-chart-section { margin-bottom: govuk-spacing(1); }
 
+  .govuk-summary-list {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0;
+  }
 
   .govuk-summary-list__row {
+    display: table-row;
     border-bottom: 0;
   }
 
   .govuk-summary-list__key,
   .govuk-summary-list__value {
-    @include govuk-font-size($size: 16);
-    padding-top: 2px;
-    padding-bottom: 2px;
+    display: table-cell;
+    vertical-align: top;
+    @include govuk-font($size: 16);
+    padding: 2px 0;
   }
 
   .govuk-summary-list__key {
-    width: 50%;
+    font-weight: bold;
+    padding-right: govuk-spacing(2);
+    width: 55%;
+  }
+
+  .govuk-summary-list__value {
+    width: auto;
   }
 }
 
@@ -1918,9 +1936,11 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 }
 
 .fphd-topic-highlight__no-trend {
-  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  margin: 0;
+  margin: 0 0 govuk-spacing(1);
 }
 
 // The review response banners, coloured as GOV.UK Frontend colours its success banner. The orange

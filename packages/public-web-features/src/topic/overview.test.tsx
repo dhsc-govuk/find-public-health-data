@@ -61,7 +61,7 @@ function summary(doc: Document) {
   ]);
 }
 
-it('uses the rolling mortality series for the chart, latest figures and five-period trend', () => {
+it('uses rolling mortality figures and chart with the multi-year unavailable trend', () => {
   const rolling = [92.3, 94, 95, 110, 122, 125.6, 118, 109.6].map((value, index) => ({
     ...observation(value),
     fromDate: `${2015 + index}-01-01`,
@@ -84,8 +84,12 @@ it('uses the rolling mortality series for the chart, latest figures and five-per
     ['Most recent period', '2022 to 2024'],
     ['Count', '186,922'],
     ['Calculated value', '109.6 per 100,000'],
-    ['Trend (last 5 periods)', 'No significant change'],
+    ['Trend (last 5 periods)', 'Trend unavailable (multi-year periods)'],
   ]);
+  expect(doc.querySelectorAll('.govuk-summary-list__value')[2]?.innerHTML).toBe(
+    '109.6 <span class="govuk-hint">per 100,000</span>',
+  );
+  expect(doc.querySelector('.fphd-trend-reason')?.textContent).toBe('multi-year periods');
   expect(doc.querySelector('desc')?.textContent).toBe(
     'Indicator 108, England: rose from 92.3 per 100,000 in 2015 to 2017, peaked at 125.6 in 2020 to 2022, and has since decreased to 109.6 in 2022 to 2024',
   );
@@ -117,23 +121,19 @@ it('labels the prevalence numerator as Count and expands summary and accessible 
   expect(doc.querySelector('.fphd-sparkline__endpoints')?.textContent).toBe(
     '6.8%in 2017/187.9%in 2024/25',
   );
+  expect(doc.querySelectorAll('.govuk-summary-list__value')[2]?.innerHTML).toBe('7.9%');
 });
 
 it('uses the selected period trend when missing values push valid points beyond the chart history', () => {
-  const rolling = [1, 2, 3, 4, 5, null, null, null, null, null, null, null, 6, 7, null].map(
+  const annual = [1, 2, 3, 4, 5, null, null, null, null, null, null, null, 6, 7, null].map(
     (value, index) => ({
       ...observation(),
       value,
       fromDate: `${2010 + index}-01-01`,
-      toDate: `${2012 + index}-12-31`,
+      toDate: `${2010 + index}-12-31`,
     }),
   );
-  const annual = Array.from({ length: 15 }, (_, index) => ({
-    ...observation(100 - index),
-    fromDate: `${2010 + index}-01-01`,
-    toDate: `${2010 + index}-12-31`,
-  }));
-  const doc = card([...rolling, ...annual], {});
+  const doc = card(annual, {});
   expect(summary(doc)[3]).toEqual(['Trend (last 5 periods)', 'Increasing and getting better']);
 });
 
@@ -177,7 +177,10 @@ it('keeps all four summary labels when there are no observations', () => {
     ['Most recent period', 'No data'],
     ['Count', 'No data'],
     ['Calculated value', 'No data'],
-    ['Trend (last 5 periods)', 'Trend cannot be calculated(not enough data points)'],
+    ['Trend (last 5 periods)', 'Trend unavailable (not enough data points)'],
   ]);
+  expect(doc.querySelectorAll('.govuk-summary-list__value')[3]?.innerHTML).toBe(
+    '<span class="govuk-hint govuk-!-margin-bottom-0">Trend unavailable <br>(<span class="fphd-trend-reason">not enough data points</span>)</span>',
+  );
   expect(doc.querySelector('svg')).toBeNull();
 });

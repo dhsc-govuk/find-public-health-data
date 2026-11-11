@@ -162,6 +162,22 @@ export function topicPageTests() {
       await expect(card.locator('.govuk-summary-list__value').nth(1)).toHaveText(count);
       await expect(card.locator('.govuk-summary-list__value').nth(2)).toHaveText(value);
     }
+    const cards = page.locator('.fphd-topic-highlight');
+    await expect(cards.nth(0).locator('.fphd-trend-tag')).toHaveText('Increasing');
+    await expect(cards.nth(1).locator('.fphd-trend-tag')).toHaveCount(0);
+    await expect(cards.nth(1).locator('.fphd-trend-reason')).toHaveText('multi-year periods');
+    await expect(cards.nth(1).locator('.govuk-summary-list__value').nth(3)).toHaveText(
+      'Trend unavailable (multi-year periods)',
+    );
+    await expect(
+      cards.nth(1).locator('.govuk-summary-list__value').nth(2).locator('.govuk-hint'),
+    ).toHaveText('per 100,000');
+    for (const card of [cards.nth(2), cards.nth(3)]) {
+      await expect(card.locator('.govuk-summary-list__value').nth(3)).toHaveText(
+        'Trend unavailable (not enough data points)',
+      );
+      await expect(card.locator('.fphd-trend-reason')).toHaveText('not enough data points');
+    }
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -196,14 +212,32 @@ export function topicPageTests() {
       } else {
         expect(first?.y).toBe(second?.y);
         expect(second?.x).toBeGreaterThan(first?.x ?? 0);
-        for (const selector of [
-          'h3',
-          '.fphd-chart-section, .fphd-topic-highlight__no-trend',
-          '.govuk-summary-list',
-        ]) {
-          const left = await cards.nth(0).locator(selector).boundingBox();
-          const right = await cards.nth(1).locator(selector).boundingBox();
-          expect(left?.y).toBe(right?.y);
+        for (const pair of [
+          [0, 1],
+          [2, 3],
+        ] as const) {
+          for (const selector of [
+            'h3',
+            '.fphd-chart-section, .fphd-topic-highlight__no-trend',
+            '.govuk-summary-list',
+          ]) {
+            const left = await cards.nth(pair[0]).locator(selector).boundingBox();
+            const right = await cards.nth(pair[1]).locator(selector).boundingBox();
+            expect(left?.y).toBe(right?.y);
+          }
+        }
+        if (width === 1280) {
+          for (const card of await cards.all()) {
+            const lines = await card
+              .locator('.govuk-summary-list__key')
+              .nth(3)
+              .evaluate((key) => {
+                const range = document.createRange();
+                range.selectNodeContents(key);
+                return range.getClientRects().length;
+              });
+            expect(lines).toBe(1);
+          }
         }
       }
     }

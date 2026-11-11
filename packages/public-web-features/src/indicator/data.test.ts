@@ -20,6 +20,7 @@ import {
   inequalitySegments,
   inequalityValueLabel,
   periodCovered,
+  recentTrend,
   segmentLabel,
   trendSeries,
   unitNote,
@@ -47,6 +48,44 @@ function obs(overrides = {}) {
 function dim(type: string, value: string, overrides = {}) {
   return { type, value, dimensionClass: 'core', sortOrder: 0, ...overrides };
 }
+
+describe('recentTrend', () => {
+  it.each([undefined, 'up', 'right', null] as const)(
+    'marks multi-year periods unavailable even with precomputed direction %s',
+    (precomputed) => {
+      expect(
+        recentTrend(
+          [obs({ fromDate: '2020-01-01', toDate: '2022-12-31' })],
+          'higher-is-better',
+          precomputed,
+        ),
+      ).toEqual({
+        direction: null,
+        label: 'Trend unavailable',
+        tone: 'grey',
+        reason: 'multi-year periods',
+      });
+    },
+  );
+
+  it.each([
+    ['2021-02-04', 'Increasing and getting better'],
+    ['2021-02-05', 'Trend unavailable'],
+  ])('uses the 400-day boundary for periods ending %s', (toDate, label) => {
+    expect(
+      recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
+    ).toBe(label);
+  });
+
+  it('explains when there are too few valid annual observations', () => {
+    expect(recentTrend([obs(), obs({ value: null })], null)).toEqual({
+      direction: null,
+      label: 'Trend unavailable',
+      tone: 'grey',
+      reason: 'not enough data points',
+    });
+  });
+});
 
 describe('periodCovered', () => {
   it('labels one span from the first start to the last end', () => {
