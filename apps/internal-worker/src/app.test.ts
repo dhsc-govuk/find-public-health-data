@@ -5,8 +5,9 @@ import { createApp, STALLED_AFTER_MS } from './app.ts';
 
 describe('createApp', () => {
   it('stays live while sweeps keep ending', async () => {
-    const lastSweepCompletedAt = Date.now() - STALLED_AFTER_MS + 1_000;
-    const app = createApp({ lastSweepCompletedAt: () => lastSweepCompletedAt });
+    // Read inside the callback, after the app's own clock reading, so time spent before the request
+    // cannot use up the one-second margin.
+    const app = createApp({ lastSweepCompletedAt: () => Date.now() - STALLED_AFTER_MS + 1_000 });
 
     const live = await request(app).get('/livez');
 
