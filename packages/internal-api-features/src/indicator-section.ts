@@ -3,7 +3,7 @@ import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { canEditIndicator } from '@fphd/auth/permissions';
 import { Router } from 'express';
 
-import { indicatorSectionFieldErrors } from './contract.ts';
+import { type IndicatorTaskKey, indicatorSectionFieldErrors } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import type { IndicatorDraft, IndicatorDraftAttributes } from './indicator-draft-repository.ts';
@@ -143,6 +143,11 @@ export function yesNoDetailColumns<
   };
 }
 
+/** The path of a section's GET and PUT, such as `/api/internal/indicators/:id/links`. */
+export function indicatorSectionPath(key: IndicatorTaskKey): string {
+  return `/api/internal/indicators/:id/${key}`;
+}
+
 /**
  * GET and PUT `/api/internal/indicators/:id/<key>` for one section of a draft.
  *
@@ -171,7 +176,7 @@ export function indicatorSectionRouter<
 ): Router {
   const router = Router();
   const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
-  const path = `/api/internal/indicators/:id/${section.key}`;
+  const path = indicatorSectionPath(section.key);
   const versionOf = (draft: IndicatorSectionDraft) => editVersion(columns.fromDraft(draft));
   const withVersion = (draft: IndicatorSectionDraft) => ({
     answers: columns.fromDraft(draft),
