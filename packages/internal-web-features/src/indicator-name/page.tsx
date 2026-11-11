@@ -2,6 +2,7 @@ import { TextInput } from '@fphd/ui';
 
 import { IndicatorSectionForm, QUESTION_HEADING_SIZE } from '../indicator-section-form.tsx';
 import type { IndicatorNameFailure } from './loader.ts';
+import { NEW_INDICATOR_ID_FIELD } from './new-indicator-id.ts';
 
 const NAME_FIELD = 'name';
 
@@ -11,6 +12,8 @@ interface IndicatorNamePageProps {
   fieldErrors?: IndicatorNameFailure['fieldErrors'] | undefined;
   formError?: string | undefined;
   name?: string | undefined;
+  /** The id a new indicator takes, which the form sends; a draft being renamed has none. */
+  newIndicatorId?: string | undefined;
   /** The version of the name when the page was shown. The form sends it back. */
   version?: string | undefined;
 }
@@ -20,6 +23,7 @@ export function IndicatorNamePage({
   fieldErrors = {},
   formError,
   name = '',
+  newIndicatorId,
   version,
 }: IndicatorNamePageProps) {
   return (
@@ -29,6 +33,15 @@ export function IndicatorNamePage({
       questionIsHeading
       title={INDICATOR_NAME_HEADING}
     >
+      {newIndicatorId === undefined ? null : (
+        // Without autocomplete off, Firefox puts back the id from before a reload.
+        <input
+          autoComplete="off"
+          name={NEW_INDICATOR_ID_FIELD}
+          type="hidden"
+          value={newIndicatorId}
+        />
+      )}
       <TextInput
         defaultValue={name}
         error={fieldErrors[NAME_FIELD]}

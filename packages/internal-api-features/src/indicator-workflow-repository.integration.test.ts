@@ -4,6 +4,7 @@ import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { asc, eq, sql } from 'drizzle-orm';
+import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
 import {
@@ -631,6 +632,7 @@ describe('assignReviewers', () => {
   repositoryTest("refuses the indicator's creator", async ({ db }) => {
     const created = await createIndicatorDraft(
       db,
+      randomUuidV7(),
       { name: 'Created by a reviewer' },
       { userId: PUBLISHING_REVIEWER, requestId: null },
       TEAM_IDS.teamC,
@@ -663,6 +665,7 @@ describe('assignReviewers', () => {
     async ({ db }) => {
       const created = await createIndicatorDraft(
         db,
+        randomUuidV7(),
         { name: 'Reviewed by a teammate' },
         AS_ACTOR,
         TEAM_IDS.teamC,

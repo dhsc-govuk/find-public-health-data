@@ -3,6 +3,7 @@ import {
   type IndicatorField,
   indicatorAdminDetailSchema,
   indicatorCreateErrorSchema,
+  indicatorCreateIdSchema,
   indicatorCreateResponseSchema,
   indicatorFieldSchema,
   indicatorNameSchema,
@@ -12,6 +13,7 @@ import {
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
+import { v7 as uuidv7 } from 'uuid';
 
 import { versionedAction } from '../edit-version.ts';
 import { requireEditableIndicator } from '../editable-indicator.ts';
@@ -22,6 +24,7 @@ import type { FormFailure } from '../indicator-section.ts';
 import { lockedDraftRedirect } from '../locked-draft.ts';
 import { requireNewIndicatorTeam } from '../new-indicator-team.ts';
 import { indicatorTaskListPath } from '../publish-paths.ts';
+import { NEW_INDICATOR_ID_FIELD } from './new-indicator-id.ts';
 
 export type IndicatorNameFailure = FormFailure<IndicatorField>;
 
@@ -35,11 +38,26 @@ function notFound(): Response {
   return new Response('Not Found', { status: 404 });
 }
 
-/** A new indicator is named once its team is known, so a publisher in several chooses first. */
-export function loadNewIndicator({ context, request }: LoaderFunctionArgs): null {
+/**
+ * A new indicator is named once its team is known, so a publisher in several chooses first. The
+ * page is given the id the indicator will take, so a double click or a retry of its form sends
+ * the same id and the API answers it with the indicator the first request created. Each showing
+ * of the page, including the one after a refused name, mints a new id.
+ */
+export function loadNewIndicator({ context, request }: LoaderFunctionArgs): { id: string } {
   requireNewIndicatorTeam(context, request);
 
-  return null;
+  return { id: uuidv7() };
+}
+
+/**
+ * The id the form sent for the new indicator. A form shown before it carried one sends none,
+ * and gets a new id, so it still creates the indicator without the protection against a repeat.
+ */
+function newIndicatorId(formData: FormData): string {
+  const sent = indicatorCreateIdSchema.safeParse({ id: formData.get(NEW_INDICATOR_ID_FIELD) });
+
+  return sent.success ? sent.data.id : uuidv7();
 }
 
 /**
@@ -51,7 +69,8 @@ export async function createIndicator({
   request,
 }: ActionFunctionArgs): Promise<IndicatorNameFailure | Response> {
   const teamId = requireNewIndicatorTeam(context, request);
-  const values = readFormValues(await request.formData(), FIELDS);
+  const formData = await request.formData();
+  const values = readFormValues(formData, FIELDS);
   const submission = indicatorNameSchema.safeParse(values);
 
   if (!submission.success) {
@@ -62,7 +81,7 @@ export async function createIndicator({
     .get(apiContext)
     .post(
       '/api/internal/indicators',
-      { ...submission.data, teamId },
+      { ...submission.data, teamId, id: newIndicatorId(formData) },
       indicatorCreateResponseSchema,
       indicatorCreateErrorSchema,
     );

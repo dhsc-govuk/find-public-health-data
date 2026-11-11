@@ -372,6 +372,9 @@ importers:
       react-router:
         specifier: 'catalog:'
         version: 8.3.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      uuid:
+        specifier: 'catalog:'
+        version: 14.0.2
     devDependencies:
       '@fphd/auth':
         specifier: workspace:*
@@ -902,6 +905,9 @@ importers:
       '@fphd/web-server':
         specifier: workspace:*
         version: link:../web-server
+      uuid:
+        specifier: 'catalog:'
+        version: 14.0.2
     devDependencies:
       '@testing-library/dom':
         specifier: 'catalog:'

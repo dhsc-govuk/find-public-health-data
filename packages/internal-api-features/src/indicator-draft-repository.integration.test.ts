@@ -1,8 +1,10 @@
 import { TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
+import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { MAX_AGE } from '@fphd/utils/sex-and-ages';
 import { eq, sql } from 'drizzle-orm';
+import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
 import { editVersion } from './edit-version.ts';
@@ -108,6 +110,7 @@ describe('createIndicatorDraft', () => {
   repositoryTest('puts the indicator in the team it is given', async ({ db }) => {
     const created = await createIndicatorDraft(
       db,
+      randomUuidV7(),
       { name: 'A Team B indicator' },
       AS_ACTOR,
       TEAM_IDS.teamB,
@@ -126,7 +129,13 @@ describe('createIndicatorDraft', () => {
     await newDraft(db, 'A contested name');
 
     await expect(
-      createIndicatorDraft(db, { name: 'A contested name' }, AS_ACTOR, TEAM_IDS.teamA),
+      createIndicatorDraft(
+        db,
+        randomUuidV7(),
+        { name: 'A contested name' },
+        AS_ACTOR,
+        TEAM_IDS.teamA,
+      ),
     ).resolves.toEqual({
       ok: false,
       reason: 'slug_taken',
@@ -135,7 +144,7 @@ describe('createIndicatorDraft', () => {
 
   repositoryTest('waits for another writer of the slug, then creates', async ({ db }) => {
     const result = await writeWhileSlugHeld(db, 'a-held-name', () =>
-      createIndicatorDraft(db, { name: 'A held name' }, AS_ACTOR, TEAM_IDS.teamA),
+      createIndicatorDraft(db, randomUuidV7(), { name: 'A held name' }, AS_ACTOR, TEAM_IDS.teamA),
     );
 
     expect(result).toMatchObject({ ok: true });
@@ -145,7 +154,14 @@ describe('createIndicatorDraft', () => {
     const result = await writeWhileSlugHeld(
       db,
       'a-name-created-twice',
-      () => createIndicatorDraft(db, { name: 'A name created twice' }, AS_ACTOR, TEAM_IDS.teamA),
+      () =>
+        createIndicatorDraft(
+          db,
+          randomUuidV7(),
+          { name: 'A name created twice' },
+          AS_ACTOR,
+          TEAM_IDS.teamA,
+        ),
       async (tx) => {
         const [identity] = await tx.insert(indicator).values({}).returning({ id: indicator.id });
         if (!identity) throw new Error('inserted no indicator');
@@ -162,6 +178,74 @@ describe('createIndicatorDraft', () => {
 
     expect(result).toEqual({ ok: false, reason: 'slug_taken' });
   });
+
+  repositoryTest('takes the id it is given', async ({ db }) => {
+    const id = randomUuidV7();
+
+    await expect(
+      createIndicatorDraft(db, id, { name: 'A given id' }, AS_ACTOR, TEAM_IDS.teamA),
+    ).resolves.toMatchObject({ ok: true, indicatorId: id });
+  });
+
+  repositoryTest(
+    'answers a repeat with the indicator it created, writing nothing',
+    async ({ db }) => {
+      const id = randomUuidV7();
+      const create = () =>
+        createIndicatorDraft(db, id, { name: 'Created twice' }, AS_ACTOR, TEAM_IDS.teamA);
+      const first = await create();
+      if (!first.ok) throw new Error(`expected the indicator, not ${first.reason}`);
+
+      await expect(create()).resolves.toEqual({ ...first, repeated: true });
+      expect(
+        await db.select().from(indicatorVersion).where(eq(indicatorVersion.indicatorId, id)),
+      ).toHaveLength(1);
+      expect(await auditEntriesFor(db, id)).toHaveLength(1);
+    },
+  );
+
+  repositoryTest.for<[string, Actor, string, boolean]>([
+    ['another user', AS_OTHER_ACTOR, TEAM_IDS.teamA, false],
+    ['another team', AS_ACTOR, TEAM_IDS.teamB, false],
+    ['another name', AS_ACTOR, TEAM_IDS.teamA, true],
+  ])(
+    'refuses the id of an indicator held under %s',
+    async ([label, actor, teamId, renamed], { db }) => {
+      const id = randomUuidV7();
+      const name = `Held under ${label}`;
+      const created = await createIndicatorDraft(db, id, { name }, AS_ACTOR, TEAM_IDS.teamA);
+      if (!created.ok) throw new Error(`expected the indicator, not ${created.reason}`);
+      const sent = renamed ? `${name}, renamed` : name;
+
+      await expect(createIndicatorDraft(db, id, { name: sent }, actor, teamId)).resolves.toEqual({
+        ok: false,
+        reason: 'id_taken',
+      });
+    },
+  );
+
+  repositoryTest(
+    'finds the indicator a copy of the request it waited for created',
+    async ({ db }) => {
+      const id = randomUuidV7();
+      const create = () =>
+        createIndicatorDraft(db, id, { name: 'Created at once' }, AS_ACTOR, TEAM_IDS.teamA);
+
+      const result = await writeWhileSlugHeld(db, 'created-at-once', create, async (tx) => {
+        await tx.insert(indicator).values({ id, teamId: TEAM_IDS.teamA });
+        await tx.insert(indicatorVersion).values({
+          indicatorId: id,
+          status: 'draft',
+          name: 'Created at once',
+          slug: 'created-at-once',
+          createdBy: ACTOR,
+          updatedBy: ACTOR,
+        });
+      });
+
+      expect(result).toMatchObject({ ok: true, indicatorId: id, repeated: true });
+    },
+  );
 });
 
 describe('updateIndicatorDraft', () => {

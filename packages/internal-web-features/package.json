@@ -15,7 +15,8 @@
     "@fphd/internal-api-features": "workspace:*",
     "@fphd/ui": "workspace:*",
     "@fphd/utils": "workspace:*",
-    "@fphd/web-server": "workspace:*"
+    "@fphd/web-server": "workspace:*",
+    "uuid": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

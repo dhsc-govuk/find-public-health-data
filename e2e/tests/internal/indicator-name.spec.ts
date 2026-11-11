@@ -77,6 +77,26 @@ test('refuses a name another indicator already holds', async ({ page }) => {
   await expect(page.getByLabel('What is the name of the indicator?')).toHaveValue(name);
 });
 
+test('a repeated create, such as a double click, answers as the first with the same task list', async ({
+  page,
+}) => {
+  const name = uniqueName();
+  await openNamePage(page);
+  const id = await page.locator('input[name="id"]').inputValue();
+  const create = () =>
+    page.request.post('/publish/indicators/new', { form: { name, id }, maxRedirects: 0 });
+
+  const [first, second] = await Promise.all([create(), create()]);
+  const third = await create();
+
+  const taskList = `/publish/indicators/${id}/task-list`;
+  expect([first, second, third].map((response) => response.headers().location)).toEqual([
+    taskList,
+    taskList,
+    taskList,
+  ]);
+});
+
 test('renames a draft from its name page', async ({ page }) => {
   const name = uniqueName();
   const id = await createIndicator(page, name);
