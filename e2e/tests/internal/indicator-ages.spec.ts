@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
+import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import {
   describeSectionPage,
   openSectionPage,
@@ -194,6 +194,7 @@ test('asks for the specific age and its period, and for other ages', async ({ pa
 
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('alert').getByRole('link')).toHaveText(['Enter the age']);
+  await expectHydrated(page);
 
   await ageType(page, 'Other').check();
   await page.getByRole('button', { name: 'Continue' }).click();
