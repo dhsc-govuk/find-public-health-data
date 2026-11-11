@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type SexAndAgesFormValues,
   sexAndAgesSection as section,
-} from './indicator-sex-and-ages-contract.ts';
+} from './indicator-sex-gender-and-ethnicity-contract.ts';
 import { sectionFieldErrors } from './testing.ts';
 
 const form: SexAndAgesFormValues = {

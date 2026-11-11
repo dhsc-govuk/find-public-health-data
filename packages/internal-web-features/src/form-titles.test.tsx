@@ -44,7 +44,7 @@ import * as overview from './indicator-overview/route.tsx';
 import * as periodType from './indicator-period-type/route.tsx';
 import * as polarity from './indicator-polarity/route.tsx';
 import * as publishingDate from './indicator-publishing-date/route.tsx';
-import * as sexAndAges from './indicator-sex-and-ages/route.tsx';
+import * as sexAndAges from './indicator-sex-gender-and-ethnicity/route.tsx';
 import * as tagging from './indicator-tagging/route.tsx';
 import * as updateFrequency from './indicator-update-frequency/route.tsx';
 import * as valueTypeAndUnits from './indicator-value-type-and-units/route.tsx';

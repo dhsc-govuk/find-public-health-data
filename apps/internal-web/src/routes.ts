@@ -176,7 +176,7 @@ export default [
       ),
       route(
         'publish/indicators/:id/sex-and-ages',
-        '../../../packages/internal-web-features/src/indicator-sex-and-ages/route.tsx',
+        '../../../packages/internal-web-features/src/indicator-sex-gender-and-ethnicity/route.tsx',
       ),
       route(
         'publish/indicators/:id/ages',
