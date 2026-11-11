@@ -93,7 +93,6 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'update_frequency',
     'variation',
     'quality_assurance',
-    'has_source_data_issues',
     'source_data_issues_detail',
     'ci_method_justification',
     'data_sources_justification',

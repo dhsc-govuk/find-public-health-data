@@ -25,8 +25,7 @@ const found: IndicatorNotesForReviewersRow = {
     id: '00000000-0000-7000-8000-0000000000d1',
     variation: 'Little.',
     qualityAssurance: 'Checked.',
-    hasSourceDataIssues: true,
-    sourceDataIssuesDetail: 'Late returns.',
+    sourceDataIssuesDetail: 'Chasing late returns.',
     ciMethodJustification: 'Standard.',
     dataSourcesJustification: null,
     inequalitiesIncluded: null,
@@ -77,8 +76,7 @@ describe('GET /api/internal/indicators/:id/notes-for-reviewers', () => {
       varianceAndQuality: {
         variation: 'Little.',
         qualityAssurance: 'Checked.',
-        hasSourceDataIssues: 'yes',
-        sourceDataIssuesDetail: 'Late returns.',
+        sourceDataIssuesDetail: 'Chasing late returns.',
       },
       justifications: {
         ciMethodJustification: 'Standard.',

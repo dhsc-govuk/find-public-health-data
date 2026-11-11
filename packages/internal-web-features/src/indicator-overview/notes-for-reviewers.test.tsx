@@ -56,7 +56,10 @@ describe('NotesForReviewers', () => {
     expect(rows()).toEqual([
       ['How does the indicator vary?', 'Little.\nMostly by region.'],
       ['What quality assurance has been done on the indicator?', 'Checked.'],
-      ['Are there any data quality issues with the source data?', 'Yes - Late returns.'],
+      [
+        'If there are any data quality issues, what is being done to improve the quality?',
+        'Chasing late returns.',
+      ],
       ['Why was the confidence interval method chosen?', 'Standard.'],
       ['Why were the data sources chosen?', 'The best available.'],
       ['What health inequalities have been included?', 'Deprivation.'],
@@ -80,6 +83,30 @@ describe('NotesForReviewers', () => {
     render(<NotesForReviewers notes={UNANSWERED_NOTES} indicator={indicator} />);
 
     expect(new Set(rows().map(([, answer]) => answer))).toEqual(new Set([text]));
+  });
+
+  it.each([
+    ['empty', ''],
+    ['missing', null],
+  ])('leaves out the data quality improvement notes when they are %s', (_, notes) => {
+    render(
+      <NotesForReviewers
+        notes={{
+          ...ANSWERED_NOTES,
+          varianceAndQuality: {
+            ...ANSWERED_NOTES.varianceAndQuality,
+            sourceDataIssuesDetail: notes,
+          },
+        }}
+        indicator={NEVER_SUBMITTED}
+      />,
+    );
+
+    expect(rows().slice(0, 3)).toEqual([
+      ['How does the indicator vary?', 'Little.\nMostly by region.'],
+      ['What quality assurance has been done on the indicator?', 'Checked.'],
+      ['Why was the confidence interval method chosen?', 'Standard.'],
+    ]);
   });
 
   it.each([

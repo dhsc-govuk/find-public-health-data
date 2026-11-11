@@ -375,7 +375,6 @@ export async function exportIndicators(context: PholioExportOptions) {
       update_frequency: updateFrequency,
       variation: null,
       quality_assurance: null,
-      has_source_data_issues: null,
       source_data_issues_detail: null,
       ci_method_justification: null,
       data_sources_justification: null,

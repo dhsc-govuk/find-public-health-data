@@ -389,11 +389,6 @@ describe('indicator_version', () => {
     ['caveats of nobody', { caveatsDetail: 'Survey data' }],
     ['caveats not needed', { hasCaveats: false, caveatsDetail: 'Survey data' }],
     ['other notes not needed', { hasOtherNotes: false, otherNotesDetail: 'Revised' }],
-    ['source data issues of nobody', { sourceDataIssuesDetail: 'Late returns' }],
-    [
-      'source data without issues',
-      { hasSourceDataIssues: false, sourceDataIssuesDetail: 'Late returns' },
-    ],
     ['exclusions of nobody', { exclusionsDetail: 'Small areas' }],
     ['no exclusions', { hasExclusions: false, exclusionsDetail: 'Small areas' }],
     ['automation of nobody', { automationDetail: 'Pipeline' }],
@@ -427,8 +422,6 @@ describe('indicator_version', () => {
         caveatsDetail: 'Survey data',
         hasOtherNotes: true,
         otherNotesDetail: 'Revised',
-        hasSourceDataIssues: true,
-        sourceDataIssuesDetail: 'Late returns',
         hasExclusions: true,
         exclusionsDetail: 'Small areas',
         hasAutomation: true,
@@ -451,7 +444,6 @@ describe('indicator_version', () => {
     ['rounding', { hasRounding: true }, 'rounding_detail'],
     ['caveats', { hasCaveats: true }, 'caveats_detail'],
     ['other notes', { hasOtherNotes: true }, 'other_notes_detail'],
-    ['source data issues', { hasSourceDataIssues: true }, 'source_data_issues_detail'],
     ['exclusions', { hasExclusions: true }, 'exclusions_detail'],
     ['automation', { hasAutomation: true }, 'automation_detail'],
     ['reviewer comments', { hasReviewerComments: true }, 'reviewer_comments_detail'],
@@ -788,7 +780,7 @@ describe('the published views', () => {
       sql`SELECT column_name FROM information_schema.columns
           WHERE table_schema = 'published'
             AND column_name IN (
-              'variation', 'quality_assurance', 'has_source_data_issues', 'source_data_issues_detail',
+              'variation', 'quality_assurance', 'source_data_issues_detail',
               'ci_method_justification', 'data_sources_justification', 'inequalities_included',
               'has_exclusions', 'exclusions_detail', 'has_automation', 'automation_detail',
               'sponsors_and_stakeholders', 'has_reviewer_comments', 'reviewer_comments_detail'

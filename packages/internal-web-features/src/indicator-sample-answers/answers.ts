@@ -184,7 +184,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
     text(varianceAndQualitySection, {
       variation: 'Little.',
       qualityAssurance: 'Checked.',
-      hasSourceDataIssues: 'no',
     }),
     text(justificationsSection, {
       ciMethodJustification: 'Standard.',

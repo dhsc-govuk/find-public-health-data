@@ -382,35 +382,21 @@ describe('varianceAndQualityColumns', () => {
   const answered = {
     variation: 'Varies by area.',
     qualityAssurance: 'Checked against ONS figures.',
-    hasSourceDataIssues: 'yes',
-    sourceDataIssuesDetail: 'Late returns.',
+    sourceDataIssuesDetail: 'Chasing late returns.',
   } as const;
 
-  it('writes the text as it is, and a yes as true beside its details', () => {
-    expect(varianceAndQualityColumns.toAttributes(answered)).toEqual({
-      ...answered,
-      hasSourceDataIssues: true,
-    });
+  it('reads and writes the columns of the same name', () => {
+    expect(varianceAndQualityColumns.fromDraft({ ...unansweredDraft, ...answered })).toEqual(
+      answered,
+    );
+    expect(varianceAndQualityColumns.toAttributes(answered)).toEqual(answered);
   });
 
-  it('writes a no as false and clears its details', () => {
+  it('writes blank data quality improvement notes as none', () => {
     expect(
-      varianceAndQualityColumns.toAttributes({ ...answered, hasSourceDataIssues: 'no' }),
-    ).toEqual({ ...answered, hasSourceDataIssues: false, sourceDataIssuesDetail: null });
-  });
-
-  it.each([
-    [true, 'yes'],
-    [false, 'no'],
-    [null, null],
-  ])('reads a stored %s as %s, beside the text as it is', (hasSourceDataIssues, answer) => {
-    expect(
-      varianceAndQualityColumns.fromDraft({
-        ...unansweredDraft,
-        ...answered,
-        hasSourceDataIssues,
-      }),
-    ).toEqual({ ...answered, hasSourceDataIssues: answer });
+      varianceAndQualityColumns.toAttributes({ ...answered, sourceDataIssuesDetail: '' })
+        .sourceDataIssuesDetail,
+    ).toBeNull();
   });
 });
 

@@ -94,27 +94,6 @@ const SECTIONS: YesNoSection[] = [
   },
   {
     forReviewers: true,
-    section: { key: 'variance-and-quality', taskName: 'Variance and quality' },
-    heading: 'Variance and quality',
-    textQuestions: [
-      { label: 'How does the indicator vary?', refusal: 'Enter how the indicator varies' },
-      {
-        label: 'What quality assurance has been done on the indicator?',
-        refusal: 'Enter what quality assurance has been done on the indicator',
-      },
-    ],
-    questions: [
-      {
-        legend: 'Are there any data quality issues with the source data?',
-        details:
-          'Enter details, including what is being done to improve the quality of the source data',
-        refusal: 'Select whether there are any data quality issues with the source data',
-        detailsRefusal: 'Enter details of the data quality issues with the source data',
-      },
-    ],
-  },
-  {
-    forReviewers: true,
     section: { key: 'justifications', taskName: 'Justifications' },
     heading: 'Justifications',
     textQuestions: [

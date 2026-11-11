@@ -5,8 +5,7 @@ export const ANSWERED_NOTES: NotesForReviewers = {
   varianceAndQuality: {
     variation: 'Little.\nMostly by region.',
     qualityAssurance: 'Checked.',
-    hasSourceDataIssues: 'yes',
-    sourceDataIssuesDetail: 'Late returns.',
+    sourceDataIssuesDetail: 'Chasing late returns.',
   },
   justifications: {
     ciMethodJustification: 'Standard.',
@@ -29,7 +28,6 @@ export const UNANSWERED_NOTES: NotesForReviewers = {
   varianceAndQuality: {
     variation: null,
     qualityAssurance: null,
-    hasSourceDataIssues: null,
     sourceDataIssuesDetail: null,
   },
   justifications: {
