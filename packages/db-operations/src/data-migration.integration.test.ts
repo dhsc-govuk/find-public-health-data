@@ -495,6 +495,13 @@ describe('applyDataMigration', () => {
       'missing required columns: short_id',
     );
   });
+  it('refuses an indicator CSV that carries the team the receiver assigns', async () => {
+    await baseline();
+    await expect(
+      apply({ upserts: { indicator: { columns: ['id', 'short_id', 'team_id'] } } }),
+    ).rejects.toThrow('indicator CSV has columns only the receiver writes: team_id');
+    await assertRolledBack();
+  });
   it('rejects a retired area without explicit current status and rolls back the package', async () => {
     await baseline();
     const id = '44444444-4444-7444-8444-444444444444';

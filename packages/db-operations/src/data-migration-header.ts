@@ -43,6 +43,13 @@ export async function validateMigrationHeader(
     throw new Error(`${table} CSV has columns the target table does not: ${unknown.join(', ')}`);
   }
 
+  const receiverOwned = columns.filter((col) => receiverColumns(table).includes(col));
+  if (receiverOwned.length > 0) {
+    throw new Error(
+      `${table} CSV has columns only the receiver writes: ${receiverOwned.join(', ')}`,
+    );
+  }
+
   const columnSet = new Set([...columns, ...receiverColumns(table)]);
   const missing = targetInfo
     .filter(
