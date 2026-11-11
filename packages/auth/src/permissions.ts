@@ -68,7 +68,10 @@ export function canSubmitIndicator(
   return canEditIndicator(user, indicator);
 }
 
-/** Whether the user may withdraw the draft's submission before a response. As `canSubmitIndicator`. */
+/**
+ * Whether the user may withdraw the draft's submission before reviewers are assigned. As
+ * `canSubmitIndicator`.
+ */
 export function canWithdrawSubmission(
   user: SessionUser,
   indicator: Pick<IndicatorAccess, 'teamId'>,

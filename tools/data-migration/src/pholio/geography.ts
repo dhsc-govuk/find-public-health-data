@@ -29,9 +29,9 @@ export async function exportGeography(context: PholioSource) {
   const { pool, outDir } = context;
   const areaIdByPholioCode = new Map<string, number>();
 
-  const areaTypeWriter = new TableWriter(outDir, 'area_type');
-  const areaWriter = new TableWriter(outDir, 'area');
-  const areaRelWriter = new TableWriter(outDir, 'area_relationship');
+  await using areaTypeWriter = new TableWriter(outDir, 'area_type');
+  await using areaWriter = new TableWriter(outDir, 'area');
+  await using areaRelWriter = new TableWriter(outDir, 'area_relationship');
 
   // area_type: deduplicate names, assign hierarchy_type and level from Pholio
   const areaTypeRows = await queryPholio<{

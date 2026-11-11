@@ -4,7 +4,7 @@ name: Audit
 # request; this run reports it to Slack instead.
 on:
   schedule:
-    - cron: '17 6 * * 1-5'
+    - cron: "17 6 * * 1-5"
   workflow_dispatch:
 
 permissions:

@@ -64,7 +64,7 @@ async function resubmit(page: Page, id: string) {
 test.use({ storageState: PUBLISHER.storageState });
 
 test.describe('after minor revisions', () => {
-  test('the publisher saves the flagged task, writes the reply and resubmits, and the reviewer approves the second round', async ({
+  test('the publisher saves the flagged task, writes the reply and resubmits with no withdrawal on offer, and the reviewer approves the second round', async ({
     browser,
     page,
   }, testInfo) => {
@@ -102,6 +102,7 @@ test.describe('after minor revisions', () => {
     await resubmit(page, id);
     await expect(page.getByRole('alert')).toContainText(SUBMITTED);
     await expect(publishingTag(page)).toHaveText('Publishing status: Pending review');
+    await expect(page.getByRole('link', { name: 'Withdraw submission' })).toHaveCount(0);
 
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
       await reviewer.goto('/dashboard');
@@ -218,31 +219,6 @@ test.describe('with a teammate', () => {
     await page.goto('/dashboard');
     const row = page.getByRole('table').getByRole('row').filter({ hasText: name });
     await expect(row.getByRole('cell').nth(3)).toHaveText(SECOND_TEAM_A_PUBLISHER.name);
-  });
-
-  test("withdraws the publisher's resubmission in review, and resubmits it to the same reviewers", async ({
-    browser,
-    page,
-  }) => {
-    const { id } = await inReview(browser, 'withdrawn by a teammate');
-    await respondToReview(browser, id, { kind: 'minor_revisions', flags: [POLARITY] });
-    await saveUnchanged(page, id, 'polarity');
-    await writeReply(page, id, 'Higher is better.');
-    await resubmit(page, id);
-
-    await asUser(browser, SECOND_TEAM_A_PUBLISHER, async (teammate) => {
-      await teammate.goto(overviewPath(id));
-      await teammate.getByRole('link', { name: 'Withdraw submission' }).click();
-      await teammate.getByRole('button', { name: 'Withdraw submission' }).click();
-      await expect(publishingTag(teammate)).toHaveText('Publishing status: Incomplete');
-      await resubmit(teammate, id);
-      await expect(publishingTag(teammate)).toHaveText('Publishing status: Pending review');
-    });
-
-    await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
-      await reviewer.goto(overviewPath(id));
-      await expect(reviewer.getByRole('button', { name: 'Submit review response' })).toBeVisible();
-    });
   });
 });
 

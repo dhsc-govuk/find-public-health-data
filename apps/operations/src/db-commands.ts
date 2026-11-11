@@ -69,7 +69,13 @@ export function rolesToBootstrap(roles: Config['roles']): DatabaseRole[] {
   );
 }
 
-/** Under DB_AUTH=entra, the two API identities' principals, refusing half the pair as above. */
+/**
+ * Under DB_AUTH=entra, the Entra principal to create for each app's managed identity, with the role
+ * it joins. Like `rolesToBootstrap`, it throws naming every missing variable unless all three
+ * principals are configured, rather than bootstrapping some of them and reporting success. The
+ * internal worker has a managed identity of its own, and its principal joins `internal_api` as the
+ * internal API's does.
+ */
 export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] {
   const required = [
     { group: API_ROLES.publicApi, prefix: 'PUBLIC_API', principal: roles.publicApiPrincipal },
@@ -77,6 +83,11 @@ export function principalsToBootstrap(roles: Config['roles']): EntraPrincipal[] 
       group: API_ROLES.internalApi,
       prefix: 'INTERNAL_API',
       principal: roles.internalApiPrincipal,
+    },
+    {
+      group: API_ROLES.internalApi,
+      prefix: 'INTERNAL_WORKER',
+      principal: roles.internalWorkerPrincipal,
     },
   ];
 

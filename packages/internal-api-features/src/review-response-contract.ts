@@ -1,5 +1,6 @@
 import { z } from '@fphd/config/zod';
 import { FLAGGABLE_TASK_KEYS, type IndicatorTaskKey } from '@fphd/utils/indicator-task-key';
+import { isOneOf } from '@fphd/utils/is-one-of';
 import { isDayOfMonth } from '@fphd/utils/period-type';
 import { IMRG_DECISION_KINDS, REVIEW_RESPONSE_KINDS } from '@fphd/utils/review-response-kind';
 import { type UkDate, ukDaysUntil } from '@fphd/utils/uk-time';
@@ -218,7 +219,7 @@ export const reviewResponseFieldSchema = z.union([
 export type ReviewResponseField = z.infer<typeof reviewResponseFieldSchema>;
 
 function isDecision(kind: z.infer<typeof reviewResponseKindSchema>): boolean {
-  return (IMRG_DECISION_KINDS as readonly string[]).includes(kind);
+  return isOneOf(IMRG_DECISION_KINDS, kind);
 }
 
 /**

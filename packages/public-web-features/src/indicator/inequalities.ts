@@ -1,3 +1,4 @@
+import { isOneOf } from '@fphd/utils/is-one-of';
 import {
   alignedTrendSeries,
   availableConfidenceLevels,
@@ -34,10 +35,8 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
   const rows = inequalityBreakdown(observations, category, period);
   const confidenceLevels = availableConfidenceLevels(rows);
   const requestedConfidence = params.get(`ci-${id}`);
-  const confidence: ConfidenceLevel = confidenceLevels.includes(
-    requestedConfidence as '95' | '99.8',
-  )
-    ? (requestedConfidence as '95' | '99.8')
+  const confidence: ConfidenceLevel = isOneOf(confidenceLevels, requestedConfidence)
+    ? requestedConfidence
     : 'none';
   const comparisonConfidence: ConfidenceLevel = params.has(`ci-${id}`)
     ? confidence

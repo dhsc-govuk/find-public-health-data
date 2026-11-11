@@ -258,9 +258,9 @@ export async function exportIndicators(context: PholioExportOptions) {
       return [id, { polarity, comparatorMethodId, reconciliation }] as const;
     }),
   );
-  const indicatorWriter = new TableWriter(outDir, 'indicator');
-  const versionWriter = new TableWriter(outDir, 'indicator_version');
-  const batchWriter = new TableWriter(outDir, 'upload_batch');
+  await using indicatorWriter = new TableWriter(outDir, 'indicator');
+  await using versionWriter = new TableWriter(outDir, 'indicator_version');
+  await using batchWriter = new TableWriter(outDir, 'upload_batch');
 
   // Sort by IndicatorID ascending so TableWriter id-order check passes.
   metaRows.sort((a, b) => a.IndicatorID - b.IndicatorID);

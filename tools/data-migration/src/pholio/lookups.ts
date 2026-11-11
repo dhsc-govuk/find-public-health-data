@@ -29,10 +29,10 @@ export function noteCategory(text: string | null): string {
 export async function exportLookups(context: PholioSource) {
   const { pool, outDir } = context;
 
-  const ciMethodWriter = new TableWriter(outDir, 'ci_method');
-  const comparatorMethodWriter = new TableWriter(outDir, 'comparator_method');
-  const dataSourceWriter = new TableWriter(outDir, 'data_source');
-  const numDenSourceWriter = new TableWriter(outDir, 'numerator_denominator_source');
+  await using ciMethodWriter = new TableWriter(outDir, 'ci_method');
+  await using comparatorMethodWriter = new TableWriter(outDir, 'comparator_method');
+  await using dataSourceWriter = new TableWriter(outDir, 'data_source');
+  await using numDenSourceWriter = new TableWriter(outDir, 'numerator_denominator_source');
 
   const ciMethodRows = await queryPholio<{
     CIMethodID: number;
@@ -108,7 +108,7 @@ export async function exportLookups(context: PholioSource) {
 }
 
 export async function exportNoteTypes({ pool, outDir }: PholioSource) {
-  const noteTypeWriter = new TableWriter(outDir, 'note_type');
+  await using noteTypeWriter = new TableWriter(outDir, 'note_type');
   const noteTypeCategory = new Map<number, string>();
   // note_type: exclude ValueNoteID 0 (no note) and 506 (Fingertips placeholder)
   const noteTypeRows = await queryPholio<{ ValueNoteID: number; Text: string | null }>(

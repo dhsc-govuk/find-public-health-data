@@ -18,8 +18,11 @@ interface ServerLogging {
   onError: (error: unknown) => void;
 }
 
-/** The lifecycle callbacks, identical in all four apps. Nothing here names the app — the logger
- * already binds that to every line. */
+/**
+ * The callbacks `startServer` calls as a server starts, stops and fails. They log each event the
+ * same way for every server, and `onShutdown` runs the app's own cleanup before logging `Stopped`.
+ * Nothing here names the app, because the logger already adds the app's name to every line.
+ */
 export function serverLogging(
   logger: Logger,
   { port, revision, onShutdown }: ServerLoggingOptions,

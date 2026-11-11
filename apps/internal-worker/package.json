@@ -1,0 +1,30 @@
+{
+  "name": "@fphd/internal-worker",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsx watch --env-file-if-exists=../../.env --conditions=development src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fphd/config": "workspace:*",
+    "@fphd/db": "workspace:*",
+    "@fphd/express": "workspace:*",
+    "@fphd/internal-workflow": "workspace:*",
+    "@fphd/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -173,9 +173,9 @@ const SUBMISSION_WRITES: Readonly<
 };
 
 /**
- * Chooses which reviewers of the latest submission move onto the new submission that a submit or
- * resubmit step starts. It returns only the reviewers who may still review the indicator. The
- * caller supplies it because the rules for who may review live outside this package.
+ * Chooses which reviewers of the latest submission move onto the new submission that a resubmit
+ * step starts. It returns only the reviewers who may still review the indicator. The caller
+ * supplies it because the rules for who may review live outside this package.
  */
 export type ReviewersToCarry = (
   tx: Transaction,
@@ -185,8 +185,8 @@ export type ReviewersToCarry = (
 /**
  * Extras for one kind of step. `precondition` can refuse the step with a reason, after the
  * workflow allows the step and before anything is written. `write` adds the step's own rows in the
- * same transaction. `reviewersToCarry` must be given for a step that starts a submission, such as
- * submit or resubmit, and chooses which of the latest submission's reviewers move onto the new one.
+ * same transaction. `reviewersToCarry` must be given for a step that carries reviewers, such as
+ * resubmit, and chooses which of the latest submission's reviewers move onto the new one.
  */
 export interface IndicatorStepOptions<Reason extends string> {
   precondition?: IndicatorStepPrecondition<Reason>;
@@ -196,8 +196,8 @@ export interface IndicatorStepOptions<Reason extends string> {
 
 /**
  * The reviewers that `step` carries onto the submission it starts. There are none when the step
- * does not start a submission or when the draft has no earlier submission. Throws when a step that
- * starts a submission was given no `reviewersToCarry`.
+ * does not carry reviewers or when the draft has no earlier submission. Throws when a step that
+ * carries reviewers was given no `reviewersToCarry`.
  */
 async function reviewersCarriedBy(
   tx: Transaction,

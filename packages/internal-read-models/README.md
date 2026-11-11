@@ -2,18 +2,18 @@
 
 The statements that write the read models: the tables derived from the published views.
 `available_data` and `observation_range` list which areas and value ranges each indicator has;
-`observation_series` and `observation_series_batch` hold the series each table and ranking shows,
-by area, sex and period type, and the England trend a topic page shows. They
-live apart from `@fphd/db`, the public read surface, and the `internal-` prefix keeps them out of
-the public images, as `tools/artefact-boundary` checks.
+`observation_series` and `observation_series_batch` hold the series each table and ranking shows, by
+area, sex and period type, and the England trend a topic page shows. They live apart from
+`@fphd/db`, the public read surface, and the `internal-` prefix keeps them out of the public images,
+as `tools/artefact-boundary` checks.
 
 Built package; consumed by `@fphd/db-operations`, whose commands rebuild the read models, and by
-`@fphd/internal-workflow`, whose scheduled publication refreshes them. It depends only on
-`@fphd/db` and `drizzle-orm`, so whatever runs it carries nothing else. Publishing an indicator
-refreshes that indicator's rows in the same transaction as its status change.
+`@fphd/internal-workflow`, whose scheduled publication refreshes them. It depends only on `@fphd/db`
+and `drizzle-orm`, so whatever runs it carries nothing else. Publishing an indicator refreshes that
+indicator's rows in the same transaction as its status change.
 
-| Entry | Purpose                                                                                     |
-| ----- | ------------------------------------------------------------------------------------------- |
+| Entry | Purpose                                                                                                                                                           |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.`   | `READ_MODEL_TABLES`; `refreshIndicatorReadModels`, one indicator's refresh, and `rebuildReadModelTables`, the whole rebuild, each inside the caller's transaction |
 
 ## Tests

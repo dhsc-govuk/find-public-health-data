@@ -9,14 +9,25 @@ export function autocompleteInput(page: Page, label: string) {
 }
 
 /**
- * Chooses an option by typing its name and picking it from the field's own suggestions, then
- * checks the menu closed on the pick and the hidden select holds the choice the form submits.
+ * Types an option's name and picks it from the field's own suggestions; returns the field's
+ * input and listbox. For a field whose page acts on the pick at once, where the field may be
+ * gone before anything more can be checked of it.
  */
-export async function chooseOption(page: Page, label: string, option: string) {
+export async function pickSuggestion(page: Page, label: string, option: string) {
   const input = autocompleteInput(page, label);
   await input.fill(option);
   const listbox = page.locator(`[id="${await input.getAttribute('aria-controls')}"]`);
   await listbox.getByRole('option', { name: option, exact: true }).click();
+
+  return { input, listbox };
+}
+
+/**
+ * Chooses an option by typing its name and picking it from the field's own suggestions, then
+ * checks the menu closed on the pick and the hidden select holds the choice the form submits.
+ */
+export async function chooseOption(page: Page, label: string, option: string) {
+  const { input, listbox } = await pickSuggestion(page, label, option);
   await expect(listbox).toBeHidden();
   await expect(input).toHaveValue(option);
   await expect(

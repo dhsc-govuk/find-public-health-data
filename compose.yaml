@@ -1,6 +1,6 @@
 # Local development services. Not for production.
 #
-# `docker compose up` starts only the database and Azurite; the four app services sit behind
+# `docker compose up` starts only the database and Azurite; the app services sit behind
 # profiles matching their names, so they start only when asked for:
 #   docker compose --profile public-api --profile public-web up -d --build
 # scripts/dev.sh derives the profile set from whichever apps you run locally.
@@ -29,7 +29,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
       POSTGRES_DB: ${POSTGRES_DB:-fphd}
     ports:
-      - '${DB_PORT:-5432}:5432'
+      - "${DB_PORT:-5432}:5432"
     volumes:
       # Postgres 18+ images store data in a version-specific subdirectory, so the
       # volume mounts at /var/lib/postgresql (not the pre-18 /var/lib/postgresql/data).
@@ -37,7 +37,7 @@ services:
       # path a managed server uses.
       - fphd-pgdata:/var/lib/postgresql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fphd} -d ${POSTGRES_DB:-fphd}']
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fphd} -d ${POSTGRES_DB:-fphd}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -47,13 +47,13 @@ services:
     image: mcr.microsoft.com/azure-storage/azurite:3.37.0
     container_name: fphd-azurite
     restart: unless-stopped
-    command: ['azurite-blob', '--blobHost', '0.0.0.0', '--location', '/data']
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--location", "/data"]
     ports:
-      - '${AZURITE_PORT:-10000}:10000'
+      - "${AZURITE_PORT:-10000}:10000"
     volumes:
       - fphd-azurite-data:/data
     healthcheck:
-      test: ['CMD', 'nc', '-z', '127.0.0.1', '10000']
+      test: ["CMD", "nc", "-z", "127.0.0.1", "10000"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -71,15 +71,15 @@ services:
       APP_ENV: ${APP_ENV:?set APP_ENV in .env (see .env.example)}
       API_URL: http://host.docker.internal:4000
     ports:
-      - '3000:3000'
+      - "3000:3000"
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          "CMD",
+          "node",
+          "-e",
           "fetch('http://localhost:3000/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
         ]
       interval: 10s
@@ -101,15 +101,15 @@ services:
       SESSION_JWT_SECRET: ${SESSION_JWT_SECRET:?set SESSION_JWT_SECRET in .env (see .env.example)}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?set WEB_SESSION_SECRET in .env (see .env.example)}
     ports:
-      - '3001:3001'
+      - "3001:3001"
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          "CMD",
+          "node",
+          "-e",
           "fetch('http://localhost:3001/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
         ]
       interval: 10s
@@ -131,18 +131,18 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-fphd}
       PUBLIC_API_PASSWORD: ${PUBLIC_API_PASSWORD:?set PUBLIC_API_PASSWORD in .env (see .env.example)}
     ports:
-      - '4000:4000'
+      - "4000:4000"
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          "CMD",
+          "node",
+          "-e",
           "fetch('http://localhost:4000/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
         ]
       interval: 10s
@@ -168,9 +168,9 @@ services:
       # Azurite's published development account, reached by service name; not a secret.
       STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
     ports:
-      - '4001:4001'
+      - "4001:4001"
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
@@ -179,10 +179,41 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          "CMD",
+          "node",
+          "-e",
           "fetch('http://localhost:4001/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # The worker publishes no port to the host. Its only routes are the /livez and /readyz probes,
+  # and the healthcheck below calls /livez from inside the container.
+  internal-worker:
+    profiles: [internal-worker]
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      args:
+        APP: internal-worker
+    container_name: fphd-internal-worker
+    init: true
+    environment:
+      APP_ENV: ${APP_ENV:?set APP_ENV in .env (see .env.example)}
+      DB_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-fphd}
+      INTERNAL_API_PASSWORD: ${INTERNAL_API_PASSWORD:?set INTERNAL_API_PASSWORD in .env (see .env.example)}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4002/livez').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
         ]
       interval: 10s
       timeout: 5s

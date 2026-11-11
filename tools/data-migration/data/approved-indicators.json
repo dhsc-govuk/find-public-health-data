@@ -1,7 +1,7 @@
 {
   "source": "indicator_prioritisation.xlsx, PPM Find Public Health Data Delivery SharePoint site (DHSC)",
   "sheet": "Indicators",
-  "rule": "Final priority = prioritise, after the Sam Dunn / David Jephson and Justine / Jennifer review passes",
+  "rule": "Final priority = prioritise, after the PERSON review passes",
   "extractedOn": "2026-10-20",
   "catalogueSnapshot": "1,320 Fingertips indicators, June 2026",
   "indicators": [

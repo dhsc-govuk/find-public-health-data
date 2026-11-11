@@ -7,6 +7,7 @@ import { createGunzip } from 'node:zlib';
 import { DEV_CLASS_APP_ENVS, isDevClassEnv } from '@fphd/config';
 import { createDbFromTransaction, schema } from '@fphd/db';
 import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
+import { isOneOf } from '@fphd/utils/is-one-of';
 import type postgres from 'postgres';
 
 import { type IndicatorTopicFile, parseIndicatorTopicFile } from './indicator-topic-file.ts';
@@ -42,7 +43,7 @@ export const SEEDED_TABLES = [
   ...SEED_TABLES.filter(
     (table) =>
       !STAGED_ONLY_TABLES.includes(table) &&
-      !([...CORE_REFERENCE_TABLES, ...GEOGRAPHY_CORE_TABLES] as readonly string[]).includes(table),
+      !isOneOf([...CORE_REFERENCE_TABLES, ...GEOGRAPHY_CORE_TABLES], table),
   ),
   'indicator_version_source',
 ];

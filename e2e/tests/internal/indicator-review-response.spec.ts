@@ -2,7 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { submitDraft } from '../support/complete-draft.ts';
-import { asUser, inReview } from '../support/review-response.ts';
+import { asUser, inReview, respondToReview } from '../support/review-response.ts';
 import {
   ADMIN,
   IMRG_MANAGER,
@@ -240,10 +240,16 @@ test.describe('as an assigned IMRG reviewer', () => {
     await page.getByLabel('Pre-IMRG meeting feedback').check();
     await page.getByRole('button', { name: 'Continue' }).click();
 
+    await respondToReview(browser, id, {
+      kind: 'pre_imrg_feedback',
+      clarification: 'What is counted?',
+    });
     await asUser(browser, PUBLISHER, async (publisher) => {
-      await publisher.goto(overviewPath(id));
-      await publisher.getByRole('link', { name: 'Withdraw submission' }).click();
-      await publisher.getByRole('button', { name: 'Withdraw submission' }).click();
+      await publisher.goto(`/publish/indicators/${id}/revision-response`);
+      await publisher
+        .getByRole('textbox', { name: 'Response to revisions or clarifications' })
+        .fill('Deaths.');
+      await publisher.getByRole('button', { name: 'Continue' }).click();
       await submitDraft(publisher, id);
     });
 
@@ -354,7 +360,7 @@ test.describe("the overview's Actions tab", () => {
   test.describe('for a publisher assigned to review a teammate’s indicator', () => {
     test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
 
-    test('shows the Review section, then the Actions section with the editor’s response once the draft is sent back', async ({
+    test('shows the Review section alone, then the Actions section with the editor’s response once the draft is sent back', async ({
       browser,
       page,
     }, testInfo) => {
@@ -369,8 +375,8 @@ test.describe("the overview's Actions tab", () => {
       const sections = page.getByRole('tabpanel', { name: 'Actions' }).getByRole('heading', {
         level: 2,
       });
-      await expect(sections).toHaveText(['Review', 'Actions']);
-      await expect(page.getByRole('link', { name: 'Withdraw submission' })).toBeVisible();
+      await expect(sections).toHaveText(['Review']);
+      await expect(page.getByRole('link', { name: 'Withdraw submission' })).toHaveCount(0);
 
       await page.getByRole('button', { name: 'Submit review response' }).click();
       await page.getByLabel('Pre-IMRG meeting feedback').check();
