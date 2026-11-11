@@ -484,6 +484,13 @@
       "when": 1794392102963,
       "tag": "0068_observation-range-percentiles",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794416240777,
+      "tag": "0069_require-indicator-team",
+      "breakpoints": true
     }
   ]
 }

@@ -18,7 +18,7 @@ import {
 } from './named-core-data.ts';
 import { loadIndicatorVersions } from './seeding.ts';
 
-const { SYSTEM_USER_IDS, valueType } = schema;
+const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS, valueType } = schema;
 
 function committed(list: string, file: string): NamedRecord[] {
   const path = new URL(`../data/${file}`, import.meta.url);
@@ -194,7 +194,9 @@ describe('loadIndicatorVersions with comparator methods', () => {
   beforeAll(async () => {
     testDb = await createTestDb({ template: 'core' });
     sql = testDb.sql;
-    const [row] = await sql<{ id: string }[]>`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
+    const [row] = await sql<
+      { id: string }[]
+    >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     indicatorId = row?.id ?? '';
     directory = await mkdtemp(join(tmpdir(), 'fphd-comparator-methods-'));
     await writeFile(

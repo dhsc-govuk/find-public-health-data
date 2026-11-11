@@ -69,7 +69,7 @@ export type IndicatorDraft = IndicatorDraftVersion &
 export interface IndicatorDraftStateRow {
   id: string;
   shortId: number;
-  teamId: string | null;
+  teamId: string;
   /** The draft a publisher is working on, absent while the indicator has none. */
   draft: IndicatorDraft | null;
   /** What the draft's CI method asks for, which the task list needs to judge its answers. */

@@ -1,3 +1,4 @@
+import { TEAM_IDS } from '@fphd/auth';
 import {
   benchmarkingSection,
   calculationSection,
@@ -304,7 +305,7 @@ const forms: {
       isReviewer: true,
       indicator: {
         ...indicator,
-        teamId: null,
+        teamId: TEAM_IDS.teamA,
         draftLocked: true,
         draftSubmissionStatus: 'in_review',
         draftResponseKind: null,

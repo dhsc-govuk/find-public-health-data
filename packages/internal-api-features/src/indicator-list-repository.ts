@@ -43,7 +43,7 @@ const lastEditor = alias(appUser, 'last_editor');
 export interface IndicatorAdminRow {
   id: string;
   name: string;
-  teamId: string | null;
+  teamId: string;
   updatedAt: Date;
   indicatorStatus: IndicatorStatus;
   draftStatus: DraftStatus | null;
@@ -55,7 +55,7 @@ export interface IndicatorAdminRow {
 
 /** A row of the dashboard, which names the team and the people as well as their ids. */
 export interface IndicatorAdminListRow extends IndicatorAdminRow {
-  teamName: string | null;
+  teamName: string;
   createdBy: string | null;
   lastEditedBy: string | null;
 }
@@ -124,7 +124,7 @@ function listRowsQuery(db: Database) {
     .leftJoin(draftVersion, draftJoin)
     .leftJoin(currentPublishedVersion, publishedJoin)
     .leftJoin(publishedVersion, publishedVersionJoin)
-    .leftJoin(team, eq(team.id, indicator.teamId))
+    .innerJoin(team, eq(team.id, indicator.teamId))
     .leftJoin(lastEditor, eq(lastEditor.id, latestUpdatedBy));
 }
 
@@ -252,7 +252,7 @@ export async function getIndicatorById(
 
 /** What the access checks read of an indicator: its team and its draft's current reviewers. */
 export interface IndicatorAccessRow {
-  teamId: string | null;
+  teamId: string;
   draftReviewers: DraftReviewer[];
 }
 

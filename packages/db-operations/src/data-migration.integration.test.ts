@@ -462,7 +462,7 @@ describe('applyDataMigration', () => {
     expect(row).toEqual({ count: 2, shortId: 100000 });
   });
   it('refuses a baseline on nonempty target tables', async () => {
-    await sql`INSERT INTO indicator (id, short_id) VALUES (${INDICATOR_ID}, 108)`;
+    await sql`INSERT INTO indicator (id, short_id, team_id) VALUES (${INDICATOR_ID}, 108, ${IMPORTED_INDICATOR_TEAM_ID})`;
     await expect(baseline()).rejects.toThrow('Baseline target table indicator is not empty');
   });
   it('checks declared baseline row counts', async () => {
@@ -494,6 +494,13 @@ describe('applyDataMigration', () => {
     await expect(apply({ upserts: { indicator: { columns: ['id'] } } })).rejects.toThrow(
       'missing required columns: short_id',
     );
+  });
+  it('refuses an indicator CSV that carries the team the receiver assigns', async () => {
+    await baseline();
+    await expect(
+      apply({ upserts: { indicator: { columns: ['id', 'short_id', 'team_id'] } } }),
+    ).rejects.toThrow('indicator CSV has columns only the receiver writes: team_id');
+    await assertRolledBack();
   });
   it('rejects a retired area without explicit current status and rolls back the package', async () => {
     await baseline();
@@ -571,14 +578,14 @@ describe('applyDataMigration', () => {
     await baseline();
     await expect(
       sql.begin(async (tx) => {
-        await tx`INSERT INTO indicator DEFAULT VALUES`;
+        await tx`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID})`;
         throw new Error('publisher rollback');
       }),
     ).rejects.toThrow('publisher rollback');
     await apply();
     const [created] = await sql<
       { shortId: number }[]
-    >`INSERT INTO indicator DEFAULT VALUES RETURNING short_id AS "shortId"`;
+    >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING short_id AS "shortId"`;
     expect(created?.shortId).toBe(100001);
   });
   it('waits for concurrent publisher identities and never reissues their IDs', async () => {
@@ -594,7 +601,7 @@ describe('applyDataMigration', () => {
       release = resolve;
     });
     const pending = publisher.begin(async (tx) => {
-      await tx`INSERT INTO indicator DEFAULT VALUES`;
+      await tx`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID})`;
       ready();
       await held;
     });
@@ -614,7 +621,7 @@ describe('applyDataMigration', () => {
       await migrating;
       const [created] = await publisher<
         { shortId: number }[]
-      >`INSERT INTO indicator DEFAULT VALUES RETURNING short_id AS "shortId"`;
+      >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING short_id AS "shortId"`;
       expect(created?.shortId).toBe(100001);
     } finally {
       release();
@@ -1019,7 +1026,7 @@ describe('applyDataMigration', () => {
     await baseline();
     const [identity] = await sql<
       { id: string }[]
-    >`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
+    >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     if (!identity) throw new Error('Missing publisher indicator');
     const [publication] = await sql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by, has_framework)
@@ -1048,7 +1055,7 @@ describe('applyDataMigration', () => {
   ])('never moves an existing %s version to another indicator', async (_kind, actor) => {
     await baseline();
     const [identity] = await sql<{ id: string }[]>`
-        INSERT INTO indicator (short_id) VALUES (109) RETURNING id
+        INSERT INTO indicator (short_id, team_id) VALUES (109, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id
       `;
     if (!identity) throw new Error('Missing other indicator');
     await sql`
@@ -1091,7 +1098,7 @@ describe('applyDataMigration', () => {
     await baseline();
     const [identity] = await sql<
       { id: string }[]
-    >`INSERT INTO indicator (short_id) VALUES (109) RETURNING id`;
+    >`INSERT INTO indicator (short_id, team_id) VALUES (109, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     if (!identity) throw new Error('Missing publisher indicator');
     const publisherIndicatorId = action === 'historical upsert' ? INDICATOR_ID : identity.id;
     const [publication] = await sql<{ id: string }[]>`
@@ -1272,7 +1279,7 @@ describe('applyDataMigration', () => {
     await baseline();
     const [identity] = await sql<
       { id: string }[]
-    >`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
+    >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     const [draft] = await sql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)
       VALUES (${identity?.id ?? ''}, 'Publisher draft', 'publisher-draft', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
