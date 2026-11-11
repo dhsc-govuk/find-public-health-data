@@ -5,7 +5,8 @@ import { createApp, STALLED_AFTER_MS } from './app.ts';
 
 describe('createApp', () => {
   it('stays live while sweeps keep ending', async () => {
-    const app = createApp({ lastSweepCompletedAt: () => Date.now() - STALLED_AFTER_MS + 1_000 });
+    const lastSweepCompletedAt = Date.now() - STALLED_AFTER_MS + 1_000;
+    const app = createApp({ lastSweepCompletedAt: () => lastSweepCompletedAt });
 
     const live = await request(app).get('/livez');
 
@@ -14,7 +15,10 @@ describe('createApp', () => {
   });
 
   it('fails liveness once no sweep has ended for five minutes, and stays ready', async () => {
-    const app = createApp({ lastSweepCompletedAt: () => Date.now() - STALLED_AFTER_MS });
+    // Fixed before the request, so the app's own clock reading can only be later: reading the clock
+    // inside the callback put it a millisecond after the app's when the clock ticked between them.
+    const lastSweepCompletedAt = Date.now() - STALLED_AFTER_MS;
+    const app = createApp({ lastSweepCompletedAt: () => lastSweepCompletedAt });
 
     const live = await request(app).get('/livez');
     const ready = await request(app).get('/readyz');

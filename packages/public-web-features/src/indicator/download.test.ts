@@ -10,7 +10,7 @@ it('escapes formula-like text while retaining negative numeric cells', () => {
       [-2.5, 0, null, 'Plain text', 'with,comma', '"quoted"'],
     ]),
   ).toBe(
-    '\'=SUM(1),\'+test,\'-test,\'@test,\'\tformula,\'\rformula\n-2.5,0,,Plain text,"with,comma","""quoted"""\n',
+    '\'=SUM(1),\'+test,\'-test,\'@test,\'\tformula,"\'\rformula"\n-2.5,0,,Plain text,"with,comma","""quoted"""\n',
   );
 });
 
