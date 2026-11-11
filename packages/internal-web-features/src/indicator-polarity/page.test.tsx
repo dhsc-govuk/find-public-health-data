@@ -66,13 +66,13 @@ describe('PolarityPage', () => {
 
   it('links the refusal to the first option and describes the options with it', () => {
     const { container } = renderPage({
-      fieldErrors: { polarity: 'Select the polarity of the indicator' },
+      fieldErrors: { polarity: 'Select the polarity of this indicator' },
     });
 
     const link = within(screen.getByRole('alert')).getByRole('link');
     const error = container.querySelector('.govuk-error-message');
 
-    expect(link.textContent).toBe('Select the polarity of the indicator');
+    expect(link.textContent).toBe('Select the polarity of this indicator');
     expect(link.getAttribute('href')).toBe(`#${option('Higher is better').id}`);
     expect(screen.getByRole('group').getAttribute('aria-describedby')).toBe(error?.id);
     expect(container.querySelectorAll('.govuk-form-group--error')).toHaveLength(1);

@@ -166,7 +166,7 @@ const forms: {
     { definition: 'Enter the definition of the indicator' },
   ),
   sectionForm('polarity', polarity, polaritySection, 'What is the polarity of this indicator?', {
-    polarity: 'Select the polarity of the indicator',
+    polarity: 'Select the polarity of this indicator',
   }),
   sectionForm(
     'data quality',
