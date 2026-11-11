@@ -42,7 +42,8 @@ describe('applyDataMigration', () => {
   it("puts an increment's new indicator in Fingertips and leaves a moved one in its team", async () => {
     await baseline();
     const [teamB] = await db.sql<{ id: string }[]>`SELECT id FROM team WHERE name = 'Team B'`;
-    await db.sql`UPDATE indicator SET team_id = ${teamB?.id ?? null} WHERE id = ${INDICATOR_ID}`;
+    if (!teamB) throw new Error('Missing Team B');
+    await db.sql`UPDATE indicator SET team_id = ${teamB.id} WHERE id = ${INDICATOR_ID}`;
     const otherId = '66666666-6666-7666-8666-666666666666';
     const otherVersion = [...VERSION_ROW];
     otherVersion.splice(0, 2, SOURCE_ID, otherId);
@@ -69,7 +70,7 @@ describe('applyDataMigration', () => {
     });
 
     expect(await db.sql`SELECT short_id, team_id FROM indicator ORDER BY short_id`).toEqual([
-      { short_id: 108, team_id: teamB?.id },
+      { short_id: 108, team_id: teamB.id },
       { short_id: 109, team_id: IMPORTED_INDICATOR_TEAM_ID },
     ]);
   });

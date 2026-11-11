@@ -139,15 +139,17 @@ describe('applyDataMigration', () => {
     const [identity] = await db.sql<
       { id: string }[]
     >`INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
+    if (!identity) throw new Error('Missing draft-only indicator');
     const [draft] = await db.sql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)
-      VALUES (${identity?.id ?? ''}, 'Publisher draft', 'publisher-draft', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
+      VALUES (${identity.id}, 'Publisher draft', 'publisher-draft', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
     `;
-    await db.sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${draft?.id ?? ''}, ${db.topicId})`;
+    if (!draft) throw new Error('Missing publisher draft');
+    await db.sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${draft.id}, ${db.topicId})`;
     await apply();
     const [row] = await db.sql<{ name: string; topics: number }[]>`
       SELECT name, (SELECT count(*)::int FROM indicator_version_topic WHERE indicator_version_id = v.id) AS topics
-      FROM indicator_version v WHERE id = ${draft?.id ?? ''}
+      FROM indicator_version v WHERE id = ${draft.id}
     `;
     expect(row).toEqual({ name: 'Publisher draft', topics: 1 });
   });
@@ -157,8 +159,9 @@ describe('applyDataMigration', () => {
       INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)
       VALUES (${INDICATOR_ID}, 'Publisher draft', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
     `;
+    if (!draft) throw new Error('Missing publisher draft');
     const row = [...VERSION_ROW];
-    row[0] = draft?.id ?? '';
+    row[0] = draft.id;
     await expect(
       apply({ upserts: { indicator_version: { columns: VERSION_COLUMNS, rows: [row] } } }),
     ).rejects.toThrow('conflicts with FPHD publisher work on indicators: 108');
@@ -170,16 +173,17 @@ describe('applyDataMigration', () => {
       INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)
       VALUES (${INDICATOR_ID}, 'Publisher draft', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
     `;
+    if (!draft) throw new Error('Missing publisher draft');
     await expect(
       apply({
-        deletes: { indicator_version: [draft?.id ?? ''] },
+        deletes: { indicator_version: [draft.id] },
         relationships: { indicators: [], indicatorTopics: [] },
       }),
     ).rejects.toThrow('would delete a non-published indicator version');
     await assertRolledBack();
     const [remaining] = await db.sql<
       { name: string }[]
-    >`SELECT name FROM indicator_version WHERE id = ${draft?.id ?? ''}`;
+    >`SELECT name FROM indicator_version WHERE id = ${draft.id}`;
     expect(remaining?.name).toBe('Publisher draft');
   });
 });

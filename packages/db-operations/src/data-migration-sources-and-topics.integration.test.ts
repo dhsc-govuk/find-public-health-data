@@ -234,7 +234,8 @@ describe('applyDataMigration', () => {
       INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by)
       VALUES (${INDICATOR_ID}, 'published', '2025-01-01', 'History', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
     `;
-    await db.sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${history?.id ?? ''}, ${db.topicId})`;
+    if (!history) throw new Error('Missing published history version');
+    await db.sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${history.id}, ${db.topicId})`;
     const row = [...VERSION_ROW];
     row[4] = 'Changed name';
     await expect(
