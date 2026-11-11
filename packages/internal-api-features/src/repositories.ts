@@ -148,6 +148,7 @@ export interface InternalIndicatorRepository {
   /** What the indicator's history is made from, or undefined with none. */
   findHistory(id: string): Promise<IndicatorHistoryRow | undefined>;
   createDraft(
+    id: string,
     attributes: NewIndicatorDraftAttributes,
     actor: Actor,
     teamId: string,
@@ -319,8 +320,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findDraftState: (id) => getIndicatorDraftState(db, id),
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
       findHistory: (id) => findIndicatorHistory(db, id),
-      createDraft: (attributes, actor, teamId) =>
-        createIndicatorDraft(db, attributes, actor, teamId),
+      createDraft: (id, attributes, actor, teamId) =>
+        createIndicatorDraft(db, id, attributes, actor, teamId),
       updateDraft: (indicatorId, task, attributes, lists, actor, precondition) =>
         updateIndicatorDraft(db, indicatorId, task, attributes, lists, actor, precondition),
       draftFromPublished: (indicatorId, actor) => createDraftFromPublished(db, indicatorId, actor),

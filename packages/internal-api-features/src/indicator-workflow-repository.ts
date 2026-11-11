@@ -57,6 +57,10 @@ async function resubmissionProblem(
  * latest submission's reviewers who may still review it. `draftUpdatedAt` is the draft's
  * `updatedAt` as the publisher was shown it: an edit since then refuses the submission as
  * `changed`, so nobody confirms a draft they have not seen.
+ *
+ * A repeat of a submission that went through succeeds without writing. It is a repeat when the
+ * draft's latest submission is still open, was made by the same user, and the draft has not been
+ * edited since the `draftUpdatedAt` they sent. A submission by someone else is still refused.
  */
 export function submitIndicator(
   db: Database,
@@ -80,6 +84,12 @@ export function submitIndicator(
         return latest?.status === 'changes_requested' ? resubmissionProblem(tx, latest) : undefined;
       },
       reviewersToCarry: stillEligibleReviewers,
+      alreadyTaken: ({ draft, latest }) =>
+        latest !== undefined &&
+        // A resubmission that carries its reviewers starts in review rather than submitted.
+        (latest.status === 'submitted' || latest.status === 'in_review') &&
+        latest.submittedBy === actor.userId &&
+        draft.updatedAt.getTime() === draftUpdatedAt.getTime(),
     },
   );
 }
@@ -87,7 +97,9 @@ export function submitIndicator(
 /**
  * Withdraws the draft's submission before reviewers are assigned, unlocking the draft.
  * `submissionNumber` is the submission the publisher was shown: one withdrawn and resubmitted since
- * is refused as `changed`, so an old confirmation page never withdraws a newer submission.
+ * is refused as `changed`, so an old confirmation page never withdraws a newer submission. A
+ * repeat of a withdrawal that went through, when that submission is still the latest and the same
+ * user withdrew it, succeeds without writing.
  */
 export function withdrawSubmission(
   db: Database,
@@ -98,6 +110,10 @@ export function withdrawSubmission(
   return takeIndicatorStep(db, indicatorId, 'withdraw', actor, {
     precondition: async (_tx, { latest }) =>
       latest?.number === submissionNumber ? undefined : 'changed',
+    alreadyTaken: ({ latest }) =>
+      latest?.number === submissionNumber &&
+      latest.status === 'withdrawn' &&
+      latest.endedBy === actor.userId,
   });
 }
 

@@ -1,6 +1,7 @@
 import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import { eq, sql } from 'drizzle-orm';
+import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
 import { createIndicatorDraft } from './indicator-draft-repository.ts';
@@ -48,6 +49,7 @@ describe('listReviewerOptions', () => {
   repositoryTest("leaves out the indicator's creator", async ({ db }) => {
     const created = await createIndicatorDraft(
       db,
+      randomUuidV7(),
       { name: 'Created by a reviewer' },
       { userId: PUBLISHING_REVIEWER, requestId: null },
       TEAM_IDS.teamC,

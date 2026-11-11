@@ -258,6 +258,12 @@ export const indicatorNameSchema = z.object({
 /** The team a new indicator joins, which its creator chooses from their own before naming it. */
 export const indicatorTeamSchema = z.object({ teamId: z.uuid() });
 
+/**
+ * The id a new indicator takes, which the name page mints when it is shown. A double click or a
+ * retry sends the same id again, so the API can tell it from a second indicator of the same name.
+ */
+export const indicatorCreateIdSchema = z.object({ id: z.uuidv7() });
+
 export const indicatorFieldSchema = z.enum(['name']);
 
 export const indicatorFieldErrorsSchema = z.partialRecord(indicatorFieldSchema, z.string());
@@ -266,11 +272,12 @@ export const indicatorFieldErrorsSchema = z.partialRecord(indicatorFieldSchema, 
 export const indicatorCreateResponseSchema = indicatorAdminDetailSchema;
 
 /**
- * The 400 and 409 answers. A missing or malformed team names no field: the name page never asks
- * for one.
+ * The 400 and 409 answers. A missing or malformed team or id names no field: the name page never
+ * asks for one. `id_taken` means another indicator has the id, and the request is not a repeat of
+ * the one that created it.
  */
 export const indicatorCreateErrorSchema = z.discriminatedUnion('error', [
-  z.object({ error: z.literal('invalid_team') }),
+  z.object({ error: z.enum(['invalid_team', 'invalid_id', 'id_taken']) }),
   z.object({
     error: z.enum(['validation_failed', 'slug_taken']),
     fieldErrors: indicatorFieldErrorsSchema,

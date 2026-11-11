@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { ANSWER_NOT_READ } from './indicator-section-contract.ts';
 import {
   taggingSection as section,
   type TaggingFormValues,
@@ -92,6 +93,12 @@ describe('taggingSection', () => {
   it('refuses a tag that is not an id', () => {
     expect(sectionFieldErrors(section, { ...answered, indicatorTypeIds: ['outcome'] })).toEqual({
       indicatorTypeIds: 'Select a measure type from the list',
+    });
+  });
+
+  it.each(['no', true])('refuses %o as the area context answer with a written message', (sent) => {
+    expect(sectionFieldErrors(section, { ...answered, isAreaContext: sent })).toEqual({
+      isAreaContext: ANSWER_NOT_READ,
     });
   });
 

@@ -5,13 +5,18 @@ import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  ANSWER_NOT_READ,
   definitionAndRationaleSection,
+  justificationsSection,
   otherNotesAndCaveatsSection,
   varianceAndQualitySection,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import { indicatorSectionRouter, yesNoDetailColumns } from './indicator-section.ts';
-import { definitionAndRationaleColumns } from './indicator-section-columns.ts';
+import {
+  definitionAndRationaleColumns,
+  justificationsColumns,
+} from './indicator-section-columns.ts';
 import {
   createFakeInternalRepositories,
   createRouterTestApp,
@@ -23,6 +28,7 @@ import {
   testSessionCookie,
   testSessionVerifier,
 } from './testing.ts';
+import { LONG_TEXT_MAX_LENGTH } from './text-contract.ts';
 
 // What every section's endpoints share, shown through the first section built on them.
 
@@ -257,8 +263,25 @@ describe('PUT on a section', () => {
       error: 'validation_failed',
       fieldErrors: {
         definition: 'Enter the definition of the indicator',
-        rationale: 'Invalid input: expected string, received number',
+        rationale: ANSWER_NOT_READ,
       },
+    });
+    expect(updateDraft).not.toHaveBeenCalled();
+  });
+
+  it('gives a written message to an answer missing from the body', async () => {
+    const updateDraft = vi.fn();
+    const findById = vi.fn().mockResolvedValue({ draftLocked: false });
+
+    const response = await request(createTestApp({ updateDraft, findById }))
+      .put(path)
+      .set('Cookie', await publisherCookie())
+      .send({ answers: { definition: 'A definition' }, version: storedVersion });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: { rationale: ANSWER_NOT_READ },
     });
     expect(updateDraft).not.toHaveBeenCalled();
   });
@@ -339,6 +362,56 @@ describe('PUT on a section', () => {
       .send(save);
 
     expect(await handlerLogLines(lines)).toEqual([]);
+  });
+});
+
+describe('PUT on the justifications section', () => {
+  // Five textareas of 10,000 emoji, each 4 bytes in UTF-8: the largest save any section takes.
+  const longest = '\u{1F600}'.repeat(LONG_TEXT_MAX_LENGTH);
+  const largestAnswers = {
+    ciMethodJustification: longest,
+    dataSourcesJustification: longest,
+    inequalitiesIncluded: longest,
+    hasExclusions: 'yes',
+    exclusionsDetail: longest,
+    hasAutomation: 'yes',
+    automationDetail: longest,
+  };
+
+  it('saves the largest answers the contract allows', async () => {
+    const repositories = createFakeInternalRepositories({
+      indicators: {
+        ...inTestTeam,
+        updateDraft: vi.fn().mockResolvedValue({ ok: true }),
+        findDraftState: vi.fn().mockResolvedValue(draftState),
+      },
+    });
+    const app = createRouterTestApp(
+      indicatorSectionRouter(
+        repositories.indicators,
+        testSessionVerifier,
+        justificationsSection,
+        justificationsColumns,
+      ),
+    );
+    const sent = { answers: largestAnswers, version: storedVersion };
+
+    expect(Buffer.byteLength(JSON.stringify(sent))).toBeGreaterThan(200_000);
+
+    const response = await request(app)
+      .put(`/api/internal/indicators/${id}/justifications`)
+      .set('Cookie', await publisherCookie())
+      .send(sent);
+
+    expect(response.status).toBe(200);
+    expect(repositories.indicators.updateDraft).toHaveBeenCalledWith(
+      id,
+      'justifications',
+      expect.objectContaining({ ciMethodJustification: longest, automationDetail: longest }),
+      {},
+      testActor(response),
+      expect.anything(),
+    );
   });
 });
 

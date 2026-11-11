@@ -31,6 +31,7 @@ import {
   publishedVersion,
   publishedVersionJoin,
   type Transaction,
+  violatesConstraint,
 } from './indicator-repository-sql.ts';
 import {
   ageRangesOf,
@@ -222,9 +223,14 @@ export interface CreatedIndicatorDraft {
   versionId: string;
 }
 
+/**
+ * The draft created, or the one an earlier copy of the same request created, marked `repeated`.
+ * `id_taken` means another indicator has the id, and the request is not a repeat of the one that
+ * created it.
+ */
 export type CreateIndicatorDraftResult =
-  | ({ ok: true } & CreatedIndicatorDraft)
-  | { ok: false; reason: 'slug_taken' };
+  | ({ ok: true; repeated?: true } & CreatedIndicatorDraft)
+  | { ok: false; reason: 'slug_taken' | 'id_taken' };
 
 export type UpdateIndicatorDraftResult =
   | { ok: true }
@@ -248,9 +254,53 @@ function draftSlug(name: string): string {
   return slugify(name);
 }
 
-/** A new indicator is an identity in a team and a draft version; the database mints both ids. */
+/**
+ * What an earlier copy of this create request made, if one did: the draft of the indicator with
+ * this id, in this team, created by this user and still under this name. When another indicator
+ * has the id it answers `id_taken`, and when the id is free it answers undefined.
+ */
+async function earlierCreation(
+  tx: Transaction,
+  id: string,
+  name: string,
+  actor: Actor,
+  teamId: string,
+): Promise<CreateIndicatorDraftResult | undefined> {
+  const [existing] = await tx
+    .select({
+      teamId: indicator.teamId,
+      shortId: indicator.shortId,
+      versionId: indicatorVersion.id,
+      name: indicatorVersion.name,
+      createdBy: indicatorVersion.createdBy,
+    })
+    .from(indicator)
+    .leftJoin(
+      indicatorVersion,
+      and(eq(indicatorVersion.indicatorId, indicator.id), isUnpublished(indicatorVersion.status)),
+    )
+    .where(eq(indicator.id, id));
+
+  if (existing === undefined) return undefined;
+
+  const { versionId } = existing;
+  const repeated =
+    existing.teamId === teamId && existing.createdBy === actor.userId && existing.name === name;
+
+  return versionId !== null && repeated
+    ? { ok: true, repeated: true, indicatorId: id, shortId: existing.shortId, versionId }
+    : { ok: false, reason: 'id_taken' };
+}
+
+/**
+ * A new indicator is an identity in a team and a draft version. The indicator takes the id the
+ * name page minted, and the database mints the version's. A repeat of a create that went
+ * through, such as a double click, answers with the indicator it made and writes nothing. Two
+ * copies of one request wait on the same slug lock, so the second finds the first's indicator.
+ */
 export async function createIndicatorDraft(
   db: Database,
+  id: string,
   attributes: NewIndicatorDraftAttributes,
   actor: Actor,
   teamId: string,
@@ -261,9 +311,13 @@ export async function createIndicatorDraft(
     return await db.transaction(async (tx) => {
       await lockSlugs(tx, [slug]);
 
+      const earlier = await earlierCreation(tx, id, attributes.name, actor, teamId);
+
+      if (earlier !== undefined) return earlier;
+
       const [identity] = await tx
         .insert(indicator)
-        .values({ teamId })
+        .values({ id, teamId })
         .returning({ id: indicator.id, shortId: indicator.shortId });
 
       if (identity === undefined) throw new Error('createIndicatorDraft inserted no indicator');
@@ -299,6 +353,8 @@ export async function createIndicatorDraft(
     });
   } catch (error) {
     if (hasSqlState(error, EXCLUSION_VIOLATION)) return { ok: false, reason: 'slug_taken' };
+    // Requests under two names took different slug locks, so both may try to insert the id.
+    if (violatesConstraint(error, 'indicator_pkey')) return { ok: false, reason: 'id_taken' };
     throw error;
   }
 }

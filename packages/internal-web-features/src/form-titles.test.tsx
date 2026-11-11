@@ -149,6 +149,7 @@ const forms: {
     name: 'new indicator',
     route: newIndicator,
     pageTitle: 'What is the name of the indicator?',
+    loaderData: { id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b' },
     rejected: { values: { name: '' }, fieldErrors: { name: 'Enter the name of the indicator' } },
   },
   {

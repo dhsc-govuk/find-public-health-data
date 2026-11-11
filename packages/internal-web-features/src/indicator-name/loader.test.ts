@@ -1,4 +1,5 @@
 import { TEAM_IDS } from '@fphd/auth';
+import { indicatorCreateIdSchema } from '@fphd/internal-api-features/contract';
 import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { RouterContextProvider } from 'react-router';
@@ -27,18 +28,22 @@ const created = {
   draftStatus: 'draft',
 };
 
+// The id the name page minted for the new indicator.
+const NEW_ID = '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b';
+
 async function submit(
   name: string,
   post: ApiClient['post'],
   {
     teams = [TEAM_IDS.teamA],
     url = 'https://internal.test/publish/indicators/new',
-  }: { teams?: readonly string[]; url?: string } = {},
+    id = NEW_ID,
+  }: { teams?: readonly string[]; url?: string; id?: string | null } = {},
 ) {
   const context = await signedInContext(['publisher'], teams);
   context.set(apiContext, { post } as unknown as ApiClient);
 
-  const body = new URLSearchParams({ name });
+  const body = new URLSearchParams(id === null ? { name } : { name, id });
 
   return createIndicator({
     context,
@@ -67,13 +72,23 @@ const TEAM_PAGE = '/publish/indicators/new/team';
 
 describe('loadNewIndicator', () => {
   it('asks a publisher in one team for the name, with no team to choose', async () => {
-    await expect(loadNew(NEW_URL, [TEAM_IDS.teamB])).resolves.toBeNull();
+    await expect(loadNew(NEW_URL, [TEAM_IDS.teamB])).resolves.toEqual({ id: expect.any(String) });
   });
 
   it('asks a publisher in several teams for the name once they have chosen one', async () => {
     const url = `${NEW_URL}?team=${TEAM_IDS.teamB}`;
 
-    await expect(loadNew(url, [TEAM_IDS.teamA, TEAM_IDS.teamB])).resolves.toBeNull();
+    await expect(loadNew(url, [TEAM_IDS.teamA, TEAM_IDS.teamB])).resolves.toEqual({
+      id: expect.any(String),
+    });
+  });
+
+  it('mints a new UUIDv7 for the indicator each time it shows the page', async () => {
+    const first = await loadNew(NEW_URL, [TEAM_IDS.teamB]);
+    const second = await loadNew(NEW_URL, [TEAM_IDS.teamB]);
+
+    expect(indicatorCreateIdSchema.safeParse(first).success).toBe(true);
+    expect(second.id).not.toBe(first.id);
   });
 
   it('sends a publisher in several teams to choose one first', async () => {
@@ -109,6 +124,7 @@ describe('createIndicator', () => {
     expect(post.mock.calls[0]?.[1]).toEqual({
       name: 'Life expectancy at birth',
       teamId: TEAM_IDS.teamA,
+      id: NEW_ID,
     });
     expect(outcome).toBeInstanceOf(Response);
     expect((outcome as Response).status).toBe(302);
@@ -125,6 +141,7 @@ describe('createIndicator', () => {
     expect(post.mock.calls[0]?.[1]).toEqual({
       name: 'Life expectancy at birth',
       teamId: TEAM_IDS.teamA,
+      id: NEW_ID,
     });
   });
 
@@ -139,6 +156,34 @@ describe('createIndicator', () => {
     expect(post.mock.calls[0]?.[1]).toEqual({
       name: 'Life expectancy at birth',
       teamId: TEAM_IDS.teamB,
+      id: NEW_ID,
+    });
+  });
+
+  it.each([
+    ['no id', null],
+    ['an id that is not a UUIDv7', '7c9e6679-7425-40de-944b-e07fc1f90ae7'],
+  ])('mints an id for a form that sent %s', async (_case, id) => {
+    const post = accepts();
+
+    await submit('Life expectancy at birth', post, { id });
+
+    const sent = post.mock.calls[0]?.[1];
+    expect(indicatorCreateIdSchema.safeParse(sent).success).toBe(true);
+    expect(sent.id).not.toBe(id);
+  });
+
+  it('shows that nothing was saved when the API finds the id taken', async () => {
+    const post = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 409, error: { error: 'id_taken' } });
+
+    const outcome = await submit('Life expectancy at birth', post);
+
+    expect(outcome).toEqual({
+      values: { name: 'Life expectancy at birth' },
+      fieldErrors: {},
+      formError: FORM_NOT_SAVED,
     });
   });
 

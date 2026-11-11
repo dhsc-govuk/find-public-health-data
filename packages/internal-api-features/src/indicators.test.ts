@@ -4,6 +4,7 @@ import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ANSWER_NOT_READ } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import type { IndicatorAdminDetailRow, IndicatorAdminRow } from './indicator-list-repository.ts';
 import { INDICATORS_PAGE_SIZE, internalIndicatorsRouter } from './indicators.ts';
@@ -24,6 +25,8 @@ import {
 
 const TEAM_ID = TEST_TEAM_ID;
 const OTHER_TEAM_ID = '00000000-0000-7000-8000-00000000000b';
+// The id the name page minted for a new indicator.
+const NEW_ID = '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b';
 
 const row: IndicatorAdminRow = {
   id: '00000000-0000-7000-8000-000000000001',
@@ -441,7 +444,7 @@ describe('POST /api/internal/indicators', () => {
   it('rejects an anonymous request', async () => {
     const response = await request(createTestApp())
       .post('/api/internal/indicators')
-      .send({ name: 'A new indicator', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'A new indicator', teamId: TEAM_ID });
 
     expect(response.status).toBe(401);
     expect(response.body).toEqual({ error: 'authentication_required' });
@@ -451,7 +454,7 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp())
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie([]))
-      .send({ name: 'A new indicator', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'A new indicator', teamId: TEAM_ID });
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -463,7 +466,7 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft }))
       .post('/api/internal/indicators')
       .set('Cookie', await testSessionCookie(['publisher'], []))
-      .send({ name: 'A new indicator', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'A new indicator', teamId: TEAM_ID });
 
     expect(response.status).toBe(403);
     expect(createDraft).not.toHaveBeenCalled();
@@ -491,7 +494,7 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft }))
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: 'A new indicator', teamId: OTHER_TEAM_ID });
+      .send({ id: NEW_ID, name: 'A new indicator', teamId: OTHER_TEAM_ID });
 
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: 'forbidden' });
@@ -504,10 +507,11 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft, findById: async () => draftRow }))
       .post('/api/internal/indicators')
       .set('Cookie', await testSessionCookie(['publisher'], [TEAM_ID, OTHER_TEAM_ID]))
-      .send({ name: 'Life expectancy at birth', teamId: OTHER_TEAM_ID });
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: OTHER_TEAM_ID });
 
     expect(response.status).toBe(201);
     expect(createDraft).toHaveBeenCalledWith(
+      NEW_ID,
       { name: 'Life expectancy at birth' },
       testActor(response),
       OTHER_TEAM_ID,
@@ -521,10 +525,11 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft, findById }))
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: 'Life expectancy at birth', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: TEAM_ID });
 
     expect(response.status).toBe(201);
     expect(createDraft).toHaveBeenCalledWith(
+      NEW_ID,
       { name: 'Life expectancy at birth' },
       testActor(response),
       TEAM_ID,
@@ -557,9 +562,10 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft, findById: async () => draftRow }))
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: '  Life expectancy at birth  ', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: '  Life expectancy at birth  ', teamId: TEAM_ID });
 
     expect(createDraft).toHaveBeenCalledWith(
+      NEW_ID,
       { name: 'Life expectancy at birth' },
       testActor(response),
       TEAM_ID,
@@ -573,7 +579,7 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft, findById }))
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: 'Life expectancy at birth', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: TEAM_ID });
 
     expect(response.status).toBe(409);
     expect(response.body).toEqual({
@@ -589,12 +595,28 @@ describe('POST /api/internal/indicators', () => {
     const response = await request(createTestApp({ createDraft }))
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: '', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: '', teamId: TEAM_ID });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       error: 'validation_failed',
       fieldErrors: { name: 'Enter the name of the indicator' },
+    });
+    expect(createDraft).not.toHaveBeenCalled();
+  });
+
+  it('gives a written message to a name missing from the body', async () => {
+    const createDraft = vi.fn();
+
+    const response = await request(createTestApp({ createDraft }))
+      .post('/api/internal/indicators')
+      .set('Cookie', await publisherCookie())
+      .send({ id: NEW_ID, teamId: TEAM_ID });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: { name: ANSWER_NOT_READ },
     });
     expect(createDraft).not.toHaveBeenCalled();
   });
@@ -608,7 +630,7 @@ describe('POST /api/internal/indicators', () => {
     )
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: 'Life expectancy at birth', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: TEAM_ID });
 
     expect(await handlerLogLines(lines)).toEqual([
       expect.objectContaining({
@@ -623,6 +645,55 @@ describe('POST /api/internal/indicators', () => {
     expect(JSON.stringify(lines)).not.toContain(TEST_USER_ID);
   });
 
+  it.each([
+    ['names no id', { name: 'A new indicator', teamId: TEAM_ID }],
+    ['names an id that is not a UUID', { id: 'new', name: 'A new indicator', teamId: TEAM_ID }],
+    [
+      'names an id that is not a UUIDv7',
+      { id: '7c9e6679-7425-40de-944b-e07fc1f90ae7', name: 'A new indicator', teamId: TEAM_ID },
+    ],
+  ])('rejects a creation that %s, without creating anything', async (_case, body) => {
+    const createDraft = vi.fn();
+
+    const response = await request(createTestApp({ createDraft }))
+      .post('/api/internal/indicators')
+      .set('Cookie', await publisherCookie())
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_id' });
+    expect(createDraft).not.toHaveBeenCalled();
+  });
+
+  it('answers a repeat of a creation as the first, logging nothing', async () => {
+    const { logger, lines } = createCapturingLogger('internal-api');
+    const createDraft = vi.fn().mockResolvedValue({ ...created, repeated: true });
+    const app = createTestApp({ createDraft, findById: async () => draftRow }, logger);
+
+    const response = await request(app)
+      .post('/api/internal/indicators')
+      .set('Cookie', await publisherCookie())
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: TEAM_ID });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({ id: row.id, name: 'Life expectancy at birth' });
+    expect(await handlerLogLines(lines)).toEqual([]);
+  });
+
+  it('answers 409 for an id another indicator holds, reading nothing back', async () => {
+    const createDraft = vi.fn().mockResolvedValue({ ok: false, reason: 'id_taken' });
+    const findById = vi.fn();
+
+    const response = await request(createTestApp({ createDraft, findById }))
+      .post('/api/internal/indicators')
+      .set('Cookie', await publisherCookie())
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: TEAM_ID });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: 'id_taken' });
+    expect(findById).not.toHaveBeenCalled();
+  });
+
   it('logs nothing when the name is taken', async () => {
     const { logger, lines } = createCapturingLogger('internal-api');
 
@@ -631,7 +702,7 @@ describe('POST /api/internal/indicators', () => {
     )
       .post('/api/internal/indicators')
       .set('Cookie', await publisherCookie())
-      .send({ name: 'Life expectancy at birth', teamId: TEAM_ID });
+      .send({ id: NEW_ID, name: 'Life expectancy at birth', teamId: TEAM_ID });
 
     expect(await handlerLogLines(lines)).toEqual([]);
   });

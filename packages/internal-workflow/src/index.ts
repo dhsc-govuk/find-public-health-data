@@ -1,5 +1,6 @@
 export { hasSqlState, type Transaction, violatesConstraint } from './database.ts';
 export {
+  type IndicatorStepAlreadyTaken,
   type IndicatorStepChoice,
   type IndicatorStepOptions,
   type IndicatorStepPrecondition,

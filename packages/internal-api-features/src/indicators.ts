@@ -19,6 +19,7 @@ import {
   type IndicatorAdminPage,
   type IndicatorAdminSummary,
   type IndicatorTaskList,
+  indicatorCreateIdSchema,
   indicatorFieldSchema,
   indicatorListTeamsQuerySchema,
   indicatorNameSchema,
@@ -154,6 +155,13 @@ export function internalIndicatorsRouter(
       return;
     }
 
+    const identity = indicatorCreateIdSchema.safeParse(request.body);
+
+    if (!identity.success) {
+      response.status(400).json({ error: 'invalid_id' });
+      return;
+    }
+
     const submission = indicatorNameSchema.safeParse(request.body);
 
     if (!submission.success) {
@@ -165,20 +173,29 @@ export function internalIndicatorsRouter(
     }
 
     const created = await indicators.createDraft(
+      identity.data.id,
       submission.data,
       requireApiActor(request, response),
       teamId,
     );
+
+    if (!created.ok && created.reason === 'id_taken') {
+      response.status(409).json({ error: 'id_taken' });
+      return;
+    }
 
     if (!created.ok) {
       response.status(409).json({ error: 'slug_taken', fieldErrors: { name: NAME_TAKEN } });
       return;
     }
 
-    request.log.info(
-      { indicatorId: created.indicatorId, shortId: created.shortId },
-      'Indicator created',
-    );
+    // A repeat of a create that went through, such as a double click, created nothing to log.
+    if (!created.repeated) {
+      request.log.info(
+        { indicatorId: created.indicatorId, shortId: created.shortId },
+        'Indicator created',
+      );
+    }
 
     const row = await indicators.findById(created.indicatorId);
 
