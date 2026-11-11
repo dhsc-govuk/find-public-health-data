@@ -39,11 +39,15 @@ function navigationFor({ canManage, signedIn }: { canManage: boolean; signedIn: 
  * Reloads a page the browser restores from its back-forward cache when the user goes back or
  * forward. A restored page shows what it showed when the user left it, so a form could still
  * hold answers or hidden values the user has since replaced. Reloading asks the server again.
+ *
+ * The page is fetched again with a GET rather than reloaded. A page that was the response to a
+ * form post, such as the data table upload showing its errors, would otherwise be posted again,
+ * and the browser would ask the user to confirm sending the form a second time.
  */
 function useReloadWhenRestored() {
   useEffect(() => {
     const reload = (event: PageTransitionEvent) => {
-      if (event.persisted) window.location.reload();
+      if (event.persisted) window.location.replace(window.location.href);
     };
     window.addEventListener('pageshow', reload);
     return () => window.removeEventListener('pageshow', reload);

@@ -160,12 +160,14 @@ describe('internal application routes', () => {
     expect(screen.queryByRole('link', { name: 'Manage' })).toBeNull();
   });
 
+  const PAGE = 'http://localhost/publish/indicators/new';
+
   it.each([
-    ['reloads a page restored from the browser cache', true, 1],
-    ['leaves a freshly loaded page alone', false, 0],
-  ])('%s', async (_case, persisted, reloads) => {
-    const reload = vi.fn();
-    vi.stubGlobal('location', { ...window.location, reload });
+    ['fetches a page restored from the browser cache again', true, [[PAGE]]],
+    ['leaves a freshly loaded page alone', false, []],
+  ])('%s', async (_case, persisted, fetches) => {
+    const replace = vi.fn();
+    vi.stubGlobal('location', { ...window.location, href: PAGE, replace });
     const Routes = createRoutesStub([
       {
         path: '/',
@@ -182,7 +184,7 @@ describe('internal application routes', () => {
     Object.assign(shown, { persisted });
     fireEvent(window, shown);
 
-    expect(reload).toHaveBeenCalledTimes(reloads);
+    expect(replace.mock.calls).toEqual(fetches);
   });
 });
 
