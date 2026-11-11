@@ -1085,7 +1085,6 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         'period-type': 'not_started',
         'other-notes-and-caveats': 'not_started',
         'publishing-date': 'not_started',
-        links: 'not_started',
         'variance-and-quality': 'not_started',
         justifications: 'not_started',
         'other-comments': 'not_started',

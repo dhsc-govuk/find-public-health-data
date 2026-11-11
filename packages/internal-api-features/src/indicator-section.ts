@@ -152,7 +152,7 @@ export function yesNoDetailColumns<
   };
 }
 
-/** The path of a section's GET and PUT, such as `/api/internal/indicators/:id/links`. */
+/** The path of a section's GET and PUT, such as `/api/internal/indicators/:id/justifications`. */
 export function indicatorSectionPath(key: IndicatorTaskKey): string {
   return `/api/internal/indicators/:id/${key}`;
 }

@@ -6,7 +6,7 @@ import { createRouterTestApp } from './testing.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
 
-// About 150 kB of JSON: over the default 100 kB and under the 256 kB the larger sections take.
+// About 150 kB of JSON: over the default 100 kB and under the 256 kB Justifications takes.
 const overDefault = { answers: { text: 'x'.repeat(150_000) } };
 
 // Answers any section's PUT with the length of what the body parser read, so only the body
@@ -20,7 +20,7 @@ function createTestApp() {
 }
 
 describe('the internal API body limits', () => {
-  it.each(['justifications', 'links'])('reads a %s save over the default 100 kB', async (key) => {
+  it.each(['justifications'])('reads a %s save over the default 100 kB', async (key) => {
     const response = await request(createTestApp())
       .put(`/api/internal/indicators/${id}/${key}`)
       .send(overDefault);

@@ -24,12 +24,11 @@ import {
 } from './indicator-section-columns.ts';
 import {
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
   sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
-import { links, mortality, publishingDate, tagging } from './indicator-sections.testing.ts';
+import { mortality, publishingDate, tagging } from './indicator-sections.testing.ts';
 import {
   changesTask,
   type SavedTaskKey,
@@ -157,7 +156,6 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ...publishingDate,
       scheduledPublishAt: new Date('2027-09-14T08:30:00.000Z'),
     }),
-  links: () => savedFields(linksColumns, { hasLinks: 'yes', links }),
   'copyright-and-data-reuse': () =>
     savedFields(copyrightAndDataReuseColumns, {
       hasCustomCopyright: 'yes',

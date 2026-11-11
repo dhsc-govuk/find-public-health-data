@@ -304,8 +304,8 @@ describe('the internal role', () => {
 
   // Table-level, as the other publisher writes are.
   it.each(
-    ['indicator_version_link', 'indicator_version_age_range', 'indicator_version_source'].flatMap(
-      (table) => ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
+    ['indicator_version_age_range', 'indicator_version_source'].flatMap((table) =>
+      ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
     ),
   )('may %s %s', async (privilege, table) => {
     const [row] = await owner<{ granted: boolean }[]>`

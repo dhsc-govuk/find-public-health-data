@@ -9,7 +9,6 @@ import {
   definitionAndRationaleSection,
   denominatorSection,
   justificationsSection,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -39,7 +38,6 @@ import {
 } from './indicator-section-columns.ts';
 import {
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
   sexAndAgesColumns,
   taggingColumns,
@@ -116,7 +114,6 @@ export function indicatorSectionsRouter(
       publishingDateServerSection(now),
       publishingDateColumns,
     ),
-    indicatorSectionRouter(indicators, session, linksSection, linksColumns),
     indicatorSectionRouter(
       indicators,
       session,

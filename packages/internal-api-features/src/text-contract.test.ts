@@ -52,12 +52,6 @@ describe('shortText', () => {
     ]);
   });
 
-  it('takes a limit of its own, written with a thousands separator', () => {
-    expect(messages(shortText('Field', 2000).safeParse('a'.repeat(2001)))).toEqual([
-      'Field must be 2,000 characters or fewer',
-    ]);
-  });
-
   it.each([
     ['a tab', 'a\tb'],
     ['a newline', 'a\nb'],

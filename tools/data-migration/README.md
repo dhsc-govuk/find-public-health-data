@@ -91,8 +91,8 @@ moves to this service. The operations image applies the packages with `db migrat
   owning version; versions point at their batch, and observation keys carry sorted dimension-value
   UUIDs. The receiver resolves the version/batch cycle inside its import transaction.
 - Deleting a version also deletes the topic, classification and source rows the migration wrote for
-  it. A version a publisher has added links or age ranges to is never deleted; the import stops and
-  names the count.
+  it. A version a publisher has added age ranges to is never deleted; the import stops and names the
+  count.
 - Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
   observation keys stop the export with source-row diagnostics.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.

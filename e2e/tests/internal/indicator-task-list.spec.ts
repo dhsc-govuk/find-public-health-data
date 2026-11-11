@@ -27,7 +27,6 @@ const TASK_GROUPS = {
     'Confidence intervals',
     'Benchmarking',
     'Other notes and caveats',
-    'Links',
     'Tagging',
     'Copyright and data re-use',
   ],

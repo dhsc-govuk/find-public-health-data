@@ -3,12 +3,11 @@ import type { SexAndAges, Tagging } from './contract.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
 import {
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
   sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
-import { links, mortality, onsAlone, TAGS, tagging } from './indicator-sections.testing.ts';
+import { mortality, onsAlone, TAGS, tagging } from './indicator-sections.testing.ts';
 import { unansweredDraft } from './testing.ts';
 
 const draft = {
@@ -37,32 +36,6 @@ describe('numeratorColumns and denominatorColumns', () => {
     expect(numeratorColumns.toLists?.(answers)).toEqual({ numeratorSources: answers.sources });
     expect(denominatorColumns.toAttributes(answers)).toEqual({ denominatorDefinition: 'Deaths' });
     expect(denominatorColumns.toLists?.(answers)).toEqual({ denominatorSources: answers.sources });
-  });
-});
-
-describe('linksColumns', () => {
-  it.each([
-    [true, 'yes'],
-    [false, 'no'],
-    [null, null],
-  ])('reads whether there are links, %s, as %s', (hasLinks, answer) => {
-    expect(linksColumns.fromDraft({ ...unansweredDraft, hasLinks }).hasLinks).toBe(answer);
-  });
-
-  it('reads the links in the order they are held', () => {
-    expect(linksColumns.fromDraft({ ...unansweredDraft, hasLinks: true, links }).links).toEqual(
-      links,
-    );
-  });
-
-  it('writes the links beside "Yes"', () => {
-    expect(linksColumns.toAttributes({ hasLinks: 'yes', links })).toEqual({ hasLinks: true });
-    expect(linksColumns.toLists?.({ hasLinks: 'yes', links })).toEqual({ links });
-  });
-
-  it('clears the links beside "No"', () => {
-    expect(linksColumns.toAttributes({ hasLinks: 'no', links })).toEqual({ hasLinks: false });
-    expect(linksColumns.toLists?.({ hasLinks: 'no', links })).toEqual({ links: [] });
   });
 });
 

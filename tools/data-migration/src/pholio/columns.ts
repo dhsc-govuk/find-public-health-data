@@ -83,7 +83,6 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'caveats_detail',
     'has_other_notes',
     'other_notes_detail',
-    'has_links',
     'has_risk_factor',
     'has_framework',
     'has_custom_copyright',

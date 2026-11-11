@@ -65,21 +65,21 @@ describe('listChanges', () => {
   it('gives each list whose contents changed, whole', () => {
     expect(
       listChanges(
-        { links: [{ url: 'https://a.example', text: 'A' }] },
-        { links: [{ url: 'https://b.example', text: 'B' }] },
+        { numeratorSources: [{ providerId: 'a', sourceId: null }] },
+        { numeratorSources: [{ providerId: 'b', sourceId: null }] },
       ),
     ).toEqual({
-      links: {
-        before: [{ url: 'https://a.example', text: 'A' }],
-        after: [{ url: 'https://b.example', text: 'B' }],
+      numeratorSources: {
+        before: [{ providerId: 'a', sourceId: null }],
+        after: [{ providerId: 'b', sourceId: null }],
       },
     });
   });
 
   it('counts a reordered list as changed', () => {
-    expect(listChanges({ links: ['a', 'b'] }, { links: ['b', 'a'] })).toEqual({
-      links: { before: ['a', 'b'], after: ['b', 'a'] },
-    });
+    expect(listChanges({ numeratorSources: ['a', 'b'] }, { numeratorSources: ['b', 'a'] })).toEqual(
+      { numeratorSources: { before: ['a', 'b'], after: ['b', 'a'] } },
+    );
   });
 
   it('counts only the members of an unordered list', () => {
@@ -92,9 +92,11 @@ describe('listChanges', () => {
   });
 
   it('gives only the lists in after, an absent before being empty', () => {
-    expect(listChanges({ links: ['a'], topicIds: ['t'] }, { ageRanges: ['r'] })).toEqual({
-      ageRanges: { before: [], after: ['r'] },
-    });
+    expect(listChanges({ numeratorSources: ['a'], topicIds: ['t'] }, { ageRanges: ['r'] })).toEqual(
+      {
+        ageRanges: { before: [], after: ['r'] },
+      },
+    );
   });
 });
 

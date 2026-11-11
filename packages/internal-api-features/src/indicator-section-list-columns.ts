@@ -1,8 +1,5 @@
 import { CLASSIFICATION_DIMENSIONS } from '@fphd/utils/classification-dimension';
 import {
-  type Links,
-  type LinksAnswers,
-  type LinksField,
   type ProviderSources,
   type ProviderSourcesAnswers,
   type ProviderSourcesField,
@@ -42,16 +39,6 @@ export const denominatorColumns: IndicatorSectionColumns<
   }),
   toAttributes: ({ definition }) => ({ denominatorDefinition: definition }),
   toLists: ({ sources }) => ({ denominatorSources: sources }),
-};
-
-export const linksColumns: IndicatorSectionColumns<LinksField, Links, LinksAnswers> = {
-  fromDraft: ({ hasLinks, links }) => ({
-    hasLinks: yesNoAnswer(hasLinks),
-    links: links.map(({ url, text }) => ({ url, text })),
-  }),
-  toAttributes: ({ hasLinks }) => ({ hasLinks: hasLinks === 'yes' }),
-  // Links sent beside "No" are dropped, whatever the form sent.
-  toLists: ({ hasLinks, links }) => ({ links: hasLinks === 'yes' ? links : [] }),
 };
 
 // A limit or age the form accepted, which is a whole number or nothing.
