@@ -76,9 +76,9 @@ describe('SexAndAgesPage', () => {
     ).toBeTruthy();
     for (const group of [
       'What was collected for this indicator?',
-      'Enter included sexes',
-      'Enter included genders',
-      'Enter included ethnic groups',
+      'Select included sexes',
+      'Select included genders',
+      'Select included ethnic groups',
       'Select age type',
     ]) {
       expect(screen.getByRole('group', { name: group })).toBeTruthy();
@@ -113,9 +113,9 @@ describe('SexAndAgesPage', () => {
     });
 
     expect(reveals).toEqual([
-      ['Enter included sexes', true],
-      ['Enter included genders', false],
-      ['Enter included ethnic groups', true],
+      ['Select included sexes', true],
+      ['Select included genders', false],
+      ['Select included ethnic groups', true],
     ]);
   });
 
@@ -129,12 +129,12 @@ describe('SexAndAgesPage', () => {
       },
     });
 
-    expect(shown(boxesIn('Enter included sexes'))).toEqual([
+    expect(shown(boxesIn('Select included sexes'))).toEqual([
       ['sexes', 'persons', 'Person', true],
       ['sexes', 'females', 'Female', false],
       ['sexes', 'males', 'Male', true],
     ]);
-    expect(shown(boxesIn('Enter included genders'))).toEqual([
+    expect(shown(boxesIn('Select included genders'))).toEqual([
       ['genders', 'persons', 'Person', false],
       ['genders', 'women-and-girls', 'Woman or girl', false],
       ['genders', 'men-and-boys', 'Man or boy', false],
@@ -142,7 +142,7 @@ describe('SexAndAgesPage', () => {
       ['genders', 'other', 'Other', false],
       ['genders', 'prefer-not-to-say', 'Prefer not to say', false],
     ]);
-    expect(shown(boxesIn('Enter included ethnic groups'))).toEqual([
+    expect(shown(boxesIn('Select included ethnic groups'))).toEqual([
       ['ethnicGroups', 'asian', 'Asian, Asian British or Asian Welsh', false],
       ['ethnicGroups', 'black', 'Black, Black British, Black Welsh, Caribbean or African', true],
       ['ethnicGroups', 'mixed', 'Mixed or Multiple ethnic groups', false],
@@ -258,9 +258,9 @@ describe('SexAndAgesPage', () => {
         'Select what was collected for this indicator',
         `#${screen.getByRole('checkbox', { name: 'Sex' }).id}`,
       ],
-      ['Select the sexes included', `#${boxesIn('Enter included sexes')[0]?.id}`],
-      ['Select the genders included', `#${boxesIn('Enter included genders')[0]?.id}`],
-      ['Select the ethnic groups included', `#${boxesIn('Enter included ethnic groups')[0]?.id}`],
+      ['Select the sexes included', `#${boxesIn('Select included sexes')[0]?.id}`],
+      ['Select the genders included', `#${boxesIn('Select included genders')[0]?.id}`],
+      ['Select the ethnic groups included', `#${boxesIn('Select included ethnic groups')[0]?.id}`],
       ['Select the periods for the upper limit', `#${field('Periods for upper limit').id}`],
       [
         'You must enter at least a lower or upper limit for range 2',

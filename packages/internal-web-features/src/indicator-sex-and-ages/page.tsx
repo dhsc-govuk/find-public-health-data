@@ -49,10 +49,10 @@ function optionsOf<Value extends string>(values: readonly Value[], labels: Recor
 const INCLUDED: Readonly<
   Record<Demographic, { label: string; options: { value: string; label: string }[] }>
 > = {
-  sex: { label: 'Enter included sexes', options: optionsOf(SEXES, SEX_LABELS) },
-  gender: { label: 'Enter included genders', options: optionsOf(GENDERS, GENDER_LABELS) },
+  sex: { label: 'Select included sexes', options: optionsOf(SEXES, SEX_LABELS) },
+  gender: { label: 'Select included genders', options: optionsOf(GENDERS, GENDER_LABELS) },
   ethnicity: {
-    label: 'Enter included ethnic groups',
+    label: 'Select included ethnic groups',
     options: optionsOf(ETHNIC_GROUPS, ETHNIC_GROUP_LABELS),
   },
 };

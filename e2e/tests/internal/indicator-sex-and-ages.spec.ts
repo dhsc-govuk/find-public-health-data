@@ -14,9 +14,9 @@ const SECTION: Section = { key: 'sex-and-ages', taskName: 'Sex, gender and ethni
 const TITLE = 'Sex, gender and ethnicity';
 
 const COLLECTED = 'What was collected for this indicator?';
-const SEXES = 'Enter included sexes';
-const GENDERS = 'Enter included genders';
-const ETHNIC_GROUPS = 'Enter included ethnic groups';
+const SEXES = 'Select included sexes';
+const GENDERS = 'Select included genders';
+const ETHNIC_GROUPS = 'Select included ethnic groups';
 
 function label(page: Page, text: string) {
   return page.getByLabel(text, { exact: true });
