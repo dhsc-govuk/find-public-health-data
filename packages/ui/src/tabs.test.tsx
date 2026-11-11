@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import {
-  createMemoryRouter,
-  type LoaderFunction,
-  MemoryRouter,
-  RouterProvider,
-} from 'react-router';
+import { renderToString } from 'react-dom/server';
+import { createMemoryRouter, type LoaderFunction, RouterProvider } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Tabs } from './tabs.tsx';
 
@@ -216,30 +212,32 @@ it.each(['replace', 'push'] as const)(
   },
 );
 
-it('positions a shared mobile section after its streamed content has rendered', () => {
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
-  const view = (contentReady: boolean) => (
-    <MemoryRouter initialEntries={['/?panel=second']}>
-      <Tabs
-        paramKey="panel"
-        contentReady={contentReady}
-        items={[
-          { id: 'first', param: 'first', label: 'First', content: 'First panel' },
-          { id: 'second', param: 'second', label: 'Second', content: 'Second panel' },
-        ]}
-      />
-    </MemoryRouter>
-  );
-  const { rerender } = render(view(false));
-  const panel = screen.getByText('Second panel').closest('.govuk-tabs__panel');
-  if (!panel) throw new Error('Expected the second panel');
-  const scroll = vi.fn();
-  panel.scrollIntoView = scroll;
-  expect(scroll).not.toHaveBeenCalled();
-  rerender(view(true));
-  expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: 'start' });
-});
+it.each(['', '?panel=invalid', '?panel=second&area=kept'])(
+  'server renders only the selected page panel for %s',
+  (query) => {
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <Tabs
+              pageNavigation
+              paramKey="panel"
+              items={[
+                { id: 'first', param: 'first', label: 'First', content: 'First panel' },
+                { id: 'second', param: 'second', label: 'Second', content: 'Second panel' },
+              ]}
+            />
+          ),
+        },
+      ],
+      { initialEntries: [`/${query}`] },
+    );
+    const html = renderToString(<RouterProvider router={router} />);
+    const second = query.includes('panel=second');
+    expect(html).toContain(second ? 'Second panel' : 'First panel');
+    expect(html).not.toContain(second ? 'First panel' : 'Second panel');
+    expect(html).toContain('aria-current="page"');
+    expect(html).toContain(second ? '?panel=first&amp;area=kept#first' : '?panel=second#second');
+  },
+);

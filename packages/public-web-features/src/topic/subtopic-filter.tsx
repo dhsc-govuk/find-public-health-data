@@ -26,9 +26,7 @@ export function TopicSubtopicFilter({
   );
   const selected = params.getAll('subtopic');
   const extraParams = {
-    ...Object.fromEntries(
-      [...params].filter(([key]) => key === 'columns-topic' || key === 'render'),
-    ),
+    ...Object.fromEntries([...params].filter(([key]) => key === 'columns-topic')),
     'tab-topic': tab,
     sort: params.get('sort') ?? sort,
   };

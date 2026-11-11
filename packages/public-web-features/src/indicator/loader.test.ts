@@ -68,40 +68,28 @@ function args(
 }
 
 describe('loadIndicator', () => {
-  it('returns the page metadata while observations and rankings are still pending', async () => {
-    const { client, get } = api();
-    const gate = Promise.withResolvers<void>();
-    const read = client.get;
-    const delayed = {
-      ...client,
-      get: vi.fn(async (path, schema) => {
-        if (path.includes('/data?') || path.includes('/ranking?')) await gate.promise;
-        return read(path, schema);
-      }),
-    } as ApiClient;
-    const page = await loadIndicatorPage(args(delayed));
-    try {
-      expect(page.detail.shortId).toBe(108);
-      expect(page.data).toBeInstanceOf(Promise);
-      expect(page.comparison).toBeInstanceOf(Promise);
-      expect(get.mock.calls.some(([path]) => path.includes('/data?'))).toBe(false);
-    } finally {
-      gate.resolve();
-    }
-    const [data, comparison] = await Promise.all([page.data, page.comparison]);
-    expect(data.selected[0]?.detail.shortId).toBe(108);
-    expect(comparison.compareAreaOptions).toHaveLength(25);
-  });
-
-  it('waits for complete content only when explicitly requested', async () => {
-    const { client } = api();
-    const page = await loadIndicatorPage(
-      args(client, 'http://localhost/indicator/indicator-108?render=complete'),
-    );
-    expect(page.complete).toBe(true);
-    expect(page.data).not.toBeInstanceOf(Promise);
-    expect(page.comparison).not.toBeInstanceOf(Promise);
-  });
+  it.each(['indicator', 'areas', 'compare', 'inequalities', 'about', 'invalid', ''])(
+    'finishes shared data and only the selected %s tab',
+    async (tab) => {
+      const { client, get } = api();
+      const page = await loadIndicatorPage(
+        args(
+          client,
+          `http://localhost/indicator/indicator-108?tab-indicator=${tab}&find=diabetes&as=E06000052`,
+        ),
+      );
+      expect(page.data).not.toBeInstanceOf(Promise);
+      expect(page.data.selected[0]?.detail.shortId).toBe(108);
+      expect(page.comparison).not.toBeInstanceOf(Promise);
+      expect(get.mock.calls.some(([path]) => path.includes('/ranking?'))).toBe(tab === 'areas');
+      expect(get.mock.calls.some(([path]) => path.startsWith('/api/indicators?q='))).toBe(
+        tab === 'compare',
+      );
+      expect(get.mock.calls.some(([path]) => path.startsWith('/api/areas/lookup'))).toBe(
+        ['indicator', 'invalid', ''].includes(tab),
+      );
+    },
+  );
 
   it('requires one route indicator before any API request', async () => {
     const { client, get } = api();
@@ -242,7 +230,10 @@ describe('loadIndicator', () => {
   it('returns server matches for a no-script comparison search', async () => {
     const { client, get } = api();
     const result = await loadIndicator(
-      args(client, 'http://localhost/indicator/indicator-108?find=+diabetes+'),
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?tab-indicator=compare&find=+diabetes+',
+      ),
     );
     expect(get).toHaveBeenCalledWith('/api/indicators?q=diabetes&limit=20', expect.anything());
     expect(result.findResults).toEqual([
@@ -270,9 +261,9 @@ describe('loadIndicator', () => {
     ]);
   });
 
-  it('loads every section and requests compact rankings for all comparison areas', async () => {
+  it('requests compact rankings only for comparison areas', async () => {
     const { client, get } = api();
-    for (const query of ['', '?tab-indicator=areas']) {
+    for (const query of ['?tab-indicator=areas']) {
       get.mockClear();
       const result = await loadIndicator(
         args(client, `http://localhost/indicator/indicator-108${query}`),

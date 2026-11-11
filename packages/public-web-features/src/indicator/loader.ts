@@ -82,6 +82,7 @@ export interface BenchmarkGeography {
 }
 
 export interface IndicatorPageData {
+  tab: string;
   detail: IndicatorDetail;
   compared: IndicatorDetail | undefined;
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
@@ -142,14 +143,14 @@ export async function loadIndicatorData(
   const comparedDetail = page?.compared;
   const indicatorGroups = page?.groups;
   const singlePage = page !== undefined;
-  const includePageData = singlePage;
+  const includePageData = singlePage && page.tab === 'indicator';
 
   // De-duplicated: a hand-edited URL repeating a code would otherwise fetch it twice and
   // render it twice.
   const requestedAreaCodes = pickAreaCodes(
     url.searchParams.getAll('as'),
     Number.POSITIVE_INFINITY,
-  ).filter((code) => code !== DEFAULT_AREA_CODE);
+  ).filter((code) => code !== DEFAULT_AREA_CODE && (!singlePage || includePageData));
   const areaCodes = requestedAreaCodes.slice(0, MAX_SELECTED_AREAS);
   let requestedLevels = [
     ...new Set(
@@ -159,7 +160,7 @@ export async function loadIndicatorData(
     ),
   ].slice(0, MAX_AREA_GROUPS_PER_REQUEST);
 
-  if (singlePage) requestedLevels = normalizePublicLevels(requestedLevels);
+  if (singlePage) requestedLevels = includePageData ? normalizePublicLevels(requestedLevels) : [];
 
   // A whole-level selection ("Local authorities") rides in the URL as its name; its
   // areas are resolved here, subject to the same cap as hand-picked codes.
@@ -307,7 +308,7 @@ export async function loadIndicatorData(
   const findSubject =
     url.searchParams.get('find')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
   const findResults =
-    includePageData && findSubject
+    singlePage && page.tab === 'compare' && findSubject
       ? (
           await api.get(
             `/api/indicators?q=${encodeURIComponent(findSubject)}&limit=${DEFAULT_INDICATOR_SEARCH_RESULTS}`,

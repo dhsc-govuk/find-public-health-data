@@ -26,9 +26,7 @@ export function TopicGeographies({
       : location.search,
   );
   const extraParams = {
-    ...Object.fromEntries(
-      [...params].filter(([key]) => key === 'sort' || key === 'columns-topic' || key === 'render'),
-    ),
+    ...Object.fromEntries([...params].filter(([key]) => key === 'sort' || key === 'columns-topic')),
     'tab-topic': tab,
   };
   const urlFor = (gaCodes: string[], geoLevels: string[]) => {

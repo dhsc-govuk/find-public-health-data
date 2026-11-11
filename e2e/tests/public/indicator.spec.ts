@@ -8,65 +8,43 @@ test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
 });
 
-test('streams the indicator heading and navigation before observations and rankings', async ({
-  page,
-}) => {
-  const response = await page.request.get(MORTALITY_PATH, {
-    headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36' },
-  });
-  expect(response.ok()).toBe(true);
-  const html = await response.text();
-  const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
-  expect(shell).toContain(MORTALITY_NAME);
-  expect(shell).toContain('indicator-compare-areas');
-  expect(shell).toContain('Loading indicator data');
-  expect(shell).toContain('Loading area comparisons');
-  expect(html).toContain('<table');
+test('serves finished HTML for only the selected indicator section', async ({ page }) => {
+  for (const query of ['', '?tab-indicator=about']) {
+    const response = await page.request.get(`${MORTALITY_PATH}${query}`);
+    expect(response.ok()).toBe(true);
+    const html = await response.text();
+    const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+    expect(shell).toContain(MORTALITY_NAME);
+    expect(shell).not.toContain('Loading ');
+    expect(shell).not.toContain('Show all sections');
+    expect(shell?.includes('Data attributes')).toBe(query !== '');
+    expect(shell?.includes('<table')).toBe(query === '');
+  }
 });
 
-test('keeps Compare areas in view when changing to mobile and opening its shared link', async ({
-  page,
-}, testInfo) => {
+test('shows one mobile indicator section and links to the others', async ({ page }, testInfo) => {
   await page.getByRole('tab', { name: 'Compare areas', exact: true }).click();
   const panel = page.locator('#indicator-compare-areas');
-  const heading = panel.getByRole('heading', { level: 2, name: 'Compare areas', exact: true });
   const selector = panel.getByRole('combobox', { name: 'Type of geography', exact: true });
   await expect(selector).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(heading).toBeInViewport();
   await expect(selector).toBeInViewport();
   await expect(selector).toHaveJSProperty('tagName', 'SELECT');
-  for (const id of [
-    'indicator-data',
-    'indicator-compare-areas',
-    'indicator-compare-indicators',
-    'indicator-inequalities',
-    'indicator-about',
-  ]) {
-    await expect(page.locator(`#${id}`)).toBeVisible();
-  }
-  await expect(
-    page.locator('#indicator-data').getByRole('table', { name: /^Table:/ }),
-  ).toBeVisible();
-  await expect(
-    page.locator('#indicator-compare-indicators').getByLabel('Search for an indicator'),
-  ).toBeVisible();
-  await expect(page.getByRole('table', { name: /Table of inequalities/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Data attributes' })).toBeVisible();
+  await expect(page.locator('.govuk-tabs__panel:not([hidden])')).toHaveCount(1);
+  await expect(page.locator('.govuk-tabs__list [aria-current="page"]')).toHaveText('Compare areas');
+  await expect(page.locator('#indicator-data')).toBeHidden();
   await page.reload();
-  await expect(heading).toBeInViewport();
   await expect(selector).toBeInViewport();
   await expectNoAccessibilityViolations(page, testInfo);
   await page
     .locator('.govuk-tabs__list')
     .getByRole('link', { name: 'Compare indicators', exact: true })
     .click();
-  await expect(page).toHaveURL(/#indicator-compare-indicators$/);
+  await expect(page).toHaveURL(/tab-indicator=compare#indicator-compare-indicators$/);
   await expect(
-    page
-      .locator('#indicator-compare-indicators')
-      .getByRole('heading', { name: 'Compare indicators', exact: true }),
-  ).toBeInViewport();
+    page.locator('#indicator-compare-indicators').getByLabel('Search for an indicator'),
+  ).toBeVisible();
+  await expect(panel).toBeHidden();
 });
 
 test('shows one indicator with its summary and five sections', async ({ page }, testInfo) => {
@@ -118,9 +96,7 @@ test('keeps the active section in the URL and supports arrow keys', async ({ pag
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 });
 
-test('switches between loaded indicator sections without another data request', async ({
-  page,
-}, testInfo) => {
+test('fetches the selected indicator section on tab navigation', async ({ page }, testInfo) => {
   const areas = page.getByRole('tab', { name: 'Compare areas', exact: true });
   const table = page.getByRole('table', { name: /Table of area comparisons/ });
   await expect(table).toHaveCount(0);
@@ -137,11 +113,11 @@ test('switches between loaded indicator sections without another data request', 
   await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
   await expect(page).toHaveURL(/tab-indicator=about/);
   await expect(page.getByRole('heading', { name: 'Data attributes' })).toBeVisible();
-  expect(reads).toEqual([]);
+  expect(reads.length).toBeGreaterThan(0);
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('loads every indicator section through the JavaScript-free fallback and keeps comparison search in view', async ({
+test('loads one indicator section without JavaScript and keeps comparison search in view', async ({
   browser,
   baseURL,
 }) => {
@@ -154,7 +130,8 @@ test('loads every indicator section through the JavaScript-free fallback and kee
   const withoutJs = await context.newPage();
   try {
     await withoutJs.goto(MORTALITY_PATH);
-    await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
+    await withoutJs.evaluate(() => document.fonts.ready);
+    await expect(withoutJs.getByRole('table', { name: /^Table:/ })).toBeVisible();
     for (const [label, anchor, content] of [
       [
         'Compare areas',
@@ -178,10 +155,11 @@ test('loads every indicator section through the JavaScript-free fallback and kee
       ],
       ['Indicator', 'indicator-data', withoutJs.getByRole('table', { name: /^Table:/ })],
     ] as const) {
-      await expect(content).toBeVisible();
       await withoutJs.getByRole('link', { name: label, exact: true }).click();
       await expect(withoutJs).toHaveURL(new RegExp(`#${anchor}$`));
       await expect(content).toBeVisible();
+      await expect(withoutJs.locator('.govuk-tabs__panel:not([hidden])')).toHaveCount(1);
+      await withoutJs.evaluate(() => document.fonts.ready);
     }
     await withoutJs.getByRole('link', { name: 'Compare indicators', exact: true }).click();
     const compare = withoutJs.locator('#indicator-compare-indicators');
@@ -556,7 +534,7 @@ test('keeps the full tab labels in one connected row at tablet and desktop width
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('shows Contents links and every section on first load on small screens', async ({
+test('shows Contents links and only the selected section on small screens', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 1000 });
@@ -564,9 +542,7 @@ test('shows Contents links and every section on first load on small screens', as
   await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);
   await expect(page.getByRole('tab')).toHaveCount(0);
   await expect(page.getByRole('tablist')).toHaveCount(0);
-  await expect(
-    page.getByRole('heading', { name: `${MORTALITY_NAME} contents`, exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Contents', exact: true })).toBeVisible();
   const ids = [
     'indicator-data',
     'indicator-compare-areas',
@@ -581,22 +557,24 @@ test('shows Contents links and every section on first load on small screens', as
     'Inequalities',
     'About this indicator',
   ];
+  await expect(page.locator('.govuk-tabs__list [aria-current="page"]')).toHaveText('Indicator');
   for (const [index, label] of labels.entries()) {
+    if (index === 0) continue;
     await expect(
       page.locator('.govuk-tabs__list').getByRole('link', { name: label, exact: true }),
     ).toHaveAttribute('href', new RegExp(`#${ids[index]}$`));
-    await expect(
-      page.locator(`#${ids[index]}`).getByRole('heading', { level: 2, name: label, exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(`#${ids[index]}`)).toBeHidden();
   }
   await expect(page.getByRole('region', { name: `${MORTALITY_NAME} trend chart` })).toBeVisible();
   const map = page.getByRole('region', { name: `${MORTALITY_NAME} map` });
-  await expect(map).toBeVisible();
+  await expect(map).toHaveCount(0);
   await page
     .locator('.govuk-tabs__list')
     .getByRole('link', { name: 'Compare areas', exact: true })
     .click();
   await expect(page).toHaveURL(/#indicator-compare-areas$/);
+  await expect(map).toBeVisible();
+  await expect(page.locator('#indicator-data')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
   await expectNoAccessibilityViolations(page, testInfo);
   await page
@@ -611,9 +589,7 @@ test('shows Contents links and every section on first load on small screens', as
   );
 });
 
-test('keeps the indicator comparison controls accessible in the stacked mobile view', async ({
-  page,
-}, testInfo) => {
+test('keeps the mobile indicator comparison controls accessible', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 1000 });
   await page.goto(`${MORTALITY_PATH}?compareWith=diabetes-qof-prevalence`);
   await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);

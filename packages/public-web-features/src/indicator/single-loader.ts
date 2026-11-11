@@ -59,33 +59,52 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
     }
   }
 
-  const groups = api.get(
-    `${apiPath`/api/indicators/${routeDetail.slug}/areas`}?limit=${MAX_AREA_PREVIEW}`,
-    areaDisplayGroupListSchema,
-  );
-  const data = groups.then((groups) =>
+  const requestedTab = url.searchParams.get('tab-indicator');
+  const tab = isOneOf(
+    ['indicator', 'areas', 'compare', 'inequalities', 'about'] as const,
+    requestedTab,
+  )
+    ? requestedTab
+    : comparedDetail
+      ? 'compare'
+      : 'indicator';
+  const groups =
+    tab === 'indicator' || tab === 'areas' || (tab === 'compare' && comparedDetail)
+      ? await api.get(
+          `${apiPath`/api/indicators/${routeDetail.slug}/areas`}?limit=${MAX_AREA_PREVIEW}`,
+          areaDisplayGroupListSchema,
+        )
+      : [];
+  const [data, comparison] = await Promise.all([
     loadIndicatorData(args, {
-      page: { detail: routeDetail, compared: comparedDetail, groups },
+      page: {
+        detail: routeDetail,
+        compared: tab === 'compare' ? comparedDetail : undefined,
+        groups,
+        tab,
+      },
     }),
-  );
-  const comparison = groups.then((groups) =>
-    loadIndicatorComparison(args, routeDetail, comparedDetail, groups),
-  );
-  const complete = url.searchParams.get('render') === 'complete';
-  const completed = complete ? await Promise.all([data, comparison]) : undefined;
-  return {
-    detail: routeDetail,
-    comparedDetail,
-    data: completed ? completed[0] : data,
-    comparison: completed ? completed[1] : comparison,
-    complete,
-  };
+    tab === 'areas' || (tab === 'compare' && comparedDetail)
+      ? loadIndicatorComparison(
+          args,
+          routeDetail,
+          tab === 'compare' ? comparedDetail : undefined,
+          groups,
+        )
+      : {
+          compareAreasData: [],
+          comparedAreasData: [],
+          compareAreaOptions: [],
+          compareAreaGroup: '',
+          comparisonDisplayGroups: [],
+        },
+  ]);
+  return { detail: routeDetail, comparedDetail, data, comparison };
 }
 
 export async function loadIndicator(args: LoaderFunctionArgs) {
   const page = await loadIndicatorPage(args);
-  const [data, comparison] = await Promise.all([page.data, page.comparison]);
-  return { ...data, ...comparison };
+  return { ...page.data, ...page.comparison };
 }
 
 async function loadIndicatorComparison(

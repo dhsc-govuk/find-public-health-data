@@ -7,13 +7,12 @@ import {
   topicTrendSummarySchema,
 } from '@fphd/public-api-features/contract';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
-import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-server/api-client';
+import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import { type LoaderFunctionArgs, RouterContextProvider } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 import { areasInGeographyGroup } from '../geography/groups.ts';
 import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
-import { DIMENSIONS } from '../search/url.ts';
 import { TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
 import { topicDataKey } from './filters.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
@@ -29,72 +28,36 @@ export async function loadTopics({ context }: LoaderFunctionArgs) {
 }
 
 export async function loadTopicPage(args: LoaderFunctionArgs) {
-  const api = args.context.get(apiContext);
-  const reads = new Map<object, Map<string, Promise<unknown>>>();
-  const sharedApi: ApiClient = {
-    ...api,
-    get<T>(path: string, schema: ApiResponseSchema<T>): Promise<T> {
-      let paths = reads.get(schema);
-      if (!paths) {
-        paths = new Map();
-        reads.set(schema, paths);
-      }
-      const existing = paths.get(path);
-      if (existing) return existing as Promise<T>;
-      const pending = api.get(path, schema);
-      paths.set(path, pending);
-      return pending;
-    },
-  };
-  const context = new RouterContextProvider();
-  context.set(apiContext, sharedApi);
-  const sharedArgs = { ...args, context };
-  const { slug } = args.params;
-  if (!slug) throw new Error('loadTopicPage expects a slug param');
-  const topic = await sharedApi.get(apiPath`/api/topics/${slug}`, topicDetailSchema);
   const url = new URL(args.request.url);
   indicatorPeriodFiltersSchema.parse(Object.fromEntries(url.searchParams));
-  // Filter forms redirect before any streaming response has started.
-  if (DIMENSIONS.some(({ param }) => url.searchParams.has(`${param}-add`))) {
-    await loadTopic(sharedArgs, url.searchParams.get('tab-topic') === 'areas' ? 'areas' : 'data');
-  }
-  const overview = loadTopic(sharedArgs, 'overview').then((view) => view.overview);
-  const content = loadTopic(sharedArgs, 'data').then(({ content }) =>
-    content
-      ? {
-          ...content,
-          data: {
-            selectedAreas: content.data.selectedAreas,
-            areasLimited: content.data.areasLimited,
-          },
-          table: topicDataTableModel(content.data.selected, topic.slug),
-        }
-      : null,
-  );
-  const areas = loadTopic(sharedArgs, 'areas').then(({ content }) =>
-    content
-      ? {
-          ...content,
-          data: {
-            selectedAreas: content.data.selectedAreas,
-            areasLimited: content.data.areasLimited,
-          },
-          table: topicAreaTableModel(
-            content.data.selected,
-            content.data.benchmarkGeography,
-            topic.slug,
-          ),
-        }
-      : null,
-  );
-  const complete = url.searchParams.get('render') === 'complete';
-  const completed = complete ? await Promise.all([overview, content, areas]) : undefined;
+  const requestedTab = url.searchParams.get('tab-topic');
+  const tab = ['overview', 'data', 'areas', 'publications'].includes(requestedTab ?? '')
+    ? requestedTab
+    : 'overview';
+  const view = await loadTopic(args, tab);
+  const { topic } = view;
+  const content = view.content
+    ? {
+        ...view.content,
+        data: {
+          selectedAreas: view.content.data.selectedAreas,
+          areasLimited: view.content.data.areasLimited,
+        },
+        table:
+          tab === 'areas'
+            ? topicAreaTableModel(
+                view.content.data.selected,
+                view.content.data.benchmarkGeography,
+                topic.slug,
+              )
+            : topicDataTableModel(view.content.data.selected, topic.slug),
+      }
+    : null;
   return {
     topic,
-    overview: completed ? completed[0] : overview,
-    content: completed ? completed[1] : content,
-    areas: completed ? completed[2] : areas,
-    complete,
+    overview: view.overview,
+    content: tab === 'data' ? content : null,
+    areas: tab === 'areas' ? content : null,
   };
 }
 

@@ -160,7 +160,6 @@ describe('public application routes', () => {
             loader: () => ({
               detail,
               comparedDetail: undefined,
-              complete: true,
               comparison: {
                 compareAreasData: [],
                 comparedAreasData: [],
@@ -294,7 +293,6 @@ describe('public application routes', () => {
             loader: () => ({
               detail,
               comparedDetail: undefined,
-              complete: true,
               comparison: {
                 compareAreasData: [],
                 comparedAreasData: [],

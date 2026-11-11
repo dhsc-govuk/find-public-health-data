@@ -1431,6 +1431,54 @@ body.govuk-frontend-supported .fphd-filter-card {
   }
 }
 
+.fphd-tabs--page .govuk-tabs__panel[hidden] {
+  display: none;
+}
+
+@include govuk-media-query($until: tablet) {
+  .fphd-tabs--page {
+    > .govuk-tabs__title {
+      font-weight: $govuk-font-weight-bold;
+    }
+
+    > .govuk-tabs__list {
+      display: block;
+      margin-bottom: govuk-spacing(4);
+      padding-bottom: govuk-spacing(3);
+      border-bottom: 1px solid $govuk-border-colour;
+      list-style: none;
+    }
+
+    .govuk-tabs__list-item {
+      position: relative;
+      display: block;
+      margin: 0 0 govuk-spacing(1);
+      padding: 0 0 0 govuk-spacing(5);
+      background: none;
+
+      &::before {
+        position: absolute;
+        left: 0;
+        margin-left: 0;
+        content: "\2014";
+      }
+    }
+
+    .govuk-tabs__list-item--selected {
+      font-weight: $govuk-font-weight-bold;
+    }
+
+    .govuk-tabs__tab {
+      margin: 0;
+      padding: 0;
+
+      &[aria-current="page"] {
+        text-decoration: none;
+      }
+    }
+  }
+}
+
 @mixin fphd-ssr-tab-panels {
   .govuk-tabs__panel:not(.fphd-tabs__panel--open) {
     display: none;
@@ -1452,7 +1500,7 @@ body.govuk-frontend-supported .fphd-filter-card {
 }
 
 @media (min-width: 40.0625em) {
-  .govuk-frontend-supported .fphd-tabs--ssr {
+  .govuk-frontend-supported .fphd-tabs--ssr:not(.fphd-tabs--page) {
     @include fphd-ssr-tab-panels;
   }
 }
@@ -1770,6 +1818,8 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 
 .fphd-topic-highlight .fphd-trend-tag {
   @include govuk-font-size($size: 16);
+  box-sizing: border-box;
+  min-width: 0;
   max-width: 100%;
   white-space: normal;
 }

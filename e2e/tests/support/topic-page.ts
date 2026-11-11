@@ -11,22 +11,21 @@ async function openTopicPage(page: Page, path: string) {
 }
 
 export function topicPageTests() {
-  test('streams the topic heading and navigation before its section data', async ({ page }) => {
-    const response = await page.request.get('/topics/diabetes', {
-      headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36' },
-    });
-    expect(response.ok()).toBe(true);
-    const html = await response.text();
-    const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
-    expect(shell).toContain('Diabetes');
-    expect(shell).toContain('topic-area-summaries');
-    expect(shell).toContain('Loading overview');
-    expect(shell).toContain('Loading data');
-    expect(html).toContain('Highlighted indicators');
-    expect(html).toContain('<table');
+  test('serves finished HTML for only the selected topic section', async ({ page }) => {
+    for (const query of ['', '?tab-topic=data']) {
+      const response = await page.request.get(`/topics/diabetes${query}`);
+      expect(response.ok()).toBe(true);
+      const html = await response.text();
+      const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+      expect(shell).toContain('Diabetes');
+      expect(shell).not.toContain('Loading ');
+      expect(shell).not.toContain('Show all sections');
+      expect(shell?.includes('>Highlighted indicators</h2>')).toBe(query === '');
+      expect(shell?.includes('<table')).toBe(query !== '');
+    }
   });
 
-  test('shows every topic section together on mobile and switches desktop tabs locally', async ({
+  test('shows one mobile section and fetches each tab on navigation', async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -35,17 +34,13 @@ export function topicPageTests() {
     const areas = page.locator('#topic-area-summaries');
     await expect(page.getByRole('tablist')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
-    await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeVisible();
-    await expect(areas.getByRole('heading', { name: 'Area summaries', exact: true })).toBeVisible();
-    await expect(data.getByRole('table')).toBeVisible();
-    await expect(areas.getByRole('table')).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Official statistics releases on GOV.UK' }),
-    ).toBeVisible();
+    await expect(data).toBeHidden();
+    await expect(areas).toBeHidden();
+    await expect(page.locator('.govuk-tabs__list [aria-current="page"]')).toHaveText('Overview');
     await page.getByRole('link', { name: 'Data', exact: true }).click();
-    await expect(page).toHaveURL(/#topic-data$/);
-    await expect(data.getByRole('heading', { name: 'Data', exact: true })).toBeInViewport();
+    await expect(page).toHaveURL(/ga=E10000032&tab-topic=data#topic-data$/);
     await expect(data.getByRole('table')).toBeVisible();
+    await expect(page.locator('#topic-overview')).toBeHidden();
     await expectNoAccessibilityViolations(page, testInfo);
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(page.getByRole('tab', { name: 'Data', exact: true })).toHaveAttribute(
@@ -62,10 +57,10 @@ export function topicPageTests() {
     await expect(data.getByRole('table')).toBeVisible();
     await page.goForward();
     await expect(areas.getByRole('table')).toBeVisible();
-    expect(reads).toEqual([]);
+    expect(reads.length).toBeGreaterThan(0);
   });
 
-  test('loads every topic section through the JavaScript-free fallback and follows the contents links', async ({
+  test('loads one topic section without JavaScript and follows the contents links', async ({
     page,
     browser,
     baseURL,
@@ -80,7 +75,9 @@ export function topicPageTests() {
     const withoutJs = await context.newPage();
     try {
       await withoutJs.goto('/topics/diabetes');
-      await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
+      await expect(
+        withoutJs.getByRole('heading', { name: 'Highlighted indicators' }),
+      ).toBeVisible();
       for (const [label, anchor, content] of [
         ['Data', 'topic-data', withoutJs.locator('#topic-data').getByRole('table')],
         [
@@ -99,10 +96,10 @@ export function topicPageTests() {
           withoutJs.getByRole('heading', { name: 'Highlighted indicators' }),
         ],
       ] as const) {
-        await expect(content).toBeVisible();
         await withoutJs.getByRole('link', { name: label, exact: true }).click();
         await expect(withoutJs).toHaveURL(new RegExp(`#${anchor}$`));
         await expect(content).toBeVisible();
+        await expect(withoutJs.locator('.govuk-tabs__panel:not([hidden])')).toHaveCount(1);
       }
     } finally {
       await context.close();
@@ -258,7 +255,7 @@ export function topicPageTests() {
     await expect(
       table.getByRole('columnheader', { name: 'South West', exact: true }),
     ).toBeVisible();
-    await expect(page.locator('#topic-data [aria-busy]')).toHaveAttribute('aria-busy', 'false');
+    await expect(page.locator('#topic-data')).toBeHidden();
     await page.getByRole('searchbox', { name: 'Search for a geography (optional)' }).fill('London');
     const responseGate = Promise.withResolvers<void>();
     let responseHeld = false;
@@ -279,7 +276,7 @@ export function topicPageTests() {
         'true',
       );
       await page.setViewportSize({ width: 390, height: 844 });
-      await expect(page.locator('#topic-data').getByRole('table')).toBeVisible();
+      await expect(page.locator('#topic-data')).toBeHidden();
       await expect(table.getByRole('columnheader', { name: 'London', exact: true })).toBeVisible();
       await expect(
         table.getByRole('columnheader', { name: 'South West', exact: true }),

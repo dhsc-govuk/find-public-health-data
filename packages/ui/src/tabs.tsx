@@ -16,13 +16,14 @@ interface TabsProps {
   history?: 'push' | 'replace';
   defaultParam?: string | undefined;
   sectionHeadings?: boolean;
-  contentReady?: boolean;
+  pageNavigation?: boolean;
   mobileTabs?: boolean;
   linkSelection?: boolean;
 }
 
 // Query parameters preserve the server-rendered view in shared links; NotGovUK tabs only track hashes.
 export function Tabs(props: TabsProps) {
+  if (props.pageNavigation) return <NavigationTabs {...props} waitForNavigation linkSelection />;
   return props.waitForNavigation ? <NavigationTabs {...props} /> : <TabPanels {...props} />;
 }
 
@@ -39,7 +40,7 @@ function TabPanels({
   history = 'replace',
   defaultParam,
   sectionHeadings = false,
-  contentReady = true,
+  pageNavigation = false,
   mobileTabs = false,
   linkSelection = false,
   navigation,
@@ -53,13 +54,20 @@ function TabPanels({
     items.findIndex(({ id, param }) => (param ?? id) === defaultParam),
   );
   const matchingIndex = items.findIndex(({ id, param }) => (param ?? id) === fromParam);
-  const paramIndex = Math.max(0, matchingIndex);
-  const hasLinkedSelection = linkSelection && tabParam !== null && matchingIndex >= 0;
+  const paramIndex = matchingIndex >= 0 ? matchingIndex : defaultIndex;
+  const hasLinkedSelection =
+    pageNavigation || (linkSelection && tabParam !== null && matchingIndex >= 0);
   const [selected, setSelected] = useState(paramIndex);
   const [mounted, setMounted] = useState(false);
   const [tabMode, setTabMode] = useState(false);
   const hashIndex = mounted ? items.findIndex(({ id }) => location.hash === `#${id}`) : -1;
-  const committedIndex = hashIndex >= 0 ? hashIndex : waitForNavigation ? paramIndex : selected;
+  const committedIndex = pageNavigation
+    ? paramIndex
+    : hashIndex >= 0
+      ? hashIndex
+      : waitForNavigation
+        ? paramIndex
+        : selected;
   const pendingParam =
     waitForNavigation && navigation?.location?.pathname === location.pathname
       ? (new URLSearchParams(navigation.location.search).get(paramKey) ?? defaultParam)
@@ -92,13 +100,13 @@ function TabPanels({
   }, [mobileTabs]);
 
   useEffect(() => {
-    if (!mounted || (!tabMode && !contentReady)) return;
+    if (!mounted) return;
     const enteredContents = !tabMode && previousTabMode.current !== false;
     previousTabMode.current = tabMode;
     if (enteredContents && committedIndex > 0) {
       panels.current[committedIndex]?.scrollIntoView({ block: 'start' });
     }
-  }, [mounted, tabMode, committedIndex, contentReady]);
+  }, [mounted, tabMode, committedIndex]);
 
   const previousParam = useRef(fromParam);
   useEffect(() => {
@@ -118,7 +126,10 @@ function TabPanels({
     if (index === visibleIndex) return;
     if (!waitForNavigation) setSelected(index);
     void navigate(
-      { search: searchFor(index) },
+      {
+        search: searchFor(index, pageNavigation),
+        ...(pageNavigation ? { hash: `#${items[index]?.id}` } : {}),
+      },
       { replace: history === 'replace', preventScrollReset: true },
     );
   };
@@ -140,7 +151,7 @@ function TabPanels({
 
   return (
     <div
-      className={`govuk-tabs fphd-tabs${mobileTabs ? ' fphd-tabs--mobile' : ''}${mounted ? '' : ' fphd-tabs--ssr'}`}
+      className={`govuk-tabs fphd-tabs${pageNavigation ? ' fphd-tabs--page' : ''}${mobileTabs ? ' fphd-tabs--mobile' : ''}${mounted ? '' : ' fphd-tabs--ssr'}`}
       data-module=""
     >
       <h2 className="govuk-tabs__title">{title}</h2>
@@ -151,32 +162,38 @@ function TabPanels({
             key={id}
             role={tabMode ? 'presentation' : undefined}
           >
-            <a
-              {...(tabMode
-                ? { role: 'tab', 'aria-controls': id, 'aria-selected': index === visibleIndex }
-                : {})}
-              className="govuk-tabs__tab"
-              // The explicit default value preserves the selected tab through a no-JS form round-trip.
-              href={
-                linkSelection || (tabMode && waitForNavigation)
-                  ? `${searchFor(index, linkSelection)}#${id}`
-                  : `#${id}`
-              }
-              id={`tab_${id}`}
-              onClick={(event) => {
-                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                if (!tabMode) return;
-                event.preventDefault();
-                choose(index);
-              }}
-              onKeyDown={onKeyDown}
-              ref={(el) => {
-                refs.current[index] = el;
-              }}
-              tabIndex={tabMode ? (index === visibleIndex ? 0 : -1) : undefined}
-            >
-              {label}
-            </a>
+            {pageNavigation && !tabMode && index === visibleIndex ? (
+              <span className="govuk-tabs__tab" aria-current="page">
+                {label}
+              </span>
+            ) : (
+              <a
+                {...(tabMode
+                  ? { role: 'tab', 'aria-controls': id, 'aria-selected': index === visibleIndex }
+                  : {})}
+                className="govuk-tabs__tab"
+                // The explicit default value preserves the selected tab through a no-JS form round-trip.
+                href={
+                  linkSelection || (tabMode && waitForNavigation)
+                    ? `${searchFor(index, linkSelection)}#${id}`
+                    : `#${id}`
+                }
+                id={`tab_${id}`}
+                onClick={(event) => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                  if (!tabMode && !pageNavigation) return;
+                  event.preventDefault();
+                  choose(index);
+                }}
+                onKeyDown={onKeyDown}
+                ref={(el) => {
+                  refs.current[index] = el;
+                }}
+                tabIndex={tabMode ? (index === visibleIndex ? 0 : -1) : undefined}
+              >
+                {label}
+              </a>
+            )}
           </li>
         ))}
       </ul>
@@ -185,7 +202,7 @@ function TabPanels({
           {...(tabMode ? { role: 'tabpanel', 'aria-labelledby': `tab_${id}` } : {})}
           aria-busy={loading && index === visibleIndex ? true : undefined}
           className={`govuk-tabs__panel${index === visibleIndex ? ' fphd-tabs__panel--open' : ''}${mounted && tabMode && index !== visibleIndex ? ' govuk-tabs__panel--hidden' : ''}`}
-          hidden={!mounted && hasLinkedSelection && index !== visibleIndex}
+          hidden={(pageNavigation || (!mounted && hasLinkedSelection)) && index !== visibleIndex}
           id={id}
           key={id}
           ref={(element) => {
@@ -205,7 +222,7 @@ function TabPanels({
             aria-hidden={loading && index === visibleIndex ? true : undefined}
             inert={loading && index === visibleIndex ? true : undefined}
           >
-            {content}
+            {!pageNavigation || index === committedIndex ? content : null}
           </div>
         </div>
       ))}

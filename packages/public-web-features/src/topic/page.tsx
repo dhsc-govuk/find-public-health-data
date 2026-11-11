@@ -1,6 +1,5 @@
 import { GridColumn, GridRow, Tabs } from '@fphd/ui';
 import { Link, useLocation } from 'react-router';
-import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
 import { SearchFilterPane } from '../search/filter-pane.tsx';
 import { TopicGeographies } from './geographies.tsx';
 import { TopicListing } from './listing.tsx';
@@ -12,14 +11,11 @@ import { TopicSubtopicFilter } from './subtopic-filter.tsx';
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 
 export function TopicPage(data: TopicData) {
-  const { topic, content, overview, areas, complete } = data;
-  const contentReady = useDataReady([overview, content, areas]);
+  const { topic, content, overview, areas } = data;
   const location = useLocation();
   const path = `/topics/${topic.slug}`;
   const columnParams = Object.fromEntries(
-    [...new URLSearchParams(location.search)].filter(
-      ([key]) => key === 'columns-topic' || key === 'render',
-    ),
+    [...new URLSearchParams(location.search)].filter(([key]) => key === 'columns-topic'),
   );
   return (
     <div className="fphd-wide-layout fphd-topic-page">
@@ -38,116 +34,96 @@ export function TopicPage(data: TopicData) {
         </ol>
       </nav>
       <h1 className="govuk-heading-xl">{topic.title}</h1>
-      <CompletePageLink complete={complete} />
       <Tabs
-        contentReady={contentReady}
+        pageNavigation
         sectionHeadings
         history="push"
         paramKey="tab-topic"
-        title={`${topic.title} contents`}
         items={[
           {
             id: 'topic-overview',
             param: 'overview',
             label: 'Overview',
-            content: (
-              <DataSection label="overview" resolve={overview}>
-                {(overview) =>
-                  overview ? (
-                    <TopicOverview topic={topic} overview={overview} />
-                  ) : (
-                    <p className="govuk-body">{topic.description}</p>
-                  )
-                }
-              </DataSection>
+            content: overview ? (
+              <TopicOverview topic={topic} overview={overview} />
+            ) : (
+              <p className="govuk-body">{topic.description}</p>
             ),
           },
           {
             id: 'topic-data',
             param: 'data',
             label: 'Data',
-            content: (
-              <DataSection label="data" resolve={content}>
-                {(content) =>
-                  content ? (
-                    <GridRow className="fphd-topic-data">
-                      <GridColumn width="one-quarter">
-                        <TopicKeywordSearch title={topic.title} />
-                        <TopicGeographies search={content.search} path={path} tab="data" />
-                        <SearchFilterPane
-                          action={path}
-                          formAction={`${path}#topic-data`}
-                          extraParams={{
-                            ...columnParams,
-                            'tab-topic': 'data',
-                            sort: content.listing.sort,
-                          }}
-                          includeTopics={false}
-                          includeDataPeriod
-                          facets={content.search.facets}
-                          state={content.search}
-                          subtopicFilter={
-                            <TopicSubtopicFilter
-                              path={path}
-                              state={content.search}
-                              subtopics={topic.subtopics ?? []}
-                              sort={content.listing.sort}
-                            />
-                          }
-                        />
-                        <TopicTableColumns />
-                      </GridColumn>
-                      <GridColumn width="three-quarters">
-                        <TopicListing data={{ topic, ...content }} />
-                      </GridColumn>
-                    </GridRow>
-                  ) : null
-                }
-              </DataSection>
-            ),
+            content: content ? (
+              <GridRow className="fphd-topic-data">
+                <GridColumn width="one-quarter">
+                  <TopicKeywordSearch title={topic.title} />
+                  <TopicGeographies search={content.search} path={path} tab="data" />
+                  <SearchFilterPane
+                    action={path}
+                    formAction={`${path}#topic-data`}
+                    extraParams={{
+                      ...columnParams,
+                      'tab-topic': 'data',
+                      sort: content.listing.sort,
+                    }}
+                    includeTopics={false}
+                    includeDataPeriod
+                    facets={content.search.facets}
+                    state={content.search}
+                    subtopicFilter={
+                      <TopicSubtopicFilter
+                        path={path}
+                        state={content.search}
+                        subtopics={topic.subtopics ?? []}
+                        sort={content.listing.sort}
+                      />
+                    }
+                  />
+                  <TopicTableColumns />
+                </GridColumn>
+                <GridColumn width="three-quarters">
+                  <TopicListing data={{ topic, ...content }} />
+                </GridColumn>
+              </GridRow>
+            ) : null,
           },
           {
             id: 'topic-area-summaries',
             param: 'areas',
             label: 'Area summaries',
-            content: (
-              <DataSection label="area summaries" resolve={areas}>
-                {(areas) =>
-                  areas ? (
-                    <GridRow>
-                      <GridColumn width="one-quarter">
-                        <TopicGeographies search={areas.search} path={path} tab="areas" />
-                        <SearchFilterPane
-                          action={path}
-                          formAction={`${path}#topic-area-summaries`}
-                          extraParams={{
-                            ...columnParams,
-                            'tab-topic': 'areas',
-                            sort: areas.listing.sort,
-                          }}
-                          includeTopics={false}
-                          compact
-                          facets={areas.search.facets}
-                          state={areas.search}
-                          subtopicFilter={
-                            <TopicSubtopicFilter
-                              path={path}
-                              state={areas.search}
-                              subtopics={topic.subtopics ?? []}
-                              sort={areas.listing.sort}
-                              tab="areas"
-                            />
-                          }
-                        />
-                      </GridColumn>
-                      <GridColumn width="three-quarters">
-                        <TopicListing data={{ topic, ...areas }} areas />
-                      </GridColumn>
-                    </GridRow>
-                  ) : null
-                }
-              </DataSection>
-            ),
+            content: areas ? (
+              <GridRow>
+                <GridColumn width="one-quarter">
+                  <TopicGeographies search={areas.search} path={path} tab="areas" />
+                  <SearchFilterPane
+                    action={path}
+                    formAction={`${path}#topic-area-summaries`}
+                    extraParams={{
+                      ...columnParams,
+                      'tab-topic': 'areas',
+                      sort: areas.listing.sort,
+                    }}
+                    includeTopics={false}
+                    compact
+                    facets={areas.search.facets}
+                    state={areas.search}
+                    subtopicFilter={
+                      <TopicSubtopicFilter
+                        path={path}
+                        state={areas.search}
+                        subtopics={topic.subtopics ?? []}
+                        sort={areas.listing.sort}
+                        tab="areas"
+                      />
+                    }
+                  />
+                </GridColumn>
+                <GridColumn width="three-quarters">
+                  <TopicListing data={{ topic, ...areas }} areas />
+                </GridColumn>
+              </GridRow>
+            ) : null,
           },
           {
             id: 'topic-publications',

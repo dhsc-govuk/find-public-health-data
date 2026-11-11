@@ -7,7 +7,10 @@ import { TopicPage } from './page.tsx';
 export const loader = loadTopicPage;
 
 export function shouldRevalidate({ currentUrl, nextUrl }: ShouldRevalidateFunctionArgs) {
-  return topicDataKey(currentUrl) !== topicDataKey(nextUrl);
+  return (
+    currentUrl.searchParams.get('tab-topic') !== nextUrl.searchParams.get('tab-topic') ||
+    topicDataKey(currentUrl) !== topicDataKey(nextUrl)
+  );
 }
 
 export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
