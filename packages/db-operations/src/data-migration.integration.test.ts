@@ -379,21 +379,26 @@ describe('applyDataMigration', () => {
   });
   /**
    * Loads a baseline observation with one note, whose package note type is the core row for
-   * disclosure control under its core id, and returns that id.
+   * disclosure control, and returns the core id. The package names the type by its core id unless
+   * given another id, which the receiver matches to the core row by its text.
    */
-  async function baselineWithDisclosureNote(observationId: string): Promise<string> {
+  async function baselineWithDisclosureNote(
+    observationId: string,
+    packageNoteTypeId?: string,
+  ): Promise<string> {
     const batchId = '22222222-2222-7222-8222-222222222222';
     const [disclosure] = await sql<{ id: string }[]>`
       SELECT id FROM note_type WHERE text = 'Disclosure control applied'
     `;
     if (!disclosure) throw new Error('Missing core note type');
+    const noteTypeId = packageNoteTypeId ?? disclosure.id;
     await baseline({
       upserts: {
         indicator_version: versionWithBatch(batchId, '2026-01-01T00:00:00Z'),
         upload_batch: batch(batchId),
         note_type: {
           columns: ['id', 'text', 'category'],
-          rows: [[disclosure.id, 'Disclosure control applied', 'disclosure']],
+          rows: [[noteTypeId, 'Disclosure control applied', 'disclosure']],
         },
         observation: {
           columns: [
@@ -423,7 +428,7 @@ describe('applyDataMigration', () => {
         },
         observation_note: {
           columns: ['observation_id', 'note_type_id'],
-          rows: [[observationId, disclosure.id]],
+          rows: [[observationId, noteTypeId]],
         },
       },
     });
@@ -461,6 +466,27 @@ describe('applyDataMigration', () => {
     await apply({ deletes: { observation_note: [`${observationId},${disclosureId}`] } });
 
     expect(await sql`SELECT observation_id FROM observation_note`).toEqual([]);
+  });
+  it('refuses a bridge delete whose type left the package after matching a core row by text', async () => {
+    const observationId = '55555555-5555-7555-8555-555555555555';
+    const packageId = '99999999-9999-7999-8999-999999999999';
+    const disclosureId = await baselineWithDisclosureNote(observationId, packageId);
+
+    await expect(
+      apply({ deletes: { observation_note: [`${observationId},${packageId}`] } }),
+    ).rejects.toThrow(
+      `observation_note deletes name note_type ids that neither the package nor core data holds: ${packageId}`,
+    );
+    expect(await sql`SELECT note_type_id FROM observation_note`).toEqual([
+      { note_type_id: disclosureId },
+    ]);
+  });
+  it('requires the key columns of a bridge upsert', async () => {
+    await baseline();
+    await expect(
+      apply({ upserts: { observation_note: { columns: ['observation_id'] } } }),
+    ).rejects.toThrow('observation_note CSV is missing required columns: note_type_id');
+    await assertRolledBack();
   });
   it('withdraws an indicator, its version, batch and observations in one increment', async () => {
     const batchId = '22222222-2222-7222-8222-222222222222';

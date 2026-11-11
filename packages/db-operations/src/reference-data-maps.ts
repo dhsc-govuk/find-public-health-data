@@ -143,8 +143,10 @@ export async function remapReferenceColumns(
  * dimension type or note type.
  *
  * A deleted row may name a type that has since left the source's lists, and so has no row in this
- * package. Its id is kept as it is, which is still the core id, since core rows that came from
- * Fingertips keep their package ids. applyDeletes then checks that every staged row was deleted.
+ * package. Its id is kept when core data holds a row with that id, since core rows that came from
+ * Fingertips keep their package ids. An id that is in neither the package nor core data was
+ * matched to a core row by name, and this package can no longer say which, so the delete is
+ * refused. applyDeletes then checks that every staged row was deleted.
  */
 export async function remapKeyColumns(
   tx: postgres.TransactionSql,
@@ -155,7 +157,19 @@ export async function remapKeyColumns(
     const reference = references[table]?.[column];
     return reference === undefined ? [] : [[column, reference] as const];
   });
-  for (const [column, reference] of mapped) await rewriteToCoreIds(tx, stage, column, reference);
+  for (const [column, reference] of mapped) {
+    await rewriteToCoreIds(tx, stage, column, reference);
+    const unknown = await tx.unsafe<{ id: string }[]>(`
+      SELECT DISTINCT s."${column}" AS id FROM "${stage}" s
+      WHERE NOT EXISTS (SELECT 1 FROM "${reference}" core WHERE core.id = s."${column}")
+      ORDER BY id LIMIT 20
+    `);
+    if (unknown.length > 0) {
+      throw new Error(
+        `${table} deletes name ${reference} ids that neither the package nor core data holds: ${unknown.map(({ id }) => id).join(', ')}`,
+      );
+    }
+  }
   return mapped.length > 0;
 }
 
