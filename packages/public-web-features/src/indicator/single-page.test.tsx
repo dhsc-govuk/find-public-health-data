@@ -2,6 +2,8 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
+import { compactIndicator } from './compact-data.ts';
+import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
 import { SingleIndicatorPage } from './single-page.tsx';
@@ -80,7 +82,7 @@ function page(
           comparedDetail={entries[1]?.detail}
           complete={true}
           data={{
-            selected: entries,
+            selected: entries.slice(0, 1).map(compactIndicator),
             selectedAreas: [],
             displayGroups: [],
             benchmarkGeography: { regionByCode: {}, levelByCode: {} },
@@ -94,13 +96,13 @@ function page(
               shortIds: entries.map(({ detail }) => detail.shortId),
             },
           }}
-          comparison={{
+          comparison={indicatorComparisonModel(entries, {
             compareAreasData: areas,
             comparedAreasData: [],
             compareAreaOptions: [],
             compareAreaGroup: 'Local authorities',
             comparisonDisplayGroups: [],
-          }}
+          })}
         />
       ),
     },

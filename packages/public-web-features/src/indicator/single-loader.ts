@@ -14,10 +14,12 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import { compactIndicator } from './compact-data.ts';
+import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 
-export async function loadIndicatorPage(args: LoaderFunctionArgs) {
+async function loadIndicatorPageData(args: LoaderFunctionArgs) {
   const { context, params, request } = args;
   const url = new URL(request.url);
 
@@ -82,8 +84,33 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
   };
 }
 
+export async function loadIndicatorPage(args: LoaderFunctionArgs) {
+  const page = await loadIndicatorPageData(args);
+  const data = Promise.resolve(page.data).then((data) => ({
+    ...data,
+    // The second indicator only appears in the precomputed pair; its history has no client controls.
+    selected: data.selected.slice(0, 1).map(compactIndicator),
+  }));
+  const comparison = Promise.all([page.data, page.comparison]).then(([data, comparison]) =>
+    indicatorComparisonModel(data.selected, comparison),
+  );
+  const completed = page.complete ? await Promise.all([data, comparison]) : undefined;
+  return {
+    ...page,
+    comparedDetail: page.comparedDetail
+      ? {
+          name: page.comparedDetail.name,
+          slug: page.comparedDetail.slug,
+          unit: page.comparedDetail.unit,
+        }
+      : undefined,
+    data: completed ? completed[0] : data,
+    comparison: completed ? completed[1] : comparison,
+  };
+}
+
 export async function loadIndicator(args: LoaderFunctionArgs) {
-  const page = await loadIndicatorPage(args);
+  const page = await loadIndicatorPageData(args);
   const [data, comparison] = await Promise.all([page.data, page.comparison]);
   return { ...data, ...comparison };
 }

@@ -1,8 +1,10 @@
 import { InsetText, Tabs } from '@fphd/ui';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
+import { expandIndicator } from './compact-data.ts';
 import { CompareIndicatorsTab } from './compare-tab.tsx';
 import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
@@ -27,10 +29,17 @@ function observations(primary: SelectedIndicator) {
 export function SingleIndicatorPage({
   detail,
   comparedDetail,
-  data,
+  data: compactData,
   comparison,
   complete,
 }: Awaited<ReturnType<typeof loadIndicatorPage>>) {
+  const data = useMemo(() => {
+    const expand = (value: Awaited<typeof compactData>) => ({
+      ...value,
+      selected: value.selected.map(expandIndicator),
+    });
+    return compactData instanceof Promise ? compactData.then(expand) : expand(compactData);
+  }, [compactData]);
   const contentReady = useDataReady([data, comparison]);
   return (
     <div className="fphd-wide-layout fphd-single-indicator-page">
@@ -127,7 +136,7 @@ export function SingleIndicatorPage({
                       <CompareIndicatorsTab
                         {...comparison}
                         primary={primaryIndicator(selected)}
-                        compared={selected[1]}
+                        compared={comparedDetail}
                         findResults={findResults}
                         findSubject={findSubject}
                       />

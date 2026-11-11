@@ -103,6 +103,19 @@ describe('loadIndicator', () => {
     expect(page.comparison).not.toBeInstanceOf(Promise);
   });
 
+  it('keeps the comparison history and raw rankings out of page hydration', async () => {
+    const { client } = api();
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+    );
+    const [data, comparison] = await Promise.all([page.data, page.comparison]);
+    expect(data.selected.map(({ detail }) => detail.shortId)).toEqual([108]);
+    expect(data.selection.shortIds).toEqual([108, 241]);
+    expect(comparison.pair).toBeDefined();
+    expect(comparison).not.toHaveProperty('compareAreasData');
+    expect(comparison).not.toHaveProperty('comparedAreasData');
+  });
+
   it('requires one route indicator before any API request', async () => {
     const { client, get } = api();
     await expect(

@@ -188,8 +188,8 @@ describe('loadTopic', () => {
     }
     const [overview, content, areas] = await Promise.all([page.overview, page.content, page.areas]);
     expect(overview?.selected).toHaveLength(1);
-    expect(content?.listing.indicators).toHaveLength(1);
-    expect(areas?.listing.indicators).toHaveLength(1);
+    expect(content?.search.searchResult.total).toBe(1);
+    expect(areas?.search.searchResult.total).toBe(1);
   });
 
   it('returns complete HTML data for the JavaScript-free fallback', async () => {
@@ -264,9 +264,13 @@ describe('loadTopic', () => {
         page.areas,
       ]);
       expect(overview?.selected).toHaveLength(4);
-      expect(content?.listing.indicators).toHaveLength(8);
-      expect(areas?.listing.indicators).toHaveLength(8);
+      expect(content?.search.searchResult.total).toBe(8);
+      expect(areas?.search.searchResult.total).toBe(8);
       expect(content?.data).not.toHaveProperty('selected');
+      expect(content?.listing).not.toHaveProperty('indicators');
+      expect(areas?.listing).not.toHaveProperty('indicators');
+      expect(content?.search.searchResult.indicators).toEqual([]);
+      expect(areas?.search.searchResult.indicators).toEqual([]);
       expect(areas?.data).not.toHaveProperty('selected');
       expect(get.mock.calls.filter(([path]) => path === '/api/topics/topic-a')).toHaveLength(1);
       expect(
