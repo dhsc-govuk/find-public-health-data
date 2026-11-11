@@ -13,6 +13,7 @@
     "postgres": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

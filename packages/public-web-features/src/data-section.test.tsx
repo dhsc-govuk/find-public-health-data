@@ -1,11 +1,33 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
-import { DataSection } from './data-section.tsx';
+import { DataSection, useDataReady } from './data-section.tsx';
 
 afterEach(cleanup);
+
+it('waits for every section in an array and tracks replacement promises', async () => {
+  const sections = Array.from({ length: 4 }, () => Promise.withResolvers<void>());
+  const values = sections.map(({ promise }) => promise);
+  const { result, rerender } = renderHook(({ values }) => useDataReady(values), {
+    initialProps: { values },
+  });
+  expect(result.current).toBe(false);
+  await act(async () => {
+    for (const section of sections.slice(0, -1)) section.resolve();
+  });
+  expect(result.current).toBe(false);
+  await act(async () => sections.at(-1)?.reject(new Error('Unavailable')));
+  expect(result.current).toBe(true);
+  rerender({ values: [...values] });
+  expect(result.current).toBe(true);
+  const replacement = Promise.withResolvers<void>();
+  rerender({ values: [replacement.promise] });
+  expect(result.current).toBe(false);
+  await act(async () => replacement.resolve());
+  expect(result.current).toBe(true);
+});
 
 it('puts completed content in the initial HTML without a loading fallback', () => {
   const html = renderToString(

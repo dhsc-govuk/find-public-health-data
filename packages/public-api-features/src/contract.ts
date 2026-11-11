@@ -26,6 +26,12 @@ export const MAX_FILTER_LABEL_LENGTH = 500;
 export const MAX_FILTER_VALUE_LENGTH = 100;
 export const MAX_FILTER_VALUES = 100;
 
+export const indicatorDataQuerySchema = z.object({
+  observationHistory: z.enum(['recentPerSeries', 'latestPerSeries']).catch('recentPerSeries'),
+});
+
+export type ObservationHistory = z.infer<typeof indicatorDataQuerySchema>['observationHistory'];
+
 export const indicatorPeriodFiltersSchema = z.object({
   fromYear: z
     .string()

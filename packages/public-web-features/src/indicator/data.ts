@@ -5,6 +5,7 @@ import type {
 } from '@fphd/public-api-features/contract';
 import {
   comparisonVariants,
+  ENGLAND_AREA_CODE,
   filterSeries,
   headlineSeries,
   isRollingPeriod,
@@ -214,7 +215,7 @@ export interface ComparisonRow {
  * England steps back once real areas are picked — the same rule as the trend table.
  */
 export function comparisonAreas(areaData: IndicatorAreaData[]): IndicatorAreaData[] {
-  const nonEngland = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
+  const nonEngland = areaData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
   return nonEngland.length > 0 ? nonEngland : areaData;
 }
 

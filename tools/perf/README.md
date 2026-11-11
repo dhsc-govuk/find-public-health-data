@@ -17,6 +17,22 @@ server response timings; measure browser rendering separately. A failed response
 fails the command. It does not prepare fixtures or connect to the database. Use `--skip-warmup`
 immediately after restarting the apps to check their first requests.
 
+To check mobile sections while seven clients each fetch a page three times, and then check that
+desktop tabs switch without data requests:
+
+```sh
+pnpm perf:load --base-url http://127.0.0.1:3000 \
+  --path /indicator/under-75-mortality-rate-from-all-causes \
+  --path /topics/diabetes \
+  --concurrency 7 --rounds 3 --navigation --output /tmp/navigation-load.json
+```
+
+`--navigation` opens Chromium alongside the HTTP traffic for each level. It waits for every mobile
+section's table, checks the loading messages disappear, and exercises desktop tabs. The report adds
+the time until all mobile tables are visible and any browser failure. Install the browser once with
+`pnpm --filter @fphd/perf exec playwright install chromium`. This mode accepts topic and indicator
+detail pages with data in every section.
+
 ## Seeded budgets
 
 `pnpm check:perf` requests a set of read-only routes across the four apps on the seeded stack and

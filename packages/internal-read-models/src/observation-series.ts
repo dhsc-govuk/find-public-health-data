@@ -1,4 +1,9 @@
 import { type Database, schema } from '@fphd/db';
+import {
+  ENGLAND_AREA_CODE,
+  ROLLING_PERIOD_THRESHOLD_DAYS,
+  SEX_DIMENSION_NAME,
+} from '@fphd/utils/observation-series';
 import { and, count, desc, eq, not, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
@@ -17,8 +22,6 @@ const {
 
 type Executor = Database | Transaction;
 type PeriodType = schema.ObservationSeriesVariant['periodType'];
-
-const ENGLAND_AREA_CODE = 'E92000001';
 
 /** The latest five non-null `column` values of a group, newest period first. */
 function recentNonNull<T>(
@@ -55,7 +58,7 @@ async function insertSeries(
       })
       .from(dimensionValue)
       .innerJoin(dimensionType, eq(dimensionType.id, dimensionValue.dimensionTypeId))
-      .where(eq(dimensionType.name, 'Sex')),
+      .where(eq(dimensionType.name, SEX_DIMENSION_NAME)),
   );
 
   // Read once: `source` is referenced twice below, so Postgres materializes it rather than
@@ -92,7 +95,7 @@ async function insertSeries(
           .select({
             ...sourceColumns,
             periodType: sql<PeriodType>`CASE
-              WHEN ${source.toDate} - ${source.fromDate} <= 400 THEN '1-year'
+              WHEN ${source.toDate} - ${source.fromDate} <= ${ROLLING_PERIOD_THRESHOLD_DAYS} THEN '1-year'
               ELSE '3-year'
             END`.as('period_type'),
           })
