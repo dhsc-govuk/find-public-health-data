@@ -73,14 +73,21 @@ export const AGE_LIMIT_FIELDS = {
   upper: ['upperLimit', 'upperLimitUnit'],
 } as const satisfies Record<AgeLimitBound, readonly [AgeRangePart, AgeRangePart]>;
 
-/** A limit's label: "Lower limit" in the first range, and numbered from the second. */
-export function ageLimitLabel(bound: AgeLimitBound, index: number): string {
-  const label = bound === 'lower' ? 'Lower limit' : 'Upper limit';
-  return index === 0 ? label : `${label} ${index + 1}`;
+/** A limit's label, the same in every range. */
+export function ageLimitLabel(bound: AgeLimitBound): string {
+  return bound === 'lower' ? 'Lower limit' : 'Upper limit';
+}
+
+/**
+ * The words that say which range a limit belongs to, such as " of range 2". The first range
+ * is not numbered, so a page with one range reads as a single question.
+ */
+export function ageRangeOf(index: number): string {
+  return index === 0 ? '' : ` of range ${index + 1}`;
 }
 
 function limitName(bound: AgeLimitBound, index: number): string {
-  return index === 0 ? `the ${bound} limit` : `${bound} limit ${index + 1}`;
+  return `the ${bound} limit${ageRangeOf(index)}`;
 }
 
 function selectLimitUnit(bound: AgeLimitBound, index: number): string {
@@ -121,7 +128,7 @@ function limitProblems(
 
   return ageProblems(AGE_LIMIT_FIELDS[bound], value, unit, {
     enter: `Enter ${limitName(bound, index)}`,
-    wholeNumber: `${ageLimitLabel(bound, index)} must be a whole number from 0 to ${MAX_AGE}`,
+    wholeNumber: `${ageLimitLabel(bound)}${ageRangeOf(index)} must be a whole number from 0 to ${MAX_AGE}`,
     select: selectLimitUnit(bound, index),
   });
 }
@@ -155,7 +162,7 @@ function ageRangeProblems(range: AgeRange, index: number): Partial<Record<AgeRan
     inDays(upperLimit, upperLimitUnit) < inDays(lowerLimit, lowerLimitUnit)
   ) {
     return {
-      upperLimit: `${ageLimitLabel('upper', index)} must not be lower than ${limitName('lower', index)}`,
+      upperLimit: `${ageLimitLabel('upper')}${ageRangeOf(index)} must not be lower than ${limitName('lower', index)}`,
     };
   }
 

@@ -37,6 +37,7 @@ test.use({ storageState: PUBLISHER.storageState });
 describeSectionPage(SECTION, {
   expectUnanswered: async (page) => {
     await expect(page.getByRole('heading', { level: 1, name: TITLE })).toBeVisible();
+    await expect(page.getByRole('group', { name: TITLE, exact: true })).toBeVisible();
     for (const name of ['All ages', 'Age range', 'Specific age', 'Other']) {
       await expect(ageType(page, name)).not.toBeChecked();
     }
@@ -81,6 +82,18 @@ test('lines up each limit with the period beside it', async ({ page }) => {
   }
 });
 
+test('puts the specific age and its period side by side', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+  await ageType(page, 'Specific age').check();
+  await expect(label(page, 'Age')).toBeVisible();
+
+  const age = await label(page, 'Age').boundingBox();
+  const period = await label(page, 'Periods for age').boundingBox();
+  if (!age || !period) throw new Error('the age and its period must be visible');
+  expect(period.x).toBeGreaterThan(age.x + age.width);
+  expect(period.y + period.height).toBeCloseTo(age.y + age.height, 0);
+});
+
 test('adds and removes age ranges, keeping what was typed', async ({ page }) => {
   await openSectionPage(page, SECTION);
   await ageType(page, 'Age range').check();
@@ -90,18 +103,24 @@ test('adds and removes age ranges, keeping what was typed', async ({ page }) => 
   await page.getByRole('button', { name: 'Add another range' }).click();
 
   await expect(label(page, 'Lower limit')).toHaveValue('16');
-  await expect(label(page, 'Lower limit 3')).toBeVisible();
+  await expect(label(page, 'Lower limit of range 3')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: /^Age range/ })).toHaveText([
+    'Age range 1',
+    'Age range 2',
+    'Age range 3',
+  ]);
   await expect(page.getByRole('button', { name: /^Remove range/ })).toHaveText([
+    'Remove range 1',
     'Remove range 2',
     'Remove range 3',
   ]);
 
-  await fillLimit(page, 'Upper limit 3', '4', 'months');
+  await fillLimit(page, 'Upper limit of range 3', '4', 'months');
   await page.getByRole('button', { name: 'Remove range 2' }).click();
 
-  await expect(label(page, 'Upper limit 2')).toHaveValue('4');
-  await expect(label(page, 'Periods for upper limit 2')).toHaveValue('months');
-  await expect(label(page, 'Lower limit 3')).toHaveCount(0);
+  await expect(label(page, 'Upper limit of range 2')).toHaveValue('4');
+  await expect(label(page, 'Periods for upper limit of range 2')).toHaveValue('months');
+  await expect(label(page, 'Lower limit of range 3')).toHaveCount(0);
 });
 
 test('shows each range after a removed one with its own values', async ({ page }) => {
@@ -109,20 +128,38 @@ test('shows each range after a removed one with its own values', async ({ page }
   await ageType(page, 'Age range').check();
   await fillLimit(page, 'Lower limit', '1', 'days');
   await page.getByRole('button', { name: 'Add another range' }).click();
-  await fillLimit(page, 'Lower limit 2', '2', 'weeks');
-  await fillLimit(page, 'Upper limit 2', '20', 'weeks');
+  await fillLimit(page, 'Lower limit of range 2', '2', 'weeks');
+  await fillLimit(page, 'Upper limit of range 2', '20', 'weeks');
   await page.getByRole('button', { name: 'Add another range' }).click();
-  await fillLimit(page, 'Lower limit 3', '3', 'years');
-  await fillLimit(page, 'Upper limit 3', '30', 'years');
+  await fillLimit(page, 'Lower limit of range 3', '3', 'years');
+  await fillLimit(page, 'Upper limit of range 3', '30', 'years');
 
   await page.getByRole('button', { name: 'Remove range 2' }).click();
 
   await expect(label(page, 'Lower limit')).toHaveValue('1');
-  await expect(label(page, 'Lower limit 2')).toHaveValue('3');
-  await expect(label(page, 'Periods for lower limit 2')).toHaveValue('years');
-  await expect(label(page, 'Upper limit 2')).toHaveValue('30');
-  await expect(label(page, 'Periods for upper limit 2')).toHaveValue('years');
-  await expect(label(page, 'Lower limit 3')).toHaveCount(0);
+  await expect(label(page, 'Lower limit of range 2')).toHaveValue('3');
+  await expect(label(page, 'Periods for lower limit of range 2')).toHaveValue('years');
+  await expect(label(page, 'Upper limit of range 2')).toHaveValue('30');
+  await expect(label(page, 'Periods for upper limit of range 2')).toHaveValue('years');
+  await expect(label(page, 'Lower limit of range 3')).toHaveCount(0);
+});
+
+test('removes the first range, leaving none removable once one is left', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+  await ageType(page, 'Age range').check();
+  await expect(page.getByRole('button', { name: /^Remove range/ })).toHaveCount(0);
+  await fillLimit(page, 'Lower limit', '1', 'days');
+  await page.getByRole('button', { name: 'Add another range' }).click();
+  await fillLimit(page, 'Lower limit of range 2', '2', 'weeks');
+
+  await page.getByRole('button', { name: 'Remove range 1' }).click();
+
+  await expect(label(page, 'Lower limit')).toHaveValue('2');
+  await expect(label(page, 'Periods for lower limit')).toHaveValue('weeks');
+  await expect(page.getByRole('heading', { level: 2, name: /^Age range/ })).toHaveText([
+    'Age range 1',
+  ]);
+  await expect(page.getByRole('button', { name: /^Remove range/ })).toHaveCount(0);
 });
 
 test('refuses each range on the field at fault, naming the range from the second on', async ({
@@ -133,8 +170,8 @@ test('refuses each range on the field at fault, naming the range from the second
   await label(page, 'Lower limit').fill('16');
   await page.getByRole('button', { name: 'Add another range' }).click();
   await page.getByRole('button', { name: 'Add another range' }).click();
-  await fillLimit(page, 'Lower limit 3', '5', 'years');
-  await fillLimit(page, 'Upper limit 3', '4', 'years');
+  await fillLimit(page, 'Lower limit of range 3', '5', 'years');
+  await fillLimit(page, 'Upper limit of range 3', '4', 'years');
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -142,12 +179,12 @@ test('refuses each range on the field at fault, naming the range from the second
   await expect(summary.getByRole('link')).toHaveText([
     'Select the periods for the lower limit',
     'You must enter at least a lower or upper limit for range 2',
-    'Upper limit 3 must not be lower than lower limit 3',
+    'Upper limit of range 3 must not be lower than the lower limit of range 3',
   ]);
 
   await expectErrorSummaryReady(page);
   await summary.getByRole('link', { name: /range 2$/ }).click();
-  await expect(label(page, 'Lower limit 2')).toBeFocused();
+  await expect(label(page, 'Lower limit of range 2')).toBeFocused();
 });
 
 test('asks for the specific age and its period, and for other ages', async ({ page }) => {
@@ -170,9 +207,9 @@ test('continues when Enter is pressed in a field, rather than adding or removing
   await ageType(page, 'Age range').check();
   await fillLimit(page, 'Lower limit', '16', 'years');
   await page.getByRole('button', { name: 'Add another range' }).click();
-  await fillLimit(page, 'Upper limit 2', '4', 'years');
+  await fillLimit(page, 'Upper limit of range 2', '4', 'years');
 
-  await label(page, 'Upper limit 2').press('Enter');
+  await label(page, 'Upper limit of range 2').press('Enter');
 
   await expect(page).toHaveURL(taskListPath);
   await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
@@ -188,7 +225,7 @@ test('saves nothing until Continue is selected', async ({ page }) => {
   await page.goto(pagePath);
 
   await expect(ageType(page, 'Age range')).not.toBeChecked();
-  await expect(label(page, 'Lower limit 2')).toHaveCount(0);
+  await expect(label(page, 'Lower limit of range 2')).toHaveCount(0);
 });
 
 test('saves the ranges on Continue and shows the task as completed', async ({ page }) => {
@@ -197,8 +234,8 @@ test('saves the ranges on Continue and shows the task as completed', async ({ pa
   await ageType(page, 'Age range').check();
   await fillLimit(page, 'Upper limit', '11', 'months');
   await page.getByRole('button', { name: 'Add another range' }).click();
-  await fillLimit(page, 'Lower limit 2', '1', 'years');
-  await fillLimit(page, 'Upper limit 2', '4', 'years');
+  await fillLimit(page, 'Lower limit of range 2', '1', 'years');
+  await fillLimit(page, 'Upper limit of range 2', '4', 'years');
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -210,8 +247,8 @@ test('saves the ranges on Continue and shows the task as completed', async ({ pa
   await expect(label(page, 'Lower limit')).toHaveValue('');
   await expect(label(page, 'Upper limit')).toHaveValue('11');
   await expect(label(page, 'Periods for upper limit')).toHaveValue('months');
-  await expect(label(page, 'Lower limit 2')).toHaveValue('1');
-  await expect(label(page, 'Upper limit 2')).toHaveValue('4');
+  await expect(label(page, 'Lower limit of range 2')).toHaveValue('1');
+  await expect(label(page, 'Upper limit of range 2')).toHaveValue('4');
 });
 
 test('saves all ages alone and shows the task as completed', async ({ page }) => {
@@ -277,7 +314,7 @@ test.describe('without JavaScript', () => {
     await expect(ageType(page, 'Age range')).toBeChecked();
     await page.getByRole('button', { name: 'Add another range' }).click();
     await page.getByRole('button', { name: 'Remove range 3' }).click();
-    await fillLimit(page, 'Upper limit 2', '4', 'years');
+    await fillLimit(page, 'Upper limit of range 2', '4', 'years');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page).toHaveURL(taskListPath);

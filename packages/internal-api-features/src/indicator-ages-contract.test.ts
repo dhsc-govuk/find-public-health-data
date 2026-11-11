@@ -181,10 +181,12 @@ describe('agesSection', () => {
     ).toEqual({
       [ageRangeFieldName(1, 'lowerLimit')]:
         'You must enter at least a lower or upper limit for range 2',
-      [ageRangeFieldName(2, 'lowerLimitUnit')]: 'Select the periods for lower limit 3',
-      [ageRangeFieldName(2, 'upperLimit')]: 'Enter upper limit 3',
-      [ageRangeFieldName(3, 'upperLimit')]: 'Upper limit 4 must not be lower than lower limit 4',
-      [ageRangeFieldName(4, 'upperLimit')]: 'Upper limit 5 must be a whole number from 0 to 999',
+      [ageRangeFieldName(2, 'lowerLimitUnit')]: 'Select the periods for the lower limit of range 3',
+      [ageRangeFieldName(2, 'upperLimit')]: 'Enter the upper limit of range 3',
+      [ageRangeFieldName(3, 'upperLimit')]:
+        'Upper limit of range 4 must not be lower than the lower limit of range 4',
+      [ageRangeFieldName(4, 'upperLimit')]:
+        'Upper limit of range 5 must be a whole number from 0 to 999',
     });
   });
 
@@ -212,7 +214,7 @@ describe('agesSection', () => {
         ranges({ lowerLimit: '16', lowerLimitUnit: 'years' }, { upperLimitUnit: 'decades' }),
       ),
     ).toEqual({
-      [ageRangeFieldName(1, 'upperLimitUnit')]: 'Select the periods for upper limit 2',
+      [ageRangeFieldName(1, 'upperLimitUnit')]: 'Select the periods for the upper limit of range 2',
     });
   });
 

@@ -111,6 +111,12 @@ describe('withAgeRangeRemoved', () => {
     });
   });
 
+  it('removes the first range, keeping the next as the first', () => {
+    expect(
+      withAgeRangeRemoved({ ...empty, ageRanges: [sixteenPlus, underFive] }, 0).values.ageRanges,
+    ).toEqual([underFive]);
+  });
+
   it('leaves a blank range when the last one goes', () => {
     expect(withAgeRangeRemoved({ ...empty, ageRanges: [sixteenPlus] }, 0).values.ageRanges).toEqual(
       [blank],

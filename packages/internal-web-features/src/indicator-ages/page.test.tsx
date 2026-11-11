@@ -52,18 +52,21 @@ function buttons(name: string | RegExp) {
 }
 
 describe('AgesPage', () => {
-  it('heads the page with its title and asks the age type as a group', () => {
+  it('asks the age type with the page heading as its question', () => {
     renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: TITLE })).toBeTruthy();
+    const heading = screen.getByRole('heading', { level: 1, name: TITLE });
+
     expect(document.title).toBe(`${TITLE} - ${serviceName} - GOV.UK`);
-    expect(screen.getByRole('group', { name: 'Select age type' })).toBeTruthy();
+    expect(heading.closest('legend')).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('group', { name: TITLE })).toBeTruthy();
   });
 
   it('offers each age type, choosing the one answered', () => {
     renderPage({ values: { ...empty, ageType: 'specific' } });
 
-    const radios = within(screen.getByRole('group', { name: 'Select age type' })).getAllByRole(
+    const radios = within(screen.getByRole('group', { name: TITLE })).getAllByRole(
       'radio',
     ) as HTMLInputElement[];
 
@@ -103,12 +106,36 @@ describe('AgesPage', () => {
     expect(field('Periods for upper limit').name).toBe(ageRangeFieldName(0, 'upperLimitUnit'));
   });
 
-  it('numbers the limits from the second range, which alone can be removed', () => {
+  it('heads each range, and offers no removal of a range alone', () => {
+    renderPage();
+
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual(['Age range 1']);
+    expect(buttons(/^Remove range/)).toHaveLength(0);
+  });
+
+  it('labels every range alike, telling screen readers which range from the second on', () => {
     renderPage({ values: { ...empty, ageType: 'range', ageRanges: [sixteenPlus, underFive] } });
 
-    expect(field('Upper limit 2').value).toBe('4');
-    expect(field('Periods for upper limit 2').value).toBe('months');
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual(['Age range 1', 'Age range 2']);
+    expect(field('Upper limit of range 2').value).toBe('4');
+    expect(field('Periods for upper limit of range 2').value).toBe('months');
+    // What a sighted user reads: the label's text without the part hidden off screen.
+    expect(
+      [...document.querySelectorAll<HTMLInputElement>('input[name^="ageRanges"]')].map(
+        (input) => input.labels?.[0]?.firstChild?.textContent,
+      ),
+    ).toEqual(['Lower limit', 'Upper limit', 'Lower limit', 'Upper limit']);
+  });
+
+  it('offers the removal of every range once there are two', () => {
+    renderPage({ values: { ...empty, ageType: 'range', ageRanges: [sixteenPlus, underFive] } });
+
     expect(buttons(/^Remove range/).map((button) => [button.textContent, button.value])).toEqual([
+      ['Remove range 1', 'remove-0'],
       ['Remove range 2', 'remove-1'],
     ]);
   });
@@ -133,6 +160,10 @@ describe('AgesPage', () => {
 
     expect(field('Age').value).toBe('5');
     expect(field('Periods for age').value).toBe('weeks');
+    // Side by side, as the limits of a range are.
+    expect(field('Age').closest('.fphd-field-row')).toBe(
+      field('Periods for age').closest('.fphd-field-row'),
+    );
     expect(screen.getByRole('textbox', { name: 'Other' })).toHaveProperty('value', 'Year 6');
   });
 
@@ -164,7 +195,7 @@ describe('AgesPage', () => {
       ['Select the periods for the upper limit', `#${field('Periods for upper limit').id}`],
       [
         'You must enter at least a lower or upper limit for range 2',
-        `#${field('Lower limit 2').id}`,
+        `#${field('Lower limit of range 2').id}`,
       ],
       ['Enter the ages included', `#${screen.getByRole('textbox', { name: 'Other' }).id}`],
     ]);

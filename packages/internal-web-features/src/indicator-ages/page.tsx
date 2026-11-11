@@ -7,13 +7,18 @@ import {
   type AgesPageField,
   ageLimitLabel,
   ageRangeFieldName,
+  ageRangeOf,
   MAX_AGE_RANGES,
 } from '@fphd/internal-api-features/contract';
 import { Button, fieldInputId, firstRadioId, Radios, Select, TextInput } from '@fphd/ui';
 import { AGE_UNITS } from '@fphd/utils/ages';
 import type { ReactNode } from 'react';
 
-import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
+import {
+  IndicatorSectionForm,
+  QUESTION_HEADING_SIZE,
+  type SectionPageProps,
+} from '../indicator-section-form.tsx';
 import { ADD_INTENT, removeIntent } from '../list-form.ts';
 
 type FieldErrors = Partial<Record<AgesPageField, string>>;
@@ -62,7 +67,10 @@ function AgeLimit({
   const [valueField, unitField] = AGE_LIMIT_FIELDS[bound];
   const valueName = ageRangeFieldName(index, valueField);
   const unitName = ageRangeFieldName(index, unitField);
-  const label = ageLimitLabel(bound, index);
+  const label = ageLimitLabel(bound);
+  // Every range's limits read the same on screen, under its heading. A screen reader hears
+  // which range a limit is in, from the second on, as the error messages name it.
+  const rangeOf = ageRangeOf(index);
 
   return (
     <div className="fphd-field-row">
@@ -72,13 +80,18 @@ function AgeLimit({
         defaultValue={range[valueField]}
         error={fieldErrors[valueName]}
         inputMode="numeric"
-        label={label}
+        label={
+          <>
+            {label}
+            {rangeOf === '' ? null : <span className="govuk-visually-hidden">{rangeOf}</span>}
+          </>
+        }
         name={valueName}
       />
       <Select
         defaultValue={range[unitField]}
         error={fieldErrors[unitName]}
-        label={periodsLabel(label.toLowerCase())}
+        label={periodsLabel(`${label.toLowerCase()}${rangeOf}`)}
         name={unitName}
         options={UNIT_OPTIONS}
       />
@@ -86,7 +99,7 @@ function AgeLimit({
   );
 }
 
-/** The ranges as typed, each removable but the first, and the button that adds another. */
+/** The ranges as typed, each under its heading and removable while there is another. */
 function AgeRanges({
   ranges,
   fieldErrors,
@@ -99,14 +112,14 @@ function AgeRanges({
       <p className="govuk-hint">You must enter at least a lower or upper limit</p>
       {ranges.map((range, index) => (
         <div key={index}>
+          <h2 className="govuk-heading-m">Age range {index + 1}</h2>
           <AgeLimit bound="lower" fieldErrors={fieldErrors} index={index} range={range} />
           <AgeLimit bound="upper" fieldErrors={fieldErrors} index={index} range={range} />
-          {index === 0 ? null : (
+          {ranges.length > 1 ? (
             <Button classModifiers="secondary" name="intent" value={removeIntent(index)}>
-              {'Remove range'}
-              <span className="govuk-visually-hidden"> {index + 1}</span>
+              Remove range {index + 1}
             </Button>
-          )}
+          ) : null}
         </div>
       ))}
       {ranges.length < MAX_AGE_RANGES ? (
@@ -135,13 +148,15 @@ export function AgesPage(form: SectionPageProps<AgesPageField, AgesFormValues>) 
       }}
       fields={pageFields(values.ageRanges.length)}
       form={form}
+      questionIsHeading
       title={TITLE}
     >
       <Radios
         defaultValue={values.ageType}
         error={fieldErrors.ageType}
-        label="Select age type"
-        labelHeading="h2"
+        label={TITLE}
+        labelClassModifiers={QUESTION_HEADING_SIZE}
+        labelHeading="h1"
         name="ageType"
         options={[
           { value: 'all', label: 'All ages' },
@@ -165,7 +180,7 @@ export function AgesPage(form: SectionPageProps<AgesPageField, AgesFormValues>) 
             value: 'specific',
             label: 'Specific age',
             conditional: (
-              <>
+              <div className="fphd-field-row">
                 <TextInput
                   autoComplete="off"
                   className="govuk-input--width-5"
@@ -182,7 +197,7 @@ export function AgesPage(form: SectionPageProps<AgesPageField, AgesFormValues>) 
                   name="specificAgeUnit"
                   options={UNIT_OPTIONS}
                 />
-              </>
+              </div>
             ),
           },
           {
