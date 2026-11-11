@@ -16,6 +16,7 @@ export function indicatorDetail(
     unit: '%',
     yearType: { value: 'calendar', label: 'Calendar year' },
     updateFrequency: 'annually',
+    updateFrequencyReason: null,
     polarity: 'higher-is-better',
     ciMethod: null,
     ciConfidenceLevel: '95',

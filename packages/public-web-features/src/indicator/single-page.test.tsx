@@ -17,6 +17,7 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
     unit: '%',
     yearType: null,
     updateFrequency: 'annually',
+    updateFrequencyReason: null,
     polarity: 'no-comparison-possible',
     ciMethod: null,
     ciConfidenceLevel: null,
