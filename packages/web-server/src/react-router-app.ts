@@ -7,12 +7,13 @@ import { loggerContext } from './logger-context.ts';
 import { nonceContext } from './nonce-context.ts';
 import { createSessionContext } from './session.ts';
 
-type OptionalServerBuildKey = 'allowedActionOrigins' | 'basename' | 'unstable_getCriticalCss';
+/** The keys ServerBuild marks optional, worked out from the type so a new one needs no edit here. */
+type OptionalServerBuildKey = {
+  [K in keyof ServerBuild]-?: object extends Pick<ServerBuild, K> ? K : never;
+}[keyof ServerBuild];
 
 type GeneratedServerBuild = Omit<ServerBuild, OptionalServerBuildKey> & {
-  allowedActionOrigins: ServerBuild['allowedActionOrigins'] | undefined;
-  basename: ServerBuild['basename'] | undefined;
-  unstable_getCriticalCss: ServerBuild['unstable_getCriticalCss'] | undefined;
+  [K in OptionalServerBuildKey]?: ServerBuild[K] | undefined;
 };
 
 export type ReactRouterBuildLoader = () => Promise<GeneratedServerBuild>;
@@ -20,20 +21,13 @@ export type ReactRouterBuildLoader = () => Promise<GeneratedServerBuild>;
 /**
  * React Router's generated module emits optional build fields as required
  * properties whose values can be undefined. Convert that generated shape into
- * the public ServerBuild shape by omitting absent optional fields.
+ * the public ServerBuild shape by omitting absent optional fields. Required
+ * fields always have a value, so only optional ones are dropped.
  */
-function normalizeServerBuild({
-  allowedActionOrigins,
-  basename,
-  unstable_getCriticalCss,
-  ...build
-}: GeneratedServerBuild): ServerBuild {
-  return {
-    ...build,
-    ...(allowedActionOrigins === undefined ? {} : { allowedActionOrigins }),
-    ...(basename === undefined ? {} : { basename }),
-    ...(unstable_getCriticalCss === undefined ? {} : { unstable_getCriticalCss }),
-  };
+function normalizeServerBuild(build: GeneratedServerBuild): ServerBuild {
+  return Object.fromEntries(
+    Object.entries(build).filter(([, value]) => value !== undefined),
+  ) as unknown as ServerBuild;
 }
 
 interface ReactRouterAppOptions {
