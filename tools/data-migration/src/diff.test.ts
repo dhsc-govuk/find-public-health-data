@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +10,7 @@ import {
   DATA_MIGRATION_TABLES,
   incrementalManifestSchema,
 } from '@fphd/db-operations/data-migration-contract';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { encodeRow, readGzipCsv } from './csv.ts';
 import { createIncremental } from './diff.ts';
 import { fileRecord } from './files.ts';
@@ -17,6 +18,25 @@ import verifiedSettings from './pholio/verified-analytical-settings.ts';
 import { deterministicUuid } from './prepare-baseline.ts';
 
 const directories: string[] = [];
+
+// While switched on, every write a file stream makes finishes 20ms late, so a failure always
+// arrives while a write is still in flight.
+const slowFileWrites = vi.hoisted(() => ({ on: false }));
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs')>();
+  const write = (...args: unknown[]) => {
+    const done = args.pop() as (...result: unknown[]) => void;
+    const delay = slowFileWrites.on ? 20 : 0;
+    (fs.write as (...parameters: unknown[]) => void)(...args, (...result: unknown[]) =>
+      setTimeout(() => done(...result), delay),
+    );
+  };
+  return {
+    ...fs,
+    createWriteStream: (path: string, options?: object) =>
+      fs.createWriteStream(path, { ...options, fs: { open: fs.open, write, close: fs.close } }),
+  };
+});
 
 // The bridge tables have no id, so their files always carry their real columns.
 const BRIDGE_HEADERS: Partial<Record<string, string[]>> = {
@@ -227,6 +247,31 @@ describe('createIncremental', () => {
     await expect(createIncremental(previous, current, output, 'increment-2')).rejects.toThrow(
       'observation_note rows in the current snapshot are not ordered by observation_id, note_type_id',
     );
+  });
+
+  it('closes its files before removing them when a table fails part way through', async () => {
+    // Enough rows that the upserts file has a write in flight when the out-of-order row comes.
+    const rows = Array.from({ length: 500 }, (_, index) => [
+      deterministicUuid('observation', String(index + 1)),
+      randomUUID(),
+    ]).sort(([left = ''], [right = '']) => left.localeCompare(right));
+    const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {});
+    const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', {
+      observation: [...rows, rows[0] ?? []],
+    });
+    const output = await outputDirectory();
+    slowFileWrites.on = true;
+    try {
+      await expect(createIncremental(previous, current, output, 'increment-2')).rejects.toThrow(
+        'observation rows in the current snapshot are not ordered by id',
+      );
+      // A write still in flight on a destroyed file stream fails once it finishes, with no one
+      // listening, which fails the run. Waiting past the delay lets that happen in this test.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } finally {
+      slowFileWrites.on = false;
+    }
+    expect(await readdir(join(output, '..'))).toEqual([]);
   });
 
   it('rejects a snapshot whose rows are not ordered by stable id', async () => {

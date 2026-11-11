@@ -159,9 +159,15 @@ export async function createIncremental(
           }
         }
       } catch (error) {
-        // Leave no half-written gzip behind to be mistaken for a package file.
-        for (const stream of [upserts, deletes, upsertDestination, deleteDestination])
-          stream.destroy();
+        // Leave no half-written gzip behind to be mistaken for a package file. The streams are
+        // ended and waited for before the files go, not destroyed: a file stream destroyed with a
+        // write in flight fails that write when it completes, and nothing is listening by then.
+        // A write error here is ignored in favour of the error being thrown.
+        await Promise.all(
+          [finish(upserts, upsertDestination), finish(deletes, deleteDestination)].map((closing) =>
+            closing.catch(() => undefined),
+          ),
+        );
         await Promise.all([rm(upsertPath, { force: true }), rm(deletePath, { force: true })]);
         throw error;
       }
