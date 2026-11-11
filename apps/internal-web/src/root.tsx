@@ -10,6 +10,7 @@ import {
 } from '@fphd/ui';
 import { flashMiddleware } from '@fphd/web-server/flash';
 import { getSession, sessionMiddleware } from '@fphd/web-server/session';
+import { useEffect } from 'react';
 import { href, Outlet, useLoaderData, useMatches } from 'react-router';
 
 import type { Route } from './+types/root';
@@ -34,9 +35,25 @@ function navigationFor({ canManage, signedIn }: { canManage: boolean; signedIn: 
   ];
 }
 
+/**
+ * Reloads a page the browser restores from its back-forward cache when the user goes back or
+ * forward. A restored page shows what it showed when the user left it, so a form could still
+ * hold answers or hidden values the user has since replaced. Reloading asks the server again.
+ */
+function useReloadWhenRestored() {
+  useEffect(() => {
+    const reload = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener('pageshow', reload);
+    return () => window.removeEventListener('pageshow', reload);
+  }, []);
+}
+
 export default function InternalApp() {
   const { canManage, signedIn } = useLoaderData<typeof loader>();
   const backLink = backLinkFrom(useMatches());
+  useReloadWhenRestored();
 
   return (
     <AppShell
