@@ -1,11 +1,11 @@
 import { TEAM_IDS } from '@fphd/auth';
 import {
   type IndicatorAdminDetail,
+  type IndicatorTaskList,
   type IndicatorTaskStatus,
   type IndicatorTaskStatuses,
   indicatorTaskKeySchema,
 } from '@fphd/internal-api-features/contract';
-
 import type { FakeApiAnswer, FakeApiCall } from '@fphd/web-server/testing';
 
 import type { SectionPageProps } from './indicator-section-form.tsx';
@@ -64,4 +64,40 @@ export function taskStatuses(status: IndicatorTaskStatus): IndicatorTaskStatuses
   return Object.fromEntries(
     indicatorTaskKeySchema.options.map((key) => [key, status]),
   ) as IndicatorTaskStatuses;
+}
+
+/**
+ * A draft's task list as the API answers it: the draft `indicatorDetail` describes, with every
+ * task complete and ready to submit, unless `overrides` say otherwise.
+ */
+export function indicatorTaskList(overrides: Partial<IndicatorTaskList> = {}): IndicatorTaskList {
+  const {
+    id,
+    shortId,
+    name,
+    indicatorStatus,
+    draftStatus,
+    draftSubmissionStatus,
+    draftResponseKind,
+  } = indicatorDetail();
+
+  return {
+    indicator: {
+      id,
+      shortId,
+      name,
+      indicatorStatus,
+      draftStatus,
+      draftSubmissionStatus,
+      draftResponseKind,
+    },
+    isUpdate: false,
+    canSubmit: true,
+    tasks: taskStatuses('completed'),
+    review: null,
+    draftUpdatedAt: '2026-10-22T09:30:00.123Z',
+    editable: true,
+    actions: ['submit'],
+    ...overrides,
+  };
 }

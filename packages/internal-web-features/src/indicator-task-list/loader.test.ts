@@ -1,36 +1,33 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
+import type { IndicatorTaskList } from '@fphd/internal-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  noContent,
+  refused,
+} from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { devToolsContext } from '../dev-tools.ts';
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
+import { indicatorTaskList, taskStatuses } from '../testing.ts';
 import { loadIndicatorTaskList, submitIndicator } from './loader.ts';
 
-const tasksLeft = { name: 'completed', polarity: 'not_started' };
+const taskList = indicatorTaskList();
+const tasksLeft = { ...taskStatuses('completed'), polarity: 'not_started' } as const;
+const TASK_LIST = `/api/internal/indicators/${taskList.indicator.id}/task-list` as const;
 
-const taskList = {
-  indicator: {
-    id: '00000000-0000-7000-8000-000000000001',
-    shortId: 90366,
-    name: 'Life expectancy at birth',
-    indicatorStatus: 'new',
-    draftStatus: 'draft',
-    draftSubmissionStatus: null,
-  },
-  isUpdate: false,
-  canSubmit: true,
-  review: null,
-  draftUpdatedAt: '2026-10-22T09:30:00.123Z',
-  editable: true,
-  actions: ['submit'],
-  tasks: { name: 'completed' },
-};
+/** An API that answers the task list with `answer`. */
+function answering(answer: FakeApiAnswer = taskList) {
+  return createFakeApiClient({ [`GET ${TASK_LIST}`]: answer });
+}
 
 /** Leaves the development tools context unset unless `devTools` is given, as an app might. */
-function load(id: string, get: ApiClient['get'], devTools?: boolean) {
+function load(id: string, api: FakeApiClient, devTools?: boolean) {
   const context = new RouterContextProvider();
-  context.set(apiContext, { get } as unknown as ApiClient);
+  context.set(apiContext, api);
   if (devTools !== undefined) context.set(devToolsContext, devTools);
 
   return loadIndicatorTaskList({
@@ -42,20 +39,15 @@ function load(id: string, get: ApiClient['get'], devTools?: boolean) {
 
 describe('loadIndicatorTaskList', () => {
   it('fetches the task list of the indicator the address names', async () => {
-    const get = vi.fn().mockResolvedValue(taskList);
+    const outcome = await load(taskList.indicator.id, answering());
 
-    const outcome = await load(taskList.indicator.id, get);
-
-    expect(get.mock.calls[0]?.[0]).toBe(
-      `/api/internal/indicators/${taskList.indicator.id}/task-list`,
-    );
     expect(outcome).toEqual({ taskList, requests: null, offersSampleAnswers: false });
   });
 
   it('offers sample answers where the app offers development tools and tasks are left', async () => {
-    const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false, tasks: tasksLeft });
+    const api = answering({ ...taskList, canSubmit: false, tasks: tasksLeft });
 
-    const outcome = await load(taskList.indicator.id, get, true);
+    const outcome = await load(taskList.indicator.id, api, true);
 
     expect(outcome.offersSampleAnswers).toBe(true);
   });
@@ -66,30 +58,30 @@ describe('loadIndicatorTaskList', () => {
   ])(
     'offers no sample answers with development tools %s, though tasks are left',
     async (_, devTools) => {
-      const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false, tasks: tasksLeft });
+      const api = answering({ ...taskList, canSubmit: false, tasks: tasksLeft });
 
-      const outcome = await load(taskList.indicator.id, get, devTools);
+      const outcome = await load(taskList.indicator.id, api, devTools);
 
       expect(outcome.offersSampleAnswers).toBe(false);
     },
   );
 
   it('offers no sample answers to a complete draft held back by its review', async () => {
-    const review = {
+    const review: IndicatorTaskList['review'] = {
       kind: 'minor_revisions',
       clarificationRequest: null,
       flags: [],
       revisionResponse: null,
     };
-    const get = vi.fn().mockResolvedValue({ ...taskList, canSubmit: false, review });
+    const api = answering({ ...taskList, canSubmit: false, review });
 
-    const outcome = await load(taskList.indicator.id, get, true);
+    const outcome = await load(taskList.indicator.id, api, true);
 
     expect(outcome.offersSampleAnswers).toBe(false);
   });
 
   it('renders what the round asks from the reviewer’s Markdown', async () => {
-    const review = {
+    const review: IndicatorTaskList['review'] = {
       kind: 'pre_imrg_feedback',
       clarificationRequest: { notes: 'Which *years*?', reviewerName: 'Sam Reviewer' },
       flags: [
@@ -104,10 +96,7 @@ describe('loadIndicatorTaskList', () => {
       revisionResponse: '  ',
     };
 
-    const outcome = await load(
-      taskList.indicator.id,
-      vi.fn().mockResolvedValue({ ...taskList, review }),
-    );
+    const outcome = await load(taskList.indicator.id, answering({ ...taskList, review }));
 
     expect(outcome.requests).toEqual({
       advised: true,
@@ -132,7 +121,7 @@ describe('loadIndicatorTaskList', () => {
   });
 
   it('offers no sample answers once every task is complete', async () => {
-    const outcome = await load(taskList.indicator.id, vi.fn().mockResolvedValue(taskList), true);
+    const outcome = await load(taskList.indicator.id, answering(), true);
 
     expect(outcome.offersSampleAnswers).toBe(false);
   });
@@ -140,9 +129,7 @@ describe('loadIndicatorTaskList', () => {
   it('sends the publisher to the overview, saying why, while the draft is locked', async () => {
     const id = taskList.indicator.id;
     const context = withFlashStorage(new RouterContextProvider());
-    context.set(apiContext, {
-      get: vi.fn().mockResolvedValue({ ...taskList, editable: false }),
-    } as unknown as ApiClient);
+    context.set(apiContext, answering({ ...taskList, editable: false }));
     const request = new Request(`https://internal.test/publish/indicators/${id}/task-list`);
 
     const response = await flashedResponse(context, request, () =>
@@ -161,9 +148,11 @@ describe('submitIndicator', () => {
   const id = taskList.indicator.id;
   const path = `https://internal.test/publish/indicators/${id}/task-list`;
 
-  function submit(postToMember: ApiClient['postToMember'], body: Record<string, string>) {
+  const SUBMIT = `POST /api/internal/indicators/${id}/submit` as const;
+
+  function submit(api: FakeApiClient, body: Record<string, string>) {
     const context = withFlashStorage(new RouterContextProvider());
-    context.set(apiContext, { postToMember } as unknown as ApiClient);
+    context.set(apiContext, api);
     const request = new Request(path, { method: 'POST', body: new URLSearchParams(body) });
 
     return {
@@ -174,16 +163,19 @@ describe('submitIndicator', () => {
   }
 
   it('submits the draft as the page showed it, then says so on the overview', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
-    const { context, request, run } = submit(postToMember, {
+    const api = createFakeApiClient({ [SUBMIT]: noContent });
+    const { context, request, run } = submit(api, {
       draftUpdatedAt: '2026-10-22T09:30:00.123Z',
     });
 
     const response = await flashedResponse(context, request, run);
 
-    expect(postToMember.mock.calls[0]?.slice(0, 2)).toEqual([
-      `/api/internal/indicators/${id}/submit`,
-      { draftUpdatedAt: '2026-10-22T09:30:00.123Z' },
+    expect(api.calls).toEqual([
+      {
+        method: 'POST',
+        path: `/api/internal/indicators/${id}/submit`,
+        body: { draftUpdatedAt: '2026-10-22T09:30:00.123Z' },
+      },
     ]);
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -201,22 +193,20 @@ describe('submitIndicator', () => {
     ['not_allowed', 'This indicator cannot be submitted for approval.'],
     ['invalid_draft_updated_at', 'The indicator could not be submitted. Try again.'],
   ])('stays on the task list saying why when the API refuses it as %s', async (error, message) => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error } });
+    const api = createFakeApiClient({ [SUBMIT]: refused(409, { error }) });
 
-    const outcome = await submit(postToMember, { draftUpdatedAt: 'x' }).run();
+    const outcome = await submit(api, { draftUpdatedAt: 'x' }).run();
 
     expect(outcome).toEqual({ formError: message });
   });
 
   it('sends an empty last edit when the form carries none, for the API to refuse', async () => {
-    const postToMember = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'invalid_draft_updated_at' },
+    const api = createFakeApiClient({
+      [SUBMIT]: refused(400, { error: 'invalid_draft_updated_at' }),
     });
 
-    await submit(postToMember, {}).run();
+    await submit(api, {}).run();
 
-    expect(postToMember.mock.calls[0]?.[1]).toEqual({ draftUpdatedAt: '' });
+    expect(api.calls[0]?.body).toEqual({ draftUpdatedAt: '' });
   });
 });
