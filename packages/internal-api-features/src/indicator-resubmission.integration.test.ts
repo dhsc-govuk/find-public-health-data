@@ -126,6 +126,21 @@ describe('a resubmission', () => {
     expect(await isLocked(db, round.versionId)).toBe(true);
   });
 
+  repositoryTest('answers a repeat as the first, writing nothing', async ({ db }) => {
+    const round = await inReview(db, await newDraft(db, 'Resubmitted twice'), [REVIEWER]);
+    await sentBack(db, round);
+    await submitIndicator(db, round.indicatorId, round.shown, AS_ACTOR);
+
+    expect(await submitIndicator(db, round.indicatorId, round.shown, AS_ACTOR)).toEqual({
+      ok: true,
+      repeated: true,
+    });
+    expect((await submissionsOf(db, round.versionId)).map(({ status }) => status)).toEqual([
+      'changes_requested',
+      'in_review',
+    ]);
+  });
+
   repositoryTest('records the reviewers carried in its audit entry', async ({ db }) => {
     const round = await inReview(db, await newDraft(db, 'Resubmission audited'), [REVIEWER]);
     await sentBack(db, round);

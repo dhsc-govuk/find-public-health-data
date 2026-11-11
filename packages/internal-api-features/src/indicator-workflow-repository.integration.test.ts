@@ -238,15 +238,62 @@ describe('submitIndicator', () => {
     },
   );
 
-  repositoryTest('refuses a draft already submitted', async ({ db }) => {
-    const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Submitted again');
+  repositoryTest(
+    'answers a repeat of its own submission as the first, writing nothing',
+    async ({ db }) => {
+      const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Submitted again');
+      await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+
+      await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+        ok: true,
+        repeated: true,
+      });
+      expect(await submissionsOf(db, versionId)).toHaveLength(1);
+      expect(await stepEntriesFor(db, indicatorId)).toHaveLength(1);
+    },
+  );
+
+  repositoryTest('answers a repeat as the first once reviewers are assigned', async ({ db }) => {
+    const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Submitted, then late');
     await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+    await assign(db, indicatorId, [REVIEWER]);
+
+    await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+      ok: true,
+      repeated: true,
+    });
+    expect(await submissionsOf(db, versionId)).toHaveLength(1);
+  });
+
+  repositoryTest('refuses a draft another user already submitted', async ({ db }) => {
+    const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Submitted by another');
+    await submitIndicator(db, indicatorId, shown, AS_OTHER_ACTOR);
 
     await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
       ok: false,
       reason: 'not_allowed',
     });
     expect(await submissionsOf(db, versionId)).toHaveLength(1);
+  });
+
+  repositoryTest('refuses a repeat sent for an earlier edit of the draft', async ({ db }) => {
+    const { indicatorId, shown } = await completeNewDraft(db, 'Submitted after an edit');
+    await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+
+    await expect(
+      submitIndicator(db, indicatorId, new Date(shown.getTime() - 1000), AS_ACTOR),
+    ).resolves.toEqual({ ok: false, reason: 'not_allowed' });
+  });
+
+  repositoryTest('refuses a draft once it is approved', async ({ db }) => {
+    const { indicatorId, shown } = await sentBackDraft(db, 'Submitted once approved', [], {
+      kind: 'approved',
+    });
+
+    await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'not_allowed',
+    });
   });
 
   repositoryTest('refuses the draft of a live indicator', async ({ db }) => {
@@ -347,17 +394,31 @@ describe('withdrawSubmission', () => {
     });
   });
 
-  repositoryTest('refuses a submission already withdrawn', async ({ db }) => {
-    const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Withdrawn twice');
+  repositoryTest(
+    'answers a repeat of its own withdrawal as the first, writing nothing',
+    async ({ db }) => {
+      const { indicatorId, versionId, shown } = await completeNewDraft(db, 'Withdrawn twice');
+      await submitIndicator(db, indicatorId, shown, AS_ACTOR);
+      await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
+
+      await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
+        ok: true,
+        repeated: true,
+      });
+      expect(await stepEntriesFor(db, indicatorId)).toHaveLength(2);
+      expect((await submissionsOf(db, versionId))[0]?.status).toBe('withdrawn');
+    },
+  );
+
+  repositoryTest('refuses a submission another user already withdrew', async ({ db }) => {
+    const { indicatorId, shown } = await completeNewDraft(db, 'Withdrawn by another');
     await submitIndicator(db, indicatorId, shown, AS_ACTOR);
-    await withdrawSubmission(db, indicatorId, 1, AS_ACTOR);
+    await withdrawSubmission(db, indicatorId, 1, AS_OTHER_ACTOR);
 
     await expect(withdrawSubmission(db, indicatorId, 1, AS_ACTOR)).resolves.toEqual({
       ok: false,
       reason: 'not_allowed',
     });
-    expect(await stepEntriesFor(db, indicatorId)).toHaveLength(2);
-    expect((await submissionsOf(db, versionId))[0]?.status).toBe('withdrawn');
   });
 
   repositoryTest('withdraws a resubmission by its own number', async ({ db }) => {
