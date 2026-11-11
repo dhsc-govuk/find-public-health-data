@@ -76,8 +76,23 @@ function describeCall({ method, path }: FakeApiCall): string {
   return `${method} ${path}`;
 }
 
+/**
+ * The stub for what the real `get` throws when the API answers `status`: a 409 becomes an
+ * `ApiConflictError`, a 404 stays a 404 `Response`, and anything else becomes a 502.
+ */
+function getFailureFor(status: number): string {
+  if (status === 409) return 'fails(new ApiConflictError(path, body))';
+  if (status === 404) return "fails(new Response('Not Found', { status: 404 }))";
+  return "fails(new Response('Bad Gateway', { status: 502 }))";
+}
+
+/**
+ * Parses a stubbed body as the real client parses one off the wire. The body goes through JSON
+ * first, as the API's answer does, so a `Date` arrives as a string, a field set to `undefined`
+ * is dropped and a `NaN` becomes `null`.
+ */
 function parseStub<T>(call: FakeApiCall, schema: z.ZodType<T>, body: unknown): T {
-  const result = schema.safeParse(body);
+  const result = schema.safeParse(JSON.parse(JSON.stringify(body)));
 
   if (!result.success) {
     throw new Error(
@@ -101,13 +116,14 @@ export function createFakeApiClient(stubs: FakeApiStubs = {}): FakeApiClient {
     const key = describeCall(call);
     const [pathWithoutQuery] = call.path.split('?');
 
-    const stub =
-      stubs[key as keyof FakeApiStubs] ??
-      stubs[`${call.method} ${pathWithoutQuery}` as keyof FakeApiStubs];
-    if (stub === undefined) {
+    // An exact key wins even when its answer is null, so look for the key itself, not its value.
+    const pathKey = `${call.method} ${pathWithoutQuery}`;
+    const stubKey = [key, pathKey].find((candidate) => Object.hasOwn(stubs, candidate));
+    if (stubKey === undefined) {
       throw new Error(`The API was called (${key}) but this test did not stub it`);
     }
 
+    const stub = stubs[stubKey as keyof FakeApiStubs];
     const answered = typeof stub === 'function' ? await stub(call) : stub;
 
     if (answered instanceof Failure) throw answered.error;
@@ -117,7 +133,13 @@ export function createFakeApiClient(stubs: FakeApiStubs = {}): FakeApiClient {
   async function read<T>(call: FakeApiCall, schema: z.ZodType<T>): Promise<T> {
     const answered = await answer(call);
 
-    if (answered instanceof Refusal || answered instanceof NoContent) {
+    if (answered instanceof Refusal) {
+      throw new Error(
+        `get throws instead of returning a refusal, so stub ${describeCall(call)} with ${getFailureFor(answered.status)}`,
+      );
+    }
+
+    if (answered instanceof NoContent) {
       throw new Error(`A GET answers with a body, but the stub for ${describeCall(call)} has none`);
     }
 

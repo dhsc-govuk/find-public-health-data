@@ -45,6 +45,17 @@ describe('createFakeApiClient', () => {
     ]);
   });
 
+  it('answers a null stub that names the query, not the stub for its path', async () => {
+    const api = createFakeApiClient({
+      'GET /api/topics?q=none': null,
+      'GET /api/topics': [topic],
+    });
+
+    await expect(api.get('/api/topics?q=none', z.array(topicSchema).nullable())).resolves.toBe(
+      null,
+    );
+  });
+
   it('answers no query on a path stubbed with a different one', async () => {
     const api = createFakeApiClient({ 'GET /api/topics?q=air': [] });
 
@@ -67,6 +78,37 @@ describe('createFakeApiClient', () => {
     });
 
     await expect(api.get('/api/topics/gone', topicSchema)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('fails a refusal stubbed on a read, naming what the real client throws instead', async () => {
+    const api = createFakeApiClient({
+      'GET /api/topics/air-quality': refused(409, { error: 'locked' }),
+      'GET /api/topics/gone': refused(404, {}),
+    });
+
+    await expect(api.get('/api/topics/air-quality', topicSchema)).rejects.toThrow(
+      'stub GET /api/topics/air-quality with fails(new ApiConflictError(path, body))',
+    );
+    await expect(api.get('/api/topics/gone', topicSchema)).rejects.toThrow(
+      "fails(new Response('Not Found', { status: 404 }))",
+    );
+  });
+
+  it('parses a stubbed body as it would arrive over the wire', async () => {
+    const api = createFakeApiClient({
+      'GET /api/topics/air-quality': {
+        slug: 'air-quality',
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        retiredAt: undefined,
+        rate: Number.NaN,
+      },
+    });
+    const schema = topicSchema.extend({ rate: z.number().nullable() }).strict();
+
+    await expect(api.get('/api/topics/air-quality', schema)).resolves.toEqual({
+      ...topic,
+      rate: null,
+    });
   });
 
   it('answers a write with the parsed body, recording what was sent', async () => {
