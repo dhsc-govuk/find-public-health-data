@@ -203,7 +203,7 @@ paths:
                   One header row, then one row per observation. The columns are `DataRow`'s
                   properties in order, with nested objects joined by dots.
               example: |
-                indicator.shortId,indicator.slug,indicator.name,area.code,area.name,area.type,area.validFrom,area.validTo,fromDate,toDate,sex,age,ageFrom,ageUnder,deprivation,deprivationGroups,deprivationScheme,ethnicity,ethnicityScheme,socioeconomicGroup,socioeconomicGroupScheme,religion,religionScheme,sexuality,sexualityScheme,category1Type,category1,value,lowerCi95,upperCi95,lowerCi998,upperCi998,count,denominator,note,benchmark.code,comparedToBenchmark
+                indicator.shortId,indicator.slug,indicator.name,area.code,area.name,area.type,area.validFrom,area.validTo,fromDate,toDate,sex,age,ageFrom,ageUnder,deprivation,deprivationGroups,deprivationScheme,ethnicity,ethnicityScheme,socioeconomicGroup,socioeconomicGroupScheme,religion,religionScheme,sexuality,sexualityScheme,category1Type,category1,value,lowerCi95,upperCi95,lowerCi998,upperCi998,count,numerator,denominator,note,benchmark.code,comparedToBenchmark
                 90366,life-expectancy-at-birth,Life expectancy at birth,E06000047,County Durham,counties-and-unitary-authorities,2009-04-01,,2021-01-01,2023-12-31,f,,,,,,,,,,,,,,,,,81.2,80.9,81.5,80.7,81.7,,,,E92000001,worse
             application/json:
               schema:
@@ -1245,6 +1245,7 @@ components:
         - lowerCi998
         - upperCi998
         - count
+        - numerator
         - denominator
         - note
         - benchmark
