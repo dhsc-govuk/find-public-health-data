@@ -5,6 +5,7 @@ import { createTestDb } from '@fphd/db/testing';
 import type { ClassificationDimension } from '@fphd/utils/classification-dimension';
 import { slugify } from '@fphd/utils/slug';
 import { and, eq, sql } from 'drizzle-orm';
+import { v7 as randomUuidV7 } from 'uuid';
 import { expect, test } from 'vitest';
 
 import { type CreatedIndicatorDraft, createIndicatorDraft } from './indicator-draft-repository.ts';
@@ -65,7 +66,13 @@ export async function lockWaited(db: Database): Promise<void> {
 
 /** Every case here names its indicator distinctly, so the slug is free. */
 export async function newDraft(db: Database, name: string): Promise<CreatedIndicatorDraft> {
-  const created = await createIndicatorDraft(db, { name }, AS_ACTOR, TEAM_IDS.teamA);
+  const created = await createIndicatorDraft(
+    db,
+    randomUuidV7(),
+    { name },
+    AS_ACTOR,
+    TEAM_IDS.teamA,
+  );
   if (!created.ok) throw new Error(`createIndicatorDraft refused the name: ${created.reason}`);
   return created;
 }

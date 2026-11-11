@@ -95,7 +95,8 @@ export function indicatorSubmissionsRouter(
         return;
       }
 
-      request.log.info({ indicatorId: id }, 'Indicator submitted');
+      // A repeated request found the draft already submitted for it, so it did nothing to log.
+      if (!result.repeated) request.log.info({ indicatorId: id }, 'Indicator submitted');
       response.status(204).end();
     },
   );
@@ -126,7 +127,8 @@ export function indicatorSubmissionsRouter(
         return;
       }
 
-      request.log.info({ indicatorId: id }, 'Indicator submission withdrawn');
+      // As with a submission, a repeated withdrawal did nothing to log.
+      if (!result.repeated) request.log.info({ indicatorId: id }, 'Indicator submission withdrawn');
       response.status(204).end();
     },
   );

@@ -170,16 +170,6 @@ describe('the names on each row', () => {
       });
     },
   );
-
-  seededRepositoryTest('leaves the team empty for an indicator in no team', async ({ db }) => {
-    const created = await newDraft(db, 'In no team');
-    await db
-      .update(schema.indicator)
-      .set({ teamId: null })
-      .where(eq(schema.indicator.id, created.indicatorId));
-
-    expect(await listed(db, created.indicatorId)).toMatchObject({ teamName: null });
-  });
 });
 
 describe('the derived statuses', () => {

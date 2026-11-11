@@ -439,3 +439,27 @@ for (const {
     });
   });
 }
+
+test.describe('Justifications without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('saves the largest answers the page takes: five of 10,000 characters', async ({ page }) => {
+    const justifications = SECTIONS.find(({ section }) => section.key === 'justifications');
+    if (justifications === undefined) throw new Error('no justifications section to test');
+    // An emoji is one character that takes 4 bytes, the most any character takes.
+    const longest = '\u{1F600}'.repeat(10_000);
+    const taskListPath = await openSectionPage(page, justifications.section);
+
+    for (const { label } of justifications.textQuestions) {
+      await page.getByLabel(label).fill(longest);
+    }
+    for (const question of justifications.questions) {
+      await answer(page, question, 'Yes').check();
+      await details(page, question).fill(longest);
+    }
+    await continueForm(page);
+
+    await expect(page).toHaveURL(taskListPath);
+    await expect(taskRow(page, justifications.section.taskName)).toContainText('Completed');
+  });
+});

@@ -1,6 +1,5 @@
 import type postgres from 'postgres';
 
-import { assignImportedTeam } from './data-migration-actors.ts';
 import type { DataMigrationProgressReporter } from './data-migration-copy.ts';
 import { applyDeletes, prepareVersionDeletes, stageDeletes } from './data-migration-deletes.ts';
 import type { DataMigrationManifest } from './data-migration-manifest.ts';
@@ -80,7 +79,6 @@ async function applyBaseline(
     changes[table] = { upserts: entry.rows, deletes: 0 };
   }
   if (indicatorVersionHasBatchPointers) await applyVersionBatchPointers(tx);
-  await assignImportedTeam(tx);
   return changes;
 }
 
@@ -116,7 +114,6 @@ async function applyIncremental(
     await applyUpserts(tx, table, `${directory}/${entry.upserts.file}`, entry.upserts.rows, report);
   }
   if (indicatorVersionHasBatchPointers) await applyVersionBatchPointers(tx);
-  await assignImportedTeam(tx, 'data_migration_upsert_indicator');
   for (const table of DATA_MIGRATION_TABLES) {
     if (referenceTables.has(table)) continue;
     const entry = manifest.tables[table];

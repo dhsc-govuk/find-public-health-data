@@ -74,13 +74,16 @@ catalog:
   "@types/govuk-frontend": 5.11.0
   "@types/mssql": 12.3.0
   # Match the minimum supported Node runtime; newer Node APIs must not enter accidentally.
-  "@types/node": 24.13.3
+  "@types/node": 26.6.6
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
   "@types/compression": 1.8.1
   "@types/supertest": 7.2.0
   basic-auth: 3.0.0
   compression: 1.8.2
+  # Installed globally by scripts/install-corepack.sh, which reads this line, so keep it a plain
+  # version. The root devDependency only puts it in the lockfile, and so in the audit.
+  corepack: 0.36.0
   cross-env: 10.1.0
   csv-parse: 7.0.3
   csv-stringify: 6.8.3

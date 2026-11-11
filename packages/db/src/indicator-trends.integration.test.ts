@@ -9,6 +9,7 @@ import {
   areaType,
   dimensionType,
   dimensionValue,
+  IMPORTED_INDICATOR_TEAM_ID,
   indicator,
   indicatorVersion,
   observation,
@@ -58,7 +59,10 @@ it.each([0, 1])(
   'prefers a series with %i dimensions over a longer, more disaggregated series as public_api',
   async (dimensionCount) => {
     const db = database.db;
-    const [identity] = await db.insert(indicator).values({}).returning();
+    const [identity] = await db
+      .insert(indicator)
+      .values({ teamId: IMPORTED_INDICATOR_TEAM_ID })
+      .returning();
     if (!identity) throw new Error('Indicator fixture missing');
     const [version] = await db
       .insert(indicatorVersion)

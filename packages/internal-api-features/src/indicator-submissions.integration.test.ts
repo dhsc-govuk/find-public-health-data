@@ -61,4 +61,38 @@ describe('submitting and withdrawing through the API', () => {
       });
     },
   );
+
+  repositoryTest('answers a repeated submission and withdrawal as the first', async ({ db }) => {
+    const created = await newDraft(db, 'A draft submitted twice through the API');
+    await completeDraft(db, created);
+    const app = createRouterTestApp(
+      internalApiRoutes({
+        repositories: createInternalRepositories(db),
+        session: testSessionVerifier,
+        storage: createFakeBlobStorage(),
+      }),
+    );
+    const cookie = await testSessionCookie(['publisher']);
+    const path = `/api/internal/indicators/${created.indicatorId}`;
+    const { draftUpdatedAt } = (await request(app).get(`${path}/task-list`).set('Cookie', cookie))
+      .body;
+    const submit = () =>
+      request(app).post(`${path}/submit`).set('Cookie', cookie).send({ draftUpdatedAt });
+    const withdraw = () =>
+      request(app).post(`${path}/withdraw`).set('Cookie', cookie).send({ submissionNumber: 1 });
+
+    expect((await submit()).status).toBe(204);
+    expect((await submit()).status).toBe(204);
+    expect((await request(app).get(path).set('Cookie', cookie)).body).toMatchObject({
+      draftSubmissionStatus: 'submitted',
+      draftSubmissionNumber: 1,
+    });
+
+    expect((await withdraw()).status).toBe(204);
+    expect((await withdraw()).status).toBe(204);
+    expect((await request(app).get(path).set('Cookie', cookie)).body).toMatchObject({
+      draftSubmissionStatus: 'withdrawn',
+      draftSubmissionNumber: 1,
+    });
+  });
 });

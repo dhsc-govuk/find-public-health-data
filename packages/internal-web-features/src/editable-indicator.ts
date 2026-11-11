@@ -7,7 +7,7 @@ type SessionReader = { get<T>(context: RouterContext<T>): T };
 /** A publish page for an indicator the user may not edit does not exist, as the API answers. */
 export function requireEditableIndicator(
   context: SessionReader,
-  indicator: { teamId: string | null },
+  indicator: { teamId: string },
 ): void {
   const session = getSession(context);
 

@@ -26,9 +26,22 @@ const PACKAGE_ONLY_COLUMNS: Record<string, readonly string[]> = {
   observation: ['created_by'],
 };
 
+/**
+ * Columns the receiver writes because packages never carry them, with the value each takes.
+ * Imported indicators join the Fingertips team, which holds the indicators no publisher owns.
+ */
+const RECEIVER_COLUMNS: Record<string, Record<string, string>> = {
+  indicator: { team_id: IMPORTED_INDICATOR_TEAM_ID },
+};
+
 /** Whether the table's rows need staging to load: their package shape differs from the table's. */
 export function hasPackageShape(table: string): boolean {
-  return table in ACTOR_COLUMNS || table in PACKAGE_ONLY_COLUMNS;
+  return table in ACTOR_COLUMNS || table in PACKAGE_ONLY_COLUMNS || table in RECEIVER_COLUMNS;
+}
+
+/** The columns the receiver writes into the table, which a package leaves out. */
+export function receiverColumns(table: string): string[] {
+  return Object.keys(RECEIVER_COLUMNS[table] ?? {});
 }
 
 /** The package columns that go into the table. */
@@ -38,8 +51,8 @@ export function tableColumns(table: string, columns: readonly string[]): string[
 }
 
 /**
- * Alters a stage created LIKE its table to hold the package's rows: the writers as text, and the
- * columns only the package has.
+ * Alters a stage created LIKE its table to hold the package's rows: the writers as text, the
+ * columns only the package has, and the receiver's values as the defaults of its own columns.
  */
 export async function shapeStage(
   tx: postgres.TransactionSql,
@@ -49,6 +62,9 @@ export async function shapeStage(
   const alterations = [
     ...(ACTOR_COLUMNS[table]?.columns ?? []).map((column) => `ALTER COLUMN "${column}" TYPE text`),
     ...(PACKAGE_ONLY_COLUMNS[table] ?? []).map((column) => `ADD COLUMN "${column}" text`),
+    ...Object.entries(RECEIVER_COLUMNS[table] ?? {}).map(
+      ([column, value]) => `ALTER COLUMN "${column}" SET DEFAULT '${value}'`,
+    ),
   ];
   if (alterations.length > 0) {
     await tx.unsafe(`ALTER TABLE "${stage}" ${alterations.join(', ')}`);
@@ -84,18 +100,4 @@ export function stagedValue(table: string, column: string, alias: string): strin
   return ACTOR_COLUMNS[table]?.columns.includes(column)
     ? `CASE ${value} WHEN '${PACKAGE_ACTOR}' THEN '${MIGRATION_USER_ID}'::uuid END`
     : value;
-}
-
-/**
- * Puts imported indicators without a team in Fingertips, as the seed does. `stage` limits it to
- * the package's indicators.
- */
-export async function assignImportedTeam(
-  tx: postgres.TransactionSql,
-  stage?: string,
-): Promise<void> {
-  await tx.unsafe(
-    `UPDATE indicator SET team_id = $1 WHERE team_id IS NULL${stage === undefined ? '' : ` AND id IN (SELECT id FROM "${stage}")`}`,
-    [IMPORTED_INDICATOR_TEAM_ID],
-  );
 }

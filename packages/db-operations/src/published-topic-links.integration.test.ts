@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseIndicatorTopicFile } from './indicator-topic-file.ts';
 import { applyIndicatorTopics } from './indicator-topic-import.ts';
 
-const { SYSTEM_USER_IDS } = schema;
+const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
 
@@ -47,7 +47,7 @@ describe('an indicator with only a draft', () => {
     async (timestamp) => {
       const [topic] = await sql<{ id: string }[]>`SELECT id FROM topic LIMIT 1`;
       const [identity] = await sql<{ id: string; short_id: number }[]>`
-      INSERT INTO indicator DEFAULT VALUES RETURNING id, short_id
+      INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id, short_id
     `;
       const [draft] = await sql<{ version_id: string }[]>`
       INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)

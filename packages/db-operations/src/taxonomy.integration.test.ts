@@ -9,7 +9,7 @@ import { importCoreData } from './core-data.ts';
 import { parseIndicatorTopicFile } from './indicator-topic-file.ts';
 import { applyIndicatorTopics } from './indicator-topic-import.ts';
 
-const { SYSTEM_USER_IDS } = schema;
+const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 
 const source = parseIndicatorTopicFile(
   JSON.parse(
@@ -149,7 +149,7 @@ describe('the V2 taxonomy import', () => {
   it('imports life stage and programme tags without deriving them from a title', async () => {
     const [identity] = await sql<
       { id: string }[]
-    >`INSERT INTO indicator (short_id) VALUES (383) RETURNING id`;
+    >`INSERT INTO indicator (short_id, team_id) VALUES (383, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     await sql`INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by) VALUES (${identity?.id ?? ''}, 'published', now(), 'Taxonomy dementia fixture', 'taxonomy-dementia-fixture', ${SYSTEM_USER_IDS.pholioMigration}, ${SYSTEM_USER_IDS.pholioMigration})`;
     await applyIndicatorTopics(database.db, only([383]));
     const rows = await sql<{ dimension: string; name: string }[]>`

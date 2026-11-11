@@ -23,7 +23,8 @@
     "csv-stringify": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-router": "catalog:"
+    "react-router": "catalog:",
+    "uuid": "catalog:"
   },
   "devDependencies": {
     "@fphd/auth": "workspace:*",

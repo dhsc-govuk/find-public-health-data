@@ -1,16 +1,23 @@
+# syntax=docker/dockerfile:1
+
 # Development-only image for running any one app as a container while others run
 # locally (see scripts/dev.sh). Not a production image: it keeps the full workspace
 # and devDependencies, so one Dockerfile serves every app and the apps share cached
 # layers. Select the app with
 # --build-arg APP=<public-web|internal-web|public-api|internal-api|internal-worker>.
-FROM node:24-alpine3.24
+FROM node:26-alpine3.24
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable
+# Node stopped shipping corepack in version 25; see the base stage in docker/Dockerfile.
+RUN --mount=type=bind,source=scripts/install-corepack.sh,target=/tmp/install-corepack.sh \
+    --mount=type=bind,source=pnpm-workspace.yaml,target=/tmp/pnpm-workspace.yaml \
+    sh /tmp/install-corepack.sh /tmp/pnpm-workspace.yaml
 WORKDIR /repo
 
-# Deps layer keyed on the lockfile alone, so source edits don't re-download packages.
+# Deps layer keyed on the lockfile and patches alone, so source edits don't re-download packages.
+# pnpm fetch fails without the patch files pnpm-workspace.yaml names.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ patches/
 RUN pnpm fetch
 
 COPY . .

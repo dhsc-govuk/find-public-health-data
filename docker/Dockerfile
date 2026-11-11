@@ -23,16 +23,21 @@
 
 # Pinned by digest, so the base cannot change underneath a rebuild and has a version Dependabot
 # can raise — see .github/dependabot.yml. The Alpine release is named rather than left to the
-# floating `24-alpine` alias: Dependabot resolves the alias to raise the digest, so the day Node
+# floating `26-alpine` alias: Dependabot resolves the alias to raise the digest, so the day Node
 # retargets it, that bump would move the whole package set — including the `postgresql18-client`
 # the operations stage asks for by name — without anyone choosing to.
 #
 # The runtime stage runs `apk upgrade` so security fixes apply at build time rather than waiting
 # for the base image to be rebuilt with them — a red scan means a fix apk could not deliver,
 # not upstream rebuild lag. The builder stage skips it; nothing in it ships.
-FROM node:24-alpine3.24@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS base
+FROM node:26-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable
+# Node stopped shipping corepack in version 25, so it comes from npm at the version the catalog
+# pins. Corepack then fetches the pnpm that package.json's packageManager names and checks it
+# against the hash there. Bind mounts rather than COPY, so neither file stays in the stage.
+RUN --mount=type=bind,source=scripts/install-corepack.sh,target=/tmp/install-corepack.sh \
+    --mount=type=bind,source=pnpm-workspace.yaml,target=/tmp/pnpm-workspace.yaml \
+    sh /tmp/install-corepack.sh /tmp/pnpm-workspace.yaml
 WORKDIR /repo
 
 FROM base AS builder
@@ -64,20 +69,19 @@ RUN test -n "${APP}" && test -d "apps/${APP}" \
 # not use.
 RUN pnpm deploy --filter "@fphd/${APP}" --prod --legacy /out
 
-FROM node:24-alpine3.24@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS runtime
+FROM node:26-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS runtime
 ENV NODE_ENV=production
 # Container Apps stops a revision with SIGTERM, and the kernel discards a default-action
 # signal sent to PID 1 unless that process installed a handler — which Node does not do for
 # SIGTERM. Without an init, every stop would wait out the full grace period and then SIGKILL.
 #
-# Every app starts with node, so the base image's npm, yarn and corepack go: they would only
-# carry CVEs that the OS-package scan does not see. Each path in full, since busybox sh has no
-# brace expansion. scripts/check-image-contents.sh fails if any is back.
+# Every app starts with node, so the base image's npm goes: it would only carry CVEs that the
+# OS-package scan does not see. The Node 26 image ships no yarn or corepack. Each path in full,
+# since busybox sh has no brace expansion. scripts/check-image-contents.sh fails if any package
+# manager is back.
 RUN apk upgrade --no-cache \
   && apk add --no-cache tini \
-  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
-    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
-    /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 USER node
 ENTRYPOINT ["/sbin/tini", "--"]

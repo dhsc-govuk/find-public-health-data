@@ -89,6 +89,8 @@ EXPORT_TABLES = [
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
 # SYSTEM_USER_IDS.testSeed in @fphd/db: the user the imported records are written by.
 TEST_SEED_USER_ID = "01a13c69-96ab-7598-9ce0-f5fa1e68080a"
+# IMPORTED_INDICATOR_TEAM_ID in @fphd/db: the Fingertips team the imported indicators join.
+IMPORTED_INDICATOR_TEAM_ID = "01a13ca4-5b80-76ba-bda8-93cbb4a49f64"
 
 
 def uuid7():
@@ -337,10 +339,10 @@ def add_indicators(cur, metadata, seed_dir):
         updated_at = item["DataChange"]["LastUploadedAt"]
         cur.execute(
             """
-            INSERT INTO indicator (id, short_id, data_updated_at, created_at)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO indicator (id, short_id, data_updated_at, created_at, team_id)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (indicator_id, fingertips_id, updated_at, updated_at),
+            (indicator_id, fingertips_id, updated_at, updated_at, IMPORTED_INDICATOR_TEAM_ID),
         )
 
         cur.execute(
