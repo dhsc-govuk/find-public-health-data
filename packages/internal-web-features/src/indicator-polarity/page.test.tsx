@@ -45,7 +45,7 @@ describe('PolarityPage', () => {
       'Higher is better',
       'Lower is better',
       'Neither is better',
-      'No comparison possible',
+      'No comparison should be made',
     ]);
     expect(radios.map((radio) => radio.value)).toEqual([
       'higher-is-better',
