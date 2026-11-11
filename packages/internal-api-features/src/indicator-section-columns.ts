@@ -35,6 +35,9 @@ import {
   type PublishingDateField,
   polaritySection,
   publishingDateValues,
+  type SexGenderAndEthnicity,
+  type SexGenderAndEthnicityAnswers,
+  type SexGenderAndEthnicityField,
   UPDATE_FREQUENCY_REASON_FIELDS,
   type UpdateFrequencyField,
   type ValueTypeAndUnits,
@@ -267,6 +270,26 @@ export const benchmarkingColumns: IndicatorSectionColumns<BenchmarkingField, Ben
           goalPolarity: null,
           goalPolicyDetail: null,
         },
+};
+
+export const sexGenderAndEthnicityColumns: IndicatorSectionColumns<
+  SexGenderAndEthnicityField,
+  SexGenderAndEthnicity,
+  SexGenderAndEthnicityAnswers
+> = {
+  fromDraft: (draft) => ({
+    demographics: draft.demographics ?? [],
+    sexes: draft.sexes ?? [],
+    genders: draft.genders ?? [],
+    ethnicGroups: draft.ethnicGroups ?? [],
+  }),
+  // The lists of a demographic not collected are cleared, whatever the form sent.
+  toAttributes: ({ demographics, sexes, genders, ethnicGroups }) => ({
+    demographics,
+    sexes: demographics.includes('sex') ? sexes : null,
+    genders: demographics.includes('gender') ? genders : null,
+    ethnicGroups: demographics.includes('ethnicity') ? ethnicGroups : null,
+  }),
 };
 
 /** The publishing date with the instant it names. */

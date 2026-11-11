@@ -1,20 +1,27 @@
-import type { SexAndAgesField, SexAndAgesFormValues } from '@fphd/internal-api-features/contract';
+import type {
+  SexGenderAndEthnicityField,
+  SexGenderAndEthnicityFormValues,
+} from '@fphd/internal-api-features/contract';
 import { titleFromPage } from '@fphd/ui';
 
 import { sectionBackLinkHandle, useSectionForm } from '../indicator-section-route.ts';
-import { loadSexAndAges, submitSexAndAges } from './loader.ts';
-import { SexAndAgesPage } from './page.tsx';
+import { loadSexGenderAndEthnicity, submitSexGenderAndEthnicity } from './loader.ts';
+import { SexGenderAndEthnicityPage } from './page.tsx';
 
-export const loader = loadSexAndAges;
+export const loader = loadSexGenderAndEthnicity;
 
-export const action = submitSexAndAges;
+export const action = submitSexGenderAndEthnicity;
 
 export const meta = titleFromPage;
 
 export const handle = sectionBackLinkHandle;
 
-export function SexAndAgesRoute() {
-  return <SexAndAgesPage {...useSectionForm<SexAndAgesField, SexAndAgesFormValues>()} />;
+export function SexGenderAndEthnicityRoute() {
+  return (
+    <SexGenderAndEthnicityPage
+      {...useSectionForm<SexGenderAndEthnicityField, SexGenderAndEthnicityFormValues>()}
+    />
+  );
 }
 
-export default SexAndAgesRoute;
+export default SexGenderAndEthnicityRoute;

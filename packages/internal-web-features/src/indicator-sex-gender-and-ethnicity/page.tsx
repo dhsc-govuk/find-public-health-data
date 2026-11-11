@@ -1,8 +1,8 @@
 import {
   DEMOGRAPHIC_LIST_FIELDS,
-  type SexAndAgesField,
-  type SexAndAgesFormValues,
-  sexAndAgesSection,
+  type SexGenderAndEthnicityField,
+  type SexGenderAndEthnicityFormValues,
+  sexGenderAndEthnicitySection,
 } from '@fphd/internal-api-features/contract';
 import { Checkboxes, firstCheckboxId } from '@fphd/ui';
 import {
@@ -19,7 +19,7 @@ import {
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 
-type FieldErrors = Partial<Record<SexAndAgesField, string>>;
+type FieldErrors = Partial<Record<SexGenderAndEthnicityField, string>>;
 
 const TITLE = 'Sex, gender and ethnicity';
 
@@ -44,7 +44,7 @@ function Demographics({
   values,
   fieldErrors,
 }: {
-  values: SexAndAgesFormValues;
+  values: SexGenderAndEthnicityFormValues;
   fieldErrors: FieldErrors;
 }) {
   const included = (demographic: Demographic) => {
@@ -80,7 +80,9 @@ function Demographics({
   );
 }
 
-export function SexAndAgesPage(form: SectionPageProps<SexAndAgesField, SexAndAgesFormValues>) {
+export function SexGenderAndEthnicityPage(
+  form: SectionPageProps<SexGenderAndEthnicityField, SexGenderAndEthnicityFormValues>,
+) {
   const { fieldErrors, values } = form;
 
   return (
@@ -92,7 +94,7 @@ export function SexAndAgesPage(form: SectionPageProps<SexAndAgesField, SexAndAge
         ethnicGroups: firstCheckboxId('ethnicGroups'),
       }}
       form={form}
-      section={sexAndAgesSection}
+      section={sexGenderAndEthnicitySection}
       title={TITLE}
     >
       <Demographics fieldErrors={fieldErrors} values={values} />

@@ -22,8 +22,8 @@ import {
   polaritySection,
   providerSourcesAnswersSchema,
   publishingDateSection,
-  sexAndAgesAnswersSchema,
-  sexAndAgesSection,
+  sexGenderAndEthnicityAnswersSchema,
+  sexGenderAndEthnicitySection,
   type TagOptions,
   taggingAnswersSchema,
   taggingSection,
@@ -116,14 +116,14 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       unitId: named(valueTypesAndUnits.units, 'per 100', 'unit').id,
     }),
     sample(
-      sexAndAgesSection,
+      sexGenderAndEthnicitySection,
       {
         demographics: ['sex'],
         sexes: ['persons'],
         genders: [],
         ethnicGroups: [],
       },
-      sexAndAgesAnswersSchema,
+      sexGenderAndEthnicityAnswersSchema,
     ),
     sample(
       agesSection,

@@ -4,7 +4,7 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { SAVED_VERSION, SHOWN_VERSION } from '../testing.ts';
-import { loadSexAndAges, submitSexAndAges } from './loader.ts';
+import { loadSexGenderAndEthnicity, submitSexGenderAndEthnicity } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
 const sectionPath = `/api/internal/indicators/${id}/sex-and-ages`;
@@ -23,7 +23,7 @@ function context(api: FakeApiClient) {
 }
 
 function load(indicatorId: string, api: FakeApiClient) {
-  return loadSexAndAges({
+  return loadSexGenderAndEthnicity({
     context: context(api),
     params: { id: indicatorId },
     request: new Request(`https://internal.test/publish/indicators/${indicatorId}/sex-and-ages`),
@@ -33,7 +33,7 @@ function load(indicatorId: string, api: FakeApiClient) {
 function submit(fields: [string, string][], api: FakeApiClient) {
   const body = new URLSearchParams([...fields, ['version', SHOWN_VERSION]]);
 
-  return submitSexAndAges({
+  return submitSexGenderAndEthnicity({
     context: context(api),
     params: { id },
     request: new Request(`https://internal.test/publish/indicators/${id}/sex-and-ages`, {
@@ -51,7 +51,7 @@ function isRedirectToTaskList(outcome: unknown) {
   );
 }
 
-describe('loadSexAndAges', () => {
+describe('loadSexGenderAndEthnicity', () => {
   it("fills the form with the draft's answers", async () => {
     const api = createFakeApiClient({
       [`GET ${sectionPath}`]: {
@@ -78,7 +78,7 @@ describe('loadSexAndAges', () => {
   });
 });
 
-describe('submitSexAndAges', () => {
+describe('submitSexGenderAndEthnicity', () => {
   it('saves the answers on Continue and returns to the task list', async () => {
     const api = createFakeApiClient({
       [`PUT ${sectionPath}`]: {

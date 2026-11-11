@@ -5,7 +5,6 @@ import {
   agesColumns,
   denominatorColumns,
   numeratorColumns,
-  sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import { mortality, onsAlone, TAGS, tagging } from './indicator-sections.testing.ts';
@@ -37,33 +36,6 @@ describe('numeratorColumns and denominatorColumns', () => {
     expect(numeratorColumns.toLists?.(answers)).toEqual({ numeratorSources: answers.sources });
     expect(denominatorColumns.toAttributes(answers)).toEqual({ denominatorDefinition: 'Deaths' });
     expect(denominatorColumns.toLists?.(answers)).toEqual({ denominatorSources: answers.sources });
-  });
-});
-
-describe('sexAndAgesColumns', () => {
-  it('reads unanswered demographics and their lists as none', () => {
-    expect(sexAndAgesColumns.fromDraft(unansweredDraft)).toEqual({
-      demographics: [],
-      sexes: [],
-      genders: [],
-      ethnicGroups: [],
-    });
-  });
-
-  it('writes the list of each demographic collected, and clears the others', () => {
-    expect(
-      sexAndAgesColumns.toAttributes({
-        demographics: ['gender', 'ethnicity'],
-        sexes: ['females', 'males'],
-        genders: ['non-binary'],
-        ethnicGroups: ['mixed', 'white'],
-      }),
-    ).toEqual({
-      demographics: ['gender', 'ethnicity'],
-      sexes: null,
-      genders: ['non-binary'],
-      ethnicGroups: ['mixed', 'white'],
-    });
   });
 });
 
