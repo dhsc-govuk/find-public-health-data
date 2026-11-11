@@ -5,6 +5,7 @@ import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  ANSWER_NOT_READ,
   definitionAndRationaleSection,
   otherNotesAndCaveatsSection,
   varianceAndQualitySection,
@@ -257,8 +258,25 @@ describe('PUT on a section', () => {
       error: 'validation_failed',
       fieldErrors: {
         definition: 'Enter the definition of the indicator',
-        rationale: 'Invalid input: expected string, received number',
+        rationale: ANSWER_NOT_READ,
       },
+    });
+    expect(updateDraft).not.toHaveBeenCalled();
+  });
+
+  it('gives a written message to an answer missing from the body', async () => {
+    const updateDraft = vi.fn();
+    const findById = vi.fn().mockResolvedValue({ draftLocked: false });
+
+    const response = await request(createTestApp({ updateDraft, findById }))
+      .put(path)
+      .set('Cookie', await publisherCookie())
+      .send({ answers: { definition: 'A definition' }, version: storedVersion });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: { rationale: ANSWER_NOT_READ },
     });
     expect(updateDraft).not.toHaveBeenCalled();
   });

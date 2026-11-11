@@ -4,6 +4,7 @@ import { createCapturingLogger } from '@fphd/logger/testing';
 import type { Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ANSWER_NOT_READ } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import type { IndicatorAdminDetailRow, IndicatorAdminRow } from './indicator-list-repository.ts';
 import { INDICATORS_PAGE_SIZE, internalIndicatorsRouter } from './indicators.ts';
@@ -595,6 +596,22 @@ describe('POST /api/internal/indicators', () => {
     expect(response.body).toEqual({
       error: 'validation_failed',
       fieldErrors: { name: 'Enter the name of the indicator' },
+    });
+    expect(createDraft).not.toHaveBeenCalled();
+  });
+
+  it('gives a written message to a name missing from the body', async () => {
+    const createDraft = vi.fn();
+
+    const response = await request(createTestApp({ createDraft }))
+      .post('/api/internal/indicators')
+      .set('Cookie', await publisherCookie())
+      .send({ teamId: TEAM_ID });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: { name: ANSWER_NOT_READ },
     });
     expect(createDraft).not.toHaveBeenCalled();
   });

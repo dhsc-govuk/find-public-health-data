@@ -148,9 +148,26 @@ function issueKeys([field, index, part]: readonly PropertyKey[]): string[] {
 }
 
 /**
+ * The message for an answer that is missing, or is not the text or list the field takes. The
+ * forms send every field, so only a broken or hand-made request gets it. zod's own message for
+ * this, such as "Invalid input: expected string, received undefined", is written for developers.
+ */
+export const ANSWER_NOT_READ = 'This answer could not be read. Try again.';
+
+/**
+ * Whether the issue is zod's own report of an answer of the wrong type. A schema that gives its
+ * own message for that, as the sexes' checkboxes do, keeps it.
+ */
+function isUnwrittenTypeIssue(issue: z.core.$ZodIssue): boolean {
+  return issue.code === 'invalid_type' && issue.message.startsWith('Invalid input:');
+}
+
+/**
  * One message per field: a control shows one error even when a value breaks two rules.
  * `fields` names the keys the form shows, so the caller gets those and nothing else — an
  * issue on anything the form does not show is dropped rather than sent as a field error.
+ * An answer of the wrong type that its schema gives no message for gets `ANSWER_NOT_READ`, so
+ * no field needs a message of its own for a missing answer.
  */
 export function toFieldErrors<Field extends string>(
   error: z.ZodError,
@@ -164,7 +181,7 @@ export function toFieldErrors<Field extends string>(
       .find((key) => key !== undefined);
 
     if (field !== undefined && !Object.hasOwn(fieldErrors, field)) {
-      fieldErrors[field] = issue.message;
+      fieldErrors[field] = isUnwrittenTypeIssue(issue) ? ANSWER_NOT_READ : issue.message;
     }
   }
 
