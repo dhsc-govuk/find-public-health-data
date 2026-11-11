@@ -1,9 +1,9 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient, refused } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { SHOWN_VERSION } from '../testing.ts';
+import { SHOWN_VERSION, savedSection } from '../testing.ts';
 import { linkFieldName } from './form.ts';
 import { loadLinks, submitLinks } from './loader.ts';
 
@@ -13,15 +13,15 @@ const sectionPath = `/api/internal/indicators/${id}/links`;
 const commentary = { url: 'https://www.gov.uk/statistics', text: 'Statistical commentary' };
 const fingertips = { url: 'https://fingertips.phe.org.uk/', text: 'Fingertips' };
 
-function context(client: Partial<ApiClient>) {
+function context(api: FakeApiClient) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, client as ApiClient);
+  provider.set(apiContext, api);
   return provider;
 }
 
-function load(indicatorId: string, get: ApiClient['get']) {
+function load(indicatorId: string, api: FakeApiClient) {
   return loadLinks({
-    context: context({ get }),
+    context: context(api),
     params: { id: indicatorId },
     request: new Request(`https://internal.test/publish/indicators/${indicatorId}/links`),
   } as never);
@@ -30,7 +30,7 @@ function load(indicatorId: string, get: ApiClient['get']) {
 function submit(
   fields: Record<string, string>,
   links: { url: string; text: string }[],
-  put: ApiClient['put'],
+  api: FakeApiClient,
 ) {
   const body = new URLSearchParams({ ...fields, version: SHOWN_VERSION });
   links.forEach(({ url, text }, index) => {
@@ -39,7 +39,7 @@ function submit(
   });
 
   return submitLinks({
-    context: context({ put }),
+    context: context(api),
     params: { id },
     request: new Request(`https://internal.test/publish/indicators/${id}/links`, {
       method: 'POST',
@@ -58,36 +58,37 @@ function isRedirectToTaskList(outcome: unknown) {
 
 describe('loadLinks', () => {
   it("fills the form with the draft's answers and nothing typed", async () => {
-    const get = vi.fn().mockResolvedValue({
-      answers: { hasLinks: 'yes', links: [commentary] },
-      version: SHOWN_VERSION,
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: {
+        answers: { hasLinks: 'yes', links: [commentary] },
+        version: SHOWN_VERSION,
+      },
     });
 
-    await expect(load(id, get)).resolves.toEqual({
+    await expect(load(id, api)).resolves.toEqual({
       id,
       values: { hasLinks: 'yes', links: [commentary], linkUrl: '', linkText: '' },
       version: SHOWN_VERSION,
     });
-    expect(get.mock.calls[0]?.[0]).toBe(sectionPath);
   });
 
   it('leaves an unanswered question unchosen', async () => {
-    const get = vi
-      .fn()
-      .mockResolvedValue({ answers: { hasLinks: null, links: [] }, version: SHOWN_VERSION });
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: { answers: { hasLinks: null, links: [] }, version: SHOWN_VERSION },
+    });
 
-    await expect(load(id, get)).resolves.toMatchObject({ values: { hasLinks: '', links: [] } });
+    await expect(load(id, api)).resolves.toMatchObject({ values: { hasLinks: '', links: [] } });
   });
 });
 
 describe('submitLinks', () => {
   it('adds a link without saving anything', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
     const outcome = await submit(
       { intent: 'add', hasLinks: 'yes', linkUrl: fingertips.url, linkText: fingertips.text },
       [commentary],
-      put,
+      api,
     );
 
     expect(outcome).toEqual({
@@ -95,16 +96,16 @@ describe('submitLinks', () => {
       fieldErrors: {},
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('removes a link without saving anything', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
     const outcome = await submit(
       { intent: 'remove-0', hasLinks: 'yes' },
       [commentary, fingertips],
-      put,
+      api,
     );
 
     expect(outcome).toMatchObject({
@@ -112,16 +113,15 @@ describe('submitLinks', () => {
       fieldErrors: {},
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('saves the links on Continue and returns to the task list', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({ [`PUT ${sectionPath}`]: savedSection });
 
-    const outcome = await submit({ hasLinks: 'yes' }, [commentary, fingertips], put);
+    const outcome = await submit({ hasLinks: 'yes' }, [commentary, fingertips], api);
 
-    expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       answers: { hasLinks: 'yes', links: [commentary, fingertips] },
       version: SHOWN_VERSION,
     });
@@ -129,66 +129,67 @@ describe('submitLinks', () => {
   });
 
   it('saves a link typed but not added along with the others on Continue', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({ [`PUT ${sectionPath}`]: savedSection });
 
     await submit(
       { hasLinks: 'yes', linkUrl: fingertips.url, linkText: fingertips.text },
       [commentary],
-      put,
+      api,
     );
 
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       answers: { hasLinks: 'yes', links: [commentary, fingertips] },
       version: SHOWN_VERSION,
     });
   });
 
   it('ignores a link typed beside "No"', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({ [`PUT ${sectionPath}`]: savedSection });
 
-    await submit({ hasLinks: 'no', linkUrl: 'not a url', linkText: '' }, [], put);
+    await submit({ hasLinks: 'no', linkUrl: 'not a url', linkText: '' }, [], api);
 
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       answers: { hasLinks: 'no', links: [] },
       version: SHOWN_VERSION,
     });
   });
 
   it('saves nothing when the link typed is refused, keeping the page as sent', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
     const fields = { hasLinks: 'yes', linkUrl: fingertips.url, linkText: '' };
 
-    const outcome = await submit(fields, [commentary], put);
+    const outcome = await submit(fields, [commentary], api);
 
     expect(outcome).toEqual({
       values: { ...fields, links: [commentary] },
       fieldErrors: { linkText: 'Enter link text' },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('saves nothing while the answers are refused', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await submit({ hasLinks: 'yes' }, [], put);
+    const outcome = await submit({ hasLinks: 'yes' }, [], api);
 
     expect(outcome).toEqual({
       values: { hasLinks: 'yes', links: [], linkUrl: '', linkText: '' },
       fieldErrors: { links: 'Add at least one link' },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows what the API refused, keeping the page as sent', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { links: 'Refused by the API' } },
+    const api = createFakeApiClient({
+      [`PUT ${sectionPath}`]: refused(400, {
+        error: 'validation_failed',
+        fieldErrors: { links: 'Refused by the API' },
+      }),
     });
 
-    await expect(submit({ hasLinks: 'yes' }, [commentary], put)).resolves.toEqual({
+    await expect(submit({ hasLinks: 'yes' }, [commentary], api)).resolves.toEqual({
       values: { hasLinks: 'yes', links: [commentary], linkUrl: '', linkText: '' },
       fieldErrors: { links: 'Refused by the API' },
       version: SHOWN_VERSION,

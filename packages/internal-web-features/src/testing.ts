@@ -6,10 +6,21 @@ import {
   indicatorTaskKeySchema,
 } from '@fphd/internal-api-features/contract';
 
+import type { FakeApiAnswer, FakeApiCall } from '@fphd/web-server/testing';
+
 import type { SectionPageProps } from './indicator-section-form.tsx';
 
 /** A well-formed version, as the API would return one. */
 export const SHOWN_VERSION = 'a'.repeat(64);
+
+/** The version the API gives a section once it has saved it. */
+export const SAVED_VERSION = 'b'.repeat(64);
+
+/** Answers a section save as the API does: with the answers it saved, at their new version. */
+export function savedSection({ body }: FakeApiCall): FakeApiAnswer {
+  const { answers } = body as { answers: object };
+  return { answers, version: SAVED_VERSION };
+}
 
 /**
  * An indicator as the API's detail endpoint answers for it: a new draft in Team A, never

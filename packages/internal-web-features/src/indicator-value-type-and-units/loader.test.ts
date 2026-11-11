@@ -1,7 +1,7 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SHOWN_VERSION } from '../testing.ts';
 import { loadValueTypeAndUnits } from './loader.ts';
 
@@ -24,15 +24,15 @@ const unanswered = {
   unitDetail: '',
 };
 
-function context(client: Partial<ApiClient>) {
+function context(api: FakeApiClient) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, client as ApiClient);
+  provider.set(apiContext, api);
   return provider;
 }
 
-function load(indicatorId: string, get: ApiClient['get']) {
+function load(indicatorId: string, api: FakeApiClient) {
   return loadValueTypeAndUnits({
-    context: context({ get }),
+    context: context(api),
     params: { id: indicatorId },
     request: new Request(
       `https://internal.test/publish/indicators/${indicatorId}/value-type-and-units`,
@@ -46,27 +46,24 @@ function isNotFound(error: unknown) {
 
 describe('loadValueTypeAndUnits', () => {
   it("fills the form with the draft's answers and offers every value type and unit", async () => {
-    const get = vi.fn((path: string) =>
-      Promise.resolve(
-        path === sectionPath
-          ? {
-              answers: {
-                valueTypeId,
-                standardPopulation: null,
-                standardPopulationOther: null,
-                referencePopulation: null,
-                unitId,
-                unitDetail: null,
-              },
-              version: SHOWN_VERSION,
-            }
-          : options,
-      ),
-    );
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: {
+        answers: {
+          valueTypeId,
+          standardPopulation: null,
+          standardPopulationOther: null,
+          referencePopulation: null,
+          unitId,
+          unitDetail: null,
+        },
+        version: SHOWN_VERSION,
+      },
+      'GET /api/internal/value-types-and-units': options,
+    });
 
-    const outcome = await load(id, get as unknown as ApiClient['get']);
+    const outcome = await load(id, api);
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
+    expect(api.calls.map(({ path }) => path).sort()).toEqual([
       sectionPath,
       '/api/internal/value-types-and-units',
     ]);
@@ -79,9 +76,9 @@ describe('loadValueTypeAndUnits', () => {
   });
 
   it('answers 404 to a malformed id without asking the API for anything', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
-    await expect(load('108', get)).rejects.toSatisfy(isNotFound);
-    expect(get).not.toHaveBeenCalled();
+    await expect(load('108', api)).rejects.toSatisfy(isNotFound);
+    expect(api.calls).toEqual([]);
   });
 });
