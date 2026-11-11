@@ -1,11 +1,17 @@
-import { TEAM_IDS } from '@fphd/auth';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  noContent,
+  refused,
+} from '@fphd/web-server/testing';
+import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { ADD_INTENT, removeIntent } from '../list-form.ts';
 import { signedInContext } from '../session.testing.ts';
+import { indicatorDetail } from '../testing.ts';
 import { assignReviewers, loadReviewerAssignment } from './loader.ts';
 
 const ID = '00000000-0000-7000-8000-000000000001';
@@ -23,38 +29,34 @@ const options = [
   { ...morgan, assignedIndicatorCount: 3 },
 ];
 
-const inReview = {
+const ASSIGN = `POST /api/internal/indicators/${ID}/assign-reviewers` as const;
+
+const inReview = indicatorDetail({
   id: ID,
-  shortId: 90366,
-  name: 'Life expectancy at birth',
-  teamId: TEAM_IDS.teamA,
-  publishedSlug: null,
-  updatedAt: '2026-01-02T00:00:00.000Z',
-  indicatorStatus: 'new',
-  draftStatus: 'draft',
   draftLocked: true,
   draftSubmissionStatus: 'in_review',
   draftReviewers: [morgan],
   draftSubmissionNumber: 2,
+  draftFirstSubmittedAt: '2026-01-02T00:00:00.000Z',
   actions: ['assign_reviewers'],
-};
+});
 
-function apiGet(indicator: object) {
-  return vi
-    .fn()
-    .mockImplementation(async (path: string) =>
-      path.endsWith('/reviewer-options') ? { reviewers: options } : indicator,
-    );
+/** An API that answers the indicator's detail with `indicator`, and the reviewers on offer. */
+function apiGet(indicator: FakeApiAnswer) {
+  return createFakeApiClient({
+    [`GET /api/internal/indicators/${ID}`]: indicator,
+    [`GET /api/internal/indicators/${ID}/reviewer-options`]: { reviewers: options },
+  });
 }
 
 async function respond(
   handler: (args: never) => Promise<unknown>,
-  client: Partial<ApiClient>,
+  api: FakeApiClient,
   request: Request,
   roles: readonly string[] = ['imrg-manager'],
 ) {
   const context = withFlashStorage(await signedInContext(roles));
-  context.set(apiContext, client as ApiClient);
+  context.set(apiContext, api);
   let outcome: unknown;
   const response = await flashedResponse(context, request, async () => {
     outcome = await handler({ context, params: { id: ID }, request } as never);
@@ -65,11 +67,11 @@ async function respond(
 
 describe('loadReviewerAssignment', () => {
   it('opens with the reviewers assigned now, and those on offer', async () => {
-    const get = apiGet(inReview);
+    const api = apiGet(inReview);
 
-    const { outcome } = await respond(loadReviewerAssignment, { get }, new Request(PATH));
+    const { outcome } = await respond(loadReviewerAssignment, api, new Request(PATH));
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
+    expect(api.calls.map(({ path }) => path).sort()).toEqual([
       `/api/internal/indicators/${ID}`,
       `/api/internal/indicators/${ID}/reviewer-options`,
     ]);
@@ -87,9 +89,9 @@ describe('loadReviewerAssignment', () => {
   });
 
   it('sends the manager to the overview, saying why, once reviewers cannot be assigned', async () => {
-    const get = apiGet({ ...inReview, actions: [] });
+    const api = apiGet({ ...inReview, actions: [] });
 
-    const { response } = await respond(loadReviewerAssignment, { get }, new Request(PATH));
+    const { response } = await respond(loadReviewerAssignment, api, new Request(PATH));
 
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -99,7 +101,7 @@ describe('loadReviewerAssignment', () => {
   });
 
   it('is not found for a draft never submitted', async () => {
-    const get = apiGet({
+    const api = apiGet({
       ...inReview,
       draftLocked: false,
       draftSubmissionStatus: null,
@@ -108,7 +110,7 @@ describe('loadReviewerAssignment', () => {
       actions: [],
     });
 
-    const { response } = await respond(loadReviewerAssignment, { get }, new Request(PATH));
+    const { response } = await respond(loadReviewerAssignment, api, new Request(PATH));
 
     expect(response.status).toBe(404);
   });
@@ -116,14 +118,12 @@ describe('loadReviewerAssignment', () => {
   it.each(OTHER_ROLES)(
     'is not found for a %s, who may not assign reviewers, asking the API nothing',
     async (role) => {
-      const get = apiGet(inReview);
+      const api = apiGet(inReview);
 
-      const { response } = await respond(loadReviewerAssignment, { get }, new Request(PATH), [
-        role,
-      ]);
+      const { response } = await respond(loadReviewerAssignment, api, new Request(PATH), [role]);
 
       expect(response.status).toBe(404);
-      expect(get).not.toHaveBeenCalled();
+      expect(api.calls).toEqual([]);
     },
   );
 });
@@ -142,7 +142,7 @@ describe('assignReviewers', () => {
   it('adds the chosen reviewer to the page without saving', async () => {
     const { outcome } = await respond(
       assignReviewers,
-      {},
+      createFakeApiClient(),
       post([...sent, ['addReviewer', jamie.id], ['intent', ADD_INTENT]]),
     );
 
@@ -160,7 +160,7 @@ describe('assignReviewers', () => {
   it('removes a reviewer from the page without saving', async () => {
     const { outcome } = await respond(
       assignReviewers,
-      {},
+      createFakeApiClient(),
       post([...sent, ['addReviewer', ''], ['intent', removeIntent(0)]]),
     );
 
@@ -170,7 +170,7 @@ describe('assignReviewers', () => {
   it('asks for a reviewer when Continue is pressed with none', async () => {
     const { outcome } = await respond(
       assignReviewers,
-      {},
+      createFakeApiClient(),
       post([
         ['submissionNumber', '2'],
         ['addReviewer', ''],
@@ -181,17 +181,24 @@ describe('assignReviewers', () => {
   });
 
   it('assigns the listed reviewers, naming what the page showed, then says so on the overview', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const api = createFakeApiClient({ [ASSIGN]: noContent });
 
     const { response } = await respond(
       assignReviewers,
-      { postToMember },
+      api,
       post([...sent, ['addReviewer', jamie.id]]),
     );
 
-    expect(postToMember.mock.calls[0]?.slice(0, 2)).toEqual([
-      `/api/internal/indicators/${ID}/assign-reviewers`,
-      { submissionNumber: 2, previousReviewerIds: [morgan.id], reviewerIds: [morgan.id, jamie.id] },
+    expect(api.calls).toEqual([
+      {
+        method: 'POST',
+        path: `/api/internal/indicators/${ID}/assign-reviewers`,
+        body: {
+          submissionNumber: 2,
+          previousReviewerIds: [morgan.id],
+          reviewerIds: [morgan.id, jamie.id],
+        },
+      },
     ]);
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -205,29 +212,25 @@ describe('assignReviewers', () => {
     ['changed', 'reviewers-changed'],
     ['not_a_reviewer', 'reviewer-refused'],
   ])('says on the overview why a stale page was refused with %s', async (error, flash) => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error } });
+    const api = createFakeApiClient({ [ASSIGN]: refused(409, { error }) });
 
-    const { response } = await respond(assignReviewers, { postToMember }, post(sent));
+    const { response } = await respond(assignReviewers, api, post(sent));
 
     expect(await redirectWithFlash(response)).toEqual({ status: 302, location: OVERVIEW, flash });
   });
 
   it('asks for a reviewer when the API answers no_reviewers', async () => {
-    const postToMember = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 400, error: { error: 'no_reviewers' } });
+    const api = createFakeApiClient({ [ASSIGN]: refused(400, { error: 'no_reviewers' }) });
 
-    const { outcome } = await respond(assignReviewers, { postToMember }, post(sent));
+    const { outcome } = await respond(assignReviewers, api, post(sent));
 
     expect(outcome).toMatchObject({ fieldErrors: { addReviewer: 'Select a reviewer' } });
   });
 
   it('says the reviewers were not saved for a refusal that names no field', async () => {
-    const postToMember = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 400, error: { error: 'duplicate_reviewers' } });
+    const api = createFakeApiClient({ [ASSIGN]: refused(400, { error: 'duplicate_reviewers' }) });
 
-    const { outcome } = await respond(assignReviewers, { postToMember }, post(sent));
+    const { outcome } = await respond(assignReviewers, api, post(sent));
 
     expect(outcome).toMatchObject({
       fieldErrors: {},
@@ -236,11 +239,11 @@ describe('assignReviewers', () => {
   });
 
   it.each(OTHER_ROLES)('is not found for a %s, who may not assign reviewers', async (role) => {
-    const postToMember = vi.fn();
+    const api = createFakeApiClient();
 
-    const { response } = await respond(assignReviewers, { postToMember }, post(sent), [role]);
+    const { response } = await respond(assignReviewers, api, post(sent), [role]);
 
     expect(response.status).toBe(404);
-    expect(postToMember).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 });
