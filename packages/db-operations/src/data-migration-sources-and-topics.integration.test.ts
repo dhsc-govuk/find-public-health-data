@@ -11,17 +11,8 @@ import {
 import { applyDataMigration, type DataMigrationProgress } from './data-migration.ts';
 import { dataMigrationTestDb, PUBLISHER, version } from './data-migration-db.testing.ts';
 
-const {
-  sql,
-  directory,
-  topicId,
-  frameworkId,
-  lifeStageId,
-  apply,
-  baseline,
-  sourceCount,
-  assertRolledBack,
-} = await dataMigrationTestDb();
+const db = dataMigrationTestDb();
+const { apply, baseline, sourceCount, assertRolledBack } = db;
 
 describe('applyDataMigration', () => {
   it('names unknown topic and classification IDs in relationship errors', async () => {
@@ -64,7 +55,7 @@ describe('applyDataMigration', () => {
         },
       },
     });
-    const [loaded] = await sql<{ name: string }[]>`
+    const [loaded] = await db.sql<{ name: string }[]>`
       SELECT c.name FROM indicator_version v JOIN ci_method c ON c.id = v.ci_method_id WHERE v.id = ${VERSION_ID}
     `;
     expect(loaded?.name).toBe('Wald normal approximation');
@@ -73,7 +64,7 @@ describe('applyDataMigration', () => {
     '%s imports reject unmapped sources before loading observations',
     async (kind) => {
       if (kind === 'increment') await baseline();
-      const { manifest, sha256 } = await migrationFixture(sql, directory, topicId, {
+      const { manifest, sha256 } = await migrationFixture(db.sql, db.directory, db.topicId, {
         baseline: kind === 'baseline',
         upserts: {
           indicator_version: version([SOURCE_ID, null]),
@@ -85,12 +76,12 @@ describe('applyDataMigration', () => {
       });
       const progress: DataMigrationProgress[] = [];
       await expect(
-        sql.begin((tx) =>
-          applyDataMigration(tx, directory, manifest, sha256, (event) => progress.push(event)),
+        db.sql.begin((tx) =>
+          applyDataMigration(tx, db.directory, manifest, sha256, (event) => progress.push(event)),
         ),
       ).rejects.toThrow('No mapping for the sources Unknown source');
       expect(progress.some(({ table }) => table === 'observation')).toBe(false);
-      const [counts] = await sql<{ versions: number; migrations: number }[]>`
+      const [counts] = await db.sql<{ versions: number; migrations: number }[]>`
         SELECT count(*)::int AS versions,
           (SELECT count(*)::int FROM data_migration) AS migrations
         FROM indicator_version
@@ -164,30 +155,30 @@ describe('applyDataMigration', () => {
       },
     });
     expect(await sourceCount()).toBe(1);
-    const [provider] = await sql<{ name: string }[]>`
+    const [provider] = await db.sql<{ name: string }[]>`
       SELECT p.name FROM indicator_version_source s JOIN data_provider p ON p.id = s.provider_id WHERE s.indicator_version_id = ${VERSION_ID}
     `;
     expect(provider?.name).toBe('Care Quality Commission (CQC)');
   });
   it('preserves historical topics, classifications and answers', async () => {
     await baseline();
-    const preserved = await sql<{ id: string }[]>`
+    const preserved = await db.sql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by, has_framework)
       VALUES (${INDICATOR_ID}, 'published', '2025-01-01', 'History', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}, true)
       RETURNING id
     `;
     for (const { id } of preserved) {
-      await sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${id}, ${topicId})`;
-      await sql`INSERT INTO indicator_version_classification (indicator_version_id, classification_id) VALUES (${id}, ${frameworkId})`;
+      await db.sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${id}, ${db.topicId})`;
+      await db.sql`INSERT INTO indicator_version_classification (indicator_version_id, classification_id) VALUES (${id}, ${db.frameworkId})`;
     }
     await apply({ upserts: { indicator_version: version() } });
-    const rows = await sql<
+    const rows = await db.sql<
       { status: string; topics: number; classifications: number; hasFramework: boolean }[]
     >`
       SELECT v.status, v.has_framework AS "hasFramework",
         (SELECT count(*)::int FROM indicator_version_topic t WHERE t.indicator_version_id = v.id) AS topics,
         (SELECT count(*)::int FROM indicator_version_classification c WHERE c.indicator_version_id = v.id) AS classifications
-      FROM indicator_version v WHERE v.id IN ${sql(preserved.map(({ id }) => id))} ORDER BY status
+      FROM indicator_version v WHERE v.id IN ${db.sql(preserved.map(({ id }) => id))} ORDER BY status
     `;
     expect(rows).toEqual([
       { status: 'published', hasFramework: true, topics: 1, classifications: 1 },
@@ -204,17 +195,17 @@ describe('applyDataMigration', () => {
     await baseline({
       relationships: {
         indicatorClassifications: [
-          { fingertipsId: 108, classificationId: frameworkId },
-          { fingertipsId: 108, classificationId: lifeStageId },
+          { fingertipsId: 108, classificationId: db.frameworkId },
+          { fingertipsId: 108, classificationId: db.lifeStageId },
         ],
       },
     });
     await apply({
       relationships: {
-        indicatorClassifications: [{ fingertipsId: 108, classificationId: lifeStageId }],
+        indicatorClassifications: [{ fingertipsId: 108, classificationId: db.lifeStageId }],
       },
     });
-    const [row] = await sql<{ framework: boolean | null; lifeStage: boolean | null }[]>`
+    const [row] = await db.sql<{ framework: boolean | null; lifeStage: boolean | null }[]>`
       SELECT has_framework AS framework, has_life_stage AS "lifeStage" FROM indicator_version WHERE id = ${VERSION_ID}
     `;
     expect(row).toEqual({ framework: false, lifeStage: true });
@@ -223,27 +214,27 @@ describe('applyDataMigration', () => {
       migrationId: 'increment-3',
       cutoffAt: '2026-09-23T10:00:00Z',
     });
-    const [removed] = await sql<
+    const [removed] = await db.sql<
       { lifeStage: boolean | null }[]
     >`SELECT has_life_stage AS "lifeStage" FROM indicator_version WHERE id = ${VERSION_ID}`;
     expect(removed?.lifeStage).toBe(false);
   });
   it('retains explicit negative classification answers', async () => {
     await baseline();
-    await sql`UPDATE indicator_version SET has_framework = false, has_life_stage = false WHERE id = ${VERSION_ID}`;
+    await db.sql`UPDATE indicator_version SET has_framework = false, has_life_stage = false WHERE id = ${VERSION_ID}`;
     await apply();
-    const [row] = await sql<{ framework: boolean; lifeStage: boolean }[]>`
+    const [row] = await db.sql<{ framework: boolean; lifeStage: boolean }[]>`
       SELECT has_framework AS framework, has_life_stage AS "lifeStage" FROM indicator_version WHERE id = ${VERSION_ID}
     `;
     expect(row).toEqual({ framework: false, lifeStage: false });
   });
   it('refuses missing topics and rolls back source edits, relationships and the ledger', async () => {
     await baseline();
-    const [history] = await sql<{ id: string }[]>`
+    const [history] = await db.sql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by)
       VALUES (${INDICATOR_ID}, 'published', '2025-01-01', 'History', 'test-indicator', ${PUBLISHER}, ${PUBLISHER}) RETURNING id
     `;
-    await sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${history?.id ?? ''}, ${topicId})`;
+    await db.sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${history?.id ?? ''}, ${db.topicId})`;
     const row = [...VERSION_ROW];
     row[4] = 'Changed name';
     await expect(

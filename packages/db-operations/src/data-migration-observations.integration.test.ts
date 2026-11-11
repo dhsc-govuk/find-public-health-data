@@ -13,7 +13,8 @@ import {
 
 const { IMPORTED_INDICATOR_TEAM_ID } = schema;
 
-const { sql, apply, baseline, assertRolledBack } = await dataMigrationTestDb();
+const db = dataMigrationTestDb();
+const { apply, baseline, assertRolledBack } = db;
 
 describe('applyDataMigration', () => {
   it('connects mutually referencing versions and batches and switches published observations', async () => {
@@ -63,9 +64,9 @@ describe('applyDataMigration', () => {
         observation: observation(firstBatch, 10),
       },
     });
-    expect(await sql`SELECT value FROM published.observation`).toEqual([{ value: 10 }]);
+    expect(await db.sql`SELECT value FROM published.observation`).toEqual([{ value: 10 }]);
     expect(
-      await sql`SELECT v.upload_batch_id, b.indicator_version_id,
+      await db.sql`SELECT v.upload_batch_id, b.indicator_version_id,
       v.data_table_confirmed_at IS NOT NULL AS confirmed
       FROM indicator_version v JOIN upload_batch b ON b.id = v.upload_batch_id`,
     ).toEqual([{ upload_batch_id: firstBatch, indicator_version_id: VERSION_ID, confirmed: true }]);
@@ -77,11 +78,11 @@ describe('applyDataMigration', () => {
       },
       deletes: { upload_batch: [firstBatch] },
     });
-    expect(await sql`SELECT value FROM published.observation`).toEqual([{ value: 20 }]);
-    expect(await sql`SELECT upload_batch_id FROM indicator_version`).toEqual([
+    expect(await db.sql`SELECT value FROM published.observation`).toEqual([{ value: 20 }]);
+    expect(await db.sql`SELECT upload_batch_id FROM indicator_version`).toEqual([
       { upload_batch_id: secondBatch },
     ]);
-    expect(await sql`SELECT id FROM upload_batch`).toEqual([{ id: secondBatch }]);
+    expect(await db.sql`SELECT id FROM upload_batch`).toEqual([{ id: secondBatch }]);
     await apply({
       migrationId: 'increment-3',
       predecessor: 'increment-2',
@@ -89,7 +90,7 @@ describe('applyDataMigration', () => {
       upserts: { indicator_version: version() },
     });
     expect(
-      await sql`SELECT upload_batch_id, data_table_confirmed_at IS NOT NULL AS confirmed FROM indicator_version`,
+      await db.sql`SELECT upload_batch_id, data_table_confirmed_at IS NOT NULL AS confirmed FROM indicator_version`,
     ).toEqual([{ upload_batch_id: secondBatch, confirmed: true }]);
     await apply({
       migrationId: 'increment-4',
@@ -99,9 +100,9 @@ describe('applyDataMigration', () => {
       deletes: { upload_batch: [secondBatch], observation: [observationId] },
     });
     expect(
-      await sql`SELECT upload_batch_id, data_table_confirmed_at FROM indicator_version`,
+      await db.sql`SELECT upload_batch_id, data_table_confirmed_at FROM indicator_version`,
     ).toEqual([{ upload_batch_id: null, data_table_confirmed_at: null }]);
-    expect(await sql`SELECT id FROM published.observation`).toEqual([]);
+    expect(await db.sql`SELECT id FROM published.observation`).toEqual([]);
   });
   it('upserts and deletes bridge rows by their observation and core dimension or note type', async () => {
     const batchId = '22222222-2222-7222-8222-222222222222';
@@ -171,7 +172,7 @@ describe('applyDataMigration', () => {
         },
       },
     });
-    const bridges = () => sql`
+    const bridges = () => db.sql`
       SELECT t.name AS type, v.name AS value, (
         SELECT count(*)::int FROM observation_note n WHERE n.observation_id = od.observation_id
       ) AS notes
@@ -202,7 +203,7 @@ describe('applyDataMigration', () => {
     packageNoteTypeId?: string,
   ): Promise<string> {
     const batchId = '22222222-2222-7222-8222-222222222222';
-    const [disclosure] = await sql<{ id: string }[]>`
+    const [disclosure] = await db.sql<{ id: string }[]>`
       SELECT id FROM note_type WHERE text = 'Disclosure control applied'
     `;
     if (!disclosure) throw new Error('Missing core note type');
@@ -270,7 +271,7 @@ describe('applyDataMigration', () => {
       deletes: { observation_note: [`${observationId},${disclosureId}`] },
     });
 
-    expect(await sql`SELECT observation_id, note_type_id FROM observation_note`).toEqual([
+    expect(await db.sql`SELECT observation_id, note_type_id FROM observation_note`).toEqual([
       { observation_id: observationId, note_type_id: disclosureId },
     ]);
   });
@@ -280,7 +281,7 @@ describe('applyDataMigration', () => {
 
     await apply({ deletes: { observation_note: [`${observationId},${disclosureId}`] } });
 
-    expect(await sql`SELECT observation_id FROM observation_note`).toEqual([]);
+    expect(await db.sql`SELECT observation_id FROM observation_note`).toEqual([]);
   });
   it('refuses a bridge delete whose type left the package after matching a core row by text', async () => {
     const observationId = '55555555-5555-7555-8555-555555555555';
@@ -292,7 +293,7 @@ describe('applyDataMigration', () => {
     ).rejects.toThrow(
       `observation_note deletes name note_type ids that neither the package nor core data holds: ${packageId}`,
     );
-    expect(await sql`SELECT note_type_id FROM observation_note`).toEqual([
+    expect(await db.sql`SELECT note_type_id FROM observation_note`).toEqual([
       { note_type_id: disclosureId },
     ]);
   });
@@ -358,8 +359,8 @@ describe('applyDataMigration', () => {
     });
     expect(result.changes.indicator_version).toEqual({ upserts: 0, deletes: 1 });
     expect(result.changes.upload_batch).toEqual({ upserts: 0, deletes: 1 });
-    expect(await sql`SELECT id FROM published.indicator`).toEqual([]);
-    expect(await sql`SELECT id FROM published.observation`).toEqual([]);
+    expect(await db.sql`SELECT id FROM published.indicator`).toEqual([]);
+    expect(await db.sql`SELECT id FROM published.observation`).toEqual([]);
     for (const table of [
       'indicator',
       'indicator_version',
@@ -367,11 +368,11 @@ describe('applyDataMigration', () => {
       'observation',
       'indicator_version_topic',
     ]) {
-      expect(await sql.unsafe(`SELECT count(*)::int AS count FROM ${table}`)).toEqual([
+      expect(await db.sql.unsafe(`SELECT count(*)::int AS count FROM ${table}`)).toEqual([
         { count: 0 },
       ]);
     }
-    expect(await sql`SELECT count(*)::int AS count FROM data_migration`).toEqual([{ count: 2 }]);
+    expect(await db.sql`SELECT count(*)::int AS count FROM data_migration`).toEqual([{ count: 2 }]);
   });
   it('rolls back cleared batch pointers when a later delete is blocked', async () => {
     const batchId = '22222222-2222-7222-8222-222222222222';
@@ -381,7 +382,7 @@ describe('applyDataMigration', () => {
         upload_batch: batch(batchId),
       },
     });
-    await sql`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by)
+    await db.sql`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by)
       VALUES (${INDICATOR_ID}, ${VERSION_ID}, 'publisher.csv', ${PUBLISHER})`;
     await expect(
       apply({
@@ -394,13 +395,13 @@ describe('applyDataMigration', () => {
       }),
     ).rejects.toThrow('indicator_version deletion is blocked by retained references');
     expect(
-      await sql`SELECT upload_batch_id, data_table_confirmed_at IS NOT NULL AS confirmed FROM indicator_version`,
+      await db.sql`SELECT upload_batch_id, data_table_confirmed_at IS NOT NULL AS confirmed FROM indicator_version`,
     ).toEqual([{ upload_batch_id: batchId, confirmed: true }]);
     await assertRolledBack();
   });
   it('names identities whose deletion is blocked by publisher uploads', async () => {
     await baseline();
-    await sql`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by) VALUES (${INDICATOR_ID}, ${VERSION_ID}, 'publisher.csv', ${PUBLISHER})`;
+    await db.sql`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by) VALUES (${INDICATOR_ID}, ${VERSION_ID}, 'publisher.csv', ${PUBLISHER})`;
     await expect(
       apply({
         deletes: { indicator: [INDICATOR_ID], indicator_version: [VERSION_ID] },
@@ -415,7 +416,7 @@ describe('applyDataMigration', () => {
     'rejects a declared delete count of %s before deleting its staged row',
     async (rows) => {
       await baseline();
-      await sql`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by) VALUES (${INDICATOR_ID}, ${VERSION_ID}, 'publisher.csv', ${PUBLISHER})`;
+      await db.sql`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by) VALUES (${INDICATOR_ID}, ${VERSION_ID}, 'publisher.csv', ${PUBLISHER})`;
       await expect(
         apply({
           deletes: { indicator: [INDICATOR_ID], indicator_version: [VERSION_ID] },
@@ -440,48 +441,50 @@ describe('applyDataMigration', () => {
     ['observation_note', 'delete'],
   ] as const)('protects publisher-owned %s rows from migration %s', async (table, action) => {
     await baseline();
-    const [identity] = await sql<
+    const [identity] = await db.sql<
       { id: string }[]
     >`INSERT INTO indicator (short_id, team_id) VALUES (109, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
     if (!identity) throw new Error('Missing publisher indicator');
     const publisherIndicatorId = action === 'historical upsert' ? INDICATOR_ID : identity.id;
-    const [publication] = await sql<{ id: string }[]>`
+    const [publication] = await db.sql<{ id: string }[]>`
       INSERT INTO indicator_version (indicator_id, status, published_at, name, slug, created_by, updated_by)
       VALUES (${publisherIndicatorId}, 'published', '2025-01-01', 'FPHD only',
         ${action === 'historical upsert' ? 'test-indicator' : 'fphd-only'}, ${PUBLISHER}, ${PUBLISHER}) RETURNING id
     `;
     if (!publication) throw new Error('Missing publisher publication');
-    const [upload] = await sql<{ id: string }[]>`
+    const [upload] = await db.sql<{ id: string }[]>`
       INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by, status)
       VALUES (${publisherIndicatorId}, ${publication.id}, 'publisher.csv', ${PUBLISHER}, 'processed') RETURNING id
     `;
     if (!upload) throw new Error('Missing publisher upload');
-    await sql`UPDATE indicator_version SET upload_batch_id = ${upload.id}, data_table_confirmed_at = '2026-01-01' WHERE id = ${publication.id}`;
-    const [areaType] = await sql<{ id: string }[]>`SELECT id FROM area_type WHERE name = 'England'`;
+    await db.sql`UPDATE indicator_version SET upload_batch_id = ${upload.id}, data_table_confirmed_at = '2026-01-01' WHERE id = ${publication.id}`;
+    const [areaType] = await db.sql<
+      { id: string }[]
+    >`SELECT id FROM area_type WHERE name = 'England'`;
     if (!areaType) throw new Error('Missing area type');
-    const [area] = await sql<
+    const [area] = await db.sql<
       { id: string }[]
     >`INSERT INTO area (area_type_id, code, name, valid_from) VALUES (${areaType.id}, ${`publisher-${table}-${action}`}, 'Publisher area', '2010-01-01') RETURNING id`;
     if (!area) throw new Error('Missing area');
-    const [observed] = await sql<{ id: string }[]>`
+    const [observed] = await db.sql<{ id: string }[]>`
       INSERT INTO observation (indicator_id, area_id, upload_batch_id, from_date, to_date, value, dimension_key)
       VALUES (${publisherIndicatorId}, ${area.id}, ${upload.id}, '2025-01-01', '2025-12-31', 10, '') RETURNING id
     `;
     if (!observed) throw new Error('Missing observation');
-    const [dimensionType] = await sql<
+    const [dimensionType] = await db.sql<
       { id: string }[]
     >`SELECT id FROM dimension_type WHERE name = 'Sex'`;
     if (!dimensionType) throw new Error('Missing dimension type');
-    const [dimensionValue] = await sql<
+    const [dimensionValue] = await db.sql<
       { id: string }[]
     >`SELECT id FROM dimension_value WHERE dimension_type_id = ${dimensionType.id} AND name = 'Female'`;
     if (!dimensionValue) throw new Error('Missing dimension value');
-    await sql`INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id) VALUES (${observed.id}, ${dimensionValue.id}, ${dimensionType.id})`;
-    const [noteType] = await sql<
+    await db.sql`INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id) VALUES (${observed.id}, ${dimensionValue.id}, ${dimensionType.id})`;
+    const [noteType] = await db.sql<
       { id: string }[]
     >`INSERT INTO note_type (text, category) VALUES ('Publisher note', 'quality') ON CONFLICT (text) DO UPDATE SET category = excluded.category RETURNING id`;
     if (!noteType) throw new Error('Missing note type');
-    await sql`INSERT INTO observation_note (observation_id, note_type_id) VALUES (${observed.id}, ${noteType.id})`;
+    await db.sql`INSERT INTO observation_note (observation_id, note_type_id) VALUES (${observed.id}, ${noteType.id})`;
     const fixtures = {
       indicator: {
         columns: ['id', 'short_id', 'data_updated_at'],
@@ -551,7 +554,7 @@ describe('applyDataMigration', () => {
       observation_note: [`${observed.id},${noteType.id}`],
     };
     if (action === 'reassign') {
-      const [sourceBatch] = await sql<{ id: string }[]>`
+      const [sourceBatch] = await db.sql<{ id: string }[]>`
         INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by, status)
         VALUES (${INDICATOR_ID}, ${VERSION_ID}, 'source.csv', ${MIGRATED}, 'processed') RETURNING id
       `;
@@ -577,19 +580,19 @@ describe('applyDataMigration', () => {
     ).rejects.toThrow(
       `conflicts with FPHD publisher work on indicators: ${action === 'historical upsert' ? 108 : 109}`,
     );
-    expect(await sql`SELECT value FROM observation WHERE id = ${observed.id}`).toEqual([
+    expect(await db.sql`SELECT value FROM observation WHERE id = ${observed.id}`).toEqual([
       { value: 10 },
     ]);
-    expect(await sql`SELECT original_filename FROM upload_batch WHERE id = ${upload.id}`).toEqual([
-      { original_filename: 'publisher.csv' },
-    ]);
     expect(
-      await sql`SELECT dimension_value_id FROM observation_dimension WHERE observation_id = ${observed.id}`,
+      await db.sql`SELECT original_filename FROM upload_batch WHERE id = ${upload.id}`,
+    ).toEqual([{ original_filename: 'publisher.csv' }]);
+    expect(
+      await db.sql`SELECT dimension_value_id FROM observation_dimension WHERE observation_id = ${observed.id}`,
     ).toEqual([{ dimension_value_id: dimensionValue.id }]);
     expect(
-      await sql`SELECT note_type_id FROM observation_note WHERE observation_id = ${observed.id}`,
+      await db.sql`SELECT note_type_id FROM observation_note WHERE observation_id = ${observed.id}`,
     ).toEqual([{ note_type_id: noteType.id }]);
-    expect(await sql`SELECT data_updated_at FROM indicator WHERE id = ${identity.id}`).toEqual([
+    expect(await db.sql`SELECT data_updated_at FROM indicator WHERE id = ${identity.id}`).toEqual([
       { data_updated_at: null },
     ]);
     await assertRolledBack();
@@ -599,9 +602,9 @@ describe('applyDataMigration', () => {
     async (child) => {
       await baseline();
       if (child === 'link') {
-        await sql`INSERT INTO indicator_version_link (indicator_version_id, position, url, text) VALUES (${VERSION_ID}, 0, 'https://example.test', 'Publisher link')`;
+        await db.sql`INSERT INTO indicator_version_link (indicator_version_id, position, url, text) VALUES (${VERSION_ID}, 0, 'https://example.test', 'Publisher link')`;
       } else {
-        await sql`INSERT INTO indicator_version_age_range (indicator_version_id, position, lower_limit, lower_limit_unit) VALUES (${VERSION_ID}, 0, 18, 'years')`;
+        await db.sql`INSERT INTO indicator_version_age_range (indicator_version_id, position, lower_limit, lower_limit_unit) VALUES (${VERSION_ID}, 0, 18, 'years')`;
       }
       const options = {
         deletes: { indicator: [INDICATOR_ID], indicator_version: [VERSION_ID] },
@@ -609,10 +612,10 @@ describe('applyDataMigration', () => {
       };
       await expect(apply(options)).rejects.toThrow('publisher links or age ranges');
       await assertRolledBack();
-      await sql`DELETE FROM indicator_version_link WHERE indicator_version_id = ${VERSION_ID}`;
-      await sql`DELETE FROM indicator_version_age_range WHERE indicator_version_id = ${VERSION_ID}`;
+      await db.sql`DELETE FROM indicator_version_link WHERE indicator_version_id = ${VERSION_ID}`;
+      await db.sql`DELETE FROM indicator_version_age_range WHERE indicator_version_id = ${VERSION_ID}`;
       await apply(options);
-      const [row] = await sql<{ indicators: number; topics: number }[]>`
+      const [row] = await db.sql<{ indicators: number; topics: number }[]>`
       SELECT (SELECT count(*)::int FROM indicator) AS indicators,
         (SELECT count(*)::int FROM indicator_version_topic) AS topics
     `;

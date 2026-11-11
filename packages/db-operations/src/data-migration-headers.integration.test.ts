@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { SOURCE_ID, VERSION_COLUMNS, VERSION_ROW } from './data-migration.testing.ts';
 import { dataMigrationTestDb, versionWithBatch } from './data-migration-db.testing.ts';
 
-const { sql, apply, baseline, assertRolledBack } = await dataMigrationTestDb();
+const db = dataMigrationTestDb();
+const { apply, baseline, assertRolledBack } = db;
 
 describe('applyDataMigration', () => {
   it('rolls back a version pointing at a missing batch', async () => {
@@ -15,7 +16,7 @@ describe('applyDataMigration', () => {
     ).rejects.toThrow('indicator_version_upload_batch_fk');
     await assertRolledBack();
     expect(
-      await sql`SELECT upload_batch_id, data_table_confirmed_at FROM indicator_version`,
+      await db.sql`SELECT upload_batch_id, data_table_confirmed_at FROM indicator_version`,
     ).toEqual([{ upload_batch_id: null, data_table_confirmed_at: null }]);
   });
   it.each(['upload_batch_id', 'data_table_confirmed_at'])(
@@ -81,8 +82,8 @@ describe('applyDataMigration', () => {
         },
       }),
     ).rejects.toThrow('area CSV is missing required columns: is_current');
-    expect(await sql`SELECT id FROM area WHERE id = ${id}`).toEqual([]);
-    expect(await sql`SELECT id FROM area_type WHERE id = ${id}`).toEqual([]);
+    expect(await db.sql`SELECT id FROM area WHERE id = ${id}`).toEqual([]);
+    expect(await db.sql`SELECT id FROM area_type WHERE id = ${id}`).toEqual([]);
     await assertRolledBack();
   });
   it('rejects a version header without is_locked rather than leave it unlocked', async () => {
@@ -129,7 +130,7 @@ describe('applyDataMigration', () => {
     ).rejects.toThrow(
       'data_migration_delete_data_source CSV has columns the target table does not: name',
     );
-    const [row] = await sql<
+    const [row] = await db.sql<
       { name: string }[]
     >`SELECT name FROM data_source WHERE id = ${SOURCE_ID}`;
     expect(row?.name).toBe('Retained source');
