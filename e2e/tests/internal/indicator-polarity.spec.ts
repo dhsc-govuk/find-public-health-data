@@ -26,7 +26,7 @@ describeSectionPage(SECTION, {
     }
   },
   refusal: {
-    messages: ['Select the polarity of the indicator'],
+    messages: ['Select the polarity of this indicator'],
     focuses: (page) => page.getByLabel('Higher is better'),
   },
 });
@@ -67,7 +67,7 @@ test('has no WCAG 2.2 AA violations when the submission is rejected', async ({
 }, testInfo) => {
   await openSectionPage(page, SECTION);
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByRole('alert')).toContainText('Select the polarity of the indicator');
+  await expect(page.getByRole('alert')).toContainText('Select the polarity of this indicator');
 
   await expectNoAccessibilityViolations(page, testInfo);
 });
