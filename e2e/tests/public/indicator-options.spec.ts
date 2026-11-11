@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
+import { filterCard, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
 
 function trendTable(page: import('@playwright/test').Page) {
   return page.getByRole('table', { name: /^Table:/ });
@@ -62,4 +62,41 @@ test('inequality options change the breakdown period', async ({ page }) => {
   await expect(
     page.getByRole('table', { name: /Districts and unitary authorities by deprivation.*2023/ }),
   ).toBeVisible();
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('table and inequality options apply through their Apply options buttons', async ({
+    page,
+  }) => {
+    await page.goto(MORTALITY_PATH);
+    const tableOptions = filterCard(page, 'Table columns');
+    await tableOptions.getByLabel('Select sex').selectOption('Male');
+    await tableOptions.getByLabel('Select time period type').selectOption('1 year');
+    await tableOptions.getByRole('checkbox', { name: 'Numerator', exact: true }).check();
+    await tableOptions.getByRole('button', { name: 'Apply options' }).click();
+
+    await expect(page).toHaveURL(/sex-108=Male/);
+    await expect(page).toHaveURL(/pt-108=1-year/);
+    const table = trendTable(page);
+    await expect(table).toHaveAccessibleName(/<75 yrs, Male$/);
+    await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(
+      0,
+    );
+    await expect(table.getByRole('columnheader', { name: 'Numerator', exact: true })).toBeVisible();
+
+    const inequalityOptions = filterCard(page, 'Chart options');
+    await inequalityOptions
+      .getByRole('radio', { name: /Districts and unitary authorities by deprivation/ })
+      .check();
+    await inequalityOptions.getByLabel('Time period', { exact: true }).selectOption('2023');
+    await inequalityOptions.getByRole('button', { name: 'Apply options' }).click();
+
+    await expect(page).toHaveURL(/ic-108=/);
+    await expect(
+      page.getByRole('table', { name: /Districts and unitary authorities by deprivation.*2023/ }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(/sex-108=Male/);
+  });
 });

@@ -153,3 +153,25 @@ test('has no WCAG 2.2 AA violations when the submission is rejected', async ({
 
   await expectNoAccessibilityViolations(page, testInfo);
 });
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('creates the indicator, then renames it from its name page', async ({ page }) => {
+    const name = uniqueName();
+    await openNamePage(page);
+    await page.getByLabel('What is the name of the indicator?').fill(name);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(/\/publish\/indicators\/[0-9a-f-]{36}\/task-list$/);
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    const taskListPath = new URL(page.url()).pathname;
+
+    await page.getByRole('link', { name: 'Name' }).click();
+    await page.getByLabel('What is the name of the indicator?').fill(`${name} renamed`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(taskListPath);
+    await expect(page.getByRole('heading', { level: 1, name: `${name} renamed` })).toBeVisible();
+  });
+});
