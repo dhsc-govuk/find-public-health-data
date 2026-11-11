@@ -58,7 +58,11 @@ export type FakeApiStub =
   | FakeApiAnswer
   | ((call: FakeApiCall) => FakeApiAnswer | Promise<FakeApiAnswer>);
 
-/** Stubbed answers by method and path, such as `'GET /api/topics'`. */
+/**
+ * Stubbed answers by method and path, such as `'GET /api/topics'`. A path with a query string
+ * answers only that query. A path without one also answers any query on it that no stub names,
+ * so a function stub can work its answer out from the query.
+ */
 export type FakeApiStubs = Readonly<Record<`${FakeApiMethod} /${string}`, FakeApiStub>>;
 
 export interface FakeApiClient extends ApiClient {
@@ -108,8 +112,11 @@ export function createFakeApiClient(stubs: FakeApiStubs = {}): FakeApiClient {
   async function answer(call: FakeApiCall): Promise<unknown> {
     calls.push(call);
     const key = describeCall(call);
+    const [pathWithoutQuery] = call.path.split('?');
 
-    const stub = stubs[key as keyof FakeApiStubs];
+    const stub =
+      stubs[key as keyof FakeApiStubs] ??
+      stubs[`${call.method} ${pathWithoutQuery}` as keyof FakeApiStubs];
     if (stub === undefined) {
       throw new Error(`The API was called (${key}) but this test did not stub it`);
     }

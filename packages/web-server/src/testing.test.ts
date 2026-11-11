@@ -30,6 +30,29 @@ describe('createFakeApiClient', () => {
     );
   });
 
+  it('answers any query on a path stubbed without one, unless a stub names the query', async () => {
+    const api = createFakeApiClient({
+      'GET /api/topics': (call) => [{ ...topic, slug: new URL(call.path, 'http://api').search }],
+      'GET /api/topics?q=named': [{ ...topic, slug: 'named' }],
+    });
+    const topics = z.array(topicSchema);
+
+    await expect(api.get('/api/topics?q=air', topics)).resolves.toEqual([
+      { ...topic, slug: '?q=air' },
+    ]);
+    await expect(api.get('/api/topics?q=named', topics)).resolves.toEqual([
+      { ...topic, slug: 'named' },
+    ]);
+  });
+
+  it('answers no query on a path stubbed with a different one', async () => {
+    const api = createFakeApiClient({ 'GET /api/topics?q=air': [] });
+
+    await expect(api.get('/api/topics?q=water', z.array(topicSchema))).rejects.toThrow(
+      'did not stub it',
+    );
+  });
+
   it('keeps a stub to its method', async () => {
     const api = createFakeApiClient({ 'GET /api/topics/air-quality': topic });
 
