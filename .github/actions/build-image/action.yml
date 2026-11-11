@@ -19,7 +19,7 @@ inputs:
   labels:
     description: OCI labels, one per line.
     required: false
-    default: ''
+    default: ""
   revision:
     description: The commit being built, passed as the REVISION build arg the servers log.
     required: true

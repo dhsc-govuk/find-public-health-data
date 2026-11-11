@@ -8,6 +8,7 @@ import {
   MAX_AREA_PREVIEW,
   MAX_AREA_SEARCH_RESULTS,
   pickAreaCodes,
+  queryLimit,
   queryText,
 } from './contract.ts';
 
@@ -38,10 +39,7 @@ export function areasRouter(areas: Repositories['areas']): Router {
       return;
     }
 
-    const capped =
-      typeof limit === 'string' && /^[1-9]\d*$/.test(limit)
-        ? Math.min(Number(limit), MAX_AREA_SEARCH_RESULTS)
-        : DEFAULT_AREA_SEARCH_RESULTS;
+    const capped = queryLimit(limit, MAX_AREA_SEARCH_RESULTS) ?? DEFAULT_AREA_SEARCH_RESULTS;
     response.status(200).json(await areas.search(query, capped));
   });
 
@@ -80,11 +78,7 @@ export function areasRouter(areas: Repositories['areas']): Router {
       ].slice(0, MAX_AREA_GROUPS_PER_REQUEST);
     const areaTypeNames = pick(request.query.areaType);
     const displayGroups = pick(request.query.displayGroup);
-    const requestedLimit = request.query.limit;
-    const limit =
-      typeof requestedLimit === 'string' && /^[1-9]\d*$/.test(requestedLimit)
-        ? Math.min(Number(requestedLimit), MAX_AREA_PREVIEW)
-        : undefined;
+    const limit = queryLimit(request.query.limit, MAX_AREA_PREVIEW);
 
     if (areaTypeNames.length === 0 && displayGroups.length === 0) {
       response.status(400).json({ error: 'area_type_or_display_group_required' });

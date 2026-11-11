@@ -1,12 +1,16 @@
+import { z } from '@fphd/config/zod';
 import { type Database, schema } from '@fphd/db';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { categoryKey, nameIndex, nameKey } from './data-table-names.ts';
 import type { DataTableReferences } from './data-table-rows.ts';
-import type { DataTableProblem } from './data-upload-contract.ts';
+import { type DataTableProblem, dataTableProblemSchema } from './data-upload-contract.ts';
 import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
 
 const { area, dimensionType, dimensionValue, indicator, noteType, uploadBatch } = schema;
+
+// Only a failed upload stores problems, as JSON in validation_result.
+const storedProblemsSchema = z.array(dataTableProblemSchema);
 
 // Sex and age have columns of their own, so a category never names them.
 const SEX = nameKey('Sex');
@@ -66,11 +70,9 @@ export async function getLatestDataUpload(
   if (row === undefined) return undefined;
 
   const { validationResult, status, ...upload } = row;
-  return {
-    ...upload,
-    status: status === 'failed' ? 'failed' : 'processed',
-    problems: (validationResult as DataTableProblem[] | null) ?? [],
-  };
+  return status === 'failed'
+    ? { ...upload, status, problems: storedProblemsSchema.parse(validationResult) }
+    : { ...upload, status: 'processed', problems: [] };
 }
 
 /** Every code and name a data table can match, names keyed as the file's names are. */

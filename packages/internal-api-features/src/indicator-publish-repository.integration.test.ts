@@ -18,7 +18,7 @@ import {
   indicatorWithTwoPublications,
   newDraft,
   onsSources,
-  repositoryTest,
+  seededRepositoryTest,
   sixteenPlus,
   storedAgeRangesOf,
   storedClassificationIdsOf,
@@ -50,7 +50,7 @@ async function publishedVersionId(db: Database, indicatorId: string): Promise<st
 }
 
 describe('createDraftFromPublished', () => {
-  repositoryTest(
+  seededRepositoryTest(
     'waits for a live refresh before reading the publication to copy',
     async ({ db }) => {
       const { indicatorId, currentId } = await indicatorWithTwoPublications(
@@ -125,7 +125,7 @@ describe('createDraftFromPublished', () => {
       }
     },
   );
-  repositoryTest(
+  seededRepositoryTest(
     'copies the published version columns and lists into a new draft',
     async ({ db, seededIds }) => {
       const target = seededIds[0];
@@ -194,7 +194,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest(
+  seededRepositoryTest(
     "points the new draft at the published version's data, as confirmed",
     async ({ db, seededIds }) => {
       // The first test drafts the newest one.
@@ -224,7 +224,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest('copies the tags of every dimension and their answers', async ({ db }) => {
+  seededRepositoryTest('copies the tags of every dimension and their answers', async ({ db }) => {
     const { indicatorId, currentId } = await indicatorWithTwoPublications(
       db,
       'Tagged when published',
@@ -250,7 +250,7 @@ describe('createDraftFromPublished', () => {
     expect(state?.draft).toMatchObject({ hasLifeStage: true, hasFramework: true });
   });
 
-  repositoryTest.for<[string, (db: Database) => Promise<IndicatorDraftAttributes>]>([
+  seededRepositoryTest.for<[string, (db: Database) => Promise<IndicatorDraftAttributes>]>([
     ['who calculated it', async () => ({ calculatedBy: 'other', calculatedByDetail: 'ONS' })],
     ['whether it has data quality issues', async () => ({ hasDataQualityIssues: true })],
     [
@@ -273,7 +273,7 @@ describe('createDraftFromPublished', () => {
     expect(state?.draft).toMatchObject(columns);
   });
 
-  repositoryTest(
+  seededRepositoryTest(
     'copies the most recently published version, not the superseded one',
     async ({ db }) => {
       const { indicatorId, currentId, currentName, supersededId } =
@@ -301,7 +301,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest(
+  seededRepositoryTest(
     'leaves the new draft unscheduled, whenever the published version was scheduled for',
     async ({ db }) => {
       const { indicatorId, currentId } = await indicatorWithTwoPublications(
@@ -321,7 +321,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest(
+  seededRepositoryTest(
     'copies the links of the published version in order, leaving them on it too',
     async ({ db }) => {
       const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
@@ -352,7 +352,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest(
+  seededRepositoryTest(
     'copies the sexes and age ranges of the published version, leaving them on it too',
     async ({ db }) => {
       const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
@@ -382,7 +382,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest(
+  seededRepositoryTest(
     'copies the numerator and denominator sources of the published version',
     async ({ db }) => {
       const { indicatorId, currentId } = await indicatorWithTwoPublications(
@@ -407,7 +407,7 @@ describe('createDraftFromPublished', () => {
     },
   );
 
-  repositoryTest('refuses a second draft for the same indicator', async ({ db }) => {
+  seededRepositoryTest('refuses a second draft for the same indicator', async ({ db }) => {
     const { indicatorId } = await indicatorWithTwoPublications(db, 'Drafted twice');
     await createDraftFromPublished(db, indicatorId, AS_ACTOR);
 
@@ -417,17 +417,20 @@ describe('createDraftFromPublished', () => {
     });
   });
 
-  repositoryTest('opens the draft unlocked from a locked published version', async ({ db }) => {
-    const { indicatorId } = await indicatorWithTwoPublications(db, 'Copied unlocked');
+  seededRepositoryTest(
+    'opens the draft unlocked from a locked published version',
+    async ({ db }) => {
+      const { indicatorId } = await indicatorWithTwoPublications(db, 'Copied unlocked');
 
-    const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
 
-    if (!result.ok) throw new Error('expected a draft');
-    const state = await getIndicatorDraftState(db, indicatorId);
-    expect(state?.draft?.isLocked).toBe(false);
-  });
+      if (!result.ok) throw new Error('expected a draft');
+      const state = await getIndicatorDraftState(db, indicatorId);
+      expect(state?.draft?.isLocked).toBe(false);
+    },
+  );
 
-  repositoryTest('refuses a second draft while the first is locked', async ({ db }) => {
+  seededRepositoryTest('refuses a second draft while the first is locked', async ({ db }) => {
     const { indicatorId } = await indicatorWithTwoPublications(db, 'Drafted beside a lock');
     const first = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
     if (!first.ok) throw new Error('expected a draft');
@@ -442,7 +445,7 @@ describe('createDraftFromPublished', () => {
     });
   });
 
-  repositoryTest('refuses a draft beside a scheduled version', async ({ db }) => {
+  seededRepositoryTest('refuses a draft beside a scheduled version', async ({ db }) => {
     const { indicatorId } = await indicatorWithTwoPublications(db, 'Drafted beside a schedule');
     const first = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
     if (!first.ok) throw new Error('expected a draft');
@@ -457,7 +460,7 @@ describe('createDraftFromPublished', () => {
     });
   });
 
-  repositoryTest('refuses an indicator with nothing published', async ({ db }) => {
+  seededRepositoryTest('refuses an indicator with nothing published', async ({ db }) => {
     const created = await newDraft(db, 'Never published');
 
     await expect(createDraftFromPublished(db, created.indicatorId, AS_ACTOR)).resolves.toEqual({

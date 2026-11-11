@@ -169,7 +169,7 @@ describe('updateIndicatorDraft', () => {
     const created = await newDraft(db, 'Before');
     const [topic] = await db.select({ id: schema.topic.id }).from(schema.topic).limit(1);
     const classified = await typeClassification(db);
-    if (!topic || !classified) throw new Error('The seed holds no topics or classifications');
+    if (!topic || !classified) throw new Error('The core data holds no topics or classifications');
 
     const result = await updateIndicatorDraft(
       db,
@@ -839,7 +839,8 @@ describe('the audit log of draft writes', () => {
       const created = await newDraft(db, 'Audited concurrent unlink');
       const topics = await db.select({ id: schema.topic.id }).from(schema.topic).limit(2);
       const [gone, kept] = topics.map(({ id }) => id);
-      if (gone === undefined || kept === undefined) throw new Error('the seed has too few topics');
+      if (gone === undefined || kept === undefined)
+        throw new Error('the core data has too few topics');
       await updateIndicatorDraft(
         db,
         created.indicatorId,

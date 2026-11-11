@@ -42,9 +42,9 @@ runs:
         severity: HIGH,CRITICAL
         ignore-unfixed: true
         exit-code: 1
-        cache: 'false'
+        cache: "false"
         cache-dir: ${{ runner.temp }}/trivy-cache
-        skip-setup-trivy: 'true'
+        skip-setup-trivy: "true"
       env:
         TRIVY_SKIP_DB_UPDATE: ${{ steps.db.outputs.cache-hit == 'true' }}
 
@@ -57,9 +57,9 @@ runs:
         image-ref: ${{ inputs.image-ref }}
         scanners: secret
         exit-code: 1
-        cache: 'false'
+        cache: "false"
         cache-dir: ${{ runner.temp }}/trivy-cache
-        skip-setup-trivy: 'true'
+        skip-setup-trivy: "true"
       env:
         # Build args and ENV land in the image config, not in a file; the default scan reads files only.
         TRIVY_IMAGE_CONFIG_SCANNERS: secret

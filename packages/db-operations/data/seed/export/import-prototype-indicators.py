@@ -18,7 +18,7 @@ from datetime import date
 from pathlib import Path
 
 import psycopg2
-from psycopg2.extras import Json, execute_values
+from psycopg2.extras import execute_values
 
 from count_and_numerator import count_is_numerator
 from legacy_sources import (
@@ -399,8 +399,8 @@ def add_indicators(cur, metadata, seed_dir):
             """
             INSERT INTO upload_batch
               (id, indicator_id, indicator_version_id, original_filename, uploaded_by,
-               uploaded_at, status, validation_result)
-            VALUES (%s, %s, %s, %s, %s, %s, 'processed', %s)
+               uploaded_at, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'processed')
             """,
             (
                 batch_id,
@@ -409,7 +409,6 @@ def add_indicators(cur, metadata, seed_dir):
                 f"fingertips-{fingertips_id}.csv",
                 TEST_SEED_USER_ID,
                 updated_at,
-                Json({"source": "Public Fingertips API", "validated": True}),
             ),
         )
         cur.execute(

@@ -22,6 +22,7 @@ describe('loadConfig', () => {
         internalApiPassword: undefined,
         publicApiPrincipal: undefined,
         internalApiPrincipal: undefined,
+        internalWorkerPrincipal: undefined,
       },
       publishedSnapshot: { url: undefined, sha256: undefined },
       dataMigration: { url: undefined, sha256: undefined },
@@ -116,13 +117,15 @@ describe('loadConfig', () => {
       );
     });
 
-    it("reads each API identity's principal for db bootstrap", () => {
+    it("reads each app identity's principal for db bootstrap", () => {
       const config = loadConfig({
         ...entra,
         PUBLIC_API_DB_USER: 'id-public-api',
         PUBLIC_API_OBJECT_ID: '22222222-2222-2222-2222-222222222222',
         INTERNAL_API_DB_USER: 'id-internal-api',
         INTERNAL_API_OBJECT_ID: '33333333-3333-3333-3333-333333333333',
+        INTERNAL_WORKER_DB_USER: 'id-internal-worker',
+        INTERNAL_WORKER_OBJECT_ID: '44444444-4444-4444-4444-444444444444',
       });
 
       expect(config.roles.publicApiPrincipal).toEqual({
@@ -132,6 +135,10 @@ describe('loadConfig', () => {
       expect(config.roles.internalApiPrincipal).toEqual({
         name: 'id-internal-api',
         objectId: '33333333-3333-3333-3333-333333333333',
+      });
+      expect(config.roles.internalWorkerPrincipal).toEqual({
+        name: 'id-internal-worker',
+        objectId: '44444444-4444-4444-4444-444444444444',
       });
     });
   });

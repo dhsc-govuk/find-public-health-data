@@ -1,4 +1,8 @@
-import { observationSegmentKey, type TableSeriesSelection } from '@fphd/utils/observation-series';
+import {
+  ENGLAND_AREA_CODE,
+  observationSegmentKey,
+  type TableSeriesSelection,
+} from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from './client.ts';
@@ -117,7 +121,7 @@ export async function getIndicatorSeriesData(
       const selected = rows.filter((row) => row.indicatorId === indicatorId);
       const forArea = (id: string) => selected.filter((row) => row.areaId === id);
       const first = ordered.find((a) => forArea(a.id).length);
-      const locals = ordered.filter((a) => a.code !== 'E92000001');
+      const locals = ordered.filter((a) => a.code !== ENGLAND_AREA_CODE);
       const compared = locals.length ? locals : ordered;
       const variant = (first ? forArea(first.id)[0]?.variants : [])?.find((variant) =>
         compared.some((a) =>
@@ -146,7 +150,7 @@ export async function getIndicatorSeriesData(
       wanted.add(row.latestObservationId);
       if (mode === 'recent') for (const id of row.recentObservationIds) wanted.add(id);
     }
-  const england = areas.find((a) => a.code === 'E92000001');
+  const england = areas.find((a) => a.code === ENGLAND_AREA_CODE);
   const benchmarkIds =
     england && mode !== 'ranking'
       ? [

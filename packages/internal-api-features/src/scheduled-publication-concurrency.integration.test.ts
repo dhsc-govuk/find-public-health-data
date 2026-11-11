@@ -11,7 +11,7 @@ import {
   versionOf,
 } from './scheduled-publication.testing.ts';
 
-const testDb = await createTestDb({ template: 'seeded' });
+const testDb = await createTestDb({ template: 'core' });
 // The fixtures and the competing transactions connect as the database owner. Publication
 // connects as internal_api, the role it uses when deployed.
 const db = testDb.db;

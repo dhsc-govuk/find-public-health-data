@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@fphd/db": "workspace:*",
+    "@fphd/utils": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {

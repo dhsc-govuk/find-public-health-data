@@ -71,6 +71,12 @@
       "types": "./src/indicator-task-key.ts",
       "default": "./dist/indicator-task-key.js"
     },
+    "./is-one-of": {
+      "browser": "./src/is-one-of.ts",
+      "development": "./src/is-one-of.ts",
+      "types": "./src/is-one-of.ts",
+      "default": "./dist/is-one-of.js"
+    },
     "./period-label": {
       "browser": "./src/period-label.ts",
       "development": "./src/period-label.ts",

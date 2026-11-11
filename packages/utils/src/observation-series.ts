@@ -1,5 +1,9 @@
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
+export const ENGLAND_AREA_CODE = 'E92000001';
+export const SEX_DIMENSION_NAME = 'Sex';
+export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
+
 interface SeriesObservation {
   fromDate: string;
   toDate: string;
@@ -13,7 +17,10 @@ export function observationSegmentKey(observation: SeriesObservation): string {
 export function isRollingPeriod(
   observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
 ): boolean {
-  return (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 > 400;
+  return (
+    (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 >
+    ROLLING_PERIOD_THRESHOLD_DAYS
+  );
 }
 
 export function headlineSeries<T extends SeriesObservation>(observations: T[]): T[] {
@@ -51,7 +58,8 @@ export function filterSeries<T extends SeriesObservation>(
   return observations.filter(
     (point) =>
       (periodType === 'all' || isRollingPeriod(point) === (periodType === '3-year')) &&
-      (!sex || point.dimensions.some(({ type, value }) => type === 'Sex' && value === sex)),
+      (!sex ||
+        point.dimensions.some(({ type, value }) => type === SEX_DIMENSION_NAME && value === sex)),
   );
 }
 
@@ -73,13 +81,15 @@ export function tableSummary<
     '',
     ...areas.flatMap((area) =>
       area.observations.flatMap((point) =>
-        point.dimensions.filter(({ type }) => type === 'Sex').map(({ value }) => value),
+        point.dimensions
+          .filter(({ type }) => type === SEX_DIMENSION_NAME)
+          .map(({ value }) => value),
       ),
     ),
   ]);
   const tableSeries: TableSeriesSelection[] = [];
   const keep = new Set<SeriesObservation>();
-  const england = areas.find(({ areaCode }) => areaCode === 'E92000001');
+  const england = areas.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
   const variantsByArea = new Map(
     areas.map((area) => [area.areaCode, comparisonVariants(area.observations)]),
   );
@@ -128,10 +138,10 @@ export function comparisonVariants(observations: SortedSeriesObservation[]) {
   const sexes = new Map<string, number>();
   for (const point of observations)
     for (const dimension of point.dimensions)
-      if (dimension.type === 'Sex') sexes.set(dimension.value, dimension.sortOrder);
+      if (dimension.type === SEX_DIMENSION_NAME) sexes.set(dimension.value, dimension.sortOrder);
   if (
     !sexes.size ||
-    observations.some((point) => !point.dimensions.some(({ type }) => type === 'Sex'))
+    observations.some((point) => !point.dimensions.some(({ type }) => type === SEX_DIMENSION_NAME))
   )
     return [{ sex: '', periodType: 'all' as const }];
   const periods: ('1-year' | '3-year')[] = [];
@@ -155,7 +165,7 @@ export function rankingAreaSeries<
   },
 >(areas: T[]): T[] {
   const observations = areas.find((area) => area.observations.length)?.observations ?? [];
-  const local = areas.filter(({ areaCode }) => areaCode !== 'E92000001');
+  const local = areas.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
   const compared = local.length ? local : areas;
   for (const variant of comparisonVariants(observations)) {
     const cells = compared.map((area) => ({
@@ -192,16 +202,18 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
     const sexes = [
       ...new Set(
         area.observations.flatMap(({ dimensions }) =>
-          dimensions.filter(({ type }) => type === 'Sex').map(({ value }) => value),
+          dimensions.filter(({ type }) => type === SEX_DIMENSION_NAME).map(({ value }) => value),
         ),
       ),
     ];
     const groups = [
       area.observations,
-      area.observations.filter(({ dimensions }) => !dimensions.some(({ type }) => type === 'Sex')),
+      area.observations.filter(
+        ({ dimensions }) => !dimensions.some(({ type }) => type === SEX_DIMENSION_NAME),
+      ),
       ...sexes.map((sex) =>
         area.observations.filter(({ dimensions }) =>
-          dimensions.some(({ type, value }) => type === 'Sex' && value === sex),
+          dimensions.some(({ type, value }) => type === SEX_DIMENSION_NAME && value === sex),
         ),
       ),
     ];
@@ -220,8 +232,8 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
     selected.flatMap(({ observations }) => observations.map(observationSegmentKey)),
   );
   return selected.map((area) => {
-    if (area.areaCode !== 'E92000001' || areas.length === 1) return area;
-    const england = areas.find(({ areaCode }) => areaCode === 'E92000001');
+    if (area.areaCode !== ENGLAND_AREA_CODE || areas.length === 1) return area;
+    const england = areas.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
     return {
       ...area,
       observations: (england?.observations ?? []).filter((point) =>

@@ -1,5 +1,4 @@
 import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
-import { canSeeIndicator } from '@fphd/auth/permissions';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
@@ -7,16 +6,10 @@ import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { asc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
-import { indicatorAccess } from './contract.ts';
 import { type CreatedIndicatorDraft, createIndicatorDraft } from './indicator-draft-repository.ts';
-import { getIndicatorById } from './indicator-list-repository.ts';
 import { AS_ACTOR, newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
-import {
-  assignReviewers,
-  submitIndicator,
-  withdrawSubmission,
-} from './indicator-workflow-repository.ts';
+import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 
 const {
   indicatorVersion,
@@ -232,32 +225,5 @@ describe('a resubmission', () => {
       reason: 'no_response',
     });
     expect(await isLocked(db, round.versionId)).toBe(false);
-  });
-});
-
-describe('a submission after a withdrawal from review', () => {
-  repositoryTest('goes straight back to the reviewers of the withdrawn one', async ({ db }) => {
-    const round = await inReview(db, await newDraft(db, 'Withdrawn from review'), [REVIEWER]);
-    expect(await withdrawSubmission(db, round.indicatorId, 1, AS_ACTOR)).toEqual({ ok: true });
-
-    expect(await submitIndicator(db, round.indicatorId, round.shown, AS_ACTOR)).toEqual({
-      ok: true,
-    });
-
-    const latest = await latestOf(db, round.versionId);
-    expect(latest).toMatchObject({ number: 2, status: 'in_review' });
-    expect((await reviewersOf(db, latest.id)).map(({ reviewerId }) => reviewerId)).toEqual([
-      REVIEWER,
-    ]);
-  });
-
-  repositoryTest('leaves the reviewers able to see the withdrawn draft', async ({ db }) => {
-    const round = await inReview(db, await newDraft(db, 'Withdrawn, still seen'), [REVIEWER]);
-    await withdrawSubmission(db, round.indicatorId, 1, AS_ACTOR);
-
-    const row = await getIndicatorById(db, round.indicatorId);
-    if (row === undefined) throw new Error('expected the indicator');
-    const reviewer = { roles: ['imrg-reviewer'], sub: REVIEWER, teams: [] };
-    expect(canSeeIndicator(reviewer, indicatorAccess(row))).toBe(true);
   });
 });

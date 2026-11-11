@@ -40,20 +40,22 @@ export function DataSection<T>({
   );
 }
 
-export function useDataReady(first: unknown, second: unknown, third?: unknown) {
+export function useDataReady(values: unknown[]) {
   const [settled, setSettled] = useState<unknown[]>([]);
+  const ready = values.every(
+    (value, index) => !(value instanceof Promise) || settled[index] === value,
+  );
   useEffect(() => {
+    if (ready) return;
     let active = true;
-    void Promise.allSettled([first, second, third]).then(() => {
-      if (active) setSettled([first, second, third]);
+    void Promise.allSettled(values).then(() => {
+      if (active) setSettled(values);
     });
     return () => {
       active = false;
     };
-  }, [first, second, third]);
-  return [first, second, third].every(
-    (value, index) => !(value instanceof Promise) || settled[index] === value,
-  );
+  }, [values, ready]);
+  return ready;
 }
 
 export function CompletePageLink({ complete }: { complete: boolean }) {

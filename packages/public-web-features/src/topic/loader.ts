@@ -169,7 +169,7 @@ export async function loadTopic(
             { ...args, params: {}, request: new Request(dataUrl) },
             search.displayGroups,
             false,
-            'recent',
+            'recentPerSeries',
           )
         : null;
       return { search, selected: data ? topicTableSelection(data.selected) : [] };
