@@ -58,11 +58,13 @@ export function SingleIndicatorPage({
   comparedDetail,
   data,
   comparison,
+  findSubject,
+  findResults,
   complete,
 }: Awaited<ReturnType<typeof loadIndicatorPage>>) {
   // Resolve before expanding so Suspense retries reuse the loader promise during navigation.
   const cache = useMemo(() => new WeakMap<CompactData, ExpandedData>(), []);
-  const contentReady = useDataReady([data, comparison]);
+  const contentReady = useDataReady([data, comparison, findResults]);
   return (
     <div className="fphd-wide-layout fphd-single-indicator-page">
       <nav aria-label="Breadcrumb" className="govuk-breadcrumbs">
@@ -151,6 +153,8 @@ export function SingleIndicatorPage({
                     {...comparison}
                     primary={{ detail }}
                     compared={comparedDetail}
+                    findSubject={findSubject}
+                    findResults={findResults}
                   />
                 )}
               </DataSection>

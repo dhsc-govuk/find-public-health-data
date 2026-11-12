@@ -21,6 +21,7 @@ import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { loadIndicatorTableEntries } from './table-loader.ts';
 
 async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = false) {
   const { context, params, request } = args;
@@ -107,22 +108,23 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
         )
         .then(({ indicators }) => indicators)
     : Promise.resolve([]);
-  const comparison = Promise.all([page.comparison, findResults]).then(
-    ([comparison, findResults]) => ({
-      ...indicatorComparisonModel(
-        [
+  const comparison = Promise.resolve(page.comparison).then(async (comparison) => {
+    const selected = comparison.compareAreaGroup
+      ? [
           { detail: page.detail, areaData: comparison.compareAreasData },
           ...(page.comparedDetail
             ? [{ detail: page.comparedDetail, areaData: comparison.comparedAreasData }]
             : []),
-        ],
-        comparison,
-      ),
-      findSubject,
-      findResults,
-    }),
-  );
-  const completed = page.complete ? await Promise.all([data, comparison]) : undefined;
+        ]
+      : await loadIndicatorTableEntries(
+          args.context.get(apiContext),
+          [page.detail.shortId, ...(page.comparedDetail ? [page.comparedDetail.shortId] : [])],
+          ['E92000001'],
+          'latestPerSeries',
+        );
+    return indicatorComparisonModel(selected, comparison);
+  });
+  const completed = page.complete ? await Promise.all([data, comparison, findResults]) : undefined;
   return {
     ...page,
     comparedDetail: page.comparedDetail
@@ -134,6 +136,8 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
       : undefined,
     data: completed ? completed[0] : data,
     comparison: completed ? completed[1] : comparison,
+    findSubject,
+    findResults: completed ? completed[2] : findResults,
   };
 }
 

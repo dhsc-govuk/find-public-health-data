@@ -22,11 +22,10 @@ export function CompareIndicatorsTab({
   findSubject,
 }: ComparisonTabProps & {
   compared: Pick<IndicatorDetail, 'name' | 'slug' | 'unit'> | undefined;
-  findResults: IndicatorSummary[];
+  findResults: IndicatorSummary[] | Promise<IndicatorSummary[]>;
   findSubject: string;
 }) {
   const { detail } = primary;
-  const id = detail.shortId;
   const params = new URLSearchParams(useLocation().search);
   return (
     <>
@@ -50,7 +49,7 @@ export function CompareIndicatorsTab({
             name={detail.name}
             compared={compared}
             findSubject={findSubject}
-            findResults={findResults.filter(({ shortId }) => shortId !== id)}
+            findResults={findResults}
           />
           {compared && pair ? (
             <>

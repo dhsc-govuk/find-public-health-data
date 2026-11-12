@@ -74,6 +74,7 @@ function page(
   url: string,
   areas: SelectedIndicator['areaData'] = [],
   history?: Promise<never>,
+  search?: Promise<never>,
 ) {
   const Routes = createRoutesStub([
     {
@@ -83,6 +84,8 @@ function page(
           detail={entries[0]?.detail as IndicatorDetail}
           comparedDetail={entries[1]?.detail}
           complete={true}
+          findSubject={search ? 'mortality' : ''}
+          findResults={search ?? []}
           data={
             history ?? {
               selected: entries.slice(0, 1).map(compactIndicator),
@@ -108,8 +111,6 @@ function page(
               compareAreaGroup: 'Local authorities',
               comparisonDisplayGroups: [],
             }),
-            findResults: [],
-            findSubject: '',
           }}
         />
       ),
@@ -250,6 +251,8 @@ it('replaces deferred comparison models after changing geography', async () => {
           detail: primary.detail,
           comparedDetail: undefined,
           complete: false,
+          findSubject: '',
+          findResults: [],
           data: Promise.resolve({
             selected: [compactIndicator(primary)],
             selectedAreas: [],
@@ -269,8 +272,6 @@ it('replaces deferred comparison models after changing geography', async () => {
               compareAreaGroup: regions ? 'Statistical regions' : 'Local authorities',
               comparisonDisplayGroups: ['Local authorities', 'Statistical regions'],
             }),
-            findResults: [],
-            findSubject: '',
           }),
         };
       },
@@ -283,6 +284,27 @@ it('replaces deferred comparison models after changing geography', async () => {
   });
   expect(await screen.findByRole('rowheader', { name: 'London' })).toBeTruthy();
   expect(screen.queryByRole('rowheader', { name: 'Slough' })).toBeNull();
+});
+
+it('keeps comparison tables and the search form available while search loads or fails', async () => {
+  const search = Promise.withResolvers<never>();
+  page(
+    [selected(241, 'Diabetes prevalence', 7.9), selected(108, 'Mortality', 109.6)],
+    '/indicator/indicator-241?compareWith=indicator-108&find=mortality',
+    [],
+    undefined,
+    search.promise,
+  );
+  expect(screen.getByText('Loading indicator search results…')).toBeTruthy();
+  expect(screen.getByLabelText('Search for an indicator')).toBeTruthy();
+  expect(screen.getByRole('table', { name: /Table of indicator comparison/ })).toBeTruthy();
+  await act(async () => search.reject(new Error('Search unavailable')));
+  expect(await screen.findByText(/indicator search results could not be loaded/)).toBeTruthy();
+  expect(screen.getByRole('table', { name: /Table of indicator comparison/ })).toBeTruthy();
+  expect(screen.queryByText(/indicator comparisons could not be loaded/)).toBeNull();
+  expect(screen.queryByText(/area comparisons could not be loaded/)).toBeNull();
+  fireEvent.click(screen.getByRole('tab', { name: 'Compare areas' }));
+  expect(screen.getByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
 });
 
 it('renders area and indicator comparisons when primary history fails', async () => {

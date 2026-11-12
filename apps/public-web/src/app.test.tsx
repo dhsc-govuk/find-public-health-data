@@ -28,11 +28,9 @@ function indicatorPage<
   return {
     ...page,
     data: { ...page.data, selected: selected.slice(0, 1).map(compactIndicator) },
-    comparison: {
-      ...indicatorComparisonModel(selected, page.comparison),
-      findResults: page.data.findResults,
-      findSubject: page.data.findSubject,
-    },
+    comparison: indicatorComparisonModel(selected, page.comparison),
+    findResults: page.data.findResults,
+    findSubject: page.data.findSubject,
   };
 }
 
