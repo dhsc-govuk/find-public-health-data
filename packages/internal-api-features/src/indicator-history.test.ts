@@ -90,6 +90,7 @@ describe('GET /api/internal/indicators/:id/history', () => {
           at: '2026-06-02T10:00:00.000Z',
           by: 'Avery Clarke',
           reviewers: ['Jamie Evans'],
+          isUpdate: false,
         },
         { kind: 'submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor' },
         { kind: 'created', at: '2026-06-01T09:00:00.123Z', by: 'Sam Taylor' },

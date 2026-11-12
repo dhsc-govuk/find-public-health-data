@@ -127,6 +127,7 @@ describe('historyEntries', () => {
         response: 'approved',
         flags: [],
         clarificationRequest: null,
+        isUpdate: false,
       },
       { kind: 'imrg_reviewed', on: '2026-06-03', by: 'Jamie Evans' },
       {
@@ -134,6 +135,7 @@ describe('historyEntries', () => {
         at: '2026-06-02T10:00:00.000Z',
         by: 'Avery Clarke',
         reviewers: ['Jamie Evans'],
+        isUpdate: false,
       },
       { kind: 'submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor' },
       { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
@@ -193,6 +195,42 @@ describe('historyEntries', () => {
     expect(entries.slice(0, 2)).toEqual([
       { kind: 'update_submitted', at: '2026-06-11T09:00:00.000Z', by: 'Sam Taylor', changes },
       { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
+    ]);
+  });
+
+  it("marks an update's assignment, response and resubmission, after the first publication", () => {
+    const entries = historyEntries({
+      ...noRecords,
+      versions: [version({ publishedAt: at('02T09:00:00') })],
+      submissions: [
+        submission({
+          submittedAt: at('11T09:00:00'),
+          status: 'changes_requested',
+          updateChanges: [],
+          updateDecision: 'imrg_review',
+          responses: [
+            response({
+              kind: 'pre_imrg_feedback',
+              imrgReviewedOn: null,
+              respondedAt: at('13T09:00:00'),
+            }),
+          ],
+        }),
+        submission({
+          submittedAt: at('14T09:00:00'),
+          previousStatus: 'changes_requested',
+          updateChanges: [],
+        }),
+      ],
+      assignments: [{ at: at('12T09:00:00'), by: 'Avery Clarke', reviewers: ['Jamie Evans'] }],
+    });
+
+    expect(
+      entries.flatMap((entry) => ('isUpdate' in entry ? [[entry.kind, entry.isUpdate]] : [])),
+    ).toEqual([
+      ['resubmitted', true],
+      ['responded', true],
+      ['reviewers_assigned', true],
     ]);
   });
 
@@ -294,6 +332,7 @@ describe('historyEntries', () => {
         { task: 'tagging', notes: 'Add a topic' },
       ],
       clarificationRequest: 'Which **year** is this?',
+      isUpdate: false,
     });
   });
 
@@ -387,6 +426,7 @@ describe('historyEntries', () => {
           { task: 'definition-and-rationale', revised: false },
         ],
         reply: 'Done as asked',
+        isUpdate: false,
       });
     });
 
@@ -440,6 +480,7 @@ describe('historyEntries', () => {
 
       expect(entries.find(({ kind }) => kind === 'resubmitted')).toMatchObject({
         reply: 'Done as asked',
+        isUpdate: false,
       });
     });
   });
