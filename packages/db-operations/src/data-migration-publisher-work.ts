@@ -3,6 +3,7 @@ import type postgres from 'postgres';
 
 import { MIGRATION_USER_ID } from './data-migration-actors.ts';
 import { quoteIdentifiers } from './data-migration-copy.ts';
+import { dataMigrationKey } from './data-migration-manifest.ts';
 
 const { UNPUBLISHED_STATUS_LITERALS } = schema;
 
@@ -40,9 +41,15 @@ export async function assertMigrationPublisherRowsUnchanged(
   `;
   if (!publisher?.present) return;
 
+  // An upsert stage still holds the package's dimension and note type ids, so its bridge rows may
+  // not match the table's here. Nothing is missed: a bridge row's owner is found through its
+  // observation, which the staged row itself names.
+  const matched = dataMigrationKey(table)
+    .map((column) => `staged.${quoteIdentifiers([column])} = rows.${quoteIdentifiers([column])}`)
+    .join(' AND ');
   const existing = `
     SELECT i.short_id AS "shortId" FROM ${quoteIdentifiers([table])} rows
-    JOIN ${quoteIdentifiers([stage])} staged ON staged.id = rows.id
+    JOIN ${quoteIdentifiers([stage])} staged ON ${matched}
     ${joins}
     JOIN indicator i ON i.id = owner.indicator_id
   `;

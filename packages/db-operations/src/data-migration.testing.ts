@@ -10,6 +10,7 @@ import {
   DATA_MIGRATION_NULL,
   DATA_MIGRATION_SCHEMA,
   DATA_MIGRATION_TABLES,
+  dataMigrationKey,
   dataMigrationManifestSchema,
 } from './data-migration-manifest.ts';
 import type { DataMigrationRelationships } from './data-migration-relationships.ts';
@@ -93,8 +94,8 @@ export async function migrationFixture(
     comparator_method: { columns: ['id', 'name'] },
     numerator_denominator_source: { columns: ['id', 'name', 'url'] },
     area_type: {
-      columns: ['id', 'name', 'hierarchy_type', 'level'],
-      rows: [['44444444-4444-7444-8444-444444444444', 'England', 'Administrative', 1]],
+      columns: ['id', 'name', 'hierarchy_type'],
+      rows: [['44444444-4444-7444-8444-444444444444', 'England', 'Administrative']],
     },
     area: {
       columns: ['id', 'area_type_id', 'code', 'name', 'is_current'],
@@ -141,7 +142,7 @@ export async function migrationFixture(
     } else {
       const ids = options.deletes?.[table] ?? [];
       const deleteFile = `${table}.deletes.csv.gz`;
-      const header = (options.deleteHeaders?.[table] ?? ['id']).join(',');
+      const header = (options.deleteHeaders?.[table] ?? dataMigrationKey(table)).join(',');
       const deleted = gzipSync(`${[header, ...ids].join('\n')}\n`);
       await writeFile(join(directory, deleteFile), deleted);
       tables[table] = {

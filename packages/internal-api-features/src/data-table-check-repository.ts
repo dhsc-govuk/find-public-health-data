@@ -88,8 +88,7 @@ export async function findDraftDataTable(
  * One page of a batch's rows, sorted by area, dates and dimension key. The query counts through
  * the index from whichever end of the batch is nearer, so it never skips more than half the rows.
  * Until the batch has been vacuumed, each skipped row is also read from the table, so the middle
- * pages of a new upload are several times slower. Batches are only ever deleted whole, so
- * deleted_at isn't checked.
+ * pages of a new upload are several times slower.
  */
 export async function listDataTableRows(
   db: Database,

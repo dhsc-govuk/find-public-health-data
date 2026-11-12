@@ -728,6 +728,18 @@ it('uses the same compound dimensions in canonical keys and written bridges', as
   const observations = await rows('observation');
   const dimensions = await rows('observation_dimension');
   expect(observations.length).toBe(2);
+  // The bridge has no id: its rows go in order of observation, then dimension type.
+  expect(Object.keys(dimensions[0] ?? {})).toEqual([
+    'observation_id',
+    'dimension_value_id',
+    'dimension_type_id',
+  ]);
+  expect(dimensions.map((row) => [row.observation_id, row.dimension_type_id])).toEqual(
+    observations.flatMap((row) => [
+      [row.id, '1'],
+      [row.id, '2'],
+    ]),
+  );
   for (const row of observations) {
     const ids = dimensions
       .filter((d) => d.observation_id === row.id)

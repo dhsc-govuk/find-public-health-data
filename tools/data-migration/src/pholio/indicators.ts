@@ -405,7 +405,6 @@ export async function exportIndicators(context: PholioExportOptions) {
       uploaded_at: enteredAt,
       status: 'processed',
       validation_result: null,
-      superseded_by_id: null,
     });
 
     indicatorIds.add(id);

@@ -130,7 +130,10 @@ export const indicator = pgTable('indicator', {
   id: uuidPrimaryKey(),
   // The public indicator number, carried over from Fingertips where there was one and
   // minted here otherwise; it appears in published URLs, so it never changes.
-  shortId: integer().notNull().unique().default(sql`nextval('indicator_short_id_seq')`),
+  shortId: integer()
+    .notNull()
+    .unique('indicator_short_id_unique')
+    .default(sql`nextval('indicator_short_id_seq')`),
   // When the source system last published data for this indicator. It describes the data,
   // not the editorial content, so it stays off the version.
   dataUpdatedAt: timestamp({ withTimezone: true }),
@@ -441,7 +444,7 @@ export const indicatorVersion = pgTable(
       sql`${t.dataTableConfirmedAt} IS NULL OR ${t.uploadBatchId} IS NOT NULL`,
     ),
     // Target for upload_batch's composite (version, indicator) foreign key.
-    unique().on(t.id, t.indicatorId),
+    unique('indicator_version_id_indicator_id_unique').on(t.id, t.indicatorId),
     // Pairing the batch with indicator_id keeps a version on a batch of its own indicator.
     foreignKey({
       name: 'indicator_version_upload_batch_fk',
@@ -472,7 +475,6 @@ export const indicatorVersion = pgTable(
     index('idx_indicator_version_indicator').on(t.indicatorId),
     index('idx_indicator_version_slug').on(t.slug),
     index('idx_indicator_version_name_trgm').using('gin', t.name.op('gin_trgm_ops')),
-    index('idx_indicator_version_definition_trgm').using('gin', t.definition.op('gin_trgm_ops')),
   ],
 );
 

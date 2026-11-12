@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +10,7 @@ import {
   DATA_MIGRATION_TABLES,
   incrementalManifestSchema,
 } from '@fphd/db-operations/data-migration-contract';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { encodeRow, readGzipCsv } from './csv.ts';
 import { createIncremental } from './diff.ts';
 import { fileRecord } from './files.ts';
@@ -17,6 +18,44 @@ import verifiedSettings from './pholio/verified-analytical-settings.ts';
 import { deterministicUuid } from './prepare-baseline.ts';
 
 const directories: string[] = [];
+
+// While switched on, every write a file stream makes finishes 20ms late, so a failure always
+// arrives while a write is still in flight.
+const slowFileWrites = vi.hoisted(() => ({ on: false }));
+// While set, every write to the file of this name fails as if the disk were full.
+const failingFile = vi.hoisted(() => ({ name: undefined as string | undefined }));
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs')>();
+  const failingWrite = (...args: unknown[]) => {
+    const done = args.pop() as (error: Error) => void;
+    setTimeout(() => done(Object.assign(new Error('no space left on device'), { code: 'ENOSPC' })));
+  };
+  const write = (...args: unknown[]) => {
+    const done = args.pop() as (...result: unknown[]) => void;
+    const delay = slowFileWrites.on ? 20 : 0;
+    (fs.write as (...parameters: unknown[]) => void)(...args, (...result: unknown[]) =>
+      setTimeout(() => done(...result), delay),
+    );
+  };
+  return {
+    ...fs,
+    createWriteStream: (path: string, options?: object) =>
+      fs.createWriteStream(path, {
+        ...options,
+        fs: {
+          open: fs.open,
+          write: failingFile.name && path.endsWith(failingFile.name) ? failingWrite : write,
+          close: fs.close,
+        },
+      }),
+  };
+});
+
+// The bridge tables have no id, so their files always carry their real columns.
+const BRIDGE_HEADERS: Partial<Record<string, string[]>> = {
+  observation_dimension: ['observation_id', 'dimension_value_id', 'dimension_type_id'],
+  observation_note: ['observation_id', 'note_type_id'],
+};
 
 async function outputDirectory(): Promise<string> {
   const parent = await mkdtemp(join(tmpdir(), 'fphd-increment-output-'));
@@ -47,7 +86,7 @@ async function snapshot(
     await writeFile(
       join(directory, file),
       gzipSync(
-        `${(headers[table] ?? ['id', 'name']).join(',')}\r\n${values.map((row) => encodeRow(row, true)).join('')}`,
+        `${(headers[table] ?? BRIDGE_HEADERS[table] ?? ['id', 'name']).join(',')}\r\n${values.map((row) => encodeRow(row, true)).join('')}`,
       ),
     );
     tables[table] = await fileRecord(join(directory, file), file, values.length);
@@ -167,6 +206,105 @@ describe('createIncremental', () => {
       ['id', 'name'],
       [kept, 'Kept'],
     ]);
+  });
+
+  it('compares bridge rows by observation and dimension type, and deletes them by that key', async () => {
+    const [first, second] = ['1', '2'].map((key) => deterministicUuid('observation', key)).sort();
+    const [sex, age] = ['1', '2'].map((key) => deterministicUuid('dimension_type', key)).sort();
+    const [male, female, adults] = ['1', '2', '3']
+      .map((key) => deterministicUuid('dimension_value', key))
+      .sort();
+    const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {
+      observation_dimension: [
+        [first as string, male as string, sex as string],
+        [first as string, adults as string, age as string],
+        [second as string, male as string, sex as string],
+      ],
+    });
+    const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', {
+      observation_dimension: [
+        [first as string, male as string, sex as string],
+        [second as string, female as string, sex as string],
+        [second as string, adults as string, age as string],
+      ],
+    });
+    const output = await outputDirectory();
+
+    await createIncremental(previous, current, output, 'increment-2');
+
+    expect(await records(join(output, 'observation_dimension.csv.gz'))).toEqual([
+      ['observation_id', 'dimension_value_id', 'dimension_type_id'],
+      [second, female, sex],
+      [second, adults, age],
+    ]);
+    expect(await records(join(output, 'observation_dimension.deletes.csv.gz'))).toEqual([
+      ['observation_id', 'dimension_type_id'],
+      [first, age],
+    ]);
+  });
+
+  it('rejects bridge rows that are not ordered by their key', async () => {
+    const observation = deterministicUuid('observation', '1');
+    const [disclosure, quality] = ['1', '2']
+      .map((key) => deterministicUuid('note_type', key))
+      .sort();
+    const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {});
+    const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', {
+      observation_note: [
+        [observation, quality as string],
+        [observation, disclosure as string],
+      ],
+    });
+    const output = await outputDirectory();
+
+    await expect(createIncremental(previous, current, output, 'increment-2')).rejects.toThrow(
+      'observation_note rows in the current snapshot are not ordered by observation_id, note_type_id',
+    );
+  });
+
+  it('closes its files before removing them when a table fails part way through', async () => {
+    // Enough rows that the upserts file has a write in flight when the out-of-order row comes.
+    const rows = Array.from({ length: 500 }, (_, index) => [
+      deterministicUuid('observation', String(index + 1)),
+      randomUUID(),
+    ]).sort(([left = ''], [right = '']) => left.localeCompare(right));
+    const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {});
+    const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', {
+      observation: [...rows, rows[0] ?? []],
+    });
+    const output = await outputDirectory();
+    slowFileWrites.on = true;
+    try {
+      await expect(createIncremental(previous, current, output, 'increment-2')).rejects.toThrow(
+        'observation rows in the current snapshot are not ordered by id',
+      );
+      // A write still in flight on a destroyed file stream fails once it finishes, with no one
+      // listening, which fails the run. Waiting past the delay lets that happen in this test.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } finally {
+      slowFileWrites.on = false;
+    }
+    expect(await readdir(join(output, '..'))).toEqual([]);
+  });
+
+  it('rejects with the error when writing a file fails part way through', async () => {
+    // Enough rows that the gzip writes to the upserts file before the table ends.
+    const rows = Array.from({ length: 2000 }, (_, index) => [
+      deterministicUuid('observation', String(index + 1)),
+      randomUUID(),
+    ]).sort(([left = ''], [right = '']) => left.localeCompare(right));
+    const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {});
+    const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', { observation: rows });
+    const output = await outputDirectory();
+    failingFile.name = '/observation.csv.gz';
+    try {
+      await expect(createIncremental(previous, current, output, 'increment-2')).rejects.toThrow(
+        'no space left on device',
+      );
+    } finally {
+      failingFile.name = undefined;
+    }
+    expect(await readdir(join(output, '..'))).toEqual([]);
   });
 
   it('rejects a snapshot whose rows are not ordered by stable id', async () => {

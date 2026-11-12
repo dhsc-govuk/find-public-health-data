@@ -16,7 +16,6 @@ const areaTypeRecord = z.object({
   id,
   name,
   hierarchyType: z.enum(schema.AREA_HIERARCHY_TYPES),
-  level: z.int(),
   displayGroup: name.nullable(),
   displayOrder: z.int().nullable(),
 });
@@ -26,7 +25,6 @@ const dimensionTypeRecord = z.object({
   dimensionClass: z.enum(schema.DIMENSION_CLASSES),
   classificationScheme: name.nullable(),
   granularity: name.nullable(),
-  schemeVersion: name.nullable(),
   isRequired: z.boolean(),
 });
 const dimensionValueRecord = z.object({
