@@ -18,3 +18,18 @@ export const UPDATE_FREQUENCY_LABELS: Readonly<Record<UpdateFrequency, string>> 
   'no-fixed-frequency': 'No fixed frequency',
   'no-longer-updated': 'This indicator will no longer be updated',
 };
+
+/** The answers a publisher gives a reason for, which no other answer has. */
+export const UPDATE_FREQUENCIES_WITH_REASON = [
+  'no-fixed-frequency',
+  'no-longer-updated',
+] as const satisfies readonly UpdateFrequency[];
+
+export type UpdateFrequencyWithReason = (typeof UPDATE_FREQUENCIES_WITH_REASON)[number];
+
+/** Whether the answer is one a publisher gives a reason for. */
+export function hasUpdateFrequencyReason(
+  frequency: UpdateFrequency | null,
+): frequency is UpdateFrequencyWithReason {
+  return UPDATE_FREQUENCIES_WITH_REASON.some((withReason) => withReason === frequency);
+}

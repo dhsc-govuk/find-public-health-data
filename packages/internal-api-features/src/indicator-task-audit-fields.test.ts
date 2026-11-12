@@ -119,7 +119,12 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ciMethodDetail: 'Bootstrap',
       kind: 'standard',
     }),
-  'update-frequency': () => savedFields(updateFrequencyColumns, { updateFrequency: 'annually' }),
+  'update-frequency': () =>
+    savedFields(updateFrequencyColumns, {
+      updateFrequency: 'no-fixed-frequency',
+      noFixedFrequencyReason: 'Published when the survey runs.',
+      noLongerUpdatedReason: '',
+    }),
   'value-type-and-units': () =>
     savedFields(valueTypeAndUnitsColumns, {
       valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate,

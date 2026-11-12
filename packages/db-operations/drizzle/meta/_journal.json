@@ -519,6 +519,13 @@
       "when": 1794491132524,
       "tag": "0073_ask-why-no-automation-tools",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794491240061,
+      "tag": "0074_update-frequency-reason",
+      "breakpoints": true
     }
   ]
 }

@@ -215,6 +215,37 @@ describe('indicator_version', () => {
   });
 
   it.each([
+    ['no-fixed-frequency', 'Published when the survey runs.'],
+    ['no-longer-updated', 'The survey has ended.'],
+    ['no-fixed-frequency', null],
+    ['no-longer-updated', null],
+  ] as const)('holds %s with the reason %j', async (updateFrequency, updateFrequencyReason) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { updateFrequency, updateFrequencyReason }),
+    ).resolves.toHaveLength(1);
+  });
+
+  it.each([
+    ['an unanswered frequency', {}],
+    ['monthly', { updateFrequency: 'monthly' }],
+    ['quarterly', { updateFrequency: 'quarterly' }],
+    ['annually', { updateFrequency: 'annually' }],
+    ['every-2-years', { updateFrequency: 'every-2-years' }],
+  ] as const)('refuses a reason for the update frequency beside %s', async (_, values) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        ...values,
+        updateFrequencyReason: 'Published when the survey runs.',
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_update_frequency_reason_check',
+      },
+    });
+  });
+
+  it.each([
     ['months', { periodType: 'months' }],
     ['quarters of a year type', { periodType: 'quarters', yearType: 'financial' }],
     [
@@ -753,6 +784,37 @@ describe('the published views', () => {
     );
     expect(topics.map((row) => row.topic_id)).toEqual([currentTopic]);
     expect(classifications.map((row) => row.classification_id)).toEqual([currentClass]);
+  });
+
+  it('show the update frequency with its reason, which is null when none was given', async () => {
+    const withReason = await newIndicatorId();
+    const withoutReason = await newIndicatorId();
+    await addVersion(withReason, 'published', {
+      updateFrequency: 'no-longer-updated',
+      updateFrequencyReason: 'The survey has ended.',
+    });
+    await addVersion(withoutReason, 'published', { updateFrequency: 'no-fixed-frequency' });
+
+    const rows = (await db.execute(
+      sql`SELECT id, update_frequency, update_frequency_reason FROM published.indicator
+          WHERE id IN (${withReason}, ${withoutReason})`,
+    )) as unknown as {
+      id: string;
+      update_frequency: string;
+      update_frequency_reason: string | null;
+    }[];
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual({
+      id: withReason,
+      update_frequency: 'no-longer-updated',
+      update_frequency_reason: 'The survey has ended.',
+    });
+    expect(rows).toContainEqual({
+      id: withoutReason,
+      update_frequency: 'no-fixed-frequency',
+      update_frequency_reason: null,
+    });
   });
 
   it('resolve every slug a published version carries, not only the current one', async () => {

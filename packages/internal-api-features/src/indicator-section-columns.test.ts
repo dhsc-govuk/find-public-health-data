@@ -64,11 +64,44 @@ describe('dataQualityColumns', () => {
 });
 
 describe('updateFrequencyColumns', () => {
-  it('reads and writes the column of the same name', () => {
-    const answers = { updateFrequency: 'no-longer-updated' } as const;
+  it('reads a frequency that has no reason, leaving both reasons empty', () => {
+    expect(
+      updateFrequencyColumns.fromDraft({ ...unansweredDraft, updateFrequency: 'annually' }),
+    ).toEqual({
+      updateFrequency: 'annually',
+      noFixedFrequencyReason: null,
+      noLongerUpdatedReason: null,
+    });
+  });
 
-    expect(updateFrequencyColumns.fromDraft({ ...unansweredDraft, ...answers })).toEqual(answers);
-    expect(updateFrequencyColumns.toAttributes(answers)).toEqual(answers);
+  it.each([
+    ['no-fixed-frequency', 'noFixedFrequencyReason', 'noLongerUpdatedReason'],
+    ['no-longer-updated', 'noLongerUpdatedReason', 'noFixedFrequencyReason'],
+  ] as const)(
+    'shows the reason for %s under that answer alone',
+    (updateFrequency, shown, empty) => {
+      expect(
+        updateFrequencyColumns.fromDraft({
+          ...unansweredDraft,
+          updateFrequency,
+          updateFrequencyReason: 'The survey has ended.',
+        }),
+      ).toEqual({ updateFrequency, [shown]: 'The survey has ended.', [empty]: null });
+    },
+  );
+
+  it.each([
+    ['no-fixed-frequency', 'Published when the survey runs.'],
+    ['no-longer-updated', 'The survey has ended.'],
+    ['annually', null],
+  ] as const)('keeps the reason typed under %s alone', (updateFrequency, updateFrequencyReason) => {
+    expect(
+      updateFrequencyColumns.toAttributes({
+        updateFrequency,
+        noFixedFrequencyReason: 'Published when the survey runs.',
+        noLongerUpdatedReason: 'The survey has ended.',
+      }),
+    ).toEqual({ updateFrequency, updateFrequencyReason });
   });
 });
 

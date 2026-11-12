@@ -14,6 +14,7 @@ import { otherCommentsSection } from './indicator-other-comments-contract.ts';
 import { otherNotesAndCaveatsSection } from './indicator-other-notes-and-caveats-contract.ts';
 import type { IndicatorSection } from './indicator-section-contract.ts';
 import { sexAndAgesSection } from './indicator-sex-and-ages-contract.ts';
+import { updateFrequencySection } from './indicator-update-frequency-contract.ts';
 import { valueTypeAndUnitsSection } from './indicator-value-type-and-units-contract.ts';
 import { varianceAndQualitySection } from './indicator-variance-and-quality-contract.ts';
 import { sectionFieldErrors } from './testing.ts';
@@ -228,6 +229,15 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
       roundingDetail: 'Details of the rounding',
       caveatsDetail: 'Details of the caveats',
       otherNotesDetail: 'Details of the other notes',
+    },
+  ],
+  [
+    'update frequency',
+    10_000,
+    refusalsOf(updateFrequencySection),
+    {
+      noFixedFrequencyReason: 'Reason for having no fixed update frequency',
+      noLongerUpdatedReason: 'Reason for no longer updating this indicator',
     },
   ],
   [

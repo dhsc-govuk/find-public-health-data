@@ -24,6 +24,7 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   ciMethodModificationsDetail: null,
   ciMethodDetail: null,
   updateFrequency: 'quarterly',
+  updateFrequencyReason: null,
   periodType: 'years',
   yearType: 'specified-end-date',
   yearEndDay: 31,

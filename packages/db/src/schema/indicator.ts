@@ -21,7 +21,7 @@ import {
 } from '@fphd/utils/sex-and-ages';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
-import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
+import { UPDATE_FREQUENCIES, UPDATE_FREQUENCIES_WITH_REASON } from '@fphd/utils/update-frequency';
 import {
   INDIRECTLY_STANDARDISED_VALUE_TYPE_IDS,
   STANDARD_POPULATIONS,
@@ -256,6 +256,7 @@ export const indicatorVersion = pgTable(
     customDataReuseDetail: text(),
     // Update frequency
     updateFrequency: text({ enum: UPDATE_FREQUENCIES }),
+    updateFrequencyReason: text(),
     // Notes for reviewers, never published.
     // Variance and quality
     variation: text(),
@@ -290,6 +291,14 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_update_frequency_check',
       sql`${t.updateFrequency} IN (${literals(UPDATE_FREQUENCIES)})`,
+    ),
+    // The contract requires a reason beside "No fixed frequency" and "This indicator will no
+    // longer be updated", but this check only refuses one beside any other answer. Indicators
+    // imported from Fingertips are published with those answers and no reason, and a published
+    // version must keep its frequency.
+    check(
+      'indicator_version_update_frequency_reason_check',
+      sql`${t.updateFrequencyReason} IS NULL OR (${t.updateFrequency} IN (${literals(UPDATE_FREQUENCIES_WITH_REASON)})) IS TRUE`,
     ),
     check(
       'indicator_version_standard_population_check',

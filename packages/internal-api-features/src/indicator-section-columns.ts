@@ -1,4 +1,5 @@
 import { isYearType } from '@fphd/utils/period-type';
+import { hasUpdateFrequencyReason } from '@fphd/utils/update-frequency';
 import { standardisationOf, UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 
 import {
@@ -17,6 +18,7 @@ import {
   goalValue,
   goalValueText,
   type IndicatorDataQuality,
+  type IndicatorUpdateFrequency,
   justificationsQuestions,
   justificationsSection,
   type OtherComments,
@@ -33,7 +35,8 @@ import {
   type PublishingDateField,
   polaritySection,
   publishingDateValues,
-  updateFrequencySection,
+  UPDATE_FREQUENCY_REASON_FIELDS,
+  type UpdateFrequencyField,
   type ValueTypeAndUnits,
   type ValueTypeAndUnitsField,
   type VarianceAndQuality,
@@ -52,7 +55,24 @@ export const definitionAndRationaleColumns = sameNamedColumns(definitionAndRatio
 
 export const polarityColumns = sameNamedColumns(polaritySection.fields);
 
-export const updateFrequencyColumns = sameNamedColumns(updateFrequencySection.fields);
+// The draft keeps one reason, which the form shows under the answer it was given for. A reason
+// typed under another answer is dropped, whatever the form sent.
+export const updateFrequencyColumns: IndicatorSectionColumns<
+  UpdateFrequencyField,
+  IndicatorUpdateFrequency
+> = {
+  fromDraft: ({ updateFrequency, updateFrequencyReason }) => ({
+    updateFrequency,
+    noFixedFrequencyReason: updateFrequency === 'no-fixed-frequency' ? updateFrequencyReason : null,
+    noLongerUpdatedReason: updateFrequency === 'no-longer-updated' ? updateFrequencyReason : null,
+  }),
+  toAttributes: (answers) => ({
+    updateFrequency: answers.updateFrequency,
+    updateFrequencyReason: hasUpdateFrequencyReason(answers.updateFrequency)
+      ? answers[UPDATE_FREQUENCY_REASON_FIELDS[answers.updateFrequency]]
+      : null,
+  }),
+};
 
 export const calculationColumns: IndicatorSectionColumns<CalculationField, Calculation> = {
   ...sameNamedColumns(calculationSection.fields),
