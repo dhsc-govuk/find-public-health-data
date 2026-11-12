@@ -14,6 +14,7 @@ import {
   type IndicatorTaskListDraft,
   type IndicatorTaskListSource,
   indicatorTaskList,
+  isDraftComplete,
   taskListReview,
 } from './indicator-task-list.ts';
 import type { RevisionRoundRow } from './revision-response-repository.ts';
@@ -295,13 +296,52 @@ describe('the changes an update makes', () => {
   });
 
   it('holds back an update without its summary', () => {
-    const dated = withChange({ scheduledPublishAt: complete.scheduledPublishAt });
+    const dated = withChange({
+      polarity: 'higher-is-better',
+      scheduledPublishAt: complete.scheduledPublishAt,
+    });
 
     expect(indicatorTaskList(dated).canSubmit).toBe(false);
     expect(
       indicatorTaskList(withChange({ ...dated.draft, updateSummary: 'Added the 2025 data.' }))
         .canSubmit,
     ).toBe(true);
+  });
+
+  it('holds back an update that changes no task', () => {
+    const unchanged = withChange({
+      scheduledPublishAt: complete.scheduledPublishAt,
+      updateSummary: 'Nothing new.',
+    });
+
+    expect(indicatorTaskList(unchanged).canSubmit).toBe(false);
+  });
+
+  it('holds back an update while a task it did not change is incomplete', () => {
+    const inherited = {
+      ...withChange({
+        polarity: 'higher-is-better',
+        scheduledPublishAt: complete.scheduledPublishAt,
+        updateSummary: 'Added the 2025 data.',
+        rationale: null,
+      }),
+      published: { ...complete, rationale: null },
+    };
+
+    expect(indicatorTaskList(inherited).changedTasks).toEqual(['polarity']);
+    expect(indicatorTaskList(inherited).canSubmit).toBe(false);
+  });
+
+  it('submits an update only once it changes a task, as the task list offers it', () => {
+    const answered = { ...complete, polarity: 'no-polarity' as const };
+
+    expect(isDraftComplete(answered, complete)).toBe(true);
+    expect(isDraftComplete(complete, complete)).toBe(false);
+    expect(isDraftComplete({ ...answered, updateSummary: null }, complete)).toBe(false);
+  });
+
+  it('submits a new indicator without an update summary or a change', () => {
+    expect(isDraftComplete({ ...complete, updateSummary: null }, null)).toBe(true);
   });
 
   it('lists no change for a new indicator, which has nothing published', () => {

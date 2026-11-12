@@ -118,7 +118,7 @@ export async function getIndicatorDraftState(
  * compared with. Undefined while nothing is published.
  */
 export async function getPublishedAnswers(
-  db: Database,
+  db: Database | Transaction,
   id: string,
 ): Promise<IndicatorDraft | undefined> {
   const [published] = await db

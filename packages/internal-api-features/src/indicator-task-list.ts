@@ -165,16 +165,6 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
   };
 }
 
-/** Whether every task the draft has is complete: the update summary only counts on an update. */
-function allCompleted(tasks: IndicatorTaskStatuses, isUpdate: boolean): boolean {
-  return draftTaskKeys(isUpdate).every((key) => tasks[key] === 'completed');
-}
-
-/** True once every task on a new indicator's draft is complete, so it may be submitted. */
-export function isDraftComplete(draft: IndicatorTaskListDraft): boolean {
-  return allCompleted(taskStatuses(draft), false);
-}
-
 /**
  * The tasks an update compares with the published version, and the answers each compares. Every
  * update answers the publishing date and the update summary afresh, so neither is compared. The
@@ -221,6 +211,33 @@ function changedTasks(
     .map(([key]) => key as IndicatorTaskKey);
 }
 
+/**
+ * Whether the draft's answers let it be submitted. Every task the draft has must be complete, the
+ * update summary only on an update. An update must also change at least one task, because a
+ * version with nothing new is not worth publishing.
+ */
+function isSubmittable(
+  tasks: IndicatorTaskStatuses,
+  changed: readonly IndicatorTaskKey[],
+  isUpdate: boolean,
+): boolean {
+  return (
+    draftTaskKeys(isUpdate).every((key) => tasks[key] === 'completed') &&
+    (!isUpdate || changed.length > 0)
+  );
+}
+
+/**
+ * True once the draft may be submitted, as `isSubmittable` decides. `published` is the live
+ * version's answers, which make the draft an update, or null for a new indicator.
+ */
+export function isDraftComplete(
+  draft: IndicatorTaskListDraft,
+  published: IndicatorTaskAnswers | null,
+): boolean {
+  return isSubmittable(taskStatuses(draft), changedTasks(draft, published), published !== null);
+}
+
 /** The task list state of one draft. */
 export function indicatorTaskList({
   draft,
@@ -230,13 +247,14 @@ export function indicatorTaskList({
 }: IndicatorTaskListSource): IndicatorTaskListTasks {
   const tasks = taskStatuses(draft);
   const isUpdate = indicator.indicatorStatus === 'live';
+  const changed = isUpdate ? changedTasks(draft, published) : [];
 
   return {
     indicator: { ...indicator, name: draft.name },
     isUpdate,
-    canSubmit: allCompleted(tasks, isUpdate) && (review === null || isAnswered(review)),
+    canSubmit: isSubmittable(tasks, changed, isUpdate) && (review === null || isAnswered(review)),
     tasks,
-    changedTasks: isUpdate ? changedTasks(draft, published) : [],
+    changedTasks: changed,
     review,
   };
 }

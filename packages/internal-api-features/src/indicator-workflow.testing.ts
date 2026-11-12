@@ -10,6 +10,7 @@ import {
   type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
+import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
@@ -194,4 +195,26 @@ export async function scheduledDraft(db: Database, name: string): Promise<SentBa
   );
   if (!scheduled.ok) throw new Error(`scheduledDraft could not schedule: ${scheduled.reason}`);
   return draft;
+}
+
+/** A live indicator's update: the draft opened from it, and the published version beside it. */
+export interface OpenedUpdate extends CreatedIndicatorDraft {
+  publishedId: string;
+}
+
+/**
+ * A complete new draft published as it stands, without going through review, and an update
+ * opened from it by the repository tests' actor. The update still answers every task as the
+ * published version does, and has no publishing date or update summary of its own yet.
+ */
+export async function openedUpdate(db: Database, name: string): Promise<OpenedUpdate> {
+  const created = await newDraft(db, name);
+  await completeDraft(db, created);
+  await db
+    .update(indicatorVersion)
+    .set({ status: 'published', isLocked: true, publishedAt: new Date('2026-01-01T00:00:00Z') })
+    .where(eq(indicatorVersion.id, created.versionId));
+  const opened = await createDraftFromPublished(db, created.indicatorId, AS_ACTOR);
+  if (!opened.ok) throw new Error(`openedUpdate could not open a draft: ${opened.reason}`);
+  return { ...created, versionId: opened.versionId, publishedId: created.versionId };
 }

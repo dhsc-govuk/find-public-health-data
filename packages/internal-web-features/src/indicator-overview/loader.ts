@@ -78,7 +78,7 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
   ]);
 
   // Taken after the fetches, so a failed page load does not consume the message it would show.
-  const notification = overviewNotification(takeFlash(context));
+  const notification = overviewNotification(takeFlash(context), indicator.indicatorStatus);
 
   return {
     canEdit: session !== undefined && canEditIndicator(session, indicator),

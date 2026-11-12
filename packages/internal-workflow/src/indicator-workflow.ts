@@ -47,11 +47,11 @@ const RESPONSE_FROM: StepEntry['from'] = {
 };
 
 const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
-  // Only a new indicator can be submitted for now. An update to a live indicator will be
-  // submittable once its journey is built.
+  // Submits a new indicator's draft, or an update to a live indicator. A submitted update waits
+  // for the core team's decision on it before any reviewers are assigned.
   submit: {
     from: {
-      indicatorStatuses: ['new'],
+      indicatorStatuses: ['new', 'live'],
       versionStatuses: ['draft'],
       isLocked: false,
       submissionStatuses: [null, 'withdrawn'],

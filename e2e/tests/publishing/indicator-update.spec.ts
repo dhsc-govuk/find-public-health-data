@@ -187,3 +187,23 @@ test('a task saved back to its live answers reads "Unchanged" again', async ({ p
   await expect(taskStatus(page, 'Publishing date')).toHaveText('No changes to publish');
   await expect(taskStatus(page, 'Update summary')).toHaveText('No changes to publish');
 });
+
+test('an update is not offered for review while no task is changed', async ({ page }) => {
+  await page.goto(taskListPath());
+
+  await expect(page.getByRole('button', { name: 'Submit for review' })).toHaveCount(0);
+});
+
+test('an update can be submitted once at least one task is "Changed" and the publishing date and update summary are complete, and the overview\'s banner reads "Update successfully submitted for review."', async ({
+  page,
+}, testInfo) => {
+  await savePolarity(page, 'Higher is better');
+  await expect(taskStatus(page, 'Publishing date')).toHaveText('Complete');
+  await expect(taskStatus(page, 'Update summary')).toHaveText('Complete');
+
+  await page.getByRole('button', { name: 'Submit for review' }).click();
+
+  await expect(page).toHaveURL(overviewPath());
+  await expect(page.getByText('Update successfully submitted for review.')).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
+});

@@ -3,16 +3,16 @@ import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { takeIndicatorStep } from '@fphd/internal-workflow';
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
 import {
   createIndicatorDraft,
   getIndicatorDraftState,
+  type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
-import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
@@ -26,6 +26,7 @@ import { indicatorTaskList } from './indicator-task-list.ts';
 import {
   completeDraft,
   draftUpdatedAt,
+  openedUpdate,
   sentBackDraft,
   ukToday,
 } from './indicator-workflow.testing.ts';
@@ -135,6 +136,32 @@ describe('completeDraft', () => {
     ).toBe(true);
   });
 });
+
+/**
+ * Gives an update its publishing date and summary, with `answers` saved over the published
+ * version's, and returns the `updatedAt` its task list would show.
+ */
+async function answerUpdate(
+  db: Database,
+  indicatorId: string,
+  versionId: string,
+  answers: IndicatorDraftAttributes,
+): Promise<Date> {
+  const saved = await updateIndicatorDraft(
+    db,
+    indicatorId,
+    'update-summary',
+    {
+      ...answers,
+      scheduledPublishAt: new Date('2030-06-01T08:30:00Z'),
+      updateSummary: 'Changed the polarity.',
+    },
+    {},
+    AS_ACTOR,
+  );
+  if (!saved.ok) throw new Error(`answerUpdate could not save: ${saved.reason}`);
+  return draftUpdatedAt(db, versionId);
+}
 
 describe('submitIndicator', () => {
   repositoryTest('locks a complete draft under its first submission', async ({ db }) => {
@@ -298,15 +325,46 @@ describe('submitIndicator', () => {
     });
   });
 
-  repositoryTest('refuses the draft of a live indicator', async ({ db }) => {
-    const { indicatorId } = await indicatorWithTwoPublications(db, 'Live when submitted');
-    const drafted = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
-    if (!drafted.ok) throw new Error('expected a draft');
+  repositoryTest(
+    'locks an update that changes a task under its first submission',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await openedUpdate(db, 'Updated and submitted');
+      const shown = await answerUpdate(db, indicatorId, versionId, { polarity: 'no-polarity' });
 
-    await expect(
-      submitIndicator(db, indicatorId, await draftUpdatedAt(db, drafted.versionId), AS_ACTOR),
-    ).resolves.toEqual({ ok: false, reason: 'not_allowed' });
-    expect(await submissionsOf(db, drafted.versionId)).toEqual([]);
+      await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+        ok: true,
+      });
+
+      expect((await versionOf(db, versionId)).isLocked).toBe(true);
+      expect(await submissionsOf(db, versionId)).toEqual([
+        expect.objectContaining({ number: 1, status: 'submitted', submittedBy: ACTOR }),
+      ]);
+    },
+  );
+
+  repositoryTest('refuses an update that changes no task, and writes nothing', async ({ db }) => {
+    const { indicatorId, versionId } = await openedUpdate(db, 'Updated with no change');
+    const shown = await answerUpdate(db, indicatorId, versionId, {});
+
+    await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'incomplete',
+    });
+    expect(await submissionsOf(db, versionId)).toEqual([]);
+  });
+
+  repositoryTest('refuses an update with a task left incomplete before it', async ({ db }) => {
+    const { indicatorId, versionId, publishedId } = await openedUpdate(db, 'Inherited a gap');
+    await db
+      .update(indicatorVersion)
+      .set({ rationale: null })
+      .where(inArray(indicatorVersion.id, [versionId, publishedId]));
+    const shown = await answerUpdate(db, indicatorId, versionId, { polarity: 'no-polarity' });
+
+    await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'incomplete',
+    });
   });
 
   repositoryTest('refuses an indicator with no draft', async ({ db }) => {

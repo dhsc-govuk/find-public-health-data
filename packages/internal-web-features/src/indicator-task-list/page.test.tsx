@@ -243,7 +243,6 @@ describe('IndicatorTaskListPage', () => {
 
   it.each<[string, Partial<IndicatorTaskList>]>([
     ['while a task is incomplete', { canSubmit: false }],
-    ["on an update's task list, which cannot be submitted yet", { isUpdate: true, actions: [] }],
     ['to a user the workflow does not let submit', { actions: [] }],
   ])('offers no submission %s', (_, overrides) => {
     renderPage(overrides);
@@ -365,6 +364,24 @@ describe('IndicatorTaskListPage for an update to a live indicator', () => {
     ).toBe(`/publish/indicators/${id}/update-summary`);
     expect(statusOf('Publishing', 'Publishing date')).toBe('Incomplete');
     expect(statusOf('Publishing', 'Update summary')).toBe('Complete');
+  });
+
+  it('reads a task incomplete when the live indicator left it so, in place of unchanged', () => {
+    renderPage({
+      ...update,
+      changedTasks: ['polarity'],
+      tasks: { ...update.tasks, 'definition-and-rationale': 'not_started' },
+    } as Partial<IndicatorTaskList>);
+
+    expect(statusOf('Metadata', 'Definition and rationale')).toBe('Incomplete');
+    expect(statusOf('Data', 'Polarity')).toBe('Changed');
+  });
+
+  it('offers the update for review once it may be submitted', () => {
+    renderPage({ ...update, canSubmit: true, changedTasks: ['polarity'] });
+
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Submit for approval' })).toBeNull();
   });
 
   it('leaves the update summary off a new indicator', () => {
