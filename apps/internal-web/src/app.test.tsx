@@ -10,7 +10,7 @@ import {
 import { TopicsRoute } from '@fphd/public-web-features';
 import { backLinkHandle } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -21,6 +21,7 @@ import routes from './routes.ts';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const topics = [{ slug: 'topic-a', title: 'Topic A', description: 'All about topic A.' }];
@@ -177,13 +178,16 @@ describe('internal application routes', () => {
       },
     ]);
 
-    // The heading can appear before the effect installs the restored-page listener.
-    await act(async () => {
-      render(<Routes initialEntries={['/manage']} />);
-    });
-    expect(screen.getByRole('heading', { name: 'Manage public health data' })).toBeTruthy();
+    const listen = vi.spyOn(window, 'addEventListener');
 
-    const shown = new PageTransitionEvent('pageshow', { persisted });
+    render(<Routes initialEntries={['/manage']} />);
+    await screen.findByRole('heading', { name: 'Manage public health data' });
+    // React can run the effect that adds the pageshow listener after the heading appears, so wait
+    // for the listener before firing the event. Otherwise the event can arrive with no one listening.
+    await waitFor(() => expect(listen).toHaveBeenCalledWith('pageshow', expect.any(Function)));
+
+    const shown = new Event('pageshow');
+    Object.assign(shown, { persisted });
     fireEvent(window, shown);
 
     expect(replace.mock.calls).toEqual(fetches);

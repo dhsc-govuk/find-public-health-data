@@ -91,7 +91,7 @@ FOREIGN_KEYS = {
         "numerator_source_id": "numerator_denominator_source",
         "denominator_source_id": "numerator_denominator_source",
     },
-    "upload_batch": {"indicator_id": "indicator", "superseded_by_id": "upload_batch"},
+    "upload_batch": {"indicator_id": "indicator"},
     "observation": {
         "indicator_id": "indicator",
         "area_id": "area",

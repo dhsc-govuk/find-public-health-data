@@ -3,6 +3,7 @@ import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { assertCoreDataPresent, importCoreData } from './core-data.ts';
+import { migrateToLatest } from './migrations.ts';
 import { importReferenceCoreData, readReferenceData } from './reference-core-data.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
@@ -150,6 +151,10 @@ it('rekeys existing references, publisher bridges, parent values, dimension keys
     expect(await sql`SELECT area_type_id FROM available_data`).toEqual([
       { area_type_id: areaType.id },
     ]);
+    // The core data import writes the columns the schema has now. A later migration requires
+    // every indicator to have a team, so the draft joins Fingertips before migrating the rest.
+    await sql`UPDATE indicator SET team_id = ${schema.IMPORTED_INDICATOR_TEAM_ID}`;
+    await migrateToLatest(sql);
     await importCoreData(sql);
     expect(await sql`SELECT id FROM observation`).toEqual([{ id: observation.id }]);
   } finally {

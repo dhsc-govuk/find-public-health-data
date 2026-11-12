@@ -24,7 +24,6 @@ export const dimensionType = pgTable(
     dimensionClass: text({ enum: DIMENSION_CLASSES }).notNull(),
     classificationScheme: text(),
     granularity: text(),
-    schemeVersion: text(),
     isRequired: boolean().notNull().default(false),
   },
   (t) => [
@@ -49,10 +48,10 @@ export const dimensionValue = pgTable(
     isAggregate: boolean().notNull().default(false),
   },
   (t) => [
-    unique().on(t.dimensionTypeId, t.name),
+    unique('dimension_value_dimension_type_id_name_unique').on(t.dimensionTypeId, t.name),
     // Target for the bridge table's composite (value, type) foreign key.
-    unique().on(t.id, t.dimensionTypeId),
-    index('idx_dim_val_type').on(t.dimensionTypeId),
-    index('idx_dim_val_parent').on(t.parentId).where(sql`${t.parentId} IS NOT NULL`),
+    unique('dimension_value_id_dimension_type_id_unique').on(t.id, t.dimensionTypeId),
+    index('idx_dimension_value_type').on(t.dimensionTypeId),
+    index('idx_dimension_value_parent').on(t.parentId).where(sql`${t.parentId} IS NOT NULL`),
   ],
 );
