@@ -172,7 +172,10 @@ export function topicPageTests() {
     });
     await choices.getByRole('radio', { name: 'Manchester', exact: true }).check();
     await expect(page).toHaveURL(/ga=E08000003/);
-    await expect(panel.getByText('Manchester', { exact: true })).toHaveCount(2);
+    await expect(choices.getByRole('radio', { name: 'Manchester', exact: true })).toBeChecked();
+    await expect(
+      panel.getByRole('region', { name: 'Diabetes: QOF prevalence, Manchester: trend chart' }),
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

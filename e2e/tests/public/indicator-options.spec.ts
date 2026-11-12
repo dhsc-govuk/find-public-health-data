@@ -71,8 +71,7 @@ test.describe('without JavaScript', () => {
     page,
   }) => {
     await page.goto(MORTALITY_PATH);
-    await page.getByRole('link', { name: 'Show all sections', exact: true }).click();
-    await expect(page).toHaveURL(/render=complete/);
+    await expect(page.getByRole('status').filter({ hasText: /^Loading / })).toHaveCount(0);
     const tableOptions = filterCard(page, 'Table columns');
     await tableOptions.getByLabel('Select sex').selectOption('Male');
     await tableOptions.getByLabel('Select time period type').selectOption('1 year');
@@ -81,7 +80,7 @@ test.describe('without JavaScript', () => {
 
     await expect(page).toHaveURL(/sex-108=Male/);
     await expect(page).toHaveURL(/pt-108=1-year/);
-    await expect(page).toHaveURL(/render=complete/);
+    await expect(page).toHaveURL(/#indicator-data$/);
     const table = trendTable(page);
     await expect(table).toHaveAccessibleName(/<75 yrs, Male$/);
     await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(
@@ -97,6 +96,7 @@ test.describe('without JavaScript', () => {
     await inequalityOptions.getByRole('button', { name: 'Apply options' }).click();
 
     await expect(page).toHaveURL(/ic-108=/);
+    await expect(page).toHaveURL(/#indicator-inequalities$/);
     await expect(
       page.getByRole('table', { name: /Districts and unitary authorities by deprivation.*2023/ }),
     ).toBeVisible();

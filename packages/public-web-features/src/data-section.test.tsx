@@ -1,10 +1,39 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
+import { CollapsibleFilterCard } from '@fphd/ui';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { DataSection, useDataReady } from './data-section.tsx';
 
 afterEach(cleanup);
+
+it('keeps an open control when document data becomes deferred navigation data', async () => {
+  const section = Promise.withResolvers<string>();
+  const content = (resolve: string | Promise<string>) => (
+    <MemoryRouter>
+      <DataSection label="data" resolve={resolve}>
+        {(value) => (
+          <CollapsibleFilterCard active={false} title="Table columns">
+            <p>{value}</p>
+          </CollapsibleFilterCard>
+        )}
+      </DataSection>
+    </MemoryRouter>
+  );
+  const { rerender } = render(content('Document table'));
+  fireEvent.click(screen.getByRole('button', { name: 'Table columns' }));
+  expect(screen.getByRole('button', { name: 'Table columns' }).getAttribute('aria-expanded')).toBe(
+    'true',
+  );
+
+  rerender(content(section.promise));
+  await act(async () => section.resolve('Navigation table'));
+
+  expect(screen.getByText('Navigation table')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Table columns' }).getAttribute('aria-expanded')).toBe(
+    'true',
+  );
+});
 
 it('waits for every section in an array and tracks replacement promises', async () => {
   const sections = Array.from({ length: 4 }, () => Promise.withResolvers<void>());

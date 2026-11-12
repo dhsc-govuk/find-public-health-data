@@ -47,6 +47,7 @@ function startRequest() {
     throw new Error('Expected the renderer to provide onAllReady');
   }
 
+  renderer.options?.onShellReady?.();
   onAllReady();
   return response;
 }
@@ -80,10 +81,11 @@ describe('React Router server rendering', () => {
     ).then(ready);
 
     await Promise.resolve();
-    expect(renderer.options?.onShellReady).toBeUndefined();
+    renderer.options?.onShellReady?.();
     expect(ready).not.toHaveBeenCalled();
     expect(renderer.pipe).not.toHaveBeenCalled();
 
+    renderer.options?.onShellReady?.();
     renderer.options?.onAllReady?.();
     await response;
     expect(ready).toHaveBeenCalledOnce();
@@ -114,8 +116,11 @@ describe('React Router server rendering', () => {
     expect(renderer.abort).toHaveBeenCalledOnce();
   });
 
-  it('rejects an overdue document instead of sending aborted boundaries', async () => {
-    renderer.abort.mockImplementation(() => renderer.options?.onAllReady?.());
+  it('flushes an overdue document without turning its ready shell into a 500', async () => {
+    renderer.abort.mockImplementation(() => {
+      renderer.options?.onError?.(new Error('The render was aborted'), {});
+      renderer.options?.onAllReady?.();
+    });
     const response = handleRequest(
       new Request('https://example.com/'),
       200,
@@ -123,13 +128,13 @@ describe('React Router server rendering', () => {
       entryContext,
       loadContextWithNonce(),
     );
-    const rejected = expect(response).rejects.toThrow('Document rendering timed out');
+    renderer.options?.onShellReady?.();
 
     vi.advanceTimersByTime(streamTimeout + 1_000);
 
-    await rejected;
+    expect((await response).status).toBe(200);
     expect(renderer.abort).toHaveBeenCalledOnce();
-    expect(renderer.pipe).not.toHaveBeenCalled();
+    expect(renderer.pipe).toHaveBeenCalledOnce();
   });
 
   it('clears the abort deadline when the shell fails', async () => {
@@ -167,6 +172,7 @@ describe('React Router server rendering', () => {
       entryContext,
       loadContextWithNonce(),
     );
+    renderer.options?.onShellReady?.();
     renderer.options?.onAllReady?.();
     await response;
     controller.abort();

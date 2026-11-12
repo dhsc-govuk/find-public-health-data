@@ -52,9 +52,10 @@ export default function handleRequest(
       </NonceProvider>,
       {
         nonce,
-        onAllReady() {
-          if (aborted) return;
+        onShellReady() {
           shellRendered = true;
+        },
+        onAllReady() {
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
           body.once('close', clearAbortTimeout);
@@ -69,8 +70,9 @@ export default function handleRequest(
           reject(error);
         },
         onError(error: unknown) {
-          responseStatusCode = 500;
-          // Before the shell is out, onShellError rejects and React Router reports it instead.
+          // A deadline abort flushes the available shell and each unfinished section's retry UI.
+          if (!aborted) responseStatusCode = 500;
+          // Shell failures reach React Router through onShellError instead.
           if (shellRendered && !request.signal.aborted) {
             logger.error({ err: error }, 'Streaming failed');
           }
@@ -79,9 +81,7 @@ export default function handleRequest(
     );
 
     abortTimeout = setTimeout(() => {
-      // Aborting can call onAllReady with unfinished boundaries that require JavaScript.
       aborted = true;
-      reject(new Error('Document rendering timed out'));
       abort();
     }, streamTimeout + 1_000);
   });
