@@ -394,6 +394,15 @@ export const indicatorTaskListErrorSchema = z.object({
   error: z.enum(['invalid_id', 'not_found', 'no_draft']),
 });
 
+/**
+ * The 409 answers to opening a draft of a live indicator to update it. `draft_exists` means one
+ * is open already, perhaps from a repeat of the same request. `not_published` means there is no
+ * published version to open it from. A missing indicator is a 404, which the client throws.
+ */
+export const indicatorStartUpdateErrorSchema = z.object({
+  error: z.enum(['invalid_id', 'draft_exists', 'not_published']),
+});
+
 /** A submission confirms the draft as the task list showed it, by its last edit. */
 export const indicatorSubmitSchema = z.object({ draftUpdatedAt: z.iso.datetime() });
 
@@ -467,6 +476,7 @@ export type IndicatorTaskListReview = z.infer<typeof indicatorTaskListReviewSche
 export type IndicatorTaskFlag = z.infer<typeof indicatorTaskFlagSchema>;
 export type ReviewerComment = z.infer<typeof reviewerCommentSchema>;
 export type IndicatorTaskListError = z.infer<typeof indicatorTaskListErrorSchema>;
+export type IndicatorStartUpdateError = z.infer<typeof indicatorStartUpdateErrorSchema>;
 export type IndicatorSubmit = z.infer<typeof indicatorSubmitSchema>;
 export type IndicatorSubmitError = z.infer<typeof indicatorSubmitErrorSchema>;
 export type IndicatorWithdraw = z.infer<typeof indicatorWithdrawSchema>;

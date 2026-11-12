@@ -7,6 +7,7 @@ import { confirmDataTable } from './data-table-check-repository.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import { historyEntries } from './indicator-history-entries.ts';
 import { findIndicatorHistory } from './indicator-history-repository.ts';
+import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
@@ -253,6 +254,22 @@ describe('findIndicatorHistory', () => {
       'imrg_reviewed',
       'reviewers_assigned',
       'submitted',
+      'created',
+    ]);
+  });
+
+  repositoryTest('reads who started an update of the live indicator', async ({ db }) => {
+    const { indicatorId } = await indicatorWithTwoPublications(db, 'History of an update');
+    expect(await createDraftFromPublished(db, indicatorId, AS_ACTOR)).toMatchObject({ ok: true });
+
+    const row = await history(db, indicatorId);
+
+    expect(row.updates).toEqual([{ at: expect.any(String), by: 'Sam Taylor' }]);
+    // The fixture's publications are dated in the future, so they sort before the update.
+    expect(historyEntries(row).map(({ kind }) => kind)).toEqual([
+      'published',
+      'published',
+      'update_started',
       'created',
     ]);
   });

@@ -24,6 +24,11 @@ export function indicatorTaskListPath(id: string): string {
   return indicatorPublishPath(id, 'task-list');
 }
 
+/** Where the overview posts to open a draft of a live indicator, to update it. */
+export function indicatorStartUpdatePath(id: string): string {
+  return indicatorPublishPath(id, 'start-update');
+}
+
 /** Where the task list posts to fill in the draft's remaining tasks with sample answers. */
 export function indicatorSampleAnswersPath(id: string): string {
   return indicatorPublishPath(id, 'sample-answers');
