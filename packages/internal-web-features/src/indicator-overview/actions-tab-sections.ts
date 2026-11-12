@@ -1,6 +1,5 @@
 // No @fphd/ui imports here, so the sections unit-test without the components' jsdom.
 import {
-  type DraftResponse,
   type IndicatorAdminDetail,
   REVIEW_RESPONSE_STEPS,
   UPDATE_DECISION_STEPS,
@@ -51,22 +50,35 @@ export interface ActionsTabInput {
   >;
 }
 
+// A response to an update starts by asking whether the update can be published.
 function reviewSection({ indicator }: ActionsTabInput): ActionsTabSection {
+  const firstPage = indicator.indicatorStatus === 'live' ? 'update-approval' : 'response-type';
   return {
     heading: 'Review',
     button: indicator.actions.some((step) => REVIEW_RESPONSE_STEPS.includes(step))
-      ? { href: reviewResponsePath(indicator.id, 'response-type'), label: 'Submit review response' }
+      ? { href: reviewResponsePath(indicator.id, firstPage), label: 'Submit review response' }
       : null,
     links: [],
   };
 }
 
-/** The publisher's next step once a round sends the draft back, worded by what it asked for. */
-function respondLabel(response: DraftResponse | null): string {
-  if (response?.flaggedTaskCount === 0) return 'Respond to clarification request';
-  return response?.kind === 'pre_imrg_feedback'
+/**
+ * The publisher's next step once a round sends the draft back, worded by what it asked for. An
+ * update asks for revisions the same way whoever sent it back.
+ */
+function respondLabel({ indicatorStatus, draftResponse }: ActionsTabInput['indicator']): string {
+  if (draftResponse?.flaggedTaskCount === 0) return 'Respond to clarification request';
+  if (indicatorStatus === 'live') return 'Respond to requested revisions';
+  return draftResponse?.kind === 'pre_imrg_feedback'
     ? 'Respond to advised revisions'
     : 'Respond to requested revision';
+}
+
+/** The IMRG manager's wording, which names an update as one. */
+function assignLabels({ indicatorStatus }: ActionsTabInput['indicator']) {
+  return indicatorStatus === 'live'
+    ? { assign: 'Assign reviewer to update', change: 'Change reviewer for this update' }
+    : { assign: 'Assign reviewers to indicator', change: 'Change reviewers for this indicator' };
 }
 
 /**
@@ -85,13 +97,13 @@ function actionsButton(
   if (assignFirst) {
     return {
       href: indicatorAssignReviewersPath(indicator.id),
-      label: 'Assign reviewers to indicator',
+      label: assignLabels(indicator).assign,
     };
   }
   if (responds) {
     return {
       href: indicatorTaskListPath(indicator.id),
-      label: respondLabel(indicator.draftResponse),
+      label: respondLabel(indicator),
     };
   }
   if (indicator.actions.some((step) => UPDATE_DECISION_STEPS.includes(step))) {
@@ -128,7 +140,7 @@ function actionsSection(input: ActionsTabInput): ActionsTabSection {
     mayAssign && !assignFirst
       ? {
           href: indicatorAssignReviewersPath(indicator.id),
-          label: 'Change reviewers for this indicator',
+          label: assignLabels(indicator).change,
         }
       : undefined,
     indicator.actions.includes('change_publication_date')

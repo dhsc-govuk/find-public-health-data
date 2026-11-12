@@ -46,6 +46,10 @@ const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace
   major_revisions: { label: 'Major revisions needed', colour: 'red' },
 };
 
+// An update sent back reads the same whoever sent it and whatever they asked for, and is already
+// named as an update by its indicator status, so it takes no "Update " prefix.
+const UPDATE_SENT_BACK: TagFace = { label: 'Revisions or clarifications needed', colour: 'orange' };
+
 const PUBLISHED: TagFace = { label: 'Published', colour: 'green' };
 
 // GOV.UK's task list shows a completed task as plain text, and one still to do, started or not, as
@@ -112,6 +116,13 @@ function publishingStatus(state: PublishingState): TagFace | undefined {
   const { indicatorStatus, draftStatus } = state;
 
   if (draftStatus === null) return indicatorStatus === 'live' ? PUBLISHED : undefined;
+  if (
+    indicatorStatus === 'live' &&
+    draftStatus === 'draft' &&
+    state.draftSubmissionStatus === 'changes_requested'
+  ) {
+    return UPDATE_SENT_BACK;
+  }
 
   const { colour, label } =
     draftStatus === 'scheduled'

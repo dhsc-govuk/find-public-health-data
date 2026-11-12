@@ -86,6 +86,27 @@ describe('StatusTag', () => {
   );
 
   it.each([
+    ['the core team', 'request_revisions'],
+    ['a reviewer', 'imrg_review'],
+  ] as const)(
+    'shows an update %s sent back as revisions or clarifications needed, in orange',
+    (_, draftUpdateDecision) => {
+      render(
+        <StatusTag
+          type="publishing"
+          indicatorStatus="live"
+          draftStatus="draft"
+          draftSubmissionStatus="changes_requested"
+          draftResponseKind="pre_imrg_feedback"
+          draftUpdateDecision={draftUpdateDecision}
+        />,
+      );
+
+      expect(tag('Revisions or clarifications needed')).toContain('govuk-tag--orange');
+    },
+  );
+
+  it.each([
     ['submitted', null],
     ['in_review', null],
     ['changes_requested', 'major_revisions'],
