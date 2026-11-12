@@ -30,10 +30,10 @@
     "bytes": 6442
   },
   "internal-web /dashboard": {
-    "statements": 3,
-    "buffers": 57,
+    "statements": 4,
+    "buffers": 86,
     "rows": 11,
-    "bytes": 42420
+    "bytes": 42740
   },
   "internal-web /dashboard/indicators/01a00ab4-ce0a-70c1-b22b-f8192c94a59d": {
     "statements": 6,
