@@ -103,7 +103,7 @@ async function sendDecision(
   try {
     result = await post(context, id, body);
   } catch (error) {
-    // No draft is left to decide on, as when the publisher withdrew it and it was published.
+    // The API answers 404 when the indicator has no draft left to decide on.
     if (error instanceof Response && error.status === 404) {
       return toOverview(context, id, 'update-decision-not-waiting');
     }
