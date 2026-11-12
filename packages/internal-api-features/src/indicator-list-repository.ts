@@ -1,6 +1,6 @@
 import type { IndicatorListScope } from '@fphd/auth/permissions';
 import { type Database, schema } from '@fphd/db';
-import { and, asc, count, desc, eq, inArray, not, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type {
@@ -160,11 +160,15 @@ export async function listIndicatorsPage(
 // A submitted update waits for the core team's decision, which may never send it to IMRG.
 const awaitsUpdateDecision = sql`(${indicatorStatus} = 'live' and ${draftSubmissionStatus} = 'submitted' and ${draftUpdateDecision} is null)`;
 
+// IMRG reviews a new indicator, and an update only once the core team sends it there. An update
+// the core team sent back for revisions or approved itself never reaches IMRG.
+const forImrg = sql`(${indicatorStatus} = 'new' or ${draftUpdateDecision} = 'imrg_review')`;
+
 /**
  * The indicators in scope whose draft's latest submission waits for reviewers, is in review, or
  * was answered with changes requested or approval, oldest submission first, as a queue; the id
- * breaks a tie. An answered submission stays with the reviewers who answered it. A submitted
- * update is left out until the core team decides what happens to it.
+ * breaks a tie. An answered submission stays with the reviewers who answered it. An update is
+ * left out unless the core team sent it to IMRG.
  */
 export async function listIndicatorsUnderReview(
   db: Database,
@@ -177,7 +181,7 @@ export async function listIndicatorsUnderReview(
       and(
         scopeCondition(scope),
         inArray(draftSubmissionStatus, ['submitted', 'in_review', 'changes_requested', 'approved']),
-        not(awaitsUpdateDecision),
+        forImrg,
       ),
     )
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
@@ -186,6 +190,21 @@ export async function listIndicatorsUnderReview(
     unassigned: rows.filter((row) => row.draftSubmissionStatus === 'submitted'),
     assigned: rows.filter((row) => row.draftSubmissionStatus !== 'submitted'),
   };
+}
+
+/**
+ * The live indicators in scope whose submitted update waits for the core team's decision, oldest
+ * submission first, as a queue; the id breaks a tie.
+ */
+export async function listUpdatesAwaitingDecision(
+  db: Database,
+  scope: IndicatorListScope,
+): Promise<IndicatorAdminListRow[]> {
+  if (inNoTeams(scope)) return [];
+
+  return listRowsQuery(db)
+    .where(and(scopeCondition(scope), awaitsUpdateDecision))
+    .orderBy(asc(draftSubmittedAt), asc(indicator.id));
 }
 
 /**

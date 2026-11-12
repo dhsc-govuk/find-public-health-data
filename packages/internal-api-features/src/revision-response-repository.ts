@@ -64,6 +64,9 @@ export type SaveRevisionResponseResult =
   | { ok: false; reason: 'no_draft' | 'locked' | 'not_allowed' }
   | { ok: false; reason: 'changed'; version: string };
 
+// Whoever wrote the response: the reviewer, or the core team member who sent an update back.
+const responderId = sql`coalesce(${indicatorVersionSubmissionResponse.reviewerId}, ${indicatorVersionSubmissionResponse.coreTeamMemberId})`;
+
 const builder = new QueryBuilder({ casing: 'snake_case' });
 const latestReply = builder
   .select({ reply: indicatorVersionSubmission.revisionResponse })
@@ -78,7 +81,7 @@ const latestClarification = builder
       ) end`,
   })
   .from(indicatorVersionSubmissionResponse)
-  .innerJoin(appUser, eq(appUser.id, indicatorVersionSubmissionResponse.reviewerId))
+  .innerJoin(appUser, eq(appUser.id, responderId))
   .where(eq(indicatorVersionSubmissionResponse.submissionId, draftSubmissionId))
   .orderBy(desc(indicatorVersionSubmissionResponse.respondedAt))
   .limit(1);
@@ -92,7 +95,7 @@ const roundFlags = sql<RevisionFlag[]>`coalesce((
   from ${indicatorVersionSubmissionFlag}
   join ${indicatorVersionSubmissionResponse}
     on ${indicatorVersionSubmissionResponse.id} = ${indicatorVersionSubmissionFlag.responseId}
-  join ${appUser} on ${appUser.id} = ${indicatorVersionSubmissionResponse.reviewerId}
+  join ${appUser} on ${appUser.id} = ${responderId}
   where ${indicatorVersionSubmissionResponse.submissionId} = ${draftSubmissionId}
 ), '[]'::json)`;
 

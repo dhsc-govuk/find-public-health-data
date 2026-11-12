@@ -2,6 +2,7 @@ import type { schema } from '@fphd/db';
 import type { IndicatorStatus } from '@fphd/utils/indicator-status';
 import { INDICATOR_STEPS, type IndicatorStep } from '@fphd/utils/indicator-step';
 import type { IndicatorSubmissionStatus } from '@fphd/utils/indicator-submission-status';
+import type { UpdateDecision } from '@fphd/utils/update-decision';
 
 type VersionStatus = schema.IndicatorVersionStatus;
 
@@ -15,6 +16,8 @@ export interface IndicatorWorkflowContext {
   isLocked: boolean;
   /** Null until the version is submitted for the first time. */
   latestSubmissionStatus: IndicatorSubmissionStatus | null;
+  /** The core team's decision on the latest submission of an update; null until it is made. */
+  latestUpdateDecision: UpdateDecision | null;
 }
 
 /** The version's status and lock, and the status of its submission, after a step is taken. */
@@ -30,6 +33,8 @@ interface StepEntry {
     versionStatuses: readonly VersionStatus[];
     isLocked: boolean;
     submissionStatuses: readonly (IndicatorSubmissionStatus | null)[];
+    /** The update decisions the step is open from; any decision when absent. */
+    updateDecisions?: readonly (UpdateDecision | null)[];
   };
   leadsTo: IndicatorWorkflowState;
   /**
@@ -44,6 +49,16 @@ const RESPONSE_FROM: StepEntry['from'] = {
   versionStatuses: ['draft'],
   isLocked: true,
   submissionStatuses: ['in_review'],
+};
+
+// The core team decides once what happens to a submitted update, before any reviewers are
+// assigned to it. Each of its three steps records the decision on the submission.
+const UPDATE_DECISION_FROM: StepEntry['from'] = {
+  indicatorStatuses: ['live'],
+  versionStatuses: ['draft'],
+  isLocked: true,
+  submissionStatuses: ['submitted'],
+  updateDecisions: [null],
 };
 
 const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
@@ -69,8 +84,25 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'withdrawn', isLocked: false },
   },
+  // Sending an update to IMRG leaves its submission waiting for reviewers, as a new indicator's
+  // submission waits.
+  send_update_to_imrg: {
+    from: UPDATE_DECISION_FROM,
+    leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
+  },
+  // Asking for revisions ends the submission and unlocks the draft, as a reviewer's feedback does.
+  request_update_revisions: {
+    from: UPDATE_DECISION_FROM,
+    leadsTo: { versionStatus: 'draft', submissionStatus: 'changes_requested', isLocked: false },
+  },
+  // Approving an update for publishing without IMRG review ends the submission as approved, and
+  // keeps the draft locked, ready to schedule.
+  approve_update: {
+    from: UPDATE_DECISION_FROM,
+    leadsTo: { versionStatus: 'draft', submissionStatus: 'approved', isLocked: true },
+  },
   // Assigns the first reviewers to a submission, or changes them. Only for a new indicator for
-  // now, because an update to a live indicator will need triage first.
+  // now. Assigning reviewers to an update sent to IMRG is not built yet.
   assign_reviewers: {
     from: {
       indicatorStatuses: ['new'],
@@ -104,11 +136,11 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
     carriesReviewers: true,
   },
-  // An admin confirms the publication date of an approved new indicator, and the version
-  // becomes scheduled.
+  // An admin confirms the publication date of an approved new indicator or update, and the
+  // version becomes scheduled.
   schedule: {
     from: {
-      indicatorStatuses: ['new'],
+      indicatorStatuses: ['new', 'live'],
       versionStatuses: ['draft'],
       isLocked: true,
       submissionStatuses: ['approved'],
@@ -119,7 +151,7 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
   // The step stays open until the version is published.
   change_publication_date: {
     from: {
-      indicatorStatuses: ['new'],
+      indicatorStatuses: ['new', 'live'],
       versionStatuses: ['scheduled'],
       isLocked: true,
       submissionStatuses: ['approved'],
@@ -154,7 +186,8 @@ function isOpen({ from }: StepEntry, context: IndicatorWorkflowContext): boolean
     from.indicatorStatuses.includes(context.indicatorStatus) &&
     from.versionStatuses.includes(context.versionStatus) &&
     from.isLocked === context.isLocked &&
-    from.submissionStatuses.includes(context.latestSubmissionStatus)
+    from.submissionStatuses.includes(context.latestSubmissionStatus) &&
+    (from.updateDecisions?.includes(context.latestUpdateDecision) ?? true)
   );
 }
 

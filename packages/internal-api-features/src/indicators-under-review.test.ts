@@ -7,6 +7,7 @@ import {
   indicatorsScheduledSchema,
   indicatorsToReviewSchema,
   indicatorsUnderReviewSchema,
+  updatesAwaitingDecisionSchema,
 } from './contract.ts';
 import type { IndicatorAdminListRow } from './indicator-list-repository.ts';
 import { internalIndicatorsUnderReviewRouter } from './indicators-under-review.ts';
@@ -54,6 +55,12 @@ const scheduled: IndicatorAdminListRow = {
   draftUpdateDecision: null,
 };
 
+const awaitingDecision: IndicatorAdminListRow = {
+  ...row,
+  id: '00000000-0000-7000-8000-000000000004',
+  indicatorStatus: 'live',
+};
+
 function createTestApp(
   listUnderReview: InternalIndicatorRepository['listUnderReview'] = vi
     .fn()
@@ -62,10 +69,13 @@ function createTestApp(
   listScheduled: InternalIndicatorRepository['listScheduled'] = vi
     .fn()
     .mockResolvedValue([scheduled]),
+  listAwaitingDecision: InternalIndicatorRepository['listAwaitingDecision'] = vi
+    .fn()
+    .mockResolvedValue([awaitingDecision]),
 ): Express {
   return createRouterTestApp(
     internalIndicatorsUnderReviewRouter(
-      { listUnderReview, listToReview, listScheduled },
+      { listUnderReview, listToReview, listScheduled, listAwaitingDecision },
       testSessionVerifier,
     ),
   );
@@ -206,6 +216,54 @@ describe('GET /api/internal/indicators-scheduled', () => {
   ])('rejects %s', async (_, roles) => {
     const response = await request(createTestApp())
       .get(scheduledPath)
+      .set('Cookie', await testSessionCookie(roles));
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('GET /api/internal/updates-awaiting-decision', () => {
+  const awaitingPath = '/api/internal/updates-awaiting-decision';
+
+  function adminCookie() {
+    return testSessionCookie(['admin'], []);
+  }
+
+  it('answers the list in the shape the contract describes', async () => {
+    const response = await request(createTestApp())
+      .get(awaitingPath)
+      .set('Cookie', await adminCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      indicators: [{ ...awaitingDecision, updatedAt: '2026-08-04T10:00:00.000Z' }],
+    });
+    expect(updatesAwaitingDecisionSchema.safeParse(response.body).success).toBe(true);
+  });
+
+  it("lists the updates the admin's scope lets them see", async () => {
+    const listAwaitingDecision = vi.fn().mockResolvedValue([]);
+
+    await request(createTestApp(undefined, undefined, undefined, listAwaitingDecision))
+      .get(awaitingPath)
+      .set('Cookie', await adminCookie());
+
+    expect(listAwaitingDecision).toHaveBeenCalledWith({ all: true });
+  });
+
+  it('rejects an anonymous request', async () => {
+    const response = await request(createTestApp()).get(awaitingPath);
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    ['a publisher', ['publisher']],
+    ['the IMRG manager', ['imrg-manager']],
+    ['a reviewer', ['imrg-reviewer']],
+  ])('rejects %s', async (_, roles) => {
+    const response = await request(createTestApp())
+      .get(awaitingPath)
       .set('Cookie', await testSessionCookie(roles));
 
     expect(response.status).toBe(403);

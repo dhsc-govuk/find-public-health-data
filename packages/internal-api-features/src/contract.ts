@@ -210,6 +210,11 @@ export const indicatorsScheduledSchema = z.object({
   indicators: z.array(indicatorAdminListItemSchema),
 });
 
+/** The submitted updates waiting for the core team's decision, oldest submission first. */
+export const updatesAwaitingDecisionSchema = z.object({
+  indicators: z.array(indicatorAdminListItemSchema),
+});
+
 export const indicatorIdSchema = z.uuid();
 
 /** The workflow steps the user may take on the indicator now, so the web offers only those. */
@@ -315,6 +320,7 @@ export type IndicatorAdminPage = z.infer<typeof indicatorAdminPageSchema>;
 export type IndicatorsUnderReview = z.infer<typeof indicatorsUnderReviewSchema>;
 export type IndicatorsToReview = z.infer<typeof indicatorsToReviewSchema>;
 export type IndicatorsScheduled = z.infer<typeof indicatorsScheduledSchema>;
+export type UpdatesAwaitingDecision = z.infer<typeof updatesAwaitingDecisionSchema>;
 export type DraftStatus = z.infer<typeof draftStatusSchema>;
 export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;
 export type UpdateDecision = z.infer<typeof updateDecisionSchema>;
@@ -523,3 +529,4 @@ export * from './notes-for-reviewers-contract.ts';
 export * from './review-response-contract.ts';
 export * from './reviewer-notes-contract.ts';
 export * from './revision-response-contract.ts';
+export * from './update-decision-contract.ts';

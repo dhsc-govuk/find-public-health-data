@@ -10,6 +10,7 @@ import type {
   IndicatorTaskKey,
   ReviewerOption,
   TagOptions,
+  UpdateDecisionBody,
   ValueTypeAndUnitOptions,
 } from './contract.ts';
 import { type DataProviderRow, listDataProviders } from './data-provider-repository.ts';
@@ -61,6 +62,7 @@ import {
   listIndicatorsScheduled,
   listIndicatorsToReview,
   listIndicatorsUnderReview,
+  listUpdatesAwaitingDecision,
 } from './indicator-list-repository.ts';
 import {
   type CreateDraftFromPublishedResult,
@@ -112,6 +114,7 @@ import {
   type UpdateTopicResult,
   updateTopic,
 } from './topic-repository.ts';
+import { type DecideUpdateResult, decideUpdate } from './update-decision-repository.ts';
 import { listValueTypeAndUnitOptions } from './value-type-and-unit-repository.ts';
 
 /** The publisher's topic surface: the public listing plus the writes only `internal_api` makes. */
@@ -139,6 +142,8 @@ export interface InternalIndicatorRepository {
   listToReview(reviewerId: string): Promise<IndicatorAdminListRow[]>;
   /** The approved drafts in scope, pending scheduling or scheduled, soonest date first. */
   listScheduled(scope: IndicatorListScope): Promise<IndicatorAdminListRow[]>;
+  /** The submitted updates in scope waiting for the core team's decision, oldest first. */
+  listAwaitingDecision(scope: IndicatorListScope): Promise<IndicatorAdminListRow[]>;
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
   /** The indicator's team and draft reviewers, for an access check, or undefined with none. */
   findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
@@ -194,6 +199,12 @@ export interface InternalIndicatorRepository {
     response: ReviewResponse,
     actor: Actor,
   ): Promise<RespondToReviewResult>;
+  /** Records the core team's decision on the submitted update, as long as it is the one shown. */
+  decideUpdate(
+    indicatorId: string,
+    decision: UpdateDecisionBody,
+    actor: Actor,
+  ): Promise<DecideUpdateResult>;
   /**
    * Confirms an approved draft's publication date, scheduling it, or changes a scheduled one's,
    * as long as the stored date is the one shown.
@@ -318,6 +329,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       listUnderReview: (scope) => listIndicatorsUnderReview(db, scope),
       listToReview: (reviewerId) => listIndicatorsToReview(db, reviewerId),
       listScheduled: (scope) => listIndicatorsScheduled(db, scope),
+      listAwaitingDecision: (scope) => listUpdatesAwaitingDecision(db, scope),
       findById: (id) => getIndicatorById(db, id),
       findAccess: (id) => findIndicatorAccess(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),
@@ -336,6 +348,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       assignReviewers: (indicatorId, assignment, actor) =>
         assignReviewers(db, indicatorId, assignment, actor),
       respond: (indicatorId, response, actor) => respondToReview(db, indicatorId, response, actor),
+      decideUpdate: (indicatorId, decision, actor) =>
+        decideUpdate(db, indicatorId, decision, actor),
       schedule: (indicatorId, schedule, actor) =>
         schedulePublication(db, indicatorId, schedule, actor),
       findRevisionRound: (id) => getRevisionRound(db, id),

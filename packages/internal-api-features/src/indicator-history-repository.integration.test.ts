@@ -152,7 +152,8 @@ describe('findIndicatorHistory', () => {
         revisionResponse: 'Done as asked',
         responses: [
           expect.objectContaining({
-            reviewer: 'Jamie Evans',
+            respondedBy: 'Jamie Evans',
+            fromCoreTeam: false,
             kind: 'minor_revisions',
             imrgReviewedOn: ukToday(),
             clarificationRequest: 'Why this source?',

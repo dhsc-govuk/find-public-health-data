@@ -100,6 +100,20 @@ async function flagsOf(db: Database, responseId: string) {
 }
 
 describe('respondToReview', () => {
+  repositoryTest('refuses a flag on the update summary of a new indicator', async ({ db }) => {
+    const { indicatorId, versionId } = await inReview(db, 'Update summary flagged');
+
+    expect(
+      await respondToReview(
+        db,
+        indicatorId,
+        response({ flags: [{ task: 'update-summary', notes: 'Say more' }] }),
+        AS_REVIEWER,
+      ),
+    ).toEqual({ ok: false, reason: 'not_allowed' });
+    expect(await responsesTo(db, (await submissionOf(db, versionId)).id)).toEqual([]);
+  });
+
   repositoryTest.for<[string, ReviewResponse, string, boolean]>([
     [
       'pre-IMRG feedback',

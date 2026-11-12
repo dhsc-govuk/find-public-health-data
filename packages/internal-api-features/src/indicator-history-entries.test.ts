@@ -30,6 +30,9 @@ function submission(overrides: Partial<HistorySubmissionRecord>): HistorySubmiss
     endedBy: null,
     revisionResponse: null,
     updateChanges: null,
+    updateDecision: null,
+    updateDecidedBy: null,
+    updateDecidedAt: null,
     responses: [],
     ...overrides,
   };
@@ -37,7 +40,8 @@ function submission(overrides: Partial<HistorySubmissionRecord>): HistorySubmiss
 
 function response(overrides: Partial<HistoryResponseRecord>): HistoryResponseRecord {
   return {
-    reviewer: 'Jamie Evans',
+    respondedBy: 'Jamie Evans',
+    fromCoreTeam: false,
     kind: 'minor_revisions',
     imrgReviewedOn: null,
     clarificationRequest: null,
@@ -189,6 +193,72 @@ describe('historyEntries', () => {
     expect(entries.slice(0, 2)).toEqual([
       { kind: 'update_submitted', at: '2026-06-11T09:00:00.000Z', by: 'Sam Taylor', changes },
       { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
+    ]);
+  });
+
+  it.each(['imrg_review', 'publish_with_history', 'publish_without_history'] as const)(
+    "lists the core team's %s decision on an update, by whoever made it",
+    (decision) => {
+      const entries = historyEntries({
+        ...noRecords,
+        submissions: [
+          submission({
+            updateChanges: [],
+            updateDecision: decision,
+            updateDecidedBy: 'Robin Shah',
+            updateDecidedAt: at('04T10:00:00'),
+          }),
+        ],
+      });
+
+      expect(entries[0]).toEqual({
+        kind: 'update_decided',
+        at: '2026-06-04T10:00:00.000Z',
+        by: 'Robin Shah',
+        decision,
+      });
+    },
+  );
+
+  it("lists the core team's request for revisions once, from its response, with its flags", () => {
+    const entries = historyEntries({
+      ...noRecords,
+      submissions: [
+        submission({
+          status: 'changes_requested',
+          updateChanges: [],
+          updateDecision: 'request_revisions',
+          updateDecidedBy: 'Robin Shah',
+          updateDecidedAt: at('04T10:00:00'),
+          responses: [
+            response({
+              respondedBy: 'Robin Shah',
+              fromCoreTeam: true,
+              kind: 'pre_imrg_feedback',
+              respondedAt: at('04T10:00:00'),
+              clarificationRequest: 'Why now?',
+              flags: [
+                { task: 'update-summary', notes: 'Say what changed' },
+                { task: 'polarity', notes: 'Check it' },
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(entries.slice(0, 2)).toEqual([
+      {
+        kind: 'update_revisions_requested',
+        at: '2026-06-04T10:00:00.000Z',
+        by: 'Robin Shah',
+        flags: [
+          { task: 'polarity', notes: 'Check it' },
+          { task: 'update-summary', notes: 'Say what changed' },
+        ],
+        clarificationRequest: 'Why now?',
+      },
+      { kind: 'update_submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor', changes: [] },
     ]);
   });
 
