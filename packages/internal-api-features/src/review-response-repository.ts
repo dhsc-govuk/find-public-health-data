@@ -24,7 +24,7 @@ const {
 export interface ReviewResponse {
   submissionNumber: number;
   kind: ReviewResponseKind;
-  /** The IMRG meeting's date, `YYYY-MM-DD`; null for feedback before it. */
+  /** The IMRG meeting's date, `YYYY-MM-DD`; null for feedback before it and for any response to an update. */
   imrgReviewedOn: string | null;
   clarificationRequest: string | null;
   flags: readonly { task: FlaggableTaskKey; notes: string }[];
@@ -107,16 +107,15 @@ export function responseWrite(response: ReviewResponse, actor: Actor): Indicator
 }
 
 /**
- * Whether the response flags a task the draft does not have: the update summary, which only an
- * update has. It reads whether the indicator is live only when the update summary is flagged.
+ * Whether the response does not fit the draft. An update's reviewer gives no IMRG date, and a new
+ * indicator's approval needs one. Only an update has an update summary to flag.
  */
-export async function flagsMissingTask(
-  tx: Transaction,
-  indicatorId: string,
-  flags: ReviewResponse['flags'],
-): Promise<boolean> {
-  if (flags.every(({ task }) => isFlaggableOn(task, false))) return false;
-  return !(await isPublished(tx, indicatorId));
+function misfitsDraft(response: ReviewResponse, isUpdate: boolean): boolean {
+  if (isUpdate) return response.imrgReviewedOn !== null;
+  return (
+    (response.kind === 'approved' && response.imrgReviewedOn === null) ||
+    response.flags.some(({ task }) => !isFlaggableOn(task, false))
+  );
 }
 
 /**
@@ -125,8 +124,9 @@ export async function flagsMissingTask(
  * for publication on its date. Refused as `changed` when the submission is not the one the
  * reviewer was shown, `not_a_reviewer` when they are not assigned to it,
  * `reviewed_before_submission` for an IMRG date before the version was first submitted,
- * `no_publication_date` for an approval of a draft with no date, and `not_allowed` for a flag on
- * the update summary of a new indicator, which has none.
+ * `no_publication_date` for an approval of a draft with no date, and `not_allowed` for a response
+ * that does not fit the draft: an IMRG date on an update, an approval of a new indicator with no
+ * IMRG date, or a flag on the update summary of a new indicator, which has none.
  */
 export function respondToReview(
   db: Database,
@@ -142,7 +142,7 @@ export function respondToReview(
       if (!(await assignedReviewerIds(tx, latest.id)).includes(actor.userId)) {
         return 'not_a_reviewer';
       }
-      if (await flagsMissingTask(tx, indicatorId, response.flags)) return 'not_allowed';
+      if (misfitsDraft(response, await isPublished(tx, indicatorId))) return 'not_allowed';
       if (response.imrgReviewedOn !== null) {
         const firstOn = await firstSubmittedOn(tx, draft.id);
         if (firstOn !== undefined && response.imrgReviewedOn < firstOn) {

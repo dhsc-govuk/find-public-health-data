@@ -23,6 +23,7 @@ import { completeTaskListDraft } from './indicator-task-list.testing.ts';
 import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
+import { decideUpdate } from './update-decision-repository.ts';
 
 const { indicatorVersion, topic, uploadBatch } = schema;
 
@@ -252,5 +253,28 @@ export async function submittedUpdate(db: Database, name: string): Promise<Opene
   const shown = await answerUpdate(db, update, { polarity: 'no-polarity' });
   const submitted = await submitIndicator(db, update.indicatorId, shown, AS_ACTOR);
   if (!submitted.ok) throw new Error(`submittedUpdate could not submit: ${submitted.reason}`);
+  return update;
+}
+
+/**
+ * An update that changes the polarity, submitted by the repository tests' actor, sent to IMRG by
+ * an admin and in review with the IMRG reviewer assigned.
+ */
+export async function updateInReview(db: Database, name: string): Promise<OpenedUpdate> {
+  const update = await submittedUpdate(db, name);
+  const decided = await decideUpdate(
+    db,
+    update.indicatorId,
+    { submissionNumber: 1, decision: 'imrg_review' },
+    AS_ADMIN,
+  );
+  if (!decided.ok) throw new Error(`updateInReview could not send to IMRG: ${decided.reason}`);
+  const assigned = await assignReviewers(
+    db,
+    update.indicatorId,
+    { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
+    { userId: FAKE_USER_IDS.imrgManager, requestId: null },
+  );
+  if (!assigned.ok) throw new Error(`updateInReview could not assign: ${assigned.reason}`);
   return update;
 }

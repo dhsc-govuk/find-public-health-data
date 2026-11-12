@@ -225,9 +225,11 @@ function isDecision(kind: z.infer<typeof reviewResponseKindSchema>): boolean {
 
 /**
  * The response's field rules on top of its shape, with `now` for the date. An IMRG decision
- * needs a real date no later than today. Feedback and revisions need a flagged task or a
- * clarification request, and each flag needs notes. Text is trimmed; whether the date is before
- * the version's first submission is the repository's to say, under the draft's lock.
+ * needs a real date no later than today, except that an approval may have none. Feedback and
+ * revisions need a flagged task or a clarification request, and each flag needs notes. Text is
+ * trimmed. The repository says, under the draft's lock, whether the date is before the version's
+ * first submission, and whether the draft is an update, whose approval has no date, or a new
+ * indicator, whose approval needs one.
  */
 export function reviewResponseSchemaFor(now: Date) {
   return reviewResponseBodySchema.transform((body, ctx) => {
@@ -235,7 +237,7 @@ export function reviewResponseSchemaFor(now: Date) {
       ctx.addIssue({ code: 'custom', path: [path], message });
     const advised = body.kind === 'pre_imrg_feedback';
 
-    if (isDecision(body.kind)) {
+    if (isDecision(body.kind) && !(body.kind === 'approved' && body.imrgReviewedOn === null)) {
       const date = body.imrgReviewedOn === null ? undefined : parseIsoDate(body.imrgReviewedOn);
       if (body.imrgReviewedOn === null) issue('imrgReviewedOn', ENTER_IMRG_DATE);
       else if (date === undefined) issue('imrgReviewedOn', REAL_IMRG_DATE);

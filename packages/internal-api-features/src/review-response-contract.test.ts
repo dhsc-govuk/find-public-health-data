@@ -189,6 +189,19 @@ describe('reviewResponseSchemaFor', () => {
     });
   });
 
+  it('accepts an approval with no date, as an update is approved', () => {
+    expect(schema.parse({ ...approval, imrgReviewedOn: null })).toEqual({
+      ...approval,
+      imrgReviewedOn: null,
+    });
+  });
+
+  it('refuses an approval dated after today', () => {
+    expect(issues(schema.safeParse({ ...approval, imrgReviewedOn: '2026-11-02' }))).toEqual({
+      imrgReviewedOn: 'Date reviewed by IMRG must be today or in the past',
+    });
+  });
+
   it.each([
     ['no date', null, 'Enter the date this indicator was reviewed by IMRG'],
     ['a date that does not exist', '2026-02-30', 'Date reviewed by IMRG must be a real date'],
