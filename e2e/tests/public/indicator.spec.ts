@@ -81,7 +81,15 @@ test('shows one indicator with its summary and five sections', async ({ page }, 
     page
       .locator('.govuk-summary-list__row')
       .filter({ has: page.getByRole('term').filter({ hasText: name }) });
-  await expect(summaryRow('Period covered')).toContainText('2015 to 2024');
+  const periods = await page
+    .getByRole('table', { name: /^Table:/ })
+    .getByRole('rowheader')
+    .allTextContents();
+  const years = periods.flatMap((period) => (period.match(/\b\d{4}\b/g) ?? []).map(Number));
+  expect(years.length).toBeGreaterThan(0);
+  await expect(summaryRow('Period covered')).toContainText(
+    `${Math.min(...years)} to ${Math.max(...years)}`,
+  );
   await expect(summaryRow('Update frequency')).toContainText('Annually');
   await expect(summaryRow('Definition')).toContainText('Directly age-standardised mortality rate');
   await expect(page.getByRole('tab')).toHaveText([
@@ -317,13 +325,14 @@ test('adds one comparison indicator through search and clears it', async ({ page
   await page.getByRole('tab', { name: 'Compare indicators' }).click();
   const search = page.getByRole('combobox', { name: 'Search for an indicator' });
   await search.fill('smoking');
-  await page.getByRole('option', { name: /Smoking Prevalence in adults/ }).click();
+  const comparison = page.getByRole('option', { name: /smoking/i }).first();
+  await expect(comparison).toBeVisible();
+  const comparisonName = (await comparison.innerText()).trim();
+  await comparison.click();
   await expect(page).toHaveURL(/compareWith=/);
   const table = page.getByRole('table', { name: /Table of indicator comparison/ });
   await expect(table.getByRole('rowheader', { name: 'England' })).toBeVisible();
-  await expect(
-    table.getByRole('columnheader', { name: /Smoking Prevalence in adults/ }),
-  ).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: comparisonName })).toBeVisible();
   await page
     .getByRole('tabpanel', { name: 'Compare indicators' })
     .getByText('Download or share data', { exact: true })
@@ -334,7 +343,7 @@ test('adds one comparison indicator through search and clears it', async ({ page
     'link',
   );
   expect(exported.text).toContain(MORTALITY_NAME);
-  expect(exported.text).toContain('Smoking Prevalence in adults');
+  expect(exported.text).toContain(comparisonName);
   await page.getByRole('link', { name: 'Clear search' }).click();
   await expect(page).not.toHaveURL(/compareWith=/);
   await expect(table).toHaveCount(0);

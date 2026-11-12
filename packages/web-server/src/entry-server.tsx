@@ -52,6 +52,8 @@ export default function handleRequest(
       </NonceProvider>,
       {
         nonce,
+        // Large completed boundaries must stay inline, rather than need scripts to replace fallbacks.
+        progressiveChunkSize: Number.POSITIVE_INFINITY,
         onShellReady() {
           shellRendered = true;
         },

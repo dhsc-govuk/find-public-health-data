@@ -10,7 +10,7 @@ import {
 import { TopicsRoute } from '@fphd/public-web-features';
 import { backLinkHandle } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -177,11 +177,13 @@ describe('internal application routes', () => {
       },
     ]);
 
-    render(<Routes initialEntries={['/manage']} />);
-    await screen.findByRole('heading', { name: 'Manage public health data' });
+    // The heading can appear before the effect installs the restored-page listener.
+    await act(async () => {
+      render(<Routes initialEntries={['/manage']} />);
+    });
+    expect(screen.getByRole('heading', { name: 'Manage public health data' })).toBeTruthy();
 
-    const shown = new Event('pageshow');
-    Object.assign(shown, { persisted });
+    const shown = new PageTransitionEvent('pageshow', { persisted });
     fireEvent(window, shown);
 
     expect(replace.mock.calls).toEqual(fetches);

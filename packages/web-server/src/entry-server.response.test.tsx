@@ -1,4 +1,8 @@
-import type { Logger } from '@fphd/logger';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { request as httpRequest } from '@fphd/express/testing';
+import { createLogger, type Logger } from '@fphd/logger';
 import {
   createRequestHandler,
   type LoaderFunction,
@@ -8,12 +12,17 @@ import {
   type ServerBuild,
   useLoaderData,
 } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DataSection } from '../../public-web-features/src/data-section.tsx';
 import handleRequest, { handleError, streamTimeout } from './entry-server.tsx';
+import { createProductionHost } from './host.ts';
 import { loggerContext } from './logger-context.ts';
 import { nonceContext } from './nonce-context.ts';
+import { createReactRouterApp } from './react-router-app.ts';
+
+const clientDirectory = mkdtempSync(join(tmpdir(), 'fphd-document-response-'));
+afterAll(() => rmSync(clientDirectory, { force: true, recursive: true }));
 
 function Document() {
   return (
@@ -94,6 +103,7 @@ function app(loader: LoaderFunction, root = Document) {
   } as unknown as ServerBuild;
   const handler = createRequestHandler(build, 'development');
   return {
+    build,
     entry,
     logger,
     request: (path = '/sections?view=table') =>
@@ -104,6 +114,31 @@ function app(loader: LoaderFunction, root = Document) {
 afterEach(() => vi.useRealTimers());
 
 describe('real React Router document and data responses', () => {
+  it.each([false, true])(
+    'inlines large completed sections through the production host (promise: %s)',
+    async (deferred) => {
+      const content = 'Complete table row '.repeat(2_000);
+      const { build, entry } = app(() => ({
+        section: deferred ? Promise.resolve(content) : content,
+      }));
+      const host = createProductionHost({
+        clientDirectory,
+        logger: createLogger({ name: 'test-web', level: 'silent' }),
+        requestHandler: createReactRouterApp(async () => build, { trustedProxyHops: 0 }),
+        serviceName: 'test-web',
+      });
+
+      const response = await httpRequest(host).get('/sections?view=table').expect(200);
+
+      expect(entry).toHaveBeenCalledOnce();
+      expect(response.text).toContain(content);
+      expect(response.text).not.toContain('<!--$?-->');
+      expect(response.text).not.toContain('<template');
+      expect(response.text).not.toContain('Try again');
+      expect(response.text).not.toMatch(/<div hidden id="S:/);
+    },
+  );
+
   it('streams .data before deferred data settles without calling the document entry', async () => {
     const section = Promise.withResolvers<string>();
     const { request, entry } = app(() => ({ section: section.promise }));
