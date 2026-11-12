@@ -3106,7 +3106,23 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_observation_dimension_value": {
+          "name": "idx_observation_dimension_value",
+          "columns": [
+            {
+              "expression": "dimension_value_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "observation_dimension_observation_id_observation_id_fk": {
           "name": "observation_dimension_observation_id_observation_id_fk",

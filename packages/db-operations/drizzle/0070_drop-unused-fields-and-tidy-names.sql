@@ -1,4 +1,4 @@
--- For the observation index builds below.
+-- For the observation and observation_dimension index builds below.
 SET LOCAL maintenance_work_mem = '512MB';--> statement-breakpoint
 
 -- The published views that read a dropped column go first, and come back without it at the end
@@ -31,7 +31,11 @@ DROP INDEX "idx_area_code";--> statement-breakpoint
 DROP INDEX "idx_area_code_validity";--> statement-breakpoint
 DROP INDEX "idx_area_type";--> statement-breakpoint
 DROP INDEX "idx_indicator_version_definition_trgm";--> statement-breakpoint
+
+-- The observation_dimension index on dimension_value_id alone serves the same lookups as the
+-- two-column one it replaces, at a fraction of the size.
 DROP INDEX "idx_obs_dim_val_obs";--> statement-breakpoint
+CREATE INDEX "idx_observation_dimension_value" ON "observation_dimension" USING btree ("dimension_value_id");--> statement-breakpoint
 
 -- Every observation index was partial on deleted_at. The two kept are built again over every row
 -- once the column is gone.

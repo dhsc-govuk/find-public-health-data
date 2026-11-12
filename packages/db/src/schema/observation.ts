@@ -116,6 +116,9 @@ export const observationDimension = pgTable(
       t.observationId,
       t.dimensionTypeId,
     ),
+    // Finds the observations that carry a dimension value. Queries that ask whether a value is in
+    // use need it, and so does the foreign key when a dimension value changes or is deleted.
+    index('idx_observation_dimension_value').on(t.dimensionValueId),
   ],
 );
 
