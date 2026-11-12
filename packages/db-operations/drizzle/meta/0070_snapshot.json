@@ -5417,12 +5417,6 @@
     },
     "published.observation_dimension": {
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "observation_id": {
           "name": "observation_id",
           "type": "uuid",
@@ -5449,12 +5443,6 @@
     },
     "published.observation_note": {
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "observation_id": {
           "name": "observation_id",
           "type": "uuid",

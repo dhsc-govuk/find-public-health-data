@@ -2,7 +2,8 @@
 SET LOCAL maintenance_work_mem = '512MB';--> statement-breakpoint
 
 -- The published views that read a dropped column go first, and come back without it at the end
--- with their grants.
+-- with their grants. The observation_dimension and observation_note views also come back without
+-- their id, which nothing reads.
 DROP VIEW published.observation_note;--> statement-breakpoint
 DROP VIEW published.observation_dimension;--> statement-breakpoint
 DROP VIEW published.observation;--> statement-breakpoint
@@ -92,7 +93,7 @@ WHERE o.upload_batch_id = ANY (ARRAY(
 ));--> statement-breakpoint
 
 CREATE VIEW published.observation_dimension AS
-SELECT od.id, od.observation_id, od.dimension_value_id, od.dimension_type_id
+SELECT od.observation_id, od.dimension_value_id, od.dimension_type_id
 FROM observation_dimension od
 WHERE EXISTS (
  SELECT 1 FROM observation o
@@ -104,7 +105,7 @@ WHERE EXISTS (
 );--> statement-breakpoint
 
 CREATE VIEW published.observation_note AS
-SELECT onote.id, onote.observation_id, onote.note_type_id
+SELECT onote.observation_id, onote.note_type_id
 FROM observation_note onote
 WHERE EXISTS (
  SELECT 1 FROM observation o

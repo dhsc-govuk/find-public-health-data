@@ -285,7 +285,6 @@ export const publishedObservation = publishedSchema
 
 export const publishedObservationDimension = publishedSchema
   .view('observation_dimension', {
-    id: uuid('id').notNull(),
     observationId: uuid('observation_id').notNull(),
     dimensionValueId: uuid('dimension_value_id').notNull(),
     dimensionTypeId: uuid('dimension_type_id').notNull(),
@@ -294,7 +293,6 @@ export const publishedObservationDimension = publishedSchema
 
 export const publishedObservationNote = publishedSchema
   .view('observation_note', {
-    id: uuid('id').notNull(),
     observationId: uuid('observation_id').notNull(),
     noteTypeId: uuid('note_type_id').notNull(),
   })
