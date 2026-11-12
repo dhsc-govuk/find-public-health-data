@@ -183,6 +183,36 @@ export const reviewApprovalSchema = z
     return { kind: revisionsKind };
   });
 
+/** The kinds of feedback a reviewer gives when an update cannot be published yet. */
+export const UPDATE_FEEDBACK_REASONS = ['revisions', 'clarification'] as const;
+
+export const updateFeedbackReasonSchema = z.enum(UPDATE_FEEDBACK_REASONS);
+
+/**
+ * "Can this update be published?": yes, or no with at least one kind of feedback. The kinds only
+ * check that the reviewer means to give feedback. What the revisions page then asks for is what
+ * the response records.
+ */
+export const updateApprovalSchema = z
+  .object({
+    approved: z.enum(['yes', 'no'], {
+      error: 'Select whether you approve this update for publishing',
+    }),
+    reasons: z.array(updateFeedbackReasonSchema),
+  })
+  .transform(({ approved, reasons }, ctx) => {
+    if (approved === 'yes') return { approved: true as const };
+    if (reasons.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['reasons'],
+        message: 'Select at least one kind of feedback',
+      });
+      return z.NEVER;
+    }
+    return { approved: false as const, reasons };
+  });
+
 const reviewFlagSchema = z.object({ task: flaggableTaskKeySchema, notes: z.string() });
 
 /**
@@ -309,6 +339,8 @@ export type ReviewResponseKind = z.infer<typeof reviewResponseKindSchema>;
 export type FlaggableTaskKey = z.infer<typeof flaggableTaskKeySchema>;
 export type ReviewResponseType = z.infer<typeof reviewResponseTypeSchema>;
 export type ReviewApproval = z.infer<typeof reviewApprovalSchema>;
+export type UpdateFeedbackReason = z.infer<typeof updateFeedbackReasonSchema>;
+export type UpdateApproval = z.infer<typeof updateApprovalSchema>;
 export type ReviewResponseBody = z.input<typeof reviewResponseBodySchema>;
 export type ReviewResponseFieldErrors = z.infer<typeof reviewResponseFieldErrorsSchema>;
 export type ReviewResponseError = z.infer<typeof reviewResponseErrorSchema>;

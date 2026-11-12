@@ -13,6 +13,7 @@ import {
   reviewResponseSchemaFor,
   reviewResponseTypeSchema,
   toFieldErrors,
+  updateApprovalSchema,
 } from '@fphd/internal-api-features/contract';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
@@ -34,6 +35,8 @@ import {
   readRevisions,
   responseTypeFrom,
   revisionsBody,
+  type UpdateApprovalValues,
+  updateApprovalValuesFrom,
 } from './form.ts';
 import { reviewResponsePath } from './paths.ts';
 import { isRevisionsJourney, journeyFrom, journeySearch, type ReviewJourney } from './query.ts';
@@ -96,16 +99,42 @@ function recap({ name, draftScheduledPublishAt }: IndicatorAdminDetail) {
   return { name, scheduledPublishAt: draftScheduledPublishAt };
 }
 
+/**
+ * The submission a response's first page sends with, and the first page for the indicator: an
+ * update's reviewer is asked whether it can be published, without the IMRG meeting's pages.
+ */
+function firstPageSubmission(
+  { indicatorStatus, draftSubmissionNumber }: IndicatorAdminDetail,
+  id: string,
+  page: 'response-type' | 'update-approval',
+): number {
+  const firstPage = indicatorStatus === 'live' ? 'update-approval' : 'response-type';
+
+  if (page !== firstPage) throw redirect(reviewResponsePath(id, firstPage));
+  if (draftSubmissionNumber === null) throw new Response('Not Found', { status: 404 });
+
+  return draftSubmissionNumber;
+}
+
 export async function loadResponseType({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
   requireReviewer(context);
   const indicator = await waitingIndicator(context, id);
   const journey = journeyFrom(new URL(request.url));
-  const submissionNumber = indicator.draftSubmissionNumber;
-
-  if (submissionNumber === null) throw new Response('Not Found', { status: 404 });
+  const submissionNumber = firstPageSubmission(indicator, id, 'response-type');
 
   return { id, submissionNumber, values: { responseType: responseTypeFrom(journey) } };
+}
+
+/** The submission number a first page posts, which must be one. */
+function postedSubmissionNumber(formData: FormData): number {
+  const submission = formData.get('submissionNumber');
+
+  if (typeof submission !== 'string' || !/^[1-9]\d*$/.test(submission)) {
+    throw new Response('Bad Request', { status: 400 });
+  }
+
+  return Number(submission);
 }
 
 export async function chooseResponseType({
@@ -116,21 +145,14 @@ export async function chooseResponseType({
   const id = requireIndicatorId(params);
   requireReviewer(context);
   const formData = await request.formData();
-  const submission = formData.get('submissionNumber');
+  const submissionNumber = postedSubmissionNumber(formData);
   const responseType = formData.get('responseType');
   const values = { responseType: typeof responseType === 'string' ? responseType : '' };
-
-  if (typeof submission !== 'string' || !/^[1-9]\d*$/.test(submission)) {
-    throw new Response('Bad Request', { status: 400 });
-  }
-
   const chosen = reviewResponseTypeSchema.safeParse(values);
 
   if (!chosen.success) {
     return { values, fieldErrors: toFieldErrors(chosen.error, reviewResponseTypeSchema.keyof()) };
   }
-
-  const submissionNumber = Number(submission);
 
   return chosen.data.responseType === 'pre_imrg_feedback'
     ? redirect(
@@ -263,6 +285,78 @@ export async function chooseApproval({
     clarificationRequest: null,
     flags: [],
   });
+
+  return sent instanceof Response ? sent : { values, ...sent };
+}
+
+export async function loadUpdateApproval({ context, params, request }: LoaderFunctionArgs) {
+  const id = requireIndicatorId(params);
+  requireReviewer(context);
+  const indicator = await waitingIndicator(context, id);
+  const submissionNumber = firstPageSubmission(indicator, id, 'update-approval');
+  const journey = journeyFrom(new URL(request.url));
+
+  return {
+    id,
+    submissionNumber,
+    ...recap(indicator),
+    values: updateApprovalValuesFrom(journey),
+  };
+}
+
+/**
+ * Approves the update from the page, with no IMRG date, or takes a No on to the revisions page as
+ * feedback, carrying the kinds of feedback chosen so the back link reopens the page as it was left.
+ */
+export async function chooseUpdateApproval({
+  context,
+  params,
+  request,
+}: ActionFunctionArgs): Promise<
+  ReviewFormState<keyof UpdateApprovalValues, UpdateApprovalValues> | Response
+> {
+  const id = requireIndicatorId(params);
+  requireReviewer(context);
+  const formData = await request.formData();
+  const submissionNumber = postedSubmissionNumber(formData);
+  const approved = formData.get('approved');
+  const values: UpdateApprovalValues = {
+    approved: typeof approved === 'string' ? approved : '',
+    reasons: formData.getAll('reasons').filter((reason) => typeof reason === 'string'),
+  };
+  const decision = updateApprovalSchema.safeParse({
+    approved: values.approved || undefined,
+    reasons: values.reasons,
+  });
+
+  if (!decision.success) {
+    return {
+      values,
+      fieldErrors: toFieldErrors(decision.error, updateApprovalSchema.in.keyof()),
+    };
+  }
+
+  if (!decision.data.approved) {
+    const journey = {
+      submissionNumber,
+      kind: 'pre_imrg_feedback' as const,
+      reasons: decision.data.reasons,
+    };
+    return redirect(reviewResponsePath(id, 'revisions', journeySearch(journey)));
+  }
+
+  const sent = await sendReviewResponse(
+    context,
+    id,
+    { submissionNumber },
+    {
+      submissionNumber,
+      kind: 'approved',
+      imrgReviewedOn: null,
+      clarificationRequest: null,
+      flags: [],
+    },
+  );
 
   return sent instanceof Response ? sent : { values, ...sent };
 }
