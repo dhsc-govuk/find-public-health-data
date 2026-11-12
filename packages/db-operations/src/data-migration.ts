@@ -132,9 +132,7 @@ async function applyIncremental(
   await prepareVersionDeletes(tx);
   for (const table of [...DATA_MIGRATION_TABLES].reverse()) {
     if (referenceTables.has(table)) continue;
-    const entry = manifest.tables[table];
-    if (!entry) throw new Error(`Incremental package has no ${table} entry`);
-    await applyDeletes(tx, table, entry.deletes.rows);
+    await applyDeletes(tx, table);
   }
   return Object.fromEntries(
     DATA_MIGRATION_TABLES.map((table) => {

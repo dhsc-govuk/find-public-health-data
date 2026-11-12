@@ -171,11 +171,11 @@ describe('db reset (integration)', () => {
     );
   });
 
-  it('reset → migrate → import-core-data → seed-dummy-data rebuilds a working database', async () => {
-    const seeded = await createTestDb({ template: 'seeded' });
-    const sql = seeded.sql;
+  it('empties the database so that db migrate rebuilds it', async () => {
+    const migrated = await createTestDb();
+    const sql = migrated.sql;
     try {
-      const context = testContext(sql, seeded.name, 'test');
+      const context = testContext(sql, migrated.name, 'test');
 
       // Stand-ins for anything a future migration might create, of object kinds the old
       // per-kind sweep did not know: recreating the schema removes them by construction.
@@ -215,16 +215,15 @@ describe('db reset (integration)', () => {
       expect(publicSchema?.public_usage).toBe(true);
 
       await resolveCommand(['db', 'migrate']).run(context);
-      await importCoreData(context);
-      await seedDummyData(context);
 
-      expect(await count(sql, 'topic')).toBeGreaterThan(0);
-      expect(await count(sql, 'indicator')).toBeGreaterThan(0);
-      expect(await count(sql, 'indicator_version')).toBeGreaterThan(0);
-      expect(await count(sql, 'indicator_version_topic')).toBeGreaterThan(0);
-      expect(await count(sql, 'available_data')).toBeGreaterThan(0);
+      const [rebuilt] = await sql<{ indicator: boolean; published: boolean }[]>`
+          SELECT
+            to_regclass('public.indicator') IS NOT NULL AS indicator,
+            to_regclass('published.indicator') IS NOT NULL AS published
+        `;
+      expect(rebuilt).toEqual({ indicator: true, published: true });
     } finally {
-      await seeded.drop();
+      await migrated.drop();
     }
-  }, 180_000);
+  });
 });

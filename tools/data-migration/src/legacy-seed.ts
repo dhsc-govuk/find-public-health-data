@@ -55,11 +55,11 @@ const streamingQueries: readonly [string, string][] = [
   ['observation', `SELECT ${observationColumns} FROM observation o WHERE ${observationWhere}`],
   [
     'observation_dimension',
-    `SELECT od.id,od.observation_id,od.dimension_value_id,dv.dimension_type_id FROM observation_dimension od JOIN dimension_value dv ON dv.id = od.dimension_value_id JOIN observation o ON o.id = od.observation_id WHERE ${observationWhere}`,
+    `SELECT od.observation_id,od.dimension_value_id,dv.dimension_type_id FROM observation_dimension od JOIN dimension_value dv ON dv.id = od.dimension_value_id JOIN observation o ON o.id = od.observation_id WHERE ${observationWhere}`,
   ],
   [
     'observation_note',
-    `SELECT n.id,n.observation_id,n.note_type_id FROM observation_note n JOIN observation o ON o.id = n.observation_id WHERE ${observationWhere}`,
+    `SELECT n.observation_id,n.note_type_id FROM observation_note n JOIN observation o ON o.id = n.observation_id WHERE ${observationWhere}`,
   ],
 ];
 

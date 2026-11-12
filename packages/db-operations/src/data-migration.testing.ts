@@ -10,6 +10,7 @@ import {
   DATA_MIGRATION_NULL,
   DATA_MIGRATION_SCHEMA,
   DATA_MIGRATION_TABLES,
+  dataMigrationKey,
   dataMigrationManifestSchema,
 } from './data-migration-manifest.ts';
 import type { DataMigrationRelationships } from './data-migration-relationships.ts';
@@ -141,7 +142,7 @@ export async function migrationFixture(
     } else {
       const ids = options.deletes?.[table] ?? [];
       const deleteFile = `${table}.deletes.csv.gz`;
-      const header = (options.deleteHeaders?.[table] ?? ['id']).join(',');
+      const header = (options.deleteHeaders?.[table] ?? dataMigrationKey(table)).join(',');
       const deleted = gzipSync(`${[header, ...ids].join('\n')}\n`);
       await writeFile(join(directory, deleteFile), deleted);
       tables[table] = {
