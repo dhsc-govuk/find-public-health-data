@@ -1,31 +1,34 @@
 // No @fphd/ui imports here, so the loader and action unit-test without the jsdom the components need.
-import { sexAndAgesAnswersSchema, sexAndAgesSection } from '@fphd/internal-api-features/contract';
+import {
+  sexGenderAndEthnicityAnswersSchema,
+  sexGenderAndEthnicitySection,
+} from '@fphd/internal-api-features/contract';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { versionedAction } from '../edit-version.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSectionAnswers, saveIndicatorSectionValues } from '../indicator-section.ts';
-import { readSexAndAgesForm } from './form.ts';
+import { readSexGenderAndEthnicityForm } from './form.ts';
 
 /** The draft's answers. */
-export async function loadSexAndAges(args: LoaderFunctionArgs) {
+export async function loadSexGenderAndEthnicity(args: LoaderFunctionArgs) {
   const { id, answers, version } = await loadIndicatorSectionAnswers(
     args,
-    sexAndAgesSection.key,
-    sexAndAgesAnswersSchema,
+    sexGenderAndEthnicitySection.key,
+    sexGenderAndEthnicityAnswersSchema,
   );
 
-  return { id, values: sexAndAgesSection.formValues(answers), version };
+  return { id, values: sexGenderAndEthnicitySection.formValues(answers), version };
 }
 
-export const submitSexAndAges = versionedAction(
+export const submitSexGenderAndEthnicity = versionedAction(
   async (args: ActionFunctionArgs, { formData, version }) =>
     saveIndicatorSectionValues(
       args.context,
       requireIndicatorId(args.params),
-      sexAndAgesSection,
-      readSexAndAgesForm(formData),
+      sexGenderAndEthnicitySection,
+      readSexGenderAndEthnicityForm(formData),
       {
-        answersSchema: sexAndAgesAnswersSchema,
+        answersSchema: sexGenderAndEthnicityAnswersSchema,
         takeIn: (sent) => ({ values: sent, answers: sent }),
         version,
       },

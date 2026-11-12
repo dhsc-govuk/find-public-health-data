@@ -11,10 +11,10 @@ import type { IndicatorSection } from './indicator-section-contract.ts';
 
 const fields = z.enum(['demographics', 'sexes', 'genders', 'ethnicGroups']);
 
-export type SexAndAgesField = z.infer<typeof fields>;
+export type SexGenderAndEthnicityField = z.infer<typeof fields>;
 
 /** The answers as the form holds them: the boxes ticked in each group. */
-export interface SexAndAgesFormValues {
+export interface SexGenderAndEthnicityFormValues {
   demographics: string[];
   sexes: string[];
   genders: string[];
@@ -26,7 +26,7 @@ export const DEMOGRAPHIC_LIST_FIELDS = {
   sex: 'sexes',
   gender: 'genders',
   ethnicity: 'ethnicGroups',
-} as const satisfies Record<Demographic, SexAndAgesField>;
+} as const satisfies Record<Demographic, SexGenderAndEthnicityField>;
 
 type DemographicListField = (typeof DEMOGRAPHIC_LIST_FIELDS)[Demographic];
 
@@ -85,26 +85,26 @@ const schema = z
     },
   );
 
-export type SexAndAges = z.infer<typeof schema>;
+export type SexGenderAndEthnicity = z.infer<typeof schema>;
 
 /** The draft's answers: empty until answered. */
-export const sexAndAgesAnswersSchema = z.object({
+export const sexGenderAndEthnicityAnswersSchema = z.object({
   demographics: z.array(z.enum(DEMOGRAPHICS)),
   sexes: z.array(z.enum(SEXES)),
   genders: z.array(z.enum(GENDERS)),
   ethnicGroups: z.array(z.enum(ETHNIC_GROUPS)),
 });
 
-export type SexAndAgesAnswers = z.infer<typeof sexAndAgesAnswersSchema>;
+export type SexGenderAndEthnicityAnswers = z.infer<typeof sexGenderAndEthnicityAnswersSchema>;
 
-export const sexAndAgesSection: IndicatorSection<
-  SexAndAgesField,
-  SexAndAges,
-  SexAndAgesFormValues,
-  SexAndAgesField,
-  SexAndAgesAnswers
+export const sexGenderAndEthnicitySection: IndicatorSection<
+  SexGenderAndEthnicityField,
+  SexGenderAndEthnicity,
+  SexGenderAndEthnicityFormValues,
+  SexGenderAndEthnicityField,
+  SexGenderAndEthnicityAnswers
 > = {
-  key: 'sex-and-ages',
+  key: 'sex-gender-and-ethnicity',
   fields,
   schema,
   formValues: (answers) => ({

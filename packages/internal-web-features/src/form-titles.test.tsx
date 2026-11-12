@@ -44,7 +44,7 @@ import * as overview from './indicator-overview/route.tsx';
 import * as periodType from './indicator-period-type/route.tsx';
 import * as polarity from './indicator-polarity/route.tsx';
 import * as publishingDate from './indicator-publishing-date/route.tsx';
-import * as sexAndAges from './indicator-sex-and-ages/route.tsx';
+import * as sexGenderAndEthnicity from './indicator-sex-gender-and-ethnicity/route.tsx';
 import * as tagging from './indicator-tagging/route.tsx';
 import * as updateFrequency from './indicator-update-frequency/route.tsx';
 import * as valueTypeAndUnits from './indicator-value-type-and-units/route.tsx';
@@ -99,7 +99,12 @@ function sectionForm<Field extends string>(
   };
 }
 
-const sexAndAgesUnanswered = { demographics: [], sexes: [], genders: [], ethnicGroups: [] };
+const sexGenderAndEthnicityUnanswered = {
+  demographics: [],
+  sexes: [],
+  genders: [],
+  ethnicGroups: [],
+};
 
 const agesUnanswered = {
   ageType: '',
@@ -266,12 +271,12 @@ const forms: {
     hasGoalBenchmark: 'Select whether there are any goal benchmarks for this indicator',
   }),
   {
-    name: 'sex and ages',
-    route: sexAndAges,
+    name: 'sex, gender and ethnicity',
+    route: sexGenderAndEthnicity,
     pageTitle: 'Sex, gender and ethnicity',
-    loaderData: { id: indicator.id, values: sexAndAgesUnanswered },
+    loaderData: { id: indicator.id, values: sexGenderAndEthnicityUnanswered },
     rejected: {
-      values: sexAndAgesUnanswered,
+      values: sexGenderAndEthnicityUnanswered,
       fieldErrors: { demographics: 'Select what was collected for this indicator' },
     },
   },

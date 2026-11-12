@@ -186,7 +186,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'sex-gender-and-ethnicity',
         { demographics: ['sex'], sexes: ['females', 'males'] },
         {},
         AS_ACTOR,

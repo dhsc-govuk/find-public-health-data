@@ -173,7 +173,7 @@ describe('IndicatorTaskListPage', () => {
 
   it.each([
     ['Data', 'Value type and units', 'value-type-and-units'],
-    ['Data', 'Sex, gender and ethnicity', 'sex-and-ages'],
+    ['Data', 'Sex, gender and ethnicity', 'sex-gender-and-ethnicity'],
     ['Data', 'Ages', 'ages'],
     ['Data', 'Period type', 'period-type'],
     ['Data', 'Polarity', 'polarity'],

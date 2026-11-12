@@ -19,6 +19,7 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
 } from './indicator-section-columns.ts';
@@ -26,7 +27,6 @@ import {
   agesColumns,
   denominatorColumns,
   numeratorColumns,
-  sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import { mortality, publishingDate, tagging } from './indicator-sections.testing.ts';
@@ -172,8 +172,8 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       goalPolarity: 'higher-is-better',
       goalPolicyDetail: 'An ambition',
     }),
-  'sex-and-ages': () =>
-    savedFields(sexAndAgesColumns, {
+  'sex-gender-and-ethnicity': () =>
+    savedFields(sexGenderAndEthnicityColumns, {
       demographics: ['sex', 'gender', 'ethnicity'],
       sexes: ['females'],
       genders: ['other'],

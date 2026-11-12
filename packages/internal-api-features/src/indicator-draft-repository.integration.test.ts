@@ -424,7 +424,14 @@ describe('updateIndicatorDraft', () => {
       ethnicGroups: ['asian', 'other'],
     } satisfies IndicatorDraftAttributes;
 
-    await updateIndicatorDraft(db, created.indicatorId, 'sex-and-ages', answers, {}, AS_ACTOR);
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      'sex-gender-and-ethnicity',
+      answers,
+      {},
+      AS_ACTOR,
+    );
 
     expect((await getIndicatorDraftState(db, created.indicatorId))?.draft).toMatchObject(answers);
   });

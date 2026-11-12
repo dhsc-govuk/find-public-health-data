@@ -1,4 +1,4 @@
-import type { SexAndAgesFormValues } from '@fphd/internal-api-features/contract';
+import type { SexGenderAndEthnicityFormValues } from '@fphd/internal-api-features/contract';
 
 /** The boxes ticked in the group called `name`. */
 function ticked(formData: FormData, name: string): string[] {
@@ -6,7 +6,7 @@ function ticked(formData: FormData, name: string): string[] {
 }
 
 /** The boxes ticked in each group. The browser sends nothing for a group with none ticked. */
-export function readSexAndAgesForm(formData: FormData): SexAndAgesFormValues {
+export function readSexGenderAndEthnicityForm(formData: FormData): SexGenderAndEthnicityFormValues {
   return {
     demographics: ticked(formData, 'demographics'),
     sexes: ticked(formData, 'sexes'),

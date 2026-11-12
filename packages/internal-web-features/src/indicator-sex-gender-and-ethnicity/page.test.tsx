@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
-import type { SexAndAgesFormValues } from '@fphd/internal-api-features/contract';
+import type { SexGenderAndEthnicityFormValues } from '@fphd/internal-api-features/contract';
 import { serviceName } from '@fphd/ui';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { noRefusal } from '../testing.ts';
-import { SexAndAgesPage } from './page.tsx';
+import { SexGenderAndEthnicityPage } from './page.tsx';
 
 afterEach(cleanup);
 
 const TITLE = 'Sex, gender and ethnicity';
 
-const empty: SexAndAgesFormValues = {
+const empty: SexGenderAndEthnicityFormValues = {
   demographics: [],
   sexes: [],
   genders: [],
@@ -20,10 +20,10 @@ const empty: SexAndAgesFormValues = {
 };
 
 // The error summary's links read router state, so the page renders inside a router.
-function renderPage(props: Partial<Parameters<typeof SexAndAgesPage>[0]> = {}) {
+function renderPage(props: Partial<Parameters<typeof SexGenderAndEthnicityPage>[0]> = {}) {
   return render(
     <MemoryRouter>
-      <SexAndAgesPage {...noRefusal} values={empty} {...props} />
+      <SexGenderAndEthnicityPage {...noRefusal} values={empty} {...props} />
     </MemoryRouter>,
   );
 }
@@ -38,7 +38,7 @@ function shown(boxes: HTMLInputElement[]) {
   return boxes.map((box) => [box.name, box.value, box.labels?.[0]?.textContent, box.checked]);
 }
 
-describe('SexAndAgesPage', () => {
+describe('SexGenderAndEthnicityPage', () => {
   it('heads the page with its title and asks each question as a group', () => {
     renderPage();
 

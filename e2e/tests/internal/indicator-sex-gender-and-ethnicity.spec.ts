@@ -10,7 +10,7 @@ import {
 } from '../support/section-page.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
 
-const SECTION: Section = { key: 'sex-and-ages', taskName: 'Sex, gender and ethnicity' };
+const SECTION: Section = { key: 'sex-gender-and-ethnicity', taskName: 'Sex, gender and ethnicity' };
 const TITLE = 'Sex, gender and ethnicity';
 
 const COLLECTED = 'What was collected for this indicator?';

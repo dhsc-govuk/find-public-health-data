@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  type SexAndAgesFormValues,
-  sexAndAgesSection as section,
-} from './indicator-sex-and-ages-contract.ts';
+  type SexGenderAndEthnicityFormValues,
+  sexGenderAndEthnicitySection as section,
+} from './indicator-sex-gender-and-ethnicity-contract.ts';
 import { sectionFieldErrors } from './testing.ts';
 
-const form: SexAndAgesFormValues = {
+const form: SexGenderAndEthnicityFormValues = {
   demographics: ['sex'],
   sexes: ['persons'],
   genders: [],
   ethnicGroups: [],
 };
 
-describe('sexAndAgesSection', () => {
+describe('sexGenderAndEthnicitySection', () => {
   it('takes each group of boxes once each, in the order the page lists them', () => {
     const parsed = section.schema.parse({
       ...form,
@@ -127,7 +127,7 @@ describe('sexAndAgesSection', () => {
   });
 });
 
-describe('sexAndAgesSection.formValues', () => {
+describe('sexGenderAndEthnicitySection.formValues', () => {
   it('gives the stored lists to the form', () => {
     expect(
       section.formValues({

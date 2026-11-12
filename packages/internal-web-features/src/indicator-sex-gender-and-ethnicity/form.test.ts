@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readSexAndAgesForm } from './form.ts';
+import { readSexGenderAndEthnicityForm } from './form.ts';
 
 function formData(fields: [string, string][]): FormData {
   const data = new FormData();
@@ -8,10 +8,10 @@ function formData(fields: [string, string][]): FormData {
   return data;
 }
 
-describe('readSexAndAgesForm', () => {
+describe('readSexGenderAndEthnicityForm', () => {
   it('reads every box ticked', () => {
     expect(
-      readSexAndAgesForm(
+      readSexGenderAndEthnicityForm(
         formData([
           ['demographics', 'sex'],
           ['demographics', 'ethnicity'],
@@ -30,7 +30,7 @@ describe('readSexAndAgesForm', () => {
   });
 
   it('reads groups the browser did not send, with no boxes ticked, as empty', () => {
-    expect(readSexAndAgesForm(new FormData())).toEqual({
+    expect(readSexGenderAndEthnicityForm(new FormData())).toEqual({
       demographics: [],
       sexes: [],
       genders: [],

@@ -24,7 +24,7 @@ const SECTIONS = [
   'other-comments',
   'copyright-and-data-reuse',
   'benchmarking',
-  'sex-and-ages',
+  'sex-gender-and-ethnicity',
   'ages',
   'tagging',
 ];

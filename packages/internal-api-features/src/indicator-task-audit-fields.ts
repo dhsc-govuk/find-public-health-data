@@ -11,7 +11,7 @@ import {
   otherNotesAndCaveatsSection,
   periodTypeSection,
   polaritySection,
-  sexAndAgesSection,
+  sexGenderAndEthnicitySection,
   valueTypeAndUnitsSection,
 } from './contract.ts';
 import { UNORDERED_LISTS } from './indicator-version-lists-repository.ts';
@@ -45,7 +45,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   'publishing-date': ['scheduledPublishAt'],
   'copyright-and-data-reuse': copyrightAndDataReuseSection.fields.options,
   benchmarking: benchmarkingSection.fields.options,
-  'sex-and-ages': sexAndAgesSection.fields.options,
+  'sex-gender-and-ethnicity': sexGenderAndEthnicitySection.fields.options,
   ages: agesSection.fields.options,
   tagging: [...UNORDERED_LISTS, 'primaryTopicId', 'isAreaContext', 'hasLifeStage', 'hasFramework'],
 };

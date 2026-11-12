@@ -175,8 +175,8 @@ export default [
         '../../../packages/internal-web-features/src/indicator-benchmarking/route.tsx',
       ),
       route(
-        'publish/indicators/:id/sex-and-ages',
-        '../../../packages/internal-web-features/src/indicator-sex-and-ages/route.tsx',
+        'publish/indicators/:id/sex-gender-and-ethnicity',
+        '../../../packages/internal-web-features/src/indicator-sex-gender-and-ethnicity/route.tsx',
       ),
       route(
         'publish/indicators/:id/ages',

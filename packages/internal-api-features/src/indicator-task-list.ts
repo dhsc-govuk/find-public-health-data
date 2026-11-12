@@ -21,7 +21,7 @@ import {
   polaritySection,
   publishingDateSection,
   revisionKindSchema,
-  sexAndAgesSection,
+  sexGenderAndEthnicitySection,
   taggingSection,
   updateFrequencySection,
   valueTypeAndUnitsSection,
@@ -42,6 +42,7 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
@@ -50,7 +51,6 @@ import {
   agesColumns,
   denominatorColumns,
   numeratorColumns,
-  sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import type { RevisionRoundRow } from './revision-response-repository.ts';
@@ -147,7 +147,10 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
       copyrightAndDataReuseColumns,
     ),
     benchmarking: complete(benchmarkingSection, benchmarkingColumns),
-    'sex-and-ages': complete(sexAndAgesSection, sexAndAgesColumns),
+    'sex-gender-and-ethnicity': complete(
+      sexGenderAndEthnicitySection,
+      sexGenderAndEthnicityColumns,
+    ),
     ages: complete(agesSection, agesColumns),
     tagging: complete(taggingSection, taggingColumns),
   };

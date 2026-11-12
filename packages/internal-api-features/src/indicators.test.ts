@@ -1090,7 +1090,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         'other-comments': 'not_started',
         'copyright-and-data-reuse': 'not_started',
         benchmarking: 'not_started',
-        'sex-and-ages': 'not_started',
+        'sex-gender-and-ethnicity': 'not_started',
         ages: 'not_started',
         tagging: 'not_started',
       },

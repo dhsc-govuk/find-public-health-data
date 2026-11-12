@@ -6,9 +6,6 @@ import {
   type ProviderSources,
   type ProviderSourcesAnswers,
   type ProviderSourcesField,
-  type SexAndAges,
-  type SexAndAgesAnswers,
-  type SexAndAgesField,
   TAG_LIST_DETAILS,
   type Tagging,
   type TaggingAnswers,
@@ -42,26 +39,6 @@ export const denominatorColumns: IndicatorSectionColumns<
   }),
   toAttributes: ({ definition }) => ({ denominatorDefinition: definition }),
   toLists: ({ sources }) => ({ denominatorSources: sources }),
-};
-
-export const sexAndAgesColumns: IndicatorSectionColumns<
-  SexAndAgesField,
-  SexAndAges,
-  SexAndAgesAnswers
-> = {
-  fromDraft: (draft) => ({
-    demographics: draft.demographics ?? [],
-    sexes: draft.sexes ?? [],
-    genders: draft.genders ?? [],
-    ethnicGroups: draft.ethnicGroups ?? [],
-  }),
-  // The lists of a demographic not collected are cleared, whatever the form sent.
-  toAttributes: ({ demographics, sexes, genders, ethnicGroups }) => ({
-    demographics,
-    sexes: demographics.includes('sex') ? sexes : null,
-    genders: demographics.includes('gender') ? genders : null,
-    ethnicGroups: demographics.includes('ethnicity') ? ethnicGroups : null,
-  }),
 };
 
 // A limit or age the form accepted, which is a whole number or nothing.

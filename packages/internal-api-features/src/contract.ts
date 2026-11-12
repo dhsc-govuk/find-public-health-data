@@ -486,7 +486,7 @@ export * from './indicator-polarity-contract.ts';
 export * from './indicator-publishing-date-contract.ts';
 export * from './indicator-schedule-contract.ts';
 export * from './indicator-section-contract.ts';
-export * from './indicator-sex-and-ages-contract.ts';
+export * from './indicator-sex-gender-and-ethnicity-contract.ts';
 export * from './indicator-tagging-contract.ts';
 export * from './indicator-update-frequency-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';

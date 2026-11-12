@@ -13,6 +13,7 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
@@ -584,6 +585,33 @@ describe('benchmarkingColumns', () => {
       goalUpperValue: null,
       goalPolarity: null,
       goalPolicyDetail: null,
+    });
+  });
+});
+
+describe('sexGenderAndEthnicityColumns', () => {
+  it('reads unanswered demographics and their lists as none', () => {
+    expect(sexGenderAndEthnicityColumns.fromDraft(unansweredDraft)).toEqual({
+      demographics: [],
+      sexes: [],
+      genders: [],
+      ethnicGroups: [],
+    });
+  });
+
+  it('writes the list of each demographic collected, and clears the others', () => {
+    expect(
+      sexGenderAndEthnicityColumns.toAttributes({
+        demographics: ['gender', 'ethnicity'],
+        sexes: ['females', 'males'],
+        genders: ['non-binary'],
+        ethnicGroups: ['mixed', 'white'],
+      }),
+    ).toEqual({
+      demographics: ['gender', 'ethnicity'],
+      sexes: null,
+      genders: ['non-binary'],
+      ethnicGroups: ['mixed', 'white'],
     });
   });
 });

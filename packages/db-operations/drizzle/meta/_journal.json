@@ -547,6 +547,13 @@
       "when": 1794492496919,
       "tag": "0077_allow-flags-on-ages-task",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794492668327,
+      "tag": "0078_rename-sex-gender-and-ethnicity-task",
+      "breakpoints": true
     }
   ]
 }
