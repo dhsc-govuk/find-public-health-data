@@ -1770,13 +1770,17 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 
 .fphd-topic-highlight .fphd-trend-tag {
   @include govuk-font-size($size: 16);
+  min-width: 0;
   max-width: 100%;
   white-space: normal;
 }
 
+// The 20rem minimum keeps the cards to two columns at most, even at the widest page, as the
+// prototype shows them. It also keeps the summary list's value column wide enough for the longest
+// trend tag.
 .fphd-topic-highlight-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: govuk-spacing(4);
   margin-top: govuk-spacing(4);
 }
