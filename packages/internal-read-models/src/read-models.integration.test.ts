@@ -1,7 +1,7 @@
 import { type Database, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { and, count, eq, sql } from 'drizzle-orm';
+import { afterAll, beforeAll, describe, expect, expectTypeOf, it } from 'vitest';
 
 import {
   rebuildReadModelTables,
@@ -100,7 +100,31 @@ async function tableLockWaiters(): Promise<number> {
   return row?.waiting ?? 0;
 }
 
+async function indicatorLockWaiters(): Promise<number> {
+  const [row] = await db
+    .select({ waiting: count() })
+    .from(sql`pg_locks AS locks`)
+    .innerJoin(sql`pg_stat_activity AS activity`, sql`activity.pid = locks.pid`)
+    .where(
+      and(
+        sql`activity.datname = current_database()`,
+        sql`activity.wait_event_type = 'Lock'`,
+        sql`locks.locktype = 'tuple'`,
+        sql`locks.relation = ${'indicator'}::regclass`,
+        sql`locks.mode = 'ExclusiveLock'`,
+        sql`locks.granted`,
+        sql`cardinality(pg_blocking_pids(locks.pid)) > 0`,
+      ),
+    );
+  return row?.waiting ?? 0;
+}
+
 describe('refreshIndicatorReadModels', () => {
+  it('requires an open transaction for both rebuild entry points', () => {
+    expectTypeOf<Database>().not.toExtend<Parameters<typeof refreshIndicatorReadModels>[0]>();
+    expectTypeOf<Database>().not.toExtend<Parameters<typeof rebuildReadModelTables>[0]>();
+  });
+
   it("leaves the indicator's rows as a whole rebuild would", async () => {
     const [indicatorId] = await seededIndicatorIds();
     if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');
@@ -189,21 +213,16 @@ describe('refreshIndicatorReadModels', () => {
       await released;
     });
     await rebuilding;
-    const second = db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+    const second = db.transaction(async (tx) => {
+      await tx
+        .select({ indicatorId: sql<string>`${schema.indicator.id}`.as('waiting_indicator') })
+        .from(schema.indicator)
+        .where(eq(schema.indicator.id, indicatorId))
+        .for('no key update');
+      await refreshIndicatorReadModels(tx, indicatorId);
+    });
     try {
-      await expect
-        .poll(
-          async () => {
-            const [row] = await db.execute<{ waiting: number }>(sql`
-            SELECT count(*)::int AS waiting FROM pg_stat_activity
-            WHERE datname = current_database() AND wait_event_type = 'Lock'
-              AND query LIKE 'select "id" from "indicator"%'
-          `);
-            return row?.waiting;
-          },
-          { timeout: 10_000 },
-        )
-        .toBe(1);
+      await expect.poll(indicatorLockWaiters, { timeout: 10_000 }).toBe(1);
       await expect(
         db.transaction((tx) => refreshIndicatorReadModels(tx, otherId)),
       ).resolves.toBeUndefined();

@@ -35,15 +35,22 @@ export async function rebuildReadModels(
       .as('rebuild_indicators');
     return db.select().from(ids).orderBy(ids.id);
   });
-  for (const { id: indicatorId } of indicators) {
-    const timings: ReadModelTiming[] = [];
-    const started = performance.now();
-    await sql.begin((tx) =>
-      refreshIndicatorReadModels(createDbFromTransaction(tx), indicatorId, (timing) =>
-        timings.push(timing),
-      ),
-    );
-    onProgress?.({ indicatorId, milliseconds: performance.now() - started, timings });
+  try {
+    for (const { id: indicatorId } of indicators) {
+      const timings: ReadModelTiming[] = [];
+      const started = performance.now();
+      await sql.begin((tx) =>
+        refreshIndicatorReadModels(createDbFromTransaction(tx), indicatorId, (timing) =>
+          timings.push(timing),
+        ),
+      );
+      onProgress?.({ indicatorId, milliseconds: performance.now() - started, timings });
+    }
+  } catch (error) {
+    // Completed indicators remain committed after a stop. Refresh their planner statistics even
+    // then, but keep the original failure if the connection also prevents ANALYZE from running.
+    await analyzeReadModels(sql).catch(() => {});
+    throw error;
   }
   await analyzeReadModels(sql);
 }

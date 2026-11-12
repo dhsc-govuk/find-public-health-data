@@ -1,4 +1,4 @@
-import { type Database, schema } from '@fphd/db';
+import { schema } from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   ROLLING_PERIOD_THRESHOLD_DAYS,
@@ -18,7 +18,7 @@ const {
   observation,
 } = schema;
 
-type Executor = Database | Transaction;
+type Executor = Transaction;
 type PeriodType = schema.ObservationSeriesVariant['periodType'];
 
 /** The latest five non-null `column` values of a group, newest period first. */

@@ -10,6 +10,7 @@ export {
   pingDb,
   type Schema,
   type SqlClient,
+  type TransactionDatabase,
 } from './client.ts';
 export { dimensionKey } from './dimension-key.ts';
 export {

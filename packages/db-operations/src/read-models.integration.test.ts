@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { schema } from '@fphd/db';
+import { createDbFromTransaction, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
 import { eq, sql as fragment, getTableColumns, inArray } from 'drizzle-orm';
@@ -289,6 +289,23 @@ describe('the read-model rebuild', () => {
 
   it('keeps completed indicators committed when the job stops', async () => {
     const db = draftDb.db;
+    const analysisTimes = async () => {
+      await draftSql.begin(async (tx) => {
+        await createDbFromTransaction(tx)
+          .select({ flushed: fragment`pg_stat_force_next_flush()` })
+          .from(fragment`pg_stat_all_tables`)
+          .limit(1);
+      });
+      return db
+        .select({
+          table: fragment<string>`relname`,
+          analysedAt: fragment<string | null>`last_analyze::text`,
+        })
+        .from(fragment`pg_stat_all_tables`)
+        .where(inArray(fragment`relname`, [...READ_MODEL_TABLES]))
+        .orderBy(fragment`relname`);
+    };
+    const analysedBefore = await analysisTimes();
     const [first, second] = await db
       .select({ id: schema.indicator.id })
       .from(schema.indicator)
@@ -330,6 +347,14 @@ describe('the read-model rebuild', () => {
     expect(await rowsOf(first.id)).toEqual(firstBefore);
     expect(await rowsOf(second.id)).toEqual(secondStale);
     expect(secondStale).not.toEqual(secondBefore);
+    const analysedAfter = await analysisTimes();
+    expect(analysedAfter).toHaveLength(READ_MODEL_TABLES.length);
+    for (const { table, analysedAt } of analysedAfter) {
+      expect(analysedAt, table).not.toBeNull();
+      expect(analysedAt, table).not.toBe(
+        analysedBefore.find((row) => row.table === table)?.analysedAt,
+      );
+    }
     await rebuildReadModels(draftSql);
     expect(await rowsOf(second.id)).toEqual(secondBefore);
   });

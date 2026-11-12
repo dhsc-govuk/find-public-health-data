@@ -14,6 +14,13 @@ export type SqlClient = postgres.Sql;
 // shutdown, instead of leaving the process to hang on an open socket.
 export type Database = PostgresJsDatabase<Schema> & { $client: postgres.Sql };
 
+const transactionScope = Symbol('transactionScope');
+
+// Branding keeps autocommit handles out of APIs whose locks need to last until commit.
+export type TransactionDatabase = Database & {
+  readonly [transactionScope]: true;
+};
+
 /**
  * Signs in with a password, or with an Entra token from the managed identity whose client ID is
  * given.
@@ -103,9 +110,11 @@ export function createDbFromClient(client: postgres.Sql): Database {
  * but columns drizzle expects raw (timestamps) arrive driver-parsed. Callers must read
  * only values both parse identically: uuids, integers, text.
  */
-export function createDbFromTransaction(tx: postgres.TransactionSql): Database {
+export function createDbFromTransaction(tx: postgres.TransactionSql): TransactionDatabase {
   const facade = Object.assign(Object.create(tx), {
     options: { parsers: {}, serializers: {} },
   });
-  return drizzle(facade as postgres.Sql, { schema, casing: 'snake_case' });
+  return Object.assign(drizzle(facade as postgres.Sql, { schema, casing: 'snake_case' }), {
+    [transactionScope]: true as const,
+  });
 }

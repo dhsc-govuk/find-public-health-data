@@ -1,10 +1,12 @@
-import { type Database, schema } from '@fphd/db';
+import { type Database, schema, type TransactionDatabase } from '@fphd/db';
 import { and, count, countDistinct, eq, isNotNull, max, min, sql } from 'drizzle-orm';
 
 import { replaceObservationSeries } from './observation-series.ts';
 
-/** A transaction opened on a `Database`, as its `transaction` callback receives it. */
-export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+/** Drizzle transactions and facades over an already-open postgres.js transaction. */
+export type Transaction =
+  | Parameters<Parameters<Database['transaction']>[0]>[0]
+  | TransactionDatabase;
 
 /** The derived tables, so the rebuild, the seed's truncate and the row-count report agree. */
 export const READ_MODEL_TABLES = [
@@ -22,7 +24,7 @@ export interface ReadModelTiming {
 type OnTiming = (timing: ReadModelTiming) => void;
 
 async function replaceReadModelRows(
-  tx: Database | Transaction,
+  tx: Transaction,
   indicatorId: string,
   onTiming?: OnTiming,
 ): Promise<void> {
@@ -150,7 +152,7 @@ async function replaceReadModelRows(
  * published ends with no rows.
  */
 export async function refreshIndicatorReadModels(
-  tx: Database | Transaction,
+  tx: Transaction,
   indicatorId: string,
   onTiming?: OnTiming,
 ): Promise<void> {
@@ -169,7 +171,7 @@ export async function refreshIndicatorReadModels(
  * readers through but holds back a per-indicator refresh until the rebuild commits, so none can
  * commit between the rebuild's DELETE and its INSERT and collide with it on a primary key.
  */
-export async function rebuildReadModelTables(tx: Database | Transaction): Promise<void> {
+export async function rebuildReadModelTables(tx: Transaction): Promise<void> {
   await tx.execute(
     sql`LOCK TABLE ${sql.raw(READ_MODEL_TABLES.join(', '))} IN SHARE ROW EXCLUSIVE MODE`,
   );
