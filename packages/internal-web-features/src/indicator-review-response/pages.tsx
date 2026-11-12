@@ -15,7 +15,7 @@ import {
 } from '@fphd/ui';
 
 import { IndicatorSectionForm, QUESTION_HEADING_SIZE } from '../indicator-section-form.tsx';
-import { TASK_GROUPS } from '../indicator-tasks.ts';
+import { taskGroups } from '../indicator-tasks.ts';
 import {
   type ApprovalValues,
   type DateValues,
@@ -190,28 +190,38 @@ export function ApprovalPage({
 
 const REVISIONS_TITLE = 'What needs to be revised or clarified?';
 
-/** The groups a reviewer flags tasks from: the task list's, without the notes for reviewers. */
-const FLAG_GROUPS = TASK_GROUPS.map((group) => ({
-  ...group,
-  tasks: group.tasks.flatMap(({ key, title }) => {
-    const task = flaggableTaskKeySchema.safeParse(key);
-    return task.success ? [{ key: task.data, title }] : [];
-  }),
-})).filter(({ tasks }) => tasks.length > 0);
-
-const REVISIONS_FIELDS: readonly ReviewResponseField[] = [
-  'flags',
-  'clarificationRequest',
-  ...FLAG_GROUPS.flatMap(({ tasks }) => tasks.map(({ key }) => flagNotesName(key))),
-];
+/**
+ * The groups tasks are flagged from: the draft's task list groups, without the notes for
+ * reviewers. An update's Publishing group ends with its update summary.
+ */
+function flagGroups(isUpdate: boolean) {
+  return taskGroups(isUpdate)
+    .map((group) => ({
+      ...group,
+      tasks: group.tasks.flatMap(({ key, title }) => {
+        const task = flaggableTaskKeySchema.safeParse(key);
+        return task.success ? [{ key: task.data, title }] : [];
+      }),
+    }))
+    .filter(({ tasks }) => tasks.length > 0);
+}
 
 export function RevisionsPage({
   kind,
+  isUpdate,
   ...form
 }: ReviewPageProps<ReviewResponseField, RevisionsValues> & {
   kind: Exclude<ReviewResponseKind, 'approved'>;
+  /** Whether the draft is an update, which has an update summary to flag. */
+  isUpdate: boolean;
 }) {
   const { fieldErrors, values } = form;
+  const groups = flagGroups(isUpdate);
+  const fields: readonly ReviewResponseField[] = [
+    'flags',
+    'clarificationRequest',
+    ...groups.flatMap(({ tasks }) => tasks.map(({ key }) => flagNotesName(key))),
+  ];
   const notesLabel =
     kind === 'pre_imrg_feedback'
       ? 'Enter advised revisions or clarification request'
@@ -220,7 +230,7 @@ export function RevisionsPage({
   return (
     <IndicatorSectionForm
       fieldIds={{ flags: firstCheckboxId('clarification') }}
-      fields={REVISIONS_FIELDS}
+      fields={fields}
       form={form}
       title={REVISIONS_TITLE}
     >
@@ -248,7 +258,7 @@ export function RevisionsPage({
           },
         ]}
       />
-      {FLAG_GROUPS.map(({ id, title, tasks }) => (
+      {groups.map(({ id, title, tasks }) => (
         <Checkboxes
           classModifiers="small"
           defaultValue={values.flags}

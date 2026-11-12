@@ -3,6 +3,7 @@ import {
   canAssignReviewers,
   canBrowseAllIndicators,
   canCreateIndicator,
+  canDecideUpdates,
   canReviewIndicators,
   canSchedulePublication,
 } from '@fphd/auth/permissions';
@@ -12,6 +13,7 @@ import {
   indicatorsScheduledSchema,
   indicatorsToReviewSchema,
   indicatorsUnderReviewSchema,
+  updatesAwaitingDecisionSchema,
 } from '@fphd/internal-api-features/contract';
 import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
@@ -46,8 +48,8 @@ async function loadIndicatorList(api: ApiClient, page: number, ownTeams: boolean
 
 /**
  * An IMRG manager sees the indicators under review, an IMRG reviewer the indicators assigned to
- * them, an admin the approved indicators waiting to be published, and an admin or anyone else a
- * page of the indicators they work on. A user with several of these roles, or one who also
+ * them, an admin the approved indicators waiting to be published and the submitted updates
+ * waiting for their decision, and an admin or anyone else a page of the indicators they work on. A user with several of these roles, or one who also
  * publishes, sees each. An invalid page number, or a page past the first for someone with no
  * list, is a 404.
  */
@@ -62,13 +64,14 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
   const canCreate = session !== undefined && canCreateIndicator(session);
   const browsing = session !== undefined && canBrowseAllIndicators(session);
   const scheduling = session !== undefined && canSchedulePublication(session);
+  const deciding = session !== undefined && canDecideUpdates(session);
   const listing = (!managing && !reviewing) || canCreate || browsing;
   const { page } = query.data;
 
   if (!listing && page > 1) throw notFound();
 
   const api = context.get(apiContext);
-  const [underReview, toReview, scheduled, list] = await Promise.all([
+  const [underReview, toReview, scheduled, awaitingDecision, list] = await Promise.all([
     managing ? api.get('/api/internal/indicators-under-review', indicatorsUnderReviewSchema) : null,
     reviewing
       ? api
@@ -80,6 +83,11 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
           .get('/api/internal/indicators-scheduled', indicatorsScheduledSchema)
           .then(({ indicators }) => indicators)
       : null,
+    deciding
+      ? api
+          .get('/api/internal/updates-awaiting-decision', updatesAwaitingDecisionSchema)
+          .then(({ indicators }) => indicators)
+      : null,
     listing ? loadIndicatorList(api, page, (managing || reviewing) && !browsing) : null,
   ]);
 
@@ -87,6 +95,7 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
     underReview,
     toReview,
     scheduled,
+    awaitingDecision,
     list: list === null ? null : { canCreate, ...list },
     // Taken after the fetches, so a failed page load does not consume the message it would show.
     notification: dashboardNotification(takeFlash(context)),
