@@ -227,10 +227,11 @@ export interface IndicatorStepOptions<Reason extends string> {
 async function reviewersCarriedBy(
   tx: Transaction,
   step: IndicatorStep,
+  context: IndicatorWorkflowContext,
   state: { indicatorId: string; latest: Submission | undefined; actor: Actor },
   reviewersToCarry: ReviewersToCarry | undefined,
 ): Promise<CarriedReviewer[]> {
-  if (!carriesReviewers(step)) return [];
+  if (!carriesReviewers(step, context.indicatorStatus)) return [];
   if (reviewersToCarry === undefined) throw new Error(`${step} was given no reviewersToCarry`);
   const { latest } = state;
   return latest === undefined ? [] : reviewersToCarry(tx, { ...state, latest });
@@ -305,6 +306,7 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
   const carried = await reviewersCarriedBy(
     tx,
     step,
+    context,
     { indicatorId, latest, actor },
     reviewersToCarry,
   );

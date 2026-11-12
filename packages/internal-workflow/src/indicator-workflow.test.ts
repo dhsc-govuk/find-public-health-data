@@ -5,7 +5,12 @@ import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-
 import { UPDATE_DECISIONS } from '@fphd/utils/update-decision';
 import { describe, expect, it } from 'vitest';
 
-import { allowedSteps, type IndicatorWorkflowContext, nextState } from './indicator-workflow.ts';
+import {
+  allowedSteps,
+  carriesReviewers,
+  type IndicatorWorkflowContext,
+  nextState,
+} from './indicator-workflow.ts';
 
 /**
  * Every context the workflow can be asked about: each combination of indicator status, version
@@ -55,10 +60,8 @@ it.each(INDICATOR_STEPS)('opens %s in some context', (step) => {
   expect(CONTEXTS.some((context) => nextState(context, step).ok)).toBe(true);
 });
 
-it.each(
-  INDICATOR_STEPS.filter((step) => !(UPDATE_DECISION_STEPS as readonly string[]).includes(step)),
-)('opens %s whatever the update decision', (step) => {
-  for (const context of CONTEXTS) {
+it.each(INDICATOR_STEPS)('opens %s to a new indicator whatever the update decision', (step) => {
+  for (const context of CONTEXTS.filter(({ indicatorStatus }) => indicatorStatus === 'new')) {
     for (const latestUpdateDecision of UPDATE_DECISIONS) {
       expect(nextState({ ...context, latestUpdateDecision }, step).ok).toBe(
         nextState(context, step).ok,
@@ -66,6 +69,28 @@ it.each(
     }
   }
 });
+
+/** The steps whose openness on an update depends on the core team's decision. */
+const DECIDED_STEPS = [
+  ...UPDATE_DECISION_STEPS,
+  'assign_reviewers',
+  'give_feedback',
+  'request_changes',
+  'approve',
+] as const;
+
+it.each(INDICATOR_STEPS.filter((step) => !(DECIDED_STEPS as readonly string[]).includes(step)))(
+  'opens %s to an update whatever the update decision',
+  (step) => {
+    for (const context of CONTEXTS.filter(({ indicatorStatus }) => indicatorStatus === 'live')) {
+      for (const latestUpdateDecision of UPDATE_DECISIONS) {
+        expect(nextState({ ...context, latestUpdateDecision }, step).ok).toBe(
+          nextState(context, step).ok,
+        );
+      }
+    }
+  },
+);
 
 describe('submit', () => {
   it.each([
@@ -157,11 +182,16 @@ describe.each([
   });
 });
 
+const sentToImrg = { ...submittedUpdate, latestUpdateDecision: 'imrg_review' } as const;
+const updateInReview = { ...sentToImrg, latestSubmissionStatus: 'in_review' } as const;
+
 describe('assign_reviewers', () => {
   it.each([
-    ['submitted', submitted],
-    ['in review', inReview],
-  ])("puts a new indicator's %s submission in review, its draft still locked", (_, context) => {
+    ["a new indicator's submitted", submitted],
+    ["a new indicator's in review", inReview],
+    ["an update's sent to IMRG", sentToImrg],
+    ["an update's in review", updateInReview],
+  ])('puts %s submission in review, its draft still locked', (_, context) => {
     expect(nextState(context, 'assign_reviewers')).toEqual({
       ok: true,
       state: { versionStatus: 'draft', submissionStatus: 'in_review', isLocked: true },
@@ -169,13 +199,24 @@ describe('assign_reviewers', () => {
   });
 
   it('is refused in every other context', () => {
-    const open = CONTEXTS.filter((context) => nextState(context, 'assign_reviewers').ok);
+    const open = ALL_CONTEXTS.filter((context) => nextState(context, 'assign_reviewers').ok);
 
-    expect(open).toEqual([submitted, inReview]);
+    expect(open.filter(({ indicatorStatus }) => indicatorStatus === 'live')).toEqual([
+      sentToImrg,
+      updateInReview,
+    ]);
+    expect(CONTEXTS.filter((context) => nextState(context, 'assign_reviewers').ok)).toEqual([
+      submitted,
+      inReview,
+    ]);
   });
 
-  it('is refused for the draft of a live indicator', () => {
-    expect(nextState({ ...submitted, indicatorStatus: 'live' }, 'assign_reviewers')).toEqual({
+  it.each([
+    ['no decision', null],
+    ['sent back for revisions', 'request_revisions'],
+    ['approved for publishing', 'publish_with_history'],
+  ] as const)('is refused for an update with %s', (_, latestUpdateDecision) => {
+    expect(nextState({ ...submittedUpdate, latestUpdateDecision }, 'assign_reviewers')).toEqual({
       ok: false,
       reason: 'not_allowed',
     });
@@ -183,10 +224,10 @@ describe('assign_reviewers', () => {
 });
 
 describe.each([
-  ['give_feedback', 'changes_requested', false],
-  ['request_changes', 'changes_requested', false],
-  ['approve', 'approved', true],
-] as const)('%s', (step, submissionStatus, isLocked) => {
+  ['give_feedback', 'changes_requested', false, [inReview, updateInReview]],
+  ['request_changes', 'changes_requested', false, [inReview]],
+  ['approve', 'approved', true, [inReview, updateInReview]],
+] as const)('%s', (step, submissionStatus, isLocked, opensFrom) => {
   it(`ends a new indicator's submission in review as ${submissionStatus}`, () => {
     expect(nextState(inReview, step)).toEqual({
       ok: true,
@@ -195,31 +236,51 @@ describe.each([
   });
 
   it('is refused in every other context', () => {
-    const open = CONTEXTS.filter((context) => nextState(context, step).ok);
+    const open = ALL_CONTEXTS.filter(
+      (context) =>
+        nextState(context, step).ok &&
+        (context.indicatorStatus === 'live' || context.latestUpdateDecision === null),
+    );
 
-    expect(open).toEqual([inReview]);
+    expect(open).toEqual(opensFrom);
   });
 });
 
-describe('resubmit', () => {
-  it("locks a new indicator's draft sent back for changes under a new submitted submission", () => {
-    expect(nextState(changesRequested, 'resubmit')).toEqual({
-      ok: true,
-      state: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
-    });
-  });
+const updateSentBack = { ...changesRequested, indicatorStatus: 'live' } as const;
 
-  it('starts the submission in review when reviewers are carried over', () => {
+describe('resubmit', () => {
+  it.each([
+    ['a new indicator', changesRequested],
+    ['an update', updateSentBack],
+  ] as const)(
+    "locks %s's draft sent back for changes under a new submitted submission",
+    (_, context) => {
+      expect(nextState(context, 'resubmit')).toEqual({
+        ok: true,
+        state: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
+      });
+    },
+  );
+
+  it("starts a new indicator's submission in review when reviewers are carried over", () => {
     expect(nextState(changesRequested, 'resubmit', { carriedReviewerCount: 1 })).toEqual({
       ok: true,
       state: { versionStatus: 'draft', submissionStatus: 'in_review', isLocked: true },
     });
   });
 
+  it("carries no reviewers onto an update's new submission, which waits for a decision", () => {
+    expect(carriesReviewers('resubmit', 'live')).toBe(false);
+    expect(nextState(updateSentBack, 'resubmit', { carriedReviewerCount: 1 })).toEqual({
+      ok: true,
+      state: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
+    });
+  });
+
   it('is refused in every other context', () => {
     const open = CONTEXTS.filter((context) => nextState(context, 'resubmit').ok);
 
-    expect(open).toEqual([changesRequested]);
+    expect(open).toEqual([changesRequested, updateSentBack]);
   });
 });
 
@@ -292,11 +353,9 @@ describe('allowedSteps', () => {
       submittedUpdate,
       ['withdraw', 'send_update_to_imrg', 'request_update_revisions', 'approve_update'],
     ],
-    [
-      'an update sent to IMRG',
-      { ...submittedUpdate, latestUpdateDecision: 'imrg_review' },
-      ['withdraw'],
-    ],
+    ['an update sent to IMRG', sentToImrg, ['withdraw', 'assign_reviewers']],
+    ['an update in review', updateInReview, ['assign_reviewers', 'give_feedback', 'approve']],
+    ['an update sent back for changes', updateSentBack, ['resubmit']],
     [
       'an approved update',
       { ...approved, indicatorStatus: 'live', latestUpdateDecision: 'publish_with_history' },
