@@ -28,14 +28,19 @@ export function DataSection<T>({
     <Suspense
       key={location.pathname}
       fallback={
-        hydrated ? (
-          <p className="govuk-body" role="status">
-            Loading {label}…
-          </p>
-        ) : (
-          // An aborted server render must still offer recovery without JavaScript.
-          errorElement
-        )
+        <p className="govuk-body" role="status">
+          Loading {label}…
+          {/* An aborted server render must still offer recovery without JavaScript. */}
+          {!hydrated && (
+            <>
+              {' '}
+              <a className="govuk-link" href={url}>
+                Try again
+              </a>
+              .
+            </>
+          )}
+        </p>
       }
     >
       <Await resolve={resolve} errorElement={errorElement}>

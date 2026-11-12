@@ -75,7 +75,7 @@ export default function handleRequest(
           // A deadline abort flushes the available shell and each unfinished section's retry UI.
           if (!aborted) responseStatusCode = 500;
           // Shell failures reach React Router through onShellError instead.
-          if (shellRendered && !request.signal.aborted) {
+          if (shellRendered && !aborted && !request.signal.aborted) {
             logger.error({ err: error }, 'Streaming failed');
           }
         },

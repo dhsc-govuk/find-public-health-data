@@ -230,7 +230,7 @@ describe('real React Router document and data responses', () => {
 
   it('returns the ready shell and retry links after the render deadline, including without JavaScript', async () => {
     vi.useFakeTimers();
-    const { request, entry } = app(() => ({ section: new Promise<string>(() => {}) }));
+    const { request, entry, logger } = app(() => ({ section: new Promise<string>(() => {}) }));
     const ready = vi.fn<() => void>();
     const pending = request().then((response) => {
       ready();
@@ -247,7 +247,9 @@ describe('real React Router document and data responses', () => {
     expect(html).toContain('Ready section');
     expect(html).toContain('Try again');
     expect(html).toContain('href="/sections?view=table"');
-    expect(html).not.toContain('Loading');
+    expect(html).toContain('Loading <!-- -->Data');
+    expect(html).not.toContain('could not be loaded');
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('starts the render deadline after a slow document loader has settled', async () => {

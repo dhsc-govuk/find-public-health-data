@@ -1,11 +1,34 @@
 // @vitest-environment jsdom
 import { CollapsibleFilterCard } from '@fphd/ui';
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { DataSection, useDataReady } from './data-section.tsx';
 
 afterEach(cleanup);
+
+it('shows loading rather than a failure on the first client commit', () => {
+  let firstCommit: string | null = null;
+  function FirstCommit() {
+    useLayoutEffect(() => {
+      firstCommit = document.body.textContent;
+    }, []);
+    return null;
+  }
+
+  render(
+    <MemoryRouter>
+      <DataSection label="data" resolve={new Promise<string>(() => {})}>
+        {(value) => <p>{value}</p>}
+      </DataSection>
+      <FirstCommit />
+    </MemoryRouter>,
+  );
+
+  expect(firstCommit).toContain('Loading data…');
+  expect(firstCommit).not.toContain('could not be loaded');
+});
 
 it('keeps an open control when document data becomes deferred navigation data', async () => {
   const section = Promise.withResolvers<string>();

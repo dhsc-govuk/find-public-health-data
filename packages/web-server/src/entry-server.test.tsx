@@ -135,6 +135,7 @@ describe('React Router server rendering', () => {
     expect((await response).status).toBe(200);
     expect(renderer.abort).toHaveBeenCalledOnce();
     expect(renderer.pipe).toHaveBeenCalledOnce();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('clears the abort deadline when the shell fails', async () => {
