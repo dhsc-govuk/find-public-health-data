@@ -9,10 +9,7 @@ import {
   AGE_DIMENSION_TYPE_ID,
   categoryDimensionTypeId,
   categoryDimensionValueId,
-  DIMENSION_SLOTS,
-  observationDimensionId,
   observationId,
-  observationNoteId,
   SEX_DIMENSION_TYPE_ID,
   sourceUidForObservationId,
 } from './ids.ts';
@@ -117,7 +114,6 @@ export interface CdsRow {
 }
 
 interface ObservationDimension {
-  slot: (typeof DIMENSION_SLOTS)[keyof typeof DIMENSION_SLOTS];
   typeId: number;
   valueId: number;
 }
@@ -135,19 +131,16 @@ export function observationDimensions(
     );
     if (sexValue !== null)
       dimensions.push({
-        slot: DIMENSION_SLOTS.sex,
         typeId: SEX_DIMENSION_TYPE_ID,
         valueId: sexValue,
       });
     if (ageValue !== null)
       dimensions.push({
-        slot: DIMENSION_SLOTS.age,
         typeId: AGE_DIMENSION_TYPE_ID,
         valueId: ageValue,
       });
     if (c.CategoryTypeID !== -1 && c.CategoryID !== -1)
       dimensions.push({
-        slot: DIMENSION_SLOTS.category,
         typeId: categoryDimensionTypeId(c.CategoryTypeID),
         valueId: categoryDimensionValueId(c.CategoryTypeID, c.CategoryID),
       });
@@ -476,17 +469,14 @@ export async function exportObservations(context: ObservationExportOptions) {
         upper_ci_95: ci95.upper,
         lower_ci_998: ci998.lower,
         upper_ci_998: ci998.upper,
-        distribution_rank: null,
-        published_at: enteredAt,
         upload_batch_id: c.IndicatorID,
         dimension_key: dimensions.map((d) => d.valueId).join(','),
         created_at: enteredAt,
         created_by: 'pholio-migration',
-        deleted_at: null,
       });
-      for (const dimension of dimensions) {
+      // The bridge's rows go in order of dimension type, which is how the file is keyed.
+      for (const dimension of dimensions.toSorted((a, b) => a.typeId - b.typeId)) {
         await dimWriter.write({
-          id: observationDimensionId(obsId, dimension.slot),
           observation_id: obsId,
           dimension_value_id: dimension.valueId,
           dimension_type_id: dimension.typeId,
@@ -494,7 +484,6 @@ export async function exportObservations(context: ObservationExportOptions) {
       }
       if (c.ValueNoteId !== 0)
         await noteWriter.write({
-          id: observationNoteId(obsId),
           observation_id: obsId,
           note_type_id: c.ValueNoteId,
         });

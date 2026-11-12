@@ -53,7 +53,7 @@ async function snapshot(
     dimension_value: [
       { id: 1, dimension_type_id: 1, name: 'Female', sort_order: 0, is_aggregate: false },
     ],
-    area_type: [{ id: 1, name: 'England', hierarchy_type: 'Administrative', level: 1 }],
+    area_type: [{ id: 1, name: 'England', hierarchy_type: 'Administrative' }],
     area: [
       {
         id: 1,
@@ -103,7 +103,6 @@ async function snapshot(
       ...row,
     })),
     observation_dimension: observations.map((row) => ({
-      id: Number(row.id) * 4,
       observation_id: row.id,
       dimension_value_id: 1,
       dimension_type_id: 1,

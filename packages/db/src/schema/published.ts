@@ -206,7 +206,6 @@ export const publishedDimensionType = publishedSchema
     dimensionClass: text('dimension_class').notNull(),
     classificationScheme: text('classification_scheme'),
     granularity: text('granularity'),
-    schemeVersion: text('scheme_version'),
     isRequired: boolean('is_required').notNull(),
   })
   .existing();
@@ -228,7 +227,6 @@ export const publishedAreaType = publishedSchema
     id: uuid('id').notNull(),
     name: text('name').notNull(),
     hierarchyType: text('hierarchy_type').notNull(),
-    level: integer('level').notNull(),
     displayGroup: text('display_group'),
     displayOrder: integer('display_order'),
   })
@@ -280,7 +278,6 @@ export const publishedObservation = publishedSchema
     upperCi95: doublePrecision('upper_ci_95'),
     lowerCi998: doublePrecision('lower_ci_998'),
     upperCi998: doublePrecision('upper_ci_998'),
-    distributionRank: smallint('distribution_rank'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     dimensionKey: text('dimension_key').notNull(),
   })
@@ -288,7 +285,6 @@ export const publishedObservation = publishedSchema
 
 export const publishedObservationDimension = publishedSchema
   .view('observation_dimension', {
-    id: uuid('id').notNull(),
     observationId: uuid('observation_id').notNull(),
     dimensionValueId: uuid('dimension_value_id').notNull(),
     dimensionTypeId: uuid('dimension_type_id').notNull(),
@@ -297,7 +293,6 @@ export const publishedObservationDimension = publishedSchema
 
 export const publishedObservationNote = publishedSchema
   .view('observation_note', {
-    id: uuid('id').notNull(),
     observationId: uuid('observation_id').notNull(),
     noteTypeId: uuid('note_type_id').notNull(),
   })

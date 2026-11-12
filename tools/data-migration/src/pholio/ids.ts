@@ -85,16 +85,3 @@ export function observationId(uid: number, split: 0 | 1 = 0): number {
 export function sourceUidForObservationId(id: number): number {
   return Math.floor(checkedKey('Observation id', id, 2 ** 51) / 2);
 }
-
-export const DIMENSION_SLOTS = { sex: 0, age: 1, category: 2 } as const;
-
-export function observationDimensionId(
-  observation: number,
-  slot: (typeof DIMENSION_SLOTS)[keyof typeof DIMENSION_SLOTS],
-): number {
-  return checkedKey('observation id', observation, 2 ** 51) * 4 + slot;
-}
-
-export function observationNoteId(observation: number): number {
-  return observation;
-}

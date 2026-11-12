@@ -12,7 +12,6 @@ export const areaType = pgTable(
     id: uuidPrimaryKey(),
     name: text().notNull().unique(),
     hierarchyType: text({ enum: AREA_HIERARCHY_TYPES }).notNull(),
-    level: integer().notNull(),
     /** The user-facing level this type rolls into ("Local authorities"); null stays hidden. */
     displayGroup: text(),
     displayOrder: integer(),
@@ -42,11 +41,8 @@ export const area = pgTable(
   },
   (t) => [
     check('area_validity_order_check', sql`${t.validTo} IS NULL OR ${t.validFrom} <= ${t.validTo}`),
-    index('idx_area_code').on(t.code),
-    index('idx_area_code_validity').on(t.code, t.validFrom, t.validTo),
-    index('idx_area_type').on(t.areaTypeId),
     index('idx_area_type_current_name_code_id').on(t.areaTypeId, t.isCurrent, t.name, t.code, t.id),
-    index('idx_area_validity').on(t.areaTypeId, t.validFrom, t.validTo),
+    index('idx_area_type_validity').on(t.areaTypeId, t.validFrom, t.validTo),
   ],
 );
 
@@ -68,7 +64,7 @@ export const areaRelationship = pgTable(
       'area_relationship_validity_order_check',
       sql`${t.validTo} IS NULL OR ${t.validFrom} <= ${t.validTo}`,
     ),
-    index('idx_area_rel_parent').on(t.parentAreaId),
-    index('idx_area_rel_child').on(t.childAreaId),
+    index('idx_area_relationship_parent').on(t.parentAreaId),
+    index('idx_area_relationship_child').on(t.childAreaId),
   ],
 );

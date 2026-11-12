@@ -14,6 +14,7 @@ import {
   quoteIdentifiers,
 } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
+import { dataMigrationKey } from './data-migration-manifest.ts';
 import { assertMigrationPublisherRowsUnchanged } from './data-migration-publisher-work.ts';
 import { needsReferenceMapping, remapReferenceColumns } from './reference-data-maps.ts';
 import { readCsvHeader } from './seeding.ts';
@@ -242,6 +243,11 @@ export async function applyVersionBatchPointers(tx: postgres.TransactionSql): Pr
   `;
 }
 
+/** The temp table an increment's upserts for the table are staged in, kept until it commits. */
+export function upsertStage(table: string): string {
+  return `data_migration_upsert_${table}`;
+}
+
 export async function applyUpserts(
   tx: postgres.TransactionSql,
   table: string,
@@ -251,7 +257,7 @@ export async function applyUpserts(
 ): Promise<void> {
   const { rawHeader, columns } = await validateMigrationHeader(tx, table, file);
 
-  const stage = `data_migration_upsert_${table}`;
+  const stage = upsertStage(table);
   await tx.unsafe(
     `CREATE TEMP TABLE "${stage}" (LIKE "${table}" INCLUDING DEFAULTS) ON COMMIT DROP`,
   );
@@ -274,13 +280,14 @@ export async function applyUpserts(
   await assertPackageActors(tx, table, stage);
   await assertMigrationPublisherRowsUnchanged(tx, table, stage, 'upsert');
   await remapReferenceColumns(tx, table, stage);
+  const key = dataMigrationKey(table);
   const assignments = columns
-    .filter((column) => column !== 'id')
+    .filter((column) => !key.includes(column))
     .map((column) => `"${column}" = EXCLUDED."${column}"`)
     .join(', ');
   const conflict = assignments.length === 0 ? 'DO NOTHING' : `DO UPDATE SET ${assignments}`;
   await tx.unsafe(
-    `INSERT INTO "${table}" ${insertStaged(table, columns, stage)} ON CONFLICT (id) ${conflict}`,
+    `INSERT INTO "${table}" ${insertStaged(table, columns, stage)} ON CONFLICT (${quoteIdentifiers(key)}) ${conflict}`,
   );
 }
 

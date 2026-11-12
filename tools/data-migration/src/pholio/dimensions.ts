@@ -374,7 +374,6 @@ export async function exportDimensions(context: PholioSource) {
     dimension_class: 'core',
     classification_scheme: 'NHS-DD',
     granularity: null,
-    scheme_version: null,
     is_required: true,
   });
 
@@ -404,7 +403,6 @@ export async function exportDimensions(context: PholioSource) {
     dimension_class: 'core',
     classification_scheme: null,
     granularity: null,
-    scheme_version: null,
     is_required: true,
   });
 
@@ -508,7 +506,6 @@ export async function exportDimensions(context: PholioSource) {
       dimension_class: dimClass,
       classification_scheme: scheme,
       granularity: gran,
-      scheme_version: null,
       is_required: false,
     });
   }

@@ -245,7 +245,7 @@ describe('public routers against the seeded database', () => {
       )
       AND NOT EXISTS (
         SELECT 1 FROM observation o
-        WHERE o.indicator_id = i.id AND o.area_id = a.id AND o.deleted_at IS NULL
+        WHERE o.indicator_id = i.id AND o.area_id = a.id
       )
       LIMIT 1
     `;
