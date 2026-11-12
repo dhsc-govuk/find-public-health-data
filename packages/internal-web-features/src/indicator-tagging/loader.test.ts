@@ -1,11 +1,11 @@
 import type { TagOptions } from '@fphd/internal-api-features/contract';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient, refused } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { addIntent, removeIntent } from '../list-form.ts';
-import { SHOWN_VERSION } from '../testing.ts';
+import { SHOWN_VERSION, savedSection } from '../testing.ts';
 import { loadTagging, submitTagging } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -35,23 +35,23 @@ const nothingChosen = {
   addFramework: '',
 };
 
-function context(client: Partial<ApiClient>) {
+function context(api: FakeApiClient) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, client as ApiClient);
+  provider.set(apiContext, api);
   return provider;
 }
 
-function load(indicatorId: string, get: ApiClient['get']) {
+function load(indicatorId: string, api: FakeApiClient) {
   return loadTagging({
-    context: context({ get }),
+    context: context(api),
     params: { id: indicatorId },
     request: new Request(`https://internal.test/publish/indicators/${indicatorId}/tagging`),
   } as never);
 }
 
-function submit(fields: [string, string][], put: ApiClient['put'] = vi.fn()) {
+function submit(fields: [string, string][], api = createFakeApiClient()) {
   return submitTagging({
-    context: context({ put }),
+    context: context(api),
     params: { id },
     request: new Request(`https://internal.test/publish/indicators/${id}/tagging`, {
       method: 'POST',
@@ -78,33 +78,27 @@ const answered: [string, string][] = [
 
 describe('loadTagging', () => {
   it("fills the form with the draft's tags and offers every tag", async () => {
-    const get = vi.fn((path: string) =>
-      Promise.resolve(
-        path === sectionPath
-          ? {
-              answers: {
-                topicIds: [topic],
-                primaryTopicId: topic,
-                subtopicIds: [],
-                primarySubtopicId: '',
-                indicatorTypeIds: [],
-                hasLifeStage: 'yes',
-                lifeStageIds: [lifeStage],
-                hasFramework: null,
-                frameworkIds: [],
-              },
-              version: SHOWN_VERSION,
-            }
-          : options,
-      ),
-    );
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: {
+        answers: {
+          topicIds: [topic],
+          primaryTopicId: topic,
+          subtopicIds: [],
+          primarySubtopicId: '',
+          indicatorTypeIds: [],
+          hasLifeStage: 'yes',
+          lifeStageIds: [lifeStage],
+          hasFramework: null,
+          frameworkIds: [],
+        },
+        version: SHOWN_VERSION,
+      },
+      'GET /api/internal/tags': options,
+    });
 
-    const outcome = await load(id, get as unknown as ApiClient['get']);
+    const outcome = await load(id, api);
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
-      sectionPath,
-      '/api/internal/tags',
-    ]);
+    expect(api.calls.map(({ path }) => path).sort()).toEqual([sectionPath, '/api/internal/tags']);
     expect(outcome).toEqual({
       id,
       options,
@@ -125,18 +119,18 @@ describe('loadTagging', () => {
   });
 
   it('answers 404 to a malformed id without asking the API for anything', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
-    await expect(load('108', get)).rejects.toSatisfy(
+    await expect(load('108', api)).rejects.toSatisfy(
       (error) => error instanceof Response && error.status === 404,
     );
-    expect(get).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 });
 
 describe('submitTagging', () => {
   it('adds the chosen tag to its list without saving anything', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
     const outcome = await submit(
       [
@@ -145,14 +139,14 @@ describe('submitTagging', () => {
         ['addTopic', otherTopic],
         ['intent', addIntent('topicIds')],
       ],
-      put,
+      api,
     );
 
     expect(outcome).toMatchObject({
       values: { topicIds: [topic, otherTopic], addTopic: '' },
       fieldErrors: {},
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('answers "Yes" when a life stage is added', async () => {
@@ -186,7 +180,7 @@ describe('submitTagging', () => {
   });
 
   it('removes a tag without saving anything', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
     const outcome = await submit(
       [
@@ -195,20 +189,19 @@ describe('submitTagging', () => {
         ['topicIds', otherTopic],
         ['intent', removeIntent(0, 'topicIds')],
       ],
-      put,
+      api,
     );
 
     expect(outcome).toMatchObject({ values: { topicIds: [otherTopic] }, fieldErrors: {} });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('saves the answers on Continue, taking in a tag chosen but not added', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({ [`PUT ${sectionPath}`]: savedSection });
 
-    const outcome = await submit([...answered, ['addTopic', otherTopic]], put);
+    const outcome = await submit([...answered, ['addTopic', otherTopic]], api);
 
-    expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       answers: {
         topicIds: [topic, otherTopic],
         primaryTopicId: topic,
@@ -226,19 +219,19 @@ describe('submitTagging', () => {
   });
 
   it('leaves out a life stage chosen beside "No"', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({ [`PUT ${sectionPath}`]: savedSection });
 
-    await submit([...answered, ['addLifeStage', lifeStage]], put);
+    await submit([...answered, ['addLifeStage', lifeStage]], api);
 
-    expect(put.mock.calls[0]?.[1]).toMatchObject({
+    expect(api.calls[0]?.body).toMatchObject({
       answers: { hasLifeStage: 'no', lifeStageIds: [] },
     });
   });
 
   it('saves nothing while the answers are refused', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await submit([['hasLifeStage', 'yes']], put);
+    const outcome = await submit([['hasLifeStage', 'yes']], api);
 
     expect(outcome).toEqual({
       values: {
@@ -262,20 +255,18 @@ describe('submitTagging', () => {
       },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows a tag the API no longer offers as refused', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: {
+    const api = createFakeApiClient({
+      [`PUT ${sectionPath}`]: refused(400, {
         error: 'validation_failed',
         fieldErrors: { topicIds: 'Select a topic from the list' },
-      },
+      }),
     });
 
-    await expect(submit(answered, put)).resolves.toMatchObject({
+    await expect(submit(answered, api)).resolves.toMatchObject({
       fieldErrors: { topicIds: 'Select a topic from the list' },
     });
   });
