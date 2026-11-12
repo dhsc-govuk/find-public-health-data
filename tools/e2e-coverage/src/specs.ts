@@ -47,7 +47,7 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
   '/publish/indicators/:id/other-notes-and-caveats': 'indicator-yes-no-sections.spec.ts',
   '/publish/indicators/:id/publishing-date': 'indicator-publishing-date.spec.ts',
   '/publish/indicators/:id/links': 'indicator-links.spec.ts',
-  '/publish/indicators/:id/variance-and-quality': 'indicator-yes-no-sections.spec.ts',
+  '/publish/indicators/:id/variance-and-quality': 'indicator-variance-and-quality.spec.ts',
   '/publish/indicators/:id/justifications': 'indicator-yes-no-sections.spec.ts',
   '/publish/indicators/:id/other-comments': 'indicator-yes-no-sections.spec.ts',
   '/publish/indicators/:id/copyright-and-data-reuse': 'indicator-yes-no-sections.spec.ts',

@@ -6,6 +6,7 @@ import { submitNewIndicator } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { MORTALITY_ID } from '../support/indicator-page.ts';
 import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
+import { answerTo } from '../support/summary-list.ts';
 
 // The sample answers a submitted indicator carries ask for 09:30 UK time on 1 April next year.
 const PROPOSED = `Proposed publication date: 1 April ${new Date().getFullYear() + 1} at 9:30am`;
@@ -13,13 +14,6 @@ const PROPOSED = `Proposed publication date: 1 April ${new Date().getFullYear() 
 async function openOverview(page: Page, id: string) {
   await page.goto(`/dashboard/indicators/${id}`);
   await expect(page.getByRole('main').locator('p:has(.govuk-tag) + p')).toHaveText(PROPOSED);
-}
-
-function answerTo(page: Page, question: string) {
-  return page
-    .locator('.govuk-summary-list__row')
-    .filter({ has: page.getByText(question, { exact: true }) })
-    .locator('dd');
 }
 
 /** Opens the tab and checks a few of a submitted indicator's sample answers in it. */

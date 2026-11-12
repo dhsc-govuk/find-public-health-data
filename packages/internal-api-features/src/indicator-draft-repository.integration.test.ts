@@ -578,8 +578,7 @@ describe('updateIndicatorDraft', () => {
       {
         variation: 'Varies with the age structure of each area.',
         qualityAssurance: 'Checked against the published ONS figures.',
-        hasSourceDataIssues: true,
-        sourceDataIssuesDetail: 'Late returns from two areas.',
+        sourceDataIssuesDetail: 'Chasing the late returns from two areas.',
       },
     ],
     [

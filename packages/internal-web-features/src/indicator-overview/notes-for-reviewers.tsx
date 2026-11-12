@@ -72,14 +72,16 @@ export function NotesForReviewers({ notes, indicator }: NotesForReviewersProps) 
             question: 'What quality assurance has been done on the indicator?',
             answer: textAnswer(quality.qualityAssurance, unanswered),
           },
-          {
-            question: 'Are there any data quality issues with the source data?',
-            answer: yesNoAnswer(
-              quality.hasSourceDataIssues,
-              quality.sourceDataIssuesDetail,
-              unanswered,
-            ),
-          },
+          // The improvement notes are optional, so the question shows only once answered.
+          ...(quality.sourceDataIssuesDetail
+            ? [
+                {
+                  question:
+                    'If there are any data quality issues, what is being done to improve the quality?',
+                  answer: quality.sourceDataIssuesDetail,
+                },
+              ]
+            : []),
         ]}
       />
       <NotesSection

@@ -255,7 +255,6 @@ export const indicatorVersion = pgTable(
     // Variance and quality
     variation: text(),
     qualityAssurance: text(),
-    hasSourceDataIssues: boolean(),
     sourceDataIssuesDetail: text(),
     // Justifications
     ciMethodJustification: text(),
@@ -378,10 +377,6 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_goal_values_check',
       sql`${t.goalLowerValue} > '-Infinity' AND ${t.goalLowerValue} < 'Infinity' AND ${t.goalUpperValue} < 'Infinity'`,
-    ),
-    check(
-      'indicator_version_source_data_issues_detail_check',
-      detailBesideYes(t.hasSourceDataIssues, t.sourceDataIssuesDetail),
     ),
     check(
       'indicator_version_exclusions_detail_check',

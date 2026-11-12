@@ -36,8 +36,8 @@ import {
   updateFrequencySection,
   type ValueTypeAndUnits,
   type ValueTypeAndUnitsField,
-  varianceAndQualityQuestions,
-  varianceAndQualitySection,
+  type VarianceAndQuality,
+  type VarianceAndQualityField,
 } from './contract.ts';
 import {
   detailOf,
@@ -185,10 +185,21 @@ export const otherNotesAndCaveatsColumns: IndicatorSectionColumns<
   }),
 };
 
-export const varianceAndQualityColumns = yesNoDetailColumns(
-  varianceAndQualitySection,
-  varianceAndQualityQuestions,
-);
+export const varianceAndQualityColumns: OwnFieldColumns<
+  VarianceAndQualityField,
+  VarianceAndQuality
+> = {
+  fromDraft: ({ variation, qualityAssurance, sourceDataIssuesDetail }) => ({
+    variation,
+    qualityAssurance,
+    sourceDataIssuesDetail,
+  }),
+  // The improvement notes are optional, and none given is stored as none.
+  toAttributes: (answers) => ({
+    ...answers,
+    sourceDataIssuesDetail: answers.sourceDataIssuesDetail || null,
+  }),
+};
 
 export const justificationsColumns = yesNoDetailColumns(
   justificationsSection,

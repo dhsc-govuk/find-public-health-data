@@ -1,45 +1,22 @@
 import { z } from '@fphd/config/zod';
 
-import {
-  type DetailedQuestion,
-  type IndicatorSection,
-  requireDetails,
-  textSection,
-  yesNoSchema,
-} from './indicator-section-contract.ts';
+import { type IndicatorSection, textSection } from './indicator-section-contract.ts';
 import { longText } from './text-contract.ts';
 
-const fields = z.enum([
-  'variation',
-  'qualityAssurance',
-  'hasSourceDataIssues',
-  'sourceDataIssuesDetail',
-]);
+const fields = z.enum(['variation', 'qualityAssurance', 'sourceDataIssuesDetail']);
 
 export type VarianceAndQualityField = z.infer<typeof fields>;
 
-export const varianceAndQualityQuestions = [
-  {
-    answer: 'hasSourceDataIssues',
-    detail: 'sourceDataIssuesDetail',
-    detailRequired: 'Enter details of the data quality issues with the source data',
-  },
-] as const satisfies readonly DetailedQuestion<VarianceAndQualityField>[];
-
-const schema = requireDetails(
-  z.object({
-    variation: longText('Variation').min(1, 'Enter how the indicator varies'),
-    qualityAssurance: longText('Quality assurance').min(
-      1,
-      'Enter what quality assurance has been done on the indicator',
-    ),
-    hasSourceDataIssues: yesNoSchema(
-      'Select whether there are any data quality issues with the source data',
-    ),
-    sourceDataIssuesDetail: longText('Details of the source data quality issues'),
-  }),
-  varianceAndQualityQuestions,
-);
+const schema = z.object({
+  variation: longText('Variation').min(1, 'Enter how the indicator varies'),
+  qualityAssurance: longText('Quality assurance').min(
+    1,
+    'Enter what quality assurance has been done on the indicator',
+  ),
+  // The improvement notes are optional, because only an indicator with data quality issues
+  // has any to describe.
+  sourceDataIssuesDetail: longText('Data quality improvement notes'),
+});
 
 export type VarianceAndQuality = z.infer<typeof schema>;
 

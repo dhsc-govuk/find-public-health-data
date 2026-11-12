@@ -8,8 +8,8 @@ import {
   ANSWER_NOT_READ,
   definitionAndRationaleSection,
   justificationsSection,
+  otherCommentsSection,
   otherNotesAndCaveatsSection,
-  varianceAndQualitySection,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import { indicatorSectionRouter, yesNoDetailColumns } from './indicator-section.ts';
@@ -426,8 +426,8 @@ describe('yesNoDetailColumns', () => {
         { answer: 'hasCaveats', detail: 'caveatsDetail', detailRequired: 'x' },
       ],
     );
-    // @ts-expect-error hasSourceDataIssues is no question's answer
-    yesNoDetailColumns(varianceAndQualitySection, []);
+    // @ts-expect-error hasReviewerComments is no question's answer
+    yesNoDetailColumns(otherCommentsSection, []);
   });
 
   it('takes a yes/no column alone as an answer and a text column alone as details', () => {
@@ -438,9 +438,9 @@ describe('yesNoDetailColumns', () => {
       { answer: 'hasCaveats', detail: 'caveatsDetail', detailRequired: 'x' },
       { answer: 'hasOtherNotes', detail: 'otherNotesDetail', detailRequired: 'x' },
     ]);
-    yesNoDetailColumns(varianceAndQualitySection, [
-      // @ts-expect-error hasSourceDataIssues is a yes/no column
-      { answer: 'hasSourceDataIssues', detail: 'hasSourceDataIssues', detailRequired: 'x' },
+    yesNoDetailColumns(otherCommentsSection, [
+      // @ts-expect-error hasReviewerComments is a yes/no column
+      { answer: 'hasReviewerComments', detail: 'hasReviewerComments', detailRequired: 'x' },
     ]);
   });
 });

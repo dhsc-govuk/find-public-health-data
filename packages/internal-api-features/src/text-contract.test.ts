@@ -236,7 +236,7 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
     {
       variation: 'Variation',
       qualityAssurance: 'Quality assurance',
-      sourceDataIssuesDetail: 'Details of the source data quality issues',
+      sourceDataIssuesDetail: 'Data quality improvement notes',
     },
   ],
   [

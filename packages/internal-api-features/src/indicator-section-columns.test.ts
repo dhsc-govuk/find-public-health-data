@@ -4,6 +4,7 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
+  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
@@ -339,40 +340,63 @@ describe('otherNotesAndCaveatsColumns', () => {
   });
 });
 
-// yesNoDetailColumns, shown through the first section built on it alone.
-describe('varianceAndQualityColumns', () => {
+// yesNoDetailColumns, shown through a section built on it alone.
+describe('copyrightAndDataReuseColumns', () => {
   const answered = {
-    variation: 'Varies by area.',
-    qualityAssurance: 'Checked against ONS figures.',
-    hasSourceDataIssues: 'yes',
-    sourceDataIssuesDetail: 'Late returns.',
+    hasCustomCopyright: 'yes',
+    customCopyrightDetail: 'NHS England.',
+    hasCustomDataReuse: 'no',
+    customDataReuseDetail: 'Typed before No was chosen.',
   } as const;
 
-  it('writes the text as it is, and a yes as true beside its details', () => {
-    expect(varianceAndQualityColumns.toAttributes(answered)).toEqual({
-      ...answered,
-      hasSourceDataIssues: true,
+  it('writes a yes as true beside its details, and a no as false without them', () => {
+    expect(copyrightAndDataReuseColumns.toAttributes(answered)).toEqual({
+      hasCustomCopyright: true,
+      customCopyrightDetail: 'NHS England.',
+      hasCustomDataReuse: false,
+      customDataReuseDetail: null,
     });
-  });
-
-  it('writes a no as false and clears its details', () => {
-    expect(
-      varianceAndQualityColumns.toAttributes({ ...answered, hasSourceDataIssues: 'no' }),
-    ).toEqual({ ...answered, hasSourceDataIssues: false, sourceDataIssuesDetail: null });
   });
 
   it.each([
     [true, 'yes'],
     [false, 'no'],
     [null, null],
-  ])('reads a stored %s as %s, beside the text as it is', (hasSourceDataIssues, answer) => {
+  ])('reads a stored %s as %s, beside its details as they are', (hasCustomCopyright, answer) => {
     expect(
-      varianceAndQualityColumns.fromDraft({
+      copyrightAndDataReuseColumns.fromDraft({
         ...unansweredDraft,
-        ...answered,
-        hasSourceDataIssues,
+        hasCustomCopyright,
+        customCopyrightDetail: 'NHS England.',
       }),
-    ).toEqual({ ...answered, hasSourceDataIssues: answer });
+    ).toEqual({
+      hasCustomCopyright: answer,
+      customCopyrightDetail: 'NHS England.',
+      hasCustomDataReuse: null,
+      customDataReuseDetail: null,
+    });
+  });
+});
+
+describe('varianceAndQualityColumns', () => {
+  const answered = {
+    variation: 'Varies by area.',
+    qualityAssurance: 'Checked against ONS figures.',
+    sourceDataIssuesDetail: 'Chasing late returns.',
+  } as const;
+
+  it('reads and writes the columns of the same name', () => {
+    expect(varianceAndQualityColumns.fromDraft({ ...unansweredDraft, ...answered })).toEqual(
+      answered,
+    );
+    expect(varianceAndQualityColumns.toAttributes(answered)).toEqual(answered);
+  });
+
+  it('writes blank data quality improvement notes as none', () => {
+    expect(
+      varianceAndQualityColumns.toAttributes({ ...answered, sourceDataIssuesDetail: '' })
+        .sourceDataIssuesDetail,
+    ).toBeNull();
   });
 });
 
