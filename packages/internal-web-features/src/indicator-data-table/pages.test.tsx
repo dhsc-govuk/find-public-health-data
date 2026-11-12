@@ -101,18 +101,6 @@ describe('UploadDataTablePage', () => {
     );
   });
 
-  it('forgets the upload was under way when the page comes back from the browser cache', () => {
-    renderUpload();
-    chooseFile('data.csv');
-    submit();
-
-    const restored = new Event('pageshow');
-    Object.assign(restored, { persisted: true });
-    fireEvent(window, restored);
-
-    expect(screen.getByRole('status').textContent).toBe('');
-  });
-
   it('steers the file picker to CSV files', () => {
     renderUpload();
 

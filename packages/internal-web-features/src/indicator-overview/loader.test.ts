@@ -1,24 +1,25 @@
 import { TEAM_IDS } from '@fphd/auth';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  fails,
+} from '@fphd/web-server/testing';
+import { describe, expect, it } from 'vitest';
 
 import { flashCookie, loadWithFlash, withFlashStorage } from '../flash.testing.ts';
-import { signedInContext } from '../session.testing.ts';
+import { SIGNED_IN_USER_ID, signedInContext } from '../session.testing.ts';
+import { indicatorDetail } from '../testing.ts';
 import { loadIndicatorOverview } from './loader.ts';
+import { ANSWERED_NOTES, UNANSWERED_NOTES } from './notes-for-reviewers.testing.ts';
 
-const indicator = {
-  id: '00000000-0000-7000-8000-000000000001',
-  shortId: 90366,
+const indicator = indicatorDetail({
   publishedSlug: 'life-expectancy-at-birth',
-  name: 'Life expectancy at birth',
-  teamId: TEAM_IDS.teamA,
   indicatorStatus: 'live',
   draftStatus: null,
-  draftSubmissionStatus: null,
-  draftReviewers: [],
-  updatedAt: '2026-01-02T00:00:00.000Z',
-};
+});
+const DETAIL = `/api/internal/indicators/${indicator.id}` as const;
 
 const history = {
   entries: [{ kind: 'created', at: '2026-01-02T00:00:00.000Z', by: 'Sam Taylor' }],
@@ -32,30 +33,42 @@ const historyShown = [
   },
 ];
 
-/** Answers the history and the notes as `answers` says, and anything else with `detail`. */
-function apiGet(detail: object, answers: Readonly<Record<string, () => Promise<unknown>>> = {}) {
-  const reads: Record<string, () => Promise<unknown>> = {
-    '/history': async () => history,
-    '/notes-for-reviewers': async () => ({}),
-    '/reviewer-notes': async () => ({ notes: [] }),
+type Read = '/history' | '/notes-for-reviewers' | '/reviewer-notes';
+
+/** Answers the indicator with `detail`, and its history and notes as `answers` says. */
+function apiGet(detail: FakeApiAnswer, answers: Partial<Record<Read, FakeApiAnswer>> = {}) {
+  const reads: Record<Read, FakeApiAnswer> = {
+    '/history': history,
+    '/notes-for-reviewers': UNANSWERED_NOTES,
+    '/reviewer-notes': { notes: [] },
     ...answers,
   };
-  return vi.fn().mockImplementation(async (path: string) => {
-    const read = Object.entries(reads).find(([suffix]) => path.endsWith(suffix));
-    return read === undefined ? detail : read[1]();
+  return createFakeApiClient({
+    [`GET ${DETAIL}`]: detail,
+    ...Object.fromEntries(
+      Object.entries(reads).map(([suffix, answer]) => [`GET ${DETAIL}${suffix}`, answer]),
+    ),
   });
+}
+
+function notFound() {
+  return fails(new Response('Not Found', { status: 404 }));
+}
+
+function paths(api: FakeApiClient) {
+  return api.calls.map(({ path }) => path);
 }
 
 async function load(
   id: string,
-  get: ApiClient['get'],
+  api: FakeApiClient,
   roles: readonly string[] = ['publisher'],
-  teams: readonly string[] = [indicator.teamId],
+  teams: readonly string[] = [TEAM_IDS.teamA],
   cookie?: string,
   search = '',
 ) {
   const context = withFlashStorage(await signedInContext(roles, teams));
-  context.set(apiContext, { get } as unknown as ApiClient);
+  context.set(apiContext, api);
   const request = new Request(`https://internal.test/dashboard/indicators/${id}${search}`, {
     ...(cookie === undefined ? {} : { headers: { Cookie: cookie } }),
   });
@@ -67,12 +80,12 @@ async function load(
 
 describe('loadIndicatorOverview', () => {
   it('fetches the indicator the address names, then its notes for reviewers and history', async () => {
-    const notes = { varianceAndQuality: {}, justifications: {}, otherComments: {} };
-    const get = apiGet(indicator, { '/notes-for-reviewers': async () => notes });
+    const notes = ANSWERED_NOTES;
+    const api = apiGet(indicator, { '/notes-for-reviewers': notes });
 
-    const outcome = await load(indicator.id, get);
+    const outcome = await load(indicator.id, api);
 
-    expect(get.mock.calls.map(([path]) => path)).toEqual([
+    expect(paths(api)).toEqual([
       `/api/internal/indicators/${indicator.id}`,
       `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
       `/api/internal/indicators/${indicator.id}/history`,
@@ -99,17 +112,22 @@ describe('loadIndicatorOverview', () => {
   });
 
   it.each([
-    ['an assigned reviewer', ['imrg-reviewer'], [{ id: 'test-user', name: 'Jamie Evans' }], true],
+    [
+      'an assigned reviewer',
+      ['imrg-reviewer'],
+      [{ id: SIGNED_IN_USER_ID, name: 'Jamie Evans' }],
+      true,
+    ],
     [
       'a reviewer assigned to someone else',
       ['imrg-reviewer'],
-      [{ id: 'other', name: 'Robin' }],
+      [{ id: '00000000-0000-7000-8000-0000000000a2', name: 'Robin' }],
       false,
     ],
     [
       'someone listed without the reviewer role',
       ['imrg-manager'],
-      [{ id: 'test-user', name: 'Avery' }],
+      [{ id: SIGNED_IN_USER_ID, name: 'Avery' }],
       false,
     ],
   ])('says whether the user is %s of it', async (_who, roles, draftReviewers, expected) => {
@@ -126,24 +144,20 @@ describe('loadIndicatorOverview', () => {
       publishedSlug: null,
       indicatorStatus: 'new',
       draftStatus: 'draft',
-      draftReviewers: [{ id: 'test-user', name: 'Jamie Evans' }],
+      draftReviewers: [{ id: SIGNED_IN_USER_ID, name: 'Jamie Evans' }],
     };
-    const notes = {
-      varianceAndQuality: { variation: 'Little.' },
-      justifications: {},
-      otherComments: {},
-    };
+    const notes = ANSWERED_NOTES;
 
-    function notesGet(detail: object) {
-      return apiGet(detail, { '/notes-for-reviewers': async () => notes });
+    function notesGet(detail: FakeApiAnswer) {
+      return apiGet(detail, { '/notes-for-reviewers': notes });
     }
 
     it.each([
       ['an IMRG manager', ['imrg-manager'], [], draft],
       ['an admin', ['admin'], [], draft],
-      ['a publisher in its team', ['publisher'], [indicator.teamId], draft],
+      ['a publisher in its team', ['publisher'], [TEAM_IDS.teamA], draft],
       ['an assigned reviewer', ['imrg-reviewer'], [], draft],
-      ['a publisher in its team, with no draft', ['publisher'], [indicator.teamId], indicator],
+      ['a publisher in its team, with no draft', ['publisher'], [TEAM_IDS.teamA], indicator],
       [
         'an IMRG manager, after a withdrawal',
         ['imrg-manager'],
@@ -151,55 +165,48 @@ describe('loadIndicatorOverview', () => {
         { ...draft, draftSubmissionStatus: 'withdrawn', draftReviewers: [] },
       ],
     ])('fetches them for %s', async (_who, roles, teams, detail) => {
-      const get = notesGet(detail);
+      const api = notesGet(detail);
 
-      const outcome = await load(indicator.id, get, roles, teams);
+      const outcome = await load(indicator.id, api, roles, teams);
 
-      expect(get).toHaveBeenCalledWith(
-        `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
-        expect.anything(),
-      );
-      expect(outcome.notesForReviewers).toBe(notes);
+      expect(paths(api)).toContain(`${DETAIL}/notes-for-reviewers`);
+      expect(outcome.notesForReviewers).toEqual(notes);
     });
 
     it('shows none to a reviewer unassigned after the indicator is read', async () => {
-      const notFound = async () => {
-        throw new Response('Not Found', { status: 404 });
-      };
-      const get = apiGet(draft, { '/notes-for-reviewers': notFound, '/reviewer-notes': notFound });
+      const api = apiGet(draft, {
+        '/notes-for-reviewers': notFound(),
+        '/reviewer-notes': notFound(),
+      });
 
-      const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
+      const outcome = await load(indicator.id, api, ['imrg-reviewer'], []);
 
       expect(outcome.notesForReviewers).toBeNull();
-      expect(outcome.indicator).toBe(draft);
+      expect(outcome.indicator).toEqual(draft);
     });
 
     it('lets any other failure of the notes fail the page', async () => {
       const failure = new Error('The API did not answer');
-      const get = apiGet(draft, {
-        '/notes-for-reviewers': async () => {
-          throw failure;
-        },
-      });
+      const api = apiGet(draft, { '/notes-for-reviewers': fails(failure) });
 
-      await expect(load(indicator.id, get, ['imrg-manager'], [])).rejects.toBe(failure);
+      await expect(load(indicator.id, api, ['imrg-manager'], [])).rejects.toBe(failure);
     });
 
     it.each([
       ['a publisher in another team', ['publisher'], [TEAM_IDS.teamB], draft],
       ['a reviewer not assigned to it', ['imrg-reviewer'], [], { ...draft, draftReviewers: [] }],
     ])('does not fetch them for %s', async (_who, roles, teams, detail) => {
-      const get = notesGet(detail);
+      const api = notesGet(detail);
 
-      const outcome = await load(indicator.id, get, roles, teams);
+      const outcome = await load(indicator.id, api, roles, teams);
 
-      expect(get).toHaveBeenCalledTimes(1);
+      expect(api.calls).toHaveLength(1);
       expect(outcome.notesForReviewers).toBeNull();
     });
   });
 
   describe("the reviewers' notes", () => {
-    const JAMIE = { id: 'test-user', name: 'Jamie Evans' };
+    const JAMIE = { id: SIGNED_IN_USER_ID, name: 'Jamie Evans' };
     const ROBIN = { id: '00000000-0000-7000-8000-0000000000a2', name: 'Robin Shaw' };
     const inReview = {
       ...indicator,
@@ -223,18 +230,18 @@ describe('loadIndicatorOverview', () => {
     const notesPath = `/api/internal/indicators/${indicator.id}/reviewer-notes`;
 
     function reviewerNotesGet(
-      detail: object,
-      notesGet: () => Promise<unknown> = async () => ({ notes: [robins, jamies] }),
+      detail: FakeApiAnswer,
+      reviewerNotes: FakeApiAnswer = { notes: [robins, jamies] },
     ) {
-      return apiGet(detail, { '/reviewer-notes': notesGet });
+      return apiGet(detail, { '/reviewer-notes': reviewerNotes });
     }
 
     it('fetches them for an assigned reviewer beside the notes for reviewers, theirs apart', async () => {
-      const get = reviewerNotesGet(inReview);
+      const api = reviewerNotesGet(inReview);
 
-      const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
+      const outcome = await load(indicator.id, api, ['imrg-reviewer'], []);
 
-      expect(get.mock.calls.map(([path]) => path)).toEqual([
+      expect(paths(api)).toEqual([
         `/api/internal/indicators/${indicator.id}`,
         `/api/internal/indicators/${indicator.id}/notes-for-reviewers`,
         notesPath,
@@ -294,7 +301,7 @@ describe('loadIndicatorOverview', () => {
     });
 
     it.each([
-      ['a publisher in its team', ['publisher'], [indicator.teamId], inReview],
+      ['a publisher in its team', ['publisher'], [TEAM_IDS.teamA], inReview],
       ['a reviewer assigned to someone else', ['imrg-reviewer'], [], assignedToOthers],
       [
         'an admin, for a draft never submitted',
@@ -303,21 +310,19 @@ describe('loadIndicatorOverview', () => {
         { ...inReview, draftSubmissionStatus: null, draftReviewers: [] },
       ],
     ])('does not fetch them for %s', async (_who, roles, teams, detail) => {
-      const get = reviewerNotesGet(detail);
+      const api = reviewerNotesGet(detail);
 
-      const outcome = await load(indicator.id, get, roles, teams);
+      const outcome = await load(indicator.id, api, roles, teams);
 
-      expect(get).not.toHaveBeenCalledWith(notesPath, expect.anything());
+      expect(paths(api)).not.toContain(notesPath);
       expect(outcome.reviewerNotes).toBeNull();
       expect(outcome.otherReviewerNotes).toEqual([]);
     });
 
     it('shows none to a reviewer unassigned after the indicator is read', async () => {
-      const get = reviewerNotesGet(inReview, async () => {
-        throw new Response('Not Found', { status: 404 });
-      });
+      const api = reviewerNotesGet(inReview, notFound());
 
-      const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
+      const outcome = await load(indicator.id, api, ['imrg-reviewer'], []);
 
       expect(outcome.reviewerNotes).toBeNull();
       expect(outcome.otherReviewerNotes).toEqual([]);
@@ -330,22 +335,22 @@ describe('loadIndicatorOverview', () => {
       publishedSlug: null,
       indicatorStatus: 'new',
       draftStatus: 'draft',
-      draftReviewers: [{ id: 'test-user', name: 'Jamie Evans' }],
+      draftReviewers: [{ id: SIGNED_IN_USER_ID, name: 'Jamie Evans' }],
     };
     const historyPath = `/api/internal/indicators/${indicator.id}/history`;
 
     it.each([
-      ['a publisher in its team', ['publisher'], [indicator.teamId], draft],
+      ['a publisher in its team', ['publisher'], [TEAM_IDS.teamA], draft],
       ['an IMRG manager', ['imrg-manager'], [], draft],
       ['an admin', ['admin'], [], draft],
       ['an assigned reviewer', ['imrg-reviewer'], [], draft],
-      ['a publisher in its team, with no draft', ['publisher'], [indicator.teamId], indicator],
+      ['a publisher in its team, with no draft', ['publisher'], [TEAM_IDS.teamA], indicator],
     ])('fetches it for %s', async (_who, roles, teams, detail) => {
-      const get = apiGet(detail);
+      const api = apiGet(detail);
 
-      const outcome = await load(indicator.id, get, roles, teams);
+      const outcome = await load(indicator.id, api, roles, teams);
 
-      expect(get).toHaveBeenCalledWith(historyPath, expect.anything());
+      expect(paths(api)).toContain(historyPath);
       expect(outcome.history).toEqual(historyShown);
     });
 
@@ -353,36 +358,28 @@ describe('loadIndicatorOverview', () => {
       ['a publisher in another team', ['publisher'], [TEAM_IDS.teamB], draft],
       ['a reviewer not assigned to it', ['imrg-reviewer'], [], { ...draft, draftReviewers: [] }],
     ])('does not fetch it for %s', async (_who, roles, teams, detail) => {
-      const get = apiGet(detail);
+      const api = apiGet(detail);
 
-      const outcome = await load(indicator.id, get, roles, teams);
+      const outcome = await load(indicator.id, api, roles, teams);
 
-      expect(get).not.toHaveBeenCalledWith(historyPath, expect.anything());
+      expect(paths(api)).not.toContain(historyPath);
       expect(outcome.history).toBeNull();
     });
 
     it('shows none to a reviewer unassigned after the indicator is read', async () => {
-      const get = apiGet(draft, {
-        '/history': async () => {
-          throw new Response('Not Found', { status: 404 });
-        },
-      });
+      const api = apiGet(draft, { '/history': notFound() });
 
-      const outcome = await load(indicator.id, get, ['imrg-reviewer'], []);
+      const outcome = await load(indicator.id, api, ['imrg-reviewer'], []);
 
       expect(outcome.history).toBeNull();
-      expect(outcome.indicator).toBe(draft);
+      expect(outcome.indicator).toEqual(draft);
     });
 
     it('lets any other failure of the history fail the page', async () => {
       const failure = new Error('The API did not answer');
-      const get = apiGet(draft, {
-        '/history': async () => {
-          throw failure;
-        },
-      });
+      const api = apiGet(draft, { '/history': fails(failure) });
 
-      await expect(load(indicator.id, get, ['imrg-manager'], [])).rejects.toBe(failure);
+      await expect(load(indicator.id, api, ['imrg-manager'], [])).rejects.toBe(failure);
     });
   });
 
@@ -391,7 +388,7 @@ describe('loadIndicatorOverview', () => {
       indicator.id,
       apiGet(indicator),
       ['publisher'],
-      [indicator.teamId],
+      [TEAM_IDS.teamA],
       await flashCookie('draft-locked'),
     );
 
@@ -406,7 +403,7 @@ describe('loadIndicatorOverview', () => {
       indicator.id,
       apiGet(indicator),
       ['publisher'],
-      [indicator.teamId],
+      [TEAM_IDS.teamA],
       await flashCookie('constructor'),
     );
 

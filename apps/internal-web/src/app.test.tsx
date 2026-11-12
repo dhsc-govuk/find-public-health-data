@@ -10,15 +10,18 @@ import {
 import { TopicsRoute } from '@fphd/public-web-features';
 import { backLinkHandle } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createRoutesStub } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import InternalApp, { ErrorBoundary } from './root.tsx';
 import routes from './routes.ts';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const topics = [{ slug: 'topic-a', title: 'Topic A', description: 'All about topic A.' }];
 
@@ -155,6 +158,33 @@ describe('internal application routes', () => {
     expect(await screen.findByRole('link', { name: 'Sign in' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Account' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Manage' })).toBeNull();
+  });
+
+  const PAGE = 'http://localhost/publish/indicators/new';
+
+  it.each([
+    ['fetches a page restored from the browser cache again', true, [[PAGE]]],
+    ['leaves a freshly loaded page alone', false, []],
+  ])('%s', async (_case, persisted, fetches) => {
+    const replace = vi.fn();
+    vi.stubGlobal('location', { ...window.location, href: PAGE, replace });
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: InternalApp,
+        loader: () => publisher,
+        children: [{ path: 'manage', Component: ManageDataPage }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/manage']} />);
+    await screen.findByRole('heading', { name: 'Manage public health data' });
+
+    const shown = new Event('pageshow');
+    Object.assign(shown, { persisted });
+    fireEvent(window, shown);
+
+    expect(replace.mock.calls).toEqual(fetches);
   });
 });
 

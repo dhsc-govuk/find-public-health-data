@@ -1,20 +1,29 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiCall,
+  type FakeApiClient,
+  type FakeApiStub,
+  type FakeApiStubs,
+  fails,
+} from '@fphd/web-server/testing';
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { loadIndicatorCsv } from './csv.ts';
+import { indicatorDetail } from './view.testing.ts';
 
 const SLUG = 'mortality-all-causes';
+const DETAIL = `/api/indicators/${SLUG}` as const;
 
-const detail = {
-  shortId: 108,
+const detail = indicatorDetail(108, {
   slug: SLUG,
   name: 'Mortality, "all causes"',
   unit: 'per 100,000',
   yearType: { value: 'calendar', label: 'Calendar' },
-};
+});
 
 function observation(overrides = {}) {
   return {
@@ -34,9 +43,9 @@ function observation(overrides = {}) {
   };
 }
 
-function args(get: ReturnType<typeof vi.fn>, url: string, slug = SLUG) {
+function args(api: FakeApiClient, url: string, slug = SLUG) {
   const context = new RouterContextProvider();
-  context.set(apiContext, { get } as unknown as ApiClient);
+  context.set(apiContext, api);
   return {
     context,
     params: { slug },
@@ -44,23 +53,37 @@ function args(get: ReturnType<typeof vi.fn>, url: string, slug = SLUG) {
   } as unknown as LoaderFunctionArgs;
 }
 
-function api(areaData: unknown) {
-  return vi.fn().mockImplementation((path: string) => {
-    if (path.includes('/data')) {
-      return Promise.resolve(areaData);
-    }
-    return Promise.resolve(detail);
+function areaCodes(call: FakeApiCall) {
+  return new URL(`http://localhost${call.path}`).searchParams.getAll('areaCode');
+}
+
+/**
+ * Answers the indicator, by slug or number, and its data with `areaData`. The API answers a
+ * query of one area with that area alone, and of several with a list.
+ */
+function api(areaData: FakeApiAnswer[] | FakeApiStub, stubs: FakeApiStubs = {}) {
+  return createFakeApiClient({
+    [`GET ${DETAIL}`]: detail,
+    'GET /api/indicators/108': detail,
+    [`GET ${DETAIL}/data`]: Array.isArray(areaData)
+      ? (call: FakeApiCall) => (areaCodes(call).length === 1 ? (areaData[0] ?? null) : areaData)
+      : areaData,
+    ...stubs,
   });
+}
+
+function paths(client: FakeApiClient) {
+  return client.calls.map(({ path }) => path);
 }
 
 describe('loadIndicatorCsv', () => {
   it('serves the trend table as an attachment, quoting fields that need it', async () => {
-    const get = api([
+    const client = api([
       { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
     ]);
 
     const response = await loadIndicatorCsv(
-      args(get, 'http://localhost/indicator/mortality-all-causes/table.csv'),
+      args(client, 'http://localhost/indicator/mortality-all-causes/table.csv'),
       'table',
     );
 
@@ -74,18 +97,13 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('adds no unit to the headings of values that have none', async () => {
-    const get = vi
-      .fn()
-      .mockImplementation((path: string) =>
-        Promise.resolve(
-          path.includes('/data')
-            ? [{ areaCode: 'E92000001', areaName: 'England', observations: [observation()] }]
-            : { ...detail, unit: null },
-        ),
-      );
+    const client = api(
+      [{ areaCode: 'E92000001', areaName: 'England', observations: [observation()] }],
+      { [`GET ${DETAIL}`]: { ...detail, unit: null } },
+    );
 
     const response = await loadIndicatorCsv(
-      args(get, 'http://localhost/indicator/mortality-all-causes/table.csv'),
+      args(client, 'http://localhost/indicator/mortality-all-causes/table.csv'),
       'table',
     );
 
@@ -93,7 +111,7 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('loads the linked areas with England riding along and filters the trend by options', async () => {
-    const get = api([
+    const client = api([
       {
         areaCode: 'E06000052',
         areaName: 'Cornwall',
@@ -113,38 +131,34 @@ describe('loadIndicatorCsv', () => {
 
     const response = await loadIndicatorCsv(
       args(
-        get,
+        client,
         'http://localhost/indicator/mortality-all-causes/table.csv?as=E06000052&sex-108=Male',
       ),
       'table',
     );
 
-    expect(
-      get.mock.calls.some(([path]) =>
-        String(path).endsWith('/data?areaCode=E06000052&areaCode=E92000001'),
-      ),
-    ).toBe(true);
+    expect(paths(client)).toContain(`${DETAIL}/data?areaCode=E06000052&areaCode=E92000001`);
     const body = await response.text();
     expect(body).toContain('2023,130000,1');
     expect(body).not.toContain('2023,130000,2');
   });
 
   it('serves every observation with segments and notes in the all-data download', async () => {
-    const get = api([
+    const client = api([
       {
         areaCode: 'E92000001',
         areaName: 'England',
         observations: [
           observation({
             dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
-            notes: [{ marker: 1, text: 'Provisional' }],
+            notes: [{ text: 'Provisional', category: 'Data quality' }],
           }),
         ],
       },
     ]);
 
     const response = await loadIndicatorCsv(
-      args(get, 'http://localhost/indicator/mortality-all-causes/all-data.csv'),
+      args(client, 'http://localhost/indicator/mortality-all-causes/all-data.csv'),
       'all-data',
     );
 
@@ -162,18 +176,17 @@ describe('loadIndicatorCsv', () => {
       code: `E${String(index).padStart(8, '0')}`,
       name: `Area ${index}`,
     }));
-    const get = vi.fn(async (path: string) => {
-      if (path.includes('/areas?')) return [{ displayGroup: 'Local authorities', areas }];
-      if (path.includes('/data?'))
-        return new URL(`http://localhost${path}`).searchParams.getAll('areaCode').map((code) => ({
+    const client = api(
+      (call) =>
+        areaCodes(call).map((code) => ({
           areaCode: code,
-          areaName: areas.find((area) => area.code === code)?.name,
+          areaName: areas.find((area) => area.code === code)?.name ?? '',
           observations: [observation()],
-        }));
-      return detail;
-    });
+        })),
+      { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Local authorities', areas }] },
+    );
     const response = await loadIndicatorCsv(
-      args(get, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
       'all-data',
     );
     const csv = await response.text();
@@ -181,14 +194,14 @@ describe('loadIndicatorCsv', () => {
       1,
     );
     expect(csv).toContain('Area 22');
-    const sizes = get.mock.calls
-      .filter(([path]) => path.includes('/data?'))
-      .map(([path]) => new URL(`http://localhost${path}`).searchParams.getAll('areaCode').length);
+    const sizes = client.calls
+      .filter(({ path }) => path.includes('/data?'))
+      .map((call) => areaCodes(call).length);
     expect(sizes).toEqual([20, 3]);
   });
 
   it('ignores a sex the data does not publish rather than serving an empty table', async () => {
-    const get = api([
+    const client = api([
       {
         areaCode: 'E92000001',
         areaName: 'England',
@@ -202,7 +215,7 @@ describe('loadIndicatorCsv', () => {
     ]);
 
     const response = await loadIndicatorCsv(
-      args(get, 'http://localhost/indicator/mortality-all-causes/table.csv?sex-108=Unpublished'),
+      args(client, 'http://localhost/indicator/mortality-all-causes/table.csv?sex-108=Unpublished'),
       'table',
     );
 
@@ -210,7 +223,7 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('offers only the first area sexes, exactly as the page does', async () => {
-    const get = api([
+    const client = api([
       { areaCode: 'E06000052', areaName: 'Cornwall', observations: [observation({ value: 9 })] },
       {
         areaCode: 'E92000001',
@@ -226,7 +239,7 @@ describe('loadIndicatorCsv', () => {
 
     const response = await loadIndicatorCsv(
       args(
-        get,
+        client,
         'http://localhost/indicator/mortality-all-causes/table.csv?as=E06000052&sex-108=Male',
       ),
       'table',
@@ -237,22 +250,22 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('404s a segment shaped like neither identifier without calling the api', async () => {
-    const get = vi.fn();
+    const client = createFakeApiClient();
 
     await expect(
-      loadIndicatorCsv(args(get, 'http://localhost/indicator/x/table.csv', '../x'), 'table'),
+      loadIndicatorCsv(args(client, 'http://localhost/indicator/x/table.csv', '../x'), 'table'),
     ).rejects.toMatchObject({ status: 404 });
-    expect(get).not.toHaveBeenCalled();
+    expect(client.calls).toEqual([]);
   });
 
   it('301s a download addressed by number to the canonical slug, query string and all', async () => {
-    const get = api([
+    const client = api([
       { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
     ]);
 
     await expect(
       loadIndicatorCsv(
-        args(get, 'http://localhost/indicator/108/table.csv?as=E06000052', '108'),
+        args(client, 'http://localhost/indicator/108/table.csv?as=E06000052', '108'),
         'table',
       ),
     ).rejects.toMatchObject({
@@ -262,23 +275,23 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('redirects before asking for any data', async () => {
-    const get = api([]);
+    const client = api([]);
 
     await loadIndicatorCsv(
-      args(get, 'http://localhost/indicator/108/table.csv?as=E06000052', '108'),
+      args(client, 'http://localhost/indicator/108/table.csv?as=E06000052', '108'),
       'table',
     ).catch(() => undefined);
 
-    expect(get.mock.calls.map(([path]) => String(path))).toEqual(['/api/indicators/108']);
+    expect(paths(client)).toEqual(['/api/indicators/108']);
   });
 
   it('names the redirect target after the canonical slug', async () => {
-    const get = api([
+    const client = api([
       { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
     ]);
 
     const redirected = await loadIndicatorCsv(
-      args(get, 'http://localhost/indicator/108/all-data.csv?as=E06000052', '108'),
+      args(client, 'http://localhost/indicator/108/all-data.csv?as=E06000052', '108'),
       'all-data',
     ).catch((response: Response) => response);
 
@@ -295,16 +308,15 @@ it('rejects an all-areas download body if a later data batch fails', async () =>
   }));
   let batches = 0;
   const failure = new Response(null, { status: 502 });
-  const get = vi.fn(async (path: string) => {
-    if (path.includes('/areas?')) return [{ displayGroup: 'Local authorities', areas }];
-    if (path.includes('/data?')) {
-      if (++batches === 2) throw failure;
-      return [];
-    }
-    return detail;
-  });
+  const client = api(
+    () => {
+      batches += 1;
+      return batches === 2 ? fails(failure) : [];
+    },
+    { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Local authorities', areas }] },
+  );
   const response = await loadIndicatorCsv(
-    args(get, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+    args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
     'all-data',
   );
   await expect(response.text()).rejects.toBe(failure);
@@ -312,15 +324,14 @@ it('rejects an all-areas download body if a later data batch fails', async () =>
 
 it('propagates an initial all-areas API failure before returning an attachment', async () => {
   const failure = new Response(null, { status: 502 });
-  const get = vi.fn(async (path: string) => {
-    if (path.includes('/areas?'))
-      return [{ displayGroup: 'NHS regions', areas: [{ code: 'E40000001', name: 'Region' }] }];
-    if (path.includes('/data?')) throw failure;
-    return detail;
+  const client = api(fails(failure), {
+    [`GET ${DETAIL}/areas`]: [
+      { displayGroup: 'NHS regions', areas: [{ code: 'E40000001', name: 'Region' }] },
+    ],
   });
   await expect(
     loadIndicatorCsv(
-      args(get, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
       'all-data',
     ),
   ).rejects.toBe(failure);

@@ -31,25 +31,6 @@ const ERROR_ID = `${FIELD}-error`;
 const UPLOAD_HEADING = 'Upload indicator data table';
 const UPLOADING = 'Uploading and checking your data table. This can take a few minutes.';
 
-/**
- * Says the upload is under way once Continue is pressed, as a large file takes a while to send
- * and check. Without JavaScript the browser's own progress shows instead.
- */
-function useUploading(): [boolean, () => void] {
-  const [uploading, setUploading] = useState(false);
-
-  // A page restored from the back-forward cache keeps its state, so it would still say so.
-  useEffect(() => {
-    const reset = (event: PageTransitionEvent) => {
-      if (event.persisted) setUploading(false);
-    };
-    window.addEventListener('pageshow', reset);
-    return () => window.removeEventListener('pageshow', reset);
-  }, []);
-
-  return [uploading, () => setUploading(true)];
-}
-
 /** The browser's own refusal of the chosen file, counted so each one is announced afresh. */
 function useBrowserRefusal(): [
   { message: string; count: number } | undefined,
@@ -78,7 +59,9 @@ interface UploadDataTablePageProps {
 // The heading is the field's label, as GOV.UK asks of a page with a single question, which
 // FileUpload cannot do; upstream: daniel-ac-martin/NotGovUK#2057.
 export function UploadDataTablePage({ fieldErrors = {}, formError }: UploadDataTablePageProps) {
-  const [uploading, startUploading] = useUploading();
+  // Says the upload is under way once Continue is pressed, as a large file takes a while to send
+  // and check. Without JavaScript the browser's own progress shows instead.
+  const [uploading, setUploading] = useState(false);
   const [refusal, refuse] = useBrowserRefusal();
   // Once a file is on its way, the last refusal no longer applies.
   const error = uploading ? undefined : (refusal?.message ?? fieldErrors[FIELD]);
@@ -93,7 +76,7 @@ export function UploadDataTablePage({ fieldErrors = {}, formError }: UploadDataT
 
     if (message === undefined) {
       refuse(undefined);
-      startUploading();
+      setUploading(true);
     } else {
       event.preventDefault();
       refuse(message);

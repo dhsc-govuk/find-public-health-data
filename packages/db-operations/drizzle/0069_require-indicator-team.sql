@@ -1,0 +1,1 @@
+ALTER TABLE "indicator" ALTER COLUMN "team_id" SET NOT NULL;

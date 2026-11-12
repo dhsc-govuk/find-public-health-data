@@ -1,4 +1,4 @@
-import type { Database } from '@fphd/db';
+import { type Database, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -131,7 +131,7 @@ describe('refreshIndicatorReadModels', () => {
 
   it('leaves an indicator with nothing published with no rows', async () => {
     const [created] = (await db.execute(
-      sql`INSERT INTO indicator DEFAULT VALUES RETURNING id`,
+      sql`INSERT INTO indicator (team_id) VALUES (${schema.IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`,
     )) as unknown as { id: string }[];
     if (created === undefined) throw new Error('inserted no indicator');
     const indicatorId = created.id;

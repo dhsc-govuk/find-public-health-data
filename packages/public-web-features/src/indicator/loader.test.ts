@@ -1,72 +1,99 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiCall,
+  type FakeApiClient,
+  type FakeApiStubs,
+  fails,
+} from '@fphd/web-server/testing';
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
-import { observation } from './view.testing.ts';
+import { indicatorDetail, observation } from './view.testing.ts';
 
-function api() {
-  const get = vi.fn(async (path: string): Promise<unknown> => {
-    if (path.startsWith('/api/indicator-data?')) {
-      const params = new URL(`http://localhost${path}`).searchParams;
-      return params.getAll('indicator').map((id) => ({
-        detail: { shortId: Number(id) },
-        areaData: params.getAll('areaCode').map((code) => ({
-          areaCode: code,
-          areaName: `Area ${code}`,
-          observations: [],
-        })),
-      }));
-    }
-    if (/\/api\/indicators\/[^/]+\/areas\?/.test(path))
-      return [
-        {
-          displayGroup: 'Local authorities',
-          areas: Array.from({ length: 25 }, (_, index) => ({
-            code: `E${String(index).padStart(8, '0')}`,
-            name: `Area ${index}`,
-          })),
-        },
-      ];
-    if (path.startsWith('/api/indicators?q='))
-      return { indicators: [{ shortId: 241, name: 'Diabetes prevalence', slug: 'indicator-241' }] };
-    if (path === '/api/areas/display-groups') return ['Local authorities', 'NHS regions'];
-    if (path.startsWith('/api/areas/lookup'))
-      return new URL(`http://localhost${path}`).searchParams.getAll('areaCode').map((code) => ({
+const localAuthorities = [
+  {
+    displayGroup: 'Local authorities',
+    areas: Array.from({ length: 25 }, (_, index) => ({
+      code: `E${String(index).padStart(8, '0')}`,
+      name: `Area ${index}`,
+    })),
+  },
+];
+
+function areaCodes(path: string) {
+  return new URL(`http://localhost${path}`).searchParams.getAll('areaCode');
+}
+
+/**
+ * The data of the areas a call asks for, with no observations. The API answers a query of one
+ * area with that area alone, and of several with a list.
+ */
+function areaData(call: FakeApiCall, observations?: ReturnType<typeof observation>[]) {
+  const areas = rankings(call).map((area) => ({
+    ...area,
+    observations: observations ?? area.observations,
+  }));
+  return areas.length === 1 ? (areas[0] ?? null) : areas;
+}
+
+/** The rankings of the areas a call asks for, with no observations: always a list. */
+function rankings(call: FakeApiCall) {
+  return areaCodes(call.path).map((code) => ({
+    areaCode: code,
+    areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
+    observations: [],
+  }));
+}
+
+/** An indicator's detail, by slug or number, its areas, its data and its rankings. */
+function indicatorStubs(shortId: number): FakeApiStubs {
+  const slug = `indicator-${shortId}`;
+  const detail = indicatorDetail(shortId);
+  return {
+    [`GET /api/indicators/${slug}`]: detail,
+    [`GET /api/indicators/${shortId}`]: detail,
+    [`GET /api/indicators/${slug}/areas`]: localAuthorities,
+    [`GET /api/indicators/${shortId}/range`]: { periods: [] },
+    [`GET /api/indicators/${shortId}/data`]: (call: FakeApiCall) => areaData(call),
+    [`GET /api/indicators/${shortId}/ranking`]: rankings,
+  };
+}
+
+/** Answers for indicators 108 and 241, the areas they cover, and `stubs`. */
+function api(stubs: FakeApiStubs = {}) {
+  return createFakeApiClient({
+    ...indicatorStubs(108),
+    ...indicatorStubs(241),
+    'GET /api/indicator-data': (call) =>
+      new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
+        detail: indicatorDetail(Number(id)),
+        areaData: rankings(call),
+      })),
+    'GET /api/indicators': {
+      indicators: [{ shortId: 241, name: 'Diabetes prevalence', slug: 'indicator-241' }],
+    },
+    'GET /api/areas/display-groups': ['Local authorities', 'NHS regions'],
+    'GET /api/areas/lookup': (call) =>
+      areaCodes(call.path).map((code) => ({
         code,
         name: `Area ${code}`,
         areaType: 'UA unchanged',
         displayGroup: 'Local authorities',
-      }));
-    if (path.startsWith('/api/areas/parents')) return [];
-    if (path.startsWith('/api/areas?displayGroup='))
-      return [
-        {
-          displayGroup: 'Local authorities',
-          areas: Array.from({ length: 25 }, (_, index) => ({
-            code: `E${String(index).padStart(8, '0')}`,
-            name: `Area ${index}`,
-          })),
-        },
-      ];
-    if (path.startsWith('/api/areas')) return [{ areaType: 'England', areas: [] }];
-    if (path.includes('/data?') || path.includes('/ranking?'))
-      return new URL(`http://localhost${path}`).searchParams.getAll('areaCode').map((code) => ({
-        areaCode: code,
-        areaName: code === 'E92000001' ? 'England' : `Area ${code}`,
-        observations: [],
-      }));
-    if (path.includes('/range?')) return { periods: [] };
-    const shortId = Number((path.split('/')[3] ?? '').replace('indicator-', ''));
-    return { shortId, slug: `indicator-${shortId}`, areaTypes: [] };
+      })),
+    'GET /api/areas/parents': [],
+    ...stubs,
   });
-  return { client: { get } as unknown as ApiClient, get };
+}
+
+function paths(client: FakeApiClient) {
+  return client.calls.map(({ path }) => path);
 }
 
 function args(
-  client: ApiClient,
+  client: FakeApiClient,
   url = 'http://localhost/indicator/indicator-108',
   slug: string | undefined = 'indicator-108',
 ): LoaderFunctionArgs {
@@ -81,22 +108,21 @@ function args(
 
 describe('loadIndicator', () => {
   it('returns the page metadata while observations and rankings are still pending', async () => {
-    const { client, get } = api();
+    const client = api();
     const gate = Promise.withResolvers<void>();
-    const read = client.get;
-    const delayed = {
+    const delayed: FakeApiClient = {
       ...client,
-      get: vi.fn(async (path, schema) => {
+      get: async (path, schema) => {
         if (path.includes('/data?') || path.includes('/ranking?')) await gate.promise;
-        return read(path, schema);
-      }),
-    } as ApiClient;
+        return client.get(path, schema);
+      },
+    };
     const page = await loadIndicatorPage(args(delayed));
     try {
       expect(page.detail.shortId).toBe(108);
       expect(page.data).toBeInstanceOf(Promise);
       expect(page.comparison).toBeInstanceOf(Promise);
-      expect(get.mock.calls.some(([path]) => path.includes('/data?'))).toBe(false);
+      expect(paths(client).some((path) => path.includes('/data?'))).toBe(false);
     } finally {
       gate.resolve();
     }
@@ -106,7 +132,7 @@ describe('loadIndicator', () => {
   });
 
   it('waits for complete content only when explicitly requested', async () => {
-    const { client } = api();
+    const client = api();
     const page = await loadIndicatorPage(
       args(client, 'http://localhost/indicator/indicator-108?render=complete'),
     );
@@ -116,35 +142,32 @@ describe('loadIndicator', () => {
   });
 
   it('requires one route indicator before any API request', async () => {
-    const { client, get } = api();
+    const client = api();
     await expect(
       loadIndicator(args(client, 'http://localhost/indicator', '')),
     ).rejects.toMatchObject({ status: 404 });
-    expect(get).not.toHaveBeenCalled();
+    expect(client.calls).toEqual([]);
   });
 
   it('loads the route indicator and England data', async () => {
-    const { client, get } = api();
+    const client = api();
     const result = await loadIndicator(args(client));
     expect(result.selected.map(({ detail }) => detail.shortId)).toEqual([108]);
-    expect(get).toHaveBeenCalledWith('/api/indicators/indicator-108', expect.anything());
-    expect(get).toHaveBeenCalledWith(
-      '/api/indicators/108/data?areaCode=E92000001',
-      expect.anything(),
-    );
+    expect(paths(client)).toContain('/api/indicators/indicator-108');
+    expect(paths(client)).toContain('/api/indicators/108/data?areaCode=E92000001');
   });
 
   it('ignores obsolete multi-indicator selections in the page URL', async () => {
-    const { client, get } = api();
+    const client = api();
     const result = await loadIndicator(
       args(client, 'http://localhost/indicator/indicator-108?is=241&is=90366'),
     );
     expect(result.selected.map(({ detail }) => detail.shortId)).toEqual([108]);
-    expect(get.mock.calls.some(([path]) => path === '/api/indicators/241')).toBe(false);
+    expect(paths(client)).not.toContain('/api/indicators/241');
   });
 
   it('compares the route indicator with exactly one other indicator', async () => {
-    const { client } = api();
+    const client = api();
     const result = await loadIndicator(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241&is=90366'),
     );
@@ -152,7 +175,7 @@ describe('loadIndicator', () => {
   });
 
   it('removes a comparison with the same indicator', async () => {
-    const { client } = api();
+    const client = api();
     try {
       await loadIndicator(
         args(
@@ -170,22 +193,18 @@ describe('loadIndicator', () => {
   });
 
   it('rejects a malformed comparison segment before requesting it', async () => {
-    const { client, get } = api();
+    const client = api();
     await expect(
       loadIndicator(
         args(client, 'http://localhost/indicator/indicator-108?compareWith=..%2Ftopics'),
       ),
     ).rejects.toMatchObject({ status: 404 });
-    expect(get.mock.calls.some(([path]) => String(path).includes('topics'))).toBe(false);
+    expect(paths(client).some((path) => path.includes('topics'))).toBe(false);
   });
 
   it('removes an unpublished comparison while preserving the primary view', async () => {
-    const { client, get } = api();
-    const original = get.getMockImplementation();
-    if (!original) throw new Error('Missing test API implementation');
-    get.mockImplementation(async (path) => {
-      if (path === '/api/indicators/missing') throw new Response(null, { status: 404 });
-      return original(path);
+    const client = api({
+      'GET /api/indicators/missing': () => fails(new Response(null, { status: 404 })),
     });
     await expect(
       loadIndicator(
@@ -214,13 +233,7 @@ describe('loadIndicator', () => {
       ['/api/indicators/indicator-108', 404],
       ['/api/indicators/indicator-241', 502],
     ] as const) {
-      const { client, get } = api();
-      const original = get.getMockImplementation();
-      if (!original) throw new Error('Missing test API implementation');
-      get.mockImplementation(async (candidate) => {
-        if (candidate === path) throw new Response(null, { status });
-        return original(candidate);
-      });
+      const client = api({ [`GET ${path}`]: fails(new Response(null, { status })) });
       await expect(
         loadIndicator(
           args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
@@ -230,16 +243,15 @@ describe('loadIndicator', () => {
   });
 
   it('fetches complete non-authority groups before applying the selection limit', async () => {
-    const { client, get } = api();
+    const client = api();
     await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?als=NHS+regions'));
-    expect(get).toHaveBeenCalledWith(
+    expect(paths(client)).toContain(
       '/api/indicators/indicator-108/areas?displayGroup=NHS%20regions',
-      expect.anything(),
     );
   });
 
   it('redirects numeric public addresses to the canonical slug', async () => {
-    const { client } = api();
+    const client = api();
     try {
       await loadIndicator(args(client, 'http://localhost/indicator/108?as=E06000052', '108'));
       throw new Error('Expected redirect');
@@ -252,18 +264,18 @@ describe('loadIndicator', () => {
   });
 
   it('returns server matches for a no-script comparison search', async () => {
-    const { client, get } = api();
+    const client = api();
     const result = await loadIndicator(
       args(client, 'http://localhost/indicator/indicator-108?find=+diabetes+'),
     );
-    expect(get).toHaveBeenCalledWith('/api/indicators?q=diabetes&limit=20', expect.anything());
+    expect(paths(client)).toContain('/api/indicators?q=diabetes&limit=20');
     expect(result.findResults).toEqual([
       { shortId: 241, name: 'Diabetes prevalence', slug: 'indicator-241' },
     ]);
   });
 
   it('caps individual areas and keeps England as a benchmark', async () => {
-    const { client, get } = api();
+    const client = api();
     const codes = Array.from({ length: 21 }, (_, index) => `E${String(index).padStart(8, '0')}`);
     const query = new URLSearchParams(codes.map((code) => ['as', code]));
     const result = await loadIndicator(
@@ -271,98 +283,62 @@ describe('loadIndicator', () => {
     );
     expect(result.selection.areaCodes).toEqual(codes.slice(0, 19));
     expect(result.areasLimited).toBe(true);
-    const [path] =
-      get.mock.calls.find(
-        ([candidate]) =>
-          String(candidate).includes('/108/data?') && String(candidate).includes('E92000001'),
-      ) ?? [];
-    expect(new URL(`http://localhost${path}`).searchParams.getAll('areaCode')).toEqual([
-      ...codes.slice(0, 19),
-      'E92000001',
-    ]);
+    const path =
+      paths(client).find(
+        (candidate) => candidate.includes('/108/data?') && candidate.includes('E92000001'),
+      ) ?? '';
+    expect(areaCodes(path)).toEqual([...codes.slice(0, 19), 'E92000001']);
   });
 
   it('loads every section and requests compact rankings for all comparison areas', async () => {
-    const { client, get } = api();
     for (const query of ['', '?tab-indicator=areas']) {
-      get.mockClear();
+      const client = api();
       const result = await loadIndicator(
         args(client, `http://localhost/indicator/indicator-108${query}`),
       );
       expect(result.compareAreasData).toHaveLength(25);
       expect(result.compareAreaOptions).toHaveLength(25);
-      expect(get).toHaveBeenCalledWith(
+      expect(paths(client)).toContain(
         '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
-        expect.anything(),
       );
-      const rankings = get.mock.calls.filter(([path]) => path.includes('/108/ranking?'));
-      expect(rankings).toHaveLength(1);
-      expect(
-        new URL(`http://localhost${rankings[0]?.[0]}`).searchParams.getAll('areaCode'),
-      ).toHaveLength(25);
-      const histories = get.mock.calls.filter(([path]) => path.includes('/108/data?'));
+      const rankingPaths = paths(client).filter((path) => path.includes('/108/ranking?'));
+      expect(rankingPaths).toHaveLength(1);
+      expect(areaCodes(rankingPaths[0] ?? '')).toHaveLength(25);
+      const histories = paths(client).filter((path) => path.includes('/108/data?'));
       expect(histories).toHaveLength(1);
     }
   });
 
   it('loads quintile distributions for picked levels and the current comparison group only when needed', async () => {
-    const { client, get } = api();
+    let client = api();
     await loadIndicator(args(client));
-    expect(get.mock.calls.some(([path]) => path.includes('/range?'))).toBe(false);
+    expect(paths(client).some((path) => path.includes('/range?'))).toBe(false);
 
-    get.mockClear();
+    client = api();
     await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?quintile-108=yes'));
-    expect(
-      get.mock.calls.filter(([path]) => path.includes('/range?')).map(([path]) => path),
-    ).toEqual(['/api/indicators/108/range?displayGroup=Local%20authorities']);
+    expect(paths(client).filter((path) => path.includes('/range?'))).toEqual([
+      '/api/indicators/108/range?displayGroup=Local%20authorities',
+    ]);
 
-    get.mockClear();
+    client = api();
     await loadIndicator(
       args(client, 'http://localhost/indicator/indicator-108?quintile-108=yes&as=E06000052'),
     );
-    expect(get.mock.calls.filter(([path]) => path.includes('/range?'))).toHaveLength(1);
+    expect(paths(client).filter((path) => path.includes('/range?'))).toHaveLength(1);
   });
 
   it('pairs the full comparison geography group even when the indicator tab has a picked area', async () => {
-    const { client, get } = api();
-    const read = get.getMockImplementation();
-    if (!read) throw new Error('Missing test API implementation');
-    get.mockImplementation(async (path) => {
-      const result = await read(path);
-      if (path.startsWith('/api/indicator-data?')) {
-        return (
-          result as {
-            detail: { shortId: number };
-            areaData: { areaCode: string; areaName: string }[];
-          }[]
-        ).map((entry) => ({
-          ...entry,
-          areaData: entry.areaData.map((area) => ({
+    const client = api({
+      'GET /api/indicator-data': (call) =>
+        new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
+          detail: indicatorDetail(Number(id)),
+          areaData: rankings(call).map((area) => ({
             ...area,
-            observations: [observation(entry.detail.shortId === 108 ? 10 : 20)],
+            observations: [observation(id === '108' ? 10 : 20)],
           })),
-        }));
-      }
-      if (!path.includes('/data?')) return result;
-      return (result as { areaCode: string; areaName: string }[]).map((area) => ({
-        ...area,
-        observations: [
-          {
-            fromDate: '2024-01-01',
-            toDate: '2024-12-31',
-            value: path.includes('/108/') ? 10 : 20,
-            count: null,
-            numerator: null,
-            denominator: null,
-            lowerCi95: null,
-            upperCi95: null,
-            lowerCi998: null,
-            upperCi998: null,
-            notes: [],
-            dimensions: [],
-          },
-        ],
-      }));
+        })),
+      'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
+      'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
     });
     const result = await loadIndicator(
       args(
@@ -376,49 +352,54 @@ describe('loadIndicator', () => {
       y: 20,
     });
     expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
-    expect(get.mock.calls.filter(([path]) => path.includes('/ranking?'))).toHaveLength(0);
-    expect(get.mock.calls.filter(([path]) => path.startsWith('/api/indicator-data?'))).toHaveLength(
-      2,
-    );
-    expect(get.mock.calls.filter(([path]) => path === '/api/indicators/241')).toHaveLength(0);
+    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(0);
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(2);
+    expect(paths(client).filter((path) => path === '/api/indicators/241')).toHaveLength(0);
     expect(
-      get.mock.calls.filter(
-        ([path]) => path === '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
+      paths(client).filter(
+        (path) => path === '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
       ),
     ).toHaveLength(1);
     expect(result.compareAreasData).toHaveLength(25);
     expect(result.compareAreasData[0]?.observations).toHaveLength(1);
   });
 
+  it('preserves picked-area histories when the pair has no supported comparison geography', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [],
+      'GET /api/indicators/indicator-241/areas': [],
+      'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
+      'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&as=E06000052',
+      ),
+    );
+    expect(result.compareAreaGroup).toBe('');
+    expect(result.scatter?.points).toMatchObject([
+      { code: 'E06000052', x: 10, y: 20 },
+      { code: 'E92000001', x: 10, y: 20 },
+    ]);
+  });
+
   it('shares recent histories between rankings and scatter when indicators end in different years', async () => {
-    const { client, get } = api();
-    const read = get.getMockImplementation();
-    if (!read) throw new Error('Missing test API implementation');
     const point = (year: number, value: number) => ({
       ...observation(value),
       fromDate: `${year}-01-01`,
       toDate: `${year}-12-31`,
     });
-    get.mockImplementation(async (path) => {
-      if (path.startsWith('/api/indicator-data?')) {
-        const params = new URL(`http://localhost${path}`).searchParams;
-        return params.getAll('indicator').map((id) => ({
-          detail: { shortId: Number(id) },
-          areaData: params.getAll('areaCode').map((code) => ({
-            areaCode: code,
-            areaName: code,
-            observations: id === '108' ? [point(2023, 10), point(2024, 11)] : [point(2023, 20)],
-          })),
-        }));
-      }
-      const result = await read(path);
-      if (!path.includes('/data?') && !path.includes('/ranking?')) return result;
-      return (result as { areaCode: string; areaName: string }[]).map((area) => ({
-        ...area,
-        observations: path.includes('/108/')
-          ? [point(2023, 10), point(2024, 11)]
-          : [point(2023, 20)],
-      }));
+    const observations = (id: string) =>
+      id === '108' ? [point(2023, 10), point(2024, 11)] : [point(2023, 20)];
+    const client = api({
+      'GET /api/indicator-data': (call) =>
+        new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
+          detail: indicatorDetail(Number(id)),
+          areaData: rankings(call).map((area) => ({ ...area, observations: observations(id) })),
+        })),
+      'GET /api/indicators/108/data': (call) => areaData(call, observations('108')),
+      'GET /api/indicators/241/data': (call) => areaData(call, observations('241')),
     });
     const result = await loadIndicator(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
@@ -426,7 +407,7 @@ describe('loadIndicator', () => {
     expect(result.scatter?.points).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
     expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
-    expect(get.mock.calls.some(([path]) => path.includes('/ranking?'))).toBe(false);
+    expect(paths(client).some((path) => path.includes('/ranking?'))).toBe(false);
     expect(
       result.scatter?.points.every(
         ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 10 && y === 20,

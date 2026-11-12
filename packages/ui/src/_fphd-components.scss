@@ -2,7 +2,7 @@
 
 // Each app frames its pages at its own width. AppShell tags the page with the audience.
 .fphd-app--public {
-  --fphd-page-width: 960px;
+  --fphd-page-width: 1020px;
 }
 
 .fphd-app--internal {
@@ -11,7 +11,7 @@
 
 .govuk-width-container.govuk-width-container {
   width: calc(100% - 30px);
-  max-width: var(--fphd-page-width, 960px);
+  max-width: var(--fphd-page-width, 1020px);
   margin-right: auto;
   margin-left: auto;
   @media (min-width: 40.0625em) {
@@ -373,7 +373,7 @@ body:not(.govuk-frontend-supported) .fphd-geo-alt__toggle {
 
 body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
   .govuk-width-container.govuk-width-container {
-  max-width: 960px;
+  max-width: var(--fphd-page-width);
   @media (min-width: 40.0625em) {
     width: calc(100% - 60px);
   }
@@ -427,7 +427,7 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
 
       .govuk-tabs__list {
         box-sizing: border-box;
-        padding-inline-start: max(0px, calc((100% - 960px) / 2));
+        padding-inline-start: max(0px, calc((100% - var(--fphd-page-width)) / 2));
       }
 
       .govuk-grid-column-one-quarter {
@@ -566,7 +566,7 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
 
       .govuk-tabs__list {
         box-sizing: border-box;
-        padding-inline-start: max(0px, calc((100% - 960px) / 2));
+        padding-inline-start: max(0px, calc((100% - var(--fphd-page-width)) / 2));
       }
     }
 

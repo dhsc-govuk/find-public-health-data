@@ -1,6 +1,10 @@
 import { z } from '@fphd/config/zod';
 
-import { type IndicatorSection, yesNoSchema } from './indicator-section-contract.ts';
+import {
+  ANSWER_NOT_READ,
+  type IndicatorSection,
+  yesNoSchema,
+} from './indicator-section-contract.ts';
 
 /** One tag a publisher may choose: a topic or a classification. */
 export const tagOptionSchema = z.object({ id: z.uuid(), name: z.string().min(1) });
@@ -170,7 +174,9 @@ const taggedSchema = z
 
 const schema = z
   .object({
-    isAreaContext: z.literal('yes').optional(),
+    // The web app sends "yes" or leaves the answer out, so another value comes only from a
+    // broken or hand-made request.
+    isAreaContext: z.literal('yes', ANSWER_NOT_READ).optional(),
     topicIds: z.array(z.string()),
     primaryTopicId: z.string(),
     subtopicIds: z.array(z.string()),

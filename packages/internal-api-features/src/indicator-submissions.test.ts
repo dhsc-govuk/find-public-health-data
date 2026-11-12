@@ -216,6 +216,19 @@ describe.each([
     ]);
     expect(JSON.stringify(lines)).not.toContain(TEST_USER_ID);
   });
+
+  it('answers a repeat of a step already taken for it with 204, logging nothing', async () => {
+    const { logger, lines } = createCapturingLogger('internal-api');
+    const takeStep = vi.fn().mockResolvedValue({ ok: true, repeated: true });
+
+    const response = await request(createTestApp({ [method]: takeStep }, logger))
+      .post(path)
+      .set('Cookie', await publisherCookie())
+      .send(body);
+
+    expect(response.status).toBe(204);
+    expect(await handlerLogLines(lines)).toEqual([]);
+  });
 });
 
 describe('POST /api/internal/indicators/:id/submit', () => {

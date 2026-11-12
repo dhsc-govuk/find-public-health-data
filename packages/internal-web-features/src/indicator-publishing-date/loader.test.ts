@@ -1,5 +1,5 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SHOWN_VERSION } from '../testing.ts';
@@ -17,9 +17,12 @@ const unanswered = {
 
 function load(answers: Record<string, string | null>) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, {
-    get: vi.fn().mockResolvedValue({ answers, version: SHOWN_VERSION }),
-  } as unknown as ApiClient);
+  provider.set(
+    apiContext,
+    createFakeApiClient({
+      [`GET /api/internal/indicators/${id}/publishing-date`]: { answers, version: SHOWN_VERSION },
+    }),
+  );
 
   return loadPublishingDate({
     context: provider,

@@ -2,6 +2,7 @@ import { z } from '@fphd/config/zod';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ANSWER_NOT_READ,
   definitionAndRationaleSection,
   indicatorAccess,
   indicatorCreateErrorSchema,
@@ -135,6 +136,23 @@ describe('toFieldErrors', () => {
     expect(toFieldErrors(result.error, topicFieldSchema)).toEqual({
       title: 'Enter a topic name',
     });
+  });
+
+  it('gives a written message to an answer that is missing or of the wrong type', () => {
+    expect(topicErrors({ slug: 108, description: ['About it.'] })).toEqual({
+      title: ANSWER_NOT_READ,
+      slug: ANSWER_NOT_READ,
+      description: ANSWER_NOT_READ,
+    });
+  });
+
+  it('keeps the message a schema gives for an answer of the wrong type', () => {
+    const result = z
+      .object({ sexes: z.array(z.string(), { error: 'Select sexes' }) })
+      .safeParse({});
+    if (result.success) throw new Error('expected the submission to be refused');
+
+    expect(toFieldErrors(result.error, z.enum(['sexes']))).toEqual({ sexes: 'Select sexes' });
   });
 
   it("names a list item's field where the keys name it, and the list where they do not", () => {

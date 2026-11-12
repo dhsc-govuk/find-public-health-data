@@ -16,7 +16,7 @@ export const POLARITY_LABELS: Readonly<Record<Polarity, string>> = {
   'higher-is-better': 'Higher is better',
   'lower-is-better': 'Lower is better',
   'no-polarity': 'Neither is better',
-  'no-comparison-possible': 'No comparison possible',
+  'no-comparison-possible': 'No comparison should be made',
 };
 
 /** Which way a goal is met: the indicator's own directions, since a goal always has one. */

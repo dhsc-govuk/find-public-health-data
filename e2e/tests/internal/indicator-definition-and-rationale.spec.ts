@@ -159,3 +159,28 @@ test('has no WCAG 2.2 AA violations when the submission is rejected', async ({
 
   await expectNoAccessibilityViolations(page, testInfo);
 });
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('refuses the empty form, then saves both answers', async ({ page }) => {
+    const taskListPath = await openSectionPage(page, SECTION);
+    const pagePath = new URL(page.url()).pathname;
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(pagePath);
+    await expect(page).toHaveTitle(/^Error: /);
+    await expect(page.getByRole('alert').getByRole('link')).toHaveText([
+      'Enter the definition of the indicator',
+      'Enter the rationale for the indicator',
+    ]);
+
+    await page.getByLabel(DEFINITION).fill('The average number of years a newborn would live.');
+    await page.getByLabel(RATIONALE).fill('A summary measure of mortality.');
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(taskListPath);
+    await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+  });
+});

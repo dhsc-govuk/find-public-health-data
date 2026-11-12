@@ -130,7 +130,7 @@ export const indicatorAdminSummarySchema = z.object({
   id: z.uuid(),
   name: z.string().min(1),
   /** The team whose publishers own it. */
-  teamId: z.uuid().nullable(),
+  teamId: z.uuid(),
   updatedAt: z.iso.datetime(),
   indicatorStatus: indicatorStatusSchema,
   /** Null while the indicator has no draft, which for a live one means it is published as is. */
@@ -163,8 +163,7 @@ export const indicatorListTeamsQuerySchema = z.object({ teams: z.literal('own').
 
 /** A dashboard row, which names the team and the people for the publisher to read. */
 export const indicatorAdminListItemSchema = indicatorAdminSummarySchema.extend({
-  /** Null while the indicator is in no team. */
-  teamName: z.string().nullable(),
+  teamName: z.string(),
   /** The display name of whoever wrote the indicator's first version. */
   createdBy: z.string().nullable(),
   /** The display name of whoever made the edit `updatedAt` dates. */
@@ -258,6 +257,12 @@ export const indicatorNameSchema = z.object({
 /** The team a new indicator joins, which its creator chooses from their own before naming it. */
 export const indicatorTeamSchema = z.object({ teamId: z.uuid() });
 
+/**
+ * The id a new indicator takes, which the name page mints when it is shown. A double click or a
+ * retry sends the same id again, so the API can tell it from a second indicator of the same name.
+ */
+export const indicatorCreateIdSchema = z.object({ id: z.uuidv7() });
+
 export const indicatorFieldSchema = z.enum(['name']);
 
 export const indicatorFieldErrorsSchema = z.partialRecord(indicatorFieldSchema, z.string());
@@ -266,11 +271,12 @@ export const indicatorFieldErrorsSchema = z.partialRecord(indicatorFieldSchema, 
 export const indicatorCreateResponseSchema = indicatorAdminDetailSchema;
 
 /**
- * The 400 and 409 answers. A missing or malformed team names no field: the name page never asks
- * for one.
+ * The 400 and 409 answers. A missing or malformed team or id names no field: the name page never
+ * asks for one. `id_taken` means another indicator has the id, and the request is not a repeat of
+ * the one that created it.
  */
 export const indicatorCreateErrorSchema = z.discriminatedUnion('error', [
-  z.object({ error: z.literal('invalid_team') }),
+  z.object({ error: z.enum(['invalid_team', 'invalid_id', 'id_taken']) }),
   z.object({
     error: z.enum(['validation_failed', 'slug_taken']),
     fieldErrors: indicatorFieldErrorsSchema,

@@ -201,10 +201,10 @@ test('uses the prototype’s narrow metadata and fixed sidebar across different 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openIndicatorPage(page, '/indicator/diabetes-qof-prevalence');
   for (const [tab, width] of [
-    ['Indicator', 960],
+    ['Indicator', 1020],
     ['Compare areas', 1380],
     ['Inequalities', null],
-    ['About this indicator', 960],
+    ['About this indicator', 1020],
   ] as const) {
     await page.getByRole('tab', { name: tab, exact: true }).click();
     const panel = page.getByRole('tabpanel', { name: tab, exact: true });
@@ -216,7 +216,7 @@ test('uses the prototype’s narrow metadata and fixed sidebar across different 
     await expect(page.getByRole('tablist')).toHaveCSS('border-bottom-color', panelBorder);
     if (width === null) {
       const size = Math.round((await panel.boundingBox())?.width ?? 0);
-      expect(size).toBeGreaterThanOrEqual(960);
+      expect(size).toBeGreaterThanOrEqual(1020);
       expect(size).toBeLessThanOrEqual(1380);
     } else {
       await expect

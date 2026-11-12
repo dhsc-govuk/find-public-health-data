@@ -1,6 +1,6 @@
 import type postgres from 'postgres';
 
-import { tableColumns } from './data-migration-actors.ts';
+import { receiverColumns, tableColumns } from './data-migration-actors.ts';
 import { readCsvHeader } from './seeding.ts';
 
 const LEGACY_SOURCE_COLUMNS = ['numerator_source_id', 'denominator_source_id'] as const;
@@ -43,7 +43,14 @@ export async function validateMigrationHeader(
     throw new Error(`${table} CSV has columns the target table does not: ${unknown.join(', ')}`);
   }
 
-  const columnSet = new Set(columns);
+  const receiverOwned = columns.filter((col) => receiverColumns(table).includes(col));
+  if (receiverOwned.length > 0) {
+    throw new Error(
+      `${table} CSV has columns only the receiver writes: ${receiverOwned.join(', ')}`,
+    );
+  }
+
+  const columnSet = new Set([...columns, ...receiverColumns(table)]);
   const missing = targetInfo
     .filter(
       ({ name, notNull, hasDefault }) =>

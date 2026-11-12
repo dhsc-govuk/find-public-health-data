@@ -48,7 +48,6 @@ const teamless = user('teamless', ['publisher']);
 
 const inTeamA: IndicatorAccess = { teamId: teamA, reviewerIds: [] };
 const inTeamB: IndicatorAccess = { teamId: teamB, reviewerIds: [] };
-const inNoTeam: IndicatorAccess = { teamId: null, reviewerIds: [] };
 const assigned: IndicatorAccess = { teamId: teamA, reviewerIds: ['reviewer'] };
 
 describe('canSeeIndicator', () => {
@@ -56,11 +55,10 @@ describe('canSeeIndicator', () => {
     ['a publisher', publisherA, inTeamA, true],
     ['a publisher', publisherA, inTeamB, false],
     ['a publisher in two teams', publisherAB, inTeamB, true],
-    ['a publisher', publisherA, inNoTeam, false],
     ['an IMRG reviewer', reviewer, assigned, true],
     ['an IMRG reviewer', reviewer, inTeamA, false],
     ['a publisher who reviews', publisherReviewer, inTeamB, true],
-    ['an IMRG manager', manager, inNoTeam, true],
+    ['an IMRG manager', manager, inTeamA, true],
     ['an admin', admin, inTeamB, true],
   ])('answers whether %s sees an indicator', (_who, asking, indicator, expected) => {
     expect(canSeeIndicator(asking, indicator)).toBe(expected);
@@ -80,7 +78,6 @@ describe('canEditIndicator', () => {
   it("lets a publisher edit their own teams' indicators only", () => {
     expect(canEditIndicator(publisherAB, inTeamB)).toBe(true);
     expect(canEditIndicator(publisherA, inTeamB)).toBe(false);
-    expect(canEditIndicator(publisherA, inNoTeam)).toBe(false);
   });
 
   it('lets no one but a publisher edit', () => {
@@ -97,7 +94,6 @@ describe.each([
   it("lets a publisher take the step on their own teams' indicators only", () => {
     expect(check(publisherAB, inTeamB)).toBe(true);
     expect(check(publisherA, inTeamB)).toBe(false);
-    expect(check(publisherA, inNoTeam)).toBe(false);
   });
 
   it('lets no one but a publisher take it', () => {
@@ -255,14 +251,7 @@ describe('canSeeIndicatorHistory', () => {
       publisherManager,
       teamless,
     ];
-    const indicators = [
-      inTeamA,
-      inTeamB,
-      inNoTeam,
-      assigned,
-      assignedInOwnTeam,
-      assignedToPublisherReviewer,
-    ];
+    const indicators = [inTeamA, inTeamB, assigned, assignedInOwnTeam, assignedToPublisherReviewer];
 
     for (const asking of users) {
       for (const indicator of indicators) {
@@ -333,9 +322,8 @@ describe('indicatorListScope', () => {
 
     for (const asking of users) {
       const scope = indicatorListScope(asking);
-      for (const indicator of [inTeamA, inTeamB, inNoTeam]) {
-        const listed =
-          scope.all || (indicator.teamId !== null && scope.teamIds.includes(indicator.teamId));
+      for (const indicator of [inTeamA, inTeamB]) {
+        const listed = scope.all || scope.teamIds.includes(indicator.teamId);
         expect(listed, asking.sub).toBe(canSeeIndicator(asking, indicator));
       }
     }

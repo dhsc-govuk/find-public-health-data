@@ -1,27 +1,42 @@
 import { TEAM_IDS } from '@fphd/auth';
-import type { ApiClient } from '@fphd/web-server/api-client';
+import type { IndicatorAdminListItem } from '@fphd/internal-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
-import { describe, expect, it, vi } from 'vitest';
+import { createFakeApiClient, type FakeApiClient } from '@fphd/web-server/testing';
+import { describe, expect, it } from 'vitest';
 
 import { flashCookie, loadWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { signedInContext } from '../session.testing.ts';
 import { loadDashboard } from './loader.ts';
 
-const indicator = {
+const indicator: IndicatorAdminListItem = {
   id: '00000000-0000-7000-8000-000000000001',
   name: 'Life expectancy at birth',
+  teamId: TEAM_IDS.teamA,
+  teamName: 'Team A',
+  createdBy: 'Alex Morgan',
   updatedAt: '2026-01-02T00:00:00.000Z',
+  lastEditedBy: 'Sam Taylor',
+  indicatorStatus: 'new',
+  draftStatus: 'draft',
+  draftLocked: false,
+  draftSubmissionStatus: null,
+  draftResponseKind: null,
+  draftReviewers: [],
 };
+
+const UNDER_REVIEW = '/api/internal/indicators-under-review';
+const TO_REVIEW = '/api/internal/indicators-to-review';
+const SCHEDULED = '/api/internal/indicators-scheduled';
 
 async function load(
   url: string,
-  get: ApiClient['get'],
+  api: FakeApiClient,
   roles: readonly string[] = ['publisher'],
   teams: readonly string[] = [TEAM_IDS.teamA],
   cookie?: string,
 ) {
   const context = withFlashStorage(await signedInContext(roles, teams));
-  context.set(apiContext, { get } as unknown as ApiClient);
+  context.set(apiContext, api);
   const request = new Request(url, cookie === undefined ? {} : { headers: { Cookie: cookie } });
 
   // A loader that throws, as for a missing page, rejects here rather than inside the middleware.
@@ -36,17 +51,28 @@ async function load(
   return outcome;
 }
 
+function listPage(page: number, total: number, indicators = [indicator]) {
+  return { indicators, page, pageSize: 10, total };
+}
+
+/** An API that answers one page of the whole list. */
 function apiPage(page: number, total: number, indicators = [indicator]) {
-  return vi.fn().mockResolvedValue({ indicators, page, pageSize: 10, total });
+  return createFakeApiClient({
+    [`GET /api/internal/indicators?page=${page}`]: listPage(page, total, indicators),
+  });
+}
+
+function pathsAsked(api: FakeApiClient) {
+  return api.calls.map(({ path }) => path).sort();
 }
 
 describe('loadDashboard', () => {
   it('asks for the first page when the address names none', async () => {
-    const get = apiPage(1, 23);
+    const api = apiPage(1, 23);
 
-    const outcome = await load('https://internal.test/dashboard', get);
+    const outcome = await load('https://internal.test/dashboard', api);
 
-    expect(get.mock.calls[0]?.[0]).toBe('/api/internal/indicators?page=1');
+    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=1']);
     expect(outcome).toEqual({
       underReview: null,
       toReview: null,
@@ -57,20 +83,20 @@ describe('loadDashboard', () => {
   });
 
   it('asks for the page in the address', async () => {
-    const get = apiPage(3, 23);
+    const api = apiPage(3, 23);
 
-    const outcome = await load('https://internal.test/dashboard?page=3', get);
+    const outcome = await load('https://internal.test/dashboard?page=3', api);
 
-    expect(get.mock.calls[0]?.[0]).toBe('/api/internal/indicators?page=3');
+    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=3']);
     expect(outcome.list).toMatchObject({ page: 3, totalPages: 3 });
   });
 
   it('pages alike whichever tab the address keeps open', async () => {
-    const get = apiPage(3, 23);
+    const api = apiPage(3, 23);
 
-    await load('https://internal.test/dashboard?page=3&tab=create-and-edit', get);
+    await load('https://internal.test/dashboard?page=3&tab=create-and-edit', api);
 
-    expect(get.mock.calls[0]?.[0]).toBe('/api/internal/indicators?page=3');
+    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=3']);
   });
 
   it('renders the first page when there are no indicators at all', async () => {
@@ -80,22 +106,24 @@ describe('loadDashboard', () => {
   });
 
   it('shows an admin the scheduled indicators beside the list', async () => {
-    const get = vi
-      .fn()
-      .mockImplementation(async (path: string) =>
-        path === '/api/internal/indicators-scheduled'
-          ? { indicators: [indicator] }
-          : { indicators: [], page: 1, pageSize: 10, total: 0 },
-      );
+    const api = createFakeApiClient({
+      [`GET ${SCHEDULED}`]: { indicators: [indicator] },
+      'GET /api/internal/indicators?page=1': listPage(1, 0, []),
+    });
 
-    const outcome = await load('https://internal.test/dashboard', get, ['admin'], []);
+    const outcome = await load('https://internal.test/dashboard', api, ['admin'], []);
 
     expect(outcome.scheduled).toEqual([indicator]);
     expect(outcome.list).toMatchObject({ indicators: [], page: 1 });
   });
 
   it('offers an admin no create action', async () => {
-    const outcome = await load('https://internal.test/dashboard', apiPage(1, 1), ['admin'], []);
+    const api = createFakeApiClient({
+      [`GET ${SCHEDULED}`]: { indicators: [] },
+      'GET /api/internal/indicators?page=1': listPage(1, 1),
+    });
+
+    const outcome = await load('https://internal.test/dashboard', api, ['admin'], []);
 
     expect(outcome.list?.canCreate).toBe(false);
   });
@@ -109,31 +137,31 @@ describe('loadDashboard', () => {
   it.each(['0', 'two', '1.5'])(
     'responds 404 to a page of %s without asking the API',
     async (page) => {
-      const get = vi.fn();
+      const api = createFakeApiClient();
 
-      await expect(load(`https://internal.test/dashboard?page=${page}`, get)).rejects.toSatisfy(
+      await expect(load(`https://internal.test/dashboard?page=${page}`, api)).rejects.toSatisfy(
         (error: unknown) => error instanceof Response && error.status === 404,
       );
-      expect(get).not.toHaveBeenCalled();
+      expect(api.calls).toEqual([]);
     },
   );
 
   it('responds 404 when the address names a page twice, as the API would refuse it', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
-    await expect(load('https://internal.test/dashboard?page=1&page=2', get)).rejects.toSatisfy(
+    await expect(load('https://internal.test/dashboard?page=1&page=2', api)).rejects.toSatisfy(
       (error: unknown) => error instanceof Response && error.status === 404,
     );
-    expect(get).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows an IMRG manager the indicators under review and no list', async () => {
     const underReview = { unassigned: [indicator], assigned: [] };
-    const get = vi.fn().mockResolvedValue(underReview);
+    const api = createFakeApiClient({ [`GET ${UNDER_REVIEW}`]: underReview });
 
-    const outcome = await load('https://internal.test/dashboard', get, ['imrg-manager'], []);
+    const outcome = await load('https://internal.test/dashboard', api, ['imrg-manager'], []);
 
-    expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-under-review']);
+    expect(pathsAsked(api)).toEqual([UNDER_REVIEW]);
     expect(outcome).toEqual({
       underReview,
       toReview: null,
@@ -144,33 +172,27 @@ describe('loadDashboard', () => {
   });
 
   it('responds 404 to a second page for an IMRG manager, whose tables are not paged', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
     await expect(
-      load('https://internal.test/dashboard?page=2', get, ['imrg-manager'], []),
+      load('https://internal.test/dashboard?page=2', api, ['imrg-manager'], []),
     ).rejects.toSatisfy((error: unknown) => error instanceof Response && error.status === 404);
-    expect(get).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it("shows an IMRG manager who publishes both, with a page of their own teams' indicators", async () => {
     const underReview = { unassigned: [], assigned: [indicator] };
-    const get = vi
-      .fn()
-      .mockImplementation(async (path: string) =>
-        path === '/api/internal/indicators-under-review'
-          ? underReview
-          : { indicators: [indicator], page: 2, pageSize: 10, total: 23 },
-      );
+    const api = createFakeApiClient({
+      [`GET ${UNDER_REVIEW}`]: underReview,
+      'GET /api/internal/indicators?page=2&teams=own': listPage(2, 23),
+    });
 
-    const outcome = await load('https://internal.test/dashboard?page=2', get, [
+    const outcome = await load('https://internal.test/dashboard?page=2', api, [
       'publisher',
       'imrg-manager',
     ]);
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
-      '/api/internal/indicators-under-review',
-      '/api/internal/indicators?page=2&teams=own',
-    ]);
+    expect(pathsAsked(api)).toEqual([UNDER_REVIEW, '/api/internal/indicators?page=2&teams=own']);
     expect(outcome).toEqual({
       underReview,
       toReview: null,
@@ -181,11 +203,11 @@ describe('loadDashboard', () => {
   });
 
   it('shows an IMRG reviewer the indicators assigned to them and no list', async () => {
-    const get = vi.fn().mockResolvedValue({ indicators: [indicator] });
+    const api = createFakeApiClient({ [`GET ${TO_REVIEW}`]: { indicators: [indicator] } });
 
-    const outcome = await load('https://internal.test/dashboard', get, ['imrg-reviewer'], []);
+    const outcome = await load('https://internal.test/dashboard', api, ['imrg-reviewer'], []);
 
-    expect(get.mock.calls.map(([path]) => path)).toEqual(['/api/internal/indicators-to-review']);
+    expect(pathsAsked(api)).toEqual([TO_REVIEW]);
     expect(outcome).toEqual({
       underReview: null,
       toReview: [indicator],
@@ -197,25 +219,19 @@ describe('loadDashboard', () => {
 
   it('shows a user who is IMRG manager and reviewer both review lists and no list', async () => {
     const underReview = { unassigned: [], assigned: [indicator] };
-    const get = vi
-      .fn()
-      .mockImplementation(async (path: string) =>
-        path === '/api/internal/indicators-under-review'
-          ? underReview
-          : { indicators: [indicator] },
-      );
+    const api = createFakeApiClient({
+      [`GET ${UNDER_REVIEW}`]: underReview,
+      [`GET ${TO_REVIEW}`]: { indicators: [indicator] },
+    });
 
     const outcome = await load(
       'https://internal.test/dashboard',
-      get,
+      api,
       ['imrg-manager', 'imrg-reviewer'],
       [],
     );
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
-      '/api/internal/indicators-to-review',
-      '/api/internal/indicators-under-review',
-    ]);
+    expect(pathsAsked(api)).toEqual([TO_REVIEW, UNDER_REVIEW]);
     expect(outcome).toEqual({
       underReview,
       toReview: [indicator],
@@ -253,47 +269,42 @@ describe('loadDashboard', () => {
       ],
     ],
   ])('fetches for %s the lists their roles allow', async (_who, roles, paths) => {
-    const get = vi.fn().mockImplementation(async (path: string) => {
-      if (path === '/api/internal/indicators-under-review') return { unassigned: [], assigned: [] };
-      if (path === '/api/internal/indicators-to-review') return { indicators: [] };
-      if (path === '/api/internal/indicators-scheduled') return { indicators: [] };
-      return { indicators: [], page: 1, pageSize: 10, total: 0 };
+    const api = createFakeApiClient({
+      [`GET ${UNDER_REVIEW}`]: { unassigned: [], assigned: [] },
+      [`GET ${TO_REVIEW}`]: { indicators: [] },
+      [`GET ${SCHEDULED}`]: { indicators: [] },
+      'GET /api/internal/indicators?page=1': listPage(1, 0, []),
+      'GET /api/internal/indicators?page=1&teams=own': listPage(1, 0, []),
     });
 
-    await load('https://internal.test/dashboard', get, roles);
+    await load('https://internal.test/dashboard', api, roles);
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual(paths);
+    expect(pathsAsked(api)).toEqual(paths);
   });
 
   it('responds 404 to a second page for an IMRG reviewer, whose list is not paged', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
     await expect(
-      load('https://internal.test/dashboard?page=2', get, ['imrg-reviewer'], []),
+      load('https://internal.test/dashboard?page=2', api, ['imrg-reviewer'], []),
     ).rejects.toSatisfy((error: unknown) => error instanceof Response && error.status === 404);
-    expect(get).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it("shows an IMRG reviewer who publishes both, with a page of their own teams' indicators", async () => {
-    const get = vi
-      .fn()
-      .mockImplementation(async (path: string) =>
-        path === '/api/internal/indicators-to-review'
-          ? { indicators: [indicator] }
-          : { indicators: [indicator], page: 2, pageSize: 10, total: 23 },
-      );
+    const api = createFakeApiClient({
+      [`GET ${TO_REVIEW}`]: { indicators: [indicator] },
+      'GET /api/internal/indicators?page=2&teams=own': listPage(2, 23),
+    });
 
     const outcome = await load(
       'https://internal.test/dashboard?page=2',
-      get,
+      api,
       ['publisher', 'imrg-reviewer'],
       [TEAM_IDS.teamC],
     );
 
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([
-      '/api/internal/indicators-to-review',
-      '/api/internal/indicators?page=2&teams=own',
-    ]);
+    expect(pathsAsked(api)).toEqual([TO_REVIEW, '/api/internal/indicators?page=2&teams=own']);
     expect(outcome).toEqual({
       underReview: null,
       toReview: [indicator],
