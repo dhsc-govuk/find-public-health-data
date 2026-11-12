@@ -526,6 +526,35 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeTruthy();
   });
 
+  it("reads an update's tasks against the live indicator, with the update summary flagged", () => {
+    renderSentBack(
+      {
+        isUpdate: true,
+        indicator: { ...taskList.indicator, indicatorStatus: 'live' },
+        changedTasks: ['name'],
+        canSubmit: true,
+      },
+      {
+        ...requests,
+        advised: true,
+        flags: {
+          'update-summary': {
+            reviewerName: 'Sam Reviewer',
+            notes: renderMarkdown('Say why it was renamed'),
+            cleared: false,
+          },
+        },
+      },
+    );
+
+    expect(row('Metadata', 'Name').getByText('Changed').className).toContain('govuk-tag--orange');
+    expect(row('Data', 'Polarity').getByText('Unchanged').className).toContain('govuk-tag--grey');
+    const summary = row('Publishing', 'Update summary');
+    expect(summary.getByText('Say why it was renamed')).toBeTruthy();
+    expect(summary.getByText('Revisions advised').className).toContain('govuk-tag--orange');
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeTruthy();
+  });
+
   it('keeps the two-thirds page and the task lists without a round', () => {
     renderPage();
 
