@@ -179,6 +179,10 @@ export default [
         '../../../packages/internal-web-features/src/indicator-sex-and-ages/route.tsx',
       ),
       route(
+        'publish/indicators/:id/ages',
+        '../../../packages/internal-web-features/src/indicator-ages/route.tsx',
+      ),
+      route(
         'publish/indicators/:id/tagging',
         '../../../packages/internal-web-features/src/indicator-tagging/route.tsx',
       ),

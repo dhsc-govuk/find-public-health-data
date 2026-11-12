@@ -1,3 +1,4 @@
+import { FLAGGABLE_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -350,6 +351,15 @@ describe('the review responses, flags and reviewer notes', () => {
     await expect(
       sql`DELETE FROM indicator_version_submission_reviewer WHERE submission_id = ${submissionId}`,
     ).rejects.toMatchObject({ code: FOREIGN_KEY_VIOLATION });
+  });
+
+  it('accepts a flag on every task a reviewer may flag', async () => {
+    const { submissionId } = await reviewedSubmission();
+    const responseId = await respond(submissionId);
+
+    for (const taskKey of FLAGGABLE_TASK_KEYS) {
+      await expect(flag(responseId, { taskKey })).resolves.toBeDefined();
+    }
   });
 
   it.each([

@@ -1,5 +1,8 @@
 import { CLASSIFICATION_DIMENSIONS } from '@fphd/utils/classification-dimension';
 import {
+  type Ages,
+  type AgesAnswers,
+  type AgesField,
   type ProviderSources,
   type ProviderSourcesAnswers,
   type ProviderSourcesField,
@@ -41,11 +44,6 @@ export const denominatorColumns: IndicatorSectionColumns<
   toLists: ({ sources }) => ({ denominatorSources: sources }),
 };
 
-// A limit or age the form accepted, which is a whole number or nothing.
-function age(value: string): number | null {
-  return value === '' ? null : Number(value);
-}
-
 export const sexAndAgesColumns: IndicatorSectionColumns<
   SexAndAgesField,
   SexAndAges,
@@ -56,31 +54,34 @@ export const sexAndAgesColumns: IndicatorSectionColumns<
     sexes: draft.sexes ?? [],
     genders: draft.genders ?? [],
     ethnicGroups: draft.ethnicGroups ?? [],
+  }),
+  // The lists of a demographic not collected are cleared, whatever the form sent.
+  toAttributes: ({ demographics, sexes, genders, ethnicGroups }) => ({
+    demographics,
+    sexes: demographics.includes('sex') ? sexes : null,
+    genders: demographics.includes('gender') ? genders : null,
+    ethnicGroups: demographics.includes('ethnicity') ? ethnicGroups : null,
+  }),
+};
+
+// A limit or age the form accepted, which is a whole number or nothing.
+function age(value: string): number | null {
+  return value === '' ? null : Number(value);
+}
+
+export const agesColumns: IndicatorSectionColumns<AgesField, Ages, AgesAnswers> = {
+  fromDraft: (draft) => ({
     ageType: draft.ageType,
     ageRanges: draft.ageRanges,
     specificAge: draft.specificAge,
     specificAgeUnit: draft.specificAgeUnit,
     ageDetail: draft.ageDetail,
   }),
-  // The lists of a demographic not collected, and the answers the chosen age type does not ask
-  // for, are cleared, whatever the form sent.
-  toAttributes: ({
-    demographics,
-    sexes,
-    genders,
-    ethnicGroups,
-    ageType,
-    specificAge,
-    specificAgeUnit,
-    ageDetail,
-  }) => {
+  // The answers the chosen age type does not ask for are cleared, whatever the form sent.
+  toAttributes: ({ ageType, specificAge, specificAgeUnit, ageDetail }) => {
     const specific = ageType === 'specific';
 
     return {
-      demographics,
-      sexes: demographics.includes('sex') ? sexes : null,
-      genders: demographics.includes('gender') ? genders : null,
-      ethnicGroups: demographics.includes('ethnicity') ? ethnicGroups : null,
       ageType,
       specificAge: specific ? age(specificAge) : null,
       specificAgeUnit: specific && specificAgeUnit !== '' ? specificAgeUnit : null,

@@ -1,7 +1,4 @@
-import type {
-  SexAndAgesFormValues,
-  SexAndAgesPageField,
-} from '@fphd/internal-api-features/contract';
+import type { SexAndAgesField, SexAndAgesFormValues } from '@fphd/internal-api-features/contract';
 import { titleFromPage } from '@fphd/ui';
 
 import { sectionBackLinkHandle, useSectionForm } from '../indicator-section-route.ts';
@@ -16,9 +13,8 @@ export const meta = titleFromPage;
 
 export const handle = sectionBackLinkHandle;
 
-// After Add or a remove, the action's answer is the page with its ranges changed.
 export function SexAndAgesRoute() {
-  return <SexAndAgesPage {...useSectionForm<SexAndAgesPageField, SexAndAgesFormValues>()} />;
+  return <SexAndAgesPage {...useSectionForm<SexAndAgesField, SexAndAgesFormValues>()} />;
 }
 
 export default SexAndAgesRoute;

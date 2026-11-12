@@ -2,7 +2,7 @@ import { TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
-import { MAX_AGE } from '@fphd/utils/sex-and-ages';
+import { MAX_AGE } from '@fphd/utils/ages';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
@@ -410,14 +410,7 @@ describe('updateIndicatorDraft', () => {
   repositoryTest('holds all ages', async ({ db }) => {
     const created = await newDraft(db, 'All ages');
 
-    await updateIndicatorDraft(
-      db,
-      created.indicatorId,
-      'sex-and-ages',
-      { ageType: 'all' },
-      {},
-      AS_ACTOR,
-    );
+    await updateIndicatorDraft(db, created.indicatorId, 'ages', { ageType: 'all' }, {}, AS_ACTOR);
 
     expect((await getIndicatorDraftState(db, created.indicatorId))?.draft?.ageType).toBe('all');
   });
@@ -808,7 +801,7 @@ describe('updateIndicatorDraft given the version a form was shown', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       {},
       { ageRanges: [sixteenPlus] },
       AS_ACTOR,
@@ -817,7 +810,7 @@ describe('updateIndicatorDraft given the version a form was shown', () => {
     const result = await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       {},
       { ageRanges: [] },
       AS_ACTOR,
@@ -915,7 +908,7 @@ describe('the audit log of draft writes', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       { ageType: 'range' },
       { ageRanges: first },
       AS_ACTOR,
@@ -923,7 +916,7 @@ describe('the audit log of draft writes', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       {},
       { ageRanges: second },
       AS_ACTOR,
@@ -1016,7 +1009,7 @@ describe('the audit log of draft writes', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         { ageType: 'range' },
         { ageRanges: first },
         AS_ACTOR,

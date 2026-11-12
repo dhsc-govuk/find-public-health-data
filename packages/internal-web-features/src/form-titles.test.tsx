@@ -26,6 +26,7 @@ import { createRoutesStub, Meta, type MetaFunction, Outlet } from 'react-router'
 import { describe, expect, it } from 'vitest';
 
 import { FORM_NOT_SAVED } from './form-refusal.ts';
+import * as ages from './indicator-ages/route.tsx';
 import * as benchmarking from './indicator-benchmarking/route.tsx';
 import * as calculation from './indicator-calculation/route.tsx';
 import * as confidenceIntervals from './indicator-confidence-intervals/route.tsx';
@@ -98,11 +99,9 @@ function sectionForm<Field extends string>(
   };
 }
 
-const sexAndAgesUnanswered = {
-  demographics: [],
-  sexes: [],
-  genders: [],
-  ethnicGroups: [],
+const sexAndAgesUnanswered = { demographics: [], sexes: [], genders: [], ethnicGroups: [] };
+
+const agesUnanswered = {
   ageType: '',
   ageRanges: [{ lowerLimit: '', lowerLimitUnit: '', upperLimit: '', upperLimitUnit: '' }],
   specificAge: '',
@@ -273,11 +272,15 @@ const forms: {
     loaderData: { id: indicator.id, values: sexAndAgesUnanswered },
     rejected: {
       values: sexAndAgesUnanswered,
-      fieldErrors: {
-        demographics: 'Select what was collected for this indicator',
-        ageType: 'Select the age type',
-      },
+      fieldErrors: { demographics: 'Select what was collected for this indicator' },
     },
+  },
+  {
+    name: 'ages',
+    route: ages,
+    pageTitle: 'What ages are included in this indicator?',
+    loaderData: { id: indicator.id, values: agesUnanswered },
+    rejected: { values: agesUnanswered, fieldErrors: { ageType: 'Select the age type' } },
   },
   {
     name: 'tagging',

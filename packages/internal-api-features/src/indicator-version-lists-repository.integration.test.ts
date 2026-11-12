@@ -1,6 +1,6 @@
 import { schema } from '@fphd/db';
 import { auditEntriesFor } from '@fphd/db/testing';
-import { MAX_AGE } from '@fphd/utils/sex-and-ages';
+import { MAX_AGE } from '@fphd/utils/ages';
 import { desc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
@@ -187,7 +187,15 @@ describe('updateIndicatorDraft', () => {
         db,
         created.indicatorId,
         'sex-and-ages',
-        { demographics: ['sex'], sexes: ['females', 'males'], ageType: 'range' },
+        { demographics: ['sex'], sexes: ['females', 'males'] },
+        {},
+        AS_ACTOR,
+      );
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'ages',
+        { ageType: 'range' },
         { ageRanges: [underFive, sixteenPlus] },
         AS_ACTOR,
       );
@@ -195,7 +203,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         { ageType: 'specific', specificAge: 5, specificAgeUnit: 'weeks' },
         { ageRanges: [] },
         AS_ACTOR,
@@ -223,7 +231,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       { ageType: 'range' },
       { ageRanges: [oldest] },
       AS_ACTOR,
@@ -231,7 +239,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       { ageType: 'specific', specificAge: MAX_AGE, specificAgeUnit: 'days' },
       {},
       AS_ACTOR,
@@ -260,7 +268,7 @@ describe('updateIndicatorDraft', () => {
       updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         {},
         { ageRanges: [ageRange] },
         AS_ACTOR,
@@ -282,7 +290,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         { ageType: 'range' },
         { ageRanges: [firstYear] },
         AS_ACTOR,

@@ -1,3 +1,4 @@
+import { AGE_TYPES, AGE_UNIT_DAYS, AGE_UNITS, type AgeType, MAX_AGE } from '@fphd/utils/ages';
 import { INDICATOR_CALCULATED_BY, type IndicatorCalculatedBy } from '@fphd/utils/calculated-by';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import {
@@ -11,13 +12,6 @@ import {
   type YearType,
 } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
-import {
-  AGE_TYPES,
-  AGE_UNIT_DAYS,
-  AGE_UNITS,
-  type AgeType,
-  MAX_AGE,
-} from '@fphd/utils/sex-and-ages';
 import {
   DEMOGRAPHICS,
   type Demographic,

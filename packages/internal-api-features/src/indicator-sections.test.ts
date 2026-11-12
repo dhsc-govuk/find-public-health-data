@@ -1,6 +1,7 @@
 import { request } from '@fphd/express/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  agesSection,
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
@@ -38,6 +39,7 @@ import {
 
 // Every section the router serves.
 const sections = [
+  agesSection,
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
@@ -102,13 +104,7 @@ describe('indicatorSectionsRouter', () => {
         ...inTestTeam,
         updateDraft,
         findDraftState: vi.fn().mockResolvedValue({
-          draft: {
-            ...unansweredDraft,
-            demographics: ['sex'],
-            sexes: ['females'],
-            ageType: 'range',
-            ageRanges,
-          },
+          draft: { ...unansweredDraft, ageType: 'range', ageRanges },
         }),
       },
     });
@@ -116,14 +112,10 @@ describe('indicatorSectionsRouter', () => {
     const response = await request(
       createRouterTestApp(indicatorSectionsRouter(repositories, testSessionVerifier)),
     )
-      .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/sex-and-ages')
+      .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/ages')
       .set('Cookie', await testSessionCookie(['publisher']))
       .send({
         answers: {
-          demographics: ['sex'],
-          sexes: ['females'],
-          genders: [],
-          ethnicGroups: [],
           ageType: 'range',
           ageRanges: [
             { lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' },
@@ -138,12 +130,8 @@ describe('indicatorSectionsRouter', () => {
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
       '00000000-0000-7000-8000-000000000001',
-      'sex-and-ages',
+      'ages',
       {
-        demographics: ['sex'],
-        sexes: ['females'],
-        genders: null,
-        ethnicGroups: null,
         ageType: 'range',
         specificAge: null,
         specificAgeUnit: null,
@@ -153,6 +141,6 @@ describe('indicatorSectionsRouter', () => {
       testActor(response),
       expect.objectContaining({ version: editVersion({}) }),
     );
-    expect(response.body).toMatchObject({ answers: { sexes: ['females'], ageRanges } });
+    expect(response.body).toMatchObject({ answers: { ageType: 'range', ageRanges } });
   });
 });

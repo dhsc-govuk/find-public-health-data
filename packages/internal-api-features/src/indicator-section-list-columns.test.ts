@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { SexAndAges, Tagging } from './contract.ts';
+import type { Ages, Tagging } from './contract.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
 import {
+  agesColumns,
   denominatorColumns,
   numeratorColumns,
   sexAndAgesColumns,
@@ -40,12 +41,35 @@ describe('numeratorColumns and denominatorColumns', () => {
 });
 
 describe('sexAndAgesColumns', () => {
+  it('reads unanswered demographics and their lists as none', () => {
+    expect(sexAndAgesColumns.fromDraft(unansweredDraft)).toEqual({
+      demographics: [],
+      sexes: [],
+      genders: [],
+      ethnicGroups: [],
+    });
+  });
+
+  it('writes the list of each demographic collected, and clears the others', () => {
+    expect(
+      sexAndAgesColumns.toAttributes({
+        demographics: ['gender', 'ethnicity'],
+        sexes: ['females', 'males'],
+        genders: ['non-binary'],
+        ethnicGroups: ['mixed', 'white'],
+      }),
+    ).toEqual({
+      demographics: ['gender', 'ethnicity'],
+      sexes: null,
+      genders: ['non-binary'],
+      ethnicGroups: ['mixed', 'white'],
+    });
+  });
+});
+
+describe('agesColumns', () => {
   // Every age type's answers filled in, as a form without JavaScript may send them.
-  const everyAnswer = (ageType: SexAndAges['ageType']): SexAndAges => ({
-    demographics: ['sex'],
-    sexes: ['females', 'males'],
-    genders: [],
-    ethnicGroups: [],
+  const everyAnswer = (ageType: Ages['ageType']): Ages => ({
     ageType,
     ageRanges: [{ lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' }],
     specificAge: '5',
@@ -53,12 +77,8 @@ describe('sexAndAgesColumns', () => {
     ageDetail: 'School year 6',
   });
 
-  it('reads unanswered demographics and their lists as none', () => {
-    expect(sexAndAgesColumns.fromDraft(unansweredDraft)).toEqual({
-      demographics: [],
-      sexes: [],
-      genders: [],
-      ethnicGroups: [],
+  it('reads unanswered ages as none', () => {
+    expect(agesColumns.fromDraft(unansweredDraft)).toEqual({
       ageType: null,
       ageRanges: [],
       specificAge: null,
@@ -70,75 +90,51 @@ describe('sexAndAgesColumns', () => {
   it('writes the ranges, with each limit left empty as null, and nothing else beside a range', () => {
     const values = everyAnswer('range');
 
-    expect(sexAndAgesColumns.toAttributes(values)).toEqual({
-      demographics: ['sex'],
-      sexes: ['females', 'males'],
-      genders: null,
-      ethnicGroups: null,
+    expect(agesColumns.toAttributes(values)).toEqual({
       ageType: 'range',
       specificAge: null,
       specificAgeUnit: null,
       ageDetail: null,
     });
-    expect(sexAndAgesColumns.toLists?.(values)).toEqual({
+    expect(agesColumns.toLists?.(values)).toEqual({
       ageRanges: [
         { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
       ],
     });
   });
 
-  it('writes the list of each demographic collected, and clears the others', () => {
-    const values: SexAndAges = {
-      ...everyAnswer('all'),
-      demographics: ['gender', 'ethnicity'],
-      genders: ['non-binary'],
-      ethnicGroups: ['mixed', 'white'],
-    };
-
-    expect(sexAndAgesColumns.toAttributes(values)).toMatchObject({
-      demographics: ['gender', 'ethnicity'],
-      sexes: null,
-      genders: ['non-binary'],
-      ethnicGroups: ['mixed', 'white'],
-    });
-  });
-
   it('writes the specific age as a number, and nothing else beside it', () => {
     const values = everyAnswer('specific');
 
-    expect(sexAndAgesColumns.toAttributes(values)).toMatchObject({
+    expect(agesColumns.toAttributes(values)).toMatchObject({
       specificAge: 5,
       specificAgeUnit: 'weeks',
       ageDetail: null,
     });
-    expect(sexAndAgesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
+    expect(agesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
   });
 
   it('writes all ages, and nothing else beside them', () => {
     const values = everyAnswer('all');
 
-    expect(sexAndAgesColumns.toAttributes(values)).toEqual({
-      demographics: ['sex'],
-      sexes: ['females', 'males'],
-      genders: null,
-      ethnicGroups: null,
+    expect(agesColumns.toAttributes(values)).toEqual({
       ageType: 'all',
       specificAge: null,
       specificAgeUnit: null,
       ageDetail: null,
     });
-    expect(sexAndAgesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
+    expect(agesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
   });
 
   it('writes the other ages, and nothing else beside them', () => {
     const values = everyAnswer('other');
 
-    expect(sexAndAgesColumns.toAttributes(values)).toMatchObject({
+    expect(agesColumns.toAttributes(values)).toMatchObject({
       specificAge: null,
       specificAgeUnit: null,
       ageDetail: 'School year 6',
     });
-    expect(sexAndAgesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
+    expect(agesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
   });
 });
 

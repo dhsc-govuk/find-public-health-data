@@ -14,6 +14,7 @@ const TASK_GROUPS = {
     DATA_TABLE,
     'Value type and units',
     'Sex, gender and ethnicity',
+    'Ages',
     'Period type',
     'Polarity',
     'Data quality',

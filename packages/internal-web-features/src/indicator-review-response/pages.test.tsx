@@ -113,10 +113,10 @@ describe('the response pages', () => {
       'Metadata',
       'Publishing',
     ]);
-    expect(document.querySelectorAll('input[name="flags"]')).toHaveLength(18);
+    expect(document.querySelectorAll('input[name="flags"]')).toHaveLength(19);
     expect(screen.queryByLabelText('Justifications')).toBeNull();
     expect(screen.getByLabelText('High-level clarification request')).toBeTruthy();
-    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(18);
+    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(19);
   });
 
   it('word the notes as advice for feedback before the meeting', () => {
@@ -131,7 +131,7 @@ describe('the response pages', () => {
 
     expect(
       screen.getAllByLabelText('Enter advised revisions or clarification request'),
-    ).toHaveLength(18);
+    ).toHaveLength(19);
   });
 
   it('keep what was ticked and typed after a refusal, and link a flag error to its notes', () => {
