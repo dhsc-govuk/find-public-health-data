@@ -218,3 +218,37 @@ export async function openedUpdate(db: Database, name: string): Promise<OpenedUp
   if (!opened.ok) throw new Error(`openedUpdate could not open a draft: ${opened.reason}`);
   return { ...created, versionId: opened.versionId, publishedId: created.versionId };
 }
+
+/**
+ * Gives an update its publishing date and summary, with `answers` saved over the published
+ * version's, and returns the `updatedAt` its task list would show.
+ */
+export async function answerUpdate(
+  db: Database,
+  { indicatorId, versionId }: Pick<CreatedIndicatorDraft, 'indicatorId' | 'versionId'>,
+  answers: IndicatorDraftAttributes,
+): Promise<Date> {
+  const saved = await updateIndicatorDraft(
+    db,
+    indicatorId,
+    'update-summary',
+    {
+      ...answers,
+      scheduledPublishAt: new Date('2030-06-01T08:30:00Z'),
+      updateSummary: 'Changed the polarity.',
+    },
+    {},
+    AS_ACTOR,
+  );
+  if (!saved.ok) throw new Error(`answerUpdate could not save: ${saved.reason}`);
+  return draftUpdatedAt(db, versionId);
+}
+
+/** An update that changes the polarity, submitted by the repository tests' actor. */
+export async function submittedUpdate(db: Database, name: string): Promise<OpenedUpdate> {
+  const update = await openedUpdate(db, name);
+  const shown = await answerUpdate(db, update, { polarity: 'no-polarity' });
+  const submitted = await submitIndicator(db, update.indicatorId, shown, AS_ACTOR);
+  if (!submitted.ok) throw new Error(`submittedUpdate could not submit: ${submitted.reason}`);
+  return update;
+}

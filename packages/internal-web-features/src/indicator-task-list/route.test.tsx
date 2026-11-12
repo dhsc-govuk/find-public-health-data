@@ -14,6 +14,7 @@ const taskList: IndicatorTaskList = {
     draftStatus: 'draft',
     draftSubmissionStatus: null,
     draftResponseKind: null,
+    draftUpdateDecision: null,
   },
   isUpdate: false,
   canSubmit: true,

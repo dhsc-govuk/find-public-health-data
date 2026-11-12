@@ -10,7 +10,6 @@ import { describe, expect } from 'vitest';
 import {
   createIndicatorDraft,
   getIndicatorDraftState,
-  type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
 import {
@@ -24,6 +23,7 @@ import {
 } from './indicator-repository.testing.ts';
 import { indicatorTaskList } from './indicator-task-list.ts';
 import {
+  answerUpdate,
   completeDraft,
   draftUpdatedAt,
   openedUpdate,
@@ -136,32 +136,6 @@ describe('completeDraft', () => {
     ).toBe(true);
   });
 });
-
-/**
- * Gives an update its publishing date and summary, with `answers` saved over the published
- * version's, and returns the `updatedAt` its task list would show.
- */
-async function answerUpdate(
-  db: Database,
-  indicatorId: string,
-  versionId: string,
-  answers: IndicatorDraftAttributes,
-): Promise<Date> {
-  const saved = await updateIndicatorDraft(
-    db,
-    indicatorId,
-    'update-summary',
-    {
-      ...answers,
-      scheduledPublishAt: new Date('2030-06-01T08:30:00Z'),
-      updateSummary: 'Changed the polarity.',
-    },
-    {},
-    AS_ACTOR,
-  );
-  if (!saved.ok) throw new Error(`answerUpdate could not save: ${saved.reason}`);
-  return draftUpdatedAt(db, versionId);
-}
 
 describe('submitIndicator', () => {
   repositoryTest('locks a complete draft under its first submission', async ({ db }) => {
@@ -329,7 +303,7 @@ describe('submitIndicator', () => {
     'locks an update that changes a task under its first submission',
     async ({ db }) => {
       const { indicatorId, versionId } = await openedUpdate(db, 'Updated and submitted');
-      const shown = await answerUpdate(db, indicatorId, versionId, { polarity: 'no-polarity' });
+      const shown = await answerUpdate(db, { indicatorId, versionId }, { polarity: 'no-polarity' });
 
       await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
         ok: true,
@@ -344,7 +318,7 @@ describe('submitIndicator', () => {
 
   repositoryTest('refuses an update that changes no task, and writes nothing', async ({ db }) => {
     const { indicatorId, versionId } = await openedUpdate(db, 'Updated with no change');
-    const shown = await answerUpdate(db, indicatorId, versionId, {});
+    const shown = await answerUpdate(db, { indicatorId, versionId }, {});
 
     await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
       ok: false,
@@ -359,7 +333,7 @@ describe('submitIndicator', () => {
       .update(indicatorVersion)
       .set({ rationale: null })
       .where(inArray(indicatorVersion.id, [versionId, publishedId]));
-    const shown = await answerUpdate(db, indicatorId, versionId, { polarity: 'no-polarity' });
+    const shown = await answerUpdate(db, { indicatorId, versionId }, { polarity: 'no-polarity' });
 
     await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
       ok: false,

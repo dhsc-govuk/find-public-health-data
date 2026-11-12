@@ -4,6 +4,7 @@ import type {
   IndicatorStatus,
   IndicatorTaskStatus,
   ReviewResponseKind,
+  UpdateDecision,
 } from '@fphd/internal-api-features/contract';
 import { Tag } from '@fphd/ui';
 
@@ -35,6 +36,9 @@ const SUBMISSION_STATUS: Partial<Record<DraftSubmissionStatus, TagFace>> = {
   in_review: { label: 'Pending review', colour: 'yellow' },
   approved: { label: 'Pending scheduling', colour: 'yellow' },
 };
+
+// A submitted update waits for the core team to decide what happens to it, before any review.
+const PENDING_DECISION: TagFace = { label: 'Pending decision', colour: 'yellow' };
 
 const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace> = {
   pre_imrg_feedback: { label: 'Revisions or clarifications advised', colour: 'orange' },
@@ -73,13 +77,23 @@ interface PublishingState {
   draftStatus: DraftStatus | null;
   draftSubmissionStatus: DraftSubmissionStatus | null;
   draftResponseKind: ReviewResponseKind | null;
+  draftUpdateDecision: UpdateDecision | null;
 }
 
 /** Where the draft's latest submission stands, if that names the draft's label. */
 function submissionFace({
+  indicatorStatus,
   draftSubmissionStatus,
   draftResponseKind,
+  draftUpdateDecision,
 }: PublishingState): TagFace | undefined {
+  if (
+    indicatorStatus === 'live' &&
+    draftSubmissionStatus === 'submitted' &&
+    draftUpdateDecision === null
+  ) {
+    return PENDING_DECISION;
+  }
   if (draftSubmissionStatus === 'changes_requested') {
     return draftResponseKind === null || draftResponseKind === 'approved'
       ? undefined

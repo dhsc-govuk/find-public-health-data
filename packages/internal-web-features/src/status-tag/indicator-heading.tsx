@@ -11,6 +11,7 @@ type HeadedIndicator = Pick<
   | 'draftStatus'
   | 'draftSubmissionStatus'
   | 'draftResponseKind'
+  | 'draftUpdateDecision'
 >;
 
 interface IndicatorHeadingProps {
@@ -21,8 +22,15 @@ interface IndicatorHeadingProps {
 
 /** How a publisher's pages title an indicator: its name, its public number, then its statuses. */
 export function IndicatorHeading({ indicator, children }: IndicatorHeadingProps) {
-  const { draftResponseKind, draftStatus, draftSubmissionStatus, indicatorStatus, name, shortId } =
-    indicator;
+  const {
+    draftResponseKind,
+    draftStatus,
+    draftSubmissionStatus,
+    draftUpdateDecision,
+    indicatorStatus,
+    name,
+    shortId,
+  } = indicator;
 
   return (
     <>
@@ -36,6 +44,7 @@ export function IndicatorHeading({ indicator, children }: IndicatorHeadingProps)
           draftStatus={draftStatus}
           draftSubmissionStatus={draftSubmissionStatus}
           draftResponseKind={draftResponseKind}
+          draftUpdateDecision={draftUpdateDecision}
         />
       </p>
       {children}

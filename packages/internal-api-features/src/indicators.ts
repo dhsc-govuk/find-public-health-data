@@ -51,6 +51,7 @@ function toSummary({
   draftReviewers,
   draftStatus,
   draftSubmissionStatus,
+  draftUpdateDecision,
   id,
   indicatorStatus,
   name,
@@ -67,6 +68,7 @@ function toSummary({
     draftLocked,
     draftSubmissionStatus,
     draftResponseKind,
+    draftUpdateDecision,
     draftReviewers,
   };
 }
@@ -319,6 +321,7 @@ export function internalIndicatorsRouter(
             draftStatus: row.draftStatus,
             draftSubmissionStatus: row.draftSubmissionStatus,
             draftResponseKind: row.draftResponseKind,
+            draftUpdateDecision: row.draftUpdateDecision,
           },
           draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
           published: published ?? null,

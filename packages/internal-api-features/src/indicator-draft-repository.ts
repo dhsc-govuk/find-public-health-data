@@ -14,6 +14,7 @@ import {
   justificationsSection,
   otherCommentsSection,
   type ReviewResponseKind,
+  type UpdateDecision,
   varianceAndQualitySection,
 } from './contract.ts';
 import type { EditPrecondition } from './edit-version.ts';
@@ -23,6 +24,7 @@ import {
   draftReviewers,
   draftStatus,
   draftSubmissionStatus,
+  draftUpdateDecision,
   draftVersion,
   EXCLUSION_VIOLATION,
   hasSqlState,
@@ -76,6 +78,8 @@ export interface IndicatorDraftStateRow {
   draftSubmissionStatus: DraftSubmissionStatus | null;
   /** What the latest response to the draft's latest submission said, which names its label. */
   draftResponseKind: ReviewResponseKind | null;
+  /** The core team's decision on the draft's latest submission, which only an update has. */
+  draftUpdateDecision: UpdateDecision | null;
   /** The reviewers of the draft's latest submission, who may take steps on it too. */
   draftReviewers: DraftReviewer[];
 }
@@ -96,6 +100,7 @@ export async function getIndicatorDraftState(
       draftStatus,
       draftSubmissionStatus,
       draftResponseKind,
+      draftUpdateDecision,
       draftReviewers,
     })
     .from(indicator)

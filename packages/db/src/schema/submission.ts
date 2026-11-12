@@ -4,6 +4,7 @@ import {
 } from '@fphd/utils/indicator-submission-status';
 import { FLAGGABLE_TASK_KEYS, type FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import { REVIEW_RESPONSE_KINDS } from '@fphd/utils/review-response-kind';
+import { UPDATE_DECISIONS } from '@fphd/utils/update-decision';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -50,6 +51,9 @@ export const indicatorVersionSubmission = pgTable(
     endedAt: timestamp({ withTimezone: true }),
     // The publisher's reply to this round's feedback, written while its changes are requested.
     revisionResponse: text(),
+    // The core team's decision on a submitted update to a live indicator. Null on a submitted
+    // update means the update is waiting for that decision, and a new indicator never has one.
+    updateDecision: text({ enum: UPDATE_DECISIONS }),
   },
   (t) => [
     // Pairing the version with indicator_id keeps a submission on a version of its own indicator.
@@ -73,6 +77,10 @@ export const indicatorVersionSubmission = pgTable(
       sql`${t.status} IN (${literals(INDICATOR_SUBMISSION_STATUSES)})`,
     ),
     check('indicator_version_submission_number_check', sql`${t.number} > 0`),
+    check(
+      'indicator_version_submission_update_decision_check',
+      sql`${t.updateDecision} IN (${literals(UPDATE_DECISIONS)})`,
+    ),
     check(
       'indicator_version_submission_ended_check',
       sql`(${t.status} IN (${literals(ENDED_STATUSES)})) = (${t.endedBy} IS NOT NULL) AND (${t.endedBy} IS NULL) = (${t.endedAt} IS NULL)`,

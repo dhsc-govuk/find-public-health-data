@@ -22,6 +22,7 @@ const submitted: IndicatorAdminListItem = {
   draftLocked: true,
   draftSubmissionStatus: 'submitted',
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 

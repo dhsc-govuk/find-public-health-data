@@ -38,6 +38,7 @@ const row: IndicatorAdminRow = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 
@@ -137,6 +138,7 @@ describe('GET /api/internal/indicators', () => {
           draftLocked: false,
           draftSubmissionStatus: null,
           draftResponseKind: null,
+          draftUpdateDecision: null,
           draftReviewers: [],
         },
       ],
@@ -247,6 +249,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftLocked: false,
       draftSubmissionStatus: null,
       draftResponseKind: null,
+      draftUpdateDecision: null,
       draftReviewers: [],
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
@@ -545,6 +548,7 @@ describe('POST /api/internal/indicators', () => {
       draftLocked: false,
       draftSubmissionStatus: null,
       draftResponseKind: null,
+      draftUpdateDecision: null,
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
@@ -770,6 +774,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftLocked: false,
       draftSubmissionStatus: null,
       draftResponseKind: null,
+      draftUpdateDecision: null,
       draftReviewers: [],
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
@@ -1097,6 +1102,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     draftStatus: 'draft',
     draftSubmissionStatus: null,
     draftResponseKind: null,
+    draftUpdateDecision: null,
     draftReviewers: [],
   };
   const noneFound = async () => undefined;
@@ -1153,6 +1159,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         draftStatus: 'draft',
         draftSubmissionStatus: null,
         draftResponseKind: null,
+        draftUpdateDecision: null,
       },
       isUpdate: false,
       canSubmit: false,
@@ -1265,6 +1272,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       ...draftState,
       draftSubmissionStatus: 'changes_requested',
       draftResponseKind: 'pre_imrg_feedback',
+      draftUpdateDecision: null,
     });
     const flags = [
       {

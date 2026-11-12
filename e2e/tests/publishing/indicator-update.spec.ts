@@ -207,3 +207,17 @@ test('an update can be submitted once at least one task is "Changed" and the pub
   await expect(page.getByText('Update successfully submitted for review.')).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
 });
+
+test('a submitted update has the publishing status "Update pending decision" on the overview and the dashboard', async ({
+  page,
+}) => {
+  await page.goto(overviewPath());
+  await expect(statusTags(page)).toHaveText([
+    'Indicator status: Live indicator',
+    'Publishing status: Update pending decision',
+  ]);
+
+  await page.goto('/dashboard');
+  const row = page.getByRole('table').getByRole('row').filter({ hasText: indicator.name });
+  await expect(row.locator('.govuk-tag')).toHaveText(['Live', 'Update pending decision']);
+});
