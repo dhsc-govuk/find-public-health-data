@@ -1,7 +1,7 @@
 import { A, formatDate, GridColumn, GridRow, SectionBreak, SummaryList } from '@fphd/ui';
 import { CI_CONFIDENCE_LEVEL_LABELS } from '@fphd/utils/ci-confidence-level';
 import { POLARITY_LABELS } from '@fphd/utils/polarity';
-import { UPDATE_FREQUENCY_LABELS } from '@fphd/utils/update-frequency';
+import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
 import { dimensionValues, periodCovered, recentTrend } from './data.ts';
 import type { IndicatorDetail, IndicatorObservation, IndicatorProviderSource } from './loader.ts';
 import { TrendTag } from './trend-tag.tsx';
@@ -25,6 +25,21 @@ export function sourceLink(source: IndicatorDetail['dataSource']) {
   }
 
   return source.url ? <A href={source.url}>{source.name}</A> : source.name;
+}
+
+/** The update frequency, and below it the reason the publisher gave for it, if there is one. */
+function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
+  const { text, reason } = publicUpdateFrequency(
+    indicator.updateFrequency,
+    indicator.updateFrequencyReason,
+  );
+
+  return (
+    <>
+      {text}
+      {reason ? <div className="fphd-metadata-text govuk-!-margin-top-2">{reason}</div> : null}
+    </>
+  );
 }
 
 export function IndicatorSummary({
@@ -56,10 +71,7 @@ export function IndicatorSummary({
             ...(indicator.dataUpdatedAt
               ? [{ name: 'Last updated', children: formatDate(indicator.dataUpdatedAt, 'long') }]
               : []),
-            {
-              name: 'Update frequency',
-              children: UPDATE_FREQUENCY_LABELS[indicator.updateFrequency],
-            },
+            { name: 'Update frequency', children: <UpdateFrequency indicator={indicator} /> },
             ...(indicator.lastPublishedAt !== indicator.firstPublishedAt
               ? [{ name: 'Status', children: 'Updated' }]
               : []),
@@ -268,7 +280,7 @@ export function BackgroundInformation({
               (observations.length ? 'Persons' : null),
           ),
           ...attribute('Year type', indicator.yearType?.label ?? null),
-          ...attribute('Frequency', UPDATE_FREQUENCY_LABELS[indicator.updateFrequency]),
+          { name: 'Frequency', children: <UpdateFrequency indicator={indicator} /> },
           ...attribute('Polarity', POLARITY_LABELS[indicator.polarity]),
           ...(indicator.dataSource
             ? [{ name: 'Data source', children: sourceLink(indicator.dataSource) }]

@@ -373,6 +373,8 @@ export async function exportIndicators(context: PholioExportOptions) {
       has_custom_data_reuse: null,
       custom_data_reuse_detail: null,
       update_frequency: updateFrequency,
+      // Fingertips holds no reason for an update frequency.
+      update_frequency_reason: null,
       variation: null,
       quality_assurance: null,
       source_data_issues_detail: null,

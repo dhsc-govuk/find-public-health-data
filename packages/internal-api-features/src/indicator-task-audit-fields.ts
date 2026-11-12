@@ -12,7 +12,6 @@ import {
   periodTypeSection,
   polaritySection,
   sexAndAgesSection,
-  updateFrequencySection,
   valueTypeAndUnitsSection,
 } from './contract.ts';
 import { UNORDERED_LISTS } from './indicator-version-lists-repository.ts';
@@ -34,7 +33,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   denominator: ['denominatorDefinition', 'denominatorSources'],
   calculation: calculationSection.fields.options,
   'confidence-intervals': confidenceIntervalsSection.fields.options,
-  'update-frequency': updateFrequencySection.fields.options,
+  'update-frequency': ['updateFrequency', 'updateFrequencyReason'],
   'value-type-and-units': [
     ...valueTypeAndUnitsSection.fields.options.filter(
       (field) => field !== 'standardPopulationOther' && field !== 'referencePopulation',

@@ -157,6 +157,7 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.ci_method_id uuid',
   'indicator.polarity text',
   'indicator.update_frequency text',
+  'indicator.update_frequency_reason text',
   'indicator.comparator_method_id uuid',
   'indicator.ci_confidence_level text',
   'indicator.definition text',

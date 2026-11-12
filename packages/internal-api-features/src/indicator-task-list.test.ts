@@ -157,6 +157,25 @@ describe('indicatorTaskList', () => {
     },
   );
 
+  // A version imported from Fingertips may have either answer without a reason, and a new draft
+  // made from it asks for one before it can be submitted.
+  it.each([
+    ['no-fixed-frequency', null, 'not_started', false],
+    ['no-fixed-frequency', 'Published when the survey runs.', 'completed', true],
+    ['no-longer-updated', null, 'not_started', false],
+    ['no-longer-updated', 'The survey has ended.', 'completed', true],
+  ] as const)(
+    'judges an update frequency of %s with the reason %j',
+    (updateFrequency, updateFrequencyReason, status, canSubmit) => {
+      const taskList = indicatorTaskList(
+        withDraft({ ...complete, updateFrequency, updateFrequencyReason }),
+      );
+
+      expect(taskList.tasks['update-frequency']).toBe(status);
+      expect(taskList.canSubmit).toBe(canSubmit);
+    },
+  );
+
   it('judges the denominator from its own answers', () => {
     const numeratorOnly = { numeratorSources: [ons], numeratorDefinition: 'Deaths' };
 
