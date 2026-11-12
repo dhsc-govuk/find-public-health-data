@@ -1,10 +1,17 @@
-import { TEAM_IDS } from '@fphd/auth';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  fails,
+  noContent,
+  refused,
+} from '@fphd/web-server/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { signedInContext } from '../session.testing.ts';
+import { indicatorDetail } from '../testing.ts';
 import { confirmPublicationDate, loadPublicationDate } from './loader.ts';
 
 const ID = '00000000-0000-7000-8000-000000000001';
@@ -17,29 +24,34 @@ const FUTURE = 'Publishing date and time must be in the future';
 /** Every internal role but the admin's. */
 const OTHER_ROLES = ['publisher', 'imrg-manager', 'imrg-reviewer'];
 
-const approved = {
+const SCHEDULE = `POST /api/internal/indicators/${ID}/schedule` as const;
+
+const approved = indicatorDetail({
   id: ID,
-  shortId: 90366,
-  name: 'Life expectancy at birth',
-  teamId: TEAM_IDS.teamA,
-  publishedSlug: null,
-  updatedAt: '2026-01-02T00:00:00.000Z',
-  indicatorStatus: 'new',
-  draftStatus: 'draft',
   draftLocked: true,
   draftSubmissionStatus: 'approved',
+  draftSubmissionNumber: 1,
+  draftFirstSubmittedAt: '2026-01-02T00:00:00.000Z',
+  draftReviewers: [{ id: '00000000-0000-7000-8000-000000000002', name: 'Jamie Evans' }],
+  draftResponse: { kind: 'approved', flaggedTaskCount: 0 },
+  draftResponseKind: 'approved',
   draftScheduledPublishAt: SHOWN,
   actions: ['schedule'],
-};
+});
+
+/** An API that answers the indicator's detail with `detail`. */
+function reading(detail: FakeApiAnswer) {
+  return createFakeApiClient({ [`GET /api/internal/indicators/${ID}`]: detail });
+}
 
 async function respond(
   handler: (args: never) => Promise<unknown>,
-  client: Partial<ApiClient>,
+  api: FakeApiClient,
   request: Request,
   roles: readonly string[] = ['admin'],
 ) {
   const context = withFlashStorage(await signedInContext(roles));
-  context.set(apiContext, client as ApiClient);
+  context.set(apiContext, api);
   let outcome: unknown;
   const response = await flashedResponse(context, request, async () => {
     outcome = await handler({ context, params: { id: ID }, request } as never);
@@ -56,11 +68,8 @@ describe('loadPublicationDate', () => {
       { ...approved, draftStatus: 'scheduled', actions: ['change_publication_date'] },
     ],
   ])('opens with the date and time in UK time, to %s', async (_, indicator) => {
-    const get = vi.fn().mockResolvedValue(indicator);
+    const { outcome } = await respond(loadPublicationDate, reading(indicator), new Request(PATH));
 
-    const { outcome } = await respond(loadPublicationDate, { get }, new Request(PATH));
-
-    expect(get.mock.calls[0]?.[0]).toBe(`/api/internal/indicators/${ID}`);
     expect(outcome).toEqual({
       id: ID,
       values: {
@@ -75,9 +84,9 @@ describe('loadPublicationDate', () => {
   });
 
   it('sends the admin to the overview, saying why, once the date cannot be changed', async () => {
-    const get = vi.fn().mockResolvedValue({ ...approved, actions: [] });
+    const api = reading({ ...approved, actions: [] });
 
-    const { response } = await respond(loadPublicationDate, { get }, new Request(PATH));
+    const { response } = await respond(loadPublicationDate, api, new Request(PATH));
 
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -89,12 +98,12 @@ describe('loadPublicationDate', () => {
   it.each(OTHER_ROLES)(
     'is not found for a %s, who may not schedule publication, asking the API nothing',
     async (role) => {
-      const get = vi.fn().mockResolvedValue(approved);
+      const api = reading(approved);
 
-      const { response } = await respond(loadPublicationDate, { get }, new Request(PATH), [role]);
+      const { response } = await respond(loadPublicationDate, api, new Request(PATH), [role]);
 
       expect(response.status).toBe(404);
-      expect(get).not.toHaveBeenCalled();
+      expect(api.calls).toEqual([]);
     },
   );
 });
@@ -123,19 +132,22 @@ describe('confirmPublicationDate', () => {
   }
 
   it('confirms the date as typed, naming the date shown, then says so on the overview', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const api = createFakeApiClient({ [SCHEDULE]: noContent });
 
-    const { response } = await respond(confirmPublicationDate, { postToMember }, post('2'));
+    const { response } = await respond(confirmPublicationDate, api, post('2'));
 
-    expect(postToMember.mock.calls[0]?.slice(0, 2)).toEqual([
-      `/api/internal/indicators/${ID}/schedule`,
+    expect(api.calls).toEqual([
       {
-        publishingDateDay: '2',
-        publishingDateMonth: '4',
-        publishingDateYear: '2027',
-        publishingTimeHour: '09',
-        publishingTimeMinute: '30',
-        shownScheduledPublishAt: SHOWN,
+        method: 'POST',
+        path: `/api/internal/indicators/${ID}/schedule`,
+        body: {
+          publishingDateDay: '2',
+          publishingDateMonth: '4',
+          publishingDateYear: '2027',
+          publishingTimeHour: '09',
+          publishingTimeMinute: '30',
+          shownScheduledPublishAt: SHOWN,
+        },
       },
     ]);
     expect(await redirectWithFlash(response)).toEqual({
@@ -146,13 +158,9 @@ describe('confirmPublicationDate', () => {
   });
 
   it('re-renders the page with the errors for a date in the past, asking the API nothing', async () => {
-    const postToMember = vi.fn();
+    const api = createFakeApiClient();
 
-    const { outcome } = await respond(
-      confirmPublicationDate,
-      { postToMember },
-      post('3', '11', '2026'),
-    );
+    const { outcome } = await respond(confirmPublicationDate, api, post('3', '11', '2026'));
 
     expect(outcome).toEqual({
       values: {
@@ -169,17 +177,18 @@ describe('confirmPublicationDate', () => {
         publishingDateYear: FUTURE,
       },
     });
-    expect(postToMember).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it("shows the API's field errors on the page", async () => {
-    const postToMember = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { publishingDateDay: FUTURE } },
+    const api = createFakeApiClient({
+      [SCHEDULE]: refused(400, {
+        error: 'validation_failed',
+        fieldErrors: { publishingDateDay: FUTURE },
+      }),
     });
 
-    const { outcome } = await respond(confirmPublicationDate, { postToMember }, post());
+    const { outcome } = await respond(confirmPublicationDate, api, post());
 
     expect(outcome).toMatchObject({ fieldErrors: { publishingDateDay: FUTURE } });
   });
@@ -189,17 +198,19 @@ describe('confirmPublicationDate', () => {
     ['not_allowed', 'publication-date-refused'],
     ['invalid_request', 'publication-date-refused'],
   ])('says on the overview why the API refused the date with %s', async (error, flash) => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error } });
+    const api = createFakeApiClient({ [SCHEDULE]: refused(409, { error }) });
 
-    const { response } = await respond(confirmPublicationDate, { postToMember }, post());
+    const { response } = await respond(confirmPublicationDate, api, post());
 
     expect(await redirectWithFlash(response)).toEqual({ status: 302, location: OVERVIEW, flash });
   });
 
   it('says on the overview that the date can no longer be changed once nothing is unpublished', async () => {
-    const postToMember = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
+    const api = createFakeApiClient({
+      [SCHEDULE]: fails(new Response('Not Found', { status: 404 })),
+    });
 
-    const { response } = await respond(confirmPublicationDate, { postToMember }, post());
+    const { response } = await respond(confirmPublicationDate, api, post());
 
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -209,11 +220,11 @@ describe('confirmPublicationDate', () => {
   });
 
   it.each(OTHER_ROLES)('is not found for a %s, who may not schedule publication', async (role) => {
-    const postToMember = vi.fn();
+    const api = createFakeApiClient();
 
-    const { response } = await respond(confirmPublicationDate, { postToMember }, post(), [role]);
+    const { response } = await respond(confirmPublicationDate, api, post(), [role]);
 
     expect(response.status).toBe(404);
-    expect(postToMember).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 });

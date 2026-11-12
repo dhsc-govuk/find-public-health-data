@@ -346,3 +346,25 @@ test.describe('a topic that indicators link to', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 });
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('creates, edits and deletes a topic', async ({ page }) => {
+    const slug = uniqueSlug();
+    await createTopic(page, { title: `No script ${slug}`, slug });
+
+    await page.getByLabel('Topic name').fill(`Edited no script ${slug}`);
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Topic updated')).toBeVisible();
+    await expect(page.getByLabel('Topic name')).toHaveValue(`Edited no script ${slug}`);
+
+    await page.getByRole('link', { name: 'Delete topic' }).click();
+    await page.getByRole('button', { name: 'Delete topic' }).click();
+
+    await expect(page).toHaveURL('/manage/topics');
+    await expect(page.getByText('Topic deleted')).toBeVisible();
+    await expect(page.getByRole('link', { name: `Edited no script ${slug}` })).toHaveCount(0);
+  });
+});

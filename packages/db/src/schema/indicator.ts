@@ -135,7 +135,9 @@ export const indicator = pgTable('indicator', {
   // not the editorial content, so it stays off the version.
   dataUpdatedAt: timestamp({ withTimezone: true }),
   // The team whose publishers own it.
-  teamId: uuid().references(() => team.id),
+  teamId: uuid()
+    .notNull()
+    .references(() => team.id),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -141,6 +141,40 @@ test("withdrawing from the overview's actions, through the confirmation page, la
   await expect(page.getByText(SUBMITTED)).toBeVisible();
 });
 
+test('a repeated submit from a second copy of the task list lands on the overview with the banner', async ({
+  page,
+  context,
+}) => {
+  const id = await openCompleteTaskList(page);
+  const copy = await context.newPage();
+  await copy.goto(taskListPath(id));
+  await submit(page, id);
+
+  await submit(copy, id);
+
+  await expect(copy.getByText(SUBMITTED)).toBeVisible();
+  await expect(publishingTag(copy)).toHaveText('Publishing status: Pending review');
+});
+
+test('a repeated withdrawal from a second copy of the confirmation page lands on the overview with the banner', async ({
+  page,
+  context,
+}) => {
+  const id = await openCompleteTaskList(page);
+  await submit(page, id);
+  const copy = await context.newPage();
+  await copy.goto(`/publish/indicators/${id}/withdraw-submission`);
+  await page.getByRole('link', { name: 'Withdraw submission' }).click();
+  await page.getByRole('button', { name: 'Withdraw submission' }).click();
+  await expect(page).toHaveURL(overviewPath(id));
+
+  await copy.getByRole('button', { name: 'Withdraw submission' }).click();
+
+  await expect(copy).toHaveURL(overviewPath(id));
+  await expect(copy.getByText(WITHDRAWN)).toBeVisible();
+  await expect(publishingTag(copy)).toHaveText('Publishing status: Incomplete');
+});
+
 test('the confirmation page cancels back to the overview', async ({ page }) => {
   const id = await openCompleteTaskList(page);
   await submit(page, id);

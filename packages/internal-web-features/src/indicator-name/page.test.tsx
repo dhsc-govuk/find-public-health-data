@@ -108,4 +108,19 @@ describe('IndicatorNamePage', () => {
 
     expect(container.querySelector('input[name="version"]')).toBeNull();
   });
+
+  it("sends a new indicator's id with the name, kept from the browser's autofill", () => {
+    const { container } = renderPage({ newIndicatorId: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b' });
+    const id = container.querySelector<HTMLInputElement>('form input[name="id"]');
+
+    expect(id?.type).toBe('hidden');
+    expect(id?.value).toBe('019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b');
+    expect(id?.autocomplete).toBe('off');
+  });
+
+  it('sends no id for a draft being renamed', () => {
+    const { container } = renderPage({ name: 'Life expectancy at birth', version: SHOWN_VERSION });
+
+    expect(container.querySelector('input[name="id"]')).toBeNull();
+  });
 });

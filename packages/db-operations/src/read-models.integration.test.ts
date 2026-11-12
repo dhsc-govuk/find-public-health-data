@@ -33,7 +33,7 @@ describe('bridge/registry schema', () => {
   });
 
   it('puts every seeded indicator in the Fingertips team', async () => {
-    const rows = await sql<{ teamId: string | null }[]>`
+    const rows = await sql<{ teamId: string }[]>`
       SELECT DISTINCT team_id AS "teamId" FROM indicator
     `;
     expect(rows).toEqual([{ teamId: IMPORTED_INDICATOR_TEAM_ID }]);

@@ -1,0 +1,18 @@
+name: Set up Node and pnpm
+description: Installs the Node that .nvmrc names and the pnpm that package.json's packageManager names.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .nvmrc
+
+    # Node stopped shipping corepack in version 25, so the script installs the version the catalog
+    # pins. Installing it into the Node that .nvmrc names, rather than enabling the runner's own,
+    # keeps pnpm on that Node. Corepack then fetches the pnpm that packageManager names and checks
+    # it against the hash there. Corepack itself is opt-in: without `corepack enable`, a runner's
+    # ambient pnpm would be used silently, since `engines.pnpm` is not enforced.
+    - name: Install corepack
+      shell: bash
+      run: scripts/install-corepack.sh

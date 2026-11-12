@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { parse } from 'csv-parse/sync';
 import { expectNoAccessibilityViolations } from './accessibility.ts';
 import { downloadFrom } from './downloads.ts';
 import { MORTALITY_NAME, MORTALITY_PATH } from './indicator-page.ts';
@@ -8,6 +9,18 @@ const TOPIC_PATH = '/topics/mortality-and-life-expectancy';
 async function openTopicPage(page: Page, path: string) {
   await page.goto(path);
   await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);
+}
+
+function expectAreaCsvColumns(csv: string, areas: string[]) {
+  const [header] = parse(csv, { to_line: 1 }) as string[][];
+  expect(header).toEqual([
+    'Indicator',
+    'Unit',
+    'Latest period',
+    'England',
+    'England period',
+    ...areas.flatMap((area) => [area, `${area} period`, `${area} comparison`, `${area} notes`]),
+  ]);
 }
 
 export function topicPageTests() {
@@ -305,10 +318,10 @@ export function topicPageTests() {
     await page.setViewportSize({ width: 2048, height: 1200 });
     await openTopicPage(page, '/topics/diabetes');
     for (const [tab, width] of [
-      ['Overview', 960],
+      ['Overview', 1020],
       ['Data', 1988],
       ['Area summaries', 1712],
-      ['More information', 960],
+      ['More information', 1020],
     ] as const) {
       await page.getByRole('tab', { name: tab, exact: true }).click();
       const panel = page.getByRole('tabpanel', { name: tab, exact: true });
@@ -534,6 +547,7 @@ export function topicPageTests() {
   test('sorts indicator rows in Area summaries', async ({ page }, testInfo) => {
     await openTopicPage(page, `${TOPIC_PATH}?tab-topic=areas`);
     const panel = page.getByRole('tabpanel', { name: 'Area summaries' });
+    await expect(panel.getByRole('table')).toBeVisible();
     const names = panel.getByRole('rowheader').getByRole('link');
     const expected = (await names.allTextContents()).sort((a, b) => b.localeCompare(a));
     expect(expected.length).toBeGreaterThan(1);
@@ -589,10 +603,7 @@ export function topicPageTests() {
       if (!href) throw new Error('Expected a CSV download URL');
       const response = await withoutJs.request.get(href);
       expect(response.ok()).toBe(true);
-      const header = (await response.text()).split('\n')[0] ?? '';
-      const positions = headers.slice(4).map((area) => header.indexOf(`${area} period`));
-      expect(positions.every((position) => position >= 0)).toBe(true);
-      expect(positions).toEqual(positions.toSorted((a, b) => a - b));
+      expectAreaCsvColumns(await response.text(), headers.slice(4));
     } finally {
       await context.close();
     }
@@ -606,6 +617,7 @@ export function topicPageTests() {
     const table = panel.getByRole('table', {
       name: /^Mortality and life expectancy indicators by statistical region/,
     });
+    await expect(table).toBeVisible();
     const headers = table.getByRole('columnheader');
     const original = await headers.allTextContents();
     const row = table
@@ -630,10 +642,7 @@ export function topicPageTests() {
     expect(sorted).not.toEqual(original);
     await panel.getByText('Download or share data', { exact: true }).click();
     const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
-    const csvHeader = text.split('\n')[0] ?? '';
-    const areaPositions = sorted.slice(4).map((area) => csvHeader.indexOf(`${area} period`));
-    expect(areaPositions.every((position) => position >= 0)).toBe(true);
-    expect(areaPositions).toEqual(areaPositions.toSorted((a, b) => a - b));
+    expectAreaCsvColumns(text, sorted.slice(4));
     await expectNoAccessibilityViolations(page, testInfo);
     await row.getByRole('link', { name: /^Clear sort by/ }).press('Enter');
     await expect(row.getByRole('link', { name: /^Sort best to worst for/ })).toBeFocused();

@@ -77,6 +77,26 @@ test('refuses a name another indicator already holds', async ({ page }) => {
   await expect(page.getByLabel('What is the name of the indicator?')).toHaveValue(name);
 });
 
+test('a repeated create, such as a double click, answers as the first with the same task list', async ({
+  page,
+}) => {
+  const name = uniqueName();
+  await openNamePage(page);
+  const id = await page.locator('input[name="id"]').inputValue();
+  const create = () =>
+    page.request.post('/publish/indicators/new', { form: { name, id }, maxRedirects: 0 });
+
+  const [first, second] = await Promise.all([create(), create()]);
+  const third = await create();
+
+  const taskList = `/publish/indicators/${id}/task-list`;
+  expect([first, second, third].map((response) => response.headers().location)).toEqual([
+    taskList,
+    taskList,
+    taskList,
+  ]);
+});
+
 test('renames a draft from its name page', async ({ page }) => {
   const name = uniqueName();
   const id = await createIndicator(page, name);
@@ -152,4 +172,26 @@ test('has no WCAG 2.2 AA violations when the submission is rejected', async ({
   await expect(page.getByRole('alert')).toContainText('Enter the name of the indicator');
 
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('creates the indicator, then renames it from its name page', async ({ page }) => {
+    const name = uniqueName();
+    await openNamePage(page);
+    await page.getByLabel('What is the name of the indicator?').fill(name);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(/\/publish\/indicators\/[0-9a-f-]{36}\/task-list$/);
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    const taskListPath = new URL(page.url()).pathname;
+
+    await page.getByRole('link', { name: 'Name' }).click();
+    await page.getByLabel('What is the name of the indicator?').fill(`${name} renamed`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(taskListPath);
+    await expect(page.getByRole('heading', { level: 1, name: `${name} renamed` })).toBeVisible();
+  });
 });

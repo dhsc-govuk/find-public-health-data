@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { API_ROLES } from './bootstrap.ts';
 
-const { SYSTEM_USER_IDS } = schema;
+const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
 
@@ -65,7 +65,7 @@ async function insertObservation(
 /** An indicator whose only version is a draft, with data and read-model rows behind it. */
 async function insertDraftOnlyIndicator(): Promise<void> {
   const [indicator] = await owner<{ id: string }[]>`
-    INSERT INTO indicator (short_id) VALUES (999997) RETURNING id
+    INSERT INTO indicator (short_id, team_id) VALUES (999997, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id
   `;
   draftIndicatorId = indicator?.id ?? '';
 
@@ -483,7 +483,7 @@ describe('an indicator published again with new data', () => {
 
   beforeAll(async () => {
     const [indicator] = await owner<{ id: string }[]>`
-      INSERT INTO indicator (short_id) VALUES (999996) RETURNING id
+      INSERT INTO indicator (short_id, team_id) VALUES (999996, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id
     `;
     indicatorId = indicator?.id ?? '';
   });

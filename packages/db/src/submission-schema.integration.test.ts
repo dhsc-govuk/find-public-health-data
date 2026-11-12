@@ -1,7 +1,7 @@
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { SYSTEM_USER_IDS } from './schema/index.ts';
+import { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.testSeed;
@@ -30,7 +30,7 @@ interface Draft {
 
 async function newDraft(): Promise<Draft> {
   const [row] = await sql<Draft[]>`
-    WITH i AS (INSERT INTO indicator DEFAULT VALUES RETURNING id)
+    WITH i AS (INSERT INTO indicator (team_id) VALUES (${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id)
     INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)
     SELECT i.id, 'Submission schema test', 'submission-schema-' || i.id, ${ACTOR}, ${ACTOR} FROM i
     RETURNING indicator_id AS "indicatorId", id AS "versionId"

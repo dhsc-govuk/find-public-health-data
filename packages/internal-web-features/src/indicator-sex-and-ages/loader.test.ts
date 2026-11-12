@@ -1,10 +1,10 @@
 import { type AgeRangeFormValues, ageRangeFieldName } from '@fphd/internal-api-features/contract';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient, refused } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { SHOWN_VERSION } from '../testing.ts';
+import { SAVED_VERSION, SHOWN_VERSION } from '../testing.ts';
 import { loadSexAndAges, submitSexAndAges } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -27,21 +27,21 @@ const unanswered = {
   ageDetail: null,
 };
 
-function context(client: Partial<ApiClient>) {
+function context(api: FakeApiClient) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, client as ApiClient);
+  provider.set(apiContext, api);
   return provider;
 }
 
-function load(indicatorId: string, get: ApiClient['get']) {
+function load(indicatorId: string, api: FakeApiClient) {
   return loadSexAndAges({
-    context: context({ get }),
+    context: context(api),
     params: { id: indicatorId },
     request: new Request(`https://internal.test/publish/indicators/${indicatorId}/sex-and-ages`),
   } as never);
 }
 
-function submit(fields: [string, string][], ranges: AgeRangeFormValues[], put: ApiClient['put']) {
+function submit(fields: [string, string][], ranges: AgeRangeFormValues[], api: FakeApiClient) {
   const body = new URLSearchParams([...fields, ['version', SHOWN_VERSION]]);
   ranges.forEach((range, index) => {
     for (const [part, value] of Object.entries(range)) {
@@ -50,7 +50,7 @@ function submit(fields: [string, string][], ranges: AgeRangeFormValues[], put: A
   });
 
   return submitSexAndAges({
-    context: context({ put }),
+    context: context(api),
     params: { id },
     request: new Request(`https://internal.test/publish/indicators/${id}/sex-and-ages`, {
       method: 'POST',
@@ -69,19 +69,21 @@ function isRedirectToTaskList(outcome: unknown) {
 
 describe('loadSexAndAges', () => {
   it("fills the form with the draft's answers, each age as text", async () => {
-    const get = vi.fn().mockResolvedValue({
-      answers: {
-        ...unanswered,
-        sexes: ['persons'],
-        ageType: 'range',
-        ageRanges: [
-          { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
-        ],
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: {
+        answers: {
+          ...unanswered,
+          sexes: ['persons'],
+          ageType: 'range',
+          ageRanges: [
+            { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
+          ],
+        },
+        version: SHOWN_VERSION,
       },
-      version: SHOWN_VERSION,
     });
 
-    await expect(load(id, get)).resolves.toEqual({
+    await expect(load(id, api)).resolves.toEqual({
       id,
       values: {
         sexes: ['persons'],
@@ -93,13 +95,14 @@ describe('loadSexAndAges', () => {
       },
       version: SHOWN_VERSION,
     });
-    expect(get.mock.calls[0]?.[0]).toBe(sectionPath);
   });
 
   it('offers one blank range while the draft holds none', async () => {
-    const get = vi.fn().mockResolvedValue({ answers: unanswered, version: SHOWN_VERSION });
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: { answers: unanswered, version: SHOWN_VERSION },
+    });
 
-    await expect(load(id, get)).resolves.toMatchObject({
+    await expect(load(id, api)).resolves.toMatchObject({
       values: { sexes: [], ageType: '', ageRanges: [blank] },
     });
   });
@@ -107,28 +110,40 @@ describe('loadSexAndAges', () => {
 
 describe('submitSexAndAges', () => {
   it('adds a range without saving anything', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await submit([['intent', 'add']], [sixteenPlus], put);
+    const outcome = await submit([['intent', 'add']], [sixteenPlus], api);
 
     expect(outcome).toMatchObject({
       values: { ageType: 'range', ageRanges: [sixteenPlus, blank] },
       fieldErrors: {},
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('removes a range without saving anything', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await submit([['intent', 'remove-1']], [sixteenPlus, blank], put);
+    const outcome = await submit([['intent', 'remove-1']], [sixteenPlus, blank], api);
 
     expect(outcome).toMatchObject({ values: { ageRanges: [sixteenPlus] }, fieldErrors: {} });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('saves the answers on Continue and returns to the task list', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({
+      [`PUT ${sectionPath}`]: {
+        answers: {
+          ...unanswered,
+          sexes: ['persons', 'males'],
+          ageType: 'range',
+          ageRanges: [
+            { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
+          ],
+        },
+        version: SAVED_VERSION,
+      },
+    });
 
     const outcome = await submit(
       [
@@ -137,11 +152,10 @@ describe('submitSexAndAges', () => {
         ['ageType', 'range'],
       ],
       [sixteenPlus],
-      put,
+      api,
     );
 
-    expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       answers: {
         sexes: ['persons', 'males'],
         ageType: 'range',
@@ -156,9 +170,9 @@ describe('submitSexAndAges', () => {
   });
 
   it('saves nothing while the answers are refused, keying a range refusal by its row', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await submit([['ageType', 'range']], [sixteenPlus, blank], put);
+    const outcome = await submit([['ageType', 'range']], [sixteenPlus, blank], api);
 
     expect(outcome).toEqual({
       values: {
@@ -176,14 +190,15 @@ describe('submitSexAndAges', () => {
       },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows what the API refused, keeping the page as sent', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { ageType: 'Refused by the API' } },
+    const api = createFakeApiClient({
+      [`PUT ${sectionPath}`]: refused(400, {
+        error: 'validation_failed',
+        fieldErrors: { ageType: 'Refused by the API' },
+      }),
     });
 
     await expect(
@@ -194,7 +209,7 @@ describe('submitSexAndAges', () => {
           ['ageDetail', 'Year 6'],
         ],
         [],
-        put,
+        api,
       ),
     ).resolves.toMatchObject({ fieldErrors: { ageType: 'Refused by the API' } });
   });

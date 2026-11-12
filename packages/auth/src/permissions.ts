@@ -9,7 +9,7 @@ export interface SessionUser {
 
 /** What the checks need to know about an indicator. */
 export interface IndicatorAccess {
-  readonly teamId: string | null;
+  readonly teamId: string;
   /** The IMRG reviewers assigned to its draft's latest submission. */
   readonly reviewerIds: readonly string[];
 }
@@ -57,7 +57,7 @@ export function canEditIndicator(
   user: SessionUser,
   { teamId }: Pick<IndicatorAccess, 'teamId'>,
 ): boolean {
-  return canEditIndicators(user) && teamId !== null && user.teams.includes(teamId);
+  return canEditIndicators(user) && user.teams.includes(teamId);
 }
 
 /** Whether the user may submit the indicator's draft for approval. The editors, for now. */

@@ -278,8 +278,8 @@ async function addIndicators(
     indicators.set(String(shortId), id);
     batches.set(String(shortId), batchId);
     await tx`
-      INSERT INTO indicator (id, short_id, created_at)
-      VALUES (${id}, ${shortId}, ${updatedAt})
+      INSERT INTO indicator (id, short_id, created_at, team_id)
+      VALUES (${id}, ${shortId}, ${updatedAt}, ${schema.IMPORTED_INDICATOR_TEAM_ID})
     `;
     const nc = notesAndCaveats({
       disclosureControl: descriptive.DiscControl ?? null,

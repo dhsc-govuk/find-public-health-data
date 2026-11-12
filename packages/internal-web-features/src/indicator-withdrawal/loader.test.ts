@@ -1,38 +1,46 @@
 import { TEAM_IDS } from '@fphd/auth';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  noContent,
+  refused,
+} from '@fphd/web-server/testing';
+import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { signedInContext } from '../session.testing.ts';
+import { indicatorDetail } from '../testing.ts';
 import { loadIndicatorWithdrawal, withdrawSubmission } from './loader.ts';
 
 const ID = '00000000-0000-7000-8000-000000000001';
 const PATH = `https://internal.test/publish/indicators/${ID}/withdraw-submission`;
 
-const submitted = {
+const WITHDRAW = `POST /api/internal/indicators/${ID}/withdraw` as const;
+
+const submitted = indicatorDetail({
   id: ID,
-  shortId: 90366,
-  name: 'Life expectancy at birth',
-  teamId: TEAM_IDS.teamA,
-  publishedSlug: null,
-  updatedAt: '2026-01-02T00:00:00.000Z',
-  indicatorStatus: 'new',
-  draftStatus: 'draft',
   draftLocked: true,
   draftSubmissionStatus: 'submitted',
   draftSubmissionNumber: 2,
+  draftFirstSubmittedAt: '2026-01-02T00:00:00.000Z',
   actions: ['withdraw'],
-};
+});
+
+/** An API that answers the indicator's detail with `detail`. */
+function reading(detail: FakeApiAnswer) {
+  return createFakeApiClient({ [`GET /api/internal/indicators/${ID}`]: detail });
+}
 
 async function respond(
   handler: (args: never) => Promise<unknown>,
-  client: Partial<ApiClient>,
+  api: FakeApiClient,
   request: Request,
   teams: readonly string[] = [TEAM_IDS.teamA],
 ) {
   const context = withFlashStorage(await signedInContext(['publisher'], teams));
-  context.set(apiContext, client as ApiClient);
+  context.set(apiContext, api);
   let outcome: unknown;
   const response = await flashedResponse(context, request, async () => {
     outcome = await handler({ context, params: { id: ID }, request } as never);
@@ -43,23 +51,24 @@ async function respond(
 
 describe('loadIndicatorWithdrawal', () => {
   it('asks about the submission the publisher may withdraw', async () => {
-    const get = vi.fn().mockResolvedValue(submitted);
+    const { outcome } = await respond(
+      loadIndicatorWithdrawal,
+      reading(submitted),
+      new Request(PATH),
+    );
 
-    const { outcome } = await respond(loadIndicatorWithdrawal, { get }, new Request(PATH));
-
-    expect(get.mock.calls[0]?.[0]).toBe(`/api/internal/indicators/${ID}`);
     expect(outcome).toEqual({ id: ID, submissionNumber: 2 });
   });
 
   it('sends the publisher to the overview, saying why, once it cannot be withdrawn', async () => {
-    const get = vi.fn().mockResolvedValue({
+    const api = reading({
       ...submitted,
       draftLocked: false,
       draftSubmissionStatus: 'withdrawn',
       actions: ['submit'],
     });
 
-    const { response } = await respond(loadIndicatorWithdrawal, { get }, new Request(PATH));
+    const { response } = await respond(loadIndicatorWithdrawal, api, new Request(PATH));
 
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -69,25 +78,27 @@ describe('loadIndicatorWithdrawal', () => {
   });
 
   it('is not found for a draft never submitted', async () => {
-    const get = vi.fn().mockResolvedValue({
+    const api = reading({
       ...submitted,
       draftLocked: false,
       draftSubmissionStatus: null,
       draftSubmissionNumber: null,
+      draftFirstSubmittedAt: null,
       actions: ['submit'],
     });
 
-    const { response } = await respond(loadIndicatorWithdrawal, { get }, new Request(PATH));
+    const { response } = await respond(loadIndicatorWithdrawal, api, new Request(PATH));
 
     expect(response.status).toBe(404);
   });
 
   it("is not found for another team's indicator, which the publisher may not edit", async () => {
-    const get = vi.fn().mockResolvedValue(submitted);
-
-    const { response } = await respond(loadIndicatorWithdrawal, { get }, new Request(PATH), [
-      TEAM_IDS.teamB,
-    ]);
+    const { response } = await respond(
+      loadIndicatorWithdrawal,
+      reading(submitted),
+      new Request(PATH),
+      [TEAM_IDS.teamB],
+    );
 
     expect(response.status).toBe(404);
   });
@@ -99,17 +110,16 @@ describe('withdrawSubmission', () => {
   }
 
   it('withdraws the submission the page showed, then says so on the overview', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const api = createFakeApiClient({ [WITHDRAW]: noContent });
 
-    const { response } = await respond(
-      withdrawSubmission,
-      { postToMember },
-      post({ submissionNumber: '2' }),
-    );
+    const { response } = await respond(withdrawSubmission, api, post({ submissionNumber: '2' }));
 
-    expect(postToMember.mock.calls[0]?.slice(0, 2)).toEqual([
-      `/api/internal/indicators/${ID}/withdraw`,
-      { submissionNumber: 2 },
+    expect(api.calls).toEqual([
+      {
+        method: 'POST',
+        path: `/api/internal/indicators/${ID}/withdraw`,
+        body: { submissionNumber: 2 },
+      },
     ]);
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -125,13 +135,9 @@ describe('withdrawSubmission', () => {
   ])(
     'says on the overview that it cannot be withdrawn when the API answers %s %s',
     async (status, error) => {
-      const postToMember = vi.fn().mockResolvedValue({ ok: false, status, error: { error } });
+      const api = createFakeApiClient({ [WITHDRAW]: refused(status, { error }) });
 
-      const { response } = await respond(
-        withdrawSubmission,
-        { postToMember },
-        post({ submissionNumber: '1' }),
-      );
+      const { response } = await respond(withdrawSubmission, api, post({ submissionNumber: '1' }));
 
       expect(await redirectWithFlash(response)).toEqual({
         status: 302,

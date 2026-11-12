@@ -4,6 +4,7 @@ import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { takeIndicatorStep } from '@fphd/internal-workflow';
 import { asc, eq } from 'drizzle-orm';
+import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
 import { type CreatedIndicatorDraft, createIndicatorDraft } from './indicator-draft-repository.ts';
@@ -99,7 +100,13 @@ async function isLocked(db: Database, versionId: string): Promise<boolean> {
 
 /** A Team C draft, created by its second publisher so the publishing reviewer may review it. */
 async function teamCDraft(db: Database, name: string): Promise<CreatedIndicatorDraft> {
-  const created = await createIndicatorDraft(db, { name }, AS_TEAM_C_PUBLISHER, TEAM_IDS.teamC);
+  const created = await createIndicatorDraft(
+    db,
+    randomUuidV7(),
+    { name },
+    AS_TEAM_C_PUBLISHER,
+    TEAM_IDS.teamC,
+  );
   if (!created.ok) throw new Error(`createIndicatorDraft refused the name: ${created.reason}`);
   return created;
 }
@@ -124,6 +131,21 @@ describe('a resubmission', () => {
         .map((reviewerId) => ({ reviewerId, assignedBy: FAKE_USER_IDS.imrgManager })),
     );
     expect(await isLocked(db, round.versionId)).toBe(true);
+  });
+
+  repositoryTest('answers a repeat as the first, writing nothing', async ({ db }) => {
+    const round = await inReview(db, await newDraft(db, 'Resubmitted twice'), [REVIEWER]);
+    await sentBack(db, round);
+    await submitIndicator(db, round.indicatorId, round.shown, AS_ACTOR);
+
+    expect(await submitIndicator(db, round.indicatorId, round.shown, AS_ACTOR)).toEqual({
+      ok: true,
+      repeated: true,
+    });
+    expect((await submissionsOf(db, round.versionId)).map(({ status }) => status)).toEqual([
+      'changes_requested',
+      'in_review',
+    ]);
   });
 
   repositoryTest('records the reviewers carried in its audit entry', async ({ db }) => {

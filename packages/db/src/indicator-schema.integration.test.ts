@@ -6,6 +6,7 @@ import type { Database } from './client.ts';
 import {
   ciMethod,
   classification,
+  IMPORTED_INDICATOR_TEAM_ID,
   type IndicatorVersionStatus,
   indicator,
   indicatorVersion,
@@ -39,7 +40,10 @@ afterAll(async () => {
 });
 
 async function newIndicatorId(): Promise<string> {
-  const [row] = await db.insert(indicator).values({}).returning({ id: indicator.id });
+  const [row] = await db
+    .insert(indicator)
+    .values({ teamId: IMPORTED_INDICATOR_TEAM_ID })
+    .returning({ id: indicator.id });
   if (!row) throw new Error('inserted no indicator');
   return row.id;
 }
@@ -98,11 +102,18 @@ describe('a stub indicator', () => {
   });
 
   it('takes its short id from the sequence, so the next one differs', async () => {
-    const [first] = await db.insert(indicator).values({}).returning();
-    const [second] = await db.insert(indicator).values({}).returning();
+    const team = { teamId: IMPORTED_INDICATOR_TEAM_ID };
+    const [first] = await db.insert(indicator).values(team).returning();
+    const [second] = await db.insert(indicator).values(team).returning();
 
     expect(second?.shortId).toBeGreaterThanOrEqual(FIRST_MINTED_SHORT_ID);
     expect(second?.shortId).toBe((first?.shortId ?? 0) + 1);
+  });
+
+  it('refuses an indicator without a team', async () => {
+    await expect(db.execute(sql`INSERT INTO indicator DEFAULT VALUES`)).rejects.toMatchObject({
+      cause: { code: NOT_NULL_VIOLATION, column_name: 'team_id' },
+    });
   });
 });
 

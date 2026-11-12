@@ -26,8 +26,12 @@ const { indicatorVersion, indicatorVersionSubmission, isUnpublished } = schema;
 
 type Submission = typeof indicatorVersionSubmission.$inferSelect;
 
+/**
+ * A step taken, or refused with its reason. `repeated` marks a request that found the step
+ * already taken for it, as `IndicatorStepOptions.alreadyTaken` decides, and wrote nothing.
+ */
 export type IndicatorStepResult<Reason extends string = never> =
-  | { ok: true }
+  | { ok: true; repeated?: true }
   | { ok: false; reason: 'no_draft' | 'not_allowed' | Reason };
 
 /**
@@ -39,6 +43,16 @@ export type IndicatorStepPrecondition<Reason extends string> = (
   tx: Transaction,
   state: { draft: IndicatorDraftVersion; latest: Submission | undefined },
 ) => Promise<Reason | undefined>;
+
+/**
+ * Whether the draft version and its latest submission are already where this same request would
+ * have put them, because an earlier copy of the request took the step. It runs while the step
+ * holds the lock on the draft version's row.
+ */
+export type IndicatorStepAlreadyTaken = (state: {
+  draft: IndicatorDraftVersion;
+  latest: Submission | undefined;
+}) => boolean;
 
 /** The draft version's status, lock and publication time after the step has updated them. */
 export type SteppedVersion = Pick<IndicatorDraftVersion, 'status' | 'isLocked' | 'publishedAt'>;
@@ -187,9 +201,13 @@ export type ReviewersToCarry = (
  * workflow allows the step and before anything is written. `write` adds the step's own rows in the
  * same transaction. `reviewersToCarry` must be given for a step that carries reviewers, such as
  * resubmit, and chooses which of the latest submission's reviewers move onto the new one.
+ * `alreadyTaken` is asked only when the workflow does not allow the step. When it answers true,
+ * the step succeeds as `repeated` and writes nothing, so a double click or a retry gets the answer
+ * the first request got rather than `not_allowed`.
  */
 export interface IndicatorStepOptions<Reason extends string> {
   precondition?: IndicatorStepPrecondition<Reason>;
+  alreadyTaken?: IndicatorStepAlreadyTaken;
   write?: IndicatorStepWrite;
   reviewersToCarry?: ReviewersToCarry;
 }
@@ -239,7 +257,7 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
   indicatorId: string,
   choice: IndicatorStepChoice,
   actor: Actor,
-  { precondition, write, reviewersToCarry }: IndicatorStepOptions<Reason> = {},
+  { precondition, write, reviewersToCarry, alreadyTaken }: IndicatorStepOptions<Reason> = {},
 ): Promise<IndicatorStepResult<Reason>> {
   // Locks the draft version's row FOR NO KEY UPDATE. An upload being loaded inserts an
   // upload_batch row that references this row, and that foreign key takes FOR KEY SHARE on it.
@@ -270,7 +288,11 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
     latestSubmissionStatus: latest?.status ?? null,
   };
 
-  if (!allowedSteps(context).includes(step)) return { ok: false, reason: 'not_allowed' };
+  if (!allowedSteps(context).includes(step)) {
+    return alreadyTaken?.({ draft, latest })
+      ? { ok: true, repeated: true }
+      : { ok: false, reason: 'not_allowed' };
+  }
 
   const carried = await reviewersCarriedBy(
     tx,

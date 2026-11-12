@@ -1,7 +1,13 @@
-import { TEAM_IDS } from '@fphd/auth';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  fails,
+  noContent,
+  refused,
+} from '@fphd/web-server/testing';
+import { describe, expect, it } from 'vitest';
 
 import {
   flashCookie,
@@ -9,7 +15,8 @@ import {
   redirectWithFlash,
   withFlashStorage,
 } from '../flash.testing.ts';
-import { signedInContext } from '../session.testing.ts';
+import { SIGNED_IN_USER_ID, signedInContext } from '../session.testing.ts';
+import { indicatorDetail } from '../testing.ts';
 import {
   chooseApproval,
   chooseResponseType,
@@ -24,26 +31,25 @@ import {
 const ID = '00000000-0000-7000-8000-000000000001';
 const OVERVIEW = `/dashboard/indicators/${ID}`;
 const REVIEW = `${OVERVIEW}/review`;
-const RESPOND = ['give_feedback', 'request_changes', 'approve'];
+const RESPOND = ['give_feedback', 'request_changes', 'approve'] as const;
+const RESPONSE = `POST /api/internal/indicators/${ID}/review-response` as const;
 
-const inReview = {
+const inReview = indicatorDetail({
   id: ID,
-  shortId: 90366,
   name: 'Hip fractures',
-  teamId: TEAM_IDS.teamA,
-  publishedSlug: null,
-  updatedAt: '2026-01-02T00:00:00.000Z',
-  indicatorStatus: 'new',
-  draftStatus: 'draft',
   draftLocked: true,
   draftSubmissionStatus: 'in_review',
-  draftResponseKind: null,
-  draftReviewers: [{ id: 'test-user', name: 'Jamie Evans' }],
+  draftReviewers: [{ id: SIGNED_IN_USER_ID, name: 'Jamie Evans' }],
   draftSubmissionNumber: 2,
   draftScheduledPublishAt: '2027-04-01T08:30:00.000Z',
   draftFirstSubmittedAt: '2026-10-20T23:30:00.000Z',
-  actions: RESPOND,
-};
+  actions: [...RESPOND],
+});
+
+/** An API that answers the indicator's detail with `detail`. */
+function reading(detail: FakeApiAnswer) {
+  return createFakeApiClient({ [`GET /api/internal/indicators/${ID}`]: detail });
+}
 
 function post(path: string, entries: [string, string][]): Request {
   const body = new FormData();
@@ -53,12 +59,12 @@ function post(path: string, entries: [string, string][]): Request {
 
 async function run(
   handler: (args: never) => Promise<unknown>,
-  client: Partial<ApiClient>,
+  api: FakeApiClient,
   request: Request,
   roles: readonly string[] = ['imrg-reviewer'],
 ) {
   const context = withFlashStorage(await signedInContext(roles, []));
-  context.set(apiContext, client as ApiClient);
+  context.set(apiContext, api);
   let outcome: unknown;
   const response = await flashedResponse(context, request, async () => {
     outcome = await handler({ context, params: { id: ID }, request } as never);
@@ -108,19 +114,18 @@ describe('the response pages', () => {
     ['an IMRG manager without the reviewer role', ['imrg-manager']],
   ])('do not exist for %s', async (_, roles) => {
     for (const [name, handler, request] of pages) {
-      const client = { get: vi.fn(), postToMember: vi.fn() };
-      const { response } = await run(handler, client, request.clone(), roles);
+      const api = createFakeApiClient();
+      const { response } = await run(handler, api, request.clone(), roles);
 
       expect(response.status, name).toBe(404);
-      expect(client.get, name).not.toHaveBeenCalled();
-      expect(client.postToMember, name).not.toHaveBeenCalled();
+      expect(api.calls, name).toEqual([]);
     }
   });
 
   it('open with the submission the reviewer is shown', async () => {
     const { outcome } = await run(
       loadResponseType,
-      { get: vi.fn().mockResolvedValue(inReview) },
+      reading(inReview),
       new Request(`https://internal.test${REVIEW}/response-type`),
     );
 
@@ -137,7 +142,7 @@ describe('the response pages', () => {
     async (_, loader, path) => {
       const { response } = await run(
         loader,
-        { get: vi.fn().mockResolvedValue({ ...inReview, actions: [] }) },
+        reading({ ...inReview, actions: [] }),
         new Request(`https://internal.test${REVIEW}${path}`),
       );
 
@@ -158,7 +163,7 @@ describe('the response pages', () => {
     async (_, loader, path) => {
       const { response } = await run(
         loader,
-        { get: vi.fn().mockResolvedValue(inReview) },
+        reading(inReview),
         new Request(`https://internal.test${REVIEW}${path}`),
       );
 
@@ -172,7 +177,7 @@ describe('the response pages', () => {
   ])('go on from a %s response type', async (responseType, location) => {
     const { response } = await run(
       chooseResponseType,
-      {},
+      createFakeApiClient(),
       post(`${REVIEW}/response-type`, [
         ['submissionNumber', '2'],
         ['responseType', responseType],
@@ -185,7 +190,7 @@ describe('the response pages', () => {
   it('ask for the response type again when none is chosen', async () => {
     const { outcome } = await run(
       chooseResponseType,
-      {},
+      createFakeApiClient(),
       post(`${REVIEW}/response-type`, [['submissionNumber', '2']]),
     );
 
@@ -196,10 +201,10 @@ describe('the response pages', () => {
   });
 
   it('settle the date against the first submission before going on', async () => {
-    const get = vi.fn().mockResolvedValue(inReview);
+    const api = reading(inReview);
     const before = await run(
       chooseReviewDate,
-      { get },
+      api,
       post(`${REVIEW}/date?submission=2`, [
         ['imrgReviewedOn[day]', '20'],
         ['imrgReviewedOn[month]', '10'],
@@ -208,7 +213,7 @@ describe('the response pages', () => {
     );
     const after = await run(
       chooseReviewDate,
-      { get },
+      api,
       post(`${REVIEW}/date?submission=2`, [
         ['imrgReviewedOn[day]', '29'],
         ['imrgReviewedOn[month]', '10'],
@@ -228,7 +233,7 @@ describe('the response pages', () => {
 
   it('show on the date page the rule a refused date breaks', async () => {
     const context = withFlashStorage(await signedInContext(['imrg-reviewer'], []));
-    context.set(apiContext, { get: vi.fn().mockResolvedValue(inReview) } as unknown as ApiClient);
+    context.set(apiContext, reading(inReview));
     const request = new Request(
       `https://internal.test${REVIEW}/date?submission=2&reviewedOn=2999-01-01`,
       { headers: { Cookie: await flashCookie('review-date-refused') } },
@@ -245,7 +250,7 @@ describe('the response pages', () => {
 
   it('show on the date page why the API refused the date', async () => {
     const context = withFlashStorage(await signedInContext(['imrg-reviewer'], []));
-    context.set(apiContext, { get: vi.fn().mockResolvedValue(inReview) } as unknown as ApiClient);
+    context.set(apiContext, reading(inReview));
     const request = new Request(
       `https://internal.test${REVIEW}/date?submission=2&reviewedOn=2026-10-20`,
       {
@@ -266,24 +271,26 @@ describe('the response pages', () => {
   });
 
   it('send an approval from the approval page and land on the overview with its banner', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const api = createFakeApiClient({ [RESPONSE]: noContent });
     const { response } = await run(
       chooseApproval,
-      { postToMember },
+      api,
       post(`${REVIEW}/approval?submission=2&reviewedOn=2026-10-29`, [['approved', 'yes']]),
     );
 
-    expect(postToMember).toHaveBeenCalledWith(
-      `/api/internal/indicators/${ID}/review-response`,
+    expect(api.calls).toEqual([
       {
-        submissionNumber: 2,
-        kind: 'approved',
-        imrgReviewedOn: '2026-10-29',
-        clarificationRequest: null,
-        flags: [],
+        method: 'POST',
+        path: `/api/internal/indicators/${ID}/review-response`,
+        body: {
+          submissionNumber: 2,
+          kind: 'approved',
+          imrgReviewedOn: '2026-10-29',
+          clarificationRequest: null,
+          flags: [],
+        },
       },
-      expect.anything(),
-    );
+    ]);
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
       location: OVERVIEW,
@@ -294,12 +301,12 @@ describe('the response pages', () => {
   it('take a No on to the revisions page with its reason', async () => {
     const { response, outcome } = await run(
       chooseApproval,
-      {},
+      createFakeApiClient(),
       post(`${REVIEW}/approval?submission=2&reviewedOn=2026-10-29`, [['approved', 'no']]),
     );
     const reasoned = await run(
       chooseApproval,
-      {},
+      createFakeApiClient(),
       post(`${REVIEW}/approval?submission=2&reviewedOn=2026-10-29`, [
         ['approved', 'no'],
         ['revisionsKind', 'major_revisions'],
@@ -314,17 +321,17 @@ describe('the response pages', () => {
   });
 
   it('check the revisions before sending them', async () => {
-    const postToMember = vi.fn();
+    const api = createFakeApiClient();
     const { outcome } = await run(
       sendRevisions,
-      { postToMember },
+      api,
       post(`${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`, [['flags', 'polarity']]),
     );
 
     expect(outcome).toMatchObject({
       fieldErrors: { 'flags.polarity': 'Enter the revisions advised for polarity' },
     });
-    expect(postToMember).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   const revisions = post(
@@ -336,10 +343,10 @@ describe('the response pages', () => {
   );
 
   it('send revisions and land on the overview with their banner', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
-    const { response } = await run(sendRevisions, { postToMember }, revisions.clone());
+    const api = createFakeApiClient({ [RESPONSE]: noContent });
+    const { response } = await run(sendRevisions, api, revisions.clone());
 
-    expect(postToMember.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       submissionNumber: 2,
       kind: 'minor_revisions',
       imrgReviewedOn: '2026-10-29',
@@ -359,15 +366,17 @@ describe('the response pages', () => {
     ['no_publication_date', OVERVIEW, 'review-no-publication-date'],
     ['not_a_reviewer', '/dashboard', 'no-longer-reviewer'],
   ])('send the reviewer on when the API refuses as %s', async (error, location, flash) => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error } });
-    const { response } = await run(sendRevisions, { postToMember }, revisions.clone());
+    const api = createFakeApiClient({ [RESPONSE]: refused(409, { error }) });
+    const { response } = await run(sendRevisions, api, revisions.clone());
 
     expect(await redirectWithFlash(response)).toEqual({ status: 302, location, flash });
   });
 
   it('send a reviewer the API no longer lets see the indicator to the dashboard', async () => {
-    const postToMember = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
-    const { response } = await run(sendRevisions, { postToMember }, revisions.clone());
+    const api = createFakeApiClient({
+      [RESPONSE]: fails(new Response('Not Found', { status: 404 })),
+    });
+    const { response } = await run(sendRevisions, api, revisions.clone());
 
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,
@@ -377,12 +386,13 @@ describe('the response pages', () => {
   });
 
   it('send the reviewer back to the date page when the API refuses the date', async () => {
-    const postToMember = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { imrgReviewedOn: 'Too early' } },
+    const api = createFakeApiClient({
+      [RESPONSE]: refused(400, {
+        error: 'validation_failed',
+        fieldErrors: { imrgReviewedOn: 'Too early' },
+      }),
     });
-    const { response } = await run(sendRevisions, { postToMember }, revisions.clone());
+    const { response } = await run(sendRevisions, api, revisions.clone());
 
     expect(await redirectWithFlash(response)).toEqual({
       status: 302,

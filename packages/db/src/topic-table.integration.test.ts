@@ -10,6 +10,7 @@ import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   dimensionType,
   dimensionValue,
+  IMPORTED_INDICATOR_TEAM_ID,
   indicator,
   indicatorVersion,
   observation,
@@ -63,7 +64,12 @@ it('paginates a topic-sized result set past the old 200-indicator cap', async ()
   if (!source) throw new Error('Published seed version missing');
   const identities = await db
     .insert(indicator)
-    .values(Array.from({ length: 205 }, (_, index) => ({ shortId: 600000 + index })))
+    .values(
+      Array.from({ length: 205 }, (_, index) => ({
+        shortId: 600000 + index,
+        teamId: IMPORTED_INDICATOR_TEAM_ID,
+      })),
+    )
     .returning();
   await db.insert(indicatorVersion).values(
     identities.map((identity, index) => ({
@@ -312,7 +318,10 @@ it('selects the longest valid trend among equally disaggregated series', async (
     .select()
     .from(dimensionValue)
     .where(eq(dimensionValue.dimensionTypeId, sex.id));
-  const [identity] = await db.insert(indicator).values({}).returning();
+  const [identity] = await db
+    .insert(indicator)
+    .values({ teamId: IMPORTED_INDICATOR_TEAM_ID })
+    .returning();
   if (!identity) throw new Error('Trend fixture indicator missing');
   const [version] = await db
     .insert(indicatorVersion)
