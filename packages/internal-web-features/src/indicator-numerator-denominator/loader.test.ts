@@ -1,11 +1,15 @@
 import { denominatorSection, numeratorSection } from '@fphd/internal-api-features/contract';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiClient,
+  type FakeApiStubs,
+} from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { ADD_INTENT, removeIntent } from '../list-form.ts';
-import { SHOWN_VERSION } from '../testing.ts';
+import { SHOWN_VERSION, savedSection } from '../testing.ts';
 import { SHOW_SOURCES_INTENT, sourceFieldName } from './form.ts';
 import { loadNumeratorDenominator, submitNumeratorDenominator } from './loader.ts';
 
@@ -24,19 +28,32 @@ const providers = [ons, estimated];
 const mortality = { providerId: ons.id, sourceId: ons.sources[0]?.id ?? null };
 const estimatedAlone = { providerId: estimated.id, sourceId: null };
 
-function context(client: Partial<ApiClient>) {
+function context(api: FakeApiClient) {
   const provider = new RouterContextProvider();
-  provider.set(apiContext, client as ApiClient);
+  provider.set(apiContext, api);
   return provider;
 }
 
-/** Answers the providers list, and the section's answers from `answers`. */
-function getting(answers: unknown) {
-  return vi
-    .fn()
-    .mockImplementation(async (path: string) =>
-      path === providersPath ? providers : { answers, version: SHOWN_VERSION },
-    );
+/** Answers the providers list, and the section at `path` with `answers`. */
+function getting(answers: object, path = sectionPath) {
+  return createFakeApiClient({
+    [`GET ${providersPath}`]: providers,
+    [`GET ${path}`]: { answers, version: SHOWN_VERSION },
+  });
+}
+
+/** Answers the providers list, which a submission checks its sources against, and `stubs`. */
+function submitting(stubs: FakeApiStubs = {}) {
+  return createFakeApiClient({ [`GET ${providersPath}`]: providers, ...stubs });
+}
+
+/** An API that saves the section, answering with what it saved. */
+function saving() {
+  return submitting({ [`PUT ${sectionPath}`]: savedSection });
+}
+
+function saves(api: FakeApiClient) {
+  return api.calls.filter(({ method }) => method === 'PUT');
 }
 
 function isNotFound(error: unknown) {
@@ -47,10 +64,10 @@ function isBadRequest(error: unknown) {
   return error instanceof Response && error.status === 400;
 }
 
-function load(indicatorId: string, get: ApiClient['get'], section = numeratorSection) {
+function load(indicatorId: string, api: FakeApiClient, section = numeratorSection) {
   return loadNumeratorDenominator(
     {
-      context: context({ get }),
+      context: context(api),
       params: { id: indicatorId },
       request: new Request(`https://internal.test/publish/indicators/${indicatorId}/numerator`),
     } as never,
@@ -61,7 +78,7 @@ function load(indicatorId: string, get: ApiClient['get'], section = numeratorSec
 function submit(
   fields: Record<string, string>,
   sources: { providerId: string; sourceId: string | null }[],
-  put: ApiClient['put'],
+  api: FakeApiClient,
 ) {
   const body = new URLSearchParams({ ...fields, version: SHOWN_VERSION });
   sources.forEach(({ providerId, sourceId }, index) => {
@@ -71,7 +88,7 @@ function submit(
 
   return submitNumeratorDenominator(
     {
-      context: context({ get: getting(undefined), put }),
+      context: context(api),
       params: { id },
       request: new Request(`https://internal.test/publish/indicators/${id}/numerator`, {
         method: 'POST',
@@ -94,44 +111,44 @@ const nothingChosen = { providerId: '', sourceId: '' };
 
 describe('loadNumeratorDenominator', () => {
   it("fills the form with the draft's answers, nothing chosen, and the providers offered", async () => {
-    const get = getting({ sources: [mortality], definition: 'Deaths' });
+    const api = getting({ sources: [mortality], definition: 'Deaths' });
 
-    await expect(load(id, get)).resolves.toEqual({
+    await expect(load(id, api)).resolves.toEqual({
       id,
       providers,
       values: { sources: [mortality], definition: 'Deaths', ...nothingChosen },
       version: SHOWN_VERSION,
     });
-    expect(get.mock.calls.map(([path]) => path).sort()).toEqual([providersPath, sectionPath]);
+    expect(api.calls.map(({ path }) => path).sort()).toEqual([providersPath, sectionPath]);
   });
 
   it("reads the denominator's answers from its own endpoint", async () => {
-    const get = getting({ sources: [], definition: null });
-
-    await expect(load(id, get, denominatorSection)).resolves.toMatchObject({
-      values: { sources: [], definition: '' },
-    });
-    expect(get.mock.calls.map(([path]) => path)).toContain(
+    const api = getting(
+      { sources: [], definition: null },
       `/api/internal/indicators/${id}/denominator`,
     );
+
+    await expect(load(id, api, denominatorSection)).resolves.toMatchObject({
+      values: { sources: [], definition: '' },
+    });
   });
 
   it('answers 404 to a malformed id without asking the API for anything', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
-    await expect(load('108', get)).rejects.toSatisfy(isNotFound);
-    expect(get).not.toHaveBeenCalled();
+    await expect(load('108', api)).rejects.toSatisfy(isNotFound);
+    expect(api.calls).toEqual([]);
   });
 });
 
 describe('submitNumeratorDenominator', () => {
   it("shows the chosen provider's sources without saving anything", async () => {
-    const put = vi.fn();
+    const api = submitting();
 
     const outcome = await submit(
       { intent: SHOW_SOURCES_INTENT, providerId: ons.id, sourceId: '', definition: 'Deaths' },
       [],
-      put,
+      api,
     );
 
     expect(outcome).toEqual({
@@ -139,22 +156,26 @@ describe('submitNumeratorDenominator', () => {
       fieldErrors: {},
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(saves(api)).toEqual([]);
   });
 
   it('asks for a provider when Show sources is selected with none chosen', async () => {
-    const outcome = await submit({ intent: SHOW_SOURCES_INTENT, ...nothingChosen }, [], vi.fn());
+    const outcome = await submit(
+      { intent: SHOW_SOURCES_INTENT, ...nothingChosen },
+      [],
+      submitting(),
+    );
 
     expect(outcome).toMatchObject({ fieldErrors: { providerId: 'Select a data provider' } });
   });
 
   it('adds the chosen provider and source without saving anything, clearing the selects', async () => {
-    const put = vi.fn();
+    const api = submitting();
 
     const outcome = await submit(
       { intent: ADD_INTENT, providerId: estimated.id, sourceId: 'none', definition: '' },
       [mortality],
-      put,
+      api,
     );
 
     expect(outcome).toEqual({
@@ -162,13 +183,13 @@ describe('submitNumeratorDenominator', () => {
       fieldErrors: {},
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(saves(api)).toEqual([]);
   });
 
   it('refuses to add a provider with no source chosen, keeping the page as sent', async () => {
     const fields = { intent: ADD_INTENT, providerId: ons.id, sourceId: '', definition: '' };
 
-    const outcome = await submit(fields, [], vi.fn());
+    const outcome = await submit(fields, [], submitting());
 
     expect(outcome).toEqual({
       values: { sources: [], definition: '', providerId: ons.id, sourceId: '' },
@@ -178,25 +199,24 @@ describe('submitNumeratorDenominator', () => {
   });
 
   it('removes a source without saving anything', async () => {
-    const put = vi.fn();
+    const api = submitting();
 
-    const outcome = await submit({ intent: removeIntent(0) }, [mortality, estimatedAlone], put);
+    const outcome = await submit({ intent: removeIntent(0) }, [mortality, estimatedAlone], api);
 
     expect(outcome).toMatchObject({ values: { sources: [estimatedAlone] }, fieldErrors: {} });
-    expect(put).not.toHaveBeenCalled();
+    expect(saves(api)).toEqual([]);
   });
 
   it('saves the sources and definition on Continue and returns to the task list', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = saving();
 
     const outcome = await submit(
       { definition: ' Deaths ', ...nothingChosen },
       [mortality, estimatedAlone],
-      put,
+      api,
     );
 
-    expect(put.mock.calls[0]?.[0]).toBe(sectionPath);
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(saves(api)[0]?.body).toEqual({
       answers: {
         sources: [mortality, estimatedAlone],
         definition: 'Deaths',
@@ -207,15 +227,15 @@ describe('submitNumeratorDenominator', () => {
   });
 
   it('saves a provider and source chosen but not added along with the others', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = saving();
 
     await submit(
       { definition: 'Deaths', providerId: estimated.id, sourceId: 'none' },
       [mortality],
-      put,
+      api,
     );
 
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(saves(api)[0]?.body).toEqual({
       answers: {
         sources: [mortality, estimatedAlone],
         definition: 'Deaths',
@@ -225,9 +245,9 @@ describe('submitNumeratorDenominator', () => {
   });
 
   it('saves nothing while the answers are refused', async () => {
-    const put = vi.fn();
+    const api = submitting();
 
-    const outcome = await submit({ definition: '', ...nothingChosen }, [], put);
+    const outcome = await submit({ definition: '', ...nothingChosen }, [], api);
 
     expect(outcome).toEqual({
       values: { sources: [], definition: '', ...nothingChosen },
@@ -237,14 +257,14 @@ describe('submitNumeratorDenominator', () => {
       },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(saves(api)).toEqual([]);
   });
 
   it('shows the rest of the refusals with a chosen source that cannot be added', async () => {
-    const put = vi.fn();
+    const api = submitting();
     const fields = { definition: ' ', providerId: ons.id, sourceId: '' };
 
-    const outcome = await submit(fields, [mortality], put);
+    const outcome = await submit(fields, [mortality], api);
 
     expect(outcome).toEqual({
       values: { sources: [mortality], ...fields },
@@ -254,13 +274,13 @@ describe('submitNumeratorDenominator', () => {
       },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(saves(api)).toEqual([]);
   });
 
   it('leaves out asking for a provider when the chosen one cannot be added', async () => {
     const fields = { definition: 'Deaths', providerId: ons.id, sourceId: '' };
 
-    const outcome = await submit(fields, [], vi.fn());
+    const outcome = await submit(fields, [], submitting());
 
     expect(outcome).toEqual({
       values: { sources: [], ...fields },
@@ -273,6 +293,8 @@ describe('submitNumeratorDenominator', () => {
     ['a malformed source', [{ providerId: 'not-an-id', sourceId: null }]],
     ['a source the providers do not offer', [{ providerId: estimated.id, sourceId: ons.id }]],
   ])('refuses %s, which the page never sends', async (_, sources) => {
-    await expect(submit({ intent: ADD_INTENT }, sources, vi.fn())).rejects.toSatisfy(isBadRequest);
+    await expect(submit({ intent: ADD_INTENT }, sources, submitting())).rejects.toSatisfy(
+      isBadRequest,
+    );
   });
 });

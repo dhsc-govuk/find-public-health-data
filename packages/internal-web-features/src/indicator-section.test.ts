@@ -1,8 +1,12 @@
-import { definitionAndRationaleSection as section } from '@fphd/internal-api-features/contract';
-import { type ApiClient, ApiConflictError } from '@fphd/web-server/api-client';
+import {
+  indicatorSectionAnswersSchema,
+  definitionAndRationaleSection as section,
+} from '@fphd/internal-api-features/contract';
+import { ApiConflictError } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient, fails, refused } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, flashLeftBy, withFlashStorage } from './flash.testing.ts';
 import { FORM_NOT_SAVED } from './form-refusal.ts';
@@ -21,10 +25,11 @@ const id = '00000000-0000-7000-8000-000000000001';
 const answers = { definition: 'A definition', rationale: 'A rationale' };
 const sent = { ...answers, version: SHOWN_VERSION };
 const NEWER_VERSION = 'b'.repeat(64);
+const SECTION = `/api/internal/indicators/${id}/definition-and-rationale` as const;
 
-function load(indicatorId: string, get: ApiClient['get']) {
+function load(indicatorId: string, api: FakeApiClient) {
   const context = new RouterContextProvider();
-  context.set(apiContext, { get } as unknown as ApiClient);
+  context.set(apiContext, api);
 
   return loadIndicatorSection(
     {
@@ -39,11 +44,11 @@ function load(indicatorId: string, get: ApiClient['get']) {
 function save(
   indicatorId: string,
   body: Record<string, string>,
-  put: ApiClient['put'],
+  api: FakeApiClient,
   controlNames?: ControlNamesOf<'definition' | 'rationale'>,
 ) {
   const context = new RouterContextProvider();
-  context.set(apiContext, { put } as unknown as ApiClient);
+  context.set(apiContext, api);
 
   return saveIndicatorSection(
     {
@@ -59,18 +64,25 @@ function save(
   );
 }
 
+/** An API that saves the section, answering with what it saved at its new version. */
+function saves() {
+  return createFakeApiClient({ [`PUT ${SECTION}`]: { answers, version: NEWER_VERSION } });
+}
+
 function isNotFound(error: unknown) {
   return error instanceof Response && error.status === 404;
 }
 
 describe('loadIndicatorSection', () => {
   it('fills an unanswered field with nothing', async () => {
-    const get = vi.fn().mockResolvedValue({
-      answers: { definition: 'A definition', rationale: null },
-      version: SHOWN_VERSION,
+    const api = createFakeApiClient({
+      [`GET ${SECTION}`]: {
+        answers: { definition: 'A definition', rationale: null },
+        version: SHOWN_VERSION,
+      },
     });
 
-    await expect(load(id, get)).resolves.toEqual({
+    await expect(load(id, api)).resolves.toEqual({
       id,
       values: { definition: 'A definition', rationale: '' },
       version: SHOWN_VERSION,
@@ -78,25 +90,29 @@ describe('loadIndicatorSection', () => {
   });
 
   it('lets the not-found page through when the indicator has no draft', async () => {
-    const get = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
+    const api = createFakeApiClient({
+      [`GET ${SECTION}`]: fails(new Response('Not Found', { status: 404 })),
+    });
 
-    await expect(load(id, get)).rejects.toSatisfy(isNotFound);
+    await expect(load(id, api)).rejects.toSatisfy(isNotFound);
   });
 });
 
 describe('a section of a draft locked for review', () => {
   const path = `https://internal.test/publish/indicators/${id}/definition-and-rationale`;
 
-  function lockedContext(api: Partial<ApiClient>) {
+  function lockedContext(api: FakeApiClient) {
     const context = withFlashStorage(new RouterContextProvider());
-    context.set(apiContext, api as ApiClient);
+    context.set(apiContext, api);
     return context;
   }
 
   it('sends the publisher who opens it to the overview, saying why', async () => {
-    const context = lockedContext({
-      get: vi.fn().mockRejectedValue(new ApiConflictError(path, { error: 'locked' })),
-    });
+    const context = lockedContext(
+      createFakeApiClient({
+        [`GET ${SECTION}`]: fails(new ApiConflictError(SECTION, { error: 'locked' })),
+      }),
+    );
     const request = new Request(path);
 
     const response = await flashedResponse(context, request, () =>
@@ -109,9 +125,9 @@ describe('a section of a draft locked for review', () => {
   });
 
   it('sends the publisher whose save it refuses to the overview, saying why', async () => {
-    const context = lockedContext({
-      put: vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error: 'locked' } }),
-    });
+    const context = lockedContext(
+      createFakeApiClient({ [`PUT ${SECTION}`]: refused(409, { error: 'locked' }) }),
+    );
     const request = new Request(path, { method: 'POST', body: new URLSearchParams(sent) });
 
     const response = await flashedResponse(context, request, () =>
@@ -126,11 +142,13 @@ describe('a section of a draft locked for review', () => {
 
 describe('saveIndicatorSection', () => {
   it('sends every answer and returns to the task list', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: { answers, version: NEWER_VERSION } });
+    const api = saves();
 
-    const outcome = await save(id, sent, put);
+    const outcome = await save(id, sent, api);
 
-    expect(put.mock.calls[0]?.[1]).toEqual({ answers, version: SHOWN_VERSION });
+    expect(api.calls).toEqual([
+      { method: 'PUT', path: SECTION, body: { answers, version: SHOWN_VERSION } },
+    ]);
     expect(outcome).toBeInstanceOf(Response);
     expect((outcome as Response).status).toBe(302);
     expect((outcome as Response).headers.get('location')).toBe(
@@ -139,39 +157,40 @@ describe('saveIndicatorSection', () => {
   });
 
   it('reads each field from the control an answer in the submission chooses', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: { answers, version: NEWER_VERSION } });
+    const api = saves();
     const body = { ...sent, which: 'second', second: 'A second rationale' };
 
-    await save(id, body, put, (formData) =>
+    await save(id, body, api, (formData) =>
       formData.get('which') === 'second' ? { rationale: 'second' } : {},
     );
 
-    expect(put.mock.calls[0]?.[1]).toMatchObject({
+    expect(api.calls[0]?.body).toMatchObject({
       answers: { ...answers, rationale: 'A second rationale' },
     });
   });
 
   it('saves nothing while any answer is missing, keeping what was typed', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await save(id, { ...sent, definition: 'Kept', rationale: '' }, put);
+    const outcome = await save(id, { ...sent, definition: 'Kept', rationale: '' }, api);
 
     expect(outcome).toEqual({
       values: { definition: 'Kept', rationale: '' },
       fieldErrors: { rationale: 'Enter the rationale for the indicator' },
       version: SHOWN_VERSION,
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows what the API refused, keeping what was typed', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { definition: 'Refused by the API' } },
+    const api = createFakeApiClient({
+      [`PUT ${SECTION}`]: refused(400, {
+        error: 'validation_failed',
+        fieldErrors: { definition: 'Refused by the API' },
+      }),
     });
 
-    const outcome = await save(id, sent, put);
+    const outcome = await save(id, sent, api);
 
     expect(outcome).toEqual({
       values: answers,
@@ -181,13 +200,11 @@ describe('saveIndicatorSection', () => {
   });
 
   it('keeps what was typed when the section changed since, to save against its version now', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      error: { error: 'changed', version: NEWER_VERSION },
+    const api = createFakeApiClient({
+      [`PUT ${SECTION}`]: refused(409, { error: 'changed', version: NEWER_VERSION }),
     });
 
-    await expect(save(id, sent, put)).resolves.toEqual({
+    await expect(save(id, sent, api)).resolves.toEqual({
       values: answers,
       fieldErrors: {},
       formError: SECTION_CHANGED,
@@ -196,22 +213,18 @@ describe('saveIndicatorSection', () => {
   });
 
   it('sends an empty version when the form carries none, for the API to refuse', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'invalid_version' },
+    const api = createFakeApiClient({
+      [`PUT ${SECTION}`]: refused(400, { error: 'invalid_version' }),
     });
 
-    await expect(save(id, answers, put)).resolves.toMatchObject({ formError: FORM_NOT_SAVED });
-    expect(put.mock.calls[0]?.[1]).toEqual({ answers, version: '' });
+    await expect(save(id, answers, api)).resolves.toMatchObject({ formError: FORM_NOT_SAVED });
+    expect(api.calls[0]?.body).toEqual({ answers, version: '' });
   });
 
   it('reports a refusal that names no field as the form not saved', async () => {
-    const put = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 400, error: { error: 'invalid_id' } });
+    const api = createFakeApiClient({ [`PUT ${SECTION}`]: refused(400, { error: 'invalid_id' }) });
 
-    await expect(save(id, sent, put)).resolves.toEqual({
+    await expect(save(id, sent, api)).resolves.toEqual({
       values: answers,
       fieldErrors: {},
       formError: FORM_NOT_SAVED,
@@ -221,22 +234,24 @@ describe('saveIndicatorSection', () => {
 
   // The API answers 404 when the draft went while the form was open; the client throws it.
   it('lets the not-found page through when the indicator no longer has a draft', async () => {
-    const put = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
+    const api = createFakeApiClient({
+      [`PUT ${SECTION}`]: fails(new Response('Not Found', { status: 404 })),
+    });
 
-    await expect(save(id, sent, put)).rejects.toSatisfy(isNotFound);
+    await expect(save(id, sent, api)).rejects.toSatisfy(isNotFound);
   });
 });
 
 describe('saveIndicatorSectionValues', () => {
   function saveValues(
     values: { definition: string; rationale: string; typed: string },
-    put: ApiClient['put'],
+    api: FakeApiClient,
   ) {
     const context = new RouterContextProvider();
-    context.set(apiContext, { put } as unknown as ApiClient);
+    context.set(apiContext, api);
 
     return saveIndicatorSectionValues(context, id, section, values, {
-      answersSchema: {} as never,
+      answersSchema: indicatorSectionAnswersSchema(section.fields),
       // Takes in what was typed as the rationale, refusing a typed "refuse".
       takeIn: (sent) =>
         sent.typed === 'refuse'
@@ -247,36 +262,36 @@ describe('saveIndicatorSectionValues', () => {
   }
 
   it('saves the answers the page takes in', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: answers });
+    const api = saves();
 
-    await saveValues({ definition: 'A definition', rationale: '', typed: 'Typed' }, put);
+    await saveValues({ definition: 'A definition', rationale: '', typed: 'Typed' }, api);
 
-    expect(put.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       answers: { definition: 'A definition', rationale: 'Typed' },
       version: SHOWN_VERSION,
     });
   });
 
   it('re-renders the page as taken in when the answers are refused', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await saveValues({ definition: '', rationale: '', typed: 'Typed' }, put);
+    const outcome = await saveValues({ definition: '', rationale: '', typed: 'Typed' }, api);
 
     expect(outcome).toEqual({
       values: { definition: '', rationale: '', typed: '' },
       fieldErrors: { definition: 'Enter the definition of the indicator' },
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('saves nothing when the page refuses what it would take in', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
     const values = { definition: 'A definition', rationale: '', typed: 'refuse' };
 
-    await expect(saveValues(values, put)).resolves.toEqual({
+    await expect(saveValues(values, api)).resolves.toEqual({
       values,
       fieldErrors: { typed: 'Refused before saving' },
     });
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 });

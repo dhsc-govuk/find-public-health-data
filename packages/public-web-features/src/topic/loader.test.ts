@@ -1,13 +1,20 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiCall,
+  type FakeApiClient,
+  type FakeApiStubs,
+  fails,
+} from '@fphd/web-server/testing';
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
+import { indicatorDetail } from '../indicator/view.testing.ts';
 import { loadTopic, loadTopicPage, loadTopics } from './loader.ts';
 
 function loaderArgs(
-  api: ApiClient,
+  api: FakeApiClient,
   params: Record<string, string> = {},
   query = '',
 ): LoaderFunctionArgs {
@@ -32,149 +39,162 @@ describe('loadTopics', () => {
         updatedAt: '2024-01-02T00:00:00.000Z',
       },
     ];
-    const get = vi.fn().mockResolvedValue(topics);
+    const api = createFakeApiClient({ 'GET /api/topics': topics });
 
-    const result = await loadTopics(loaderArgs({ get } as unknown as ApiClient));
+    const result = await loadTopics(loaderArgs(api));
 
-    expect(get).toHaveBeenCalledWith('/api/topics', expect.anything());
     expect(result).toEqual(topics);
   });
 
   it('propagates the failure the client raises rather than returning a partial page', async () => {
-    const get = vi.fn().mockRejectedValue(new Response('Bad Gateway', { status: 502 }));
+    const api = createFakeApiClient({
+      'GET /api/topics': fails(new Response('Bad Gateway', { status: 502 })),
+    });
 
-    await expect(loadTopics(loaderArgs({ get } as unknown as ApiClient))).rejects.toBeInstanceOf(
-      Response,
-    );
+    await expect(loadTopics(loaderArgs(api))).rejects.toBeInstanceOf(Response);
   });
 });
 
-function topicApi(
-  indicators: { shortId: number; name: string; slug: string }[] = [],
+interface ListedIndicator {
+  shortId: number;
+  name: string;
+  slug: string;
+}
+
+function query(call: FakeApiCall) {
+  return new URL(call.path, 'http://api').searchParams;
+}
+
+/** An indicator as the data endpoint answers it, with no areas. */
+function tableData(shortId: number) {
+  return {
+    detail: indicatorDetail(shortId, { name: 'Indicator', slug: 'indicator' }),
+    areaData: [],
+  };
+}
+
+/**
+ * Answers to a topic page's reads for the topic at `slug`, whose search finds `indicators` and
+ * whose overview highlights `highlightedIndicatorIds`. An indicator in `unavailableIds` is
+ * not found.
+ */
+function topicStubs(
+  indicators: ListedIndicator[] = [],
   highlightedIndicatorIds: number[] = [],
   unavailableIds: number[] = [],
-) {
-  return vi.fn(async (path: string) => {
-    if (path.endsWith('/trends'))
-      return {
-        total: indicators.length,
-        better: 0,
-        worse: 0,
-        unchanged: 0,
-        increasing: 0,
-        decreasing: 0,
-        unavailable: indicators.length,
-      };
-    if (path.startsWith('/api/topics/'))
-      return {
-        slug: 'topic-a',
-        title: 'Topic A',
-        description: 'About topic A',
-        content: { highlightedIndicatorIds },
-      };
-    if (path === '/api/areas/display-groups') return [];
-    if (path.startsWith('/api/areas?')) return [];
-    if (path === '/api/indicators/facets')
-      return { topics: [], classifications: [], sources: [], valueTypes: [], yearTypes: [] };
-    if (path.startsWith('/api/indicators/search?')) {
-      const params = new URL(path, 'http://api').searchParams;
+  slug = 'topic-a',
+): FakeApiStubs {
+  const topicPath = `/api/topics/${encodeURIComponent(slug)}`;
+  const highlighted = Object.fromEntries(
+    highlightedIndicatorIds.map((id) => [
+      `GET /api/indicators/${id}`,
+      unavailableIds.includes(id)
+        ? fails(new Response('Not Found', { status: 404 }))
+        : indicatorDetail(id, { name: 'Indicator', slug: 'indicator' }),
+    ]),
+  );
+
+  return {
+    [`GET ${topicPath}`]: {
+      slug,
+      title: 'Topic A',
+      description: 'About topic A',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+      content: {
+        overviewIntro: 'About topic A.',
+        highlightedIndicatorIds,
+        highlightIntro: 'Highlights.',
+        highlightPoints: [],
+        moreInformation: { intro: 'More information.', sections: [] },
+      },
+    },
+    [`GET ${topicPath}/trends`]: {
+      total: indicators.length,
+      better: 0,
+      worse: 0,
+      unchanged: 0,
+      increasing: 0,
+      decreasing: 0,
+      unavailable: indicators.length,
+    },
+    'GET /api/areas/display-groups': [],
+    'GET /api/areas': [],
+    'GET /api/indicators/facets': {
+      topics: [],
+      classifications: [],
+      sources: [],
+      valueTypes: [],
+      yearTypes: [],
+    },
+    'GET /api/indicators/search': (call) => {
+      const params = query(call);
       const page = Number(params.get('page') ?? '1');
       const limit = params.has('page') ? Number(params.get('limit') ?? '10') : 200;
       return {
         total: indicators.length,
         limit,
         ...(params.has('page') ? { page } : {}),
-        indicators: indicators.slice((page - 1) * limit, page * limit),
+        indicators: indicators
+          .slice((page - 1) * limit, page * limit)
+          .map((indicator) => ({ ...indicator, topics: [], classifications: [] })),
       };
-    }
-    if (
-      /^\/api\/indicators\/\d+$/.test(path) &&
-      unavailableIds.includes(Number(path.split('/').at(-1)))
-    )
-      throw new Response('Not Found', { status: 404 });
-    if (/^\/api\/indicators\/\d+$/.test(path))
-      return {
-        shortId: Number(path.split('/').at(-1)),
-        name: 'Indicator',
-        slug: 'indicator',
-        topics: [],
-        unit: '%',
-        yearType: null,
-        polarity: null,
-        dataUpdatedAt: null,
-      };
-    if (path.startsWith('/api/indicator-data?')) {
-      return new URL(path, 'http://api').searchParams.getAll('indicator').map((id) => ({
-        detail: {
-          shortId: Number(id),
-          name: 'Indicator',
-          slug: 'indicator',
-          topics: [],
-          unit: '%',
-          yearType: null,
-          polarity: null,
-          dataUpdatedAt: null,
-        },
-        areaData: [],
-      }));
-    }
-    if (path.includes('/data?')) return [];
-    throw new Error(`Unexpected API path: ${path}`);
-  });
+    },
+    ...highlighted,
+    'GET /api/indicator-data': (call) => query(call).getAll('indicator').map(Number).map(tableData),
+  };
+}
+
+/** A client that answers a topic page's reads, as `topicStubs` describes them. */
+function topicApi(...stubs: Parameters<typeof topicStubs>) {
+  return createFakeApiClient(topicStubs(...stubs));
+}
+
+function paths(api: FakeApiClient) {
+  return api.calls.map(({ path }) => path);
 }
 
 describe('loadTopic', () => {
   it('identifies streamed filter results by the page URL rather than its data transport', async () => {
-    const args = loaderArgs({ get: topicApi() } as unknown as ApiClient, { slug: 'topic-a' });
+    const args = loaderArgs(topicApi(), { slug: 'topic-a' });
     args.request = new Request('http://localhost/topics/topic-a.data?tab-topic=areas');
     const { content } = await loadTopic(args);
     expect(content?.dataKey).toBe('/topics/topic-a?sort=subtopic-asc');
   });
 
   it('uses the area summary catalogue for its picker without loading unrelated previews', async () => {
-    const read = topicApi();
-    const groups = [
-      {
-        displayGroup: 'Integrated care boards',
-        areas: [{ code: 'E54000040', name: 'Bath and North East Somerset' }],
-      },
-    ];
-    const get = vi.fn(async (path: string) => {
-      if (path === '/api/areas/display-groups') return ['Integrated care boards'];
-      if (path.startsWith('/api/areas?')) {
-        expect(path).not.toContain('limit=101');
+    const area = { code: 'E54000040', name: 'Bath and North East Somerset' };
+    const groups = [{ displayGroup: 'Integrated care boards', areas: [area] }];
+    const api = createFakeApiClient({
+      ...topicStubs(),
+      'GET /api/areas/display-groups': ['Integrated care boards'],
+      'GET /api/areas': (call) => {
+        expect(call.path).not.toContain('limit=101');
         return groups;
-      }
-      if (path.startsWith('/api/areas/lookup?'))
-        return [
-          {
-            ...groups[0]?.areas[0],
-            areaType: 'Integrated care boards',
-            displayGroup: 'Integrated care boards',
-          },
-        ];
-      return read(path);
+      },
+      'GET /api/areas/lookup': [
+        { ...area, areaType: 'Integrated care boards', displayGroup: 'Integrated care boards' },
+      ],
     });
     const { content } = await loadTopic(
-      loaderArgs(
-        { get } as unknown as ApiClient,
-        { slug: 'topic-a' },
-        '?tab-topic=areas&geo=Integrated+care+boards',
-      ),
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas&geo=Integrated+care+boards'),
     );
     expect(content?.search.geographyOptions.previews).toEqual([
-      { name: 'Integrated care boards', areas: groups[0]?.areas },
+      { name: 'Integrated care boards', areas: [area] },
     ]);
   });
 
   it('defers the overview and tables on client navigations', async () => {
-    const read = topicApi([{ shortId: 1, name: 'Indicator', slug: 'indicator' }]);
+    const api = topicApi([{ shortId: 1, name: 'Indicator', slug: 'indicator' }]);
     const gate = Promise.withResolvers<void>();
-    const get = vi.fn(async (path: string) => {
-      if (path.endsWith('/trends') || path.startsWith('/api/indicator-data?')) await gate.promise;
-      return read(path);
-    });
-    const args = loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' });
+    const delayed: FakeApiClient = {
+      ...api,
+      get: async (path, schema) => {
+        if (path.endsWith('/trends') || path.startsWith('/api/indicator-data?')) await gate.promise;
+        return api.get(path, schema);
+      },
+    };
+    const args = loaderArgs(delayed, { slug: 'topic-a' });
     args.request = new Request('http://localhost/topics/topic-a.data');
     const page = await loadTopicPage(args);
     try {
@@ -182,7 +202,7 @@ describe('loadTopic', () => {
       expect(page.overview).toBeInstanceOf(Promise);
       expect(page.content).toBeInstanceOf(Promise);
       expect(page.areas).toBeInstanceOf(Promise);
-      expect(read.mock.calls.some(([path]) => path.endsWith('/trends'))).toBe(false);
+      expect(paths(api).some((path) => path.endsWith('/trends'))).toBe(false);
     } finally {
       gate.resolve();
     }
@@ -193,9 +213,7 @@ describe('loadTopic', () => {
   });
 
   it('settles every section for a document request without a rendering parameter', async () => {
-    const page = await loadTopicPage(
-      loaderArgs({ get: topicApi() } as unknown as ApiClient, { slug: 'topic-a' }),
-    );
+    const page = await loadTopicPage(loaderArgs(topicApi(), { slug: 'topic-a' }));
     expect(page.overview).not.toBeInstanceOf(Promise);
     expect(page.content).not.toBeInstanceOf(Promise);
     expect(page.areas).not.toBeInstanceOf(Promise);
@@ -203,16 +221,17 @@ describe('loadTopic', () => {
 
   it('waits for slow document sections beyond the rendering deadline', async () => {
     vi.useFakeTimers();
-    const read = topicApi();
-    const get = vi.fn(async (path: string) => {
-      if (path.endsWith('/trends')) await new Promise((resolve) => setTimeout(resolve, 7_000));
-      return read(path);
-    });
+    const api = topicApi();
+    const delayed: FakeApiClient = {
+      ...api,
+      get: async (path, schema) => {
+        if (path.endsWith('/trends')) await new Promise((resolve) => setTimeout(resolve, 7_000));
+        return api.get(path, schema);
+      },
+    };
     const ready = vi.fn();
     try {
-      const pending = loadTopicPage(
-        loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
-      ).then(ready);
+      const pending = loadTopicPage(loaderArgs(delayed, { slug: 'topic-a' })).then(ready);
       await vi.advanceTimersByTimeAsync(6_000);
       expect(ready).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1_000);
@@ -227,11 +246,7 @@ describe('loadTopic', () => {
     'keeps the active %s tab when normalising filter inputs',
     async (tab) => {
       const result = await loadTopicPage(
-        loaderArgs(
-          { get: topicApi() } as unknown as ApiClient,
-          { slug: 'topic-a' },
-          `?tab-topic=${tab}&src-add=`,
-        ),
+        loaderArgs(topicApi(), { slug: 'topic-a' }, `?tab-topic=${tab}&src-add=`),
       ).catch((error: unknown) => error);
       if (!(result instanceof Response)) throw new Error('Expected a filter redirect');
       expect(result.status).toBe(302);
@@ -244,18 +259,12 @@ describe('loadTopic', () => {
   );
 
   it('keeps the area-summary geography when normalising a filter form', async () => {
-    const read = topicApi();
-    const get = vi.fn((path: string) =>
-      path === '/api/areas/display-groups'
-        ? Promise.resolve(['Local authorities', 'NHS regions'])
-        : read(path),
-    );
+    const api = createFakeApiClient({
+      ...topicStubs(),
+      'GET /api/areas/display-groups': ['Local authorities', 'NHS regions'],
+    });
     const result = await loadTopicPage(
-      loaderArgs(
-        { get } as unknown as ApiClient,
-        { slug: 'topic-a' },
-        '?tab-topic=areas&geo=Local+authorities&src-add=',
-      ),
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas&geo=Local+authorities&src-add='),
     ).catch((error: unknown) => error);
     if (!(result instanceof Response)) throw new Error('Expected a filter redirect');
     expect(
@@ -271,10 +280,8 @@ describe('loadTopic', () => {
         name: `Indicator ${index + 1}`,
         slug: `indicator-${index + 1}`,
       }));
-      const get = topicApi(indicators);
-      const page = await loadTopicPage(
-        loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }, `?tab-topic=${tab}`),
-      );
+      const api = topicApi(indicators);
+      const page = await loadTopicPage(loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=${tab}`));
       const [overview, content, areas] = await Promise.all([
         page.overview,
         page.content,
@@ -285,97 +292,78 @@ describe('loadTopic', () => {
       expect(areas?.listing.indicators).toHaveLength(8);
       expect(content?.data).not.toHaveProperty('selected');
       expect(areas?.data).not.toHaveProperty('selected');
-      expect(get.mock.calls.filter(([path]) => path === '/api/topics/topic-a')).toHaveLength(1);
+      expect(paths(api).filter((path) => path === '/api/topics/topic-a')).toHaveLength(1);
       expect(
-        get.mock.calls.filter(([path]) => /^\/api\/indicators\/\d+(?:\/data\?)?$/.test(path)),
+        paths(api).filter((path) => /^\/api\/indicators\/\d+(?:\/data\?)?$/.test(path)),
       ).toHaveLength(0);
-      expect(
-        get.mock.calls.filter(([path]) => path.startsWith('/api/indicator-data?')),
-      ).toHaveLength(2);
+      expect(paths(api).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(2);
     },
   );
   it.each(['?tab-topic=publications', '?tab-topic=invalid'])(
     'loads only the topic content for %s',
     async (query) => {
-      const get = topicApi();
-      const result = await loadTopic(
-        loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }, query),
-      );
+      const api = topicApi();
+      const result = await loadTopic(loaderArgs(api, { slug: 'topic-a' }, query));
       expect(result.content).toBeNull();
-      expect(get).toHaveBeenCalledExactlyOnceWith('/api/topics/topic-a', expect.anything());
+      expect(paths(api)).toEqual(['/api/topics/topic-a']);
     },
   );
 
   it('loads the overview count and highlighted indicators from the topic API', async () => {
-    const get = topicApi([
+    const api = topicApi([
       { shortId: 241, name: 'Diabetes prevalence', slug: 'diabetes-prevalence' },
     ]);
-    const result = await loadTopic(
-      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
-    );
+    const result = await loadTopic(loaderArgs(api, { slug: 'topic-a' }));
     expect(result.overview?.trends.total).toBe(1);
     expect(result.overview?.selected.map(({ detail }) => detail.shortId)).toEqual([241]);
-    expect(get).toHaveBeenCalledWith('/api/topics/topic-a/trends', expect.anything());
+    expect(paths(api)).toContain('/api/topics/topic-a/trends');
   });
 
   it('loads editorial highlights even when they are outside the first search page', async () => {
-    const get = topicApi(
+    const api = topicApi(
       [{ shortId: 241, name: 'Diabetes prevalence', slug: 'diabetes-prevalence' }],
       [93995],
     );
-    const result = await loadTopic(
-      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
-    );
+    const result = await loadTopic(loaderArgs(api, { slug: 'topic-a' }));
     expect(result.overview?.selected[0]?.detail.shortId).toBe(93995);
-    expect(get).toHaveBeenCalledWith('/api/indicators/93995', expect.anything());
+    expect(paths(api)).toContain('/api/indicators/93995');
   });
 
   it('skips editorial highlights that are absent from this published dataset', async () => {
-    const get = topicApi(
+    const api = topicApi(
       [{ shortId: 241, name: 'Diabetes prevalence', slug: 'diabetes-prevalence' }],
       [93995],
       [93995],
     );
-    const result = await loadTopic(
-      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }),
-    );
+    const result = await loadTopic(loaderArgs(api, { slug: 'topic-a' }));
     expect(result.overview?.selected.map(({ detail }) => detail.shortId)).toEqual([241]);
   });
 
   it('requests the topic by slug', async () => {
-    const get = topicApi();
+    const api = topicApi();
 
-    await loadTopic(loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }));
+    await loadTopic(loaderArgs(api, { slug: 'topic-a' }));
 
-    expect(get).toHaveBeenCalledWith('/api/topics/topic-a', expect.anything());
+    expect(paths(api)).toContain('/api/topics/topic-a');
   });
 
   it.each([['../internal'], ['../../health']])(
     'escapes a slug of %s so it cannot traverse onto another api route',
     async (slug) => {
-      const get = topicApi();
+      const api = topicApi([], [], [], slug);
 
-      await loadTopic(loaderArgs({ get } as unknown as ApiClient, { slug }));
+      await loadTopic(loaderArgs(api, { slug }));
 
       // The guarantee that matters: whatever the slug, the request stays under /api/topics/.
-      expect(String(get.mock.calls[0]?.[0])).toMatch(/^\/api\/topics\/[^/]+$/);
+      expect(paths(api)[0]).toMatch(/^\/api\/topics\/[^/]+$/);
     },
   );
 
   it('keeps the route topic as the only topic filter even with a forged query selection', async () => {
-    const get = topicApi();
-    await loadTopic(
-      loaderArgs(
-        { get } as unknown as ApiClient,
-        { slug: 'topic-a' },
-        '?tab-topic=data&t=another-topic&is=999',
-      ),
-    );
-    expect(get).toHaveBeenCalledWith(
-      '/api/indicators/search?t=topic-a&sort=subtopic-asc',
-      expect.anything(),
-    );
-    expect(get.mock.calls.some(([path]) => path === '/api/indicators/999')).toBe(false);
+    const api = topicApi();
+    await loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=data&t=another-topic&is=999'));
+    expect(paths(api)).toContain('/api/indicators/search?t=topic-a&sort=subtopic-asc');
+    expect(paths(api)).not.toContain('/api/indicators/999');
   });
 
   it('loads the complete topic list even when an old link includes a page parameter', async () => {
@@ -384,10 +372,8 @@ describe('loadTopic', () => {
       name: `Indicator ${String(index + 1).padStart(2, '0')}`,
       slug: `indicator-${index + 1}`,
     }));
-    const get = topicApi(indicators);
-    const result = await loadTopic(
-      loaderArgs({ get } as unknown as ApiClient, { slug: 'topic-a' }, '?tab-topic=data&page=2'),
-    );
+    const api = topicApi(indicators);
+    const result = await loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=data&page=2'));
     expect(result.content?.listing.indicators.map(({ shortId }) => shortId)).toEqual(
       indicators.map(({ shortId }) => shortId),
     );
@@ -395,10 +381,10 @@ describe('loadTopic', () => {
       indicators.map(({ shortId }) => shortId),
     );
     expect(
-      get.mock.calls.some(
-        ([path]) =>
-          path.startsWith('/api/indicator-data?') &&
-          new URL(path, 'http://api').searchParams.getAll('indicator').includes('1'),
+      api.calls.some(
+        (call) =>
+          call.path.startsWith('/api/indicator-data?') &&
+          query(call).getAll('indicator').includes('1'),
       ),
     ).toBe(true);
   });
@@ -411,38 +397,34 @@ describe('loadTopic', () => {
         name: `Indicator ${i + 1}`,
         slug: `indicator-${i + 1}`,
       }));
-      const get = topicApi(indicators);
+      const api = topicApi(indicators);
       const result = await loadTopic(
-        loaderArgs(
-          { get } as unknown as ApiClient,
-          { slug: 'topic-a' },
-          `?tab-topic=${tab}&page=999`,
-        ),
+        loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=${tab}&page=999`),
       );
       expect(result.content?.listing.indicators).toHaveLength(405);
       expect(result.content?.data.selected).toHaveLength(405);
-      const pages = get.mock.calls
-        .filter(([path]) => path.startsWith('/api/indicators/search?'))
-        .map(([path]) => new URL(path, 'http://api').searchParams);
+      const pages = api.calls
+        .filter(({ path }) => path.startsWith('/api/indicators/search?'))
+        .map(query);
       expect(pages.map((p) => p.get('page'))).toEqual([null, '2', '3']);
       expect(pages.slice(1).every((p) => p.get('limit') === '200')).toBe(true);
     },
   );
 
   it('fails with a developer-facing error when the route supplies no slug', async () => {
-    const get = vi.fn();
+    const api = createFakeApiClient();
 
-    await expect(loadTopic(loaderArgs({ get } as unknown as ApiClient))).rejects.toThrow(
-      /expects a slug param/,
-    );
-    expect(get).not.toHaveBeenCalled();
+    await expect(loadTopic(loaderArgs(api))).rejects.toThrow(/expects a slug param/);
+    expect(api.calls).toEqual([]);
   });
 
   it('lets the client 404 through so the not-found boundary renders', async () => {
-    const get = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
+    const api = createFakeApiClient({
+      'GET /api/topics/nope': fails(new Response('Not Found', { status: 404 })),
+    });
 
-    await expect(
-      loadTopic(loaderArgs({ get } as unknown as ApiClient, { slug: 'nope' })),
-    ).rejects.toMatchObject({ status: 404 });
+    await expect(loadTopic(loaderArgs(api, { slug: 'nope' }))).rejects.toMatchObject({
+      status: 404,
+    });
   });
 });

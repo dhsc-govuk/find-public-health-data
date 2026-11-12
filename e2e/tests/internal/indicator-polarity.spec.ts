@@ -26,7 +26,7 @@ describeSectionPage(SECTION, {
     }
   },
   refusal: {
-    messages: ['Select the polarity of the indicator'],
+    messages: ['Select the polarity of this indicator'],
     focuses: (page) => page.getByLabel('Higher is better'),
   },
 });
@@ -67,7 +67,21 @@ test('has no WCAG 2.2 AA violations when the submission is rejected', async ({
 }, testInfo) => {
   await openSectionPage(page, SECTION);
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page.getByRole('alert')).toContainText('Select the polarity of the indicator');
+  await expect(page.getByRole('alert')).toContainText('Select the polarity of this indicator');
 
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('saves the polarity and shows the task as completed', async ({ page }) => {
+    const taskListPath = await openSectionPage(page, SECTION);
+
+    await page.getByLabel('Lower is better').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page).toHaveURL(taskListPath);
+    await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+  });
 });
