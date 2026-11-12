@@ -1,5 +1,5 @@
 {
-  "id": "987f0a22-8417-4550-9dd4-cd5279f83103",
+  "id": "bdd41f5b-bc40-43e1-be74-b9ad25cbb998",
   "prevId": "60d257d1-4d89-4ea6-b801-4dabc65ea0ec",
   "version": "7",
   "dialect": "postgresql",
@@ -3075,48 +3075,6 @@
           "columns": [
             {
               "expression": "upload_batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "indicator_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "area_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "\"dimension_key\" COLLATE \"C\"",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "from_date",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "to_date",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "value",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

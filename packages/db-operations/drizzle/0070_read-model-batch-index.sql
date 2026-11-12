@@ -1,1 +1,1 @@
-CREATE INDEX "idx_observation_batch_read_models" ON "observation" USING btree ("upload_batch_id","indicator_id","area_id","dimension_key" COLLATE "C","from_date" DESC NULLS LAST,"to_date" DESC NULLS LAST,"id","value") WHERE "observation"."deleted_at" is null;
+CREATE INDEX "idx_observation_batch_read_models" ON "observation" USING btree ("upload_batch_id") WHERE "observation"."deleted_at" is null;

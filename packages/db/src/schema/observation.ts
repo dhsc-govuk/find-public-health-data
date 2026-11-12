@@ -92,20 +92,9 @@ export const observation = pgTable(
       t.toDate,
       t.dimensionKey,
     ),
-    // Rebuilding needs every point in a batch. Covering those reads avoids scattered heap
-    // fetches, and area/segment ordering lets aggregation sort before expanding period types.
-    index('idx_observation_batch_read_models')
-      .on(
-        t.uploadBatchId,
-        t.indicatorId,
-        t.areaId,
-        sql`${t.dimensionKey} COLLATE "C"`,
-        t.fromDate.desc(),
-        t.toDate.desc(),
-        t.id,
-        t.value,
-      )
-      .where(isNull(t.deletedAt)),
+    // Rebuilds filter on one published batch. A narrow key lets Postgres deduplicate its
+    // observation references instead of copying point payloads into another large index.
+    index('idx_observation_batch_read_models').on(t.uploadBatchId).where(isNull(t.deletedAt)),
     index('idx_obs_indicator_dates')
       .on(t.indicatorId, t.fromDate, t.toDate)
       .where(sql`${t.deletedAt} IS NULL`),
