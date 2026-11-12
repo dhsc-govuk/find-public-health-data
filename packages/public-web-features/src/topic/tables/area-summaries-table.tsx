@@ -48,7 +48,7 @@ export const AreaSummariesTable = memo(function AreaSummariesTable({
     const next = new URLSearchParams(params);
     if (value) next.set('sortAreas', value);
     else next.delete('sortAreas');
-    return `${path}?${next}`;
+    return `${path}?${next}#topic-area-summaries`;
   };
   const noteTexts = [
     ...new Set(

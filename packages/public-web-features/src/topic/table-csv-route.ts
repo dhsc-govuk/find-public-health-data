@@ -25,7 +25,7 @@ function areaSummariesCsv({ areas, rows }: ReturnType<typeof sortTopicAreaTable>
     ...rows.map((row) => [
       row.name + (row.suffix ? ` ${row.suffix}` : ''),
       row.unit,
-      row.period,
+      row.period || 'No data',
       row.england.value,
       row.england.period,
       ...row.cells.flatMap((cell) => [

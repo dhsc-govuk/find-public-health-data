@@ -2,6 +2,7 @@
 
 import type { LoaderFunctionArgs } from 'react-router';
 import { expect, it, vi } from 'vitest';
+import { indicatorDetail } from '../indicator/view.testing.ts';
 import { loadTopic } from './loader.ts';
 import { loader } from './table-csv-route.ts';
 
@@ -20,6 +21,36 @@ const observation = (value: number) => ({
   upperCi95: value + 1,
   lowerCi998: null,
   upperCi998: null,
+});
+
+it('exports No data as the latest period for indicators without observations', async () => {
+  vi.mocked(loadTopic).mockResolvedValue({
+    topic: { slug: 'example', title: 'Example' },
+    content: {
+      data: {
+        selected: [
+          {
+            detail: indicatorDetail(1, { name: 'No observations' }),
+            areaData: [
+              { areaCode: 'E92000001', areaName: 'England', observations: [] },
+              { areaCode: 'E12000001', areaName: 'North East', observations: [] },
+            ],
+          },
+        ],
+        benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+      },
+    },
+  } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+  const response = await loader({
+    request: new Request('http://local/topics/example/table.csv?tab-topic=areas'),
+  } as LoaderFunctionArgs);
+  const rows = (await response.text())
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.split(','));
+  expect(rows[0]?.[2]).toBe('Latest period');
+  expect(rows[1]?.[0]).toBe('No observations');
+  expect(rows[1]?.[2]).toBe('No data');
 });
 
 it.each([

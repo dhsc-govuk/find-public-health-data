@@ -79,7 +79,14 @@ it.each([
       <MemoryRouter>
         <AreaSummariesTable
           model={model}
-          params={new URLSearchParams({ sortAreas: `${order}:1|` })}
+          params={
+            new URLSearchParams({
+              'tab-topic': 'areas',
+              areaRowSort: 'name-desc',
+              sortAreas: `${order}:1|`,
+              q: 'health',
+            })
+          }
           path="/topics/example"
           topicTitle="Example"
           geographyGroup="Statistical regions"
@@ -92,9 +99,21 @@ it.each([
       }),
     );
     expect(table.getByRole('rowheader').getAttribute('aria-sort')).toBe(direction);
-    expect(
-      table.getByRole('link', { name: new RegExp(`^Sort ${next}\\s*for Example indicator$`) }),
-    ).toBeTruthy();
+    const sortLink = table.getByRole('link', {
+      name: new RegExp(`^Sort ${next}\\s*for Example indicator$`),
+    });
+    const clearLink = table.getByRole('link', { name: /^Clear sort\s*by Example indicator$/ });
+    for (const link of [sortLink, clearLink]) {
+      const url = new URL(link.getAttribute('href') ?? '', 'http://local');
+      expect(url.pathname).toBe('/topics/example');
+      expect(url.hash).toBe('#topic-area-summaries');
+      expect(url.searchParams.get('tab-topic')).toBe('areas');
+      expect(url.searchParams.get('areaRowSort')).toBe('name-desc');
+      expect(url.searchParams.get('q')).toBe('health');
+      expect(url.searchParams.get('sortAreas')).toBe(
+        link === sortLink ? `${order === 'first' ? 'reverse' : 'first'}:1|` : null,
+      );
+    }
     expect(
       table
         .getAllByRole('columnheader')
