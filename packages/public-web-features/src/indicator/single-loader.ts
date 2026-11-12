@@ -204,14 +204,20 @@ async function loadIndicatorComparison(
       : [];
   const scatter = comparedDetail
     ? loadScatterComparison(
-        selected.map((entry) => ({
-          ...entry,
-          areaData: [
-            ...(comparisonHistories.find(({ detail }) => detail.shortId === entry.detail.shortId)
-              ?.areaData ?? []),
-            ...entry.areaData.filter(({ areaCode }) => areaCode === englandCode),
-          ],
-        })),
+        selected.map((entry) => {
+          const history = comparisonHistories.find(
+            ({ detail }) => detail.shortId === entry.detail.shortId,
+          );
+          return {
+            ...entry,
+            areaData: history
+              ? [
+                  ...history.areaData,
+                  ...entry.areaData.filter(({ areaCode }) => areaCode === englandCode),
+                ]
+              : entry.areaData,
+          };
+        }),
         url.searchParams,
       )
     : undefined;

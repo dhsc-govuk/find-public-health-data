@@ -125,3 +125,15 @@ it('projects shared histories to the latest non-null comparison period using sto
     [],
   ]);
 });
+
+it('uses the latest local period when England alone has a newer value', () => {
+  const older = point('2023-01-01', '2023-12-31', 10);
+  const newer = point('2024-01-01', '2024-12-31', 12);
+  const indicator = series([older, newer], [older]);
+  expect(comparisonRankingData(indicator).map(({ observations }) => observations)).toEqual([
+    [],
+    [older],
+  ]);
+  indicator.areaData = indicator.areaData.slice(0, 1);
+  expect(comparisonRankingData(indicator)[0]?.observations).toEqual([newer]);
+});

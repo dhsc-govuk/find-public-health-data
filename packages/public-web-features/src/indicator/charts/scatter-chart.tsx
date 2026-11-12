@@ -78,11 +78,6 @@ export function CompareIndicatorsChart({
       ) : (
         <>
           <h3 className="govuk-heading-s govuk-!-margin-bottom-2">{title}</h3>
-          {scatter?.defaultGeographies ? (
-            <p className="govuk-body-s">
-              Showing England and upper-tier local authorities with data for both indicators.
-            </p>
-          ) : null}
           <div className="fphd-chart-actions">
             <button
               className="govuk-button govuk-button--secondary"
@@ -210,9 +205,7 @@ export function CompareIndicatorsChart({
                       size={size}
                     />
                   </svg>
-                  {group === 'other' && scatter?.defaultGeographies
-                    ? 'Upper-tier local authorities'
-                    : label}
+                  {label}
                 </li>
               );
             })}

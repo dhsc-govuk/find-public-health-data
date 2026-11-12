@@ -1,4 +1,6 @@
 import {
+  headlineSeries,
+  isRollingPeriod,
   observationSegmentKey,
   rankingAreaSeries,
   tableAreaSeries,
@@ -79,6 +81,30 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], 
     }
   },
 );
+
+it('retains eight periods of both shapes when the all-period series mixes annual and rolling data', async () => {
+  const codes = ['E92000001'];
+  const full = await getIndicatorObservationData(db, ids, codes);
+  const mixed = [...full].find(([, entry]) => {
+    const history = headlineSeries(entry.areaData[0]?.observations ?? []);
+    return (
+      history.filter(isRollingPeriod).length >= 8 &&
+      history.filter((point) => !isRollingPeriod(point)).length >= 8
+    );
+  });
+  if (!mixed) throw new Error('Expected seeded annual and rolling histories in one segment');
+  const [id, entry] = mixed;
+  const history = headlineSeries(entry.areaData[0]?.observations ?? []);
+  const cached = await getIndicatorSeriesData(db, [id], codes, 'sparkline');
+  const points = cached?.get(id)?.areaData[0]?.observations;
+  for (const series of [
+    history,
+    history.filter(isRollingPeriod),
+    history.filter((point) => !isRollingPeriod(point)),
+  ]) {
+    expect(points).toEqual(expect.arrayContaining(series.slice(-8)));
+  }
+});
 
 it('falls back when a sparkline history point disappears before hydration', async () => {
   const [indicator] = await db

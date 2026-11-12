@@ -39,6 +39,12 @@ detail pages with data in every section.
 checks, for each, how much work one request costs and how long requests take. CI runs it in the
 `Route budgets` job on every pull request, beside e2e and against the same production images.
 
+FPH-662 updates the seven topic-route baselines from
+[CI run 43017326502](https://github.com/dhsc-govuk/find-public-health-data/actions/runs/43017326502).
+Highlighted sparklines need eight periods, including null gaps, whereas the existing read model
+stores five non-null trend points. The bounded history query adds one SQL statement per topic
+request and reads more observation buffers; these baselines include that intended work.
+
 The routes are in [`src/routes.ts`](src/routes.ts): the common pages of both web apps and the
 heaviest API queries behind them, such as GP-practice ranges and multi-area data for the largest
 indicator in the seed. Internal routes are requested as the fake admin user.

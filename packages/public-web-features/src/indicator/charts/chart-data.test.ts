@@ -42,6 +42,27 @@ describe('chart series', () => {
     expect(series[1]?.observations.size).toBe(0);
   });
 
+  it('never pairs values from different population segments across indicators', () => {
+    expect(
+      pairedObservations(
+        [area('local-1', point(2024, 4, 'Male'))],
+        [area('local-1', point(2024, 8, 'Female'))],
+      ),
+    ).toEqual([]);
+    expect(
+      pairedObservations(
+        [area('local-1', point(2024, 4))],
+        [area('local-1', point(2024, 8, 'Female'))],
+      ),
+    ).toEqual([]);
+    expect(
+      pairedObservations(
+        [area('local-1', point(2024, 4, 'Female'))],
+        [area('local-1', point(2024, 8, 'Female'))],
+      ),
+    ).toMatchObject([{ code: 'local-1', x: 4, y: 8 }]);
+  });
+
   it('uses the latest period with paired local data and preserves zero values', () => {
     const points = pairedObservations(
       [

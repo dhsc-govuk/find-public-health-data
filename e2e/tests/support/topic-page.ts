@@ -163,6 +163,7 @@ export function topicPageTests() {
       await expect(card.locator('.govuk-summary-list__value').nth(2)).toHaveText(value);
     }
     const cards = page.locator('.fphd-topic-highlight');
+    await expect(cards).toHaveCount(2);
     await expect(cards.nth(0).locator('.fphd-trend-tag')).toHaveText('Increasing');
     await expect(cards.nth(1).locator('.fphd-trend-tag')).toHaveCount(0);
     await expect(cards.nth(1).locator('.fphd-trend-reason')).toHaveText('multi-year periods');
@@ -172,12 +173,6 @@ export function topicPageTests() {
     await expect(
       cards.nth(1).locator('.govuk-summary-list__value').nth(2).locator('.govuk-hint'),
     ).toHaveText('per 100,000');
-    for (const card of [cards.nth(2), cards.nth(3)]) {
-      await expect(card.locator('.govuk-summary-list__value').nth(3)).toHaveText(
-        'Trend unavailable (not enough data points)',
-      );
-      await expect(card.locator('.fphd-trend-reason')).toHaveText('not enough data points');
-    }
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -186,6 +181,7 @@ export function topicPageTests() {
     page,
   }) => {
     await openTopicPage(page, '/topics/diabetes');
+    await expect(page.locator('#topic-overview .fphd-topic-highlight')).toHaveCount(2);
     for (const width of [320, 640, 641, 654, 960, 1020, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
@@ -212,17 +208,17 @@ export function topicPageTests() {
       } else {
         expect(first?.y).toBe(second?.y);
         expect(second?.x).toBeGreaterThan(first?.x ?? 0);
-        for (const pair of [
-          [0, 1],
-          [2, 3],
-        ] as const) {
+        for (let index = 0; index + 1 < (await cards.count()); index += 2) {
           for (const selector of [
             'h3',
             '.fphd-chart-section, .fphd-topic-highlight__no-trend',
             '.govuk-summary-list',
           ]) {
-            const left = await cards.nth(pair[0]).locator(selector).boundingBox();
-            const right = await cards.nth(pair[1]).locator(selector).boundingBox();
+            const left = await cards.nth(index).locator(selector).boundingBox();
+            const right = await cards
+              .nth(index + 1)
+              .locator(selector)
+              .boundingBox();
             expect(left?.y).toBe(right?.y);
           }
         }

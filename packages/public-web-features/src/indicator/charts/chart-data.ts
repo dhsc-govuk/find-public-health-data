@@ -76,7 +76,7 @@ export function pairedObservations(xAreas: IndicatorAreaData[], yAreas: Indicato
     const y = ySeries.get(code)?.observations;
     return [...observations].flatMap(([period, x]) => {
       const other = y?.get(period);
-      return x.value == null || other?.value == null
+      return x.value == null || other?.value == null || !sameSegment(x, other)
         ? []
         : [
             {

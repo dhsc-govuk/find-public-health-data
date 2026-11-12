@@ -54,16 +54,16 @@
     "bytes": 38824
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
-    "statements": 51,
-    "buffers": 3849,
-    "rows": 1526,
-    "bytes": 189060
+    "statements": 52,
+    "buffers": 17316,
+    "rows": 1733,
+    "bytes": 191415
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=data": {
-    "statements": 51,
-    "buffers": 3849,
-    "rows": 1526,
-    "bytes": 188803
+    "statements": 52,
+    "buffers": 17316,
+    "rows": 1733,
+    "bytes": 191411
   },
   "public-api /api/areas/search?q=leeds": {
     "statements": 1,
@@ -168,10 +168,10 @@
     "bytes": 50571
   },
   "public-web /topics/diabetes": {
-    "statements": 53,
-    "buffers": 3590,
-    "rows": 1351,
-    "bytes": 162329
+    "statements": 54,
+    "buffers": 8217,
+    "rows": 1428,
+    "bytes": 163356
   },
   "public-web /topics/mortality-and-life-expectancy/table.csv?tab-topic=areas": {
     "statements": 54,
@@ -180,27 +180,27 @@
     "bytes": 3900
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
-    "statements": 51,
-    "buffers": 3849,
-    "rows": 1526,
-    "bytes": 186248
+    "statements": 52,
+    "buffers": 17316,
+    "rows": 1733,
+    "bytes": 188847
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data": {
-    "statements": 51,
-    "buffers": 3849,
-    "rows": 1526,
-    "bytes": 186244
+    "statements": 52,
+    "buffers": 17316,
+    "rows": 1733,
+    "bytes": 188843
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=period-desc": {
-    "statements": 51,
-    "buffers": 11730,
-    "rows": 1526,
-    "bytes": 186828
+    "statements": 52,
+    "buffers": 25197,
+    "rows": 1733,
+    "bytes": 189174
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=trend-desc": {
-    "statements": 53,
-    "buffers": 3852,
-    "rows": 1532,
-    "bytes": 187055
+    "statements": 54,
+    "buffers": 17319,
+    "rows": 1739,
+    "bytes": 189401
   }
 }
