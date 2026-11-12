@@ -17,7 +17,7 @@ describe('polaritySection', () => {
     { polarity: 1 },
   ])('asks for a polarity given %o', (body) => {
     expect(sectionFieldErrors(section, body)).toEqual({
-      polarity: 'Select the polarity of the indicator',
+      polarity: 'Select the polarity of this indicator',
     });
   });
 });

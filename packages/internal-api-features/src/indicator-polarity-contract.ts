@@ -6,7 +6,7 @@ import { type IndicatorSection, textSection } from './indicator-section-contract
 const fields = z.enum(['polarity']);
 
 const schema = z.object({
-  polarity: z.enum(POLARITIES, { error: 'Select the polarity of the indicator' }),
+  polarity: z.enum(POLARITIES, { error: 'Select the polarity of this indicator' }),
 });
 
 export type PolarityField = z.infer<typeof fields>;

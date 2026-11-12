@@ -1,6 +1,13 @@
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  createFakeApiClient,
+  type FakeApiClient,
+  type FakeApiStubs,
+  fails,
+  noContent,
+  refused,
+} from '@fphd/web-server/testing';
+import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
@@ -12,6 +19,8 @@ const NOTE_ID = '00000000-0000-7000-8000-0000000000e1';
 const OVERVIEW = `/dashboard/indicators/${ID}`;
 const VERSION = 'a'.repeat(64);
 const CURRENT = 'b'.repeat(64);
+const ADD = `POST /api/internal/indicators/${ID}/reviewer-notes` as const;
+const EDIT = `PUT /api/internal/indicators/${ID}/reviewer-notes/${NOTE_ID}` as const;
 
 function post(fields: Record<string, string>): Request {
   return new Request(`https://internal.test${OVERVIEW}`, {
@@ -21,12 +30,12 @@ function post(fields: Record<string, string>): Request {
 }
 
 async function save(
-  client: Partial<ApiClient>,
+  api: FakeApiClient,
   request: Request,
   roles: readonly string[] = ['imrg-reviewer'],
 ) {
   const context = withFlashStorage(await signedInContext(roles));
-  context.set(apiContext, client as ApiClient);
+  context.set(apiContext, api);
   let outcome: unknown;
   const response = await flashedResponse(context, request, async () => {
     outcome = await saveReviewerNote({ context, params: { id: ID }, request } as never);
@@ -35,59 +44,56 @@ async function save(
   return { outcome, response };
 }
 
-const notFound = () => Promise.reject(new Response('Not Found', { status: 404 }));
+const notFound = () => fails(new Response('Not Found', { status: 404 }));
 
 describe('saveReviewerNote', () => {
   it('adds a new note, trimmed, and returns to the Actions tab', async () => {
-    const postToMember = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const api = createFakeApiClient({ [ADD]: noContent });
 
-    const { outcome } = await save({ postToMember }, post({ reviewerNote: '  Check 2019 \r\n' }));
+    const { outcome } = await save(api, post({ reviewerNote: '  Check 2019 \r\n' }));
 
-    expect(postToMember).toHaveBeenCalledWith(
-      `/api/internal/indicators/${ID}/reviewer-notes`,
-      { text: 'Check 2019' },
-      expect.anything(),
-    );
+    expect(api.calls[0]?.body).toEqual({ text: 'Check 2019' });
     expect(outcome).toBeInstanceOf(Response);
     expect((outcome as Response).headers.get('Location')).toBe(`${OVERVIEW}#actions`);
   });
 
   it('saves the note the form edits against the version it showed', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    const api = createFakeApiClient({
+      [EDIT]: {
+        id: NOTE_ID,
+        text: 'Settled',
+        createdAt: '2026-11-03T10:15:00.000Z',
+        updatedAt: '2026-11-04T09:00:00.000Z',
+        version: CURRENT,
+      },
+    });
 
     const { outcome } = await save(
-      { put },
+      api,
       post({ reviewerNote: 'Settled', noteId: NOTE_ID, version: VERSION }),
     );
 
-    expect(put).toHaveBeenCalledWith(
-      `/api/internal/indicators/${ID}/reviewer-notes/${NOTE_ID}`,
-      { text: 'Settled', version: VERSION },
-      expect.anything(),
-      expect.anything(),
-    );
+    expect(api.calls[0]?.body).toEqual({ text: 'Settled', version: VERSION });
     expect((outcome as Response).headers.get('Location')).toBe(`${OVERVIEW}#actions`);
   });
 
   it('asks for notes before calling the API, keeping the form as it was', async () => {
-    const put = vi.fn();
+    const api = createFakeApiClient();
     const values = { reviewerNote: ' ', noteId: NOTE_ID, version: VERSION };
 
-    const { outcome } = await save({ put }, post(values));
+    const { outcome } = await save(api, post(values));
 
-    expect(put).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
     expect(outcome).toEqual({ values, fieldErrors: { reviewerNote: 'Enter your notes' } });
   });
 
   it('keeps the text and takes the current version when the note has changed', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      error: { error: 'changed', version: CURRENT },
+    const api = createFakeApiClient({
+      [EDIT]: refused(409, { error: 'changed', version: CURRENT }),
     });
 
     const { outcome } = await save(
-      { put },
+      api,
       post({ reviewerNote: 'Mine', noteId: NOTE_ID, version: VERSION }),
     );
 
@@ -100,49 +106,37 @@ describe('saveReviewerNote', () => {
 
   it("shows the API's field error on the field", async () => {
     const message = 'Notes must be 10,000 characters or fewer';
-    const postToMember = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { text: message } },
+    const api = createFakeApiClient({
+      [ADD]: refused(400, { error: 'validation_failed', fieldErrors: { text: message } }),
     });
 
-    const { outcome } = await save({ postToMember }, post({ reviewerNote: 'Fine here' }));
+    const { outcome } = await save(api, post({ reviewerNote: 'Fine here' }));
 
     expect(outcome).toMatchObject({ fieldErrors: { reviewerNote: message } });
   });
 
   it('explains a refusal that names no field', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'invalid_request' },
-    });
+    const api = createFakeApiClient({ [EDIT]: refused(400, { error: 'invalid_request' }) });
 
     const { outcome } = await save(
-      { put },
+      api,
       post({ reviewerNote: 'Mine', noteId: NOTE_ID, version: 'not-a-version' }),
     );
 
     expect(outcome).toMatchObject({ fieldErrors: {}, formError: FORM_NOT_SAVED });
   });
 
-  it.each([
-    ['a 404 from adding', { postToMember: notFound }, {}],
-    ['a 404 from editing', { put: notFound }, { noteId: NOTE_ID, version: VERSION }],
+  it.each<[string, FakeApiStubs, Record<string, string>]>([
+    ['a 404 from adding', { [ADD]: notFound() }, {}],
+    ['a 404 from editing', { [EDIT]: notFound() }, { noteId: NOTE_ID, version: VERSION }],
     [
       'a reviewer unassigned since the check',
-      {
-        postToMember: async () => ({
-          ok: false as const,
-          status: 409,
-          error: { error: 'not_a_reviewer' as const },
-        }),
-      },
+      { [ADD]: refused(409, { error: 'not_a_reviewer' }) },
       {},
     ],
-  ])('sends a reviewer no longer assigned to the dashboard, on %s', async (_, client, fields) => {
+  ])('sends a reviewer no longer assigned to the dashboard, on %s', async (_, stubs, fields) => {
     const { response } = await save(
-      client as Partial<ApiClient>,
+      createFakeApiClient(stubs),
       post({ reviewerNote: 'Too late', ...fields }),
     );
 
@@ -157,7 +151,7 @@ describe('saveReviewerNote', () => {
     const forbidden = new Response('Bad Gateway', { status: 502 });
 
     const { response } = await save(
-      { postToMember: () => Promise.reject(forbidden) },
+      createFakeApiClient({ [ADD]: fails(forbidden) }),
       post({ reviewerNote: 'Mine' }),
     );
 
@@ -167,7 +161,9 @@ describe('saveReviewerNote', () => {
   it.each([['publisher'], ['imrg-manager'], ['admin']])(
     'answers 404 to a %s without the reviewer role',
     async (role) => {
-      const { response } = await save({}, post({ reviewerNote: 'Mine' }), [role]);
+      const { response } = await save(createFakeApiClient(), post({ reviewerNote: 'Mine' }), [
+        role,
+      ]);
 
       expect(response.status).toBe(404);
     },

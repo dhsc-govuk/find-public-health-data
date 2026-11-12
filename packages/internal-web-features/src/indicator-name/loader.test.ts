@@ -1,14 +1,14 @@
 import { TEAM_IDS } from '@fphd/auth';
 import { indicatorCreateIdSchema } from '@fphd/internal-api-features/contract';
-import type { ApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient, fails, refused } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
 import { signedInContext } from '../session.testing.ts';
-import { SHOWN_VERSION } from '../testing.ts';
+import { indicatorDetail, SHOWN_VERSION } from '../testing.ts';
 import {
   createIndicator,
   loadIndicatorName,
@@ -17,23 +17,16 @@ import {
   saveIndicatorName,
 } from './loader.ts';
 
-const created = {
-  id: '00000000-0000-7000-8000-000000000001',
-  shortId: 90366,
-  name: 'Life expectancy at birth',
-  teamId: TEAM_IDS.teamA,
-  publishedSlug: null,
-  updatedAt: '2026-01-02T00:00:00.000Z',
-  indicatorStatus: 'new',
-  draftStatus: 'draft',
-};
+const created = indicatorDetail();
+const CREATE = 'POST /api/internal/indicators';
+const DETAIL = `/api/internal/indicators/${created.id}` as const;
 
 // The id the name page minted for the new indicator.
 const NEW_ID = '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b';
 
 async function submit(
   name: string,
-  post: ApiClient['post'],
+  api: FakeApiClient,
   {
     teams = [TEAM_IDS.teamA],
     url = 'https://internal.test/publish/indicators/new',
@@ -41,7 +34,7 @@ async function submit(
   }: { teams?: readonly string[]; url?: string; id?: string | null } = {},
 ) {
   const context = await signedInContext(['publisher'], teams);
-  context.set(apiContext, { post } as unknown as ApiClient);
+  context.set(apiContext, api);
 
   const body = new URLSearchParams(id === null ? { name } : { name, id });
 
@@ -110,22 +103,23 @@ describe('loadNewIndicator', () => {
   });
 });
 
-function accepts(data: unknown = created) {
-  return vi.fn().mockResolvedValue({ ok: true, data });
+function accepts() {
+  return createFakeApiClient({ [CREATE]: created });
 }
 
 describe('createIndicator', () => {
   it('creates the indicator and goes on to its task list', async () => {
-    const post = accepts();
+    const api = accepts();
 
-    const outcome = await submit('Life expectancy at birth', post);
+    const outcome = await submit('Life expectancy at birth', api);
 
-    expect(post.mock.calls[0]?.[0]).toBe('/api/internal/indicators');
-    expect(post.mock.calls[0]?.[1]).toEqual({
-      name: 'Life expectancy at birth',
-      teamId: TEAM_IDS.teamA,
-      id: NEW_ID,
-    });
+    expect(api.calls).toEqual([
+      {
+        method: 'POST',
+        path: '/api/internal/indicators',
+        body: { name: 'Life expectancy at birth', teamId: TEAM_IDS.teamA, id: NEW_ID },
+      },
+    ]);
     expect(outcome).toBeInstanceOf(Response);
     expect((outcome as Response).status).toBe(302);
     expect((outcome as Response).headers.get('location')).toBe(
@@ -134,11 +128,11 @@ describe('createIndicator', () => {
   });
 
   it('sends the name without its surrounding spaces', async () => {
-    const post = accepts();
+    const api = accepts();
 
-    await submit('  Life expectancy at birth  ', post);
+    await submit('  Life expectancy at birth  ', api);
 
-    expect(post.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       name: 'Life expectancy at birth',
       teamId: TEAM_IDS.teamA,
       id: NEW_ID,
@@ -146,14 +140,14 @@ describe('createIndicator', () => {
   });
 
   it('creates the indicator in the team chosen, for a publisher in several', async () => {
-    const post = accepts();
+    const api = accepts();
 
-    await submit('Life expectancy at birth', post, {
+    await submit('Life expectancy at birth', api, {
       teams: [TEAM_IDS.teamA, TEAM_IDS.teamB],
       url: `${NEW_URL}?team=${TEAM_IDS.teamB}`,
     });
 
-    expect(post.mock.calls[0]?.[1]).toEqual({
+    expect(api.calls[0]?.body).toEqual({
       name: 'Life expectancy at birth',
       teamId: TEAM_IDS.teamB,
       id: NEW_ID,
@@ -164,21 +158,18 @@ describe('createIndicator', () => {
     ['no id', null],
     ['an id that is not a UUIDv7', '7c9e6679-7425-40de-944b-e07fc1f90ae7'],
   ])('mints an id for a form that sent %s', async (_case, id) => {
-    const post = accepts();
+    const api = accepts();
 
-    await submit('Life expectancy at birth', post, { id });
+    await submit('Life expectancy at birth', api, { id });
 
-    const sent = post.mock.calls[0]?.[1];
-    expect(indicatorCreateIdSchema.safeParse(sent).success).toBe(true);
+    const sent = indicatorCreateIdSchema.parse(api.calls[0]?.body);
     expect(sent.id).not.toBe(id);
   });
 
   it('shows that nothing was saved when the API finds the id taken', async () => {
-    const post = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 409, error: { error: 'id_taken' } });
+    const api = createFakeApiClient({ [CREATE]: refused(409, { error: 'id_taken' }) });
 
-    const outcome = await submit('Life expectancy at birth', post);
+    const outcome = await submit('Life expectancy at birth', api);
 
     expect(outcome).toEqual({
       values: { name: 'Life expectancy at birth' },
@@ -188,37 +179,35 @@ describe('createIndicator', () => {
   });
 
   it('sends a publisher in several teams who has not chosen one to choose, creating nothing', async () => {
-    const post = vi.fn();
+    const api = createFakeApiClient();
 
     await expect(
-      submit('Life expectancy at birth', post, { teams: [TEAM_IDS.teamA, TEAM_IDS.teamB] }),
+      submit('Life expectancy at birth', api, { teams: [TEAM_IDS.teamA, TEAM_IDS.teamB] }),
     ).rejects.toSatisfy(redirectsTo(TEAM_PAGE));
-    expect(post).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it.each(['', '   '])('asks for a name of %o without calling the API', async (name) => {
-    const post = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await submit(name, post);
+    const outcome = await submit(name, api);
 
     expect(outcome).toEqual({
       values: { name },
       fieldErrors: { name: 'Enter the name of the indicator' },
     });
-    expect(post).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows what the API refused, keeping what was typed', async () => {
-    const post = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: {
+    const api = createFakeApiClient({
+      [CREATE]: refused(400, {
         error: 'validation_failed',
         fieldErrors: { name: 'Enter the name of the indicator' },
-      },
+      }),
     });
 
-    const outcome = await submit('Rejected name', post);
+    const outcome = await submit('Rejected name', api);
 
     expect(outcome).toEqual({
       values: { name: 'Rejected name' },
@@ -227,16 +216,14 @@ describe('createIndicator', () => {
   });
 
   it('shows a name another indicator already holds on the form', async () => {
-    const post = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      error: {
+    const api = createFakeApiClient({
+      [CREATE]: refused(409, {
         error: 'slug_taken',
         fieldErrors: { name: 'An indicator with this name already exists' },
-      },
+      }),
     });
 
-    const outcome = await submit('Life expectancy at birth', post);
+    const outcome = await submit('Life expectancy at birth', api);
 
     expect(outcome).toEqual({
       values: { name: 'Life expectancy at birth' },
@@ -245,13 +232,11 @@ describe('createIndicator', () => {
   });
 
   it('reports a refusal that names no field as the form not saved', async () => {
-    const post = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: {} },
+    const api = createFakeApiClient({
+      [CREATE]: refused(400, { error: 'validation_failed', fieldErrors: {} }),
     });
 
-    const outcome = await submit('Rejected name', post);
+    const outcome = await submit('Rejected name', api);
 
     expect(outcome).toEqual({
       values: { name: 'Rejected name' },
@@ -261,13 +246,9 @@ describe('createIndicator', () => {
   });
 });
 
-async function load(
-  id: string,
-  get: ApiClient['get'],
-  teams: readonly string[] = [TEAM_IDS.teamA],
-) {
+async function load(id: string, api: FakeApiClient, teams: readonly string[] = [TEAM_IDS.teamA]) {
   const context = await signedInContext(['publisher'], teams);
-  context.set(apiContext, { get } as unknown as ApiClient);
+  context.set(apiContext, api);
 
   return loadIndicatorName({
     context,
@@ -276,9 +257,9 @@ async function load(
   } as never);
 }
 
-function rename(id: string, name: string, patch: ApiClient['patch']) {
+function rename(id: string, name: string, api: FakeApiClient) {
   const context = new RouterContextProvider();
-  context.set(apiContext, { patch } as unknown as ApiClient);
+  context.set(apiContext, api);
 
   return saveIndicatorName({
     context,
@@ -296,40 +277,47 @@ function isNotFound(error: unknown) {
 
 describe('loadIndicatorName', () => {
   it('fetches the draft the address names', async () => {
-    const get = vi.fn().mockResolvedValue(created);
+    const api = createFakeApiClient({ [`GET ${DETAIL}`]: created });
 
-    const outcome = await load(created.id, get);
+    const outcome = await load(created.id, api);
 
-    expect(get.mock.calls[0]?.[0]).toBe(`/api/internal/indicators/${created.id}`);
     expect(outcome).toEqual({ indicator: created });
   });
 
   it("answers 404 for another team's draft, which the publisher may not edit", async () => {
-    const get = vi.fn().mockResolvedValue(created);
+    const api = createFakeApiClient({ [`GET ${DETAIL}`]: created });
 
-    await expect(load(created.id, get, [TEAM_IDS.teamB])).rejects.toSatisfy(isNotFound);
+    await expect(load(created.id, api, [TEAM_IDS.teamB])).rejects.toSatisfy(isNotFound);
   });
 
   it('answers 404 for a published indicator, which has no name to edit', async () => {
-    const get = vi.fn().mockResolvedValue({ ...created, draftStatus: null });
+    const api = createFakeApiClient({
+      [`GET ${DETAIL}`]: indicatorDetail({
+        indicatorStatus: 'live',
+        publishedSlug: 'life-expectancy-at-birth',
+        draftStatus: null,
+      }),
+    });
 
-    await expect(load(created.id, get)).rejects.toSatisfy(isNotFound);
+    await expect(load(created.id, api)).rejects.toSatisfy(isNotFound);
   });
 });
 
 describe('saveIndicatorName', () => {
   it('renames the draft and returns to the task list', async () => {
-    const patch = vi
-      .fn()
-      .mockResolvedValue({ ok: true, data: { ...created, name: 'Renamed indicator' } });
-
-    const outcome = await rename(created.id, '  Renamed indicator  ', patch);
-
-    expect(patch.mock.calls[0]?.[0]).toBe(`/api/internal/indicators/${created.id}`);
-    expect(patch.mock.calls[0]?.[1]).toEqual({
-      name: 'Renamed indicator',
-      version: SHOWN_VERSION,
+    const api = createFakeApiClient({
+      [`PATCH ${DETAIL}`]: indicatorDetail({ name: 'Renamed indicator' }),
     });
+
+    const outcome = await rename(created.id, '  Renamed indicator  ', api);
+
+    expect(api.calls).toEqual([
+      {
+        method: 'PATCH',
+        path: DETAIL,
+        body: { name: 'Renamed indicator', version: SHOWN_VERSION },
+      },
+    ]);
     expect(outcome).toBeInstanceOf(Response);
     expect((outcome as Response).headers.get('location')).toBe(
       `/publish/indicators/${created.id}/task-list`,
@@ -337,29 +325,27 @@ describe('saveIndicatorName', () => {
   });
 
   it.each(['', '   '])('asks for a name of %o without calling the API', async (name) => {
-    const patch = vi.fn();
+    const api = createFakeApiClient();
 
-    const outcome = await rename(created.id, name, patch);
+    const outcome = await rename(created.id, name, api);
 
     expect(outcome).toEqual({
       values: { name },
       fieldErrors: { name: 'Enter the name of the indicator' },
       version: SHOWN_VERSION,
     });
-    expect(patch).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
   });
 
   it('shows what the API refused, keeping what was typed', async () => {
-    const patch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: {
+    const api = createFakeApiClient({
+      [`PATCH ${DETAIL}`]: refused(400, {
         error: 'validation_failed',
         fieldErrors: { name: 'Enter the name of the indicator' },
-      },
+      }),
     });
 
-    const outcome = await rename(created.id, 'Rejected name', patch);
+    const outcome = await rename(created.id, 'Rejected name', api);
 
     expect(outcome).toEqual({
       values: { name: 'Rejected name' },
@@ -369,16 +355,14 @@ describe('saveIndicatorName', () => {
   });
 
   it('shows a name another indicator already holds on the form', async () => {
-    const patch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      error: {
+    const api = createFakeApiClient({
+      [`PATCH ${DETAIL}`]: refused(409, {
         error: 'slug_taken',
         fieldErrors: { name: 'An indicator with this name already exists' },
-      },
+      }),
     });
 
-    const outcome = await rename(created.id, 'Life expectancy at birth', patch);
+    const outcome = await rename(created.id, 'Life expectancy at birth', api);
 
     expect(outcome).toEqual({
       values: { name: 'Life expectancy at birth' },
@@ -388,11 +372,11 @@ describe('saveIndicatorName', () => {
   });
 
   it('reports a refusal that names no field as the form not saved', async () => {
-    const patch = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 400, error: { error: 'invalid_id' } });
+    const api = createFakeApiClient({
+      [`PATCH ${DETAIL}`]: refused(400, { error: 'invalid_id' }),
+    });
 
-    const outcome = await rename(created.id, 'Rejected name', patch);
+    const outcome = await rename(created.id, 'Rejected name', api);
 
     expect(outcome).toEqual({
       values: { name: 'Rejected name' },
@@ -404,11 +388,11 @@ describe('saveIndicatorName', () => {
 
   it('keeps what was typed when the name changed since, to save against its version now', async () => {
     const version = 'b'.repeat(64);
-    const patch = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 409, error: { error: 'changed', version } });
+    const api = createFakeApiClient({
+      [`PATCH ${DETAIL}`]: refused(409, { error: 'changed', version }),
+    });
 
-    await expect(rename(created.id, 'A better name', patch)).resolves.toEqual({
+    await expect(rename(created.id, 'A better name', api)).resolves.toEqual({
       values: { name: 'A better name' },
       fieldErrors: {},
       formError: NAME_CHANGED,
@@ -418,9 +402,11 @@ describe('saveIndicatorName', () => {
 
   // The API answers 404 when the draft went while the form was open; the client throws it.
   it('lets the not-found page through when the indicator no longer has a draft', async () => {
-    const patch = vi.fn().mockRejectedValue(new Response('Not Found', { status: 404 }));
+    const api = createFakeApiClient({
+      [`PATCH ${DETAIL}`]: fails(new Response('Not Found', { status: 404 })),
+    });
 
-    await expect(rename(created.id, 'Too late', patch)).rejects.toSatisfy(isNotFound);
+    await expect(rename(created.id, 'Too late', api)).rejects.toSatisfy(isNotFound);
   });
 });
 
@@ -434,9 +420,10 @@ describe('the name page of a draft locked for review', () => {
 
   it('sends the publisher who opens it to the overview, saying why', async () => {
     const context = withFlashStorage(await signedInContext(['publisher'], [TEAM_IDS.teamA]));
-    context.set(apiContext, {
-      get: vi.fn().mockResolvedValue({ ...created, draftLocked: true }),
-    } as unknown as ApiClient);
+    context.set(
+      apiContext,
+      createFakeApiClient({ [`GET ${DETAIL}`]: indicatorDetail({ draftLocked: true }) }),
+    );
     const request = new Request(path);
 
     const response = await flashedResponse(context, request, () =>
@@ -448,9 +435,10 @@ describe('the name page of a draft locked for review', () => {
 
   it('sends the publisher whose rename it refuses to the overview, saying why', async () => {
     const context = withFlashStorage(new RouterContextProvider());
-    context.set(apiContext, {
-      patch: vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error: 'locked' } }),
-    } as unknown as ApiClient);
+    context.set(
+      apiContext,
+      createFakeApiClient({ [`PATCH ${DETAIL}`]: refused(409, { error: 'locked' }) }),
+    );
     const request = new Request(path, {
       method: 'POST',
       body: new URLSearchParams({ name: 'A better name' }),
