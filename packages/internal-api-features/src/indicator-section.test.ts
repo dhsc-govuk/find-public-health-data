@@ -376,6 +376,7 @@ describe('PUT on the justifications section', () => {
     exclusionsDetail: longest,
     hasAutomation: 'yes',
     automationDetail: longest,
+    noAutomationReason: '',
   };
 
   it('saves the largest answers the contract allows', async () => {

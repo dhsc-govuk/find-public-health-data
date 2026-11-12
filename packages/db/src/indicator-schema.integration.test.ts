@@ -392,7 +392,10 @@ describe('indicator_version', () => {
     ['exclusions of nobody', { exclusionsDetail: 'Small areas' }],
     ['no exclusions', { hasExclusions: false, exclusionsDetail: 'Small areas' }],
     ['automation of nobody', { automationDetail: 'Pipeline' }],
-    ['no automation', { hasAutomation: false, automationDetail: 'Pipeline' }],
+    [
+      'no automation',
+      { hasAutomation: false, automationDetail: 'Pipeline', noAutomationReason: 'Unsupported' },
+    ],
     ['reviewer comments of nobody', { reviewerCommentsDetail: 'Replaces 108' }],
     [
       'no reviewer comments',
@@ -436,6 +439,38 @@ describe('indicator_version', () => {
         ciMethodModificationsDetail: 'Adjusted for repeat admissions',
       }),
     ).resolves.toHaveLength(1);
+  });
+
+  it.each([
+    ['an unanswered question', { noAutomationReason: 'Unsupported' }],
+    [
+      'a yes',
+      { hasAutomation: true, automationDetail: 'Pipeline', noAutomationReason: 'Unsupported' },
+    ],
+  ] as const)('refuses reasons why no automation tools were used beside %s', async (_, values) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', values)).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_no_automation_reason_check',
+      },
+    });
+  });
+
+  it('accepts the reasons beside a no to automation, and refuses a no without them', async () => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        hasAutomation: false,
+        noAutomationReason: 'Unsupported',
+      }),
+    ).resolves.toHaveLength(1);
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { hasAutomation: false }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_no_automation_reason_check',
+      },
+    });
   });
 
   // The contract requires each of these details beside a yes, so the table does too.
@@ -783,7 +818,8 @@ describe('the published views', () => {
               'variation', 'quality_assurance', 'source_data_issues_detail',
               'ci_method_justification', 'data_sources_justification', 'inequalities_included',
               'has_exclusions', 'exclusions_detail', 'has_automation', 'automation_detail',
-              'sponsors_and_stakeholders', 'has_reviewer_comments', 'reviewer_comments_detail'
+              'no_automation_reason', 'sponsors_and_stakeholders', 'has_reviewer_comments',
+              'reviewer_comments_detail'
             )`,
     )) as unknown as { column_name: string }[];
 

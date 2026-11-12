@@ -55,6 +55,7 @@ export function JustificationsPage(form: SectionPageProps<JustificationsField>) 
         detailRows={5}
         fieldErrors={fieldErrors}
         legend="Have internal automation tools been used to create this indicator?"
+        noDetail={{ name: 'noAutomationReason', label: 'Enter reasons why not' }}
         values={values}
       />
     </IndicatorSectionForm>

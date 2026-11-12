@@ -101,6 +101,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'exclusions_detail',
     'has_automation',
     'automation_detail',
+    'no_automation_reason',
     'sponsors_and_stakeholders',
     'has_reviewer_comments',
     'reviewer_comments_detail',

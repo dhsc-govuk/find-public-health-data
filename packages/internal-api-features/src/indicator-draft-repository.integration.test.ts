@@ -591,6 +591,7 @@ describe('updateIndicatorDraft', () => {
         exclusionsDetail: 'Areas with fewer than 5 deaths.',
         hasAutomation: false,
         automationDetail: null,
+        noAutomationReason: 'No tool reads this source.',
       },
     ],
     [
