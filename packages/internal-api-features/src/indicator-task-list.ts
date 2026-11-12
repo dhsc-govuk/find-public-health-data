@@ -13,7 +13,6 @@ import {
   type IndicatorTaskStatus,
   type IndicatorTaskStatuses,
   justificationsSection,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -48,7 +47,6 @@ import {
 } from './indicator-section-columns.ts';
 import {
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
   sexAndAgesColumns,
   taggingColumns,
@@ -139,7 +137,6 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
     'value-type-and-units': complete(valueTypeAndUnitsSection, valueTypeAndUnitsColumns),
     'other-notes-and-caveats': complete(otherNotesAndCaveatsSection, otherNotesAndCaveatsColumns),
     'publishing-date': complete(publishingDateSection, publishingDateColumns),
-    links: complete(linksSection, linksColumns),
     'variance-and-quality': complete(varianceAndQualitySection, varianceAndQualityColumns),
     justifications: complete(justificationsSection, justificationsColumns),
     'other-comments': complete(otherCommentsSection, otherCommentsColumns),

@@ -16,7 +16,6 @@ export const INDICATOR_TASK_KEYS = [
   'period-type',
   'other-notes-and-caveats',
   'publishing-date',
-  'links',
   'variance-and-quality',
   'justifications',
   'other-comments',

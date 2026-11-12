@@ -10,7 +10,6 @@ import {
   denominatorSection,
   indicatorTaskKeySchema,
   justificationsSection,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -24,7 +23,6 @@ import {
   varianceAndQualitySection,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
-import { links } from './indicator-sections.testing.ts';
 import { indicatorSectionsRouter } from './indicator-sections.ts';
 import {
   createFakeInternalRepositories,
@@ -48,7 +46,6 @@ const sections = [
   definitionAndRationaleSection,
   denominatorSection,
   justificationsSection,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -96,33 +93,54 @@ describe('indicatorSectionsRouter', () => {
   );
 
   it('writes the lists a section gives beside its columns', async () => {
+    const ageRanges = [
+      { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
+    ];
     const updateDraft = vi.fn().mockResolvedValue({ ok: true });
     const repositories = createFakeInternalRepositories({
       indicators: {
         ...inTestTeam,
         updateDraft,
-        findDraftState: vi
-          .fn()
-          .mockResolvedValue({ draft: { ...unansweredDraft, hasLinks: true, links } }),
+        findDraftState: vi.fn().mockResolvedValue({
+          draft: { ...unansweredDraft, sexes: ['females'], ageType: 'range', ageRanges },
+        }),
       },
     });
 
     const response = await request(
       createRouterTestApp(indicatorSectionsRouter(repositories, testSessionVerifier)),
     )
-      .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/links')
+      .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/sex-and-ages')
       .set('Cookie', await testSessionCookie(['publisher']))
-      .send({ answers: { hasLinks: 'yes', links }, version: editVersion({}) });
+      .send({
+        answers: {
+          sexes: ['females'],
+          ageType: 'range',
+          ageRanges: [
+            { lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' },
+          ],
+          specificAge: '',
+          specificAgeUnit: '',
+          ageDetail: '',
+        },
+        version: editVersion({}),
+      });
 
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
       '00000000-0000-7000-8000-000000000001',
-      'links',
-      { hasLinks: true },
-      { links },
+      'sex-and-ages',
+      {
+        sexes: ['females'],
+        ageType: 'range',
+        specificAge: null,
+        specificAgeUnit: null,
+        ageDetail: null,
+      },
+      { ageRanges },
       testActor(response),
       expect.objectContaining({ version: editVersion({}) }),
     );
-    expect(response.body).toMatchObject({ answers: { hasLinks: 'yes', links } });
+    expect(response.body).toMatchObject({ answers: { sexes: ['females'], ageRanges } });
   });
 });

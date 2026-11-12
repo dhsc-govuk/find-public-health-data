@@ -14,6 +14,4 @@ export const INTERNAL_API_BODY_LIMITS: readonly BodyLimit[] = [
   // Six textareas of 10,000 characters, up to about 240 kB of JSON when every character is
   // an emoji, which takes 4 bytes.
   { path: indicatorSectionPath('justifications'), limit: '256kb' },
-  // Twenty links of up to 2,300 characters each, address and text together, about 184 kB.
-  { path: indicatorSectionPath('links'), limit: '256kb' },
 ];

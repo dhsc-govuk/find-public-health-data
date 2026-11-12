@@ -240,10 +240,9 @@ export const indicatorVersion = pgTable(
     caveatsDetail: text(),
     hasOtherNotes: boolean(),
     otherNotesDetail: text(),
-    // Links and tagging
+    // Tagging
     // The answered state of lists held in child tables, which a check cannot compare with the
     // rows, so the API keeps them in step: null until asked, false for an answered no.
-    hasLinks: boolean(),
     hasRiskFactor: boolean(),
     hasFramework: boolean(),
     hasLifeStage: boolean(),
@@ -489,26 +488,6 @@ export const indicatorVersion = pgTable(
     index('idx_indicator_version_indicator').on(t.indicatorId),
     index('idx_indicator_version_slug').on(t.slug),
     index('idx_indicator_version_name_trgm').using('gin', t.name.op('gin_trgm_ops')),
-  ],
-);
-
-/** The links a version offers users, in the order the publisher added them. */
-export const indicatorVersionLink = pgTable(
-  'indicator_version_link',
-  {
-    indicatorVersionId: uuid().notNull(),
-    position: smallint().notNull(),
-    url: text().notNull(),
-    text: text().notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.indicatorVersionId, t.position] }),
-    foreignKey({
-      name: 'indicator_version_link_version_fk',
-      columns: [t.indicatorVersionId],
-      foreignColumns: [indicatorVersion.id],
-    }),
-    check('indicator_version_link_position_check', sql`${t.position} >= 0`),
   ],
 );
 

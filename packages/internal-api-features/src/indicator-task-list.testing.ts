@@ -43,8 +43,6 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   hasOtherNotes: false,
   otherNotesDetail: null,
   scheduledPublishAt: new Date('2027-09-14T08:30:00.000Z'),
-  hasLinks: true,
-  links: [{ url: 'https://www.gov.uk/', text: 'Statistical commentary' }],
   variation: 'Varies with the age structure of each area.',
   qualityAssurance: 'Checked against the published ONS figures.',
   sourceDataIssuesDetail: 'Chasing the late returns from two areas.',

@@ -33,7 +33,6 @@ import * as copyrightAndDataReuse from './indicator-copyright-and-data-reuse/rou
 import * as dataQuality from './indicator-data-quality/route.tsx';
 import * as definitionAndRationale from './indicator-definition-and-rationale/route.tsx';
 import * as justifications from './indicator-justifications/route.tsx';
-import * as links from './indicator-links/route.tsx';
 import * as editIndicatorName from './indicator-name/edit-route.tsx';
 import * as newIndicator from './indicator-name/new-route.tsx';
 import * as denominator from './indicator-numerator-denominator/denominator-route.tsx';
@@ -133,8 +132,6 @@ const tagOptions = {
   frameworks: [],
 };
 
-const linksUnanswered = { hasLinks: '', links: [], linkUrl: '', linkText: '' };
-
 const providerSourcesUnanswered = { sources: [], definition: '', providerId: '', sourceId: '' };
 
 const noteAdded = { reviewerNote: '', noteId: '', version: '' };
@@ -228,16 +225,6 @@ const forms: {
     { dateExample: '9 11 2027' },
     { ...unanswered(publishingDateSection), ...DEFAULT_PUBLISHING_TIME },
   ),
-  {
-    name: 'links',
-    route: links,
-    pageTitle: 'Are there any relevant links to help users understand this indicator better?',
-    loaderData: { id: indicator.id, values: linksUnanswered },
-    rejected: {
-      values: linksUnanswered,
-      fieldErrors: { hasLinks: 'Select whether there are any relevant links' },
-    },
-  },
   ...(
     [
       ['numerator', numerator],

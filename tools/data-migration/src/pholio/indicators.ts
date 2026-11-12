@@ -365,7 +365,6 @@ export async function exportIndicators(context: PholioExportOptions) {
       caveats_detail: nc.caveats_detail,
       has_other_notes: nc.has_other_notes,
       other_notes_detail: nc.other_notes_detail,
-      has_links: null,
       has_risk_factor: null,
       has_framework: null,
       has_custom_copyright: null,

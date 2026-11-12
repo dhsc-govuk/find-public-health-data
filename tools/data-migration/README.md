@@ -91,8 +91,8 @@ moves to this service. The operations image applies the packages with `db migrat
   owning version; versions point at their batch, and observation keys carry sorted dimension-value
   UUIDs. The receiver resolves the version/batch cycle inside its import transaction.
 - Deleting a version also deletes the topic, classification and source rows the migration wrote for
-  it. A version a publisher has added links or age ranges to is never deleted; the import stops and
-  names the count.
+  it. A version a publisher has added age ranges to is never deleted; the import stops and names the
+  count.
 - Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
   observation keys stop the export with source-row diagnostics.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.
@@ -156,8 +156,8 @@ fields:
 `indicators` must exactly match the indicators in the package. Each needs a topic assignment or an
 explicit entry in `areaContextIndicators`; an area-context indicator cannot also carry topics or
 classifications. `indicatorTopics` accepts `isPrimary` and `indicatorSubtopics` contains
-`{ fingertipsId, topicId, subtopicId, isPrimary }` rows. Packages use format version 7 and
-`canonical-v7`, including explicit area status and nullable area validity dates. Every area file
+`{ fingertipsId, topicId, subtopicId, isPrimary }` rows. Packages use format version 8 and
+`canonical-v8`, including explicit area status and nullable area validity dates. Every area file
 requires `is_current`; missing status is rejected rather than filled from the database default.
 Every `indicator_version` file requires `is_locked` in the same way, and a version whose `is_locked`
 is false is refused, so a published version never arrives unlocked. Migrate the receiver's schema

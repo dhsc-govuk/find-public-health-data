@@ -28,7 +28,6 @@ export const INDICATOR_TASK_TITLES: Readonly<Record<IndicatorTaskKey, string>> =
   'confidence-intervals': 'Confidence intervals',
   benchmarking: 'Benchmarking',
   'other-notes-and-caveats': 'Other notes and caveats',
-  links: 'Links',
   tagging: 'Tagging',
   'copyright-and-data-reuse': 'Copyright and data re-use',
   'update-frequency': 'Update frequency',

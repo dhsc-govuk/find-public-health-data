@@ -643,7 +643,6 @@ describe("a version's child tables", () => {
       'indicator_version_age_range_version_fk',
       'indicator_version_classification_classification_fk',
       'indicator_version_classification_version_fk',
-      'indicator_version_link_version_fk',
       'indicator_version_review_note_author_fk',
       'indicator_version_review_note_submission_fk',
       'indicator_version_source_provider_fk',

@@ -65,7 +65,6 @@ export const TASK_GROUPS: readonly TaskGroup[] = [
       task('confidence-intervals'),
       task('benchmarking'),
       task('other-notes-and-caveats'),
-      task('links'),
       task('tagging'),
       task('copyright-and-data-reuse'),
     ],

@@ -132,7 +132,7 @@ describe('fillInSampleAnswers', () => {
     expect(saved).not.toContain(`/api/internal/indicators/${id}/polarity`);
     expect(saves(client)[0]?.body).toMatchObject({ version });
     // Every section but the name and polarity, then the data table's confirmation.
-    expect(saved).toHaveLength(20);
+    expect(saved).toHaveLength(19);
     expect(saved.at(-1)).toBe(CONFIRMATION);
     expect(saves(client).at(-1)?.body).toEqual({ batchId });
 
@@ -191,7 +191,7 @@ describe('fillInSampleAnswers', () => {
 
     const response = await fillIn(client);
 
-    expect(saves(client)).toHaveLength(21);
+    expect(saves(client)).toHaveLength(20);
     expect(response.headers.get('location')).toBe(`/publish/indicators/${id}/task-list`);
   });
 

@@ -13,8 +13,6 @@ import {
   indicatorSectionAnswersSchema,
   indicatorSectionErrorSchema,
   justificationsSection,
-  linksAnswersSchema,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -156,7 +154,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       hasCaveats: 'no',
       hasOtherNotes: 'no',
     }),
-    sample(linksSection, { hasLinks: 'no', links: [] }, linksAnswersSchema),
     sample(
       taggingSection,
       {

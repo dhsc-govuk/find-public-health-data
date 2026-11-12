@@ -8,7 +8,6 @@ import {
   ageRangesOf,
   classificationsOf,
   copyTaxonomyPlacements,
-  linksOf,
   replaceLists,
   sourcesOf,
   topicIdsOf,
@@ -69,10 +68,9 @@ export async function createDraftFromPublished(
 
         if (draft === undefined) throw new Error('createDraftFromPublished inserted no version');
 
-        const [topicIds, classifications, links, ageRanges, sources] = await Promise.all([
+        const [topicIds, classifications, ageRanges, sources] = await Promise.all([
           topicIdsOf(tx, publishedId),
           classificationsOf(tx, publishedId),
-          linksOf(tx, publishedId),
           ageRangesOf(tx, publishedId),
           sourcesOf(tx, publishedId),
         ]);
@@ -85,7 +83,6 @@ export async function createDraftFromPublished(
               classifications.filter((row) => row.dimension === dimension).map(({ id }) => id),
             ]),
           ),
-          links,
           ageRanges,
           ...sources,
         });
