@@ -8,7 +8,7 @@ import { IndicatorPairTable } from './tables/indicator-pair-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
 
 export interface ComparisonTabProps extends IndicatorComparisonModel {
-  primary: SelectedIndicator;
+  primary: Pick<SelectedIndicator, 'detail'>;
 }
 
 export function CompareIndicatorsTab({

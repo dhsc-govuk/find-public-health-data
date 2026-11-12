@@ -66,6 +66,10 @@ describe('public routers against the seeded database', () => {
     const full = await request(app).get(path);
     const projected = await request(app).get(path.replace('/data?', '/ranking?'));
     expect(projected.status).toBe(200);
+    const england = indicatorAreaDataListSchema
+      .parse(projected.body)
+      .find(({ areaCode }) => areaCode === 'E92000001');
+    expect(england?.observations).toHaveLength(1);
     expect(indicatorAreaDataListSchema.parse(projected.body)).toEqual(
       rankingAreaSeries(indicatorAreaDataListSchema.parse(full.body)),
     );

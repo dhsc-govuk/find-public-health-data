@@ -20,7 +20,7 @@ const CALENDAR_YEARS = { id: '01a0d88c-310a-7ca5-8494-19e32c307628', label: 'Cal
 
 function indicatorPage<
   T extends {
-    data: { selected: unknown[] };
+    data: { selected: unknown[]; findResults: unknown[]; findSubject: string };
     comparison: Parameters<typeof indicatorComparisonModel>[1];
   },
 >(page: T) {
@@ -28,7 +28,11 @@ function indicatorPage<
   return {
     ...page,
     data: { ...page.data, selected: selected.slice(0, 1).map(compactIndicator) },
-    comparison: indicatorComparisonModel(selected, page.comparison),
+    comparison: {
+      ...indicatorComparisonModel(selected, page.comparison),
+      findResults: page.data.findResults,
+      findSubject: page.data.findSubject,
+    },
   };
 }
 

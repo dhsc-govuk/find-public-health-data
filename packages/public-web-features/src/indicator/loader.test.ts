@@ -122,6 +122,55 @@ describe('loadIndicator', () => {
     expect(comparison.compareAreaOptions).toHaveLength(25);
   });
 
+  it('settles comparisons while the primary history is still pending', async () => {
+    const client = api();
+    const history = Promise.withResolvers<void>();
+    let dataReady = false;
+    const delayed: FakeApiClient = {
+      ...client,
+      get: async (path, schema) => {
+        if (path.includes('/data?')) await history.promise;
+        return client.get(path, schema);
+      },
+    };
+    const page = await loadIndicatorPage(
+      args(
+        delayed,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&find=diabetes',
+      ),
+    );
+    const data = Promise.resolve(page.data).then((data) => {
+      dataReady = true;
+      return data;
+    });
+    try {
+      const comparison = await page.comparison;
+      expect(comparison.compareAreaOptions).toHaveLength(25);
+      expect(comparison.pair).toBeDefined();
+      expect(comparison.findResults[0]?.shortId).toBe(241);
+      expect(dataReady).toBe(false);
+    } finally {
+      history.resolve();
+      await data;
+    }
+    expect(paths(client).some((path) => path.includes('/241/data?'))).toBe(false);
+  });
+
+  it('keeps comparisons available when the primary history fails', async () => {
+    const client = api({
+      'GET /api/indicators/108/data': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+    );
+    const failedData = expect(page.data).rejects.toMatchObject({ status: 502 });
+    await expect(page.comparison).resolves.toMatchObject({
+      compareAreaGroup: 'Local authorities',
+      pair: expect.any(Object),
+    });
+    await failedData;
+  });
+
   it('waits for complete content only when explicitly requested', async () => {
     const client = api();
     const page = await loadIndicatorPage(
@@ -133,13 +182,13 @@ describe('loadIndicator', () => {
   });
 
   it('keeps the comparison history and raw rankings out of page hydration', async () => {
-    const { client } = api();
+    const client = api();
     const page = await loadIndicatorPage(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
     );
     const [data, comparison] = await Promise.all([page.data, page.comparison]);
     expect(data.selected.map(({ detail }) => detail.shortId)).toEqual([108]);
-    expect(data.selection.shortIds).toEqual([108, 241]);
+    expect(data.selection.shortIds).toEqual([108]);
     expect(comparison.pair).toBeDefined();
     expect(comparison).not.toHaveProperty('compareAreasData');
     expect(comparison).not.toHaveProperty('comparedAreasData');
@@ -300,14 +349,17 @@ describe('loadIndicator', () => {
       const result = await loadIndicator(
         args(client, `http://localhost/indicator/indicator-108${query}`),
       );
-      expect(result.compareAreasData).toHaveLength(25);
+      expect(result.compareAreasData).toHaveLength(26);
       expect(result.compareAreaOptions).toHaveLength(25);
       expect(paths(client)).toContain(
         '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
       );
       const rankingPaths = paths(client).filter((path) => path.includes('/108/ranking?'));
       expect(rankingPaths).toHaveLength(1);
-      expect(areaCodes(rankingPaths[0] ?? '')).toHaveLength(25);
+      expect(areaCodes(rankingPaths[0] ?? '')).toEqual([
+        ...(localAuthorities[0]?.areas.map(({ code }) => code) ?? []),
+        'E92000001',
+      ]);
       const histories = paths(client).filter((path) => path.includes('/108/data?'));
       expect(histories).toHaveLength(1);
     }

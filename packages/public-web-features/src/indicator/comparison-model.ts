@@ -27,7 +27,7 @@ export function indicatorComparisonModel(
     ...indicator,
     areaData: [
       ...indicator.areaData.filter(({ areaCode }) => areaCode === 'E92000001'),
-      ...areaData,
+      ...areaData.filter(({ areaCode }) => areaCode !== 'E92000001'),
     ],
   });
   const pair = compared

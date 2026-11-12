@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
+import { IndicatorRoute } from './route.tsx';
 import { SingleIndicatorPage } from './single-page.tsx';
 
 afterEach(cleanup);
@@ -72,6 +73,7 @@ function page(
   entries: SelectedIndicator[],
   url: string,
   areas: SelectedIndicator['areaData'] = [],
+  history?: Promise<never>,
 ) {
   const Routes = createRoutesStub([
     {
@@ -81,28 +83,34 @@ function page(
           detail={entries[0]?.detail as IndicatorDetail}
           comparedDetail={entries[1]?.detail}
           complete={true}
-          data={{
-            selected: entries.slice(0, 1).map(compactIndicator),
-            selectedAreas: [],
-            displayGroups: [],
-            benchmarkGeography: { regionByCode: {}, levelByCode: {} },
-            findSubject: '',
+          data={
+            history ?? {
+              selected: entries.slice(0, 1).map(compactIndicator),
+              selectedAreas: [],
+              displayGroups: [],
+              benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+              findSubject: '',
+              findResults: [],
+              geographyOptions: undefined,
+              areasLimited: false,
+              selection: {
+                areaCodes: [],
+                areaLevels: [],
+                shortIds: entries.map(({ detail }) => detail.shortId),
+              },
+            }
+          }
+          comparison={{
+            ...indicatorComparisonModel(entries, {
+              compareAreasData: areas,
+              comparedAreasData: [],
+              compareAreaOptions: [],
+              compareAreaGroup: 'Local authorities',
+              comparisonDisplayGroups: [],
+            }),
             findResults: [],
-            geographyOptions: undefined,
-            areasLimited: false,
-            selection: {
-              areaCodes: [],
-              areaLevels: [],
-              shortIds: entries.map(({ detail }) => detail.shortId),
-            },
+            findSubject: '',
           }}
-          comparison={indicatorComparisonModel(entries, {
-            compareAreasData: areas,
-            comparedAreasData: [],
-            compareAreaOptions: [],
-            compareAreaGroup: 'Local authorities',
-            comparisonDisplayGroups: [],
-          })}
         />
       ),
     },
@@ -221,4 +229,73 @@ it('keeps England alongside the shared local-area range and aligns values by are
     ['Windsor', [5, 60]],
   ]);
   expect(model.range).toEqual(['5.0% to 11.0%', '60.0% to 120.0%']);
+});
+
+it('replaces deferred comparison models after changing geography', async () => {
+  const primary = selected(241, 'Diabetes prevalence', 7.9);
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      Component: IndicatorRoute,
+      loader: ({ request }) => {
+        const regions = new URL(request.url).searchParams.get('areaType') === 'Statistical regions';
+        const areas = [
+          {
+            areaCode: regions ? 'E12000007' : 'E06000039',
+            areaName: regions ? 'London' : 'Slough',
+            observations: primary.areaData[0]?.observations ?? [],
+          },
+        ];
+        return {
+          detail: primary.detail,
+          comparedDetail: undefined,
+          complete: false,
+          data: Promise.resolve({
+            selected: [compactIndicator(primary)],
+            selectedAreas: [],
+            displayGroups: [],
+            benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+            findSubject: '',
+            findResults: [],
+            geographyOptions: undefined,
+            areasLimited: false,
+            selection: { areaCodes: [], areaLevels: [], shortIds: [241] },
+          }),
+          comparison: Promise.resolve({
+            ...indicatorComparisonModel([primary], {
+              compareAreasData: areas,
+              comparedAreasData: [],
+              compareAreaOptions: [],
+              compareAreaGroup: regions ? 'Statistical regions' : 'Local authorities',
+              comparisonDisplayGroups: ['Local authorities', 'Statistical regions'],
+            }),
+            findResults: [],
+            findSubject: '',
+          }),
+        };
+      },
+    },
+  ]);
+  render(<Routes initialEntries={['/indicator/indicator-241?tab-indicator=areas']} />);
+  expect(await screen.findByRole('rowheader', { name: 'Slough' })).toBeTruthy();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Type of geography' }), {
+    target: { value: 'Statistical regions' },
+  });
+  expect(await screen.findByRole('rowheader', { name: 'London' })).toBeTruthy();
+  expect(screen.queryByRole('rowheader', { name: 'Slough' })).toBeNull();
+});
+
+it('renders area and indicator comparisons when primary history fails', async () => {
+  const history = Promise.withResolvers<never>();
+  page(
+    [selected(241, 'Diabetes prevalence', 7.9), selected(108, 'Mortality', 109.6)],
+    '/indicator/indicator-241?compareWith=indicator-108',
+    [],
+    history.promise,
+  );
+  expect(screen.getByRole('rowheader', { name: 'England' })).toBeTruthy();
+  await act(async () => history.reject(new Error('History unavailable')));
+  expect(screen.getByRole('rowheader', { name: 'England' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: 'Compare areas' }));
+  expect(await screen.findByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
 });

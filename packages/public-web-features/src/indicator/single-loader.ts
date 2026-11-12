@@ -1,11 +1,14 @@
 import {
   type AreaSummary,
   areaDisplayGroupListSchema,
+  DEFAULT_INDICATOR_SEARCH_RESULTS,
   type IndicatorAreaData,
   type IndicatorDetail,
   indicatorAreaDataListSchema,
   indicatorDetailSchema,
+  indicatorListResponseSchema,
   MAX_AREA_PREVIEW,
+  MAX_INDICATOR_QUERY_LENGTH,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { isOneOf } from '@fphd/utils/is-one-of';
@@ -19,7 +22,7 @@ import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 
-async function loadIndicatorPageData(args: LoaderFunctionArgs) {
+async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = false) {
   const { context, params, request } = args;
   const url = new URL(request.url);
 
@@ -67,7 +70,8 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs) {
   );
   const data = groups.then((groups) =>
     loadIndicatorData(args, {
-      page: { detail: routeDetail, compared: comparedDetail, groups },
+      page: { detail: routeDetail, compared: compactPage ? undefined : comparedDetail, groups },
+      includeFindResults: !compactPage,
     }),
   );
   const comparison = groups.then((groups) =>
@@ -85,14 +89,38 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs) {
 }
 
 export async function loadIndicatorPage(args: LoaderFunctionArgs) {
-  const page = await loadIndicatorPageData(args);
+  const page = await loadIndicatorPageData(args, true);
   const data = Promise.resolve(page.data).then((data) => ({
     ...data,
     // The second indicator only appears in the precomputed pair; its history has no client controls.
     selected: data.selected.slice(0, 1).map(compactIndicator),
   }));
-  const comparison = Promise.all([page.data, page.comparison]).then(([data, comparison]) =>
-    indicatorComparisonModel(data.selected, comparison),
+  const url = new URL(args.request.url);
+  const findSubject =
+    url.searchParams.get('find')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
+  const findResults = findSubject
+    ? args.context
+        .get(apiContext)
+        .get(
+          `/api/indicators?q=${encodeURIComponent(findSubject)}&limit=${DEFAULT_INDICATOR_SEARCH_RESULTS}`,
+          indicatorListResponseSchema,
+        )
+        .then(({ indicators }) => indicators)
+    : Promise.resolve([]);
+  const comparison = Promise.all([page.comparison, findResults]).then(
+    ([comparison, findResults]) => ({
+      ...indicatorComparisonModel(
+        [
+          { detail: page.detail, areaData: comparison.compareAreasData },
+          ...(page.comparedDetail
+            ? [{ detail: page.comparedDetail, areaData: comparison.comparedAreasData }]
+            : []),
+        ],
+        comparison,
+      ),
+      findSubject,
+      findResults,
+    }),
   );
   const completed = page.complete ? await Promise.all([data, comparison]) : undefined;
   return {
@@ -164,7 +192,7 @@ async function loadIndicatorComparison(
         .filter(({ code }) => !otherCodes || otherCodes.has(code)),
       compareAreaGroup,
     );
-    const codes = compareAreaOptions.map(({ code }) => code);
+    const codes = [...compareAreaOptions.map(({ code }) => code), 'E92000001'];
     const loadRanking = (detail: IndicatorDetail): Promise<IndicatorAreaData[]> =>
       codes.length
         ? api.get(

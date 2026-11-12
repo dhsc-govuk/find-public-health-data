@@ -11,13 +11,13 @@ export function AreaComparisonTable({
   highlighted,
   colour = 'england',
 }: {
-  indicator: SelectedIndicator;
+  indicator: Pick<SelectedIndicator, 'detail'>;
   model: IndicatorComparisonModel['areas'];
   sort: string;
   highlighted: string[];
   colour?: string;
 }) {
-  const shown = model.rows.toSorted((left, right) =>
+  const shown = [...model.rows].sort((left, right) =>
     left.areaCode === 'E92000001'
       ? -1
       : right.areaCode === 'E92000001'
