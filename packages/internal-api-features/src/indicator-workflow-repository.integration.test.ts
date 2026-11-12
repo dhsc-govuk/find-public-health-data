@@ -3,7 +3,7 @@ import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { takeIndicatorStep } from '@fphd/internal-workflow';
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
@@ -16,6 +16,7 @@ import {
   ACTOR,
   AS_ACTOR,
   AS_OTHER_ACTOR,
+  ciMethodId,
   indicatorWithTwoPublications,
   newDraft,
   OTHER_ACTOR,
@@ -313,6 +314,75 @@ describe('submitIndicator', () => {
       expect(await submissionsOf(db, versionId)).toEqual([
         expect.objectContaining({ number: 1, status: 'submitted', submittedBy: ACTOR }),
       ]);
+    },
+  );
+
+  repositoryTest(
+    'keeps the changes of an update with the names of the core data and its data table counted',
+    async ({ db }) => {
+      const update = await openedUpdate(db, 'Updated core data and table');
+      const { indicatorId, versionId } = update;
+      const [published] = await db
+        .select({ topicId: schema.indicatorVersionTopic.topicId })
+        .from(schema.indicatorVersionTopic)
+        .where(eq(schema.indicatorVersionTopic.indicatorVersionId, update.publishedId));
+      const added = await db
+        .select({ id: schema.topic.id })
+        .from(schema.topic)
+        .where(ne(schema.topic.id, published?.topicId ?? ''))
+        .limit(1);
+      const topicIds = [published?.topicId, added[0]?.id].filter((id) => id !== undefined);
+      const topicNames = await db
+        .select({ title: schema.topic.title })
+        .from(schema.topic)
+        .where(inArray(schema.topic.id, topicIds))
+        .orderBy(asc(schema.topic.title));
+      const [batch] = await db
+        .insert(schema.uploadBatch)
+        .values({
+          indicatorId,
+          indicatorVersionId: versionId,
+          originalFilename: 'update.csv',
+          uploadedBy: ACTOR,
+          status: 'processed',
+          rowCount: 2094,
+        })
+        .returning({ id: schema.uploadBatch.id });
+      const shown = await answerUpdate(
+        db,
+        update,
+        {
+          ciMethodId: await ciMethodId(db, 'Wilson Score method'),
+          uploadBatchId: batch?.id,
+          dataTableConfirmedAt: new Date(),
+        },
+        { topicIds, primaryTopicId: published?.topicId ?? null },
+      );
+
+      await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+        ok: true,
+      });
+
+      const [submission] = await submissionsOf(db, versionId);
+      expect(submission?.updateChanges).toEqual(
+        expect.arrayContaining([
+          { task: 'data-table', parts: [{ kind: 'data_values_replaced', count: 2094 }] },
+          {
+            task: 'confidence-intervals',
+            parts: [{ kind: 'value', field: 'ciMethodId', value: 'Wilson Score method' }],
+          },
+          {
+            task: 'tagging',
+            parts: [
+              {
+                kind: 'value',
+                field: 'topicIds',
+                value: topicNames.map(({ title }) => title).join(', '),
+              },
+            ],
+          },
+        ]),
+      );
     },
   );
 

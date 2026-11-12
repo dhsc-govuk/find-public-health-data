@@ -4,6 +4,7 @@ import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
 import { eq, sql } from 'drizzle-orm';
 
+import type { UpdateChange } from './indicator-history-contract.ts';
 import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
 
 const { indicator } = schema;
@@ -35,6 +36,8 @@ export interface HistorySubmissionRecord {
   endedAt: string | null;
   endedBy: string | null;
   revisionResponse: string | null;
+  /** What an update changed, kept when it was submitted; null for a new indicator's submission. */
+  updateChanges: UpdateChange[] | null;
   responses: HistoryResponseRecord[];
 }
 
@@ -96,6 +99,7 @@ const submissions = sql<HistorySubmissionRecord[]>`coalesce((
     'endedAt', s.ended_at,
     'endedBy', ender.display_name,
     'revisionResponse', s.revision_response,
+    'updateChanges', s.update_changes,
     'responses', coalesce((
       select json_agg(json_build_object(
         'reviewer', reviewer.display_name,

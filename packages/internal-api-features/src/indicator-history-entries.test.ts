@@ -29,6 +29,7 @@ function submission(overrides: Partial<HistorySubmissionRecord>): HistorySubmiss
     endedAt: null,
     endedBy: null,
     revisionResponse: null,
+    updateChanges: null,
     responses: [],
     ...overrides,
   };
@@ -168,6 +169,26 @@ describe('historyEntries', () => {
       { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
       { kind: 'published', at: '2026-06-02T09:00:00.000Z', by: null },
       { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
+    ]);
+  });
+
+  it('lists the submission of an update with the changes it kept', () => {
+    const changes = [
+      {
+        task: 'polarity' as const,
+        parts: [{ kind: 'value' as const, field: 'polarity', value: 'Higher is better' }],
+      },
+    ];
+    const entries = historyEntries({
+      ...noRecords,
+      versions: [version({ publishedAt: at('02T09:00:00') })],
+      submissions: [submission({ submittedAt: at('11T09:00:00'), updateChanges: changes })],
+      updates: [{ at: at('10T09:00:00'), by: 'Charlie Owen' }],
+    });
+
+    expect(entries.slice(0, 2)).toEqual([
+      { kind: 'update_submitted', at: '2026-06-11T09:00:00.000Z', by: 'Sam Taylor', changes },
+      { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
     ]);
   });
 

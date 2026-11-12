@@ -38,6 +38,9 @@ function taskStatus(page: Page, title: string) {
     .locator('.govuk-task-list__status');
 }
 
+// The rationale the update gives, in place of the sample one the indicator was published with.
+const UPDATED_RATIONALE = 'A sample rationale, revised for the update.';
+
 /** Saves the polarity page with the answer given, which returns to the task list. */
 async function savePolarity(page: Page, answer: string) {
   await page.goto(`/publish/indicators/${indicator.id}/polarity`);
@@ -198,6 +201,11 @@ test('an update can be submitted once at least one task is "Changed" and the pub
   page,
 }, testInfo) => {
   await savePolarity(page, 'Higher is better');
+  await page.goto(`/publish/indicators/${indicator.id}/definition-and-rationale`);
+  await page.getByLabel('What is the rationale for this indicator?').fill(UPDATED_RATIONALE);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(taskListPath());
+  await expect(taskStatus(page, 'Definition and rationale')).toHaveText('Changed');
   await expect(taskStatus(page, 'Publishing date')).toHaveText('Complete');
   await expect(taskStatus(page, 'Update summary')).toHaveText('Complete');
 
@@ -220,4 +228,26 @@ test('a submitted update has the publishing status "Update pending decision" on 
   await page.goto('/dashboard');
   const row = page.getByRole('table').getByRole('row').filter({ hasText: indicator.name });
   await expect(row.locator('.govuk-tag')).toHaveText(['Live', 'Update pending decision']);
+});
+
+test('the History tab shows "Update submitted for review" with a table of "Section" and "Changes", one row per changed section and a row for the update summary', async ({
+  page,
+}, testInfo) => {
+  await openHistory(page, indicator.id);
+
+  const entry = historyEntries(page).first();
+  await expect(entry.getByText('Update submitted for review', { exact: true })).toBeVisible();
+  const table = entry.getByRole('table', { name: 'Update submitted for review' });
+  await expect(table.getByRole('columnheader')).toHaveText(['Section', 'Changes']);
+  await expect(table.getByRole('row').nth(1)).toHaveText(/^Polarity\s*Higher is better$/);
+  const rationale = table.getByRole('row').nth(2);
+  await expect(rationale.getByRole('cell').first()).toHaveText('Definition and rationale');
+  // Which words are marked depends on the word diff, so this checks only that both kinds show.
+  await expect(rationale.getByText('Rationale', { exact: true })).toBeVisible();
+  await expect(rationale.locator('ins').first()).toBeVisible();
+  await expect(rationale.locator('del').first()).toBeVisible();
+  await expect(table.getByRole('row').nth(3)).toHaveText(
+    /^Update summary\s*Polarity corrected to higher is better\.$/,
+  );
+  await expectNoAccessibilityViolations(page, testInfo);
 });

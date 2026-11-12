@@ -20,6 +20,7 @@ import {
 } from './indicator-repository.testing.ts';
 import { schedulePublication } from './indicator-scheduling-repository.ts';
 import { completeTaskListDraft } from './indicator-task-list.testing.ts';
+import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
 
@@ -220,13 +221,14 @@ export async function openedUpdate(db: Database, name: string): Promise<OpenedUp
 }
 
 /**
- * Gives an update its publishing date and summary, with `answers` saved over the published
- * version's, and returns the `updatedAt` its task list would show.
+ * Gives an update its publishing date and summary, with `answers` and `lists` saved over the
+ * published version's, and returns the `updatedAt` its task list would show.
  */
 export async function answerUpdate(
   db: Database,
   { indicatorId, versionId }: Pick<CreatedIndicatorDraft, 'indicatorId' | 'versionId'>,
   answers: IndicatorDraftAttributes,
+  lists: IndicatorDraftLists = {},
 ): Promise<Date> {
   const saved = await updateIndicatorDraft(
     db,
@@ -237,7 +239,7 @@ export async function answerUpdate(
       scheduledPublishAt: new Date('2030-06-01T08:30:00Z'),
       updateSummary: 'Changed the polarity.',
     },
-    {},
+    lists,
     AS_ACTOR,
   );
   if (!saved.ok) throw new Error(`answerUpdate could not save: ${saved.reason}`);

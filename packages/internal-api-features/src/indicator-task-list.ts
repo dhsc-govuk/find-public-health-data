@@ -200,7 +200,7 @@ const COMPARED_ANSWERS: Readonly<
 };
 
 /** The tasks whose answers on the draft differ from the published version's. */
-function changedTasks(
+export function changedTasks(
   draft: IndicatorTaskAnswers,
   published: IndicatorTaskAnswers | null,
 ): IndicatorTaskKey[] {

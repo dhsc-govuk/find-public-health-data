@@ -12,6 +12,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -54,6 +55,10 @@ export const indicatorVersionSubmission = pgTable(
     // The core team's decision on a submitted update to a live indicator. Null on a submitted
     // update means the update is waiting for that decision, and a new indicator never has one.
     updateDecision: text({ enum: UPDATE_DECISIONS }),
+    // What a submitted update changed from the published version it was opened from, as it
+    // stood when it was submitted: a JSON array of tasks, each with its changed answers. The
+    // internal API writes and reads it. Null for a new indicator's submission.
+    updateChanges: jsonb().$type<unknown[]>(),
   },
   (t) => [
     // Pairing the version with indicator_id keeps a submission on a version of its own indicator.
@@ -77,6 +82,10 @@ export const indicatorVersionSubmission = pgTable(
       sql`${t.status} IN (${literals(INDICATOR_SUBMISSION_STATUSES)})`,
     ),
     check('indicator_version_submission_number_check', sql`${t.number} > 0`),
+    check(
+      'indicator_version_submission_update_changes_check',
+      sql`jsonb_typeof(${t.updateChanges}) = 'array'`,
+    ),
     check(
       'indicator_version_submission_update_decision_check',
       sql`${t.updateDecision} IN (${literals(UPDATE_DECISIONS)})`,

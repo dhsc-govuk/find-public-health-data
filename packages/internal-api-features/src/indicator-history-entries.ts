@@ -119,6 +119,21 @@ function resubmissionEntry(
   );
 }
 
+/**
+ * The entry for a first submission, or for one after a withdrawal. An update's entry also lists
+ * what the update changed.
+ */
+function submittedEntry({
+  submittedAt,
+  submittedBy,
+  updateChanges,
+}: HistorySubmissionRecord): HistoryEntry {
+  const at = iso(submittedAt);
+  return updateChanges === null
+    ? { kind: 'submitted', at, by: submittedBy }
+    : { kind: 'update_submitted', at, by: submittedBy, changes: updateChanges };
+}
+
 function submissionEntries(
   submission: HistorySubmissionRecord,
   previous: HistorySubmissionRecord | undefined,
@@ -127,10 +142,7 @@ function submissionEntries(
   const sent =
     previous !== undefined && submission.previousStatus === 'changes_requested'
       ? resubmissionEntry(submission, previous, saves)
-      : dated(
-          { kind: 'submitted', at: iso(submission.submittedAt), by: submission.submittedBy },
-          submission.submittedAt,
-        );
+      : dated(submittedEntry(submission), submission.submittedAt);
   const withdrawn =
     submission.status === 'withdrawn' && submission.endedAt !== null && submission.endedBy !== null
       ? [
