@@ -12,18 +12,18 @@ import {
 export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: string) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   const rows = comparisonRows(selected);
-  const areas = [
+  const cellAreas = [
     ...new Map(
       rows.flatMap((row) => row.cells.map((cell) => [cell.areaCode, cell.areaName] as const)),
     ).entries(),
-  ]
-    .map(([code, name]) => ({ code, name }))
-    .sort((a, b) =>
-      a.code === 'E92000001' ? -1 : b.code === 'E92000001' ? 1 : a.name.localeCompare(b.name),
-    );
-  // comparisonRows drops England once areas are picked; the table keeps it as the
-  // benchmark each picked area is judged against.
-  const compared = areas.some(({ code }) => code !== 'E92000001');
+  ].map(([code, name]) => ({ code, name }));
+  // comparisonRows drops England once areas are picked, except for an indicator with no data
+  // for any picked area. Once any area is picked, England is the benchmark each is judged
+  // against, in its own columns, rather than an area of its own.
+  const compared = cellAreas.some(({ code }) => code !== 'E92000001');
+  const areas = cellAreas
+    .filter(({ code }) => !compared || code !== 'E92000001')
+    .sort((a, b) => a.name.localeCompare(b.name));
   return {
     kind: 'data' as const,
     compared,

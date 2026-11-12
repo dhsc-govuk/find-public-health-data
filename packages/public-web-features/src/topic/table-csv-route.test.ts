@@ -120,3 +120,65 @@ it.each([
     expect(lines[1]).toBe(`Example indicator,,%,200,20,2024,${label},100,10`);
   },
 );
+
+it('adds the England and comparison columns when only a later indicator has data for the picked area', async () => {
+  const observation = (value: number) => ({
+    fromDate: '2024-01-01',
+    toDate: '2024-12-31',
+    value,
+    count: null,
+    numerator: null,
+    denominator: null,
+    dimensions: [],
+    notes: [],
+    lowerCi95: value - 1,
+    upperCi95: value + 1,
+    lowerCi998: null,
+    upperCi998: null,
+  });
+  const detail = (shortId: number, name: string) => ({
+    shortId,
+    slug: name.toLowerCase(),
+    name,
+    unit: '%',
+    yearType: null,
+    polarity: 'higher-is-better',
+    comparatorMethod: 'Confidence intervals overlapping reference value',
+    topics: [],
+    dataUpdatedAt: null,
+  });
+  vi.mocked(loadTopic).mockResolvedValue({
+    topic: { slug: 'example', title: 'Example' },
+    content: {
+      data: {
+        selected: [
+          {
+            detail: detail(1, 'England only'),
+            areaData: [
+              { areaCode: 'E92000001', areaName: 'England', observations: [observation(10)] },
+            ],
+          },
+          {
+            detail: detail(2, 'Both'),
+            areaData: [
+              { areaCode: 'E92000001', areaName: 'England', observations: [observation(10)] },
+              { areaCode: 'E12000001', areaName: 'North East', observations: [observation(20)] },
+            ],
+          },
+        ],
+        benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+      },
+    },
+  } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+  const response = await loader({
+    request: new Request(
+      'http://local/topics/example/table.csv?tab-topic=data&columns-topic=value',
+    ),
+  } as LoaderFunctionArgs);
+  const lines = (await response.text()).trim().split(/\r?\n/);
+  expect(lines[0]).toBe(
+    'Indicator,Subtopic,Unit,North East calculated value,North East period,North East comparison summary,England calculated value',
+  );
+  expect(lines).toHaveLength(3);
+  expect(lines[2]).toBe('Both,,%,20,2024,Better than England,10');
+});

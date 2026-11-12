@@ -195,3 +195,18 @@ it('names the period of an area that lags the row and judges it against England 
   // lower-is-better indicator, although it is below England's 2023 value shown.
   expect(northWest).toMatchObject({ value: 37, period: '2022', judgement: 'worse' });
 });
+
+it('keeps England out of the picked areas when an indicator has data only for England', () => {
+  const englandOnly = {
+    ...structuredClone(entry),
+    detail: { ...entry.detail, shortId: 2, slug: 'england-only' },
+    areaData: structuredClone(entry.areaData.slice(0, 1)),
+  } as SelectedIndicator;
+  const model = topicDataTableModel([englandOnly, entry], 'diabetes');
+  expect(model.compared).toBe(true);
+  expect(model.areas).toEqual([{ code: 'E12000001', name: 'North East' }]);
+  expect(model.rows.map(({ slug, england }) => [slug, england?.value])).toEqual([
+    ['england-only', 29],
+    ['indicator', 28],
+  ]);
+});
