@@ -601,6 +601,9 @@ importers:
       cross-env:
         specifier: 'catalog:'
         version: 10.1.0
+      csv-parse:
+        specifier: 'catalog:'
+        version: 7.0.3
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

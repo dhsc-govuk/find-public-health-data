@@ -63,11 +63,15 @@ it.each([
 });
 
 it.each([
-  ['first', ['North East', 'London'], [10, 20], [40, 30]],
-  ['reverse', ['London', 'North East'], [20, 10], [30, 40]],
+  ['lower-is-better', 'first', ['North East', 'London'], [10, 20], [40, 30]],
+  ['lower-is-better', 'reverse', ['London', 'North East'], [20, 10], [30, 40]],
+  ['higher-is-better', 'first', ['London', 'North East'], [20, 10], [30, 40]],
+  ['higher-is-better', 'reverse', ['North East', 'London'], [10, 20], [40, 30]],
+  ['no-polarity', 'first', ['London', 'North East'], [20, 10], [30, 40]],
+  ['no-polarity', 'reverse', ['North East', 'London'], [10, 20], [40, 30]],
 ] as const)(
-  'exports sorted rows and aligned area columns in %s order',
-  async (direction, areas, first, second) => {
+  'exports sorted rows and aligned %s area columns in %s order',
+  async (polarity, direction, areas, first, second) => {
     vi.mocked(loadTopic).mockResolvedValue({
       topic: { slug: 'example', title: 'Example' },
       content: {
@@ -79,7 +83,7 @@ it.each([
               name,
               unit: '%',
               yearType: null,
-              polarity: 'lower-is-better',
+              polarity,
               topics: [],
             },
             areaData: [

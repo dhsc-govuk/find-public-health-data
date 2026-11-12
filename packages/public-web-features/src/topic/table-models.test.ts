@@ -160,46 +160,57 @@ it('keeps the same-period England comparison when an area has older data', () =>
   expect(JSON.stringify(model)).not.toContain('observations');
 });
 
-it('ranks areas by the selected row and keeps other rows aligned in both directions', () => {
-  const source = {
-    ...entry,
-    areaData: [
-      ...entry.areaData,
-      { areaCode: 'E12000002', areaName: 'North West', observations: [] },
-      { areaCode: 'E12000003', areaName: 'Yorkshire', observations: [observation(2023, 10)] },
-    ],
-  };
-  const second = {
-    ...source,
-    detail: { ...source.detail, shortId: 2, name: 'Second indicator' },
-    areaData: source.areaData.map((area, index) => ({
-      ...area,
-      observations: [observation(2023, index * 3)],
-    })),
-  };
-  const model = topicAreaTableModel(
-    [source, second],
-    { regionByCode: {}, levelByCode: {} },
-    'diabetes',
-  );
-  const params = new URLSearchParams({ sortAreas: 'first:1|' });
-  const first = sortTopicAreaTable(model, params);
-  expect(first.areas.map(({ areaName }) => areaName)).toEqual([
-    'Yorkshire',
-    'North East',
-    'North West',
-  ]);
-  expect(first.rows[1]?.cells.map(({ value }) => value)).toEqual([9, 3, 6]);
-
-  params.set('sortAreas', 'reverse:1|');
-  const reverse = sortTopicAreaTable(model, params);
-  expect(reverse.areas.map(({ areaName }) => areaName)).toEqual([
-    'North East',
-    'Yorkshire',
-    'North West',
-  ]);
-  expect(reverse.rows[1]?.cells.map(({ value }) => value)).toEqual([3, 9, 6]);
-});
+it.each([
+  ['lower-is-better', 'first', ['Yorkshire', 'North East', 'North West'], [9, 3, 6], 'ascending'],
+  [
+    'lower-is-better',
+    'reverse',
+    ['North East', 'Yorkshire', 'North West'],
+    [3, 9, 6],
+    'descending',
+  ],
+  ['higher-is-better', 'first', ['North East', 'Yorkshire', 'North West'], [3, 9, 6], 'descending'],
+  [
+    'higher-is-better',
+    'reverse',
+    ['Yorkshire', 'North East', 'North West'],
+    [9, 3, 6],
+    'ascending',
+  ],
+  ['no-polarity', 'first', ['North East', 'Yorkshire', 'North West'], [3, 9, 6], 'descending'],
+  ['no-polarity', 'reverse', ['Yorkshire', 'North East', 'North West'], [9, 3, 6], 'ascending'],
+] as const)(
+  'ranks %s areas in %s order, keeping missing values last and other rows aligned',
+  (polarity, order, areas, alignedValues, direction) => {
+    const source = {
+      ...entry,
+      detail: { ...entry.detail, polarity },
+      areaData: [
+        ...entry.areaData,
+        { areaCode: 'E12000002', areaName: 'North West', observations: [] },
+        { areaCode: 'E12000003', areaName: 'Yorkshire', observations: [observation(2023, 10)] },
+      ],
+    };
+    const second = {
+      ...source,
+      detail: { ...source.detail, shortId: 2, name: 'Second indicator' },
+      areaData: source.areaData.map((area, index) => ({
+        ...area,
+        observations: [observation(2023, index * 3)],
+      })),
+    };
+    const model = topicAreaTableModel(
+      [source, second],
+      { regionByCode: {}, levelByCode: {} },
+      'diabetes',
+    );
+    const sorted = sortTopicAreaTable(model, new URLSearchParams({ sortAreas: `${order}:1|` }));
+    expect(sorted.areas.map(({ areaName }) => areaName)).toEqual(areas);
+    expect(sorted.rows[1]?.cells.map(({ value }) => value)).toEqual(alignedValues);
+    expect(sorted.rows[0]?.cells.at(-1)?.value).toBeNull();
+    expect(sorted.columnSort).toEqual({ key: '1|', reverse: order === 'reverse', direction });
+  },
+);
 
 it('orders recently updated rows by the data update date and puts unknown dates last', () => {
   const model = topicAreaTableModel(

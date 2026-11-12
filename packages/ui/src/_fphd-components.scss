@@ -1637,7 +1637,7 @@ body.govuk-frontend-supported .fphd-filter-card {
   white-space: normal;
 }
 
-.fphd-rug-table td:not(:first-child, .fphd-rug-table__sort) {
+.fphd-rug-table td:not(:nth-child(2), .fphd-rug-table__sort) {
   text-align: center;
 }
 
