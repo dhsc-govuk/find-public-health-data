@@ -228,8 +228,9 @@ describe('rekeyDirectory', () => {
     const directory = await mkdtemp(join(tmpdir(), 'fphd-rekey-test-'));
     directories.push(directory);
     const rows: Partial<Record<(typeof TABLES)[number], string[]>> = {
+      dimension_value: ['77,3,__NULL__'],
       indicator: ['108'],
-      upload_batch: ['5,108,108,__NULL__'],
+      upload_batch: ['5,108,108'],
       observation: ['2,108,40,5'],
       observation_dimension: ['9,2,77,3'],
     };
@@ -251,11 +252,15 @@ describe('rekeyDirectory', () => {
       for await (const row of readGzipCsv(join(directory, `${table}.csv.gz`))) out.push(row);
       return out;
     };
+    expect((await read('dimension_value'))[1]).toEqual([
+      deterministicUuid('dimension_value', '77'),
+      deterministicUuid('dimension_type', '3'),
+      DATA_MIGRATION_NULL,
+    ]);
     expect((await read('upload_batch'))[1]).toEqual([
       deterministicUuid('upload_batch', '5'),
       deterministicUuid('indicator', '108'),
       deterministicUuid('indicator_version', '108'),
-      DATA_MIGRATION_NULL,
     ]);
     expect((await read('observation'))[1]).toEqual([
       deterministicUuid('observation', '2'),

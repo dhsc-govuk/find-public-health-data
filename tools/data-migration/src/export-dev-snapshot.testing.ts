@@ -39,8 +39,8 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
       },
     ],
     area_type: [
-      { id: 1, name: 'UA unchanged', hierarchy_type: 'Administrative', level: 1 },
-      { id: 2, name: 'England', hierarchy_type: 'Administrative', level: 0 },
+      { id: 1, name: 'UA unchanged', hierarchy_type: 'Administrative' },
+      { id: 2, name: 'England', hierarchy_type: 'Administrative' },
     ],
     area: [
       {
@@ -106,7 +106,6 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
         dimension_key: '1',
         created_at: sourceTimestamp,
         created_by: 'pholio-migration',
-        published_at: sourceTimestamp,
       },
     ],
     observation_dimension: [

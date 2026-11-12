@@ -210,8 +210,6 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
       rowCount: 3,
       columnNames: HEADER.split(','),
       validationResult: null,
-      kind: 'replace',
-      baseBatchId: null,
     });
     expect(await text(await storage.get(`${indicatorId}/${batchId}.csv`))).toBe(VALID_CSV);
     expect(await draftOf(ownerDb, indicatorId)).toMatchObject({

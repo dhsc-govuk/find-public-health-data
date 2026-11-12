@@ -19,7 +19,7 @@ const lookupTables = {
   dimensionValues: 'dimension_value',
   noteTypes: 'note_type',
 } as const;
-const integerColumns = new Set(['level', 'display_order', 'sort_order']);
+const integerColumns = new Set(['display_order', 'sort_order']);
 const booleanColumns = new Set(['is_required', 'is_aggregate']);
 
 interface CoreReferenceOptions {

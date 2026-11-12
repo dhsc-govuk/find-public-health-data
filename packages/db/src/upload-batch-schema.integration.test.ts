@@ -143,10 +143,7 @@ describe('the upload tables', () => {
   });
 
   it.each<[string, () => Record<string, unknown>]>([
-    ['a kind outside the vocabulary', () => ({ kind: 'append' })],
-    ['a base batch for a replacement', () => ({ base_batch_id: batchId })],
-    ['a superseded batch with nothing superseding it', () => ({ status: 'superseded' })],
-    ['a successor on a batch not superseded', () => ({ superseded_by_id: batchId })],
+    ['a status outside the vocabulary', () => ({ status: 'superseded' })],
     ['a hash in capitals', () => ({ sha256: 'A'.repeat(64) })],
     ['a hash of the wrong length', () => ({ sha256: 'a'.repeat(63) })],
   ])('refuses %s', async (_, columns) => {
