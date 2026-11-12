@@ -422,10 +422,39 @@ describe('updateIndicatorDraft', () => {
     expect((await getIndicatorDraftState(db, created.indicatorId))?.draft?.ageType).toBe('all');
   });
 
+  repositoryTest('holds the list of each demographic collected', async ({ db }) => {
+    const created = await newDraft(db, 'Demographics');
+    const answers = {
+      demographics: ['sex', 'ethnicity'],
+      sexes: ['females'],
+      genders: null,
+      ethnicGroups: ['asian', 'other'],
+    } satisfies IndicatorDraftAttributes;
+
+    await updateIndicatorDraft(db, created.indicatorId, 'sex-and-ages', answers, {}, AS_ACTOR);
+
+    expect((await getIndicatorDraftState(db, created.indicatorId))?.draft).toMatchObject(answers);
+  });
+
   repositoryTest.for<[string, IndicatorDraftAttributes]>([
-    ['no sexes', { sexes: [] }],
+    ['nothing collected', { demographics: [] }],
     // As a caller the types do not bind could send.
-    ['a sex outside the vocabulary', { sexes: ['everyone' as never] }],
+    ['a demographic outside the vocabulary', { demographics: ['age' as never] }],
+    ['no sexes beside sex collected', { demographics: ['sex'], sexes: [] }],
+    ['sex collected without its sexes', { demographics: ['sex'] }],
+    ['sexes without sex collected', { demographics: ['gender'], sexes: ['persons'] }],
+    ['a sex outside the vocabulary', { demographics: ['sex'], sexes: ['everyone' as never] }],
+    ['genders without gender collected', { genders: ['other'] }],
+    ['gender collected without its genders', { demographics: ['gender'] }],
+    [
+      'a gender outside the vocabulary',
+      { demographics: ['gender'], genders: ['females' as never] },
+    ],
+    ['ethnic groups without ethnicity collected', { ethnicGroups: ['white'] }],
+    [
+      'no ethnic groups beside ethnicity collected',
+      { demographics: ['ethnicity'], ethnicGroups: [] },
+    ],
     ['a specific age without its unit', { ageType: 'specific', specificAge: 5 }],
     [
       'a specific age beside another age type',

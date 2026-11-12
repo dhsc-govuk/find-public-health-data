@@ -187,7 +187,7 @@ describe('updateIndicatorDraft', () => {
         db,
         created.indicatorId,
         'sex-and-ages',
-        { sexes: ['females', 'males'], ageType: 'range' },
+        { demographics: ['sex'], sexes: ['females', 'males'], ageType: 'range' },
         { ageRanges: [underFive, sixteenPlus] },
         AS_ACTOR,
       );

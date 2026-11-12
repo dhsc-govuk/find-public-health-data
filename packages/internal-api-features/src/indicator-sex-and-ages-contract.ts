@@ -5,8 +5,14 @@ import {
   AGE_UNITS,
   type AgeUnit,
   MAX_AGE,
-  SEXES,
 } from '@fphd/utils/sex-and-ages';
+import {
+  DEMOGRAPHICS,
+  type Demographic,
+  ETHNIC_GROUPS,
+  GENDERS,
+  SEXES,
+} from '@fphd/utils/sex-gender-and-ethnicity';
 
 import type { IndicatorSection } from './indicator-section-contract.ts';
 import { shortText } from './text-contract.ts';
@@ -14,7 +20,10 @@ import { shortText } from './text-contract.ts';
 export const MAX_AGE_RANGES = 20;
 
 const fields = z.enum([
+  'demographics',
   'sexes',
+  'genders',
+  'ethnicGroups',
   'ageType',
   'ageRanges',
   'specificAge',
@@ -34,9 +43,12 @@ export interface AgeRangeFormValues {
 
 export type AgeRangePart = keyof AgeRangeFormValues;
 
-/** The answers as the form holds them: the sexes ticked, and every other control as text. */
+/** The answers as the form holds them: the boxes ticked in each group, and other controls as text. */
 export interface SexAndAgesFormValues {
+  demographics: string[];
   sexes: string[];
+  genders: string[];
+  ethnicGroups: string[];
   ageType: string;
   ageRanges: AgeRangeFormValues[];
   specificAge: string;
@@ -51,7 +63,41 @@ export function ageRangeFieldName(index: number, part: AgeRangePart): AgeRangeFi
   return `ageRanges[${index}].${part}`;
 }
 
-const SELECT_SEXES = 'Select sexes included';
+/** The field holding the list each demographic asks for when it is collected. */
+export const DEMOGRAPHIC_LIST_FIELDS = {
+  sex: 'sexes',
+  gender: 'genders',
+  ethnicity: 'ethnicGroups',
+} as const satisfies Record<Demographic, SexAndAgesField>;
+
+type DemographicListField = (typeof DEMOGRAPHIC_LIST_FIELDS)[Demographic];
+
+const SELECT_DEMOGRAPHICS = 'Select what was collected for this indicator';
+
+const SELECT_INCLUDED: Readonly<Record<Demographic, string>> = {
+  sex: 'Select the sexes included',
+  gender: 'Select the genders included',
+  ethnicity: 'Select the ethnic groups included',
+};
+
+/** The questions about what was collected, and which sexes, genders and ethnic groups. */
+const DEMOGRAPHIC_FIELDS: ReadonlySet<PropertyKey | undefined> = new Set([
+  'demographics',
+  ...Object.values(DEMOGRAPHIC_LIST_FIELDS),
+]);
+
+/** The boxes ticked in a group offering `values`. A value it does not offer gets its message. */
+function ticked<const Values extends readonly [string, ...string[]]>(
+  values: Values,
+  message: string,
+) {
+  return z.array(z.enum(values, { error: message }), { error: message });
+}
+
+/** The values ticked in the order the page lists them, once each, whatever order they came in. */
+function inPageOrder<Value extends string>(values: readonly Value[]) {
+  return (sent: readonly Value[]): Value[] => values.filter((value) => sent.includes(value));
+}
 
 const WHOLE_NUMBER = /^\d+$/;
 
@@ -181,11 +227,14 @@ function ageRangeProblems(range: AgeRange, index: number): Partial<Record<AgeRan
 
 const schema = z
   .object({
-    // Kept in the order the page lists them, once each, whatever order they were sent in.
-    sexes: z
-      .array(z.enum(SEXES, { error: SELECT_SEXES }), { error: SELECT_SEXES })
-      .min(1, SELECT_SEXES)
-      .transform((sent) => SEXES.filter((sex) => sent.includes(sex))),
+    demographics: ticked(DEMOGRAPHICS, SELECT_DEMOGRAPHICS)
+      .min(1, SELECT_DEMOGRAPHICS)
+      .transform(inPageOrder(DEMOGRAPHICS)),
+    sexes: ticked(SEXES, SELECT_INCLUDED.sex).transform(inPageOrder(SEXES)),
+    genders: ticked(GENDERS, SELECT_INCLUDED.gender).transform(inPageOrder(GENDERS)),
+    ethnicGroups: ticked(ETHNIC_GROUPS, SELECT_INCLUDED.ethnicity).transform(
+      inPageOrder(ETHNIC_GROUPS),
+    ),
     ageType: z.enum(AGE_TYPES, { error: 'Select the age type' }),
     ageRanges: z
       .array(ageRange)
@@ -194,6 +243,28 @@ const schema = z
     specificAgeUnit: ageUnit,
     ageDetail: shortText('Ages included'),
   })
+  // A demographic that was collected needs at least one of its list ticked. The list of one that
+  // was not collected need not hold anything, since the save clears it.
+  .superRefine(
+    (answers, ctx) => {
+      for (const demographic of answers.demographics) {
+        const field: DemographicListField = DEMOGRAPHIC_LIST_FIELDS[demographic];
+        // A list that is itself refused, such as one not sent at all, is read as it came.
+        const list: unknown = answers[field];
+
+        if (Array.isArray(list) && list.length === 0) {
+          ctx.addIssue({ code: 'custom', path: [field], message: SELECT_INCLUDED[demographic] });
+        }
+      }
+    },
+    // Also beside every other refusal, so they all show at once, unless what was collected is
+    // itself refused. An issue with no path refuses the whole input, which then has nothing to
+    // read.
+    {
+      when: ({ issues }) =>
+        issues.every(({ path }) => path?.[0] !== undefined && path[0] !== 'demographics'),
+    },
+  )
   .superRefine(
     ({ ageType, ageRanges, specificAge, specificAgeUnit, ageDetail }, ctx) => {
       const issue = (path: (string | number)[], message: string) =>
@@ -231,11 +302,13 @@ const schema = z
         issue(['ageDetail'], 'Enter the ages included');
       }
     },
-    // Also beside unanswered sexes or age type, or refused text, so every refusal shows at once.
+    // Also beside refused answers about what was collected, an unanswered age type, or refused
+    // text, so every refusal shows at once.
     {
       when: ({ issues }) =>
         issues.every(
-          ({ code, path }) => code === 'custom' || path?.[0] === 'sexes' || path?.[0] === 'ageType',
+          ({ code, path }) =>
+            code === 'custom' || DEMOGRAPHIC_FIELDS.has(path?.[0]) || path?.[0] === 'ageType',
         ),
     },
   );
@@ -260,7 +333,10 @@ const storedAgeUnit = z.enum(AGE_UNITS);
 
 /** The draft's answers: null or empty until answered, with each age as a number. */
 export const sexAndAgesAnswersSchema = z.object({
+  demographics: z.array(z.enum(DEMOGRAPHICS)),
   sexes: z.array(z.enum(SEXES)),
+  genders: z.array(z.enum(GENDERS)),
+  ethnicGroups: z.array(z.enum(ETHNIC_GROUPS)),
   ageType: z.enum(AGE_TYPES).nullable(),
   ageRanges: z.array(
     z.object({
@@ -291,7 +367,10 @@ export const sexAndAgesSection: IndicatorSection<
   schema,
   errorFields,
   formValues: (answers) => ({
+    demographics: answers.demographics,
     sexes: answers.sexes,
+    genders: answers.genders,
+    ethnicGroups: answers.ethnicGroups,
     ageType: text(answers.ageType),
     ageRanges: answers.ageRanges.map((range) => ({
       lowerLimit: text(range.lowerLimit),

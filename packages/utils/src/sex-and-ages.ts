@@ -1,14 +1,3 @@
-/** The sexes an indicator can cover: persons is everyone, whatever their sex. */
-export const SEXES = ['persons', 'females', 'males'] as const;
-
-export type Sex = (typeof SEXES)[number];
-
-export const SEX_LABELS: Readonly<Record<Sex, string>> = {
-  persons: 'Persons',
-  females: 'Females',
-  males: 'Males',
-};
-
 /** How an indicator's ages are given: all of them, as ranges, as one age, or described in words. */
 export const AGE_TYPES = ['all', 'range', 'specific', 'other'] as const;
 

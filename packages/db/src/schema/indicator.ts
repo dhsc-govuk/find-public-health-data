@@ -17,8 +17,14 @@ import {
   AGE_UNITS,
   type AgeType,
   MAX_AGE,
-  SEXES,
 } from '@fphd/utils/sex-and-ages';
+import {
+  DEMOGRAPHICS,
+  type Demographic,
+  ETHNIC_GROUPS,
+  GENDERS,
+  SEXES,
+} from '@fphd/utils/sex-gender-and-ethnicity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
 import { UPDATE_FREQUENCIES, UPDATE_FREQUENCIES_WITH_REASON } from '@fphd/utils/update-frequency';
@@ -118,6 +124,24 @@ function detailBesideChoice(column: AnyPgColumn, choice: string, detail: AnyPgCo
   return sql`(${column} IS NOT DISTINCT FROM ${literals([choice])}) = (${detail} IS NOT NULL)`;
 }
 
+/** A list of choices from a closed set, which holds at least one when it is answered. */
+function someOf(list: AnyPgColumn, values: readonly string[]): SQL {
+  return sql`${list} <@ ARRAY[${literals(values)}]::text[] AND cardinality(${list}) > 0`;
+}
+
+/**
+ * The list a demographic asks for, such as the sexes included, which the contract requires when
+ * that demographic was collected. It is kept beside that demographic being collected and nothing
+ * else.
+ */
+function listBesideDemographic(
+  demographics: AnyPgColumn,
+  demographic: Demographic,
+  list: AnyPgColumn,
+): SQL {
+  return sql`((${demographics} @> ARRAY[${literals([demographic])}]::text[]) IS TRUE) = (${list} IS NOT NULL)`;
+}
+
 /** An age in days, as the contract compares ages; null when either part is. */
 function ageInDays(age: AnyPgColumn, unit: AnyPgColumn): SQL {
   const days = Object.entries(AGE_UNIT_DAYS).map(
@@ -186,8 +210,12 @@ export const indicatorVersion = pgTable(
     unitId: uuid().references(() => unit.id),
     // The unit a publisher names under "Other".
     unitDetail: text(),
-    // Sex and ages
+    // Sex, gender and ethnicity: what was collected, and the ones included of each.
+    demographics: text({ enum: DEMOGRAPHICS }).array(),
     sexes: text({ enum: SEXES }).array(),
+    genders: text({ enum: GENDERS }).array(),
+    ethnicGroups: text({ enum: ETHNIC_GROUPS }).array(),
+    // Ages
     // The ranges an age type of range gives are rows of indicator_version_age_range.
     ageType: text({ enum: AGE_TYPES }),
     specificAge: smallint(),
@@ -408,9 +436,21 @@ export const indicatorVersion = pgTable(
       'indicator_version_reviewer_comments_detail_check',
       detailBesideYes(t.hasReviewerComments, t.reviewerCommentsDetail),
     ),
+    check('indicator_version_demographics_check', someOf(t.demographics, DEMOGRAPHICS)),
+    check('indicator_version_sexes_check', someOf(t.sexes, SEXES)),
     check(
-      'indicator_version_sexes_check',
-      sql`${t.sexes} <@ ARRAY[${literals(SEXES)}]::text[] AND cardinality(${t.sexes}) > 0`,
+      'indicator_version_sexes_demographic_check',
+      listBesideDemographic(t.demographics, 'sex', t.sexes),
+    ),
+    check('indicator_version_genders_check', someOf(t.genders, GENDERS)),
+    check(
+      'indicator_version_genders_demographic_check',
+      listBesideDemographic(t.demographics, 'gender', t.genders),
+    ),
+    check('indicator_version_ethnic_groups_check', someOf(t.ethnicGroups, ETHNIC_GROUPS)),
+    check(
+      'indicator_version_ethnic_groups_demographic_check',
+      listBesideDemographic(t.demographics, 'ethnicity', t.ethnicGroups),
     ),
     check('indicator_version_age_type_check', sql`${t.ageType} IN (${literals(AGE_TYPES)})`),
     check(

@@ -116,7 +116,10 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
     sample(
       sexAndAgesSection,
       {
+        demographics: ['sex'],
         sexes: ['persons'],
+        genders: [],
+        ethnicGroups: [],
         ageType: 'all',
         ageRanges: [],
         specificAge: '',

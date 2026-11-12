@@ -146,7 +146,7 @@ describe('IndicatorTaskListPage', () => {
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Data table',
       'Value type and units',
-      'Sex and ages',
+      'Sex, gender and ethnicity',
       'Period type',
       'Polarity',
       'Data quality',
@@ -172,7 +172,7 @@ describe('IndicatorTaskListPage', () => {
 
   it.each([
     ['Data', 'Value type and units', 'value-type-and-units'],
-    ['Data', 'Sex and ages', 'sex-and-ages'],
+    ['Data', 'Sex, gender and ethnicity', 'sex-and-ages'],
     ['Data', 'Period type', 'period-type'],
     ['Data', 'Polarity', 'polarity'],
     ['Data', 'Data quality', 'data-quality'],

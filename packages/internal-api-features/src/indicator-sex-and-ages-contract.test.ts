@@ -25,7 +25,10 @@ const ranges = (...given: Partial<AgeRangeFormValues>[]): SexAndAgesFormValues =
 });
 
 const form: SexAndAgesFormValues = {
+  demographics: ['sex'],
   sexes: ['persons'],
+  genders: [],
+  ethnicGroups: [],
   ageType: '',
   ageRanges: [],
   specificAge: '',
@@ -34,13 +37,65 @@ const form: SexAndAgesFormValues = {
 };
 
 describe('sexAndAgesSection', () => {
-  it('takes the sexes once each, in the order the page lists them', () => {
+  it('takes each group of boxes once each, in the order the page lists them', () => {
     const parsed = section.schema.parse({
       ...ranges({ lowerLimit: '16', lowerLimitUnit: 'years' }),
+      demographics: ['ethnicity', 'sex', 'gender', 'sex'],
       sexes: ['males', 'persons', 'males'],
+      genders: ['prefer-not-to-say', 'non-binary', 'persons'],
+      ethnicGroups: ['other', 'asian'],
     });
 
-    expect(parsed.sexes).toEqual(['persons', 'males']);
+    expect(parsed).toMatchObject({
+      demographics: ['sex', 'gender', 'ethnicity'],
+      sexes: ['persons', 'males'],
+      genders: ['persons', 'non-binary', 'prefer-not-to-say'],
+      ethnicGroups: ['asian', 'other'],
+    });
+  });
+
+  it.each([
+    ['sex', { sexes: ['females'] }],
+    ['gender', { genders: ['women-and-girls'] }],
+    ['ethnicity', { ethnicGroups: ['white'] }],
+  ])('accepts %s alone with its own list', (demographic, given) => {
+    expect(
+      sectionFieldErrors(section, {
+        ...form,
+        ageType: 'all',
+        demographics: [demographic],
+        sexes: [],
+        ...given,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('asks nothing of the lists of demographics not collected', () => {
+    expect(
+      sectionFieldErrors(section, {
+        ...form,
+        ageType: 'all',
+        demographics: ['gender'],
+        sexes: [],
+        genders: ['other'],
+        ethnicGroups: [],
+      }),
+    ).toBeUndefined();
+  });
+
+  it('refuses a collected demographic with none of its list ticked', () => {
+    expect(
+      sectionFieldErrors(section, {
+        ...form,
+        ageType: 'all',
+        demographics: ['sex', 'gender', 'ethnicity'],
+        sexes: [],
+      }),
+    ).toEqual({
+      sexes: 'Select the sexes included',
+      genders: 'Select the genders included',
+      ethnicGroups: 'Select the ethnic groups included',
+    });
   });
 
   it('takes the limits and ages without their surrounding spaces', () => {
@@ -100,25 +155,72 @@ describe('sexAndAgesSection', () => {
     ).toBeUndefined();
   });
 
+  it('refuses an empty list beside a refused list of another demographic', () => {
+    expect(
+      sectionFieldErrors(section, {
+        ...form,
+        ageType: 'all',
+        demographics: ['gender'],
+        sexes: [],
+        ethnicGroups: ['irish'],
+      }),
+    ).toEqual({
+      genders: 'Select the genders included',
+      ethnicGroups: 'Select the ethnic groups included',
+    });
+  });
+
+  it("refuses a collected list that was not sent with the list's own message", () => {
+    const { genders: _, ...withoutGenders } = { ...form, ageType: 'all', demographics: ['gender'] };
+
+    expect(sectionFieldErrors(section, withoutGenders)).toEqual({
+      genders: 'Select the genders included',
+    });
+  });
+
   it('refuses an empty form on every question at once', () => {
-    expect(sectionFieldErrors(section, { ...form, sexes: [] })).toEqual({
-      sexes: 'Select sexes included',
+    expect(sectionFieldErrors(section, { ...form, demographics: [], sexes: [] })).toEqual({
+      demographics: 'Select what was collected for this indicator',
       ageType: 'Select the age type',
+    });
+  });
+
+  it('refuses a collected demographic with an empty list beside a refused age', () => {
+    expect(sectionFieldErrors(section, { ...form, sexes: [], ageType: 'specific' })).toEqual({
+      sexes: 'Select the sexes included',
+      specificAge: 'Enter the age',
+      specificAgeUnit: 'Select the periods',
     });
   });
 
   it.each([
     [
+      { demographics: ['age'], ageType: 'other', ageDetail: 'Year 6' },
+      { demographics: 'Select what was collected for this indicator' },
+    ],
+    [
+      { demographics: 'sex', ageType: 'other', ageDetail: 'Year 6' },
+      { demographics: 'Select what was collected for this indicator' },
+    ],
+    [
       { sexes: ['everyone'], ageType: 'other', ageDetail: 'Year 6' },
-      { sexes: 'Select sexes included' },
+      { sexes: 'Select the sexes included' },
     ],
     [
       { sexes: ['persons', 'everyone'], ageType: 'other', ageDetail: 'Year 6' },
-      { sexes: 'Select sexes included' },
+      { sexes: 'Select the sexes included' },
     ],
     [
       { sexes: 'persons', ageType: 'other', ageDetail: 'Year 6' },
-      { sexes: 'Select sexes included' },
+      { sexes: 'Select the sexes included' },
+    ],
+    [
+      { demographics: ['gender'], genders: ['women'], ageType: 'all' },
+      { genders: 'Select the genders included' },
+    ],
+    [
+      { demographics: ['ethnicity'], ethnicGroups: ['asian', 'irish'], ageType: 'all' },
+      { ethnicGroups: 'Select the ethnic groups included' },
     ],
     [{ ageType: 'everyone' }, { ageType: 'Select the age type' }],
     [
@@ -244,7 +346,9 @@ describe('sexAndAgesSection', () => {
   it('accepts what it gave, so the API can apply it again', () => {
     const parsed = section.schema.parse({
       ...ranges({ lowerLimit: ' 16 ', lowerLimitUnit: 'years' }),
+      demographics: ['gender', 'sex'],
       sexes: ['males', 'persons'],
+      genders: ['other'],
     });
 
     expect(section.schema.parse(parsed)).toEqual(parsed);
@@ -255,7 +359,10 @@ describe('sexAndAgesSection.formValues', () => {
   it('gives each stored age to the form as text, and each unanswered one as empty', () => {
     expect(
       section.formValues({
+        demographics: ['sex', 'ethnicity'],
         sexes: ['females'],
+        genders: [],
+        ethnicGroups: ['black'],
         ageType: 'range',
         ageRanges: [
           { lowerLimit: 0, lowerLimitUnit: 'days', upperLimit: null, upperLimitUnit: null },
@@ -265,7 +372,10 @@ describe('sexAndAgesSection.formValues', () => {
         ageDetail: null,
       }),
     ).toEqual({
+      demographics: ['sex', 'ethnicity'],
       sexes: ['females'],
+      genders: [],
+      ethnicGroups: ['black'],
       ageType: 'range',
       ageRanges: [{ lowerLimit: '0', lowerLimitUnit: 'days', upperLimit: '', upperLimitUnit: '' }],
       specificAge: '',

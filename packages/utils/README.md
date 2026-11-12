@@ -46,8 +46,10 @@ of those values. Most also export a `*_LABELS` record of the words the pages sho
 - `./polarity`: which way an indicator's values are better, and which way a goal is met.
 - `./review-response-kind`: what a reviewer's response to a submission says, and
   `IMRG_DECISION_KINDS`, the responses that record a meeting's decision.
-- `./sex-and-ages`: the sexes an indicator can cover, how its ages are given, and the units an age
-  is given in with their length in days.
+- `./sex-and-ages`: how an indicator's ages are given, and the units an age is given in with their
+  length in days.
+- `./sex-gender-and-ethnicity`: what can be said to be collected for an indicator (sex, gender,
+  ethnicity), and the sexes, genders and ethnic groups it can cover.
 - `./source-part`: the numerator and the denominator, each of which names where its data comes from.
 - `./update-frequency`: how often an indicator's data is updated.
 - `./value-type-and-unit`: the value type and unit ids the code behaves on, the value types whose

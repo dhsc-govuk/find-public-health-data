@@ -42,7 +42,10 @@ describe('numeratorColumns and denominatorColumns', () => {
 describe('sexAndAgesColumns', () => {
   // Every age type's answers filled in, as a form without JavaScript may send them.
   const everyAnswer = (ageType: SexAndAges['ageType']): SexAndAges => ({
+    demographics: ['sex'],
     sexes: ['females', 'males'],
+    genders: [],
+    ethnicGroups: [],
     ageType,
     ageRanges: [{ lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' }],
     specificAge: '5',
@@ -50,9 +53,12 @@ describe('sexAndAgesColumns', () => {
     ageDetail: 'School year 6',
   });
 
-  it('reads unanswered sexes as none', () => {
+  it('reads unanswered demographics and their lists as none', () => {
     expect(sexAndAgesColumns.fromDraft(unansweredDraft)).toEqual({
+      demographics: [],
       sexes: [],
+      genders: [],
+      ethnicGroups: [],
       ageType: null,
       ageRanges: [],
       specificAge: null,
@@ -65,7 +71,10 @@ describe('sexAndAgesColumns', () => {
     const values = everyAnswer('range');
 
     expect(sexAndAgesColumns.toAttributes(values)).toEqual({
+      demographics: ['sex'],
       sexes: ['females', 'males'],
+      genders: null,
+      ethnicGroups: null,
       ageType: 'range',
       specificAge: null,
       specificAgeUnit: null,
@@ -75,6 +84,22 @@ describe('sexAndAgesColumns', () => {
       ageRanges: [
         { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
       ],
+    });
+  });
+
+  it('writes the list of each demographic collected, and clears the others', () => {
+    const values: SexAndAges = {
+      ...everyAnswer('all'),
+      demographics: ['gender', 'ethnicity'],
+      genders: ['non-binary'],
+      ethnicGroups: ['mixed', 'white'],
+    };
+
+    expect(sexAndAgesColumns.toAttributes(values)).toMatchObject({
+      demographics: ['gender', 'ethnicity'],
+      sexes: null,
+      genders: ['non-binary'],
+      ethnicGroups: ['mixed', 'white'],
     });
   });
 
@@ -93,7 +118,10 @@ describe('sexAndAgesColumns', () => {
     const values = everyAnswer('all');
 
     expect(sexAndAgesColumns.toAttributes(values)).toEqual({
+      demographics: ['sex'],
       sexes: ['females', 'males'],
+      genders: null,
+      ethnicGroups: null,
       ageType: 'all',
       specificAge: null,
       specificAgeUnit: null,
