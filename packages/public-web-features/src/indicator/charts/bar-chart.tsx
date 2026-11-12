@@ -110,7 +110,18 @@ function ObservationBars({
     return comparisonText[comparison ?? 'none'];
   };
   const key = colourByQuintile
-    ? quintileColours.map((fill, index) => ({ fill, label: quintileLabel(index + 1) }))
+    ? [
+        ...new Set(
+          rows
+            .filter(({ observation }) => observation?.value != null)
+            .map(({ quintile }) => quintile ?? null),
+        ),
+      ]
+        .sort((a, b) => (a ?? 6) - (b ?? 6))
+        .map((quintile) => ({
+          fill: quintileColours[(quintile ?? 0) - 1] ?? axisColour,
+          label: quintile ? quintileLabel(quintile) : 'Quintile unavailable',
+        }))
     : benchmark
       ? [...new Set(rows.map(({ comparison }) => comparison ?? 'none'))].map((judgement) => ({
           fill: comparisonColours[judgement],

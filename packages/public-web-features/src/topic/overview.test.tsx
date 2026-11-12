@@ -137,6 +137,35 @@ it('uses the selected period trend when missing values push valid points beyond 
   expect(summary(doc)[3]).toEqual(['Trend (last 5 periods)', 'Increasing and getting better']);
 });
 
+it.each([0, 7.9])('uses the latest non-null value %s when the history ends in gaps', (value) => {
+  const doc = card(
+    [6.8, 7.1, value, null, null].map((value, index) => ({
+      ...observation(),
+      value,
+      count: value === null ? null : 4_109_134,
+      fromDate: `${2020 + index}-01-01`,
+      toDate: `${2020 + index}-12-31`,
+    })),
+    {},
+  );
+  expect(summary(doc).slice(0, 3)).toEqual([
+    ['Most recent period', '2022'],
+    ['Count', '4,109,134'],
+    ['Calculated value', `${value.toFixed(1)}%`],
+  ]);
+  expect(doc.querySelector('desc')?.textContent).toContain('No data for 2023, 2024.');
+  expect(doc.querySelector('.fphd-sparkline__endpoints')?.textContent).toContain('in 2022');
+});
+
+it('shows no data when every observation is a null gap', () => {
+  const doc = card([{ ...observation(), value: null, count: null }], {});
+  expect(summary(doc).slice(0, 3)).toEqual([
+    ['Most recent period', 'No data'],
+    ['Count', 'No data'],
+    ['Calculated value', 'No data'],
+  ]);
+});
+
 it('keeps the trend on the displayed period type for indicators with sex and period breakout rows', () => {
   const annual = [1, 2, 3, 4, 5].map((value, index) => ({
     ...observation(value, [sex('Female')]),

@@ -152,11 +152,7 @@ export function ChartDataTable({
           <thead className="govuk-table__head">
             <tr className="govuk-table__row">
               {columns.map((column, index) => (
-                <th
-                  className="govuk-table__header"
-                  key={index === 0 ? 'row-heading' : column}
-                  scope="col"
-                >
+                <th className="govuk-table__header" key={`${index}:${column}`} scope="col">
                   {column}
                 </th>
               ))}
@@ -169,7 +165,7 @@ export function ChartDataTable({
                   {label}
                 </th>
                 {values.map((value, index) => (
-                  <td className="govuk-table__cell" key={columns[index + 1]}>
+                  <td className="govuk-table__cell" key={`${index}:${columns[index + 1]}`}>
                     {value}
                   </td>
                 ))}

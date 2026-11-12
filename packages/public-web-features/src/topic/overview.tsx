@@ -113,7 +113,7 @@ export function TopicOverview({
             const series = filterObservations(cell?.series ?? [], { periodType }).sort(
               (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
             );
-            const latest = series.at(-1);
+            const latest = series.findLast(({ value }) => value !== null);
             const selection = entry.tableSeries?.find(
               (selection) => selection.sex === row?.sex && selection.periodType === periodType,
             );
