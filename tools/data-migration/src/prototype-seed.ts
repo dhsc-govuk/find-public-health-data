@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { createGunzip } from 'node:zlib';
 
 import { schema } from '@fphd/db';
+import { dataMigrationKey } from '@fphd/db-operations/data-migration-contract';
 import { slugify } from '@fphd/utils/slug';
 import { countIsNumerator } from '@fphd/utils/value-type-and-unit';
 import { parse } from 'csv-parse';
@@ -468,9 +469,14 @@ async function exportChangedTables(
       // The table has no created_by for observations: the batch's uploader is the writer.
       .filter((column) => table !== 'observation' || column !== 'created_by');
     const quoted = columns.map((column) => `"${column}"`).join(', ');
+    const orderBy = dataMigrationKey(table)
+      .map((column) => `"${column}"`)
+      .join(', ');
     await writeGzipped(
       await sql
-        .unsafe(`COPY (SELECT ${quoted} FROM "${table}" ORDER BY id) TO STDOUT WITH CSV HEADER`)
+        .unsafe(
+          `COPY (SELECT ${quoted} FROM "${table}" ORDER BY ${orderBy}) TO STDOUT WITH CSV HEADER`,
+        )
         .readable(),
       join(outDirectory, `${table}.csv.gz`),
     );

@@ -86,6 +86,13 @@ EXPORT_TABLES = [
     "observation_note",
 ]
 
+# The bridge tables have no id. Their rows are ordered by the observation and the dimension type
+# or note type they link it to, as dataMigrationKey in @fphd/db-operations orders package files.
+BRIDGE_KEYS = {
+    "observation_dimension": ("observation_id", "dimension_type_id"),
+    "observation_note": ("observation_id", "note_type_id"),
+}
+
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
 # SYSTEM_USER_IDS.testSeed in @fphd/db: the user the imported records are written by.
 TEST_SEED_USER_ID = "01a13c69-96ab-7598-9ce0-f5fa1e68080a"
@@ -593,7 +600,11 @@ def export_tables(conn, seed_dir, out_dir, new_version_sources):
             else:
                 selected = ", ".join(f'"{column}"' for column in columns)
                 relation = f'"{table}" t'
-            query = f"COPY (SELECT {selected} FROM {relation} ORDER BY t.id) TO STDOUT WITH CSV HEADER"
+            order_by = ", ".join(f't."{column}"' for column in BRIDGE_KEYS.get(table, ("id",)))
+            query = (
+                f"COPY (SELECT {selected} FROM {relation} ORDER BY {order_by}) "
+                "TO STDOUT WITH CSV HEADER"
+            )
 
             target_path = out_dir / f"{table}.csv.gz"
             with gzip.open(target_path, "wt", newline="", encoding="utf-8") as target:
