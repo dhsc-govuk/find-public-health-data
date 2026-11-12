@@ -19,8 +19,8 @@ step = runpy.run_path(str(Path(__file__).with_name("tidy-reference-names.py")))
 TYPE_FIELDS = ["id", "name", "dimension_class", "is_required"]
 VALUE_FIELDS = ["id", "dimension_type_id", "parent_id", "name"]
 NOTE_FIELDS = ["id", "text", "category"]
-DIMENSION_FIELDS = ["id", "observation_id", "dimension_value_id", "dimension_type_id"]
-OBSERVATION_NOTE_FIELDS = ["id", "observation_id", "note_type_id"]
+DIMENSION_FIELDS = ["observation_id", "dimension_value_id", "dimension_type_id"]
+OBSERVATION_NOTE_FIELDS = ["observation_id", "note_type_id"]
 
 
 def write_table(directory, table, fields, rows, ending="\n"):
@@ -80,7 +80,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
                     ["30", "3", "20", "Most deprived"],
                 ],
                 notes=[["5", "Value suppressed ", "disclosure"]],
-                dimensions=[["100", "1000", "10", "1"], ["101", "1001", "21", "2"]],
+                dimensions=[["1000", "10", "1"], ["1001", "21", "2"]],
             )
 
             tidy_reference_names(directory)
@@ -105,7 +105,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
             )
             self.assertEqual(
                 read_table(directory, "observation_dimension"),
-                [["100", "1000", "10", "1"], ["101", "1001", "11", "1"]],
+                [["1000", "10", "1"], ["1001", "11", "1"]],
             )
 
     def test_keeps_each_file_line_ending(self):
@@ -122,7 +122,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
             with gzip.open(Path(directory, "note_type.csv.gz"), "rb") as source:
                 self.assertEqual(source.read(), b"id,text,category\r\n1,Note,quality\r\n")
 
-    def test_merges_note_types_keeping_the_lowest_id_note_per_observation(self):
+    def test_merges_note_types_keeping_one_note_per_observation(self):
         with tempfile.TemporaryDirectory() as directory:
             write_seed(
                 directory,
@@ -132,7 +132,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
                     ["7", "Aggregated from values for merged CCGs", "geographic"],
                     ["3", "Aggregated from values for merged CCGs", "geographic"],
                 ],
-                observation_notes=[["9", "1000", "7"], ["2", "1000", "3"], ["3", "1001", "7"]],
+                observation_notes=[["1000", "3"], ["1000", "7"], ["1001", "7"]],
             )
 
             tidy_reference_names(directory)
@@ -142,7 +142,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
                 [["3", "Aggregated from values for merged CCGs", "geographic"]],
             )
             self.assertEqual(
-                read_table(directory, "observation_note"), [["2", "1000", "3"], ["3", "1001", "3"]]
+                read_table(directory, "observation_note"), [["1000", "3"], ["1001", "3"]]
             )
 
     def test_leaves_a_bridge_no_merge_touches_as_it_was(self):
@@ -152,7 +152,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
                 types=[],
                 values=[],
                 notes=[["1", "Merged", "geographic"], ["2", "Merged ", "geographic"]],
-                observation_notes=[["1", "1000", "1"]],
+                observation_notes=[["1000", "1"]],
             )
             path = Path(directory, "observation_note.csv.gz")
             before = path.read_bytes()
@@ -217,7 +217,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
                 types=[["1", "Deciles", "inequality", "f"], ["2", "Deciles ", "inequality", "f"]],
                 values=[["10", "1", "", "Most deprived"], ["20", "2", "", "Most deprived"]],
                 notes=[],
-                dimensions=[["100", "1000", "10", "1"], ["101", "1000", "20", "2"]],
+                dimensions=[["1000", "10", "1"], ["1000", "20", "2"]],
             )
             Path(directory, "source-manifest.json").write_text(
                 json.dumps({"source_csv_null": NULL_MARKER, "tables": {}})
@@ -238,7 +238,7 @@ class TidyReferenceNamesTest(unittest.TestCase):
                 types=[["1", "Deciles", "inequality", "f"]],
                 values=[["10", "1", NULL_MARKER, "Most deprived "]],
                 notes=[["1", "Merged", "geographic"], ["2", "Merged ", "geographic"]],
-                observation_notes=[["1", "1000", "1"], ["2", "1000", "2"]],
+                observation_notes=[["1000", "1"], ["1000", "2"]],
             )
             tables = {
                 table: {"rows": 0, "bytes": 1, "sha256": "0" * 64}

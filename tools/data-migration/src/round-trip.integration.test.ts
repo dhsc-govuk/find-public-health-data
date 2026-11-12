@@ -103,7 +103,6 @@ async function snapshot(
       ...row,
     })),
     observation_dimension: observations.map((row) => ({
-      id: Number(row.id) * 4,
       observation_id: row.id,
       dimension_value_id: 1,
       dimension_type_id: 1,

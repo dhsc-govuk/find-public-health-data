@@ -42,8 +42,9 @@ src/
   silently cut short.
 - **Ids**: UUIDv7 via `uuidPrimaryKey()` from `schema/helpers.ts`, which defaults to Postgres 18's
   native `uuidv7()`. Rows created by an import supply their own ids instead, so the id survives a
-  re-import. The read models in `cache.ts` are the exception: they are keyed by the columns they
-  aggregate and carry no surrogate id.
+  re-import. The read models in `cache.ts` also carry no surrogate id, keyed by the columns they
+  aggregate, as do the bridges `observation_dimension` and `observation_note`, keyed by their
+  observation and the dimension type or note type they link it to.
 - **Timestamps**: every core data table (the classifications and the lists a publisher chooses from)
   spreads `timestamps` from `schema/helpers.ts` (`created_at` / `updated_at`, timestamptz).
   `updated_at` is app-maintained: the import's conditional upsert bumps it only on a row the file

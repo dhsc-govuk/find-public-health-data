@@ -6,9 +6,9 @@ import {
   foreignKey,
   index,
   pgTable,
+  primaryKey,
   text,
   timestamp,
-  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -93,13 +93,12 @@ export const observation = pgTable(
   ],
 );
 
-// dimension_type_id is denormalised onto the bridge so the database itself can
-// enforce at most one value per dimension type per observation; the composite
-// foreign key keeps it consistent with the referenced dimension value.
+// dimension_type_id is denormalised onto the bridge so its primary key can hold
+// an observation to one value per dimension type; the composite foreign key
+// keeps it consistent with the referenced dimension value.
 export const observationDimension = pgTable(
   'observation_dimension',
   {
-    id: uuidPrimaryKey(),
     observationId: uuid()
       .notNull()
       .references(() => observation.id, { onDelete: 'cascade' }),
@@ -112,10 +111,10 @@ export const observationDimension = pgTable(
       foreignColumns: [dimensionValue.id, dimensionValue.dimensionTypeId],
       name: 'observation_dimension_value_type_fk',
     }),
-    unique('observation_dimension_observation_id_dimension_type_id_unique').on(
-      t.observationId,
-      t.dimensionTypeId,
-    ),
+    primaryKey({
+      name: 'observation_dimension_pk',
+      columns: [t.observationId, t.dimensionTypeId],
+    }),
     // Finds the observations that carry a dimension value. Queries that ask whether a value is in
     // use need it, and so does the foreign key when a dimension value changes or is deleted.
     index('idx_observation_dimension_value').on(t.dimensionValueId),
@@ -125,7 +124,6 @@ export const observationDimension = pgTable(
 export const observationNote = pgTable(
   'observation_note',
   {
-    id: uuidPrimaryKey(),
     observationId: uuid()
       .notNull()
       .references(() => observation.id, { onDelete: 'cascade' }),
@@ -133,7 +131,5 @@ export const observationNote = pgTable(
       .notNull()
       .references(() => noteType.id),
   },
-  (t) => [
-    unique('observation_note_observation_id_note_type_id_unique').on(t.observationId, t.noteTypeId),
-  ],
+  (t) => [primaryKey({ name: 'observation_note_pk', columns: [t.observationId, t.noteTypeId] })],
 );

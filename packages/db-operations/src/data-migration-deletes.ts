@@ -2,8 +2,15 @@ import { schema } from '@fphd/db';
 import type postgres from 'postgres';
 
 import { MIGRATION_USER_ID } from './data-migration-actors.ts';
-import { copyInto, type DataMigrationProgressReporter } from './data-migration-copy.ts';
+import {
+  copyInto,
+  type DataMigrationProgressReporter,
+  quoteIdentifiers,
+} from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
+import { dataMigrationKey } from './data-migration-manifest.ts';
+import { upsertStage } from './data-migration-table-import.ts';
+import { remapKeyColumns } from './reference-data-maps.ts';
 
 const { UNPUBLISHED_STATUS_LITERALS } = schema;
 
@@ -21,7 +28,11 @@ export async function stageDeletes(
   report: DataMigrationProgressReporter,
 ): Promise<void> {
   const stage = `data_migration_delete_${table}`;
-  await tx.unsafe(`CREATE TEMP TABLE "${stage}" (id uuid PRIMARY KEY) ON COMMIT DROP`);
+  const key = dataMigrationKey(table);
+  const keyColumns = key.map((column) => `${quoteIdentifiers([column])} uuid`).join(', ');
+  await tx.unsafe(
+    `CREATE TEMP TABLE "${stage}" (${keyColumns}, PRIMARY KEY (${quoteIdentifiers(key)})) ON COMMIT DROP`,
+  );
   const { columns } = await validateMigrationHeader(tx, stage, file);
   await copyInto(
     tx,
@@ -37,6 +48,15 @@ export async function stageDeletes(
   );
   if (Number(staged?.count) !== expected) {
     throw new Error(`${table} staged ${staged?.count ?? 0} deletes; package declares ${expected}`);
+  }
+  if (await remapKeyColumns(tx, table, stage)) {
+    // Two package type ids can map to one core row, as when the source drops a note type and
+    // lists another of the same text. The increment then deletes the row under the old id and
+    // upserts it under the new one. The upsert keeps the row, so its delete is dropped here.
+    const matched = key
+      .map((column) => `d.${quoteIdentifiers([column])} = u.${quoteIdentifiers([column])}`)
+      .join(' AND ');
+    await tx.unsafe(`DELETE FROM "${stage}" d USING "${upsertStage(table)}" u WHERE ${matched}`);
   }
 }
 
@@ -89,19 +109,26 @@ export async function prepareVersionDeletes(tx: postgres.TransactionSql): Promis
   `;
 }
 
-export async function applyDeletes(
-  tx: postgres.TransactionSql,
-  table: string,
-  expected: number,
-): Promise<void> {
+/** Deletes the staged rows, each of which must be in the table. */
+export async function applyDeletes(tx: postgres.TransactionSql, table: string): Promise<void> {
   const stage = `data_migration_delete_${table}`;
+  const key = quoteIdentifiers(dataMigrationKey(table));
+  const [staged] = await tx.unsafe<{ count: number }[]>(
+    `SELECT count(*)::int AS count FROM "${stage}"`,
+  );
+  const expected = Number(staged?.count);
+  // A key of one column reads as the bare id, and a key of several as a row such as (a,b).
   const deleting =
     expected > 0
-      ? await tx.unsafe<{ id: string }[]>(`SELECT id FROM "${stage}" ORDER BY id LIMIT 20`)
+      ? await tx.unsafe<{ id: string }[]>(
+          `SELECT (${key})::text AS id FROM "${stage}" ORDER BY ${key} LIMIT 20`,
+        )
       : [];
   let result: { count: number };
   try {
-    result = await tx.unsafe(`DELETE FROM "${table}" WHERE id IN (SELECT id FROM "${stage}")`);
+    result = await tx.unsafe(
+      `DELETE FROM "${table}" WHERE (${key}) IN (SELECT ${key} FROM "${stage}")`,
+    );
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23503') {
       throw new Error(
@@ -112,6 +139,6 @@ export async function applyDeletes(
     throw error;
   }
   if (result.count !== expected) {
-    throw new Error(`${table} deleted ${result.count} rows; package declares ${expected}`);
+    throw new Error(`${table} deleted ${result.count} rows; ${expected} were staged`);
   }
 }
