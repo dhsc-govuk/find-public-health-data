@@ -2,7 +2,7 @@ import { apiContext } from '@fphd/web-server/api-context';
 import { createFakeApiClient } from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SHOWN_VERSION } from '../testing.ts';
+import { indicatorDetail, SHOWN_VERSION } from '../testing.ts';
 import { loadPublishingDate, publishingDateExample } from './loader.ts';
 
 const id = '00000000-0000-7000-8000-000000000001';
@@ -15,12 +15,13 @@ const unanswered = {
   publishingTimeMinute: null,
 };
 
-function load(answers: Record<string, string | null>) {
+function load(answers: Record<string, string | null>, indicatorStatus: 'new' | 'live' = 'new') {
   const provider = new RouterContextProvider();
   provider.set(
     apiContext,
     createFakeApiClient({
       [`GET /api/internal/indicators/${id}/publishing-date`]: { answers, version: SHOWN_VERSION },
+      [`GET /api/internal/indicators/${id}`]: indicatorDetail({ id, indicatorStatus }),
     }),
   );
 
@@ -68,7 +69,12 @@ describe('loadPublishingDate', () => {
       values: answers,
       version: SHOWN_VERSION,
       dateExample: '9 11 2027',
+      isUpdate: false,
     });
+  });
+
+  it('says whether the draft updates a live indicator', async () => {
+    expect((await load(unanswered, 'live')).isUpdate).toBe(true);
   });
 });
 

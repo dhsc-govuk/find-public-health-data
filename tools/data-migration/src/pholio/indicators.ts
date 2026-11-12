@@ -391,6 +391,8 @@ export async function exportIndicators(context: PholioExportOptions) {
       sponsors_and_stakeholders: null,
       has_reviewer_comments: null,
       reviewer_comments_detail: null,
+      update_summary: null,
+      update_summary_for_reviewers: null,
       created_at: enteredAt,
       updated_at: enteredAt,
       created_by: 'pholio-migration',

@@ -1014,6 +1014,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     draftResponseKind: null,
     draftReviewers: [],
   };
+  const noneFound = async () => undefined;
   const neverSentBack: RevisionRoundRow = {
     hasDraft: true,
     draftLocked: false,
@@ -1047,7 +1048,11 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     const findDraftState = vi.fn().mockResolvedValue(draftState);
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers: noneFound,
+      }),
     )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
@@ -1066,6 +1071,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       },
       isUpdate: false,
       canSubmit: false,
+      changedTasks: [],
       review: null,
       draftUpdatedAt: '2026-10-22T09:30:00.123Z',
       editable: true,
@@ -1093,6 +1099,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         'sex-gender-and-ethnicity': 'not_started',
         ages: 'not_started',
         tagging: 'not_started',
+        'update-summary': 'not_started',
       },
     });
   });
@@ -1105,7 +1112,11 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     });
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers: noneFound,
+      }),
     )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
@@ -1115,17 +1126,27 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
 
   it('reports a draft behind a published version as an update of a live indicator', async () => {
     const findDraftState = vi.fn().mockResolvedValue({ ...draftState, indicatorStatus: 'live' });
+    const findPublishedAnswers = vi.fn().mockResolvedValue({
+      ...draftState.draft,
+      polarity: 'higher-is-better',
+    });
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers,
+      }),
     )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
     expect(response.status).toBe(200);
+    expect(findPublishedAnswers).toHaveBeenCalledWith(row.id);
     expect(response.body).toMatchObject({
       indicator: { indicatorStatus: 'live', draftStatus: 'draft' },
       isUpdate: true,
+      changedTasks: ['polarity'],
     });
   });
 
@@ -1137,7 +1158,11 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     });
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers: noneFound,
+      }),
     )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
@@ -1172,7 +1197,9 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       flags,
     });
 
-    const response = await request(createTestApp({ findDraftState, findRevisionRound }))
+    const response = await request(
+      createTestApp({ findDraftState, findRevisionRound, findPublishedAnswers: noneFound }),
+    )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
 
@@ -1194,7 +1221,11 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     const findDraftState = vi.fn().mockResolvedValue(undefined);
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers: noneFound,
+      }),
     )
       .get('/api/internal/indicators/00000000-0000-7000-8000-000000000000/task-list')
       .set('Cookie', await publisherCookie());
@@ -1212,7 +1243,11 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     });
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers: noneFound,
+      }),
     )
       .get(`/api/internal/indicators/${row.id}/task-list`)
       .set('Cookie', await publisherCookie());
@@ -1225,7 +1260,11 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
     const findDraftState = vi.fn();
 
     const response = await request(
-      createTestApp({ findDraftState, findRevisionRound: async () => neverSentBack }),
+      createTestApp({
+        findDraftState,
+        findRevisionRound: async () => neverSentBack,
+        findPublishedAnswers: noneFound,
+      }),
     )
       .get('/api/internal/indicators/108/task-list')
       .set('Cookie', await publisherCookie());

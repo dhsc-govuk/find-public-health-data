@@ -16,6 +16,7 @@ import {
   polaritySection,
   publishingDateSection,
   updateFrequencySection,
+  updateSummarySection,
   valueTypeAndUnitsSection,
   varianceAndQualitySection,
 } from '@fphd/internal-api-features/contract';
@@ -47,6 +48,7 @@ import * as publishingDate from './indicator-publishing-date/route.tsx';
 import * as sexGenderAndEthnicity from './indicator-sex-gender-and-ethnicity/route.tsx';
 import * as tagging from './indicator-tagging/route.tsx';
 import * as updateFrequency from './indicator-update-frequency/route.tsx';
+import * as updateSummary from './indicator-update-summary/route.tsx';
 import * as valueTypeAndUnits from './indicator-value-type-and-units/route.tsx';
 import * as varianceAndQuality from './indicator-variance-and-quality/route.tsx';
 import * as editTopic from './topic-admin/edit-route.tsx';
@@ -229,7 +231,7 @@ const forms: {
     publishingDateSection,
     'When should this indicator be published?',
     { publishingDateDay: 'Enter the publishing date' },
-    { dateExample: '9 11 2027' },
+    { dateExample: '9 11 2027', isUpdate: false },
     { ...unanswered(publishingDateSection), ...DEFAULT_PUBLISHING_TIME },
   ),
   ...(
@@ -266,6 +268,13 @@ const forms: {
     copyrightAndDataReuseSection,
     'Copyright and data re-use',
     { hasCustomCopyright: 'Select whether the copyright is anything other than Crown copyright' },
+  ),
+  sectionForm(
+    'update summary',
+    updateSummary,
+    updateSummarySection,
+    'What is the summary of this update?',
+    { updateSummary: 'Enter a summary of this update' },
   ),
   sectionForm('benchmarking', benchmarking, benchmarkingSection, 'Benchmarking', {
     hasGoalBenchmark: 'Select whether there are any goal benchmarks for this indicator',

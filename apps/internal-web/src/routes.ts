@@ -186,6 +186,10 @@ export default [
         'publish/indicators/:id/tagging',
         '../../../packages/internal-web-features/src/indicator-tagging/route.tsx',
       ),
+      route(
+        'publish/indicators/:id/update-summary',
+        '../../../packages/internal-web-features/src/indicator-update-summary/route.tsx',
+      ),
     ]),
     layout('./admin.tsx', [
       route('manage', './manage.tsx'),

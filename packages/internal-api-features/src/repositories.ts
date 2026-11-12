@@ -39,6 +39,7 @@ import {
   createIndicatorDraft,
   getIndicatorDraftState,
   getIndicatorNotesForReviewers,
+  getPublishedAnswers,
   type IndicatorDraft,
   type IndicatorDraftAttributes,
   type IndicatorDraftStateRow,
@@ -143,6 +144,8 @@ export interface InternalIndicatorRepository {
   findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
   /** The draft and whether anything is published, read together for the task list. */
   findDraftState(id: string): Promise<IndicatorDraftStateRow | undefined>;
+  /** The published version's answers, which an update is compared with; undefined with none. */
+  findPublishedAnswers(id: string): Promise<IndicatorDraft | undefined>;
   /** The notes for reviewers, from the draft or else the published version. */
   findNotesForReviewers(id: string): Promise<IndicatorNotesForReviewersRow | undefined>;
   /** What the indicator's history is made from, or undefined with none. */
@@ -318,6 +321,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findById: (id) => getIndicatorById(db, id),
       findAccess: (id) => findIndicatorAccess(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),
+      findPublishedAnswers: (id) => getPublishedAnswers(db, id),
       findNotesForReviewers: (id) => getIndicatorNotesForReviewers(db, id),
       findHistory: (id) => findIndicatorHistory(db, id),
       createDraft: (id, attributes, actor, teamId) =>

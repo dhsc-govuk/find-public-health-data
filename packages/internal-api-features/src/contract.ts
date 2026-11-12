@@ -374,6 +374,12 @@ export const indicatorTaskListSchema = z.object({
    */
   canSubmit: z.boolean(),
   tasks: indicatorTaskStatusesSchema,
+  /**
+   * On an update, the tasks whose answers differ from the published version's. The publishing
+   * date and the update summary are never listed, because every update answers them afresh.
+   * Empty for a new indicator.
+   */
+  changedTasks: z.array(indicatorTaskKeySchema),
   /** The round of review that sent the draft back; null unless its latest submission was. */
   review: indicatorTaskListReviewSchema.nullable(),
   /** The draft's last edit, which a submission sends back to confirm the draft it was shown. */
@@ -489,6 +495,7 @@ export * from './indicator-section-contract.ts';
 export * from './indicator-sex-gender-and-ethnicity-contract.ts';
 export * from './indicator-tagging-contract.ts';
 export * from './indicator-update-frequency-contract.ts';
+export * from './indicator-update-summary-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';
 export * from './indicator-variance-and-quality-contract.ts';
 export * from './notes-for-reviewers-contract.ts';

@@ -8,7 +8,7 @@ import {
   TaskList,
 } from '@fphd/ui';
 
-import { TASK_GROUPS } from '../indicator-tasks.ts';
+import { type TaskGroup, taskGroups, updateTaskStatus } from '../indicator-tasks.ts';
 import { indicatorSampleAnswersPath, indicatorTaskListPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
 import { StatusTag } from '../status-tag/status-tag.tsx';
@@ -63,13 +63,46 @@ function SampleAnswersForm({ id }: { id: string }) {
   );
 }
 
+/**
+ * One group of a draft's tasks, each linking to its page with its status. On an update, the
+ * publishing date and the update summary are not links until there is a change to publish.
+ */
+function TaskGroupList({ group, taskList }: { group: TaskGroup; taskList: IndicatorTaskList }) {
+  const { indicator, isUpdate, tasks } = taskList;
+
+  return (
+    <div>
+      <h2 className="govuk-heading-m">{group.title}</h2>
+      <TaskList
+        id={group.id}
+        items={group.tasks.map(({ key, path, title }) => {
+          if (!isUpdate) {
+            return {
+              title,
+              href: path(indicator.id, tasks[key]),
+              status: <StatusTag type="task" status={tasks[key]} />,
+            };
+          }
+
+          const status = updateTaskStatus(taskList, key);
+          return {
+            title,
+            href: status === 'no_changes' ? undefined : path(indicator.id, tasks[key]),
+            status: <StatusTag type="update-task" status={status} />,
+          };
+        })}
+      />
+    </div>
+  );
+}
+
 export function IndicatorTaskListPage({
   taskList,
   requests = null,
   offersSampleAnswers = false,
   formError,
 }: TaskListPageProps) {
-  const { indicator, tasks } = taskList;
+  const { indicator, isUpdate, tasks } = taskList;
 
   return (
     <GridRow>
@@ -81,19 +114,9 @@ export function IndicatorTaskListPage({
           You can complete these sections in any order. If you exit at any point, any section you
           have completed will be saved.
         </InsetText>
-        {TASK_GROUPS.map((group) =>
+        {taskGroups(isUpdate).map((group) =>
           requests === null ? (
-            <div key={group.id}>
-              <h2 className="govuk-heading-m">{group.title}</h2>
-              <TaskList
-                id={group.id}
-                items={group.tasks.map(({ key, path, title }) => ({
-                  title,
-                  href: path(indicator.id, tasks[key]),
-                  status: <StatusTag type="task" status={tasks[key]} />,
-                }))}
-              />
-            </div>
+            <TaskGroupList group={group} key={group.id} taskList={taskList} />
           ) : (
             <ReviewTaskList
               group={group}

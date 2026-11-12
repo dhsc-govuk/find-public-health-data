@@ -2,7 +2,7 @@ import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, listChanges, recordAudit } from '@fphd/db/audit-log';
 import { type IndicatorDraftVersion, isPublished } from '@fphd/internal-workflow';
 import { slugify, slugProblem } from '@fphd/utils/slug';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 
 import {
   type CiMethodKind,
@@ -111,6 +111,25 @@ export async function getIndicatorDraftState(
   if (draft === null) return { ...state, draft: null };
 
   return { ...state, draft: { ...draft, ...(await draftListsOf(db, draft.id)) } };
+}
+
+/**
+ * The published version's columns and lists, read as a draft's are, which an update's answers are
+ * compared with. Undefined while nothing is published.
+ */
+export async function getPublishedAnswers(
+  db: Database,
+  id: string,
+): Promise<IndicatorDraft | undefined> {
+  const [published] = await db
+    .select(getTableColumns(indicatorVersion))
+    .from(currentPublishedVersion)
+    .innerJoin(indicatorVersion, eq(indicatorVersion.id, currentPublishedVersion.id))
+    .where(eq(currentPublishedVersion.indicatorId, id));
+
+  if (published === undefined) return undefined;
+
+  return { ...published, ...(await draftListsOf(db, published.id)) };
 }
 
 const NOTES_FOR_REVIEWERS_FIELDS = [

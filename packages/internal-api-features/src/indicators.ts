@@ -273,10 +273,12 @@ export function internalIndicatorsRouter(
     async (_request, response) => {
       const { id } = guardedIndicator(response);
 
-      // Apart, so the section reads that share findDraftState do not carry the round.
-      const [row, round] = await Promise.all([
+      // Apart, so the section reads that share findDraftState do not carry the round or the
+      // published answers.
+      const [row, round, published] = await Promise.all([
         indicators.findDraftState(id),
         indicators.findRevisionRound(id),
+        indicators.findPublishedAnswers(id),
       ]);
 
       if (!row) {
@@ -302,6 +304,7 @@ export function internalIndicatorsRouter(
             draftResponseKind: row.draftResponseKind,
           },
           draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
+          published: published ?? null,
           review: taskListReview(round),
         }),
         draftUpdatedAt: row.draft.updatedAt.toISOString(),

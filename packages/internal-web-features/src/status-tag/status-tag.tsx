@@ -7,7 +7,9 @@ import type {
 } from '@fphd/internal-api-features/contract';
 import { Tag } from '@fphd/ui';
 
-type Colour = 'blue' | 'green' | 'orange' | 'red' | 'teal' | 'yellow';
+import type { UpdateTaskStatus } from '../indicator-tasks.ts';
+
+type Colour = 'blue' | 'green' | 'grey' | 'orange' | 'red' | 'teal' | 'yellow';
 
 interface TagFace {
   label: string;
@@ -48,6 +50,16 @@ const TASK_STATUS: Record<IndicatorTaskStatus, TagFace | string> = {
   not_started: { label: 'Incomplete', colour: 'blue' },
   in_progress: { label: 'Incomplete', colour: 'blue' },
   completed: 'Completed',
+};
+
+// A task on an update reads against the live indicator. The publishing date and the update
+// summary have nothing to publish until another task changes, and are tagged complete once saved.
+const UPDATE_TASK_STATUS: Record<UpdateTaskStatus, TagFace | string> = {
+  changed: { label: 'Changed', colour: 'orange' },
+  unchanged: { label: 'Unchanged', colour: 'grey' },
+  no_changes: 'No changes to publish',
+  incomplete: { label: 'Incomplete', colour: 'blue' },
+  complete: { label: 'Complete', colour: 'green' },
 };
 
 // A task a review response flagged, until it is saved: advised before IMRG meets, needed after.
@@ -101,6 +113,7 @@ export type StatusTagProps = (
   | { type: 'indicator'; status: IndicatorStatus }
   | ({ type: 'publishing' } & PublishingState)
   | { type: 'task'; status: IndicatorTaskStatus }
+  | { type: 'update-task'; status: UpdateTaskStatus }
   | { type: 'revision'; status: keyof typeof REVISION_STATUS }
 ) & {
   /**
@@ -124,6 +137,8 @@ function faceOf(props: StatusTagProps): TagFace | string | undefined {
       return publishingStatus(props);
     case 'task':
       return TASK_STATUS[props.status];
+    case 'update-task':
+      return UPDATE_TASK_STATUS[props.status];
     case 'revision':
       return REVISION_STATUS[props.status];
   }

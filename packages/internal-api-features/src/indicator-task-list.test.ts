@@ -30,6 +30,7 @@ const source: IndicatorTaskListSource = {
     draftResponseKind: null,
   },
   draft: { ...unansweredDraft, name: 'Life expectancy at birth', ciMethodKind: null },
+  published: null,
   review: null,
 };
 
@@ -218,6 +219,10 @@ describe('indicatorTaskList', () => {
     expect(indicatorTaskList(withDraft(complete)).canSubmit).toBe(true);
   });
 
+  it('allows a new indicator submission without an update summary, which only an update has', () => {
+    expect(indicatorTaskList(withDraft({ ...complete, updateSummary: null })).canSubmit).toBe(true);
+  });
+
   it('holds submission back while any task is not started', () => {
     expect(indicatorTaskList(source).canSubmit).toBe(false);
   });
@@ -230,6 +235,77 @@ describe('indicatorTaskList', () => {
     });
 
     expect(shape.safeParse(indicatorTaskList(source)).success).toBe(true);
+  });
+});
+
+describe('the changes an update makes', () => {
+  // A live indicator whose draft is still as the published version it was opened from.
+  const update: IndicatorTaskListSource = {
+    ...source,
+    indicator: { ...source.indicator, indicatorStatus: 'live' },
+    draft: { ...complete, updateSummary: null, scheduledPublishAt: null },
+    published: complete,
+  };
+
+  function withChange(draft: Partial<IndicatorTaskListDraft>): IndicatorTaskListSource {
+    return { ...update, draft: { ...update.draft, ...draft } };
+  }
+
+  it('lists no change while the draft answers every task as the published version does', () => {
+    expect(indicatorTaskList(update).changedTasks).toEqual([]);
+  });
+
+  it.each([
+    ['name', { name: 'Healthy life expectancy at birth' }],
+    ['data-table', { uploadBatchId: '019fa38f-073f-764e-9ac6-1c4d03b1cb94' }],
+    ['definition-and-rationale', { rationale: 'A summary measure of health.' }],
+    ['polarity', { polarity: 'higher-is-better' }],
+    ['numerator', { numeratorSources: [] }],
+    ['update-frequency', { updateFrequency: 'annually' }],
+    ['variance-and-quality', { variation: 'Varies little.' }],
+    ['tagging', { topicIds: [...complete.topicIds, '019fa38f-073f-764e-9ac6-1c4d03b10004'] }],
+    ['ages', { ageType: 'all' }],
+  ] satisfies [string, Partial<IndicatorTaskListDraft>][])(
+    'lists %s once its answers differ from the published version',
+    (key, draft) => {
+      expect(indicatorTaskList(withChange(draft)).changedTasks).toEqual([key]);
+    },
+  );
+
+  it('lists a task saved back to its published answers as unchanged', () => {
+    expect(indicatorTaskList(withChange({ polarity: complete.polarity })).changedTasks).toEqual([]);
+  });
+
+  it('never lists the publishing date or the update summary, which every update answers', () => {
+    const answered = withChange({
+      scheduledPublishAt: new Date('2028-01-10T09:30:00.000Z'),
+      updateSummary: 'Added the 2025 data.',
+    });
+
+    expect(indicatorTaskList(answered).changedTasks).toEqual([]);
+  });
+
+  it('judges the publishing date and the update summary by their own answers', () => {
+    const { tasks } = indicatorTaskList(update);
+
+    expect([tasks['publishing-date'], tasks['update-summary']]).toEqual([
+      'not_started',
+      'not_started',
+    ]);
+  });
+
+  it('holds back an update without its summary', () => {
+    const dated = withChange({ scheduledPublishAt: complete.scheduledPublishAt });
+
+    expect(indicatorTaskList(dated).canSubmit).toBe(false);
+    expect(
+      indicatorTaskList(withChange({ ...dated.draft, updateSummary: 'Added the 2025 data.' }))
+        .canSubmit,
+    ).toBe(true);
+  });
+
+  it('lists no change for a new indicator, which has nothing published', () => {
+    expect(indicatorTaskList(withDraft(complete)).changedTasks).toEqual([]);
   });
 });
 
