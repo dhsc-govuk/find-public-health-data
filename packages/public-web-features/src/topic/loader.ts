@@ -14,6 +14,7 @@ import { areasInGeographyGroup } from '../geography/groups.ts';
 import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
+import { compactTopicAreaTable, compactTopicDataTable } from './compact-table.ts';
 import { TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
 import { topicDataKey } from './filters.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
@@ -63,11 +64,13 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
     content
       ? {
           ...content,
+          search: topicTableSearch(content.search),
+          listing: { sort: content.listing.sort },
           data: {
             selectedAreas: content.data.selectedAreas,
             areasLimited: content.data.areasLimited,
           },
-          table: topicDataTableModel(content.data.selected, topic.slug),
+          table: compactTopicDataTable(topicDataTableModel(content.data.selected, topic.slug)),
         }
       : null,
   );
@@ -75,14 +78,14 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
     content
       ? {
           ...content,
+          search: topicTableSearch(content.search),
+          listing: { sort: content.listing.sort },
           data: {
             selectedAreas: content.data.selectedAreas,
             areasLimited: content.data.areasLimited,
           },
-          table: topicAreaTableModel(
-            content.data.selected,
-            content.data.benchmarkGeography,
-            topic.slug,
+          table: compactTopicAreaTable(
+            topicAreaTableModel(content.data.selected, content.data.benchmarkGeography, topic.slug),
           ),
         }
       : null,
@@ -95,6 +98,15 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
     content: completed ? completed[1] : content,
     areas: completed ? completed[2] : areas,
     complete,
+  };
+}
+
+function topicTableSearch(search: Awaited<ReturnType<typeof loadSearch>>) {
+  return {
+    ...search,
+    // Table rows already carry the displayed indicator fields; filters only need the totals.
+    searchResult: { ...search.searchResult, indicators: [] },
+    facets: { ...search.facets, topics: [] },
   };
 }
 

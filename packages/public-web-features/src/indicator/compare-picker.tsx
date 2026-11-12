@@ -1,6 +1,7 @@
 import { Autocomplete, Button } from '@fphd/ui';
 import { useCallback } from 'react';
 import { Form, Link, useLocation, useNavigate } from 'react-router';
+import { DataSection } from '../data-section.tsx';
 import type { IndicatorSummary } from './loader.ts';
 
 export function ComparePicker({
@@ -14,7 +15,7 @@ export function ComparePicker({
   slug: string;
   compared?: { name: string; slug: string } | undefined;
   findSubject: string;
-  findResults: IndicatorSummary[];
+  findResults: IndicatorSummary[] | Promise<IndicatorSummary[]>;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -78,19 +79,25 @@ export function ComparePicker({
         </noscript>
       </Form>
       {findSubject ? (
-        <ul className="govuk-list">
-          {findResults.map((result) => (
-            <li key={result.slug}>
-              <Link
-                className="govuk-link"
-                to={urlFor(result.slug, '#indicator-compare-indicators')}
-                preventScrollReset
-              >
-                {result.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <DataSection label="indicator search results" resolve={findResults}>
+          {(results) => (
+            <ul className="govuk-list">
+              {results
+                .filter((result) => result.slug !== slug)
+                .map((result) => (
+                  <li key={result.slug}>
+                    <Link
+                      className="govuk-link"
+                      to={urlFor(result.slug, '#indicator-compare-indicators')}
+                      preventScrollReset
+                    >
+                      {result.name}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </DataSection>
       ) : null}
     </>
   );
