@@ -146,6 +146,6 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     // Dropped by the importer: an observation's writer is its batch's uploader.
     'created_by',
   ],
-  observation_dimension: ['id', 'observation_id', 'dimension_value_id', 'dimension_type_id'],
-  observation_note: ['id', 'observation_id', 'note_type_id'],
+  observation_dimension: ['observation_id', 'dimension_value_id', 'dimension_type_id'],
+  observation_note: ['observation_id', 'note_type_id'],
 };

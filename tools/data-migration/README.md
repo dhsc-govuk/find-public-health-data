@@ -73,6 +73,9 @@ moves to this service. The operations image applies the packages with `db migrat
   represented together without treating a directional disagreement as neutral.
 - UUIDs are deterministic from the source table and integer ID. The same source row keeps the same
   target ID across the baseline and every increment.
+- The bridge tables `observation_dimension` and `observation_note` have no ID. A bridge row is keyed
+  by its observation and its dimension type or note type: files are ordered by those columns, the
+  increment compares rows by them, and its delete files name rows by them.
 - The source manifest's `profile_metadata` preserves profile-specific names, including framework
   references, raw frequency prose and structured frequency labels. Preparation and increments retain
   that provenance independently of the generic display name. Development archives retain it as

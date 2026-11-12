@@ -84,8 +84,9 @@ class PublishedCsvTest(unittest.TestCase):
                 foreign_keys = list(transform["FOREIGN_KEYS"].get(table, {}))
                 if table == "indicator":
                     foreign_keys = []
-                header = ["id", *foreign_keys]
-                row = ["1", *(["1"] * len(foreign_keys))]
+                bridge = table in transform["BRIDGE_TABLES"]
+                header = [*([] if bridge else ["id"]), *foreign_keys]
+                row = ["1"] * len(header)
                 if table == "indicator_version":
                     header.extend(["definition", "caveats"])
                     row.extend([transform["NULL_MARKER"], ""])
@@ -138,9 +139,9 @@ class ForeignKeyIndexesTest(unittest.TestCase):
     def test_maps_each_foreign_key_column_to_its_table(self):
         self.assertEqual(
             transform["foreign_key_indexes"](
-                "observation_note", ["id", "note_type_id", "observation_id"]
+                "observation_note", ["note_type_id", "observation_id"]
             ),
-            {1: "note_type", 2: "observation"},
+            {0: "note_type", 1: "observation"},
         )
 
     def test_allows_the_identity_only_indicator_row(self):
@@ -154,7 +155,7 @@ class ForeignKeyIndexesTest(unittest.TestCase):
 
     def test_refuses_any_other_table_missing_a_foreign_key(self):
         with self.assertRaises(ValueError) as raised:
-            transform["foreign_key_indexes"]("observation_note", ["id", "observation_id"])
+            transform["foreign_key_indexes"]("observation_note", ["observation_id"])
 
         self.assertIn("note_type_id", str(raised.exception))
 

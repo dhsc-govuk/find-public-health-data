@@ -1,6 +1,7 @@
 import type postgres from 'postgres';
 
 import { receiverColumns, tableColumns } from './data-migration-actors.ts';
+import { dataMigrationKey } from './data-migration-manifest.ts';
 import { readCsvHeader } from './seeding.ts';
 
 const LEGACY_SOURCE_COLUMNS = ['numerator_source_id', 'denominator_source_id'] as const;
@@ -54,7 +55,7 @@ export async function validateMigrationHeader(
   const missing = targetInfo
     .filter(
       ({ name, notNull, hasDefault }) =>
-        name === 'id' ||
+        dataMigrationKey(table).includes(name) ||
         (table === 'indicator' && name === 'short_id') ||
         (table === 'area' && name === 'is_current') ||
         (table === 'indicator_version' && name === 'is_locked') ||

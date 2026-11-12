@@ -9,6 +9,7 @@ export {
   DATA_MIGRATION_SCHEMA,
   DATA_MIGRATION_TABLES,
   type DataMigrationManifest,
+  dataMigrationKey,
   dataMigrationManifestSchema,
   dataMigrationSourceSchema,
   type IncrementalManifest,

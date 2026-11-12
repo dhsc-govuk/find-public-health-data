@@ -108,10 +108,8 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
         created_by: 'pholio-migration',
       },
     ],
-    observation_dimension: [
-      { id: 8, observation_id: 2, dimension_value_id: 1, dimension_type_id: 1 },
-    ],
-    observation_note: [{ id: 2, observation_id: 2, note_type_id: 1 }],
+    observation_dimension: [{ observation_id: 2, dimension_value_id: 1, dimension_type_id: 1 }],
+    observation_note: [{ observation_id: 2, note_type_id: 1 }],
   };
   const tables: Record<string, unknown> = {};
   for (const table of TABLES) {

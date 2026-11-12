@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { createGunzip } from 'node:zlib';
 
 import { schema } from '@fphd/db';
+import { dataMigrationKey } from '@fphd/db-operations/data-migration-contract';
 import { slugify } from '@fphd/utils/slug';
 import { countIsNumerator } from '@fphd/utils/value-type-and-unit';
 import { parse } from 'csv-parse';
@@ -419,7 +420,6 @@ async function addObservations(
       if (!dimension) throw new Error(`Missing dimension value: ${type}/${value}`);
       if (!dimension.aggregate)
         observationDimensions.push({
-          id: uuid7(),
           observation_id: id,
           dimension_value_id: dimension.valueId,
           dimension_type_id: dimension.typeId,
@@ -429,7 +429,7 @@ async function addObservations(
     if (note) {
       const noteId = notes.get(note);
       if (!noteId) throw new Error(`Missing note type: ${note}`);
-      observationNotes.push({ id: uuid7(), observation_id: id, note_type_id: noteId });
+      observationNotes.push({ observation_id: id, note_type_id: noteId });
     }
     if (observations.length >= 5_000) {
       await tx`INSERT INTO observation ${tx(observations.splice(0))}`;
@@ -469,9 +469,14 @@ async function exportChangedTables(
       // The table has no created_by for observations: the batch's uploader is the writer.
       .filter((column) => table !== 'observation' || column !== 'created_by');
     const quoted = columns.map((column) => `"${column}"`).join(', ');
+    const orderBy = dataMigrationKey(table)
+      .map((column) => `"${column}"`)
+      .join(', ');
     await writeGzipped(
       await sql
-        .unsafe(`COPY (SELECT ${quoted} FROM "${table}" ORDER BY id) TO STDOUT WITH CSV HEADER`)
+        .unsafe(
+          `COPY (SELECT ${quoted} FROM "${table}" ORDER BY ${orderBy}) TO STDOUT WITH CSV HEADER`,
+        )
         .readable(),
       join(outDirectory, `${table}.csv.gz`),
     );
