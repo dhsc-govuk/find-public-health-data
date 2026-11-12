@@ -173,7 +173,10 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
     }),
   'sex-and-ages': () =>
     savedFields(sexAndAgesColumns, {
+      demographics: ['sex', 'gender', 'ethnicity'],
       sexes: ['females'],
+      genders: ['other'],
+      ethnicGroups: ['asian'],
       ageType: 'range',
       ageRanges: [
         { lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' },

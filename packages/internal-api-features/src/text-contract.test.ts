@@ -134,7 +134,10 @@ function refusalsOf<Field extends string, ErrorField extends string>(
 }
 
 const blankSexAndAges = {
+  demographics: [],
   sexes: [],
+  genders: [],
+  ethnicGroups: [],
   ageType: '',
   ageRanges: [],
   specificAge: '',

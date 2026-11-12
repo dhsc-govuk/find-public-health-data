@@ -318,7 +318,7 @@ describe('createDraftFromPublished', () => {
   );
 
   seededRepositoryTest(
-    'copies the sexes and age ranges of the published version, leaving them on it too',
+    'copies the demographics and age ranges of the published version, leaving them on it too',
     async ({ db }) => {
       const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
         db,
@@ -326,7 +326,13 @@ describe('createDraftFromPublished', () => {
       );
       await db
         .update(indicatorVersion)
-        .set({ sexes: ['persons'], ageType: 'range' })
+        .set({
+          demographics: ['sex', 'gender', 'ethnicity'],
+          sexes: ['persons'],
+          genders: ['non-binary'],
+          ethnicGroups: ['mixed'],
+          ageType: 'range',
+        })
         .where(eq(indicatorVersion.id, currentId));
       await db.insert(indicatorVersionAgeRange).values([
         { indicatorVersionId: currentId, position: 0, ...sixteenPlus },
@@ -339,7 +345,10 @@ describe('createDraftFromPublished', () => {
       if (!result.ok) throw new Error('expected a draft');
       const state = await getIndicatorDraftState(db, indicatorId);
       expect(state?.draft).toMatchObject({
+        demographics: ['sex', 'gender', 'ethnicity'],
         sexes: ['persons'],
+        genders: ['non-binary'],
+        ethnicGroups: ['mixed'],
         ageType: 'range',
         ageRanges: [sixteenPlus, underFive],
       });

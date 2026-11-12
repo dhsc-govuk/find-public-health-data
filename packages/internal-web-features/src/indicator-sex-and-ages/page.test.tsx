@@ -15,7 +15,7 @@ import { SexAndAgesPage } from './page.tsx';
 
 afterEach(cleanup);
 
-const TITLE = 'What are the sexes and ages included in this indicator?';
+const TITLE = 'Sex, gender and ethnicity';
 
 const blank: AgeRangeFormValues = {
   lowerLimit: '',
@@ -27,7 +27,10 @@ const sixteenPlus = { ...blank, lowerLimit: '16', lowerLimitUnit: 'years' };
 const underFive = { ...blank, upperLimit: '4', upperLimitUnit: 'months' };
 
 const empty: SexAndAgesFormValues = {
+  demographics: [],
   sexes: [],
+  genders: [],
+  ethnicGroups: [],
   ageType: '',
   ageRanges: [blank],
   specificAge: '',
@@ -48,33 +51,103 @@ function field(label: string) {
   return screen.getByLabelText(label, { exact: true }) as HTMLInputElement | HTMLSelectElement;
 }
 
+function boxesIn(group: string) {
+  return within(screen.getByRole('group', { name: group })).getAllByRole(
+    'checkbox',
+  ) as HTMLInputElement[];
+}
+
+function shown(boxes: HTMLInputElement[]) {
+  return boxes.map((box) => [box.name, box.value, box.labels?.[0]?.textContent, box.checked]);
+}
+
 function buttons(name: string | RegExp) {
   return screen.queryAllByRole('button', { name }) as HTMLButtonElement[];
 }
 
 describe('SexAndAgesPage', () => {
-  it('heads the page with the question and asks the two questions as groups', () => {
+  it('heads the page with its title and asks each question as a group', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: TITLE })).toBeTruthy();
     expect(document.title).toBe(`${TITLE} - ${serviceName} - GOV.UK`);
-    expect(screen.getByRole('group', { name: 'Select sexes included' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Select age type' })).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'What was collected for this indicator?' }),
+    ).toBeTruthy();
+    for (const group of [
+      'What was collected for this indicator?',
+      'Enter included sexes',
+      'Enter included genders',
+      'Enter included ethnic groups',
+      'Select age type',
+    ]) {
+      expect(screen.getByRole('group', { name: group })).toBeTruthy();
+    }
   });
 
-  it('offers each sex, ticking those answered', () => {
-    renderPage({ values: { ...empty, sexes: ['persons', 'males'] } });
+  it('asks what was collected, ticking those answered', () => {
+    renderPage({ values: { ...empty, demographics: ['sex', 'ethnicity'] } });
 
-    const boxes = within(screen.getByRole('group', { name: 'Select sexes included' })).getAllByRole(
-      'checkbox',
-    ) as HTMLInputElement[];
+    const group = screen.getByRole('group', { name: 'What was collected for this indicator?' });
 
+    expect(within(group).getByText('Select all that apply')).toBeTruthy();
     expect(
-      boxes.map((box) => [box.name, box.value, box.labels?.[0]?.textContent, box.checked]),
+      shown(boxesIn('What was collected for this indicator?')).filter(
+        ([name]) => name === 'demographics',
+      ),
     ).toEqual([
-      ['sexes', 'persons', 'Persons', true],
-      ['sexes', 'females', 'Females', false],
-      ['sexes', 'males', 'Males', true],
+      ['demographics', 'sex', 'Sex', true],
+      ['demographics', 'gender', 'Gender', false],
+      ['demographics', 'ethnicity', 'Ethnicity', true],
+    ]);
+  });
+
+  it('reveals the list of those included under each demographic', () => {
+    renderPage({ values: { ...empty, demographics: ['gender'] } });
+
+    // Hidden only once JavaScript runs, so a form without it shows every list.
+    const reveals = ['Sex', 'Gender', 'Ethnicity'].map((name) => {
+      const box = screen.getByRole('checkbox', { name });
+      const reveal = document.getElementById(box.getAttribute('aria-controls') ?? '');
+      return [reveal?.querySelector('legend')?.textContent, reveal?.className.includes('hidden')];
+    });
+
+    expect(reveals).toEqual([
+      ['Enter included sexes', true],
+      ['Enter included genders', false],
+      ['Enter included ethnic groups', true],
+    ]);
+  });
+
+  it('offers each sex, gender and ethnic group, ticking those answered', () => {
+    renderPage({
+      values: {
+        ...empty,
+        sexes: ['persons', 'males'],
+        genders: ['non-binary'],
+        ethnicGroups: ['black', 'other'],
+      },
+    });
+
+    expect(shown(boxesIn('Enter included sexes'))).toEqual([
+      ['sexes', 'persons', 'Person', true],
+      ['sexes', 'females', 'Female', false],
+      ['sexes', 'males', 'Male', true],
+    ]);
+    expect(shown(boxesIn('Enter included genders'))).toEqual([
+      ['genders', 'persons', 'Person', false],
+      ['genders', 'women-and-girls', 'Woman or girl', false],
+      ['genders', 'men-and-boys', 'Man or boy', false],
+      ['genders', 'non-binary', 'Non-binary', true],
+      ['genders', 'other', 'Other', false],
+      ['genders', 'prefer-not-to-say', 'Prefer not to say', false],
+    ]);
+    expect(shown(boxesIn('Enter included ethnic groups'))).toEqual([
+      ['ethnicGroups', 'asian', 'Asian, Asian British or Asian Welsh', false],
+      ['ethnicGroups', 'black', 'Black, Black British, Black Welsh, Caribbean or African', true],
+      ['ethnicGroups', 'mixed', 'Mixed or Multiple ethnic groups', false],
+      ['ethnicGroups', 'white', 'White', false],
+      ['ethnicGroups', 'other', 'Other ethnic group', true],
     ]);
   });
 
@@ -170,7 +243,10 @@ describe('SexAndAgesPage', () => {
         ageDetail: 'Enter the ages included',
         [ageRangeFieldName(1, 'lowerLimit')]:
           'You must enter at least a lower or upper limit for range 2',
-        sexes: 'Select sexes included',
+        ethnicGroups: 'Select the ethnic groups included',
+        sexes: 'Select the sexes included',
+        demographics: 'Select what was collected for this indicator',
+        genders: 'Select the genders included',
         [ageRangeFieldName(0, 'upperLimitUnit')]: 'Select the periods for the upper limit',
       },
     });
@@ -178,7 +254,13 @@ describe('SexAndAgesPage', () => {
     const links = within(screen.getByRole('alert')).getAllByRole('link');
 
     expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Select sexes included', `#${screen.getByLabelText('Persons').id}`],
+      [
+        'Select what was collected for this indicator',
+        `#${screen.getByRole('checkbox', { name: 'Sex' }).id}`,
+      ],
+      ['Select the sexes included', `#${boxesIn('Enter included sexes')[0]?.id}`],
+      ['Select the genders included', `#${boxesIn('Enter included genders')[0]?.id}`],
+      ['Select the ethnic groups included', `#${boxesIn('Enter included ethnic groups')[0]?.id}`],
       ['Select the periods for the upper limit', `#${field('Periods for upper limit').id}`],
       [
         'You must enter at least a lower or upper limit for range 2',

@@ -107,6 +107,12 @@
       "types": "./src/sex-and-ages.ts",
       "default": "./dist/sex-and-ages.js"
     },
+    "./sex-gender-and-ethnicity": {
+      "browser": "./src/sex-gender-and-ethnicity.ts",
+      "development": "./src/sex-gender-and-ethnicity.ts",
+      "types": "./src/sex-gender-and-ethnicity.ts",
+      "default": "./dist/sex-gender-and-ethnicity.js"
+    },
     "./short-id": {
       "browser": "./src/short-id.ts",
       "development": "./src/short-id.ts",

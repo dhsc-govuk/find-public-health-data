@@ -26,6 +26,11 @@ export function withAgeRangeShown(values: SexAndAgesFormValues): SexAndAgesFormV
   return values.ageRanges.length > 0 ? values : { ...values, ageRanges: [BLANK_AGE_RANGE] };
 }
 
+/** The boxes ticked in the group called `name`. */
+function ticked(formData: FormData, name: string): string[] {
+  return formData.getAll(name).filter((value) => typeof value === 'string');
+}
+
 /** The form as sent, and which of its buttons sent it; a field not sent is empty. */
 export function readSexAndAgesForm(formData: FormData): {
   values: SexAndAgesFormValues;
@@ -34,7 +39,10 @@ export function readSexAndAgesForm(formData: FormData): {
   return {
     values: {
       ...readFormValues(formData, ['ageType', 'specificAge', 'specificAgeUnit', 'ageDetail']),
-      sexes: formData.getAll('sexes').filter((sex) => typeof sex === 'string'),
+      demographics: ticked(formData, 'demographics'),
+      sexes: ticked(formData, 'sexes'),
+      genders: ticked(formData, 'genders'),
+      ethnicGroups: ticked(formData, 'ethnicGroups'),
       ageRanges: readListItems(formData, AGE_RANGE_PARTS, ageRangeFieldName),
     },
     intent: readListIntent(formData),

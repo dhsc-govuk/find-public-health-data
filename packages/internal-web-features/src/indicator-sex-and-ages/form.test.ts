@@ -24,7 +24,10 @@ const sixteenPlus = { ...blank, lowerLimit: '16', lowerLimitUnit: 'years' };
 const underFive = { ...blank, upperLimit: '4', upperLimitUnit: 'years' };
 
 const empty: SexAndAgesFormValues = {
+  demographics: [],
   sexes: [],
+  genders: [],
+  ethnicGroups: [],
   ageType: '',
   ageRanges: [],
   specificAge: '',
@@ -44,12 +47,16 @@ function formData(fields: [string, string][], ranges: AgeRangeFormValues[] = [])
 }
 
 describe('readSexAndAgesForm', () => {
-  it('reads every sex ticked, the ranges in order and the other fields as typed', () => {
+  it('reads every box ticked, the ranges in order and the other fields as typed', () => {
     const { values } = readSexAndAgesForm(
       formData(
         [
+          ['demographics', 'sex'],
+          ['demographics', 'ethnicity'],
           ['sexes', 'females'],
           ['sexes', 'males'],
+          ['genders', 'other'],
+          ['ethnicGroups', 'white'],
           ['ageType', 'range'],
           ['specificAge', ' 5 '],
           ['specificAgeUnit', 'weeks'],
@@ -60,7 +67,10 @@ describe('readSexAndAgesForm', () => {
     );
 
     expect(values).toEqual({
+      demographics: ['sex', 'ethnicity'],
       sexes: ['females', 'males'],
+      genders: ['other'],
+      ethnicGroups: ['white'],
       ageType: 'range',
       ageRanges: [sixteenPlus, underFive],
       specificAge: ' 5 ',

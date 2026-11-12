@@ -102,7 +102,13 @@ describe('indicatorSectionsRouter', () => {
         ...inTestTeam,
         updateDraft,
         findDraftState: vi.fn().mockResolvedValue({
-          draft: { ...unansweredDraft, sexes: ['females'], ageType: 'range', ageRanges },
+          draft: {
+            ...unansweredDraft,
+            demographics: ['sex'],
+            sexes: ['females'],
+            ageType: 'range',
+            ageRanges,
+          },
         }),
       },
     });
@@ -114,7 +120,10 @@ describe('indicatorSectionsRouter', () => {
       .set('Cookie', await testSessionCookie(['publisher']))
       .send({
         answers: {
+          demographics: ['sex'],
           sexes: ['females'],
+          genders: [],
+          ethnicGroups: [],
           ageType: 'range',
           ageRanges: [
             { lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' },
@@ -131,7 +140,10 @@ describe('indicatorSectionsRouter', () => {
       '00000000-0000-7000-8000-000000000001',
       'sex-and-ages',
       {
+        demographics: ['sex'],
         sexes: ['females'],
+        genders: null,
+        ethnicGroups: null,
         ageType: 'range',
         specificAge: null,
         specificAgeUnit: null,

@@ -52,19 +52,35 @@ export const sexAndAgesColumns: IndicatorSectionColumns<
   SexAndAgesAnswers
 > = {
   fromDraft: (draft) => ({
+    demographics: draft.demographics ?? [],
     sexes: draft.sexes ?? [],
+    genders: draft.genders ?? [],
+    ethnicGroups: draft.ethnicGroups ?? [],
     ageType: draft.ageType,
     ageRanges: draft.ageRanges,
     specificAge: draft.specificAge,
     specificAgeUnit: draft.specificAgeUnit,
     ageDetail: draft.ageDetail,
   }),
-  // Answers the chosen age type does not ask for are cleared, whatever the form sent.
-  toAttributes: ({ sexes, ageType, specificAge, specificAgeUnit, ageDetail }) => {
+  // The lists of a demographic not collected, and the answers the chosen age type does not ask
+  // for, are cleared, whatever the form sent.
+  toAttributes: ({
+    demographics,
+    sexes,
+    genders,
+    ethnicGroups,
+    ageType,
+    specificAge,
+    specificAgeUnit,
+    ageDetail,
+  }) => {
     const specific = ageType === 'specific';
 
     return {
-      sexes,
+      demographics,
+      sexes: demographics.includes('sex') ? sexes : null,
+      genders: demographics.includes('gender') ? genders : null,
+      ethnicGroups: demographics.includes('ethnicity') ? ethnicGroups : null,
       ageType,
       specificAge: specific ? age(specificAge) : null,
       specificAgeUnit: specific && specificAgeUnit !== '' ? specificAgeUnit : null,

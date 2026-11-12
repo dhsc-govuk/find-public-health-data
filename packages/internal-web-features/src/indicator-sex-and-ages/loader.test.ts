@@ -19,7 +19,10 @@ const blank: AgeRangeFormValues = {
 const sixteenPlus = { ...blank, lowerLimit: '16', lowerLimitUnit: 'years' };
 
 const unanswered = {
+  demographics: [],
   sexes: [],
+  genders: [],
+  ethnicGroups: [],
   ageType: null,
   ageRanges: [],
   specificAge: null,
@@ -73,7 +76,9 @@ describe('loadSexAndAges', () => {
       [`GET ${sectionPath}`]: {
         answers: {
           ...unanswered,
+          demographics: ['sex', 'gender'],
           sexes: ['persons'],
+          genders: ['non-binary'],
           ageType: 'range',
           ageRanges: [
             { lowerLimit: 16, lowerLimitUnit: 'years', upperLimit: null, upperLimitUnit: null },
@@ -86,7 +91,10 @@ describe('loadSexAndAges', () => {
     await expect(load(id, api)).resolves.toEqual({
       id,
       values: {
+        demographics: ['sex', 'gender'],
         sexes: ['persons'],
+        genders: ['non-binary'],
+        ethnicGroups: [],
         ageType: 'range',
         ageRanges: [sixteenPlus],
         specificAge: '',
@@ -103,7 +111,7 @@ describe('loadSexAndAges', () => {
     });
 
     await expect(load(id, api)).resolves.toMatchObject({
-      values: { sexes: [], ageType: '', ageRanges: [blank] },
+      values: { demographics: [], sexes: [], ageType: '', ageRanges: [blank] },
     });
   });
 });
@@ -147,8 +155,10 @@ describe('submitSexAndAges', () => {
 
     const outcome = await submit(
       [
+        ['demographics', 'sex'],
         ['sexes', 'males'],
         ['sexes', 'persons'],
+        ['genders', 'other'],
         ['ageType', 'range'],
       ],
       [sixteenPlus],
@@ -157,7 +167,10 @@ describe('submitSexAndAges', () => {
 
     expect(api.calls[0]?.body).toEqual({
       answers: {
+        demographics: ['sex'],
         sexes: ['persons', 'males'],
+        genders: ['other'],
+        ethnicGroups: [],
         ageType: 'range',
         ageRanges: [sixteenPlus],
         specificAge: '',
@@ -172,11 +185,21 @@ describe('submitSexAndAges', () => {
   it('saves nothing while the answers are refused, keying a range refusal by its row', async () => {
     const api = createFakeApiClient();
 
-    const outcome = await submit([['ageType', 'range']], [sixteenPlus, blank], api);
+    const outcome = await submit(
+      [
+        ['demographics', 'sex'],
+        ['ageType', 'range'],
+      ],
+      [sixteenPlus, blank],
+      api,
+    );
 
     expect(outcome).toEqual({
       values: {
+        demographics: ['sex'],
         sexes: [],
+        genders: [],
+        ethnicGroups: [],
         ageType: 'range',
         ageRanges: [sixteenPlus, blank],
         specificAge: '',
@@ -184,7 +207,7 @@ describe('submitSexAndAges', () => {
         ageDetail: '',
       },
       fieldErrors: {
-        sexes: 'Select sexes included',
+        sexes: 'Select the sexes included',
         [ageRangeFieldName(1, 'lowerLimit')]:
           'You must enter at least a lower or upper limit for range 2',
       },
@@ -204,6 +227,7 @@ describe('submitSexAndAges', () => {
     await expect(
       submit(
         [
+          ['demographics', 'sex'],
           ['sexes', 'persons'],
           ['ageType', 'other'],
           ['ageDetail', 'Year 6'],

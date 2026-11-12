@@ -99,7 +99,10 @@ function sectionForm<Field extends string>(
 }
 
 const sexAndAgesUnanswered = {
+  demographics: [],
   sexes: [],
+  genders: [],
+  ethnicGroups: [],
   ageType: '',
   ageRanges: [{ lowerLimit: '', lowerLimitUnit: '', upperLimit: '', upperLimitUnit: '' }],
   specificAge: '',
@@ -266,11 +269,14 @@ const forms: {
   {
     name: 'sex and ages',
     route: sexAndAges,
-    pageTitle: 'What are the sexes and ages included in this indicator?',
+    pageTitle: 'Sex, gender and ethnicity',
     loaderData: { id: indicator.id, values: sexAndAgesUnanswered },
     rejected: {
       values: sexAndAgesUnanswered,
-      fieldErrors: { sexes: 'Select sexes included', ageType: 'Select the age type' },
+      fieldErrors: {
+        demographics: 'Select what was collected for this indicator',
+        ageType: 'Select the age type',
+      },
     },
   },
   {
