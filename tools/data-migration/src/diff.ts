@@ -1,8 +1,8 @@
 import { once } from 'node:events';
-import { createWriteStream, type WriteStream } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { finished } from 'node:stream/promises';
+import { pipeline } from 'node:stream/promises';
 import { createGzip, type Gzip } from 'node:zlib';
 
 import {
@@ -24,13 +24,30 @@ import { verifyPackageFiles } from './verify.ts';
 
 const VERSION_REFERENCE_TABLES = ['ci_method', 'comparator_method', 'numerator_denominator_source'];
 
-async function write(stream: Gzip, value: string): Promise<void> {
+interface Output {
+  stream: Gzip;
+  // Settles once the file is written, or rejects with the first error from the gzip or the file.
+  written: Promise<void>;
+}
+
+function createOutput(path: string): Output {
+  const stream = createGzip({ level: 1 });
+  const written = pipeline(stream, createWriteStream(path));
+  // The pipeline can fail before finish awaits it. This handler stops Node reporting that
+  // rejection as unhandled, and finish still receives the error.
+  written.catch(() => undefined);
+  return { stream, written };
+}
+
+async function write({ stream }: Output, value: string): Promise<void> {
+  // The pipeline destroys the gzip when either stream fails, and a destroyed gzip never drains.
+  if (stream.destroyed) throw stream.errored ?? new Error('The output closed before it finished');
   if (!stream.write(value)) await once(stream, 'drain');
 }
 
-async function finish(stream: Gzip, destination: WriteStream): Promise<void> {
+async function finish({ stream, written }: Output): Promise<void> {
   stream.end();
-  await finished(destination);
+  await written;
 }
 
 async function next(iterator: AsyncIterator<string[]>): Promise<string[] | undefined> {
@@ -102,12 +119,8 @@ export async function createIncremental(
       const deleteFile = `${table}.deletes.csv.gz`;
       const upsertPath = join(staged, upsertFile);
       const deletePath = join(staged, deleteFile);
-      const upserts = createGzip({ level: 1 });
-      const deletes = createGzip({ level: 1 });
-      const upsertDestination = createWriteStream(upsertPath);
-      const deleteDestination = createWriteStream(deletePath);
-      upserts.pipe(upsertDestination);
-      deletes.pipe(deleteDestination);
+      const upserts = createOutput(upsertPath);
+      const deletes = createOutput(deletePath);
       let upsertRows = 0;
       let deleteRows = 0;
       try {
@@ -164,14 +177,12 @@ export async function createIncremental(
         // write in flight fails that write when it completes, and nothing is listening by then.
         // A write error here is ignored in favour of the error being thrown.
         await Promise.all(
-          [finish(upserts, upsertDestination), finish(deletes, deleteDestination)].map((closing) =>
-            closing.catch(() => undefined),
-          ),
+          [finish(upserts), finish(deletes)].map((closing) => closing.catch(() => undefined)),
         );
         await Promise.all([rm(upsertPath, { force: true }), rm(deletePath, { force: true })]);
         throw error;
       }
-      await Promise.all([finish(upserts, upsertDestination), finish(deletes, deleteDestination)]);
+      await Promise.all([finish(upserts), finish(deletes)]);
       tables[table] = {
         upserts: await fileRecord(upsertPath, upsertFile, upsertRows),
         deletes: await fileRecord(deletePath, deleteFile, deleteRows),

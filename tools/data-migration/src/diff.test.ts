@@ -22,8 +22,14 @@ const directories: string[] = [];
 // While switched on, every write a file stream makes finishes 20ms late, so a failure always
 // arrives while a write is still in flight.
 const slowFileWrites = vi.hoisted(() => ({ on: false }));
+// While set, every write to the file of this name fails as if the disk were full.
+const failingFile = vi.hoisted(() => ({ name: undefined as string | undefined }));
 vi.mock('node:fs', async (importOriginal) => {
   const fs = await importOriginal<typeof import('node:fs')>();
+  const failingWrite = (...args: unknown[]) => {
+    const done = args.pop() as (error: Error) => void;
+    setTimeout(() => done(Object.assign(new Error('no space left on device'), { code: 'ENOSPC' })));
+  };
   const write = (...args: unknown[]) => {
     const done = args.pop() as (...result: unknown[]) => void;
     const delay = slowFileWrites.on ? 20 : 0;
@@ -34,7 +40,14 @@ vi.mock('node:fs', async (importOriginal) => {
   return {
     ...fs,
     createWriteStream: (path: string, options?: object) =>
-      fs.createWriteStream(path, { ...options, fs: { open: fs.open, write, close: fs.close } }),
+      fs.createWriteStream(path, {
+        ...options,
+        fs: {
+          open: fs.open,
+          write: failingFile.name && path.endsWith(failingFile.name) ? failingWrite : write,
+          close: fs.close,
+        },
+      }),
   };
 });
 
@@ -270,6 +283,26 @@ describe('createIncremental', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
     } finally {
       slowFileWrites.on = false;
+    }
+    expect(await readdir(join(output, '..'))).toEqual([]);
+  });
+
+  it('rejects with the error when writing a file fails part way through', async () => {
+    // Enough rows that the gzip writes to the upserts file before the table ends.
+    const rows = Array.from({ length: 2000 }, (_, index) => [
+      deterministicUuid('observation', String(index + 1)),
+      randomUUID(),
+    ]).sort(([left = ''], [right = '']) => left.localeCompare(right));
+    const previous = await snapshot('baseline-1', '2026-09-20T10:00:00Z', {});
+    const current = await snapshot('increment-2', '2026-09-21T10:00:00Z', { observation: rows });
+    const output = await outputDirectory();
+    failingFile.name = '/observation.csv.gz';
+    try {
+      await expect(createIncremental(previous, current, output, 'increment-2')).rejects.toThrow(
+        'no space left on device',
+      );
+    } finally {
+      failingFile.name = undefined;
     }
     expect(await readdir(join(output, '..'))).toEqual([]);
   });
