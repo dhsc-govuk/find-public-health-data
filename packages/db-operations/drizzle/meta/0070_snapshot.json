@@ -1,5 +1,5 @@
 {
-  "id": "bdd41f5b-bc40-43e1-be74-b9ad25cbb998",
+  "id": "a4711991-0ef9-4fbc-89b0-0d3d1e5d1a91",
   "prevId": "60d257d1-4d89-4ea6-b801-4dabc65ea0ec",
   "version": "7",
   "dialect": "postgresql",
@@ -678,12 +678,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "scheme_version": {
-          "name": "scheme_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "is_required": {
           "name": "is_required",
           "type": "boolean",
@@ -764,8 +758,8 @@
         }
       },
       "indexes": {
-        "idx_dim_val_type": {
-          "name": "idx_dim_val_type",
+        "idx_dimension_value_type": {
+          "name": "idx_dimension_value_type",
           "columns": [
             {
               "expression": "dimension_type_id",
@@ -779,8 +773,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_dim_val_parent": {
-          "name": "idx_dim_val_parent",
+        "idx_dimension_value_parent": {
+          "name": "idx_dimension_value_parent",
           "columns": [
             {
               "expression": "parent_id",
@@ -826,16 +820,16 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "dimension_value_dimensionTypeId_name_unique": {
-          "name": "dimension_value_dimensionTypeId_name_unique",
+        "dimension_value_dimension_type_id_name_unique": {
+          "name": "dimension_value_dimension_type_id_name_unique",
           "nullsNotDistinct": false,
           "columns": [
             "dimension_type_id",
             "name"
           ]
         },
-        "dimension_value_id_dimensionTypeId_unique": {
-          "name": "dimension_value_id_dimensionTypeId_unique",
+        "dimension_value_id_dimension_type_id_unique": {
+          "name": "dimension_value_id_dimension_type_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "id",
@@ -897,63 +891,6 @@
         }
       },
       "indexes": {
-        "idx_area_code": {
-          "name": "idx_area_code",
-          "columns": [
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_area_code_validity": {
-          "name": "idx_area_code_validity",
-          "columns": [
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_from",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_to",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_area_type": {
-          "name": "idx_area_type",
-          "columns": [
-            {
-              "expression": "area_type_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_area_type_current_name_code_id": {
           "name": "idx_area_type_current_name_code_id",
           "columns": [
@@ -993,8 +930,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_area_validity": {
-          "name": "idx_area_validity",
+        "idx_area_type_validity": {
+          "name": "idx_area_type_validity",
           "columns": [
             {
               "expression": "area_type_id",
@@ -1084,8 +1021,8 @@
         }
       },
       "indexes": {
-        "idx_area_rel_parent": {
-          "name": "idx_area_rel_parent",
+        "idx_area_relationship_parent": {
+          "name": "idx_area_relationship_parent",
           "columns": [
             {
               "expression": "parent_area_id",
@@ -1099,8 +1036,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_area_rel_child": {
-          "name": "idx_area_rel_child",
+        "idx_area_relationship_child": {
+          "name": "idx_area_relationship_child",
           "columns": [
             {
               "expression": "child_area_id",
@@ -1174,12 +1111,6 @@
         "hierarchy_type": {
           "name": "hierarchy_type",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "level": {
-          "name": "level",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -1273,8 +1204,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "indicator_shortId_unique": {
-          "name": "indicator_shortId_unique",
+        "indicator_short_id_unique": {
+          "name": "indicator_short_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "short_id"
@@ -1866,22 +1797,6 @@
           "concurrently": false,
           "method": "gin",
           "with": {}
-        },
-        "idx_indicator_version_definition_trgm": {
-          "name": "idx_indicator_version_definition_trgm",
-          "columns": [
-            {
-              "expression": "definition",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "gin_trgm_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -2007,8 +1922,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "indicator_version_id_indicatorId_unique": {
-          "name": "indicator_version_id_indicatorId_unique",
+        "indicator_version_id_indicator_id_unique": {
+          "name": "indicator_version_id_indicator_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "id",
@@ -2992,18 +2907,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "distribution_rank": {
-          "name": "distribution_rank",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "upload_batch_id": {
           "name": "upload_batch_id",
           "type": "uuid",
@@ -3022,12 +2925,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -3070,24 +2967,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_observation_batch_read_models": {
-          "name": "idx_observation_batch_read_models",
-          "columns": [
-            {
-              "expression": "upload_batch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"observation\".\"deleted_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_obs_indicator_dates": {
-          "name": "idx_obs_indicator_dates",
+        "idx_observation_indicator_dates": {
+          "name": "idx_observation_indicator_dates",
           "columns": [
             {
               "expression": "indicator_id",
@@ -3109,35 +2990,12 @@
             }
           ],
           "isUnique": false,
-          "where": "\"observation\".\"deleted_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "idx_obs_area_indicator": {
-          "name": "idx_obs_area_indicator",
-          "columns": [
-            {
-              "expression": "area_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "indicator_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"observation\".\"deleted_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_obs_indicator_area_from": {
-          "name": "idx_obs_indicator_area_from",
+        "idx_observation_indicator_area_from": {
+          "name": "idx_observation_indicator_area_from",
           "columns": [
             {
               "expression": "indicator_id",
@@ -3159,35 +3017,6 @@
             }
           ],
           "isUnique": false,
-          "where": "\"observation\".\"deleted_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_observation_area_from_indicator": {
-          "name": "idx_observation_area_from_indicator",
-          "columns": [
-            {
-              "expression": "area_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "from_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "indicator_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"observation\".\"deleted_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3278,17 +3107,11 @@
         }
       },
       "indexes": {
-        "idx_obs_dim_val_obs": {
-          "name": "idx_obs_dim_val_obs",
+        "idx_observation_dimension_value": {
+          "name": "idx_observation_dimension_value",
           "columns": [
             {
               "expression": "dimension_value_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "observation_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3332,8 +3155,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "observation_dimension_observationId_dimensionTypeId_unique": {
-          "name": "observation_dimension_observationId_dimensionTypeId_unique",
+        "observation_dimension_observation_id_dimension_type_id_unique": {
+          "name": "observation_dimension_observation_id_dimension_type_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "observation_id",
@@ -3400,8 +3223,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "observation_note_observationId_noteTypeId_unique": {
-          "name": "observation_note_observationId_noteTypeId_unique",
+        "observation_note_observation_id_note_type_id_unique": {
+          "name": "observation_note_observation_id_note_type_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "observation_id",
@@ -4493,12 +4316,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "superseded_by_id": {
-          "name": "superseded_by_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "blob_name": {
           "name": "blob_name",
           "type": "text",
@@ -4526,19 +4343,6 @@
         "column_names": {
           "name": "column_names",
           "type": "text[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'replace'"
-        },
-        "base_batch_id": {
-          "name": "base_batch_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         }
@@ -4587,32 +4391,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "upload_batch_superseded_by_id_upload_batch_id_fk": {
-          "name": "upload_batch_superseded_by_id_upload_batch_id_fk",
-          "tableFrom": "upload_batch",
-          "tableTo": "upload_batch",
-          "columnsFrom": [
-            "superseded_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "upload_batch_base_batch_id_upload_batch_id_fk": {
-          "name": "upload_batch_base_batch_id_upload_batch_id_fk",
-          "tableFrom": "upload_batch",
-          "tableTo": "upload_batch",
-          "columnsFrom": [
-            "base_batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "upload_batch_indicator_version_fk": {
           "name": "upload_batch_indicator_version_fk",
           "tableFrom": "upload_batch",
@@ -4631,8 +4409,8 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "upload_batch_id_indicatorId_unique": {
-          "name": "upload_batch_id_indicatorId_unique",
+        "upload_batch_id_indicator_id_unique": {
+          "name": "upload_batch_id_indicator_id_unique",
           "nullsNotDistinct": false,
           "columns": [
             "id",
@@ -4644,19 +4422,7 @@
       "checkConstraints": {
         "upload_batch_status_check": {
           "name": "upload_batch_status_check",
-          "value": "\"upload_batch\".\"status\" IN ('received', 'validated', 'processed', 'failed', 'superseded')"
-        },
-        "upload_batch_kind_check": {
-          "name": "upload_batch_kind_check",
-          "value": "\"upload_batch\".\"kind\" IN ('replace')"
-        },
-        "upload_batch_base_batch_check": {
-          "name": "upload_batch_base_batch_check",
-          "value": "\"upload_batch\".\"kind\" <> 'replace' OR \"upload_batch\".\"base_batch_id\" IS NULL"
-        },
-        "upload_batch_superseded_check": {
-          "name": "upload_batch_superseded_check",
-          "value": "(\"upload_batch\".\"status\" = 'superseded') = (\"upload_batch\".\"superseded_by_id\" IS NOT NULL)"
+          "value": "\"upload_batch\".\"status\" IN ('received', 'processed', 'failed')"
         },
         "upload_batch_sha256_check": {
           "name": "upload_batch_sha256_check",
@@ -4892,12 +4658,6 @@
         "hierarchy_type": {
           "name": "hierarchy_type",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "level": {
-          "name": "level",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -5141,12 +4901,6 @@
         },
         "granularity": {
           "name": "granularity",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "scheme_version": {
-          "name": "scheme_version",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -5643,12 +5397,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "distribution_rank": {
-          "name": "distribution_rank",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5669,12 +5417,6 @@
     },
     "published.observation_dimension": {
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "observation_id": {
           "name": "observation_id",
           "type": "uuid",
@@ -5701,12 +5443,6 @@
     },
     "published.observation_note": {
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "observation_id": {
           "name": "observation_id",
           "type": "uuid",

@@ -93,8 +93,8 @@ export async function migrationFixture(
     comparator_method: { columns: ['id', 'name'] },
     numerator_denominator_source: { columns: ['id', 'name', 'url'] },
     area_type: {
-      columns: ['id', 'name', 'hierarchy_type', 'level'],
-      rows: [['44444444-4444-7444-8444-444444444444', 'England', 'Administrative', 1]],
+      columns: ['id', 'name', 'hierarchy_type'],
+      rows: [['44444444-4444-7444-8444-444444444444', 'England', 'Administrative']],
     },
     area: {
       columns: ['id', 'area_type_id', 'code', 'name', 'is_current'],

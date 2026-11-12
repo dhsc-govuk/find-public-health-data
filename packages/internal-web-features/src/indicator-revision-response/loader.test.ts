@@ -1,7 +1,14 @@
-import { type ApiClient, ApiConflictError } from '@fphd/web-server/api-client';
+import { ApiConflictError } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import {
+  createFakeApiClient,
+  type FakeApiAnswer,
+  type FakeApiClient,
+  fails,
+  refused,
+} from '@fphd/web-server/testing';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, flashLeftBy, withFlashStorage } from '../flash.testing.ts';
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
@@ -11,6 +18,7 @@ import { loadRevisionResponse, REPLY_CHANGED, saveRevisionResponse } from './loa
 const id = '00000000-0000-7000-8000-000000000001';
 const url = `https://internal.test/publish/indicators/${id}/revision-response`;
 const NEWER_VERSION = 'b'.repeat(64);
+const REPLY = `/api/internal/indicators/${id}/revision-response` as const;
 
 const reply = {
   kind: 'minor_revisions',
@@ -20,13 +28,15 @@ const reply = {
   version: SHOWN_VERSION,
 };
 
-function contextWith(api: Partial<ApiClient>) {
+function contextWith(api: FakeApiClient) {
   const context = withFlashStorage(new RouterContextProvider());
-  context.set(apiContext, api as ApiClient);
+  context.set(apiContext, api);
   return context;
 }
 
-function load(api: Partial<ApiClient>) {
+/** Loads the page, the API answering the reply with `answer`. */
+function load(answer: FakeApiAnswer) {
+  const api = createFakeApiClient({ [`GET ${REPLY}`]: answer });
   const context = contextWith(api);
   const request = new Request(url);
   return {
@@ -36,10 +46,13 @@ function load(api: Partial<ApiClient>) {
   };
 }
 
-function save(put: ApiClient['put'], body: Record<string, string>) {
-  const context = contextWith({ put });
+/** Saves the reply, the API answering with `answer`. */
+function save(answer: FakeApiAnswer, body: Record<string, string>) {
+  const api = createFakeApiClient({ [`PUT ${REPLY}`]: answer });
+  const context = contextWith(api);
   const request = new Request(url, { method: 'POST', body: new URLSearchParams(body) });
   return {
+    api,
     context,
     request,
     run: () => saveRevisionResponse({ context, params: { id }, request } as never),
@@ -48,9 +61,7 @@ function save(put: ApiClient['put'], body: Record<string, string>) {
 
 describe('loadRevisionResponse', () => {
   it('reads the reply and renders the clarification request from its Markdown', async () => {
-    const get = vi.fn().mockResolvedValue(reply);
-
-    await expect(load({ get }).run()).resolves.toEqual({
+    await expect(load(reply).run()).resolves.toEqual({
       id,
       clarificationRequest: {
         markdownHtml: '<p class="govuk-body-s">Which <strong>years</strong>?</p>',
@@ -58,27 +69,19 @@ describe('loadRevisionResponse', () => {
       values: { revisionResponse: '' },
       version: SHOWN_VERSION,
     });
-    expect(get).toHaveBeenCalledWith(
-      `/api/internal/indicators/${id}/revision-response`,
-      expect.anything(),
-    );
   });
 
   it('shows no clarification request when the round asked for none', async () => {
-    const get = vi
-      .fn()
-      .mockResolvedValue({ ...reply, clarificationRequest: null, revisionResponse: 'Done' });
+    const answer = { ...reply, clarificationRequest: null, revisionResponse: 'Done' };
 
-    await expect(load({ get }).run()).resolves.toMatchObject({
+    await expect(load(answer).run()).resolves.toMatchObject({
       clarificationRequest: null,
       values: { revisionResponse: 'Done' },
     });
   });
 
   it('sends the publisher to the overview while the draft is locked, saying why', async () => {
-    const { context, request, run } = load({
-      get: vi.fn().mockRejectedValue(new ApiConflictError(url, { error: 'locked' })),
-    });
+    const { context, request, run } = load(fails(new ApiConflictError(REPLY, { error: 'locked' })));
 
     const response = await flashedResponse(context, request, run);
 
@@ -87,9 +90,7 @@ describe('loadRevisionResponse', () => {
   });
 
   it('sends the publisher to the task list when no round has sent the draft back', async () => {
-    const { run } = load({
-      get: vi.fn().mockRejectedValue(new ApiConflictError(url, { error: 'not_allowed' })),
-    });
+    const { run } = load(fails(new ApiConflictError(REPLY, { error: 'not_allowed' })));
 
     const response = await run().catch((thrown: unknown) => thrown);
 
@@ -102,32 +103,26 @@ describe('loadRevisionResponse', () => {
 
 describe('saveRevisionResponse', () => {
   it('saves the reply with the version shown, returning to the task list', async () => {
-    const put = vi.fn().mockResolvedValue({ ok: true, value: reply });
+    const { api, run } = save(
+      { ...reply, revisionResponse: 'Checked', version: NEWER_VERSION },
+      { revisionResponse: 'Checked', version: SHOWN_VERSION },
+    );
 
-    const response = (await save(put, {
-      revisionResponse: 'Checked',
-      version: SHOWN_VERSION,
-    }).run()) as Response;
+    const response = (await run()) as Response;
 
     expect(response.headers.get('Location')).toBe(`/publish/indicators/${id}/task-list`);
-    expect(put).toHaveBeenCalledWith(
-      `/api/internal/indicators/${id}/revision-response`,
-      { revisionResponse: 'Checked', version: SHOWN_VERSION },
-      expect.anything(),
-      expect.anything(),
-    );
+    expect(api.calls[0]?.body).toEqual({ revisionResponse: 'Checked', version: SHOWN_VERSION });
   });
 
   it('shows the field error the API gives, keeping what was typed', async () => {
     const message = 'Enter your response to the requested revisions';
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      error: { error: 'validation_failed', fieldErrors: { revisionResponse: message } },
+    const refusal = refused(400, {
+      error: 'validation_failed',
+      fieldErrors: { revisionResponse: message },
     });
 
     await expect(
-      save(put, { revisionResponse: ' ', version: SHOWN_VERSION }).run(),
+      save(refusal, { revisionResponse: ' ', version: SHOWN_VERSION }).run(),
     ).resolves.toEqual({
       values: { revisionResponse: ' ' },
       fieldErrors: { revisionResponse: message },
@@ -136,14 +131,10 @@ describe('saveRevisionResponse', () => {
   });
 
   it('says a teammate changed the reply, taking its version so Continue replaces it', async () => {
-    const put = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      error: { error: 'changed', version: NEWER_VERSION },
-    });
+    const refusal = refused(409, { error: 'changed', version: NEWER_VERSION });
 
     await expect(
-      save(put, { revisionResponse: 'Mine', version: SHOWN_VERSION }).run(),
+      save(refusal, { revisionResponse: 'Mine', version: SHOWN_VERSION }).run(),
     ).resolves.toEqual({
       values: { revisionResponse: 'Mine' },
       fieldErrors: {},
@@ -153,10 +144,10 @@ describe('saveRevisionResponse', () => {
   });
 
   it('sends the publisher to the overview once the draft is locked, saying why', async () => {
-    const { context, request, run } = save(
-      vi.fn().mockResolvedValue({ ok: false, status: 409, error: { error: 'locked' } }),
-      { revisionResponse: 'Late', version: SHOWN_VERSION },
-    );
+    const { context, request, run } = save(refused(409, { error: 'locked' }), {
+      revisionResponse: 'Late',
+      version: SHOWN_VERSION,
+    });
 
     const response = await flashedResponse(context, request, run);
 
@@ -165,11 +156,7 @@ describe('saveRevisionResponse', () => {
   });
 
   it('returns to the task list when no round has sent the draft back any more', async () => {
-    const put = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 409, error: { error: 'not_allowed' } });
-
-    const response = (await save(put, {
+    const response = (await save(refused(409, { error: 'not_allowed' }), {
       revisionResponse: 'Late',
       version: SHOWN_VERSION,
     }).run()) as Response;
@@ -178,12 +165,11 @@ describe('saveRevisionResponse', () => {
   });
 
   it('says the reply was not saved for a refusal that names no field', async () => {
-    const put = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 400, error: { error: 'invalid_request' } });
-
     await expect(
-      save(put, { revisionResponse: 'Mine', version: SHOWN_VERSION }).run(),
+      save(refused(400, { error: 'invalid_request' }), {
+        revisionResponse: 'Mine',
+        version: SHOWN_VERSION,
+      }).run(),
     ).resolves.toMatchObject({
       formError: FORM_NOT_SAVED,
     });

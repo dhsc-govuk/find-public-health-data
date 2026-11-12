@@ -1,5 +1,5 @@
 import { type Database, schema } from '@fphd/db';
-import { and, count, countDistinct, eq, isNotNull, isNull, max, min, sql } from 'drizzle-orm';
+import { and, count, countDistinct, eq, isNotNull, max, min, sql } from 'drizzle-orm';
 
 import { replaceObservationSeries } from './observation-series.ts';
 
@@ -50,7 +50,6 @@ async function replaceReadModelRows(
   const visible = and(
     eq(o.indicatorId, indicatorId),
     uploadBatchId ? eq(o.uploadBatchId, uploadBatchId) : undefined,
-    isNull(o.deletedAt),
   );
 
   let started = performance.now();

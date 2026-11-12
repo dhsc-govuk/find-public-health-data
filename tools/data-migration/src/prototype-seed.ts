@@ -131,8 +131,8 @@ async function addImdDimension(tx: TransactionSql): Promise<void> {
   if (!type) {
     [type] = await tx<{ id: string }[]>`
       INSERT INTO dimension_type
-        (id, name, dimension_class, classification_scheme, granularity, scheme_version, is_required)
-      VALUES (${uuid7()}, ${imdType}, 'inequality', 'English indices of deprivation', 'decile', 'IMD trend', false)
+        (id, name, dimension_class, classification_scheme, granularity, is_required)
+      VALUES (${uuid7()}, ${imdType}, 'inequality', 'English indices of deprivation', 'decile', false)
       RETURNING id
     `;
   }
@@ -407,7 +407,6 @@ async function addObservations(
       upper_ci_95: number(row['Upper CI 95.0 limit'] ?? ''),
       lower_ci_998: number(row['Lower CI 99.8 limit'] ?? ''),
       upper_ci_998: number(row['Upper CI 99.8 limit'] ?? ''),
-      published_at: publishedAt,
       upload_batch_id: batches.get(shortId),
       created_at: publishedAt,
     });

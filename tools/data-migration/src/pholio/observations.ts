@@ -476,13 +476,10 @@ export async function exportObservations(context: ObservationExportOptions) {
         upper_ci_95: ci95.upper,
         lower_ci_998: ci998.lower,
         upper_ci_998: ci998.upper,
-        distribution_rank: null,
-        published_at: enteredAt,
         upload_batch_id: c.IndicatorID,
         dimension_key: dimensions.map((d) => d.valueId).join(','),
         created_at: enteredAt,
         created_by: 'pholio-migration',
-        deleted_at: null,
       });
       for (const dimension of dimensions) {
         await dimWriter.write({

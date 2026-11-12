@@ -238,8 +238,8 @@ describe('applyDataMigration', () => {
         indicator_version: versionWithBatch(firstBatch, confirmedAt),
         upload_batch: batch(firstBatch),
         area_type: {
-          columns: ['id', 'name', 'hierarchy_type', 'level'],
-          rows: [[areaId, 'England', 'Administrative', 1]],
+          columns: ['id', 'name', 'hierarchy_type'],
+          rows: [[areaId, 'England', 'Administrative']],
         },
         area: {
           columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
@@ -297,8 +297,8 @@ describe('applyDataMigration', () => {
         indicator_version: versionWithBatch(batchId, '2026-01-01T00:00:00Z'),
         upload_batch: batch(batchId),
         area_type: {
-          columns: ['id', 'name', 'hierarchy_type', 'level'],
-          rows: [[areaId, 'England', 'Administrative', 1]],
+          columns: ['id', 'name', 'hierarchy_type'],
+          rows: [[areaId, 'England', 'Administrative']],
         },
         area: {
           columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
@@ -477,11 +477,11 @@ describe('applyDataMigration', () => {
   });
   it.each([
     [
-      ['id', 'name', 'hierarchy_type', 'level', 'bogus_column'],
+      ['id', 'name', 'hierarchy_type', 'bogus_column'],
       'columns the target table does not: bogus_column',
     ],
-    [['id', 'hierarchy_type', 'level'], 'missing required columns: name'],
-    [['name', 'hierarchy_type', 'level'], 'missing required columns: id'],
+    [['id', 'hierarchy_type'], 'missing required columns: name'],
+    [['name', 'hierarchy_type'], 'missing required columns: id'],
   ])('refuses invalid area_type headers: %j', async (columns, error) => {
     await baseline();
     await expect(
@@ -509,8 +509,8 @@ describe('applyDataMigration', () => {
       apply({
         upserts: {
           area_type: {
-            columns: ['id', 'name', 'hierarchy_type', 'level'],
-            rows: [[id, 'Retired type', 'Administrative', 1]],
+            columns: ['id', 'name', 'hierarchy_type'],
+            rows: [[id, 'Retired type', 'Administrative']],
           },
           area: {
             columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'valid_to'],

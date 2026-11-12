@@ -4,7 +4,7 @@ import {
   ROLLING_PERIOD_THRESHOLD_DAYS,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, desc, eq, isNull, not, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
+import { and, count, desc, eq, not, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { Transaction } from './read-models.ts';
@@ -71,11 +71,7 @@ async function insertSeries(
       })
       .from(observation)
       .where(
-        and(
-          eq(observation.indicatorId, indicatorId),
-          eq(observation.uploadBatchId, uploadBatchId),
-          isNull(observation.deletedAt),
-        ),
+        and(eq(observation.indicatorId, indicatorId), eq(observation.uploadBatchId, uploadBatchId)),
       ),
   );
 
@@ -271,7 +267,6 @@ async function englandTrend(
       and(
         eq(observation.indicatorId, indicatorId),
         eq(observation.uploadBatchId, uploadBatchId),
-        isNull(observation.deletedAt),
         eq(area.code, ENGLAND_AREA_CODE),
       ),
     )

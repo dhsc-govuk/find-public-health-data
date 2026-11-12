@@ -50,7 +50,7 @@ def enrich_area_types(path: str) -> None:
         )
         row["display_group"], row["display_order"] = group, order
     buf = io.StringIO()
-    fieldnames = ["id", "name", "hierarchy_type", "level", "display_group", "display_order"]
+    fieldnames = ["id", "name", "hierarchy_type", "display_group", "display_order"]
     if null_marker:
         csv.writer(buf).writerow(fieldnames)
         for row in rows:

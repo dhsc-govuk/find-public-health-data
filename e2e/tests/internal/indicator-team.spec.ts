@@ -113,3 +113,22 @@ test.describe('as a publisher in one team', () => {
     await expect(page.getByRole('heading', { level: 1, name: NAME_QUESTION })).toBeVisible();
   });
 });
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false, storageState: TEAMS_A_AND_B_PUBLISHER.storageState });
+
+  test('creates the indicator in the team chosen', async ({ page }) => {
+    const name = uniqueIndicatorName('team');
+
+    await openTeamPage(page);
+    await page.getByLabel('Team A').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel(NAME_QUESTION).fill(name);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page).toHaveURL(/\/publish\/indicators\/[0-9a-f-]{36}\/task-list$/);
+
+    await page.goto('/dashboard');
+    const row = page.getByRole('table').getByRole('row').filter({ hasText: name });
+    await expect(row.getByRole('cell').nth(0)).toHaveText('Team A');
+  });
+});

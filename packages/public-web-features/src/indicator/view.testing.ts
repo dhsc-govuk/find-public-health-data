@@ -1,5 +1,46 @@
 import type { IndicatorDetail, IndicatorObservation, SelectedIndicator } from './loader.ts';
 
+/**
+ * An indicator as the public API's detail answers it, published with a calendar year and no
+ * sources, topics or area types, unless `overrides` say otherwise.
+ */
+export function indicatorDetail(
+  shortId = 108,
+  overrides: Partial<IndicatorDetail> = {},
+): IndicatorDetail {
+  return {
+    shortId,
+    slug: `indicator-${shortId}`,
+    name: `Indicator ${shortId}`,
+    valueType: 'Crude rate',
+    unit: '%',
+    yearType: { value: 'calendar', label: 'Calendar year' },
+    updateFrequency: 'annually',
+    polarity: 'higher-is-better',
+    ciMethod: null,
+    ciConfidenceLevel: '95',
+    comparatorMethod: 'Confidence intervals overlapping reference value',
+    dataUpdatedAt: null,
+    firstPublishedAt: '2026-01-02T00:00:00.000Z',
+    lastPublishedAt: '2026-01-02T00:00:00.000Z',
+    definition: null,
+    rationale: null,
+    methodology: null,
+    numeratorDefinition: null,
+    denominatorDefinition: null,
+    disclosureControl: null,
+    caveats: null,
+    notes: null,
+    dataSource: null,
+    numeratorSources: [],
+    denominatorSources: [],
+    areaTypes: [],
+    topics: [],
+    classifications: [],
+    ...overrides,
+  };
+}
+
 export function observation(
   value = 12,
   dimensions: IndicatorObservation['dimensions'] = [],

@@ -1,4 +1,4 @@
-import { isNull, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import {
   check,
   date,
@@ -6,7 +6,6 @@ import {
   foreignKey,
   index,
   pgTable,
-  smallint,
   text,
   timestamp,
   unique,
@@ -66,13 +65,10 @@ export const observation = pgTable(
     upperCi95: doublePrecision('upper_ci_95'),
     lowerCi998: doublePrecision('lower_ci_998'),
     upperCi998: doublePrecision('upper_ci_998'),
-    distributionRank: smallint(),
-    publishedAt: timestamp({ withTimezone: true }),
     uploadBatchId: uuid().notNull(),
     // Written by whoever inserts the row, from the dimension values it is about to bridge to.
     dimensionKey: text().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    deletedAt: timestamp({ withTimezone: true }),
   },
   (t) => [
     // Pairing upload_batch_id with indicator_id guarantees an observation's batch
@@ -92,19 +88,8 @@ export const observation = pgTable(
       t.toDate,
       t.dimensionKey,
     ),
-    // Rebuilds filter on one published batch. A narrow key lets Postgres deduplicate its
-    // observation references instead of copying point payloads into another large index.
-    index('idx_observation_batch_read_models').on(t.uploadBatchId).where(isNull(t.deletedAt)),
-    index('idx_obs_indicator_dates')
-      .on(t.indicatorId, t.fromDate, t.toDate)
-      .where(sql`${t.deletedAt} IS NULL`),
-    index('idx_obs_area_indicator').on(t.areaId, t.indicatorId).where(sql`${t.deletedAt} IS NULL`),
-    index('idx_obs_indicator_area_from')
-      .on(t.indicatorId, t.areaId, t.fromDate)
-      .where(sql`${t.deletedAt} IS NULL`),
-    index('idx_observation_area_from_indicator')
-      .on(t.areaId, t.fromDate, t.indicatorId)
-      .where(sql`${t.deletedAt} IS NULL`),
+    index('idx_observation_indicator_dates').on(t.indicatorId, t.fromDate, t.toDate),
+    index('idx_observation_indicator_area_from').on(t.indicatorId, t.areaId, t.fromDate),
   ],
 );
 
@@ -127,8 +112,13 @@ export const observationDimension = pgTable(
       foreignColumns: [dimensionValue.id, dimensionValue.dimensionTypeId],
       name: 'observation_dimension_value_type_fk',
     }),
-    unique().on(t.observationId, t.dimensionTypeId),
-    index('idx_obs_dim_val_obs').on(t.dimensionValueId, t.observationId),
+    unique('observation_dimension_observation_id_dimension_type_id_unique').on(
+      t.observationId,
+      t.dimensionTypeId,
+    ),
+    // Finds the observations that carry a dimension value. Queries that ask whether a value is in
+    // use need it, and so does the foreign key when a dimension value changes or is deleted.
+    index('idx_observation_dimension_value').on(t.dimensionValueId),
   ],
 );
 
@@ -143,5 +133,7 @@ export const observationNote = pgTable(
       .notNull()
       .references(() => noteType.id),
   },
-  (t) => [unique().on(t.observationId, t.noteTypeId)],
+  (t) => [
+    unique('observation_note_observation_id_note_type_id_unique').on(t.observationId, t.noteTypeId),
+  ],
 );

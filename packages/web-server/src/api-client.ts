@@ -94,6 +94,21 @@ export interface ApiClient {
   delete<E>(path: string, errorSchema: z.ZodType<E>): Promise<ApiWriteResult<undefined, E>>;
 }
 
+/**
+ * The statuses each write returns as a refusal, parsed with its error schema, for a form to
+ * render. The client throws for any other status that is not a success.
+ */
+export const REFUSAL_STATUSES: Readonly<
+  Record<Exclude<keyof ApiClient, 'get'>, readonly number[]>
+> = {
+  put: [400, 409],
+  patch: [400, 409],
+  post: [400, 409],
+  postToMember: [400, 409],
+  postStream: [400, 409, 422],
+  delete: [409],
+};
+
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 /** The API took longer to answer an upload than the upload timeout allows. */
@@ -240,11 +255,16 @@ async function refusal<E>(path: string, errorSchema: z.ZodType<E>, response: Res
 
 /**
  * The refusal a write to a member of a collection can get. The record may be gone, so a 404 is
- * meaningful. A 400 or 409 comes back parsed. Any other answer is left to the caller.
+ * meaningful. A refusal in `statuses` comes back parsed. Any other answer is left to the caller.
  */
-async function memberRefusal<E>(path: string, errorSchema: z.ZodType<E>, response: Response) {
+async function memberRefusal<E>(
+  path: string,
+  errorSchema: z.ZodType<E>,
+  response: Response,
+  statuses: readonly number[],
+) {
   if (response.status === 404) notFound();
-  if (response.status === 400 || response.status === 409) {
+  if (statuses.includes(response.status)) {
     return refusal(path, errorSchema, response);
   }
   return undefined;
@@ -322,8 +342,10 @@ export function createApiClient({
     schema: z.ZodType<T>,
     errorSchema: z.ZodType<E>,
   ): Promise<ApiWriteResult<T, E>> {
+    const statuses = method === 'PUT' ? REFUSAL_STATUSES.put : REFUSAL_STATUSES.patch;
+
     return call(method, path, json(body), async (response) => {
-      const refused = await memberRefusal(path, errorSchema, response);
+      const refused = await memberRefusal(path, errorSchema, response, statuses);
       if (refused !== undefined) return refused;
       if (!response.ok) unexpectedStatus();
       return { ok: true, data: await readParsed(path, schema, response) };
@@ -352,7 +374,7 @@ export function createApiClient({
 
     post(path, body, schema, errorSchema) {
       return call('POST', path, json(body), async (response) => {
-        if (response.status === 400 || response.status === 409) {
+        if (REFUSAL_STATUSES.post.includes(response.status)) {
           return refusal(path, errorSchema, response);
         }
         if (!response.ok) unexpectedStatus();
@@ -362,7 +384,12 @@ export function createApiClient({
 
     postToMember(path, body, errorSchema) {
       return call('POST', path, json(body), async (response) => {
-        const refused = await memberRefusal(path, errorSchema, response);
+        const refused = await memberRefusal(
+          path,
+          errorSchema,
+          response,
+          REFUSAL_STATUSES.postToMember,
+        );
         if (refused !== undefined) return refused;
         if (response.status !== 204) unexpectedStatus();
         return { ok: true, data: undefined };
@@ -393,7 +420,7 @@ export function createApiClient({
           init,
           async (response) => {
             if (response.status === 404) notFound();
-            if (response.status === 400 || response.status === 409 || response.status === 422) {
+            if (REFUSAL_STATUSES.postStream.includes(response.status)) {
               return refusal(path, errorSchema, response);
             }
             if (!response.ok) unexpectedStatus();
@@ -412,7 +439,9 @@ export function createApiClient({
     delete(path, errorSchema) {
       return call('DELETE', path, { headers }, async (response) => {
         if (response.status === 404) notFound();
-        if (response.status === 409) return refusal(path, errorSchema, response);
+        if (REFUSAL_STATUSES.delete.includes(response.status)) {
+          return refusal(path, errorSchema, response);
+        }
         if (!response.ok) unexpectedStatus();
         return { ok: true, data: undefined };
       });

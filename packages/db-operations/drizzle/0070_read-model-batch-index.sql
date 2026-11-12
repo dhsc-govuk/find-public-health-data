@@ -1,1 +1,0 @@
-CREATE INDEX "idx_observation_batch_read_models" ON "observation" USING btree ("upload_batch_id") WHERE "observation"."deleted_at" is null;
