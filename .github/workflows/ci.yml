@@ -106,8 +106,9 @@ jobs:
           INTERNAL_API_PASSWORD: internal_api
       # One root Vitest run across every project, filtered to paths containing `integration.test`
       # (any extension) — it passes on --passWithNoTests, not because nothing ran. The global
-      # setup builds a migrated, seeded template database; each test file copies it, so files
-      # run in parallel against isolated databases.
+      # setup builds three template databases: schema (migrated), core (schema plus the core
+      # data) and seeded (core plus the dummy indicators). Each test file copies the template
+      # it asks for, so files run in parallel against isolated databases.
       - run: pnpm test:integration
         env:
           DB_HOST: localhost

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { createGunzip } from 'node:zlib';
 
 import { schema } from '@fphd/db';
+import { dataMigrationKey } from '@fphd/db-operations/data-migration-contract';
 import { slugify } from '@fphd/utils/slug';
 import { countIsNumerator } from '@fphd/utils/value-type-and-unit';
 import { parse } from 'csv-parse';
@@ -131,8 +132,8 @@ async function addImdDimension(tx: TransactionSql): Promise<void> {
   if (!type) {
     [type] = await tx<{ id: string }[]>`
       INSERT INTO dimension_type
-        (id, name, dimension_class, classification_scheme, granularity, scheme_version, is_required)
-      VALUES (${uuid7()}, ${imdType}, 'inequality', 'English indices of deprivation', 'decile', 'IMD trend', false)
+        (id, name, dimension_class, classification_scheme, granularity, is_required)
+      VALUES (${uuid7()}, ${imdType}, 'inequality', 'English indices of deprivation', 'decile', false)
       RETURNING id
     `;
   }
@@ -407,7 +408,6 @@ async function addObservations(
       upper_ci_95: number(row['Upper CI 95.0 limit'] ?? ''),
       lower_ci_998: number(row['Lower CI 99.8 limit'] ?? ''),
       upper_ci_998: number(row['Upper CI 99.8 limit'] ?? ''),
-      published_at: publishedAt,
       upload_batch_id: batches.get(shortId),
       created_at: publishedAt,
     });
@@ -420,7 +420,6 @@ async function addObservations(
       if (!dimension) throw new Error(`Missing dimension value: ${type}/${value}`);
       if (!dimension.aggregate)
         observationDimensions.push({
-          id: uuid7(),
           observation_id: id,
           dimension_value_id: dimension.valueId,
           dimension_type_id: dimension.typeId,
@@ -430,7 +429,7 @@ async function addObservations(
     if (note) {
       const noteId = notes.get(note);
       if (!noteId) throw new Error(`Missing note type: ${note}`);
-      observationNotes.push({ id: uuid7(), observation_id: id, note_type_id: noteId });
+      observationNotes.push({ observation_id: id, note_type_id: noteId });
     }
     if (observations.length >= 5_000) {
       await tx`INSERT INTO observation ${tx(observations.splice(0))}`;
@@ -470,9 +469,14 @@ async function exportChangedTables(
       // The table has no created_by for observations: the batch's uploader is the writer.
       .filter((column) => table !== 'observation' || column !== 'created_by');
     const quoted = columns.map((column) => `"${column}"`).join(', ');
+    const orderBy = dataMigrationKey(table)
+      .map((column) => `"${column}"`)
+      .join(', ');
     await writeGzipped(
       await sql
-        .unsafe(`COPY (SELECT ${quoted} FROM "${table}" ORDER BY id) TO STDOUT WITH CSV HEADER`)
+        .unsafe(
+          `COPY (SELECT ${quoted} FROM "${table}" ORDER BY ${orderBy}) TO STDOUT WITH CSV HEADER`,
+        )
         .readable(),
       join(outDirectory, `${table}.csv.gz`),
     );

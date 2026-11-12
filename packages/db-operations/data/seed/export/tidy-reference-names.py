@@ -219,19 +219,17 @@ def dimension_remap(value_survivor, type_survivor):
     return remap
 
 
-def note_remap(path, note_survivor):
-    """Repoint each note at its survivor, keeping the lowest-id row of an observation's repeats."""
+def note_remap(note_survivor):
+    """Repoint each note at its survivor, keeping one row of an observation's repeats."""
     merged = {survivor for id, survivor in note_survivor.items() if id != survivor}
-    kept = {}
-    for row in read_bridge(path):
-        key = (row["observation_id"], note_survivor[row["note_type_id"]])
-        if key[1] in merged and (key not in kept or id_order(row["id"]) < id_order(kept[key])):
-            kept[key] = row["id"]
+    seen = set()
 
     def remap(row):
         key = (row["observation_id"], note_survivor[row["note_type_id"]])
-        if key[1] in merged and kept[key] != row["id"]:
-            return None
+        if key[1] in merged:
+            if key in seen:
+                return None
+            seen.add(key)
         return {**row, "note_type_id": key[1]}
 
     return remap
@@ -307,9 +305,8 @@ def tidy_reference_names(directory):
                 null_marker,
             )
         if any(id != survivor for id, survivor in note_survivor.items()):
-            path = Path(directory, "observation_note.csv.gz")
             staged["observation_note"] = rewrite_bridge(
-                directory, "observation_note", note_remap(path, note_survivor), null_marker
+                directory, "observation_note", note_remap(note_survivor), null_marker
             )
     except BaseException:
         for entry in staged.values():

@@ -14,7 +14,6 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'dimension_class',
     'classification_scheme',
     'granularity',
-    'scheme_version',
     'is_required',
   ],
   dimension_value: [
@@ -26,7 +25,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'sort_order',
     'is_aggregate',
   ],
-  area_type: ['id', 'name', 'hierarchy_type', 'level'],
+  area_type: ['id', 'name', 'hierarchy_type'],
   area: ['id', 'code', 'name', 'area_type_id', 'valid_from', 'valid_to', 'is_current'],
   area_relationship: ['id', 'parent_area_id', 'child_area_id', 'valid_from', 'valid_to'],
   indicator: ['id', 'created_at', 'data_updated_at'],
@@ -124,7 +123,6 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'uploaded_at',
     'status',
     'validation_result',
-    'superseded_by_id',
   ],
   note_type: ['id', 'text', 'category'],
   observation: [
@@ -142,15 +140,12 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'upper_ci_95',
     'lower_ci_998',
     'upper_ci_998',
-    'distribution_rank',
-    'published_at',
     'upload_batch_id',
     'dimension_key',
     'created_at',
     // Dropped by the importer: an observation's writer is its batch's uploader.
     'created_by',
-    'deleted_at',
   ],
-  observation_dimension: ['id', 'observation_id', 'dimension_value_id', 'dimension_type_id'],
-  observation_note: ['id', 'observation_id', 'note_type_id'],
+  observation_dimension: ['observation_id', 'dimension_value_id', 'dimension_type_id'],
+  observation_note: ['observation_id', 'note_type_id'],
 };

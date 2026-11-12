@@ -86,6 +86,13 @@ EXPORT_TABLES = [
     "observation_note",
 ]
 
+# The bridge tables have no id. Their rows are ordered by the observation and the dimension type
+# or note type they link it to, as dataMigrationKey in @fphd/db-operations orders package files.
+BRIDGE_KEYS = {
+    "observation_dimension": ("observation_id", "dimension_type_id"),
+    "observation_note": ("observation_id", "note_type_id"),
+}
+
 LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1"}
 # SYSTEM_USER_IDS.testSeed in @fphd/db: the user the imported records are written by.
 TEST_SEED_USER_ID = "01a13c69-96ab-7598-9ce0-f5fa1e68080a"
@@ -187,10 +194,8 @@ def add_imd_dimension(cur):
         cur.execute(
             """
             INSERT INTO dimension_type
-              (id, name, dimension_class, classification_scheme, granularity,
-               scheme_version, is_required)
-            VALUES (%s, %s, 'inequality', 'English indices of deprivation', 'decile',
-                    'IMD trend', false)
+              (id, name, dimension_class, classification_scheme, granularity, is_required)
+            VALUES (%s, %s, 'inequality', 'English indices of deprivation', 'decile', false)
             """,
             (dimension_type_id, IMD_TREND_TYPE),
         )
@@ -476,7 +481,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
                 if aggregate:
                     continue
                 value_ids.append(str(value_id))
-                observation_dimensions.append((uuid7(), observation_id, value_id, type_id))
+                observation_dimensions.append((observation_id, value_id, type_id))
 
             observations.append(
                 (
@@ -493,7 +498,6 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
                     number(row["Upper CI 95.0 limit"]),
                     number(row["Lower CI 99.8 limit"]),
                     number(row["Upper CI 99.8 limit"]),
-                    published_at,
                     batch_ids[fingertips_id],
                     # dimensionKey in @fphd/db: the dimension value ids sorted and joined.
                     ",".join(sorted(value_ids)),
@@ -504,7 +508,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
             if row["Value note"]:
                 if row["Value note"] not in notes:
                     raise ValueError(f"Missing note type: {row['Value note']}")
-                observation_notes.append((uuid7(), observation_id, notes[row["Value note"]]))
+                observation_notes.append((observation_id, notes[row["Value note"]]))
 
             source_type = registry[area_code]["area_type"]
             area_type_counts[source_type] = area_type_counts.get(source_type, 0) + 1
@@ -514,7 +518,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
         """
         INSERT INTO observation
           (id, indicator_id, area_id, from_date, to_date, value, count, numerator, denominator,
-           lower_ci_95, upper_ci_95, lower_ci_998, upper_ci_998, published_at,
+           lower_ci_95, upper_ci_95, lower_ci_998, upper_ci_998,
            upload_batch_id, dimension_key, created_at)
         VALUES %s
         """,
@@ -524,8 +528,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
     execute_values(
         cur,
         """
-        INSERT INTO observation_dimension
-          (id, observation_id, dimension_value_id, dimension_type_id)
+        INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id)
         VALUES %s
         """,
         observation_dimensions,
@@ -535,7 +538,7 @@ def add_observations(cur, csv_path, registry, area_ids, metadata, indicator_ids,
         execute_values(
             cur,
             """
-            INSERT INTO observation_note (id, observation_id, note_type_id)
+            INSERT INTO observation_note (observation_id, note_type_id)
             VALUES %s
             """,
             observation_notes,
@@ -597,7 +600,11 @@ def export_tables(conn, seed_dir, out_dir, new_version_sources):
             else:
                 selected = ", ".join(f'"{column}"' for column in columns)
                 relation = f'"{table}" t'
-            query = f"COPY (SELECT {selected} FROM {relation} ORDER BY t.id) TO STDOUT WITH CSV HEADER"
+            order_by = ", ".join(f't."{column}"' for column in BRIDGE_KEYS.get(table, ("id",)))
+            query = (
+                f"COPY (SELECT {selected} FROM {relation} ORDER BY {order_by}) "
+                "TO STDOUT WITH CSV HEADER"
+            )
 
             target_path = out_dir / f"{table}.csv.gz"
             with gzip.open(target_path, "wt", newline="", encoding="utf-8") as target:

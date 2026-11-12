@@ -20,7 +20,7 @@ const indicatorList = indicators.join(',');
 const areaTypeList = areaTypes.join(',');
 const observationWhere = `o.indicator_id IN (${indicatorList}) AND o.area_id IN (SELECT id FROM area WHERE area_type_id IN (${areaTypeList})) AND o.from_date >= CASE WHEN o.indicator_id = 92708 THEN '2021-01-01' ELSE '2015-01-01' END`;
 const observationColumns =
-  'id,indicator_id,area_id,from_date,to_date,value,count,denominator,denominator_2,lower_ci_95,upper_ci_95,lower_ci_998,upper_ci_998,distribution_rank,published_at,upload_batch_id,created_at,created_by,deleted_at';
+  'id,indicator_id,area_id,from_date,to_date,value,count,denominator,denominator_2,lower_ci_95,upper_ci_95,lower_ci_998,upper_ci_998,upload_batch_id,created_at,created_by';
 
 // Tables that can be streamed directly as-is (shape matches the target schema).
 const streamingQueries: readonly [string, string][] = [
@@ -32,13 +32,13 @@ const streamingQueries: readonly [string, string][] = [
   ['numerator_denominator_source', 'SELECT id,name,url FROM numerator_denominator_source'],
   [
     'dimension_type',
-    'SELECT id,name,dimension_class,classification_scheme,granularity,scheme_version,is_required FROM dimension_type',
+    'SELECT id,name,dimension_class,classification_scheme,granularity,is_required FROM dimension_type',
   ],
   [
     'dimension_value',
     'SELECT id,dimension_type_id,parent_id,name,code,sort_order,is_aggregate FROM dimension_value',
   ],
-  ['area_type', 'SELECT id,name,hierarchy_type,level FROM area_type'],
+  ['area_type', 'SELECT id,name,hierarchy_type FROM area_type'],
   [
     'area',
     `SELECT id,code,name,area_type_id,valid_from,valid_to FROM area WHERE area_type_id IN (${areaTypeList})`,
@@ -49,17 +49,17 @@ const streamingQueries: readonly [string, string][] = [
   ],
   [
     'upload_batch',
-    `SELECT id,indicator_id,original_filename,uploaded_by,uploaded_at,status,validation_result,superseded_by_id FROM upload_batch WHERE indicator_id IN (${indicatorList})`,
+    `SELECT id,indicator_id,original_filename,uploaded_by,uploaded_at,status,validation_result FROM upload_batch WHERE indicator_id IN (${indicatorList})`,
   ],
   ['note_type', 'SELECT id,text,category FROM note_type'],
   ['observation', `SELECT ${observationColumns} FROM observation o WHERE ${observationWhere}`],
   [
     'observation_dimension',
-    `SELECT od.id,od.observation_id,od.dimension_value_id,dv.dimension_type_id FROM observation_dimension od JOIN dimension_value dv ON dv.id = od.dimension_value_id JOIN observation o ON o.id = od.observation_id WHERE ${observationWhere}`,
+    `SELECT od.observation_id,od.dimension_value_id,dv.dimension_type_id FROM observation_dimension od JOIN dimension_value dv ON dv.id = od.dimension_value_id JOIN observation o ON o.id = od.observation_id WHERE ${observationWhere}`,
   ],
   [
     'observation_note',
-    `SELECT n.id,n.observation_id,n.note_type_id FROM observation_note n JOIN observation o ON o.id = n.observation_id WHERE ${observationWhere}`,
+    `SELECT n.observation_id,n.note_type_id FROM observation_note n JOIN observation o ON o.id = n.observation_id WHERE ${observationWhere}`,
   ],
 ];
 
