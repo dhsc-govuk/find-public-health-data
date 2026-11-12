@@ -143,6 +143,20 @@ describe('indicatorTaskList', () => {
     },
   );
 
+  it.each([
+    ['without the reasons', null, 'not_started'],
+    ['with the reasons', 'No tool reads this source.', 'completed'],
+  ] as const)(
+    'judges the justifications of a no to automation tools %s',
+    (_, noAutomationReason, status) => {
+      const draft = { hasAutomation: false, automationDetail: null, noAutomationReason };
+
+      expect(indicatorTaskList(withDraft({ ...complete, ...draft })).tasks.justifications).toBe(
+        status,
+      );
+    },
+  );
+
   it('judges the denominator from its own answers', () => {
     const numeratorOnly = { numeratorSources: [ons], numeratorDefinition: 'Deaths' };
 

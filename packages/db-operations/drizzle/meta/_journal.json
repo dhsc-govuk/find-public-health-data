@@ -512,6 +512,13 @@
       "when": 1794490877100,
       "tag": "0072_drop-source-data-issues-question",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794491132524,
+      "tag": "0073_ask-why-no-automation-tools",
+      "breakpoints": true
     }
   ]
 }

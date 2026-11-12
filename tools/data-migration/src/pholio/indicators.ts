@@ -383,6 +383,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       exclusions_detail: null,
       has_automation: null,
       automation_detail: null,
+      no_automation_reason: null,
       sponsors_and_stakeholders: null,
       has_reviewer_comments: null,
       reviewer_comments_detail: null,

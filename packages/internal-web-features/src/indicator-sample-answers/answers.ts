@@ -191,6 +191,7 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       inequalitiesIncluded: 'Deprivation.',
       hasExclusions: 'no',
       hasAutomation: 'no',
+      noAutomationReason: 'Not supported for this data source.',
     }),
     text(otherCommentsSection, { hasReviewerComments: 'no' }),
   ];

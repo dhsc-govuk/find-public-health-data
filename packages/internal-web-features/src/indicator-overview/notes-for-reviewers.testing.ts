@@ -15,6 +15,7 @@ export const ANSWERED_NOTES: NotesForReviewers = {
     exclusionsDetail: null,
     hasAutomation: 'yes',
     automationDetail: 'R scripts.',
+    noAutomationReason: null,
   },
   otherComments: {
     sponsorsAndStakeholders: 'OHID.',
@@ -38,6 +39,7 @@ export const UNANSWERED_NOTES: NotesForReviewers = {
     exclusionsDetail: null,
     hasAutomation: null,
     automationDetail: null,
+    noAutomationReason: null,
   },
   otherComments: {
     sponsorsAndStakeholders: null,

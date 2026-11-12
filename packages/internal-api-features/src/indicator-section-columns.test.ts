@@ -409,14 +409,26 @@ describe('justificationsColumns', () => {
     exclusionsDetail: 'Areas with fewer than 5 deaths.',
     hasAutomation: 'no',
     automationDetail: 'Typed before No was chosen.',
+    noAutomationReason: 'No tool reads this source.',
   } as const;
 
-  it('keeps the details of a yes and clears those of a no', () => {
+  it('keeps the details of each answer and clears those of the other', () => {
     expect(justificationsColumns.toAttributes(answered)).toEqual({
       ...answered,
       hasExclusions: true,
       hasAutomation: false,
       automationDetail: null,
+    });
+    expect(
+      justificationsColumns.toAttributes({
+        ...answered,
+        hasAutomation: 'yes',
+        automationDetail: 'The shared pipeline.',
+      }),
+    ).toMatchObject({
+      hasAutomation: true,
+      automationDetail: 'The shared pipeline.',
+      noAutomationReason: null,
     });
   });
 

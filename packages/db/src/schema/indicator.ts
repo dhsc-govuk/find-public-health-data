@@ -108,6 +108,11 @@ function detailBesideYes(answer: AnyPgColumn, detail: AnyPgColumn): SQL {
   return sql`(${answer} IS TRUE) = (${detail} IS NOT NULL)`;
 }
 
+/** A no whose detail the contract requires: the detail is kept beside a no and nothing else. */
+function detailBesideNo(answer: AnyPgColumn, detail: AnyPgColumn): SQL {
+  return sql`(${answer} IS FALSE) = (${detail} IS NOT NULL)`;
+}
+
 /** A choice whose detail the contract requires, kept beside that choice and nothing else. */
 function detailBesideChoice(column: AnyPgColumn, choice: string, detail: AnyPgColumn): SQL {
   return sql`(${column} IS NOT DISTINCT FROM ${literals([choice])}) = (${detail} IS NOT NULL)`;
@@ -264,6 +269,7 @@ export const indicatorVersion = pgTable(
     exclusionsDetail: text(),
     hasAutomation: boolean(),
     automationDetail: text(),
+    noAutomationReason: text(),
     // Other comments
     sponsorsAndStakeholders: text(),
     hasReviewerComments: boolean(),
@@ -385,6 +391,10 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_automation_detail_check',
       detailBesideYes(t.hasAutomation, t.automationDetail),
+    ),
+    check(
+      'indicator_version_no_automation_reason_check',
+      detailBesideNo(t.hasAutomation, t.noAutomationReason),
     ),
     check(
       'indicator_version_reviewer_comments_detail_check',

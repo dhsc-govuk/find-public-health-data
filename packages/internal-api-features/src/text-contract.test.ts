@@ -198,6 +198,7 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
       inequalitiesIncluded: 'Health inequalities included',
       exclusionsDetail: 'Reason for the exclusions',
       automationDetail: 'Details of the tools used',
+      noAutomationReason: 'Reasons for not using automation tools',
     },
   ],
   [

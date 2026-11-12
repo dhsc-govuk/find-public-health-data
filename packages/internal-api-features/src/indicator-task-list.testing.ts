@@ -55,6 +55,7 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   exclusionsDetail: null,
   hasAutomation: true,
   automationDetail: 'The shared indicator pipeline.',
+  noAutomationReason: null,
   sponsorsAndStakeholders: 'The national screening committee.',
   hasReviewerComments: false,
   reviewerCommentsDetail: null,

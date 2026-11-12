@@ -22,7 +22,12 @@ type YesNoQuestion = {
   hint?: string;
   /** An answer besides Yes and No, which asks for no details. */
   otherAnswer?: string;
+  /** A details field that shows while No is chosen, for a question that asks under both. */
+  noDetails?: { label: string; refusal: string };
 };
+
+/** A question that asks for details under No as well as under Yes. */
+type DetailsUnderNo = YesNoQuestion & Required<Pick<YesNoQuestion, 'noDetails'>>;
 
 /** A section page of free-text questions followed by Yes/No questions with details. */
 type YesNoSection = {
@@ -122,6 +127,7 @@ const SECTIONS: YesNoSection[] = [
         details: 'Enter details of the tools used',
         refusal: 'Select whether internal automation tools have been used',
         detailsRefusal: 'Enter details of the tools used',
+        noDetails: { label: 'Enter reasons why not', refusal: 'Enter reasons why not' },
       },
     ],
   },
@@ -150,6 +156,14 @@ function details(page: Page, { legend, details }: YesNoQuestion) {
   return page.getByRole('group', { name: legend }).getByLabel(details);
 }
 
+function noDetails(page: Page, { legend, noDetails }: DetailsUnderNo) {
+  return page.getByRole('group', { name: legend }).getByLabel(noDetails.label);
+}
+
+function asksDetailsUnderNo(question: YesNoQuestion): question is DetailsUnderNo {
+  return question.noDetails !== undefined;
+}
+
 function checkedRadios(page: Page) {
   return page.getByRole('main').getByRole('radio', { checked: true });
 }
@@ -160,6 +174,10 @@ function textAnswer(label: string) {
 
 function detailsAnswer({ legend }: YesNoQuestion) {
   return `Details for: ${legend}`;
+}
+
+function noDetailsAnswer({ legend }: YesNoQuestion) {
+  return `Details under No for: ${legend}`;
 }
 
 function continueForm(page: Page) {
@@ -183,6 +201,7 @@ for (const {
   const answerWithoutDetails = (question: YesNoQuestion) => question.otherAnswer ?? 'Yes';
   const askingDetails = questions.filter(({ otherAnswer }) => otherAnswer === undefined);
   const lastAskingDetails = askingDetails.at(-1) ?? first;
+  const askingDetailsUnderNo = questions.filter(asksDetailsUnderNo);
 
   /** Fills free-text questions, each answer between `pad`s that are saved trimmed. */
   async function fillText(page: Page, labels = allText, pad = '') {
@@ -191,12 +210,15 @@ for (const {
     }
   }
 
-  /** Answers every question, Yes with its details but for those in `no`. */
+  /** Answers every question, Yes with its details but for those in `no`, with any they ask. */
   async function answerEvery(page: Page, no: YesNoQuestion[] = []) {
     await fillText(page, allText, '  ');
     for (const question of questions) {
       if (no.includes(question)) {
         await answer(page, question, 'No').check();
+        if (asksDetailsUnderNo(question)) {
+          await noDetails(page, question).fill(`  ${noDetailsAnswer(question)}  `);
+        }
       } else {
         await answer(page, question, 'Yes').check();
         await details(page, question).fill(`  ${detailsAnswer(question)}  `);
@@ -254,7 +276,10 @@ for (const {
       // headings. Benchmarking reveals further questions instead, and makes those headings.
       await expectQuestionStyles(
         page,
-        questions.map((question) => question.details),
+        [
+          ...questions.map((question) => question.details),
+          ...askingDetailsUnderNo.map((question) => question.noDetails.label),
+        ],
         ANSWER_DETAIL,
       );
     });
@@ -275,6 +300,22 @@ for (const {
         await expect(details(page, question)).toBeHidden();
       }
     });
+
+    for (const question of askingDetailsUnderNo) {
+      test(`reveals the details under No of "${question.legend}" only while No is chosen`, async ({
+        page,
+      }) => {
+        await openSectionPage(page, section);
+        await expect(noDetails(page, question)).toBeHidden();
+
+        await answer(page, question, 'No').check();
+        await expect(noDetails(page, question)).toBeVisible();
+        await expect(details(page, question)).toBeHidden();
+
+        await answer(page, question, 'Yes').check();
+        await expect(noDetails(page, question)).toBeHidden();
+      });
+    }
 
     test('asks for the details of each question answered Yes without them', async ({ page }) => {
       await openSectionPage(page, section);
@@ -331,6 +372,9 @@ for (const {
       for (const question of rest) {
         await expect(answer(page, question, 'No')).toBeChecked();
       }
+      for (const question of rest.filter(asksDetailsUnderNo)) {
+        await expect(noDetails(page, question)).toHaveValue(noDetailsAnswer(question));
+      }
     });
 
     if (optionalText.length > 0) {
@@ -375,6 +419,61 @@ for (const {
       await expect(details(page, first)).toBeEmpty();
     });
 
+    const lastAskingUnderNo = askingDetailsUnderNo.at(-1);
+    if (lastAskingUnderNo !== undefined) {
+      test('asks for the details of each question answered No without them', async ({
+        page,
+      }, testInfo) => {
+        await openSectionPage(page, section);
+
+        await fillText(page);
+        for (const question of questions) {
+          await answer(page, question, 'No').check();
+        }
+        await continueForm(page);
+
+        const summary = page.getByRole('alert');
+        await expect(summary.getByRole('link')).toHaveText(
+          askingDetailsUnderNo.map(({ noDetails }) => noDetails.refusal),
+        );
+        for (const question of questions) {
+          await expect(answer(page, question, 'No')).toBeChecked();
+        }
+        await expectNoAccessibilityViolations(page, testInfo);
+
+        await expectErrorSummaryReady(page);
+        await summary
+          .getByRole('link', { name: lastAskingUnderNo.noDetails.refusal, exact: true })
+          .click();
+        await expect(noDetails(page, lastAskingUnderNo)).toBeFocused();
+      });
+
+      test('forgets the details under No once the question is answered Yes instead', async ({
+        page,
+      }) => {
+        await openSectionPage(page, section);
+        const pagePath = new URL(page.url()).pathname;
+        await answerEvery(page, questions);
+        await continueForm(page);
+        await expect(taskRow(page, section.taskName)).toContainText('Completed');
+
+        await page.goto(pagePath);
+        for (const question of askingDetailsUnderNo) {
+          await answer(page, question, 'Yes').check();
+          await details(page, question).fill(detailsAnswer(question));
+        }
+        await continueForm(page);
+        await expect(taskRow(page, section.taskName)).toContainText('Completed');
+
+        await page.goto(pagePath);
+        for (const question of askingDetailsUnderNo) {
+          await expect(answer(page, question, 'Yes')).toBeChecked();
+          await answer(page, question, 'No').check();
+          await expect(noDetails(page, question)).toBeEmpty();
+        }
+      });
+    }
+
     test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
       await openSectionPage(page, section);
 
@@ -407,6 +506,9 @@ for (const {
 
         for (const question of questions) {
           await expect(details(page, question)).toBeVisible();
+        }
+        for (const question of askingDetailsUnderNo) {
+          await expect(noDetails(page, question)).toBeVisible();
         }
 
         await answerEvery(page);

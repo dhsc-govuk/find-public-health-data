@@ -130,6 +130,28 @@ describe('NotesForReviewers', () => {
     expect(rows()).toContainEqual(['Have there been any exclusions?', 'Yes']);
   });
 
+  it('shows a no to automation tools with the reasons why not', () => {
+    render(
+      <NotesForReviewers
+        notes={{
+          ...ANSWERED_NOTES,
+          justifications: {
+            ...ANSWERED_NOTES.justifications,
+            hasAutomation: 'no',
+            automationDetail: null,
+            noAutomationReason: 'No tool reads this source.',
+          },
+        }}
+        indicator={IN_REVIEW}
+      />,
+    );
+
+    expect(rows()).toContainEqual([
+      'Have internal automation tools been used to create this indicator?',
+      'No - No tool reads this source.',
+    ]);
+  });
+
   it('says there are no other comments when the publisher answered no', () => {
     render(
       <NotesForReviewers

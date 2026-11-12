@@ -366,7 +366,8 @@ describe('PUT on a section', () => {
 });
 
 describe('PUT on the justifications section', () => {
-  // Five textareas of 10,000 emoji, each 4 bytes in UTF-8: the largest save any section takes.
+  // Six textareas of 10,000 emoji, each 4 bytes in UTF-8: the largest save any section takes.
+  // The contract accepts text in every textarea whatever the yes or no answers are.
   const longest = '\u{1F600}'.repeat(LONG_TEXT_MAX_LENGTH);
   const largestAnswers = {
     ciMethodJustification: longest,
@@ -376,6 +377,7 @@ describe('PUT on the justifications section', () => {
     exclusionsDetail: longest,
     hasAutomation: 'yes',
     automationDetail: longest,
+    noAutomationReason: longest,
   };
 
   it('saves the largest answers the contract allows', async () => {
@@ -396,7 +398,7 @@ describe('PUT on the justifications section', () => {
     );
     const sent = { answers: largestAnswers, version: storedVersion };
 
-    expect(Buffer.byteLength(JSON.stringify(sent))).toBeGreaterThan(200_000);
+    expect(Buffer.byteLength(JSON.stringify(sent))).toBeGreaterThan(240_000);
 
     const response = await request(app)
       .put(`/api/internal/indicators/${id}/justifications`)
