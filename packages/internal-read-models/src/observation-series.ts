@@ -4,20 +4,18 @@ import {
   ROLLING_PERIOD_THRESHOLD_DAYS,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, desc, eq, not, type SQL, sql } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, not, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { Transaction } from './read-models.ts';
 
 const {
   area,
-  currentPublishedVersion,
   dimensionType,
   dimensionValue,
-  indicatorVersion,
   observationSeries,
   observationSeriesBatch,
-  publishedObservation: observation,
+  observation,
 } = schema;
 
 type Executor = Database | Transaction;
@@ -36,7 +34,7 @@ function recentNonNull<T>(
 }
 
 /** Orders segments with the fewest dimensions first, as the plainest series of a group. */
-function fewestDimensions(dimensionKey: SQL | AnyPgColumn) {
+function fewestDimensions(dimensionKey: SQLWrapper) {
   return sql`cardinality(string_to_array(${dimensionKey}, ','))`;
 }
 
@@ -61,8 +59,6 @@ async function insertSeries(
       .where(eq(dimensionType.name, SEX_DIMENSION_NAME)),
   );
 
-  // Read once: `source` is referenced twice below, so Postgres materializes it rather than
-  // evaluating the published view's visibility predicates for each reference.
   const source = tx.$with('source').as(
     tx
       .select({
@@ -74,33 +70,35 @@ async function insertSeries(
         value: observation.value,
       })
       .from(observation)
-      .where(eq(observation.indicatorId, indicatorId)),
+      .where(
+        and(
+          eq(observation.indicatorId, indicatorId),
+          eq(observation.uploadBatchId, uploadBatchId),
+          isNull(observation.deletedAt),
+        ),
+      ),
   );
 
-  // Every point counts towards the 'all' series and towards its own period type's.
-  const sourceColumns = {
-    id: source.id,
-    areaId: source.areaId,
-    dimensionKey: source.dimensionKey,
-    fromDate: source.fromDate,
-    toDate: source.toDate,
-    value: source.value,
-  };
+  // A lateral projection reads each point once without materializing the entire batch for
+  // two UNION ALL scans, which otherwise spills millions of observations to temporary files.
+  const periods = sql`(VALUES ('all'), (CASE
+    WHEN ${source.toDate} - ${source.fromDate} <= ${ROLLING_PERIOD_THRESHOLD_DAYS} THEN '1-year'
+    ELSE '3-year'
+  END)) AS periods(period_type)`;
+  // Dimension keys contain UUIDs, so locale comparisons add cost without changing equality.
   const points = tx.$with('points').as(
     tx
-      .select({ ...sourceColumns, periodType: sql<PeriodType>`'all'`.as('period_type') })
+      .select({
+        id: source.id,
+        areaId: source.areaId,
+        dimensionKey: sql<string>`${source.dimensionKey} COLLATE "C"`.as('dimension_key'),
+        fromDate: source.fromDate,
+        toDate: source.toDate,
+        value: source.value,
+        periodType: sql<PeriodType>`periods.period_type`.as('period_type'),
+      })
       .from(source)
-      .unionAll(
-        tx
-          .select({
-            ...sourceColumns,
-            periodType: sql<PeriodType>`CASE
-              WHEN ${source.toDate} - ${source.fromDate} <= ${ROLLING_PERIOD_THRESHOLD_DAYS} THEN '1-year'
-              ELSE '3-year'
-            END`.as('period_type'),
-          })
-          .from(source),
-      ),
+      .crossJoinLateral(periods),
   );
 
   const segments = tx.$with('segments').as(
@@ -260,12 +258,23 @@ async function insertSeries(
  * The recent values of England's plainest 'all periods' series, the trend a topic page shows
  * for the indicator, or null when England has no data.
  */
-async function englandTrend(tx: Executor, indicatorId: string): Promise<number[] | null> {
+async function englandTrend(
+  tx: Executor,
+  indicatorId: string,
+  uploadBatchId: string,
+): Promise<number[] | null> {
   const [trend] = await tx
     .select({ values: recentNonNull<number>(observation.value, observation) })
     .from(observation)
     .innerJoin(area, eq(area.id, observation.areaId))
-    .where(and(eq(observation.indicatorId, indicatorId), eq(area.code, ENGLAND_AREA_CODE)))
+    .where(
+      and(
+        eq(observation.indicatorId, indicatorId),
+        eq(observation.uploadBatchId, uploadBatchId),
+        isNull(observation.deletedAt),
+        eq(area.code, ENGLAND_AREA_CODE),
+      ),
+    )
     .groupBy(observation.areaId, observation.dimensionKey)
     .orderBy(
       fewestDimensions(observation.dimensionKey),
@@ -276,47 +285,21 @@ async function englandTrend(tx: Executor, indicatorId: string): Promise<number[]
   return trend?.values ?? null;
 }
 
-/** Inserts one indicator's series for the upload batch it has published, if any. */
-async function insertIndicatorSeries(tx: Executor, indicatorId: string): Promise<void> {
-  const [published] = await tx
-    .select({ uploadBatchId: indicatorVersion.uploadBatchId })
-    .from(currentPublishedVersion)
-    .innerJoin(indicatorVersion, eq(indicatorVersion.id, currentPublishedVersion.id))
-    .where(eq(currentPublishedVersion.indicatorId, indicatorId));
-  const uploadBatchId = published?.uploadBatchId;
+export async function replaceObservationSeries(
+  tx: Executor,
+  indicatorId: string,
+  uploadBatchId: string | undefined,
+): Promise<void> {
+  await tx.delete(observationSeries).where(eq(observationSeries.indicatorId, indicatorId));
+  await tx
+    .delete(observationSeriesBatch)
+    .where(eq(observationSeriesBatch.indicatorId, indicatorId));
   if (!uploadBatchId) return;
 
   await insertSeries(tx, indicatorId, uploadBatchId);
   await tx.insert(observationSeriesBatch).values({
     uploadBatchId,
     indicatorId,
-    trendValues: await englandTrend(tx, indicatorId),
+    trendValues: await englandTrend(tx, indicatorId, uploadBatchId),
   });
-}
-
-/**
- * Replaces the observation series of one indicator, or of all of them. A whole rebuild still
- * works one indicator at a time, so no statement aggregates every published observation at once.
- */
-export async function replaceObservationSeries(
-  tx: Executor,
-  indicatorId: string | undefined,
-): Promise<void> {
-  if (indicatorId !== undefined) {
-    await tx.delete(observationSeries).where(eq(observationSeries.indicatorId, indicatorId));
-    await tx
-      .delete(observationSeriesBatch)
-      .where(eq(observationSeriesBatch.indicatorId, indicatorId));
-    await insertIndicatorSeries(tx, indicatorId);
-    return;
-  }
-
-  await tx.delete(observationSeries);
-  await tx.delete(observationSeriesBatch);
-  const published = await tx
-    .select({ indicatorId: currentPublishedVersion.indicatorId })
-    .from(currentPublishedVersion);
-  for (const { indicatorId: id } of published) {
-    await insertIndicatorSeries(tx, id);
-  }
 }

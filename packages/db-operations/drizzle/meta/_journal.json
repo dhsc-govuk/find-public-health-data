@@ -491,6 +491,13 @@
       "when": 1794416240777,
       "tag": "0069_require-indicator-team",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1794424136000,
+      "tag": "0070_read-model-batch-index",
+      "breakpoints": true
     }
   ]
 }

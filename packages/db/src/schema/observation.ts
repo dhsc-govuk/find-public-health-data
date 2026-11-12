@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { isNull, sql } from 'drizzle-orm';
 import {
   check,
   date,
@@ -92,6 +92,20 @@ export const observation = pgTable(
       t.toDate,
       t.dimensionKey,
     ),
+    // Rebuilding needs every point in a batch. Covering those reads avoids scattered heap
+    // fetches, and area/segment ordering lets aggregation sort before expanding period types.
+    index('idx_observation_batch_read_models')
+      .on(
+        t.uploadBatchId,
+        t.indicatorId,
+        t.areaId,
+        sql`${t.dimensionKey} COLLATE "C"`,
+        t.fromDate.desc(),
+        t.toDate.desc(),
+        t.id,
+        t.value,
+      )
+      .where(isNull(t.deletedAt)),
     index('idx_obs_indicator_dates')
       .on(t.indicatorId, t.fromDate, t.toDate)
       .where(sql`${t.deletedAt} IS NULL`),

@@ -1,6 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -152,6 +152,102 @@ describe('refreshIndicatorReadModels', () => {
     await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
 
     expect(await readModelRowsOf(db, indicatorId)).toEqual([]);
+  });
+
+  it('rolls back every model if a refresh fails between phases', async () => {
+    const indicatorId = (await seededIndicatorIds()).at(-2);
+    if (!indicatorId) throw new Error('Expected a seeded indicator');
+    const before = await readModelRowsOf(db, indicatorId);
+    await publishNewObservation(indicatorId);
+
+    await expect(
+      db.transaction((tx) =>
+        refreshIndicatorReadModels(tx, indicatorId, ({ table }) => {
+          if (table === 'observation_range') throw new RolledBack();
+        }),
+      ),
+    ).rejects.toBeInstanceOf(RolledBack);
+
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(before);
+  });
+
+  it('excludes soft-deleted observations from every model', async () => {
+    const [indicatorId] = await seededIndicatorIds();
+    if (!indicatorId) throw new Error('Expected a seeded indicator');
+    const before = await readModelRowsOf(db, indicatorId);
+    await expect(
+      db.transaction(async (tx) => {
+        const [published] = await tx
+          .select({ uploadBatchId: schema.indicatorVersion.uploadBatchId })
+          .from(schema.currentPublishedVersion)
+          .innerJoin(
+            schema.indicatorVersion,
+            eq(schema.indicatorVersion.id, schema.currentPublishedVersion.id),
+          )
+          .where(eq(schema.currentPublishedVersion.indicatorId, indicatorId));
+        const [england] = await tx
+          .select({ id: schema.area.id })
+          .from(schema.area)
+          .where(eq(schema.area.code, 'E92000001'));
+        if (!published?.uploadBatchId || !england) throw new Error('Expected published data');
+        await tx.insert(schema.observation).values({
+          indicatorId,
+          uploadBatchId: published.uploadBatchId,
+          areaId: england.id,
+          fromDate: '2098-01-01',
+          toDate: '2098-12-31',
+          value: 98765,
+          dimensionKey: '',
+          deletedAt: new Date(),
+        });
+        await refreshIndicatorReadModels(tx, indicatorId);
+        expect(await readModelRowsOf(tx, indicatorId)).toEqual(before);
+        throw new RolledBack();
+      }),
+    ).rejects.toBeInstanceOf(RolledBack);
+  });
+
+  it('serializes the same indicator while another indicator can commit', async () => {
+    const [indicatorId, otherId] = await seededIndicatorIds();
+    if (!indicatorId || !otherId) throw new Error('Expected two seeded indicators');
+    const expected = await rowsAfterWholeRebuild(indicatorId);
+    let rebuilt: () => void = () => {};
+    let release: () => void = () => {};
+    const rebuilding = new Promise<void>((resolve) => {
+      rebuilt = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first = db.transaction(async (tx) => {
+      await refreshIndicatorReadModels(tx, indicatorId);
+      rebuilt();
+      await released;
+    });
+    await rebuilding;
+    const second = db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+    try {
+      await expect
+        .poll(
+          async () => {
+            const [row] = await db.execute<{ waiting: number }>(sql`
+            SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'
+              AND query LIKE 'select "id" from "indicator"%'
+          `);
+            return row?.waiting;
+          },
+          { timeout: 10_000 },
+        )
+        .toBe(1);
+      await expect(
+        db.transaction((tx) => refreshIndicatorReadModels(tx, otherId)),
+      ).resolves.toBeUndefined();
+    } finally {
+      release();
+      await Promise.all([first, second]);
+    }
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(expected);
   });
 
   it('waits for a whole rebuild in progress, then commits', async () => {
