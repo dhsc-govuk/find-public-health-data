@@ -190,6 +190,21 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('keeps England beside a picked area on the data tab with a comparison summary', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=data&ga=E12000007`);
+    const table = page.getByRole('tabpanel', { name: 'Data' }).getByRole('table', {
+      name: 'Mortality and life expectancy indicators: London compared with England',
+    });
+    await expect(table).toBeVisible();
+    for (const column of ['London', 'Comparison summary', 'England']) {
+      await expect(table.getByRole('columnheader', { name: column })).toBeVisible();
+    }
+    await expect(table.getByRole('columnheader').last()).toHaveText(/Calculated\s*value/);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
   test('changes topic table columns and downloads the same view', async ({ page }, testInfo) => {
     await openTopicPage(page, '/topics/diabetes?tab-topic=data');
     const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });

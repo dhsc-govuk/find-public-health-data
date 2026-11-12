@@ -4,6 +4,7 @@ import { periodLabel } from '@fphd/utils/period-label';
 import {
   type BenchmarkJudgement,
   benchmarkJudgement,
+  type ComparisonCell,
   type ComparisonRow,
   comparisonRows,
   filterObservations,
@@ -128,6 +129,25 @@ export const JUDGEMENT_LABELS: Record<BenchmarkJudgement, string> = {
   none: 'No comparison available',
 };
 
+// The prototype gives no verdict wherever Fingertips gives none or the indicator has no polarity.
+export function comparisonSummary(judgement: BenchmarkJudgement): string {
+  return judgement === 'better' || judgement === 'similar' || judgement === 'worse'
+    ? JUDGEMENT_LABELS[judgement]
+    : 'Neither better nor worse';
+}
+
 export function topicJudgement(...args: Parameters<typeof benchmarkJudgement>): BenchmarkJudgement {
   return args[2].polarity === 'no-polarity' ? 'none' : benchmarkJudgement(...args);
+}
+
+export function topicAreaJudgement(
+  entry: SelectedIndicator,
+  row: Pick<ComparisonRow, 'sex' | 'periodType'>,
+  cell: Pick<ComparisonCell, 'series'>,
+): BenchmarkJudgement {
+  return topicJudgement(
+    cell.series.at(-1),
+    englandObservation(entry, { ...row, series: cell.series })?.value ?? null,
+    entry.detail,
+  );
 }

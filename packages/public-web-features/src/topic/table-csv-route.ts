@@ -4,9 +4,11 @@ import { comparisonTable } from '../indicator/comparison.ts';
 import { recentTrend } from '../indicator/data.ts';
 import { tableCsv } from '../indicator/download.ts';
 import {
+  comparisonSummary,
   englandObservation,
   JUDGEMENT_LABELS,
   observationPeriod,
+  topicAreaJudgement,
   topicColumns,
   topicJudgement,
   topicSubtopics,
@@ -31,6 +33,15 @@ export async function loader(args: LoaderFunctionArgs) {
   const measures = columns.filter((column) =>
     ['trend', 'count', 'numerator', 'value'].includes(column),
   );
+  const englandMeasures = model.hasPickedAreas
+    ? measures.filter((measure) => measure !== 'trend')
+    : [];
+  const measureLabel = (measure: (typeof measures)[number]) =>
+    measure === 'trend'
+      ? 'trend (last 5 periods)'
+      : measure === 'count' || measure === 'numerator'
+        ? measure
+        : 'calculated value';
   const dataAreas = [...model.areas].sort((a, b) =>
     a.areaCode === 'E92000001'
       ? -1
@@ -94,16 +105,18 @@ export async function loader(args: LoaderFunctionArgs) {
           'Unit',
           ...(columns.includes('period') ? ['Most recent period'] : []),
           ...(columns.includes('updated') ? ['Last updated'] : []),
-          ...dataAreas.flatMap(({ areaName }) =>
-            measures.map(
-              (measure) =>
-                `${areaName} ${measure === 'trend' ? 'trend (last 5 periods)' : measure === 'count' || measure === 'numerator' ? measure : 'calculated value'}`,
-            ),
-          ),
+          ...dataAreas.flatMap(({ areaName }) => [
+            ...measures.map((measure) => `${areaName} ${measureLabel(measure)}`),
+            ...(model.hasPickedAreas
+              ? [`${areaName} period`, `${areaName} comparison summary`]
+              : []),
+          ]),
+          ...englandMeasures.map((measure) => `England ${measureLabel(measure)}`),
         ],
         ...model.rows.flatMap((row) => {
           const entry = byId.get(row.shortId);
           if (!entry) return [];
+          const england = englandObservation(entry, row);
           return [
             [
               row.name + (row.suffix ? ` ${row.suffix}` : ''),
@@ -117,16 +130,31 @@ export async function loader(args: LoaderFunctionArgs) {
                       : 'Not known',
                   ]
                 : []),
-              ...dataAreas.flatMap(({ areaCode }) =>
-                measures.map((measure) => {
-                  const cell = row.cells.find((cell) => cell.areaCode === areaCode);
-                  return measure === 'trend'
-                    ? recentTrend(cell?.series ?? [], entry.detail.polarity, cell?.trendDirection)
-                        .label
-                    : measure === 'count' || measure === 'numerator'
-                      ? (cell?.[measure] ?? null)
-                      : (cell?.value ?? null);
-                }),
+              ...dataAreas.flatMap(({ areaCode }) => {
+                const cell = row.cells.find((cell) => cell.areaCode === areaCode);
+                return [
+                  ...measures.map((measure) =>
+                    measure === 'trend'
+                      ? recentTrend(cell?.series ?? [], entry.detail.polarity, cell?.trendDirection)
+                          .label
+                      : measure === 'count' || measure === 'numerator'
+                        ? (cell?.[measure] ?? null)
+                        : (cell?.value ?? null),
+                  ),
+                  ...(model.hasPickedAreas
+                    ? [
+                        observationPeriod(entry, cell?.series.at(-1)),
+                        cell?.value == null
+                          ? 'No data'
+                          : comparisonSummary(topicAreaJudgement(entry, row, cell)),
+                      ]
+                    : []),
+                ];
+              }),
+              ...englandMeasures.map((measure) =>
+                measure === 'count' || measure === 'numerator'
+                  ? (england?.[measure] ?? null)
+                  : (england?.value ?? null),
               ),
             ],
           ];

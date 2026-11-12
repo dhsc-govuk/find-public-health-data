@@ -159,3 +159,39 @@ it('keeps the same-period England comparison when an area has older data', () =>
   expect(model.rows[0]?.cells[0]).toMatchObject({ value: 18, period: '2023', judgement: 'better' });
   expect(JSON.stringify(model)).not.toContain('observations');
 });
+
+it('keeps England beside picked areas and judges each area against it', () => {
+  const model = topicDataTableModel([entry], 'diabetes');
+  expect(model.areas).toEqual([{ code: 'E12000001', name: 'North East' }]);
+  expect(model.compared).toBe(true);
+  expect(model.rows[0]?.england).toEqual({ value: 28, count: 280, numerator: 140 });
+  expect(model.rows[0]?.cells[0]?.judgement).toBe('better');
+});
+
+it('leaves England as the only column when no area is picked', () => {
+  const model = topicDataTableModel(
+    [{ ...entry, areaData: entry.areaData.slice(0, 1) }],
+    'diabetes',
+  );
+  expect(model.areas).toEqual([{ code: 'E92000001', name: 'England' }]);
+  expect(model.compared).toBe(false);
+  expect(model.rows[0]?.england).toBeNull();
+  expect(model.rows[0]?.cells[0]?.judgement).toBeNull();
+});
+
+it('names the period of an area that lags the row and judges it against England for that period', () => {
+  const lagging = structuredClone(entry);
+  lagging.areaData.push({
+    areaCode: 'E12000002',
+    areaName: 'North West',
+    observations: Array.from({ length: 8 }, (_, index) => observation(2015 + index, 30 + index)),
+  });
+  const model = topicDataTableModel([lagging], 'diabetes');
+  const [northEast, northWest] = model.rows[0]?.cells ?? [];
+  expect(model.rows[0]?.period).toBe('2023');
+  expect(model.rows[0]?.england?.value).toBe(28);
+  expect(northEast).not.toHaveProperty('period');
+  // North West's 2022 value (37) is above England's 2022 value (27), so worse for a
+  // lower-is-better indicator, although it is below England's 2023 value shown.
+  expect(northWest).toMatchObject({ value: 37, period: '2022', judgement: 'worse' });
+});
