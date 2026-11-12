@@ -26,6 +26,7 @@ const DRAFT_TABLE: DraftDataTableRow = {
   columns: ['area_code', 'period_start', 'period_end', 'value'],
   rowCount: 52,
   yearType: { value: 'financial', label: 'Financial' },
+  replacesPublished: false,
 };
 
 const ROW: DataTableRow = {
