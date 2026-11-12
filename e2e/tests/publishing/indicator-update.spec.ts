@@ -38,8 +38,8 @@ function taskStatus(page: Page, title: string) {
     .locator('.govuk-task-list__status');
 }
 
-// The rationale the update gives, in place of the sample one the indicator was published with.
-const UPDATED_RATIONALE = 'A sample rationale, revised for the update.';
+// The rationale the update gives, one word changed from the sample one it was published with.
+const UPDATED_RATIONALE = 'A revised rationale.';
 
 /** Saves the polarity page with the answer given, which returns to the task list. */
 async function savePolarity(page: Page, answer: string) {
@@ -242,10 +242,9 @@ test('the History tab shows "Update submitted for review" with a table of "Secti
   await expect(table.getByRole('row').nth(1)).toHaveText(/^Polarity\s*Higher is better$/);
   const rationale = table.getByRole('row').nth(2);
   await expect(rationale.getByRole('cell').first()).toHaveText('Definition and rationale');
-  // Which words are marked depends on the word diff, so this checks only that both kinds show.
   await expect(rationale.getByText('Rationale', { exact: true })).toBeVisible();
-  await expect(rationale.locator('ins').first()).toBeVisible();
-  await expect(rationale.locator('del').first()).toBeVisible();
+  await expect(rationale.locator('del')).toHaveText('Removed: sample');
+  await expect(rationale.locator('ins')).toHaveText('Added: revised');
   await expect(table.getByRole('row').nth(3)).toHaveText(
     /^Update summary\s*Polarity corrected to higher is better\.$/,
   );

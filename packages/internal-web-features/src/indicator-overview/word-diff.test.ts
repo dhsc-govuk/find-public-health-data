@@ -28,10 +28,28 @@ describe('wordDiff', () => {
     ]);
   });
 
+  it('marks only the word that changed in a sentence', () => {
+    expect(wordDiff('Deaths in the year.', 'Deaths in each year.')).toEqual([
+      { change: 'unchanged', text: 'Deaths in ' },
+      { change: 'removed', text: 'the' },
+      { change: 'added', text: 'each' },
+      { change: 'unchanged', text: ' year.' },
+    ]);
+  });
+
+  it('keeps the spaces between the words removed and those added', () => {
+    expect(wordDiff('A rate per person', 'A count of people')).toEqual([
+      { change: 'unchanged', text: 'A ' },
+      { change: 'removed', text: 'rate per person' },
+      { change: 'added', text: 'count of people' },
+    ]);
+  });
+
   it.each([
     ['Deaths in the year.', 'Deaths registered in the year.'],
     ['Under 75 mortality rate', 'Under 75 mortality rate from cardiovascular disease'],
     ['A rate per 100,000 people', 'A count of people'],
+    ['Two  spaces here', 'Two spaces  there'],
   ])('rebuilds both texts from its runs: %s, then %s', (before, after) => {
     const runs = wordDiff(before, after);
 

@@ -199,6 +199,11 @@
   text-decoration: line-through;
 }
 
+// Words removed and the words added in their place sit apart, so the two never read as one word.
+.fphd-diff-removed + .fphd-diff-added {
+  margin-left: 0.25em;
+}
+
 .fphd-filter-card {
   border: 0;
   border-bottom: 1px solid #cecece;
