@@ -420,11 +420,6 @@ export async function updateIndicatorDraft(
 
       if (current === undefined) return { ok: false, reason: 'no_draft' };
       if (current.isLocked) return { ok: false, reason: 'locked' };
-      // A live indicator's draft keeps the published slug, so the exclusion constraint never sees
-      // the slug of its new name. Another indicator's version carrying it is checked here instead.
-      if (live && (await isSlugOfAnotherIndicator(tx, slug, indicatorId))) {
-        return { ok: false, reason: 'slug_taken' };
-      }
 
       if (precondition !== undefined) {
         const version = precondition.versionOf({
@@ -433,6 +428,12 @@ export async function updateIndicatorDraft(
         });
 
         if (version !== precondition.version) return { ok: false, reason: 'changed', version };
+      }
+
+      // A live indicator's draft keeps the published slug, so the exclusion constraint never sees
+      // the slug of its new name. Another indicator's version carrying it is checked here instead.
+      if (live && (await isSlugOfAnotherIndicator(tx, slug, indicatorId))) {
+        return { ok: false, reason: 'slug_taken' };
       }
 
       const [draft] = await tx

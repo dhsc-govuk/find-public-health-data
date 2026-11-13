@@ -856,6 +856,38 @@ describe('updateIndicatorDraft given the version a form was shown', () => {
     },
   );
 
+  repositoryTest(
+    "answers changed, not slug_taken, for a stale form renaming a live indicator's draft onto a taken slug",
+    async ({ db }) => {
+      await newDraft(db, 'Taken by another');
+      const { indicatorId } = await indicatorWithTwoPublications(db, 'Live and renamed twice');
+      const opened = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      if (!opened.ok) throw new Error('expected a draft');
+      const nameVersionOf = (draft: IndicatorDraft) => editVersion({ name: draft.name });
+      const shownName = editVersion({ name: 'Live and renamed twice' });
+      await updateIndicatorDraft(db, indicatorId, 'name', { name: 'Renamed first' }, {}, AS_ACTOR, {
+        version: shownName,
+        versionOf: nameVersionOf,
+      });
+
+      const result = await updateIndicatorDraft(
+        db,
+        indicatorId,
+        'name',
+        { name: 'Taken by another' },
+        {},
+        AS_OTHER_ACTOR,
+        { version: shownName, versionOf: nameVersionOf },
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        reason: 'changed',
+        version: editVersion({ name: 'Renamed first' }),
+      });
+    },
+  );
+
   repositoryTest('saves when only what the version does not cover has changed', async ({ db }) => {
     const created = await newDraft(db, 'Changed elsewhere');
     await updateIndicatorDraft(
