@@ -730,6 +730,20 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: 0;
 }
 
+// The counts above an update's data table: a short label and its number, set to the right. Below
+// tablet width the list stacks each label above its number, as GOV.UK summary lists do.
+.fphd-data-changes-summary {
+  @include govuk-media-query($from: tablet) {
+    .govuk-summary-list__key {
+      width: 75%;
+    }
+
+    .govuk-summary-list__value {
+      text-align: right;
+    }
+  }
+}
+
 // A select with its label on one line and the button that applies it beside them.
 .fphd-table-controls__form,
 .fphd-table-controls__form .govuk-form-group {

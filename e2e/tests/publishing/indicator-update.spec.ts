@@ -235,6 +235,45 @@ test('an update is not offered for review while no task is changed', async ({ pa
   await expect(page.getByRole('button', { name: 'Submit for review' })).toHaveCount(0);
 });
 
+// Two financial years for England, a different table from the one-row sample it was published with.
+const REPLACEMENT_CSV = [
+  'area_code,period_start,period_end,value',
+  'E92000001,2019-04-01,2020-03-31,83.8',
+  'E92000001,2020-04-01,2021-03-31,84.1',
+].join('\n');
+
+test('on an update, the check page of a new data table shows "Number of data values replaced", and the Data table task reads "Changed" once it is confirmed', async ({
+  page,
+}, testInfo) => {
+  const checkPath = `/publish/indicators/${indicator.id}/data-table/check`;
+
+  // Until a file is uploaded, the draft shows the live indicator's table, which replaces nothing.
+  await page.goto(checkPath);
+  await expect(page.getByText('Your upload contains 1 row')).toBeVisible();
+  await expect(page.getByText('Number of data values replaced')).toHaveCount(0);
+
+  await page.goto(`/publish/indicators/${indicator.id}/data-table`);
+  await page.getByLabel('Upload indicator data table').setInputFiles({
+    name: 'data.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(REPLACEMENT_CSV),
+  });
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(checkPath);
+  const summary = page.locator('.govuk-summary-list__row');
+  await expect(summary).toHaveCount(1);
+  await expect(summary.locator('dt')).toHaveText('Number of data values replaced');
+  await expect(summary.locator('dd')).toHaveText('2');
+  await expect(page.getByText('Your upload contains 2 rows')).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(taskListPath());
+  await expect(taskStatus(page, 'Data table')).toHaveText('Changed');
+});
+
 test('an update can be submitted once at least one task is "Changed" and the publishing date and update summary are complete, and the overview\'s banner reads "Update successfully submitted for review."', async ({
   page,
 }, testInfo) => {
@@ -277,13 +316,14 @@ test('the History tab shows "Update submitted for review" with a table of "Secti
   await expect(entry.getByText('Update submitted for review', { exact: true })).toBeVisible();
   const table = entry.getByRole('table', { name: 'Update submitted for review' });
   await expect(table.getByRole('columnheader')).toHaveText(['Section', 'Changes']);
-  await expect(table.getByRole('row').nth(1)).toHaveText(/^Polarity\s*Higher is better$/);
-  const rationale = table.getByRole('row').nth(2);
+  await expect(table.getByRole('row').nth(1)).toHaveText(/^Data table\s*2 data values replaced$/);
+  await expect(table.getByRole('row').nth(2)).toHaveText(/^Polarity\s*Higher is better$/);
+  const rationale = table.getByRole('row').nth(3);
   await expect(rationale.getByRole('cell').first()).toHaveText('Definition and rationale');
   await expect(rationale.getByText('Rationale', { exact: true })).toBeVisible();
   await expect(rationale.locator('del')).toHaveText('Removed: sample');
   await expect(rationale.locator('ins')).toHaveText('Added: revised');
-  await expect(table.getByRole('row').nth(3)).toHaveText(
+  await expect(table.getByRole('row').nth(4)).toHaveText(
     /^Update summary\s*Polarity corrected to higher is better\.$/,
   );
   await expectNoAccessibilityViolations(page, testInfo);

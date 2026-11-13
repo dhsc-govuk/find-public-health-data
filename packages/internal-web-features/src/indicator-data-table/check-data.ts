@@ -107,3 +107,19 @@ export function rowsShowing({ page, rowsPerPage, rowCount }: CheckedTable): stri
   const last = Math.min(page * rowsPerPage, rowCount);
   return `Showing ${count.format(first)} to ${count.format(last)} of ${rows(rowCount)}`;
 }
+
+/** One count in the summary above an update's data table. */
+export interface DataChange {
+  label: string;
+  count: string;
+}
+
+/**
+ * The counts above the table on an update: how many data values the new table holds, as all of
+ * them replace the live indicator's. A new indicator has no live data, so it has none.
+ */
+export function dataChanges({ rowCount, replacesPublished }: CheckedTable): DataChange[] {
+  return replacesPublished
+    ? [{ label: 'Number of data values replaced', count: count.format(rowCount) }]
+    : [];
+}

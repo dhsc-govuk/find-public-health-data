@@ -15,13 +15,14 @@ import {
   Label,
   Pagination,
   Select,
+  SummaryList,
   Table,
   TableScrollRegion,
 } from '@fphd/ui';
 import { type FormEvent, useEffect, useState } from 'react';
 
 import { indicatorDataTableCheckPath, indicatorDataTablePath } from '../publish-paths.ts';
-import { checkColumns, rowsShowing, uploadSummary } from './check-data.ts';
+import { checkColumns, dataChanges, rowsShowing, uploadSummary } from './check-data.ts';
 import type { DataTableCheckData } from './check-loader.ts';
 import type { DataTableProblem, DataTableUploadFailure } from './loader.ts';
 import { problemRows } from './problem-content.tsx';
@@ -199,6 +200,7 @@ export function CheckDataTablePage({
 }: CheckDataTablePageProps) {
   const { page, rowsPerPage, yearType } = dataTable;
   const columns = checkColumns(dataTable.columns);
+  const changes = dataChanges(dataTable);
 
   // Plain anchors: the router-aware link would also mark every link to the bare path as current.
   const pageLink = (number: number) => ({
@@ -214,6 +216,16 @@ export function CheckDataTablePage({
       <GridRow>
         <GridColumn width="full">
           <h1 className="govuk-heading-xl">{CHECK_HEADING}</h1>
+          {changes.length === 0 ? null : (
+            <GridRow>
+              <GridColumn width="one-third">
+                <SummaryList
+                  className="govuk-!-margin-bottom-6 fphd-data-changes-summary"
+                  items={changes.map(({ label, count }) => ({ name: label, children: count }))}
+                />
+              </GridColumn>
+            </GridRow>
+          )}
           <div className="fphd-table-controls">
             <p className="govuk-body">{uploadSummary(dataTable)}</p>
             {/* Asks for the first page in the new size, without JavaScript too. */}
