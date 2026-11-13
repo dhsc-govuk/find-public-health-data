@@ -55,15 +55,15 @@
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
     "statements": 51,
-    "buffers": 3992,
-    "rows": 1582,
-    "bytes": 190334
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 165818
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=data": {
     "statements": 51,
-    "buffers": 3992,
-    "rows": 1582,
-    "bytes": 189785
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 165814
   },
   "public-api /api/areas/search?q=leeds": {
     "statements": 1,
@@ -175,32 +175,32 @@
   },
   "public-web /topics/mortality-and-life-expectancy/table.csv?tab-topic=areas": {
     "statements": 24,
-    "buffers": 2694,
-    "rows": 628,
-    "bytes": 1345
+    "buffers": 9536,
+    "rows": 1003,
+    "bytes": 2676
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
     "statements": 51,
-    "buffers": 3992,
-    "rows": 1582,
-    "bytes": 187950
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 163585
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data": {
     "statements": 51,
-    "buffers": 3992,
-    "rows": 1582,
-    "bytes": 187946
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 163581
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=period-desc": {
     "statements": 51,
-    "buffers": 12655,
-    "rows": 1582,
-    "bytes": 188280
+    "buffers": 24977,
+    "rows": 1957,
+    "bytes": 163916
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=trend-desc": {
     "statements": 53,
-    "buffers": 4020,
-    "rows": 1588,
-    "bytes": 188507
+    "buffers": 10408,
+    "rows": 1965,
+    "bytes": 164144
   }
 }
