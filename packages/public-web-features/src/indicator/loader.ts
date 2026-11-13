@@ -20,7 +20,7 @@ import {
   pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import type { TableSeriesSelection } from '@fphd/utils/observation-series';
-import { apiPath } from '@fphd/web-server/api-client';
+import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
 import {
@@ -125,12 +125,15 @@ function selectedIndicatorIds(
 export async function loadIndicatorData(
   { context, request }: LoaderFunctionArgs,
   {
+    api = context.get(apiContext),
     page,
     tableDisplayGroups,
     observationHistory = 'recentPerSeries',
     wholeAreaGroups = false,
     includeFindResults = true,
   }: {
+    /** The client to ask, when the caller shares one across its page load. */
+    api?: ApiClient;
     page?: IndicatorPageData;
     tableDisplayGroups?: string[];
     observationHistory?: ObservationHistory;
@@ -139,7 +142,6 @@ export async function loadIndicatorData(
   } = {},
 ) {
   const url = new URL(request.url);
-  const api = context.get(apiContext);
   const routeDetail = page?.detail;
   const comparedDetail = page?.compared;
   const indicatorGroups = page?.groups;
