@@ -526,7 +526,7 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeTruthy();
   });
 
-  it("reads an update's tasks against the live indicator, with the update summary flagged", () => {
+  it("reads an update's tasks against the live indicator, a flag as revisions needed in orange whatever the round", () => {
     renderSentBack(
       {
         isUpdate: true,
@@ -537,6 +537,7 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
       {
         ...requests,
         advised: true,
+        replied: true,
         flags: {
           'update-summary': {
             reviewerName: 'Sam Reviewer',
@@ -551,7 +552,14 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     expect(row('Data', 'Polarity').getByText('Unchanged').className).toContain('govuk-tag--grey');
     const summary = row('Publishing', 'Update summary');
     expect(summary.getByText('Say why it was renamed')).toBeTruthy();
-    expect(summary.getByText('Revisions advised').className).toContain('govuk-tag--orange');
+    const tag = summary.getByText('Revisions needed').className;
+    expect(tag).toContain('govuk-tag--orange');
+    expect(tag).not.toContain('govuk-tag--red');
+    const reply = row(
+      'Notes for reviewers (not visible to consumers)',
+      'Response to revisions or clarifications',
+    );
+    expect(reply.getByText('Complete').className).toContain('govuk-tag--green');
     expect(screen.getByRole('button', { name: 'Submit for review' })).toBeTruthy();
   });
 

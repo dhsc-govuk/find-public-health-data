@@ -70,10 +70,12 @@ const UPDATE_TASK_STATUS: Record<UpdateTaskStatus, TagFace | string> = {
   complete: { label: 'Complete', colour: 'green' },
 };
 
-// A task a review response flagged, until it is saved: advised before IMRG meets, needed after.
-const REVISION_STATUS: Record<'advised' | 'needed', TagFace> = {
+// A task a review response flagged, until it is saved. On a new indicator, revisions are advised
+// before IMRG meets and needed after. On an update, they read as needed in orange whoever asked.
+const REVISION_STATUS: Record<'advised' | 'needed' | 'update', TagFace> = {
   advised: { label: 'Revisions advised', colour: 'orange' },
   needed: { label: 'Revisions needed', colour: 'red' },
+  update: { label: 'Revisions needed', colour: 'orange' },
 };
 
 interface PublishingState {

@@ -557,7 +557,7 @@ test.describe('the publisher responding to the core team', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  test('the update task list shows the flagged "Update summary" with the request, and "Response to revisions or clarifications" in the Notes for reviewers group', async ({
+  test('the update task list shows the flagged "Update summary" as "Revisions needed" with the request, and "Response to revisions or clarifications" in the Notes for reviewers group', async ({
     page,
   }) => {
     await page.goto(taskListPath(sentBack.id));
@@ -565,7 +565,8 @@ test.describe('the publisher responding to the core team', () => {
     const summary = taskRow(page, 'Update summary');
     await expect(summary).toContainText(`Comment from ${ADMIN.name}:`);
     await expect(summary).toContainText('Say why the polarity changed.');
-    await expect(summary.getByText('Revisions advised')).toBeVisible();
+    // An update's flagged task reads "Revisions needed" in orange, whoever sent it back.
+    await expect(summary.getByText('Revisions needed')).toHaveClass(/govuk-tag--orange/);
     await expect(taskStatus(page, 'Polarity')).toHaveText('Changed');
     const notes = page
       .getByRole('heading', { level: 2, name: 'Notes for reviewers (not visible to consumers)' })
@@ -585,8 +586,11 @@ test.describe('the publisher responding to the core team', () => {
       .getByLabel('Update summary for consumer-facing indicator history')
       .fill('Polarity corrected to higher is better, as the source states.');
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(taskRow(page, 'Update summary').getByText('Revisions advised')).toHaveCount(0);
+    await expect(taskRow(page, 'Update summary').getByText('Revisions needed')).toHaveCount(0);
     await writeReply(page, sentBack.id, 'Said why the polarity changed.');
+    await expect(taskRow(page, REPLY).getByText('Complete', { exact: true })).toHaveClass(
+      /govuk-tag--green/,
+    );
 
     await page.getByRole('button', { name: 'Submit for review' }).click();
 

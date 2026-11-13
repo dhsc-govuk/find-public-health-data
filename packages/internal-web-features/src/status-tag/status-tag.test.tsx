@@ -196,6 +196,7 @@ describe('StatusTag', () => {
   it.each([
     ['needed', 'Revisions needed', 'govuk-tag--red'],
     ['advised', 'Revisions advised', 'govuk-tag--orange'],
+    ['update', 'Revisions needed', 'govuk-tag--orange'],
   ] as const)('tags a flagged task whose revisions are %s', (status, label, colour) => {
     render(<StatusTag type="revision" status={status} />);
 
