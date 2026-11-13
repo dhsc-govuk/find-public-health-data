@@ -756,3 +756,56 @@ test('keeps the primary indicator when a shared comparison is unavailable', asyn
   await expect(page.getByRole('combobox', { name: 'Search for an indicator' })).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
 });
+
+test('keeps a wide trend table’s scrollbar, head and periods in view', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 700 });
+  await openIndicatorPage(
+    page,
+    `${MORTALITY_PATH}?as=E08000003&as=E08000007&as=E08000009&cmp-108=england`,
+  );
+  const region = page.getByRole('region', { name: `${MORTALITY_NAME} trends over time` });
+  const table = region.getByRole('table');
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(3);
+  const scroll = page.locator('.fphd-table-scroll').filter({ has: region });
+  const bar = scroll.locator('.fphd-table-scrollbar');
+  await expect(bar).toBeVisible();
+  await expect(scroll.locator('.fphd-table-caption-copy')).toHaveText(
+    `Table: ${MORTALITY_NAME}, 3 chosen areas`,
+  );
+
+  await region.evaluate((element) => {
+    element.scrollLeft = 400;
+  });
+  const period = table.getByRole('columnheader', { name: 'Period', exact: true });
+  const regionBox = await region.boundingBox();
+  await expect
+    .poll(async () => Math.round((await period.boundingBox())?.x ?? -1))
+    .toBe(Math.round(regionBox?.x ?? 0));
+
+  await table
+    .locator('tbody tr')
+    .nth(5)
+    .evaluate((row) => {
+      window.scrollTo(0, row.getBoundingClientRect().top + window.scrollY);
+    });
+  const header = page.locator('.fphd-sticky-header').filter({ visible: true });
+  // Only this table's head pins, not those of the chart tables in closed details.
+  await expect(header).toHaveCount(1);
+  expect((await header.boundingBox())?.y).toBeLessThan(40);
+  const floatingBar = page.locator('body > .fphd-table-scrollbar--floating');
+  await expect(floatingBar).toBeVisible();
+  expect((await floatingBar.boundingBox())?.y).toBeLessThan(10);
+  await expect(header).toHaveAttribute('aria-hidden', 'true');
+});
+
+test('lets a table that fits keep the browser’s layout without a custom scrollbar', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openIndicatorPage(page, MORTALITY_PATH);
+  const region = page.getByRole('region', { name: `${MORTALITY_NAME} trends over time` });
+  await expect(region.getByRole('table')).toBeVisible();
+  await expect(
+    page.locator('.fphd-table-scroll').filter({ has: region }).locator('.fphd-table-scrollbar'),
+  ).toBeHidden();
+});

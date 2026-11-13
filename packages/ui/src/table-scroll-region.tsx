@@ -1,11 +1,81 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
+import { attachStickyTable } from './sticky-table.ts';
 
-/** A labelled region that keyboard users can focus and scroll sideways. */
+/**
+ * A wide table's sideways scroll, reachable from the keyboard: the wrapper is a labelled,
+ * focusable region, the pattern ChartSection uses, so the arrow keys can move it. Once the
+ * page has loaded, a scrollbar above the table and a copy of its head stay in view while
+ * the page scrolls past it. Cells marked `fphd-table__frozen` stay at its left edge.
+ */
 export function TableScrollRegion({ children, label }: { children: ReactNode; label: string }) {
+  const root = useRef<HTMLDivElement>(null);
+  const captionCopy = useRef<HTMLParagraphElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const thumb = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLElement>(null);
+  const leftEdge = useRef<HTMLDivElement>(null);
+  const rightEdge = useRef<HTMLDivElement>(null);
+  const sticky = useRef<ReturnType<typeof attachStickyTable>>(undefined);
+
+  useEffect(() => {
+    if (
+      !root.current ||
+      !captionCopy.current ||
+      !bar.current ||
+      !thumb.current ||
+      !scroller.current ||
+      !leftEdge.current ||
+      !rightEdge.current ||
+      typeof ResizeObserver === 'undefined'
+    ) {
+      return;
+    }
+    root.current.classList.add('fphd-table-scroll--enhanced');
+    sticky.current = attachStickyTable({
+      root: root.current,
+      captionCopy: captionCopy.current,
+      bar: bar.current,
+      thumb: thumb.current,
+      scroller: scroller.current,
+      leftEdge: leftEdge.current,
+      rightEdge: rightEdge.current,
+    });
+    return () => {
+      sticky.current?.detach();
+      sticky.current = undefined;
+    };
+  }, []);
+
+  // A re-rendered table can change width or head, so every render rechecks the layout.
+  useEffect(() => {
+    sticky.current?.refresh();
+  });
+
   return (
-    // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region needs focus to scroll by keyboard.
-    <section aria-label={label} className="fphd-table-scroll-wrapper" tabIndex={0}>
-      {children}
-    </section>
+    <div className="fphd-table-scroll" ref={root}>
+      <p aria-hidden="true" className="fphd-table-caption-copy" hidden ref={captionCopy} />
+      <div className="fphd-table-scrollbar-slot">
+        <div aria-hidden="true" className="fphd-table-scrollbar" ref={bar}>
+          <div className="fphd-table-scrollbar__thumb" ref={thumb} />
+        </div>
+      </div>
+      <div className="fphd-table-scroll__frame">
+        <section
+          aria-label={label}
+          className="fphd-table-scroll-wrapper"
+          ref={scroller}
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region needs focus to scroll by keyboard.
+          tabIndex={0}
+        >
+          {children}
+        </section>
+        <div aria-hidden="true" className="fphd-table-edge fphd-table-edge--left" ref={leftEdge} />
+        <div
+          aria-hidden="true"
+          className="fphd-table-edge fphd-table-edge--right"
+          ref={rightEdge}
+        />
+      </div>
+    </div>
   );
 }
