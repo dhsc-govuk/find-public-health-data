@@ -34,10 +34,12 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('published'), at: z.iso.datetime(), by: z.null() }),
   z.object({ kind: z.literal('submitted'), ...doneBy }),
   z.object({ kind: z.literal('withdrawn'), ...doneBy }),
+  // `isUpdate` is true for an entry about an update to the live indicator, which is worded as one.
   z.object({
     kind: z.literal('reviewers_assigned'),
     ...doneBy,
     reviewers: z.array(z.string()),
+    isUpdate: z.boolean(),
   }),
   // The day of the IMRG meeting, which has no time.
   z.object({ kind: z.literal('imrg_reviewed'), on: z.iso.date(), by: z.string() }),
@@ -47,12 +49,14 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
     response: reviewResponseKindSchema,
     flags: z.array(flagSchema),
     clarificationRequest: z.string().nullable(),
+    isUpdate: z.boolean(),
   }),
   z.object({
     kind: z.literal('resubmitted'),
     ...doneBy,
     flags: z.array(z.object({ task: flaggableTaskKeySchema, revised: z.boolean() })),
     reply: z.string().nullable(),
+    isUpdate: z.boolean(),
   }),
   z.object({ kind: z.literal('publication_scheduled'), ...doneBy }),
   z.object({ kind: z.literal('publication_date_changed'), ...doneBy }),

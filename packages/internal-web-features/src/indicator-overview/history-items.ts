@@ -34,6 +34,13 @@ const RESPONSE_ACTIONS: Readonly<Record<ReviewResponseKind, string>> = {
   approved: 'Indicator approved for publishing',
 };
 
+// An update's reviewer approves it or sends it back with feedback, with no IMRG meeting.
+const UPDATE_RESPONSE_ACTIONS: Readonly<Partial<Record<ReviewResponseKind, string>>> = {
+  pre_imrg_feedback:
+    'Revisions or clarifications requested before update can be approved for publishing.',
+  approved: 'Update approved for publishing',
+};
+
 type DecisionEntry = Extract<HistoryEntry, { kind: 'update_decided' }>;
 
 const DECISION_ACTIONS: Readonly<Record<DecisionEntry['decision'], string>> = {
@@ -74,7 +81,7 @@ function historyItem(entry: HistoryEntry): HistoryItem {
     case 'reviewers_assigned':
       return {
         date: entry.at,
-        action: `Indicator assigned for review by ${names.format(entry.reviewers)}.`,
+        action: `${entry.isUpdate ? 'Update' : 'Indicator'} assigned for review by ${names.format(entry.reviewers)}.`,
         by: entry.by,
         rows: [],
       };
@@ -83,14 +90,18 @@ function historyItem(entry: HistoryEntry): HistoryItem {
     case 'responded':
       return {
         date: entry.at,
-        action: RESPONSE_ACTIONS[entry.response],
+        action:
+          (entry.isUpdate ? UPDATE_RESPONSE_ACTIONS[entry.response] : undefined) ??
+          RESPONSE_ACTIONS[entry.response],
         by: entry.by,
         rows: requestedRows(entry),
       };
     case 'resubmitted':
       return {
         date: entry.at,
-        action: 'Indicator resubmitted for approval.',
+        action: entry.isUpdate
+          ? 'Update resubmitted for review.'
+          : 'Indicator resubmitted for approval.',
         by: entry.by,
         rows: [
           ...entry.flags.map(({ task, revised }) => ({

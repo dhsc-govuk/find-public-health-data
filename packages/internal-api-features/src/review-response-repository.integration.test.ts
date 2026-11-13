@@ -6,7 +6,7 @@ import { asc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
 import { AS_ACTOR, newDraft, repositoryTest } from './indicator-repository.testing.ts';
-import { completeDraft, ukToday } from './indicator-workflow.testing.ts';
+import { completeDraft, ukToday, updateInReview } from './indicator-workflow.testing.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
 
@@ -100,6 +100,63 @@ async function flagsOf(db: Database, responseId: string) {
 }
 
 describe('respondToReview', () => {
+  repositoryTest("refuses a new indicator's approval with no IMRG date", async ({ db }) => {
+    const { indicatorId, versionId } = await inReview(db, 'Approved undated');
+
+    expect(
+      await respondToReview(
+        db,
+        indicatorId,
+        response({ kind: 'approved', imrgReviewedOn: null, flags: [] }),
+        AS_REVIEWER,
+      ),
+    ).toEqual({ ok: false, reason: 'not_allowed' });
+    expect((await submissionOf(db, versionId)).status).toBe('in_review');
+  });
+
+  repositoryTest.for<[string, ReviewResponse, string, boolean]>([
+    [
+      'an approval with no IMRG date',
+      response({ kind: 'approved', imrgReviewedOn: null, flags: [] }),
+      'approved',
+      true,
+    ],
+    [
+      'feedback flagging the update summary',
+      response({
+        kind: 'pre_imrg_feedback',
+        imrgReviewedOn: null,
+        flags: [{ task: 'update-summary', notes: 'Say why it changed' }],
+      }),
+      'changes_requested',
+      false,
+    ],
+  ])("ends an update's submission on %s", async ([, sent, status, locked], { db }) => {
+    const { indicatorId, versionId } = await updateInReview(db, `Update answered ${status}`);
+
+    expect(await respondToReview(db, indicatorId, sent, AS_REVIEWER)).toEqual({ ok: true });
+
+    expect(await versionOf(db, versionId)).toMatchObject({ status: 'draft', isLocked: locked });
+    const submission = await submissionOf(db, versionId);
+    expect(submission).toMatchObject({ status, updateDecision: 'imrg_review' });
+    expect(await responsesTo(db, submission.id)).toEqual([
+      expect.objectContaining({ reviewerId: REVIEWER, kind: sent.kind, imrgReviewedOn: null }),
+    ]);
+  });
+
+  repositoryTest.for<[string, ReviewResponse]>([
+    ['an approval with an IMRG date', response({ kind: 'approved', flags: [] })],
+    ['minor revisions', response()],
+  ])("refuses %s on an update's submission", async ([, sent], { db }) => {
+    const { indicatorId, versionId } = await updateInReview(db, `Update refused ${sent.kind}`);
+
+    expect(await respondToReview(db, indicatorId, sent, AS_REVIEWER)).toEqual({
+      ok: false,
+      reason: 'not_allowed',
+    });
+    expect((await submissionOf(db, versionId)).status).toBe('in_review');
+  });
+
   repositoryTest('refuses a flag on the update summary of a new indicator', async ({ db }) => {
     const { indicatorId, versionId } = await inReview(db, 'Update summary flagged');
 

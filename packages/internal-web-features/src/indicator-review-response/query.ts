@@ -1,6 +1,8 @@
 import {
   type ReviewResponseKind,
   reviewResponseKindSchema,
+  type UpdateFeedbackReason,
+  updateFeedbackReasonSchema,
 } from '@fphd/internal-api-features/contract';
 
 /**
@@ -14,6 +16,8 @@ export interface ReviewJourney {
   kind?: ReviewResponseKind | undefined;
   /** The IMRG review date, `YYYY-MM-DD`. */
   imrgReviewedOn?: string | undefined;
+  /** The kinds of feedback an update's reviewer chose, so going back reopens their page as left. */
+  reasons?: UpdateFeedbackReason[] | undefined;
 }
 
 /** A key's one value, or undefined when the query leaves it out or repeats it. */
@@ -29,23 +33,32 @@ export function journeyFrom(url: URL): ReviewJourney | undefined {
   const kind = single(params, 'kind');
   const reviewedOn = single(params, 'reviewedOn');
   const parsedKind = reviewResponseKindSchema.safeParse(kind);
+  const reasons = updateFeedbackReasonSchema.array().safeParse(params.getAll('reason'));
 
   if (submission === undefined || !/^[1-9]\d*$/.test(submission)) return undefined;
   if (params.has('kind') && !parsedKind.success) return undefined;
   if (params.has('reviewedOn') && !/^\d{4}-\d{2}-\d{2}$/.test(reviewedOn ?? '')) return undefined;
+  if (!reasons.success) return undefined;
 
   return {
     submissionNumber: Number(submission),
     kind: parsedKind.data,
     imrgReviewedOn: reviewedOn,
+    reasons: reasons.data.length === 0 ? undefined : reasons.data,
   };
 }
 
 /** The query string that carries the journey on. */
-export function journeySearch({ submissionNumber, kind, imrgReviewedOn }: ReviewJourney): string {
+export function journeySearch({
+  submissionNumber,
+  kind,
+  imrgReviewedOn,
+  reasons = [],
+}: ReviewJourney): string {
   const params = new URLSearchParams({ submission: String(submissionNumber) });
   if (kind !== undefined) params.set('kind', kind);
   if (imrgReviewedOn !== undefined) params.set('reviewedOn', imrgReviewedOn);
+  for (const reason of reasons) params.append('reason', reason);
   return `?${params}`;
 }
 

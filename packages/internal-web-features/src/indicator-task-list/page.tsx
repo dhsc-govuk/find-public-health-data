@@ -8,12 +8,12 @@ import {
   TaskList,
 } from '@fphd/ui';
 
-import { type TaskGroup, taskGroups, updateTaskStatus } from '../indicator-tasks.ts';
+import { type TaskGroup, taskGroups } from '../indicator-tasks.ts';
 import { indicatorSampleAnswersPath, indicatorTaskListPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
-import { StatusTag } from '../status-tag/status-tag.tsx';
 import type { IndicatorTaskList, ReviewerRequests } from './loader.ts';
 import { ReviewTaskList } from './review-task-list.tsx';
+import { taskItem } from './task-item.tsx';
 
 interface TaskListPageProps {
   taskList: IndicatorTaskList;
@@ -64,35 +64,12 @@ function SampleAnswersForm({ id }: { id: string }) {
   );
 }
 
-/**
- * One group of a draft's tasks, each linking to its page with its status. On an update, the
- * publishing date and the update summary are not links until there is a change to publish.
- */
+/** One group of a draft's tasks, each linking to its page with its status. */
 function TaskGroupList({ group, taskList }: { group: TaskGroup; taskList: IndicatorTaskList }) {
-  const { indicator, isUpdate, tasks } = taskList;
-
   return (
     <div>
       <h2 className="govuk-heading-m">{group.title}</h2>
-      <TaskList
-        id={group.id}
-        items={group.tasks.map(({ key, path, title }) => {
-          if (!isUpdate) {
-            return {
-              title,
-              href: path(indicator.id, tasks[key]),
-              status: <StatusTag type="task" status={tasks[key]} />,
-            };
-          }
-
-          const status = updateTaskStatus(taskList, key);
-          return {
-            title,
-            href: status === 'no_changes' ? undefined : path(indicator.id, tasks[key]),
-            status: <StatusTag type="update-task" status={status} />,
-          };
-        })}
-      />
+      <TaskList id={group.id} items={group.tasks.map((row) => taskItem(row, taskList))} />
     </div>
   );
 }
@@ -103,7 +80,7 @@ export function IndicatorTaskListPage({
   offersSampleAnswers = false,
   formError,
 }: TaskListPageProps) {
-  const { indicator, isUpdate, tasks } = taskList;
+  const { indicator, isUpdate } = taskList;
 
   return (
     <GridRow>
@@ -119,13 +96,7 @@ export function IndicatorTaskListPage({
           requests === null ? (
             <TaskGroupList group={group} key={group.id} taskList={taskList} />
           ) : (
-            <ReviewTaskList
-              group={group}
-              id={indicator.id}
-              key={group.id}
-              requests={requests}
-              tasks={tasks}
-            />
+            <ReviewTaskList group={group} key={group.id} requests={requests} taskList={taskList} />
           ),
         )}
         {offersSampleAnswers && <SampleAnswersForm id={indicator.id} />}

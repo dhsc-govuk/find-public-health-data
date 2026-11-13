@@ -102,6 +102,13 @@ export type OverviewFlash = keyof typeof NOTIFICATIONS;
 /** The messages an update to a live indicator words its own way. */
 const UPDATE_NOTIFICATIONS: Partial<Record<OverviewFlash, OverviewNotification>> = {
   'indicator-submitted': { type: 'success', text: 'Update successfully submitted for review.' },
+  'reviewers-assigned': { type: 'success', text: 'Reviewers successfully assigned to update' },
+  'review-approved': { type: 'success', text: 'Update approved for publishing' },
+  'review-feedback-given': {
+    type: 'important',
+    colour: 'orange',
+    text: 'Revisions or clarifications requested before update can be published',
+  },
 };
 
 /** Leaves the overview a message to show once the user is redirected to it. */

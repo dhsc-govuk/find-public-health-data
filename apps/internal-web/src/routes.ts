@@ -69,6 +69,10 @@ export default [
         '../../../packages/internal-web-features/src/indicator-review-response/approval-route.tsx',
       ),
       route(
+        'dashboard/indicators/:id/review/update-approval',
+        '../../../packages/internal-web-features/src/indicator-review-response/update-approval-route.tsx',
+      ),
+      route(
         'dashboard/indicators/:id/review/revisions',
         '../../../packages/internal-web-features/src/indicator-review-response/revisions-route.tsx',
       ),

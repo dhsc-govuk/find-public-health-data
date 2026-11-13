@@ -24,6 +24,7 @@ import {
   REVIEW_DATE_PARTS,
   type ResponseTypeValues,
   type RevisionsValues,
+  type UpdateApprovalValues,
 } from './form.ts';
 
 /** What every response page gets: its answers so far, and the errors of the last attempt. */
@@ -178,6 +179,66 @@ export function ApprovalPage({
                 options={[
                   { value: 'minor_revisions', label: 'Minor revisions needed' },
                   { value: 'major_revisions', label: 'Major revisions needed' },
+                ]}
+              />
+            ),
+          },
+        ]}
+      />
+    </IndicatorSectionForm>
+  );
+}
+
+const UPDATE_APPROVAL_QUESTION = 'Can this update be published?';
+
+/**
+ * A reviewer's answer on an update: Yes approves it, and No goes on to the revisions page once a
+ * kind of feedback is ticked. It is sent with the submission the reviewer was shown.
+ */
+export function UpdateApprovalPage({
+  recap,
+  submissionNumber,
+  ...form
+}: ReviewPageProps<keyof UpdateApprovalValues, UpdateApprovalValues> & {
+  recap: Recap;
+  submissionNumber: number;
+}) {
+  const { fieldErrors, values } = form;
+
+  return (
+    <IndicatorSectionForm
+      fieldIds={{ approved: firstRadioId('approved'), reasons: firstCheckboxId('reasons') }}
+      fields={['approved', 'reasons']}
+      form={form}
+      questionIsHeading
+      title={UPDATE_APPROVAL_QUESTION}
+    >
+      <input name="submissionNumber" type="hidden" value={submissionNumber} />
+      <Radios
+        defaultValue={values.approved}
+        error={fieldErrors.approved}
+        hint={<RecapList {...recap} />}
+        label={UPDATE_APPROVAL_QUESTION}
+        labelClassModifiers={QUESTION_HEADING_SIZE}
+        labelHeading="h1"
+        name="approved"
+        options={[
+          { value: 'yes', label: 'Yes' },
+          {
+            value: 'no',
+            label: 'No',
+            // Shown without JavaScript; with it, only while No is chosen.
+            conditional: (
+              <Checkboxes
+                classModifiers="small"
+                defaultValue={values.reasons}
+                error={fieldErrors.reasons}
+                label="Select reasons"
+                labelClassModifiers="s"
+                name="reasons"
+                options={[
+                  { value: 'revisions', label: 'Revisions needed' },
+                  { value: 'clarification', label: 'Request for clarification' },
                 ]}
               />
             ),

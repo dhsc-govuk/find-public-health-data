@@ -526,6 +526,68 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     expect(screen.getByRole('button', { name: 'Submit for approval' })).toBeTruthy();
   });
 
+  it("reads an update's tasks against the live indicator, a flag as revisions needed in orange whatever the round", () => {
+    renderSentBack(
+      {
+        isUpdate: true,
+        indicator: { ...taskList.indicator, indicatorStatus: 'live' },
+        changedTasks: ['name'],
+        canSubmit: true,
+      },
+      {
+        ...requests,
+        advised: true,
+        replied: true,
+        flags: {
+          'update-summary': {
+            reviewerName: 'Sam Reviewer',
+            notes: renderMarkdown('Say why it was renamed'),
+            cleared: false,
+          },
+        },
+      },
+    );
+
+    expect(row('Metadata', 'Name').getByText('Changed').className).toContain('govuk-tag--orange');
+    expect(row('Data', 'Polarity').getByText('Unchanged').className).toContain('govuk-tag--grey');
+    const summary = row('Publishing', 'Update summary');
+    expect(summary.getByText('Say why it was renamed')).toBeTruthy();
+    const tag = summary.getByText('Revisions needed').className;
+    expect(tag).toContain('govuk-tag--orange');
+    expect(tag).not.toContain('govuk-tag--red');
+    const reply = row(
+      'Notes for reviewers (not visible to consumers)',
+      'Response to revisions or clarifications',
+    );
+    expect(reply.getByText('Complete').className).toContain('govuk-tag--green');
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeTruthy();
+  });
+
+  it('links a flagged update summary while the update changes no other task', () => {
+    renderSentBack(
+      {
+        isUpdate: true,
+        indicator: { ...taskList.indicator, indicatorStatus: 'live' },
+        changedTasks: [],
+      },
+      {
+        ...requests,
+        flags: {
+          'update-summary': {
+            reviewerName: 'Sam Reviewer',
+            notes: renderMarkdown('Say why it changed'),
+            cleared: false,
+          },
+        },
+      },
+    );
+
+    expect(
+      row('Publishing', 'Update summary').getByRole('link', { name: 'Update summary' }),
+    ).toBeTruthy();
+    expect(group('Publishing').queryByRole('link', { name: 'Publishing date' })).toBeNull();
+  });
+
   it('keeps the two-thirds page and the task lists without a round', () => {
     renderPage();
 

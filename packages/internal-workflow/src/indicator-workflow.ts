@@ -33,22 +33,28 @@ interface StepEntry {
     versionStatuses: readonly VersionStatus[];
     isLocked: boolean;
     submissionStatuses: readonly (IndicatorSubmissionStatus | null)[];
-    /** The update decisions the step is open from; any decision when absent. */
+    /**
+     * The core team's decisions on an update that the step is open from, or any decision when
+     * absent. A new indicator's submission never has a decision, so this applies to an update only.
+     */
     updateDecisions?: readonly (UpdateDecision | null)[];
   };
   leadsTo: IndicatorWorkflowState;
   /**
-   * True for a step whose new submission takes over the latest submission's reviewers. If any are
-   * carried onto it, the new submission goes straight to 'in_review' instead of 'submitted'.
+   * The indicator statuses for which the step's new submission takes over the latest submission's
+   * reviewers. If any are carried onto it, the new submission goes straight to 'in_review' instead
+   * of 'submitted'.
    */
-  carriesReviewers?: true;
+  carriesReviewersFor?: readonly IndicatorStatus[];
 }
 
+// A reviewer responds to a new indicator in review, or to an update the core team sent to IMRG.
 const RESPONSE_FROM: StepEntry['from'] = {
-  indicatorStatuses: ['new'],
+  indicatorStatuses: ['new', 'live'],
   versionStatuses: ['draft'],
   isLocked: true,
   submissionStatuses: ['in_review'],
+  updateDecisions: ['imrg_review'],
 };
 
 // The core team decides once what happens to a submitted update, before any reviewers are
@@ -101,40 +107,45 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     from: UPDATE_DECISION_FROM,
     leadsTo: { versionStatus: 'draft', submissionStatus: 'approved', isLocked: true },
   },
-  // Assigns the first reviewers to a submission, or changes them. Only for a new indicator for
-  // now. Assigning reviewers to an update sent to IMRG is not built yet.
+  // Assigns the first reviewers to a submission, or changes them: a new indicator's, or an
+  // update's once the core team has sent it to IMRG.
   assign_reviewers: {
     from: {
-      indicatorStatuses: ['new'],
+      indicatorStatuses: ['new', 'live'],
       versionStatuses: ['draft'],
       isLocked: true,
       submissionStatuses: ['submitted', 'in_review'],
+      updateDecisions: ['imrg_review'],
     },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'in_review', isLocked: true },
   },
   // A reviewer's response ends the review round. Giving feedback and requesting changes both
   // unlock the draft so the publisher can edit it. Approving keeps it locked, ready to schedule.
+  // An update's reviewer approves it or sends it back with feedback. Only a new indicator gets
+  // the IMRG meeting's minor or major revisions.
   give_feedback: {
     from: RESPONSE_FROM,
     leadsTo: { versionStatus: 'draft', submissionStatus: 'changes_requested', isLocked: false },
   },
   request_changes: {
-    from: RESPONSE_FROM,
+    from: { ...RESPONSE_FROM, indicatorStatuses: ['new'] },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'changes_requested', isLocked: false },
   },
   approve: {
     from: RESPONSE_FROM,
     leadsTo: { versionStatus: 'draft', submissionStatus: 'approved', isLocked: true },
   },
+  // A new indicator's resubmission goes back to its reviewers. An update's starts a submission
+  // with no reviewers and no decision, which waits for the core team to decide on it again.
   resubmit: {
     from: {
-      indicatorStatuses: ['new'],
+      indicatorStatuses: ['new', 'live'],
       versionStatuses: ['draft'],
       isLocked: false,
       submissionStatuses: ['changes_requested'],
     },
     leadsTo: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
-    carriesReviewers: true,
+    carriesReviewersFor: ['new'],
   },
   // An admin confirms the publication date of an approved new indicator or update, and the
   // version becomes scheduled.
@@ -187,7 +198,8 @@ function isOpen({ from }: StepEntry, context: IndicatorWorkflowContext): boolean
     from.versionStatuses.includes(context.versionStatus) &&
     from.isLocked === context.isLocked &&
     from.submissionStatuses.includes(context.latestSubmissionStatus) &&
-    (from.updateDecisions?.includes(context.latestUpdateDecision) ?? true)
+    (context.indicatorStatus === 'new' ||
+      (from.updateDecisions?.includes(context.latestUpdateDecision) ?? true))
   );
 }
 
@@ -205,17 +217,17 @@ export function nextState(
 
   if (!isOpen(entry, context)) return { ok: false, reason: 'not_allowed' };
 
-  return entry.carriesReviewers && carriedReviewerCount > 0
+  return carriesReviewers(step, context.indicatorStatus) && carriedReviewerCount > 0
     ? { ok: true, state: { ...entry.leadsTo, submissionStatus: 'in_review' } }
     : { ok: true, state: entry.leadsTo };
 }
 
 /**
  * Whether `step` starts a new submission that takes over the latest submission's reviewers who may
- * still review the indicator.
+ * still review the indicator, as it does for a new indicator's resubmission.
  */
-export function carriesReviewers(step: IndicatorStep): boolean {
-  return STEPS[step].carriesReviewers === true;
+export function carriesReviewers(step: IndicatorStep, indicatorStatus: IndicatorStatus): boolean {
+  return STEPS[step].carriesReviewersFor?.includes(indicatorStatus) ?? false;
 }
 
 /** The steps open in this context, without checking which user may take them. */

@@ -312,7 +312,8 @@ describe('the review responses, flags and reviewer notes', () => {
   });
 
   it.each([
-    ['an IMRG decision without its date', { kind: 'approved', imrgReviewedOn: null }],
+    ['minor revisions without their date', { kind: 'minor_revisions', imrgReviewedOn: null }],
+    ['major revisions without their date', { kind: 'major_revisions', imrgReviewedOn: null }],
     ['pre-IMRG feedback with a date', { kind: 'pre_imrg_feedback', imrgReviewedOn: '2026-10-01' }],
     [
       'an approval with a clarification request',
@@ -323,6 +324,17 @@ describe('the review responses, flags and reviewer notes', () => {
     const { submissionId } = await reviewedSubmission();
 
     await expect(respond(submissionId, values)).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+
+  it.each([
+    ['with its IMRG date', '2026-10-01'],
+    ['without a date, as an update is approved', null],
+  ])('accepts an approval %s', async (_, imrgReviewedOn) => {
+    const { submissionId } = await reviewedSubmission();
+
+    await expect(
+      respond(submissionId, { kind: 'approved', imrgReviewedOn }),
+    ).resolves.toBeDefined();
   });
 
   it('accepts pre-IMRG feedback with a clarification request and no date', async () => {

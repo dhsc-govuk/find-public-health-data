@@ -1,5 +1,5 @@
 {
-  "id": "824371a4-b9f2-413b-8304-b05c1f398e34",
+  "id": "09992f80-17a6-48a7-9eb3-3161f6bd7c44",
   "prevId": "e17258e4-373a-47c8-86b5-59d69b156958",
   "version": "7",
   "dialect": "postgresql",
@@ -336,12 +336,6 @@
           "type": "uuid[]",
           "primaryKey": false,
           "notNull": true
-        },
-        "sparkline_observation_ids": {
-          "name": "sparkline_observation_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": false
         },
         "recent_values": {
           "name": "recent_values",
@@ -3768,7 +3762,7 @@
         },
         "indicator_version_submission_response_imrg_reviewed_on_check": {
           "name": "indicator_version_submission_response_imrg_reviewed_on_check",
-          "value": "(\"indicator_version_submission_response\".\"imrg_reviewed_on\" IS NULL) = (\"indicator_version_submission_response\".\"kind\" = 'pre_imrg_feedback')"
+          "value": "(\"indicator_version_submission_response\".\"imrg_reviewed_on\" IS NULL) = (\"indicator_version_submission_response\".\"kind\" = 'pre_imrg_feedback') OR \"indicator_version_submission_response\".\"kind\" = 'approved'"
         },
         "indicator_version_submission_response_clarification_check": {
           "name": "indicator_version_submission_response_clarification_check",
@@ -5646,12 +5640,6 @@
           "type": "uuid[]",
           "primaryKey": false,
           "notNull": true
-        },
-        "sparkline_observation_ids": {
-          "name": "sparkline_observation_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": false
         },
         "recent_values": {
           "name": "recent_values",

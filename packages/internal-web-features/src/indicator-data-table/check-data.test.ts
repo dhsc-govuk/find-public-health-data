@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DATA_TABLE, ROW } from './check-data.testing.ts';
-import { checkColumns, rowsShowing, uploadSummary } from './check-data.ts';
+import { checkColumns, dataChanges, rowsShowing, uploadSummary } from './check-data.ts';
 
 function cells(row = ROW, columns = DATA_TABLE.columns, yearType = DATA_TABLE.yearType) {
   return Object.fromEntries(
@@ -113,5 +113,17 @@ describe('rowsShowing', () => {
     expect(rowsShowing({ ...DATA_TABLE, page: 1048, rowsPerPage: 50 })).toBe(
       'Showing 52,351 to 52,365 of 52,365 rows',
     );
+  });
+});
+
+describe('dataChanges', () => {
+  it("counts an update's new data values as replacing the live ones, with separators", () => {
+    expect(dataChanges({ ...DATA_TABLE, replacesPublished: true })).toEqual([
+      { label: 'Number of data values replaced', count: '52,365' },
+    ]);
+  });
+
+  it('counts nothing for a new indicator or an update still on the live data table', () => {
+    expect(dataChanges(DATA_TABLE)).toEqual([]);
   });
 });
