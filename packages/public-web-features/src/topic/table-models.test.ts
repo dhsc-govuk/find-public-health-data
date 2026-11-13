@@ -181,19 +181,27 @@ it('leaves England as the only column when no area is picked', () => {
 
 it('names the period of an area that lags the row and judges it against England for that period', () => {
   const lagging = structuredClone(entry);
+  const england = lagging.areaData[0];
+  if (!england) throw new Error('England fixture missing');
+  england.observations = england.observations.map((point) =>
+    point.fromDate === '2022-01-01' ? observation(2022, 20) : point,
+  );
   lagging.areaData.push({
     areaCode: 'E12000002',
     areaName: 'North West',
-    observations: Array.from({ length: 8 }, (_, index) => observation(2015 + index, 30 + index)),
+    observations: Array.from({ length: 8 }, (_, index) => observation(2015 + index, 19 + index)),
   });
   const model = topicDataTableModel([lagging], 'diabetes');
   const [northEast, northWest] = model.rows[0]?.cells ?? [];
   expect(model.rows[0]?.period).toBe('2023');
   expect(model.rows[0]?.england?.value).toBe(28);
   expect(northEast).not.toHaveProperty('period');
-  // North West's 2022 value (37) is above England's 2022 value (27), so worse for a
-  // lower-is-better indicator, although it is below England's 2023 value shown.
-  expect(northWest).toMatchObject({ value: 37, period: '2022', judgement: 'worse' });
+  expect(northWest).toMatchObject({
+    value: 26,
+    period: '2022',
+    judgement: 'worse',
+    benchmark: { value: 20, period: '2022' },
+  });
 });
 
 it('keeps England out of the picked areas when an indicator has data only for England', () => {
@@ -209,4 +217,79 @@ it('keeps England out of the picked areas when an indicator has data only for En
     ['england-only', 29],
     ['indicator', 28],
   ]);
+});
+
+it('gives no period to an area whose latest observation has no value', () => {
+  const missing = structuredClone(entry);
+  missing.areaData.push({
+    areaCode: 'E12000002',
+    areaName: 'North West',
+    observations: [
+      ...Array.from({ length: 7 }, (_, index) => observation(2015 + index, 30 + index)),
+      { ...observation(2022, 0), value: null },
+    ],
+  });
+  const cell = topicDataTableModel([missing], 'diabetes').rows[0]?.cells.find(
+    ({ areaCode }) => areaCode === 'E12000002',
+  );
+  expect(cell?.value).toBeNull();
+  expect(cell).not.toHaveProperty('period');
+});
+
+it.each(['absent', 'older', 'null', 'different segment'])(
+  'leaves the comparison unavailable when England has %s data for the area period',
+  (availability) => {
+    const source = structuredClone(entry);
+    const england = source.areaData[0];
+    if (!england) throw new Error('England fixture missing');
+    england.observations =
+      availability === 'absent'
+        ? []
+        : availability === 'older'
+          ? [observation(2022, 28)]
+          : availability === 'null'
+            ? [{ ...observation(2023, 28), value: null }]
+            : [
+                {
+                  ...observation(2023, 28),
+                  dimensions: [
+                    { type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 },
+                  ],
+                },
+              ];
+    if (availability === 'different segment') source.areaData.reverse();
+    const row = topicDataTableModel([source], 'diabetes').rows[0];
+    expect(row?.england?.value).toBeNull();
+    expect(row?.cells[0]).toMatchObject({ value: 18, judgement: null });
+  },
+);
+
+it('keeps an older same-period benchmark visible when England has no data for the row period', () => {
+  const source = structuredClone(entry);
+  const england = source.areaData[0];
+  if (!england) throw new Error('England fixture missing');
+  england.observations = [observation(2022, 28)];
+  source.areaData.push({
+    areaCode: 'E12000002',
+    areaName: 'North West',
+    observations: [observation(2022, 18)],
+  });
+  const row = topicDataTableModel([source], 'diabetes').rows[0];
+  expect(row?.england?.value).toBeNull();
+  expect(row?.cells[0]?.judgement).toBeNull();
+  expect(row?.cells[1]).toMatchObject({
+    value: 18,
+    period: '2022',
+    judgement: 'better',
+    benchmark: { value: 28, period: '2022' },
+  });
+});
+
+it('does not attach a period label to an empty area cell', () => {
+  const source = structuredClone(entry);
+  for (const area of source.areaData) area.observations = [];
+  const row = topicDataTableModel([source], 'diabetes').rows[0];
+  expect(row?.period).toBe('');
+  expect(row?.cells[0]?.value).toBeNull();
+  expect(row?.cells[0]).not.toHaveProperty('period');
 });

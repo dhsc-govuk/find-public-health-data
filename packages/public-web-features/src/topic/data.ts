@@ -4,12 +4,13 @@ import { periodLabel } from '@fphd/utils/period-label';
 import {
   type BenchmarkJudgement,
   benchmarkJudgement,
-  type ComparisonCell,
   type ComparisonRow,
   comparisonRows,
   filterObservations,
+  formatCalculatedValue,
   sameSegment,
   trendSeries,
+  withUnit,
 } from '../indicator/data.ts';
 import type { SelectedIndicator } from '../indicator/loader.ts';
 
@@ -42,6 +43,15 @@ export const TOPIC_COLUMNS = [
   { value: 'value', label: 'Calculated value' },
 ] as const;
 export type TopicColumn = (typeof TOPIC_COLUMNS)[number]['value'];
+
+export function topicEnglandMeasures(columns: TopicColumn[], compared: boolean) {
+  return compared
+    ? (['count', 'numerator', 'value'] as const).filter(
+        (measure) => measure === 'value' || columns.includes(measure),
+      )
+    : [];
+}
+
 export function topicColumns(params: URLSearchParams): TopicColumn[] {
   const selected = params.has('columns-topic')
     ? params.getAll('columns-topic').flatMap((value) => value.split(','))
@@ -130,24 +140,21 @@ export const JUDGEMENT_LABELS: Record<BenchmarkJudgement, string> = {
 };
 
 // The prototype gives no verdict wherever Fingertips gives none or the indicator has no polarity.
-export function comparisonSummary(judgement: BenchmarkJudgement): string {
-  return judgement === 'better' || judgement === 'similar' || judgement === 'worse'
-    ? JUDGEMENT_LABELS[judgement]
-    : 'Neither better nor worse';
+export function comparisonSummary(
+  judgement: BenchmarkJudgement | null | undefined,
+  benchmark?: { value: number; period: string },
+  unit?: string | null,
+): string {
+  if (judgement == null) return JUDGEMENT_LABELS.none;
+  const summary =
+    judgement === 'better' || judgement === 'similar' || judgement === 'worse'
+      ? JUDGEMENT_LABELS[judgement]
+      : 'Neither better nor worse';
+  return benchmark
+    ? `${summary} (England: ${withUnit(formatCalculatedValue(benchmark.value), unit ?? null)}, ${benchmark.period})`
+    : summary;
 }
 
 export function topicJudgement(...args: Parameters<typeof benchmarkJudgement>): BenchmarkJudgement {
   return args[2].polarity === 'no-polarity' ? 'none' : benchmarkJudgement(...args);
-}
-
-export function topicAreaJudgement(
-  entry: SelectedIndicator,
-  row: Pick<ComparisonRow, 'sex' | 'periodType'>,
-  cell: Pick<ComparisonCell, 'series'>,
-): BenchmarkJudgement {
-  return topicJudgement(
-    cell.series.at(-1),
-    englandObservation(entry, { ...row, series: cell.series })?.value ?? null,
-    entry.detail,
-  );
 }

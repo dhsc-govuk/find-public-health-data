@@ -10,6 +10,7 @@ import {
   observationPeriod,
   type TopicColumn,
   topicColumns,
+  topicEnglandMeasures,
   topicJudgement,
 } from './data.ts';
 import { loadTopic } from './loader.ts';
@@ -104,7 +105,7 @@ function dataCsv(
   measures: TopicColumn[],
   measureLabel: (measure: TopicColumn) => string,
 ) {
-  const englandMeasures = table.compared ? measures.filter((measure) => measure !== 'trend') : [];
+  const englandMeasures = topicEnglandMeasures(columns, table.compared);
   const measureValue = (
     measure: TopicColumn,
     cell: Partial<TopicDataTableModel['rows'][number]['cells'][number]> | null | undefined,
@@ -142,7 +143,10 @@ function dataCsv(
           ...(table.compared
             ? cell?.value == null
               ? ['No data', 'No data']
-              : [cell.period ?? row.period, comparisonSummary(cell.judgement ?? 'none')]
+              : [
+                  cell.period ?? row.period,
+                  comparisonSummary(cell.judgement, cell.benchmark, row.unit),
+                ]
             : []),
         ];
       }),

@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Link } from 'react-router';
 import { formatCalculatedValue, formatValue, recentTrend, withUnit } from '../../indicator/data.ts';
 import { TrendTag } from '../../indicator/trend-tag.tsx';
-import { comparisonSummary, type TopicColumn } from '../data.ts';
+import { comparisonSummary, type TopicColumn, topicEnglandMeasures } from '../data.ts';
 import type { TopicDataTableModel } from '../table-models.ts';
 
 type Measure = Extract<TopicColumn, 'trend' | 'count' | 'numerator' | 'value'>;
@@ -56,7 +56,7 @@ export const TopicDataTable = memo(function TopicDataTable({
     (column): column is Measure =>
       column === 'trend' || column === 'count' || column === 'numerator' || column === 'value',
   );
-  const englandMeasures = compared ? measures.filter((measure) => measure !== 'trend') : [];
+  const englandMeasures = topicEnglandMeasures(columns, compared);
   const grouped = compared || measures.length > 0;
   const areaNames = areas.map(({ name }) => name).join(', ');
   return (
@@ -168,14 +168,14 @@ export const TopicDataTable = memo(function TopicDataTable({
                     ...measures.map((measure) => (
                       <td key={`${area.code}-${measure}`} className="govuk-table__cell">
                         {measureValue(measure, cell, row.unit)}
-                        {measure === 'value' ? period : null}
+                        {measure !== 'trend' ? period : null}
                       </td>
                     )),
                     compared ? (
                       <td key={`${area.code}-comparison`} className="govuk-table__cell">
                         {cell?.value == null
                           ? 'No data'
-                          : comparisonSummary(cell.judgement ?? 'none')}
+                          : comparisonSummary(cell.judgement, cell.benchmark, row.unit)}
                         {measures.includes('value') ? null : period}
                       </td>
                     ) : null,
@@ -184,6 +184,9 @@ export const TopicDataTable = memo(function TopicDataTable({
                 {englandMeasures.map((measure) => (
                   <td key={`england-${measure}`} className="govuk-table__cell">
                     {measureValue(measure, row.england, row.unit)}
+                    {!columns.includes('period') && row.england?.[measure] != null && row.period ? (
+                      <span className="fphd-rug-cell__label">{row.period}</span>
+                    ) : null}
                   </td>
                 ))}
               </tr>

@@ -1,13 +1,7 @@
 import { comparisonTable } from '../indicator/comparison.ts';
 import { comparisonRows, recentTrend } from '../indicator/data.ts';
 import type { BenchmarkGeography, SelectedIndicator } from '../indicator/loader.ts';
-import {
-  englandObservation,
-  observationPeriod,
-  topicAreaJudgement,
-  topicJudgement,
-  topicSubtopics,
-} from './data.ts';
+import { englandObservation, observationPeriod, topicJudgement, topicSubtopics } from './data.ts';
 
 export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: string) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
@@ -52,15 +46,29 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
           cells: row.cells.map((cell) => {
             const latest = cell.series.at(-1);
             // An area whose data lags the row is judged against England for its own period.
-            const period = latest ? observationPeriod(entry, latest) : row.period;
+            const period = latest?.value != null ? observationPeriod(entry, latest) : row.period;
+            const benchmark = compared
+              ? englandObservation(entry, { ...row, series: cell.series })
+              : undefined;
             return {
               areaCode: cell.areaCode,
               value: latest?.value ?? null,
               count: latest?.count ?? null,
               numerator: latest?.numerator ?? null,
               trend: recentTrend(cell.series, entry.detail.polarity, cell.trendDirection),
-              judgement: compared ? topicAreaJudgement(entry, row, cell) : null,
+              judgement:
+                benchmark?.value != null
+                  ? topicJudgement(latest, benchmark.value, entry.detail)
+                  : null,
               ...(period !== row.period ? { period } : {}),
+              ...(latest?.value != null && benchmark?.value != null && benchmark !== england
+                ? {
+                    benchmark: {
+                      value: benchmark.value,
+                      period: observationPeriod(entry, benchmark),
+                    },
+                  }
+                : {}),
             };
           }),
         },

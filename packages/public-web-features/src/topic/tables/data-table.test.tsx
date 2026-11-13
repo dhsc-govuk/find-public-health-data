@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { recentTrend } from '../../indicator/data.ts';
+import type { TopicColumn } from '../data.ts';
 import type { TopicDataTableModel } from '../table-models.ts';
 import { TopicDataTable } from './data-table.tsx';
 
@@ -136,4 +137,112 @@ it('shows the period of an area value that lags the row', () => {
     </MemoryRouter>,
   );
   expect(screen.getByRole('cell', { name: 'Better than England2022' })).toBeTruthy();
+});
+
+it('shows no comparison available when the same-period England value is missing', () => {
+  const model: TopicDataTableModel = {
+    kind: 'data',
+    compared: true,
+    areas: [{ code: 'E12000001', name: 'North East' }],
+    rows: [
+      row('Smoking', { value: 18, judgement: null }, { value: null, count: null, numerator: null }),
+    ],
+  };
+  render(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Diabetes" />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('cell', { name: 'No comparison available' })).toBeTruthy();
+  expect(screen.queryByText('Neither better nor worse')).toBeNull();
+});
+
+it.each<{ columns: TopicColumn[] }>([
+  { columns: [] },
+  { columns: ['trend'] },
+  { columns: ['count'] },
+  { columns: ['numerator'] },
+])('keeps England calculated value when the selected columns are $columns', ({ columns }) => {
+  const model: TopicDataTableModel = {
+    kind: 'data',
+    compared: true,
+    areas: [{ code: 'E12000001', name: 'North East' }],
+    rows: [
+      row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: 280, numerator: 140 }),
+    ],
+  };
+  render(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Diabetes" columns={columns} />
+    </MemoryRouter>,
+  );
+  expect(headers()).toContain('England');
+  expect(headers().at(-1)).toBe('Calculatedvalue');
+  expect(screen.getByRole('cell', { name: '28.0%2023' })).toBeTruthy();
+});
+
+it('labels lagging counts and numerators and identifies the England benchmark used', () => {
+  const lagging = row(
+    'Smoking',
+    { value: 26, judgement: 'better' },
+    { value: 28, count: null, numerator: null },
+  );
+  const cell = lagging.cells[0];
+  if (!cell) throw new Error('Cell fixture missing');
+  lagging.cells = [
+    {
+      ...cell,
+      count: 260,
+      numerator: 130,
+      period: '2022',
+      benchmark: { value: 30, period: '2022' },
+    },
+  ];
+  const model: TopicDataTableModel = {
+    kind: 'data',
+    compared: true,
+    areas: [{ code: 'E12000001', name: 'North East' }],
+    rows: [lagging],
+  };
+  const { rerender } = render(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Diabetes" columns={['count', 'numerator']} />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('cell', { name: '2602022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '1302022' })).toBeTruthy();
+  expect(
+    screen.getByRole('cell', { name: /Better than England \(England: 30.0%, 2022\)/ }),
+  ).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '28.0%2023' })).toBeTruthy();
+  rerender(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Diabetes" columns={['count', 'numerator', 'value']} />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('cell', { name: '2602022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '1302022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '26.0%2022' })).toBeTruthy();
+});
+
+it('renders an empty area comparison once when calculated value is hidden', () => {
+  const empty = row(
+    'Smoking',
+    { value: null, judgement: null },
+    { value: null, count: null, numerator: null },
+  );
+  empty.period = '';
+  const model: TopicDataTableModel = {
+    kind: 'data',
+    compared: true,
+    areas: [{ code: 'E12000001', name: 'North East' }],
+    rows: [empty],
+  };
+  render(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Diabetes" columns={[]} />
+    </MemoryRouter>,
+  );
+  const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+  expect(cells[1]?.textContent).toBe('No data');
 });
