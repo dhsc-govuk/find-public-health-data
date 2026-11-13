@@ -143,6 +143,63 @@ describe('indicatorTaskList', () => {
     },
   );
 
+  it.each([
+    ['without the reasons', null, 'not_started'],
+    ['with the reasons', 'No tool reads this source.', 'completed'],
+  ] as const)(
+    'judges the justifications of a no to automation tools %s',
+    (_, noAutomationReason, status) => {
+      const draft = { hasAutomation: false, automationDetail: null, noAutomationReason };
+
+      expect(indicatorTaskList(withDraft({ ...complete, ...draft })).tasks.justifications).toBe(
+        status,
+      );
+    },
+  );
+
+  // A version imported from Fingertips may have either answer without a reason, and a new draft
+  // made from it asks for one before it can be submitted.
+  it.each([
+    ['no-fixed-frequency', null, 'not_started', false],
+    ['no-fixed-frequency', 'Published when the survey runs.', 'completed', true],
+    ['no-longer-updated', null, 'not_started', false],
+    ['no-longer-updated', 'The survey has ended.', 'completed', true],
+  ] as const)(
+    'judges an update frequency of %s with the reason %j',
+    (updateFrequency, updateFrequencyReason, status, canSubmit) => {
+      const taskList = indicatorTaskList(
+        withDraft({ ...complete, updateFrequency, updateFrequencyReason }),
+      );
+
+      expect(taskList.tasks['update-frequency']).toBe(status);
+      expect(taskList.canSubmit).toBe(canSubmit);
+    },
+  );
+
+  // A draft saved when one page asked both has both or neither. Imported versions have neither.
+  it.each([
+    [
+      'what was collected alone',
+      { demographics: complete.demographics, sexes: complete.sexes },
+      'completed',
+      'not_started',
+    ],
+    [
+      'the ages alone',
+      { ageType: complete.ageType, ageRanges: complete.ageRanges },
+      'not_started',
+      'completed',
+    ],
+    ['both', complete, 'completed', 'completed'],
+  ] satisfies [string, Partial<IndicatorTaskListDraft>, string, string][])(
+    'judges sex, gender and ethnicity apart from the ages, given %s',
+    (_, draft, sexStatus, agesStatus) => {
+      const { tasks } = indicatorTaskList(withDraft(draft));
+
+      expect([tasks['sex-gender-and-ethnicity'], tasks.ages]).toEqual([sexStatus, agesStatus]);
+    },
+  );
+
   it('judges the denominator from its own answers', () => {
     const numeratorOnly = { numeratorSources: [ons], numeratorDefinition: 'Deaths' };
 

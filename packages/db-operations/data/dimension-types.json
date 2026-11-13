@@ -5,7 +5,6 @@
     "dimensionClass": "core",
     "classificationScheme": "NHS-DD",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": true
   },
   {
@@ -14,7 +13,6 @@
     "dimensionClass": "core",
     "classificationScheme": null,
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": true
   },
   {
@@ -23,7 +21,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -32,7 +29,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -41,7 +37,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -50,7 +45,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-7cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -59,7 +53,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "sii-limits",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -68,7 +61,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -77,7 +69,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "sexuality-4cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -86,7 +77,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -95,7 +85,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -104,7 +93,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -113,7 +101,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "cluster-shapes",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -122,7 +109,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "cluster-shapes",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -131,7 +117,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "bcf-areas",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -140,7 +125,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "hiv-infection",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -149,7 +133,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "binary",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -158,7 +141,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-6cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -167,7 +149,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-17cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -176,7 +157,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-18cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -185,7 +165,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "religion-8cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -194,7 +173,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "religion-9cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -203,7 +181,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "household-composition",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -212,7 +189,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "client-group",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -221,7 +197,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "tenure",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -230,7 +205,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "sexuality-default",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -239,7 +213,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "working-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -248,7 +221,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "rurality",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -257,7 +229,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "disability-2cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -266,7 +237,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -275,7 +245,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-5cat-excl",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -284,7 +253,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "country-of-birth",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -293,7 +261,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -302,7 +269,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "sec",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -311,7 +277,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-5cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -320,7 +285,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "employment-type",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -329,7 +293,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -338,7 +301,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "health-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -347,7 +309,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "survey-response",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -356,7 +317,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -365,7 +325,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -374,7 +333,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -383,7 +341,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -392,7 +349,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "exposure-group",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -401,7 +357,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-3cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -410,7 +365,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -419,7 +373,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "first-language",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -428,7 +381,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "sen-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -437,7 +389,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "month-born",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -446,7 +397,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -455,7 +405,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-12cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -464,7 +413,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -473,7 +421,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-9cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -482,7 +429,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "country-of-birth",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -491,7 +437,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "working-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -500,7 +445,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "support-setting",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -509,7 +453,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "delivery-mechanism",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -518,7 +461,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "full-cost-client",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -527,7 +469,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "primary-support",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -536,7 +477,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "sexuality-2cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -545,7 +485,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "seg",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -554,7 +493,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "decile-boundaries",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -563,7 +501,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -572,7 +509,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD-trend",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -581,7 +517,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IDACI",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -590,7 +525,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "iapt-low-intensity",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -599,7 +533,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "iapt-high-intensity",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -608,7 +541,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "problem-descriptor",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -617,7 +549,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "disability-alt",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -626,7 +557,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "ltc",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -635,7 +565,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "fsm",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -644,7 +573,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -653,7 +581,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -662,7 +589,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "education-level",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -671,7 +597,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "armed-forces",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -680,7 +605,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "NHS-5cat-excl",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -689,7 +613,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "NHS-6cat-incl",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -698,7 +621,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "religion-default",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -707,7 +629,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -716,7 +637,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -725,7 +645,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -734,7 +653,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -743,7 +661,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -752,7 +669,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -761,7 +677,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -770,7 +685,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -779,7 +693,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "sec",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -788,7 +701,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "marital-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -797,7 +709,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "marital-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -806,7 +717,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "school-year",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -815,7 +725,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-4cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -824,7 +733,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "age-of-mother",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -833,7 +741,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "complex-social",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -842,7 +749,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "prematurity",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -851,7 +757,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "parity",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -860,7 +765,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -869,7 +773,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "school-year",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -878,7 +781,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "housing-tenure",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -887,7 +789,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-5cat-alt",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -896,7 +797,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "rurality",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -905,7 +805,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "sexuality-3cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -914,7 +813,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "working-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -923,7 +821,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -932,7 +829,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -941,7 +837,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "geo-hierarchy-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -950,7 +845,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "age-of-mother",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -959,7 +853,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-19cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -968,7 +861,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2010",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -977,7 +869,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-16cat-incl",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -986,7 +877,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-11cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -995,7 +885,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1004,7 +893,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD-trend",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1013,7 +901,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1022,7 +909,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1031,7 +917,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "birth-status",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1040,7 +925,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "tenure",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1049,7 +933,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "sen-primary-need",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1058,7 +941,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1067,7 +949,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1076,7 +957,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "fsm",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1085,7 +965,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "phase-type",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1094,7 +973,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "pregnancy-type",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1103,7 +981,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "condition",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1112,7 +989,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1121,7 +997,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD-trend",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1130,7 +1005,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1139,7 +1013,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1148,7 +1021,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1157,7 +1029,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD-trend",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1166,7 +1037,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1175,7 +1045,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1184,7 +1053,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1193,7 +1061,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2019",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1202,7 +1069,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "economic-inactivity",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1211,7 +1077,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "bmi-child",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1220,7 +1085,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "gambling-premises",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1229,7 +1093,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "ONS-2021-6cat",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1238,7 +1101,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "birthweight",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1247,7 +1109,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "smi",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1256,7 +1117,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1265,7 +1125,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1274,7 +1133,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1283,7 +1141,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "quintiles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1292,7 +1149,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "seg",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1301,7 +1157,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "pregnant-quitters",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1310,7 +1165,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "free-prescriptions",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1319,7 +1173,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "intervention-type",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1328,7 +1181,6 @@
     "dimensionClass": "clinical",
     "classificationScheme": "intervention-setting",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1337,7 +1189,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "smoking-aid",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1346,7 +1197,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2025",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1355,7 +1205,6 @@
     "dimensionClass": "demographic",
     "classificationScheme": "sen-primary-need",
     "granularity": null,
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1364,7 +1213,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   },
   {
@@ -1373,7 +1221,6 @@
     "dimensionClass": "inequality",
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
-    "schemeVersion": null,
     "isRequired": false
   }
 ]

@@ -30,8 +30,7 @@ it('omits catalogue areas that have no published observations for this indicator
     .limit(1);
   if (!record) throw new Error('Area registry entry missing');
   await db
-    .update(observation)
-    .set({ deletedAt: new Date() })
+    .delete(observation)
     .where(and(eq(observation.indicatorId, id), eq(observation.areaId, record.id)));
   expect(await listAreasByGroup(db, 'Local authorities')).toContainEqual(target);
   const available = await listIndicatorAreas(db, id, {

@@ -7,7 +7,7 @@ import { YesNoQuestion } from './yes-no-question.tsx';
 
 afterEach(cleanup);
 
-type Field = 'answer' | 'detail';
+type Field = 'answer' | 'detail' | 'reason';
 
 const LEGEND = 'Are there any caveats needed?';
 
@@ -20,7 +20,7 @@ function renderQuestion(props: Partial<ComponentProps<typeof YesNoQuestion<Field
       detailRows={3}
       fieldErrors={{}}
       legend={LEGEND}
-      values={{ answer: '', detail: '' }}
+      values={{ answer: '', detail: '', reason: '' }}
       {...props}
     />,
   );
@@ -38,10 +38,16 @@ function detailsField() {
   return within(group()).getByLabelText('Provide details') as HTMLTextAreaElement;
 }
 
-function conditional() {
-  const reveal = detailsField().closest('.govuk-radios__conditional');
+function conditional(field = detailsField()) {
+  const reveal = field.closest('.govuk-radios__conditional');
   if (reveal === null) throw new Error('the details field is not in a conditional reveal');
   return reveal;
+}
+
+const NO_DETAIL = { name: 'reason', label: 'Enter reasons why not' } as const;
+
+function reasonField() {
+  return within(group()).getByLabelText('Enter reasons why not') as HTMLTextAreaElement;
 }
 
 describe('YesNoQuestion', () => {
@@ -85,7 +91,7 @@ describe('YesNoQuestion', () => {
   });
 
   it('marks the reveal hidden while Yes is not chosen, which hides it only with JavaScript', () => {
-    renderQuestion({ values: { answer: 'no', detail: '' } });
+    renderQuestion({ values: { answer: 'no', detail: '', reason: '' } });
 
     expect(conditional().className).toContain('govuk-radios__conditional--hidden');
   });
@@ -100,10 +106,38 @@ describe('YesNoQuestion', () => {
   });
 
   it('shows the answer and details it is given', () => {
-    renderQuestion({ values: { answer: 'yes', detail: 'Survey data.' } });
+    renderQuestion({ values: { answer: 'yes', detail: 'Survey data.', reason: '' } });
 
     expect(option('Yes').checked).toBe(true);
     expect(detailsField().value).toBe('Survey data.');
+  });
+
+  it('reveals nothing under No unless it is given details for No', () => {
+    renderQuestion();
+
+    expect(option('No').hasAttribute('aria-controls')).toBe(false);
+    expect(group().querySelectorAll('textarea')).toHaveLength(1);
+  });
+
+  it('asks for the details for No inside the reveal No controls', () => {
+    renderQuestion({ noDetail: NO_DETAIL });
+
+    expect(reasonField().getAttribute('name')).toBe('reason');
+    expect(reasonField().getAttribute('rows')).toBe('3');
+    expect(option('No').getAttribute('aria-controls')).toBe(conditional(reasonField()).id);
+    expect(conditional(reasonField()).className).toContain('govuk-radios__conditional--hidden');
+  });
+
+  it('shows the answer No and its details open', () => {
+    renderQuestion({
+      noDetail: NO_DETAIL,
+      values: { answer: 'no', detail: '', reason: 'No tool reads this source.' },
+    });
+
+    expect(option('No').checked).toBe(true);
+    expect(reasonField().value).toBe('No tool reads this source.');
+    expect(conditional(reasonField()).className).not.toContain('govuk-radios__conditional--hidden');
+    expect(conditional().className).toContain('govuk-radios__conditional--hidden');
   });
 
   it('marks an unanswered question as refused', () => {
@@ -117,7 +151,7 @@ describe('YesNoQuestion', () => {
   it('shows a details error inside the open reveal', () => {
     renderQuestion({
       fieldErrors: { detail: 'Provide details of the caveats' },
-      values: { answer: 'yes', detail: '' },
+      values: { answer: 'yes', detail: '', reason: '' },
     });
 
     const error = conditional().querySelector('.govuk-error-message');

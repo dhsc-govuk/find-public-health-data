@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
+import { eq, sql as fragment, getTableColumns, inArray } from 'drizzle-orm';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -284,5 +285,97 @@ describe('the read-model rebuild', () => {
           )
     `;
     expect(leaked).toEqual([]);
+  });
+
+  it('keeps completed indicators committed when the job stops', async () => {
+    const db = draftDb.db;
+    const [first, second] = await db
+      .select({ id: schema.indicator.id })
+      .from(schema.indicator)
+      .orderBy(schema.indicator.id)
+      .limit(2);
+    if (!first || !second) throw new Error('Expected two seeded indicators');
+    const rowsOf = async (id: string) => {
+      const rows = await Promise.all(
+        [
+          schema.availableData,
+          schema.observationRange,
+          schema.observationSeries,
+          schema.observationSeriesBatch,
+        ].map((table) => db.select().from(table).where(eq(table.indicatorId, id))),
+      );
+      return rows.flatMap((rows) => rows.map((row) => JSON.stringify(row))).sort();
+    };
+    const firstBefore = await rowsOf(first.id);
+    const secondBefore = await rowsOf(second.id);
+    await db
+      .update(schema.availableData)
+      .set({ areaCount: -1 })
+      .where(inArray(schema.availableData.indicatorId, [first.id, second.id]));
+    const secondStale = await rowsOf(second.id);
+    const stopped = new Error('Job stopped');
+
+    await expect(
+      rebuildReadModels(draftSql, (progress) => {
+        expect(progress.indicatorId).toBe(first.id);
+        expect(progress.timings.map(({ table }) => table)).toEqual([
+          'available_data',
+          'observation_range',
+          'observation_series',
+        ]);
+        throw stopped;
+      }),
+    ).rejects.toBe(stopped);
+
+    expect(await rowsOf(first.id)).toEqual(firstBefore);
+    expect(await rowsOf(second.id)).toEqual(secondStale);
+    expect(secondStale).not.toEqual(secondBefore);
+    await rebuildReadModels(draftSql);
+    expect(await rowsOf(second.id)).toEqual(secondBefore);
+  });
+
+  it('removes stale rows whose indicator no longer exists', async () => {
+    const db = draftDb.db;
+    await db.insert(schema.availableData).values({
+      indicatorId: MISSING_UUID,
+      areaTypeId: fragment`uuidv7()`,
+      areaTypeName: 'Stale',
+      areaCount: 1,
+    });
+    await db.insert(schema.observationRange).values({
+      indicatorId: MISSING_UUID,
+      displayGroup: 'Stale',
+      fromDate: '2099-01-01',
+      toDate: '2099-12-31',
+      segment: '',
+      min: 1,
+      max: 1,
+    });
+    await db.insert(schema.observationSeriesBatch).values({
+      uploadBatchId: fragment`uuidv7()`,
+      indicatorId: MISSING_UUID,
+    });
+    await db.insert(schema.observationSeries).select(
+      db
+        .select({
+          ...getTableColumns(schema.observationSeries),
+          uploadBatchId: fragment<string>`uuidv7()`.as('upload_batch_id'),
+          indicatorId: fragment<string>`${MISSING_UUID}::uuid`.as('indicator_id'),
+        })
+        .from(schema.observationSeries)
+        .limit(1),
+    );
+
+    await rebuildReadModels(draftSql);
+
+    for (const table of [
+      schema.availableData,
+      schema.observationRange,
+      schema.observationSeries,
+      schema.observationSeriesBatch,
+    ]) {
+      const rows = await db.select().from(table).where(eq(table.indicatorId, MISSING_UUID));
+      expect(rows).toHaveLength(0);
+    }
   });
 });

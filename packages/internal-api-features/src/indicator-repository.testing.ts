@@ -36,7 +36,6 @@ const {
   indicatorVersionTopic,
   indicatorVersion,
   indicatorVersionAgeRange,
-  indicatorVersionLink,
 } = schema;
 
 /** Who the repository tests write as, and someone else who writes after them. */
@@ -153,21 +152,6 @@ export async function indicatorWithTwoPublications(
     currentName,
     currentSlug,
   };
-}
-
-export const commentary = { url: 'https://www.gov.uk/statistics', text: 'Statistical commentary' };
-export const fingertips = { url: 'https://fingertips.phe.org.uk/', text: 'Fingertips' };
-
-/** A version's links as the table holds them, in order. */
-export async function storedLinksOf(
-  db: Database,
-  versionId: string,
-): Promise<{ url: string; text: string }[]> {
-  return db
-    .select({ url: indicatorVersionLink.url, text: indicatorVersionLink.text })
-    .from(indicatorVersionLink)
-    .where(eq(indicatorVersionLink.indicatorVersionId, versionId))
-    .orderBy(indicatorVersionLink.position);
 }
 
 export const sixteenPlus = {

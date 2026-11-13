@@ -2,41 +2,30 @@ import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fph
 import { useLocation } from 'react-router';
 import { AreaControls } from './area-controls.tsx';
 import { ComparePicker } from './compare-picker.tsx';
-import type {
-  AreaSummary,
-  IndicatorAreaData,
-  IndicatorSummary,
-  SelectedIndicator,
-} from './loader.ts';
+import type { IndicatorComparisonModel } from './comparison-model.ts';
+import type { IndicatorDetail, IndicatorSummary, SelectedIndicator } from './loader.ts';
 import { IndicatorPairTable } from './tables/indicator-pair-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
 
-export interface ComparisonTabProps {
-  primary: SelectedIndicator;
-  compareAreasData: IndicatorAreaData[];
-  compareAreaGroup: string;
-  compareAreaOptions: AreaSummary[];
-  comparisonDisplayGroups: string[];
+export interface ComparisonTabProps extends IndicatorComparisonModel {
+  primary: Pick<SelectedIndicator, 'detail'>;
 }
 
 export function CompareIndicatorsTab({
   primary,
   compared,
-  compareAreasData,
-  comparedAreasData,
+  pair,
   compareAreaOptions,
   compareAreaGroup,
   comparisonDisplayGroups,
   findResults,
   findSubject,
 }: ComparisonTabProps & {
-  compared: SelectedIndicator | undefined;
-  comparedAreasData: IndicatorAreaData[];
-  findResults: IndicatorSummary[];
+  compared: Pick<IndicatorDetail, 'name' | 'slug' | 'unit'> | undefined;
+  findResults: IndicatorSummary[] | Promise<IndicatorSummary[]>;
   findSubject: string;
 }) {
   const { detail } = primary;
-  const id = detail.shortId;
   const params = new URLSearchParams(useLocation().search);
   return (
     <>
@@ -56,13 +45,13 @@ export function CompareIndicatorsTab({
         <GridColumn width={compared ? 'three-quarters' : 'two-thirds'}>
           <ComparePicker
             slug={detail.slug}
-            key={compared?.detail.slug ?? 'unselected'}
+            key={compared?.slug ?? 'unselected'}
             name={detail.name}
-            compared={compared?.detail}
+            compared={compared}
             findSubject={findSubject}
-            findResults={findResults.filter(({ shortId }) => shortId !== id)}
+            findResults={findResults}
           />
-          {compared ? (
+          {compared && pair ? (
             <>
               <div className="fphd-indicator-showing">
                 <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
@@ -77,26 +66,12 @@ export function CompareIndicatorsTab({
                 <ChartSection
                   id="indicator-comparison-chart"
                   title="Indicator comparison scatter chart"
-                  description={`${detail.name} compared with ${compared.detail.name} for the selected geographies.`}
+                  description={`${detail.name} compared with ${compared.name} for the selected geographies.`}
                 />
               </div>
               <IndicatorPairTable
-                selected={[
-                  {
-                    ...primary,
-                    areaData: [
-                      ...primary.areaData.filter(({ areaCode }) => areaCode === 'E92000001'),
-                      ...compareAreasData,
-                    ],
-                  },
-                  {
-                    ...compared,
-                    areaData: [
-                      ...compared.areaData.filter(({ areaCode }) => areaCode === 'E92000001'),
-                      ...comparedAreasData,
-                    ],
-                  },
-                ]}
+                indicators={[primary.detail, compared]}
+                model={pair}
                 group={compareAreaGroup}
                 highlighted={params.getAll('highlight')}
               />

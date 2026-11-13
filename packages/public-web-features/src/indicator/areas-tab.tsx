@@ -1,7 +1,6 @@
 import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import { areaComparisonRows } from './area-comparison.ts';
 import { AreaControls } from './area-controls.tsx';
 import type { ComparisonTabProps } from './compare-tab.tsx';
 import { AreaComparisonTable } from './tables/area-comparison-table.tsx';
@@ -9,14 +8,13 @@ import { IndicatorViewDownload } from './view-download.tsx';
 
 export function CompareAreasTab({
   primary,
-  compareAreasData,
+  areas: comparison,
   compareAreaOptions,
   compareAreaGroup,
   comparisonDisplayGroups,
 }: ComparisonTabProps) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
-  const comparison = areaComparisonRows(primary, compareAreasData, 'descending');
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
     compareAreaGroup === 'Local authorities'
@@ -57,7 +55,7 @@ export function CompareAreasTab({
             <GridColumn width="one-half" className="fphd-area-table">
               <AreaComparisonTable
                 indicator={primary}
-                areaData={compareAreasData}
+                model={comparison}
                 sort={params.get('areaSort') ?? 'descending'}
                 highlighted={params.getAll('highlight')}
                 colour={params.get('areaColour') ?? 'england'}

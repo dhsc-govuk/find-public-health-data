@@ -63,6 +63,9 @@ PUBLISHED_TABLES = [
     if table not in ("polarity", "frequency", "year_type", "value_type", "unit")
 ]
 
+# The bridge tables have no id: their rows are keyed by their foreign keys.
+BRIDGE_TABLES = ("observation_dimension", "observation_note")
+
 FOREIGN_KEYS = {
     "dimension_value": {"dimension_type_id": "dimension_type", "parent_id": "dimension_value"},
     "area": {"area_type_id": "area_type"},
@@ -91,7 +94,7 @@ FOREIGN_KEYS = {
         "numerator_source_id": "numerator_denominator_source",
         "denominator_source_id": "numerator_denominator_source",
     },
-    "upload_batch": {"indicator_id": "indicator", "superseded_by_id": "upload_batch"},
+    "upload_batch": {"indicator_id": "indicator"},
     "observation": {
         "indicator_id": "indicator",
         "area_id": "area",
@@ -175,6 +178,8 @@ def main(seed_dir, deterministic=False):
         base_ms = int(time.time() * 1000)
         id_maps = {}
         for table in tables:
+            if table in BRIDGE_TABLES:
+                continue
             path = os.path.join(seed_dir, f"{table}.csv.gz")
             with gzip.open(path, "rt", newline="") as f:
                 reader = csv.reader(f)
@@ -195,7 +200,7 @@ def main(seed_dir, deterministic=False):
         with gzip.open(path, "rt", newline="") as src, gzip.open(tmp, "wt", newline="") as dst:
             reader, writer = csv.reader(src), csv.writer(dst)
             header = next(reader)
-            id_index = header.index("id")
+            id_index = None if table in BRIDGE_TABLES else header.index("id")
             fk_indexes = foreign_key_indexes(table, header)
             actors = actor_indexes(table, header)
             if table == "indicator":
@@ -204,8 +209,9 @@ def main(seed_dir, deterministic=False):
                 writer.writerow(header)
             rows = 0
             for row in reader:
-                old_id = row[id_index]
-                row[id_index] = convert(table, old_id)
+                if id_index is not None:
+                    old_id = row[id_index]
+                    row[id_index] = convert(table, old_id)
                 for i, ref_table in fk_indexes.items():
                     if row[i] not in ("", NULL_MARKER):
                         row[i] = convert(ref_table, row[i])

@@ -57,13 +57,13 @@
     "statements": 55,
     "buffers": 104542,
     "rows": 22613,
-    "bytes": 168610
+    "bytes": 182119
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=data": {
     "statements": 55,
     "buffers": 104542,
     "rows": 22613,
-    "bytes": 168607
+    "bytes": 182115
   },
   "public-api /api/areas/search?q=leeds": {
     "statements": 1,
@@ -126,10 +126,10 @@
     "bytes": 27754
   },
   "public-web /indicator/diabetes-qof-prevalence": {
-    "statements": 48,
-    "buffers": 50904,
-    "rows": 7542,
-    "bytes": 590078
+    "statements": 17,
+    "buffers": 37103,
+    "rows": 2583,
+    "bytes": 350033
   },
   "public-web /indicator/diabetes-qof-prevalence/table.csv": {
     "statements": 10,
@@ -138,16 +138,16 @@
     "bytes": 569
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032": {
-    "statements": 102,
-    "buffers": 162663,
-    "rows": 45923,
-    "bytes": 1086581
+    "statements": 35,
+    "buffers": 47010,
+    "rows": 4515,
+    "bytes": 428972
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&find=mortality": {
-    "statements": 49,
-    "buffers": 50931,
-    "rows": 7546,
-    "bytes": 592511
+    "statements": 18,
+    "buffers": 37064,
+    "rows": 2587,
+    "bytes": 352544
   },
   "public-web /indicator/under-75-mortality-rate-from-all-causes/all-data.csv": {
     "statements": 10,
@@ -171,7 +171,7 @@
     "statements": 63,
     "buffers": 85813,
     "rows": 23971,
-    "bytes": 146541
+    "bytes": 158350
   },
   "public-web /topics/mortality-and-life-expectancy/table.csv?tab-topic=areas": {
     "statements": 54,
@@ -183,24 +183,24 @@
     "statements": 55,
     "buffers": 104542,
     "rows": 22613,
-    "bytes": 166020
+    "bytes": 179066
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data": {
     "statements": 55,
     "buffers": 104542,
     "rows": 22613,
-    "bytes": 166017
+    "bytes": 179062
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=period-desc": {
     "statements": 55,
     "buffers": 112537,
     "rows": 22613,
-    "bytes": 166329
+    "bytes": 179707
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=trend-desc": {
     "statements": 57,
     "buffers": 163967,
     "rows": 22619,
-    "bytes": 166558
+    "bytes": 179896
   }
 }

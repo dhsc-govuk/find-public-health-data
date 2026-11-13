@@ -13,8 +13,6 @@ import {
   AS_ACTOR,
   ciMethodId,
   classificationIn,
-  commentary,
-  fingertips,
   indicatorWithTwoPublications,
   newDraft,
   onsSources,
@@ -22,7 +20,6 @@ import {
   sixteenPlus,
   storedAgeRangesOf,
   storedClassificationIdsOf,
-  storedLinksOf,
   storedTopicIdsOf,
   underFive,
 } from './indicator-repository.testing.ts';
@@ -32,7 +29,6 @@ const {
   indicatorVersionTopic,
   indicatorVersion,
   indicatorVersionAgeRange,
-  indicatorVersionLink,
   indicatorVersionSource,
 } = schema;
 
@@ -322,38 +318,7 @@ describe('createDraftFromPublished', () => {
   );
 
   seededRepositoryTest(
-    'copies the links of the published version in order, leaving them on it too',
-    async ({ db }) => {
-      const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
-        db,
-        'Links when published',
-      );
-      await db
-        .update(indicatorVersion)
-        .set({ hasLinks: true })
-        .where(eq(indicatorVersion.id, currentId));
-      await db.insert(indicatorVersionLink).values([
-        { indicatorVersionId: currentId, position: 0, ...fingertips },
-        { indicatorVersionId: currentId, position: 1, ...commentary },
-        {
-          indicatorVersionId: supersededId,
-          position: 0,
-          url: 'https://www.gov.uk/old',
-          text: 'Old',
-        },
-      ]);
-
-      const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
-
-      if (!result.ok) throw new Error('expected a draft');
-      const state = await getIndicatorDraftState(db, indicatorId);
-      expect(state?.draft).toMatchObject({ hasLinks: true, links: [fingertips, commentary] });
-      expect(await storedLinksOf(db, currentId)).toEqual([fingertips, commentary]);
-    },
-  );
-
-  seededRepositoryTest(
-    'copies the sexes and age ranges of the published version, leaving them on it too',
+    'copies the demographics and age ranges of the published version, leaving them on it too',
     async ({ db }) => {
       const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
         db,
@@ -361,7 +326,13 @@ describe('createDraftFromPublished', () => {
       );
       await db
         .update(indicatorVersion)
-        .set({ sexes: ['persons'], ageType: 'range' })
+        .set({
+          demographics: ['sex', 'gender', 'ethnicity'],
+          sexes: ['persons'],
+          genders: ['non-binary'],
+          ethnicGroups: ['mixed'],
+          ageType: 'range',
+        })
         .where(eq(indicatorVersion.id, currentId));
       await db.insert(indicatorVersionAgeRange).values([
         { indicatorVersionId: currentId, position: 0, ...sixteenPlus },
@@ -374,7 +345,10 @@ describe('createDraftFromPublished', () => {
       if (!result.ok) throw new Error('expected a draft');
       const state = await getIndicatorDraftState(db, indicatorId);
       expect(state?.draft).toMatchObject({
+        demographics: ['sex', 'gender', 'ethnicity'],
         sexes: ['persons'],
+        genders: ['non-binary'],
+        ethnicGroups: ['mixed'],
         ageType: 'range',
         ageRanges: [sixteenPlus, underFive],
       });

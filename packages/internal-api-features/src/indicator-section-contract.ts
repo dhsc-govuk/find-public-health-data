@@ -41,24 +41,30 @@ export function yesNoSchema(error: string) {
 }
 
 /**
- * A question whose yes asks for details, and the message when they are missing. A section
- * declares its list once, `as const`, for both its schema and its columns.
+ * A question that asks for details under one of its answers, Yes unless `onAnswer` says No, and
+ * the message when they are missing. A section declares its list once, `as const`, for both its
+ * schema and its columns.
  */
 export interface DetailedQuestion<Answer extends string, Detail extends string = Answer> {
   answer: Answer;
   detail: Detail;
   detailRequired: string;
+  /**
+   * Set for details that a no asks for instead of a yes. A question that asks for details
+   * under both answers is listed twice, once for each.
+   */
+  onAnswer?: 'no';
 }
 
-/** Refuses each yes whose details are blank, also beside an unanswered question. */
+/** Refuses each answer whose details are blank, also beside an unanswered question. */
 export function requireDetails<Shape extends z.ZodRawShape>(
   schema: z.ZodObject<Shape>,
   questions: readonly DetailedQuestion<keyof Shape & string>[],
 ) {
   return schema.superRefine(
     (answers: Record<string, unknown>, ctx) => {
-      for (const { answer, detail, detailRequired } of questions) {
-        if (answers[answer] === 'yes' && answers[detail] === '') {
+      for (const { answer, detail, detailRequired, onAnswer = 'yes' } of questions) {
+        if (answers[answer] === onAnswer && answers[detail] === '') {
           ctx.addIssue({ code: 'custom', path: [detail], message: detailRequired });
         }
       }

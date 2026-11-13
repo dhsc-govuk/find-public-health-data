@@ -42,9 +42,7 @@ const savesEach: Save = (_call, saved) => saved;
  */
 function stored(key: IndicatorTaskKey, sent: unknown): FakeApiAnswer {
   const answers = sent as Record<string, unknown>;
-  return key === 'sex-and-ages'
-    ? { ...answers, specificAge: null, specificAgeUnit: null }
-    : answers;
+  return key === 'ages' ? { ...answers, specificAge: null, specificAgeUnit: null } : answers;
 }
 
 /**

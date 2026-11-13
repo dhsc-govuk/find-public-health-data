@@ -54,7 +54,9 @@ moves to this service. The operations image applies the packages with `db migrat
   collisions stop preparation.
 - Update frequency comes from `CIAReference.Frequency` and unambiguous frequency prose. Missing or
   unrepresentable frequencies remain null. Contradictory supported frequencies stop export with the
-  indicator id. Unrecognised structured lookup values stop export.
+  indicator id. Unrecognised structured lookup values stop export. Pholio holds no reason for "No
+  fixed frequency" or "This indicator will no longer be updated", so `update_frequency_reason` is
+  written empty, and the public page shows those frequencies without one.
 - Creation and migration audit timestamps use the indicator's `DateEnteredInPHOLIO`, never the
   export time. `indicator.data_updated_at` uses the latest successful `UploadJob.DateCreated` whose
   batch is still referenced by that indicator's `CoreDataSet` rows (`Status = 1000`), matching
@@ -73,6 +75,9 @@ moves to this service. The operations image applies the packages with `db migrat
   represented together without treating a directional disagreement as neutral.
 - UUIDs are deterministic from the source table and integer ID. The same source row keeps the same
   target ID across the baseline and every increment.
+- The bridge tables `observation_dimension` and `observation_note` have no ID. A bridge row is keyed
+  by its observation and its dimension type or note type: files are ordered by those columns, the
+  increment compares rows by them, and its delete files name rows by them.
 - The source manifest's `profile_metadata` preserves profile-specific names, including framework
   references, raw frequency prose and structured frequency labels. Preparation and increments retain
   that provenance independently of the generic display name. Development archives retain it as
@@ -86,11 +91,10 @@ moves to this service. The operations image applies the packages with `db migrat
   owning version; versions point at their batch, and observation keys carry sorted dimension-value
   UUIDs. The receiver resolves the version/batch cycle inside its import transaction.
 - Deleting a version also deletes the topic, classification and source rows the migration wrote for
-  it. A version a publisher has added links or age ranges to is never deleted; the import stops and
-  names the count.
-- Financial cumulative-quarter data retains its cumulative date ranges; quarter numbers are never
-  treated as distribution ranks. Repeated canonical observation keys stop the export with source-row
-  diagnostics.
+  it. A version a publisher has added age ranges to is never deleted; the import stops and names the
+  count.
+- Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
+  observation keys stop the export with source-row diagnostics.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.
   November-to-November annual periods run from 16 November to 15 November. Financial year-end
   snapshots retain their 31 March point date. Academic quarters and multi-year rolling periods
@@ -152,8 +156,8 @@ fields:
 `indicators` must exactly match the indicators in the package. Each needs a topic assignment or an
 explicit entry in `areaContextIndicators`; an area-context indicator cannot also carry topics or
 classifications. `indicatorTopics` accepts `isPrimary` and `indicatorSubtopics` contains
-`{ fingertipsId, topicId, subtopicId, isPrimary }` rows. Packages use format version 5 and
-`canonical-v5`, including explicit area status and nullable area validity dates. Every area file
+`{ fingertipsId, topicId, subtopicId, isPrimary }` rows. Packages use format version 8 and
+`canonical-v8`, including explicit area status and nullable area validity dates. Every area file
 requires `is_current`; missing status is rejected rather than filled from the database default.
 Every `indicator_version` file requires `is_locked` in the same way, and a version whose `is_locked`
 is false is refused, so a published version never arrives unlocked. Migrate the receiver's schema

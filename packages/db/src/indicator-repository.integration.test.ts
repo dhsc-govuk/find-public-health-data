@@ -170,6 +170,7 @@ describe('getPublishedIndicatorById', () => {
       unit: 'per 100,000',
       yearType: { value: expect.any(String), label: expect.any(String) },
       updateFrequency: 'annually',
+      updateFrequencyReason: null,
       polarity: expect.any(String),
       definition: expect.any(String),
     });

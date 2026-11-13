@@ -202,6 +202,11 @@ export interface IndicatorDetail {
   /** Null for an indicator of months, which have no year type. */
   yearType: PublicYearType | null;
   updateFrequency: UpdateFrequency;
+  /**
+   * Why an indicator has no fixed frequency or will no longer be updated. Null beside any other
+   * frequency, and beside those two for an indicator imported without one.
+   */
+  updateFrequencyReason: string | null;
   polarity: Polarity;
   ciMethod: string | null;
   ciConfidenceLevel: CiConfidenceLevel | null;
@@ -286,6 +291,7 @@ export async function getPublishedIndicatorsByIds(
       yearEndDay: indicator.yearEndDay,
       yearEndMonth: indicator.yearEndMonth,
       updateFrequency: indicator.updateFrequency,
+      updateFrequencyReason: indicator.updateFrequencyReason,
       polarity: indicator.polarity,
       ciMethod: ciMethod.name,
       ciConfidenceLevel: indicator.ciConfidenceLevel,
@@ -356,6 +362,7 @@ export async function getPublishedIndicatorsByIds(
             unit: unitLabel({ id: row.unitId, name: row.unitName }, row.unitDetail),
             yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
             updateFrequency: row.updateFrequency,
+            updateFrequencyReason: row.updateFrequencyReason,
             polarity: row.polarity,
             ciMethod: row.ciMethod,
             ciConfidenceLevel: row.ciConfidenceLevel,

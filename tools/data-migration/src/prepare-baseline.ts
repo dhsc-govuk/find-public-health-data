@@ -9,6 +9,7 @@ import {
   DATA_MIGRATION_FORMAT_VERSION,
   DATA_MIGRATION_NULL,
   DATA_MIGRATION_SCHEMA,
+  dataMigrationKey,
   dataMigrationSourceSchema,
   parseDataMigrationRelationships,
 } from '@fphd/db-operations/data-migration-contract';
@@ -78,13 +79,16 @@ export function deterministicUuid(table: string, sourceId: string): string {
 
 export async function rekeyTable(path: string, table: string, expectedRows?: number) {
   let fkIndexes = new Map<number, string>();
+  // The two bridge tables have no id: their rows are keyed by foreign keys, rekeyed below.
+  const hasId = dataMigrationKey(table).includes('id');
   const rows = await transformGzipCsv(
     path,
     (row, header) => {
       const idIndex = header.indexOf('id');
-      if (idIndex === -1) throw new Error(`${table} has no id column`);
-      const oldId = row[idIndex];
-      if (oldId === undefined) throw new Error(`${table} has an empty id`);
+      if (hasId && idIndex === -1) throw new Error(`${table} has no id column`);
+      if (!hasId && idIndex !== -1) throw new Error(`${table} has an id column`);
+      // A bridge has no id column, so its idIndex is -1 and no column below reads oldId.
+      const oldId = row[idIndex] ?? '';
       let rekeyed = row.map((value, index) => {
         if (index === idIndex) return deterministicUuid(table, oldId);
         const target = fkIndexes.get(index);

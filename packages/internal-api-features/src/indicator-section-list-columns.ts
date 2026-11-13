@@ -1,14 +1,11 @@
 import { CLASSIFICATION_DIMENSIONS } from '@fphd/utils/classification-dimension';
 import {
-  type Links,
-  type LinksAnswers,
-  type LinksField,
+  type Ages,
+  type AgesAnswers,
+  type AgesField,
   type ProviderSources,
   type ProviderSourcesAnswers,
   type ProviderSourcesField,
-  type SexAndAges,
-  type SexAndAgesAnswers,
-  type SexAndAgesField,
   TAG_LIST_DETAILS,
   type Tagging,
   type TaggingAnswers,
@@ -44,40 +41,24 @@ export const denominatorColumns: IndicatorSectionColumns<
   toLists: ({ sources }) => ({ denominatorSources: sources }),
 };
 
-export const linksColumns: IndicatorSectionColumns<LinksField, Links, LinksAnswers> = {
-  fromDraft: ({ hasLinks, links }) => ({
-    hasLinks: yesNoAnswer(hasLinks),
-    links: links.map(({ url, text }) => ({ url, text })),
-  }),
-  toAttributes: ({ hasLinks }) => ({ hasLinks: hasLinks === 'yes' }),
-  // Links sent beside "No" are dropped, whatever the form sent.
-  toLists: ({ hasLinks, links }) => ({ links: hasLinks === 'yes' ? links : [] }),
-};
-
 // A limit or age the form accepted, which is a whole number or nothing.
 function age(value: string): number | null {
   return value === '' ? null : Number(value);
 }
 
-export const sexAndAgesColumns: IndicatorSectionColumns<
-  SexAndAgesField,
-  SexAndAges,
-  SexAndAgesAnswers
-> = {
+export const agesColumns: IndicatorSectionColumns<AgesField, Ages, AgesAnswers> = {
   fromDraft: (draft) => ({
-    sexes: draft.sexes ?? [],
     ageType: draft.ageType,
     ageRanges: draft.ageRanges,
     specificAge: draft.specificAge,
     specificAgeUnit: draft.specificAgeUnit,
     ageDetail: draft.ageDetail,
   }),
-  // Answers the chosen age type does not ask for are cleared, whatever the form sent.
-  toAttributes: ({ sexes, ageType, specificAge, specificAgeUnit, ageDetail }) => {
+  // The answers the chosen age type does not ask for are cleared, whatever the form sent.
+  toAttributes: ({ ageType, specificAge, specificAgeUnit, ageDetail }) => {
     const specific = ageType === 'specific';
 
     return {
-      sexes,
       ageType,
       specificAge: specific ? age(specificAge) : null,
       specificAgeUnit: specific && specificAgeUnit !== '' ? specificAgeUnit : null,

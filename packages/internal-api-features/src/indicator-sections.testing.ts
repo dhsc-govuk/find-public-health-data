@@ -22,11 +22,6 @@ export const METHODS: Record<CiMethodRow['kind'], CiMethodRow> = {
   },
 };
 
-export const links = [
-  { url: 'https://www.gov.uk/government/statistics', text: 'Statistical commentary' },
-  { url: 'https://fingertips.phe.org.uk/', text: 'Fingertips' },
-];
-
 // Every follow-up filled in, as a form without JavaScript may send them.
 export const everyAnswer = {
   hasCiMethodModifications: 'yes',

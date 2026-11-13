@@ -11,6 +11,7 @@ const answered = {
   exclusionsDetail: '',
   hasAutomation: 'no',
   automationDetail: '',
+  noAutomationReason: 'No tool reads this source.',
 };
 
 describe('justificationsSection', () => {
@@ -24,6 +25,7 @@ describe('justificationsSection', () => {
         exclusionsDetail: ' Small areas. ',
         hasAutomation: 'yes',
         automationDetail: 'Pipeline. ',
+        noAutomationReason: ' ',
       }),
     ).toEqual({
       ciMethodJustification: 'Standard.',
@@ -33,10 +35,11 @@ describe('justificationsSection', () => {
       exclusionsDetail: 'Small areas.',
       hasAutomation: 'yes',
       automationDetail: 'Pipeline.',
+      noAutomationReason: '',
     });
   });
 
-  it('asks for no details when both questions are answered no', () => {
+  it('takes a no to exclusions without details, and a no to automation with its reasons', () => {
     expect(sectionFieldErrors(section, answered)).toBeUndefined();
   });
 
@@ -50,6 +53,7 @@ describe('justificationsSection', () => {
         exclusionsDetail: '',
         hasAutomation: '',
         automationDetail: '',
+        noAutomationReason: '',
       }),
     ).toEqual({
       ciMethodJustification: 'Enter why the confidence interval method was chosen',
@@ -71,6 +75,12 @@ describe('justificationsSection', () => {
     ).toEqual({
       exclusionsDetail: 'Enter why exclusions were made',
       automationDetail: 'Enter details of the tools used',
+    });
+  });
+
+  it('asks for the reasons no automation tools were used, blank ones included', () => {
+    expect(sectionFieldErrors(section, { ...answered, noAutomationReason: ' \n' })).toEqual({
+      noAutomationReason: 'Enter reasons why not',
     });
   });
 

@@ -29,7 +29,7 @@ beforeAll(async () => {
   publicDb = database.connectDb({ login: apiLogin('public_api') });
   const [type] = await database.db
     .insert(areaType)
-    .values({ name: 'England', hierarchyType: 'Administrative', level: 1 })
+    .values({ name: 'England', hierarchyType: 'Administrative' })
     .returning();
   if (!type) throw new Error('England type fixture missing');
   const [england] = await database.db

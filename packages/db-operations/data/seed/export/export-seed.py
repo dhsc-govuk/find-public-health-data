@@ -41,8 +41,7 @@ OBS_WHERE = (
 
 OBS_COLS = (
     "id,indicator_id,area_id,from_date,to_date,value,count,denominator,denominator_2,"
-    "lower_ci_95,upper_ci_95,lower_ci_998,upper_ci_998,distribution_rank,published_at,"
-    "upload_batch_id,created_at,created_by,deleted_at"
+    "lower_ci_95,upper_ci_95,lower_ci_998,upper_ci_998,upload_batch_id,created_at,created_by"
 )
 
 TABLES = [
@@ -57,15 +56,15 @@ TABLES = [
     ("numerator_denominator_source", "SELECT id,name,url FROM numerator_denominator_source"),
     (
         "dimension_type",
-        "SELECT id,name,dimension_class,classification_scheme,granularity,scheme_version,"
-        "is_required FROM dimension_type",
+        "SELECT id,name,dimension_class,classification_scheme,granularity,is_required "
+        "FROM dimension_type",
     ),
     (
         "dimension_value",
         "SELECT id,dimension_type_id,parent_id,name,code,sort_order,is_aggregate "
         "FROM dimension_value",
     ),
-    ("area_type", "SELECT id,name,hierarchy_type,level FROM area_type"),
+    ("area_type", "SELECT id,name,hierarchy_type FROM area_type"),
     (
         "area",
         f"SELECT id,code,name,area_type_id,valid_from,valid_to FROM area "
@@ -94,20 +93,20 @@ TABLES = [
     (
         "upload_batch",
         "SELECT id,indicator_id,original_filename,uploaded_by,uploaded_at,status,"
-        f"validation_result,superseded_by_id FROM upload_batch WHERE indicator_id IN ({IND})",
+        f"validation_result FROM upload_batch WHERE indicator_id IN ({IND})",
     ),
     ("note_type", "SELECT id,text,category FROM note_type"),
     ("observation", f"SELECT {OBS_COLS} FROM observation o WHERE {OBS_WHERE}"),
     (
         "observation_dimension",
-        "SELECT od.id,od.observation_id,od.dimension_value_id,dv.dimension_type_id "
+        "SELECT od.observation_id,od.dimension_value_id,dv.dimension_type_id "
         "FROM observation_dimension od "
         "JOIN dimension_value dv ON dv.id = od.dimension_value_id "
         f"JOIN observation o ON o.id = od.observation_id WHERE {OBS_WHERE}",
     ),
     (
         "observation_note",
-        "SELECT n.id,n.observation_id,n.note_type_id FROM observation_note n "
+        "SELECT n.observation_id,n.note_type_id FROM observation_note n "
         f"JOIN observation o ON o.id = n.observation_id WHERE {OBS_WHERE}",
     ),
 ]

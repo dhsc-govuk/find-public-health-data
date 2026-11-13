@@ -49,7 +49,6 @@ export const FOREIGN_KEYS: Partial<Record<(typeof TABLES)[number], Record<string
   upload_batch: {
     indicator_id: 'indicator',
     indicator_version_id: 'indicator_version',
-    superseded_by_id: 'upload_batch',
   },
   observation: {
     indicator_id: 'indicator',

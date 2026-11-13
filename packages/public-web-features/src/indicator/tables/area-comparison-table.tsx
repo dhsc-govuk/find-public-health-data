@@ -1,30 +1,35 @@
 import { TableScrollRegion } from '@fphd/ui';
-import {
-  areaComparisonBarColour,
-  areaComparisonBarMaximum,
-  areaComparisonGroups,
-  areaComparisonLabel,
-  areaComparisonRows,
-} from '../area-comparison.ts';
+import { areaComparisonBarColour, areaComparisonGroups } from '../area-comparison.ts';
+import type { IndicatorComparisonModel } from '../comparison-model.ts';
 import { formatCalculatedValue } from '../data.ts';
 import type { SelectedIndicator } from '../loader.ts';
 
 export function AreaComparisonTable({
   indicator,
-  areaData,
+  model,
   sort,
   highlighted,
   colour = 'england',
 }: {
-  indicator: SelectedIndicator;
-  areaData: SelectedIndicator['areaData'];
+  indicator: Pick<SelectedIndicator, 'detail'>;
+  model: IndicatorComparisonModel['areas'];
   sort: string;
   highlighted: string[];
   colour?: string;
 }) {
-  const { england, rows: shown } = areaComparisonRows(indicator, areaData, sort);
+  const shown = [...model.rows].sort((left, right) =>
+    left.areaCode === 'E92000001'
+      ? -1
+      : right.areaCode === 'E92000001'
+        ? 1
+        : sort === 'alphabetical'
+          ? left.areaName.localeCompare(right.areaName)
+          : sort === 'ascending'
+            ? (left.value ?? Number.POSITIVE_INFINITY) - (right.value ?? Number.POSITIVE_INFINITY)
+            : (right.value ?? Number.NEGATIVE_INFINITY) - (left.value ?? Number.NEGATIVE_INFINITY),
+  );
   const groups = areaComparisonGroups(shown, colour);
-  const barMaximum = areaComparisonBarMaximum(shown);
+  const barMaximum = model.barMaximum;
   return (
     <TableScrollRegion label={`${indicator.detail.name} comparison across areas data table`}>
       <table className="govuk-table fphd-area-comparison-table">
@@ -56,11 +61,10 @@ export function AreaComparisonTable({
         </thead>
         <tbody className="govuk-table__body">
           {shown.map((cell) => {
-            const latest = cell.series.at(-1);
             const compare =
               colour === 'quartiles' || colour === 'quintiles'
                 ? (groups.labels.get(cell.areaCode) ?? '')
-                : areaComparisonLabel(cell, england, indicator.detail);
+                : cell.label;
             return (
               <tr
                 className={`govuk-table__row${cell.areaCode === 'E92000001' ? ' fphd-area-comparison-table__benchmark' : ''}${highlighted.includes(cell.areaCode) ? ' fphd-highlighted-area' : ''}`}
@@ -107,10 +111,10 @@ export function AreaComparisonTable({
                   )}
                 </td>
                 <td className="govuk-table__cell">
-                  {latest?.lowerCi95 == null ? '—' : formatCalculatedValue(latest.lowerCi95)}
+                  {cell.lowerCi95 == null ? '—' : formatCalculatedValue(cell.lowerCi95)}
                 </td>
                 <td className="govuk-table__cell">
-                  {latest?.upperCi95 == null ? '—' : formatCalculatedValue(latest.upperCi95)}
+                  {cell.upperCi95 == null ? '—' : formatCalculatedValue(cell.upperCi95)}
                 </td>
               </tr>
             );

@@ -162,7 +162,7 @@ Refresh the committed catalogs when reference data changes. See
 [Refresh upload reference
 data](../../tools/data-migration/README.md#refresh-upload-reference-data).
 Deploy the operations image and run `db import-core-data` before applying a package that uses those
-new rows. The export and receiver share format version 5, which carries the reference catalogs in
+new rows. The export and receiver share format version 8, which carries the reference catalogs in
 full in incremental packages.
 
 The observation-series migrations create empty read models. For an existing environment, run

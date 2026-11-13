@@ -36,14 +36,15 @@ src/
   A junction table joins the two singular names — `observation_dimension`, `area_relationship`.
   Write camelCase property names in schema files; `casing:   'snake_case'` maps them.
 - **Child tables**: a table of a version's rows is `indicator_version_<child>`
-  (`indicator_version_link`, `indicator_version_topic`), with `indicator_version_id` first in its
-  primary key. Its foreign keys are named explicitly, `<table>_<target>_fk` as in
+  (`indicator_version_age_range`, `indicator_version_topic`), with `indicator_version_id` first in
+  its primary key. Its foreign keys are named explicitly, `<table>_<target>_fk` as in
   `indicator_version_source_source_fk`, because a generated name longer than Postgres's 63 bytes is
   silently cut short.
 - **Ids**: UUIDv7 via `uuidPrimaryKey()` from `schema/helpers.ts`, which defaults to Postgres 18's
   native `uuidv7()`. Rows created by an import supply their own ids instead, so the id survives a
-  re-import. The read models in `cache.ts` are the exception: they are keyed by the columns they
-  aggregate and carry no surrogate id.
+  re-import. The read models in `cache.ts` also carry no surrogate id, keyed by the columns they
+  aggregate, as do the bridges `observation_dimension` and `observation_note`, keyed by their
+  observation and the dimension type or note type they link it to.
 - **Timestamps**: every core data table (the classifications and the lists a publisher chooses from)
   spreads `timestamps` from `schema/helpers.ts` (`created_at` / `updated_at`, timestamptz).
   `updated_at` is app-maintained: the import's conditional upsert bumps it only on a row the file
@@ -53,7 +54,7 @@ src/
   wrote a row is an `actorId()`, as `upload_batch.uploaded_by` is. The core data import writes
   topics as its own system user. A version's child tables carry neither: their rows are deleted and
   reinserted on every save, and the version's own `updated_at` records that. `observation` records
-  only creation, since a correction supersedes a row rather than editing it, and its batch's
+  only creation, since each upload writes a new batch rather than editing rows, and its batch's
   uploader is its writer.
 - **Users and teams**: `app_user` and `team` rows are inserted by migration with fixed ids, which
   `@fphd/auth` uses for its fake users and their teams; `SYSTEM_USER_IDS` names the system users
@@ -123,8 +124,8 @@ and the internal reads join `currentPublishedVersion` for the same rule, each th
 `indicator_version` by `id` for the version's columns. Observations follow the current published
 version's batch: each version points at the upload batch holding its data
 (`indicator_version.upload_batch_id`, shared by a later version until it uploads its own), and
-`published.observation` shows the undeleted rows of the batch the current published version points
-at, with `published.observation_dimension` and `published.observation_note` following it. Publishing
+`published.observation` shows the rows of the batch the current published version points at, with
+`published.observation_dimension` and `published.observation_note` following it. Publishing
 therefore switches an indicator's data over in one step, and a draft's rows never show. The
 read-model rebuild reads the published views, so the read models hold published data alone.
 `published.indicator` carries that version's `slug` as the indicator's canonical address, while

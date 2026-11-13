@@ -1,3 +1,4 @@
+import { AGE_TYPES, AGE_UNIT_DAYS, AGE_UNITS, type AgeType, MAX_AGE } from '@fphd/utils/ages';
 import { INDICATOR_CALCULATED_BY, type IndicatorCalculatedBy } from '@fphd/utils/calculated-by';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import {
@@ -12,16 +13,15 @@ import {
 } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import {
-  AGE_TYPES,
-  AGE_UNIT_DAYS,
-  AGE_UNITS,
-  type AgeType,
-  MAX_AGE,
+  DEMOGRAPHICS,
+  type Demographic,
+  ETHNIC_GROUPS,
+  GENDERS,
   SEXES,
-} from '@fphd/utils/sex-and-ages';
+} from '@fphd/utils/sex-gender-and-ethnicity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
-import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
+import { UPDATE_FREQUENCIES, UPDATE_FREQUENCIES_WITH_REASON } from '@fphd/utils/update-frequency';
 import {
   INDIRECTLY_STANDARDISED_VALUE_TYPE_IDS,
   STANDARD_POPULATIONS,
@@ -108,9 +108,32 @@ function detailBesideYes(answer: AnyPgColumn, detail: AnyPgColumn): SQL {
   return sql`(${answer} IS TRUE) = (${detail} IS NOT NULL)`;
 }
 
+/** A no whose detail the contract requires: the detail is kept beside a no and nothing else. */
+function detailBesideNo(answer: AnyPgColumn, detail: AnyPgColumn): SQL {
+  return sql`(${answer} IS FALSE) = (${detail} IS NOT NULL)`;
+}
+
 /** A choice whose detail the contract requires, kept beside that choice and nothing else. */
 function detailBesideChoice(column: AnyPgColumn, choice: string, detail: AnyPgColumn): SQL {
   return sql`(${column} IS NOT DISTINCT FROM ${literals([choice])}) = (${detail} IS NOT NULL)`;
+}
+
+/** A list of choices from a closed set, which holds at least one when it is answered. */
+function someOf(list: AnyPgColumn, values: readonly string[]): SQL {
+  return sql`${list} <@ ARRAY[${literals(values)}]::text[] AND cardinality(${list}) > 0`;
+}
+
+/**
+ * The list a demographic asks for, such as the sexes included, which the contract requires when
+ * that demographic was collected. It is kept beside that demographic being collected and nothing
+ * else.
+ */
+function listBesideDemographic(
+  demographics: AnyPgColumn,
+  demographic: Demographic,
+  list: AnyPgColumn,
+): SQL {
+  return sql`((${demographics} @> ARRAY[${literals([demographic])}]::text[]) IS TRUE) = (${list} IS NOT NULL)`;
 }
 
 /** An age in days, as the contract compares ages; null when either part is. */
@@ -130,7 +153,10 @@ export const indicator = pgTable('indicator', {
   id: uuidPrimaryKey(),
   // The public indicator number, carried over from Fingertips where there was one and
   // minted here otherwise; it appears in published URLs, so it never changes.
-  shortId: integer().notNull().unique().default(sql`nextval('indicator_short_id_seq')`),
+  shortId: integer()
+    .notNull()
+    .unique('indicator_short_id_unique')
+    .default(sql`nextval('indicator_short_id_seq')`),
   // When the source system last published data for this indicator. It describes the data,
   // not the editorial content, so it stays off the version.
   dataUpdatedAt: timestamp({ withTimezone: true }),
@@ -178,8 +204,12 @@ export const indicatorVersion = pgTable(
     unitId: uuid().references(() => unit.id),
     // The unit a publisher names under "Other".
     unitDetail: text(),
-    // Sex and ages
+    // Sex, gender and ethnicity: what was collected, and the ones included of each.
+    demographics: text({ enum: DEMOGRAPHICS }).array(),
     sexes: text({ enum: SEXES }).array(),
+    genders: text({ enum: GENDERS }).array(),
+    ethnicGroups: text({ enum: ETHNIC_GROUPS }).array(),
+    // Ages
     // The ranges an age type of range gives are rows of indicator_version_age_range.
     ageType: text({ enum: AGE_TYPES }),
     specificAge: smallint(),
@@ -232,10 +262,9 @@ export const indicatorVersion = pgTable(
     caveatsDetail: text(),
     hasOtherNotes: boolean(),
     otherNotesDetail: text(),
-    // Links and tagging
+    // Tagging
     // The answered state of lists held in child tables, which a check cannot compare with the
     // rows, so the API keeps them in step: null until asked, false for an answered no.
-    hasLinks: boolean(),
     hasRiskFactor: boolean(),
     hasFramework: boolean(),
     hasLifeStage: boolean(),
@@ -248,11 +277,11 @@ export const indicatorVersion = pgTable(
     customDataReuseDetail: text(),
     // Update frequency
     updateFrequency: text({ enum: UPDATE_FREQUENCIES }),
+    updateFrequencyReason: text(),
     // Notes for reviewers, never published.
     // Variance and quality
     variation: text(),
     qualityAssurance: text(),
-    hasSourceDataIssues: boolean(),
     sourceDataIssuesDetail: text(),
     // Justifications
     ciMethodJustification: text(),
@@ -262,6 +291,7 @@ export const indicatorVersion = pgTable(
     exclusionsDetail: text(),
     hasAutomation: boolean(),
     automationDetail: text(),
+    noAutomationReason: text(),
     // Other comments
     sponsorsAndStakeholders: text(),
     hasReviewerComments: boolean(),
@@ -282,6 +312,14 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_update_frequency_check',
       sql`${t.updateFrequency} IN (${literals(UPDATE_FREQUENCIES)})`,
+    ),
+    // The contract requires a reason beside "No fixed frequency" and "This indicator will no
+    // longer be updated", but this check only refuses one beside any other answer. Indicators
+    // imported from Fingertips are published with those answers and no reason, and a published
+    // version must keep its frequency.
+    check(
+      'indicator_version_update_frequency_reason_check',
+      sql`${t.updateFrequencyReason} IS NULL OR (${t.updateFrequency} IN (${literals(UPDATE_FREQUENCIES_WITH_REASON)})) IS TRUE`,
     ),
     check(
       'indicator_version_standard_population_check',
@@ -377,10 +415,6 @@ export const indicatorVersion = pgTable(
       sql`${t.goalLowerValue} > '-Infinity' AND ${t.goalLowerValue} < 'Infinity' AND ${t.goalUpperValue} < 'Infinity'`,
     ),
     check(
-      'indicator_version_source_data_issues_detail_check',
-      detailBesideYes(t.hasSourceDataIssues, t.sourceDataIssuesDetail),
-    ),
-    check(
       'indicator_version_exclusions_detail_check',
       detailBesideYes(t.hasExclusions, t.exclusionsDetail),
     ),
@@ -389,12 +423,28 @@ export const indicatorVersion = pgTable(
       detailBesideYes(t.hasAutomation, t.automationDetail),
     ),
     check(
+      'indicator_version_no_automation_reason_check',
+      detailBesideNo(t.hasAutomation, t.noAutomationReason),
+    ),
+    check(
       'indicator_version_reviewer_comments_detail_check',
       detailBesideYes(t.hasReviewerComments, t.reviewerCommentsDetail),
     ),
+    check('indicator_version_demographics_check', someOf(t.demographics, DEMOGRAPHICS)),
+    check('indicator_version_sexes_check', someOf(t.sexes, SEXES)),
     check(
-      'indicator_version_sexes_check',
-      sql`${t.sexes} <@ ARRAY[${literals(SEXES)}]::text[] AND cardinality(${t.sexes}) > 0`,
+      'indicator_version_sexes_demographic_check',
+      listBesideDemographic(t.demographics, 'sex', t.sexes),
+    ),
+    check('indicator_version_genders_check', someOf(t.genders, GENDERS)),
+    check(
+      'indicator_version_genders_demographic_check',
+      listBesideDemographic(t.demographics, 'gender', t.genders),
+    ),
+    check('indicator_version_ethnic_groups_check', someOf(t.ethnicGroups, ETHNIC_GROUPS)),
+    check(
+      'indicator_version_ethnic_groups_demographic_check',
+      listBesideDemographic(t.demographics, 'ethnicity', t.ethnicGroups),
     ),
     check('indicator_version_age_type_check', sql`${t.ageType} IN (${literals(AGE_TYPES)})`),
     check(
@@ -441,7 +491,7 @@ export const indicatorVersion = pgTable(
       sql`${t.dataTableConfirmedAt} IS NULL OR ${t.uploadBatchId} IS NOT NULL`,
     ),
     // Target for upload_batch's composite (version, indicator) foreign key.
-    unique().on(t.id, t.indicatorId),
+    unique('indicator_version_id_indicator_id_unique').on(t.id, t.indicatorId),
     // Pairing the batch with indicator_id keeps a version on a batch of its own indicator.
     foreignKey({
       name: 'indicator_version_upload_batch_fk',
@@ -472,27 +522,6 @@ export const indicatorVersion = pgTable(
     index('idx_indicator_version_indicator').on(t.indicatorId),
     index('idx_indicator_version_slug').on(t.slug),
     index('idx_indicator_version_name_trgm').using('gin', t.name.op('gin_trgm_ops')),
-    index('idx_indicator_version_definition_trgm').using('gin', t.definition.op('gin_trgm_ops')),
-  ],
-);
-
-/** The links a version offers users, in the order the publisher added them. */
-export const indicatorVersionLink = pgTable(
-  'indicator_version_link',
-  {
-    indicatorVersionId: uuid().notNull(),
-    position: smallint().notNull(),
-    url: text().notNull(),
-    text: text().notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.indicatorVersionId, t.position] }),
-    foreignKey({
-      name: 'indicator_version_link_version_fk',
-      columns: [t.indicatorVersionId],
-      foreignColumns: [indicatorVersion.id],
-    }),
-    check('indicator_version_link_position_check', sql`${t.position} >= 0`),
   ],
 );
 
