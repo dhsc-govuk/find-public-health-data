@@ -87,7 +87,7 @@ it('preserves the old loader scatter when either completed read model is unavail
   }
 });
 
-it.each([40501, 92443])(
+it.each([40501])(
   'uses ranking values without history for seeded pair ending in %i',
   async (other) => {
     const fixture = before.find(
@@ -100,3 +100,14 @@ it.each([40501, 92443])(
     expect(paths.some((path) => path.startsWith('/api/indicator-scatter'))).toBe(false);
   },
 );
+
+it('checks canonical history before returning an empty scatter for different age segments', async () => {
+  const fixture = before.find(
+    ({ ids, group }) => ids[1] === 92443 && group === 'Local authorities',
+  );
+  if (!fixture) throw new Error('Expected fixture');
+  const paths: string[] = [];
+  const comparison = await load(fixture.url, (path) => paths.push(path));
+  expect(comparison.scatter).toEqual(fixture.scatter);
+  expect(paths.filter((path) => path.startsWith('/api/indicator-scatter'))).toHaveLength(1);
+});

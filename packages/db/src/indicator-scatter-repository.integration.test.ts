@@ -75,6 +75,35 @@ it('resolves both published axes in one bulk read without coalescing ranking loo
   expect(await getPublishedIndicatorScatterData(db, [108, 999999], codes)).toBeUndefined();
 });
 
+it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
+  'binds area code %s as an array element and preserves requested order',
+  async (code) => {
+    await database.db
+      .update(area)
+      .set({ code })
+      .where(eq(area.code, codes[0] ?? ''));
+    const requested = [codes[1] ?? '', code];
+    const data = await getIndicatorObservationData(db, ids, requested, 'table');
+    const expected = pairedAreaValues(
+      data.get(ids[0])?.areaData ?? [],
+      data.get(ids[1])?.areaData ?? [],
+    );
+    expect(expected).toHaveLength(2);
+    const query = vi.spyOn(db.$client, 'unsafe');
+    try {
+      const cached = await getCachedScatterAreas(db, ids, requested);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query.mock.calls[0]?.[1]).toContainEqual(requested);
+      expect(cached?.get(ids[0])?.map(({ areaCode }) => areaCode)).toEqual(requested);
+      expect(pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? [])).toEqual(
+        expected,
+      );
+    } finally {
+      query.mockRestore();
+    }
+  },
+);
+
 it('retains nulls, zeroes and an older common period while using current published values', async () => {
   const original = await getCachedScatterAreas(db, ids, codes);
   const latest = original?.get(ids[0])?.[0]?.observations.at(-1);

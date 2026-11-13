@@ -24,8 +24,7 @@ export function loadRankingScatterComparison(
   // Sex variants can elect a different headline after history is bounded.
   if ([first, second].some(({ dimensions }) => dimensions.some(({ type }) => type === 'Sex')))
     return undefined;
-  const samePopulation = sameSegment(first, second);
-  if (!samePopulation) return { points: [] };
+  if (!sameSegment(first, second)) return undefined;
   const periods = [x, y].map(
     ({ areaData }) =>
       new Set(
@@ -44,7 +43,6 @@ export function loadRankingScatterComparison(
   const scatter = loadScatterComparison(selected, params);
   // Disjoint latest local values can still have a paired period further back.
   if (
-    samePopulation &&
     !scatter?.points.some(({ code }) => code !== 'E92000001') &&
     [x, y].some(({ areaData }) => areaData.some(({ areaCode }) => areaCode !== 'E92000001'))
   )

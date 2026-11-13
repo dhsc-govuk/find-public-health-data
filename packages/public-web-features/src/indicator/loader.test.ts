@@ -1,3 +1,4 @@
+import { rankingAreaSeries } from '@fphd/utils/observation-series';
 import { apiContext } from '@fphd/web-server/api-context';
 import {
   createFakeApiClient,
@@ -9,6 +10,7 @@ import {
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
 import { indicatorDetail, observation, sex } from './view.testing.ts';
@@ -642,5 +644,96 @@ describe('loadIndicator', () => {
         ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 20 && y === 10,
       ),
     ).toBe(true);
+  });
+
+  it('falls back to canonical scatter pairing when the scatter endpoint returns 404', async () => {
+    const primary = [observation(0, [sex('Female')])];
+    const secondary = [observation(20, [sex('Female')])];
+    const client = api({
+      'GET /api/indicators/108/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: primary })),
+      'GET /api/indicators/241/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: secondary })),
+      'GET /api/indicator-scatter': () => fails(new Response(null, { status: 404 })),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&scatter-x=241&scatter-y=108',
+      ),
+    );
+    const expected = loadScatterComparison(
+      [
+        { detail: indicatorDetail(108), areaData: result.compareAreasData },
+        { detail: indicatorDetail(241), areaData: result.comparedAreasData },
+      ],
+      new URLSearchParams('scatter-x=241&scatter-y=108'),
+    );
+    expect(expected?.points).toHaveLength(26);
+    expect(result.scatter).toEqual(expected);
+    expect(result.scatter?.points[0]).toMatchObject({ x: 20, y: 0 });
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-scatter?'))).toHaveLength(
+      1,
+    );
+  });
+
+  it.each(['Age', 'Ethnicity'])(
+    'returns canonical earlier points when latest rankings select different %s segments',
+    async (type) => {
+      const point = (year: number, value: number, segment: string) => ({
+        ...observation(value, [{ type, value: segment, dimensionClass: 'core', sortOrder: 1 }]),
+        fromDate: `${year}-01-01`,
+        toDate: `${year}-12-31`,
+      });
+      const selected = [108, 241].map((shortId, index) => ({
+        detail: indicatorDetail(shortId),
+        areaData: [
+          {
+            areaCode: 'E00000000',
+            areaName: 'Area 0',
+            observations: index
+              ? [point(2023, 20, 'First'), point(2024, 21, 'First')]
+              : [point(2023, 0, 'First')],
+          },
+          { areaCode: 'E00000001', areaName: 'Area 1', observations: [point(2024, 30, 'Second')] },
+        ],
+      }));
+      const params = new URLSearchParams('scatter-x=241&scatter-y=108');
+      const expected = loadScatterComparison(selected, params);
+      if (!expected) throw new Error('Expected a comparison pair');
+      expect(expected.points).toMatchObject([
+        { code: 'E00000000', x: 20, y: 0, fromDate: '2023-01-01' },
+      ]);
+      const client = api({
+        ...Object.fromEntries(
+          selected.map(({ detail, areaData }) => [
+            `GET /api/indicators/${detail.shortId}/ranking`,
+            rankingAreaSeries(areaData),
+          ]),
+        ),
+        'GET /api/indicator-scatter': expected,
+      });
+      const result = await loadIndicator(
+        args(
+          client,
+          `http://localhost/indicator/indicator-108?compareWith=indicator-241&${params}`,
+        ),
+      );
+      expect(result.scatter).toEqual(expected);
+      expect(
+        paths(client).filter((path) => path.startsWith('/api/indicator-scatter?')),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('propagates scatter endpoint failures other than 404', async () => {
+    const client = api({
+      'GET /api/indicator-scatter': () => fails(new Response(null, { status: 502 })),
+    });
+    await expect(
+      loadIndicator(
+        args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+      ),
+    ).rejects.toMatchObject({ status: 502 });
   });
 });

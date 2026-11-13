@@ -253,12 +253,17 @@ async function loadIndicatorComparison(
         { detail: routeDetail, areaData: primary },
         { detail: comparedDetail, areaData: secondary },
       ];
-      compactScatter =
-        loadRankingScatterComparison(chartIndicators, url.searchParams) ??
-        (await api.get(
-          `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
-          indicatorScatterSchema,
-        ));
+      compactScatter = loadRankingScatterComparison(chartIndicators, url.searchParams);
+      if (!compactScatter) {
+        try {
+          compactScatter = await api.get(
+            `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+            indicatorScatterSchema,
+          );
+        } catch (error) {
+          if (!(error instanceof Response) || error.status !== 404) throw error;
+        }
+      }
     } else {
       compareAreasData = await loadRanking(routeDetail);
       chartIndicators = [{ detail: routeDetail, areaData: compareAreasData }];

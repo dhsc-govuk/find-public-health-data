@@ -44,7 +44,7 @@ export async function getCachedScatterAreas(
         id: area.id,
         code: area.code,
         name: area.name,
-        position: sql<number>`array_position(${`{${codes.join(',')}}`}::text[], ${area.code})`.as(
+        position: sql<number>`array_position(${sql.param(codes)}::text[], ${area.code})`.as(
           'position',
         ),
       })
