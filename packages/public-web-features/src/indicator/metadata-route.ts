@@ -1,9 +1,8 @@
 import { indicatorDetailSchema } from '@fphd/public-api-features/contract';
-import { UPDATE_FREQUENCY_LABELS } from '@fphd/utils/update-frequency';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
-import { providerSourceText } from './metadata-data.ts';
+import { providerSourceText, updateFrequencyText } from './metadata-data.ts';
 import { indicatorMetadataPath, isIndicatorSegment, redirectStatus } from './paths.ts';
 
 export async function loader({ context, params }: LoaderFunctionArgs): Promise<Response> {
@@ -22,7 +21,7 @@ export async function loader({ context, params }: LoaderFunctionArgs): Promise<R
     ['Value type', detail.valueType],
     ['Unit', detail.unit],
     ['Year type', detail.yearType?.label],
-    ['Update frequency', UPDATE_FREQUENCY_LABELS[detail.updateFrequency]],
+    ['Update frequency', updateFrequencyText(detail)],
     ['Data source', detail.dataSource?.name],
     ['Data source URL', detail.dataSource?.url],
     ['Numerator definition', detail.numeratorDefinition],

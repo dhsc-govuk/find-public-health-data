@@ -1,6 +1,6 @@
 import { schema } from '@fphd/db';
 import { auditEntriesFor } from '@fphd/db/testing';
-import { MAX_AGE } from '@fphd/utils/sex-and-ages';
+import { MAX_AGE } from '@fphd/utils/ages';
 import { desc, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
@@ -8,15 +8,12 @@ import { getIndicatorDraftState, updateIndicatorDraft } from './indicator-draft-
 import {
   AS_ACTOR,
   classificationIn,
-  commentary,
-  fingertips,
   newDraft,
   onsSources,
   repositoryTest,
   sixteenPlus,
   storedAgeRangesOf,
   storedClassificationIdsOf,
-  storedLinksOf,
   storedTopicIdsOf,
   typeClassification,
   underFive,
@@ -79,7 +76,7 @@ describe('updateIndicatorDraft', () => {
   );
 
   repositoryTest('leaves the lists alone when the update names none', async ({ db }) => {
-    const created = await newDraft(db, 'Keeps its links');
+    const created = await newDraft(db, 'Keeps its lists');
     const [topic] = await db.select({ id: schema.topic.id }).from(schema.topic).limit(1);
     const classified = await typeClassification(db);
     if (!topic || !classified) throw new Error('The core data holds no topics or classifications');
@@ -91,7 +88,7 @@ describe('updateIndicatorDraft', () => {
       {
         topicIds: [topic.id],
         classificationIds: { indicator_type: [classified.id] },
-        links: [commentary],
+        ageRanges: [sixteenPlus],
       },
       AS_ACTOR,
     );
@@ -100,7 +97,7 @@ describe('updateIndicatorDraft', () => {
       db,
       created.indicatorId,
       'name',
-      { name: 'Keeps its links renamed' },
+      { name: 'Keeps its lists renamed' },
       {},
       AS_ACTOR,
     );
@@ -111,7 +108,7 @@ describe('updateIndicatorDraft', () => {
       .from(indicatorVersionClassification)
       .where(eq(indicatorVersionClassification.indicatorVersionId, created.versionId));
     expect(classifications).toEqual([{ id: classified.id }]);
-    expect(await storedLinksOf(db, created.versionId)).toEqual([commentary]);
+    expect(await storedAgeRangesOf(db, created.versionId)).toEqual([sixteenPlus]);
   });
 
   repositoryTest(
@@ -182,45 +179,6 @@ describe('updateIndicatorDraft', () => {
   });
 
   repositoryTest(
-    'writes the links in the order given, replacing those held before',
-    async ({ db }) => {
-      const created = await newDraft(db, 'Links in order');
-
-      await updateIndicatorDraft(
-        db,
-        created.indicatorId,
-        'links',
-        { hasLinks: true },
-        { links: [commentary, fingertips] },
-        AS_ACTOR,
-      );
-      const first = await getIndicatorDraftState(db, created.indicatorId);
-      await updateIndicatorDraft(
-        db,
-        created.indicatorId,
-        'links',
-        {},
-        { links: [fingertips] },
-        AS_ACTOR,
-      );
-      const replaced = await getIndicatorDraftState(db, created.indicatorId);
-      await updateIndicatorDraft(
-        db,
-        created.indicatorId,
-        'links',
-        { hasLinks: false },
-        { links: [] },
-        AS_ACTOR,
-      );
-      const cleared = await getIndicatorDraftState(db, created.indicatorId);
-
-      expect(first?.draft).toMatchObject({ hasLinks: true, links: [commentary, fingertips] });
-      expect(replaced?.draft?.links).toEqual([fingertips]);
-      expect(cleared?.draft).toMatchObject({ hasLinks: false, links: [] });
-    },
-  );
-
-  repositoryTest(
     'writes the sexes and age ranges in the order given, replacing those held before',
     async ({ db }) => {
       const created = await newDraft(db, 'Ages in order');
@@ -228,8 +186,16 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
-        { sexes: ['females', 'males'], ageType: 'range' },
+        'sex-gender-and-ethnicity',
+        { demographics: ['sex'], sexes: ['females', 'males'] },
+        {},
+        AS_ACTOR,
+      );
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'ages',
+        { ageType: 'range' },
         { ageRanges: [underFive, sixteenPlus] },
         AS_ACTOR,
       );
@@ -237,7 +203,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         { ageType: 'specific', specificAge: 5, specificAgeUnit: 'weeks' },
         { ageRanges: [] },
         AS_ACTOR,
@@ -265,7 +231,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       { ageType: 'range' },
       { ageRanges: [oldest] },
       AS_ACTOR,
@@ -273,7 +239,7 @@ describe('updateIndicatorDraft', () => {
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'sex-and-ages',
+      'ages',
       { ageType: 'specific', specificAge: MAX_AGE, specificAgeUnit: 'days' },
       {},
       AS_ACTOR,
@@ -302,7 +268,7 @@ describe('updateIndicatorDraft', () => {
       updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         {},
         { ageRanges: [ageRange] },
         AS_ACTOR,
@@ -324,7 +290,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'sex-and-ages',
+        'ages',
         { ageType: 'range' },
         { ageRanges: [firstYear] },
         AS_ACTOR,

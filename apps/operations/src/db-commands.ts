@@ -362,7 +362,9 @@ export async function migrateLiveData({ sql, config, logger }: CommandContext): 
 
 /** Reports each table's row count after the rebuild — an empty read model serves an empty site. */
 export async function rebuildReadModels({ sql, logger }: CommandContext): Promise<void> {
-  await rebuildReadModelsFromCanonical(sql);
+  await rebuildReadModelsFromCanonical(sql, (progress) => {
+    logger.info(progress, 'Indicator read models rebuilt');
+  });
   for (const table of READ_MODEL_TABLES) {
     const [row] = await sql<{ count: number }[]>`
       SELECT count(*)::int AS count FROM ${sql(table)}

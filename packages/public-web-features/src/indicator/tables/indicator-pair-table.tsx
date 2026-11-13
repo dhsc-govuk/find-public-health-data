@@ -1,19 +1,25 @@
 import { Details, TableScrollRegion } from '@fphd/ui';
 import { geographyGroupLabel } from '../../geography/groups.ts';
-import { indicatorPair } from '../indicator-pair.ts';
-import type { SelectedIndicator } from '../loader.ts';
+import type { IndicatorComparisonModel } from '../comparison-model.ts';
+import { formatCalculatedValue, withUnit } from '../data.ts';
+import type { IndicatorDetail } from '../loader.ts';
 
 export function IndicatorPairTable({
-  selected,
+  indicators,
+  model,
   group = 'Local authorities',
   highlighted = [],
 }: {
-  selected: [SelectedIndicator, SelectedIndicator];
+  indicators: [Pick<IndicatorDetail, 'name' | 'unit'>, Pick<IndicatorDetail, 'name' | 'unit'>];
+  model: NonNullable<IndicatorComparisonModel['pair']>;
   group?: string;
   highlighted?: string[];
 }) {
-  const [first, second] = selected;
-  const model = indicatorPair(selected);
+  const [first, second] = indicators;
+  const displayValue = (value: number | null, index: number) =>
+    value === null
+      ? 'No data'
+      : withUnit(formatCalculatedValue(value), indicators[index]?.unit ?? null);
   const { periods, england, areas } = model;
   const shown = [
     ...(england ? [england] : []),
@@ -26,7 +32,7 @@ export function IndicatorPairTable({
       </th>
       {cell.values.map((value, index) => (
         <td className="govuk-table__cell" key={index}>
-          {model.displayValue(value, index)}
+          {displayValue(value, index)}
         </td>
       ))}
     </tr>
@@ -36,7 +42,7 @@ export function IndicatorPairTable({
       <TableScrollRegion label="Indicator comparison data table">
         <table className="govuk-table fphd-compare-table">
           <caption className="govuk-table__caption">
-            Table of indicator comparison: {first.detail.name} and {second.detail.name}
+            Table of indicator comparison: {first.name} and {second.name}
           </caption>
           <thead className="govuk-table__head">
             <tr className="govuk-table__row">
@@ -44,10 +50,10 @@ export function IndicatorPairTable({
                 Area
               </th>
               <th className="govuk-table__header" scope="col">
-                {first.detail.name} ({periods[0] || 'latest period'})
+                {first.name} ({periods[0] || 'latest period'})
               </th>
               <th className="govuk-table__header" scope="col">
-                {second.detail.name} ({periods[1] || 'latest period'})
+                {second.name} ({periods[1] || 'latest period'})
               </th>
             </tr>
           </thead>
@@ -81,10 +87,10 @@ export function IndicatorPairTable({
                     Area
                   </th>
                   <th scope="col" className="govuk-table__header">
-                    {first.detail.name}
+                    {first.name}
                   </th>
                   <th scope="col" className="govuk-table__header">
-                    {second.detail.name}
+                    {second.name}
                   </th>
                 </tr>
               </thead>

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ANSWER_NOT_READ,
+  agesSection,
   definitionAndRationaleSection,
   indicatorAccess,
   indicatorCreateErrorSchema,
@@ -12,7 +13,6 @@ import {
   indicatorTaskKeySchema,
   indicatorTaskListSchema,
   indicatorUpdateErrorSchema,
-  sexAndAgesSection,
   toFieldErrors,
   topicFieldSchema,
   topicUpdateErrorSchema,
@@ -186,10 +186,10 @@ describe.each([
 
 describe('indicatorSectionErrorSchema', () => {
   it("accepts a refusal of a list item's field from a section that names them", () => {
-    const fieldErrors = { 'ageRanges[1].lowerLimit': 'Enter lower limit 2' };
+    const fieldErrors = { 'ageRanges[1].lowerLimit': 'Enter the lower limit of range 2' };
 
     expect(
-      indicatorSectionErrorSchema(sexAndAgesSection).safeParse({
+      indicatorSectionErrorSchema(agesSection).safeParse({
         error: 'validation_failed',
         fieldErrors,
       }).success,

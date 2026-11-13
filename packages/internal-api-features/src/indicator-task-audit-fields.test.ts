@@ -19,17 +19,17 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
 } from './indicator-section-columns.ts';
 import {
+  agesColumns,
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
-  sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
-import { links, mortality, publishingDate, tagging } from './indicator-sections.testing.ts';
+import { mortality, publishingDate, tagging } from './indicator-sections.testing.ts';
 import {
   changesTask,
   type SavedTaskKey,
@@ -119,7 +119,12 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ciMethodDetail: 'Bootstrap',
       kind: 'standard',
     }),
-  'update-frequency': () => savedFields(updateFrequencyColumns, { updateFrequency: 'annually' }),
+  'update-frequency': () =>
+    savedFields(updateFrequencyColumns, {
+      updateFrequency: 'no-fixed-frequency',
+      noFixedFrequencyReason: 'Published when the survey runs.',
+      noLongerUpdatedReason: '',
+    }),
   'value-type-and-units': () =>
     savedFields(valueTypeAndUnitsColumns, {
       valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate,
@@ -152,7 +157,6 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ...publishingDate,
       scheduledPublishAt: new Date('2027-09-14T08:30:00.000Z'),
     }),
-  links: () => savedFields(linksColumns, { hasLinks: 'yes', links }),
   'copyright-and-data-reuse': () =>
     savedFields(copyrightAndDataReuseColumns, {
       hasCustomCopyright: 'yes',
@@ -168,9 +172,15 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       goalPolarity: 'higher-is-better',
       goalPolicyDetail: 'An ambition',
     }),
-  'sex-and-ages': () =>
-    savedFields(sexAndAgesColumns, {
+  'sex-gender-and-ethnicity': () =>
+    savedFields(sexGenderAndEthnicityColumns, {
+      demographics: ['sex', 'gender', 'ethnicity'],
       sexes: ['females'],
+      genders: ['other'],
+      ethnicGroups: ['asian'],
+    }),
+  ages: () =>
+    savedFields(agesColumns, {
       ageType: 'range',
       ageRanges: [
         { lowerLimit: '16', lowerLimitUnit: 'years', upperLimit: '', upperLimitUnit: '' },

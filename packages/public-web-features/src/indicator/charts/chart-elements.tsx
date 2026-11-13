@@ -113,10 +113,18 @@ export function ChartCanvas({
         {children(id)}
       </ResponsiveContainer>
     </div>
-  ) : null;
+  ) : (
+    <p className="govuk-body">
+      The interactive chart is unavailable. The values are available in the data table.
+    </p>
+  );
 }
 
-export function ChartSources({ indicators }: { indicators: IndicatorDetail[] }) {
+export function ChartSources({
+  indicators,
+}: {
+  indicators: Pick<IndicatorDetail, 'dataSource'>[];
+}) {
   const sources = new Map(
     indicators.flatMap(({ dataSource }) =>
       dataSource ? [[dataSource.name, dataSource] as const] : [],

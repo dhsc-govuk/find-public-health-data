@@ -188,7 +188,16 @@ export function rankingAreaSeries<
       ]),
     );
     return areas.map((area) => {
-      const point = points.get(area.areaCode);
+      const point =
+        area.areaCode === ENGLAND_AREA_CODE && local.length
+          ? filterSeries(area.observations, variant).findLast(
+              (point) =>
+                latest &&
+                observationSegmentKey(point) === observationSegmentKey(latest) &&
+                point.fromDate === latest.fromDate &&
+                point.toDate === latest.toDate,
+            )
+          : points.get(area.areaCode);
       return { ...area, observations: point ? [point] : [] };
     });
   }

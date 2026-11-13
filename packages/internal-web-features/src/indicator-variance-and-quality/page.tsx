@@ -2,11 +2,10 @@ import {
   type VarianceAndQualityField,
   varianceAndQualitySection,
 } from '@fphd/internal-api-features/contract';
-import { firstRadioId, Textarea } from '@fphd/ui';
+import { Textarea } from '@fphd/ui';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 import { ReviewerUseOnly } from '../reviewer-use-only.tsx';
-import { YesNoQuestion } from '../yes-no-question.tsx';
 
 export function VarianceAndQualityPage(form: SectionPageProps<VarianceAndQualityField>) {
   const { fieldErrors, values } = form;
@@ -15,7 +14,6 @@ export function VarianceAndQualityPage(form: SectionPageProps<VarianceAndQuality
     <IndicatorSectionForm
       form={form}
       intro={<ReviewerUseOnly />}
-      fieldIds={{ hasSourceDataIssues: firstRadioId('hasSourceDataIssues') }}
       section={varianceAndQualitySection}
       title="Variance and quality"
     >
@@ -35,14 +33,13 @@ export function VarianceAndQualityPage(form: SectionPageProps<VarianceAndQuality
         name="qualityAssurance"
         rows={5}
       />
-      <YesNoQuestion
-        answer="hasSourceDataIssues"
-        detail="sourceDataIssuesDetail"
-        detailLabel="Enter details, including what is being done to improve the quality of the source data"
-        detailRows={5}
-        fieldErrors={fieldErrors}
-        legend="Are there any data quality issues with the source data?"
-        values={values}
+      <Textarea
+        defaultValue={values.sourceDataIssuesDetail}
+        error={fieldErrors.sourceDataIssuesDetail}
+        label="If there are any data quality issues, what is being done to improve the quality? (Optional)"
+        labelHeading="h2"
+        name="sourceDataIssuesDetail"
+        rows={5}
       />
     </IndicatorSectionForm>
   );

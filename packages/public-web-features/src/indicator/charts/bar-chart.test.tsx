@@ -69,3 +69,28 @@ it('shows the represented quintiles when both levels have matching ranges', () =
       .map((item) => item.textContent),
   ).toEqual(['Quintile 1 (lowest)', 'Quintile 3']);
 });
+
+it('does not add an unavailable quintile for an area without a bar in the latest period', () => {
+  render(
+    <CompareAreasChart
+      areas={[
+        areas[0] as IndicatorAreaData,
+        {
+          ...(areas[1] as IndicatorAreaData),
+          observations: [{ ...observation(30), fromDate: '2023-01-01', toDate: '2023-12-31' }],
+        },
+      ]}
+      confidence="none"
+      indicator={indicatorDetail()}
+      colourByQuintile
+      levelByCode={{ A: 'local-authorities', B: 'regions' }}
+      ranges={{ 'local-authorities': [range] }}
+    />,
+  );
+  const key = screen.getByRole('list', { name: 'Quintile key' });
+  expect(
+    within(key)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  ).toEqual(['Quintile 1 (lowest)']);
+});

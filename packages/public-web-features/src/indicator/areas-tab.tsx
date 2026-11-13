@@ -1,10 +1,11 @@
 import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
+import { useMemo } from 'react';
 import { useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import { areaComparisonRows } from './area-comparison.ts';
 import { AreaControls } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
-import { englandCode, quintileParam } from './charts/chart-data.ts';
+import { quintileParam } from './charts/chart-data.ts';
+import { expandIndicator } from './compact-data.ts';
 import type { ComparisonTabProps } from './compare-tab.tsx';
 import {
   availableConfidenceLevels,
@@ -18,15 +19,17 @@ import { IndicatorViewDownload } from './view-download.tsx';
 
 export function CompareAreasTab({
   primary,
-  compareAreasData,
+  areas: comparison,
   compareAreaOptions,
   compareAreaGroup,
   comparisonDisplayGroups,
+  areaChart,
   compareAreaRanges = [],
 }: ComparisonTabProps) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
   const [options, applyOptions] = usePanelOptions(detail.shortId);
+  const compareAreasData = useMemo(() => expandIndicator(areaChart).areaData, [areaChart]);
   const observations = compareAreasData.flatMap(({ observations }) => observations);
   const confidenceLevels = availableConfidenceLevels(observations);
   const periodTypes = availablePeriodTypes(observations);
@@ -35,10 +38,7 @@ export function CompareAreasTab({
     ? options.confidence
     : 'none';
   const colourByQuintile = params.get(quintileParam(detail.shortId)) === 'yes';
-  const chartAreas = [
-    ...compareAreasData,
-    ...primary.areaData.filter(({ areaCode }) => areaCode === englandCode),
-  ].map((area) => ({
+  const chartAreas = compareAreasData.map((area) => ({
     ...area,
     observations: filterObservations(area.observations, {
       sex: sexes.includes(options.sex) ? options.sex : '',
@@ -47,7 +47,6 @@ export function CompareAreasTab({
         : 'all',
     }),
   }));
-  const comparison = areaComparisonRows(primary, compareAreasData, 'descending');
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
     compareAreaGroup === 'Local authorities'
@@ -88,7 +87,7 @@ export function CompareAreasTab({
             <GridColumn width="one-half" className="fphd-area-table">
               <AreaComparisonTable
                 indicator={primary}
-                areaData={compareAreasData}
+                model={comparison}
                 sort={params.get('areaSort') ?? 'descending'}
                 highlighted={params.getAll('highlight')}
                 colour={params.get('areaColour') ?? 'england'}

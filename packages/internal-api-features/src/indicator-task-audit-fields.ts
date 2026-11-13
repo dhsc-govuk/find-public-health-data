@@ -1,18 +1,17 @@
 import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 
 import {
+  agesSection,
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
   copyrightAndDataReuseSection,
   dataQualitySection,
   definitionAndRationaleSection,
-  linksSection,
   otherNotesAndCaveatsSection,
   periodTypeSection,
   polaritySection,
-  sexAndAgesSection,
-  updateFrequencySection,
+  sexGenderAndEthnicitySection,
   valueTypeAndUnitsSection,
 } from './contract.ts';
 import { UNORDERED_LISTS } from './indicator-version-lists-repository.ts';
@@ -34,7 +33,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   denominator: ['denominatorDefinition', 'denominatorSources'],
   calculation: calculationSection.fields.options,
   'confidence-intervals': confidenceIntervalsSection.fields.options,
-  'update-frequency': updateFrequencySection.fields.options,
+  'update-frequency': ['updateFrequency', 'updateFrequencyReason'],
   'value-type-and-units': [
     ...valueTypeAndUnitsSection.fields.options.filter(
       (field) => field !== 'standardPopulationOther' && field !== 'referencePopulation',
@@ -44,10 +43,10 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   'period-type': periodTypeSection.fields.options,
   'other-notes-and-caveats': otherNotesAndCaveatsSection.fields.options,
   'publishing-date': ['scheduledPublishAt'],
-  links: linksSection.fields.options,
   'copyright-and-data-reuse': copyrightAndDataReuseSection.fields.options,
   benchmarking: benchmarkingSection.fields.options,
-  'sex-and-ages': sexAndAgesSection.fields.options,
+  'sex-gender-and-ethnicity': sexGenderAndEthnicitySection.fields.options,
+  ages: agesSection.fields.options,
   tagging: [...UNORDERED_LISTS, 'primaryTopicId', 'isAreaContext', 'hasLifeStage', 'hasFramework'],
 };
 

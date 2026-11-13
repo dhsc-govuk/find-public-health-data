@@ -47,7 +47,8 @@ export const TASK_GROUPS: readonly TaskGroup[] = [
     tasks: [
       task('data-table', dataTablePath),
       task('value-type-and-units'),
-      task('sex-and-ages'),
+      task('sex-gender-and-ethnicity'),
+      task('ages'),
       task('period-type'),
       task('polarity'),
       task('data-quality'),
@@ -65,7 +66,6 @@ export const TASK_GROUPS: readonly TaskGroup[] = [
       task('confidence-intervals'),
       task('benchmarking'),
       task('other-notes-and-caveats'),
-      task('links'),
       task('tagging'),
       task('copyright-and-data-reuse'),
     ],

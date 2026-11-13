@@ -182,7 +182,7 @@ export function topicPageTests() {
   }) => {
     await openTopicPage(page, '/topics/diabetes');
     await expect(page.locator('#topic-overview .fphd-topic-highlight')).toHaveCount(2);
-    for (const width of [320, 640, 641, 654, 960, 1020, 1280]) {
+    for (const width of [320, 640, 641, 654, 764, 960, 1020, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
       const sidebar = await page
@@ -236,6 +236,16 @@ export function topicPageTests() {
           }
         }
       }
+      const overflowingTags = await page
+        .locator('#topic-overview .fphd-topic-highlight .fphd-trend-tag')
+        .evaluateAll(
+          (tags) =>
+            tags.filter((tag) => {
+              const cell = tag.closest('dd')?.getBoundingClientRect();
+              return !cell || tag.getBoundingClientRect().right > cell.right;
+            }).length,
+        );
+      expect(overflowingTags).toBe(0);
     }
   });
 

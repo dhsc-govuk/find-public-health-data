@@ -169,6 +169,11 @@ export const indicatorDetailSchema = z.object({
   /** Null for an indicator of months, which have no year type. */
   yearType: z.object({ value: z.enum(YEAR_TYPES), label: z.string().min(1) }).nullable(),
   updateFrequency: z.enum(UPDATE_FREQUENCIES),
+  /**
+   * Why the indicator has no fixed frequency or will no longer be updated. Null beside any other
+   * frequency, and beside those two for an indicator imported without one.
+   */
+  updateFrequencyReason: z.string().nullable(),
   polarity: z.enum(POLARITIES),
   ciMethod: z.string().nullable(),
   ciConfidenceLevel: z.enum(CI_CONFIDENCE_LEVELS).nullable(),

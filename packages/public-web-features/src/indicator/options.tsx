@@ -207,7 +207,11 @@ export function PanelOptionsPanel({
         ...Object.values(names).filter(
           (name) =>
             (name !== names.range || (panel === 'table' && !!benchmarks)) &&
-            (name !== names.benchmark || !!benchmarks),
+            (name !== names.benchmark || !!benchmarks) &&
+            (name !== names.sex || sexes.length > (accordion ? 1 : 0)) &&
+            (name !== names.periodType || periodTypes.length > 1) &&
+            (name !== names.confidence ||
+              (!columns && showConfidence && confidenceLevels.length > 0)),
         ),
         ...(columns ? [`columns-${scope}`] : []),
         ...(panel === 'compare-areas' ? [colourParam] : []),
@@ -373,7 +377,12 @@ export function InequalityOptions({
   };
 
   const content = (
-    <OptionsForm names={Object.values(names)} target={target}>
+    <OptionsForm
+      names={Object.values(names).filter(
+        (name) => name !== names.confidence || (!accordion && confidenceLevels.length > 0),
+      )}
+      target={target}
+    >
       <div className="fphd-segmentation-options__selects">
         {accordion ? (
           <Radios

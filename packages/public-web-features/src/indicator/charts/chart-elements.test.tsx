@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, expect, it, vi } from 'vitest';
-import { ChartDataTable } from './chart-elements.tsx';
+import { ChartCanvas, ChartDataTable } from './chart-elements.tsx';
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+it('explains how to access the values when the interactive chart cannot render', () => {
+  const markup = renderToStaticMarkup(
+    <ChartCanvas height={300}>{() => <div>Interactive chart</div>}</ChartCanvas>,
+  );
+  expect(markup).toContain('The values are available in the data table.');
+  expect(markup).not.toContain('Interactive chart');
 });
 
 it('keeps repeated column names distinct when chart values change', () => {

@@ -13,6 +13,7 @@ const indicatorDetail = {
   unit: 'per 100,000',
   yearType: { value: 'calendar' as const, label: 'Calendar' },
   updateFrequency: 'annually' as const,
+  updateFrequencyReason: null,
   polarity: 'lower-is-better' as const,
   ciMethod: "Dobson & Byar's methods",
   ciConfidenceLevel: '95' as const,

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { createRoutesStub } from 'react-router';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createMemoryRouter, createRoutesStub, RouterProvider } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { benchmarkJudgement } from './data.ts';
 import { inequalityTableModel } from './inequalities.ts';
@@ -8,6 +9,22 @@ import { InequalitiesTab } from './inequalities-tab.tsx';
 import { deprivation, observation, selected, sex } from './view.testing.ts';
 
 afterEach(cleanup);
+
+it('renders the inequalities values on the server without the interactive canvas', () => {
+  const primary = selected();
+  primary.detail.numeratorSources = [];
+  const router = createMemoryRouter([
+    { path: '/', element: <InequalitiesTab primary={primary} /> },
+  ]);
+  const html = renderToStaticMarkup(<RouterProvider router={router} />);
+  const document = new DOMParser().parseFromString(html, 'text/html');
+  const table = document.querySelector('table');
+  expect(table?.textContent).toContain('Better than England');
+  expect(table?.textContent).toContain('32.0');
+  expect(table?.querySelectorAll('tbody tr').length).toBeGreaterThan(0);
+  expect(document.querySelector('.recharts-wrapper')).toBeNull();
+  router.dispose();
+});
 
 it.each([
   ['', 'Similar to England', '#ffc000'],

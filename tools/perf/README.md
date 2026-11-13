@@ -39,11 +39,20 @@ detail pages with data in every section.
 checks, for each, how much work one request costs and how long requests take. CI runs it in the
 `Route budgets` job on every pull request, beside e2e and against the same production images.
 
-FPH-662 updates the seven topic-route baselines from
-[CI run 43017326502](https://github.com/dhsc-govuk/find-public-health-data/actions/runs/43017326502).
+FPH-662 starts with main's baseline and remeasures the seven topic pages and three indicator pages
+affected by charts. The 13 November 2026 measurements use local production builds on Node 26.13.0
+and an isolated PostgreSQL 18.4 database with the CI seed, performance fixtures and
+`compose.perf.yaml` settings. Each route has 18 warm-up requests, a complete-table check and two
+counted samples with identical statement, buffer and row counts. Unchanged routes retain main's
+values; the CI route-budget job still checks the production images.
+
 Highlighted sparklines need eight periods, including null gaps, whereas the existing read model
-stores five non-null trend points. The bounded history query adds one SQL statement per topic
-request and reads more observation buffers; these baselines include that intended work.
+stores five non-null trend points. Indicator charts add their table fallbacks and a compact matrix
+of the latest area observations. Comparison histories stay on the server, with only the scatter
+points sent to the page. The comparison route reads bounded recent histories for both indicators
+across the shared geography group so it can find a common period. Those reads use the API's 20-area
+batches: this seeded route measures 98 statements against main's baseline of 35, rather than the two
+compact ranking reads used before the scatter chart.
 
 The routes are in [`src/routes.ts`](src/routes.ts): the common pages of both web apps and the
 heaviest API queries behind them, such as GP-practice ranges and multi-area data for the largest

@@ -215,6 +215,37 @@ describe('indicator_version', () => {
   });
 
   it.each([
+    ['no-fixed-frequency', 'Published when the survey runs.'],
+    ['no-longer-updated', 'The survey has ended.'],
+    ['no-fixed-frequency', null],
+    ['no-longer-updated', null],
+  ] as const)('holds %s with the reason %j', async (updateFrequency, updateFrequencyReason) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { updateFrequency, updateFrequencyReason }),
+    ).resolves.toHaveLength(1);
+  });
+
+  it.each([
+    ['an unanswered frequency', {}],
+    ['monthly', { updateFrequency: 'monthly' }],
+    ['quarterly', { updateFrequency: 'quarterly' }],
+    ['annually', { updateFrequency: 'annually' }],
+    ['every-2-years', { updateFrequency: 'every-2-years' }],
+  ] as const)('refuses a reason for the update frequency beside %s', async (_, values) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        ...values,
+        updateFrequencyReason: 'Published when the survey runs.',
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_update_frequency_reason_check',
+      },
+    });
+  });
+
+  it.each([
     ['months', { periodType: 'months' }],
     ['quarters of a year type', { periodType: 'quarters', yearType: 'financial' }],
     [
@@ -389,15 +420,13 @@ describe('indicator_version', () => {
     ['caveats of nobody', { caveatsDetail: 'Survey data' }],
     ['caveats not needed', { hasCaveats: false, caveatsDetail: 'Survey data' }],
     ['other notes not needed', { hasOtherNotes: false, otherNotesDetail: 'Revised' }],
-    ['source data issues of nobody', { sourceDataIssuesDetail: 'Late returns' }],
-    [
-      'source data without issues',
-      { hasSourceDataIssues: false, sourceDataIssuesDetail: 'Late returns' },
-    ],
     ['exclusions of nobody', { exclusionsDetail: 'Small areas' }],
     ['no exclusions', { hasExclusions: false, exclusionsDetail: 'Small areas' }],
     ['automation of nobody', { automationDetail: 'Pipeline' }],
-    ['no automation', { hasAutomation: false, automationDetail: 'Pipeline' }],
+    [
+      'no automation',
+      { hasAutomation: false, automationDetail: 'Pipeline', noAutomationReason: 'Unsupported' },
+    ],
     ['reviewer comments of nobody', { reviewerCommentsDetail: 'Replaces 108' }],
     [
       'no reviewer comments',
@@ -427,8 +456,6 @@ describe('indicator_version', () => {
         caveatsDetail: 'Survey data',
         hasOtherNotes: true,
         otherNotesDetail: 'Revised',
-        hasSourceDataIssues: true,
-        sourceDataIssuesDetail: 'Late returns',
         hasExclusions: true,
         exclusionsDetail: 'Small areas',
         hasAutomation: true,
@@ -445,13 +472,44 @@ describe('indicator_version', () => {
     ).resolves.toHaveLength(1);
   });
 
+  it.each([
+    ['an unanswered question', { noAutomationReason: 'Unsupported' }],
+    [
+      'a yes',
+      { hasAutomation: true, automationDetail: 'Pipeline', noAutomationReason: 'Unsupported' },
+    ],
+  ] as const)('refuses reasons why no automation tools were used beside %s', async (_, values) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', values)).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_no_automation_reason_check',
+      },
+    });
+  });
+
+  it('accepts the reasons beside a no to automation, and refuses a no without them', async () => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        hasAutomation: false,
+        noAutomationReason: 'Unsupported',
+      }),
+    ).resolves.toHaveLength(1);
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { hasAutomation: false }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_no_automation_reason_check',
+      },
+    });
+  });
+
   // The contract requires each of these details beside a yes, so the table does too.
   it.each([
     ['disclosure control', { disclosureControl: 'yes' }, 'disclosure_control_detail'],
     ['rounding', { hasRounding: true }, 'rounding_detail'],
     ['caveats', { hasCaveats: true }, 'caveats_detail'],
     ['other notes', { hasOtherNotes: true }, 'other_notes_detail'],
-    ['source data issues', { hasSourceDataIssues: true }, 'source_data_issues_detail'],
     ['exclusions', { hasExclusions: true }, 'exclusions_detail'],
     ['automation', { hasAutomation: true }, 'automation_detail'],
     ['reviewer comments', { hasReviewerComments: true }, 'reviewer_comments_detail'],
@@ -585,7 +643,6 @@ describe("a version's child tables", () => {
       'indicator_version_age_range_version_fk',
       'indicator_version_classification_classification_fk',
       'indicator_version_classification_version_fk',
-      'indicator_version_link_version_fk',
       'indicator_version_review_note_author_fk',
       'indicator_version_review_note_submission_fk',
       'indicator_version_source_provider_fk',
@@ -728,6 +785,37 @@ describe('the published views', () => {
     expect(classifications.map((row) => row.classification_id)).toEqual([currentClass]);
   });
 
+  it('show the update frequency with its reason, which is null when none was given', async () => {
+    const withReason = await newIndicatorId();
+    const withoutReason = await newIndicatorId();
+    await addVersion(withReason, 'published', {
+      updateFrequency: 'no-longer-updated',
+      updateFrequencyReason: 'The survey has ended.',
+    });
+    await addVersion(withoutReason, 'published', { updateFrequency: 'no-fixed-frequency' });
+
+    const rows = (await db.execute(
+      sql`SELECT id, update_frequency, update_frequency_reason FROM published.indicator
+          WHERE id IN (${withReason}, ${withoutReason})`,
+    )) as unknown as {
+      id: string;
+      update_frequency: string;
+      update_frequency_reason: string | null;
+    }[];
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual({
+      id: withReason,
+      update_frequency: 'no-longer-updated',
+      update_frequency_reason: 'The survey has ended.',
+    });
+    expect(rows).toContainEqual({
+      id: withoutReason,
+      update_frequency: 'no-fixed-frequency',
+      update_frequency_reason: null,
+    });
+  });
+
   it('resolve every slug a published version carries, not only the current one', async () => {
     const indicatorId = await newIndicatorId();
     await addVersion(indicatorId, 'published', {
@@ -788,10 +876,11 @@ describe('the published views', () => {
       sql`SELECT column_name FROM information_schema.columns
           WHERE table_schema = 'published'
             AND column_name IN (
-              'variation', 'quality_assurance', 'has_source_data_issues', 'source_data_issues_detail',
+              'variation', 'quality_assurance', 'source_data_issues_detail',
               'ci_method_justification', 'data_sources_justification', 'inequalities_included',
               'has_exclusions', 'exclusions_detail', 'has_automation', 'automation_detail',
-              'sponsors_and_stakeholders', 'has_reviewer_comments', 'reviewer_comments_detail'
+              'no_automation_reason', 'sponsors_and_stakeholders', 'has_reviewer_comments',
+              'reviewer_comments_detail'
             )`,
     )) as unknown as { column_name: string }[];
 

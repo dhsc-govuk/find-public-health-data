@@ -36,8 +36,8 @@ src/
   A junction table joins the two singular names — `observation_dimension`, `area_relationship`.
   Write camelCase property names in schema files; `casing:   'snake_case'` maps them.
 - **Child tables**: a table of a version's rows is `indicator_version_<child>`
-  (`indicator_version_link`, `indicator_version_topic`), with `indicator_version_id` first in its
-  primary key. Its foreign keys are named explicitly, `<table>_<target>_fk` as in
+  (`indicator_version_age_range`, `indicator_version_topic`), with `indicator_version_id` first in
+  its primary key. Its foreign keys are named explicitly, `<table>_<target>_fk` as in
   `indicator_version_source_source_fk`, because a generated name longer than Postgres's 63 bytes is
   silently cut short.
 - **Ids**: UUIDv7 via `uuidPrimaryKey()` from `schema/helpers.ts`, which defaults to Postgres 18's

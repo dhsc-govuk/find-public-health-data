@@ -16,13 +16,13 @@ export const INDICATOR_TASK_KEYS = [
   'period-type',
   'other-notes-and-caveats',
   'publishing-date',
-  'links',
   'variance-and-quality',
   'justifications',
   'other-comments',
   'copyright-and-data-reuse',
   'benchmarking',
-  'sex-and-ages',
+  'sex-gender-and-ethnicity',
+  'ages',
   'tagging',
 ] as const;
 

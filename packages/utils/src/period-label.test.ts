@@ -10,7 +10,6 @@ const rolling = publicYearType('rolling', null);
 describe('expandedPeriodLabel', () => {
   it('expands whole-year periods using their full first and last years', () => {
     expect(expandedPeriodLabel(period('2024-04-01', '2025-03-31'), financial)).toBe('2024 to 2025');
-    expect(expandedPeriodLabel(period('2017-04-01', '2018-03-31'))).toBe('2017 to 2018');
     expect(expandedPeriodLabel(period('2015-01-01', '2017-12-31'))).toBe('2015 to 2017');
     expect(expandedPeriodLabel(period('2020-04-01', '2023-03-31'), financial)).toBe('2020 to 2023');
     expect(expandedPeriodLabel(period('1999-04-01', '2000-03-31'), financial)).toBe('1999 to 2000');
@@ -25,6 +24,13 @@ describe('expandedPeriodLabel', () => {
       period('2022-04-06', '2023-04-05'),
     ]) {
       expect(expandedPeriodLabel(dates, rolling)).toBe(periodLabel(dates, rolling));
+    }
+  });
+
+  it('preserves the period wording for non-calendar years with no year type', () => {
+    for (const dates of [period('2022-04-01', '2023-03-31'), period('2020-09-01', '2023-08-31')]) {
+      expect(expandedPeriodLabel(dates)).toBe(periodLabel(dates));
+      expect(expandedPeriodLabel(dates, null)).toBe(periodLabel(dates, null));
     }
   });
 });

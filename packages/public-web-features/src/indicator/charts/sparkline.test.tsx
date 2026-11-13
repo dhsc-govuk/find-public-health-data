@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { publicYearType } from '@fphd/utils/period-type';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import type { IndicatorDetail } from '../loader.ts';
@@ -92,7 +93,11 @@ it('expands financial years in the description and keeps the captions compact', 
     toDate: `${2018 + index}-03-31`,
   }));
   const doc = new DOMParser().parseFromString(
-    markup([6.8, 6.9, 7, 7.1, 7.2, 7.4, 7.6, 7.9], {}, periods),
+    markup(
+      [6.8, 6.9, 7, 7.1, 7.2, 7.4, 7.6, 7.9],
+      { yearType: publicYearType('financial', null) },
+      periods,
+    ),
     'text/html',
   );
   expect(doc.querySelector('desc')?.textContent).toBe(

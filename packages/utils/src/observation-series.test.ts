@@ -93,3 +93,26 @@ it('uses the first available sex and period variant, including missing first are
     { areaCode: 'local', observations: [female] },
   ]);
 });
+
+it('keeps England at the local ranking period and population rather than its newer headline', () => {
+  const point = (year: number, value: number, age = 'All ages') => ({
+    fromDate: `${year}-01-01`,
+    toDate: `${year}-12-31`,
+    value,
+    dimensions: [{ type: 'Age', value: age, sortOrder: 0 }],
+  });
+  const benchmark = point(2022, 10);
+  const local = point(2022, 12);
+  const england = {
+    areaCode: 'E92000001',
+    observations: [benchmark, point(2024, 20), point(2022, 30, '65+')],
+  };
+  const areas = [{ areaCode: 'local', observations: [local] }, england];
+  expect(rankingAreaSeries(areas)).toEqual([areas[0], { ...england, observations: [benchmark] }]);
+  expect(
+    rankingAreaSeries([
+      { areaCode: 'local', observations: [local] },
+      { ...england, observations: [point(2024, 20)] },
+    ])[1]?.observations,
+  ).toEqual([]);
+});

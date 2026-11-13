@@ -1,9 +1,11 @@
 import {
+  UPDATE_FREQUENCY_REASON_FIELDS,
   type UpdateFrequencyField,
   updateFrequencySection,
 } from '@fphd/internal-api-features/contract';
-import { firstRadioId, Radios } from '@fphd/ui';
+import { firstRadioId, Radios, Textarea } from '@fphd/ui';
 import {
+  hasUpdateFrequencyReason,
   UPDATE_FREQUENCIES,
   UPDATE_FREQUENCY_LABELS,
   type UpdateFrequency,
@@ -17,20 +19,37 @@ import {
 
 const UPDATE_FREQUENCY_QUESTION = 'How often will this indicator be updated?';
 
-function option(value: UpdateFrequency) {
-  return { label: UPDATE_FREQUENCY_LABELS[value], value };
-}
-
-// "No longer updated" is not a frequency, so it follows the others after an "or" divider.
-const OPTIONS = [
-  ...UPDATE_FREQUENCIES.filter((value) => value !== 'no-longer-updated').map(option),
-  'or',
-  option('no-longer-updated'),
-];
-
 // The question is the page's h1, inside the legend.
 export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>) {
   const { fieldErrors, values } = form;
+
+  // "No fixed frequency" and "This indicator will no longer be updated" each reveal a box for
+  // the reason. It is shown without JavaScript; with it, only while its answer is chosen.
+  function option(value: UpdateFrequency) {
+    if (!hasUpdateFrequencyReason(value)) return { label: UPDATE_FREQUENCY_LABELS[value], value };
+    const reason = UPDATE_FREQUENCY_REASON_FIELDS[value];
+
+    return {
+      label: UPDATE_FREQUENCY_LABELS[value],
+      value,
+      conditional: (
+        <Textarea
+          defaultValue={values[reason]}
+          error={fieldErrors[reason]}
+          label="Enter reason"
+          name={reason}
+          rows={3}
+        />
+      ),
+    };
+  }
+
+  // "No longer updated" is not a frequency, so it follows the others after an "or" divider.
+  const options = [
+    ...UPDATE_FREQUENCIES.filter((value) => value !== 'no-longer-updated').map(option),
+    'or',
+    option('no-longer-updated'),
+  ];
 
   return (
     <IndicatorSectionForm
@@ -47,7 +66,7 @@ export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>
         labelClassModifiers={QUESTION_HEADING_SIZE}
         labelHeading="h1"
         name="updateFrequency"
-        options={OPTIONS}
+        options={options}
       />
     </IndicatorSectionForm>
   );

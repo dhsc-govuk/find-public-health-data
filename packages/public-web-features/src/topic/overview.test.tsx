@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { tableSummary } from '@fphd/utils/observation-series';
+import { publicYearType } from '@fphd/utils/period-type';
 import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
@@ -107,7 +108,7 @@ it('labels the prevalence numerator as Count and expands summary and accessible 
       count: null,
       numerator: 4_109_134,
     })),
-    { polarity: 'no-polarity' },
+    { polarity: 'no-polarity', yearType: publicYearType('financial', null) },
   );
   expect(summary(doc)).toEqual([
     ['Most recent period', '2024 to 2025'],

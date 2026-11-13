@@ -12,7 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { formatValue, unitNote } from '../data.ts';
-import type { SelectedIndicator } from '../loader.ts';
+import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
 import { englandCode, pairedObservations, regression } from './chart-data.ts';
 import {
   axisColour,
@@ -39,7 +39,10 @@ export function CompareIndicatorsChart({
   scatter,
   selectedAreaCodes = [],
 }: {
-  selected: SelectedIndicator[];
+  selected: {
+    detail: Pick<IndicatorDetail, 'name' | 'unit' | 'yearType' | 'dataSource'>;
+    areaData?: IndicatorAreaData[];
+  }[];
   selectedAreaCodes?: string[] | undefined;
   scatter?: ScatterComparison | undefined;
 }) {
@@ -52,7 +55,7 @@ export function CompareIndicatorsChart({
     ? swapped
       ? scatter.points.map((point) => ({ ...point, x: point.y, y: point.x }))
       : scatter.points
-    : pairedObservations(x.areaData, y.areaData);
+    : pairedObservations(x.areaData ?? [], y.areaData ?? []);
   const category = (code: string) =>
     code === englandCode ? 'england' : selectedAreaCodes.includes(code) ? 'selected' : 'other';
   const groups = [...new Set(points.map(({ code }) => category(code)))];

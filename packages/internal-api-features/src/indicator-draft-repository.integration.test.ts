@@ -2,7 +2,7 @@ import { TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
-import { MAX_AGE } from '@fphd/utils/sex-and-ages';
+import { MAX_AGE } from '@fphd/utils/ages';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
@@ -30,8 +30,10 @@ import {
   newDraft,
   OTHER_ACTOR,
   repositoryTest,
+  sixteenPlus,
   storedTopicIdsOf,
   typeClassification,
+  underFive,
 } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
@@ -408,22 +410,51 @@ describe('updateIndicatorDraft', () => {
   repositoryTest('holds all ages', async ({ db }) => {
     const created = await newDraft(db, 'All ages');
 
-    await updateIndicatorDraft(
-      db,
-      created.indicatorId,
-      'sex-and-ages',
-      { ageType: 'all' },
-      {},
-      AS_ACTOR,
-    );
+    await updateIndicatorDraft(db, created.indicatorId, 'ages', { ageType: 'all' }, {}, AS_ACTOR);
 
     expect((await getIndicatorDraftState(db, created.indicatorId))?.draft?.ageType).toBe('all');
   });
 
+  repositoryTest('holds the list of each demographic collected', async ({ db }) => {
+    const created = await newDraft(db, 'Demographics');
+    const answers = {
+      demographics: ['sex', 'ethnicity'],
+      sexes: ['females'],
+      genders: null,
+      ethnicGroups: ['asian', 'other'],
+    } satisfies IndicatorDraftAttributes;
+
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      'sex-gender-and-ethnicity',
+      answers,
+      {},
+      AS_ACTOR,
+    );
+
+    expect((await getIndicatorDraftState(db, created.indicatorId))?.draft).toMatchObject(answers);
+  });
+
   repositoryTest.for<[string, IndicatorDraftAttributes]>([
-    ['no sexes', { sexes: [] }],
+    ['nothing collected', { demographics: [] }],
     // As a caller the types do not bind could send.
-    ['a sex outside the vocabulary', { sexes: ['everyone' as never] }],
+    ['a demographic outside the vocabulary', { demographics: ['age' as never] }],
+    ['no sexes beside sex collected', { demographics: ['sex'], sexes: [] }],
+    ['sex collected without its sexes', { demographics: ['sex'] }],
+    ['sexes without sex collected', { demographics: ['gender'], sexes: ['persons'] }],
+    ['a sex outside the vocabulary', { demographics: ['sex'], sexes: ['everyone' as never] }],
+    ['genders without gender collected', { genders: ['other'] }],
+    ['gender collected without its genders', { demographics: ['gender'] }],
+    [
+      'a gender outside the vocabulary',
+      { demographics: ['gender'], genders: ['females' as never] },
+    ],
+    ['ethnic groups without ethnicity collected', { ethnicGroups: ['white'] }],
+    [
+      'no ethnic groups beside ethnicity collected',
+      { demographics: ['ethnicity'], ethnicGroups: [] },
+    ],
     ['a specific age without its unit', { ageType: 'specific', specificAge: 5 }],
     [
       'a specific age beside another age type',
@@ -578,8 +609,7 @@ describe('updateIndicatorDraft', () => {
       {
         variation: 'Varies with the age structure of each area.',
         qualityAssurance: 'Checked against the published ONS figures.',
-        hasSourceDataIssues: true,
-        sourceDataIssuesDetail: 'Late returns from two areas.',
+        sourceDataIssuesDetail: 'Chasing the late returns from two areas.',
       },
     ],
     [
@@ -592,6 +622,7 @@ describe('updateIndicatorDraft', () => {
         exclusionsDetail: 'Areas with fewer than 5 deaths.',
         hasAutomation: false,
         automationDetail: null,
+        noAutomationReason: 'No tool reads this source.',
       },
     ],
     [
@@ -773,26 +804,26 @@ describe('updateIndicatorDraft given the version a form was shown', () => {
 
   repositoryTest("takes the version from the draft's lists too", async ({ db }) => {
     const created = await newDraft(db, 'Lists changed since');
-    const linksVersion = (draft: IndicatorDraft) => editVersion(draft.links);
+    const ageRangesVersion = (draft: IndicatorDraft) => editVersion(draft.ageRanges);
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'links',
+      'ages',
       {},
-      { links: [{ url: 'https://example.org/', text: 'Example' }] },
+      { ageRanges: [sixteenPlus] },
       AS_ACTOR,
     );
 
     const result = await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'links',
+      'ages',
       {},
-      { links: [] },
+      { ageRanges: [] },
       AS_ACTOR,
       {
         version: editVersion([]),
-        versionOf: linksVersion,
+        versionOf: ageRangesVersion,
       },
     );
 
@@ -877,26 +908,33 @@ describe('the audit log of draft writes', () => {
   });
 
   repositoryTest('records a replaced list whole, before and after', async ({ db }) => {
-    const created = await newDraft(db, 'Audited links');
-    const first = [{ url: 'https://example.com/a', text: 'A' }];
-    const second = [{ url: 'https://example.com/b', text: 'B' }, ...first];
+    const created = await newDraft(db, 'Audited age ranges');
+    const first = [sixteenPlus];
+    const second = [underFive, ...first];
 
     await updateIndicatorDraft(
       db,
       created.indicatorId,
-      'links',
-      { hasLinks: true },
-      { links: first },
+      'ages',
+      { ageType: 'range' },
+      { ageRanges: first },
       AS_ACTOR,
     );
-    await updateIndicatorDraft(db, created.indicatorId, 'links', {}, { links: second }, AS_ACTOR);
+    await updateIndicatorDraft(
+      db,
+      created.indicatorId,
+      'ages',
+      {},
+      { ageRanges: second },
+      AS_ACTOR,
+    );
 
-    const [, withLinks, replaced] = await auditEntriesFor(db, created.indicatorId);
-    expect(withLinks?.changes).toEqual({
-      hasLinks: { before: null, after: true },
-      links: { before: [], after: first },
+    const [, withAgeRanges, replaced] = await auditEntriesFor(db, created.indicatorId);
+    expect(withAgeRanges?.changes).toEqual({
+      ageType: { before: null, after: 'range' },
+      ageRanges: { before: [], after: first },
     });
-    expect(replaced?.changes).toEqual({ links: { before: first, after: second } });
+    expect(replaced?.changes).toEqual({ ageRanges: { before: first, after: second } });
   });
 
   repositoryTest('records nothing for a save that changes nothing', async ({ db }) => {
@@ -974,13 +1012,13 @@ describe('the audit log of draft writes', () => {
     'records a draft opened from the published version, lists and all',
     async ({ db }) => {
       const created = await newDraft(db, 'Audited reopened');
-      const first = [{ url: 'https://example.com/a', text: 'A' }];
+      const first = [sixteenPlus];
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'links',
-        { hasLinks: true },
-        { links: first },
+        'ages',
+        { ageType: 'range' },
+        { ageRanges: first },
         AS_ACTOR,
       );
       await db
@@ -999,8 +1037,8 @@ describe('the audit log of draft writes', () => {
       expect(entry?.changes).toMatchObject({
         id: { before: null, after: opened.versionId },
         name: { before: null, after: 'Audited reopened' },
-        hasLinks: { before: null, after: true },
-        links: { before: [], after: first },
+        ageType: { before: null, after: 'range' },
+        ageRanges: { before: [], after: first },
       });
     },
   );

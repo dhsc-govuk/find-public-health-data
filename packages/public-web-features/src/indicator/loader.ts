@@ -129,11 +129,13 @@ export async function loadIndicatorData(
     tableDisplayGroups,
     observationHistory = 'recentPerSeries',
     wholeAreaGroups = false,
+    includeFindResults = true,
   }: {
     page?: IndicatorPageData;
     tableDisplayGroups?: string[];
     observationHistory?: ObservationHistory;
     wholeAreaGroups?: boolean;
+    includeFindResults?: boolean;
   } = {},
 ) {
   const url = new URL(request.url);
@@ -310,7 +312,7 @@ export async function loadIndicatorData(
   const findSubject =
     url.searchParams.get('find')?.trim().slice(0, MAX_INDICATOR_QUERY_LENGTH) ?? '';
   const findResults =
-    includePageData && findSubject
+    includeFindResults && includePageData && findSubject
       ? (
           await api.get(
             `/api/indicators?q=${encodeURIComponent(findSubject)}&limit=${DEFAULT_INDICATOR_SEARCH_RESULTS}`,

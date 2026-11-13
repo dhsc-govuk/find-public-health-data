@@ -1,11 +1,6 @@
 import { periodLabel } from '@fphd/utils/period-label';
 import { type ConfidenceLevel, sameSegment, trendSeries } from '../data.ts';
-import type {
-  IndicatorAreaData,
-  IndicatorDetail,
-  IndicatorObservation,
-  SelectedIndicator,
-} from '../loader.ts';
+import type { IndicatorAreaData, IndicatorDetail, IndicatorObservation } from '../loader.ts';
 
 export const englandCode = 'E92000001';
 export const quintileColours = ['#c5eee9', '#84cac2', '#27a096', '#027068', '#004842'] as const;
@@ -120,7 +115,10 @@ export function regression(points: { x: number; y: number }[]) {
   };
 }
 
-export function scatterPair(indicators: SelectedIndicator[], params: URLSearchParams) {
+export function scatterPair<T extends { detail: { shortId: number } }>(
+  indicators: T[],
+  params: URLSearchParams,
+) {
   const byId = new Map(indicators.map((entry) => [String(entry.detail.shortId), entry]));
   const x = byId.get(params.get('scatter-x') ?? '') ?? indicators[0];
   const y = byId.get(params.get('scatter-y') ?? '');

@@ -86,15 +86,13 @@ export async function prepareVersionDeletes(tx: postgres.TransactionSql): Promis
       `Data migration deletion conflicts with FPHD publisher work on indicators: ${conflicts.map(({ shortId }) => shortId).join(', ')}`,
     );
   }
-  // Publisher links and age ranges are retained even when the source withdraws their version.
+  // Publisher age ranges are retained even when the source withdraws their version.
   const [published] = await tx.unsafe<{ count: number }[]>(`
-    SELECT (SELECT count(*) FROM indicator_version_link WHERE indicator_version_id IN (SELECT id FROM "${stage}"))
-      + (SELECT count(*) FROM indicator_version_age_range WHERE indicator_version_id IN (SELECT id FROM "${stage}"))
-      AS count
+    SELECT count(*) FROM indicator_version_age_range WHERE indicator_version_id IN (SELECT id FROM "${stage}")
   `);
   if (Number(published?.count) > 0) {
     throw new Error(
-      `${published?.count} publisher links or age ranges belong to indicator versions the source no longer holds`,
+      `${published?.count} publisher age ranges belong to indicator versions the source no longer holds`,
     );
   }
   // The migration wrote these, and re-applies topics and classifications once the deletes are done.

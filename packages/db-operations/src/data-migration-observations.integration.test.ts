@@ -597,29 +597,21 @@ describe('applyDataMigration', () => {
     ]);
     await assertRolledBack();
   });
-  it.each(['link', 'age range'])(
-    'protects publisher %s rows when source versions are deleted',
-    async (child) => {
-      await baseline();
-      if (child === 'link') {
-        await db.sql`INSERT INTO indicator_version_link (indicator_version_id, position, url, text) VALUES (${VERSION_ID}, 0, 'https://example.test', 'Publisher link')`;
-      } else {
-        await db.sql`INSERT INTO indicator_version_age_range (indicator_version_id, position, lower_limit, lower_limit_unit) VALUES (${VERSION_ID}, 0, 18, 'years')`;
-      }
-      const options = {
-        deletes: { indicator: [INDICATOR_ID], indicator_version: [VERSION_ID] },
-        relationships: { indicators: [], indicatorTopics: [] },
-      };
-      await expect(apply(options)).rejects.toThrow('publisher links or age ranges');
-      await assertRolledBack();
-      await db.sql`DELETE FROM indicator_version_link WHERE indicator_version_id = ${VERSION_ID}`;
-      await db.sql`DELETE FROM indicator_version_age_range WHERE indicator_version_id = ${VERSION_ID}`;
-      await apply(options);
-      const [row] = await db.sql<{ indicators: number; topics: number }[]>`
+  it('protects publisher age range rows when source versions are deleted', async () => {
+    await baseline();
+    await db.sql`INSERT INTO indicator_version_age_range (indicator_version_id, position, lower_limit, lower_limit_unit) VALUES (${VERSION_ID}, 0, 18, 'years')`;
+    const options = {
+      deletes: { indicator: [INDICATOR_ID], indicator_version: [VERSION_ID] },
+      relationships: { indicators: [], indicatorTopics: [] },
+    };
+    await expect(apply(options)).rejects.toThrow('publisher age ranges');
+    await assertRolledBack();
+    await db.sql`DELETE FROM indicator_version_age_range WHERE indicator_version_id = ${VERSION_ID}`;
+    await apply(options);
+    const [row] = await db.sql<{ indicators: number; topics: number }[]>`
       SELECT (SELECT count(*)::int FROM indicator) AS indicators,
         (SELECT count(*)::int FROM indicator_version_topic) AS topics
     `;
-      expect(row).toEqual({ indicators: 0, topics: 0 });
-    },
-  );
+    expect(row).toEqual({ indicators: 0, topics: 0 });
+  });
 });

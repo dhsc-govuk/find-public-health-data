@@ -1,4 +1,5 @@
 import { isYearType } from '@fphd/utils/period-type';
+import { hasUpdateFrequencyReason } from '@fphd/utils/update-frequency';
 import { standardisationOf, UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 
 import {
@@ -17,6 +18,7 @@ import {
   goalValue,
   goalValueText,
   type IndicatorDataQuality,
+  type IndicatorUpdateFrequency,
   justificationsQuestions,
   justificationsSection,
   type OtherComments,
@@ -33,11 +35,15 @@ import {
   type PublishingDateField,
   polaritySection,
   publishingDateValues,
-  updateFrequencySection,
+  type SexGenderAndEthnicity,
+  type SexGenderAndEthnicityAnswers,
+  type SexGenderAndEthnicityField,
+  UPDATE_FREQUENCY_REASON_FIELDS,
+  type UpdateFrequencyField,
   type ValueTypeAndUnits,
   type ValueTypeAndUnitsField,
-  varianceAndQualityQuestions,
-  varianceAndQualitySection,
+  type VarianceAndQuality,
+  type VarianceAndQualityField,
 } from './contract.ts';
 import {
   detailOf,
@@ -52,7 +58,24 @@ export const definitionAndRationaleColumns = sameNamedColumns(definitionAndRatio
 
 export const polarityColumns = sameNamedColumns(polaritySection.fields);
 
-export const updateFrequencyColumns = sameNamedColumns(updateFrequencySection.fields);
+// The draft keeps one reason, which the form shows under the answer it was given for. A reason
+// typed under another answer is dropped, whatever the form sent.
+export const updateFrequencyColumns: IndicatorSectionColumns<
+  UpdateFrequencyField,
+  IndicatorUpdateFrequency
+> = {
+  fromDraft: ({ updateFrequency, updateFrequencyReason }) => ({
+    updateFrequency,
+    noFixedFrequencyReason: updateFrequency === 'no-fixed-frequency' ? updateFrequencyReason : null,
+    noLongerUpdatedReason: updateFrequency === 'no-longer-updated' ? updateFrequencyReason : null,
+  }),
+  toAttributes: (answers) => ({
+    updateFrequency: answers.updateFrequency,
+    updateFrequencyReason: hasUpdateFrequencyReason(answers.updateFrequency)
+      ? answers[UPDATE_FREQUENCY_REASON_FIELDS[answers.updateFrequency]]
+      : null,
+  }),
+};
 
 export const calculationColumns: IndicatorSectionColumns<CalculationField, Calculation> = {
   ...sameNamedColumns(calculationSection.fields),
@@ -185,10 +208,21 @@ export const otherNotesAndCaveatsColumns: IndicatorSectionColumns<
   }),
 };
 
-export const varianceAndQualityColumns = yesNoDetailColumns(
-  varianceAndQualitySection,
-  varianceAndQualityQuestions,
-);
+export const varianceAndQualityColumns: OwnFieldColumns<
+  VarianceAndQualityField,
+  VarianceAndQuality
+> = {
+  fromDraft: ({ variation, qualityAssurance, sourceDataIssuesDetail }) => ({
+    variation,
+    qualityAssurance,
+    sourceDataIssuesDetail,
+  }),
+  // The improvement notes are optional, and none given is stored as none.
+  toAttributes: (answers) => ({
+    ...answers,
+    sourceDataIssuesDetail: answers.sourceDataIssuesDetail || null,
+  }),
+};
 
 export const justificationsColumns = yesNoDetailColumns(
   justificationsSection,
@@ -236,6 +270,26 @@ export const benchmarkingColumns: IndicatorSectionColumns<BenchmarkingField, Ben
           goalPolarity: null,
           goalPolicyDetail: null,
         },
+};
+
+export const sexGenderAndEthnicityColumns: IndicatorSectionColumns<
+  SexGenderAndEthnicityField,
+  SexGenderAndEthnicity,
+  SexGenderAndEthnicityAnswers
+> = {
+  fromDraft: (draft) => ({
+    demographics: draft.demographics ?? [],
+    sexes: draft.sexes ?? [],
+    genders: draft.genders ?? [],
+    ethnicGroups: draft.ethnicGroups ?? [],
+  }),
+  // The lists of a demographic not collected are cleared, whatever the form sent.
+  toAttributes: ({ demographics, sexes, genders, ethnicGroups }) => ({
+    demographics,
+    sexes: demographics.includes('sex') ? sexes : null,
+    genders: demographics.includes('gender') ? genders : null,
+    ethnicGroups: demographics.includes('ethnicity') ? ethnicGroups : null,
+  }),
 };
 
 /** The publishing date with the instant it names. */

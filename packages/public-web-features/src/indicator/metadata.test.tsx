@@ -16,6 +16,7 @@ const indicator: IndicatorDetail = {
   unit: '%',
   yearType: { value: 'calendar', label: 'Calendar' },
   updateFrequency: 'annually',
+  updateFrequencyReason: null,
   polarity: 'lower-is-better',
   ciMethod: null,
   ciConfidenceLevel: null,
@@ -111,6 +112,36 @@ describe('IndicatorSummary', () => {
     expect(summaryRow('Status')).toBeUndefined();
     expect(summaryRow('Last updated')).toBe('20 April 2026');
   });
+
+  it('gives the update frequency as its label when it has no reason', () => {
+    renderSummary(indicator);
+
+    expect(summaryRow('Update frequency')).toBe('Annually');
+  });
+
+  it.each([
+    ['no-fixed-frequency', 'No fixed frequency, for the following reason:'],
+    ['no-longer-updated', 'This indicator will no longer be updated for the following reason:'],
+  ] as const)('introduces the reason for %s and shows it below', (updateFrequency, text) => {
+    renderSummary({
+      ...indicator,
+      updateFrequency,
+      updateFrequencyReason: 'The survey ended in 2024.\nNo replacement is planned.',
+    });
+
+    expect(summaryRow('Update frequency')).toBe(
+      `${text}The survey ended in 2024.\nNo replacement is planned.`,
+    );
+    expect(screen.getByText(/^The survey ended in 2024\./).className).toContain(
+      'fphd-metadata-text',
+    );
+  });
+
+  it('gives the label alone for an indicator imported with no fixed frequency and no reason', () => {
+    renderSummary({ ...indicator, updateFrequency: 'no-fixed-frequency' });
+
+    expect(summaryRow('Update frequency')).toBe('No fixed frequency');
+  });
 });
 
 describe('BackgroundInformation', () => {
@@ -151,6 +182,22 @@ describe('BackgroundInformation', () => {
 
     expect(attributeNames()).toContain('Year type');
     expect(screen.getByText('Calendar')).toBeTruthy();
+  });
+
+  it('lists the frequency with the reason the publisher gave', () => {
+    renderBackground({
+      ...indicator,
+      updateFrequency: 'no-fixed-frequency',
+      updateFrequencyReason: 'Published when the survey runs.',
+    });
+
+    const frequency = screen
+      .getAllByRole('term')
+      .find((term) => term.textContent === 'Frequency')?.nextElementSibling;
+
+    expect(frequency?.textContent).toBe(
+      'No fixed frequency, for the following reason:Published when the survey runs.',
+    );
   });
 
   it('lists no year type for an indicator of months, which has none', () => {

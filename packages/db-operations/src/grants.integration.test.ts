@@ -157,6 +157,7 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.ci_method_id uuid',
   'indicator.polarity text',
   'indicator.update_frequency text',
+  'indicator.update_frequency_reason text',
   'indicator.comparator_method_id uuid',
   'indicator.ci_confidence_level text',
   'indicator.definition text',
@@ -303,8 +304,8 @@ describe('the internal role', () => {
 
   // Table-level, as the other publisher writes are.
   it.each(
-    ['indicator_version_link', 'indicator_version_age_range', 'indicator_version_source'].flatMap(
-      (table) => ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
+    ['indicator_version_age_range', 'indicator_version_source'].flatMap((table) =>
+      ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
     ),
   )('may %s %s', async (privilege, table) => {
     const [row] = await owner<{ granted: boolean }[]>`

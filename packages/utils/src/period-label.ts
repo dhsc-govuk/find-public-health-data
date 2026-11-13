@@ -90,7 +90,7 @@ export function expandedPeriodLabel(period: Period, yearType?: PublicYearType | 
   const to = dayOf(period.toDate);
   if (
     wholeYears(from, to) > 0 &&
-    ((from.month === 1 && from.day === 1) || yearType?.value !== 'rolling')
+    ((from.month === 1 && from.day === 1) || (yearType != null && yearType.value !== 'rolling'))
   ) {
     return from.year === to.year ? String(from.year) : `${from.year} to ${to.year}`;
   }

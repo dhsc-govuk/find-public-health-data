@@ -85,9 +85,13 @@ export function yesNoAnswer(answer: boolean | null): 'yes' | 'no' | null {
   return answer ? 'yes' : 'no';
 }
 
-/** A detail is kept beside a yes alone, whatever the form sent. */
-export function detailOf(answer: string, detail: string): string | null {
-  return answer === 'yes' ? detail : null;
+/** A detail is kept beside the answer that asks for it alone, whatever the form sent. */
+export function detailOf(
+  answer: string,
+  detail: string,
+  onAnswer: 'yes' | 'no' = 'yes',
+): string | null {
+  return answer === onAnswer ? detail : null;
 }
 
 /** Nothing, or a property naming the yes/no columns no question answers, which fails the call. */
@@ -105,9 +109,9 @@ export type OwnFieldColumns<Field extends keyof IndicatorSectionDraft, Values> =
 
 /**
  * For a section whose every field is the draft column of the same name: text as it is, and
- * each yes/no question stored as a boolean, its details kept beside a yes alone. The questions
- * are the ones the section's schema requires details for; a yes/no column no question names
- * does not compile.
+ * each yes/no question stored as a boolean, its details kept beside the answer that asks for
+ * them alone. The questions are the ones the section's schema requires details for; a yes/no
+ * column no question names does not compile.
  */
 export function yesNoDetailColumns<
   Field extends TextColumn | BooleanColumn,
@@ -119,8 +123,8 @@ export function yesNoDetailColumns<
 ): OwnFieldColumns<Field, Values> {
   const answers = new Set<Field>(questions.map(({ answer }) => answer));
   const isAnswer = (field: Field): field is Question['answer'] => answers.has(field);
-  const answerOf = new Map<Field, Question['answer']>(
-    questions.map(({ answer, detail }) => [detail, answer]),
+  const questionOf = new Map<Field, Question>(
+    questions.map((question) => [question.detail, question]),
   );
 
   return {
@@ -134,16 +138,21 @@ export function yesNoDetailColumns<
     toAttributes: (values) =>
       Object.fromEntries(
         section.fields.options.map((field) => {
-          const answer = answerOf.get(field);
+          const question = questionOf.get(field);
 
           if (isAnswer(field)) return [field, values[field] === 'yes'];
-          return [field, answer ? detailOf(values[answer], values[field]) : values[field]];
+          return [
+            field,
+            question
+              ? detailOf(values[question.answer], values[field], question.onAnswer)
+              : values[field],
+          ];
         }),
       ) as IndicatorSectionAttributes,
   };
 }
 
-/** The path of a section's GET and PUT, such as `/api/internal/indicators/:id/links`. */
+/** The path of a section's GET and PUT, such as `/api/internal/indicators/:id/justifications`. */
 export function indicatorSectionPath(key: IndicatorTaskKey): string {
   return `/api/internal/indicators/:id/${key}`;
 }
