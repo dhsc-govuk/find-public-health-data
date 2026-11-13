@@ -589,6 +589,13 @@
       "when": 1794525450423,
       "tag": "0083_allow-undated-update-approval",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1794564175961,
+      "tag": "0084_publish-update-summaries",
+      "breakpoints": true
     }
   ]
 }

@@ -37,6 +37,7 @@ const indicatorDetail = {
   classifications: [
     { dimension: 'indicator_type', slug: 'indicator-type-outcome', name: 'Outcome' },
   ],
+  updateSummaries: [],
 };
 
 function createTestApp(overrides: FakeRepositoryOverrides['indicators'] = {}): Express {

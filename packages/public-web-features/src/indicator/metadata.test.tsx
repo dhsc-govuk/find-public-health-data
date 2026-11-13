@@ -41,6 +41,7 @@ const indicator: IndicatorDetail = {
   areaTypes: [],
   topics: [],
   classifications: [],
+  updateSummaries: [],
 };
 
 function renderBackground(detail: IndicatorDetail) {
@@ -205,5 +206,30 @@ describe('BackgroundInformation', () => {
 
     expect(attributeNames()).toContain('Value type');
     expect(attributeNames()).not.toContain('Year type');
+  });
+
+  it('lists the update summaries under History, each beside the date its update went live', () => {
+    renderBackground({
+      ...indicator,
+      updateSummaries: [
+        { publishedAt: '2027-01-20T09:30:00.000Z', summary: 'Renamed the indicator.' },
+        { publishedAt: '2026-11-02T09:30:00.000Z', summary: 'Added 2025 data.\nFixed a typo.' },
+      ],
+    });
+
+    const history = screen.getByRole('heading', { name: 'History' }).nextElementSibling;
+
+    expect(history).not.toBeNull();
+    const rows = within(history as HTMLElement).getAllByRole('term');
+    expect(rows.map((term) => [term.textContent, term.nextElementSibling?.textContent])).toEqual([
+      ['20 January 2027', 'Renamed the indicator.'],
+      ['2 November 2026', 'Added 2025 data.\nFixed a typo.'],
+    ]);
+  });
+
+  it('has no History for an indicator with no update summaries', () => {
+    renderBackground(indicator);
+
+    expect(screen.queryByRole('heading', { name: 'History' })).toBeNull();
   });
 });

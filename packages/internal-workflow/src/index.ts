@@ -20,3 +20,4 @@ export {
   publishDueVersions,
   publishNextDueVersion,
 } from './scheduled-publication-repository.ts';
+export { lockSlugs, SLUG_LOCK_NAMESPACE } from './slug-lock.ts';
