@@ -154,6 +154,66 @@ describe('refreshIndicatorReadModels', () => {
     expect(await readModelRowsOf(db, indicatorId)).toEqual([]);
   });
 
+  it('rolls back every model if a refresh fails between phases', async () => {
+    const indicatorId = (await seededIndicatorIds()).at(-2);
+    if (!indicatorId) throw new Error('Expected a seeded indicator');
+    const before = await readModelRowsOf(db, indicatorId);
+    await publishNewObservation(indicatorId);
+
+    await expect(
+      db.transaction((tx) =>
+        refreshIndicatorReadModels(tx, indicatorId, ({ table }) => {
+          if (table === 'observation_range') throw new RolledBack();
+        }),
+      ),
+    ).rejects.toBeInstanceOf(RolledBack);
+
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(before);
+  });
+
+  it('serializes the same indicator while another indicator can commit', async () => {
+    const [indicatorId, otherId] = await seededIndicatorIds();
+    if (!indicatorId || !otherId) throw new Error('Expected two seeded indicators');
+    const expected = await rowsAfterWholeRebuild(indicatorId);
+    let rebuilt: () => void = () => {};
+    let release: () => void = () => {};
+    const rebuilding = new Promise<void>((resolve) => {
+      rebuilt = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const first = db.transaction(async (tx) => {
+      await refreshIndicatorReadModels(tx, indicatorId);
+      rebuilt();
+      await released;
+    });
+    await rebuilding;
+    const second = db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+    try {
+      await expect
+        .poll(
+          async () => {
+            const [row] = await db.execute<{ waiting: number }>(sql`
+            SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'
+              AND query LIKE 'select "id" from "indicator"%'
+          `);
+            return row?.waiting;
+          },
+          { timeout: 10_000 },
+        )
+        .toBe(1);
+      await expect(
+        db.transaction((tx) => refreshIndicatorReadModels(tx, otherId)),
+      ).resolves.toBeUndefined();
+    } finally {
+      release();
+      await Promise.all([first, second]);
+    }
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(expected);
+  });
+
   it('waits for a whole rebuild in progress, then commits', async () => {
     const indicatorId = (await seededIndicatorIds()).at(-1);
     if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');

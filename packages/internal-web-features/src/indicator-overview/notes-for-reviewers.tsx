@@ -21,10 +21,15 @@ function textAnswer(text: string | null, unanswered: string): string {
   return text || unanswered;
 }
 
-/** A yes/no answer, with the detail a yes gives. */
-function yesNoAnswer(answer: string | null, detail: string | null, unanswered: string): string {
+/** A yes/no answer, with the detail a yes gives, or the one a no gives where it asks for one. */
+function yesNoAnswer(
+  answer: string | null,
+  detail: string | null,
+  unanswered: string,
+  noDetail: string | null = null,
+): string {
   if (answer === 'yes') return detail ? `Yes - ${detail}` : 'Yes';
-  if (answer === 'no') return 'No';
+  if (answer === 'no') return noDetail ? `No - ${noDetail}` : 'No';
   return unanswered;
 }
 
@@ -72,14 +77,16 @@ export function NotesForReviewers({ notes, indicator }: NotesForReviewersProps) 
             question: 'What quality assurance has been done on the indicator?',
             answer: textAnswer(quality.qualityAssurance, unanswered),
           },
-          {
-            question: 'Are there any data quality issues with the source data?',
-            answer: yesNoAnswer(
-              quality.hasSourceDataIssues,
-              quality.sourceDataIssuesDetail,
-              unanswered,
-            ),
-          },
+          // The improvement notes are optional, so the question shows only once answered.
+          ...(quality.sourceDataIssuesDetail
+            ? [
+                {
+                  question:
+                    'If there are any data quality issues, what is being done to improve the quality?',
+                  answer: quality.sourceDataIssuesDetail,
+                },
+              ]
+            : []),
         ]}
       />
       <NotesSection
@@ -111,6 +118,7 @@ export function NotesForReviewers({ notes, indicator }: NotesForReviewersProps) 
               justifications.hasAutomation,
               justifications.automationDetail,
               unanswered,
+              justifications.noAutomationReason,
             ),
           },
         ]}

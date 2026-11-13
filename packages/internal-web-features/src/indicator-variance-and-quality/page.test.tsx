@@ -12,15 +12,13 @@ afterEach(cleanup);
 const empty = {
   variation: '',
   qualityAssurance: '',
-  hasSourceDataIssues: '',
   sourceDataIssuesDetail: '',
 };
 
 const VARIATION = 'How does the indicator vary?';
 const QUALITY_ASSURANCE = 'What quality assurance has been done on the indicator?';
-const SOURCE_DATA_ISSUES = 'Are there any data quality issues with the source data?';
-const DETAILS =
-  'Enter details, including what is being done to improve the quality of the source data';
+const IMPROVEMENTS =
+  'If there are any data quality issues, what is being done to improve the quality? (Optional)';
 
 // The error summary's links read router state, so the page renders inside a router.
 function renderPage(props: Partial<Parameters<typeof VarianceAndQualityPage>[0]> = {}) {
@@ -35,10 +33,6 @@ function textarea(label: string) {
   return screen.getByLabelText(label) as HTMLTextAreaElement;
 }
 
-function hasSourceDataIssues() {
-  return within(screen.getByRole('group', { name: SOURCE_DATA_ISSUES }));
-}
-
 describe('VarianceAndQualityPage', () => {
   it('says under the heading that the answers are for reviewer use only', () => {
     renderPage();
@@ -50,37 +44,23 @@ describe('VarianceAndQualityPage', () => {
     expect(heading.nextElementSibling?.className).toContain('govuk-inset-text');
   });
 
-  it('asks two questions in text, then whether the source data has issues', () => {
+  it('asks three questions in text, the last of them optional, and nothing else', () => {
     renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Variance and quality' })).toBeTruthy();
-    expect([textarea(VARIATION), textarea(QUALITY_ASSURANCE)].map((field) => field.name)).toEqual([
-      'variation',
-      'qualityAssurance',
-    ]);
-    expect(textarea(VARIATION).getAttribute('rows')).toBe('5');
     expect(
-      (hasSourceDataIssues().getAllByRole('radio') as HTMLInputElement[]).map((radio) => [
-        radio.name,
-        radio.value,
+      [textarea(VARIATION), textarea(QUALITY_ASSURANCE), textarea(IMPROVEMENTS)].map((field) => [
+        field.name,
+        field.getAttribute('rows'),
       ]),
     ).toEqual([
-      ['hasSourceDataIssues', 'yes'],
-      ['hasSourceDataIssues', 'no'],
+      ['variation', '5'],
+      ['qualityAssurance', '5'],
+      ['sourceDataIssuesDetail', '5'],
     ]);
-    expect(screen.getByRole('heading', { level: 2, name: SOURCE_DATA_ISSUES })).toBeTruthy();
-  });
-
-  it('asks for the details of the source data issues under Yes', () => {
-    renderPage();
-
-    const details = hasSourceDataIssues().getByLabelText(DETAILS) as HTMLTextAreaElement;
-
-    expect(details.name).toBe('sourceDataIssuesDetail');
-    expect(details.getAttribute('rows')).toBe('5');
-    expect(details.closest('.govuk-radios__conditional')?.id).toBe(
-      hasSourceDataIssues().getByLabelText('Yes').getAttribute('aria-controls'),
-    );
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual([VARIATION, QUALITY_ASSURANCE, IMPROVEMENTS]);
+    expect(screen.queryAllByRole('radio')).toEqual([]);
   });
 
   it('shows the answers it is given, so a draft can be revisited', () => {
@@ -88,26 +68,21 @@ describe('VarianceAndQualityPage', () => {
       values: {
         variation: 'Varies by area.',
         qualityAssurance: 'Checked.',
-        hasSourceDataIssues: 'yes',
-        sourceDataIssuesDetail: 'Late returns.',
+        sourceDataIssuesDetail: 'Chasing late returns.',
       },
     });
 
     expect(textarea(VARIATION).value).toBe('Varies by area.');
     expect(textarea(QUALITY_ASSURANCE).value).toBe('Checked.');
-    expect((hasSourceDataIssues().getByLabelText('Yes') as HTMLInputElement).checked).toBe(true);
-    expect((hasSourceDataIssues().getByLabelText(DETAILS) as HTMLTextAreaElement).value).toBe(
-      'Late returns.',
-    );
+    expect(textarea(IMPROVEMENTS).value).toBe('Chasing late returns.');
     expect(screen.queryByRole('alert')).toBeNull();
     expect(document.title).toBe(`Variance and quality - ${serviceName} - GOV.UK`);
   });
 
-  it('links each refusal to its control, in the order the form asks', () => {
+  it('links each refusal to its field, in the order the form asks', () => {
     renderPage({
       fieldErrors: {
-        hasSourceDataIssues:
-          'Select whether there are any data quality issues with the source data',
+        qualityAssurance: 'Enter what quality assurance has been done on the indicator',
         variation: 'Enter how the indicator varies',
       },
     });
@@ -116,25 +91,24 @@ describe('VarianceAndQualityPage', () => {
 
     expect(links.map((link) => link.textContent)).toEqual([
       'Enter how the indicator varies',
-      'Select whether there are any data quality issues with the source data',
+      'Enter what quality assurance has been done on the indicator',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       `#${textarea(VARIATION).id}`,
-      `#${hasSourceDataIssues().getByLabelText('Yes').id}`,
+      `#${textarea(QUALITY_ASSURANCE).id}`,
     ]);
     expect(textarea(VARIATION).className).toContain('govuk-textarea--error');
   });
 
-  it('links a missing detail to its field', () => {
+  it('links a refusal of the improvement notes, such as their length, to their field', () => {
     renderPage({
       fieldErrors: {
-        sourceDataIssuesDetail: 'Enter details of the data quality issues with the source data',
+        sourceDataIssuesDetail: 'Data quality improvement notes must be 10,000 characters or fewer',
       },
-      values: { ...empty, hasSourceDataIssues: 'yes' },
     });
 
     expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe(
-      `#${hasSourceDataIssues().getByLabelText(DETAILS).id}`,
+      `#${textarea(IMPROVEMENTS).id}`,
     );
   });
 });

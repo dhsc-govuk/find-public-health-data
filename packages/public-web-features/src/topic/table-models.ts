@@ -55,7 +55,14 @@ export function topicAreaTableModel(
   geography: BenchmarkGeography,
   topicSlug: string,
 ) {
-  const { areas, rows, benchmarkCellFor } = comparisonTable(selected, geography, 'england');
+  const { rows, benchmarkCellFor } = comparisonTable(selected, geography, 'england');
+  const areas = [
+    ...new Map(
+      rows.flatMap((row) =>
+        row.cells.map(({ areaCode, areaName }) => [areaCode, { areaCode, areaName }] as const),
+      ),
+    ).values(),
+  ];
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   return {
     kind: 'areas' as const,
@@ -128,18 +135,22 @@ export function sortTopicAreaTable(model: TopicAreaTableModel, params: URLSearch
   });
   const selection = /^(first|reverse):(.+)$/.exec(params.get('sortAreas') ?? '');
   const row = selection && rows.find(({ key }) => key === selection[2]);
-  if (!row || model.areas.length < 2) return { ...model, rows, columnSort: null };
-
-  const reverse = selection[1] === 'reverse';
-  const descending = reverse === (row.goodDirection === 'low');
-  const values = new Map(row.cells.map(({ areaCode, value }) => [areaCode, value]));
-  const areas = model.areas.toSorted((a, b) => {
-    const left = values.get(a.areaCode);
-    const right = values.get(b.areaCode);
-    if (left == null) return right == null ? 0 : 1;
-    if (right == null) return -1;
-    return descending ? right - left : left - right;
-  });
+  let areas = model.areas;
+  let columnSort: { key: string; reverse: boolean; direction: 'descending' | 'ascending' } | null =
+    null;
+  if (row && areas.length > 1) {
+    const reverse = selection[1] === 'reverse';
+    const descending = reverse === (row.goodDirection === 'low');
+    const values = new Map(row.cells.map(({ areaCode, value }) => [areaCode, value]));
+    areas = areas.toSorted((a, b) => {
+      const left = values.get(a.areaCode);
+      const right = values.get(b.areaCode);
+      if (left == null) return right == null ? 0 : 1;
+      if (right == null) return -1;
+      return descending ? right - left : left - right;
+    });
+    columnSort = { key: row.key, reverse, direction: descending ? 'descending' : 'ascending' };
+  }
   return {
     ...model,
     areas,
@@ -159,10 +170,6 @@ export function sortTopicAreaTable(model: TopicAreaTableModel, params: URLSearch
         ),
       };
     }),
-    columnSort: {
-      key: row.key,
-      reverse,
-      direction: descending ? 'descending' : 'ascending',
-    } as const,
+    columnSort,
   };
 }

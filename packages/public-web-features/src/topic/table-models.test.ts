@@ -236,3 +236,38 @@ it('orders recently updated rows by the data update date and puts unknown dates 
   );
   expect(rows.map(({ name }) => name)).toEqual(['Latest', 'Indicator', 'Unknown']);
 });
+
+it.each(['', 'sortAreas=first:missing', 'sortAreas=first:1|'])(
+  'aligns sparse table rows with all areas for %s',
+  (query) => {
+    const second = {
+      ...entry,
+      detail: { ...entry.detail, shortId: 2 },
+      areaData: [
+        { areaCode: 'E12000007', areaName: 'London', observations: [observation(2024, 15)] },
+      ],
+    };
+    const model = topicAreaTableModel(
+      [entry, second],
+      { regionByCode: {}, levelByCode: {} },
+      'diabetes',
+    );
+    const table = sortTopicAreaTable(model, new URLSearchParams(query));
+    expect(table.areas.map(({ areaCode }) => areaCode).toSorted()).toEqual([
+      'E12000001',
+      'E12000007',
+    ]);
+    for (const row of table.rows) {
+      expect(row.cells.map(({ areaCode }) => areaCode)).toEqual(
+        table.areas.map(({ areaCode }) => areaCode),
+      );
+    }
+    expect(table.rows[0]?.cells.find(({ areaCode }) => areaCode === 'E12000007')).toEqual({
+      areaCode: 'E12000007',
+      value: null,
+      period: 'No data',
+      notes: [],
+      judgement: 'none',
+    });
+  },
+);

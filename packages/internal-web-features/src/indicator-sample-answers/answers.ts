@@ -1,4 +1,6 @@
 import {
+  agesAnswersSchema,
+  agesSection,
   benchmarkingSection,
   type CiMethod,
   calculationSection,
@@ -13,8 +15,6 @@ import {
   indicatorSectionAnswersSchema,
   indicatorSectionErrorSchema,
   justificationsSection,
-  linksAnswersSchema,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -22,8 +22,8 @@ import {
   polaritySection,
   providerSourcesAnswersSchema,
   publishingDateSection,
-  sexAndAgesAnswersSchema,
-  sexAndAgesSection,
+  sexGenderAndEthnicityAnswersSchema,
+  sexGenderAndEthnicitySection,
   type TagOptions,
   taggingAnswersSchema,
   taggingSection,
@@ -116,16 +116,19 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       unitId: named(valueTypesAndUnits.units, 'per 100', 'unit').id,
     }),
     sample(
-      sexAndAgesSection,
+      sexGenderAndEthnicitySection,
       {
+        demographics: ['sex'],
         sexes: ['persons'],
-        ageType: 'all',
-        ageRanges: [],
-        specificAge: '',
-        specificAgeUnit: '',
-        ageDetail: '',
+        genders: [],
+        ethnicGroups: [],
       },
-      sexAndAgesAnswersSchema,
+      sexGenderAndEthnicityAnswersSchema,
+    ),
+    sample(
+      agesSection,
+      { ageType: 'all', ageRanges: [], specificAge: '', specificAgeUnit: '', ageDetail: '' },
+      agesAnswersSchema,
     ),
     text(periodTypeSection, { periodType: 'years', yearType: 'financial' }),
     text(polaritySection, { polarity: 'lower-is-better' }),
@@ -156,7 +159,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       hasCaveats: 'no',
       hasOtherNotes: 'no',
     }),
-    sample(linksSection, { hasLinks: 'no', links: [] }, linksAnswersSchema),
     sample(
       taggingSection,
       {
@@ -184,7 +186,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
     text(varianceAndQualitySection, {
       variation: 'Little.',
       qualityAssurance: 'Checked.',
-      hasSourceDataIssues: 'no',
     }),
     text(justificationsSection, {
       ciMethodJustification: 'Standard.',
@@ -192,6 +193,7 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       inequalitiesIncluded: 'Deprivation.',
       hasExclusions: 'no',
       hasAutomation: 'no',
+      noAutomationReason: 'Not supported for this data source.',
     }),
     text(otherCommentsSection, { hasReviewerComments: 'no' }),
   ];

@@ -47,7 +47,6 @@ export async function completeDraft(
     name: _name,
     ciMethodKind: _ciMethodKind,
     uploadBatchId: _uploadBatchId,
-    links,
     ageRanges,
     topicIds: _topicIds,
     primaryTopicId: _primaryTopicId,
@@ -87,7 +86,6 @@ export async function completeDraft(
     'tagging',
     { ...answers, uploadBatchId: batch.id },
     {
-      links,
       ageRanges,
       topicIds: [firstTopic.id],
       primaryTopicId: firstTopic.id,

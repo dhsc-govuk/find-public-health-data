@@ -4,6 +4,7 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
+  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
@@ -12,6 +13,7 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
@@ -63,11 +65,44 @@ describe('dataQualityColumns', () => {
 });
 
 describe('updateFrequencyColumns', () => {
-  it('reads and writes the column of the same name', () => {
-    const answers = { updateFrequency: 'no-longer-updated' } as const;
+  it('reads a frequency that has no reason, leaving both reasons empty', () => {
+    expect(
+      updateFrequencyColumns.fromDraft({ ...unansweredDraft, updateFrequency: 'annually' }),
+    ).toEqual({
+      updateFrequency: 'annually',
+      noFixedFrequencyReason: null,
+      noLongerUpdatedReason: null,
+    });
+  });
 
-    expect(updateFrequencyColumns.fromDraft({ ...unansweredDraft, ...answers })).toEqual(answers);
-    expect(updateFrequencyColumns.toAttributes(answers)).toEqual(answers);
+  it.each([
+    ['no-fixed-frequency', 'noFixedFrequencyReason', 'noLongerUpdatedReason'],
+    ['no-longer-updated', 'noLongerUpdatedReason', 'noFixedFrequencyReason'],
+  ] as const)(
+    'shows the reason for %s under that answer alone',
+    (updateFrequency, shown, empty) => {
+      expect(
+        updateFrequencyColumns.fromDraft({
+          ...unansweredDraft,
+          updateFrequency,
+          updateFrequencyReason: 'The survey has ended.',
+        }),
+      ).toEqual({ updateFrequency, [shown]: 'The survey has ended.', [empty]: null });
+    },
+  );
+
+  it.each([
+    ['no-fixed-frequency', 'Published when the survey runs.'],
+    ['no-longer-updated', 'The survey has ended.'],
+    ['annually', null],
+  ] as const)('keeps the reason typed under %s alone', (updateFrequency, updateFrequencyReason) => {
+    expect(
+      updateFrequencyColumns.toAttributes({
+        updateFrequency,
+        noFixedFrequencyReason: 'Published when the survey runs.',
+        noLongerUpdatedReason: 'The survey has ended.',
+      }),
+    ).toEqual({ updateFrequency, updateFrequencyReason });
   });
 });
 
@@ -339,40 +374,63 @@ describe('otherNotesAndCaveatsColumns', () => {
   });
 });
 
-// yesNoDetailColumns, shown through the first section built on it alone.
-describe('varianceAndQualityColumns', () => {
+// yesNoDetailColumns, shown through a section built on it alone.
+describe('copyrightAndDataReuseColumns', () => {
   const answered = {
-    variation: 'Varies by area.',
-    qualityAssurance: 'Checked against ONS figures.',
-    hasSourceDataIssues: 'yes',
-    sourceDataIssuesDetail: 'Late returns.',
+    hasCustomCopyright: 'yes',
+    customCopyrightDetail: 'NHS England.',
+    hasCustomDataReuse: 'no',
+    customDataReuseDetail: 'Typed before No was chosen.',
   } as const;
 
-  it('writes the text as it is, and a yes as true beside its details', () => {
-    expect(varianceAndQualityColumns.toAttributes(answered)).toEqual({
-      ...answered,
-      hasSourceDataIssues: true,
+  it('writes a yes as true beside its details, and a no as false without them', () => {
+    expect(copyrightAndDataReuseColumns.toAttributes(answered)).toEqual({
+      hasCustomCopyright: true,
+      customCopyrightDetail: 'NHS England.',
+      hasCustomDataReuse: false,
+      customDataReuseDetail: null,
     });
-  });
-
-  it('writes a no as false and clears its details', () => {
-    expect(
-      varianceAndQualityColumns.toAttributes({ ...answered, hasSourceDataIssues: 'no' }),
-    ).toEqual({ ...answered, hasSourceDataIssues: false, sourceDataIssuesDetail: null });
   });
 
   it.each([
     [true, 'yes'],
     [false, 'no'],
     [null, null],
-  ])('reads a stored %s as %s, beside the text as it is', (hasSourceDataIssues, answer) => {
+  ])('reads a stored %s as %s, beside its details as they are', (hasCustomCopyright, answer) => {
     expect(
-      varianceAndQualityColumns.fromDraft({
+      copyrightAndDataReuseColumns.fromDraft({
         ...unansweredDraft,
-        ...answered,
-        hasSourceDataIssues,
+        hasCustomCopyright,
+        customCopyrightDetail: 'NHS England.',
       }),
-    ).toEqual({ ...answered, hasSourceDataIssues: answer });
+    ).toEqual({
+      hasCustomCopyright: answer,
+      customCopyrightDetail: 'NHS England.',
+      hasCustomDataReuse: null,
+      customDataReuseDetail: null,
+    });
+  });
+});
+
+describe('varianceAndQualityColumns', () => {
+  const answered = {
+    variation: 'Varies by area.',
+    qualityAssurance: 'Checked against ONS figures.',
+    sourceDataIssuesDetail: 'Chasing late returns.',
+  } as const;
+
+  it('reads and writes the columns of the same name', () => {
+    expect(varianceAndQualityColumns.fromDraft({ ...unansweredDraft, ...answered })).toEqual(
+      answered,
+    );
+    expect(varianceAndQualityColumns.toAttributes(answered)).toEqual(answered);
+  });
+
+  it('writes blank data quality improvement notes as none', () => {
+    expect(
+      varianceAndQualityColumns.toAttributes({ ...answered, sourceDataIssuesDetail: '' })
+        .sourceDataIssuesDetail,
+    ).toBeNull();
   });
 });
 
@@ -385,14 +443,26 @@ describe('justificationsColumns', () => {
     exclusionsDetail: 'Areas with fewer than 5 deaths.',
     hasAutomation: 'no',
     automationDetail: 'Typed before No was chosen.',
+    noAutomationReason: 'No tool reads this source.',
   } as const;
 
-  it('keeps the details of a yes and clears those of a no', () => {
+  it('keeps the details of each answer and clears those of the other', () => {
     expect(justificationsColumns.toAttributes(answered)).toEqual({
       ...answered,
       hasExclusions: true,
       hasAutomation: false,
       automationDetail: null,
+    });
+    expect(
+      justificationsColumns.toAttributes({
+        ...answered,
+        hasAutomation: 'yes',
+        automationDetail: 'The shared pipeline.',
+      }),
+    ).toMatchObject({
+      hasAutomation: true,
+      automationDetail: 'The shared pipeline.',
+      noAutomationReason: null,
     });
   });
 
@@ -515,6 +585,33 @@ describe('benchmarkingColumns', () => {
       goalUpperValue: null,
       goalPolarity: null,
       goalPolicyDetail: null,
+    });
+  });
+});
+
+describe('sexGenderAndEthnicityColumns', () => {
+  it('reads unanswered demographics and their lists as none', () => {
+    expect(sexGenderAndEthnicityColumns.fromDraft(unansweredDraft)).toEqual({
+      demographics: [],
+      sexes: [],
+      genders: [],
+      ethnicGroups: [],
+    });
+  });
+
+  it('writes the list of each demographic collected, and clears the others', () => {
+    expect(
+      sexGenderAndEthnicityColumns.toAttributes({
+        demographics: ['gender', 'ethnicity'],
+        sexes: ['females', 'males'],
+        genders: ['non-binary'],
+        ethnicGroups: ['mixed', 'white'],
+      }),
+    ).toEqual({
+      demographics: ['gender', 'ethnicity'],
+      sexes: null,
+      genders: ['non-binary'],
+      ethnicGroups: ['mixed', 'white'],
     });
   });
 });

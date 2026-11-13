@@ -13,7 +13,8 @@ const TASK_GROUPS = {
   Data: [
     DATA_TABLE,
     'Value type and units',
-    'Sex and ages',
+    'Sex, gender and ethnicity',
+    'Ages',
     'Period type',
     'Polarity',
     'Data quality',
@@ -27,7 +28,6 @@ const TASK_GROUPS = {
     'Confidence intervals',
     'Benchmarking',
     'Other notes and caveats',
-    'Links',
     'Tagging',
     'Copyright and data re-use',
   ],

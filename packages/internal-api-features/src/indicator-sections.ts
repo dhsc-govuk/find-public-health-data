@@ -2,6 +2,7 @@ import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
 import { Router } from 'express';
 
 import {
+  agesSection,
   benchmarkingSection,
   calculationSection,
   copyrightAndDataReuseSection,
@@ -9,13 +10,12 @@ import {
   definitionAndRationaleSection,
   denominatorSection,
   justificationsSection,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
   periodTypeSection,
   polaritySection,
-  sexAndAgesSection,
+  sexGenderAndEthnicitySection,
   updateFrequencySection,
   varianceAndQualitySection,
 } from './contract.ts';
@@ -33,15 +33,15 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
 import {
+  agesColumns,
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
-  sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import {
@@ -116,7 +116,6 @@ export function indicatorSectionsRouter(
       publishingDateServerSection(now),
       publishingDateColumns,
     ),
-    indicatorSectionRouter(indicators, session, linksSection, linksColumns),
     indicatorSectionRouter(
       indicators,
       session,
@@ -132,7 +131,13 @@ export function indicatorSectionsRouter(
       copyrightAndDataReuseColumns,
     ),
     indicatorSectionRouter(indicators, session, benchmarkingSection, benchmarkingColumns),
-    indicatorSectionRouter(indicators, session, sexAndAgesSection, sexAndAgesColumns),
+    indicatorSectionRouter(
+      indicators,
+      session,
+      sexGenderAndEthnicitySection,
+      sexGenderAndEthnicityColumns,
+    ),
+    indicatorSectionRouter(indicators, session, agesSection, agesColumns),
     indicatorSectionRouter(indicators, session, taggingServerSection(tags), taggingColumns),
   );
 }

@@ -155,10 +155,6 @@ export default [
         '../../../packages/internal-web-features/src/indicator-publishing-date/route.tsx',
       ),
       route(
-        'publish/indicators/:id/links',
-        '../../../packages/internal-web-features/src/indicator-links/route.tsx',
-      ),
-      route(
         'publish/indicators/:id/variance-and-quality',
         '../../../packages/internal-web-features/src/indicator-variance-and-quality/route.tsx',
       ),
@@ -179,8 +175,12 @@ export default [
         '../../../packages/internal-web-features/src/indicator-benchmarking/route.tsx',
       ),
       route(
-        'publish/indicators/:id/sex-and-ages',
-        '../../../packages/internal-web-features/src/indicator-sex-and-ages/route.tsx',
+        'publish/indicators/:id/sex-gender-and-ethnicity',
+        '../../../packages/internal-web-features/src/indicator-sex-gender-and-ethnicity/route.tsx',
+      ),
+      route(
+        'publish/indicators/:id/ages',
+        '../../../packages/internal-web-features/src/indicator-ages/route.tsx',
       ),
       route(
         'publish/indicators/:id/tagging',

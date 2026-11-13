@@ -86,8 +86,8 @@ describe('IndicatorTaskListPage', () => {
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
     ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
-    expect(group('Data').getAllByRole('listitem')).toHaveLength(6);
-    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(11);
+    expect(group('Data').getAllByRole('listitem')).toHaveLength(7);
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(10);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
       group('Notes for reviewers (not visible to consumers)').getAllByRole('listitem'),
@@ -146,7 +146,8 @@ describe('IndicatorTaskListPage', () => {
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Data table',
       'Value type and units',
-      'Sex and ages',
+      'Sex, gender and ethnicity',
+      'Ages',
       'Period type',
       'Polarity',
       'Data quality',
@@ -158,7 +159,6 @@ describe('IndicatorTaskListPage', () => {
       'Confidence intervals',
       'Benchmarking',
       'Other notes and caveats',
-      'Links',
       'Tagging',
       'Copyright and data re-use',
       'Update frequency',
@@ -173,7 +173,8 @@ describe('IndicatorTaskListPage', () => {
 
   it.each([
     ['Data', 'Value type and units', 'value-type-and-units'],
-    ['Data', 'Sex and ages', 'sex-and-ages'],
+    ['Data', 'Sex, gender and ethnicity', 'sex-gender-and-ethnicity'],
+    ['Data', 'Ages', 'ages'],
     ['Data', 'Period type', 'period-type'],
     ['Data', 'Polarity', 'polarity'],
     ['Data', 'Data quality', 'data-quality'],
@@ -184,7 +185,6 @@ describe('IndicatorTaskListPage', () => {
     ['Metadata', 'Confidence intervals', 'confidence-intervals'],
     ['Metadata', 'Benchmarking', 'benchmarking'],
     ['Metadata', 'Other notes and caveats', 'other-notes-and-caveats'],
-    ['Metadata', 'Links', 'links'],
     ['Metadata', 'Tagging', 'tagging'],
     ['Metadata', 'Copyright and data re-use', 'copyright-and-data-reuse'],
     ['Publishing', 'Update frequency', 'update-frequency'],
@@ -334,7 +334,7 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
 
     expect(document.querySelector('.govuk-grid-column-three-quarters')).not.toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
-    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(11);
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(10);
   });
 
   it('shows a flagged task’s notes, tagged as needing revisions until it is saved', () => {

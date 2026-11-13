@@ -158,3 +158,76 @@ it.each([
     );
   },
 );
+
+it.each(['', '&sortAreas=first:1|', '&sortAreas=first:missing'])(
+  'keeps sparse area values under their own CSV headers with %s',
+  async (sort) => {
+    vi.mocked(loadTopic).mockResolvedValue({
+      topic: { slug: 'example', title: 'Example' },
+      content: {
+        data: {
+          selected: [
+            {
+              detail: indicatorDetail(1, { name: 'Both areas' }),
+              areaData: [
+                { areaCode: 'E12000007', areaName: 'London', observations: [observation(20)] },
+                { areaCode: 'E12000001', areaName: 'North East', observations: [observation(10)] },
+              ],
+            },
+            {
+              detail: indicatorDetail(2, { name: 'North East only' }),
+              areaData: [
+                { areaCode: 'E12000001', areaName: 'North East', observations: [observation(40)] },
+                { areaCode: 'E12000002', areaName: 'North West', observations: [observation(30)] },
+              ],
+            },
+          ],
+          benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+        },
+      },
+    } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+    const response = await loader({
+      request: new Request(`http://local/topics/example/table.csv?tab-topic=areas${sort}`),
+    } as LoaderFunctionArgs);
+    const [headers = [], ...rows] = (await response.text())
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => line.split(','));
+    expect(headers).toContain('North West');
+    expect(rows.every((row) => row.length === headers.length)).toBe(true);
+    const sparse = rows.find((row) => row[0] === 'North East only');
+    expect(sparse?.[headers.indexOf('London')]).toBe('');
+    expect(sparse?.[headers.indexOf('London period')]).toBe('No data');
+    expect(sparse?.[headers.indexOf('London comparison')]).toBe('No data');
+    expect(sparse?.[headers.indexOf('North East')]).toBe('40');
+    expect(sparse?.[headers.indexOf('North West')]).toBe('30');
+  },
+);
+
+it.each(['', 'data', 'overview', 'publications', 'unknown'])(
+  'defaults non-area download tab %s to data with explicit data columns',
+  async (tab) => {
+    vi.mocked(loadTopic).mockResolvedValue({
+      topic: { slug: 'example', title: 'Example' },
+      content: {
+        data: {
+          selected: [{ detail: indicatorDetail(1), areaData: [] }],
+          benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+        },
+      },
+    } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+    const response = await loader({
+      request: new Request(
+        `http://local/topics/example/table.csv?tab-topic=${tab}&sortAreas=first:1|`,
+      ),
+    } as LoaderFunctionArgs);
+    const args = vi.mocked(loadTopic).mock.lastCall?.[0];
+    expect(new URL(args?.request.url ?? '').searchParams.get('tab-topic')).toBe('data');
+    expect(response.headers.get('Content-Disposition')).toBe(
+      'attachment; filename="example-data.csv"',
+    );
+    expect((await response.text()).split(/\r?\n/)[0]).toBe(
+      'Indicator,Subtopic,Unit,Most recent period,Last updated',
+    );
+  },
+);

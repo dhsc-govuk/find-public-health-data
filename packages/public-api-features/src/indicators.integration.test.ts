@@ -66,6 +66,10 @@ describe('public routers against the seeded database', () => {
     const full = await request(app).get(path);
     const projected = await request(app).get(path.replace('/data?', '/ranking?'));
     expect(projected.status).toBe(200);
+    const england = indicatorAreaDataListSchema
+      .parse(projected.body)
+      .find(({ areaCode }) => areaCode === 'E92000001');
+    expect(england?.observations).toHaveLength(1);
     expect(indicatorAreaDataListSchema.parse(projected.body)).toEqual(
       rankingAreaSeries(indicatorAreaDataListSchema.parse(full.body)),
     );
@@ -142,6 +146,31 @@ describe('public routers against the seeded database', () => {
     });
     expect(response.body).not.toHaveProperty('id');
     expect(() => indicatorDetailSchema.parse(response.body)).not.toThrow();
+  });
+
+  it('serves the reason an indicator has no fixed update frequency beside the frequency', async () => {
+    const setFrequency = (frequency: string, reason: string | null) => owner`
+      UPDATE indicator_version v SET update_frequency = ${frequency}, update_frequency_reason = ${reason}
+      FROM indicator i WHERE v.indicator_id = i.id AND i.short_id = 92443 AND v.status = 'published'
+    `;
+
+    try {
+      await setFrequency('no-fixed-frequency', 'Published when the survey runs.');
+      const withReason = await request(app).get('/api/indicators/92443');
+      await setFrequency('no-fixed-frequency', null);
+      const withoutReason = await request(app).get('/api/indicators/92443');
+
+      expect(indicatorDetailSchema.parse(withReason.body)).toMatchObject({
+        updateFrequency: 'no-fixed-frequency',
+        updateFrequencyReason: 'Published when the survey runs.',
+      });
+      expect(indicatorDetailSchema.parse(withoutReason.body)).toMatchObject({
+        updateFrequency: 'no-fixed-frequency',
+        updateFrequencyReason: null,
+      });
+    } finally {
+      await setFrequency('annually', null);
+    }
   });
 
   it('serves the England observations for a seeded indicator, matching the wire contract', async () => {

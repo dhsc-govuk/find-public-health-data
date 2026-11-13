@@ -1,15 +1,5 @@
 import { type Database, schema } from '@fphd/db';
-import {
-  type AnyColumn,
-  and,
-  count,
-  countDistinct,
-  eq,
-  isNotNull,
-  max,
-  min,
-  sql,
-} from 'drizzle-orm';
+import { and, count, countDistinct, eq, isNotNull, max, min, sql } from 'drizzle-orm';
 
 import { replaceObservationSeries } from './observation-series.ts';
 
@@ -24,25 +14,24 @@ export const READ_MODEL_TABLES = [
   'observation_series_batch',
 ] as const;
 
-function forIndicator(column: AnyColumn, indicatorId: string | undefined) {
-  return indicatorId === undefined ? undefined : eq(column, indicatorId);
+export interface ReadModelTiming {
+  table: 'available_data' | 'observation_range' | 'observation_series';
+  milliseconds: number;
 }
 
-/**
- * Replaces the read models' rows from the published views, for one indicator or for all.
- * DELETE rather than TRUNCATE takes only row locks, so readers see the previous rows until the
- * caller commits. Dimension rows are reached only through `published.observation`:
- * `published.observation_dimension` would join the observations again. The tables are deleted
- * from in `READ_MODEL_TABLES` order, as the rebuild locks them.
- */
+type OnTiming = (timing: ReadModelTiming) => void;
+
 async function replaceReadModelRows(
   tx: Database | Transaction,
-  indicatorId: string | undefined,
+  indicatorId: string,
+  onTiming?: OnTiming,
 ): Promise<void> {
   const {
     availableData,
     observationRange,
-    publishedObservation: o,
+    observation: o,
+    currentPublishedVersion,
+    indicatorVersion,
     publishedArea: a,
     publishedAreaType: at,
     observationDimension: od,
@@ -50,93 +39,109 @@ async function replaceReadModelRows(
     publishedDimensionValue: dv,
   } = schema;
 
-  await tx.delete(availableData).where(forIndicator(availableData.indicatorId, indicatorId));
-  await tx.delete(observationRange).where(forIndicator(observationRange.indicatorId, indicatorId));
-
-  await tx.insert(availableData).select(
-    tx
-      .select({
-        indicatorId: o.indicatorId,
-        areaTypeId: a.areaTypeId,
-        areaTypeName: max(at.name).as('area_type_name'),
-        areaCount: countDistinct(o.areaId).as('area_count'),
-      })
-      .from(o)
-      .innerJoin(a, eq(a.id, o.areaId))
-      .innerJoin(at, eq(at.id, a.areaTypeId))
-      .where(forIndicator(o.indicatorId, indicatorId))
-      .groupBy(o.indicatorId, a.areaTypeId),
+  // The published view's ANY(all published batches) can scan the entire batch index even for
+  // one indicator. Resolve the same visibility rule once, then constrain every read to its batch.
+  const [published] = await tx
+    .select({ uploadBatchId: indicatorVersion.uploadBatchId })
+    .from(currentPublishedVersion)
+    .innerJoin(indicatorVersion, eq(indicatorVersion.id, currentPublishedVersion.id))
+    .where(eq(currentPublishedVersion.indicatorId, indicatorId));
+  const uploadBatchId = published?.uploadBatchId;
+  const visible = and(
+    eq(o.indicatorId, indicatorId),
+    uploadBatchId ? eq(o.uploadBatchId, uploadBatchId) : undefined,
   );
 
-  // Keep aligned with the newest migration inserting into observation_range, which reads the
-  // tables; a test runs both against a seed whose data is all published.
-  const rangeObservations = tx.$with('range_observations').as(
-    tx
-      .select({
-        indicatorId: o.indicatorId,
-        displayGroup: at.displayGroup,
-        fromDate: o.fromDate,
-        toDate: o.toDate,
-        value: o.value,
-        segment:
-          sql<string>`coalesce(string_agg(${dv.name}, '|' ORDER BY ${dt.name} COLLATE "C"), '')`.as(
-            'segment',
-          ),
-      })
-      .from(o)
-      .innerJoin(a, eq(a.id, o.areaId))
-      .innerJoin(at, eq(at.id, a.areaTypeId))
-      .leftJoin(od, eq(od.observationId, o.id))
-      .leftJoin(dt, eq(dt.id, od.dimensionTypeId))
-      .leftJoin(dv, eq(dv.id, od.dimensionValueId))
-      .where(
-        and(
-          isNotNull(o.value),
-          isNotNull(at.displayGroup),
-          forIndicator(o.indicatorId, indicatorId),
-        ),
-      )
-      .groupBy(o.id, o.indicatorId, at.displayGroup, o.fromDate, o.toDate, o.value),
-  );
-
-  await tx
-    .with(rangeObservations)
-    .insert(observationRange)
-    .select(
+  let started = performance.now();
+  await tx.delete(availableData).where(eq(availableData.indicatorId, indicatorId));
+  if (uploadBatchId) {
+    await tx.insert(availableData).select(
       tx
         .select({
-          indicatorId: rangeObservations.indicatorId,
-          displayGroup: rangeObservations.displayGroup,
-          fromDate: rangeObservations.fromDate,
-          toDate: rangeObservations.toDate,
-          segment: rangeObservations.segment,
-          min: min(rangeObservations.value).as('min'),
-          max: max(rangeObservations.value).as('max'),
-          p25: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[1]`.as(
-            'p25',
-          ),
-          p75: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[2]`.as(
-            'p75',
-          ),
-          // Each cutoff is the value at rank ceil(n × fifth). Tied values stay in the group
-          // of their first rank because the chart advances only past a cutoff.
-          quintileCutoffs: sql<number[] | null>`
+          indicatorId: o.indicatorId,
+          areaTypeId: a.areaTypeId,
+          areaTypeName: max(at.name).as('area_type_name'),
+          areaCount: countDistinct(o.areaId).as('area_count'),
+        })
+        .from(o)
+        .innerJoin(a, eq(a.id, o.areaId))
+        .innerJoin(at, eq(at.id, a.areaTypeId))
+        .where(visible)
+        .groupBy(o.indicatorId, a.areaTypeId),
+    );
+  }
+  onTiming?.({ table: 'available_data', milliseconds: performance.now() - started });
+
+  started = performance.now();
+  await tx.delete(observationRange).where(eq(observationRange.indicatorId, indicatorId));
+  if (uploadBatchId) {
+    // Keep aligned with the newest migration inserting into observation_range, which reads the
+    // tables; a test runs both against a seed whose data is all published.
+    const rangeObservations = tx.$with('range_observations').as(
+      tx
+        .select({
+          indicatorId: o.indicatorId,
+          displayGroup: at.displayGroup,
+          fromDate: o.fromDate,
+          toDate: o.toDate,
+          value: o.value,
+          segment:
+            sql<string>`coalesce(string_agg(${dv.name}, '|' ORDER BY ${dt.name} COLLATE "C"), '')`.as(
+              'segment',
+            ),
+        })
+        .from(o)
+        .innerJoin(a, eq(a.id, o.areaId))
+        .innerJoin(at, eq(at.id, a.areaTypeId))
+        .leftJoin(od, eq(od.observationId, o.id))
+        .leftJoin(dt, eq(dt.id, od.dimensionTypeId))
+        .leftJoin(dv, eq(dv.id, od.dimensionValueId))
+        .where(and(isNotNull(o.value), isNotNull(at.displayGroup), visible))
+        .groupBy(o.id, o.indicatorId, at.displayGroup, o.fromDate, o.toDate, o.value),
+    );
+
+    await tx
+      .with(rangeObservations)
+      .insert(observationRange)
+      .select(
+        tx
+          .select({
+            indicatorId: rangeObservations.indicatorId,
+            displayGroup: rangeObservations.displayGroup,
+            fromDate: rangeObservations.fromDate,
+            toDate: rangeObservations.toDate,
+            segment: rangeObservations.segment,
+            min: min(rangeObservations.value).as('min'),
+            max: max(rangeObservations.value).as('max'),
+            p25: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[1]`.as(
+              'p25',
+            ),
+            p75: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[2]`.as(
+              'p75',
+            ),
+            // Each cutoff is the value at rank ceil(n × fifth). Tied values stay in the group
+            // of their first rank because the chart advances only past a cutoff.
+            quintileCutoffs: sql<number[] | null>`
             CASE WHEN ${count()} >= 5 THEN
               percentile_disc(ARRAY[0.2, 0.4, 0.6, 0.8]) WITHIN GROUP (ORDER BY ${rangeObservations.value})
             END
           `.as('quintile_cutoffs'),
-        })
-        .from(rangeObservations)
-        .groupBy(
-          rangeObservations.indicatorId,
-          rangeObservations.displayGroup,
-          rangeObservations.fromDate,
-          rangeObservations.toDate,
-          rangeObservations.segment,
-        ),
-    );
+          })
+          .from(rangeObservations)
+          .groupBy(
+            rangeObservations.indicatorId,
+            rangeObservations.displayGroup,
+            rangeObservations.fromDate,
+            rangeObservations.toDate,
+            rangeObservations.segment,
+          ),
+      );
+  }
+  onTiming?.({ table: 'observation_range', milliseconds: performance.now() - started });
 
-  await replaceObservationSeries(tx, indicatorId);
+  started = performance.now();
+  await replaceObservationSeries(tx, indicatorId, uploadBatchId ?? undefined);
+  onTiming?.({ table: 'observation_series', milliseconds: performance.now() - started });
 }
 
 /**
@@ -144,8 +149,19 @@ async function replaceReadModelRows(
  * transaction, so they change together with whatever published it. An indicator with nothing
  * published ends with no rows.
  */
-export function refreshIndicatorReadModels(tx: Transaction, indicatorId: string): Promise<void> {
-  return replaceReadModelRows(tx, indicatorId);
+export async function refreshIndicatorReadModels(
+  tx: Database | Transaction,
+  indicatorId: string,
+  onTiming?: OnTiming,
+): Promise<void> {
+  // Publishing also updates this row. Serializing before reading the published batch prevents a
+  // rebuild from committing an older batch over a publication that finished while it waited.
+  await tx
+    .select({ id: schema.indicator.id })
+    .from(schema.indicator)
+    .where(eq(schema.indicator.id, indicatorId))
+    .for('no key update');
+  await replaceReadModelRows(tx, indicatorId, onTiming);
 }
 
 /**
@@ -157,5 +173,18 @@ export async function rebuildReadModelTables(tx: Database | Transaction): Promis
   await tx.execute(
     sql`LOCK TABLE ${sql.raw(READ_MODEL_TABLES.join(', '))} IN SHARE ROW EXCLUSIVE MODE`,
   );
-  await replaceReadModelRows(tx, undefined);
+  for (const table of [
+    schema.availableData,
+    schema.observationRange,
+    schema.observationSeries,
+    schema.observationSeriesBatch,
+  ]) {
+    await tx.delete(table);
+  }
+  const published = await tx
+    .select({ indicatorId: schema.currentPublishedVersion.indicatorId })
+    .from(schema.currentPublishedVersion);
+  for (const { indicatorId } of published) {
+    await replaceReadModelRows(tx, indicatorId);
+  }
 }

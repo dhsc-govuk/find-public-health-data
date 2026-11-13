@@ -56,7 +56,10 @@ describe('NotesForReviewers', () => {
     expect(rows()).toEqual([
       ['How does the indicator vary?', 'Little.\nMostly by region.'],
       ['What quality assurance has been done on the indicator?', 'Checked.'],
-      ['Are there any data quality issues with the source data?', 'Yes - Late returns.'],
+      [
+        'If there are any data quality issues, what is being done to improve the quality?',
+        'Chasing late returns.',
+      ],
       ['Why was the confidence interval method chosen?', 'Standard.'],
       ['Why were the data sources chosen?', 'The best available.'],
       ['What health inequalities have been included?', 'Deprivation.'],
@@ -85,6 +88,30 @@ describe('NotesForReviewers', () => {
   it.each([
     ['empty', ''],
     ['missing', null],
+  ])('leaves out the data quality improvement notes when they are %s', (_, notes) => {
+    render(
+      <NotesForReviewers
+        notes={{
+          ...ANSWERED_NOTES,
+          varianceAndQuality: {
+            ...ANSWERED_NOTES.varianceAndQuality,
+            sourceDataIssuesDetail: notes,
+          },
+        }}
+        indicator={NEVER_SUBMITTED}
+      />,
+    );
+
+    expect(rows().slice(0, 3)).toEqual([
+      ['How does the indicator vary?', 'Little.\nMostly by region.'],
+      ['What quality assurance has been done on the indicator?', 'Checked.'],
+      ['Why was the confidence interval method chosen?', 'Standard.'],
+    ]);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['missing', null],
   ])('shows a yes with its detail %s as Yes', (_, detail) => {
     render(
       <NotesForReviewers
@@ -101,6 +128,28 @@ describe('NotesForReviewers', () => {
     );
 
     expect(rows()).toContainEqual(['Have there been any exclusions?', 'Yes']);
+  });
+
+  it('shows a no to automation tools with the reasons why not', () => {
+    render(
+      <NotesForReviewers
+        notes={{
+          ...ANSWERED_NOTES,
+          justifications: {
+            ...ANSWERED_NOTES.justifications,
+            hasAutomation: 'no',
+            automationDetail: null,
+            noAutomationReason: 'No tool reads this source.',
+          },
+        }}
+        indicator={IN_REVIEW}
+      />,
+    );
+
+    expect(rows()).toContainEqual([
+      'Have internal automation tools been used to create this indicator?',
+      'No - No tool reads this source.',
+    ]);
   });
 
   it('says there are no other comments when the publisher answered no', () => {

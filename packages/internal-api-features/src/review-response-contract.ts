@@ -16,7 +16,8 @@ export const flaggableTaskKeySchema = z.enum(FLAGGABLE_TASK_KEYS);
 export const INDICATOR_TASK_TITLES: Readonly<Record<IndicatorTaskKey, string>> = {
   'data-table': 'Data table',
   'value-type-and-units': 'Value type and units',
-  'sex-and-ages': 'Sex and ages',
+  'sex-gender-and-ethnicity': 'Sex, gender and ethnicity',
+  ages: 'Ages',
   'period-type': 'Period type',
   polarity: 'Polarity',
   'data-quality': 'Data quality',
@@ -28,7 +29,6 @@ export const INDICATOR_TASK_TITLES: Readonly<Record<IndicatorTaskKey, string>> =
   'confidence-intervals': 'Confidence intervals',
   benchmarking: 'Benchmarking',
   'other-notes-and-caveats': 'Other notes and caveats',
-  links: 'Links',
   tagging: 'Tagging',
   'copyright-and-data-reuse': 'Copyright and data re-use',
   'update-frequency': 'Update frequency',

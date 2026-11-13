@@ -1,6 +1,6 @@
 import { TableScrollRegion } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
-import { memo, useRef } from 'react';
+import { memo, useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { formatCalculatedValue } from '../../indicator/data.ts';
 import { NoteFootnotes, noteMarker } from '../../indicator/tables/note-markers.tsx';
@@ -39,7 +39,14 @@ export const AreaSummariesTable = memo(function AreaSummariesTable({
   geographyGroup: string | undefined;
 }) {
   const { areas: pickedAreas, rows, columnSort } = sortTopicAreaTable(model, params);
-  const activeSortLink = useRef<HTMLAnchorElement>(null);
+  const sortLinks = useRef(new Map<string, HTMLAnchorElement>());
+  const focusAfterClear = useRef<string | null>(null);
+  const sortedKey = columnSort?.key;
+  useLayoutEffect(() => {
+    if (sortedKey || !focusAfterClear.current) return;
+    sortLinks.current.get(focusAfterClear.current)?.focus({ preventScroll: true });
+    focusAfterClear.current = null;
+  }, [sortedKey]);
   const canSortAreas = pickedAreas.length > 1;
   const sortedRow = rows.find(({ key }) => key === columnSort?.key);
   const geographyLabel = GEOGRAPHY_LABELS[geographyGroup ?? ''] ?? 'area';
@@ -160,7 +167,10 @@ export const AreaSummariesTable = memo(function AreaSummariesTable({
                   {canSortAreas ? (
                     <td className="govuk-table__cell fphd-rug-table__sort">
                       <Link
-                        ref={activeSort ? activeSortLink : undefined}
+                        ref={(link) => {
+                          if (link) sortLinks.current.set(row.key, link);
+                          else sortLinks.current.delete(row.key);
+                        }}
                         className="govuk-link govuk-body-s"
                         to={sortUrl(`${reverseOnClick ? 'reverse' : 'first'}:${row.key}`)}
                         preventScrollReset
@@ -183,7 +193,7 @@ export const AreaSummariesTable = memo(function AreaSummariesTable({
                                 !event.shiftKey &&
                                 !event.altKey
                               ) {
-                                activeSortLink.current?.focus({ preventScroll: true });
+                                focusAfterClear.current = row.key;
                               }
                             }}
                           >

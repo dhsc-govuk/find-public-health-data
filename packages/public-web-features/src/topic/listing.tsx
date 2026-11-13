@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Form, useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import { geographyGroupLabel } from '../geography/groups.ts';
+import { expandTopicTable } from './compact-table.ts';
 import {
   AREA_SUMMARY_SORTS,
   DEFAULT_TOPIC_AREA_GROUP,
@@ -36,7 +37,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
     [...params].filter(([key]) => key === 'columns-topic'),
   ).toString();
   const columns = useMemo(() => topicColumns(new URLSearchParams(columnKey)), [columnKey]);
-  const sourceTable = data.table;
+  const sourceTable = useMemo(() => expandTopicTable(data.table), [data.table]);
   const areaKey = new URLSearchParams([...params].filter(([key]) => key === 'ga')).toString();
   const sameGroup = search.geoLevels.includes(params.get('geo') ?? DEFAULT_TOPIC_AREA_GROUP);
   const table = useMemo(() => {

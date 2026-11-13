@@ -15,12 +15,9 @@ const {
   subtopic,
   indicatorVersionSubtopic,
   indicatorVersionAgeRange,
-  indicatorVersionLink,
   indicatorVersionSource,
   topic,
 } = schema;
-
-export type IndicatorDraftLink = Pick<typeof indicatorVersionLink.$inferSelect, 'url' | 'text'>;
 
 export type IndicatorDraftAgeRange = Omit<
   typeof indicatorVersionAgeRange.$inferSelect,
@@ -53,8 +50,6 @@ export interface IndicatorDraftLists extends Partial<IndicatorDraftSources> {
   /** Each dimension given is replaced; the others are left as they are. */
   classificationIds?: Partial<Record<ClassificationDimension, string[]>>;
   /** In the order they are shown. */
-  links?: IndicatorDraftLink[];
-  /** In the order they are shown. */
   ageRanges?: IndicatorDraftAgeRange[];
 }
 
@@ -77,17 +72,6 @@ export async function sourcesOf(
       .map(({ providerId, sourceId }) => ({ providerId, sourceId }));
 
   return { numeratorSources: ofPart('numerator'), denominatorSources: ofPart('denominator') };
-}
-
-export async function linksOf(
-  db: Database | Transaction,
-  versionId: string,
-): Promise<IndicatorDraftLink[]> {
-  return db
-    .select({ url: indicatorVersionLink.url, text: indicatorVersionLink.text })
-    .from(indicatorVersionLink)
-    .where(eq(indicatorVersionLink.indicatorVersionId, versionId))
-    .orderBy(asc(indicatorVersionLink.position));
 }
 
 export interface IndicatorDraftTaxonomy {
@@ -185,7 +169,6 @@ export const LIST_AUDIT_FIELDS = [
   'primaryTopicId',
   'subtopicPlacements',
   ...CLASSIFICATION_DIMENSIONS.map(classificationAuditField),
-  'links',
   'ageRanges',
   'numeratorSources',
   'denominatorSources',
@@ -214,8 +197,6 @@ export interface ReplacedLists {
   after: ListsByAuditField;
 }
 
-const auditedLink = ({ url, text }: IndicatorDraftLink) => ({ url, text });
-
 const auditedAgeRange = (range: IndicatorDraftAgeRange) => ({
   lowerLimit: range.lowerLimit ?? null,
   lowerLimitUnit: range.lowerLimitUnit ?? null,
@@ -243,7 +224,6 @@ export async function replaceLists(
   {
     ageRanges,
     classificationIds,
-    links,
     topicIds,
     primaryTopicId,
     subtopicIds,
@@ -341,25 +321,6 @@ export async function replaceLists(
     }
     before[classificationAuditField(dimension)] = removed.map(({ id }) => id);
     after[classificationAuditField(dimension)] = ids;
-  }
-
-  if (links !== undefined) {
-    const removed = await tx
-      .delete(indicatorVersionLink)
-      .where(eq(indicatorVersionLink.indicatorVersionId, versionId))
-      .returning();
-    if (links.length > 0) {
-      await tx.insert(indicatorVersionLink).values(
-        links.map(({ url, text }, position) => ({
-          indicatorVersionId: versionId,
-          position,
-          url,
-          text,
-        })),
-      );
-    }
-    before.links = inPosition(removed).map(auditedLink);
-    after.links = links.map(auditedLink);
   }
 
   if (ageRanges !== undefined) {

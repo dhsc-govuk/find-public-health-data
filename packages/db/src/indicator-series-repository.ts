@@ -151,14 +151,19 @@ export async function getIndicatorSeriesData(
       if (mode === 'recent') for (const id of row.recentObservationIds) wanted.add(id);
     }
   const england = areas.find((a) => a.code === ENGLAND_AREA_CODE);
-  const benchmarkIds =
-    england && mode !== 'ranking'
-      ? [
-          ...new Set(
-            rows.filter((row) => row.areaId !== england.id).map((row) => row.latestObservationId),
-          ),
-        ]
-      : [];
+  const benchmarkIds = england
+    ? [
+        ...new Set(
+          mode === 'ranking'
+            ? [...rankingRows.values()].flatMap((selected) =>
+                selected.flatMap((row) =>
+                  row.rankingObservationId ? [row.rankingObservationId] : [],
+                ),
+              )
+            : rows.filter((row) => row.areaId !== england.id).map((row) => row.latestObservationId),
+        ),
+      ]
+    : [];
   const extra = await readPoints(db, [...wanted], benchmarkIds, england?.id);
   const byId = new Map(extra.map((row) => [row.id, row.point]));
   // A publication can change after the marker read and hide the selected points.
@@ -180,7 +185,20 @@ export async function getIndicatorSeriesData(
       result.set(indicatorId, {
         areaData: ordered.map((a) => {
           const pointId = chosen.find((row) => row.areaId === a.id)?.rankingObservationId;
-          const point = pointId ? byId.get(pointId) : undefined;
+          const point =
+            a.code === ENGLAND_AREA_CODE && ordered.some((area) => area.code !== ENGLAND_AREA_CODE)
+              ? extra.find(
+                  (row) =>
+                    row.indicatorId === indicatorId &&
+                    row.areaId === a.id &&
+                    row.point.fromDate === latest?.fromDate &&
+                    row.point.toDate === latest?.toDate &&
+                    latest &&
+                    observationSegmentKey(row.point) === observationSegmentKey(latest),
+                )?.point
+              : pointId
+                ? byId.get(pointId)
+                : undefined;
           return {
             areaCode: a.code,
             areaName: a.name,
