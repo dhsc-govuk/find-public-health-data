@@ -54,6 +54,8 @@ export function ReviewTaskList({ group, taskList, requests }: ReviewTaskListProp
     const item = taskItem(row, taskList);
     return {
       ...item,
+      // A flagged task always links to its page, even one an update has no change to publish for.
+      href: flag === undefined ? item.href : row.path(id, taskList.tasks[row.key]),
       hint: flag === undefined ? undefined : <ReviewerCommentHint {...flag} />,
       status:
         flag === undefined || flag.cleared ? (

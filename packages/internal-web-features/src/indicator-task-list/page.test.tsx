@@ -563,6 +563,31 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
     expect(screen.getByRole('button', { name: 'Submit for review' })).toBeTruthy();
   });
 
+  it('links a flagged update summary while the update changes no other task', () => {
+    renderSentBack(
+      {
+        isUpdate: true,
+        indicator: { ...taskList.indicator, indicatorStatus: 'live' },
+        changedTasks: [],
+      },
+      {
+        ...requests,
+        flags: {
+          'update-summary': {
+            reviewerName: 'Sam Reviewer',
+            notes: renderMarkdown('Say why it changed'),
+            cleared: false,
+          },
+        },
+      },
+    );
+
+    expect(
+      row('Publishing', 'Update summary').getByRole('link', { name: 'Update summary' }),
+    ).toBeTruthy();
+    expect(group('Publishing').queryByRole('link', { name: 'Publishing date' })).toBeNull();
+  });
+
   it('keeps the two-thirds page and the task lists without a round', () => {
     renderPage();
 
