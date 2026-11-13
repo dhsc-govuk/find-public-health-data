@@ -10,12 +10,28 @@ function trendTable(page: import('@playwright/test').Page) {
 async function selectEarlierInequalityPeriod(options: Locator) {
   const select = options.getByLabel('Time period', { exact: true });
   const previous = await select.inputValue();
-  const label = await select.locator('option').nth(1).innerText();
   const [value] = await select.selectOption({ index: 1 });
   if (value === undefined) throw new Error('Expected an earlier published inequality period');
   expect(value).not.toBe(previous);
+  const label = await select.locator('option:checked').innerText();
   return { value, label };
 }
+
+test('uses the selected period label when options change during selection', async ({ page }) => {
+  await page.setContent(`
+    <label for="period">Time period</label><select id="period">
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+    <script>
+      document.querySelector('select').addEventListener('input', (event) => {
+        event.target.selectedOptions[0].textContent = '2024 revised';
+      });
+    </script>
+  `);
+  const period = await selectEarlierInequalityPeriod(page.locator('body'));
+  expect(period).toEqual({ value: '2024', label: '2024 revised' });
+});
 
 test('table options update the series and keep their choices on reload', async ({
   page,

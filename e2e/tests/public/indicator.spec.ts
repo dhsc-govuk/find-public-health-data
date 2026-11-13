@@ -81,15 +81,7 @@ test('shows one indicator with its summary and five sections', async ({ page }, 
     page
       .locator('.govuk-summary-list__row')
       .filter({ has: page.getByRole('term').filter({ hasText: name }) });
-  const periods = await page
-    .getByRole('table', { name: /^Table:/ })
-    .getByRole('rowheader')
-    .allTextContents();
-  const years = periods.flatMap((period) => (period.match(/\b\d{4}\b/g) ?? []).map(Number));
-  expect(years.length).toBeGreaterThan(0);
-  await expect(summaryRow('Period covered')).toContainText(
-    `${Math.min(...years)} to ${Math.max(...years)}`,
-  );
+  await expect(summaryRow('Period covered')).toContainText('2015 to 2024');
   await expect(summaryRow('Update frequency')).toContainText('Annually');
   await expect(summaryRow('Definition')).toContainText('Directly age-standardised mortality rate');
   await expect(page.getByRole('tab')).toHaveText([
@@ -287,6 +279,8 @@ test('compares areas across a selected geography type and sorts the table', asyn
     .selectOption('Statistical regions');
   await expect(page).toHaveURL(/areaType=Statistical\+regions/);
   await expect(table.getByRole('rowheader', { name: 'London' })).toBeVisible();
+  await expect(table.locator('tbody').getByRole('rowheader')).toHaveCount(10);
+  await expect(table.getByRole('rowheader', { name: 'Leeds', exact: true })).toHaveCount(0);
   await page
     .getByRole('tabpanel', { name: 'Compare areas' })
     .getByText('Download or share data', { exact: true })
@@ -299,6 +293,37 @@ test('compares areas across a selected geography type and sorts the table', asyn
   expect(exported.text).toContain('England (benchmark)');
   expect(exported.text).toContain('London');
   expect(exported.text).toContain('Compared with England');
+});
+
+test('sorts hydrated area comparisons without Array.prototype.toSorted', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Array.prototype, 'toSorted', { value: undefined, configurable: true });
+  });
+  await openIndicatorPage(
+    page,
+    `${MORTALITY_PATH}?tab-indicator=areas&areaType=Statistical+regions`,
+  );
+  const table = page.getByRole('table', { name: /Table of area comparisons/ });
+  await expect(table.getByRole('rowheader', { name: 'London', exact: true })).toBeVisible();
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('.data?')) requests.push(request.url());
+  });
+  await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('alphabetical');
+  const headers = table.locator('tbody').getByRole('rowheader');
+  await expect(headers).toHaveCount(10);
+  const names = await headers.allTextContents();
+  expect(names[0]).toBe('England (benchmark)');
+  expect(names.slice(1)).toEqual(
+    [...names.slice(1)].sort((left, right) => left.localeCompare(right)),
+  );
+  await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('ascending');
+  await expect(page).toHaveURL(/areaSort=ascending/);
+  const values = (await table.locator('tbody tr td:first-of-type').allTextContents())
+    .slice(1)
+    .map((value) => Number(value.replaceAll(',', '')));
+  expect(values).toEqual([...values].sort((left, right) => left - right));
+  expect(requests).toEqual([]);
 });
 
 test('finds and highlights an area within the selected comparison geography', async ({

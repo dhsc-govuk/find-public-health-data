@@ -5,6 +5,12 @@
   "license": "MIT",
   "type": "module",
   "exports": {
+    "./ages": {
+      "browser": "./src/ages.ts",
+      "development": "./src/ages.ts",
+      "types": "./src/ages.ts",
+      "default": "./dist/ages.js"
+    },
     "./calculated-by": {
       "browser": "./src/calculated-by.ts",
       "development": "./src/calculated-by.ts",
@@ -101,11 +107,11 @@
       "types": "./src/review-response-kind.ts",
       "default": "./dist/review-response-kind.js"
     },
-    "./sex-and-ages": {
-      "browser": "./src/sex-and-ages.ts",
-      "development": "./src/sex-and-ages.ts",
-      "types": "./src/sex-and-ages.ts",
-      "default": "./dist/sex-and-ages.js"
+    "./sex-gender-and-ethnicity": {
+      "browser": "./src/sex-gender-and-ethnicity.ts",
+      "development": "./src/sex-gender-and-ethnicity.ts",
+      "types": "./src/sex-gender-and-ethnicity.ts",
+      "default": "./dist/sex-gender-and-ethnicity.js"
     },
     "./short-id": {
       "browser": "./src/short-id.ts",

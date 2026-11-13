@@ -17,6 +17,7 @@ const empty = {
   exclusionsDetail: '',
   hasAutomation: '',
   automationDetail: '',
+  noAutomationReason: '',
 };
 
 const TEXT_QUESTIONS = [
@@ -27,6 +28,7 @@ const TEXT_QUESTIONS = [
 
 const EXCLUSIONS = 'Have there been any exclusions?';
 const AUTOMATION = 'Have internal automation tools been used to create this indicator?';
+const NO_AUTOMATION_REASON = 'Enter reasons why not';
 
 // The error summary's links read router state, so the page renders inside a router.
 function renderPage(props: Partial<Parameters<typeof JustificationsPage>[0]> = {}) {
@@ -95,6 +97,21 @@ describe('JustificationsPage', () => {
     );
   });
 
+  it('asks under the No of the automation question for the reasons why not', () => {
+    renderPage();
+
+    const reasons = question(AUTOMATION).getByLabelText(
+      NO_AUTOMATION_REASON,
+    ) as HTMLTextAreaElement;
+
+    expect(reasons.name).toBe('noAutomationReason');
+    expect(reasons.getAttribute('rows')).toBe('5');
+    expect(reasons.closest('.govuk-radios__conditional')?.id).toBe(
+      question(AUTOMATION).getByLabelText('No').getAttribute('aria-controls'),
+    );
+    expect(question(EXCLUSIONS).getByLabelText('No').hasAttribute('aria-controls')).toBe(false);
+  });
+
   it('shows the answers it is given, so a draft can be revisited', () => {
     renderPage({
       values: {
@@ -105,6 +122,7 @@ describe('JustificationsPage', () => {
         exclusionsDetail: 'Small areas.',
         hasAutomation: 'no',
         automationDetail: '',
+        noAutomationReason: 'No tool reads this source.',
       },
     });
 
@@ -115,6 +133,9 @@ describe('JustificationsPage', () => {
         .value,
     ).toBe('Small areas.');
     expect((question(AUTOMATION).getByLabelText('No') as HTMLInputElement).checked).toBe(true);
+    expect(
+      (question(AUTOMATION).getByLabelText(NO_AUTOMATION_REASON) as HTMLTextAreaElement).value,
+    ).toBe('No tool reads this source.');
     expect(screen.queryByRole('alert')).toBeNull();
     expect(document.title).toBe(`Justifications - ${serviceName} - GOV.UK`);
   });
@@ -141,5 +162,16 @@ describe('JustificationsPage', () => {
       `#${question(EXCLUSIONS).getByLabelText('Enter why exclusions were made').id}`,
       `#${question(AUTOMATION).getByLabelText('Yes').id}`,
     ]);
+  });
+
+  it('links a refusal of the reasons why not to their field', () => {
+    renderPage({
+      fieldErrors: { noAutomationReason: 'Enter reasons why not' },
+      values: { ...empty, hasAutomation: 'no' },
+    });
+
+    expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe(
+      `#${question(AUTOMATION).getByLabelText(NO_AUTOMATION_REASON).id}`,
+    );
   });
 });

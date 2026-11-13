@@ -11,9 +11,7 @@ import { REVIEW_RESPONSE_PATH } from './indicator-submissions.ts';
 export const INTERNAL_API_BODY_LIMITS: readonly BodyLimit[] = [
   // Up to 19 flags of 10,000 characters each beside a clarification request, in UTF-8.
   { path: REVIEW_RESPONSE_PATH, limit: '1mb' },
-  // Five textareas of 10,000 characters, up to about 200 kB of JSON when every character is
+  // Six textareas of 10,000 characters, up to about 240 kB of JSON when every character is
   // an emoji, which takes 4 bytes.
   { path: indicatorSectionPath('justifications'), limit: '256kb' },
-  // Twenty links of up to 2,300 characters each, address and text together, about 184 kB.
-  { path: indicatorSectionPath('links'), limit: '256kb' },
 ];

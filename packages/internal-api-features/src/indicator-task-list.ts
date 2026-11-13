@@ -1,4 +1,5 @@
 import {
+  agesSection,
   benchmarkingSection,
   type CiMethodKind,
   calculationSection,
@@ -13,7 +14,6 @@ import {
   type IndicatorTaskStatus,
   type IndicatorTaskStatuses,
   justificationsSection,
-  linksSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
@@ -21,7 +21,7 @@ import {
   polaritySection,
   publishingDateSection,
   revisionKindSchema,
-  sexAndAgesSection,
+  sexGenderAndEthnicitySection,
   taggingSection,
   updateFrequencySection,
   valueTypeAndUnitsSection,
@@ -42,15 +42,15 @@ import {
   periodTypeColumns,
   polarityColumns,
   publishingDateColumns,
+  sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
 import {
+  agesColumns,
   denominatorColumns,
-  linksColumns,
   numeratorColumns,
-  sexAndAgesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import type { RevisionRoundRow } from './revision-response-repository.ts';
@@ -139,7 +139,6 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
     'value-type-and-units': complete(valueTypeAndUnitsSection, valueTypeAndUnitsColumns),
     'other-notes-and-caveats': complete(otherNotesAndCaveatsSection, otherNotesAndCaveatsColumns),
     'publishing-date': complete(publishingDateSection, publishingDateColumns),
-    links: complete(linksSection, linksColumns),
     'variance-and-quality': complete(varianceAndQualitySection, varianceAndQualityColumns),
     justifications: complete(justificationsSection, justificationsColumns),
     'other-comments': complete(otherCommentsSection, otherCommentsColumns),
@@ -148,7 +147,11 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
       copyrightAndDataReuseColumns,
     ),
     benchmarking: complete(benchmarkingSection, benchmarkingColumns),
-    'sex-and-ages': complete(sexAndAgesSection, sexAndAgesColumns),
+    'sex-gender-and-ethnicity': complete(
+      sexGenderAndEthnicitySection,
+      sexGenderAndEthnicityColumns,
+    ),
+    ages: complete(agesSection, agesColumns),
     tagging: complete(taggingSection, taggingColumns),
   };
 }

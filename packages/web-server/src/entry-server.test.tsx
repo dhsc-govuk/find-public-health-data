@@ -24,7 +24,7 @@ vi.mock('react-dom/server', () => ({
 import handleRequest, { handleError, streamTimeout } from './entry-server.tsx';
 
 const entryContext = { isSpaMode: false } as EntryContext;
-const logger = { error: vi.fn() };
+const logger = { error: vi.fn(), warn: vi.fn() };
 
 function loadContextWithNonce() {
   const context = new RouterContextProvider();
@@ -56,6 +56,7 @@ describe('React Router server rendering', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     logger.error.mockReset();
+    logger.warn.mockReset();
     renderer.abort.mockReset();
     renderer.options = undefined;
     renderer.pipe.mockReset();
@@ -117,8 +118,9 @@ describe('React Router server rendering', () => {
   });
 
   it('flushes an overdue document without turning its ready shell into a 500', async () => {
-    renderer.abort.mockImplementation(() => {
-      renderer.options?.onError?.(new Error('The render was aborted'), {});
+    renderer.abort.mockImplementation((reason: unknown) => {
+      renderer.options?.onError?.(reason, {});
+      renderer.options?.onError?.(reason, {});
       renderer.options?.onAllReady?.();
     });
     const response = handleRequest(
@@ -136,7 +138,33 @@ describe('React Router server rendering', () => {
     expect(renderer.abort).toHaveBeenCalledOnce();
     expect(renderer.pipe).toHaveBeenCalledOnce();
     expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+      { url: 'https://example.com/', unfinishedSections: 2 },
+      'Document render deadline exceeded',
+    );
   });
+
+  it.each([false, true])(
+    'reports genuine errors after the deadline (response sent: %s)',
+    async (sent) => {
+      const response = handleRequest(
+        new Request('https://example.com/'),
+        200,
+        new Headers(),
+        entryContext,
+        loadContextWithNonce(),
+      );
+      renderer.options?.onShellReady?.();
+      vi.advanceTimersByTime(streamTimeout + 1_000);
+      if (sent) renderer.options?.onAllReady?.();
+      const error = new Error('genuine rendering failure');
+      renderer.options?.onError?.(error, {});
+      if (!sent) renderer.options?.onAllReady?.();
+      expect((await response).status).toBe(sent ? 200 : 500);
+      expect(logger.error).toHaveBeenCalledExactlyOnceWith({ err: error }, 'Streaming failed');
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('clears the abort deadline when the shell fails', async () => {
     const error = new Error('render failed');
@@ -199,6 +227,7 @@ describe('React Router server rendering', () => {
 describe('handleError', () => {
   beforeEach(() => {
     logger.error.mockReset();
+    logger.warn.mockReset();
   });
 
   function report(error: unknown, request = new Request('https://example.com/topics?page=2')) {

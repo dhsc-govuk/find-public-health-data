@@ -505,6 +505,55 @@
       "when": 1794417080486,
       "tag": "0071_key-bridges-by-natural-keys",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794490877100,
+      "tag": "0072_drop-source-data-issues-question",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794491132524,
+      "tag": "0073_ask-why-no-automation-tools",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794491240061,
+      "tag": "0074_update-frequency-reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794492098180,
+      "tag": "0075_remove-links-task",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794492270961,
+      "tag": "0076_ask-sex-gender-and-ethnicity",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794492496919,
+      "tag": "0077_allow-flags-on-ages-task",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794492668327,
+      "tag": "0078_rename-sex-gender-and-ethnicity-task",
+      "breakpoints": true
     }
   ]
 }

@@ -11,7 +11,7 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
-import { indicatorDetail } from './view.testing.ts';
+import { indicatorDetail, observation, sex } from './view.testing.ts';
 
 const localAuthorities = [
   {
@@ -124,12 +124,262 @@ describe('loadIndicator', () => {
     expect(comparison.compareAreaOptions).toHaveLength(25);
   });
 
+  it('settles comparisons while the primary history is still pending', async () => {
+    const client = api();
+    const history = Promise.withResolvers<void>();
+    let dataReady = false;
+    const delayed: FakeApiClient = {
+      ...client,
+      get: async (path, schema) => {
+        if (path.includes('/data?')) await history.promise;
+        return client.get(path, schema);
+      },
+    };
+    const page = await loadIndicatorPage(
+      args(
+        delayed,
+        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
+      ),
+    );
+    const data = Promise.resolve(page.data).then((data) => {
+      dataReady = true;
+      return data;
+    });
+    try {
+      const comparison = await page.comparison;
+      expect(comparison.compareAreaOptions).toHaveLength(25);
+      expect(comparison.pair).toBeDefined();
+      expect((await page.findResults)[0]?.shortId).toBe(241);
+      expect(dataReady).toBe(false);
+    } finally {
+      history.resolve();
+      await data;
+    }
+    expect(paths(client).some((path) => path.includes('/241/data?'))).toBe(false);
+  });
+
+  it('keeps comparisons available when the primary history fails', async () => {
+    const client = api({
+      'GET /api/indicators/108/data': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+    );
+    const failedData = expect(page.data).rejects.toMatchObject({ status: 502 });
+    await expect(Promise.resolve(page.comparison)).resolves.toMatchObject({
+      compareAreaGroup: 'Local authorities',
+      pair: expect.any(Object),
+    });
+    await failedData;
+  });
+
+  it('keeps comparisons available when the indicator search fails', async () => {
+    const client = api({
+      'GET /api/indicators': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+    const page = await loadIndicatorPage(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
+      ),
+    );
+    await Promise.all([
+      expect(page.findResults).rejects.toMatchObject({ status: 502 }),
+      expect(Promise.resolve(page.comparison)).resolves.toMatchObject({
+        compareAreaGroup: 'Local authorities',
+        pair: expect.any(Object),
+      }),
+      page.data,
+    ]);
+  });
+
+  it('settles comparisons while the indicator search is still pending', async () => {
+    const client = api();
+    const search = Promise.withResolvers<void>();
+    let searchReady = false;
+    const delayed: FakeApiClient = {
+      ...client,
+      get: async (path, schema) => {
+        if (path.startsWith('/api/indicators?q=')) await search.promise;
+        return client.get(path, schema);
+      },
+    };
+    const page = await loadIndicatorPage(
+      args(
+        delayed,
+        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
+      ),
+    );
+    const results = Promise.resolve(page.findResults).then(() => {
+      searchReady = true;
+    });
+    try {
+      const comparison = await Promise.race([
+        page.comparison,
+        new Promise((resolve) => setTimeout(() => resolve('search still pending'), 1000)),
+      ]);
+      expect(comparison).toMatchObject({ pair: expect.any(Object) });
+      expect(searchReady).toBe(false);
+    } finally {
+      search.resolve();
+      await Promise.all([results, page.data]);
+    }
+  });
+
+  it('keeps England in comparisons when there is no supported comparison group', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [{ displayGroup: 'Countries', areas: [] }],
+      'GET /api/indicators/indicator-241/areas': [{ displayGroup: 'Countries', areas: [] }],
+      'GET /api/indicator-data': [
+        {
+          detail: indicatorDetail(108),
+          areaData: [
+            { areaCode: 'E92000001', areaName: 'England', observations: [observation(10)] },
+          ],
+        },
+        {
+          detail: indicatorDetail(241),
+          areaData: [
+            { areaCode: 'E92000001', areaName: 'England', observations: [observation(20)] },
+          ],
+        },
+      ],
+    });
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+    );
+    const comparison = await page.comparison;
+    expect(comparison.areas.rows).toMatchObject([{ areaCode: 'E92000001', value: 10 }]);
+    expect(comparison.pair?.england).toMatchObject({ code: 'E92000001', values: [10, 20] });
+    expect(comparison.areas.period).toBe('2024');
+    expect(paths(client)).toContain(
+      '/api/indicator-data?indicator=108&indicator=241&areaCode=E92000001&observationHistory=latestPerSeries',
+    );
+    expect(paths(client).some((path) => path.includes('/ranking?'))).toBe(false);
+    await page.data;
+  });
+
+  it('preserves the latest England period when its value is missing and no comparison group exists', async () => {
+    const latest = {
+      ...observation(20),
+      fromDate: '2025-01-01',
+      toDate: '2025-12-31',
+      value: null,
+    };
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [{ displayGroup: 'Countries', areas: [] }],
+      'GET /api/indicators/108/ranking': [
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation(10)] },
+      ],
+      'GET /api/indicator-data': [
+        {
+          detail: indicatorDetail(108),
+          areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: [latest] }],
+        },
+      ],
+    });
+    const page = await loadIndicatorPage(args(client));
+    const comparison = await page.comparison;
+    expect(comparison.areas.rows).toMatchObject([{ areaCode: 'E92000001', value: null }]);
+    expect(comparison.areas.period).toBe('2025');
+    await page.data;
+  });
+
+  it.each([
+    { ...observation(10, [sex('Female')]), fromDate: '2025-01-01', toDate: '2025-12-31' },
+    observation(10, [sex('Male')]),
+  ])(
+    'keeps a missing England benchmark without substituting an unmatched point: %j',
+    async (benchmark) => {
+      const client = api({
+        'GET /api/indicators/108/ranking': [
+          {
+            areaCode: 'E06000052',
+            areaName: 'Cornwall',
+            observations: [observation(30, [sex('Female')])],
+          },
+          { areaCode: 'E92000001', areaName: 'England', observations: [] },
+        ],
+        'GET /api/indicators/108/data': {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [benchmark],
+        },
+      });
+      const page = await loadIndicatorPage(args(client));
+      const comparison = await page.comparison;
+      expect(comparison.areas.rows).toMatchObject([
+        { areaCode: 'E92000001', value: null, label: '' },
+        { areaCode: 'E06000052', value: 30, label: '' },
+      ]);
+      expect(comparison.areas.period).toBe('2024');
+      await page.data;
+    },
+  );
+
   it('settles every section for a document request without a rendering parameter', async () => {
     const client = api();
-    const page = await loadIndicatorPage(args(client));
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?find=diabetes'),
+    );
     expect(page.data).not.toBeInstanceOf(Promise);
     expect(page.comparison).not.toBeInstanceOf(Promise);
+    expect(page.findResults).toMatchObject([{ shortId: 241 }]);
   });
+
+  it('keeps the comparison history and raw rankings out of page hydration', async () => {
+    const client = api();
+    const page = await loadIndicatorPage(
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+    );
+    const [data, comparison] = await Promise.all([page.data, page.comparison]);
+    expect(data.selected.map(({ detail }) => detail.shortId)).toEqual([108]);
+    expect(data.selection.shortIds).toEqual([108]);
+    expect(comparison.pair).toBeDefined();
+    expect(comparison).not.toHaveProperty('compareAreasData');
+    expect(comparison).not.toHaveProperty('comparedAreasData');
+  });
+
+  it.each(['/api/indicators?q=', '/api/indicator-data?'])(
+    'waits for final document data from %s without blocking navigation data',
+    async (pathPrefix) => {
+      const client = api({
+        'GET /api/indicators/indicator-108/areas': [{ displayGroup: 'Countries', areas: [] }],
+        'GET /api/indicator-data': [{ detail: indicatorDetail(108), areaData: [] }],
+      });
+      const gate = Promise.withResolvers<void>();
+      const started = Promise.withResolvers<void>();
+      const delayed: FakeApiClient = {
+        ...client,
+        get: async (path, schema) => {
+          if (path.startsWith(pathPrefix)) {
+            started.resolve();
+            await gate.promise;
+          }
+          return client.get(path, schema);
+        },
+      };
+      const ready = vi.fn();
+      const pending = loadIndicatorPage(
+        args(delayed, 'http://localhost/indicator/indicator-108?find=diabetes'),
+      ).then(ready);
+      try {
+        await started.promise;
+        expect(ready).not.toHaveBeenCalled();
+        const navigation = await loadIndicatorPage(
+          args(delayed, 'http://localhost/indicator/indicator-108.data?find=diabetes'),
+        );
+        expect(navigation.findResults).toBeInstanceOf(Promise);
+        expect(navigation.comparison).toBeInstanceOf(Promise);
+        gate.resolve();
+        await Promise.all([navigation.data, navigation.comparison, navigation.findResults]);
+      } finally {
+        gate.resolve();
+        await pending;
+      }
+      expect(ready).toHaveBeenCalledOnce();
+    },
+  );
 
   it('waits for slow document sections beyond the rendering deadline', async () => {
     vi.useFakeTimers();
@@ -310,14 +560,17 @@ describe('loadIndicator', () => {
       const result = await loadIndicator(
         args(client, `http://localhost/indicator/indicator-108${query}`),
       );
-      expect(result.compareAreasData).toHaveLength(25);
+      expect(result.compareAreasData).toHaveLength(26);
       expect(result.compareAreaOptions).toHaveLength(25);
       expect(paths(client)).toContain(
         '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
       );
       const rankingPaths = paths(client).filter((path) => path.includes('/108/ranking?'));
       expect(rankingPaths).toHaveLength(1);
-      expect(areaCodes(rankingPaths[0] ?? '')).toHaveLength(25);
+      expect(areaCodes(rankingPaths[0] ?? '')).toEqual([
+        ...(localAuthorities[0]?.areas.map(({ code }) => code) ?? []),
+        'E92000001',
+      ]);
       const histories = paths(client).filter((path) => path.includes('/108/data?'));
       expect(histories).toHaveLength(1);
     }

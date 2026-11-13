@@ -8,6 +8,7 @@ import { historyEntries, historyToday, openHistory } from '../support/history.ts
 import { openIndicatorPage } from '../support/indicator-page.ts';
 import { asUser, respondToReview } from '../support/review-response.ts';
 import { ADMIN, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
+import { answerTo } from '../support/summary-list.ts';
 import { ukDateTime } from '../support/uk-date-time.ts';
 import { PUBLIC_WEB_URL } from '../support/web-urls.ts';
 
@@ -50,15 +51,23 @@ const DATA_TABLE = [
   'E12000007,2019-04-01,2020-03-31,79.2',
 ].join('\n');
 
+const UPDATE_FREQUENCY_REASON = 'Published whenever the survey runs.';
+
 /**
- * Creates a new indicator with `DATA_TABLE` as its data, submits it, and has the IMRG reviewer
- * approve it. The indicator is then waiting for an admin to confirm its publication date.
+ * Creates a new indicator with `DATA_TABLE` as its data and no fixed update frequency, submits
+ * it, and has the IMRG reviewer approve it. The indicator is then waiting for an admin to
+ * confirm its publication date.
  */
 async function approvedWithRegion(browser: Browser) {
   const name = uniqueIndicatorName('publish on time');
   const id = await asUser(browser, PUBLISHER, async (page) => {
     const draftId = await createDraft(page, name);
     await completeDraft(page, draftId);
+    await page.goto(`/publish/indicators/${draftId}/update-frequency`);
+    await page.getByLabel('No fixed frequency', { exact: true }).check();
+    await page.getByRole('textbox', { name: 'Enter reason' }).fill(UPDATE_FREQUENCY_REASON);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page).toHaveURL(`/publish/indicators/${draftId}/task-list`);
     await page.goto(`/publish/indicators/${draftId}/data-table`);
     await page.getByLabel('Upload indicator data table').setInputFiles({
       name: 'publish-on-time.csv',
@@ -111,6 +120,9 @@ test('publishes a scheduled indicator at its publication time', async ({
 
   await openIndicatorPage(page, publicUrl);
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+  const updateFrequency = answerTo(page, 'Update frequency');
+  await expect(updateFrequency).toContainText('No fixed frequency, for the following reason:');
+  await expect(updateFrequency.getByText(UPDATE_FREQUENCY_REASON)).toBeVisible();
   // The Compare areas tab offers only the area types listed for this indicator in the
   // `available_data` read-model table. Publishing adds the indicator's rows to that table, so
   // this checks that publishing refreshed the read models.

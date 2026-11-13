@@ -29,11 +29,11 @@ function limited(text: z.ZodString, noun: string, max: number, refused: RegExp) 
 
 /**
  * Text from a single-line input, trimmed, refused with `noun` in its messages when it holds a
- * control character or is longer than `max`. Empty text passes: a field that requires an
- * answer adds its own `.min(1, …)`.
+ * control character or is longer than `SHORT_TEXT_MAX_LENGTH`. Empty text passes: a field that
+ * requires an answer adds its own `.min(1, …)`.
  */
-export function shortText(noun: string, max = SHORT_TEXT_MAX_LENGTH) {
-  return limited(z.string().trim(), noun, max, CONTROL_CHARACTER);
+export function shortText(noun: string) {
+  return limited(z.string().trim(), noun, SHORT_TEXT_MAX_LENGTH, CONTROL_CHARACTER);
 }
 
 /**

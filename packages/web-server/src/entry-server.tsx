@@ -38,7 +38,19 @@ export default function handleRequest(
   const logger = loadContext.get(loggerContext);
   return new Promise<Response>((resolve, reject) => {
     let abortTimeout: ReturnType<typeof setTimeout> | undefined;
-    let aborted = false;
+    const deadlineError = new Error('Document render deadline exceeded');
+    let deadlineExpired = false;
+    let deadlineLogged = false;
+    let unfinishedSections = 0;
+    let allReady = false;
+    const logDeadline = (sections?: number) => {
+      if (!deadlineExpired || deadlineLogged) return;
+      deadlineLogged = true;
+      logger.warn(
+        { url: request.url, ...(sections === undefined ? {} : { unfinishedSections: sections }) },
+        'Document render deadline exceeded',
+      );
+    };
     let shellRendered = false;
     const clearAbortTimeout = () => {
       if (abortTimeout !== undefined) {
@@ -58,6 +70,8 @@ export default function handleRequest(
           shellRendered = true;
         },
         onAllReady() {
+          logDeadline(unfinishedSections);
+          allReady = true;
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
           body.once('close', clearAbortTimeout);
@@ -68,14 +82,19 @@ export default function handleRequest(
           pipe(body);
         },
         onShellError(error: unknown) {
+          logDeadline();
           clearAbortTimeout();
           reject(error);
         },
         onError(error: unknown) {
-          // A deadline abort flushes the available shell and each unfinished section's retry UI.
-          if (!aborted) responseStatusCode = 500;
+          // React reports the supplied abort reason for each unfinished boundary.
+          if (deadlineExpired && error === deadlineError) {
+            unfinishedSections += 1;
+            return;
+          }
+          responseStatusCode = 500;
           // Shell failures reach React Router through onShellError instead.
-          if (shellRendered && !aborted && !request.signal.aborted) {
+          if (shellRendered && !request.signal.aborted) {
             logger.error({ err: error }, 'Streaming failed');
           }
         },
@@ -83,8 +102,10 @@ export default function handleRequest(
     );
 
     abortTimeout = setTimeout(() => {
-      aborted = true;
-      abort();
+      deadlineExpired = true;
+      // Streaming can outlast onAllReady, when React can no longer count pending boundaries.
+      if (allReady) logDeadline();
+      abort(deadlineError);
     }, streamTimeout + 1_000);
   });
 }

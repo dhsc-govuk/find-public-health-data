@@ -48,6 +48,36 @@ describe('requireDetails', () => {
     ]);
   });
 
+  describe('with details under each answer', () => {
+    const eachAnswer = requireDetails(
+      z.object({
+        answer: yesNoSchema('Select an answer'),
+        detail: z.string().trim(),
+        reason: z.string().trim(),
+      }),
+      [
+        { answer: 'answer', detail: 'detail', detailRequired: 'Enter the detail' },
+        { answer: 'answer', detail: 'reason', detailRequired: 'Enter the reason', onAnswer: 'no' },
+      ],
+    );
+
+    function eachAnswerIssues(body: object) {
+      return eachAnswer.safeParse(body).error?.issues.map(({ path, message }) => [path, message]);
+    }
+
+    it.each([
+      ['yes', 'detail', 'Enter the detail'],
+      ['no', 'reason', 'Enter the reason'],
+    ])('refuses a %s with blank %s alone', (answer, field, message) => {
+      expect(eachAnswerIssues({ answer, detail: ' ', reason: '' })).toEqual([[[field], message]]);
+    });
+
+    it('accepts each answer with its own details only', () => {
+      expect(eachAnswerIssues({ answer: 'yes', detail: 'A detail', reason: '' })).toBeUndefined();
+      expect(eachAnswerIssues({ answer: 'no', detail: '', reason: 'A reason' })).toBeUndefined();
+    });
+  });
+
   it('refuses the details beside an unanswered question', () => {
     const twoQuestions = requireDetails(
       z.object({

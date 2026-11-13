@@ -17,6 +17,7 @@ const fields = z.enum([
   'exclusionsDetail',
   'hasAutomation',
   'automationDetail',
+  'noAutomationReason',
 ]);
 
 export type JustificationsField = z.infer<typeof fields>;
@@ -31,6 +32,12 @@ export const justificationsQuestions = [
     answer: 'hasAutomation',
     detail: 'automationDetail',
     detailRequired: 'Enter details of the tools used',
+  },
+  {
+    answer: 'hasAutomation',
+    detail: 'noAutomationReason',
+    detailRequired: 'Enter reasons why not',
+    onAnswer: 'no',
   },
 ] as const satisfies readonly DetailedQuestion<JustificationsField>[];
 
@@ -52,6 +59,7 @@ const schema = requireDetails(
     exclusionsDetail: longText('Reason for the exclusions'),
     hasAutomation: yesNoSchema('Select whether internal automation tools have been used'),
     automationDetail: longText('Details of the tools used'),
+    noAutomationReason: longText('Reasons for not using automation tools'),
   }),
   justificationsQuestions,
 );

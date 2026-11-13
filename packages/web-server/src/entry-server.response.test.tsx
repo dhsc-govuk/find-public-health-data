@@ -40,20 +40,28 @@ function Document() {
 }
 
 function Sections() {
-  const { section } = useLoaderData<{ section: string | Promise<string> }>();
+  const { section, otherSection } = useLoaderData<{
+    section: string | Promise<string>;
+    otherSection?: Promise<string>;
+  }>();
   return (
     <>
       <p>Ready section</p>
       <DataSection label="Data" resolve={section}>
         {(value) => <p>{value}</p>}
       </DataSection>
+      {otherSection ? (
+        <DataSection label="Other data" resolve={otherSection}>
+          {(value) => <p>{value}</p>}
+        </DataSection>
+      ) : null}
     </>
   );
 }
 
 function app(loader: LoaderFunction, root = Document) {
   const entry = vi.fn(handleRequest);
-  const logger = { error: vi.fn() };
+  const logger = { error: vi.fn(), warn: vi.fn() };
   const context = new RouterContextProvider();
   context.set(nonceContext, 'test-nonce');
   context.set(loggerContext, logger as unknown as Logger);
@@ -230,7 +238,10 @@ describe('real React Router document and data responses', () => {
 
   it('returns the ready shell and retry links after the render deadline, including without JavaScript', async () => {
     vi.useFakeTimers();
-    const { request, entry, logger } = app(() => ({ section: new Promise<string>(() => {}) }));
+    const { request, entry, logger } = app(() => ({
+      section: new Promise<string>(() => {}),
+      otherSection: new Promise<string>(() => {}),
+    }));
     const ready = vi.fn<() => void>();
     const pending = request().then((response) => {
       ready();
@@ -250,6 +261,10 @@ describe('real React Router document and data responses', () => {
     expect(html).toContain('Loading <!-- -->Data');
     expect(html).not.toContain('could not be loaded');
     expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+      { url: 'https://example.com/sections?view=table', unfinishedSections: 2 },
+      'Document render deadline exceeded',
+    );
   });
 
   it('starts the render deadline after a slow document loader has settled', async () => {
