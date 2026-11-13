@@ -6,6 +6,8 @@ import {
 } from '@fphd/internal-api-features/contract';
 import { type MarkdownHtml, renderMarkdown } from '@fphd/ui/markdown';
 
+import { type ChangeRow, updateChangeRows } from './update-changes.ts';
+
 /** A row of the Section and Comments table under an entry: our wording, or Markdown a user wrote. */
 export interface HistoryRow {
   section: string;
@@ -20,6 +22,8 @@ export interface HistoryItem {
   /** Who did it, where anything records who. */
   by: string | null;
   rows: readonly HistoryRow[];
+  /** What an update changed, for its Section and Changes table; absent for any other entry. */
+  changes?: readonly ChangeRow[];
 }
 
 const RESPONSE_ACTIONS: Readonly<Record<ReviewResponseKind, string>> = {
@@ -86,6 +90,16 @@ function historyItem(entry: HistoryEntry): HistoryItem {
       return { date: entry.at, action: 'Publication date confirmed', by: entry.by, rows: [] };
     case 'publication_date_changed':
       return { date: entry.at, action: 'Publication date changed', by: entry.by, rows: [] };
+    case 'update_started':
+      return { date: entry.at, action: 'Indicator update started', by: entry.by, rows: [] };
+    case 'update_submitted':
+      return {
+        date: entry.at,
+        action: 'Update submitted for review',
+        by: entry.by,
+        rows: [],
+        changes: updateChangeRows(entry.changes),
+      };
   }
 }
 

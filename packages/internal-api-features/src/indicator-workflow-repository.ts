@@ -11,9 +11,10 @@ import {
 import { and, eq, notInArray } from 'drizzle-orm';
 
 import type { CiMethodKind } from './contract.ts';
-import { draftListsOf } from './indicator-draft-repository.ts';
+import { draftListsOf, getPublishedAnswers } from './indicator-draft-repository.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
 import { isDraftComplete } from './indicator-task-list.ts';
+import { recordUpdateChanges } from './indicator-update-changes-repository.ts';
 import { hasUnclearedFlag } from './review-flag-repository.ts';
 import {
   assignedReviewerIds,
@@ -52,11 +53,13 @@ async function resubmissionProblem(
 }
 
 /**
- * Submits a new indicator's complete draft for approval, or resubmits one sent back for changes
- * once every flagged task is saved and the reply is written. A resubmission goes straight to the
- * latest submission's reviewers who may still review it. `draftUpdatedAt` is the draft's
- * `updatedAt` as the publisher was shown it: an edit since then refuses the submission as
- * `changed`, so nobody confirms a draft they have not seen.
+ * Submits a complete draft for approval, or resubmits one sent back for changes once every
+ * flagged task is saved and the reply is written. A draft of a live indicator is an update, which
+ * must also change at least one task, and its submission keeps what it changed. A resubmission
+ * goes straight to the latest submission's reviewers who may still review it.
+ *
+ * `draftUpdatedAt` is the draft's `updatedAt` as the publisher was shown it: an edit since then
+ * refuses the submission as `changed`, so nobody confirms a draft they have not seen.
  *
  * A repeat of a submission that went through succeeds without writing. It is a repeat when the
  * draft's latest submission is still open, was made by the same user, and the draft has not been
@@ -76,14 +79,18 @@ export function submitIndicator(
     {
       precondition: async (tx, { draft, latest }) => {
         if (draft.updatedAt.getTime() !== draftUpdatedAt.getTime()) return 'changed';
-        const [lists, ciMethodKind] = await Promise.all([
+        const [lists, ciMethodKind, published] = await Promise.all([
           draftListsOf(tx, draft.id),
           ciMethodKindOf(tx, draft.ciMethodId),
+          getPublishedAnswers(tx, indicatorId),
         ]);
-        if (!isDraftComplete({ ...draft, ...lists, ciMethodKind })) return 'incomplete';
+        if (!isDraftComplete({ ...draft, ...lists, ciMethodKind }, published ?? null)) {
+          return 'incomplete';
+        }
         return latest?.status === 'changes_requested' ? resubmissionProblem(tx, latest) : undefined;
       },
       reviewersToCarry: stillEligibleReviewers,
+      write: recordUpdateChanges,
       alreadyTaken: ({ draft, latest }) =>
         latest !== undefined &&
         // A resubmission that carries its reviewers starts in review rather than submitted.

@@ -37,12 +37,40 @@ describe('historyItems', () => {
     ['withdrawn', 'Indicator submission withdrawn'],
     ['publication_scheduled', 'Publication date confirmed'],
     ['publication_date_changed', 'Publication date changed'],
+    ['update_started', 'Indicator update started'],
   ] as const)('words a %s entry and names who did it', (kind, action) => {
     expect(itemOf({ kind, at, by: 'Sam Taylor' })).toEqual({
       date: at,
       action,
       by: 'Sam Taylor',
       rows: [],
+    });
+  });
+
+  it('words an update submitted for review, with its Section and Changes rows', () => {
+    const item = itemOf({
+      kind: 'update_submitted',
+      at,
+      by: 'Sam Taylor',
+      changes: [
+        {
+          task: 'polarity',
+          parts: [{ kind: 'value', field: 'polarity', value: 'Higher is better' }],
+        },
+      ],
+    });
+
+    expect(item).toEqual({
+      date: at,
+      action: 'Update submitted for review',
+      by: 'Sam Taylor',
+      rows: [],
+      changes: [
+        {
+          section: 'Polarity',
+          lines: [{ label: null, change: { kind: 'text', text: 'Higher is better' } }],
+        },
+      ],
     });
   });
 

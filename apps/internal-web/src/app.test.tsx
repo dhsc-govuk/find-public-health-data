@@ -233,6 +233,7 @@ describe('the role-gated route tables', () => {
     expect(publisher?.children?.map((child) => child.path)).toEqual(gated);
     expect(gated).toContain('publish/indicators/:id/task-list');
     expect(gated).toContain('publish/indicators/:id/withdraw-submission');
+    expect(gated).toContain('publish/indicators/:id/start-update');
   });
 
   it('keeps every manage route under the admin layout', () => {

@@ -1,6 +1,6 @@
 import type { IndicatorListScope } from '@fphd/auth/permissions';
 import { type Database, schema } from '@fphd/db';
-import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, not, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type {
@@ -10,6 +10,7 @@ import type {
   DraftSubmissionStatus,
   IndicatorStatus,
   ReviewResponseKind,
+  UpdateDecision,
 } from './contract.ts';
 import {
   currentName,
@@ -24,6 +25,7 @@ import {
   draftSubmissionNumber,
   draftSubmissionStatus,
   draftSubmittedAt,
+  draftUpdateDecision,
   draftVersion,
   indicatorCreatedBy,
   indicatorStatus,
@@ -50,6 +52,7 @@ export interface IndicatorAdminRow {
   draftLocked: boolean;
   draftSubmissionStatus: DraftSubmissionStatus | null;
   draftResponseKind: ReviewResponseKind | null;
+  draftUpdateDecision: UpdateDecision | null;
   draftReviewers: DraftReviewer[];
 }
 
@@ -118,6 +121,7 @@ function listRowsQuery(db: Database) {
       draftLocked,
       draftSubmissionStatus,
       draftResponseKind,
+      draftUpdateDecision,
       draftReviewers,
     })
     .from(indicator)
@@ -153,10 +157,14 @@ export async function listIndicatorsPage(
   return { indicators, total: counted?.total ?? 0 };
 }
 
+// A submitted update waits for the core team's decision, which may never send it to IMRG.
+const awaitsUpdateDecision = sql`(${indicatorStatus} = 'live' and ${draftSubmissionStatus} = 'submitted' and ${draftUpdateDecision} is null)`;
+
 /**
  * The indicators in scope whose draft's latest submission waits for reviewers, is in review, or
  * was answered with changes requested or approval, oldest submission first, as a queue; the id
- * breaks a tie. An answered submission stays with the reviewers who answered it.
+ * breaks a tie. An answered submission stays with the reviewers who answered it. A submitted
+ * update is left out until the core team decides what happens to it.
  */
 export async function listIndicatorsUnderReview(
   db: Database,
@@ -169,6 +177,7 @@ export async function listIndicatorsUnderReview(
       and(
         scopeCondition(scope),
         inArray(draftSubmissionStatus, ['submitted', 'in_review', 'changes_requested', 'approved']),
+        not(awaitsUpdateDecision),
       ),
     )
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
@@ -236,6 +245,7 @@ export async function getIndicatorById(
       draftSubmissionStatus,
       draftSubmissionNumber,
       draftResponseKind,
+      draftUpdateDecision,
       draftReviewers,
       draftScheduledPublishAt: draftVersion.scheduledPublishAt,
       draftFirstSubmittedAt,

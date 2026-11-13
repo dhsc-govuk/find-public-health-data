@@ -56,10 +56,32 @@ describe('StatusTag', () => {
           draftStatus={draftStatus}
           draftSubmissionStatus={draftSubmissionStatus}
           draftResponseKind={draftResponseKind}
+          draftUpdateDecision={null}
         />,
       );
 
       expect(tag(label)).toContain(`govuk-tag--${colour}`);
+    },
+  );
+
+  it.each([
+    [null, 'Update pending decision'],
+    ['imrg_review', 'Update pending review'],
+  ] as const)(
+    'shows a submitted update with a decision of %s as %s, in yellow',
+    (draftUpdateDecision, label) => {
+      render(
+        <StatusTag
+          type="publishing"
+          indicatorStatus="live"
+          draftStatus="draft"
+          draftSubmissionStatus="submitted"
+          draftResponseKind={null}
+          draftUpdateDecision={draftUpdateDecision}
+        />,
+      );
+
+      expect(tag(label)).toContain('govuk-tag--yellow');
     },
   );
 
@@ -78,6 +100,7 @@ describe('StatusTag', () => {
           draftStatus="scheduled"
           draftSubmissionStatus={draftSubmissionStatus}
           draftResponseKind={draftResponseKind}
+          draftUpdateDecision={null}
         />,
       );
 
@@ -93,6 +116,7 @@ describe('StatusTag', () => {
         draftStatus={null}
         draftSubmissionStatus={null}
         draftResponseKind={null}
+        draftUpdateDecision={null}
       />,
     );
 
@@ -109,6 +133,7 @@ describe('StatusTag', () => {
         draftStatus: null,
         draftSubmissionStatus: null,
         draftResponseKind: null,
+        draftUpdateDecision: null,
       },
       'Publishing status: ',
       'Published',

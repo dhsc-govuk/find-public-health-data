@@ -18,6 +18,7 @@ import {
   type IndicatorAdminListItem,
   type IndicatorAdminPage,
   type IndicatorAdminSummary,
+  type IndicatorStartUpdateError,
   type IndicatorTaskList,
   indicatorCreateIdSchema,
   indicatorFieldSchema,
@@ -50,6 +51,7 @@ function toSummary({
   draftReviewers,
   draftStatus,
   draftSubmissionStatus,
+  draftUpdateDecision,
   id,
   indicatorStatus,
   name,
@@ -66,6 +68,7 @@ function toSummary({
     draftLocked,
     draftSubmissionStatus,
     draftResponseKind,
+    draftUpdateDecision,
     draftReviewers,
   };
 }
@@ -267,16 +270,34 @@ export function internalIndicatorsRouter(
     response.status(200).json(toDetail(row, requireApiSession(response)));
   });
 
+  // Opens a draft of a live indicator from its published version, so a publisher can update it.
+  // The draft is the indicator's one unpublished version, so a repeat opens no second one.
+  router.post('/api/internal/indicators/:id/draft', requireEditor, async (request, response) => {
+    const { id } = guardedIndicator(response);
+
+    const result = await indicators.draftFromPublished(id, requireApiActor(request, response));
+
+    if (!result.ok) {
+      response.status(409).json({ error: result.reason } satisfies IndicatorStartUpdateError);
+      return;
+    }
+
+    request.log.info({ indicatorId: id }, 'Indicator update started');
+    response.status(204).end();
+  });
+
   router.get(
     '/api/internal/indicators/:id/task-list',
     requireEditor,
     async (_request, response) => {
       const { id } = guardedIndicator(response);
 
-      // Apart, so the section reads that share findDraftState do not carry the round.
-      const [row, round] = await Promise.all([
+      // Apart, so the section reads that share findDraftState do not carry the round or the
+      // published answers.
+      const [row, round, published] = await Promise.all([
         indicators.findDraftState(id),
         indicators.findRevisionRound(id),
+        indicators.findPublishedAnswers(id),
       ]);
 
       if (!row) {
@@ -300,8 +321,10 @@ export function internalIndicatorsRouter(
             draftStatus: row.draftStatus,
             draftSubmissionStatus: row.draftSubmissionStatus,
             draftResponseKind: row.draftResponseKind,
+            draftUpdateDecision: row.draftUpdateDecision,
           },
           draft: { ...row.draft, ciMethodKind: row.draftCiMethodKind },
+          published: published ?? null,
           review: taskListReview(round),
         }),
         draftUpdatedAt: row.draft.updatedAt.toISOString(),

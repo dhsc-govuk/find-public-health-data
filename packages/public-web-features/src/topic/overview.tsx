@@ -1,16 +1,8 @@
 import { GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
-import { observationSegmentKey } from '@fphd/utils/observation-series';
-import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { Link } from 'react-router';
 import { Sparkline } from '../indicator/charts/sparkline.tsx';
-import {
-  availablePeriodTypes,
-  comparisonRows,
-  filterObservations,
-  formatCalculatedValue,
-  recentTrend,
-} from '../indicator/data.ts';
+import { formatCalculatedValue } from '../indicator/data.ts';
 import { TrendTag } from '../indicator/trend-tag.tsx';
 import { searchUrl } from '../search/url.ts';
 import { TopicGeographies } from './geographies.tsx';
@@ -26,8 +18,7 @@ export function TopicOverview({
   topic: TopicData['topic'];
   overview: Overview;
 }) {
-  const { search, trends, selected } = overview;
-  const rows = comparisonRows(selected);
+  const { search, trends, highlights } = overview;
   return (
     <GridRow className="fphd-topic-overview">
       <GridColumn width="one-quarter">
@@ -102,85 +93,62 @@ export function TopicOverview({
           </>
         ) : null}
         <div className="fphd-topic-highlight-grid">
-          {selected.map((entry) => {
-            const row = rows.find(({ shortId }) => shortId === entry.detail.shortId);
-            const area =
-              entry.areaData.find(({ areaCode }) => areaCode !== 'E92000001') ?? entry.areaData[0];
-            const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
-            const periodType = availablePeriodTypes(cell?.series ?? []).includes('3-year')
-              ? '3-year'
-              : '1-year';
-            const series = filterObservations(cell?.series ?? [], { periodType }).sort(
-              (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
-            );
-            const latest = series.findLast(({ value }) => value !== null);
-            const selection = entry.tableSeries?.find(
-              (selection) => selection.sex === row?.sex && selection.periodType === periodType,
-            );
-            const direction =
-              area && latest && selection?.segments[area.areaCode] === observationSegmentKey(latest)
-                ? selection.trends?.[area.areaCode]
-                : undefined;
-            const trend = recentTrend(series, entry.detail.polarity, direction);
-            return (
-              <article className="fphd-topic-highlight" key={entry.detail.shortId}>
-                <h3 className="govuk-heading-s govuk-!-margin-bottom-3">
-                  <Link className="govuk-link" to={indicatorPath(entry.detail.slug)}>
-                    {entry.detail.name}
-                  </Link>
-                </h3>
-                {area && series.filter(({ value }) => value !== null).length >= 2 ? (
-                  <Sparkline
-                    id={`topic-highlight-chart-${entry.detail.shortId}`}
-                    title={`${entry.detail.name}, ${area.areaName}: trend chart`}
-                    indicator={entry.detail}
-                    areas={[{ ...area, observations: series }]}
-                  />
-                ) : (
-                  <p className="govuk-hint fphd-topic-highlight__no-trend">
-                    No trend available
-                    <br />
-                    (not enough data)
-                  </p>
-                )}
-                <SummaryList
-                  items={[
-                    {
-                      name: 'Most recent period',
-                      children: latest
-                        ? expandedPeriodLabel(latest, entry.detail.yearType)
-                        : 'No data',
-                    },
-                    {
-                      name: 'Count',
-                      children:
-                        (latest?.count ?? latest?.numerator)?.toLocaleString('en-GB') ?? 'No data',
-                    },
-                    {
-                      name: 'Calculated value',
-                      children:
-                        latest?.value == null ? (
-                          'No data'
-                        ) : (
-                          <>
-                            {formatCalculatedValue(latest.value)}
-                            {entry.detail.unit === '%' ? (
-                              '%'
-                            ) : entry.detail.unit ? (
-                              <>
-                                {' '}
-                                <span className="govuk-hint">{entry.detail.unit}</span>
-                              </>
-                            ) : null}
-                          </>
-                        ),
-                    },
-                    { name: 'Trend (last 5 periods)', children: <TrendTag trend={trend} /> },
-                  ]}
+          {highlights.map((highlight) => (
+            <article className="fphd-topic-highlight" key={highlight.shortId}>
+              <h3 className="govuk-heading-s govuk-!-margin-bottom-3">
+                <Link className="govuk-link" to={indicatorPath(highlight.slug)}>
+                  {highlight.name}
+                </Link>
+              </h3>
+              {highlight.hasTrend ? (
+                <Sparkline
+                  id={`topic-highlight-chart-${highlight.shortId}`}
+                  title={`${highlight.name}, ${highlight.areaName}: trend chart`}
+                  indicator={highlight}
+                  areaName={highlight.areaName}
+                  points={highlight.points}
                 />
-              </article>
-            );
-          })}
+              ) : (
+                <p className="govuk-hint fphd-topic-highlight__no-trend">
+                  No trend available
+                  <br />
+                  (not enough data)
+                </p>
+              )}
+              <SummaryList
+                items={[
+                  { name: 'Most recent period', children: highlight.period },
+                  {
+                    name: 'Count',
+                    children: highlight.count?.toLocaleString('en-GB') ?? 'No data',
+                  },
+                  {
+                    name: 'Calculated value',
+                    children:
+                      highlight.value == null ? (
+                        'No data'
+                      ) : (
+                        <>
+                          {formatCalculatedValue(highlight.value)}
+                          {highlight.unit === '%' ? (
+                            '%'
+                          ) : highlight.unit ? (
+                            <>
+                              {' '}
+                              <span className="govuk-hint">{highlight.unit}</span>
+                            </>
+                          ) : null}
+                        </>
+                      ),
+                  },
+                  {
+                    name: 'Trend (last 5 periods)',
+                    children: <TrendTag trend={highlight.trend} />,
+                  },
+                ]}
+              />
+            </article>
+          ))}
         </div>
       </GridColumn>
     </GridRow>

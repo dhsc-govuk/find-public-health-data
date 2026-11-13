@@ -3,7 +3,7 @@ import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { takeIndicatorStep } from '@fphd/internal-workflow';
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
 
@@ -12,11 +12,11 @@ import {
   getIndicatorDraftState,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
-import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
   AS_OTHER_ACTOR,
+  ciMethodId,
   indicatorWithTwoPublications,
   newDraft,
   OTHER_ACTOR,
@@ -24,8 +24,10 @@ import {
 } from './indicator-repository.testing.ts';
 import { indicatorTaskList } from './indicator-task-list.ts';
 import {
+  answerUpdate,
   completeDraft,
   draftUpdatedAt,
+  openedUpdate,
   sentBackDraft,
   ukToday,
 } from './indicator-workflow.testing.ts';
@@ -129,6 +131,7 @@ describe('completeDraft', () => {
       indicatorTaskList({
         indicator,
         draft: { ...draft, ciMethodKind: draftCiMethodKind },
+        published: null,
         review: null,
       }).canSubmit,
     ).toBe(true);
@@ -297,15 +300,115 @@ describe('submitIndicator', () => {
     });
   });
 
-  repositoryTest('refuses the draft of a live indicator', async ({ db }) => {
-    const { indicatorId } = await indicatorWithTwoPublications(db, 'Live when submitted');
-    const drafted = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
-    if (!drafted.ok) throw new Error('expected a draft');
+  repositoryTest(
+    'locks an update that changes a task under its first submission',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await openedUpdate(db, 'Updated and submitted');
+      const shown = await answerUpdate(db, { indicatorId, versionId }, { polarity: 'no-polarity' });
 
-    await expect(
-      submitIndicator(db, indicatorId, await draftUpdatedAt(db, drafted.versionId), AS_ACTOR),
-    ).resolves.toEqual({ ok: false, reason: 'not_allowed' });
-    expect(await submissionsOf(db, drafted.versionId)).toEqual([]);
+      await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+        ok: true,
+      });
+
+      expect((await versionOf(db, versionId)).isLocked).toBe(true);
+      expect(await submissionsOf(db, versionId)).toEqual([
+        expect.objectContaining({ number: 1, status: 'submitted', submittedBy: ACTOR }),
+      ]);
+    },
+  );
+
+  repositoryTest(
+    'keeps the changes of an update with the names of the core data and its data table counted',
+    async ({ db }) => {
+      const update = await openedUpdate(db, 'Updated core data and table');
+      const { indicatorId, versionId } = update;
+      const [published] = await db
+        .select({ topicId: schema.indicatorVersionTopic.topicId })
+        .from(schema.indicatorVersionTopic)
+        .where(eq(schema.indicatorVersionTopic.indicatorVersionId, update.publishedId));
+      const added = await db
+        .select({ id: schema.topic.id })
+        .from(schema.topic)
+        .where(ne(schema.topic.id, published?.topicId ?? ''))
+        .limit(1);
+      const topicIds = [published?.topicId, added[0]?.id].filter((id) => id !== undefined);
+      const topicNames = await db
+        .select({ title: schema.topic.title })
+        .from(schema.topic)
+        .where(inArray(schema.topic.id, topicIds))
+        .orderBy(asc(schema.topic.title));
+      const [batch] = await db
+        .insert(schema.uploadBatch)
+        .values({
+          indicatorId,
+          indicatorVersionId: versionId,
+          originalFilename: 'update.csv',
+          uploadedBy: ACTOR,
+          status: 'processed',
+          rowCount: 2094,
+        })
+        .returning({ id: schema.uploadBatch.id });
+      const shown = await answerUpdate(
+        db,
+        update,
+        {
+          ciMethodId: await ciMethodId(db, 'Wilson Score method'),
+          uploadBatchId: batch?.id,
+          dataTableConfirmedAt: new Date(),
+        },
+        { topicIds, primaryTopicId: published?.topicId ?? null },
+      );
+
+      await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+        ok: true,
+      });
+
+      const [submission] = await submissionsOf(db, versionId);
+      expect(submission?.updateChanges).toEqual(
+        expect.arrayContaining([
+          { task: 'data-table', parts: [{ kind: 'data_values_replaced', count: 2094 }] },
+          {
+            task: 'confidence-intervals',
+            parts: [{ kind: 'value', field: 'ciMethodId', value: 'Wilson Score method' }],
+          },
+          {
+            task: 'tagging',
+            parts: [
+              {
+                kind: 'value',
+                field: 'topicIds',
+                value: topicNames.map(({ title }) => title).join(', '),
+              },
+            ],
+          },
+        ]),
+      );
+    },
+  );
+
+  repositoryTest('refuses an update that changes no task, and writes nothing', async ({ db }) => {
+    const { indicatorId, versionId } = await openedUpdate(db, 'Updated with no change');
+    const shown = await answerUpdate(db, { indicatorId, versionId }, {});
+
+    await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'incomplete',
+    });
+    expect(await submissionsOf(db, versionId)).toEqual([]);
+  });
+
+  repositoryTest('refuses an update with a task left incomplete before it', async ({ db }) => {
+    const { indicatorId, versionId, publishedId } = await openedUpdate(db, 'Inherited a gap');
+    await db
+      .update(indicatorVersion)
+      .set({ rationale: null })
+      .where(inArray(indicatorVersion.id, [versionId, publishedId]));
+    const shown = await answerUpdate(db, { indicatorId, versionId }, { polarity: 'no-polarity' });
+
+    await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
+      ok: false,
+      reason: 'incomplete',
+    });
   });
 
   repositoryTest('refuses an indicator with no draft', async ({ db }) => {

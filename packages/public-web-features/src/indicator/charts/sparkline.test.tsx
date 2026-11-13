@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import type { IndicatorDetail } from '../loader.ts';
 import { observation, selected } from '../view.testing.ts';
+import { sparklineModel } from './chart-data.ts';
 import { Sparkline } from './sparkline.tsx';
 
 function markup(
@@ -12,24 +13,28 @@ function markup(
   periods?: { fromDate: string; toDate: string }[],
 ) {
   const entry = selected();
+  const indicator = { ...entry.detail, ...detail };
   return renderToStaticMarkup(
     <Sparkline
       id="sparkline"
       title="Indicator trend"
-      indicator={{ ...entry.detail, ...detail }}
-      areas={[
-        {
-          areaCode: 'E92000001',
-          areaName: 'England',
-          observations: values.map((value, index) => ({
-            ...observation(),
-            value,
-            fromDate: `${2020 + index}-01-01`,
-            toDate: `${2020 + index}-12-31`,
-            ...periods?.[index],
-          })),
-        },
-      ]}
+      indicator={indicator}
+      {...sparklineModel(
+        [
+          {
+            areaCode: 'E92000001',
+            areaName: 'England',
+            observations: values.map((value, index) => ({
+              ...observation(),
+              value,
+              fromDate: `${2020 + index}-01-01`,
+              toDate: `${2020 + index}-12-31`,
+              ...periods?.[index],
+            })),
+          },
+        ],
+        indicator.yearType,
+      )}
     />,
   );
 }

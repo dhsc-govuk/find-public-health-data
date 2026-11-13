@@ -554,6 +554,34 @@
       "when": 1794492668327,
       "tag": "0078_rename-sex-gender-and-ethnicity-task",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1794505901442,
+      "tag": "0079_add-update-summary",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1794509402165,
+      "tag": "0080_add-update-decision",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1794509941022,
+      "tag": "0081_add-update-changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1794577422439,
+      "tag": "0082_cache-sparkline-periods",
+      "breakpoints": true
     }
   ]
 }

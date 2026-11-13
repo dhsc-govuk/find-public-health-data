@@ -15,6 +15,7 @@ import {
   publishingDateColumns,
   sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
+  updateSummaryColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
@@ -430,6 +431,25 @@ describe('varianceAndQualityColumns', () => {
     expect(
       varianceAndQualityColumns.toAttributes({ ...answered, sourceDataIssuesDetail: '' })
         .sourceDataIssuesDetail,
+    ).toBeNull();
+  });
+});
+
+describe('updateSummaryColumns', () => {
+  const answered = {
+    updateSummary: 'Added the 2024 data.',
+    updateSummaryForReviewers: 'The 2023 values are unchanged.',
+  } as const;
+
+  it('reads and writes the columns of the same name', () => {
+    expect(updateSummaryColumns.fromDraft({ ...unansweredDraft, ...answered })).toEqual(answered);
+    expect(updateSummaryColumns.toAttributes(answered)).toEqual(answered);
+  });
+
+  it('writes blank information for the reviewers as none', () => {
+    expect(
+      updateSummaryColumns.toAttributes({ ...answered, updateSummaryForReviewers: '' })
+        .updateSummaryForReviewers,
     ).toBeNull();
   });
 });

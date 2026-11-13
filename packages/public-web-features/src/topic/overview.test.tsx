@@ -10,6 +10,7 @@ import { observation, selected, sex } from '../indicator/view.testing.ts';
 import { EMPTY_SEARCH_STATE } from '../search/url.ts';
 import { topicTableSelection } from './data.ts';
 import { TopicOverview } from './overview.tsx';
+import { topicOverviewModel } from './overview-model.ts';
 
 vi.mock('./geographies.tsx', () => ({ TopicGeographies: () => null }));
 
@@ -34,19 +35,21 @@ function card(observations: IndicatorObservation[], detail: Partial<SelectedIndi
             decreasing: 0,
             unavailable: 1,
           },
-          selected: topicTableSelection(
-            [
-              {
-                ...entry,
-                detail: { ...entry.detail, ...detail },
-                ...tableSummary(
-                  [{ areaCode: 'E92000001', areaName: 'England', observations }],
-                  'sparkline',
-                ),
-              },
-            ],
-            5,
-            8,
+          highlights: topicOverviewModel(
+            topicTableSelection(
+              [
+                {
+                  ...entry,
+                  detail: { ...entry.detail, ...detail },
+                  ...tableSummary(
+                    [{ areaCode: 'E92000001', areaName: 'England', observations }],
+                    'sparkline',
+                  ),
+                },
+              ],
+              5,
+              8,
+            ),
           ),
         }}
       />

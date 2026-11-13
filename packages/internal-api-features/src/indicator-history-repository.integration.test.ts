@@ -7,6 +7,7 @@ import { confirmDataTable } from './data-table-check-repository.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import { historyEntries } from './indicator-history-entries.ts';
 import { findIndicatorHistory } from './indicator-history-repository.ts';
+import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
@@ -23,6 +24,7 @@ import {
   scheduledDraft,
   scheduledPublishAtOf,
   sentBackDraft,
+  submittedUpdate,
   ukToday,
 } from './indicator-workflow.testing.ts';
 import {
@@ -254,6 +256,71 @@ describe('findIndicatorHistory', () => {
       'reviewers_assigned',
       'submitted',
       'created',
+    ]);
+  });
+
+  repositoryTest('reads who started an update of the live indicator', async ({ db }) => {
+    const { indicatorId } = await indicatorWithTwoPublications(db, 'History of an update');
+    expect(await createDraftFromPublished(db, indicatorId, AS_ACTOR)).toMatchObject({ ok: true });
+
+    const row = await history(db, indicatorId);
+
+    expect(row.updates).toEqual([{ at: expect.any(String), by: 'Sam Taylor' }]);
+    // The fixture's publications are dated in the future, so they sort before the update.
+    expect(historyEntries(row).map(({ kind }) => kind)).toEqual([
+      'published',
+      'published',
+      'update_started',
+      'created',
+    ]);
+  });
+
+  repositoryTest(
+    'reads what a submitted update changed, still once it is published',
+    async ({ db }) => {
+      const { indicatorId, versionId, publishedId } = await submittedUpdate(db, 'Update changes');
+      const changes = [
+        {
+          task: 'polarity',
+          parts: [{ kind: 'value', field: 'polarity', value: 'Neither is better' }],
+        },
+        {
+          task: 'update-summary',
+          parts: [{ kind: 'value', field: 'updateSummary', value: 'Changed the polarity.' }],
+        },
+      ];
+
+      expect((await history(db, indicatorId)).submissions).toEqual([
+        expect.objectContaining({ versionId, updateChanges: changes }),
+      ]);
+      expect(historyEntries(await history(db, indicatorId))[0]).toMatchObject({
+        kind: 'update_submitted',
+        by: 'Sam Taylor',
+        changes,
+      });
+
+      // The update replaces the version it was opened from, which no longer reads as published.
+      await db
+        .update(indicatorVersion)
+        .set({ status: 'published', publishedAt: new Date('2026-02-01T00:00:00Z') })
+        .where(eq(indicatorVersion.id, versionId));
+      await db
+        .update(indicatorVersion)
+        .set({ polarity: 'higher-is-better' })
+        .where(eq(indicatorVersion.id, publishedId));
+
+      expect((await history(db, indicatorId)).submissions).toEqual([
+        expect.objectContaining({ updateChanges: changes }),
+      ]);
+    },
+  );
+
+  repositoryTest("reads no changes for a new indicator's submission", async ({ db }) => {
+    const created = await newDraft(db, 'New indicator, no changes');
+    await submitIndicator(db, created.indicatorId, await completeDraft(db, created), AS_ACTOR);
+
+    expect((await history(db, created.indicatorId)).submissions).toEqual([
+      expect.objectContaining({ updateChanges: null }),
     ]);
   });
 

@@ -23,6 +23,7 @@ const indicator: IndicatorAdminDetail = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
@@ -96,19 +97,19 @@ describe('IndicatorOverviewPage', () => {
     );
   });
 
-  it('offers the published page as an action for a published indicator', () => {
+  it('offers the live page as an action for a published indicator', () => {
     renderPage();
 
     expect(screen.getByRole('tab', { name: 'Actions' })).toBeTruthy();
-    expect(
-      screen.getByRole('link', { name: 'View published indicator' }).getAttribute('href'),
-    ).toBe('/indicator/life-expectancy-at-birth');
+    expect(screen.getByRole('link', { name: 'View live indicator' }).getAttribute('href')).toBe(
+      '/indicator/life-expectancy-at-birth',
+    );
   });
 
   it('offers the task list as an action for a draft, which has no public page', () => {
     renderPage({ publishedSlug: null, indicatorStatus: 'new', draftStatus: 'draft' });
 
-    expect(screen.queryByRole('link', { name: 'View published indicator' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'View live indicator' })).toBeNull();
     expect(
       screen.getByRole('link', { name: 'Continue creating indicator' }).getAttribute('href'),
     ).toBe(`/publish/indicators/${indicator.id}/task-list`);
@@ -118,7 +119,7 @@ describe('IndicatorOverviewPage', () => {
     renderPage({ draftStatus: 'draft' });
 
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'View published indicator',
+      'View live indicator',
       'Continue updating indicator',
     ]);
     expect(
@@ -130,14 +131,26 @@ describe('IndicatorOverviewPage', () => {
     renderPage({ draftStatus: 'draft' }, false);
 
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'View published indicator',
+      'View live indicator',
     ]);
   });
 
-  it('offers no editing action for a published indicator, which has no draft', () => {
+  it('offers to update a published indicator with a button that posts, as it has no draft', () => {
     renderPage();
 
+    const button = screen.getByRole('button', { name: 'Update indicator' });
+    const form = button.closest('form');
+
     expect(screen.queryByRole('link', { name: /^Continue/ })).toBeNull();
+    expect(button.getAttribute('type')).toBe('submit');
+    expect(form?.getAttribute('method')).toBe('post');
+    expect(form?.getAttribute('action')).toBe(`/publish/indicators/${indicator.id}/start-update`);
+  });
+
+  it('offers no update to someone who may not edit the indicator', () => {
+    renderPage({}, false);
+
+    expect(screen.queryByRole('button', { name: 'Update indicator' })).toBeNull();
   });
 
   it('offers no task list while the draft is locked for review', () => {

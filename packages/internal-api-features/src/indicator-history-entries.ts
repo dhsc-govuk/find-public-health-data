@@ -13,7 +13,7 @@ import { changesTask } from './indicator-task-audit-fields.ts';
 
 type HistoryRecords = Pick<
   IndicatorHistoryRow,
-  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'saves'
+  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'updates' | 'saves'
 >;
 
 const SCHEDULING_KINDS = {
@@ -119,6 +119,21 @@ function resubmissionEntry(
   );
 }
 
+/**
+ * The entry for a first submission, or for one after a withdrawal. An update's entry also lists
+ * what the update changed.
+ */
+function submittedEntry({
+  submittedAt,
+  submittedBy,
+  updateChanges,
+}: HistorySubmissionRecord): HistoryEntry {
+  const at = iso(submittedAt);
+  return updateChanges === null
+    ? { kind: 'submitted', at, by: submittedBy }
+    : { kind: 'update_submitted', at, by: submittedBy, changes: updateChanges };
+}
+
 function submissionEntries(
   submission: HistorySubmissionRecord,
   previous: HistorySubmissionRecord | undefined,
@@ -127,10 +142,7 @@ function submissionEntries(
   const sent =
     previous !== undefined && submission.previousStatus === 'changes_requested'
       ? resubmissionEntry(submission, previous, saves)
-      : dated(
-          { kind: 'submitted', at: iso(submission.submittedAt), by: submission.submittedBy },
-          submission.submittedAt,
-        );
+      : dated(submittedEntry(submission), submission.submittedAt);
   const withdrawn =
     submission.status === 'withdrawn' && submission.endedAt !== null && submission.endedBy !== null
       ? [
@@ -170,7 +182,7 @@ function versionEntries({ versions }: HistoryRecords): Dated[] {
  * at the same instant keep the order they happened in, the later first.
  */
 export function historyEntries(records: HistoryRecords): HistoryEntry[] {
-  const { submissions, assignments, scheduling, saves } = records;
+  const { submissions, assignments, scheduling, updates, saves } = records;
   const happened = [
     ...versionEntries(records),
     ...submissions.flatMap((submission, index) =>
@@ -186,6 +198,7 @@ export function historyEntries(records: HistoryRecords): HistoryEntry[] {
     ...scheduling.map(({ at, by, action }) =>
       dated({ kind: SCHEDULING_KINDS[action], at: iso(at), by }, at),
     ),
+    ...updates.map(({ at, by }) => dated({ kind: 'update_started', at: iso(at), by }, at)),
   ];
 
   return happened

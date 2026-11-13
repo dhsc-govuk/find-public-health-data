@@ -34,6 +34,7 @@ const row: IndicatorAdminListRow = {
   draftLocked: true,
   draftSubmissionStatus: 'submitted',
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 
@@ -50,6 +51,7 @@ const scheduled: IndicatorAdminListRow = {
   draftStatus: 'scheduled',
   draftSubmissionStatus: 'approved',
   draftResponseKind: 'approved',
+  draftUpdateDecision: null,
 };
 
 function createTestApp(

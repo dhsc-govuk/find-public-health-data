@@ -4,6 +4,7 @@ import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
 import { eq, sql } from 'drizzle-orm';
 
+import type { UpdateChange } from './indicator-history-contract.ts';
 import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
 
 const { indicator } = schema;
@@ -35,6 +36,8 @@ export interface HistorySubmissionRecord {
   endedAt: string | null;
   endedBy: string | null;
   revisionResponse: string | null;
+  /** What an update changed, kept when it was submitted; null for a new indicator's submission. */
+  updateChanges: UpdateChange[] | null;
   responses: HistoryResponseRecord[];
 }
 
@@ -51,6 +54,12 @@ export interface HistorySchedulingRecord {
   action: 'indicator.publication_scheduled' | 'indicator.publication_date_changed';
 }
 
+/** A publisher opening a draft of the live indicator to update it. */
+export interface HistoryUpdateRecord {
+  at: string;
+  by: string;
+}
+
 /** A save of the draft after a response asked for changes: the fields it changed, never their values. */
 export interface HistorySaveRecord {
   at: string;
@@ -65,6 +74,7 @@ export interface IndicatorHistoryRow {
   submissions: HistorySubmissionRecord[];
   assignments: HistoryAssignmentRecord[];
   scheduling: HistorySchedulingRecord[];
+  updates: HistoryUpdateRecord[];
   saves: HistorySaveRecord[];
 }
 
@@ -89,6 +99,7 @@ const submissions = sql<HistorySubmissionRecord[]>`coalesce((
     'endedAt', s.ended_at,
     'endedBy', ender.display_name,
     'revisionResponse', s.revision_response,
+    'updateChanges', s.update_changes,
     'responses', coalesce((
       select json_agg(json_build_object(
         'reviewer', reviewer.display_name,
@@ -151,6 +162,20 @@ const scheduling = sql<HistorySchedulingRecord[]>`coalesce((
     and a.entity_id = ${indicator.id}::text
 ), '[]'::json)`;
 
+// Who opened each draft of the live indicator to update it, and when. The entity index finds the
+// indicator's entries and the action narrows them, as for the assignments.
+const updates = sql<HistoryUpdateRecord[]>`coalesce((
+  select json_agg(json_build_object(
+    'at', a.occurred_at,
+    'by', actor.display_name
+  ) order by a.occurred_at)
+  from audit_log a
+  join app_user actor on actor.id = a.actor_id
+  where a.action = 'indicator.draft_created_from_published'
+    and a.entity_type = 'indicator'
+    and a.entity_id = ${indicator.id}::text
+), '[]'::json)`;
+
 // Only the field names: the values are the draft's, which this history never shows. The entity
 // index finds the indicator's entries and the action narrows them, as for the assignments.
 const saves = sql<HistorySaveRecord[]>`coalesce((
@@ -188,6 +213,7 @@ export async function findIndicatorHistory(
       submissions,
       assignments,
       scheduling,
+      updates,
       saves,
     })
     .from(indicator)

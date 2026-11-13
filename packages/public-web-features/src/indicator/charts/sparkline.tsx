@@ -1,8 +1,7 @@
 import { ChartSection } from '@fphd/ui';
-import { expandedPeriodLabel, shortPeriodLabel } from '@fphd/utils/period-label';
 import { formatCalculatedValue } from '../data.ts';
-import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
-import { alignedSeries, periodKey } from './chart-data.ts';
+import type { IndicatorDetail } from '../loader.ts';
+import type { sparklineModel } from './chart-data.ts';
 import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
 
 function describeTrend(points: { label: string; value: number | null }[], unit: string | null) {
@@ -30,23 +29,14 @@ function describeTrend(points: { label: string; value: number | null }[], unit: 
 export function Sparkline({
   id,
   title,
-  areas,
+  areaName,
+  points,
   indicator,
 }: {
   id: string;
   title: string;
-  areas: IndicatorAreaData[];
-  indicator: IndicatorDetail;
-}) {
-  const primary = alignedSeries(areas).find(({ observations }) => observations.size > 0);
-  const points = [...(primary?.observations.values() ?? [])]
-    .sort((a, b) => periodKey(a).localeCompare(periodKey(b)))
-    .slice(-8)
-    .map((observation) => ({
-      label: expandedPeriodLabel(observation, indicator.yearType),
-      shortLabel: shortPeriodLabel(observation, indicator.yearType),
-      value: observation.value,
-    }));
+  indicator: Pick<IndicatorDetail, 'name' | 'unit'>;
+} & ReturnType<typeof sparklineModel>) {
   const first = points.find(({ value }) => value !== null);
   const latest = points.findLast(({ value }) => value !== null);
   const colour = seriesColours[0];
@@ -95,7 +85,7 @@ export function Sparkline({
           >
             <title>{title}</title>
             <desc id={`${id}-description`}>
-              {`${indicator.name}, ${primary?.name}: ${describeTrend(points, indicator.unit)}`}
+              {`${indicator.name}, ${areaName}: ${describeTrend(points, indicator.unit)}`}
             </desc>
             {lines
               .filter((line) => line.length > 1)

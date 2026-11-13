@@ -21,6 +21,7 @@ const indicator: IndicatorAdminListItem = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 

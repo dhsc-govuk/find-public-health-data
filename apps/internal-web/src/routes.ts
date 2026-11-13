@@ -91,6 +91,10 @@ export default [
         '../../../packages/internal-web-features/src/indicator-sample-answers/route.ts',
       ),
       route(
+        'publish/indicators/:id/start-update',
+        '../../../packages/internal-web-features/src/indicator-update/route.ts',
+      ),
+      route(
         'publish/indicators/:id/withdraw-submission',
         '../../../packages/internal-web-features/src/indicator-withdrawal/route.tsx',
       ),
@@ -185,6 +189,10 @@ export default [
       route(
         'publish/indicators/:id/tagging',
         '../../../packages/internal-web-features/src/indicator-tagging/route.tsx',
+      ),
+      route(
+        'publish/indicators/:id/update-summary',
+        '../../../packages/internal-web-features/src/indicator-update-summary/route.tsx',
       ),
     ]),
     layout('./admin.tsx', [

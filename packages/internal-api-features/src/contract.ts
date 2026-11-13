@@ -5,6 +5,7 @@ import { INDICATOR_STEPS, type IndicatorStep } from '@fphd/utils/indicator-step'
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
+import { UPDATE_DECISIONS } from '@fphd/utils/update-decision';
 
 import { editVersionSchema } from './edit-version-contract.ts';
 import { flaggableTaskKeySchema, reviewResponseKindSchema } from './review-response-contract.ts';
@@ -110,6 +111,9 @@ export const draftStatusSchema = z.enum(['draft', 'scheduled']);
 /** Where the draft's latest submission for review stands. */
 export const draftSubmissionStatusSchema = z.enum(INDICATOR_SUBMISSION_STATUSES);
 
+/** What the core team decides should happen to a submitted update. */
+export const updateDecisionSchema = z.enum(UPDATE_DECISIONS);
+
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
 
 /** The steps a reviewer's response takes, one for each kind of response. */
@@ -141,6 +145,11 @@ export const indicatorAdminSummarySchema = z.object({
   draftSubmissionStatus: draftSubmissionStatusSchema.nullable(),
   /** What the latest response to the draft's latest submission said; null until there is one. */
   draftResponseKind: reviewResponseKindSchema.nullable(),
+  /**
+   * The core team's decision on the draft's latest submission when it is an update. Null while a
+   * submitted update waits for the decision, and always null for a new indicator.
+   */
+  draftUpdateDecision: updateDecisionSchema.nullable(),
   /** The reviewers of the draft's latest submission, by name; empty until they are assigned. */
   draftReviewers: z.array(draftReviewerSchema),
 });
@@ -308,6 +317,7 @@ export type IndicatorsToReview = z.infer<typeof indicatorsToReviewSchema>;
 export type IndicatorsScheduled = z.infer<typeof indicatorsScheduledSchema>;
 export type DraftStatus = z.infer<typeof draftStatusSchema>;
 export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;
+export type UpdateDecision = z.infer<typeof updateDecisionSchema>;
 export type DraftReviewer = z.infer<typeof draftReviewerSchema>;
 export type IndicatorAdminDetail = z.infer<typeof indicatorAdminDetailSchema>;
 export type DraftResponse = NonNullable<IndicatorAdminDetail['draftResponse']>;
@@ -365,6 +375,7 @@ export const indicatorTaskListSchema = z.object({
     draftStatus: true,
     draftSubmissionStatus: true,
     draftResponseKind: true,
+    draftUpdateDecision: true,
   }),
   /** True when the indicator is live, so this edit revises what the public has. */
   isUpdate: z.boolean(),
@@ -374,6 +385,12 @@ export const indicatorTaskListSchema = z.object({
    */
   canSubmit: z.boolean(),
   tasks: indicatorTaskStatusesSchema,
+  /**
+   * On an update, the tasks whose answers differ from the published version's. The publishing
+   * date and the update summary are never listed, because every update answers them afresh.
+   * Empty for a new indicator.
+   */
+  changedTasks: z.array(indicatorTaskKeySchema),
   /** The round of review that sent the draft back; null unless its latest submission was. */
   review: indicatorTaskListReviewSchema.nullable(),
   /** The draft's last edit, which a submission sends back to confirm the draft it was shown. */
@@ -386,6 +403,15 @@ export const indicatorTaskListSchema = z.object({
 /** `no_draft` is the PATCH route's word for an indicator with nothing to edit. */
 export const indicatorTaskListErrorSchema = z.object({
   error: z.enum(['invalid_id', 'not_found', 'no_draft']),
+});
+
+/**
+ * The 409 answers to opening a draft of a live indicator to update it. `draft_exists` means one
+ * is open already, perhaps from a repeat of the same request. `not_published` means there is no
+ * published version to open it from. A missing indicator is a 404, which the client throws.
+ */
+export const indicatorStartUpdateErrorSchema = z.object({
+  error: z.enum(['invalid_id', 'draft_exists', 'not_published']),
 });
 
 /** A submission confirms the draft as the task list showed it, by its last edit. */
@@ -461,6 +487,7 @@ export type IndicatorTaskListReview = z.infer<typeof indicatorTaskListReviewSche
 export type IndicatorTaskFlag = z.infer<typeof indicatorTaskFlagSchema>;
 export type ReviewerComment = z.infer<typeof reviewerCommentSchema>;
 export type IndicatorTaskListError = z.infer<typeof indicatorTaskListErrorSchema>;
+export type IndicatorStartUpdateError = z.infer<typeof indicatorStartUpdateErrorSchema>;
 export type IndicatorSubmit = z.infer<typeof indicatorSubmitSchema>;
 export type IndicatorSubmitError = z.infer<typeof indicatorSubmitErrorSchema>;
 export type IndicatorWithdraw = z.infer<typeof indicatorWithdrawSchema>;
@@ -489,6 +516,7 @@ export * from './indicator-section-contract.ts';
 export * from './indicator-sex-gender-and-ethnicity-contract.ts';
 export * from './indicator-tagging-contract.ts';
 export * from './indicator-update-frequency-contract.ts';
+export * from './indicator-update-summary-contract.ts';
 export * from './indicator-value-type-and-units-contract.ts';
 export * from './indicator-variance-and-quality-contract.ts';
 export * from './notes-for-reviewers-contract.ts';

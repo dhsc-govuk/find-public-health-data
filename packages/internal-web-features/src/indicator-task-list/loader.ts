@@ -9,6 +9,7 @@ import {
   indicatorTaskListSchema,
 } from '@fphd/internal-api-features/contract';
 import { type MarkdownHtml, renderMarkdown } from '@fphd/ui/markdown';
+import { draftTaskKeys } from '@fphd/utils/indicator-task-key';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from 'react-router';
@@ -69,8 +70,8 @@ export function reviewerRequestsOf(
   };
 }
 
-function hasTasksLeft({ tasks }: IndicatorTaskList): boolean {
-  return Object.values(tasks).some((status) => status !== 'completed');
+function hasTasksLeft({ isUpdate, tasks }: IndicatorTaskList): boolean {
+  return draftTaskKeys(isUpdate).some((key) => tasks[key] !== 'completed');
 }
 
 /**

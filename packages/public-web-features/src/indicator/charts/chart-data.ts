@@ -1,5 +1,5 @@
 import { pairedAreaValues } from '@fphd/utils/observation-series';
-import { periodLabel } from '@fphd/utils/period-label';
+import { expandedPeriodLabel, periodLabel, shortPeriodLabel } from '@fphd/utils/period-label';
 import { type ConfidenceLevel, sameSegment, trendSeries } from '../data.ts';
 import type { IndicatorAreaData, IndicatorDetail, IndicatorObservation } from '../loader.ts';
 
@@ -50,6 +50,21 @@ export function alignedSeries(areas: IndicatorAreaData[]) {
         .map((observation) => [periodKey(observation), observation]),
     ),
   }));
+}
+
+export function sparklineModel(areas: IndicatorAreaData[], yearType: IndicatorDetail['yearType']) {
+  const primary = alignedSeries(areas).find(({ observations }) => observations.size > 0);
+  return {
+    areaName: primary?.name ?? areas[0]?.areaName ?? 'England',
+    points: [...(primary?.observations.values() ?? [])]
+      .sort((a, b) => periodKey(a).localeCompare(periodKey(b)))
+      .slice(-8)
+      .map((observation) => ({
+        label: expandedPeriodLabel(observation, yearType),
+        shortLabel: shortPeriodLabel(observation, yearType),
+        value: observation.value,
+      })),
+  };
 }
 
 export function chartPeriods(

@@ -36,6 +36,7 @@ export const INDICATOR_TASK_TITLES: Readonly<Record<IndicatorTaskKey, string>> =
   'variance-and-quality': 'Variance and quality',
   justifications: 'Justifications',
   'other-comments': 'Other comments',
+  'update-summary': 'Update summary',
 };
 
 const IMRG_DATE = 'Date reviewed by IMRG';

@@ -10,6 +10,7 @@ import {
   type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
+import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
@@ -19,6 +20,7 @@ import {
 } from './indicator-repository.testing.ts';
 import { schedulePublication } from './indicator-scheduling-repository.ts';
 import { completeTaskListDraft } from './indicator-task-list.testing.ts';
+import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
 
@@ -194,4 +196,61 @@ export async function scheduledDraft(db: Database, name: string): Promise<SentBa
   );
   if (!scheduled.ok) throw new Error(`scheduledDraft could not schedule: ${scheduled.reason}`);
   return draft;
+}
+
+/** A live indicator's update: the draft opened from it, and the published version beside it. */
+export interface OpenedUpdate extends CreatedIndicatorDraft {
+  publishedId: string;
+}
+
+/**
+ * A complete new draft published as it stands, without going through review, and an update
+ * opened from it by the repository tests' actor. The update still answers every task as the
+ * published version does, and has no publishing date or update summary of its own yet.
+ */
+export async function openedUpdate(db: Database, name: string): Promise<OpenedUpdate> {
+  const created = await newDraft(db, name);
+  await completeDraft(db, created);
+  await db
+    .update(indicatorVersion)
+    .set({ status: 'published', isLocked: true, publishedAt: new Date('2026-01-01T00:00:00Z') })
+    .where(eq(indicatorVersion.id, created.versionId));
+  const opened = await createDraftFromPublished(db, created.indicatorId, AS_ACTOR);
+  if (!opened.ok) throw new Error(`openedUpdate could not open a draft: ${opened.reason}`);
+  return { ...created, versionId: opened.versionId, publishedId: created.versionId };
+}
+
+/**
+ * Gives an update its publishing date and summary, with `answers` and `lists` saved over the
+ * published version's, and returns the `updatedAt` its task list would show.
+ */
+export async function answerUpdate(
+  db: Database,
+  { indicatorId, versionId }: Pick<CreatedIndicatorDraft, 'indicatorId' | 'versionId'>,
+  answers: IndicatorDraftAttributes,
+  lists: IndicatorDraftLists = {},
+): Promise<Date> {
+  const saved = await updateIndicatorDraft(
+    db,
+    indicatorId,
+    'update-summary',
+    {
+      ...answers,
+      scheduledPublishAt: new Date('2030-06-01T08:30:00Z'),
+      updateSummary: 'Changed the polarity.',
+    },
+    lists,
+    AS_ACTOR,
+  );
+  if (!saved.ok) throw new Error(`answerUpdate could not save: ${saved.reason}`);
+  return draftUpdatedAt(db, versionId);
+}
+
+/** An update that changes the polarity, submitted by the repository tests' actor. */
+export async function submittedUpdate(db: Database, name: string): Promise<OpenedUpdate> {
+  const update = await openedUpdate(db, name);
+  const shown = await answerUpdate(db, update, { polarity: 'no-polarity' });
+  const submitted = await submitIndicator(db, update.indicatorId, shown, AS_ACTOR);
+  if (!submitted.ok) throw new Error(`submittedUpdate could not submit: ${submitted.reason}`);
+  return update;
 }

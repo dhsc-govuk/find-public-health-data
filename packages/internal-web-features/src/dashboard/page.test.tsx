@@ -25,6 +25,7 @@ const indicator: IndicatorAdminListItem = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 
@@ -317,6 +318,7 @@ describe('DashboardPage', () => {
         draftLocked: false,
         draftSubmissionStatus: 'changes_requested',
         draftResponseKind: 'minor_revisions',
+        draftUpdateDecision: null,
       };
 
       renderPage({}, '/dashboard', null, [inReview, sentBack]);
@@ -409,6 +411,7 @@ describe('DashboardPage', () => {
       ...submitted,
       draftSubmissionStatus: 'approved',
       draftResponseKind: 'approved',
+      draftUpdateDecision: null,
     };
     const scheduled: IndicatorAdminListItem = {
       ...pending,

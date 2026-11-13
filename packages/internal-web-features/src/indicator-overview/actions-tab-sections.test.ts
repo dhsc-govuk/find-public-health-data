@@ -10,7 +10,7 @@ const respond = {
   href: `/dashboard/indicators/${ID}/review/response-type`,
   label: 'Submit review response',
 };
-const viewPublished = { href: '/indicator/hip-fractures', label: 'View published indicator' };
+const viewLive = { href: '/indicator/hip-fractures', label: 'View live indicator' };
 const continueCreating = {
   href: `/publish/indicators/${ID}/task-list`,
   label: 'Continue creating indicator',
@@ -18,6 +18,11 @@ const continueCreating = {
 const respondToRevision = {
   href: `/publish/indicators/${ID}/task-list`,
   label: 'Respond to requested revision',
+};
+const startUpdate = {
+  href: `/publish/indicators/${ID}/start-update`,
+  label: 'Update indicator',
+  posts: true,
 };
 const withdraw = {
   href: `/publish/indicators/${ID}/withdraw-submission`,
@@ -90,9 +95,9 @@ describe('actionsTabSections', () => {
       ]);
     });
 
-    it('puts the published page under the Review section', () => {
+    it('puts the live page under the Review section', () => {
       expect(sections({ ...live, actions: RESPOND }, { isReviewer: true })).toEqual([
-        { heading: 'Review', button: respond, links: [viewPublished] },
+        { heading: 'Review', button: respond, links: [viewLive] },
       ]);
     });
   });
@@ -181,18 +186,27 @@ describe('actionsTabSections', () => {
       expect(sections(newDraft)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
     });
 
-    it('holds the published page in the Actions section for a live indicator', () => {
-      expect(sections(live)).toEqual([
-        { heading: 'Actions', button: null, links: [viewPublished] },
-      ]);
+    it('holds the live page in the Actions section for a live indicator', () => {
+      expect(sections(live)).toEqual([{ heading: 'Actions', button: null, links: [viewLive] }]);
     });
   });
 
   describe('for a publisher', () => {
-    it('lists the published page before the task list', () => {
+    it('offers a button that starts an update of a live indicator with no draft', () => {
+      expect(sections(live, { canEdit: true })).toEqual([
+        { heading: 'Actions', button: startUpdate, links: [viewLive] },
+      ]);
+    });
+
+    it('offers no update while one is open, or to a publisher who may not edit it', () => {
+      expect(sections({ ...live, draftStatus: 'draft' }, { canEdit: true })[0]?.button).toBeNull();
+      expect(sections(live)[0]?.button).toBeNull();
+    });
+
+    it('lists the live page before the task list', () => {
       expect(
         sections({ ...live, draftStatus: 'draft' }, { canEdit: true }).map(({ links }) => links),
-      ).toEqual([[viewPublished, { ...continueCreating, label: 'Continue updating indicator' }]]);
+      ).toEqual([[viewLive, { ...continueCreating, label: 'Continue updating indicator' }]]);
     });
 
     it('offers a button to respond to the requested revision in place of the task list link', () => {
