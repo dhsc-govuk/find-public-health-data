@@ -1705,6 +1705,48 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: govuk-spacing(4);
 }
 
+// The search's "Sort by" has its own line under the count, its label beside the select, as in
+// the prototype. Below tablet the label stacks above a full-width select, which would
+// otherwise push the page wider than the screen.
+.fphd-search-sort {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+
+  > form {
+    flex: 0 0 100%;
+  }
+
+  .govuk-form-group {
+    display: flex;
+    align-items: baseline;
+    gap: govuk-spacing(2);
+    margin-bottom: 0;
+  }
+
+  .govuk-label {
+    @include govuk-font($size: 19, $weight: bold);
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+
+  @include govuk-media-query($until: tablet) {
+    row-gap: govuk-spacing(2);
+
+    .govuk-form-group {
+      display: block;
+    }
+
+    .govuk-label {
+      margin-bottom: govuk-spacing(1);
+    }
+
+    .govuk-select {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+}
+
 .fphd-search-results {
   margin-top: govuk-spacing(4);
 

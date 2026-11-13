@@ -34,8 +34,9 @@ export function SearchPage(data: SearchData) {
   const state = stateFrom(data);
   const topics = matchingTopics(data.topicResults, data.q);
   const tab = new URLSearchParams(useLocation().search).get('tab-search');
-  const extraParams: Record<string, string> =
+  const tabParams: Record<string, string> =
     tab === 'topics' || tab === 'indicators' ? { 'tab-search': tab } : {};
+  const extraParams = data.sort === 'relevance' ? tabParams : { ...tabParams, sort: data.sort };
 
   return (
     <div className="fphd-wide-layout">
@@ -76,9 +77,12 @@ export function SearchPage(data: SearchData) {
                 </GridColumn>
                 <GridColumn width="two-thirds">
                   <SearchResults
+                    extraParams={tabParams}
                     gaCodes={state.gaCodes}
                     geoLevels={state.geoLevels}
                     searchResult={data.searchResult}
+                    sort={data.sort}
+                    state={state}
                   />
                 </GridColumn>
               </GridRow>
