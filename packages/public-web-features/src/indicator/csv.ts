@@ -14,6 +14,7 @@ import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
+import { areaTypeLabel } from '../geography/groups.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import {
   availableConfidenceLevels,
@@ -76,11 +77,14 @@ export async function loadIndicatorCsv(
   ) {
     return loadIndicatorViewCsv(args);
   }
-  if (kind === 'all-data' && url.searchParams.get('allAreas') === 'yes') {
-    const groups = await api.get(
+  const allDataGroups = () =>
+    api.get(
       `${apiPath`/api/indicators/${segment}/areas`}?scope=all-data`,
       areaDisplayGroupListSchema,
     );
+  if (kind === 'all-data' && url.searchParams.get('allAreas') === 'yes') {
+    const groups = await allDataGroups();
+    const areaType = areaTypeLookup(groups);
     const codes = [...new Set(groups.flatMap(({ areas }) => areas.map(({ code }) => code)))];
     const firstBatch = codes.slice(0, MAX_AREA_CODES_PER_REQUEST);
     const firstData = firstBatch.length ? await dataFor(firstBatch) : [];
@@ -88,7 +92,7 @@ export async function loadIndicatorCsv(
     let offset = firstBatch.length;
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoder.encode(allDataCsv(detail, firstData)));
+        controller.enqueue(encoder.encode(allDataCsv(detail, firstData, areaType)));
       },
       async pull(controller) {
         if (offset >= codes.length) {
@@ -97,7 +101,9 @@ export async function loadIndicatorCsv(
         }
         const batch = codes.slice(offset, offset + MAX_AREA_CODES_PER_REQUEST);
         offset += batch.length;
-        controller.enqueue(encoder.encode(allDataCsv(detail, await dataFor(batch), false)));
+        controller.enqueue(
+          encoder.encode(allDataCsv(detail, await dataFor(batch), areaType, false)),
+        );
       },
     });
     return new Response(stream, {
@@ -206,7 +212,7 @@ export async function loadIndicatorCsv(
         : undefined,
     );
   } else {
-    csv = allDataCsv(detail, areaData);
+    csv = allDataCsv(detail, areaData, areaTypeLookup(await allDataGroups()));
   }
 
   return new Response(csv, {
@@ -215,4 +221,13 @@ export async function loadIndicatorCsv(
       'Content-Disposition': `attachment; filename="${shortId}-${kind}.csv"`,
     },
   });
+}
+
+function areaTypeLookup(groups: { displayGroup: string; areas: { code: string }[] }[]) {
+  const types = new Map(
+    groups.flatMap(({ displayGroup, areas }) =>
+      areas.map(({ code }) => [code, areaTypeLabel(displayGroup, code)] as const),
+    ),
+  );
+  return (areaCode: string) => types.get(areaCode) ?? null;
 }

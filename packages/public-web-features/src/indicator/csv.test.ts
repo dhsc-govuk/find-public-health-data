@@ -144,18 +144,25 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('serves every observation with segments and notes in the all-data download', async () => {
-    const client = api([
+    const client = api(
+      [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [
+            observation({
+              dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
+              notes: [{ text: 'Provisional', category: 'Data quality' }],
+            }),
+          ],
+        },
+      ],
       {
-        areaCode: 'E92000001',
-        areaName: 'England',
-        observations: [
-          observation({
-            dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
-            notes: [{ text: 'Provisional', category: 'Data quality' }],
-          }),
+        [`GET ${DETAIL}/areas`]: [
+          { displayGroup: 'England', areas: [{ code: 'E92000001', name: 'England' }] },
         ],
       },
-    ]);
+    );
 
     const response = await loadIndicatorCsv(
       args(client, 'http://localhost/indicator/mortality-all-causes/all-data.csv'),
@@ -169,6 +176,7 @@ describe('loadIndicatorCsv', () => {
     expect(body).toContain('Segment');
     expect(body).toContain('Male');
     expect(body).toContain('Provisional');
+    expect(body).toContain(',England,England,2023,');
   });
 
   it('exports every published area in bounded batches with a single CSV header', async () => {
@@ -183,21 +191,61 @@ describe('loadIndicatorCsv', () => {
           areaName: areas.find((area) => area.code === code)?.name ?? '',
           observations: [observation()],
         })),
-      { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Local authorities', areas }] },
+      { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Statistical regions', areas }] },
     );
     const response = await loadIndicatorCsv(
       args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
       'all-data',
     );
     const csv = await response.text();
-    expect(csv.split('\n').filter((line) => line.startsWith('Indicator,Area,Period'))).toHaveLength(
-      1,
-    );
+    expect(
+      csv.split('\n').filter((line) => line.startsWith('Indicator,Area,Area type,Period')),
+    ).toHaveLength(1);
     expect(csv).toContain('Area 22');
     const sizes = client.calls
       .filter(({ path }) => path.includes('/data?'))
       .map((call) => areaCodes(call).length);
     expect(sizes).toEqual([20, 3]);
+  });
+
+  it("names each area's type beside it in the all-areas download", async () => {
+    const groups = [
+      { displayGroup: 'England', areas: [{ code: 'E92000001', name: 'England' }] },
+      {
+        displayGroup: 'Local authorities',
+        areas: [
+          { code: 'E10000032', name: 'West Sussex' },
+          { code: 'E07000223', name: 'Adur' },
+          { code: 'E06000043', name: 'Brighton and Hove' },
+        ],
+      },
+      { displayGroup: 'Integrated care boards', areas: [{ code: 'E54000064', name: 'Sussex' }] },
+    ];
+    const names = new Map(
+      groups.flatMap(({ areas }) => areas.map(({ code, name }) => [code, name])),
+    );
+    const client = api(
+      (call) =>
+        areaCodes(call).map((code) => ({
+          areaCode: code,
+          areaName: names.get(code) ?? '',
+          observations: [observation()],
+        })),
+      { [`GET ${DETAIL}/areas`]: groups },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      'all-data',
+    );
+    const lines = (await response.text()).trim().split(/\r?\n/);
+    expect(lines[0]?.startsWith('Indicator,Area,Area type,Period,')).toBe(true);
+    expect(lines.slice(1).map((line) => line.split(',').slice(2, 4))).toEqual([
+      ['England', 'England'],
+      ['West Sussex', 'Upper tier local authority'],
+      ['Adur', 'Lower tier local authority'],
+      ['Brighton and Hove', 'Upper and lower tier local authority'],
+      ['Sussex', 'Integrated care board'],
+    ]);
   });
 
   it('ignores a sex the data does not publish rather than serving an empty table', async () => {

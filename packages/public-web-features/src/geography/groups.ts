@@ -56,3 +56,21 @@ export function geographyGroupLabel(group: string): string {
   const acronyms: Record<string, string> = { nhs: 'NHS', icbs: 'ICBs', msoas: 'MSOAs' };
   return group.toLowerCase().replace(/\b(nhs|icbs|msoas)\b/g, (word) => acronyms[word] ?? word);
 }
+
+const SINGLE_AREA_TYPES: Record<string, string> = {
+  'Integrated care boards': 'Integrated care board',
+  'Middle-layer super output areas': 'Middle-layer super output area',
+  'NHS regions': 'NHS region',
+  'Statistical regions': 'Statistical region',
+  'GP practices': 'GP practice',
+};
+
+export function areaTypeLabel(group: string, code: string): string {
+  if (group === 'Local authorities') {
+    if (/^E10/.test(code)) return 'Upper tier local authority';
+    if (/^E07/.test(code)) return 'Lower tier local authority';
+    if (/^E(?:06|08|09)/.test(code)) return 'Upper and lower tier local authority';
+    return 'Local authority';
+  }
+  return SINGLE_AREA_TYPES[group] ?? group;
+}

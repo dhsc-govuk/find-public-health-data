@@ -93,12 +93,14 @@ export function trendCsv(
 export function allDataCsv(
   indicator: IndicatorDetail,
   areaData: IndicatorAreaData[],
+  areaType: (areaCode: string) => string | null,
   includeHeader = true,
 ): string {
   const rows: (string | number | null)[][] = [
     [
       'Indicator',
       'Area',
+      'Area type',
       'Period',
       'Segment',
       'Count',
@@ -117,6 +119,7 @@ export function allDataCsv(
       rows.push([
         indicator.name,
         data.areaName,
+        areaType(data.areaCode),
         periodLabel(observation, indicator.yearType),
         segmentLabel(observation),
         observation.count,
