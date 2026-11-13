@@ -67,6 +67,7 @@ function api(stubs: FakeApiStubs = {}) {
   return createFakeApiClient({
     ...indicatorStubs(108),
     ...indicatorStubs(241),
+    'GET /api/indicator-scatter': { points: [] },
     'GET /api/indicator-data': (call) =>
       new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
         detail: indicatorDetail(Number(id)),
@@ -541,16 +542,23 @@ describe('loadIndicator', () => {
     expect(paths(client).filter((path) => path.includes('/range?'))).toHaveLength(1);
   });
 
-  it('pairs the full comparison geography group even when the indicator tab has a picked area', async () => {
+  it('pairs the full comparison geography group without paging histories when an area is picked', async () => {
     const client = api({
-      'GET /api/indicator-data': (call) =>
-        new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
-          detail: indicatorDetail(Number(id)),
-          areaData: rankings(call).map((area) => ({
-            ...area,
-            observations: [observation(id === '108' ? 10 : 20)],
-          })),
+      'GET /api/indicators/108/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [observation(10)] })),
+      'GET /api/indicators/241/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [observation(20)] })),
+      'GET /api/indicator-scatter': (call) => ({
+        points: rankings(call).map((area) => ({
+          code: area.areaCode,
+          name: area.areaName,
+          period: '2024-01-01|2024-12-31',
+          fromDate: '2024-01-01',
+          toDate: '2024-12-31',
+          x: 10,
+          y: 20,
         })),
+      }),
       'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
       'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
     });
@@ -566,14 +574,10 @@ describe('loadIndicator', () => {
       y: 20,
     });
     expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
-    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(0);
-    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(2);
-    expect(paths(client).filter((path) => path === '/api/indicators/241')).toHaveLength(0);
-    expect(
-      paths(client).filter(
-        (path) => path === '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
-      ),
-    ).toHaveLength(1);
+    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(2);
+    const scatterPaths = paths(client).filter((path) => path.includes('/indicator-scatter?'));
+    expect(scatterPaths).toHaveLength(0);
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(0);
     expect(result.compareAreasData).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations).toHaveLength(1);
   });
@@ -598,33 +602,44 @@ describe('loadIndicator', () => {
     ]);
   });
 
-  it('shares recent histories between rankings and scatter when indicators end in different years', async () => {
+  it('keeps the server-selected common period separate from each latest ranking and honours saved axes', async () => {
     const point = (year: number, value: number) => ({
       ...observation(value),
       fromDate: `${year}-01-01`,
       toDate: `${year}-12-31`,
     });
-    const observations = (id: string) =>
-      id === '108' ? [point(2023, 10), point(2024, 11)] : [point(2023, 20)];
     const client = api({
-      'GET /api/indicator-data': (call) =>
-        new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
-          detail: indicatorDetail(Number(id)),
-          areaData: rankings(call).map((area) => ({ ...area, observations: observations(id) })),
+      'GET /api/indicators/108/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [point(2024, 11)] })),
+      'GET /api/indicators/241/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [point(2023, 20)] })),
+      'GET /api/indicator-scatter': (call) => ({
+        points: rankings(call).map((area) => ({
+          code: area.areaCode,
+          name: area.areaName,
+          period: '2023-01-01|2023-12-31',
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          x: 20,
+          y: 10,
         })),
-      'GET /api/indicators/108/data': (call) => areaData(call, observations('108')),
-      'GET /api/indicators/241/data': (call) => areaData(call, observations('241')),
+      }),
     });
     const result = await loadIndicator(
-      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&scatter-x=241&scatter-y=108',
+      ),
     );
     expect(result.scatter?.points).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
     expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
-    expect(paths(client).some((path) => path.includes('/ranking?'))).toBe(false);
+    expect(paths(client).find((path) => path.includes('/indicator-scatter?'))).toContain(
+      '/indicator-scatter?indicator=241&indicator=108&',
+    );
     expect(
       result.scatter?.points.every(
-        ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 10 && y === 20,
+        ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 20 && y === 10,
       ),
     ).toBe(true);
   });

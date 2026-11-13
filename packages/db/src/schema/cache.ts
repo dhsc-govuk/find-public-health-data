@@ -37,6 +37,7 @@ export const observationSeries = pgTable(
     latestObservationId: uuid().notNull(),
     rankingObservationId: uuid(),
     recentObservationIds: uuid().array().notNull(),
+    sparklineObservationIds: uuid().array(),
     recentValues: doublePrecision().array().notNull(),
   },
   (t) => [

@@ -1,3 +1,4 @@
+import { pairedAreaValues } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import { type ConfidenceLevel, sameSegment, trendSeries } from '../data.ts';
 import type { IndicatorAreaData, IndicatorDetail, IndicatorObservation } from '../loader.ts';
@@ -64,34 +65,7 @@ export function chartPeriods(
     }));
 }
 
-export function pairedObservations(xAreas: IndicatorAreaData[], yAreas: IndicatorAreaData[]) {
-  const xSeries = alignedSeries(xAreas);
-  const ySeries = new Map(alignedSeries(yAreas).map((area) => [area.code, area]));
-  const matches = xSeries.flatMap(({ code, name, observations }) => {
-    const y = ySeries.get(code)?.observations;
-    return [...observations].flatMap(([period, x]) => {
-      const other = y?.get(period);
-      return x.value == null || other?.value == null || !sameSegment(x, other)
-        ? []
-        : [
-            {
-              code,
-              name,
-              period,
-              fromDate: x.fromDate,
-              toDate: x.toDate,
-              x: x.value,
-              y: other.value,
-            },
-          ];
-    });
-  });
-  const local = matches.filter(({ code }) => code !== englandCode);
-  const latest = (local.length > 0 ? local : matches)
-    .toSorted((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
-    .at(-1)?.period;
-  return matches.filter(({ period }) => period === latest);
-}
+export const pairedObservations = pairedAreaValues;
 
 export function regression(points: { x: number; y: number }[]) {
   if (points.length < 3) return null;

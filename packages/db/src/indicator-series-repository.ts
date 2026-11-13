@@ -1,12 +1,10 @@
 import {
   ENGLAND_AREA_CODE,
   observationSegmentKey,
-  ROLLING_PERIOD_THRESHOLD_DAYS,
   type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
-import { and, eq, gt, inArray, lte, or, sql } from 'drizzle-orm';
-import { unionAll } from 'drizzle-orm/pg-core';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from './client.ts';
 import type {
   IndicatorAreaData,
@@ -70,53 +68,6 @@ async function readPoints(db: Database, ids: string[], benchmarkIds: string[], e
   `);
 }
 
-async function readSparklineHistory(
-  db: Database,
-  rows: Pick<
-    typeof series.$inferSelect,
-    'indicatorId' | 'areaId' | 'dimensionKey' | 'periodType'
-  >[],
-) {
-  const queries = (['all', '3-year', '1-year'] as const).flatMap((periodType) => {
-    const matching = rows.filter((row) => row.periodType === periodType);
-    if (!matching.length) return [];
-    const duration = sql`${observation.toDate} - ${observation.fromDate}`;
-    return [
-      db
-        .select({
-          id: observation.id,
-          rn: sql<number>`row_number() over (
-            partition by ${observation.indicatorId}, ${observation.areaId}, ${observation.dimensionKey}
-            order by ${observation.fromDate} desc, ${observation.toDate} desc
-          )`.as('rn'),
-        })
-        .from(observation)
-        .where(
-          and(
-            or(
-              ...matching.map((row) =>
-                and(
-                  eq(observation.indicatorId, row.indicatorId),
-                  eq(observation.areaId, row.areaId),
-                  eq(observation.dimensionKey, row.dimensionKey),
-                ),
-              ),
-            ),
-            periodType === 'all'
-              ? undefined
-              : periodType === '3-year'
-                ? gt(duration, ROLLING_PERIOD_THRESHOLD_DAYS)
-                : lte(duration, ROLLING_PERIOD_THRESHOLD_DAYS),
-          ),
-        ),
-    ];
-  });
-  const [first, second, ...rest] = queries;
-  if (!first) return [];
-  const ranked = (second ? unionAll(first, second, ...rest) : first).as('sparkline_history');
-  return db.selectDistinct({ id: ranked.id }).from(ranked).where(lte(ranked.rn, 8));
-}
-
 export async function getIndicatorSeriesData(
   db: Database,
   indicatorIds: string[],
@@ -142,6 +93,8 @@ export async function getIndicatorSeriesData(
         latestObservationId: series.latestObservationId,
         rankingObservationId: series.rankingObservationId,
         recentObservationIds: series.recentObservationIds,
+        sparklineObservationIds:
+          mode === 'sparkline' ? series.sparklineObservationIds : sql<string[] | null>`null`,
         recentValues: series.recentValues,
       },
     })
@@ -161,6 +114,8 @@ export async function getIndicatorSeriesData(
   if (new Set(loaded.map(({ indicatorId }) => indicatorId)).size !== indicatorIds.length)
     return undefined;
   const rows = loaded.flatMap((row) => (row.series ? [row.series] : []));
+  if (mode === 'sparkline' && rows.some((row) => row.sparklineObservationIds === null))
+    return undefined;
   const ordered = codes.flatMap((code) => {
     const match = areas.find((entry) => entry.code === code);
     return match ? [match] : [];
@@ -200,7 +155,7 @@ export async function getIndicatorSeriesData(
       if (mode !== 'latest') for (const id of row.recentObservationIds) wanted.add(id);
     }
   if (mode === 'sparkline')
-    for (const { id } of await readSparklineHistory(db, rows)) wanted.add(id);
+    for (const row of rows) for (const id of row.sparklineObservationIds ?? []) wanted.add(id);
   const england = areas.find((a) => a.code === ENGLAND_AREA_CODE);
   const benchmarkIds = england
     ? [

@@ -21,6 +21,7 @@ import {
   area,
   indicatorVersion,
   observation,
+  observationSeries,
   publishedIndicator,
   uploadBatch,
 } from './schema/index.ts';
@@ -136,6 +137,41 @@ it('falls back when a sparkline history point disappears before hydration', asyn
     await getIndicatorSeriesData(changing, [indicator.id], codes, 'sparkline'),
   ).toBeUndefined();
   expect(disappeared).toBe(true);
+});
+
+it('uses canonical eight-period history until the new cache column has been rebuilt', async () => {
+  const id = ids[0];
+  if (!id) throw new Error('Expected seed data');
+  const [identity] = await db
+    .select({ shortId: publishedIndicator.shortId })
+    .from(publishedIndicator)
+    .where(eq(publishedIndicator.id, id));
+  if (!identity) throw new Error('Expected a published identity');
+  const codes = ['E92000001'];
+  const expected = await getIndicatorTableData(db, [identity.shortId], codes, 'sparkline');
+  await database.db
+    .update(observationSeries)
+    .set({ sparklineObservationIds: null })
+    .where(eq(observationSeries.indicatorId, id));
+  expect(await getIndicatorSeriesData(db, [id], codes, 'sparkline')).toBeUndefined();
+  const actual = await getIndicatorTableData(db, [identity.shortId], codes, 'sparkline');
+  const normalise = (entries: typeof expected) =>
+    entries.map(({ tableSeries, areaData, ...entry }) => ({
+      ...entry,
+      areaData: areaData.map((area) => ({
+        ...area,
+        observations: [...area.observations].sort(
+          (a, b) =>
+            a.fromDate.localeCompare(b.fromDate) ||
+            a.toDate.localeCompare(b.toDate) ||
+            observationSegmentKey(a).localeCompare(observationSegmentKey(b)),
+        ),
+      })),
+      tableSeries: tableSeries
+        ?.filter(({ segments }) => Object.keys(segments).length)
+        .sort((a, b) => `${a.sex}|${a.periodType}`.localeCompare(`${b.sex}|${b.periodType}`)),
+    }));
+  expect(normalise(actual)).toEqual(normalise(expected));
 });
 
 it('uses canonical data when the published batch has no completed read model', async () => {

@@ -8,6 +8,7 @@ import {
   indicatorDetailSchema,
   indicatorListResponseSchema,
   indicatorRangeSchema,
+  indicatorScatterSchema,
   MAX_AREA_PREVIEW,
   MAX_INDICATOR_QUERY_LENGTH,
 } from '@fphd/public-api-features/contract';
@@ -18,13 +19,9 @@ import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-serve
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
-import {
-  AREA_COMPARISON_GROUPS,
-  areaComparisonOptions,
-  comparisonRankingData,
-} from './area-comparison.ts';
-import { englandCode, quintileParam } from './charts/chart-data.ts';
-import { loadScatterComparison } from './charts/scatter-loader.ts';
+import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import { englandCode, quintileParam, scatterPair } from './charts/chart-data.ts';
+import { loadRankingScatterComparison, loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
@@ -208,6 +205,7 @@ async function loadIndicatorComparison(
     : comparisonDisplayGroups.includes('Local authorities')
       ? 'Local authorities'
       : (comparisonDisplayGroups[0] ?? '');
+  let compactScatter: ReturnType<typeof loadScatterComparison>;
   let compareAreasData: IndicatorAreaData[] = [];
   let chartIndicators: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
@@ -240,13 +238,27 @@ async function loadIndicatorComparison(
           )
         : Promise.resolve([]);
     if (comparedDetail) {
-      chartIndicators = await loadIndicatorTableEntries(
-        api,
-        [routeDetail.shortId, comparedDetail.shortId],
-        codes,
+      const [x, y] = scatterPair(
+        [{ detail: routeDetail }, { detail: comparedDetail }],
+        url.searchParams,
       );
-      compareAreasData = chartIndicators[0] ? comparisonRankingData(chartIndicators[0]) : [];
-      comparedAreasData = chartIndicators[1] ? comparisonRankingData(chartIndicators[1]) : [];
+      if (!x || !y) throw new Error('Expected a comparison pair');
+      const [primary, secondary] = await Promise.all([
+        loadRanking(routeDetail),
+        loadRanking(comparedDetail),
+      ]);
+      compareAreasData = primary;
+      comparedAreasData = secondary;
+      chartIndicators = [
+        { detail: routeDetail, areaData: primary },
+        { detail: comparedDetail, areaData: secondary },
+      ];
+      compactScatter =
+        loadRankingScatterComparison(chartIndicators, url.searchParams) ??
+        (await api.get(
+          `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+          indicatorScatterSchema,
+        ));
     } else {
       compareAreasData = await loadRanking(routeDetail);
       chartIndicators = [{ detail: routeDetail, areaData: compareAreasData }];
@@ -272,7 +284,7 @@ async function loadIndicatorComparison(
         ).periods
       : [];
   const scatter = comparedDetail
-    ? loadScatterComparison(chartIndicators, url.searchParams)
+    ? (compactScatter ?? loadScatterComparison(chartIndicators, url.searchParams))
     : undefined;
   return {
     compareAreasData,

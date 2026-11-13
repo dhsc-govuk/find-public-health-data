@@ -358,3 +358,17 @@ export const indicatorFacetsSchema = z.object({
 export type IndicatorSearchRow = z.infer<typeof indicatorSearchRowSchema>;
 export type IndicatorSearchResult = z.infer<typeof indicatorSearchResultSchema>;
 export type IndicatorFacets = z.infer<typeof indicatorFacetsSchema>;
+
+export const indicatorScatterSchema = z.object({
+  points: z.array(
+    z.object({
+      code: z.string(),
+      name: z.string(),
+      period: z.string(),
+      fromDate: z.iso.date(),
+      toDate: z.iso.date(),
+      x: z.number(),
+      y: z.number(),
+    }),
+  ),
+});

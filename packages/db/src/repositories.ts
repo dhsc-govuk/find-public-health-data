@@ -33,6 +33,7 @@ import {
   searchIndicators,
   searchPublishedIndicators,
 } from './indicator-repository.ts';
+import { getPublishedIndicatorScatterData } from './indicator-scatter-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
 import {
   getTopicBySlug,
@@ -44,6 +45,10 @@ import {
 } from './topic-repository.ts';
 
 export interface IndicatorRepository {
+  findScatterData(
+    shortIds: [number, number],
+    areaCodes: string[],
+  ): ReturnType<typeof getPublishedIndicatorScatterData>;
   findTableData(
     shortIds: number[],
     areaCodes: string[],
@@ -126,6 +131,8 @@ export function createRepositories(db: Database): Repositories {
         getIndicatorObservations(db, indicatorId, areaCode),
       findObservationsForAreas: (indicatorId, areaCodes) =>
         getIndicatorObservationsForAreas(db, indicatorId, areaCodes),
+      findScatterData: (shortIds, areaCodes) =>
+        getPublishedIndicatorScatterData(db, shortIds, areaCodes),
       findRankingData: (indicatorId, areaCodes) =>
         getIndicatorRankingData(db, indicatorId, areaCodes),
       findObservationRange: (indicatorId, displayGroup) =>

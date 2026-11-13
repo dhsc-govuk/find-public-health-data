@@ -24,10 +24,15 @@
     "react-router": "catalog:"
   },
   "devDependencies": {
+    "@fphd/db": "workspace:*",
+    "@fphd/express": "workspace:*",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
+    "@types/express": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "drizzle-orm": "catalog:",
+    "express": "catalog:",
     "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
