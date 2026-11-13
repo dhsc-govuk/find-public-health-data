@@ -140,9 +140,13 @@ export function createRepositories(db: Database): Repositories {
       listSubtopics: (slug) => listTopicSubtopics(db, slug),
     },
   };
+  // Resolving a short id or slug is a one-row index lookup, so it is never shared between
+  // requests. Sharing it would make the number of statements a page costs depend on whether
+  // its API requests happen to overlap.
+  const { resolveId, resolveIdBySlug } = repositories.indicators;
   return {
     areas: coalescedReads(repositories.areas),
-    indicators: coalescedReads(repositories.indicators),
+    indicators: { ...coalescedReads(repositories.indicators), resolveId, resolveIdBySlug },
     topics: coalescedReads(repositories.topics),
   };
 }
