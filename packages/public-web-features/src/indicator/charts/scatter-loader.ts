@@ -24,7 +24,17 @@ export function loadRankingScatterComparison(
   // Sex variants can elect a different headline after history is bounded.
   if ([first, second].some(({ dimensions }) => dimensions.some(({ type }) => type === 'Sex')))
     return undefined;
-  if (!sameSegment(first, second)) return undefined;
+  if (!sameSegment(first, second)) {
+    const populations = [x, y].map(({ areaData }) =>
+      areaData.every(({ populationKeys }) => populationKeys !== undefined)
+        ? new Set(areaData.flatMap(({ populationKeys }) => populationKeys ?? []))
+        : undefined,
+    );
+    const [firstKeys, secondKeys] = populations;
+    return firstKeys && secondKeys && ![...firstKeys].some((key) => secondKeys.has(key))
+      ? { points: [] }
+      : undefined;
+  }
   const periods = [x, y].map(
     ({ areaData }) =>
       new Set(

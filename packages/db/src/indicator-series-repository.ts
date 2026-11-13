@@ -73,6 +73,7 @@ export async function getIndicatorSeriesData(
   indicatorIds: string[],
   codes: string[],
   mode: 'ranking' | 'recent' | 'latest' | 'sparkline',
+  includePopulationKeys = false,
 ): Promise<Result | undefined> {
   if (!indicatorIds.length || !codes.length) return new Map();
   const areas = await db
@@ -208,6 +209,9 @@ export async function getIndicatorSeriesData(
           return {
             areaCode: a.code,
             areaName: a.name,
+            ...(includePopulationKeys
+              ? { populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))] }
+              : {}),
             observations:
               point && point.fromDate === latest?.fromDate && point.toDate === latest?.toDate
                 ? [point]

@@ -1,4 +1,4 @@
-import { rankingAreaSeries } from '@fphd/utils/observation-series';
+import { rankingAreaSeries, tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
 import { expect, it } from 'vitest';
 import { observation, selected, sex } from '../view.testing.ts';
 import { loadRankingScatterComparison, loadScatterComparison } from './scatter-loader.ts';
@@ -72,8 +72,87 @@ it.each(['Age', 'Ethnicity'])(
     ]);
     const ranking = indicators.map((entry) => ({
       ...entry,
-      areaData: rankingAreaSeries(entry.areaData),
+      areaData: rankingAreaSeries(entry.areaData).map((area, index) => ({
+        ...area,
+        populationKeys: [
+          ...new Set(
+            entry.areaData[index]?.observations.map((point) => point.dimensions[0]?.value) ?? [],
+          ),
+        ].filter((key): key is string => key !== undefined),
+      })),
     }));
     expect(loadRankingScatterComparison(ranking, params)).toBeUndefined();
   },
 );
+
+it('skips history only when the canonical population candidates cannot overlap', () => {
+  const indicators = pair();
+  indicators.forEach((entry, index) => {
+    entry.areaData = entry.areaData.map((area) => ({
+      ...area,
+      populationKeys: [String(index)],
+      observations: area.observations.map((point) => ({
+        ...point,
+        dimensions: [
+          { type: 'Age', value: String(index), dimensionClass: 'core', sortOrder: index },
+        ],
+      })),
+    }));
+  });
+  expect(loadScatterComparison(indicators, new URLSearchParams())).toEqual({ points: [] });
+  expect(loadRankingScatterComparison(indicators, new URLSearchParams())).toEqual({ points: [] });
+});
+
+it('keeps the history fallback when population metadata is missing for any area', () => {
+  const indicators = pair();
+  indicators.forEach((entry, index) => {
+    for (const area of entry.areaData)
+      for (const point of area.observations)
+        point.dimensions = [
+          { type: 'Age', value: String(index), dimensionClass: 'core', sortOrder: index },
+        ];
+  });
+  expect(loadRankingScatterComparison(indicators, new URLSearchParams())).toBeUndefined();
+});
+
+it('keeps the fallback when bounded annual and rolling histories can elect a common population', () => {
+  const point = (year: number, value: number, population: string, rolling = false) => ({
+    ...observation(value, [
+      { type: 'Age', value: population, dimensionClass: 'core', sortOrder: 1 },
+    ]),
+    fromDate: `${year}-01-01`,
+    toDate: `${year + (rolling ? 2 : 0)}-12-31`,
+  });
+  const indicators = [selected(108), selected(241)].map((entry, index) => ({
+    ...entry,
+    areaData: [
+      {
+        areaCode: 'A',
+        areaName: 'Area A',
+        observations: [
+          ...Array.from({ length: 5 }, (_, year) =>
+            point(2010 + year, index ? 20 : 0, 'Shared', true),
+          ),
+          ...(index
+            ? [point(2024, 21, 'Shared')]
+            : Array.from({ length: 10 }, (_, year) => point(2015 + year, 10, 'Other'))),
+        ],
+      },
+    ],
+  }));
+  const canonical = indicators.map((entry) => ({
+    ...entry,
+    areaData: tableSummary(tableAreaSeries(entry.areaData)).areaData,
+  }));
+  expect(loadScatterComparison(canonical, new URLSearchParams())?.points).toMatchObject([
+    { code: 'A', x: 0, y: 20, period: '2014-01-01|2016-12-31' },
+  ]);
+  const rankings = indicators.map((entry) => ({
+    ...entry,
+    areaData: rankingAreaSeries(entry.areaData).map((area) => ({
+      ...area,
+      populationKeys: ['Shared', 'Other'],
+    })),
+  }));
+  expect(loadRankingScatterComparison(rankings, new URLSearchParams())).toBeUndefined();
+});

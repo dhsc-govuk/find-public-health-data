@@ -42,6 +42,7 @@ export interface IndicatorAreaData {
   areaCode: string;
   areaName: string;
   observations: IndicatorObservation[];
+  populationKeys?: string[];
 }
 
 /**

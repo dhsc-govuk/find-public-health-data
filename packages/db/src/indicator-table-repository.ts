@@ -13,7 +13,7 @@ export async function getIndicatorRankingData(
   areaCodes: string[],
 ) {
   const data =
-    (await getIndicatorSeriesData(db, [indicatorId], areaCodes, 'ranking')) ??
+    (await getIndicatorSeriesData(db, [indicatorId], areaCodes, 'ranking', true)) ??
     (await getIndicatorObservationData(db, [indicatorId], areaCodes, 'ranking'));
   return data.get(indicatorId)?.areaData ?? [];
 }

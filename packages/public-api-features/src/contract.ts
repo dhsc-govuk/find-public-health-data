@@ -240,6 +240,7 @@ export const indicatorAreaDataSchema = z.object({
   areaCode: z.string().min(1),
   areaName: z.string().min(1),
   observations: z.array(indicatorObservationSchema),
+  populationKeys: z.array(z.string()).optional(),
 });
 
 export const indicatorAreaDataListSchema = z.array(indicatorAreaDataSchema);

@@ -101,7 +101,7 @@ it.each([40501])(
   },
 );
 
-it('checks canonical history before returning an empty scatter for different age segments', async () => {
+it('skips history for the seed pair with disjoint canonical populations', async () => {
   const fixture = before.find(
     ({ ids, group }) => ids[1] === 92443 && group === 'Local authorities',
   );
@@ -109,5 +109,6 @@ it('checks canonical history before returning an empty scatter for different age
   const paths: string[] = [];
   const comparison = await load(fixture.url, (path) => paths.push(path));
   expect(comparison.scatter).toEqual(fixture.scatter);
-  expect(paths.filter((path) => path.startsWith('/api/indicator-scatter'))).toHaveLength(1);
+  expect(comparison.scatter).toEqual({ points: [] });
+  expect(paths.filter((path) => path.startsWith('/api/indicator-scatter'))).toHaveLength(0);
 });

@@ -6,8 +6,8 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
-import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { eq, inArray } from 'drizzle-orm';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import type { Database } from './client.ts';
 import {
   getIndicatorObservationData,
@@ -15,14 +15,16 @@ import {
   type IndicatorObservation,
 } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
-import { getIndicatorTableData } from './indicator-table-repository.ts';
+import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   area,
   indicatorVersion,
   observation,
   observationSeries,
+  publishedArea,
   publishedIndicator,
+  publishedObservationSeries,
   uploadBatch,
 } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
@@ -82,6 +84,51 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], 
     }
   },
 );
+
+it('includes all elected population keys without changing ranking values or SQL work', async () => {
+  const codes = ['E06000052', 'E92000001'];
+  const identities = await db
+    .select()
+    .from(publishedArea)
+    .where(inArray(publishedArea.code, codes));
+  const indicators = await db
+    .select()
+    .from(publishedIndicator)
+    .where(inArray(publishedIndicator.shortId, [241, 92443]));
+  const populations: Set<string>[] = [];
+  for (const { id } of indicators) {
+    const candidates = await db
+      .select()
+      .from(publishedObservationSeries)
+      .where(eq(publishedObservationSeries.indicatorId, id));
+    const query = vi.spyOn(db.$client, 'unsafe');
+    try {
+      const plain = await getIndicatorSeriesData(db, [id], codes, 'ranking');
+      const statements = query.mock.calls.map(([text]) => text);
+      query.mockClear();
+      const ranked = await getIndicatorRankingData(db, id, codes);
+      expect(query.mock.calls.map(([text]) => text)).toEqual(statements);
+      expect(ranked.map(({ populationKeys: _, ...area }) => area)).toEqual(
+        plain?.get(id)?.areaData,
+      );
+      for (const area of ranked) {
+        const areaId = identities.find(({ code }) => code === area.areaCode)?.id;
+        expect(area.populationKeys?.toSorted()).toEqual(
+          [
+            ...new Set(
+              candidates.filter((row) => row.areaId === areaId).map((row) => row.dimensionKey),
+            ),
+          ].sort(),
+        );
+      }
+      populations.push(new Set(ranked.flatMap(({ populationKeys }) => populationKeys ?? [])));
+    } finally {
+      query.mockRestore();
+    }
+  }
+  expect(indicators).toHaveLength(2);
+  expect([...(populations[0] ?? [])].some((key) => populations[1]?.has(key))).toBe(false);
+});
 
 it('retains eight periods of both shapes when the all-period series mixes annual and rolling data', async () => {
   const codes = ['E92000001'];
