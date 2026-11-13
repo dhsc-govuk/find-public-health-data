@@ -328,10 +328,21 @@ describe('publish', () => {
     });
   });
 
+  it('publishes a scheduled update to a live indicator, whatever the core team decided', () => {
+    for (const latestUpdateDecision of UPDATE_DECISIONS) {
+      expect(
+        nextState({ ...scheduled, indicatorStatus: 'live', latestUpdateDecision }, 'publish'),
+      ).toEqual({
+        ok: true,
+        state: { versionStatus: 'published', submissionStatus: 'approved', isLocked: true },
+      });
+    }
+  });
+
   it('is refused in every other context', () => {
     const open = CONTEXTS.filter((context) => nextState(context, 'publish').ok);
 
-    expect(open).toEqual([scheduled]);
+    expect(open).toEqual([scheduled, { ...scheduled, indicatorStatus: 'live' }]);
   });
 });
 
@@ -364,7 +375,7 @@ describe('allowedSteps', () => {
     [
       'a scheduled update',
       { ...scheduled, indicatorStatus: 'live', latestUpdateDecision: 'publish_with_history' },
-      ['change_publication_date'],
+      ['change_publication_date', 'publish'],
     ],
     ['a published version', { ...unsubmitted, versionStatus: 'published' }, []],
   ] as const)('offers %s only the steps open to it', (_, context, steps) => {
@@ -383,6 +394,7 @@ describe('allowedSteps', () => {
       [scheduled, 'change_publication_date'],
       [scheduled, 'publish'],
       [scheduledUpdate, 'change_publication_date'],
+      [scheduledUpdate, 'publish'],
     ]);
   });
 

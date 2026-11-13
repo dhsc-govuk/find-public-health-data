@@ -95,6 +95,7 @@ describe('publishNextDueVersion', () => {
       versionId,
       scheduledPublishAt: expect.any(Date),
       publishedAt: expect.any(Date),
+      slugTaken: null,
     });
     if (result.kind !== 'published') throw new Error('expected a publication');
     const publishedAt = result.publishedAt.toISOString();

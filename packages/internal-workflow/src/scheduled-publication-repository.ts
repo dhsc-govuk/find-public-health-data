@@ -2,10 +2,13 @@ import { type Database, schema } from '@fphd/db';
 import { type Actor, type AuditChanges, changesBetween } from '@fphd/db/audit-log';
 import { refreshIndicatorReadModels } from '@fphd/internal-read-models';
 import type { Logger } from '@fphd/logger';
-import { and, asc, eq, lt, lte, notInArray, sql } from 'drizzle-orm';
+import { slugify } from '@fphd/utils/slug';
+import { and, asc, eq, lt, lte, ne, notInArray, sql } from 'drizzle-orm';
 
 import { hasSqlState, type Transaction } from './database.ts';
 import { type IndicatorStepResult, takeIndicatorStepIn } from './indicator-step-repository.ts';
+import type { IndicatorDraftVersion } from './indicator-version-repository.ts';
+import { lockSlugs } from './slug-lock.ts';
 
 const { indicator, indicatorVersion, isScheduled, SYSTEM_USER_IDS } = schema;
 
@@ -29,7 +32,8 @@ const OVERDUE_AFTER = '10 minutes';
 
 /**
  * The outcome of one call to `publishNextDueVersion`: no version was due, or the version it chose
- * was published, refused by the publish step, or failed with an error.
+ * was published, refused by the publish step, or failed with an error. `slugTaken` is the slug a
+ * renamed update could not move to because another indicator holds it, and null otherwise.
  */
 export type PublicationResult =
   | { kind: 'none' }
@@ -39,6 +43,7 @@ export type PublicationResult =
       versionId: string;
       scheduledPublishAt: Date;
       publishedAt: Date;
+      slugTaken: string | null;
     }
   | {
       kind: 'refused';
@@ -85,10 +90,45 @@ async function markDataUpdated(
 }
 
 /**
+ * Gives a version the slug of its name, when that differs from the slug it carries. A renamed
+ * update keeps the indicator's published slug until it is published, so publishing it moves the
+ * indicator to the new slug. The earlier published versions keep the old slug, so the old address
+ * still finds the indicator, and the public site redirects it to the new one.
+ *
+ * Two indicators never share a slug. If another indicator has taken the new slug since the update
+ * was renamed, the version keeps the slug it carries, and the indicator keeps its address.
+ * Returns the slug change for the audit entry, and the slug that was taken, if it was.
+ */
+async function moveToSlugOfName(
+  tx: Transaction,
+  draft: IndicatorDraftVersion,
+): Promise<{ changes: AuditChanges; slugTaken: string | null }> {
+  const slug = slugify(draft.name);
+  if (slug === draft.slug) return { changes: {}, slugTaken: null };
+
+  // Holds the slug, as a create or a rename of a draft does, so no other writer can take it
+  // between this check and the update.
+  await lockSlugs(tx, [slug]);
+  const [holder] = await tx
+    .select({ id: indicatorVersion.id })
+    .from(indicatorVersion)
+    .where(
+      and(eq(indicatorVersion.slug, slug), ne(indicatorVersion.indicatorId, draft.indicatorId)),
+    )
+    .limit(1);
+  if (holder !== undefined) return { changes: {}, slugTaken: slug };
+
+  await tx.update(indicatorVersion).set({ slug }).where(eq(indicatorVersion.id, draft.id));
+  return { changes: changesBetween({ slug: draft.slug }, { slug }), slugTaken: null };
+}
+
+/**
  * Publishes the scheduled version with the earliest due publication time, leaving out the versions
- * in `skip`. One transaction sets the version's status and publication time, sets the indicator's
- * data date if the version brings a new upload batch, refreshes the indicator's read models and
- * records the audit entry as Scheduled publication.
+ * in `skip`. The version is a new indicator's first, or an update that replaces the indicator's
+ * published version. One transaction sets the version's status and publication time, moves a
+ * renamed update to the slug of its new name, and records the audit entry as Scheduled
+ * publication. When the version brings a new upload batch, the same transaction sets the
+ * indicator's data date and refreshes the indicator's read models.
  *
  * A version whose row another transaction has locked, such as another sweep publishing it, is
  * passed over. A lock timeout, or any error before a version is chosen, is thrown. Any other error
@@ -101,6 +141,7 @@ export async function publishNextDueVersion(
 ): Promise<PublicationResult> {
   let chosen: { indicatorId: string; versionId: string } | undefined;
   let publishedAt: Date | null = null;
+  let slugTaken: string | null = null;
 
   try {
     return await db.transaction(async (tx): Promise<PublicationResult> => {
@@ -165,17 +206,23 @@ export async function publishNextDueVersion(
               .where(eq(indicatorVersion.id, draft.id));
             return row?.later === false ? undefined : 'not_due';
           },
-          // The read-model refresh reads the indicator's data through the published views, so it
-          // runs last, after the version is published and the indicator's data date is set.
+          // The read models hold only what the published upload batch gives, so they change only
+          // when the version brings a different batch from the one published before it. Their
+          // refresh reads the indicator's data through the published views, so it runs last,
+          // after the version is published and the indicator's data date is set.
           write: async (stepTx, _submission, draft, version) => {
             publishedAt = version.publishedAt;
             if (publishedAt === null) throw new Error(`published ${draft.id} without a time`);
-            const changes =
-              draft.uploadBatchId !== null && draft.uploadBatchId !== due.previousBatchId
-                ? await markDataUpdated(stepTx, due.indicatorId, draft.id)
-                : {};
+            const slugMove = await moveToSlugOfName(stepTx, draft);
+            slugTaken = slugMove.slugTaken;
+            if (draft.uploadBatchId === due.previousBatchId) return slugMove.changes;
+
+            const dataChanges =
+              draft.uploadBatchId === null
+                ? {}
+                : await markDataUpdated(stepTx, due.indicatorId, draft.id);
             await refreshIndicatorReadModels(stepTx, due.indicatorId);
-            return changes;
+            return { ...slugMove.changes, ...dataChanges };
           },
         },
       );
@@ -188,6 +235,7 @@ export async function publishNextDueVersion(
         ...chosen,
         scheduledPublishAt: due.scheduledPublishAt,
         publishedAt,
+        slugTaken,
       };
     });
   } catch (error) {
@@ -242,6 +290,12 @@ function logPublished(logger: Logger, result: Extract<PublicationResult, { kind:
   };
   if (lateSeconds > LATE_AFTER_SECONDS) logger.warn(fields, 'Indicator published late');
   else logger.info(fields, 'Indicator published');
+  if (result.slugTaken !== null) {
+    logger.warn(
+      { indicatorId: result.indicatorId, versionId: result.versionId, slug: result.slugTaken },
+      'Indicator kept its slug because another indicator holds the new one',
+    );
+  }
 }
 
 /**
