@@ -761,13 +761,19 @@ export async function searchIndicators(
                   asc(indicator.name),
                   asc(indicator.shortId),
                 ]
-              : query
+              : filters.sort === 'recently-updated'
                 ? [
-                    relevance,
-                    sql`position(lower(${query}) in lower(${indicator.name}))`,
+                    sql`${indicator.dataUpdatedAt} desc nulls last`,
                     asc(indicator.name),
+                    asc(indicator.shortId),
                   ]
-                : [sql`(${firstTopicTitle}) nulls last`, asc(indicator.name)];
+                : query
+                  ? [
+                      relevance,
+                      sql`position(lower(${query}) in lower(${indicator.name}))`,
+                      asc(indicator.name),
+                    ]
+                  : [sql`(${firstTopicTitle}) nulls last`, asc(indicator.name)];
   const trendSort = filters.sort?.startsWith('trend-') ?? false;
   const rowQuery = (page = 1) => {
     const query = db

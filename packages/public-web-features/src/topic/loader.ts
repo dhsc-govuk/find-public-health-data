@@ -6,7 +6,6 @@ import {
   topicSummaryListSchema,
   topicTrendSummarySchema,
 } from '@fphd/public-api-features/contract';
-import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type LoaderFunctionArgs, RouterContextProvider } from 'react-router';
@@ -16,7 +15,7 @@ import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
 import { compactTopicAreaTable, compactTopicDataTable } from './compact-table.ts';
 import { DEFAULT_TOPIC_AREA_GROUP, TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
-import { topicDataKey } from './filters.ts';
+import { topicDataKey, topicSort } from './filters.ts';
 import { topicOverviewModel } from './overview-model.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
@@ -217,7 +216,7 @@ export async function loadTopic(
   ]);
   const search = loadedSearch;
   const listing = {
-    sort: indicatorSort(url.searchParams.get('sort')) ?? 'subtopic-asc',
+    sort: topicSort(url.searchParams.get('sort')) ?? 'subtopic-asc',
     indicators: search.searchResult.indicators,
   };
   const dataUrl = new URL(request.url);

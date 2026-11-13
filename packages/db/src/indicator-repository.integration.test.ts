@@ -24,7 +24,7 @@ import {
   searchIndicators,
   searchPublishedIndicators,
 } from './indicator-repository.ts';
-import { SYSTEM_USER_IDS } from './schema/index.ts';
+import { publishedIndicator, SYSTEM_USER_IDS } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
@@ -843,6 +843,31 @@ describe('searchIndicators', () => {
 
     expect(first.indicators.map((i) => i.shortId)).toEqual(second.indicators.map((i) => i.shortId));
   });
+
+  it.each(['', 'diabetes'])(
+    'orders recently updated results by data update date for query %j',
+    async (query) => {
+      const updated = new Map(
+        (
+          await db
+            .select({
+              shortId: publishedIndicator.shortId,
+              dataUpdatedAt: publishedIndicator.dataUpdatedAt,
+            })
+            .from(publishedIndicator)
+        ).map(({ shortId, dataUpdatedAt }) => [shortId, dataUpdatedAt?.getTime() ?? null]),
+      );
+      const { indicators } = await searchIndicators(
+        db,
+        noFilters({ query, sort: 'recently-updated' }),
+      );
+      const dates = indicators.map(({ shortId }) => updated.get(shortId) ?? null);
+      const dated = dates.filter((date) => date !== null);
+
+      expect(new Set(dated).size).toBeGreaterThan(1);
+      expect(dates.slice(0, dated.length)).toEqual([...dated].sort((a, b) => b - a));
+    },
+  );
 
   it('indicators with a unique first-topic are sub-ordered by name', async () => {
     // These indicators share one topic, so the sub-order is by name.

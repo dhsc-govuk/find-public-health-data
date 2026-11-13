@@ -373,6 +373,12 @@ describe('loadTopic', () => {
     expect(paths(api)).not.toContain('/api/indicators/999');
   });
 
+  it("keeps the search page's recently updated sort out of the topic Data tab", async () => {
+    const api = topicApi();
+    await loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=data&sort=recently-updated'));
+    expect(paths(api)).toContain('/api/indicators/search?t=topic-a&sort=subtopic-asc');
+  });
+
   it('loads the complete topic list even when an old link includes a page parameter', async () => {
     const indicators = Array.from({ length: 12 }, (_, index) => ({
       shortId: index + 1,
