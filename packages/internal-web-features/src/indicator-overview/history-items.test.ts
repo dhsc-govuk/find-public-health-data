@@ -91,12 +91,21 @@ describe('historyItems', () => {
       'Indicator assigned for review by Avery Clarke, Jamie Evans and Robin Shaw.',
     ],
   ])('names the reviewers an assignment leaves, %j', (reviewers, action) => {
-    expect(itemOf({ kind: 'reviewers_assigned', at, by: 'Avery Clarke', reviewers })).toEqual({
-      date: at,
-      action,
-      by: 'Avery Clarke',
-      rows: [],
-    });
+    expect(
+      itemOf({ kind: 'reviewers_assigned', at, by: 'Avery Clarke', reviewers, isUpdate: false }),
+    ).toEqual({ date: at, action, by: 'Avery Clarke', rows: [] });
+  });
+
+  it("names an update's reviewers as assigned to the update", () => {
+    expect(
+      itemOf({
+        kind: 'reviewers_assigned',
+        at,
+        by: 'Avery Clarke',
+        reviewers: ['Jamie Evans', 'Robin Shaw'],
+        isUpdate: true,
+      })?.action,
+    ).toBe('Update assigned for review by Jamie Evans and Robin Shaw.');
   });
 
   it("dates an IMRG review by the meeting's day", () => {
@@ -125,8 +134,29 @@ describe('historyItems', () => {
         response,
         flags: [],
         clarificationRequest: null,
+        isUpdate: false,
       }),
     ).toEqual({ date: at, action, by: 'Jamie Evans', rows: [] });
+  });
+
+  it.each([
+    [
+      'pre_imrg_feedback',
+      'Revisions or clarifications requested before update can be approved for publishing.',
+    ],
+    ['approved', 'Update approved for publishing'],
+  ] as const)("words an update reviewer's %s response", (response, action) => {
+    expect(
+      itemOf({
+        kind: 'responded',
+        at,
+        by: 'Jamie Evans',
+        response,
+        flags: [],
+        clarificationRequest: null,
+        isUpdate: true,
+      })?.action,
+    ).toBe(action);
   });
 
   it("lists a response's flagged sections by their task titles, then its clarification request", () => {
@@ -140,6 +170,7 @@ describe('historyItems', () => {
         { task: 'calculation', notes: 'Show the formula.' },
       ],
       clarificationRequest: 'Which *years*?',
+      isUpdate: false,
     });
 
     expect(item?.rows).toEqual([
@@ -159,6 +190,7 @@ describe('historyItems', () => {
         { task: 'data-table', revised: false },
       ],
       reply: 'Higher is **better**.',
+      isUpdate: false,
     });
 
     expect(item).toEqual({
@@ -183,9 +215,24 @@ describe('historyItems', () => {
       by: 'Sam Taylor',
       flags: [{ task: 'polarity', revised: false }],
       reply: null,
+      isUpdate: false,
     });
 
     expect(item?.rows).toEqual([{ section: 'Polarity', comments: 'No revisions made' }]);
+  });
+
+  it("words an update's resubmission as resubmitted for review", () => {
+    const item = itemOf({
+      kind: 'resubmitted',
+      at,
+      by: 'Sam Taylor',
+      flags: [{ task: 'update-summary', revised: true }],
+      reply: 'Said why.',
+      isUpdate: true,
+    });
+
+    expect(item?.action).toBe('Update resubmitted for review.');
+    expect(item?.rows[0]).toEqual({ section: 'Update summary', comments: 'Revisions made' });
   });
 
   it.each([

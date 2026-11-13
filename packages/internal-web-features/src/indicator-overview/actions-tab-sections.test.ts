@@ -78,6 +78,13 @@ const live: State = {
   publishedSlug: 'hip-fractures',
 };
 
+const updateInReview: State = {
+  ...inReview,
+  indicatorStatus: 'live',
+  publishedSlug: 'hip-fractures',
+};
+const updateSentBack: State = { ...sentBack, indicatorStatus: 'live', actions: ['resubmit'] };
+
 function sections(indicator: State, { isReviewer = false, canEdit = false } = {}) {
   return actionsTabSections({ indicator, isReviewer, canEdit });
 }
@@ -99,9 +106,16 @@ describe('actionsTabSections', () => {
       ]);
     });
 
-    it('puts the live page under the Review section', () => {
-      expect(sections({ ...live, actions: RESPOND }, { isReviewer: true })).toEqual([
-        { heading: 'Review', button: respond, links: [viewLive] },
+    it("offers an update's response from its own first page, with the live page", () => {
+      expect(sections({ ...updateInReview, actions: RESPOND }, { isReviewer: true })).toEqual([
+        {
+          heading: 'Review',
+          button: {
+            href: `/dashboard/indicators/${ID}/review/update-approval`,
+            label: 'Submit review response',
+          },
+          links: [viewLive],
+        },
       ]);
     });
   });
@@ -139,6 +153,29 @@ describe('actionsTabSections', () => {
     it('offers a link to change them while in review', () => {
       expect(sections({ ...inReview, actions: ['assign_reviewers'] })).toEqual([
         { heading: 'Actions', button: null, links: [changeReviewers] },
+      ]);
+    });
+
+    it('names an update in its assign button and change link', () => {
+      expect(
+        sections({
+          ...updateInReview,
+          draftSubmissionStatus: 'submitted',
+          actions: ['assign_reviewers'],
+        }),
+      ).toEqual([
+        {
+          heading: 'Actions',
+          button: { ...assignFirst, label: 'Assign reviewer to update' },
+          links: [viewLive],
+        },
+      ]);
+      expect(sections({ ...updateInReview, actions: ['assign_reviewers'] })).toEqual([
+        {
+          heading: 'Actions',
+          button: null,
+          links: [viewLive, { ...changeReviewers, label: 'Change reviewer for this update' }],
+        },
       ]);
     });
 
@@ -257,6 +294,21 @@ describe('actionsTabSections', () => {
       const [actions] = sections({ ...sentBack, draftResponse }, { canEdit: true });
 
       expect(actions?.button?.label).toBe(label);
+    });
+
+    it.each([
+      ['revisions', 2, 'Respond to requested revisions'],
+      ['a clarification request alone', 0, 'Respond to clarification request'],
+    ] as const)('words the button for an update sent back with %s', (_case, count, label) => {
+      const [actions] = sections(
+        {
+          ...updateSentBack,
+          draftResponse: { kind: 'pre_imrg_feedback', flaggedTaskCount: count },
+        },
+        { canEdit: true },
+      );
+
+      expect(actions?.button).toEqual({ ...respondToRevision, label });
     });
 
     it('offers no response to a publisher who may not edit the indicator', () => {

@@ -21,10 +21,12 @@ import {
   chooseApproval,
   chooseResponseType,
   chooseReviewDate,
+  chooseUpdateApproval,
   loadApproval,
   loadResponseType,
   loadReviewDate,
   loadRevisions,
+  loadUpdateApproval,
   sendRevisions,
 } from './loader.ts';
 
@@ -96,6 +98,16 @@ describe('the response pages', () => {
       'approval form',
       chooseApproval,
       post(`${REVIEW}/approval?submission=2&reviewedOn=2026-10-29`, []),
+    ],
+    [
+      'update approval page',
+      loadUpdateApproval,
+      new Request(`https://internal.test${REVIEW}/update-approval`),
+    ],
+    [
+      'update approval form',
+      chooseUpdateApproval,
+      post(`${REVIEW}/update-approval`, [['submissionNumber', '2']]),
     ],
     [
       'revisions page',
@@ -318,6 +330,161 @@ describe('the response pages', () => {
     expect(reasoned.response.headers.get('Location')).toBe(
       `${REVIEW}/revisions?submission=2&kind=major_revisions&reviewedOn=2026-10-29`,
     );
+  });
+
+  describe('for an update', () => {
+    const updateInReview = { ...inReview, indicatorStatus: 'live' as const };
+
+    it('open on "Can this update be published?", recapping the update', async () => {
+      const { outcome } = await run(
+        loadUpdateApproval,
+        reading(updateInReview),
+        new Request(`https://internal.test${REVIEW}/update-approval`),
+      );
+
+      expect(outcome).toEqual({
+        id: ID,
+        submissionNumber: 2,
+        name: 'Hip fractures',
+        scheduledPublishAt: '2027-04-01T08:30:00.000Z',
+        values: { approved: '', reasons: [] },
+      });
+    });
+
+    it('reopen with No and the kinds of feedback the revisions page goes back with', async () => {
+      const { outcome } = await run(
+        loadUpdateApproval,
+        reading(updateInReview),
+        new Request(
+          `https://internal.test${REVIEW}/update-approval?submission=2&kind=pre_imrg_feedback&reason=clarification`,
+        ),
+      );
+
+      expect(outcome).toMatchObject({ values: { approved: 'no', reasons: ['clarification'] } });
+    });
+
+    it.each([
+      ['an update', loadResponseType, updateInReview, 'response-type', 'update-approval'],
+      ['a new indicator', loadUpdateApproval, inReview, 'update-approval', 'response-type'],
+    ] as const)(
+      'send %s from the %s page to its own first page',
+      async (_, loader, detail, from, to) => {
+        const { response } = await run(
+          loader,
+          reading(detail),
+          new Request(`https://internal.test${REVIEW}/${from}`),
+        );
+
+        expect(response.headers.get('Location')).toBe(`${REVIEW}/${to}`);
+      },
+    );
+
+    it.each<[string, [string, string][], Record<string, string>]>([
+      ['nothing chosen', [], { approved: 'Select whether you approve this update for publishing' }],
+      [
+        'No without a kind of feedback',
+        [['approved', 'no']],
+        {
+          reasons: 'Select at least one kind of feedback',
+        },
+      ],
+    ])('ask again for %s', async (_, answers, fieldErrors) => {
+      const api = createFakeApiClient();
+      const { outcome } = await run(
+        chooseUpdateApproval,
+        api,
+        post(`${REVIEW}/update-approval`, [['submissionNumber', '2'], ...answers]),
+      );
+
+      expect(outcome).toMatchObject({ fieldErrors });
+      expect(api.calls).toEqual([]);
+    });
+
+    it('send Yes as an approval with no IMRG date and land on the overview with its banner', async () => {
+      const api = createFakeApiClient({ [RESPONSE]: noContent });
+      const { response } = await run(
+        chooseUpdateApproval,
+        api,
+        post(`${REVIEW}/update-approval`, [
+          ['submissionNumber', '2'],
+          ['approved', 'yes'],
+        ]),
+      );
+
+      expect(api.calls).toEqual([
+        {
+          method: 'POST',
+          path: `/api/internal/indicators/${ID}/review-response`,
+          body: {
+            submissionNumber: 2,
+            kind: 'approved',
+            imrgReviewedOn: null,
+            clarificationRequest: null,
+            flags: [],
+          },
+        },
+      ]);
+      expect(await redirectWithFlash(response)).toEqual({
+        status: 302,
+        location: OVERVIEW,
+        flash: 'review-approved',
+      });
+    });
+
+    it.each([
+      ['date', loadReviewDate, '/date?submission=2'],
+      ['approval', loadApproval, '/approval?submission=2&reviewedOn=2026-10-29'],
+    ])(
+      "send an update's reviewer from the IMRG %s page to the update's first page",
+      async (_, loader, path) => {
+        const { response } = await run(
+          loader,
+          reading(updateInReview),
+          new Request(`https://internal.test${REVIEW}${path}`),
+        );
+
+        expect(response.headers.get('Location')).toBe(`${REVIEW}/update-approval`);
+      },
+    );
+
+    it.each([
+      [
+        'with the clarification box ticked when clarification was asked for',
+        '&reason=clarification',
+        true,
+      ],
+      ['with nothing ticked for revisions alone', '&reason=revisions', false],
+    ])('open the revisions page %s', async (_, reasons, clarification) => {
+      const { outcome } = await run(
+        loadRevisions,
+        reading(updateInReview),
+        new Request(
+          `https://internal.test${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback${reasons}`,
+        ),
+      );
+
+      expect(outcome).toMatchObject({
+        isUpdate: true,
+        values: { clarification, clarificationRequest: '', flags: [] },
+      });
+    });
+
+    it('take No on to the revisions page as feedback, with the kinds chosen', async () => {
+      const { response } = await run(
+        chooseUpdateApproval,
+        createFakeApiClient(),
+        post(`${REVIEW}/update-approval`, [
+          ['submissionNumber', '2'],
+          ['approved', 'no'],
+          ['reasons', 'revisions'],
+          ['reasons', 'clarification'],
+        ]),
+      );
+
+      expect(response.headers.get('Location')).toBe(
+        `${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback&reason=revisions&reason=clarification`,
+      );
+    });
   });
 
   it('check the revisions before sending them', async () => {

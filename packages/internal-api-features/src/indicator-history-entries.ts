@@ -50,7 +50,13 @@ function imrgSortsAt(on: string, respondedAt: string): number {
   return Math.min(endOfDay, new Date(respondedAt).getTime());
 }
 
-function responseEntries(response: HistoryResponseRecord): Dated[] {
+/**
+ * Whether something that happened at `at` happened to an update. Every update follows the
+ * indicator's first publication, and nothing of its first version's review comes after it.
+ */
+type IsUpdate = (at: string) => boolean;
+
+function responseEntries(response: HistoryResponseRecord, isUpdate: IsUpdate): Dated[] {
   if (response.fromCoreTeam) {
     return [
       dated(
@@ -86,6 +92,7 @@ function responseEntries(response: HistoryResponseRecord): Dated[] {
         response: response.kind,
         flags: byTaskOrder(response.flags),
         clarificationRequest: response.clarificationRequest,
+        isUpdate: isUpdate(response.respondedAt),
       },
       response.respondedAt,
     ),
@@ -114,6 +121,7 @@ function resubmissionEntry(
   submission: HistorySubmissionRecord,
   sentBack: HistorySubmissionRecord,
   saves: readonly HistorySaveRecord[],
+  isUpdate: IsUpdate,
 ): Dated {
   const flags = sentBack.responses.flatMap((response) =>
     response.flags.map(({ task }) => ({
@@ -129,6 +137,7 @@ function resubmissionEntry(
       by: submission.submittedBy,
       flags: byTaskOrder(flags),
       reply: sentBack.revisionResponse,
+      isUpdate: isUpdate(submission.submittedAt),
     },
     submission.submittedAt,
   );
@@ -183,10 +192,11 @@ function submissionEntries(
   submission: HistorySubmissionRecord,
   previous: HistorySubmissionRecord | undefined,
   saves: readonly HistorySaveRecord[],
+  isUpdate: IsUpdate,
 ): Dated[] {
   const sent =
     previous !== undefined && submission.previousStatus === 'changes_requested'
-      ? resubmissionEntry(submission, previous, saves)
+      ? resubmissionEntry(submission, previous, saves, isUpdate)
       : dated(submittedEntry(submission), submission.submittedAt);
   const withdrawn =
     submission.status === 'withdrawn' && submission.endedAt !== null && submission.endedBy !== null
@@ -201,7 +211,7 @@ function submissionEntries(
   return [
     sent,
     ...decisionEntries(submission),
-    ...submission.responses.flatMap(responseEntries),
+    ...submission.responses.flatMap((response) => responseEntries(response, isUpdate)),
     ...withdrawn,
   ];
 }
@@ -232,7 +242,13 @@ function versionEntries({ versions }: HistoryRecords): Dated[] {
  * at the same instant keep the order they happened in, the later first.
  */
 export function historyEntries(records: HistoryRecords): HistoryEntry[] {
-  const { submissions, assignments, scheduling, updates, saves } = records;
+  const { versions, submissions, assignments, scheduling, updates, saves } = records;
+  const firstPublishedAt = Math.min(
+    ...versions.flatMap(({ publishedAt }) =>
+      publishedAt === null ? [] : [new Date(publishedAt).getTime()],
+    ),
+  );
+  const isUpdate: IsUpdate = (at) => new Date(at).getTime() > firstPublishedAt;
   const happened = [
     ...versionEntries(records),
     ...submissions.flatMap((submission, index) =>
@@ -240,10 +256,11 @@ export function historyEntries(records: HistoryRecords): HistoryEntry[] {
         submission,
         submissions.slice(0, index).findLast(({ versionId }) => versionId === submission.versionId),
         saves,
+        isUpdate,
       ),
     ),
     ...assignments.map(({ at, by, reviewers }) =>
-      dated({ kind: 'reviewers_assigned', at: iso(at), by, reviewers }, at),
+      dated({ kind: 'reviewers_assigned', at: iso(at), by, reviewers, isUpdate: isUpdate(at) }, at),
     ),
     ...scheduling.map(({ at, by, action }) =>
       dated({ kind: SCHEDULING_KINDS[action], at: iso(at), by }, at),

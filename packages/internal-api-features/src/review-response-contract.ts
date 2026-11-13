@@ -183,6 +183,36 @@ export const reviewApprovalSchema = z
     return { kind: revisionsKind };
   });
 
+/** The kinds of feedback a reviewer gives when an update cannot be published yet. */
+export const UPDATE_FEEDBACK_REASONS = ['revisions', 'clarification'] as const;
+
+export const updateFeedbackReasonSchema = z.enum(UPDATE_FEEDBACK_REASONS);
+
+/**
+ * "Can this update be published?": yes, or no with at least one kind of feedback. The kinds only
+ * check that the reviewer means to give feedback. What the revisions page then asks for is what
+ * the response records.
+ */
+export const updateApprovalSchema = z
+  .object({
+    approved: z.enum(['yes', 'no'], {
+      error: 'Select whether you approve this update for publishing',
+    }),
+    reasons: z.array(updateFeedbackReasonSchema),
+  })
+  .transform(({ approved, reasons }, ctx) => {
+    if (approved === 'yes') return { approved: true as const };
+    if (reasons.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['reasons'],
+        message: 'Select at least one kind of feedback',
+      });
+      return z.NEVER;
+    }
+    return { approved: false as const, reasons };
+  });
+
 const reviewFlagSchema = z.object({ task: flaggableTaskKeySchema, notes: z.string() });
 
 /**
@@ -225,9 +255,11 @@ function isDecision(kind: z.infer<typeof reviewResponseKindSchema>): boolean {
 
 /**
  * The response's field rules on top of its shape, with `now` for the date. An IMRG decision
- * needs a real date no later than today. Feedback and revisions need a flagged task or a
- * clarification request, and each flag needs notes. Text is trimmed; whether the date is before
- * the version's first submission is the repository's to say, under the draft's lock.
+ * needs a real date no later than today, except that an approval may have none. Feedback and
+ * revisions need a flagged task or a clarification request, and each flag needs notes. Text is
+ * trimmed. The repository says, under the draft's lock, whether the date is before the version's
+ * first submission, and whether the draft is an update, whose approval has no date, or a new
+ * indicator, whose approval needs one.
  */
 export function reviewResponseSchemaFor(now: Date) {
   return reviewResponseBodySchema.transform((body, ctx) => {
@@ -235,7 +267,7 @@ export function reviewResponseSchemaFor(now: Date) {
       ctx.addIssue({ code: 'custom', path: [path], message });
     const advised = body.kind === 'pre_imrg_feedback';
 
-    if (isDecision(body.kind)) {
+    if (isDecision(body.kind) && !(body.kind === 'approved' && body.imrgReviewedOn === null)) {
       const date = body.imrgReviewedOn === null ? undefined : parseIsoDate(body.imrgReviewedOn);
       if (body.imrgReviewedOn === null) issue('imrgReviewedOn', ENTER_IMRG_DATE);
       else if (date === undefined) issue('imrgReviewedOn', REAL_IMRG_DATE);
@@ -307,6 +339,8 @@ export type ReviewResponseKind = z.infer<typeof reviewResponseKindSchema>;
 export type FlaggableTaskKey = z.infer<typeof flaggableTaskKeySchema>;
 export type ReviewResponseType = z.infer<typeof reviewResponseTypeSchema>;
 export type ReviewApproval = z.infer<typeof reviewApprovalSchema>;
+export type UpdateFeedbackReason = z.infer<typeof updateFeedbackReasonSchema>;
+export type UpdateApproval = z.infer<typeof updateApprovalSchema>;
 export type ReviewResponseBody = z.input<typeof reviewResponseBodySchema>;
 export type ReviewResponseFieldErrors = z.infer<typeof reviewResponseFieldErrorsSchema>;
 export type ReviewResponseError = z.infer<typeof reviewResponseErrorSchema>;

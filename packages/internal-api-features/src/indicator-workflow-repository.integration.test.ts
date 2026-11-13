@@ -29,6 +29,7 @@ import {
   draftUpdatedAt,
   openedUpdate,
   sentBackDraft,
+  submittedUpdate,
   ukToday,
 } from './indicator-workflow.testing.ts';
 import {
@@ -37,6 +38,7 @@ import {
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
+import { decideUpdate } from './update-decision-repository.ts';
 
 const { indicatorVersion, indicatorVersionSubmission, indicatorVersionSubmissionReviewer } = schema;
 
@@ -585,6 +587,32 @@ function assign(
 }
 
 describe('assignReviewers', () => {
+  repositoryTest('puts an update the core team sent to IMRG in review', async ({ db }) => {
+    const { indicatorId, versionId } = await submittedUpdate(db, 'Update assigned');
+    await decideUpdate(
+      db,
+      indicatorId,
+      { submissionNumber: 1, decision: 'imrg_review' },
+      { userId: FAKE_USER_IDS.admin, requestId: null },
+    );
+
+    await expect(assign(db, indicatorId, [REVIEWER])).resolves.toEqual({ ok: true });
+
+    expect(await submissionsOf(db, versionId)).toEqual([
+      expect.objectContaining({ status: 'in_review', updateDecision: 'imrg_review' }),
+    ]);
+  });
+
+  repositoryTest('refuses an update waiting for the core team to decide', async ({ db }) => {
+    const { indicatorId, versionId } = await submittedUpdate(db, 'Update not yet decided');
+
+    await expect(assign(db, indicatorId, [REVIEWER])).resolves.toEqual({
+      ok: false,
+      reason: 'not_allowed',
+    });
+    expect((await submissionsOf(db, versionId)).map(({ status }) => status)).toEqual(['submitted']);
+  });
+
   repositoryTest('puts the submission in review with the reviewers assigned', async ({ db }) => {
     const { indicatorId, versionId, submission } = await submittedDraft(db, 'Assigned');
     const before = await versionOf(db, versionId);

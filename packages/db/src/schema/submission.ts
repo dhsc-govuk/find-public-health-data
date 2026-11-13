@@ -169,7 +169,8 @@ export const indicatorVersionSubmissionResponse = pgTable(
     // The core team member who sent an update back for revisions, or null for a reviewer's response.
     coreTeamMemberId: uuid(),
     kind: text({ enum: REVIEW_RESPONSE_KINDS }).notNull(),
-    // The day of the IMRG meeting that made the decision; none for feedback before it.
+    // The day of the IMRG meeting that made the decision; none for feedback before it, and none
+    // for a reviewer's approval of an update, which no IMRG meeting decides.
     imrgReviewedOn: date({ mode: 'string' }),
     clarificationRequest: text(),
     respondedAt: timestamp({ withTimezone: true }).notNull().default(sql`clock_timestamp()`),
@@ -205,9 +206,12 @@ export const indicatorVersionSubmissionResponse = pgTable(
       'indicator_version_submission_response_kind_check',
       sql`${t.kind} IN (${literals(REVIEW_RESPONSE_KINDS)})`,
     ),
+    // Feedback before IMRG has no meeting date and minor or major revisions always have one. An
+    // approval of a new indicator has one too, but an approval of an update has none. This table
+    // cannot tell an update from a new indicator, so the internal API checks the approval's date.
     check(
       'indicator_version_submission_response_imrg_reviewed_on_check',
-      sql`(${t.imrgReviewedOn} IS NULL) = (${t.kind} = 'pre_imrg_feedback')`,
+      sql`(${t.imrgReviewedOn} IS NULL) = (${t.kind} = 'pre_imrg_feedback') OR ${t.kind} = 'approved'`,
     ),
     check(
       'indicator_version_submission_response_clarification_check',
