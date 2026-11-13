@@ -3,7 +3,6 @@ import type { Actor, AuditChanges } from '@fphd/db/audit-log';
 import {
   type IndicatorStepResult,
   type IndicatorStepWrite,
-  isPublished,
   takeIndicatorStep,
 } from '@fphd/internal-workflow';
 import { type FlaggableTaskKey, isFlaggableOn } from '@fphd/utils/indicator-task-key';
@@ -137,12 +136,12 @@ export function respondToReview(
   const step = RESPONSE_STEPS[response.kind];
 
   return takeIndicatorStep(db, indicatorId, step, actor, {
-    precondition: async (tx, { draft, latest }) => {
+    precondition: async (tx, { draft, latest, indicatorStatus }) => {
       if (latest?.number !== response.submissionNumber) return 'changed';
       if (!(await assignedReviewerIds(tx, latest.id)).includes(actor.userId)) {
         return 'not_a_reviewer';
       }
-      if (misfitsDraft(response, await isPublished(tx, indicatorId))) return 'not_allowed';
+      if (misfitsDraft(response, indicatorStatus === 'live')) return 'not_allowed';
       if (response.imrgReviewedOn !== null) {
         const firstOn = await firstSubmittedOn(tx, draft.id);
         if (firstOn !== undefined && response.imrgReviewedOn < firstOn) {

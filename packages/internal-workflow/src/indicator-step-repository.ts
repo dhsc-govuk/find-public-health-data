@@ -8,6 +8,7 @@ import {
   changesBetween,
   recordAudit,
 } from '@fphd/db/audit-log';
+import type { IndicatorStatus } from '@fphd/utils/indicator-status';
 import type { IndicatorStep } from '@fphd/utils/indicator-step';
 import type { IndicatorSubmissionStatus } from '@fphd/utils/indicator-submission-status';
 import { and, desc, eq, sql } from 'drizzle-orm';
@@ -36,12 +37,17 @@ export type IndicatorStepResult<Reason extends string = never> =
 
 /**
  * A step's own check of the draft version and its latest submission, run while the step holds the
- * lock on the draft version's row. It returns the reason the step is refused, or undefined to let
- * the step go ahead.
+ * lock on the draft version's row. `indicatorStatus` says whether the draft is a new indicator's
+ * or an update to a live one. It returns the reason the step is refused, or undefined to let the
+ * step go ahead.
  */
 export type IndicatorStepPrecondition<Reason extends string> = (
   tx: Transaction,
-  state: { draft: IndicatorDraftVersion; latest: Submission | undefined },
+  state: {
+    draft: IndicatorDraftVersion;
+    latest: Submission | undefined;
+    indicatorStatus: IndicatorStatus;
+  },
 ) => Promise<Reason | undefined>;
 
 /**
@@ -314,7 +320,11 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
 
   if (!next.ok) return next;
 
-  const refusal = await precondition?.(tx, { draft, latest });
+  const refusal = await precondition?.(tx, {
+    draft,
+    latest,
+    indicatorStatus: context.indicatorStatus,
+  });
   if (refusal !== undefined) return { ok: false, reason: refusal };
 
   // `indicator_version_published_at_check` requires `published_at` to be set exactly when the
