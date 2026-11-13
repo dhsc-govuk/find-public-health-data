@@ -1,8 +1,28 @@
 import { z } from '@fphd/config/zod';
+import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 
 import { flaggableTaskKeySchema, reviewResponseKindSchema } from './review-response-contract.ts';
 
 const doneBy = { at: z.iso.datetime(), by: z.string() };
+
+/**
+ * One answer an update changed in a task, named by its field on the task's page, or the data
+ * table it replaced.
+ */
+export const updateChangePartSchema = z.discriminatedUnion('kind', [
+  // Free text, before and after, which the History tab shows as the words added and removed.
+  z.object({ kind: z.literal('text'), field: z.string(), before: z.string(), after: z.string() }),
+  // Any other answer, as its new value in words, or null where the update leaves none.
+  z.object({ kind: z.literal('value'), field: z.string(), value: z.string().nullable() }),
+  // A data table of the update's own, whose data values replace every one the live indicator has.
+  z.object({ kind: z.literal('data_values_replaced'), count: z.number().int().min(0) }),
+]);
+
+/** What an update changed in one task, as it was when the update was submitted. */
+export const updateChangeSchema = z.object({
+  task: z.enum(INDICATOR_TASK_KEYS),
+  parts: z.array(updateChangePartSchema),
+});
 
 /** One thing that happened to an indicator, as its History tab lists it. */
 export const historyEntrySchema = z.discriminatedUnion('kind', [
@@ -35,10 +55,17 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('publication_scheduled'), ...doneBy }),
   z.object({ kind: z.literal('publication_date_changed'), ...doneBy }),
   z.object({ kind: z.literal('update_started'), ...doneBy }),
+  z.object({
+    kind: z.literal('update_submitted'),
+    ...doneBy,
+    changes: z.array(updateChangeSchema),
+  }),
 ]);
 
 /** What has happened to an indicator, newest first. */
 export const indicatorHistorySchema = z.object({ entries: z.array(historyEntrySchema) });
 
 export type HistoryEntry = z.infer<typeof historyEntrySchema>;
+export type UpdateChange = z.infer<typeof updateChangeSchema>;
+export type UpdateChangePart = z.infer<typeof updateChangePartSchema>;
 export type IndicatorHistory = z.infer<typeof indicatorHistorySchema>;

@@ -47,6 +47,33 @@ describe('historyItems', () => {
     });
   });
 
+  it('words an update submitted for review, with its Section and Changes rows', () => {
+    const item = itemOf({
+      kind: 'update_submitted',
+      at,
+      by: 'Sam Taylor',
+      changes: [
+        {
+          task: 'polarity',
+          parts: [{ kind: 'value', field: 'polarity', value: 'Higher is better' }],
+        },
+      ],
+    });
+
+    expect(item).toEqual({
+      date: at,
+      action: 'Update submitted for review',
+      by: 'Sam Taylor',
+      rows: [],
+      changes: [
+        {
+          section: 'Polarity',
+          lines: [{ label: null, change: { kind: 'text', text: 'Higher is better' } }],
+        },
+      ],
+    });
+  });
+
   it('names nobody for a publication', () => {
     expect(itemOf({ kind: 'published', at, by: null })).toEqual({
       date: at,

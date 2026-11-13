@@ -89,4 +89,59 @@ describe('History', () => {
     ]);
     expect(table.querySelector('.fphd-markdown strong')?.textContent).toBe('better');
   });
+
+  it('shows the Section and Changes table under an update, with free text as words removed and added', () => {
+    render(
+      <History
+        items={[
+          {
+            date: '2026-11-12T10:00:00.000Z',
+            action: 'Update submitted for review',
+            by: 'Sam Taylor',
+            rows: [],
+            changes: [
+              {
+                section: 'Definition and rationale',
+                lines: [
+                  {
+                    label: 'Rationale',
+                    change: {
+                      kind: 'diff',
+                      runs: [
+                        { change: 'unchanged', text: 'A measure of ' },
+                        { change: 'removed', text: 'mortality' },
+                        { change: 'added', text: 'health' },
+                      ],
+                    },
+                  },
+                ],
+              },
+              {
+                section: 'Polarity',
+                lines: [{ label: null, change: { kind: 'text', text: 'Higher is better' } }],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const table = screen.getByRole('table', { name: 'Update submitted for review' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Section', 'Changes']);
+    expect(
+      within(table)
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => [...row.children].map((cell) => cell.textContent)),
+    ).toEqual([
+      ['Definition and rationale', 'RationaleA measure of Removed: mortalityAdded: health'],
+      ['Polarity', 'Higher is better'],
+    ]);
+    expect(table.querySelector('del.fphd-diff-removed')?.textContent).toBe('Removed: mortality');
+    expect(table.querySelector('ins.fphd-diff-added')?.textContent).toBe('Added: health');
+  });
 });

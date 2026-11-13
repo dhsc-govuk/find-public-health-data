@@ -42,9 +42,11 @@ it.each(INDICATOR_STEPS)('opens %s in some context', (step) => {
 
 describe('submit', () => {
   it.each([
-    ['never submitted', unsubmitted],
-    ['withdrawn', withdrawn],
-  ])("locks a new indicator's %s draft under a submitted submission", (_, context) => {
+    ['a new indicator', 'never submitted', unsubmitted],
+    ['a new indicator', 'withdrawn', withdrawn],
+    ['a live indicator', 'never submitted', { ...unsubmitted, indicatorStatus: 'live' }],
+    ['a live indicator', 'withdrawn', { ...withdrawn, indicatorStatus: 'live' }],
+  ] as const)("locks %s's %s draft under a submitted submission", (_, _state, context) => {
     expect(nextState(context, 'submit')).toEqual({
       ok: true,
       state: { versionStatus: 'draft', submissionStatus: 'submitted', isLocked: true },
@@ -61,14 +63,12 @@ describe('submit', () => {
   it('is refused in every other context', () => {
     const open = CONTEXTS.filter((context) => nextState(context, 'submit').ok);
 
-    expect(open).toEqual([unsubmitted, withdrawn]);
-  });
-
-  it('is refused for the draft of a live indicator', () => {
-    expect(nextState({ ...unsubmitted, indicatorStatus: 'live' }, 'submit')).toEqual({
-      ok: false,
-      reason: 'not_allowed',
-    });
+    expect(open).toEqual([
+      unsubmitted,
+      withdrawn,
+      { ...unsubmitted, indicatorStatus: 'live' },
+      { ...withdrawn, indicatorStatus: 'live' },
+    ]);
   });
 });
 

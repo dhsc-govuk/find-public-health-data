@@ -23,6 +23,7 @@ const indicator: IndicatorAdminDetail = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,

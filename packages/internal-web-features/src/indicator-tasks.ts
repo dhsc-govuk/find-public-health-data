@@ -102,14 +102,17 @@ const PUBLISHING_TASKS: readonly IndicatorTaskKey[] = ['publishing-date', 'updat
 
 /**
  * Where a task on an update stands. Each task reads changed or unchanged against the live
- * indicator, except the publishing date and the update summary. Those have nothing to publish
- * until another task changes, and then are complete once their answers are.
+ * indicator, or incomplete while its answers would not let the update be submitted, as a
+ * section the live indicator left unanswered would not. The publishing date and the update
+ * summary have nothing to publish until another task changes, and then are complete once their
+ * answers are.
  */
 export function updateTaskStatus(
   { tasks, changedTasks }: Pick<IndicatorTaskList, 'tasks' | 'changedTasks'>,
   key: IndicatorTaskKey,
 ): UpdateTaskStatus {
   if (!PUBLISHING_TASKS.includes(key)) {
+    if (tasks[key] !== 'completed') return 'incomplete';
     return changedTasks.includes(key) ? 'changed' : 'unchanged';
   }
   if (changedTasks.length === 0) return 'no_changes';

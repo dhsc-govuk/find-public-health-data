@@ -24,7 +24,12 @@ import {
   OTHER_ACTOR,
   seededRepositoryTest,
 } from './indicator-repository.testing.ts';
-import { completeDraft, sentBackDraft, ukToday } from './indicator-workflow.testing.ts';
+import {
+  completeDraft,
+  sentBackDraft,
+  submittedUpdate,
+  ukToday,
+} from './indicator-workflow.testing.ts';
 import {
   assignReviewers,
   submitIndicator,
@@ -239,6 +244,31 @@ describe('the derived statuses', () => {
     expect(await getIndicatorById(db, created.indicatorId)).toMatchObject(statuses);
   });
 
+  seededRepositoryTest(
+    'reads a submitted update with no decision from the core team yet',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await submittedUpdate(db, 'An update to decide');
+      const statuses = {
+        indicatorStatus: 'live',
+        draftLocked: true,
+        draftSubmissionStatus: 'submitted',
+        draftUpdateDecision: null,
+      };
+
+      expect(await listed(db, indicatorId)).toMatchObject(statuses);
+      expect(await getIndicatorById(db, indicatorId)).toMatchObject(statuses);
+
+      await db
+        .update(schema.indicatorVersionSubmission)
+        .set({ updateDecision: 'request_revisions' })
+        .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
+
+      expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+        draftUpdateDecision: 'request_revisions',
+      });
+    },
+  );
+
   seededRepositoryTest('reads a withdrawn draft as unlocked', async ({ db }) => {
     const created = await newDraft(db, 'A withdrawn draft');
     await submitIndicator(db, created.indicatorId, await completeDraft(db, created), AS_ACTOR);
@@ -352,6 +382,22 @@ describe('listIndicatorsUnderReview', () => {
         unassigned: [waiting],
         assigned: [inReview],
       });
+    },
+  );
+
+  seededRepositoryTest(
+    'leaves out a submitted update until the core team decides it goes to IMRG',
+    async ({ db }) => {
+      const { indicatorId, versionId } = await submittedUpdate(db, 'Update awaiting a decision');
+
+      expect(await tables(db, [indicatorId])).toEqual({ unassigned: [], assigned: [] });
+
+      await db
+        .update(schema.indicatorVersionSubmission)
+        .set({ updateDecision: 'imrg_review' })
+        .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
+
+      expect(await tables(db, [indicatorId])).toEqual({ unassigned: [indicatorId], assigned: [] });
     },
   );
 

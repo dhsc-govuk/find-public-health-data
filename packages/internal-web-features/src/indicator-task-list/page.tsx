@@ -27,7 +27,8 @@ interface TaskListPageProps {
 
 /**
  * Offered once the workflow lets the user submit or resubmit the draft and the step would pass:
- * every task complete and, for a draft sent back, every flagged task saved and the reply written.
+ * every task complete, a task changed on an update and, for a draft sent back, every flagged task
+ * saved and the reply written.
  */
 function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
   const offered = taskList.actions.includes('submit') || taskList.actions.includes('resubmit');
@@ -41,7 +42,7 @@ function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
       <form action={indicatorTaskListPath(taskList.indicator.id)} method="post">
         <input name="draftUpdatedAt" type="hidden" value={taskList.draftUpdatedAt} />
         <Button preventDoubleClick type="submit">
-          Submit for approval
+          {taskList.isUpdate ? 'Submit for review' : 'Submit for approval'}
         </Button>
       </form>
     </>

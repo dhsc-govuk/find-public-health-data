@@ -43,6 +43,7 @@ const found: IndicatorHistoryRow = {
       endedAt: null,
       endedBy: null,
       revisionResponse: null,
+      updateChanges: null,
       responses: [],
     },
   ],

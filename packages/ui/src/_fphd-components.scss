@@ -172,6 +172,38 @@
   }
 }
 
+// One changed answer in an update's Changes column. An answer whose section asks several
+// questions is labelled, and each sits apart from the next.
+.fphd-history-change {
+  margin-bottom: govuk-spacing(3);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.fphd-history-change__label {
+  display: block;
+  margin-bottom: govuk-spacing(1);
+  @include govuk-font($size: 16, $weight: bold);
+}
+
+// Free text an update changed: the words added highlighted, and the words removed struck through.
+.fphd-diff-added {
+  background-color: govuk-colour("green", $variant: "tint-80");
+  text-decoration: none;
+}
+
+.fphd-diff-removed {
+  color: $govuk-secondary-text-colour;
+  text-decoration: line-through;
+}
+
+// Words removed and the words added in their place sit apart, so the two never read as one word.
+.fphd-diff-removed + .fphd-diff-added {
+  margin-left: 0.25em;
+}
+
 .fphd-filter-card {
   border: 0;
   border-bottom: 1px solid #cecece;

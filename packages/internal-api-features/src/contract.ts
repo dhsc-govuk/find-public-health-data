@@ -5,6 +5,7 @@ import { INDICATOR_STEPS, type IndicatorStep } from '@fphd/utils/indicator-step'
 import { INDICATOR_SUBMISSION_STATUSES } from '@fphd/utils/indicator-submission-status';
 import { INDICATOR_TASK_KEYS } from '@fphd/utils/indicator-task-key';
 import { SLUG_PATTERN, type SlugProblem, slugProblem } from '@fphd/utils/slug';
+import { UPDATE_DECISIONS } from '@fphd/utils/update-decision';
 
 import { editVersionSchema } from './edit-version-contract.ts';
 import { flaggableTaskKeySchema, reviewResponseKindSchema } from './review-response-contract.ts';
@@ -110,6 +111,9 @@ export const draftStatusSchema = z.enum(['draft', 'scheduled']);
 /** Where the draft's latest submission for review stands. */
 export const draftSubmissionStatusSchema = z.enum(INDICATOR_SUBMISSION_STATUSES);
 
+/** What the core team decides should happen to a submitted update. */
+export const updateDecisionSchema = z.enum(UPDATE_DECISIONS);
+
 export const indicatorStepSchema = z.enum(INDICATOR_STEPS);
 
 /** The steps a reviewer's response takes, one for each kind of response. */
@@ -141,6 +145,11 @@ export const indicatorAdminSummarySchema = z.object({
   draftSubmissionStatus: draftSubmissionStatusSchema.nullable(),
   /** What the latest response to the draft's latest submission said; null until there is one. */
   draftResponseKind: reviewResponseKindSchema.nullable(),
+  /**
+   * The core team's decision on the draft's latest submission when it is an update. Null while a
+   * submitted update waits for the decision, and always null for a new indicator.
+   */
+  draftUpdateDecision: updateDecisionSchema.nullable(),
   /** The reviewers of the draft's latest submission, by name; empty until they are assigned. */
   draftReviewers: z.array(draftReviewerSchema),
 });
@@ -308,6 +317,7 @@ export type IndicatorsToReview = z.infer<typeof indicatorsToReviewSchema>;
 export type IndicatorsScheduled = z.infer<typeof indicatorsScheduledSchema>;
 export type DraftStatus = z.infer<typeof draftStatusSchema>;
 export type DraftSubmissionStatus = z.infer<typeof draftSubmissionStatusSchema>;
+export type UpdateDecision = z.infer<typeof updateDecisionSchema>;
 export type DraftReviewer = z.infer<typeof draftReviewerSchema>;
 export type IndicatorAdminDetail = z.infer<typeof indicatorAdminDetailSchema>;
 export type DraftResponse = NonNullable<IndicatorAdminDetail['draftResponse']>;
@@ -365,6 +375,7 @@ export const indicatorTaskListSchema = z.object({
     draftStatus: true,
     draftSubmissionStatus: true,
     draftResponseKind: true,
+    draftUpdateDecision: true,
   }),
   /** True when the indicator is live, so this edit revises what the public has. */
   isUpdate: z.boolean(),
