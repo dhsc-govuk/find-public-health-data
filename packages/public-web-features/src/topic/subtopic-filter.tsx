@@ -2,6 +2,7 @@ import { Button, Checkboxes } from '@fphd/ui';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 import { HiddenFilters } from '../search/filter-fields.tsx';
 import type { SearchState } from '../search/url.ts';
+import { topicDisplayParams } from './filters.ts';
 
 export function TopicSubtopicFilter({
   path,
@@ -26,9 +27,7 @@ export function TopicSubtopicFilter({
   );
   const selected = params.getAll('subtopic');
   const extraParams = {
-    ...Object.fromEntries(
-      [...params].filter(([key]) => key === 'columns-topic' || key === 'render'),
-    ),
+    ...topicDisplayParams(params),
     'tab-topic': tab,
     sort: params.get('sort') ?? sort,
   };
