@@ -1,6 +1,5 @@
 import { createRepositories, schema } from '@fphd/db';
 import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
-import { rebuildReadModelTables } from '@fphd/internal-read-models';
 import { publishDueVersions, publishNextDueVersion } from '@fphd/internal-workflow';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { eq, sql } from 'drizzle-orm';
@@ -25,6 +24,7 @@ import {
   deferScheduledVersions,
   dueUpdate,
   readModelRowsOf,
+  rowsAfterWholeRebuild,
   versionOf,
 } from './scheduled-publication.testing.ts';
 import { decideUpdate } from './update-decision-repository.ts';
@@ -36,28 +36,14 @@ const testDb = await createTestDb({ template: 'core' });
 // uses when deployed, and the public site reads as public_api.
 const db = testDb.db;
 const publisher = testDb.connectDb({ login: apiLogin('internal_api') });
-const publicSite = createRepositories(testDb.connectDb({ login: apiLogin('public_api') }));
+const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
+const publicSite = createRepositories(publicDb);
 
 afterEach(() => deferScheduledVersions(db));
 
 afterAll(async () => {
   await testDb.drop();
 });
-
-class RolledBack extends Error {}
-
-/** The read-model rows that a rebuild of every indicator's read models would give this one. */
-async function rowsAfterWholeRebuild(indicatorId: string): Promise<string[]> {
-  let rows: string[] = [];
-  await expect(
-    db.transaction(async (tx) => {
-      await rebuildReadModelTables(tx);
-      rows = await readModelRowsOf(tx, indicatorId);
-      throw new RolledBack();
-    }),
-  ).rejects.toBeInstanceOf(RolledBack);
-  return rows;
-}
 
 async function publishNext() {
   const result = await publishNextDueVersion(publisher, { skip: [] });
@@ -101,9 +87,9 @@ async function addObservation(indicatorId: string, batchId: string, value: numbe
 }
 
 async function publicValuesOf(indicatorId: string): Promise<(number | null)[]> {
-  const rows = await testDb.connectDb({ login: apiLogin('public_api') }).execute<{
-    value: number | null;
-  }>(sql`SELECT value FROM published.observation WHERE indicator_id = ${indicatorId}`);
+  const rows = await publicDb.execute<{ value: number | null }>(
+    sql`SELECT value FROM published.observation WHERE indicator_id = ${indicatorId}`,
+  );
   return rows.map(({ value }) => value);
 }
 
@@ -204,13 +190,19 @@ describe('publishing a scheduled update', () => {
     });
   });
 
-  it('keeps the data date and the read models of an update that brings no new data table', async () => {
+  it('keeps the data date of an update that brings no new data table, and leaves its read models unrefreshed', async () => {
     const { indicatorId } = await dueUpdate(db, 'Update without data', 'publish_with_history');
     await db
       .update(schema.indicator)
       .set({ dataUpdatedAt: new Date('2026-01-01T00:00:00Z') })
       .where(eq(schema.indicator.id, indicatorId));
+    // A read-model row the indicator's data does not give, which a refresh would delete.
+    await db.execute(sql`
+      INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
+      SELECT ${indicatorId}, at.id, at.name, 999 FROM area_type at ORDER BY at.id LIMIT 1
+    `);
     const rows = await readModelRowsOf(db, indicatorId);
+    expect(rows).not.toEqual(await rowsAfterWholeRebuild(db, indicatorId));
 
     await publishNext();
 
@@ -254,7 +246,7 @@ describe('publishing a scheduled update', () => {
     expect(await dataUpdatedAtOf(db, indicatorId)).toEqual(result.publishedAt);
     const rows = await readModelRowsOf(db, indicatorId);
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows).toEqual(await rowsAfterWholeRebuild(indicatorId));
+    expect(rows).toEqual(await rowsAfterWholeRebuild(db, indicatorId));
     expect((await publishedEntriesFor(indicatorId))[0]?.changes).toMatchObject({
       dataUpdatedAt: { before: null, after: result.publishedAt.toISOString() },
     });

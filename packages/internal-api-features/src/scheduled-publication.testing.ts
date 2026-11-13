@@ -1,6 +1,8 @@
 import { type Database, schema } from '@fphd/db';
+import { rebuildReadModelTables } from '@fphd/internal-read-models';
 import { type SQL, sql, TransactionRollbackError } from 'drizzle-orm';
 import { expect } from 'vitest';
+
 import type { IndicatorDraftAttributes } from './indicator-draft-repository.ts';
 import { LOCK_WAIT } from './indicator-repository.testing.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
@@ -109,6 +111,24 @@ export async function readModelRowsOf(
     ORDER BY model, row
   `)) as unknown as { model: string; row: string }[];
   return rows.map(({ model, row }) => `${model} ${row}`);
+}
+
+class RolledBack extends Error {}
+
+/**
+ * The read-model rows that rebuilding every indicator's read models would give this indicator. The
+ * rebuild runs in a transaction that is rolled back once the rows are read, so it changes nothing.
+ */
+export async function rowsAfterWholeRebuild(db: Database, indicatorId: string): Promise<string[]> {
+  let rows: string[] = [];
+  await expect(
+    db.transaction(async (tx) => {
+      await rebuildReadModelTables(tx);
+      rows = await readModelRowsOf(tx, indicatorId);
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
+  return rows;
 }
 
 /**
