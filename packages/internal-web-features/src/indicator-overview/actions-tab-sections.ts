@@ -3,10 +3,12 @@ import {
   type DraftResponse,
   type IndicatorAdminDetail,
   REVIEW_RESPONSE_STEPS,
+  UPDATE_DECISION_STEPS,
 } from '@fphd/internal-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 
 import { reviewResponsePath } from '../indicator-review-response/paths.ts';
+import { updateDecisionPath } from '../indicator-update-decision/paths.ts';
 import {
   indicatorStartUpdatePath,
   indicatorTaskListPath,
@@ -70,7 +72,8 @@ function respondLabel(response: DraftResponse | null): string {
 /**
  * The section's one button, if it has one. An editor starts an update of a live indicator with no
  * draft, or responds from the task list once a round sends the draft back. An IMRG manager assigns
- * the first reviewers, and an admin confirms an approved draft's publication date.
+ * the first reviewers. An admin decides what happens to a submitted update, and confirms an
+ * approved draft's publication date.
  */
 function actionsButton(
   { canEdit, indicator }: ActionsTabInput,
@@ -90,6 +93,9 @@ function actionsButton(
       href: indicatorTaskListPath(indicator.id),
       label: respondLabel(indicator.draftResponse),
     };
+  }
+  if (indicator.actions.some((step) => UPDATE_DECISION_STEPS.includes(step))) {
+    return { href: updateDecisionPath(indicator.id), label: 'Submit update decision' };
   }
   if (indicator.actions.includes('schedule')) {
     return { href: indicatorPublicationDatePath(indicator.id), label: 'Confirm publication date' };

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import {
   justificationsSection,
   otherCommentsSection,
-  updateSummarySection,
   varianceAndQualitySection,
 } from './contract.ts';
 import type { IndicatorSectionColumns } from './indicator-section.ts';
@@ -22,6 +21,7 @@ import {
   publishingDateColumns,
   sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
+  updateSummaryColumns,
   valueTypeAndUnitsColumns,
 } from './indicator-section-columns.ts';
 import {
@@ -67,7 +67,6 @@ const UNFLAGGED_FIELDS = [
   ...varianceAndQualitySection.fields.options,
   ...justificationsSection.fields.options,
   ...otherCommentsSection.fields.options,
-  ...updateSummarySection.fields.options,
 ];
 
 const columns = Object.keys(schema.indicatorVersion).filter((key) => key !== 'enableRLS');
@@ -193,6 +192,11 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ageDetail: '',
     }),
   tagging: () => savedFields(taggingColumns, tagging),
+  'update-summary': () =>
+    savedFields(updateSummaryColumns, {
+      updateSummary: 'Polarity corrected.',
+      updateSummaryForReviewers: 'The source changed.',
+    }),
 };
 
 describe('TASK_AUDIT_FIELDS', () => {

@@ -34,10 +34,31 @@ const RESPONSE_ACTIONS: Readonly<Record<ReviewResponseKind, string>> = {
   approved: 'Indicator approved for publishing',
 };
 
+type DecisionEntry = Extract<HistoryEntry, { kind: 'update_decided' }>;
+
+const DECISION_ACTIONS: Readonly<Record<DecisionEntry['decision'], string>> = {
+  imrg_review: 'Update sent for IMRG review',
+  publish_with_history: 'Update approved for publishing with visibility in history',
+  publish_without_history: 'Update approved for publishing without visibility in history',
+};
+
 const names = new Intl.ListFormat('en-GB', { type: 'conjunction' });
 
 function markdownRow(section: string, text: string): HistoryRow {
   return { section, comments: renderMarkdown(text, 's') };
+}
+
+/** What a response asked to revise or clarify, as rows of the Section and Comments table. */
+function requestedRows({
+  flags,
+  clarificationRequest,
+}: Extract<HistoryEntry, { kind: 'responded' | 'update_revisions_requested' }>): HistoryRow[] {
+  return [
+    ...flags.map(({ task, notes }) => markdownRow(INDICATOR_TASK_TITLES[task], notes)),
+    ...(clarificationRequest === null
+      ? []
+      : [markdownRow('Clarification request', clarificationRequest)]),
+  ];
 }
 
 function historyItem(entry: HistoryEntry): HistoryItem {
@@ -64,12 +85,7 @@ function historyItem(entry: HistoryEntry): HistoryItem {
         date: entry.at,
         action: RESPONSE_ACTIONS[entry.response],
         by: entry.by,
-        rows: [
-          ...entry.flags.map(({ task, notes }) => markdownRow(INDICATOR_TASK_TITLES[task], notes)),
-          ...(entry.clarificationRequest === null
-            ? []
-            : [markdownRow('Clarification request', entry.clarificationRequest)]),
-        ],
+        rows: requestedRows(entry),
       };
     case 'resubmitted':
       return {
@@ -99,6 +115,15 @@ function historyItem(entry: HistoryEntry): HistoryItem {
         by: entry.by,
         rows: [],
         changes: updateChangeRows(entry.changes),
+      };
+    case 'update_decided':
+      return { date: entry.at, action: DECISION_ACTIONS[entry.decision], by: entry.by, rows: [] };
+    case 'update_revisions_requested':
+      return {
+        date: entry.at,
+        action: 'Revisions or clarifications requested before IMRG review',
+        by: entry.by,
+        rows: requestedRows(entry),
       };
   }
 }

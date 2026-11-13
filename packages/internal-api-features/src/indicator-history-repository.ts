@@ -2,6 +2,7 @@ import { type Database, schema } from '@fphd/db';
 import type { IndicatorSubmissionStatus } from '@fphd/utils/indicator-submission-status';
 import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
+import type { UpdateDecision } from '@fphd/utils/update-decision';
 import { eq, sql } from 'drizzle-orm';
 
 import type { UpdateChange } from './indicator-history-contract.ts';
@@ -18,7 +19,10 @@ export interface HistoryVersionRecord {
 }
 
 export interface HistoryResponseRecord {
-  reviewer: string;
+  /** The reviewer who responded, or the core team member who sent an update back. */
+  respondedBy: string;
+  /** True for the core team's response to an update, which no reviewer wrote. */
+  fromCoreTeam: boolean;
   kind: ReviewResponseKind;
   imrgReviewedOn: string | null;
   clarificationRequest: string | null;
@@ -38,6 +42,10 @@ export interface HistorySubmissionRecord {
   revisionResponse: string | null;
   /** What an update changed, kept when it was submitted; null for a new indicator's submission. */
   updateChanges: UpdateChange[] | null;
+  /** The core team's decision on an update, who made it and when; all null until it is made. */
+  updateDecision: UpdateDecision | null;
+  updateDecidedBy: string | null;
+  updateDecidedAt: string | null;
   responses: HistoryResponseRecord[];
 }
 
@@ -100,9 +108,13 @@ const submissions = sql<HistorySubmissionRecord[]>`coalesce((
     'endedBy', ender.display_name,
     'revisionResponse', s.revision_response,
     'updateChanges', s.update_changes,
+    'updateDecision', s.update_decision,
+    'updateDecidedBy', decider.display_name,
+    'updateDecidedAt', s.update_decided_at,
     'responses', coalesce((
       select json_agg(json_build_object(
-        'reviewer', reviewer.display_name,
+        'respondedBy', responder.display_name,
+        'fromCoreTeam', r.core_team_member_id is not null,
         'kind', r.kind,
         'imrgReviewedOn', r.imrg_reviewed_on,
         'clarificationRequest', r.clarification_request,
@@ -114,7 +126,7 @@ const submissions = sql<HistorySubmissionRecord[]>`coalesce((
         ), '[]'::json)
       ) order by r.responded_at)
       from indicator_version_submission_response r
-      join app_user reviewer on reviewer.id = r.reviewer_id
+      join app_user responder on responder.id = coalesce(r.reviewer_id, r.core_team_member_id)
       where r.submission_id = s.id
     ), '[]'::json)
   ) order by s.submitted_at)
@@ -125,6 +137,7 @@ const submissions = sql<HistorySubmissionRecord[]>`coalesce((
   ) s
   join app_user submitter on submitter.id = s.submitted_by
   left join app_user ender on ender.id = s.ended_by
+  left join app_user decider on decider.id = s.update_decided_by
 ), '[]'::json)`;
 
 // The audit log keeps every assignment and change of reviewers; the reviewer rows only the last.

@@ -1,5 +1,5 @@
 {
-  "id": "34ef9a53-8145-43dc-bebe-045a30f5c1df",
+  "id": "e17258e4-373a-47c8-86b5-59d69b156958",
   "prevId": "846ef738-c4e9-4c16-bc51-61b008d73f1a",
   "version": "7",
   "dialect": "postgresql",
@@ -109,7 +109,7 @@
       "checkConstraints": {
         "audit_log_action_check": {
           "name": "audit_log_action_check",
-          "value": "\"audit_log\".\"action\" IN ('topic.created', 'topic.updated', 'topic.deleted', 'indicator.draft_created', 'indicator.draft_updated', 'indicator.draft_created_from_published', 'indicator.data_table_confirmed', 'indicator.submitted', 'indicator.submission_withdrawn', 'indicator.reviewers_assigned', 'indicator.review_feedback_given', 'indicator.changes_requested', 'indicator.approved', 'indicator.resubmitted', 'indicator.revision_response_updated', 'indicator.publication_scheduled', 'indicator.publication_date_changed', 'indicator.published', 'indicator.review_note_added', 'indicator.review_note_updated', 'upload_batch.loaded', 'upload_batch.refused', 'upload_batch.deleted')"
+          "value": "\"audit_log\".\"action\" IN ('topic.created', 'topic.updated', 'topic.deleted', 'indicator.draft_created', 'indicator.draft_updated', 'indicator.draft_created_from_published', 'indicator.data_table_confirmed', 'indicator.submitted', 'indicator.submission_withdrawn', 'indicator.update_sent_to_imrg', 'indicator.update_revisions_requested', 'indicator.update_approved', 'indicator.reviewers_assigned', 'indicator.review_feedback_given', 'indicator.changes_requested', 'indicator.approved', 'indicator.resubmitted', 'indicator.revision_response_updated', 'indicator.publication_scheduled', 'indicator.publication_date_changed', 'indicator.published', 'indicator.review_note_added', 'indicator.review_note_updated', 'upload_batch.loaded', 'upload_batch.refused', 'upload_batch.deleted')"
         },
         "audit_log_entity_type_check": {
           "name": "audit_log_entity_type_check",
@@ -336,12 +336,6 @@
           "type": "uuid[]",
           "primaryKey": false,
           "notNull": true
-        },
-        "sparkline_observation_ids": {
-          "name": "sparkline_observation_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": false
         },
         "recent_values": {
           "name": "recent_values",
@@ -3398,6 +3392,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "update_decided_by": {
+          "name": "update_decided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "update_decided_at": {
+          "name": "update_decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "update_changes": {
           "name": "update_changes",
           "type": "jsonb",
@@ -3490,6 +3496,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "indicator_version_submission_update_decided_by_fk": {
+          "name": "indicator_version_submission_update_decided_by_fk",
+          "tableFrom": "indicator_version_submission",
+          "tableTo": "app_user",
+          "columnsFrom": [
+            "update_decided_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3511,6 +3530,10 @@
         "indicator_version_submission_update_decision_check": {
           "name": "indicator_version_submission_update_decision_check",
           "value": "\"indicator_version_submission\".\"update_decision\" IN ('imrg_review', 'request_revisions', 'publish_with_history', 'publish_without_history')"
+        },
+        "indicator_version_submission_update_decided_check": {
+          "name": "indicator_version_submission_update_decided_check",
+          "value": "(\"indicator_version_submission\".\"update_decision\" IS NULL) = (\"indicator_version_submission\".\"update_decided_by\" IS NULL) AND (\"indicator_version_submission\".\"update_decided_by\" IS NULL) = (\"indicator_version_submission\".\"update_decided_at\" IS NULL)"
         },
         "indicator_version_submission_ended_check": {
           "name": "indicator_version_submission_ended_check",
@@ -3597,7 +3620,7 @@
       "checkConstraints": {
         "indicator_version_submission_flag_task_key_check": {
           "name": "indicator_version_submission_flag_task_key_check",
-          "value": "\"indicator_version_submission_flag\".\"task_key\" IN ('name', 'data-table', 'definition-and-rationale', 'polarity', 'data-quality', 'numerator', 'denominator', 'calculation', 'confidence-intervals', 'update-frequency', 'value-type-and-units', 'period-type', 'other-notes-and-caveats', 'publishing-date', 'copyright-and-data-reuse', 'benchmarking', 'sex-gender-and-ethnicity', 'ages', 'tagging')"
+          "value": "\"indicator_version_submission_flag\".\"task_key\" IN ('name', 'data-table', 'definition-and-rationale', 'polarity', 'data-quality', 'numerator', 'denominator', 'calculation', 'confidence-intervals', 'update-frequency', 'value-type-and-units', 'period-type', 'other-notes-and-caveats', 'publishing-date', 'copyright-and-data-reuse', 'benchmarking', 'sex-gender-and-ethnicity', 'ages', 'tagging', 'update-summary')"
         },
         "indicator_version_submission_flag_notes_check": {
           "name": "indicator_version_submission_flag_notes_check",
@@ -3631,7 +3654,13 @@
           "name": "reviewer_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "core_team_member_id": {
+          "name": "core_team_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "kind": {
           "name": "kind",
@@ -3704,12 +3733,29 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "indicator_version_submission_response_core_team_member_fk": {
+          "name": "indicator_version_submission_response_core_team_member_fk",
+          "tableFrom": "indicator_version_submission_response",
+          "tableTo": "app_user",
+          "columnsFrom": [
+            "core_team_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "indicator_version_submission_response_responder_check": {
+          "name": "indicator_version_submission_response_responder_check",
+          "value": "(\"indicator_version_submission_response\".\"reviewer_id\" IS NULL) <> (\"indicator_version_submission_response\".\"core_team_member_id\" IS NULL) AND (\"indicator_version_submission_response\".\"core_team_member_id\" IS NULL OR \"indicator_version_submission_response\".\"kind\" = 'pre_imrg_feedback')"
+        },
         "indicator_version_submission_response_kind_check": {
           "name": "indicator_version_submission_response_kind_check",
           "value": "\"indicator_version_submission_response\".\"kind\" IN ('pre_imrg_feedback', 'minor_revisions', 'major_revisions', 'approved')"
@@ -5594,12 +5640,6 @@
           "type": "uuid[]",
           "primaryKey": false,
           "notNull": true
-        },
-        "sparkline_observation_ids": {
-          "name": "sparkline_observation_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": false
         },
         "recent_values": {
           "name": "recent_values",

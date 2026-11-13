@@ -36,6 +36,7 @@ import {
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
 import { respondToReview } from './review-response-repository.ts';
+import { decideUpdate } from './update-decision-repository.ts';
 
 const EVERY_INDICATOR = { all: true } as const;
 
@@ -260,7 +261,11 @@ describe('the derived statuses', () => {
 
       await db
         .update(schema.indicatorVersionSubmission)
-        .set({ updateDecision: 'request_revisions' })
+        .set({
+          updateDecision: 'request_revisions',
+          updateDecidedBy: FAKE_USER_IDS.admin,
+          updateDecidedAt: new Date(),
+        })
         .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
 
       expect(await getIndicatorById(db, indicatorId)).toMatchObject({
@@ -388,14 +393,16 @@ describe('listIndicatorsUnderReview', () => {
   seededRepositoryTest(
     'leaves out a submitted update until the core team decides it goes to IMRG',
     async ({ db }) => {
-      const { indicatorId, versionId } = await submittedUpdate(db, 'Update awaiting a decision');
+      const { indicatorId } = await submittedUpdate(db, 'Update awaiting a decision');
 
       expect(await tables(db, [indicatorId])).toEqual({ unassigned: [], assigned: [] });
 
-      await db
-        .update(schema.indicatorVersionSubmission)
-        .set({ updateDecision: 'imrg_review' })
-        .where(eq(schema.indicatorVersionSubmission.indicatorVersionId, versionId));
+      await decideUpdate(
+        db,
+        indicatorId,
+        { submissionNumber: 1, decision: 'imrg_review' },
+        { userId: FAKE_USER_IDS.admin, requestId: null },
+      );
 
       expect(await tables(db, [indicatorId])).toEqual({ unassigned: [indicatorId], assigned: [] });
     },

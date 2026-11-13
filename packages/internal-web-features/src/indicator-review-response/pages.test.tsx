@@ -102,6 +102,7 @@ describe('the response pages', () => {
       <RevisionsPage
         fieldErrors={{}}
         formError={undefined}
+        isUpdate={false}
         kind="minor_revisions"
         values={noRevisions}
       />,
@@ -119,11 +120,46 @@ describe('the response pages', () => {
     expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(19);
   });
 
+  it('offer the update summary under Publishing on an update', () => {
+    inRouter(
+      <RevisionsPage
+        fieldErrors={{}}
+        formError={undefined}
+        isUpdate
+        kind="pre_imrg_feedback"
+        values={noRevisions}
+      />,
+    );
+
+    const publishing = screen.getByRole('group', { name: 'Publishing' });
+    expect(
+      Array.from(publishing.querySelectorAll('input[name="flags"]'), (input) =>
+        input.getAttribute('value'),
+      ),
+    ).toEqual(['update-frequency', 'publishing-date', 'update-summary']);
+    expect(screen.getByLabelText('Update summary')).toBeTruthy();
+  });
+
+  it('offer no update summary on a new indicator', () => {
+    inRouter(
+      <RevisionsPage
+        fieldErrors={{}}
+        formError={undefined}
+        isUpdate={false}
+        kind="pre_imrg_feedback"
+        values={noRevisions}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Update summary')).toBeNull();
+  });
+
   it('word the notes as advice for feedback before the meeting', () => {
     inRouter(
       <RevisionsPage
         fieldErrors={{}}
         formError={undefined}
+        isUpdate={false}
         kind="pre_imrg_feedback"
         values={noRevisions}
       />,
@@ -140,6 +176,7 @@ describe('the response pages', () => {
       <RevisionsPage
         fieldErrors={{ 'flags.polarity': message }}
         formError={undefined}
+        isUpdate={false}
         kind="minor_revisions"
         values={{
           ...noRevisions,

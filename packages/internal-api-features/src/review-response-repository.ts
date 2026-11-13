@@ -1,11 +1,12 @@
 import { type Database, schema } from '@fphd/db';
-import type { Actor } from '@fphd/db/audit-log';
+import type { Actor, AuditChanges } from '@fphd/db/audit-log';
 import {
   type IndicatorStepResult,
   type IndicatorStepWrite,
+  isPublished,
   takeIndicatorStep,
 } from '@fphd/internal-workflow';
-import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
+import { type FlaggableTaskKey, isFlaggableOn } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
 import { and, eq, sql } from 'drizzle-orm';
 
@@ -56,38 +57,66 @@ async function firstSubmittedOn(tx: Transaction, versionId: string): Promise<str
   return first?.on;
 }
 
-/** The write that inserts the response and its flags as the actor's, answering them for the audit. */
+/** Who responds to a submission: an assigned reviewer, or a core team member deciding on an update. */
+export type Responder = { reviewerId: string } | { coreTeamMemberId: string };
+
+/**
+ * Inserts a response to the submission and its flags, written by `responder`, and answers them for
+ * the audit.
+ */
+export async function insertResponse(
+  tx: Transaction,
+  submissionId: string,
+  response: Omit<ReviewResponse, 'submissionNumber'>,
+  responder: Responder,
+): Promise<AuditChanges> {
+  const [row] = await tx
+    .insert(indicatorVersionSubmissionResponse)
+    .values({
+      submissionId,
+      ...responder,
+      kind: response.kind,
+      imrgReviewedOn: response.imrgReviewedOn,
+      clarificationRequest: response.clarificationRequest,
+    })
+    .returning();
+  if (row === undefined) throw new Error(`inserted no response to ${submissionId}`);
+  const flags =
+    response.flags.length === 0
+      ? []
+      : await tx
+          .insert(indicatorVersionSubmissionFlag)
+          .values(
+            response.flags.map(({ task, notes }) => ({
+              responseId: row.id,
+              taskKey: task,
+              notes,
+            })),
+          )
+          .returning({
+            taskKey: indicatorVersionSubmissionFlag.taskKey,
+            notes: indicatorVersionSubmissionFlag.notes,
+          });
+  return { response: { before: null, after: { ...row, flags } } };
+}
+
+/** The write that inserts the response and its flags as the reviewer's, answering them for the audit. */
 export function responseWrite(response: ReviewResponse, actor: Actor): IndicatorStepWrite {
-  return async (tx, submission) => {
-    const [row] = await tx
-      .insert(indicatorVersionSubmissionResponse)
-      .values({
-        submissionId: submission.id,
-        reviewerId: actor.userId,
-        kind: response.kind,
-        imrgReviewedOn: response.imrgReviewedOn,
-        clarificationRequest: response.clarificationRequest,
-      })
-      .returning();
-    if (row === undefined) throw new Error(`inserted no response to ${submission.id}`);
-    const flags =
-      response.flags.length === 0
-        ? []
-        : await tx
-            .insert(indicatorVersionSubmissionFlag)
-            .values(
-              response.flags.map(({ task, notes }) => ({
-                responseId: row.id,
-                taskKey: task,
-                notes,
-              })),
-            )
-            .returning({
-              taskKey: indicatorVersionSubmissionFlag.taskKey,
-              notes: indicatorVersionSubmissionFlag.notes,
-            });
-    return { response: { before: null, after: { ...row, flags } } };
-  };
+  return (tx, submission) =>
+    insertResponse(tx, submission.id, response, { reviewerId: actor.userId });
+}
+
+/**
+ * Whether the response flags a task the draft does not have: the update summary, which only an
+ * update has. It reads whether the indicator is live only when the update summary is flagged.
+ */
+export async function flagsMissingTask(
+  tx: Transaction,
+  indicatorId: string,
+  flags: ReviewResponse['flags'],
+): Promise<boolean> {
+  if (flags.every(({ task }) => isFlaggableOn(task, false))) return false;
+  return !(await isPublished(tx, indicatorId));
 }
 
 /**
@@ -95,8 +124,9 @@ export function responseWrite(response: ReviewResponse, actor: Actor): Indicator
  * feedback and revisions send the draft back to the publisher, and an approval keeps it locked
  * for publication on its date. Refused as `changed` when the submission is not the one the
  * reviewer was shown, `not_a_reviewer` when they are not assigned to it,
- * `reviewed_before_submission` for an IMRG date before the version was first submitted, and
- * `no_publication_date` for an approval of a draft with no date.
+ * `reviewed_before_submission` for an IMRG date before the version was first submitted,
+ * `no_publication_date` for an approval of a draft with no date, and `not_allowed` for a flag on
+ * the update summary of a new indicator, which has none.
  */
 export function respondToReview(
   db: Database,
@@ -112,6 +142,7 @@ export function respondToReview(
       if (!(await assignedReviewerIds(tx, latest.id)).includes(actor.userId)) {
         return 'not_a_reviewer';
       }
+      if (await flagsMissingTask(tx, indicatorId, response.flags)) return 'not_allowed';
       if (response.imrgReviewedOn !== null) {
         const firstOn = await firstSubmittedOn(tx, draft.id);
         if (firstOn !== undefined && response.imrgReviewedOn < firstOn) {

@@ -28,7 +28,7 @@ export function RevisionsRoute() {
   const loaded = useLoaderData<typeof loader>();
   const form = useReviewForm<ReviewResponseField, RevisionsValues>(loaded);
 
-  return <RevisionsPage {...form} kind={loaded.journey.kind} />;
+  return <RevisionsPage {...form} isUpdate={loaded.isUpdate} kind={loaded.journey.kind} />;
 }
 
 export default RevisionsRoute;

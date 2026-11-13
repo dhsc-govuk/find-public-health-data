@@ -81,6 +81,9 @@ export type IndicatorStepChoice =
 const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   submit: 'indicator.submitted',
   withdraw: 'indicator.submission_withdrawn',
+  send_update_to_imrg: 'indicator.update_sent_to_imrg',
+  request_update_revisions: 'indicator.update_revisions_requested',
+  approve_update: 'indicator.update_approved',
   assign_reviewers: 'indicator.reviewers_assigned',
   give_feedback: 'indicator.review_feedback_given',
   request_changes: 'indicator.changes_requested',
@@ -164,6 +167,10 @@ const SUBMISSION_WRITES: Readonly<
 > = {
   submit: insertNextSubmission,
   withdraw: endLatestSubmission,
+  // The decision itself is the step's own write, which knows which decision was made.
+  send_update_to_imrg: keepLatestSubmission,
+  request_update_revisions: endLatestSubmission,
+  approve_update: endLatestSubmission,
   // The first assignment moves the submission from 'submitted' to 'in_review'. Changing the
   // reviewers of a submission already in review leaves its row as it is.
   assign_reviewers: async ({ tx, latest, status }) => {
@@ -286,6 +293,7 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
     versionStatus: draft.status,
     isLocked: draft.isLocked,
     latestSubmissionStatus: latest?.status ?? null,
+    latestUpdateDecision: latest?.updateDecision ?? null,
   };
 
   if (!allowedSteps(context).includes(step)) {

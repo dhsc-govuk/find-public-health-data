@@ -41,6 +41,10 @@ const confirmDate = {
   href: `/dashboard/indicators/${ID}/publication-date`,
   label: 'Confirm publication date',
 };
+const decideUpdate = {
+  href: `/dashboard/indicators/${ID}/update-decision`,
+  label: 'Submit update decision',
+};
 const changeDate = {
   href: `/dashboard/indicators/${ID}/publication-date`,
   label: 'Change publication date',
@@ -177,6 +181,19 @@ describe('actionsTabSections', () => {
     it('offers a link to change the date once it is confirmed, and no button', () => {
       expect(sections({ ...scheduled, actions: ['change_publication_date'] })).toEqual([
         { heading: 'Actions', button: null, links: [changeDate] },
+      ]);
+    });
+
+    it('offers a button to decide what happens to a submitted update, beside the live page', () => {
+      const submittedUpdate: State = {
+        ...submitted,
+        indicatorStatus: 'live',
+        publishedSlug: 'hip-fractures',
+        actions: ['send_update_to_imrg', 'request_update_revisions', 'approve_update'],
+      };
+
+      expect(sections(submittedUpdate)).toEqual([
+        { heading: 'Actions', button: decideUpdate, links: [viewLive] },
       ]);
     });
   });

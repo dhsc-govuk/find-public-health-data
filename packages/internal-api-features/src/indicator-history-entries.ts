@@ -51,12 +51,27 @@ function imrgSortsAt(on: string, respondedAt: string): number {
 }
 
 function responseEntries(response: HistoryResponseRecord): Dated[] {
+  if (response.fromCoreTeam) {
+    return [
+      dated(
+        {
+          kind: 'update_revisions_requested',
+          at: iso(response.respondedAt),
+          by: response.respondedBy,
+          flags: byTaskOrder(response.flags),
+          clarificationRequest: response.clarificationRequest,
+        },
+        response.respondedAt,
+      ),
+    ];
+  }
+
   const imrg: Dated[] =
     response.imrgReviewedOn === null
       ? []
       : [
           {
-            entry: { kind: 'imrg_reviewed', on: response.imrgReviewedOn, by: response.reviewer },
+            entry: { kind: 'imrg_reviewed', on: response.imrgReviewedOn, by: response.respondedBy },
             sortsAt: imrgSortsAt(response.imrgReviewedOn, response.respondedAt),
           },
         ];
@@ -67,7 +82,7 @@ function responseEntries(response: HistoryResponseRecord): Dated[] {
       {
         kind: 'responded',
         at: iso(response.respondedAt),
-        by: response.reviewer,
+        by: response.respondedBy,
         response: response.kind,
         flags: byTaskOrder(response.flags),
         clarificationRequest: response.clarificationRequest,
@@ -134,6 +149,36 @@ function submittedEntry({
     : { kind: 'update_submitted', at, by: submittedBy, changes: updateChanges };
 }
 
+/**
+ * The core team's decision on an update to send it to IMRG or publish it. A request for revisions
+ * has its entry from the core team's response, which holds what it asked for.
+ */
+function decisionEntries({
+  updateDecision,
+  updateDecidedAt,
+  updateDecidedBy,
+}: HistorySubmissionRecord): Dated[] {
+  if (
+    updateDecision === null ||
+    updateDecision === 'request_revisions' ||
+    updateDecidedAt === null ||
+    updateDecidedBy === null
+  ) {
+    return [];
+  }
+  return [
+    dated(
+      {
+        kind: 'update_decided',
+        at: iso(updateDecidedAt),
+        by: updateDecidedBy,
+        decision: updateDecision,
+      },
+      updateDecidedAt,
+    ),
+  ];
+}
+
 function submissionEntries(
   submission: HistorySubmissionRecord,
   previous: HistorySubmissionRecord | undefined,
@@ -153,7 +198,12 @@ function submissionEntries(
         ]
       : [];
 
-  return [sent, ...submission.responses.flatMap(responseEntries), ...withdrawn];
+  return [
+    sent,
+    ...decisionEntries(submission),
+    ...submission.responses.flatMap(responseEntries),
+    ...withdrawn,
+  ];
 }
 
 function versionEntries({ versions }: HistoryRecords): Dated[] {

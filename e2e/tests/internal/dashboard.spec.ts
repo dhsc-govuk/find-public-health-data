@@ -116,6 +116,7 @@ test.describe('as an admin, scheduling publication', () => {
 
     await expect(page.getByRole('tab')).toHaveText([
       /^Scheduled indicators \(\d+\)$/,
+      /^Update decision needed( \(\d+\))?$/,
       'All indicators',
     ]);
     await expect(page.getByRole('tab', { name: /^Scheduled indicators/ })).toHaveAttribute(

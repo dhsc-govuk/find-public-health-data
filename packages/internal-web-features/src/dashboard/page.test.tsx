@@ -42,6 +42,7 @@ function renderPage(
         underReview={underReview}
         toReview={toReview}
         scheduled={null}
+        awaitingDecision={null}
         list={{ canCreate: true, indicators: [indicator], page: 1, totalPages: 1, ...list }}
       />
     </MemoryRouter>,
@@ -51,7 +52,13 @@ function renderPage(
 function renderManagerPage(underReview: IndicatorsUnderReview) {
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <DashboardPage underReview={underReview} toReview={null} scheduled={null} list={null} />
+      <DashboardPage
+        underReview={underReview}
+        toReview={null}
+        scheduled={null}
+        awaitingDecision={null}
+        list={null}
+      />
     </MemoryRouter>,
   );
 }
@@ -59,7 +66,13 @@ function renderManagerPage(underReview: IndicatorsUnderReview) {
 function renderReviewerPage(toReview: IndicatorAdminListItem[]) {
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <DashboardPage underReview={null} toReview={toReview} scheduled={null} list={null} />
+      <DashboardPage
+        underReview={null}
+        toReview={toReview}
+        scheduled={null}
+        awaitingDecision={null}
+        list={null}
+      />
     </MemoryRouter>,
   );
 }
@@ -232,6 +245,7 @@ describe('DashboardPage', () => {
             underReview={{ unassigned: [submitted], assigned: [inReview] }}
             toReview={null}
             scheduled={null}
+            awaitingDecision={null}
             list={null}
           />
         </MemoryRouter>,
@@ -354,6 +368,7 @@ describe('DashboardPage', () => {
           underReview={{ unassigned: [submitted], assigned: [] }}
           toReview={[inReview]}
           scheduled={null}
+          awaitingDecision={null}
           list={null}
         />
       </MemoryRouter>,
@@ -420,25 +435,37 @@ describe('DashboardPage', () => {
       draftStatus: 'scheduled',
     };
 
-    function renderAdminPage(scheduledIndicators: IndicatorAdminListItem[]) {
+    const awaitingDecision: IndicatorAdminListItem = {
+      ...submitted,
+      id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5e',
+      name: 'Falls in older people',
+      indicatorStatus: 'live',
+    };
+
+    function renderAdminPage(
+      scheduledIndicators: IndicatorAdminListItem[],
+      awaitingDecisionIndicators: IndicatorAdminListItem[] = [],
+    ) {
       return render(
         <MemoryRouter initialEntries={['/dashboard']}>
           <DashboardPage
             underReview={null}
             toReview={null}
             scheduled={scheduledIndicators}
+            awaitingDecision={awaitingDecisionIndicators}
             list={{ canCreate: false, indicators: [indicator], page: 1, totalPages: 1 }}
           />
         </MemoryRouter>,
       );
     }
 
-    it('offers a Scheduled indicators tab, counting them, first and open, then All indicators', () => {
+    it('offers a Scheduled indicators tab, counting them, first and open, then Update decision needed and All indicators', () => {
       renderAdminPage([scheduled, pending]);
 
       expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'Scheduled indicators (2)',
+        'Update decision needed',
         'All indicators',
       ]);
       expect(
@@ -485,6 +512,30 @@ describe('DashboardPage', () => {
         ),
       ).toBeTruthy();
     });
+
+    it('counts the updates waiting for a decision on their tab, each "Update pending decision"', () => {
+      renderAdminPage([], [awaitingDecision]);
+
+      const table = within(
+        screen.getByRole('tabpanel', { name: 'Update decision needed (1)' }),
+      ).getByRole('table', { name: 'Updates waiting for a decision, oldest submission first' });
+      expect(
+        within(table)
+          .getAllByRole('row')
+          .slice(1)
+          .map((row) => [...row.querySelectorAll('.govuk-tag')].map((tag) => tag.textContent)),
+      ).toEqual([['Live', 'Update pending decision']]);
+    });
+
+    it('says so when no update waits for a decision', () => {
+      renderAdminPage([]);
+
+      expect(
+        within(screen.getByRole('tabpanel', { name: 'Update decision needed' })).getByText(
+          'There are no updates waiting for a decision.',
+        ),
+      ).toBeTruthy();
+    });
   });
 
   it('shows what the page before left to say in an important banner', () => {
@@ -494,6 +545,7 @@ describe('DashboardPage', () => {
           underReview={null}
           toReview={[]}
           scheduled={null}
+          awaitingDecision={null}
           list={null}
           notification="You are no longer a reviewer of this indicator."
         />

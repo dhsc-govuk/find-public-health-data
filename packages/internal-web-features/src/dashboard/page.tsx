@@ -5,6 +5,7 @@ import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts'
 import { ALL_INDICATORS_TAB, CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
 import {
   AssignedTable,
+  AwaitingDecisionTable,
   ReviewTable,
   ScheduledTable,
   UnassignedTable,
@@ -69,6 +70,8 @@ interface DashboardPageProps {
   toReview: IndicatorAdminListItem[] | null;
   /** The approved indicators an admin schedules; null for anyone else. */
   scheduled: IndicatorAdminListItem[] | null;
+  /** The submitted updates waiting for an admin's decision; null for anyone else. */
+  awaitingDecision: IndicatorAdminListItem[] | null;
   list: IndicatorList | null;
   /** Something the page the user came from left to tell them. */
   notification?: string | undefined;
@@ -112,10 +115,16 @@ function underReviewSections({ unassigned, assigned }: IndicatorsUnderReview) {
 
 /**
  * One section for each table the user may see: Unassigned and Assigned indicators for an IMRG
- * manager, Review for an IMRG reviewer, Scheduled indicators for an admin, then the indicator
- * list.
+ * manager, Review for an IMRG reviewer, Scheduled indicators and Update decision needed for an
+ * admin, then the indicator list.
  */
-function dashboardSections({ underReview, toReview, scheduled, list }: DashboardPageProps) {
+function dashboardSections({
+  underReview,
+  toReview,
+  scheduled,
+  awaitingDecision,
+  list,
+}: DashboardPageProps) {
   const sectionsBeforeList = [
     ...(underReview === null ? [] : underReviewSections(underReview)),
     toReview === null
@@ -136,6 +145,13 @@ function dashboardSections({ underReview, toReview, scheduled, list }: Dashboard
           id: 'scheduled',
           label: countedLabel('Scheduled indicators', scheduled.length),
           content: <ScheduledTable indicators={scheduled} />,
+        },
+    awaitingDecision === null
+      ? null
+      : {
+          id: 'update-decision',
+          label: countedLabel('Update decision needed', awaitingDecision.length),
+          content: <AwaitingDecisionTable indicators={awaitingDecision} />,
         },
   ].filter((section) => section !== null);
 
