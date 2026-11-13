@@ -48,16 +48,21 @@ const NOTES_FOR_REVIEWERS_TASK_KEYS = [
 
 type NotesForReviewersTaskKey = (typeof NOTES_FOR_REVIEWERS_TASK_KEYS)[number];
 
-export type FlaggableTaskKey = Exclude<
-  IndicatorTaskKey,
-  NotesForReviewersTaskKey | (typeof UPDATE_TASK_KEYS)[number]
->;
+export type FlaggableTaskKey = Exclude<IndicatorTaskKey, NotesForReviewersTaskKey>;
 
-/** Whether a reviewer may flag the task: any but the notes for reviewers and the update summary. */
+/**
+ * Whether a reviewer may flag the task: any but the notes for reviewers. The update summary is
+ * flaggable only on an update, which alone has that task.
+ */
 export function isFlaggable(key: IndicatorTaskKey): key is FlaggableTaskKey {
-  return !isOneOf(NOTES_FOR_REVIEWERS_TASK_KEYS, key) && !isOneOf(UPDATE_TASK_KEYS, key);
+  return !isOneOf(NOTES_FOR_REVIEWERS_TASK_KEYS, key);
 }
 
 /** The tasks a reviewer may flag for revision, as `isFlaggable` decides. */
 export const FLAGGABLE_TASK_KEYS: readonly FlaggableTaskKey[] =
   INDICATOR_TASK_KEYS.filter(isFlaggable);
+
+/** Whether a response may flag the task on a draft: the update's own tasks only on an update. */
+export function isFlaggableOn(key: FlaggableTaskKey, isUpdate: boolean): boolean {
+  return isUpdate || !isOneOf(UPDATE_TASK_KEYS, key);
+}

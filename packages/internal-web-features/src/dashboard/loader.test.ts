@@ -28,6 +28,7 @@ const indicator: IndicatorAdminListItem = {
 const UNDER_REVIEW = '/api/internal/indicators-under-review';
 const TO_REVIEW = '/api/internal/indicators-to-review';
 const SCHEDULED = '/api/internal/indicators-scheduled';
+const AWAITING_DECISION = '/api/internal/updates-awaiting-decision';
 
 async function load(
   url: string,
@@ -78,6 +79,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: null,
       scheduled: null,
+      awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 1, totalPages: 3 },
       notification: undefined,
     });
@@ -109,6 +111,7 @@ describe('loadDashboard', () => {
   it('shows an admin the scheduled indicators beside the list', async () => {
     const api = createFakeApiClient({
       [`GET ${SCHEDULED}`]: { indicators: [indicator] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 0, []),
     });
 
@@ -118,9 +121,22 @@ describe('loadDashboard', () => {
     expect(outcome.list).toMatchObject({ indicators: [], page: 1 });
   });
 
+  it('shows an admin the updates waiting for their decision', async () => {
+    const api = createFakeApiClient({
+      [`GET ${SCHEDULED}`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [indicator] },
+      'GET /api/internal/indicators?page=1': listPage(1, 0, []),
+    });
+
+    const outcome = await load('https://internal.test/dashboard', api, ['admin'], []);
+
+    expect(outcome.awaitingDecision).toEqual([indicator]);
+  });
+
   it('offers an admin no create action', async () => {
     const api = createFakeApiClient({
       [`GET ${SCHEDULED}`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 1),
     });
 
@@ -167,6 +183,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: null,
       scheduled: null,
+      awaitingDecision: null,
       list: null,
       notification: undefined,
     });
@@ -198,6 +215,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: null,
       scheduled: null,
+      awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
       notification: undefined,
     });
@@ -213,6 +231,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: [indicator],
       scheduled: null,
+      awaitingDecision: null,
       list: null,
       notification: undefined,
     });
@@ -237,6 +256,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: [indicator],
       scheduled: null,
+      awaitingDecision: null,
       list: null,
       notification: undefined,
     });
@@ -247,7 +267,11 @@ describe('loadDashboard', () => {
     [
       'an admin',
       ['admin'],
-      ['/api/internal/indicators-scheduled', '/api/internal/indicators?page=1'],
+      [
+        '/api/internal/indicators-scheduled',
+        '/api/internal/indicators?page=1',
+        '/api/internal/updates-awaiting-decision',
+      ],
     ],
     ['an IMRG manager', ['imrg-manager'], ['/api/internal/indicators-under-review']],
     ['an IMRG reviewer', ['imrg-reviewer'], ['/api/internal/indicators-to-review']],
@@ -258,6 +282,7 @@ describe('loadDashboard', () => {
         '/api/internal/indicators-scheduled',
         '/api/internal/indicators-to-review',
         '/api/internal/indicators?page=1',
+        '/api/internal/updates-awaiting-decision',
       ],
     ],
     [
@@ -274,6 +299,7 @@ describe('loadDashboard', () => {
       [`GET ${UNDER_REVIEW}`]: { unassigned: [], assigned: [] },
       [`GET ${TO_REVIEW}`]: { indicators: [] },
       [`GET ${SCHEDULED}`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 0, []),
       'GET /api/internal/indicators?page=1&teams=own': listPage(1, 0, []),
     });
@@ -310,6 +336,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: [indicator],
       scheduled: null,
+      awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
       notification: undefined,
     });

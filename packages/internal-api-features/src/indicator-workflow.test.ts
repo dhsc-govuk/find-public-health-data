@@ -23,6 +23,7 @@ const unsubmittedRow: IndicatorWorkflowRow = {
   draftStatus: 'draft',
   draftLocked: false,
   draftSubmissionStatus: null,
+  draftUpdateDecision: null,
 };
 const submittedRow: IndicatorWorkflowRow = {
   ...unsubmittedRow,
@@ -44,7 +45,13 @@ const approvedRow: IndicatorWorkflowRow = {
   draftSubmissionStatus: 'approved',
 };
 const scheduledRow: IndicatorWorkflowRow = { ...approvedRow, draftStatus: 'scheduled' };
+const submittedUpdateRow: IndicatorWorkflowRow = { ...submittedRow, indicatorStatus: 'live' };
 const RESPONSE_STEPS = ['give_feedback', 'request_changes', 'approve'] as const;
+const DECISION_STEPS = [
+  'send_update_to_imrg',
+  'request_update_revisions',
+  'approve_update',
+] as const;
 
 describe('mayTakeStep', () => {
   const inTeam = { teamId: TEAM, reviewerIds: [] };
@@ -73,6 +80,13 @@ describe('mayTakeStep', () => {
   });
 
   it.each(['schedule', 'change_publication_date'] as const)('lets an admin alone %s', (step) => {
+    expect(mayTakeStep(admin, inTeam, step)).toBe(true);
+    for (const user of [publisher, manager, reviewer, publishingReviewer]) {
+      expect(mayTakeStep(user, assigned, step)).toBe(false);
+    }
+  });
+
+  it.each(DECISION_STEPS)('lets an admin alone %s', (step) => {
     expect(mayTakeStep(admin, inTeam, step)).toBe(true);
     for (const user of [publisher, manager, reviewer, publishingReviewer]) {
       expect(mayTakeStep(user, assigned, step)).toBe(false);
@@ -134,6 +148,18 @@ describe('stepsOpenTo', () => {
     for (const user of [publisher, manager, reviewer]) {
       expect(stepsOpenTo(user, row)).toEqual([]);
     }
+  });
+
+  it('lets an admin decide what happens to a submitted update, and the publisher withdraw it', () => {
+    expect(stepsOpenTo(admin, submittedUpdateRow)).toEqual([...DECISION_STEPS]);
+    expect(stepsOpenTo(publisher, submittedUpdateRow)).toEqual(['withdraw']);
+    expect(stepsOpenTo(manager, submittedUpdateRow)).toEqual([]);
+  });
+
+  it('offers no decision once the core team has made one', () => {
+    const decided = { ...submittedUpdateRow, draftUpdateDecision: 'imrg_review' } as const;
+
+    expect(stepsOpenTo(admin, decided)).toEqual([]);
   });
 
   it('offers nobody the publication of a scheduled version', () => {

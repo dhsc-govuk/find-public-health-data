@@ -73,6 +73,19 @@ const NOTIFICATIONS = {
     type: 'important',
     text: 'This indicator cannot be approved because it has no publication date.',
   },
+  'update-revisions-requested': {
+    type: 'important',
+    colour: 'orange',
+    text: 'Revisions or clarifications requested before update can be published',
+  },
+  'update-decision-not-waiting': {
+    type: 'important',
+    text: 'This update is no longer waiting for a decision.',
+  },
+  'update-decision-changed': {
+    type: 'important',
+    text: 'This update has been resubmitted since you opened this page. Check it, then decide what should happen to it.',
+  },
   'publication-date-confirmed': { type: 'success', text: 'Indicator publication date confirmed' },
   'publication-date-refused': {
     type: 'important',

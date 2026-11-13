@@ -270,10 +270,15 @@ export async function chooseApproval({
 export async function loadRevisions({ context, params, request }: LoaderFunctionArgs) {
   const id = requireIndicatorId(params);
   requireReviewer(context);
-  await waitingIndicator(context, id);
+  const { indicatorStatus } = await waitingIndicator(context, id);
   const journey = requireJourney(request, id, isRevisionsJourney);
 
-  return { id, journey, values: readRevisions(new FormData()) };
+  return {
+    id,
+    journey,
+    isUpdate: indicatorStatus === 'live',
+    values: readRevisions(new FormData()),
+  };
 }
 
 export async function sendRevisions({

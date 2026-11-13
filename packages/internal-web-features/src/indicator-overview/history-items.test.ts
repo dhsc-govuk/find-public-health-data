@@ -187,4 +187,37 @@ describe('historyItems', () => {
 
     expect(item?.rows).toEqual([{ section: 'Polarity', comments: 'No revisions made' }]);
   });
+
+  it.each([
+    ['imrg_review', 'Update sent for IMRG review'],
+    ['publish_with_history', 'Update approved for publishing with visibility in history'],
+    ['publish_without_history', 'Update approved for publishing without visibility in history'],
+  ] as const)("words the core team's %s decision", (decision, action) => {
+    expect(itemOf({ kind: 'update_decided', at, by: 'Riley Singh', decision })).toEqual({
+      date: at,
+      action,
+      by: 'Riley Singh',
+      rows: [],
+    });
+  });
+
+  it("lists the core team's request for revisions with its flagged sections, the update summary among them", () => {
+    const item = itemOf({
+      kind: 'update_revisions_requested',
+      at,
+      by: 'Riley Singh',
+      flags: [{ task: 'update-summary', notes: 'Say what changed.' }],
+      clarificationRequest: 'Why now?',
+    });
+
+    expect(item).toEqual({
+      date: at,
+      action: 'Revisions or clarifications requested before IMRG review',
+      by: 'Riley Singh',
+      rows: [
+        { section: 'Update summary', comments: small('Say what changed.') },
+        { section: 'Clarification request', comments: small('Why now?') },
+      ],
+    });
+  });
 });

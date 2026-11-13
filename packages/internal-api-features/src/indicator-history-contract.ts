@@ -5,6 +5,8 @@ import { flaggableTaskKeySchema, reviewResponseKindSchema } from './review-respo
 
 const doneBy = { at: z.iso.datetime(), by: z.string() };
 
+const flagSchema = z.object({ task: flaggableTaskKeySchema, notes: z.string() });
+
 /**
  * One answer an update changed in a task, named by its field on the task's page, or the data
  * table it replaced.
@@ -43,7 +45,7 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
     kind: z.literal('responded'),
     ...doneBy,
     response: reviewResponseKindSchema,
-    flags: z.array(z.object({ task: flaggableTaskKeySchema, notes: z.string() })),
+    flags: z.array(flagSchema),
     clarificationRequest: z.string().nullable(),
   }),
   z.object({
@@ -59,6 +61,19 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
     kind: z.literal('update_submitted'),
     ...doneBy,
     changes: z.array(updateChangeSchema),
+  }),
+  // The core team's decision to send an update to IMRG or to publish it without IMRG review.
+  z.object({
+    kind: z.literal('update_decided'),
+    ...doneBy,
+    decision: z.enum(['imrg_review', 'publish_with_history', 'publish_without_history']),
+  }),
+  // The core team's decision to send an update back, with what it asked to revise or clarify.
+  z.object({
+    kind: z.literal('update_revisions_requested'),
+    ...doneBy,
+    flags: z.array(flagSchema),
+    clarificationRequest: z.string().nullable(),
   }),
 ]);
 

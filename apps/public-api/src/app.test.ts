@@ -117,6 +117,8 @@ describe('public API', () => {
     ['get', '/api/internal/indicators-to-review'],
     ['post', `/api/internal/indicators/${anyId}/schedule`],
     ['get', '/api/internal/indicators-scheduled'],
+    ['post', `/api/internal/indicators/${anyId}/update-decision`],
+    ['get', '/api/internal/updates-awaiting-decision'],
     ['post', `/api/internal/indicators/${anyId}/draft`],
   ] as const)('does not expose the internal surface at %s %s', async (method, path) => {
     const response = await request(createTestApp())[method](path);

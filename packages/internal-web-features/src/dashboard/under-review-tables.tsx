@@ -78,3 +78,17 @@ export function ScheduledTable({ indicators }: { indicators: IndicatorAdminListI
     />
   );
 }
+
+/** The submitted updates waiting for the core team's decision, oldest first. */
+export function AwaitingDecisionTable({ indicators }: { indicators: IndicatorAdminListItem[] }) {
+  return indicators.length === 0 ? (
+    <p className="govuk-body">There are no updates waiting for a decision.</p>
+  ) : (
+    <Table
+      aria-label="Updates waiting for a decision, oldest submission first"
+      headings={INDICATOR_HEADINGS}
+      keys={INDICATOR_KEYS}
+      data={indicators.map(indicatorCells)}
+    />
+  );
+}

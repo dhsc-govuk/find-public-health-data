@@ -420,3 +420,94 @@ describe('the review responses, flags and reviewer notes', () => {
     expect(counts).toEqual({ responses: 0, orphan_flags: 0, notes: 0 });
   });
 });
+
+describe("the core team's decision on an update", () => {
+  /** A submitted submission with no reviewer assigned, as an update waiting for a decision is. */
+  async function submissionId(): Promise<string> {
+    const draft = await newDraft();
+    const [row] = await sql<{ id: string }[]>`
+      INSERT INTO indicator_version_submission
+        (indicator_version_id, indicator_id, number, status, submitted_by)
+      VALUES (${draft.versionId}, ${draft.indicatorId}, 1, 'submitted', ${ACTOR})
+      RETURNING id
+    `;
+    if (!row) throw new Error('inserted no submission');
+    return row.id;
+  }
+
+  type Responder = { reviewerId?: string | null; coreTeamMemberId?: string | null };
+
+  function respond(
+    id: string,
+    { reviewerId = null, coreTeamMemberId = null }: Responder,
+    kind = 'pre_imrg_feedback',
+  ) {
+    const imrgReviewedOn = kind === 'pre_imrg_feedback' ? null : '2026-10-01';
+    return sql`
+      INSERT INTO indicator_version_submission_response
+        (submission_id, reviewer_id, core_team_member_id, kind, imrg_reviewed_on)
+      VALUES (${id}, ${reviewerId}, ${coreTeamMemberId}, ${kind}, ${imrgReviewedOn})
+    `;
+  }
+
+  it('accepts pre-IMRG feedback from a core team member, who is not an assigned reviewer', async () => {
+    await expect(respond(await submissionId(), { coreTeamMemberId: ACTOR })).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['neither a reviewer nor a core team member', {}],
+    ['both a reviewer and a core team member', { reviewerId: ACTOR, coreTeamMemberId: ACTOR }],
+  ])('refuses a response from %s', async (_, responder) => {
+    const id = await submissionId();
+    // The reviewer named must be assigned, so only the responder check can refuse the row.
+    await sql`
+      INSERT INTO indicator_version_submission_reviewer (submission_id, reviewer_id, assigned_by)
+      VALUES (${id}, ${ACTOR}, ${ACTOR})
+    `;
+
+    await expect(respond(id, responder)).rejects.toMatchObject({ code: CHECK_VIOLATION });
+  });
+
+  it.each(['minor_revisions', 'approved'])(
+    'refuses a core team response of %s, which only IMRG decides',
+    async (kind) => {
+      await expect(
+        respond(await submissionId(), { coreTeamMemberId: ACTOR }, kind),
+      ).rejects.toMatchObject({ code: CHECK_VIOLATION });
+    },
+  );
+
+  type Decision = { decision?: string | null; decidedBy?: string | null; decidedAt?: Date | null };
+
+  async function decide(
+    id: string,
+    { decision = null, decidedBy = null, decidedAt = null }: Decision,
+  ) {
+    return sql`
+      UPDATE indicator_version_submission
+      SET update_decision = ${decision}, update_decided_by = ${decidedBy},
+        update_decided_at = ${decidedAt}
+      WHERE id = ${id}
+    `;
+  }
+
+  it('accepts a decision with who made it and when', async () => {
+    await expect(
+      decide(await submissionId(), {
+        decision: 'imrg_review',
+        decidedBy: ACTOR,
+        decidedAt: new Date(),
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['a decision without who made it or when', { decision: 'imrg_review' }],
+    ['a decision without when', { decision: 'imrg_review', decidedBy: ACTOR }],
+    ['who decided without a decision', { decidedBy: ACTOR, decidedAt: new Date() }],
+  ])('refuses %s', async (_, decision) => {
+    await expect(decide(await submissionId(), decision)).rejects.toMatchObject({
+      code: CHECK_VIOLATION,
+    });
+  });
+});
