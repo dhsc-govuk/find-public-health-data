@@ -12,7 +12,7 @@ import {
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { isOneOf } from '@fphd/utils/is-one-of';
-import { apiPath } from '@fphd/web-server/api-client';
+import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
@@ -21,6 +21,7 @@ import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { createSharedGetsClient } from './shared-gets.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
 async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = false) {
@@ -29,7 +30,8 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
 
   const slug = params.slug;
   if (!slug || !isIndicatorSegment(slug)) throw new Response('Not Found', { status: 404 });
-  const api = context.get(apiContext);
+  // The comparison tab and the geography picker both ask for the indicator's local authorities.
+  const api = createSharedGetsClient(context.get(apiContext));
   const routeDetail = await api.get(apiPath`/api/indicators/${slug}`, indicatorDetailSchema);
   if (routeDetail.slug !== slug)
     throw redirect(
@@ -71,12 +73,13 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   );
   const data = groups.then((groups) =>
     loadIndicatorData(args, {
+      api,
       page: { detail: routeDetail, compared: compactPage ? undefined : comparedDetail, groups },
       includeFindResults: !compactPage,
     }),
   );
   const comparison = groups.then((groups) =>
-    loadIndicatorComparison(args, routeDetail, comparedDetail, groups),
+    loadIndicatorComparison(api, url, routeDetail, comparedDetail, groups),
   );
   const complete = url.searchParams.get('render') === 'complete';
   const completed = complete ? await Promise.all([data, comparison]) : undefined;
@@ -148,13 +151,12 @@ export async function loadIndicator(args: LoaderFunctionArgs) {
 }
 
 async function loadIndicatorComparison(
-  { context, request }: LoaderFunctionArgs,
+  api: ApiClient,
+  url: URL,
   routeDetail: IndicatorDetail,
   comparedDetail: IndicatorDetail | undefined,
   indicatorGroups: { displayGroup: string }[],
 ) {
-  const api = context.get(apiContext);
-  const url = new URL(request.url);
   const catalogueGroups = indicatorGroups.map(({ displayGroup }) => displayGroup);
   const comparisonGroups = comparedDetail
     ? await api.get(
