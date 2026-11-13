@@ -331,6 +331,50 @@ describe('updateIndicatorDraft', () => {
   );
 
   repositoryTest(
+    "refuses to rename a live indicator's draft to a name whose slug another indicator carries",
+    async ({ db }) => {
+      await newDraft(db, 'A name another holds');
+      const { indicatorId } = await indicatorWithTwoPublications(db, 'Live before the rename');
+      const opened = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      if (!opened.ok) throw new Error('expected a draft');
+
+      await expect(
+        updateIndicatorDraft(
+          db,
+          indicatorId,
+          'name',
+          { name: 'A name another holds' },
+          {},
+          AS_ACTOR,
+        ),
+      ).resolves.toEqual({ ok: false, reason: 'slug_taken' });
+      expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+        name: 'Live before the rename',
+      });
+    },
+  );
+
+  repositoryTest(
+    "renames a live indicator's draft back to a name one of its own versions carries",
+    async ({ db }) => {
+      const { indicatorId, currentSlug } = await indicatorWithTwoPublications(
+        db,
+        'Renamed and back',
+      );
+      await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      await updateIndicatorDraft(db, indicatorId, 'name', { name: 'Renamed away' }, {}, AS_ACTOR);
+
+      await expect(
+        updateIndicatorDraft(db, indicatorId, 'name', { name: 'Renamed and back' }, {}, AS_ACTOR),
+      ).resolves.toEqual({ ok: true });
+      expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+        name: 'Renamed and back',
+        publishedSlug: currentSlug,
+      });
+    },
+  );
+
+  repositoryTest(
     'refuses an unusable name even though a published indicator keeps its slug',
     async ({ db }) => {
       const { indicatorId } = await indicatorWithTwoPublications(db, 'Renamed unusably');

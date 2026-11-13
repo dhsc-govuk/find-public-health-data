@@ -2,7 +2,7 @@ import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, listChanges, recordAudit } from '@fphd/db/audit-log';
 import { type IndicatorDraftVersion, isPublished, lockSlugs } from '@fphd/internal-workflow';
 import { slugify, slugProblem } from '@fphd/utils/slug';
-import { and, eq, getTableColumns, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, ne, sql } from 'drizzle-orm';
 
 import {
   type CiMethodKind,
@@ -379,9 +379,11 @@ export async function createIndicatorDraft(
 /**
  * Rewrites a draft's columns and, when given, its lists. Lists are replaced rather than
  * merged: the submission states what is true now. A renamed draft is
- * re-slugged only while nothing is published: once an indicator has a public address,
- * every version keeps it, so a rename never moves the page. Returns `locked` if the draft is
- * locked for review. Returns `changed`, with the current version, if the draft has changed
+ * re-slugged only while nothing is published. A draft of a live indicator keeps the published
+ * slug, and the page moves to the slug of the new name only when the renamed update is
+ * published. Such a rename answers `slug_taken` when another indicator's version already
+ * carries the slug of the new name. That is a check, not a reservation: the slug can still be
+ * taken before the update is published. Returns `locked` if the draft is locked for review. Returns `changed`, with the current version, if the draft has changed
  * since the form was shown. Saving `task` clears the flag a review response left on it, whether
  * or not its answers changed.
  */
@@ -398,7 +400,11 @@ export async function updateIndicatorDraft(
     return await db.transaction(async (tx) => {
       // The name is checked whether or not the slug it yields is used.
       const slug = attributes.name === undefined ? undefined : draftSlug(attributes.name);
-      const renamed = slug === undefined || (await isPublished(tx, indicatorId)) ? {} : { slug };
+      const live = slug !== undefined && (await isPublished(tx, indicatorId));
+      const renamed = slug === undefined || live ? {} : { slug };
+      if (live && (await isSlugOfAnotherIndicator(tx, slug, indicatorId))) {
+        return { ok: false, reason: 'slug_taken' };
+      }
 
       // The slug left behind is held too, or two renames swapping slugs deadlock.
       if ('slug' in renamed)
@@ -456,6 +462,24 @@ export async function updateIndicatorDraft(
     if (hasSqlState(error, EXCLUSION_VIOLATION)) return { ok: false, reason: 'slug_taken' };
     throw error;
   }
+}
+
+/**
+ * Whether a version of an indicator other than `indicatorId`, in any status, carries `slug`.
+ * Every version's slug counts, as the slug exclusion constraint counts them.
+ */
+async function isSlugOfAnotherIndicator(
+  tx: Transaction,
+  slug: string,
+  indicatorId: string,
+): Promise<boolean> {
+  const [holder] = await tx
+    .select({ id: indicatorVersion.id })
+    .from(indicatorVersion)
+    .where(and(eq(indicatorVersion.slug, slug), ne(indicatorVersion.indicatorId, indicatorId)))
+    .limit(1);
+
+  return holder !== undefined;
 }
 
 async function draftSlugOf(tx: Transaction, indicatorId: string): Promise<string | undefined> {
