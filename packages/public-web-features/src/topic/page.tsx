@@ -2,6 +2,7 @@ import { GridColumn, GridRow, Tabs } from '@fphd/ui';
 import { Link, useLocation } from 'react-router';
 import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
 import { SearchFilterPane } from '../search/filter-pane.tsx';
+import { topicDisplayParams } from './filters.ts';
 import { TopicGeographies } from './geographies.tsx';
 import { TopicListing } from './listing.tsx';
 import type { loadTopicPage } from './loader.ts';
@@ -16,11 +17,7 @@ export function TopicPage(data: TopicData) {
   const contentReady = useDataReady([overview, content, areas]);
   const location = useLocation();
   const path = `/topics/${topic.slug}`;
-  const columnParams = Object.fromEntries(
-    [...new URLSearchParams(location.search)].filter(
-      ([key]) => key === 'columns-topic' || key === 'render',
-    ),
-  );
+  const displayParams = topicDisplayParams(new URLSearchParams(location.search));
   return (
     <div className="fphd-wide-layout fphd-topic-page">
       <nav aria-label="Breadcrumb" className="govuk-breadcrumbs">
@@ -78,7 +75,7 @@ export function TopicPage(data: TopicData) {
                           action={path}
                           formAction={`${path}#topic-data`}
                           extraParams={{
-                            ...columnParams,
+                            ...displayParams,
                             'tab-topic': 'data',
                             sort: content.listing.sort,
                           }}
@@ -121,7 +118,7 @@ export function TopicPage(data: TopicData) {
                           action={path}
                           formAction={`${path}#topic-area-summaries`}
                           extraParams={{
-                            ...columnParams,
+                            ...displayParams,
                             'tab-topic': 'areas',
                             sort: areas.listing.sort,
                           }}

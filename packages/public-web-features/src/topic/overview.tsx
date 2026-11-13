@@ -1,15 +1,7 @@
 import { ChartSection, GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { Link } from 'react-router';
-import {
-  availableMeasures,
-  comparisonRows,
-  formatCalculatedValue,
-  MEASURES,
-  recentTrend,
-  withUnit,
-} from '../indicator/data.ts';
-import type { IndicatorObservation } from '../indicator/loader.ts';
+import { formatCalculatedValue, withUnit } from '../indicator/data.ts';
 import { TrendTag } from '../indicator/trend-tag.tsx';
 import { searchUrl } from '../search/url.ts';
 import { TopicGeographies } from './geographies.tsx';
@@ -18,16 +10,6 @@ import type { loadTopicPage } from './loader.ts';
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 type Overview = NonNullable<Awaited<TopicData['overview']>>;
 
-/** A row for each raw number the series has, or a Count row saying there is no data. */
-function measureItems(series: IndicatorObservation[], latest: IndicatorObservation | undefined) {
-  const available = availableMeasures(series);
-  const shown = MEASURES.filter(({ key }) => available.includes(key));
-  return (shown.length > 0 ? shown : MEASURES.slice(0, 1)).map(({ key, label }) => ({
-    name: label,
-    children: latest?.[key] == null ? 'No data' : latest[key].toLocaleString(),
-  }));
-}
-
 export function TopicOverview({
   topic,
   overview,
@@ -35,8 +17,7 @@ export function TopicOverview({
   topic: TopicData['topic'];
   overview: Overview;
 }) {
-  const { search, trends, selected } = overview;
-  const rows = comparisonRows(selected);
+  const { search, trends, highlights } = overview;
   return (
     <GridRow className="fphd-topic-overview">
       <GridColumn width="one-quarter">
@@ -111,54 +92,48 @@ export function TopicOverview({
           </>
         ) : null}
         <div className="fphd-topic-highlight-grid">
-          {selected.map((entry) => {
-            const row = rows.find(({ shortId }) => shortId === entry.detail.shortId);
-            const area =
-              entry.areaData.find(({ areaCode }) => areaCode !== 'E92000001') ?? entry.areaData[0];
-            const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
-            const latest = cell?.series.at(-1);
-            const trend = recentTrend(
-              cell?.series ?? [],
-              entry.detail.polarity,
-              cell?.trendDirection,
-            );
-            return (
-              <article className="fphd-topic-highlight" key={entry.detail.shortId}>
-                <h3 className="govuk-heading-s govuk-!-margin-bottom-3">
-                  <Link className="govuk-link" to={indicatorPath(entry.detail.slug)}>
-                    {entry.detail.name}
-                  </Link>
-                </h3>
-                {(cell?.series.filter(({ value }) => value !== null).length ?? 0) >= 2 ? (
-                  <ChartSection
-                    id={`topic-highlight-chart-${entry.detail.shortId}`}
-                    title={`${entry.detail.name}, ${area?.areaName ?? 'England'}: trend chart`}
-                    description={`How this indicator has changed over time in ${area?.areaName ?? 'England'}.`}
-                  />
-                ) : (
-                  <p className="govuk-hint fphd-topic-highlight__no-trend">
-                    No trend available
-                    <br />
-                    (not enough data)
-                  </p>
-                )}
-                <SummaryList
-                  items={[
-                    { name: 'Most recent period', children: row?.period || 'No data' },
-                    ...measureItems(cell?.series ?? [], latest),
-                    {
-                      name: 'Calculated value',
-                      children:
-                        latest?.value == null
-                          ? 'No data'
-                          : withUnit(formatCalculatedValue(latest.value), entry.detail.unit),
-                    },
-                    { name: 'Trend (last 5 periods)', children: <TrendTag trend={trend} /> },
-                  ]}
+          {highlights.map((highlight) => (
+            <article className="fphd-topic-highlight" key={highlight.shortId}>
+              <h3 className="govuk-heading-s govuk-!-margin-bottom-3">
+                <Link className="govuk-link" to={indicatorPath(highlight.slug)}>
+                  {highlight.name}
+                </Link>
+              </h3>
+              {highlight.hasTrend ? (
+                <ChartSection
+                  id={`topic-highlight-chart-${highlight.shortId}`}
+                  title={`${highlight.name}, ${highlight.areaName}: trend chart`}
+                  description={`How this indicator has changed over time in ${highlight.areaName}.`}
                 />
-              </article>
-            );
-          })}
+              ) : (
+                <p className="govuk-hint fphd-topic-highlight__no-trend">
+                  No trend available
+                  <br />
+                  (not enough data)
+                </p>
+              )}
+              <SummaryList
+                items={[
+                  { name: 'Most recent period', children: highlight.period },
+                  ...highlight.measures.map(({ label, value }) => ({
+                    name: label,
+                    children: value == null ? 'No data' : value.toLocaleString(),
+                  })),
+                  {
+                    name: 'Calculated value',
+                    children:
+                      highlight.value == null
+                        ? 'No data'
+                        : withUnit(formatCalculatedValue(highlight.value), highlight.unit),
+                  },
+                  {
+                    name: 'Trend (last 5 periods)',
+                    children: <TrendTag trend={highlight.trend} />,
+                  },
+                ]}
+              />
+            </article>
+          ))}
         </div>
       </GridColumn>
     </GridRow>

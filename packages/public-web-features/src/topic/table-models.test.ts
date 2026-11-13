@@ -2,7 +2,7 @@ import { tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
 import { expect, it } from 'vitest';
 import { recentTrend } from '../indicator/data.ts';
 import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
-import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
+import { sortTopicAreaTable, topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
 const observation = (year: number, value: number): IndicatorObservation => ({
   fromDate: `${year}-01-01`,
@@ -293,3 +293,115 @@ it('does not attach a period label to an empty area cell', () => {
   expect(row?.cells[0]?.value).toBeNull();
   expect(row?.cells[0]).not.toHaveProperty('period');
 });
+
+it.each([
+  ['lower-is-better', 'first', ['Yorkshire', 'North East', 'North West'], [9, 3, 6], 'ascending'],
+  [
+    'lower-is-better',
+    'reverse',
+    ['North East', 'Yorkshire', 'North West'],
+    [3, 9, 6],
+    'descending',
+  ],
+  ['higher-is-better', 'first', ['North East', 'Yorkshire', 'North West'], [3, 9, 6], 'descending'],
+  [
+    'higher-is-better',
+    'reverse',
+    ['Yorkshire', 'North East', 'North West'],
+    [9, 3, 6],
+    'ascending',
+  ],
+  ['no-polarity', 'first', ['North East', 'Yorkshire', 'North West'], [3, 9, 6], 'descending'],
+  ['no-polarity', 'reverse', ['Yorkshire', 'North East', 'North West'], [9, 3, 6], 'ascending'],
+] as const)(
+  'ranks %s areas in %s order, keeping missing values last and other rows aligned',
+  (polarity, order, areas, alignedValues, direction) => {
+    const source = {
+      ...entry,
+      detail: { ...entry.detail, polarity },
+      areaData: [
+        ...entry.areaData,
+        { areaCode: 'E12000002', areaName: 'North West', observations: [] },
+        { areaCode: 'E12000003', areaName: 'Yorkshire', observations: [observation(2023, 10)] },
+      ],
+    };
+    const second = {
+      ...source,
+      detail: { ...source.detail, shortId: 2, name: 'Second indicator' },
+      areaData: source.areaData.map((area, index) => ({
+        ...area,
+        observations: [observation(2023, index * 3)],
+      })),
+    };
+    const model = topicAreaTableModel(
+      [source, second],
+      { regionByCode: {}, levelByCode: {} },
+      'diabetes',
+    );
+    const sorted = sortTopicAreaTable(model, new URLSearchParams({ sortAreas: `${order}:1|` }));
+    expect(sorted.areas.map(({ areaName }) => areaName)).toEqual(areas);
+    expect(sorted.rows[1]?.cells.map(({ value }) => value)).toEqual(alignedValues);
+    expect(sorted.rows[0]?.cells.at(-1)?.value).toBeNull();
+    expect(sorted.columnSort).toEqual({ key: '1|', reverse: order === 'reverse', direction });
+  },
+);
+
+it('orders recently updated rows by the data update date and puts unknown dates last', () => {
+  const model = topicAreaTableModel(
+    [
+      entry,
+      { ...entry, detail: { ...entry.detail, shortId: 2, name: 'Unknown', dataUpdatedAt: null } },
+      {
+        ...entry,
+        detail: {
+          ...entry.detail,
+          shortId: 3,
+          name: 'Latest',
+          dataUpdatedAt: '2025-01-01T00:00:00Z',
+        },
+      },
+    ],
+    { regionByCode: {}, levelByCode: {} },
+    'diabetes',
+  );
+  const { rows } = sortTopicAreaTable(
+    model,
+    new URLSearchParams({ areaRowSort: 'recently-updated' }),
+  );
+  expect(rows.map(({ name }) => name)).toEqual(['Latest', 'Indicator', 'Unknown']);
+});
+
+it.each(['', 'sortAreas=first:missing', 'sortAreas=first:1|'])(
+  'aligns sparse table rows with all areas for %s',
+  (query) => {
+    const second = {
+      ...entry,
+      detail: { ...entry.detail, shortId: 2 },
+      areaData: [
+        { areaCode: 'E12000007', areaName: 'London', observations: [observation(2024, 15)] },
+      ],
+    };
+    const model = topicAreaTableModel(
+      [entry, second],
+      { regionByCode: {}, levelByCode: {} },
+      'diabetes',
+    );
+    const table = sortTopicAreaTable(model, new URLSearchParams(query));
+    expect(table.areas.map(({ areaCode }) => areaCode).toSorted()).toEqual([
+      'E12000001',
+      'E12000007',
+    ]);
+    for (const row of table.rows) {
+      expect(row.cells.map(({ areaCode }) => areaCode)).toEqual(
+        table.areas.map(({ areaCode }) => areaCode),
+      );
+    }
+    expect(table.rows[0]?.cells.find(({ areaCode }) => areaCode === 'E12000007')).toEqual({
+      areaCode: 'E12000007',
+      value: null,
+      period: 'No data',
+      notes: [],
+      judgement: 'none',
+    });
+  },
+);

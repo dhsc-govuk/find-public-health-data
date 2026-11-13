@@ -4,7 +4,8 @@ import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 import { HiddenFilters } from '../search/filter-fields.tsx';
 import { SearchGeographies } from '../search/geographies.tsx';
 import type { loadSearch } from '../search/loader.ts';
-import { TOPIC_AREA_GROUPS } from './data.ts';
+import { DEFAULT_TOPIC_AREA_GROUP, TOPIC_AREA_GROUPS } from './data.ts';
+import { topicDisplayParams } from './filters.ts';
 
 type Search = Awaited<ReturnType<typeof loadSearch>>;
 
@@ -26,9 +27,7 @@ export function TopicGeographies({
       : location.search,
   );
   const extraParams = {
-    ...Object.fromEntries(
-      [...params].filter(([key]) => key === 'sort' || key === 'columns-topic' || key === 'render'),
-    ),
+    ...topicDisplayParams(params),
     'tab-topic': tab,
   };
   const urlFor = (gaCodes: string[], geoLevels: string[]) => {
@@ -43,8 +42,8 @@ export function TopicGeographies({
   };
   const action = `${path}#${tab === 'areas' ? 'topic-area-summaries' : `topic-${tab}`}`;
   const requestedGroup = TOPIC_AREA_GROUPS.includes(params.get('geo') ?? '')
-    ? (params.get('geo') ?? 'NHS regions')
-    : 'NHS regions';
+    ? (params.get('geo') ?? DEFAULT_TOPIC_AREA_GROUP)
+    : DEFAULT_TOPIC_AREA_GROUP;
   const codesKey = params.getAll('ga').join(',');
   const [selectedGroup, setSelectedGroup] = useState(requestedGroup);
   useEffect(() => setSelectedGroup(requestedGroup), [requestedGroup]);
