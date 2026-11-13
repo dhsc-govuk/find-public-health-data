@@ -207,7 +207,7 @@ describe('loadTopic', () => {
       gate.resolve();
     }
     const [overview, content, areas] = await Promise.all([page.overview, page.content, page.areas]);
-    expect(overview?.selected).toHaveLength(1);
+    expect(overview?.highlights).toHaveLength(1);
     expect(content?.search.searchResult.total).toBe(1);
     expect(areas?.search.searchResult.total).toBe(1);
   });
@@ -287,9 +287,11 @@ describe('loadTopic', () => {
         page.content,
         page.areas,
       ]);
-      expect(overview?.selected).toHaveLength(4);
+      expect(overview?.highlights).toHaveLength(4);
+      expect(overview).not.toHaveProperty('selected');
       expect(content?.search.searchResult.total).toBe(8);
       expect(areas?.search.searchResult.total).toBe(8);
+
       expect(content?.data).not.toHaveProperty('selected');
       expect(content?.listing).not.toHaveProperty('indicators');
       expect(areas?.listing).not.toHaveProperty('indicators');

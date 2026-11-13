@@ -15,8 +15,9 @@ import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
 import { compactTopicAreaTable, compactTopicDataTable } from './compact-table.ts';
-import { TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
+import { DEFAULT_TOPIC_AREA_GROUP, TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
 import { topicDataKey } from './filters.ts';
+import { topicOverviewModel } from './overview-model.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
 export type { TopicDetail, TopicSummary } from '@fphd/public-api-features/contract';
@@ -59,7 +60,15 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
   if (DIMENSIONS.some(({ param }) => url.searchParams.has(`${param}-add`))) {
     await loadTopic(sharedArgs, url.searchParams.get('tab-topic') === 'areas' ? 'areas' : 'data');
   }
-  const overview = loadTopic(sharedArgs, 'overview').then((view) => view.overview);
+  const overview = loadTopic(sharedArgs, 'overview').then(({ overview }) =>
+    overview
+      ? {
+          search: overview.search,
+          trends: overview.trends,
+          highlights: topicOverviewModel(overview.selected),
+        }
+      : null,
+  );
   const content = loadTopic(sharedArgs, 'data').then(({ content }) =>
     content
       ? {
@@ -185,9 +194,10 @@ export async function loadTopic(
     return { topic, content: null, overview: { ...overview, trends } };
   }
   if (tab !== 'data' && tab !== 'areas') return { topic, content: null, overview: null };
-  const summaryGroup = TOPIC_AREA_GROUPS.includes(url.searchParams.get('geo') ?? '')
-    ? (url.searchParams.get('geo') ?? 'NHS regions')
-    : 'NHS regions';
+  const requestedGroup = url.searchParams.get('geo') ?? '';
+  const summaryGroup = TOPIC_AREA_GROUPS.includes(requestedGroup)
+    ? requestedGroup
+    : DEFAULT_TOPIC_AREA_GROUP;
   const areaGroups =
     tab === 'areas'
       ? context

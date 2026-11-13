@@ -25,11 +25,26 @@ const SORT_LABELS: Record<IndicatorSort, string> = {
 };
 export const TOPIC_SORTS = INDICATOR_SORTS.map((value) => ({ value, label: SORT_LABELS[value] }));
 
+export const AREA_SUMMARY_SORTS = [
+  { value: 'subtopic-asc', label: SORT_LABELS['subtopic-asc'] },
+  { value: 'subtopic-desc', label: SORT_LABELS['subtopic-desc'] },
+  { value: 'name-asc', label: SORT_LABELS['name-asc'] },
+  { value: 'name-desc', label: SORT_LABELS['name-desc'] },
+  { value: 'recently-updated', label: 'Recently updated' },
+] as const;
+
+export function topicAreaRowSort(params: URLSearchParams) {
+  const sort = params.get('areaRowSort') ?? params.get('sort');
+  return AREA_SUMMARY_SORTS.find(({ value }) => value === sort)?.value ?? 'subtopic-asc';
+}
+
+export const DEFAULT_TOPIC_AREA_GROUP = 'Statistical regions';
+
 export const TOPIC_AREA_GROUPS = [
   'Integrated care boards',
   'Local authorities',
   'NHS regions',
-  'Statistical regions',
+  DEFAULT_TOPIC_AREA_GROUP,
 ];
 
 export const TOPIC_COLUMNS = [
