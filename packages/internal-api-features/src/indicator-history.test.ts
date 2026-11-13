@@ -54,6 +54,7 @@ const found: IndicatorHistoryRow = {
     },
   ],
   scheduling: [],
+  updates: [],
   saves: [],
 };
 

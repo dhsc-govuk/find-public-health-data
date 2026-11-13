@@ -55,6 +55,7 @@ const noRecords = {
   submissions: [],
   assignments: [],
   scheduling: [],
+  updates: [],
   saves: [],
 };
 
@@ -153,6 +154,20 @@ describe('historyEntries', () => {
       { kind: 'publication_date_changed', at: '2026-06-05T09:00:00.000Z', by: 'Riley Singh' },
       { kind: 'publication_scheduled', at: '2026-06-04T09:00:00.000Z', by: 'Riley Singh' },
       expect.objectContaining({ kind: 'responded', response: 'approved' }),
+    ]);
+  });
+
+  it('lists each update started after the publication it updates', () => {
+    const entries = historyEntries({
+      ...noRecords,
+      versions: [version({ publishedAt: at('02T09:00:00') })],
+      updates: [{ at: at('10T09:00:00'), by: 'Charlie Owen' }],
+    });
+
+    expect(entries).toEqual([
+      { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
+      { kind: 'published', at: '2026-06-02T09:00:00.000Z', by: null },
+      { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
     ]);
   });
 

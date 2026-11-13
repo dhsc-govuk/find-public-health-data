@@ -880,7 +880,7 @@ describe('the published views', () => {
               'ci_method_justification', 'data_sources_justification', 'inequalities_included',
               'has_exclusions', 'exclusions_detail', 'has_automation', 'automation_detail',
               'no_automation_reason', 'sponsors_and_stakeholders', 'has_reviewer_comments',
-              'reviewer_comments_detail'
+              'reviewer_comments_detail', 'update_summary_for_reviewers'
             )`,
     )) as unknown as { column_name: string }[];
 

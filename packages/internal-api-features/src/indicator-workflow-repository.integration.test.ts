@@ -129,6 +129,7 @@ describe('completeDraft', () => {
       indicatorTaskList({
         indicator,
         draft: { ...draft, ciMethodKind: draftCiMethodKind },
+        published: null,
         review: null,
       }).canSubmit,
     ).toBe(true);

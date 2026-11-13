@@ -34,6 +34,7 @@ export const historyEntrySchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('publication_scheduled'), ...doneBy }),
   z.object({ kind: z.literal('publication_date_changed'), ...doneBy }),
+  z.object({ kind: z.literal('update_started'), ...doneBy }),
 ]);
 
 /** What has happened to an indicator, newest first. */

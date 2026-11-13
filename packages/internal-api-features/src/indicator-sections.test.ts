@@ -20,6 +20,7 @@ import {
   sexGenderAndEthnicitySection,
   taggingSection,
   updateFrequencySection,
+  updateSummarySection,
   valueTypeAndUnitsSection,
   varianceAndQualitySection,
 } from './contract.ts';
@@ -57,6 +58,7 @@ const sections = [
   sexGenderAndEthnicitySection,
   taggingSection,
   updateFrequencySection,
+  updateSummarySection,
   valueTypeAndUnitsSection,
   varianceAndQualitySection,
 ];

@@ -13,7 +13,7 @@ import { changesTask } from './indicator-task-audit-fields.ts';
 
 type HistoryRecords = Pick<
   IndicatorHistoryRow,
-  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'saves'
+  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'updates' | 'saves'
 >;
 
 const SCHEDULING_KINDS = {
@@ -170,7 +170,7 @@ function versionEntries({ versions }: HistoryRecords): Dated[] {
  * at the same instant keep the order they happened in, the later first.
  */
 export function historyEntries(records: HistoryRecords): HistoryEntry[] {
-  const { submissions, assignments, scheduling, saves } = records;
+  const { submissions, assignments, scheduling, updates, saves } = records;
   const happened = [
     ...versionEntries(records),
     ...submissions.flatMap((submission, index) =>
@@ -186,6 +186,7 @@ export function historyEntries(records: HistoryRecords): HistoryEntry[] {
     ...scheduling.map(({ at, by, action }) =>
       dated({ kind: SCHEDULING_KINDS[action], at: iso(at), by }, at),
     ),
+    ...updates.map(({ at, by }) => dated({ kind: 'update_started', at: iso(at), by }, at)),
   ];
 
   return happened

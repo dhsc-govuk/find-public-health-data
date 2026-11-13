@@ -216,6 +216,27 @@ describe('internal API', () => {
     expect(asAdmin.status).toBe(403);
   });
 
+  it('mounts the start of an update behind the publisher role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findAccess: vi.fn().mockResolvedValue(stepRow),
+        draftFromPublished: async () => ({ ok: true, versionId: stepRow.id }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/draft';
+
+    const asPublisher = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['publisher']));
+    const asAdmin = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['admin']));
+
+    expect(asPublisher.status).toBe(204);
+    expect(asAdmin.status).toBe(403);
+  });
+
   it('mounts the assign reviewers step behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
@@ -387,6 +408,7 @@ describe('internal API', () => {
           submissions: [],
           assignments: [],
           scheduling: [],
+          updates: [],
           saves: [],
         }),
       },

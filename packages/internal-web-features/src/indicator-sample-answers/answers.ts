@@ -28,6 +28,7 @@ import {
   taggingAnswersSchema,
   taggingSection,
   updateFrequencySection,
+  updateSummarySection,
   type ValueTypeAndUnitOptions,
   valueTypeAndUnitsSection,
   varianceAndQualitySection,
@@ -196,5 +197,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       noAutomationReason: 'Not supported for this data source.',
     }),
     text(otherCommentsSection, { hasReviewerComments: 'no' }),
+    text(updateSummarySection, { updateSummary: 'Sample update.' }),
   ];
 }

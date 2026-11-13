@@ -86,6 +86,8 @@ function historyItem(entry: HistoryEntry): HistoryItem {
       return { date: entry.at, action: 'Publication date confirmed', by: entry.by, rows: [] };
     case 'publication_date_changed':
       return { date: entry.at, action: 'Publication date changed', by: entry.by, rows: [] };
+    case 'update_started':
+      return { date: entry.at, action: 'Indicator update started', by: entry.by, rows: [] };
   }
 }
 

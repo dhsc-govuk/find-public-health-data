@@ -94,6 +94,7 @@ export function indicatorTaskList(overrides: Partial<IndicatorTaskList> = {}): I
     isUpdate: false,
     canSubmit: true,
     tasks: taskStatuses('completed'),
+    changedTasks: [],
     review: null,
     draftUpdatedAt: '2026-10-22T09:30:00.123Z',
     editable: true,

@@ -72,11 +72,11 @@ test.describe('as an admin, who sees the seeded indicators in Fingertips', () =>
     ]);
   });
 
-  test('opens the published indicator from the actions tab', async ({ page }) => {
+  test('opens the live indicator from the actions tab', async ({ page }) => {
     await page.goto(PUBLISHED_OVERVIEW_PATH);
 
     await expect(page.getByRole('tab', { name: 'Actions' })).toBeVisible();
-    await page.getByRole('link', { name: 'View published indicator' }).click();
+    await page.getByRole('link', { name: 'View live indicator' }).click();
 
     await expect(page).toHaveURL(/\/indicator\/[a-z0-9-]+$/);
     await expect(page.getByRole('heading', { level: 1, name: MORTALITY_NAME })).toBeVisible();

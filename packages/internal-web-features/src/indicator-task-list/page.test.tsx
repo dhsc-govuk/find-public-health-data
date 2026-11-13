@@ -23,6 +23,7 @@ const taskList: IndicatorTaskList = {
   },
   isUpdate: false,
   canSubmit: true,
+  changedTasks: [],
   review: null,
   draftUpdatedAt: '2026-10-22T09:30:00.123Z',
   editable: true,
@@ -287,6 +288,89 @@ describe('IndicatorTaskListPage', () => {
 
     expect(screen.queryByRole('alert')).toBeNull();
     expect(document.title).toBe(`Indicator task list - ${serviceName} - GOV.UK`);
+  });
+});
+
+describe('IndicatorTaskListPage for an update to a live indicator', () => {
+  const update: Partial<IndicatorTaskList> = {
+    isUpdate: true,
+    indicator: { ...taskList.indicator, indicatorStatus: 'live' },
+    tasks: {
+      ...taskStatuses('completed'),
+      'publishing-date': 'not_started',
+      'update-summary': 'not_started',
+    },
+    canSubmit: false,
+  };
+
+  /** The status beside a task, found by its name whether or not it links anywhere. */
+  function statusOf(groupTitle: string, name: string) {
+    const row = group(groupTitle)
+      .getAllByRole('listitem')
+      .find((item) => item.textContent?.startsWith(name));
+
+    return row?.querySelector('.govuk-task-list__status')?.textContent;
+  }
+
+  it('ends the Publishing group with the update summary', () => {
+    renderPage(update);
+
+    expect(
+      group('Publishing')
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      expect.stringMatching(/^Update frequency/),
+      expect.stringMatching(/^Publishing date/),
+      expect.stringMatching(/^Update summary/),
+    ]);
+  });
+
+  it('reads each task changed or unchanged against the live indicator', () => {
+    renderPage({ ...update, changedTasks: ['polarity', 'variance-and-quality'] });
+
+    expect(statusOf('Data', 'Polarity')).toBe('Changed');
+    expect(statusOf('Data', 'Data table')).toBe('Unchanged');
+    expect(statusOf('Metadata', 'Name')).toBe('Unchanged');
+    expect(statusOf('Notes for reviewers (not visible to consumers)', 'Variance and quality')).toBe(
+      'Changed',
+    );
+    expect(group('Data').getByRole('link', { name: 'Polarity' })).toBeTruthy();
+    expect(group('Data').getByRole('link', { name: 'Data table' })).toBeTruthy();
+  });
+
+  it('has no changes to publish, and no links to the publishing date and summary, until a task changes', () => {
+    renderPage(update);
+
+    expect(statusOf('Publishing', 'Publishing date')).toBe('No changes to publish');
+    expect(statusOf('Publishing', 'Update summary')).toBe('No changes to publish');
+    expect(group('Publishing').queryByRole('link', { name: 'Publishing date' })).toBeNull();
+    expect(group('Publishing').queryByRole('link', { name: 'Update summary' })).toBeNull();
+    expect(group('Publishing').getByRole('link', { name: 'Update frequency' })).toBeTruthy();
+  });
+
+  it('links the publishing date and summary once a task changes, complete once answered', () => {
+    renderPage({
+      ...update,
+      changedTasks: ['polarity'],
+      tasks: { ...update.tasks, 'update-summary': 'completed' } as IndicatorTaskList['tasks'],
+    });
+
+    const id = taskList.indicator.id;
+    expect(
+      group('Publishing').getByRole('link', { name: 'Publishing date' }).getAttribute('href'),
+    ).toBe(`/publish/indicators/${id}/publishing-date`);
+    expect(
+      group('Publishing').getByRole('link', { name: 'Update summary' }).getAttribute('href'),
+    ).toBe(`/publish/indicators/${id}/update-summary`);
+    expect(statusOf('Publishing', 'Publishing date')).toBe('Incomplete');
+    expect(statusOf('Publishing', 'Update summary')).toBe('Complete');
+  });
+
+  it('leaves the update summary off a new indicator', () => {
+    renderPage();
+
+    expect(group('Publishing').queryByText('Update summary')).toBeNull();
   });
 });
 

@@ -54,6 +54,7 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
   '/publish/indicators/:id/sex-gender-and-ethnicity': 'indicator-sex-gender-and-ethnicity.spec.ts',
   '/publish/indicators/:id/ages': 'indicator-ages.spec.ts',
   '/publish/indicators/:id/tagging': 'indicator-tagging.spec.ts',
+  '/publish/indicators/:id/update-summary': 'indicator-update-summary.spec.ts',
   '/manage': 'manage.spec.ts',
   '/manage/topics': 'manage-topics.spec.ts',
   '/manage/topics/new': 'manage-topics.spec.ts',
