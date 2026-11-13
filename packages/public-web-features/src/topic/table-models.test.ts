@@ -431,3 +431,72 @@ it('takes the row period and England benchmark from the newest picked area, not 
     benchmark: { value: 27, period: '2022' },
   });
 });
+
+it('matches each area’s spread by its level, dates and segment, and England’s by the newest area', () => {
+  const point = (year: number, value: number, age = '45+') => ({
+    ...observation(year, value),
+    dimensions: [
+      { type: 'Sex', value: 'Persons', dimensionClass: 'core', sortOrder: 1 },
+      { type: 'Age', value: age, dimensionClass: 'core', sortOrder: 1 },
+    ],
+  });
+  const source = {
+    ...entry,
+    areaData: [
+      { areaCode: 'E12000003', areaName: 'Yorkshire', observations: [point(2022, 8)] },
+      { areaCode: 'E12000001', areaName: 'North East', observations: [point(2023, 18)] },
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [point(2022, 28), point(2023, 29), point(2022, 99, '65+')],
+      },
+    ],
+    ranges: {
+      'Statistical regions': [
+        {
+          fromDate: '2022-01-01',
+          toDate: '2022-12-31',
+          segment: '65+|Persons',
+          min: 100,
+          max: 200,
+        },
+        {
+          fromDate: '2021-01-01',
+          toDate: '2022-12-31',
+          segment: '45+|Persons',
+          min: 101,
+          max: 201,
+        },
+        {
+          fromDate: '2022-01-01',
+          toDate: '2022-12-31',
+          segment: '45+|Persons',
+          min: 2,
+          p25: 5,
+          p75: 25,
+          max: 35,
+        },
+        { fromDate: '2023-01-01', toDate: '2023-12-31', segment: '45+|Persons', min: 3, max: 36 },
+      ],
+    },
+  };
+  const model = topicDataTableModel([source], 'diabetes', {
+    regionByCode: {},
+    levelByCode: { E12000003: 'Statistical regions', E12000001: 'Statistical regions' },
+  });
+  const [first] = model.rows;
+  const cell = (code: string) => first?.cells.find(({ areaCode }) => areaCode === code);
+  expect(first?.period).toBe('2023');
+  expect(first?.england).toMatchObject({ value: 29, min: 3, max: 36 });
+  expect(cell('E12000003')?.range).toEqual({ min: 2, p25: 5, p75: 25, max: 35 });
+  expect(cell('E12000001')?.range).toMatchObject({ min: 3, max: 36 });
+});
+
+it('leaves the spread out when the area’s level has no range for its period', () => {
+  const model = topicDataTableModel([entry], 'diabetes', {
+    regionByCode: {},
+    levelByCode: { E12000001: 'Statistical regions' },
+  });
+  expect(model.rows[0]?.cells[0]).not.toHaveProperty('range');
+  expect(model.rows[0]?.england).not.toHaveProperty('min');
+});

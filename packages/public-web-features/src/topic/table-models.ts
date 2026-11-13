@@ -1,5 +1,11 @@
+import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { comparisonTable } from '../indicator/comparison.ts';
-import { comparisonRows, polarityGoodDirection, recentTrend } from '../indicator/data.ts';
+import {
+  comparisonRows,
+  polarityGoodDirection,
+  recentTrend,
+  segmentValuesKey,
+} from '../indicator/data.ts';
 import type { BenchmarkGeography, SelectedIndicator } from '../indicator/loader.ts';
 import {
   englandObservation,
@@ -9,7 +15,11 @@ import {
   topicSubtopics,
 } from './data.ts';
 
-export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: string) {
+export function topicDataTableModel(
+  selected: SelectedIndicator[],
+  topicSlug: string,
+  geography: BenchmarkGeography = { regionByCode: {}, levelByCode: {} },
+) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   const rows = comparisonRows(selected);
   const cellAreas = [
@@ -41,8 +51,26 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
           : best;
       }, undefined);
       const reference = newest ? { ...row, series: newest.series } : row;
-      const rowPeriod = newest ? observationPeriod(entry, newest.series.at(-1)) : row.period;
+      const label = (observation: Parameters<typeof expandedPeriodLabel>[0] | undefined) =>
+        observation ? expandedPeriodLabel(observation, entry.detail.yearType) : 'No data';
+      const rowPeriod = newest ? label(newest.series.at(-1)) : row.period;
       const england = compared ? englandObservation(entry, reference) : undefined;
+      // The spread across the area's own level, for the period its latest value covers.
+      const rangeFor = (cell: (typeof row.cells)[number] | undefined) => {
+        const latest = cell?.series.at(-1);
+        const level = cell ? geography.levelByCode[cell.areaCode] : undefined;
+        const range =
+          latest && level
+            ? entry.ranges?.[level]?.find(
+                ({ fromDate, toDate, segment }) =>
+                  fromDate === latest.fromDate &&
+                  toDate === latest.toDate &&
+                  segment === segmentValuesKey(latest),
+              )
+            : undefined;
+        return range ? { min: range.min, p25: range.p25, p75: range.p75, max: range.max } : null;
+      };
+      const englandRange = compared ? rangeFor(newest) : null;
       return [
         {
           key: row.key,
@@ -58,12 +86,13 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
                 value: england?.value ?? null,
                 count: england?.count ?? null,
                 numerator: england?.numerator ?? null,
+                ...(englandRange ?? {}),
               }
             : null,
           cells: row.cells.map((cell) => {
             const latest = cell.series.at(-1);
             // An area whose data lags the row is judged against England for its own period.
-            const period = latest?.value != null ? observationPeriod(entry, latest) : rowPeriod;
+            const period = latest?.value != null ? label(latest) : rowPeriod;
             const benchmark = compared
               ? englandObservation(entry, { ...row, series: cell.series })
               : undefined;
@@ -73,6 +102,7 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
               count: latest?.count ?? null,
               numerator: latest?.numerator ?? null,
               trend: recentTrend(cell.series, entry.detail.polarity, cell.trendDirection),
+              ...(compared && rangeFor(cell) ? { range: rangeFor(cell) } : {}),
               judgement:
                 benchmark?.value != null
                   ? topicJudgement(latest, benchmark.value, entry.detail)
@@ -82,7 +112,7 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
                 ? {
                     benchmark: {
                       value: benchmark.value,
-                      period: observationPeriod(entry, benchmark),
+                      period: label(benchmark),
                     },
                   }
                 : {}),

@@ -7,6 +7,8 @@ import { selected } from '../indicator/view.testing.ts';
 import {
   englandObservation,
   JUDGEMENT_LABELS,
+  TOPIC_COLUMNS,
+  topicColumns,
   topicJudgement,
   topicTableSelection,
 } from './data.ts';
@@ -177,4 +179,42 @@ it('uses the same no-comparison judgement and label for indicators without polar
   expect(JUDGEMENT_LABELS[topicJudgement(observation(2024, 10), 5, detail)]).toBe(
     'No comparison available',
   );
+});
+
+it('defaults to period, update date, trend, value, chart and summary columns', () => {
+  expect(topicColumns(new URLSearchParams())).toEqual([
+    'period',
+    'updated',
+    'trend',
+    'value',
+    'chart',
+    'summary',
+  ]);
+});
+
+it.each(['columns-topic=', 'columns-topic=none', 'columns-topic=unknown'])(
+  'keeps only the Indicator column for %s',
+  (query) => {
+    expect(topicColumns(new URLSearchParams(query))).toEqual([]);
+  },
+);
+
+it.each(TOPIC_COLUMNS)('selects $value independently of every other column', ({ value }) => {
+  expect(topicColumns(new URLSearchParams({ 'columns-topic': value }))).toEqual([value]);
+  const params = new URLSearchParams({ 'columns-topic': 'none' });
+  for (const option of TOPIC_COLUMNS)
+    if (option.value !== value) params.append('columns-topic', option.value);
+  expect(topicColumns(params)).toEqual(
+    TOPIC_COLUMNS.filter((option) => option.value !== value).map((option) => option.value),
+  );
+});
+
+it('orders repeated and comma-separated column choices by the table schema', () => {
+  expect(
+    topicColumns(
+      new URLSearchParams(
+        'columns-topic=percentiles,value,chart&columns-topic=summary,minmax,chart',
+      ),
+    ),
+  ).toEqual(['value', 'chart', 'summary', 'minmax', 'percentiles']);
 });

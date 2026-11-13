@@ -2236,6 +2236,11 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
     min-width: 240px;
     max-width: none;
     width: 25%;
+
+    @include govuk-media-query($until: tablet) {
+      min-width: 0;
+      max-width: 40vw;
+    }
   }
 
   thead th {

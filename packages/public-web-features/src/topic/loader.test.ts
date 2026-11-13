@@ -463,3 +463,135 @@ describe('loadTopic', () => {
     });
   });
 });
+
+const rangePeriod = {
+  fromDate: '2024-01-01',
+  toDate: '2024-12-31',
+  segment: '',
+  min: 2,
+  max: 50,
+  p25: 10,
+  p75: 40,
+};
+const rangeAreas = [
+  {
+    code: 'E12000001',
+    name: 'North East',
+    areaType: 'Regions (statistical)',
+    displayGroup: 'Statistical regions',
+  },
+  {
+    code: 'E12000007',
+    name: 'London',
+    areaType: 'Regions (statistical)',
+    displayGroup: 'Statistical regions',
+  },
+  {
+    code: 'E06000052',
+    name: 'Cornwall',
+    areaType: 'Unitary authorities',
+    displayGroup: 'Local authorities',
+  },
+];
+function rangeApi(overrides: FakeApiStubs = {}) {
+  return createFakeApiClient({
+    ...topicStubs(
+      [1, 2].map((shortId) => ({
+        shortId,
+        name: `Indicator ${shortId}`,
+        slug: `indicator-${shortId}`,
+      })),
+    ),
+    'GET /api/areas/display-groups': ['Statistical regions', 'Local authorities'],
+    'GET /api/areas/lookup': (call) =>
+      rangeAreas.filter(({ code }) => query(call).getAll('areaCode').includes(code)),
+    'GET /api/indicator-data': (call) =>
+      query(call)
+        .getAll('indicator')
+        .map((id) => ({
+          detail: indicatorDetail(Number(id)),
+          areaData: query(call)
+            .getAll('areaCode')
+            .map((areaCode) => ({
+              areaCode,
+              areaName: rangeAreas.find(({ code }) => code === areaCode)?.name ?? 'England',
+              observations: [observation(areaCode === 'E92000001' ? 20 : 10)],
+            })),
+        })),
+    'GET /api/indicators/1/range': { periods: [rangePeriod] },
+    'GET /api/indicators/2/range': { periods: [rangePeriod] },
+    ...overrides,
+  });
+}
+
+it('loads each listed indicator range once per chosen display level', async () => {
+  const api = rangeApi();
+  const { content } = await loadTopic(
+    loaderArgs(
+      api,
+      { slug: 'topic-a' },
+      '?tab-topic=data&ga=E12000001&ga=E12000007&ga=E12000001&ga=E06000052',
+    ),
+  );
+  const rangePaths = paths(api).filter((path) => path.includes('/range?'));
+  expect(rangePaths.toSorted()).toEqual(
+    [1, 2].flatMap((id) => [
+      `/api/indicators/${id}/range?displayGroup=Local%20authorities`,
+      `/api/indicators/${id}/range?displayGroup=Statistical%20regions`,
+    ]),
+  );
+  expect(content?.data.selected.map(({ ranges }) => ranges)).toEqual(
+    [1, 2].map(() => ({
+      'Statistical regions': [rangePeriod],
+      'Local authorities': [rangePeriod],
+    })),
+  );
+});
+
+it.each([
+  '?tab-topic=data',
+  '?tab-topic=data&ga=E92000001',
+  '?tab-topic=areas&ga=E12000001',
+  '?tab-topic=overview&ga=E12000001',
+])('does not request ranges for %s', async (query) => {
+  const api = rangeApi();
+  await loadTopic(loaderArgs(api, { slug: 'topic-a' }, query));
+  expect(paths(api).filter((path) => path.includes('/range'))).toEqual([]);
+});
+
+it('treats an indicator the range endpoint does not know as having no range', async () => {
+  const api = rangeApi({
+    'GET /api/indicators/1/range': fails(new Response('Not Found', { status: 404 })),
+  });
+  const { content } = await loadTopic(
+    loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=data&ga=E12000001'),
+  );
+  expect(content?.data.selected[0]?.ranges).toEqual({ 'Statistical regions': [] });
+  expect(content?.data.selected[1]?.ranges).toEqual({ 'Statistical regions': [rangePeriod] });
+  expect(content?.data.selected[0]?.areaData.length).toBe(2);
+});
+
+it('lets any other range failure fail the table', async () => {
+  const api = rangeApi({ 'GET /api/indicators/1/range': fails(new Error('Connection failed')) });
+  await expect(
+    loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=data&ga=E12000001')),
+  ).rejects.toThrow('Connection failed');
+});
+
+it('carries the loaded range through the streamed compact table payload', async () => {
+  const api = rangeApi();
+  const page = await loadTopicPage(
+    loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=data&ga=E12000001'),
+  );
+  const [content] = await Promise.all([page.content, page.overview, page.areas]);
+  expect(content?.table.rows[0]?.england).toEqual({
+    value: 20,
+    count: 2000,
+    numerator: null,
+    min: 2,
+    max: 50,
+    p25: 10,
+    p75: 40,
+  });
+  expect(paths(api).filter((path) => path.includes('/range?'))).toHaveLength(2);
+});

@@ -59,19 +59,25 @@ it('follows a picked area with its comparison summary and puts England last', ()
   };
   render(
     <MemoryRouter>
-      <TopicDataTable model={model} title="Diabetes" />
+      <TopicDataTable
+        model={model}
+        title="Diabetes"
+        columns={['period', 'updated', 'trend', 'value', 'summary']}
+      />
     </MemoryRouter>,
   );
 
   expect(
-    screen.getByRole('table', { name: 'Diabetes indicators: North East compared with England' }),
+    screen.getByRole('table', {
+      name: /^Diabetes indicators: North East compared with England, table with/,
+    }),
   ).toBeTruthy();
   expect(headers()).toEqual([
-    'Indicator',
-    'Most recentperiod',
-    'Lastupdated',
     'North East',
     'England',
+    'Indicator',
+    'Most recentperiod',
+    'Data lastupdated',
     'Trend(last 5 periods)',
     'Calculatedvalue',
     'Comparisonsummary',
@@ -80,7 +86,7 @@ it('follows a picked area with its comparison summary and puts England last', ()
   const smoking = screen.getByRole('row', { name: /Smoking/ });
   expect(smoking.textContent).toMatch(/18\.0%Better than England28\.0%$/);
   const obesity = screen.getByRole('row', { name: /Obesity/ });
-  expect(obesity.textContent).toMatch(/No dataNo data31\.0%$/);
+  expect(obesity.textContent).toMatch(/-No data-No data31\.0%$/);
   const careHome = screen.getByRole('row', { name: /Care home deaths/ });
   expect(careHome.textContent).toMatch(/29\.0%Neither better nor worse41\.0%$/);
 });
@@ -98,12 +104,14 @@ it('shows England alone, with its trend, when no area is picked', () => {
     </MemoryRouter>,
   );
 
-  expect(screen.getByRole('table', { name: 'Diabetes indicators for England' })).toBeTruthy();
+  expect(
+    screen.getByRole('table', { name: /^Diabetes indicators for England, table with/ }),
+  ).toBeTruthy();
   expect(headers()).toEqual([
+    'England',
     'Indicator',
     'Most recentperiod',
-    'Lastupdated',
-    'England',
+    'Data lastupdated',
     'Trend(last 5 periods)',
     'Calculatedvalue',
   ]);
@@ -129,14 +137,14 @@ it('shows the period of an area value that lags the row', () => {
       <TopicDataTable model={model} title="Diabetes" />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('cell', { name: '18.0%2022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '18.0%(2022)' })).toBeTruthy();
 
   rerender(
     <MemoryRouter>
-      <TopicDataTable model={model} title="Diabetes" columns={['period', 'trend']} />
+      <TopicDataTable model={model} title="Diabetes" columns={['period', 'trend', 'summary']} />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('cell', { name: 'Better than England2022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: 'Better than England(2022)' })).toBeTruthy();
 });
 
 it('shows no comparison available when the same-period England value is missing', () => {
@@ -206,23 +214,27 @@ it('labels lagging counts and numerators and identifies the England benchmark us
   };
   const { rerender } = render(
     <MemoryRouter>
-      <TopicDataTable model={model} title="Diabetes" columns={['count', 'numerator']} />
+      <TopicDataTable model={model} title="Diabetes" columns={['count', 'numerator', 'summary']} />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('cell', { name: '2602022' })).toBeTruthy();
-  expect(screen.getByRole('cell', { name: '1302022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '260(2022)' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '130(2022)' })).toBeTruthy();
   expect(
     screen.getByRole('cell', { name: /Better than England \(England: 30.0%, 2022\)/ }),
   ).toBeTruthy();
   expect(screen.getByRole('cell', { name: '28.0%2023' })).toBeTruthy();
   rerender(
     <MemoryRouter>
-      <TopicDataTable model={model} title="Diabetes" columns={['count', 'numerator', 'value']} />
+      <TopicDataTable
+        model={model}
+        title="Diabetes"
+        columns={['count', 'numerator', 'value', 'summary']}
+      />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('cell', { name: '2602022' })).toBeTruthy();
-  expect(screen.getByRole('cell', { name: '1302022' })).toBeTruthy();
-  expect(screen.getByRole('cell', { name: '26.0%2022' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '260(2022)' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '130(2022)' })).toBeTruthy();
+  expect(screen.getByRole('cell', { name: '26.0%(2022)' })).toBeTruthy();
 });
 
 it('renders an empty area comparison once when calculated value is hidden', () => {
@@ -240,9 +252,148 @@ it('renders an empty area comparison once when calculated value is hidden', () =
   };
   render(
     <MemoryRouter>
-      <TopicDataTable model={model} title="Diabetes" columns={[]} />
+      <TopicDataTable model={model} title="Diabetes" columns={['summary']} />
     </MemoryRouter>,
   );
   const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
-  expect(cells[1]?.textContent).toBe('No data');
+  expect(cells).toHaveLength(2);
+  expect(cells[1]?.textContent).toBe('-No data');
+});
+
+const compared = (rows: TopicDataTableModel['rows'], names = ['North East']) =>
+  ({
+    kind: 'data',
+    compared: true,
+    areas: names.map((name, index) => ({ code: `E1200000${index + 1}`, name })),
+    rows,
+  }) satisfies TopicDataTableModel;
+
+const spread = () => {
+  const smoking = row(
+    'Smoking',
+    { value: 18, judgement: 'better' },
+    { value: 28, count: null, numerator: null, min: 5, p25: 12, p75: 30, max: 45 },
+  );
+  const cell = smoking.cells[0];
+  if (!cell) throw new Error('Cell fixture missing');
+  smoking.cells = [{ ...cell, range: { min: 5, p25: 12, p75: 30, max: 45 } }];
+  return smoking;
+};
+
+it('puts England’s spread before its value and the chart beside each area', () => {
+  render(
+    <MemoryRouter>
+      <TopicDataTable
+        model={compared([spread()])}
+        title="Diabetes"
+        columns={['value', 'chart', 'summary', 'minmax', 'percentiles']}
+      />
+    </MemoryRouter>,
+  );
+  expect(headers()).toEqual([
+    'North East',
+    'England',
+    'Indicator',
+    'Calculatedvalue',
+    'Comparedwith England',
+    'Comparisonsummary',
+    'England lowest',
+    'England 25th percentile',
+    'England 75th percentile',
+    'England highest',
+    'Calculatedvalue',
+  ]);
+  const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+  expect(cells.map((cell) => cell.textContent)).toEqual([
+    '18.0%',
+    'North East: 18.0%. England: 28.0%. Range: 5.0% to 45.0%. 25th percentile: 12.0%. 75th percentile: 30.0%. Better than benchmark',
+    'Better than England',
+    '5.0%',
+    '12.0%',
+    '30.0%',
+    '45.0%',
+    '28.0%2023',
+  ]);
+  expect(screen.getByRole('columnheader', { name: 'England' }).getAttribute('colspan')).toBe('5');
+});
+
+it('turns the minimum/maximum and percentile columns on independently', () => {
+  render(
+    <MemoryRouter>
+      <TopicDataTable model={compared([spread()])} title="Diabetes" columns={['percentiles']} />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole('columnheader', { name: 'England 25th percentile' })).toBeTruthy();
+  expect(screen.queryByRole('columnheader', { name: 'England lowest' })).toBeNull();
+});
+
+it('associates each value with its row, area and column headings', () => {
+  render(
+    <MemoryRouter>
+      <TopicDataTable model={compared([spread()])} title="Diabetes" columns={['period', 'value']} />
+    </MemoryRouter>,
+  );
+  const named = (id: string) => document.getElementById(id)?.textContent?.replace(/\s+/g, ' ');
+  const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+  expect((cells[0]?.getAttribute('headers') ?? '').split(' ').map(named)).toEqual([
+    'Smoking',
+    'Most recentperiod',
+  ]);
+  expect((cells[1]?.getAttribute('headers') ?? '').split(' ').map(named)).toEqual([
+    'Smoking',
+    'North East',
+    'Calculatedvalue',
+  ]);
+});
+
+it('captions the chosen areas and the table’s size, keeping the identifying columns frozen', () => {
+  render(
+    <MemoryRouter>
+      <TopicDataTable
+        model={compared([spread()], ['North East', 'Kent', 'Devon'])}
+        title="Diabetes"
+        columns={['period', 'value']}
+      />
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByRole('table', {
+      name: 'Diabetes indicators: North East, Kent and Devon compared with England, table with 1 row and 6 columns',
+    }),
+  ).toBeTruthy();
+  expect(screen.getByRole('rowheader', { name: /Smoking/ }).className).toContain(
+    'fphd-table__frozen',
+  );
+  expect(screen.getByRole('cell', { name: '2023' }).className).toContain(
+    'fphd-table__frozen--second',
+  );
+});
+
+it('sizes the columns as the prototype does, the indicator a third of the rest', () => {
+  render(
+    <MemoryRouter>
+      <TopicDataTable
+        model={compared([spread()])}
+        title="Diabetes"
+        columns={['period', 'updated', 'trend', 'value', 'chart', 'summary']}
+      />
+    </MemoryRouter>,
+  );
+  expect(
+    [...document.querySelectorAll('col')].map((column) => column.getAttribute('width')),
+  ).toEqual(['331', '100', '90', '150', '150', '243', '110', '150']);
+});
+
+it('shows a dash, read as No data, for a missing value or chart', () => {
+  render(
+    <MemoryRouter>
+      <TopicDataTable
+        model={compared([row('Smoking', { value: null, judgement: null }, null)])}
+        title="Diabetes"
+        columns={['value', 'chart']}
+      />
+    </MemoryRouter>,
+  );
+  const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+  expect(cells.slice(0, 2).map((cell) => cell.textContent)).toEqual(['-No data', '-No data']);
 });

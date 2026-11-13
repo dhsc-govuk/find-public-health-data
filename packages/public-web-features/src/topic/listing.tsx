@@ -1,5 +1,5 @@
 import { FilterChip, FilterChips, InsetText, Select } from '@fphd/ui';
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { Form, useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import { geographyGroupLabel } from '../geography/groups.ts';
@@ -23,6 +23,7 @@ type TopicData = { topic: TopicPageData['topic'] } & NonNullable<
 
 export function TopicListing({ data, areas = false }: { data: TopicData; areas?: boolean }) {
   const { topic, search, listing } = data;
+  const tableId = useId();
   const location = useLocation();
   const navigation = useNavigation();
   const path = `/topics/${topic.slug}`;
@@ -69,6 +70,18 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
     );
   return (
     <>
+      {!areas && hasRows ? (
+        <a
+          className="govuk-skip-link"
+          href={`#${tableId}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.currentTarget.ownerDocument.getElementById(tableId)?.focus();
+          }}
+        >
+          Skip to indicators table
+        </a>
+      ) : null}
       <div className="fphd-indicator-showing">
         <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
         <FilterChips>
@@ -171,7 +184,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
         </>
       ) : (
         <div aria-busy={loading}>
-          <TopicDataTable model={table} title={topic.title} columns={columns} />
+          <TopicDataTable id={tableId} model={table} title={topic.title} columns={columns} />
         </div>
       )}
     </>
