@@ -169,11 +169,12 @@ const STEPS: Readonly<Record<IndicatorStep, StepEntry>> = {
     },
     leadsTo: { versionStatus: 'scheduled', submissionStatus: 'approved', isLocked: true },
   },
-  // Publishes the scheduled version of an indicator that has never been published, at its
-  // publication time. The version stays locked once it is published.
+  // Publishes a scheduled version at its publication time: a new indicator's first version, or an
+  // update to a live indicator, which replaces the version published before it. The version stays
+  // locked once it is published.
   publish: {
     from: {
-      indicatorStatuses: ['new'],
+      indicatorStatuses: ['new', 'live'],
       versionStatuses: ['scheduled'],
       isLocked: true,
       submissionStatuses: ['approved'],

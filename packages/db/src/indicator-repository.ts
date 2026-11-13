@@ -52,6 +52,7 @@ import {
   publishedIndicatorSource as indicatorSource,
   publishedIndicatorSubtopic as indicatorSubtopic,
   publishedIndicatorTopic as indicatorTopic,
+  publishedIndicatorUpdateSummary as indicatorUpdateSummary,
   publishedObservation as observation,
   publishedObservationRange as observationRange,
   publishedSubtopic as subtopic,
@@ -230,6 +231,16 @@ export interface IndicatorDetail {
   areaTypes: IndicatorAreaType[];
   topics: IndicatorTopic[];
   classifications: IndicatorClassification[];
+  /**
+   * The summaries of the published updates, other than those published without visibility in
+   * history, newest first, each with when its update went live. Empty for an indicator with none, such as an imported one.
+   */
+  updateSummaries: IndicatorUpdateSummary[];
+}
+
+export interface IndicatorUpdateSummary {
+  publishedAt: string;
+  summary: string;
 }
 
 /** The internal id behind a public short id — the one place the external id resolves. */
@@ -309,6 +320,18 @@ export async function getPublishedIndicatorsByIds(
       notes: indicator.otherNotesDetail,
       dataSourceName: dataSource.name,
       dataSourceUrl: dataSource.url,
+      // Read in this statement, rather than in one of its own, so the page costs no more queries.
+      updateSummaries: sql<{ publishedAt: string; summary: string }[]>`(
+        SELECT coalesce(
+          json_agg(
+            json_build_object('publishedAt', ${indicatorUpdateSummary.publishedAt}, 'summary', ${indicatorUpdateSummary.updateSummary})
+            ORDER BY ${indicatorUpdateSummary.publishedAt} DESC
+          ),
+          '[]'
+        )
+        FROM ${indicatorUpdateSummary}
+        WHERE ${indicatorUpdateSummary.indicatorId} = ${indicator.id}
+      )`,
     })
     .from(indicator)
     .innerJoin(valueType, eq(indicator.valueTypeId, valueType.id))
@@ -389,6 +412,10 @@ export async function getPublishedIndicatorsByIds(
               .map(({ indicatorId: _id, ...entry }) => entry),
             topics: topics.get(row.id) ?? [],
             classifications: classifications.get(row.id) ?? [],
+            updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({
+              publishedAt: new Date(publishedAt).toISOString(),
+              summary,
+            })),
           },
         ],
       ];

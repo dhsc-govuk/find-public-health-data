@@ -43,6 +43,7 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
     areaTypes: [],
     topics: [{ slug: 'diabetes', title: 'Diabetes' }],
     classifications: [],
+    updateSummaries: [],
   } as IndicatorDetail;
   return {
     detail,

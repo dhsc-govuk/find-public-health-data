@@ -456,6 +456,18 @@ describe('loadIndicator', () => {
     }
   });
 
+  it('asks once for the local authorities the comparison and the geography picker share', async () => {
+    for (const load of [loadIndicator, loadIndicatorPage]) {
+      const client = api();
+      const page = await load(args(client));
+      await Promise.all(Object.values(page));
+      const requests = paths(client).filter(
+        (path) => path === '/api/indicators/indicator-108/areas?displayGroup=Local%20authorities',
+      );
+      expect(requests).toHaveLength(1);
+    }
+  });
+
   it('fetches complete non-authority groups before applying the selection limit', async () => {
     const client = api();
     await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?als=NHS+regions'));

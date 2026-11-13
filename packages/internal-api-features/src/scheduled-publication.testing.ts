@@ -1,10 +1,18 @@
 import { type Database, schema } from '@fphd/db';
+import { rebuildReadModelTables } from '@fphd/internal-read-models';
 import { type SQL, sql, TransactionRollbackError } from 'drizzle-orm';
 import { expect } from 'vitest';
 
+import type { IndicatorDraftAttributes } from './indicator-draft-repository.ts';
 import { LOCK_WAIT } from './indicator-repository.testing.ts';
 import type { Transaction } from './indicator-repository-sql.ts';
-import { type SentBackDraft, scheduledDraft } from './indicator-workflow.testing.ts';
+import {
+  type OpenedUpdate,
+  type PublishingDecision,
+  type SentBackDraft,
+  scheduledDraft,
+  scheduledUpdate,
+} from './indicator-workflow.testing.ts';
 
 const { indicator, indicatorVersion } = schema;
 
@@ -28,12 +36,32 @@ export async function dueDraft(
     WHERE at.display_group IS NOT NULL
     ORDER BY a.id LIMIT 1
   `);
+  await makeDue(db, draft.versionId, minutesAgo);
+  return draft;
+}
+
+/** Sets the version's publication time to `minutesAgo` minutes ago by the database's clock. */
+async function makeDue(db: Database, versionId: string, minutesAgo: number): Promise<void> {
   await db.execute(sql`
     UPDATE indicator_version
     SET scheduled_publish_at = clock_timestamp() - make_interval(secs => ${minutesAgo * 60}::float8)
-    WHERE id = ${draft.versionId}
+    WHERE id = ${versionId}
   `);
-  return draft;
+}
+
+/**
+ * Creates a live indicator with a scheduled update to it, which changes the polarity and
+ * `answers` besides, and sets the update's publication time to a minute ago.
+ */
+export async function dueUpdate(
+  db: Database,
+  name: string,
+  decision: PublishingDecision,
+  answers: IndicatorDraftAttributes = {},
+): Promise<OpenedUpdate> {
+  const update = await scheduledUpdate(db, name, decision, answers);
+  await makeDue(db, update.versionId, 1);
+  return update;
 }
 
 /**
@@ -83,6 +111,24 @@ export async function readModelRowsOf(
     ORDER BY model, row
   `)) as unknown as { model: string; row: string }[];
   return rows.map(({ model, row }) => `${model} ${row}`);
+}
+
+class RolledBack extends Error {}
+
+/**
+ * The read-model rows that rebuilding every indicator's read models would give this indicator. The
+ * rebuild runs in a transaction that is rolled back once the rows are read, so it changes nothing.
+ */
+export async function rowsAfterWholeRebuild(db: Database, indicatorId: string): Promise<string[]> {
+  let rows: string[] = [];
+  await expect(
+    db.transaction(async (tx) => {
+      await rebuildReadModelTables(tx);
+      rows = await readModelRowsOf(tx, indicatorId);
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
+  return rows;
 }
 
 /**

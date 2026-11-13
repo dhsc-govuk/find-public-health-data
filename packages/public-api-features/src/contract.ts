@@ -212,6 +212,8 @@ export const indicatorDetailSchema = z.object({
       name: z.string().min(1),
     }),
   ),
+  /** The summaries of the published updates visible in history, newest first. */
+  updateSummaries: z.array(z.object({ publishedAt: z.iso.datetime(), summary: z.string().min(1) })),
 });
 
 export const indicatorObservationSchema = z.object({
