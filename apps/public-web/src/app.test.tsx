@@ -8,7 +8,7 @@ import {
   TopicRoute,
   TopicsRoute,
 } from '@fphd/public-web-features';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -265,7 +265,7 @@ describe('public application routes', () => {
     ).toBeTruthy();
   });
 
-  it('offers a benchmark beside each picked area with an optional comparison range', async () => {
+  it('offers a benchmark beside each picked area with its spread and comparison chart', async () => {
     const observationFor = (value: number) => ({
       fromDate: '2023-01-01',
       toDate: '2023-12-31',
@@ -415,13 +415,19 @@ describe('public application routes', () => {
     fireEvent.change(select, { target: { value: 'england' } });
     expect(await table.findByRole('columnheader', { name: 'England' })).toBeTruthy();
 
-    // Turning the range on adds the spread and the dot-and-whisker comparison.
-    fireEvent.click(screen.getByRole('radio', { name: 'Yes' }));
-    expect(await screen.findByRole('columnheader', { name: 'Minimum' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Maximum' })).toBeTruthy();
+    // The benchmark brings its spread and the comparison chart by default.
+    const trend = within(screen.getByRole('table', { name: /^Table:/ }));
+    expect(trend.getByRole('columnheader', { name: 'Lowest' })).toBeTruthy();
+    expect(trend.getByRole('columnheader', { name: 'Highest' })).toBeTruthy();
+    expect(trend.getByRole('columnheader', { name: 'Compared with England' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '300.1' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '500.9' })).toBeTruthy();
     expect(screen.getByText(/Cornwall: 395.6.*England: 410.3.*Range: 300.1.*500.9/)).toBeTruthy();
+
+    // Switching off the minimum and maximum leaves the chart in place.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Minimum/Maximum values' }));
+    await waitFor(() => expect(trend.queryByRole('columnheader', { name: 'Lowest' })).toBeNull());
+    expect(trend.getByRole('columnheader', { name: 'Compared with England' })).toBeTruthy();
 
     // The statistical-region benchmark takes the parent region's name and values.
     fireEvent.change(select, {

@@ -92,8 +92,8 @@ describe('loadIndicatorCsv', () => {
       'attachment; filename="108-table.csv"',
     );
     const body = await response.text();
-    expect(body).toContain('Period,England count,"England calculated value (per 100,000)"');
-    expect(body).toContain('2023,130000,341.1');
+    expect(body).toContain('Period,"England calculated value (per 100,000)",England count');
+    expect(body).toContain('2023,341.1,130000');
   });
 
   it('adds no unit to the headings of values that have none', async () => {
@@ -107,7 +107,7 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
 
-    expect(await response.text()).toContain('Period,England count,England calculated value\n');
+    expect(await response.text()).toContain('Period,England calculated value,England count\n');
   });
 
   it('loads the linked areas with England riding along and filters the trend by options', async () => {
@@ -139,8 +139,8 @@ describe('loadIndicatorCsv', () => {
 
     expect(paths(client)).toContain(`${DETAIL}/data?areaCode=E06000052&areaCode=E92000001`);
     const body = await response.text();
-    expect(body).toContain('2023,130000,1');
-    expect(body).not.toContain('2023,130000,2');
+    expect(body).toContain('2023,1,130000');
+    expect(body).not.toContain('2023,2,130000');
   });
 
   it('serves every observation with segments and notes in the all-data download', async () => {
@@ -314,7 +314,7 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
 
-    expect(await response.text()).toContain('2023,130000,7');
+    expect(await response.text()).toContain('2023,7,130000');
   });
 
   it('offers only the first area sexes, exactly as the page does', async () => {
@@ -341,7 +341,7 @@ describe('loadIndicatorCsv', () => {
     );
 
     // Male exists only in England's series, so the filter is ignored, not applied.
-    expect(await response.text()).toContain('2023,130000,9');
+    expect(await response.text()).toContain('2023,9,130000');
   });
 
   it('404s a segment shaped like neither identifier without calling the api', async () => {

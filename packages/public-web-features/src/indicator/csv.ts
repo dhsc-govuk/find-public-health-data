@@ -142,7 +142,13 @@ export async function loadIndicatorCsv(
       (requestedBenchmark === 'england' || requestedBenchmark === 'region')
         ? requestedBenchmark
         : 'none';
-    const showRange = benchmark !== 'none' && url.searchParams.get(`cr-${shortId}`) === 'yes';
+    const columns = url.searchParams.has(`columns-${shortId}`)
+      ? selectedTrendColumns(url.searchParams, shortId, [
+          ...availableMeasures(shownObservations),
+          ...availableConfidenceLevels(shownObservations),
+        ])
+      : undefined;
+    const showRange = benchmark !== 'none' && (columns?.minMax || columns?.percentiles) === true;
 
     const codeQuery = pickedCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
     const [lookedUp, parents] = await Promise.all([
@@ -197,18 +203,7 @@ export async function loadIndicatorCsv(
       regionData: regionData.map(narrow),
     });
     if (url.searchParams.get('order') === 'desc') model.periods.reverse();
-    csv = trendCsv(
-      detail,
-      model,
-      confidence,
-      showRange,
-      url.searchParams.has(`columns-${shortId}`)
-        ? selectedTrendColumns(url.searchParams, shortId, [
-            ...availableMeasures(shownObservations),
-            ...availableConfidenceLevels(shownObservations),
-          ])
-        : undefined,
-    );
+    csv = trendCsv(detail, model, confidence, columns);
   } else {
     const unrecognised = areaData
       .map(({ areaCode }) => areaCode)

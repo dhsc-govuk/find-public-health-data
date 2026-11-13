@@ -48,6 +48,9 @@ describe('TrendTable', () => {
       numerator: true,
       value: false,
       confidence: ['95', '99.8'],
+      minMax: false,
+      percentiles: false,
+      chart: false,
     };
     const data = areaData.map((area) => ({
       ...area,
@@ -77,7 +80,6 @@ describe('TrendTable', () => {
       indicator('%'),
       trendTableModel({ areaData: data, confidence: 'none' }),
       'none',
-      false,
       columns,
     );
     expect(csv).toContain(
@@ -137,6 +139,174 @@ it('uses the visible caption as the table accessible name', () => {
   render(
     <TrendTable visibleCaption areaData={areaData} confidence="none" indicator={indicator('%')} />,
   );
-  const table = screen.getByRole('table', { name: 'Table: Resident population, England, All' });
+  const table = screen.getByRole('table', {
+    name: 'Table: Resident population, England, All, table with 1 row and 2 columns',
+  });
   expect(table.hasAttribute('aria-label')).toBe(false);
+});
+
+const observation = (fromDate: string, toDate: string, value: number) => ({
+  fromDate,
+  toDate,
+  value,
+  lowerCi95: value - 1,
+  upperCi95: value + 1,
+  lowerCi998: null,
+  upperCi998: null,
+  count: 40,
+  numerator: null,
+  denominator: null,
+  notes: [],
+  dimensions: [],
+});
+
+const benchmarked = {
+  areaData: [
+    {
+      areaCode: 'E08000003',
+      areaName: 'Manchester',
+      observations: [observation('2023-04-01', '2024-03-31', 14)],
+    },
+    {
+      areaCode: 'E92000001',
+      areaName: 'England',
+      observations: [observation('2023-04-01', '2024-03-31', 12)],
+    },
+  ],
+  benchmark: 'england' as const,
+  confidence: '95' as const,
+  geography: { regionByCode: {}, levelByCode: { E08000003: 'Local authorities' } },
+  indicator: {
+    ...indicator('%'),
+    yearType: { value: 'financial' as const, label: 'Financial' },
+    polarity: 'higher-is-better',
+    comparatorMethod: 'Confidence intervals overlapping reference value',
+  } as IndicatorDetail,
+  ranges: {
+    'Local authorities': [
+      {
+        fromDate: '2023-04-01',
+        toDate: '2024-03-31',
+        segment: '',
+        min: 5,
+        max: 30,
+        p25: 10,
+        p75: 20,
+      },
+    ],
+  },
+};
+
+const allColumns: TrendColumns = {
+  count: true,
+  numerator: false,
+  value: true,
+  confidence: ['95'],
+  minMax: true,
+  percentiles: true,
+  chart: true,
+};
+
+describe('TrendTable benchmark columns', () => {
+  it('orders the area columns as value, count, chart, intervals and the benchmark as value, spread', () => {
+    render(<TrendTable {...benchmarked} columns={allColumns} visibleCaption />);
+    const headings = screen
+      .getAllByRole('columnheader')
+      .map((heading) => heading.textContent?.trim());
+
+    expect(headings).toEqual([
+      'Manchester',
+      'England',
+      'Period',
+      'Calculated value (%)',
+      'Count',
+      'Compared with England',
+      '95% lower confidence interval',
+      '95% upper confidence interval',
+      'Calculated value (%)',
+      'Lowest',
+      '25th percentile',
+      '75th percentile',
+      'Highest',
+    ]);
+    const row = screen.getByRole('rowheader', { name: '2023 to 2024' }).closest('tr');
+    expect(
+      [...(row as HTMLElement).querySelectorAll('td')].map((cell) => cell.textContent),
+    ).toEqual([
+      '14.0%',
+      '40',
+      'Manchester: 14.0%. England: 12.0%. Range: 5.0% to 30.0%. 25th percentile: 10.0%. 75th percentile: 20.0%. Better than benchmark',
+      '13.0%',
+      '15.0%',
+      '12.0%',
+      '5.0%',
+      '10.0%',
+      '20.0%',
+      '30.0%',
+    ]);
+  });
+
+  it.each([
+    ['minimum and maximum', { minMax: true }, ['Lowest', 'Highest']],
+    ['percentiles', { percentiles: true }, ['25th percentile', '75th percentile']],
+    ['comparison chart', { chart: true }, ['Compared with England']],
+  ])('shows the %s on their own', (_, choice, shown) => {
+    render(
+      <TrendTable
+        {...benchmarked}
+        columns={{ ...allColumns, minMax: false, percentiles: false, chart: false, ...choice }}
+      />,
+    );
+    const spread = [
+      'Lowest',
+      '25th percentile',
+      '75th percentile',
+      'Highest',
+      'Compared with England',
+    ];
+    for (const name of spread) {
+      expect(screen.queryAllByRole('columnheader', { name })).toHaveLength(
+        shown.includes(name) ? 1 : 0,
+      );
+    }
+  });
+
+  it('names each data cell by its period, its group and its column heading', () => {
+    render(<TrendTable {...benchmarked} columns={allColumns} visibleCaption />);
+    const row = screen.getByRole('rowheader', { name: '2023 to 2024' });
+    const cells = (row.closest('tr') as HTMLElement).querySelectorAll('td');
+    const names = (cell: Element) =>
+      (cell.getAttribute('headers') ?? '')
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent?.trim());
+
+    expect(names(cells[0] as Element)).toEqual([
+      '2023 to 2024',
+      'Manchester',
+      'Calculated value (%)',
+    ]);
+    expect(names(cells[9] as Element)).toEqual(['2023 to 2024', 'England', 'Highest']);
+  });
+
+  it('counts a single area by name and several as chosen areas in the caption', () => {
+    const second = {
+      areaCode: 'E08000007',
+      areaName: 'Stockport',
+      observations: [observation('2023-04-01', '2024-03-31', 11)],
+    };
+    render(
+      <TrendTable
+        {...benchmarked}
+        areaData={[...benchmarked.areaData, second]}
+        columns={{ ...allColumns, count: false, confidence: [] }}
+        visibleCaption
+      />,
+    );
+
+    expect(
+      screen.getByRole('table', {
+        name: 'Table: Resident population, 2 chosen areas, All, table with 1 row and 15 columns',
+      }),
+    ).toBeTruthy();
+  });
 });

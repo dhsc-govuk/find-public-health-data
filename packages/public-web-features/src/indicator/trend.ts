@@ -9,6 +9,8 @@ import type {
 
 export interface AreaBenchmark {
   name: string;
+  /** The benchmark as the comparison chart's heading names it: "Compared with <label>". */
+  label: string;
   series: IndicatorObservation[];
   rangePeriods: IndicatorRangePeriod[];
 }
@@ -18,7 +20,16 @@ export interface TrendColumns {
   numerator: boolean;
   value: boolean;
   confidence: ('95' | '99.8')[];
+  /** The lowest and highest values across the benchmark's areas. */
+  minMax: boolean;
+  /** The 25th and 75th percentiles across the benchmark's areas. */
+  percentiles: boolean;
+  /** The chart comparing each value with the benchmark and its spread. */
+  chart: boolean;
 }
+
+/** The benchmark spread columns, shown by default whenever a benchmark is chosen. */
+const RANGE_COLUMNS = ['minmax', 'percentiles', 'chart'];
 
 /** The chosen columns among those available: the measures and confidence levels the data has. */
 export function selectedTrendColumns(
@@ -31,6 +42,7 @@ export function selectedTrendColumns(
     ? params.getAll(key).flatMap((value) => value.split(','))
     : [
         'value',
+        ...RANGE_COLUMNS,
         ...(params.has(`ci-${id}`)
           ? params.getAll(`ci-${id}`)
           : available.includes('95')
@@ -46,6 +58,9 @@ export function selectedTrendColumns(
     confidence: (['95', '99.8'] as const).filter(
       (level) => available.includes(level) && values.includes(level),
     ),
+    minMax: values.includes('minmax'),
+    percentiles: values.includes('percentiles'),
+    chart: values.includes('chart'),
   };
 }
 
@@ -57,6 +72,9 @@ export function trendColumnsParam(columns: TrendColumns): string {
       columns.numerator ? 'numerator' : '',
       columns.value ? 'value' : '',
       ...columns.confidence,
+      columns.minMax ? 'minmax' : '',
+      columns.percentiles ? 'percentiles' : '',
+      columns.chart ? 'chart' : '',
     ]
       .filter(Boolean)
       .join(',') || 'none'
@@ -92,6 +110,7 @@ export function trendTableModel({
     if (benchmark === 'england') {
       return {
         name: 'England',
+        label: 'England',
         series: englandSeries,
         rangePeriods: ranges[geography.levelByCode[areaCode] ?? ''] ?? [],
       };
@@ -101,6 +120,7 @@ export function trendTableModel({
     const data = regionData.find(({ areaCode: code }) => code === region.code);
     return {
       name: `${region.name} (Statistical region)`,
+      label: region.name,
       series: data ? seriesFor(data.observations) : [],
       rangePeriods: ranges['Statistical regions'] ?? [],
     };

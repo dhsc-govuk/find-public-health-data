@@ -44,7 +44,9 @@ test('table options update the series and keep their choices on reload', async (
   const table = trendTable(page);
   await options.getByLabel('Select sex').selectOption('Male');
   await expect(page).toHaveURL(/sex-108=Male/);
-  await expect(table).toHaveAccessibleName(/<75 yrs, Male$/);
+  await expect(table).toHaveAccessibleName(
+    /<75 yrs, Male\s*, table with \d+ rows and \d+ columns$/,
+  );
   await options.getByLabel('Select time period type').selectOption('1 year');
   await expect(page).toHaveURL(/pt-108=1-year/);
   await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(0);
@@ -55,7 +57,9 @@ test('table options update the series and keep their choices on reload', async (
     table.getByRole('columnheader', { name: '95% lower confidence interval' }),
   ).toBeVisible();
   await page.reload();
-  await expect(table).toHaveAccessibleName(/<75 yrs, Male$/);
+  await expect(table).toHaveAccessibleName(
+    /<75 yrs, Male\s*, table with \d+ rows and \d+ columns$/,
+  );
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
@@ -70,9 +74,36 @@ test('selected geography and benchmark options stay on the one indicator page', 
   await options.getByLabel('Select a geography or goal to compare with').selectOption('England');
   await expect(page).toHaveURL(/cmp-108=england/);
   await expect(trendTable(page).getByRole('columnheader', { name: 'Manchester' })).toBeVisible();
-  await expect(trendTable(page).getByRole('columnheader', { name: 'England' })).toBeVisible();
-  await options.getByRole('radio', { name: 'Yes' }).click();
-  await expect(trendTable(page).getByRole('columnheader', { name: 'Minimum' })).toBeVisible();
+  await expect(
+    trendTable(page).getByRole('columnheader', { name: 'England', exact: true }),
+  ).toBeVisible();
+  const table = trendTable(page);
+  for (const name of ['Lowest', '25th percentile', '75th percentile', 'Highest']) {
+    await expect(table.getByRole('columnheader', { name, exact: true })).toBeVisible();
+  }
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toBeVisible();
+});
+
+test('the benchmark spread and comparison chart columns toggle independently', async ({ page }) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?as=E08000003&cmp-108=england`);
+  const options = page
+    .locator('.fphd-filter-card')
+    .filter({ has: page.getByRole('button', { name: 'Table columns', exact: true }) });
+  await options.getByRole('button', { name: 'Table columns', exact: true }).click();
+  const table = trendTable(page);
+  await options.getByRole('checkbox', { name: 'Minimum/Maximum values', exact: true }).uncheck();
+  await expect(table.getByRole('columnheader', { name: 'Lowest', exact: true })).toHaveCount(0);
+  await expect(table.getByRole('columnheader', { name: '25th percentile' })).toBeVisible();
+  await options.getByRole('checkbox', { name: '25th/75th percentiles', exact: true }).uncheck();
+  await expect(table.getByRole('columnheader', { name: '25th percentile' })).toHaveCount(0);
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toBeVisible();
+  await options.getByRole('checkbox', { name: 'Comparison chart', exact: true }).uncheck();
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(0);
+  await options.getByRole('checkbox', { name: 'Minimum/Maximum values', exact: true }).check();
+  await expect(table.getByRole('columnheader', { name: 'Highest', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(table.getByRole('columnheader', { name: 'Highest', exact: true })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(0);
 });
 
 test('inequality options change the breakdown period', async ({ page }) => {
@@ -111,7 +142,9 @@ test.describe('without JavaScript', () => {
     await expect(page).toHaveURL(/pt-108=1-year/);
     await expect(page).toHaveURL(/#indicator-data$/);
     const table = trendTable(page);
-    await expect(table).toHaveAccessibleName(/<75 yrs, Male$/);
+    await expect(table).toHaveAccessibleName(
+      /<75 yrs, Male\s*, table with \d+ rows and \d+ columns$/,
+    );
     await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(
       0,
     );

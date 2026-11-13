@@ -58,4 +58,5 @@ export { SearchField } from './search-field.tsx';
 export { searchPattern } from './search-pattern.ts';
 export { SelectAutocomplete } from './select-autocomplete.tsx';
 export { TableScrollRegion } from './table-scroll-region.tsx';
+export { TableSize } from './table-size.tsx';
 export { Tabs } from './tabs.tsx';

@@ -271,25 +271,18 @@ export async function loadIndicatorData(
   const pickedLevels = [...new Set(Object.values(levelByCode))];
   const regionCodes = [...new Set(Object.values(regionByCode).map(({ code }) => code))];
 
-  // Benchmark data is expensive (a range query aggregates every observation of a level),
-  // so it is fetched only for indicators whose cmp/cr options actually display it.
+  // A benchmark's spread is fetched with it: its columns show by default, and switching
+  // them on and off only re-renders.
   const comparisonFor = (id: number) => {
     const choices = [
       url.searchParams.get(`cmp-${id}`) ?? 'none',
       url.searchParams.get('cmp-compare') ?? 'none',
     ];
-    const ranges = [
-      url.searchParams.get(`cr-${id}`) === 'yes',
-      url.searchParams.get('cr-compare') === 'yes',
-    ];
     const rangeLevels = new Set<string>();
     if (includePageData && url.searchParams.get(quintileParam(id)) === 'yes') {
       for (const level of pickedLevels) rangeLevels.add(level);
     }
-    choices.forEach((choice, index) => {
-      if (!ranges[index]) {
-        return;
-      }
+    for (const choice of choices) {
       if (choice === 'england') {
         for (const level of pickedLevels) {
           rangeLevels.add(level);
@@ -298,7 +291,7 @@ export async function loadIndicatorData(
       if (choice === 'region') {
         rangeLevels.add('Statistical regions');
       }
-    });
+    }
     return { region: choices.includes('region'), rangeLevels: [...rangeLevels] };
   };
 

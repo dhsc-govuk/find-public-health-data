@@ -145,3 +145,24 @@ describe('periodLabel', () => {
     expect(periodLabel(period('0001-01-01', '0003-12-31'))).toBe('1 to 3');
   });
 });
+
+describe('expandedPeriodLabel', () => {
+  it('writes a financial year in plain words', () => {
+    expect(expandedPeriodLabel(period('2024-04-01', '2025-03-31'), financial)).toBe('2024 to 2025');
+  });
+
+  it('writes a run of financial years from its first to its last calendar year', () => {
+    expect(expandedPeriodLabel(period('2020-04-01', '2023-03-31'), financial)).toBe('2020 to 2023');
+  });
+
+  it('keeps a calendar year and a run of calendar years as they are', () => {
+    expect(expandedPeriodLabel(period('2023-01-01', '2023-12-31'))).toBe('2023');
+    expect(expandedPeriodLabel(period('2022-01-01', '2024-12-31'))).toBe('2022 to 2024');
+  });
+
+  it('labels a rolling year by its months', () => {
+    expect(expandedPeriodLabel(period('2022-05-01', '2023-04-30'), rolling)).toBe(
+      'May 2022 to April 2023',
+    );
+  });
+});

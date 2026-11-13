@@ -25,7 +25,6 @@ it.each(['chart', 'compare-areas', 'table'] as const)(
               benchmark: 'none',
               confidence: '95',
               periodType: '3-year',
-              range: false,
               sex: 'Female',
             }}
             onChange={() => {}}
@@ -61,7 +60,6 @@ it('submits visible controls once without hidden copies of their previous values
             benchmark: 'none',
             confidence: '95',
             periodType: '3-year',
-            range: false,
             sex: 'Female',
           }}
           onChange={() => {}}

@@ -45,7 +45,5 @@ it('escapes a trend cell that starts with a formula character, keeping negative 
     confidence: 'none',
   });
 
-  expect(trendCsv(indicator, model, 'none', false)).toBe(
-    "Period,'=SUM(1) calculated value\n2023,-2.5\n",
-  );
+  expect(trendCsv(indicator, model, 'none')).toBe("Period,'=SUM(1) calculated value\n2023,-2.5\n");
 });
