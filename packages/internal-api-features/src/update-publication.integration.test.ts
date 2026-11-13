@@ -9,7 +9,17 @@ import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { historyEntries } from './indicator-history-entries.ts';
 import { findIndicatorHistory } from './indicator-history-repository.ts';
 import { getIndicatorById } from './indicator-list-repository.ts';
-import { ACTOR, newDraft } from './indicator-repository.testing.ts';
+import { createDraftFromPublished } from './indicator-publish-repository.ts';
+import { ACTOR, AS_ACTOR, newDraft } from './indicator-repository.testing.ts';
+import { schedulePublication } from './indicator-scheduling-repository.ts';
+import {
+  AS_ADMIN,
+  answerUpdate,
+  type OpenedUpdate,
+  scheduledPublishAtOf,
+  scheduledUpdate,
+} from './indicator-workflow.testing.ts';
+import { submitIndicator } from './indicator-workflow-repository.ts';
 import {
   dataUpdatedAtOf,
   deferScheduledVersions,
@@ -17,6 +27,7 @@ import {
   readModelRowsOf,
   versionOf,
 } from './scheduled-publication.testing.ts';
+import { decideUpdate } from './update-decision-repository.ts';
 
 const { indicatorVersion, SYSTEM_USER_IDS, uploadBatch } = schema;
 
@@ -94,6 +105,43 @@ async function publicValuesOf(indicatorId: string): Promise<(number | null)[]> {
     value: number | null;
   }>(sql`SELECT value FROM published.observation WHERE indicator_id = ${indicatorId}`);
   return rows.map(({ value }) => value);
+}
+
+/**
+ * Opens another update of the live indicator, with `summary` as its update summary, has the core
+ * team approve it to publish with visibility in history, and publishes it.
+ */
+async function publishAnotherUpdate(indicatorId: string, summary: string) {
+  const opened = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+  if (!opened.ok) throw new Error(`could not open another update: ${opened.reason}`);
+  const shown = await answerUpdate(
+    db,
+    { indicatorId, versionId: opened.versionId },
+    { polarity: 'higher-is-better', updateSummary: summary },
+  );
+  expect(await submitIndicator(db, indicatorId, shown, AS_ACTOR)).toEqual({ ok: true });
+  expect(
+    await decideUpdate(
+      db,
+      indicatorId,
+      { submissionNumber: 1, decision: 'publish_with_history' },
+      AS_ADMIN,
+    ),
+  ).toEqual({ ok: true });
+  const at = await scheduledPublishAtOf(db, opened.versionId);
+  expect(
+    await schedulePublication(
+      db,
+      indicatorId,
+      { scheduledPublishAt: at, shownScheduledPublishAt: at },
+      AS_ADMIN,
+    ),
+  ).toEqual({ ok: true });
+  await db.execute(sql`
+    UPDATE indicator_version SET scheduled_publish_at = clock_timestamp() - interval '1 minute'
+    WHERE id = ${opened.versionId}
+  `);
+  return publishNext();
 }
 
 describe('publishing a scheduled update', () => {
@@ -266,6 +314,62 @@ describe('publishing a renamed update', () => {
         versionId,
         slug: 'taken-while-waiting',
       }),
+    ]);
+  });
+});
+
+describe("the public indicator's update summaries", () => {
+  async function summariesOf({ indicatorId }: OpenedUpdate) {
+    return (await publicSite.indicators.findPublishedById(indicatorId))?.updateSummaries;
+  }
+
+  it('lists the summaries of updates published with visibility in history, newest first', async () => {
+    const update = await dueUpdate(db, 'Updated twice with history', 'publish_with_history', {
+      updateSummary: 'Corrected the polarity.',
+    });
+    const first = await publishNext();
+    const second = await publishAnotherUpdate(update.indicatorId, 'Added 2025 data.');
+
+    expect(await summariesOf(update)).toEqual([
+      { publishedAt: second.publishedAt.toISOString(), summary: 'Added 2025 data.' },
+      { publishedAt: first.publishedAt.toISOString(), summary: 'Corrected the polarity.' },
+    ]);
+  });
+
+  it('lists the summary of an update published after IMRG review', async () => {
+    const reviewed = await dueUpdate(db, 'Published after IMRG review', 'imrg_review', {
+      updateSummary: 'Reviewed and corrected.',
+    });
+    const published = await publishNext();
+
+    expect(await summariesOf(reviewed)).toEqual([
+      { publishedAt: published.publishedAt.toISOString(), summary: 'Reviewed and corrected.' },
+    ]);
+  });
+
+  it('lists none for an update published without visibility in history', async () => {
+    const without = await dueUpdate(db, 'Published without history', 'publish_without_history');
+    await publishNext();
+
+    expect(await summariesOf(without)).toEqual([]);
+  });
+
+  it('lists none for an update not yet published', async () => {
+    const waiting = await scheduledUpdate(db, 'Scheduled with history', 'publish_with_history');
+
+    expect(await summariesOf(waiting)).toEqual([]);
+  });
+
+  it('lists none from the version an update replaced, though it is still published', async () => {
+    const update = await dueUpdate(db, 'One summary only', 'publish_with_history');
+    await publishNext();
+    await db
+      .update(indicatorVersion)
+      .set({ updateSummary: 'Copied onto the first version.' })
+      .where(eq(indicatorVersion.id, update.publishedId));
+
+    expect(await summariesOf(update)).toEqual([
+      expect.objectContaining({ summary: 'Changed the polarity.' }),
     ]);
   });
 });

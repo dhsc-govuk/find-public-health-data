@@ -88,6 +88,20 @@ export const publishedIndicator = publishedSchema
   })
   .existing();
 
+/**
+ * The summaries of published updates, each with the time its version was published: every
+ * update but one the core team published without visibility in history. Only a published
+ * version whose latest submission has a core team decision is here, so a new indicator's first
+ * version never is.
+ */
+export const publishedIndicatorUpdateSummary = publishedSchema
+  .view('indicator_update_summary', {
+    indicatorId: uuid('indicator_id').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
+    updateSummary: text('update_summary').notNull(),
+  })
+  .existing();
+
 /** Every slug any published version carries, so an indicator's earlier addresses resolve. */
 export const publishedIndicatorSlug = publishedSchema
   .view('indicator_slug', {

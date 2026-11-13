@@ -169,6 +169,7 @@ describe('public application routes', () => {
       areaTypes: [{ name: 'UA unchanged', areaCount: 125 }],
       topics: [],
       classifications: [],
+      updateSummaries: [],
     };
     const Routes = createRoutesStub([
       {
@@ -297,6 +298,7 @@ describe('public application routes', () => {
       areaTypes: [{ name: 'UA unchanged', areaCount: 125 }],
       topics: [],
       classifications: [],
+      updateSummaries: [],
     };
     // The segment matches the fixture observations' dimension values, as the table only
     // brackets a row with a range describing the same population.
