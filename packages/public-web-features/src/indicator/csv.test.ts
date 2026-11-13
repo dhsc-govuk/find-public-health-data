@@ -250,6 +250,51 @@ describe('loadIndicatorCsv', () => {
     ]);
   });
 
+  it('looks up only the selected areas its GSS code cannot name', async () => {
+    const client = api(
+      [
+        { areaCode: 'W06000015', areaName: 'Cardiff', observations: [observation()] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
+      ],
+      {
+        'GET /api/areas/lookup': [
+          {
+            code: 'W06000015',
+            name: 'Cardiff',
+            areaType: 'LA unchanged',
+            displayGroup: 'Local authorities',
+          },
+        ],
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?as=W06000015`),
+      'all-data',
+    );
+    const body = await response.text();
+    expect(body).toContain(',Cardiff,Local authority,2023,');
+    expect(body).toContain(',England,England,2023,');
+    const lookups = client.calls.filter(({ path }) => path.startsWith('/api/areas/lookup'));
+    expect(lookups.map(areaCodes)).toEqual([['W06000015']]);
+  });
+
+  it('labels a code listed under two groups by the first group', async () => {
+    const client = api(
+      [{ areaCode: 'Y00001', areaName: 'Practice', observations: [observation()] }],
+      {
+        [`GET ${DETAIL}/areas`]: [
+          { displayGroup: 'GP practices', areas: [{ code: 'Y00001', name: 'Practice' }] },
+          { displayGroup: 'PCNs (v. 26/06/25)', areas: [{ code: 'Y00001', name: 'Practice' }] },
+        ],
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      'all-data',
+    );
+    expect(await response.text()).toContain(',Practice,GP practice,2023,');
+  });
+
   it('ignores a sex the data does not publish rather than serving an empty table', async () => {
     const client = api([
       {

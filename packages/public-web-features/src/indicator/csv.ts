@@ -210,7 +210,21 @@ export async function loadIndicatorCsv(
         : undefined,
     );
   } else {
-    csv = allDataCsv(detail, areaData, (areaCode) => areaTypeLabel(areaCode));
+    const unrecognised = areaData
+      .map(({ areaCode }) => areaCode)
+      .filter((areaCode) => !areaTypeLabel(areaCode));
+    const lookedUpGroups = new Map(
+      (unrecognised.length
+        ? await api.get(
+            `/api/areas/lookup?${unrecognised.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+            areaLookupListSchema,
+          )
+        : []
+      ).map(({ code, areaType, displayGroup }) => [code, displayGroup ?? areaType]),
+    );
+    csv = allDataCsv(detail, areaData, (areaCode) =>
+      areaTypeLabel(areaCode, lookedUpGroups.get(areaCode)),
+    );
   }
 
   return new Response(csv, {
@@ -222,10 +236,11 @@ export async function loadIndicatorCsv(
 }
 
 function areaTypeLookup(groups: { displayGroup: string; areas: { code: string }[] }[]) {
-  const types = new Map(
-    groups.flatMap(({ displayGroup, areas }) =>
-      areas.map(({ code }) => [code, areaTypeLabel(code, displayGroup)] as const),
-    ),
-  );
+  const types = new Map<string, string | null>();
+  for (const { displayGroup, areas } of groups) {
+    for (const { code } of areas) {
+      if (!types.has(code)) types.set(code, areaTypeLabel(code, displayGroup));
+    }
+  }
   return (areaCode: string) => types.get(areaCode) ?? areaTypeLabel(areaCode);
 }
