@@ -100,20 +100,29 @@ function recap({ name, draftScheduledPublishAt }: IndicatorAdminDetail) {
 }
 
 /**
- * The submission a response's first page sends with, and the first page for the indicator: an
- * update's reviewer is asked whether it can be published, without the IMRG meeting's pages.
+ * An update's reviewer is asked whether it can be published, without the IMRG meeting's pages.
+ * Each kind of indicator's page sends the other kind to its own first page.
  */
+function requireOwnPage(
+  { indicatorStatus }: IndicatorAdminDetail,
+  id: string,
+  forUpdate: boolean,
+): void {
+  if ((indicatorStatus === 'live') !== forUpdate) {
+    throw redirect(reviewResponsePath(id, forUpdate ? 'response-type' : 'update-approval'));
+  }
+}
+
+/** The submission a response's first page sends with, once the page is the indicator's own. */
 function firstPageSubmission(
-  { indicatorStatus, draftSubmissionNumber }: IndicatorAdminDetail,
+  indicator: IndicatorAdminDetail,
   id: string,
   page: 'response-type' | 'update-approval',
 ): number {
-  const firstPage = indicatorStatus === 'live' ? 'update-approval' : 'response-type';
+  requireOwnPage(indicator, id, page === 'update-approval');
+  if (indicator.draftSubmissionNumber === null) throw new Response('Not Found', { status: 404 });
 
-  if (page !== firstPage) throw redirect(reviewResponsePath(id, firstPage));
-  if (draftSubmissionNumber === null) throw new Response('Not Found', { status: 404 });
-
-  return draftSubmissionNumber;
+  return indicator.draftSubmissionNumber;
 }
 
 export async function loadResponseType({ context, params, request }: LoaderFunctionArgs) {
@@ -169,6 +178,7 @@ export async function loadReviewDate({ context, params, request }: LoaderFunctio
   const id = requireIndicatorId(params);
   requireReviewer(context);
   const indicator = await waitingIndicator(context, id);
+  requireOwnPage(indicator, id, false);
   const journey = requireJourney(request, id, anyJourney);
   const values = dateValuesFrom(journey);
 
@@ -238,6 +248,7 @@ export async function loadApproval({ context, params, request }: LoaderFunctionA
   const id = requireIndicatorId(params);
   requireReviewer(context);
   const indicator = await waitingIndicator(context, id);
+  requireOwnPage(indicator, id, false);
   const journey = requireJourney(request, id, dated);
 
   return { id, journey, ...recap(indicator), values: approvalValuesFrom(journey) };
@@ -366,12 +377,14 @@ export async function loadRevisions({ context, params, request }: LoaderFunction
   requireReviewer(context);
   const { indicatorStatus } = await waitingIndicator(context, id);
   const journey = requireJourney(request, id, isRevisionsJourney);
+  // An update's reviewer who asked to request clarification finds its box ticked and open.
+  const clarification = journey.reasons?.includes('clarification') ?? false;
 
   return {
     id,
     journey,
     isUpdate: indicatorStatus === 'live',
-    values: readRevisions(new FormData()),
+    values: { ...readRevisions(new FormData()), clarification },
   };
 }
 

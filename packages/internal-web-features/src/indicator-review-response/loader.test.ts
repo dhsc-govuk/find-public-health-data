@@ -431,6 +431,44 @@ describe('the response pages', () => {
       });
     });
 
+    it.each([
+      ['date', loadReviewDate, '/date?submission=2'],
+      ['approval', loadApproval, '/approval?submission=2&reviewedOn=2026-10-29'],
+    ])(
+      "send an update's reviewer from the IMRG %s page to the update's first page",
+      async (_, loader, path) => {
+        const { response } = await run(
+          loader,
+          reading(updateInReview),
+          new Request(`https://internal.test${REVIEW}${path}`),
+        );
+
+        expect(response.headers.get('Location')).toBe(`${REVIEW}/update-approval`);
+      },
+    );
+
+    it.each([
+      [
+        'with the clarification box ticked when clarification was asked for',
+        '&reason=clarification',
+        true,
+      ],
+      ['with nothing ticked for revisions alone', '&reason=revisions', false],
+    ])('open the revisions page %s', async (_, reasons, clarification) => {
+      const { outcome } = await run(
+        loadRevisions,
+        reading(updateInReview),
+        new Request(
+          `https://internal.test${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback${reasons}`,
+        ),
+      );
+
+      expect(outcome).toMatchObject({
+        isUpdate: true,
+        values: { clarification, clarificationRequest: '', flags: [] },
+      });
+    });
+
     it('take No on to the revisions page as feedback, with the kinds chosen', async () => {
       const { response } = await run(
         chooseUpdateApproval,
