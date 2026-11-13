@@ -2,6 +2,7 @@ import { TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import { SLUG_LOCK_NAMESPACE } from '@fphd/internal-workflow';
 import { MAX_AGE } from '@fphd/utils/ages';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
@@ -14,7 +15,6 @@ import {
   getIndicatorNotesForReviewers,
   type IndicatorDraft,
   type IndicatorDraftAttributes,
-  SLUG_LOCK_NAMESPACE,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
 import { getIndicatorById } from './indicator-list-repository.ts';

@@ -1,6 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, listChanges, recordAudit } from '@fphd/db/audit-log';
-import { type IndicatorDraftVersion, isPublished } from '@fphd/internal-workflow';
+import { type IndicatorDraftVersion, isPublished, lockSlugs } from '@fphd/internal-workflow';
 import { slugify, slugProblem } from '@fphd/utils/slug';
 import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 
@@ -257,9 +257,6 @@ export type UpdateIndicatorDraftResult =
   | { ok: false; reason: 'no_draft' | 'locked' | 'slug_taken' }
   | { ok: false; reason: 'changed'; version: string };
 
-// Scopes the slug locks within the two-key advisory lock space; no other lock uses this first key.
-export const SLUG_LOCK_NAMESPACE = 0x736c7567; // 'slug'
-
 /**
  * The slug a draft takes. The name page refuses a name that yields none, so reaching this
  * with one is a bug rather than a submission to report.
@@ -458,19 +455,6 @@ export async function updateIndicatorDraft(
   } catch (error) {
     if (hasSqlState(error, EXCLUSION_VIOLATION)) return { ok: false, reason: 'slug_taken' };
     throw error;
-  }
-}
-
-/**
- * Holds slugs until the transaction ends. Two writers of one slug otherwise each wait on the
- * other's exclusion check and deadlock; serialised, the later one fails the constraint instead.
- * Taken in one order, so two writers wanting the same pair cannot deadlock on the locks.
- */
-async function lockSlugs(tx: Transaction, slugs: readonly (string | undefined)[]): Promise<void> {
-  const held = [...new Set(slugs)].filter((slug) => slug !== undefined).sort();
-
-  for (const slug of held) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${SLUG_LOCK_NAMESPACE}, hashtext(${slug}))`);
   }
 }
 
