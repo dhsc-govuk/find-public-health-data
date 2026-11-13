@@ -77,13 +77,11 @@ export async function loadIndicatorCsv(
   ) {
     return loadIndicatorViewCsv(args);
   }
-  const allDataGroups = () =>
-    api.get(
+  if (kind === 'all-data' && url.searchParams.get('allAreas') === 'yes') {
+    const groups = await api.get(
       `${apiPath`/api/indicators/${segment}/areas`}?scope=all-data`,
       areaDisplayGroupListSchema,
     );
-  if (kind === 'all-data' && url.searchParams.get('allAreas') === 'yes') {
-    const groups = await allDataGroups();
     const areaType = areaTypeLookup(groups);
     const codes = [...new Set(groups.flatMap(({ areas }) => areas.map(({ code }) => code)))];
     const firstBatch = codes.slice(0, MAX_AREA_CODES_PER_REQUEST);
@@ -212,7 +210,7 @@ export async function loadIndicatorCsv(
         : undefined,
     );
   } else {
-    csv = allDataCsv(detail, areaData, areaTypeLookup(await allDataGroups()));
+    csv = allDataCsv(detail, areaData, (areaCode) => areaTypeLabel(areaCode));
   }
 
   return new Response(csv, {
@@ -226,8 +224,8 @@ export async function loadIndicatorCsv(
 function areaTypeLookup(groups: { displayGroup: string; areas: { code: string }[] }[]) {
   const types = new Map(
     groups.flatMap(({ displayGroup, areas }) =>
-      areas.map(({ code }) => [code, areaTypeLabel(displayGroup, code)] as const),
+      areas.map(({ code }) => [code, areaTypeLabel(code, displayGroup)] as const),
     ),
   );
-  return (areaCode: string) => types.get(areaCode) ?? null;
+  return (areaCode: string) => types.get(areaCode) ?? areaTypeLabel(areaCode);
 }

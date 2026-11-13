@@ -144,25 +144,18 @@ describe('loadIndicatorCsv', () => {
   });
 
   it('serves every observation with segments and notes in the all-data download', async () => {
-    const client = api(
-      [
-        {
-          areaCode: 'E92000001',
-          areaName: 'England',
-          observations: [
-            observation({
-              dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
-              notes: [{ text: 'Provisional', category: 'Data quality' }],
-            }),
-          ],
-        },
-      ],
+    const client = api([
       {
-        [`GET ${DETAIL}/areas`]: [
-          { displayGroup: 'England', areas: [{ code: 'E92000001', name: 'England' }] },
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          observation({
+            dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
+            notes: [{ text: 'Provisional', category: 'Data quality' }],
+          }),
         ],
       },
-    );
+    ]);
 
     const response = await loadIndicatorCsv(
       args(client, 'http://localhost/indicator/mortality-all-causes/all-data.csv'),
@@ -177,6 +170,7 @@ describe('loadIndicatorCsv', () => {
     expect(body).toContain('Male');
     expect(body).toContain('Provisional');
     expect(body).toContain(',England,England,2023,');
+    expect(paths(client).some((path) => path.includes('/areas'))).toBe(false);
   });
 
   it('exports every published area in bounded batches with a single CSV header', async () => {
@@ -239,12 +233,20 @@ describe('loadIndicatorCsv', () => {
     );
     const lines = (await response.text()).trim().split(/\r?\n/);
     expect(lines[0]?.startsWith('Indicator,Area,Area type,Period,')).toBe(true);
-    expect(lines.slice(1).map((line) => line.split(',').slice(2, 4))).toEqual([
-      ['England', 'England'],
-      ['West Sussex', 'Upper tier local authority'],
-      ['Adur', 'Lower tier local authority'],
-      ['Brighton and Hove', 'Upper and lower tier local authority'],
-      ['Sussex', 'Integrated care board'],
+    // The indicator name holds a comma and quotes, so read the fields after its closing quote.
+    expect(
+      lines.slice(1).map((line) =>
+        line
+          .slice(line.lastIndexOf('"') + 2)
+          .split(',')
+          .slice(0, 3),
+      ),
+    ).toEqual([
+      ['England', 'England', '2023'],
+      ['West Sussex', 'Upper tier local authority', '2023'],
+      ['Adur', 'Lower tier local authority', '2023'],
+      ['Brighton and Hove', 'Upper and lower tier local authority', '2023'],
+      ['Sussex', 'Integrated care board', '2023'],
     ]);
   });
 

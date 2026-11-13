@@ -52,6 +52,16 @@ it.each([
   ['Statistical regions', 'E12000008', 'Statistical region'],
   ['GP practices', 'A81001', 'GP practice'],
   ['England', 'E92000001', 'England'],
+  ['Counties & UAs (from Apr 2023)', 'E10000032', 'Upper tier local authority'],
+  ['Local authorities', 'W06000015', 'Local authority'],
+  ['Local authorities', 'E100000', 'Local authority'],
+  ['PCNs (v. 26/06/25)', 'U12345', 'PCNs (v. 26/06/25)'],
 ])('names a %s area %s as a single %s', (group, code, label) => {
-  expect(areaTypeLabel(group, code)).toBe(label);
+  expect(areaTypeLabel(code, group)).toBe(label);
+});
+
+it('names an area by its GSS code alone, and leaves an unrecognised code without a type', () => {
+  expect(areaTypeLabel('E09000033')).toBe('Upper and lower tier local authority');
+  expect(areaTypeLabel('E92000001')).toBe('England');
+  expect(areaTypeLabel('A81001')).toBeNull();
 });
