@@ -402,9 +402,6 @@ export async function updateIndicatorDraft(
       const slug = attributes.name === undefined ? undefined : draftSlug(attributes.name);
       const live = slug !== undefined && (await isPublished(tx, indicatorId));
       const renamed = slug === undefined || live ? {} : { slug };
-      if (live && (await isSlugOfAnotherIndicator(tx, slug, indicatorId))) {
-        return { ok: false, reason: 'slug_taken' };
-      }
 
       // The slug left behind is held too, or two renames swapping slugs deadlock.
       if ('slug' in renamed)
@@ -423,6 +420,11 @@ export async function updateIndicatorDraft(
 
       if (current === undefined) return { ok: false, reason: 'no_draft' };
       if (current.isLocked) return { ok: false, reason: 'locked' };
+      // A live indicator's draft keeps the published slug, so the exclusion constraint never sees
+      // the slug of its new name. Another indicator's version carrying it is checked here instead.
+      if (live && (await isSlugOfAnotherIndicator(tx, slug, indicatorId))) {
+        return { ok: false, reason: 'slug_taken' };
+      }
 
       if (precondition !== undefined) {
         const version = precondition.versionOf({

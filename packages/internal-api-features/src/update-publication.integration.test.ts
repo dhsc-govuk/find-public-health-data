@@ -2,7 +2,7 @@ import { createRepositories, schema } from '@fphd/db';
 import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
 import { publishDueVersions, publishNextDueVersion } from '@fphd/internal-workflow';
 import { createCapturingLogger } from '@fphd/logger/testing';
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
 import { historyEntries } from './indicator-history-entries.ts';
@@ -307,6 +307,50 @@ describe('publishing a renamed update', () => {
         slug: 'taken-while-waiting',
       }),
     ]);
+  });
+
+  it('keeps the kept slug when a later update does not rename the indicator', async () => {
+    const { indicatorId, versionId } = await dueUpdate(
+      db,
+      'Kept its slug once',
+      'publish_with_history',
+      { name: 'Wanted while it waited' },
+    );
+    const other = await newDraft(db, 'Wanted while it waited');
+    await publishNext();
+    await db
+      .update(indicatorVersion)
+      .set({ name: 'Moved out of the way', slug: 'moved-out-of-the-way' })
+      .where(eq(indicatorVersion.id, other.versionId));
+
+    const later = await publishAnotherUpdate(indicatorId, 'Not renamed this time.');
+
+    expect(await slugOf(versionId)).toBe('kept-its-slug-once');
+    expect(await slugOf(later.versionId)).toBe('kept-its-slug-once');
+    expect((await publishedEntriesFor(indicatorId)).at(-1)?.changes).not.toHaveProperty('slug');
+  });
+});
+
+describe('publishing an update that does not rename the indicator', () => {
+  it('keeps a slug that is not the slug of its name', async () => {
+    const { indicatorId, versionId, publishedId } = await dueUpdate(
+      db,
+      'Named unlike its slug',
+      'publish_with_history',
+    );
+    await db
+      .update(indicatorVersion)
+      .set({ slug: 'an-imported-slug' })
+      .where(inArray(indicatorVersion.id, [publishedId, versionId]));
+
+    await publishNext();
+
+    expect(await slugOf(versionId)).toBe('an-imported-slug');
+    expect(await publicSite.indicators.findPublishedById(indicatorId)).toMatchObject({
+      name: 'Named unlike its slug',
+      slug: 'an-imported-slug',
+    });
+    expect((await publishedEntriesFor(indicatorId))[0]?.changes).not.toHaveProperty('slug');
   });
 });
 

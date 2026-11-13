@@ -90,19 +90,29 @@ async function markDataUpdated(
 }
 
 /**
- * Gives a version the slug of its name, when that differs from the slug it carries. A renamed
- * update keeps the indicator's published slug until it is published, so publishing it moves the
- * indicator to the new slug. The earlier published versions keep the old slug, so the old address
- * still finds the indicator, and the public site redirects it to the new one.
+ * Gives a renamed update the slug of its new name. A renamed update keeps the indicator's
+ * published slug until it is published, so publishing it moves the indicator to the new slug. The
+ * earlier published versions keep the old slug, so the old address still finds the indicator, and
+ * the public site redirects it to the new one.
+ *
+ * Only a rename moves the indicator: a version whose name is the same as `previousName`, the name
+ * of the published version it replaces, keeps the slug it carries, even when that slug is not the
+ * slug of its name. A new indicator's first version has no previous name, and its draft already
+ * carries the slug of its name.
  *
  * Two indicators never share a slug. If another indicator has taken the new slug since the update
- * was renamed, the version keeps the slug it carries, and the indicator keeps its address.
+ * was renamed, the version keeps the slug it carries, and the indicator keeps its address. A later
+ * update that does not rename the indicator leaves it there.
  * Returns the slug change for the audit entry, and the slug that was taken, if it was.
  */
 async function moveToSlugOfName(
   tx: Transaction,
   draft: IndicatorDraftVersion,
+  previousName: string | null,
 ): Promise<{ changes: AuditChanges; slugTaken: string | null }> {
+  if (previousName === null || draft.name === previousName) {
+    return { changes: {}, slugTaken: null };
+  }
   const slug = slugify(draft.name);
   if (slug === draft.slug) return { changes: {}, slugTaken: null };
 
@@ -159,10 +169,15 @@ export async function publishNextDueVersion(
           indicatorId: indicatorVersion.indicatorId,
           versionId: indicatorVersion.id,
           scheduledPublishAt: indicatorVersion.scheduledPublishAt,
-          // The upload batch of the indicator's currently published version, read before this
-          // version replaces it. It is null when the indicator has never been published.
+          // The upload batch and name of the indicator's currently published version, read before
+          // this version replaces it. Both are null when the indicator has never been published.
           previousBatchId: sql<string | null>`(
             SELECT pv.upload_batch_id FROM current_published_version cpv
+            JOIN indicator_version pv ON pv.id = cpv.id
+            WHERE cpv.indicator_id = indicator_version.indicator_id
+          )`,
+          previousName: sql<string | null>`(
+            SELECT pv.name FROM current_published_version cpv
             JOIN indicator_version pv ON pv.id = cpv.id
             WHERE cpv.indicator_id = indicator_version.indicator_id
           )`,
@@ -213,7 +228,7 @@ export async function publishNextDueVersion(
           write: async (stepTx, _submission, draft, version) => {
             publishedAt = version.publishedAt;
             if (publishedAt === null) throw new Error(`published ${draft.id} without a time`);
-            const slugMove = await moveToSlugOfName(stepTx, draft);
+            const slugMove = await moveToSlugOfName(stepTx, draft, due.previousName);
             slugTaken = slugMove.slugTaken;
             if (draft.uploadBatchId === due.previousBatchId) return slugMove.changes;
 

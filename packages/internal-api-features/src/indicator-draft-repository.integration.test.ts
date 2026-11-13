@@ -355,6 +355,40 @@ describe('updateIndicatorDraft', () => {
   );
 
   repositoryTest(
+    "answers locked or no_draft, not slug_taken, for a live indicator's draft it cannot edit",
+    async ({ db }) => {
+      await newDraft(db, 'A name held elsewhere');
+      const withoutDraft = await indicatorWithTwoPublications(db, 'Live with no draft');
+      const withLockedDraft = await indicatorWithTwoPublications(db, 'Live with a locked draft');
+      const opened = await createDraftFromPublished(db, withLockedDraft.indicatorId, AS_ACTOR);
+      if (!opened.ok) throw new Error('expected a draft');
+      await db
+        .update(indicatorVersion)
+        .set({ isLocked: true })
+        .where(eq(indicatorVersion.id, opened.versionId));
+
+      const rename = (indicatorId: string) =>
+        updateIndicatorDraft(
+          db,
+          indicatorId,
+          'name',
+          { name: 'A name held elsewhere' },
+          {},
+          AS_ACTOR,
+        );
+
+      await expect(rename(withoutDraft.indicatorId)).resolves.toEqual({
+        ok: false,
+        reason: 'no_draft',
+      });
+      await expect(rename(withLockedDraft.indicatorId)).resolves.toEqual({
+        ok: false,
+        reason: 'locked',
+      });
+    },
+  );
+
+  repositoryTest(
     "renames a live indicator's draft back to a name one of its own versions carries",
     async ({ db }) => {
       const { indicatorId, currentSlug } = await indicatorWithTwoPublications(
