@@ -31,14 +31,25 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
     rows: rows.flatMap((row) => {
       const entry = byId.get(row.shortId);
       if (!entry) return [];
-      const england = compared ? englandObservation(entry, row) : undefined;
+      // comparisonRows dates a row by its first area with data; a lagging first area would hold
+      // the row and its England benchmark back, so take the newest area's period instead.
+      const newest = row.cells.reduce<(typeof row.cells)[number] | undefined>((best, cell) => {
+        const latest = cell.series.at(-1);
+        const bestLatest = best?.series.at(-1);
+        return latest?.value != null && (!bestLatest || latest.toDate > bestLatest.toDate)
+          ? cell
+          : best;
+      }, undefined);
+      const reference = newest ? { ...row, series: newest.series } : row;
+      const rowPeriod = newest ? observationPeriod(entry, newest.series.at(-1)) : row.period;
+      const england = compared ? englandObservation(entry, reference) : undefined;
       return [
         {
           key: row.key,
           name: row.name,
           slug: entry.detail.slug,
           suffix: row.suffix,
-          period: row.period,
+          period: rowPeriod,
           unit: entry.detail.unit,
           updatedAt: entry.detail.dataUpdatedAt,
           subtopics: topicSubtopics(entry, topicSlug),
@@ -52,7 +63,7 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
           cells: row.cells.map((cell) => {
             const latest = cell.series.at(-1);
             // An area whose data lags the row is judged against England for its own period.
-            const period = latest?.value != null ? observationPeriod(entry, latest) : row.period;
+            const period = latest?.value != null ? observationPeriod(entry, latest) : rowPeriod;
             const benchmark = compared
               ? englandObservation(entry, { ...row, series: cell.series })
               : undefined;
@@ -66,7 +77,7 @@ export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: st
                 benchmark?.value != null
                   ? topicJudgement(latest, benchmark.value, entry.detail)
                   : null,
-              ...(period !== row.period ? { period } : {}),
+              ...(period !== rowPeriod ? { period } : {}),
               ...(latest?.value != null && benchmark?.value != null && benchmark !== england
                 ? {
                     benchmark: {

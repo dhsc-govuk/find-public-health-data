@@ -405,3 +405,29 @@ it.each(['', 'sortAreas=first:missing', 'sortAreas=first:1|'])(
     });
   },
 );
+
+it('takes the row period and England benchmark from the newest picked area, not the first', () => {
+  const source = structuredClone(entry);
+  const [england, northEast] = source.areaData;
+  if (!england || !northEast) throw new Error('Fixture areas missing');
+  source.areaData = [
+    england,
+    {
+      areaCode: 'E12000000',
+      areaName: 'A lagging area',
+      observations: Array.from({ length: 8 }, (_, index) => observation(2015 + index, 10 + index)),
+    },
+    northEast,
+  ];
+  const row = topicDataTableModel([source], 'diabetes').rows[0];
+  const lagging = row?.cells.find(({ areaCode }) => areaCode === 'E12000000');
+  const newest = row?.cells.find(({ areaCode }) => areaCode === 'E12000001');
+  expect(row?.period).toBe('2023');
+  expect(row?.england?.value).toBe(28);
+  expect(newest).not.toHaveProperty('period');
+  expect(lagging).toMatchObject({
+    value: 17,
+    period: '2022',
+    benchmark: { value: 27, period: '2022' },
+  });
+});
