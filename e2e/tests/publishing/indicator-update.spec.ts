@@ -4,28 +4,38 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { addReviewer, assignReviewers } from '../support/assign-reviewers.ts';
 import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
-import { MINUTE, publicIndicatorUrl, publishedIndicator } from '../support/published-indicator.ts';
+import { openIndicatorPage } from '../support/indicator-page.ts';
+import {
+  confirmPublicationAt,
+  MINUTE,
+  nextPublicationTime,
+  publicIndicatorUrl,
+  publishedIndicator,
+  waitForPublication,
+} from '../support/published-indicator.ts';
 import { asUser } from '../support/review-response.ts';
 import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 
 // Only a publication gives a publisher a live indicator of their own, so the tests share one and
 // run in order: the first starts its update, and the rest work on it. A second live indicator,
 // published alongside, takes the core team's request for revisions, which no later step undoes.
-// A third goes through IMRG review.
+// A third goes through IMRG review. A fourth is renamed by an update that is then published.
 test.describe.configure({ mode: 'serial' });
 test.use({ storageState: PUBLISHER.storageState });
 
 let indicator: { id: string; name: string };
 let sentBack: { id: string; name: string };
 let reviewed: { id: string; name: string };
+let renamed: { id: string; name: string };
 
 test.beforeAll(async ({ browser }) => {
   // Approving the indicators and waiting for the worker to publish them takes up to three minutes.
   test.setTimeout(4 * MINUTE);
-  [indicator, sentBack, reviewed] = await Promise.all([
+  [indicator, sentBack, reviewed, renamed] = await Promise.all([
     publishedIndicator(browser, 'update'),
     publishedIndicator(browser, 'update sent back'),
     publishedIndicator(browser, 'update reviewed'),
+    publishedIndicator(browser, 'update renamed'),
   ]);
 });
 
@@ -61,12 +71,18 @@ async function savePolarity(page: Page, answer: string, id = indicator.id) {
 }
 
 /**
- * Starts an update of the live indicator as the publisher, changes its polarity, gives it a
- * publishing date and a summary, and submits it for review.
+ * Starts an update of the live indicator as the publisher, changes its polarity, and its name
+ * when given one, gives it a publishing date and a summary, and submits it for review.
  */
-async function submitUpdate(page: Page, id: string) {
+async function submitUpdate(page: Page, id: string, { rename }: { rename?: string } = {}) {
   await page.goto(overviewPath(id));
   await page.getByRole('button', { name: 'Update indicator' }).click();
+  if (rename !== undefined) {
+    await page.goto(`/publish/indicators/${id}/name`);
+    await page.getByLabel('What is the name of the indicator?').fill(rename);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page).toHaveURL(taskListPath(id));
+  }
   await savePolarity(page, 'Higher is better', id);
   await page.goto(`/publish/indicators/${id}/update-summary`);
   await page
@@ -765,6 +781,53 @@ test.describe('IMRG review of an update', () => {
         `${historyToday()} Update approved for publishing By ${IMRG_REVIEWER.name}`,
         { useInnerText: true },
       );
+    });
+  });
+});
+
+test.describe('publishing an update', () => {
+  test.use({ storageState: ADMIN.storageState });
+
+  test('at its publication time a renamed update moves the public page to its new name, lists its summary under History, and the History tab reads "Indicator published"', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    // Four minutes covers the update, a wait of up to 75 seconds for the publication time, and up
+    // to 65 seconds more for the worker's sweep to publish it.
+    test.setTimeout(4 * MINUTE);
+    const name = `${renamed.name} renamed`;
+    await asUser(browser, PUBLISHER, (publisher) =>
+      submitUpdate(publisher, renamed.id, { rename: name }),
+    );
+    await decide(page, renamed.id, 'Publish with visibility in history');
+    const publishAt = nextPublicationTime(Date.now());
+    await confirmPublicationAt(page, renamed.id, publishAt);
+    expect((await page.request.get(publicIndicatorUrl(name))).status()).toBe(404);
+
+    await waitForPublication(page, name, publishAt);
+
+    expect(Date.now()).toBeGreaterThanOrEqual(publishAt);
+    const moved = await page.request.get(publicIndicatorUrl(renamed.name), { maxRedirects: 0 });
+    expect(moved.status()).toBe(302);
+    expect(moved.headers().location).toBe(new URL(publicIndicatorUrl(name)).pathname);
+    await openIndicatorPage(page, publicIndicatorUrl(name));
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
+    const about = page.locator('#indicator-about');
+    await expect(about.getByRole('heading', { level: 2, name: 'History' })).toBeVisible();
+    await expect(about.locator('h2:has-text("History") + dl')).toHaveText(
+      `${historyToday()}Polarity corrected to higher is better.`,
+    );
+    await expectNoAccessibilityViolations(page, testInfo);
+
+    await page.goto(overviewPath(renamed.id));
+    await expect(statusTags(page)).toHaveText([
+      'Indicator status: Live indicator',
+      'Publishing status: Published',
+    ]);
+    await openHistory(page, renamed.id);
+    await expect(historyEntries(page).first()).toHaveText(`${historyToday()} Indicator published`, {
+      useInnerText: true,
     });
   });
 });
