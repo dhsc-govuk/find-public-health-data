@@ -35,7 +35,7 @@ export function topicPageTests() {
     const document = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
     expect(document).toContain('Diabetes');
     expect(document).toContain('Highlighted indicators');
-    expect(document).toContain('Topic indicators by area');
+    expect(document).toMatch(/Diabetes indicators by [a-z]/);
     expect(document).toContain('Official statistics releases on GOV.UK');
     expect(document).toContain('<table');
     expect(document).not.toMatch(/Loading (overview|data|area summaries)/);
