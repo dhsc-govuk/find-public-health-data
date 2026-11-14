@@ -12,38 +12,82 @@ import {
 export function topicDataTableModel(selected: SelectedIndicator[], topicSlug: string) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   const rows = comparisonRows(selected);
-  const areas = [
+  const cellAreas = [
     ...new Map(
       rows.flatMap((row) => row.cells.map((cell) => [cell.areaCode, cell.areaName] as const)),
     ).entries(),
-  ]
-    .map(([code, name]) => ({ code, name }))
-    .sort((a, b) =>
-      a.code === 'E92000001' ? -1 : b.code === 'E92000001' ? 1 : a.name.localeCompare(b.name),
-    );
+  ].map(([code, name]) => ({ code, name }));
+  // comparisonRows drops England once areas are picked, except for an indicator with no data
+  // for any picked area. Once any area is picked, England is the benchmark each is judged
+  // against, in its own columns, rather than an area of its own.
+  const compared = cellAreas.some(({ code }) => code !== 'E92000001');
+  const areas = cellAreas
+    .filter(({ code }) => !compared || code !== 'E92000001')
+    .sort((a, b) => a.name.localeCompare(b.name));
   return {
     kind: 'data' as const,
+    compared,
     areas,
     rows: rows.flatMap((row) => {
       const entry = byId.get(row.shortId);
       if (!entry) return [];
+      // comparisonRows dates a row by its first area with data; a lagging first area would hold
+      // the row and its England benchmark back, so take the newest area's period instead.
+      const newest = row.cells.reduce<(typeof row.cells)[number] | undefined>((best, cell) => {
+        const latest = cell.series.at(-1);
+        const bestLatest = best?.series.at(-1);
+        return latest?.value != null && (!bestLatest || latest.toDate > bestLatest.toDate)
+          ? cell
+          : best;
+      }, undefined);
+      const reference = newest ? { ...row, series: newest.series } : row;
+      const rowPeriod = newest ? observationPeriod(entry, newest.series.at(-1)) : row.period;
+      const england = compared ? englandObservation(entry, reference) : undefined;
       return [
         {
           key: row.key,
           name: row.name,
           slug: entry.detail.slug,
           suffix: row.suffix,
-          period: row.period,
+          period: rowPeriod,
           unit: entry.detail.unit,
           updatedAt: entry.detail.dataUpdatedAt,
           subtopics: topicSubtopics(entry, topicSlug),
-          cells: row.cells.map((cell) => ({
-            areaCode: cell.areaCode,
-            value: cell.series.at(-1)?.value ?? null,
-            count: cell.series.at(-1)?.count ?? null,
-            numerator: cell.series.at(-1)?.numerator ?? null,
-            trend: recentTrend(cell.series, entry.detail.polarity, cell.trendDirection),
-          })),
+          england: compared
+            ? {
+                value: england?.value ?? null,
+                count: england?.count ?? null,
+                numerator: england?.numerator ?? null,
+              }
+            : null,
+          cells: row.cells.map((cell) => {
+            const latest = cell.series.at(-1);
+            // An area whose data lags the row is judged against England for its own period.
+            const period = latest?.value != null ? observationPeriod(entry, latest) : rowPeriod;
+            const benchmark = compared
+              ? englandObservation(entry, { ...row, series: cell.series })
+              : undefined;
+            return {
+              areaCode: cell.areaCode,
+              value: latest?.value ?? null,
+              count: latest?.count ?? null,
+              numerator: latest?.numerator ?? null,
+              trend: recentTrend(cell.series, entry.detail.polarity, cell.trendDirection),
+              judgement:
+                benchmark?.value != null
+                  ? topicJudgement(latest, benchmark.value, entry.detail)
+                  : null,
+              ...(period !== rowPeriod ? { period } : {}),
+              ...(latest?.value != null && benchmark?.value != null && benchmark !== england
+                ? {
+                    benchmark: {
+                      value: benchmark.value,
+                      period: observationPeriod(entry, benchmark),
+                    },
+                  }
+                : {}),
+            };
+          }),
         },
       ];
     }),

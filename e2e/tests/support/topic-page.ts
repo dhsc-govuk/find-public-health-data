@@ -213,6 +213,32 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('keeps England beside a picked area on the data tab with a comparison summary', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=data&ga=E12000007`);
+    const panel = page.getByRole('tabpanel', { name: 'Data' });
+    const table = panel.getByRole('table', {
+      name: 'Mortality and life expectancy indicators: London compared with England',
+    });
+    await expect(table).toBeVisible();
+    for (const column of ['London', 'Comparison summary', 'England']) {
+      await expect(table.getByRole('columnheader', { name: column })).toBeVisible();
+    }
+    await expect(table.getByRole('columnheader').last()).toHaveText(/Calculated\s*value/);
+    await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+    await panel.getByRole('checkbox', { name: 'Calculated value', exact: true }).uncheck();
+    await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toBeVisible();
+    await expect(
+      table.getByRole('columnheader', { name: 'Calculated value', exact: true }),
+    ).toHaveCount(1);
+    await panel.getByText('Download or share data', { exact: true }).click();
+    const csv = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
+    expect(csv.text.split('\n')[0]).toContain('England calculated value');
+    expect(csv.text.split('\n')[0]).not.toContain('London calculated value');
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
   test('changes topic table columns and downloads the same view', async ({ page }, testInfo) => {
     await openTopicPage(page, '/topics/diabetes?tab-topic=data');
     const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });

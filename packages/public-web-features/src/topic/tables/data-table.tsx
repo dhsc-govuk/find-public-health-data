@@ -4,8 +4,43 @@ import { memo } from 'react';
 import { Link } from 'react-router';
 import { formatCalculatedValue, formatValue, recentTrend, withUnit } from '../../indicator/data.ts';
 import { TrendTag } from '../../indicator/trend-tag.tsx';
-import type { TopicColumn } from '../data.ts';
+import { comparisonSummary, type TopicColumn, topicEnglandMeasures } from '../data.ts';
 import type { TopicDataTableModel } from '../table-models.ts';
+
+type Measure = Extract<TopicColumn, 'trend' | 'count' | 'numerator' | 'value'>;
+type Row = TopicDataTableModel['rows'][number];
+
+function measureHeading(measure: Measure) {
+  return measure === 'trend' ? (
+    <>
+      Trend
+      <br />
+      (last 5 periods)
+    </>
+  ) : measure === 'count' ? (
+    'Count'
+  ) : measure === 'numerator' ? (
+    'Numerator'
+  ) : (
+    <>
+      Calculated
+      <br />
+      value
+    </>
+  );
+}
+
+function measureValue(
+  measure: Measure,
+  cell: Partial<Row['cells'][number]> | null | undefined,
+  unit: Row['unit'],
+) {
+  if (measure === 'trend') return <TrendTag trend={cell?.trend ?? recentTrend([], null)} />;
+  if (measure === 'count' || measure === 'numerator') {
+    return cell?.[measure] == null ? 'No data' : formatValue(cell[measure]);
+  }
+  return cell?.value == null ? 'No data' : withUnit(formatCalculatedValue(cell.value), unit);
+}
 
 export const TopicDataTable = memo(function TopicDataTable({
   model,
@@ -16,27 +51,32 @@ export const TopicDataTable = memo(function TopicDataTable({
   title: string;
   columns?: TopicColumn[];
 }) {
-  const { rows, areas } = model;
+  const { rows, areas, compared } = model;
   const measures = columns.filter(
-    (column) =>
+    (column): column is Measure =>
       column === 'trend' || column === 'count' || column === 'numerator' || column === 'value',
   );
+  const englandMeasures = topicEnglandMeasures(columns, compared);
+  const grouped = compared || measures.length > 0;
+  const areaNames = areas.map(({ name }) => name).join(', ');
   return (
     <TableScrollRegion label={`${title} indicators comparison table`}>
       <table className="govuk-table fphd-compare-table fphd-topic-data-table">
         <caption className="govuk-visually-hidden">
-          {title} indicators for {areas.map(({ name }) => name).join(', ') || 'England'}
+          {compared
+            ? `${title} indicators: ${areaNames} compared with England`
+            : `${title} indicators for ${areaNames || 'England'}`}
         </caption>
         <thead className="govuk-table__head">
           <tr className="govuk-table__row">
-            <th className="govuk-table__header" scope="col" rowSpan={measures.length ? 2 : 1}>
+            <th className="govuk-table__header" scope="col" rowSpan={grouped ? 2 : 1}>
               Indicator
             </th>
             {columns.includes('period') ? (
               <th
                 className="govuk-table__header fphd-topic-data-table__period"
                 scope="col"
-                rowSpan={measures.length ? 2 : 1}
+                rowSpan={grouped ? 2 : 1}
               >
                 Most recent
                 <br />
@@ -47,51 +87,52 @@ export const TopicDataTable = memo(function TopicDataTable({
               <th
                 className="govuk-table__header fphd-topic-data-table__updated"
                 scope="col"
-                rowSpan={measures.length ? 2 : 1}
+                rowSpan={grouped ? 2 : 1}
               >
                 Last
                 <br />
                 updated
               </th>
             ) : null}
-            {measures.length
+            {grouped
               ? areas.map((area) => (
                   <th
                     key={area.code}
                     scope="colgroup"
-                    colSpan={measures.length}
+                    colSpan={measures.length + (compared ? 1 : 0)}
                     className="govuk-table__header"
                   >
                     {area.name}
                   </th>
                 ))
               : null}
+            {englandMeasures.length ? (
+              <th scope="colgroup" colSpan={englandMeasures.length} className="govuk-table__header">
+                England
+              </th>
+            ) : null}
           </tr>
-          {measures.length ? (
+          {grouped ? (
             <tr className="govuk-table__row">
-              {areas.flatMap((area) =>
-                measures.map((measure) => (
+              {areas.flatMap((area) => [
+                ...measures.map((measure) => (
                   <th key={`${area.code}-${measure}`} scope="col" className="govuk-table__header">
-                    {measure === 'trend' ? (
-                      <>
-                        Trend
-                        <br />
-                        (last 5 periods)
-                      </>
-                    ) : measure === 'count' ? (
-                      'Count'
-                    ) : measure === 'numerator' ? (
-                      'Numerator'
-                    ) : (
-                      <>
-                        Calculated
-                        <br />
-                        value
-                      </>
-                    )}
+                    {measureHeading(measure)}
                   </th>
                 )),
-              )}
+                compared ? (
+                  <th key={`${area.code}-comparison`} scope="col" className="govuk-table__header">
+                    Comparison
+                    <br />
+                    summary
+                  </th>
+                ) : null,
+              ])}
+              {englandMeasures.map((measure) => (
+                <th key={`england-${measure}`} scope="col" className="govuk-table__header">
+                  {measureHeading(measure)}
+                </th>
+              ))}
             </tr>
           ) : null}
         </thead>
@@ -118,28 +159,36 @@ export const TopicDataTable = memo(function TopicDataTable({
                     {row.updatedAt ? formatDate(row.updatedAt, 'short') : 'Not known'}
                   </td>
                 ) : null}
-                {areas.flatMap((area) =>
-                  measures.map((measure) => {
-                    const cell = row.cells.find(({ areaCode }) => areaCode === area.code);
-                    return (
+                {areas.flatMap((area) => {
+                  const cell = row.cells.find(({ areaCode }) => areaCode === area.code);
+                  const period = cell?.period ? (
+                    <span className="fphd-rug-cell__label">{cell.period}</span>
+                  ) : null;
+                  return [
+                    ...measures.map((measure) => (
                       <td key={`${area.code}-${measure}`} className="govuk-table__cell">
-                        {measure === 'trend' ? (
-                          <TrendTag trend={cell?.trend ?? recentTrend([], null)} />
-                        ) : measure === 'count' || measure === 'numerator' ? (
-                          cell?.[measure] == null ? (
-                            'No data'
-                          ) : (
-                            formatValue(cell[measure])
-                          )
-                        ) : cell?.value == null ? (
-                          'No data'
-                        ) : (
-                          withUnit(formatCalculatedValue(cell.value), row.unit)
-                        )}
+                        {measureValue(measure, cell, row.unit)}
+                        {measure !== 'trend' ? period : null}
                       </td>
-                    );
-                  }),
-                )}
+                    )),
+                    compared ? (
+                      <td key={`${area.code}-comparison`} className="govuk-table__cell">
+                        {cell?.value == null
+                          ? 'No data'
+                          : comparisonSummary(cell.judgement, cell.benchmark, row.unit)}
+                        {measures.includes('value') ? null : period}
+                      </td>
+                    ) : null,
+                  ];
+                })}
+                {englandMeasures.map((measure) => (
+                  <td key={`england-${measure}`} className="govuk-table__cell">
+                    {measureValue(measure, row.england, row.unit)}
+                    {!columns.includes('period') && row.england?.[measure] != null && row.period ? (
+                      <span className="fphd-rug-cell__label">{row.period}</span>
+                    ) : null}
+                  </td>
+                ))}
               </tr>
             );
           })}
