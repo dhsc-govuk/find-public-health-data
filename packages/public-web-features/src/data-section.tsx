@@ -12,28 +12,38 @@ export function DataSection<T>({
 }) {
   const location = useLocation();
   const url = `${location.pathname}${location.search}${location.hash}`;
-  if (!(resolve instanceof Promise)) return children(resolve);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const errorElement = (
+    <p className="govuk-body">
+      {label} could not be loaded.{' '}
+      <a className="govuk-link" href={url}>
+        Try again
+      </a>
+      .
+    </p>
+  );
+  // Keep the same tree when document values become deferred navigation data, preserving controls.
   return (
     <Suspense
       key={location.pathname}
       fallback={
         <p className="govuk-body" role="status">
           Loading {label}…
+          {/* An aborted server render must still offer recovery without JavaScript. */}
+          {!hydrated && (
+            <>
+              {' '}
+              <a className="govuk-link" href={url}>
+                Try again
+              </a>
+              .
+            </>
+          )}
         </p>
       }
     >
-      <Await
-        resolve={resolve}
-        errorElement={
-          <p className="govuk-body">
-            {label} could not be loaded.{' '}
-            <a className="govuk-link" href={url}>
-              Try again
-            </a>
-            .
-          </p>
-        }
-      >
+      <Await resolve={resolve} errorElement={errorElement}>
         {children}
       </Await>
     </Suspense>
@@ -56,21 +66,4 @@ export function useDataReady(values: unknown[]) {
     };
   }, [values, ready]);
   return ready;
-}
-
-export function CompletePageLink({ complete }: { complete: boolean }) {
-  const location = useLocation();
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
-  if (complete || hydrated) return null;
-  const params = new URLSearchParams(location.search);
-  params.set('render', 'complete');
-  return (
-    <p className="govuk-body">
-      <a className="govuk-link" href={`${location.pathname}?${params}${location.hash}`}>
-        Show all sections
-      </a>{' '}
-      to load this page without JavaScript.
-    </p>
-  );
 }

@@ -24,19 +24,23 @@ function expectAreaCsvColumns(csv: string, areas: string[]) {
 }
 
 export function topicPageTests() {
-  test('streams the topic heading and navigation before its section data', async ({ page }) => {
+  test('includes every topic section in the initial HTML without loading placeholders', async ({
+    page,
+  }) => {
     const response = await page.request.get('/topics/diabetes', {
       headers: { 'user-agent': 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36' },
     });
     expect(response.ok()).toBe(true);
     const html = await response.text();
-    const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
-    expect(shell).toContain('Diabetes');
-    expect(shell).toContain('topic-area-summaries');
-    expect(shell).toContain('Loading overview');
-    expect(shell).toContain('Loading data');
-    expect(html).toContain('Highlighted indicators');
-    expect(html).toContain('<table');
+    const document = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+    expect(document).toContain('Diabetes');
+    expect(document).toContain('Highlighted indicators');
+    expect(document).toMatch(/Diabetes indicators by [a-z]/);
+    expect(document).toContain('Official statistics releases on GOV.UK');
+    expect(document).toContain('<table');
+    expect(document).not.toMatch(/Loading (overview|data|area summaries)/);
+    expect(html).not.toContain('<!--$?-->');
+    expect(html).not.toContain('Show all sections');
   });
 
   test('shows every topic section together on mobile and switches desktop tabs locally', async ({
@@ -78,7 +82,7 @@ export function topicPageTests() {
     expect(reads).toEqual([]);
   });
 
-  test('loads every topic section through the JavaScript-free fallback and follows the contents links', async ({
+  test('loads every topic section without JavaScript and follows the contents links', async ({
     page,
     browser,
     baseURL,
@@ -93,7 +97,11 @@ export function topicPageTests() {
     const withoutJs = await context.newPage();
     try {
       await withoutJs.goto('/topics/diabetes');
-      await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
+      await expect(withoutJs.getByRole('status').filter({ hasText: /^Loading / })).toHaveCount(0);
+      await expect(
+        withoutJs.getByRole('link', { name: 'Show all sections', exact: true }),
+      ).toHaveCount(0);
+      await withoutJs.reload();
       for (const [label, anchor, content] of [
         ['Data', 'topic-data', withoutJs.locator('#topic-data').getByRole('table')],
         [
@@ -187,7 +195,10 @@ export function topicPageTests() {
     });
     await choices.getByRole('radio', { name: 'Manchester', exact: true }).check();
     await expect(page).toHaveURL(/ga=E08000003/);
-    await expect(panel.getByText('Manchester', { exact: true })).toHaveCount(2);
+    await expect(choices.getByRole('radio', { name: 'Manchester', exact: true })).toBeChecked();
+    await expect(
+      panel.getByRole('region', { name: 'Diabetes: QOF prevalence, Manchester: trend chart' }),
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

@@ -85,7 +85,6 @@ function page(
         <SingleIndicatorPage
           detail={entries[0]?.detail as IndicatorDetail}
           comparedDetail={entries[1]?.detail}
-          complete={true}
           findSubject={search ? 'mortality' : ''}
           findResults={search ?? []}
           data={

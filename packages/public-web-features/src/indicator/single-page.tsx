@@ -1,7 +1,7 @@
 import { InsetText, Tabs } from '@fphd/ui';
 import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router';
-import { CompletePageLink, DataSection, useDataReady } from '../data-section.tsx';
+import { DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
 import { expandIndicator } from './compact-data.ts';
@@ -60,7 +60,6 @@ export function SingleIndicatorPage({
   comparison,
   findSubject,
   findResults,
-  complete,
 }: Awaited<ReturnType<typeof loadIndicatorPage>>) {
   // Resolve before expanding so Suspense retries reuse the loader promise during navigation.
   const cache = useMemo(() => new WeakMap<CompactData, ExpandedData>(), []);
@@ -89,7 +88,6 @@ export function SingleIndicatorPage({
         </ol>
       </nav>
       <h1 className="govuk-heading-l govuk-!-margin-bottom-3">{detail.name}</h1>
-      <CompletePageLink complete={complete} />
       <IndicatorDataSection cache={cache} label="indicator summary" resolve={data}>
         {({ selected, areasLimited }) => (
           <>

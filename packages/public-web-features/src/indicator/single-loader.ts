@@ -81,15 +81,7 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   const comparison = groups.then((groups) =>
     loadIndicatorComparison(api, url, routeDetail, comparedDetail, groups),
   );
-  const complete = url.searchParams.get('render') === 'complete';
-  const completed = complete ? await Promise.all([data, comparison]) : undefined;
-  return {
-    detail: routeDetail,
-    comparedDetail,
-    data: completed ? completed[0] : data,
-    comparison: completed ? completed[1] : comparison,
-    complete,
-  };
+  return { detail: routeDetail, comparedDetail, data, comparison };
 }
 
 export async function loadIndicatorPage(args: LoaderFunctionArgs) {
@@ -127,7 +119,10 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
         );
     return indicatorComparisonModel(selected, comparison);
   });
-  const completed = page.complete ? await Promise.all([data, comparison, findResults]) : undefined;
+  // Wait for the final models so document HTML includes compact data, comparisons and search results.
+  const completed = url.pathname.endsWith('.data')
+    ? undefined
+    : await Promise.allSettled([data, comparison, findResults]);
   return {
     ...page,
     comparedDetail: page.comparedDetail
@@ -137,10 +132,10 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
           unit: page.comparedDetail.unit,
         }
       : undefined,
-    data: completed ? completed[0] : data,
-    comparison: completed ? completed[1] : comparison,
+    data: completed?.[0].status === 'fulfilled' ? completed[0].value : data,
+    comparison: completed?.[1].status === 'fulfilled' ? completed[1].value : comparison,
     findSubject,
-    findResults: completed ? completed[2] : findResults,
+    findResults: completed?.[2].status === 'fulfilled' ? completed[2].value : findResults,
   };
 }
 

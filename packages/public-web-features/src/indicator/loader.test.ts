@@ -8,7 +8,7 @@ import {
 } from '@fphd/web-server/testing';
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
 import { indicatorDetail, observation, sex } from './view.testing.ts';
@@ -98,7 +98,7 @@ function args(
 }
 
 describe('loadIndicator', () => {
-  it('returns the page metadata while observations and rankings are still pending', async () => {
+  it('defers observations and rankings on client navigations', async () => {
     const client = api();
     const gate = Promise.withResolvers<void>();
     const delayed: FakeApiClient = {
@@ -108,7 +108,9 @@ describe('loadIndicator', () => {
         return client.get(path, schema);
       },
     };
-    const page = await loadIndicatorPage(args(delayed));
+    const page = await loadIndicatorPage(
+      args(delayed, 'http://localhost/indicator/indicator-108.data'),
+    );
     try {
       expect(page.detail.shortId).toBe(108);
       expect(page.data).toBeInstanceOf(Promise);
@@ -136,7 +138,7 @@ describe('loadIndicator', () => {
     const page = await loadIndicatorPage(
       args(
         delayed,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&find=diabetes',
+        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
       ),
     );
     const data = Promise.resolve(page.data).then((data) => {
@@ -164,7 +166,7 @@ describe('loadIndicator', () => {
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
     );
     const failedData = expect(page.data).rejects.toMatchObject({ status: 502 });
-    await expect(page.comparison).resolves.toMatchObject({
+    await expect(Promise.resolve(page.comparison)).resolves.toMatchObject({
       compareAreaGroup: 'Local authorities',
       pair: expect.any(Object),
     });
@@ -178,12 +180,12 @@ describe('loadIndicator', () => {
     const page = await loadIndicatorPage(
       args(
         client,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&find=diabetes',
+        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
       ),
     );
     await Promise.all([
       expect(page.findResults).rejects.toMatchObject({ status: 502 }),
-      expect(page.comparison).resolves.toMatchObject({
+      expect(Promise.resolve(page.comparison)).resolves.toMatchObject({
         compareAreaGroup: 'Local authorities',
         pair: expect.any(Object),
       }),
@@ -205,7 +207,7 @@ describe('loadIndicator', () => {
     const page = await loadIndicatorPage(
       args(
         delayed,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&find=diabetes',
+        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
       ),
     );
     const results = Promise.resolve(page.findResults).then(() => {
@@ -315,12 +317,11 @@ describe('loadIndicator', () => {
     },
   );
 
-  it('waits for complete content only when explicitly requested', async () => {
+  it('settles every section for a document request without a rendering parameter', async () => {
     const client = api();
     const page = await loadIndicatorPage(
-      args(client, 'http://localhost/indicator/indicator-108?render=complete&find=diabetes'),
+      args(client, 'http://localhost/indicator/indicator-108?find=diabetes'),
     );
-    expect(page.complete).toBe(true);
     expect(page.data).not.toBeInstanceOf(Promise);
     expect(page.comparison).not.toBeInstanceOf(Promise);
     expect(page.findResults).toMatchObject([{ shortId: 241 }]);
@@ -337,6 +338,71 @@ describe('loadIndicator', () => {
     expect(comparison.pair).toBeDefined();
     expect(comparison).not.toHaveProperty('compareAreasData');
     expect(comparison).not.toHaveProperty('comparedAreasData');
+  });
+
+  it.each(['/api/indicators?q=', '/api/indicator-data?'])(
+    'waits for final document data from %s without blocking navigation data',
+    async (pathPrefix) => {
+      const client = api({
+        'GET /api/indicators/indicator-108/areas': [{ displayGroup: 'Countries', areas: [] }],
+        'GET /api/indicator-data': [{ detail: indicatorDetail(108), areaData: [] }],
+      });
+      const gate = Promise.withResolvers<void>();
+      const started = Promise.withResolvers<void>();
+      const delayed: FakeApiClient = {
+        ...client,
+        get: async (path, schema) => {
+          if (path.startsWith(pathPrefix)) {
+            started.resolve();
+            await gate.promise;
+          }
+          return client.get(path, schema);
+        },
+      };
+      const ready = vi.fn();
+      const pending = loadIndicatorPage(
+        args(delayed, 'http://localhost/indicator/indicator-108?find=diabetes'),
+      ).then(ready);
+      try {
+        await started.promise;
+        expect(ready).not.toHaveBeenCalled();
+        const navigation = await loadIndicatorPage(
+          args(delayed, 'http://localhost/indicator/indicator-108.data?find=diabetes'),
+        );
+        expect(navigation.findResults).toBeInstanceOf(Promise);
+        expect(navigation.comparison).toBeInstanceOf(Promise);
+        gate.resolve();
+        await Promise.all([navigation.data, navigation.comparison, navigation.findResults]);
+      } finally {
+        gate.resolve();
+        await pending;
+      }
+      expect(ready).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('waits for slow document sections beyond the rendering deadline', async () => {
+    vi.useFakeTimers();
+    const client = api();
+    const delayed: FakeApiClient = {
+      ...client,
+      get: async (path, schema) => {
+        if (path.includes('/data?') || path.includes('/ranking?'))
+          await new Promise((resolve) => setTimeout(resolve, 7_000));
+        return client.get(path, schema);
+      },
+    };
+    const ready = vi.fn();
+    try {
+      const pending = loadIndicatorPage(args(delayed)).then(ready);
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(ready).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await pending;
+      expect(ready).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('requires one route indicator before any API request', async () => {

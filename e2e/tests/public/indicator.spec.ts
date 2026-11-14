@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
 });
 
-test('streams the indicator heading and navigation before observations and rankings', async ({
+test('includes every indicator section in the initial HTML without loading placeholders', async ({
   page,
 }) => {
   const response = await page.request.get(MORTALITY_PATH, {
@@ -16,12 +16,18 @@ test('streams the indicator heading and navigation before observations and ranki
   });
   expect(response.ok()).toBe(true);
   const html = await response.text();
-  const shell = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
-  expect(shell).toContain(MORTALITY_NAME);
-  expect(shell).toContain('indicator-compare-areas');
-  expect(shell).toContain('Loading indicator data');
-  expect(shell).toContain('Loading area comparisons');
-  expect(html).toContain('<table');
+  const document = html.split('</html>')[0]?.replaceAll('<!-- -->', '');
+  expect(document).toContain(MORTALITY_NAME);
+  expect(document).toContain('<table');
+  expect(document).toContain('Table of area comparisons');
+  expect(document).toContain('Search for an indicator');
+  expect(document).toContain('Table of inequalities');
+  expect(document).toContain('Data attributes');
+  expect(document).not.toMatch(
+    /Loading (indicator summary|indicator data|area comparisons|indicator comparisons|inequalities|background information)/,
+  );
+  expect(html).not.toContain('<!--$?-->');
+  expect(html).not.toContain('Show all sections');
 });
 
 test('keeps Compare areas in view when changing to mobile and opening its shared link', async ({
@@ -141,7 +147,7 @@ test('switches between loaded indicator sections without another data request', 
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('loads every indicator section through the JavaScript-free fallback and keeps comparison search in view', async ({
+test('loads every indicator section without JavaScript and keeps comparison search in view', async ({
   browser,
   baseURL,
 }) => {
@@ -154,7 +160,11 @@ test('loads every indicator section through the JavaScript-free fallback and kee
   const withoutJs = await context.newPage();
   try {
     await withoutJs.goto(MORTALITY_PATH);
-    await withoutJs.getByRole('link', { name: 'Show all sections', exact: true }).click();
+    await expect(withoutJs.getByRole('status').filter({ hasText: /^Loading / })).toHaveCount(0);
+    await expect(
+      withoutJs.getByRole('link', { name: 'Show all sections', exact: true }),
+    ).toHaveCount(0);
+    await withoutJs.reload();
     for (const [label, anchor, content] of [
       [
         'Compare areas',
@@ -340,13 +350,14 @@ test('adds one comparison indicator through search and clears it', async ({ page
   await page.getByRole('tab', { name: 'Compare indicators' }).click();
   const search = page.getByRole('combobox', { name: 'Search for an indicator' });
   await search.fill('smoking');
-  await page.getByRole('option', { name: /Smoking Prevalence in adults/ }).click();
+  const comparison = page.getByRole('option', { name: /smoking/i }).first();
+  await expect(comparison).toBeVisible();
+  const comparisonName = (await comparison.innerText()).trim();
+  await comparison.click();
   await expect(page).toHaveURL(/compareWith=/);
   const table = page.getByRole('table', { name: /Table of indicator comparison/ });
   await expect(table.getByRole('rowheader', { name: 'England' })).toBeVisible();
-  await expect(
-    table.getByRole('columnheader', { name: /Smoking Prevalence in adults/ }),
-  ).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: comparisonName })).toBeVisible();
   await page
     .getByRole('tabpanel', { name: 'Compare indicators' })
     .getByText('Download or share data', { exact: true })
@@ -357,7 +368,7 @@ test('adds one comparison indicator through search and clears it', async ({ page
     'link',
   );
   expect(exported.text).toContain(MORTALITY_NAME);
-  expect(exported.text).toContain('Smoking Prevalence in adults');
+  expect(exported.text).toContain(comparisonName);
   await page.getByRole('link', { name: 'Clear search' }).click();
   await expect(page).not.toHaveURL(/compareWith=/);
   await expect(table).toHaveCount(0);

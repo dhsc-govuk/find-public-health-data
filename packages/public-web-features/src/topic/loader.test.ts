@@ -8,7 +8,7 @@ import {
 } from '@fphd/web-server/testing';
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { indicatorDetail } from '../indicator/view.testing.ts';
 import { loadTopic, loadTopicPage, loadTopics } from './loader.ts';
@@ -184,7 +184,7 @@ describe('loadTopic', () => {
     ]);
   });
 
-  it('returns the topic before its overview and tables have loaded', async () => {
+  it('defers the overview and tables on client navigations', async () => {
     const api = topicApi([{ shortId: 1, name: 'Indicator', slug: 'indicator' }]);
     const gate = Promise.withResolvers<void>();
     const delayed: FakeApiClient = {
@@ -194,7 +194,9 @@ describe('loadTopic', () => {
         return api.get(path, schema);
       },
     };
-    const page = await loadTopicPage(loaderArgs(delayed, { slug: 'topic-a' }));
+    const args = loaderArgs(delayed, { slug: 'topic-a' });
+    args.request = new Request('http://localhost/topics/topic-a.data');
+    const page = await loadTopicPage(args);
     try {
       expect(page.topic.title).toBe('Topic A');
       expect(page.overview).toBeInstanceOf(Promise);
@@ -210,14 +212,34 @@ describe('loadTopic', () => {
     expect(areas?.search.searchResult.total).toBe(1);
   });
 
-  it('returns complete HTML data for the JavaScript-free fallback', async () => {
-    const page = await loadTopicPage(
-      loaderArgs(topicApi(), { slug: 'topic-a' }, '?render=complete'),
-    );
-    expect(page.complete).toBe(true);
+  it('settles every section for a document request without a rendering parameter', async () => {
+    const page = await loadTopicPage(loaderArgs(topicApi(), { slug: 'topic-a' }));
     expect(page.overview).not.toBeInstanceOf(Promise);
     expect(page.content).not.toBeInstanceOf(Promise);
     expect(page.areas).not.toBeInstanceOf(Promise);
+  });
+
+  it('waits for slow document sections beyond the rendering deadline', async () => {
+    vi.useFakeTimers();
+    const api = topicApi();
+    const delayed: FakeApiClient = {
+      ...api,
+      get: async (path, schema) => {
+        if (path.endsWith('/trends')) await new Promise((resolve) => setTimeout(resolve, 7_000));
+        return api.get(path, schema);
+      },
+    };
+    const ready = vi.fn();
+    try {
+      const pending = loadTopicPage(loaderArgs(delayed, { slug: 'topic-a' })).then(ready);
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(ready).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await pending;
+      expect(ready).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each(['data', 'areas'])(

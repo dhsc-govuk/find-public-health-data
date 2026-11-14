@@ -5,11 +5,7 @@ const AREA_SORT_PARAMS = ['areaRowSort', 'sortAreas'];
 export function topicDisplayParams(params: URLSearchParams) {
   return Object.fromEntries(
     [...params].filter(
-      ([key]) =>
-        key === 'columns-topic' ||
-        key === 'sort' ||
-        key === 'render' ||
-        AREA_SORT_PARAMS.includes(key),
+      ([key]) => key === 'columns-topic' || key === 'sort' || AREA_SORT_PARAMS.includes(key),
     ),
   );
 }

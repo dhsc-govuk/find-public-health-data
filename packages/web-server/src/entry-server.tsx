@@ -1,8 +1,6 @@
 import { PassThrough } from 'node:stream';
 import { NonceProvider } from '@fphd/ui/nonce';
 import { createReadableStreamFromReadable } from '@react-router/node';
-import { isbot } from 'isbot';
-import type { RenderToPipeableStreamOptions } from 'react-dom/server';
 import { renderToPipeableStream } from 'react-dom/server';
 import {
   type EntryContext,
@@ -40,6 +38,19 @@ export default function handleRequest(
   const logger = loadContext.get(loggerContext);
   return new Promise<Response>((resolve, reject) => {
     let abortTimeout: ReturnType<typeof setTimeout> | undefined;
+    const deadlineError = new Error('Document render deadline exceeded');
+    let deadlineExpired = false;
+    let deadlineLogged = false;
+    let unfinishedSections = 0;
+    let allReady = false;
+    const logDeadline = (sections?: number) => {
+      if (!deadlineExpired || deadlineLogged) return;
+      deadlineLogged = true;
+      logger.warn(
+        { url: request.url, ...(sections === undefined ? {} : { unfinishedSections: sections }) },
+        'Document render deadline exceeded',
+      );
+    };
     let shellRendered = false;
     const clearAbortTimeout = () => {
       if (abortTimeout !== undefined) {
@@ -47,20 +58,20 @@ export default function handleRequest(
         abortTimeout = undefined;
       }
     };
-    const userAgent = request.headers.get('user-agent');
-    const readyOption: keyof RenderToPipeableStreamOptions =
-      (userAgent && isbot(userAgent)) || entryContext.isSpaMode ? 'onAllReady' : 'onShellReady';
-
     const { abort, pipe } = renderToPipeableStream(
       <NonceProvider value={nonce}>
         <ServerRouter context={entryContext} nonce={nonce} url={request.url} />
       </NonceProvider>,
       {
-        // React's own boundary-completion scripts are injected inline as the stream
-        // resolves; without this they carry no nonce and the CSP blocks them.
         nonce,
-        [readyOption]() {
+        // Large completed boundaries must stay inline, rather than need scripts to replace fallbacks.
+        progressiveChunkSize: Number.POSITIVE_INFINITY,
+        onShellReady() {
           shellRendered = true;
+        },
+        onAllReady() {
+          logDeadline(unfinishedSections);
+          allReady = true;
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
           body.once('close', clearAbortTimeout);
@@ -71,12 +82,18 @@ export default function handleRequest(
           pipe(body);
         },
         onShellError(error: unknown) {
+          logDeadline();
           clearAbortTimeout();
           reject(error);
         },
         onError(error: unknown) {
+          // React reports the supplied abort reason for each unfinished boundary.
+          if (deadlineExpired && error === deadlineError) {
+            unfinishedSections += 1;
+            return;
+          }
           responseStatusCode = 500;
-          // Before the shell is out, onShellError rejects and React Router reports it instead.
+          // Shell failures reach React Router through onShellError instead.
           if (shellRendered && !request.signal.aborted) {
             logger.error({ err: error }, 'Streaming failed');
           }
@@ -84,6 +101,11 @@ export default function handleRequest(
       },
     );
 
-    abortTimeout = setTimeout(abort, streamTimeout + 1_000);
+    abortTimeout = setTimeout(() => {
+      deadlineExpired = true;
+      // Streaming can outlast onAllReady, when React can no longer count pending boundaries.
+      if (allReady) logDeadline();
+      abort(deadlineError);
+    }, streamTimeout + 1_000);
   });
 }

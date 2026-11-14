@@ -15,13 +15,12 @@ it('revalidates server filters while keeping tab and column switches local', () 
     expect(topicDataKey(new URL(query, base))).not.toBe(topicDataKey(base));
 });
 
-it('carries area sorting and complete rendering through topic filter forms', () => {
+it('carries columns and sorting through topic filter forms', () => {
   const display = {
     'columns-topic': 'period,value',
     sort: 'name-asc',
     areaRowSort: 'recently-updated',
     sortAreas: 'reverse:1|',
-    render: 'complete',
   };
   expect(topicDisplayParams(new URLSearchParams({ ...display, q: 'diabetes', page: '2' }))).toEqual(
     display,
