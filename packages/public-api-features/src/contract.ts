@@ -27,7 +27,9 @@ export const MAX_FILTER_VALUE_LENGTH = 100;
 export const MAX_FILTER_VALUES = 100;
 
 export const indicatorDataQuerySchema = z.object({
-  observationHistory: z.enum(['recentPerSeries', 'latestPerSeries']).catch('recentPerSeries'),
+  observationHistory: z
+    .enum(['recentPerSeries', 'latestPerSeries', 'lastEightPeriodsPerSeries'])
+    .catch('recentPerSeries'),
 });
 
 export type ObservationHistory = z.infer<typeof indicatorDataQuerySchema>['observationHistory'];
@@ -240,6 +242,7 @@ export const indicatorAreaDataSchema = z.object({
   areaCode: z.string().min(1),
   areaName: z.string().min(1),
   observations: z.array(indicatorObservationSchema),
+  populationKeys: z.array(z.string()).optional(),
 });
 
 export const indicatorAreaDataListSchema = z.array(indicatorAreaDataSchema);
@@ -358,3 +361,17 @@ export const indicatorFacetsSchema = z.object({
 export type IndicatorSearchRow = z.infer<typeof indicatorSearchRowSchema>;
 export type IndicatorSearchResult = z.infer<typeof indicatorSearchResultSchema>;
 export type IndicatorFacets = z.infer<typeof indicatorFacetsSchema>;
+
+export const indicatorScatterSchema = z.object({
+  points: z.array(
+    z.object({
+      code: z.string(),
+      name: z.string(),
+      period: z.string(),
+      fromDate: z.iso.date(),
+      toDate: z.iso.date(),
+      x: z.number(),
+      y: z.number(),
+    }),
+  ),
+});

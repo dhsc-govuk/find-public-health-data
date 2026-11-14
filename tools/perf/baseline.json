@@ -54,16 +54,16 @@
     "bytes": 38824
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
-    "statements": 55,
-    "buffers": 104542,
-    "rows": 22613,
-    "bytes": 182119
+    "statements": 51,
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 165818
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=data": {
-    "statements": 55,
-    "buffers": 104542,
-    "rows": 22613,
-    "bytes": 182115
+    "statements": 51,
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 165814
   },
   "public-api /api/areas/search?q=leeds": {
     "statements": 1,
@@ -126,28 +126,28 @@
     "bytes": 27754
   },
   "public-web /indicator/diabetes-qof-prevalence": {
-    "statements": 18,
-    "buffers": 39284,
-    "rows": 2584,
-    "bytes": 347230
+    "statements": 17,
+    "buffers": 38017,
+    "rows": 2583,
+    "bytes": 406046
   },
   "public-web /indicator/diabetes-qof-prevalence/table.csv": {
     "statements": 10,
-    "buffers": 8882,
-    "rows": 2652,
-    "bytes": 569
+    "buffers": 2879,
+    "rows": 1387,
+    "bytes": 573
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032": {
-    "statements": 35,
-    "buffers": 47010,
-    "rows": 4515,
-    "bytes": 428972
+    "statements": 34,
+    "buffers": 48821,
+    "rows": 4514,
+    "bytes": 483073
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&find=mortality": {
-    "statements": 19,
-    "buffers": 39297,
-    "rows": 2588,
-    "bytes": 349933
+    "statements": 18,
+    "buffers": 38044,
+    "rows": 2587,
+    "bytes": 408853
   },
   "public-web /indicator/under-75-mortality-rate-from-all-causes/all-data.csv": {
     "statements": 10,
@@ -168,39 +168,39 @@
     "bytes": 50571
   },
   "public-web /topics/diabetes": {
-    "statements": 63,
-    "buffers": 85813,
-    "rows": 23971,
-    "bytes": 158350
+    "statements": 53,
+    "buffers": 3624,
+    "rows": 1372,
+    "bytes": 162514
   },
   "public-web /topics/mortality-and-life-expectancy/table.csv?tab-topic=areas": {
-    "statements": 54,
-    "buffers": 64926,
-    "rows": 23954,
-    "bytes": 3900
+    "statements": 24,
+    "buffers": 9536,
+    "rows": 1003,
+    "bytes": 2676
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
-    "statements": 55,
-    "buffers": 104542,
-    "rows": 22613,
-    "bytes": 179066
+    "statements": 51,
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 163585
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data": {
-    "statements": 55,
-    "buffers": 104542,
-    "rows": 22613,
-    "bytes": 179062
+    "statements": 51,
+    "buffers": 10411,
+    "rows": 1957,
+    "bytes": 163581
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=period-desc": {
-    "statements": 55,
-    "buffers": 112537,
-    "rows": 22613,
-    "bytes": 179707
+    "statements": 51,
+    "buffers": 24977,
+    "rows": 1957,
+    "bytes": 163916
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=trend-desc": {
-    "statements": 57,
-    "buffers": 163967,
-    "rows": 22619,
-    "bytes": 179896
+    "statements": 53,
+    "buffers": 10408,
+    "rows": 1965,
+    "bytes": 164144
   }
 }

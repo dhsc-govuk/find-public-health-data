@@ -2,6 +2,7 @@ import { INDICATOR_SORTS, type IndicatorSort } from '@fphd/utils/indicator-sort'
 import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
+  availablePeriodTypes,
   type BenchmarkJudgement,
   benchmarkJudgement,
   type ComparisonRow,
@@ -10,7 +11,7 @@ import {
   sameSegment,
   trendSeries,
 } from '../indicator/data.ts';
-import type { SelectedIndicator } from '../indicator/loader.ts';
+import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
 
 const SORT_LABELS: Record<IndicatorSort, string> = {
   'subtopic-asc': 'Subtopic (A to Z)',
@@ -100,13 +101,21 @@ export function observationPeriod(
 export function topicTableSelection(
   selected: SelectedIndicator[],
   trendPoints = 5,
+  sparklinePeriods = 0,
 ): SelectedIndicator[] {
   return selected.map((entry) => {
     const rows = comparisonRows([entry]);
     const keep = new Set<SelectedIndicator['areaData'][number]['observations'][number]>();
+    const keepSparkline = (series: IndicatorObservation[]) => {
+      if (!sparklinePeriods) return;
+      const periodType = availablePeriodTypes(series).length > 1 ? '3-year' : 'all';
+      for (const point of filterObservations(series, { periodType }).slice(-sparklinePeriods))
+        keep.add(point);
+    };
     for (const row of rows) {
       const england = entry.areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
       const benchmarkSeries = trendSeries(filterObservations(england?.observations ?? [], row));
+      keepSparkline(benchmarkSeries);
       for (const point of trendPoints
         ? benchmarkSeries.filter(({ value }) => value !== null).slice(-trendPoints)
         : [])
@@ -114,6 +123,7 @@ export function topicTableSelection(
       const benchmarkLatest = benchmarkSeries.at(-1);
       if (benchmarkLatest) keep.add(benchmarkLatest);
       for (const cell of row.cells) {
+        keepSparkline(cell.series);
         for (const point of trendPoints
           ? cell.series.filter(({ value }) => value !== null).slice(-trendPoints)
           : [])

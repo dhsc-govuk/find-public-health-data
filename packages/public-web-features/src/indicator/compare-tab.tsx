@@ -1,14 +1,26 @@
-import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
+import { FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { useLocation } from 'react-router';
 import { AreaControls } from './area-controls.tsx';
+import { scatterPair } from './charts/chart-data.ts';
+import { CompareIndicatorsChart } from './charts/scatter-chart.tsx';
+import type { ScatterComparison } from './charts/scatter-loader.ts';
+import type { compactIndicator } from './compact-data.ts';
 import { ComparePicker } from './compare-picker.tsx';
 import type { IndicatorComparisonModel } from './comparison-model.ts';
-import type { IndicatorDetail, IndicatorSummary, SelectedIndicator } from './loader.ts';
+import type {
+  IndicatorDetail,
+  IndicatorRangePeriod,
+  IndicatorSummary,
+  SelectedIndicator,
+} from './loader.ts';
 import { IndicatorPairTable } from './tables/indicator-pair-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
 
 export interface ComparisonTabProps extends IndicatorComparisonModel {
   primary: Pick<SelectedIndicator, 'detail'>;
+  areaChart: ReturnType<typeof compactIndicator>;
+  compareAreaRanges: IndicatorRangePeriod[];
+  scatter: ScatterComparison | undefined;
 }
 
 export function CompareIndicatorsTab({
@@ -20,13 +32,19 @@ export function CompareIndicatorsTab({
   comparisonDisplayGroups,
   findResults,
   findSubject,
+  scatter,
 }: ComparisonTabProps & {
-  compared: Pick<IndicatorDetail, 'name' | 'slug' | 'unit'> | undefined;
+  compared:
+    | Pick<IndicatorDetail, 'shortId' | 'name' | 'slug' | 'unit' | 'yearType' | 'dataSource'>
+    | undefined;
   findResults: IndicatorSummary[] | Promise<IndicatorSummary[]>;
   findSubject: string;
 }) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
+  const selected = compared
+    ? scatterPair([{ detail }, { detail: compared }], params).filter((entry) => entry !== undefined)
+    : [];
   return (
     <>
       <h2 className="govuk-heading-l">Compare indicators</h2>
@@ -63,10 +81,11 @@ export function CompareIndicatorsTab({
               <IndicatorViewDownload slug={detail.slug} tab="compare" />
               <div className="fphd-indicator-chart fphd-indicator-chart--scatter">
                 <h3 className="govuk-heading-s">Chart of indicator comparison</h3>
-                <ChartSection
-                  id="indicator-comparison-chart"
-                  title="Indicator comparison scatter chart"
-                  description={`${detail.name} compared with ${compared.name} for the selected geographies.`}
+                <CompareIndicatorsChart
+                  key={selected.map(({ detail }) => detail.shortId).join('-')}
+                  selected={selected}
+                  scatter={scatter}
+                  selectedAreaCodes={params.getAll('highlight')}
                 />
               </div>
               <IndicatorPairTable

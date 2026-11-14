@@ -8,7 +8,7 @@ import {
   TopicRoute,
   TopicsRoute,
 } from '@fphd/public-web-features';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,7 +28,15 @@ function indicatorPage<
   return {
     ...page,
     data: { ...page.data, selected: selected.slice(0, 1).map(compactIndicator) },
-    comparison: indicatorComparisonModel(selected, page.comparison),
+    comparison: {
+      ...indicatorComparisonModel(selected, page.comparison),
+      areaChart: compactIndicator({
+        detail: selected[0]?.detail as SelectedIndicator['detail'],
+        areaData: page.comparison.compareAreasData,
+      }),
+      compareAreaRanges: [],
+      scatter: undefined,
+    },
     findResults: page.data.findResults,
     findSubject: page.data.findSubject,
   };
@@ -250,7 +258,11 @@ describe('public application routes', () => {
       }),
     ).toBeTruthy();
     expect(screen.queryByLabelText('Select time period type')).toBeNull();
-    expect(screen.getByRole('rowheader', { name: '2021 to 2023' })).toBeTruthy();
+    expect(
+      within(screen.getByRole('table', { name: /^Table:/ })).getByRole('rowheader', {
+        name: '2021 to 2023',
+      }),
+    ).toBeTruthy();
   });
 
   it('offers a benchmark beside each picked area with an optional comparison range', async () => {
@@ -390,11 +402,18 @@ describe('public application routes', () => {
     // England is not a column of its own while a real area is picked and no benchmark
     // is chosen.
     fireEvent.click(await screen.findByRole('button', { name: 'Table columns' }));
-    const select = await screen.findByLabelText('Select a geography or goal to compare with');
-    expect(screen.queryByRole('columnheader', { name: 'England' })).toBeNull();
+    const tableOptions = screen
+      .getByRole('button', { name: 'Table columns' })
+      .closest<HTMLElement>('.fphd-filter-card');
+    if (!tableOptions) throw new Error('Table options missing');
+    const select = within(tableOptions).getByLabelText(
+      'Select a geography or goal to compare with',
+    );
+    const table = within(screen.getByRole('table', { name: /^Table:/ }));
+    expect(table.queryByRole('columnheader', { name: 'England' })).toBeNull();
 
     fireEvent.change(select, { target: { value: 'england' } });
-    expect(await screen.findByRole('columnheader', { name: 'England' })).toBeTruthy();
+    expect(await table.findByRole('columnheader', { name: 'England' })).toBeTruthy();
 
     // Turning the range on adds the spread and the dot-and-whisker comparison.
     fireEvent.click(screen.getByRole('radio', { name: 'Yes' }));
@@ -402,10 +421,10 @@ describe('public application routes', () => {
     expect(screen.getByRole('columnheader', { name: 'Maximum' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '300.1' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '500.9' })).toBeTruthy();
-    expect(screen.getByRole('img', { name: /Cornwall 395.6 against England 410.3/ })).toBeTruthy();
+    expect(screen.getByText(/Cornwall: 395.6.*England: 410.3.*Range: 300.1.*500.9/)).toBeTruthy();
 
     // The statistical-region benchmark takes the parent region's name and values.
-    fireEvent.change(screen.getByLabelText('Select a geography or goal to compare with'), {
+    fireEvent.change(select, {
       target: { value: 'region' },
     });
     expect(

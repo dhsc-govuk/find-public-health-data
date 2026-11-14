@@ -15,17 +15,24 @@
     "@fphd/ui": "workspace:*",
     "@fphd/utils": "workspace:*",
     "@fphd/web-server": "workspace:*",
-    "csv-stringify": "catalog:"
+    "csv-stringify": "catalog:",
+    "react-is": "catalog:",
+    "recharts": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",
     "react-router": "catalog:"
   },
   "devDependencies": {
+    "@fphd/db": "workspace:*",
+    "@fphd/express": "workspace:*",
     "@testing-library/dom": "catalog:",
     "@testing-library/react": "catalog:",
+    "@types/express": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "drizzle-orm": "catalog:",
+    "express": "catalog:",
     "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

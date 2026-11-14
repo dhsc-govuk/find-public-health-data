@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
+import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
@@ -78,6 +79,8 @@ function page(
   history?: Promise<never>,
   search?: Promise<never>,
 ) {
+  const primary = entries[0];
+  if (!primary) throw new Error('Indicator fixture missing');
   const Routes = createRoutesStub([
     {
       path: 'indicator/:slug',
@@ -106,6 +109,12 @@ function page(
             }
           }
           comparison={{
+            areaChart: compactIndicator({
+              ...primary,
+              areaData: [...areas, ...(entries[0]?.areaData ?? [])],
+            }),
+            compareAreaRanges: [],
+            scatter: loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams),
             ...indicatorComparisonModel(entries, {
               compareAreasData: areas,
               comparedAreasData: [],
@@ -137,7 +146,7 @@ it('opens one indicator with the five prototype tabs and no selection controls',
     within(screen.getByRole('tabpanel', { name: 'Indicator' })).getByRole('region', {
       name: 'Diabetes prevalence trend chart',
     }).textContent,
-  ).toContain('Data visualisation to follow');
+  ).toContain('View chart data as a table');
 });
 
 it('offers the table columns for the raw numbers the indicator has', () => {
@@ -172,20 +181,24 @@ it('keeps England as the benchmark when comparing local areas', () => {
       observations: england.observations.map((observation) => ({ ...observation, value: 11 })),
     },
   ]);
-  expect(screen.getByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
-  expect(screen.getByRole('rowheader', { name: 'Slough' })).toBeTruthy();
   const table = within(screen.getByRole('table', { name: /Table of area comparisons/ }));
+  expect(table.getByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
+  expect(table.getByRole('rowheader', { name: 'Slough' })).toBeTruthy();
   expect(table.getByRole('cell', { name: '7.9' })).toBeTruthy();
   expect(table.getByRole('cell', { name: '11.0' })).toBeTruthy();
   expect(table.getByRole('cell', { name: 'Higher' })).toBeTruthy();
-  const slough = screen.getByRole('rowheader', { name: 'Slough' }).closest('tr');
+  const slough = table.getByRole('rowheader', { name: 'Slough' }).closest('tr');
   const bar = slough?.querySelector('svg rect:nth-of-type(2)');
   expect(bar?.getAttribute('fill')).toBe('#254BA4');
   expect(Number(bar?.getAttribute('width'))).toBeCloseTo((11 / 15) * 100);
-  const map = within(screen.getByRole('tabpanel', { name: 'Compare areas' })).getByRole('region', {
-    name: 'Diabetes prevalence map',
-  });
-  expect(map.textContent).toContain('Data visualisation to follow');
+  const chart = within(screen.getByRole('tabpanel', { name: 'Compare areas' })).getByRole(
+    'region',
+    {
+      name: /^Compare areas: Diabetes prevalence/,
+    },
+  );
+  expect(chart.textContent).toContain('View chart data as a table');
+  expect(screen.getByLabelText('Colour areas by')).toBeTruthy();
 });
 
 it('shows one compared indicator in an area-aligned comparison table', () => {
@@ -201,11 +214,36 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
     within(screen.getByRole('tabpanel', { name: 'Compare indicators' })).getByRole('region', {
       name: 'Indicator comparison scatter chart',
     }).textContent,
-  ).toContain('Data visualisation to follow');
-  expect(screen.getByRole('rowheader', { name: 'England' })).toBeTruthy();
+  ).toContain('View chart data as a table');
+  expect(
+    screen.getByRole('heading', { name: /^Diabetes mortality compared with Diabetes prevalence/ }),
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Swap axes' })).toBeTruthy();
+  expect(
+    within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
+      'rowheader',
+      { name: 'England' },
+    ),
+  ).toBeTruthy();
   expect(screen.getByRole('link', { name: 'Clear search' }).getAttribute('href')).toBe(
     '/indicator/indicator-241?tab-indicator=compare',
   );
+});
+
+it('labels cached scatter axes in the order requested by a saved comparison link', () => {
+  page(
+    [selected(241, 'Diabetes prevalence', 7.9), selected(93995, 'Diabetes mortality', 109.6)],
+    '/indicator/indicator-241?compareWith=indicator-93995&scatter-x=93995&scatter-y=241',
+  );
+  const chart = within(screen.getByRole('region', { name: 'Indicator comparison scatter chart' }));
+  const table = within(chart.getByRole('table', { hidden: true }));
+  expect(
+    table.getAllByRole('columnheader', { hidden: true }).map((cell) => cell.textContent),
+  ).toEqual(['Area', 'Diabetes mortality (%)', 'Diabetes prevalence (%)']);
+  expect(table.getAllByRole('cell', { hidden: true }).map((cell) => cell.textContent)).toEqual([
+    '109.6%',
+    '7.9%',
+  ]);
 });
 
 it('keeps England alongside the shared local-area range and aligns values by area code', () => {
@@ -267,6 +305,9 @@ it('replaces deferred comparison models after changing geography', async () => {
             selection: { areaCodes: [], areaLevels: [], shortIds: [241] },
           }),
           comparison: Promise.resolve({
+            areaChart: compactIndicator({ ...primary, areaData: [...areas, ...primary.areaData] }),
+            compareAreaRanges: [],
+            scatter: undefined,
             ...indicatorComparisonModel([primary], {
               compareAreasData: areas,
               comparedAreasData: [],
@@ -280,11 +321,19 @@ it('replaces deferred comparison models after changing geography', async () => {
     },
   ]);
   render(<Routes initialEntries={['/indicator/indicator-241?tab-indicator=areas']} />);
-  expect(await screen.findByRole('rowheader', { name: 'Slough' })).toBeTruthy();
+  expect(
+    await within(
+      await screen.findByRole('table', { name: /Table of area comparisons/ }),
+    ).findByRole('rowheader', { name: 'Slough' }),
+  ).toBeTruthy();
   fireEvent.change(screen.getByRole('combobox', { name: 'Type of geography' }), {
     target: { value: 'Statistical regions' },
   });
-  expect(await screen.findByRole('rowheader', { name: 'London' })).toBeTruthy();
+  expect(
+    await within(
+      await screen.findByRole('table', { name: /Table of area comparisons/ }),
+    ).findByRole('rowheader', { name: 'London' }),
+  ).toBeTruthy();
   expect(screen.queryByRole('rowheader', { name: 'Slough' })).toBeNull();
 });
 
@@ -317,9 +366,19 @@ it('renders area and indicator comparisons when primary history fails', async ()
     [],
     history.promise,
   );
-  expect(screen.getByRole('rowheader', { name: 'England' })).toBeTruthy();
+  expect(
+    within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
+      'rowheader',
+      { name: 'England' },
+    ),
+  ).toBeTruthy();
   await act(async () => history.reject(new Error('History unavailable')));
-  expect(screen.getByRole('rowheader', { name: 'England' })).toBeTruthy();
+  expect(
+    within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
+      'rowheader',
+      { name: 'England' },
+    ),
+  ).toBeTruthy();
   fireEvent.click(screen.getByRole('tab', { name: 'Compare areas' }));
   expect(await screen.findByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
 });

@@ -72,7 +72,8 @@ export async function getIndicatorSeriesData(
   db: Database,
   indicatorIds: string[],
   codes: string[],
-  mode: 'ranking' | 'recent' | 'latest',
+  mode: 'ranking' | 'recent' | 'latest' | 'sparkline',
+  includePopulationKeys = false,
 ): Promise<Result | undefined> {
   if (!indicatorIds.length || !codes.length) return new Map();
   const areas = await db
@@ -93,6 +94,8 @@ export async function getIndicatorSeriesData(
         latestObservationId: series.latestObservationId,
         rankingObservationId: series.rankingObservationId,
         recentObservationIds: series.recentObservationIds,
+        sparklineObservationIds:
+          mode === 'sparkline' ? series.sparklineObservationIds : sql<string[] | null>`null`,
         recentValues: series.recentValues,
       },
     })
@@ -112,6 +115,8 @@ export async function getIndicatorSeriesData(
   if (new Set(loaded.map(({ indicatorId }) => indicatorId)).size !== indicatorIds.length)
     return undefined;
   const rows = loaded.flatMap((row) => (row.series ? [row.series] : []));
+  if (mode === 'sparkline' && rows.some((row) => row.sparklineObservationIds === null))
+    return undefined;
   const ordered = codes.flatMap((code) => {
     const match = areas.find((entry) => entry.code === code);
     return match ? [match] : [];
@@ -148,8 +153,10 @@ export async function getIndicatorSeriesData(
   } else
     for (const row of rows) {
       wanted.add(row.latestObservationId);
-      if (mode === 'recent') for (const id of row.recentObservationIds) wanted.add(id);
+      if (mode !== 'latest') for (const id of row.recentObservationIds) wanted.add(id);
     }
+  if (mode === 'sparkline')
+    for (const row of rows) for (const id of row.sparklineObservationIds ?? []) wanted.add(id);
   const england = areas.find((a) => a.code === ENGLAND_AREA_CODE);
   const benchmarkIds = england
     ? [
@@ -202,6 +209,9 @@ export async function getIndicatorSeriesData(
           return {
             areaCode: a.code,
             areaName: a.name,
+            ...(includePopulationKeys
+              ? { populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))] }
+              : {}),
             observations:
               point && point.fromDate === latest?.fromDate && point.toDate === latest?.toDate
                 ? [point]
@@ -246,13 +256,15 @@ export async function getIndicatorSeriesData(
         if (entry.trends)
           entry.trends[a.code] = recentTrendDirection([...row.recentValues].reverse());
         add(a.id, latest);
-        if (mode === 'recent')
+        if (mode !== 'latest')
           for (const id of row.recentObservationIds) {
             const point = byId.get(id);
             if (point) add(a.id, point);
           }
       }
     }
+    if (mode === 'sparkline')
+      for (const row of extra) if (row.indicatorId === indicatorId) add(row.areaId, row.point);
     if (england)
       for (const row of extra)
         if (row.indicatorId === indicatorId && row.areaId === england.id)

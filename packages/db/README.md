@@ -151,10 +151,13 @@ canonical history query when a newly published batch awaits its rebuild. The fal
 histories and applies the shared `tableSummary` and `rankingAreaSeries` utilities before returning
 table or ranking data.
 
-`GET /api/indicator-data` accepts `observationHistory=recentPerSeries` (the default) or
-`observationHistory=latestPerSeries`. Both return the latest point of each elected series, trend
-directions and England benchmarks; the default also returns the five most recent non-null points
-used by trend charts.
+`GET /api/indicator-data` accepts `observationHistory=recentPerSeries` (the default),
+`observationHistory=latestPerSeries` or `observationHistory=lastEightPeriodsPerSeries`. All return
+the latest point of each elected series, trend directions and England benchmarks; the default also
+returns the five most recent non-null points used by trend charts. `lastEightPeriodsPerSeries` adds
+the last eight periods, including null gaps, to that recent history for sparklines. The cached path
+selects these periods with a Drizzle window query; the full-history fallback uses `tableSummary`'s
+sparkline mode.
 
 ## Adding a table
 

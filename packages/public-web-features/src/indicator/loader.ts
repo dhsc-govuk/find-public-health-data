@@ -33,6 +33,7 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
 import { loadInBatches } from './batches.ts';
+import { quintileParam } from './charts/chart-data.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
 export type {
@@ -61,8 +62,7 @@ export interface SelectedIndicator {
   tableSeries?: TableSeriesSelection[];
   /** The statistical regions the selected areas roll up to, for the region benchmark. */
   regionData?: IndicatorAreaData[];
-  /** Per display level ('Local authorities', 'Statistical regions'…): min/max of the
-   *  value across every area of that level, per period — the comparison range. */
+  /** Distribution across all areas of each display level, per period and segment. */
   ranges?: Record<string, IndicatorRangePeriod[]>;
 }
 
@@ -283,6 +283,9 @@ export async function loadIndicatorData(
       url.searchParams.get('cr-compare') === 'yes',
     ];
     const rangeLevels = new Set<string>();
+    if (includePageData && url.searchParams.get(quintileParam(id)) === 'yes') {
+      for (const level of pickedLevels) rangeLevels.add(level);
+    }
     choices.forEach((choice, index) => {
       if (!ranges[index]) {
         return;
@@ -357,10 +360,8 @@ export async function loadIndicatorData(
           };
           const comparison = comparisonFor(id);
           const [detail, areaData, regionData, rangeEntries] = await Promise.all([
-            // The page's own indicator is already loaded; only the compared ones are fetched.
-            id === routeDetail?.shortId
-              ? routeDetail
-              : api.get(apiPath`/api/indicators/${String(id)}`, indicatorDetailSchema),
+            [routeDetail, comparedDetail].find((detail) => detail?.shortId === id) ??
+              api.get(apiPath`/api/indicators/${String(id)}`, indicatorDetailSchema),
             // One request per indicator carrying every area, rather than one per pair: a
             // page comparing ten indicators across twenty areas would otherwise fire 200.
             dataFor(codesToLoad),

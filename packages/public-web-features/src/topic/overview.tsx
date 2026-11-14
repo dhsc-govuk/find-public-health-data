@@ -1,7 +1,8 @@
-import { ChartSection, GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
+import { GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { Link } from 'react-router';
-import { formatCalculatedValue, withUnit } from '../indicator/data.ts';
+import { Sparkline } from '../indicator/charts/sparkline.tsx';
+import { formatCalculatedValue } from '../indicator/data.ts';
 import { TrendTag } from '../indicator/trend-tag.tsx';
 import { searchUrl } from '../search/url.ts';
 import { TopicGeographies } from './geographies.tsx';
@@ -100,10 +101,12 @@ export function TopicOverview({
                 </Link>
               </h3>
               {highlight.hasTrend ? (
-                <ChartSection
+                <Sparkline
                   id={`topic-highlight-chart-${highlight.shortId}`}
                   title={`${highlight.name}, ${highlight.areaName}: trend chart`}
-                  description={`How this indicator has changed over time in ${highlight.areaName}.`}
+                  indicator={highlight}
+                  areaName={highlight.areaName}
+                  points={highlight.points}
                 />
               ) : (
                 <p className="govuk-hint fphd-topic-highlight__no-trend">
@@ -115,16 +118,28 @@ export function TopicOverview({
               <SummaryList
                 items={[
                   { name: 'Most recent period', children: highlight.period },
-                  ...highlight.measures.map(({ label, value }) => ({
-                    name: label,
-                    children: value == null ? 'No data' : value.toLocaleString(),
-                  })),
+                  {
+                    name: 'Count',
+                    children: highlight.count?.toLocaleString('en-GB') ?? 'No data',
+                  },
                   {
                     name: 'Calculated value',
                     children:
-                      highlight.value == null
-                        ? 'No data'
-                        : withUnit(formatCalculatedValue(highlight.value), highlight.unit),
+                      highlight.value == null ? (
+                        'No data'
+                      ) : (
+                        <>
+                          {formatCalculatedValue(highlight.value)}
+                          {highlight.unit === '%' ? (
+                            '%'
+                          ) : highlight.unit ? (
+                            <>
+                              {' '}
+                              <span className="govuk-hint">{highlight.unit}</span>
+                            </>
+                          ) : null}
+                        </>
+                      ),
                   },
                   {
                     name: 'Trend (last 5 periods)',

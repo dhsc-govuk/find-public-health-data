@@ -688,7 +688,12 @@ export function periodCovered(
 export type RecentTrend =
   | { direction: 'up' | 'down'; label: string; tone: 'green' | 'red' | 'blue' }
   | { direction: 'right'; label: string; tone: 'yellow' }
-  | { direction: null; label: string; tone: 'grey' };
+  | {
+      direction: null;
+      label: string;
+      tone: 'grey';
+      reason: 'multi-year periods' | 'not enough data points';
+    };
 
 /**
  * Direction of the latest five aggregate values, read with the indicator's polarity so
@@ -700,12 +705,25 @@ export function recentTrend(
   polarity: Polarity | null,
   precomputed?: TrendDirection,
 ): RecentTrend {
+  const series = trendSeries(observations);
+  if (series.some(isRollingPeriod))
+    return {
+      direction: null,
+      label: 'Trend unavailable',
+      tone: 'grey',
+      reason: 'multi-year periods',
+    };
   const direction =
     precomputed === undefined
-      ? recentTrendDirection(trendSeries(observations).map(({ value }) => value))
+      ? recentTrendDirection(series.map(({ value }) => value))
       : precomputed;
   if (direction === null)
-    return { direction: null, label: 'Trend cannot be calculated', tone: 'grey' };
+    return {
+      direction: null,
+      label: 'Trend unavailable',
+      tone: 'grey',
+      reason: 'not enough data points',
+    };
   if (direction === 'right') return { direction, label: 'No significant change', tone: 'yellow' };
   const goodDirection = polarityGoodDirection(polarity);
   const word = direction === 'up' ? 'Increasing' : 'Decreasing';
