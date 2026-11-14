@@ -169,6 +169,8 @@ describe('loadIndicatorCsv', () => {
     expect(body).toContain('Segment');
     expect(body).toContain('Male');
     expect(body).toContain('Provisional');
+    expect(body).toContain(',England,England,2023,');
+    expect(paths(client).some((path) => path.includes('/areas'))).toBe(false);
   });
 
   it('exports every published area in bounded batches with a single CSV header', async () => {
@@ -183,21 +185,114 @@ describe('loadIndicatorCsv', () => {
           areaName: areas.find((area) => area.code === code)?.name ?? '',
           observations: [observation()],
         })),
-      { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Local authorities', areas }] },
+      { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Statistical regions', areas }] },
     );
     const response = await loadIndicatorCsv(
       args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
       'all-data',
     );
     const csv = await response.text();
-    expect(csv.split('\n').filter((line) => line.startsWith('Indicator,Area,Period'))).toHaveLength(
-      1,
-    );
+    expect(
+      csv.split('\n').filter((line) => line.startsWith('Indicator,Area,Area type,Period')),
+    ).toHaveLength(1);
     expect(csv).toContain('Area 22');
     const sizes = client.calls
       .filter(({ path }) => path.includes('/data?'))
       .map((call) => areaCodes(call).length);
     expect(sizes).toEqual([20, 3]);
+  });
+
+  it("names each area's type beside it in the all-areas download", async () => {
+    const groups = [
+      { displayGroup: 'England', areas: [{ code: 'E92000001', name: 'England' }] },
+      {
+        displayGroup: 'Local authorities',
+        areas: [
+          { code: 'E10000032', name: 'West Sussex' },
+          { code: 'E07000223', name: 'Adur' },
+          { code: 'E06000043', name: 'Brighton and Hove' },
+        ],
+      },
+      { displayGroup: 'Integrated care boards', areas: [{ code: 'E54000064', name: 'Sussex' }] },
+    ];
+    const names = new Map(
+      groups.flatMap(({ areas }) => areas.map(({ code, name }) => [code, name])),
+    );
+    const client = api(
+      (call) =>
+        areaCodes(call).map((code) => ({
+          areaCode: code,
+          areaName: names.get(code) ?? '',
+          observations: [observation()],
+        })),
+      { [`GET ${DETAIL}/areas`]: groups },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      'all-data',
+    );
+    const lines = (await response.text()).trim().split(/\r?\n/);
+    expect(lines[0]?.startsWith('Indicator,Area,Area type,Period,')).toBe(true);
+    // The indicator name holds a comma and quotes, so read the fields after its closing quote.
+    expect(
+      lines.slice(1).map((line) =>
+        line
+          .slice(line.lastIndexOf('"') + 2)
+          .split(',')
+          .slice(0, 3),
+      ),
+    ).toEqual([
+      ['England', 'England', '2023'],
+      ['West Sussex', 'Upper tier local authority', '2023'],
+      ['Adur', 'Lower tier local authority', '2023'],
+      ['Brighton and Hove', 'Upper and lower tier local authority', '2023'],
+      ['Sussex', 'Integrated care board', '2023'],
+    ]);
+  });
+
+  it('looks up only the selected areas its GSS code cannot name', async () => {
+    const client = api(
+      [
+        { areaCode: 'W06000015', areaName: 'Cardiff', observations: [observation()] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
+      ],
+      {
+        'GET /api/areas/lookup': [
+          {
+            code: 'W06000015',
+            name: 'Cardiff',
+            areaType: 'LA unchanged',
+            displayGroup: 'Local authorities',
+          },
+        ],
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?as=W06000015`),
+      'all-data',
+    );
+    const body = await response.text();
+    expect(body).toContain(',Cardiff,Local authority,2023,');
+    expect(body).toContain(',England,England,2023,');
+    const lookups = client.calls.filter(({ path }) => path.startsWith('/api/areas/lookup'));
+    expect(lookups.map(areaCodes)).toEqual([['W06000015']]);
+  });
+
+  it('labels a code listed under two groups by the first group', async () => {
+    const client = api(
+      [{ areaCode: 'Y00001', areaName: 'Practice', observations: [observation()] }],
+      {
+        [`GET ${DETAIL}/areas`]: [
+          { displayGroup: 'GP practices', areas: [{ code: 'Y00001', name: 'Practice' }] },
+          { displayGroup: 'PCNs (v. 26/06/25)', areas: [{ code: 'Y00001', name: 'Practice' }] },
+        ],
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      'all-data',
+    );
+    expect(await response.text()).toContain(',Practice,GP practice,2023,');
   });
 
   it('ignores a sex the data does not publish rather than serving an empty table', async () => {

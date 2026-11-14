@@ -56,3 +56,32 @@ export function geographyGroupLabel(group: string): string {
   const acronyms: Record<string, string> = { nhs: 'NHS', icbs: 'ICBs', msoas: 'MSOAs' };
   return group.toLowerCase().replace(/\b(nhs|icbs|msoas)\b/g, (word) => acronyms[word] ?? word);
 }
+
+// A GSS code names its own area type, so it decides wherever it is recognised; the same shapes
+// as areasInGeographyGroup keep the tier labels and the tier filters in step.
+const AREA_TYPES_BY_CODE: [RegExp, string][] = [
+  [/^E92\d{6}$/, 'England'],
+  [/^E12\d{6}$/, 'Statistical region'],
+  [/^E40\d{6}$/, 'NHS region'],
+  [/^E54\d{6}$/, 'Integrated care board'],
+  [/^E02\d{6}$/, 'Middle-layer super output area'],
+  [/^E10\d{6}$/, 'Upper tier local authority'],
+  [/^E07\d{6}$/, 'Lower tier local authority'],
+  [/^E(?:06|08|09)\d{6}$/, 'Upper and lower tier local authority'],
+];
+
+const SINGLE_AREA_TYPES: Record<string, string> = {
+  'Local authorities': 'Local authority',
+  'Integrated care boards': 'Integrated care board',
+  'Middle-layer super output areas': 'Middle-layer super output area',
+  'NHS regions': 'NHS region',
+  'Statistical regions': 'Statistical region',
+  'GP practices': 'GP practice',
+};
+
+export function areaTypeLabel(code: string, group?: string): string | null {
+  const byCode = AREA_TYPES_BY_CODE.find(([pattern]) => pattern.test(code))?.[1];
+  if (byCode) return byCode;
+  if (!group) return null;
+  return SINGLE_AREA_TYPES[group] ?? group;
+}
