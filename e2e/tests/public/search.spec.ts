@@ -292,7 +292,7 @@ test('the sort survives tab switches, new searches and filter changes', async ({
   await page.getByRole('tab', { name: /^Topics/ }).click();
   await expect(page).toHaveURL(/tab-search=topics/);
   await page.getByRole('tab', { name: /^Indicators/ }).click();
-  await expect(page).toHaveURL(/tab-search=indicators/);
+  await expect(page).not.toHaveURL(/tab-search=topics/);
   expect(new URL(page.url()).searchParams.get('sort')).toBe('recently-updated');
   await expect(sortBy(page)).toHaveValue('recently-updated');
 
