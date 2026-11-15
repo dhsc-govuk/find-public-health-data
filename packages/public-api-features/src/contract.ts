@@ -166,7 +166,8 @@ export const indicatorDetailSchema = z.object({
   unit: z.string().min(1).nullable(),
   /** Null for an indicator of months, which have no year type. */
   yearType: z.object({ value: z.enum(YEAR_TYPES), label: z.string().min(1) }).nullable(),
-  updateFrequency: z.enum(UPDATE_FREQUENCIES),
+  /** Null for an indicator imported from Fingertips without a frequency the service can name. */
+  updateFrequency: z.enum(UPDATE_FREQUENCIES).nullable(),
   /**
    * Why the indicator has no fixed frequency or will no longer be updated. Null beside any other
    * frequency, and beside those two for an indicator imported without one.

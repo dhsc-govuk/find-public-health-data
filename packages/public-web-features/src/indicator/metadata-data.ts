@@ -11,7 +11,8 @@ export function providerSourceText(entries: IndicatorProviderSource[]): string {
 export function updateFrequencyText({
   updateFrequency,
   updateFrequencyReason,
-}: Pick<IndicatorDetail, 'updateFrequency' | 'updateFrequencyReason'>): string {
+}: Pick<IndicatorDetail, 'updateFrequency' | 'updateFrequencyReason'>): string | null {
+  if (!updateFrequency) return null;
   const { text, reason } = publicUpdateFrequency(updateFrequency, updateFrequencyReason);
   return reason ? `${text}\n${reason}` : text;
 }
