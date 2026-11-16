@@ -54,7 +54,6 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
   '/publish/indicators/:id/variance-and-quality': 'indicator-variance-and-quality.spec.ts',
   '/publish/indicators/:id/justifications': 'indicator-yes-no-sections.spec.ts',
   '/publish/indicators/:id/other-comments': 'indicator-yes-no-sections.spec.ts',
-  '/publish/indicators/:id/copyright-and-data-reuse': 'indicator-yes-no-sections.spec.ts',
   '/publish/indicators/:id/benchmarking': 'indicator-benchmarking.spec.ts',
   '/publish/indicators/:id/sex-gender-and-ethnicity': 'indicator-sex-gender-and-ethnicity.spec.ts',
   '/publish/indicators/:id/ages': 'indicator-ages.spec.ts',

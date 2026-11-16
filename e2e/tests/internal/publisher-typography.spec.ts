@@ -22,7 +22,6 @@ const SECTIONS = [
   'variance-and-quality',
   'justifications',
   'other-comments',
-  'copyright-and-data-reuse',
   'benchmarking',
   'sex-gender-and-ethnicity',
   'ages',

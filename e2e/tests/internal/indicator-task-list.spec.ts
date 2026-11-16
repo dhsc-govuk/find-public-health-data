@@ -29,7 +29,6 @@ const TASK_GROUPS = {
     'Benchmarking',
     'Other notes and caveats',
     'Tagging',
-    'Copyright and data re-use',
   ],
   Publishing: ['Update frequency', 'Publishing date'],
   'Notes for reviewers (not visible to consumers)': [

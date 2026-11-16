@@ -19,7 +19,6 @@ import {
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
-  copyrightAndDataReuseSection,
   dataQualitySection,
   definitionAndRationaleSection,
   denominatorSection,
@@ -45,7 +44,6 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
-  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
@@ -247,16 +245,6 @@ const CHANGED_SECTIONS: Readonly<
     hasReviewerComments: yesNo,
     reviewerCommentsDetail: 'text',
   }),
-  'copyright-and-data-reuse': sectionOf(
-    copyrightAndDataReuseSection,
-    copyrightAndDataReuseColumns,
-    {
-      hasCustomCopyright: yesNo,
-      customCopyrightDetail: 'text',
-      hasCustomDataReuse: yesNo,
-      customDataReuseDetail: 'text',
-    },
-  ),
   benchmarking: sectionOf(benchmarkingSection, benchmarkingColumns, {
     hasGoalBenchmark: yesNo,
     goalLowerValue: entered,

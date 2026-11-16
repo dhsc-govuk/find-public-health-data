@@ -19,7 +19,6 @@ type YesNoQuestion = {
   details: string;
   refusal: string;
   detailsRefusal: string;
-  hint?: string;
   /** An answer besides Yes and No, which asks for no details. */
   otherAnswer?: string;
   /** A details field that shows while No is chosen, for a question that asks under both. */
@@ -73,27 +72,6 @@ const SECTIONS: YesNoSection[] = [
         details: 'Provide details',
         refusal: 'Select whether there are any other notes needed',
         detailsRefusal: 'Provide details of the other notes',
-      },
-    ],
-  },
-  {
-    section: { key: 'copyright-and-data-reuse', taskName: 'Copyright and data re-use' },
-    heading: 'Copyright and data re-use',
-    textQuestions: [],
-    questions: [
-      {
-        legend: 'Is the copyright different to the default?',
-        details: 'Provide details',
-        refusal: 'Select whether the copyright is anything other than Crown copyright',
-        detailsRefusal: 'Provide details of the copyright',
-        hint: 'The default is "© Crown copyright"',
-      },
-      {
-        legend: 'Is the data re-use different to the default?',
-        details: 'Provide details',
-        refusal: 'Select whether the data re-use is different to the default',
-        detailsRefusal: 'Provide details of the data re-use',
-        hint: 'The default is "The data may be used referencing Office for Health Improvement and Disparities"',
       },
     ],
   },
@@ -243,10 +221,8 @@ for (const {
           await expect(page.getByLabel(label)).toBeEmpty();
         }
         await expect(checkedRadios(page)).toHaveCount(0);
-        for (const { legend, hint } of questions) {
-          const group = page.getByRole('group', { name: legend });
-          await expect(group).toBeVisible();
-          if (hint !== undefined) await expect(group).toContainText(hint);
+        for (const { legend } of questions) {
+          await expect(page.getByRole('group', { name: legend })).toBeVisible();
         }
       },
       refusal: {

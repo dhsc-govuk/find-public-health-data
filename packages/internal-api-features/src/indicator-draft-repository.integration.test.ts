@@ -712,15 +712,6 @@ describe('updateIndicatorDraft', () => {
       },
     ],
     [
-      'the copyright and data re-use terms',
-      {
-        hasCustomCopyright: true,
-        customCopyrightDetail: 'Copyright © NHS England',
-        hasCustomDataReuse: false,
-        customDataReuseDetail: null,
-      },
-    ],
-    [
       'a goal, its values as they were given',
       {
         hasGoalBenchmark: true,

@@ -187,10 +187,6 @@ export default [
         '../../../packages/internal-web-features/src/indicator-other-comments/route.tsx',
       ),
       route(
-        'publish/indicators/:id/copyright-and-data-reuse',
-        '../../../packages/internal-web-features/src/indicator-copyright-and-data-reuse/route.tsx',
-      ),
-      route(
         'publish/indicators/:id/benchmarking',
         '../../../packages/internal-web-features/src/indicator-benchmarking/route.tsx',
       ),

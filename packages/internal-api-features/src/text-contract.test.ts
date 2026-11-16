@@ -4,7 +4,6 @@ import { agesSection } from './indicator-ages-contract.ts';
 import { benchmarkingSection } from './indicator-benchmarking-contract.ts';
 import { calculationSection } from './indicator-calculation-contract.ts';
 import { confidenceIntervalsSection } from './indicator-confidence-intervals-contract.ts';
-import { copyrightAndDataReuseSection } from './indicator-copyright-and-data-reuse-contract.ts';
 import { definitionAndRationaleSection } from './indicator-definition-and-rationale-contract.ts';
 import { justificationsSection } from './indicator-justifications-contract.ts';
 import {
@@ -165,15 +164,6 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
     {
       ciMethodModificationsDetail: 'Description of the modifications',
       ciMethodDetail: 'Details of the other confidence interval method',
-    },
-  ],
-  [
-    'copyright and data re-use',
-    10_000,
-    refusalsOf(copyrightAndDataReuseSection),
-    {
-      customCopyrightDetail: 'Details of the copyright',
-      customDataReuseDetail: 'Details of the data re-use',
     },
   ],
   [

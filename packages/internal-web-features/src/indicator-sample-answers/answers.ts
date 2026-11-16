@@ -5,7 +5,6 @@ import {
   type CiMethod,
   calculationSection,
   confidenceIntervalsSection,
-  copyrightAndDataReuseSection,
   type DataProvider,
   dataQualitySection,
   definitionAndRationaleSection,
@@ -175,7 +174,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       },
       taggingAnswersSchema,
     ),
-    text(copyrightAndDataReuseSection, { hasCustomCopyright: 'no', hasCustomDataReuse: 'no' }),
     text(updateFrequencySection, { updateFrequency: 'annually' }),
     text(publishingDateSection, {
       publishingDateDay: '1',
