@@ -1,5 +1,5 @@
 import { TZDate } from '@date-fns/tz';
-import { addDays, addHours, differenceInCalendarDays } from 'date-fns';
+import { addHours, differenceInCalendarDays } from 'date-fns';
 
 const UK_TIME_ZONE = 'Europe/London';
 
@@ -47,12 +47,6 @@ export function ukInstant(dateTime: UkDateTime): Date | null {
   });
 
   return instant === undefined ? null : new Date(instant.getTime());
-}
-
-/** The UK date `days` after the one `instant` falls on. */
-export function ukDateAfter(instant: Date, days: number): UkDate {
-  const { year, month, day } = ukDateTime(addDays(inUk(instant), days));
-  return { year, month, day };
 }
 
 /** Calendar days from the UK date `instant` falls on until `date`, negative for one before. */

@@ -48,6 +48,7 @@ export function indicatorDetail(
     draftReviewers: [],
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFastTrackReason: null,
     draftFirstSubmittedAt: null,
     draftResponse: null,
     nameVersion: SHOWN_VERSION,

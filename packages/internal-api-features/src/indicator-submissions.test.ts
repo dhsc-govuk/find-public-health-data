@@ -41,6 +41,7 @@ const submittedRow: IndicatorAdminDetailRow = {
   publishedSlug: null,
   draftSubmissionNumber: 1,
   draftScheduledPublishAt: null,
+  draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
 };

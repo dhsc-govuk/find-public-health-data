@@ -876,6 +876,15 @@ describe('the published views', () => {
     expect(rows).toEqual([]);
   });
 
+  it('keep the reason for fast-tracking off the public surface', async () => {
+    const rows = (await db.execute(
+      sql`SELECT table_name FROM information_schema.columns
+          WHERE table_schema = 'published' AND column_name = 'fast_track_reason'`,
+    )) as unknown as { table_name: string }[];
+
+    expect(rows).toEqual([]);
+  });
+
   it('keep whether there are data quality issues off the public surface', async () => {
     const rows = (await db.execute(
       sql`SELECT table_name, column_name FROM information_schema.columns

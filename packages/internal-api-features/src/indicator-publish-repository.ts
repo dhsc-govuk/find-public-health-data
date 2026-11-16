@@ -61,6 +61,7 @@ export async function createDraftFromPublished(
             publishedAt: null,
             // A new version is published when its own publisher says.
             scheduledPublishAt: null,
+            fastTrackReason: null,
             // Each update summarises its own changes.
             updateSummary: null,
             updateSummaryForReviewers: null,

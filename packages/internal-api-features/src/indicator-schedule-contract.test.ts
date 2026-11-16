@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { publishingDateSection } from './indicator-publishing-date-contract.ts';
-import { FUTURE_PUBLISHING_DATE, scheduleSchemaFor } from './indicator-schedule-contract.ts';
+import {
+  FUTURE_PUBLISHING_DATE,
+  publishingDateTimeFields,
+} from './indicator-publishing-date-contract.ts';
+import { scheduleSchemaFor } from './indicator-schedule-contract.ts';
 import { toFieldErrors } from './indicator-section-contract.ts';
 
 // 09:30 BST on 14 September 2027.
@@ -18,7 +21,7 @@ function answers(day: string, month: string, year: string, hour = '09', minute =
 
 function fieldErrors(body: ReturnType<typeof answers>) {
   const parsed = scheduleSchemaFor(NOW).safeParse(body);
-  return parsed.success ? undefined : toFieldErrors(parsed.error, publishingDateSection.fields);
+  return parsed.success ? undefined : toFieldErrors(parsed.error, publishingDateTimeFields);
 }
 
 const IN_THE_PAST = {

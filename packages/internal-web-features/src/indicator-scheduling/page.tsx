@@ -1,13 +1,14 @@
 import {
-  type PublishingDateField,
-  publishingDateSection,
+  type PublishingDateTimeField,
+  publishingDateTimeFields,
 } from '@fphd/internal-api-features/contract';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 import { PublishingDateFields, publishingDateFieldIds } from '../publishing-date-fields.tsx';
 import { SHOWN_FIELD } from './loader.ts';
 
-interface PublicationDatePageProps extends Omit<SectionPageProps<PublishingDateField>, 'version'> {
+interface PublicationDatePageProps
+  extends Omit<SectionPageProps<PublishingDateTimeField>, 'version'> {
   /** The date the page first showed, which the save sends back. */
   shownScheduledPublishAt: string;
 }
@@ -21,7 +22,7 @@ export function PublicationDatePage({
     <IndicatorSectionForm
       fieldIds={publishingDateFieldIds}
       form={form}
-      section={publishingDateSection}
+      fields={publishingDateTimeFields.options}
       submitLabel="Submit"
       title="Confirm publication date"
     >

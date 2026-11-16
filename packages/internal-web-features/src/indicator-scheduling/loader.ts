@@ -3,8 +3,8 @@ import { canSchedulePublication } from '@fphd/auth/permissions';
 import {
   indicatorAdminDetailSchema,
   indicatorScheduleErrorSchema,
-  type PublishingDateField,
-  publishingDateSection,
+  type PublishingDateTimeField,
+  publishingDateTimeFields,
   publishingDateValues,
   scheduleSchemaFor,
   toFieldErrors,
@@ -26,7 +26,7 @@ import { publishingDateControlNames } from '../publishing-date-form.ts';
 export const SHOWN_FIELD = 'shownScheduledPublishAt';
 
 /** The page as the action re-renders it after a refusal, with the date it first showed. */
-export type PublicationDateRefusal = FormFailure<PublishingDateField> & {
+export type PublicationDateRefusal = FormFailure<PublishingDateTimeField> & {
   shownScheduledPublishAt: string;
 };
 
@@ -96,7 +96,7 @@ export async function confirmPublicationDate({
 
   const values = readFormValues(
     formData,
-    publishingDateSection.fields.options,
+    publishingDateTimeFields.options,
     publishingDateControlNames,
   );
   const checked = scheduleSchemaFor(new Date()).safeParse(values);
@@ -105,7 +105,7 @@ export async function confirmPublicationDate({
     return {
       values,
       shownScheduledPublishAt,
-      fieldErrors: toFieldErrors(checked.error, publishingDateSection.fields),
+      fieldErrors: toFieldErrors(checked.error, publishingDateTimeFields),
     };
   }
 

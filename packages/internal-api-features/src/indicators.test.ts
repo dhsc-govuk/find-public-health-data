@@ -50,6 +50,7 @@ const detailRow: IndicatorAdminDetailRow = {
   publishedSlug: 'life-expectancy-at-birth',
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
+  draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
 };
@@ -295,6 +296,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftReviewers: [],
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFastTrackReason: null,
       draftFirstSubmittedAt: null,
       draftResponse: null,
       nameVersion,
@@ -307,6 +309,7 @@ describe('GET /api/internal/indicators/:id', () => {
       ...detailRow,
       draftStatus: 'draft',
       draftScheduledPublishAt: new Date('2027-04-01T08:30:00.000Z'),
+      draftFastTrackReason: null,
     });
 
     const response = await request(createTestApp({ findAccess: findById, findById }))
@@ -482,6 +485,7 @@ describe('POST /api/internal/indicators', () => {
     draftStatus: 'draft',
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFastTrackReason: null,
     draftFirstSubmittedAt: null,
     draftResponse: null,
   };
@@ -595,6 +599,7 @@ describe('POST /api/internal/indicators', () => {
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFastTrackReason: null,
       draftFirstSubmittedAt: null,
       draftResponse: null,
       nameVersion,
@@ -763,6 +768,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
     draftStatus: 'draft',
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFastTrackReason: null,
     draftFirstSubmittedAt: null,
     draftResponse: null,
   };
@@ -821,6 +827,7 @@ describe('PATCH /api/internal/indicators/:id', () => {
       updatedAt: '2026-01-02T00:00:00.000Z',
       draftSubmissionNumber: null,
       draftScheduledPublishAt: null,
+      draftFastTrackReason: null,
       draftFirstSubmittedAt: null,
       draftResponse: null,
       nameVersion: editVersion({ name: 'A better name' }),

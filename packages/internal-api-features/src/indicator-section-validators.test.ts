@@ -204,31 +204,39 @@ describe('publishingDateServerSection', () => {
     };
   }
 
-  it('adds the instant the UK date and time name, 28 days ahead', () => {
-    const result = submit(dated('12', '10'));
+  function fastTracked(body: object) {
+    return { ...body, fastTracked: 'yes', fastTrackReason: 'For a ministerial briefing.' };
+  }
+
+  function onTheDate(message: string) {
+    return {
+      publishingDateDay: message,
+      publishingDateMonth: message,
+      publishingDateYear: message,
+    };
+  }
+
+  it('adds the instant the UK date and time name, 8 weeks ahead', () => {
+    const result = submit(dated('9', '11'));
 
     expect(result.success && result.data.scheduledPublishAt).toEqual(
-      new Date('2027-10-12T08:30:00.000Z'),
+      new Date('2027-11-09T09:30:00.000Z'),
     );
   });
 
   it.each([
-    ['27 days from today', dated('11', '10')],
+    ['55 days from today', dated('8', '11')],
     ['today', dated('14', '9')],
     ['in the past', dated('13', '9')],
   ])('refuses a date %s, on the parts of the date', (_, body) => {
-    const message = 'Publishing date must be at least 28 days from today';
-
-    expect(fieldErrorsOf(body)).toEqual({
-      publishingDateDay: message,
-      publishingDateMonth: message,
-      publishingDateYear: message,
-    });
+    expect(fieldErrorsOf(body)).toEqual(
+      onTheDate('Publishing date and time must be at least 8 weeks in the future'),
+    );
   });
 
-  it('accepts any time on the date 28 days from today', () => {
-    // Less than 28 × 24 hours after 09:30 on 14 September.
-    const midnight = { ...dated('12', '10'), publishingTimeHour: '00', publishingTimeMinute: '00' };
+  it('accepts any time on the date 8 weeks from today', () => {
+    // Less than 56 × 24 hours after 09:30 on 14 September.
+    const midnight = { ...dated('9', '11'), publishingTimeHour: '00', publishingTimeMinute: '00' };
 
     expect(submit(midnight).success).toBe(true);
   });
@@ -237,15 +245,48 @@ describe('publishingDateServerSection', () => {
     // 00:30 BST on 15 September, still 14 September in UTC.
     const lateEvening = new Date('2027-09-14T23:30:00.000Z');
 
-    expect(fieldErrorsOf(dated('12', '10'), lateEvening)).toBeDefined();
-    expect(submit(dated('13', '10'), lateEvening).success).toBe(true);
+    expect(fieldErrorsOf(dated('9', '11'), lateEvening)).toBeDefined();
+    expect(submit(dated('10', '11'), lateEvening).success).toBe(true);
   });
 
   it('counts calendar days across a clock change', () => {
-    // 09:30 GMT on 5 March; 09:30 BST on 2 April is an hour short of 28 × 24 hours later.
+    // 09:30 GMT on 5 March; 09:30 BST on 30 April is an hour short of 56 × 24 hours later.
     const march = new Date('2027-03-05T09:30:00.000Z');
 
-    expect(submit(dated('2', '4'), march).success).toBe(true);
+    expect(submit(dated('30', '4'), march).success).toBe(true);
+  });
+
+  it('accepts a fast-tracked date inside the notice period, with its reason', () => {
+    const result = submit(fastTracked(dated('15', '9')));
+
+    expect(result.success && result.data).toMatchObject({
+      fastTracked: 'yes',
+      fastTrackReason: 'For a ministerial briefing.',
+      scheduledPublishAt: new Date('2027-09-15T08:30:00.000Z'),
+    });
+  });
+
+  it('accepts a fast-tracked time later today', () => {
+    const laterToday = {
+      ...dated('14', '9'),
+      publishingTimeHour: '09',
+      publishingTimeMinute: '31',
+    };
+
+    expect(submit(fastTracked(laterToday)).success).toBe(true);
+  });
+
+  it.each([
+    ['now', dated('14', '9')],
+    [
+      'earlier today',
+      { ...dated('14', '9'), publishingTimeHour: '09', publishingTimeMinute: '29' },
+    ],
+    ['yesterday', dated('13', '9')],
+  ])('refuses a fast-tracked date and time %s, on the parts of the date', (_, body) => {
+    expect(fieldErrorsOf(fastTracked(body))).toEqual(
+      onTheDate('Publishing date and time must be in the future'),
+    );
   });
 
   it('refuses a time the spring clock change skips, on the parts of the time', () => {

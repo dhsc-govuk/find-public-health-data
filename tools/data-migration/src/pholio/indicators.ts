@@ -318,6 +318,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       is_locked: true,
       published_at: enteredAt,
       scheduled_publish_at: null,
+      fast_track_reason: null,
       upload_batch_id: uploadBatchId(id),
       data_table_confirmed_at: enteredAt,
       name,

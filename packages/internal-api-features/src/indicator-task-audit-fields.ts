@@ -42,7 +42,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   ],
   'period-type': periodTypeSection.fields.options,
   'other-notes-and-caveats': otherNotesAndCaveatsSection.fields.options,
-  'publishing-date': ['scheduledPublishAt'],
+  'publishing-date': ['scheduledPublishAt', 'fastTrackReason'],
   benchmarking: benchmarkingSection.fields.options,
   'sex-gender-and-ethnicity': sexGenderAndEthnicitySection.fields.options,
   ages: agesSection.fields.options,

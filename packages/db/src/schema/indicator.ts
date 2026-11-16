@@ -186,6 +186,9 @@ export const indicatorVersion = pgTable(
     publishedAt: timestamp({ withTimezone: true }),
     // When the publisher asks for this version to be published; published_at records when it was.
     scheduledPublishAt: timestamp({ withTimezone: true }),
+    // Why the publisher asks for a date inside the notice period. Only a fast-tracked draft has
+    // one, so a null reason means the draft is not fast-tracked.
+    fastTrackReason: text(),
     // The batch holding this version's data, which later versions share until a new upload.
     uploadBatchId: uuid(),
     // When the publisher confirmed the data table; an upload clears it.
