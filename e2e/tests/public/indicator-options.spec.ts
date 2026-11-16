@@ -166,6 +166,32 @@ test('inequality options change the breakdown period', async ({ page }) => {
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
+  test('preserves default and unchecked spread choices while the benchmark is hidden', async ({
+    page,
+  }) => {
+    await page.goto(`${MORTALITY_PATH}?as=E08000003`);
+    const options = filterCard(page, 'Table columns');
+    const benchmark = options.getByLabel('Select a geography or goal to compare with');
+    const apply = options.getByRole('button', { name: 'Apply options' });
+    await options.getByLabel('Select sex').selectOption('Male');
+    await apply.click();
+    await benchmark.selectOption('england');
+    await apply.click();
+    for (const name of ['Minimum/Maximum values', '25th/75th percentiles', 'Comparison chart']) {
+      await expect(options.getByRole('checkbox', { name, exact: true })).toBeChecked();
+      await options.getByRole('checkbox', { name, exact: true }).uncheck();
+    }
+    await apply.click();
+    await benchmark.selectOption('none');
+    await apply.click();
+    await expect(options.getByRole('checkbox', { name: 'Comparison chart' })).toHaveCount(0);
+    await benchmark.selectOption('england');
+    await apply.click();
+    for (const name of ['Minimum/Maximum values', '25th/75th percentiles', 'Comparison chart']) {
+      await expect(options.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
+    }
+  });
+
   test('table and inequality options apply through their Apply options buttons', async ({
     page,
   }) => {

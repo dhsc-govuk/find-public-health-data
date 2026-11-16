@@ -94,3 +94,41 @@ it('toggles chart, summary, minimum/maximum and percentiles independently', asyn
   expect(params.get('q')).toBe('health');
   expect(params.get('tab-topic')).toBe('data');
 });
+
+it('keeps unchecked comparison columns off after removing and re-adding the chosen area', async () => {
+  const { router } = show('ga=E12000001');
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Compared with England' }));
+  await waitFor(() =>
+    expect(topicColumns(new URLSearchParams(router.state.location.search))).not.toContain('chart'),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Comparison summary' }));
+  await waitFor(() =>
+    expect(topicColumns(new URLSearchParams(router.state.location.search))).not.toContain(
+      'summary',
+    ),
+  );
+  const params = new URLSearchParams(router.state.location.search);
+  params.delete('ga');
+  await router.navigate({ search: `?${params}` });
+  await waitFor(() =>
+    expect(screen.queryByRole('checkbox', { name: 'Compared with England' })).toBeNull(),
+  );
+  const form = document.querySelector('form');
+  if (!form) throw new Error('Column form missing');
+  const submitted = new URLSearchParams();
+  for (const [name, value] of new FormData(form)) submitted.append(name, String(value));
+  expect(submitted.getAll('columns-topic')).toEqual([
+    'none',
+    'period',
+    'updated',
+    'trend',
+    'value',
+  ]);
+  submitted.set('ga', 'E12000001');
+  await router.navigate({ search: `?${submitted}` });
+  await waitFor(() => {
+    for (const name of ['Compared with England', 'Comparison summary']) {
+      expect((screen.getByRole('checkbox', { name }) as HTMLInputElement).checked).toBe(false);
+    }
+  });
+});

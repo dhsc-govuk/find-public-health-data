@@ -317,6 +317,33 @@ it('puts England’s spread before its value and the chart beside each area', ()
   expect(screen.getByRole('columnheader', { name: 'England' }).getAttribute('colspan')).toBe('5');
 });
 
+it('shows the area-level spread without a same-period England value or comparison', () => {
+  const smoking = spread();
+  if (!smoking.england || !smoking.cells[0]) throw new Error('Comparison fixture missing');
+  smoking.england.value = null;
+  smoking.cells[0].judgement = null;
+  render(
+    <MemoryRouter>
+      <TopicDataTable
+        model={compared([smoking])}
+        title="Diabetes"
+        columns={['value', 'chart', 'summary', 'minmax', 'percentiles']}
+      />
+    </MemoryRouter>,
+  );
+  const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+  expect(cells.map((cell) => cell.textContent)).toEqual([
+    '18.0%',
+    '-No data',
+    'No comparison available',
+    '5.0%',
+    '12.0%',
+    '30.0%',
+    '45.0%',
+    '-No data',
+  ]);
+});
+
 it('turns the minimum/maximum and percentile columns on independently', () => {
   render(
     <MemoryRouter>

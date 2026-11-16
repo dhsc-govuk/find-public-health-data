@@ -53,6 +53,30 @@ for (const javaScriptEnabled of [true, false]) {
   });
 }
 
+test('keeps unchecked comparison columns off after removing and re-adding an area', async ({
+  page,
+}, testInfo) => {
+  await openTopicPage(page, '/topics/diabetes?tab-topic=data&ga=E10000032');
+  const panel = page.locator('#topic-data');
+  await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+  for (const name of ['Compared with England', 'Comparison summary']) {
+    await panel.getByRole('checkbox', { name, exact: true }).uncheck();
+  }
+  const search = panel.getByRole('searchbox', { name: 'Search for a geography', exact: true });
+  await search.fill('West Sussex');
+  const area = panel.getByRole('checkbox', { name: 'West Sussex', exact: true });
+  await area.uncheck();
+  await expect(page).not.toHaveURL(/ga=E10000032/);
+  await expect(panel.getByRole('checkbox', { name: 'Compared with England' })).toHaveCount(0);
+  await area.check();
+  await expect(page).toHaveURL(/ga=E10000032/);
+  for (const name of ['Compared with England', 'Comparison summary']) {
+    await expect(panel.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
+    await expect(panel.getByRole('columnheader', { name, exact: true })).toHaveCount(0);
+  }
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
 test('does not give England an arbitrary spread when chosen areas have different geography types', async ({
   page,
 }) => {

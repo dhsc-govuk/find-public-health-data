@@ -489,58 +489,77 @@ it('exports no period for a lagging area observation with a missing value', asyn
   expect(lines[1]).toBe('Example indicator,,%,18,2023,Better than England,,No data,No data,28');
 });
 
-it('exports England’s spread before its value when those columns are on', async () => {
-  vi.mocked(loadTopic).mockResolvedValue({
-    topic: { slug: 'example', title: 'Example' },
-    content: {
-      data: {
-        selected: [
-          {
-            detail: {
-              shortId: 1,
-              slug: 'example',
-              name: 'Example indicator',
-              unit: '%',
-              yearType: null,
-              polarity: 'lower-is-better',
-              comparatorMethod: 'Confidence intervals overlapping reference value',
-              topics: [],
-              dataUpdatedAt: null,
-            },
-            areaData: [
-              { areaCode: 'E92000001', areaName: 'England', observations: [observation(10)] },
-              { areaCode: 'E12000001', areaName: 'North East', observations: [observation(20)] },
-            ],
-            ranges: {
-              'Statistical regions': [
+it.each(['matching', 'older', 'absent', 'null'])(
+  'exports the area-level spread when England has %s data for the period',
+  async (availability) => {
+    vi.mocked(loadTopic).mockResolvedValue({
+      topic: { slug: 'example', title: 'Example' },
+      content: {
+        data: {
+          selected: [
+            {
+              detail: {
+                shortId: 1,
+                slug: 'example',
+                name: 'Example indicator',
+                unit: '%',
+                yearType: null,
+                polarity: 'lower-is-better',
+                comparatorMethod: 'Confidence intervals overlapping reference value',
+                topics: [],
+                dataUpdatedAt: null,
+              },
+              areaData: [
                 {
-                  fromDate: '2024-01-01',
-                  toDate: '2024-12-31',
-                  segment: '',
-                  min: 5,
-                  p25: 8,
-                  p75: 15,
-                  max: 25,
+                  areaCode: 'E92000001',
+                  areaName: 'England',
+                  observations:
+                    availability === 'absent'
+                      ? []
+                      : [
+                          annualObservation(
+                            availability === 'older' ? 2023 : 2024,
+                            availability === 'null' ? null : 10,
+                          ),
+                        ],
                 },
+                { areaCode: 'E12000001', areaName: 'North East', observations: [observation(20)] },
               ],
+              ranges: {
+                'Statistical regions': [
+                  {
+                    fromDate: '2024-01-01',
+                    toDate: '2024-12-31',
+                    segment: '',
+                    min: 5,
+                    p25: 8,
+                    p75: 15,
+                    max: 25,
+                  },
+                ],
+              },
             },
+          ],
+          benchmarkGeography: {
+            regionByCode: {},
+            levelByCode: { E12000001: 'Statistical regions' },
           },
-        ],
-        benchmarkGeography: {
-          regionByCode: {},
-          levelByCode: { E12000001: 'Statistical regions' },
         },
       },
-    },
-  } as unknown as Awaited<ReturnType<typeof loadTopic>>);
-  const response = await loader({
-    request: new Request(
-      'http://local/topics/example/table.csv?tab-topic=data&columns-topic=value,minmax,percentiles',
-    ),
-  } as LoaderFunctionArgs);
-  const lines = (await response.text()).trim().split(/\r?\n/);
-  expect(lines[0]).toBe(
-    'Indicator,Subtopic,Unit,North East calculated value,North East period,North East comparison summary,England lowest,England 25th percentile,England 75th percentile,England highest,England calculated value',
-  );
-  expect(lines[1]).toBe('Example indicator,,%,20,2024,Worse than England,5,8,15,25,10');
-});
+    } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+    const response = await loader({
+      request: new Request(
+        'http://local/topics/example/table.csv?tab-topic=data&columns-topic=value,minmax,percentiles',
+      ),
+    } as LoaderFunctionArgs);
+    const lines = (await response.text()).trim().split(/\r?\n/);
+    expect(lines[0]).toBe(
+      'Indicator,Subtopic,Unit,North East calculated value,North East period,North East comparison summary,England lowest,England 25th percentile,England 75th percentile,England highest,England calculated value',
+    );
+    expect(lines[1]).toBe(
+      availability === 'matching'
+        ? 'Example indicator,,%,20,2024,Worse than England,5,8,15,25,10'
+        : 'Example indicator,,%,20,2024,No comparison available,5,8,15,25,',
+    );
+  },
+);

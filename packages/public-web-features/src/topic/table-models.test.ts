@@ -258,8 +258,25 @@ it.each(['absent', 'older', 'null', 'different segment'])(
                 },
               ];
     if (availability === 'different segment') source.areaData.reverse();
-    const row = topicDataTableModel([source], 'diabetes').rows[0];
+    source.ranges = {
+      'Statistical regions': [
+        {
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          segment: '',
+          min: 5,
+          p25: 10,
+          p75: 20,
+          max: 30,
+        },
+      ],
+    };
+    const row = topicDataTableModel([source], 'diabetes', {
+      regionByCode: {},
+      levelByCode: { E12000001: 'Statistical regions' },
+    }).rows[0];
     expect(row?.england?.value).toBeNull();
+    expect(row?.england).toMatchObject({ min: 5, p25: 10, p75: 20, max: 30 });
     expect(row?.cells[0]).toMatchObject({ value: 18, judgement: null });
   },
 );

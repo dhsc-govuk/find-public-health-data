@@ -205,7 +205,9 @@ export function topicPageTests() {
     await expect(page.locator('#topic-overview .fphd-topic-highlight')).toHaveCount(2);
     for (const width of [320, 640, 641, 654, 764, 960, 1020, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+        .toBe(width);
       const sidebar = await page
         .locator('#topic-overview .fphd-topic-overview > .govuk-grid-column-one-quarter')
         .boundingBox();

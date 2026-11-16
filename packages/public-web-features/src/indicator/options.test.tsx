@@ -3,8 +3,50 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { createRoutesStub, useLocation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { PanelOptionsPanel, usePanelOptions } from './options.tsx';
+import { selectedTrendColumns } from './trend.ts';
 
 afterEach(cleanup);
+
+it.each(['', 'columns-108=value,minmax', 'columns-108=none'])(
+  'preserves the effective columns in a no-benchmark form submission for %s',
+  (query) => {
+    const available = ['count', '95'];
+    const columns = selectedTrendColumns(new URLSearchParams(query), 108, available);
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: () => (
+          <PanelOptionsPanel
+            label="Options"
+            scope={108}
+            columns={columns}
+            onColumnsChange={() => {}}
+            benchmarks={{ region: false }}
+            measures={['count']}
+            confidenceLevels={['95']}
+            periodTypes={['1-year']}
+            sexes={[]}
+            showConfidence
+            options={{ benchmark: 'none', confidence: 'none', periodType: 'all', sex: '' }}
+            onChange={() => {}}
+            target={{ tabParam: 'tab-indicator', tabValue: 'indicator', anchor: 'indicator-data' }}
+          />
+        ),
+      },
+    ]);
+    render(<Routes initialEntries={[`/?${query}`]} />);
+    expect(screen.queryByRole('checkbox', { name: 'Minimum/Maximum values' })).toBeNull();
+    const form = screen
+      .getByLabelText('Select a geography or goal to compare with')
+      .closest('form');
+    if (!form) throw new Error('Options form missing');
+    const params = new URLSearchParams();
+    for (const [name, value] of new FormData(form)) params.append(name, String(value));
+    expect(selectedTrendColumns(params, 108, available)).toEqual(columns);
+    params.set('cmp-108', 'england');
+    expect(selectedTrendColumns(params, 108, available)).toEqual(columns);
+  },
+);
 
 it.each(['chart', 'compare-areas', 'table'] as const)(
   'preserves selections for absent controls in a %s form submission',

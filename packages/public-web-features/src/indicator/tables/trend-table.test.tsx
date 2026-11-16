@@ -208,6 +208,27 @@ const allColumns: TrendColumns = {
 };
 
 describe('TrendTable benchmark columns', () => {
+  it('shows the area-level spread when England has no observation for the period', () => {
+    render(
+      <TrendTable
+        {...benchmarked}
+        areaData={benchmarked.areaData.slice(0, 1)}
+        columns={allColumns}
+      />,
+    );
+    const row = screen.getByRole('rowheader', { name: '2023 to 2024' }).closest('tr');
+    if (!row) throw new Error('Trend row missing');
+    const cells = within(row).getAllByRole('cell');
+    expect(cells[2]?.textContent).toBe('-');
+    expect(cells.slice(-5).map((cell) => cell.textContent)).toEqual([
+      '-',
+      '5.0%',
+      '10.0%',
+      '20.0%',
+      '30.0%',
+    ]);
+  });
+
   it.each(['england', 'region'] as const)(
     'lets the spread toggles remove every spread column even when the %s benchmark has no data',
     (benchmark) => {
