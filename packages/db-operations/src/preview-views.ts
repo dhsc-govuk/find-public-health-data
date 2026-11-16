@@ -3,8 +3,9 @@ import type postgres from 'postgres';
 /**
  * The `preview` schema shows the internal apps every indicator as published, except the one
  * being previewed, which shows its draft or scheduled version as if it had been published now.
- * The transaction-local setting `fphd.preview_version_id` names that version. With no setting,
- * every preview view shows what its published view shows.
+ * The transaction-local setting `fphd.preview_version_id` names that version, and
+ * `fphd.preview_slug` the slug publishing it would give the indicator, which only the server can
+ * work out. With no settings, every preview view shows what its published view shows.
  *
  * `db migrate` drops these views before it migrates, so that a migration can change a column a
  * preview view reads, and recreates them afterwards from the published views as they then are.
@@ -20,6 +21,12 @@ import type postgres from 'postgres';
 
 /** The version the preview shows, or null when the transaction has not named one. */
 const PREVIEW_VERSION_ID = `NULLIF(pg_catalog.current_setting('fphd.preview_version_id', true), '')::uuid`;
+
+/**
+ * The slug the previewed version would have once published, or null when the transaction has not
+ * given one. A renamed update moves to the slug of its new name only when it is published.
+ */
+const PREVIEW_SLUG = `NULLIF(pg_catalog.current_setting('fphd.preview_slug', true), '')`;
 
 /**
  * When the previewed version would be published: its scheduled time, or now if it has none or that
@@ -72,7 +79,7 @@ SELECT i.id,
   END AS data_updated_at,
   i.created_at,
   v.name,
-  v.slug,
+  CASE WHEN v.published_at IS NULL THEN COALESCE(${PREVIEW_SLUG}, v.slug) ELSE v.slug END AS slug,
   v.value_type_id,
   v.unit_id,
   v.unit_detail,
@@ -110,11 +117,14 @@ CROSS JOIN LATERAL (
   ) t
 ) p`,
 
-  // Every published slug, and the previewed version's.
+  // Every published slug, the previewed version's, and the one publishing it would give it.
   indicator_slug: `
 SELECT s.slug, s.indicator_id FROM published.indicator_slug s
 UNION
-SELECT v.slug, v.indicator_id FROM public.indicator_version v WHERE v.id = ${PREVIEW_VERSION_ID}`,
+SELECT v.slug, v.indicator_id FROM public.indicator_version v WHERE v.id = ${PREVIEW_VERSION_ID}
+UNION
+SELECT ${PREVIEW_SLUG}, v.indicator_id FROM public.indicator_version v
+WHERE v.id = ${PREVIEW_VERSION_ID} AND v.published_at IS NULL AND ${PREVIEW_SLUG} IS NOT NULL`,
 
   // The published summaries, and the previewed update's at the time it would be published. The
   // previewed summary shows unless the core team's latest decision is to publish the update
