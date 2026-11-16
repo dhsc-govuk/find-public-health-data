@@ -16,6 +16,7 @@ function view(name: string, reads: Partial<Omit<PublishedViewReads, 'name'>> = {
     readsCurrentPublishedVersion: false,
     choosesVersions: false,
     readsVersionedData: false,
+    readsPublishedViews: [],
     ...reads,
   };
 }
@@ -53,6 +54,48 @@ describe('planPreviewViews', () => {
         }),
       ]),
     ).toThrow(/published\.rogue/);
+  });
+
+  it('refuses a view that reads a versioned published view keyed by indicator id alone', () => {
+    expect(() =>
+      planPreviewViews([
+        ...handWritten,
+        view('indicator_names', { readsPublishedViews: ['indicator'] }),
+      ]),
+    ).toThrow(/published\.indicator_names/);
+  });
+
+  it('refuses a view that reads a versioned published view beside current_published_version', () => {
+    expect(() =>
+      planPreviewViews([
+        ...handWritten,
+        view('topic_indicator_name', {
+          readsCurrentPublishedVersion: true,
+          readsVersionedData: true,
+          readsPublishedViews: ['indicator'],
+        }),
+      ]),
+    ).toThrow(/published\.topic_indicator_name/);
+  });
+
+  it('refuses a view that reads versioned data through a chain of published views', () => {
+    expect(() =>
+      planPreviewViews([
+        ...handWritten,
+        view('indicator_names', { readsPublishedViews: ['indicator'] }),
+        view('indicator_name_lengths', { readsPublishedViews: ['indicator_names'] }),
+      ]),
+    ).toThrow(/published\.indicator_name_lengths/);
+  });
+
+  it('copies no view that reads only reference views', () => {
+    expect(
+      planPreviewViews([
+        ...handWritten,
+        view('area'),
+        view('area_names', { readsPublishedViews: ['area'] }),
+      ]),
+    ).toEqual({ generated: [], handWritten: HAND_WRITTEN });
   });
 
   it('refuses a hand-written preview view with no published view', () => {

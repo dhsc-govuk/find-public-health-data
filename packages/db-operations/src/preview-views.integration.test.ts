@@ -442,6 +442,27 @@ describe('recreating the preview views around a migration', () => {
     }
   });
 
+  it.each([
+    [
+      'reads only another versioned published view',
+      'SELECT i.id, i.name FROM published.indicator i',
+    ],
+    [
+      'reads another versioned published view beside current_published_version',
+      `SELECT t.topic_id, i.name
+       FROM current_published_version cpv
+       JOIN indicator_version_topic t ON t.indicator_version_id = cpv.id
+       JOIN published.indicator i ON i.id = cpv.indicator_id`,
+    ],
+  ])('fails on a published view that %s', async (_shape, definition) => {
+    await sql.unsafe(`CREATE VIEW published.built_on_indicator AS ${definition}`);
+    try {
+      await expect(createPreviewViews(sql)).rejects.toThrow(/published\.built_on_indicator/);
+    } finally {
+      await sql`DROP VIEW published.built_on_indicator`;
+    }
+  });
+
   it('fails on a published view that chooses versions in a way it doesn’t know', async () => {
     await sql`
       CREATE VIEW published.latest_draft AS

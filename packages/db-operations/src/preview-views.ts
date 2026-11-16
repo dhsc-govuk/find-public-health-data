@@ -173,6 +173,8 @@ export interface PublishedViewReads {
   choosesVersions: boolean;
   /** Reads a table or view keyed by indicator, version or upload batch. */
   readsVersionedData: boolean;
+  /** The other published views it reads. */
+  readsPublishedViews: string[];
 }
 
 export interface PreviewViewPlan {
@@ -181,9 +183,32 @@ export interface PreviewViewPlan {
 }
 
 /**
+ * The published views that depend on which version is visible: those that read versioned data,
+ * and those that read another published view that does, however indirectly. `published.indicator`
+ * is keyed by indicator id alone, so a view that reads it is found only through it.
+ */
+function versionedViewNames(views: PublishedViewReads[]): Set<string> {
+  const direct = new Set(views.filter((view) => view.readsVersionedData).map(({ name }) => name));
+  const next = new Set([
+    ...direct,
+    ...views
+      .filter((view) => view.readsPublishedViews.some((name) => direct.has(name)))
+      .map(({ name }) => name),
+  ]);
+  return next.size === direct.size
+    ? direct
+    : versionedViewNames(
+        views.map((view) => ({ ...view, readsVersionedData: next.has(view.name) })),
+      );
+}
+
+/**
  * Sorts the published views into those the generator copies and those with a hand-written
  * preview view. A view that reads no versioned data is in neither, because the preview reads the
- * published one. Throws for a view that chooses versions in a way the generator doesn't know.
+ * published one. Throws for a view that chooses versions in a way the generator doesn't know:
+ * any but the hand-written ones that read versioned data other than through
+ * `current_published_version`, including through another published view, whose preview the copy
+ * would not read.
  */
 export function planPreviewViews(views: PublishedViewReads[]): PreviewViewPlan {
   const names = new Set(views.map(({ name }) => name));
@@ -191,19 +216,22 @@ export function planPreviewViews(views: PublishedViewReads[]): PreviewViewPlan {
   if (orphans.length > 0) {
     throw new Error(`Hand-written preview views have no published view: ${orphans.join(', ')}`);
   }
+  const versionedNames = versionedViewNames(views);
   const versioned = views.filter(
-    ({ name, readsVersionedData }) => readsVersionedData && !(name in HAND_WRITTEN_VIEWS),
+    ({ name }) => versionedNames.has(name) && !(name in HAND_WRITTEN_VIEWS),
   );
   const unknown = versioned.filter(
-    ({ readsCurrentPublishedVersion, choosesVersions }) =>
-      !readsCurrentPublishedVersion || choosesVersions,
+    ({ readsCurrentPublishedVersion, choosesVersions, readsPublishedViews }) =>
+      !readsCurrentPublishedVersion ||
+      choosesVersions ||
+      readsPublishedViews.some((name) => versionedNames.has(name)),
   );
   if (unknown.length > 0) {
     throw new Error(
       `These published views choose versions in a way the preview generator doesn't know: ${unknown
         .map(({ name }) => `published.${name}`)
-        .join(', ')}. Choose versions through current_published_version, or write a preview view ` +
-        'by hand in preview-views.ts.',
+        .join(', ')}. Choose versions through current_published_version, reading tables rather ` +
+        'than other published views, or write a preview view by hand in preview-views.ts.',
     );
   }
   return {
@@ -259,7 +287,13 @@ async function readPublishedViews(tx: postgres.TransactionSql): Promise<Publishe
             AND keyed.attname IN ('indicator_id', 'indicator_version_id', 'upload_batch_id')
             AND NOT keyed.attisdropped
         )
-      ), false) AS "readsVersionedData"
+      ), false) AS "readsVersionedData",
+      COALESCE(
+        pg_catalog.array_agg(DISTINCT ref.relname::text) FILTER (
+          WHERE ref.relnamespace = ns.oid AND ref.relkind = 'v'
+        ),
+        '{}'
+      ) AS "readsPublishedViews"
     FROM pg_catalog.pg_class rel
     JOIN pg_catalog.pg_namespace ns ON ns.oid = rel.relnamespace AND ns.nspname = 'published'
     JOIN pg_catalog.pg_rewrite rw ON rw.ev_class = rel.oid
