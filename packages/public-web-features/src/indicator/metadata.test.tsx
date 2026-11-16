@@ -226,4 +226,24 @@ describe('BackgroundInformation', () => {
 
     expect(screen.queryByRole('heading', { name: 'History' })).toBeNull();
   });
+
+  it('ends with the Data use section, after History', () => {
+    renderBackground({
+      ...indicator,
+      updateSummaries: [{ publishedAt: '2026-11-02T09:30:00.000Z', summary: 'Added 2025 data.' }],
+    });
+
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings.slice(-2)).toEqual(['History', 'Data use']);
+    const dataUse = screen.getByRole('heading', { name: 'Data use' }).nextElementSibling;
+    expect(dataUse).not.toBeNull();
+    const rows = within(dataUse as HTMLElement).getAllByRole('term');
+    expect(rows.map((term) => [term.textContent, term.nextElementSibling?.textContent])).toEqual([
+      ['Copyright', '© Crown Copyright'],
+      [
+        'Data re-use',
+        'The data may be used referencing Office for Health Improvement and Disparities',
+      ],
+    ]);
+  });
 });

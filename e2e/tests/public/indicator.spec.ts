@@ -413,6 +413,16 @@ test('shows inequalities and methodology', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Calculation' })).toBeVisible();
 });
 
+test('ends the About tab with the Data use section', async ({ page }) => {
+  await page.getByRole('tab', { name: 'About this indicator' }).click();
+  const about = page.getByRole('tabpanel', { name: 'About this indicator' });
+  await expect(about.getByRole('heading', { level: 2 }).last()).toHaveText('Data use');
+  await expect(about.getByRole('definition').nth(-2)).toHaveText('© Crown Copyright');
+  await expect(about.getByRole('definition').last()).toHaveText(
+    'The data may be used referencing Office for Health Improvement and Disparities',
+  );
+});
+
 test("shows a rate's numerator, not a count, on the indicator page and in its download", async ({
   page,
 }) => {

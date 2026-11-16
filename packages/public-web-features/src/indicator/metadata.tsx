@@ -4,6 +4,7 @@ import { POLARITY_LABELS } from '@fphd/utils/polarity';
 import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
 import { dimensionValues, periodCovered, recentTrend } from './data.ts';
 import type { IndicatorDetail, IndicatorObservation, IndicatorProviderSource } from './loader.ts';
+import { DATA_USE } from './metadata-data.ts';
 import { TrendTag } from './trend-tag.tsx';
 
 export function DefinitionBlock({ title, text }: { title: string; text: string | null }) {
@@ -235,7 +236,7 @@ function CalculationPart({
   );
 }
 
-/** About tab: Overview, Data attributes, Calculation, Other notes, and History. */
+/** About tab: Overview, Data attributes, Calculation, Other notes, History and Data use. */
 export function BackgroundInformation({
   indicator,
   observations = [],
@@ -358,6 +359,10 @@ export function BackgroundInformation({
           />
         </>
       ) : null}
+
+      <SectionBreak size="m" visible />
+      <h2 className="govuk-heading-m">Data use</h2>
+      <SummaryList items={DATA_USE.map(({ name, text }) => ({ name, children: text }))} />
     </section>
   );
 }
