@@ -426,6 +426,8 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(all.filename).toContain('.csv');
   expect(all.text).toContain(MORTALITY_NAME);
   expect(all.text).toContain('London');
+  expect(all.text.split('\n')[0]).toContain('Indicator,Area,Area type,Period');
+  expect(all.text).toContain(',England,England,');
   const metadata = await downloadFrom(page, 'Download metadata about this indicator (TXT)', 'link');
   expect(metadata.filename).toMatch(/metadata\.txt$/);
   expect(metadata.text).toContain(MORTALITY_NAME);
