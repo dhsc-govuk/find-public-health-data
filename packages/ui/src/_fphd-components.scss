@@ -2102,3 +2102,92 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 .fphd-inline-search__input {
   max-width: 30em;
 }
+
+// The publisher guidance page. The row stretches the contents column to the height of the
+// guidance beside it, so the contents list can stick to the top of the window while the guidance
+// scrolls. Below tablet width the columns stack, and the list stays above the guidance.
+.fphd-guidance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+// The list can be taller than a laptop's window, so it scrolls on its own to keep its last
+// links in reach.
+.fphd-guidance-contents {
+  position: sticky;
+  top: govuk-spacing(4);
+  max-height: calc(100vh - #{govuk-spacing(4)});
+  overflow-y: auto;
+
+  @include govuk-media-query($until: tablet) {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+.fphd-guidance-contents__list li {
+  margin-bottom: govuk-spacing(2);
+}
+
+.fphd-guidance-contents__list--parts {
+  margin-top: govuk-spacing(1);
+  margin-left: govuk-spacing(3);
+}
+
+// The paragraphs and lists in a guidance table's cells drop the space below the last of them, so
+// a row ends where its content does.
+.fphd-guidance-table {
+  .govuk-table__cell > :last-child,
+  .govuk-table__header > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+// Column widths are set because, left to the browser, the Markdown samples crowd out the advice.
+.fphd-guidance-table--markdown {
+  :is(th, td):nth-child(1) {
+    width: 14%;
+  }
+
+  :is(th, td):nth-child(2) {
+    width: 24%;
+  }
+
+  :is(th, td):nth-child(3) {
+    width: 18%;
+  }
+}
+
+// Left to the browser, the long field names crowd out the guidance and examples, which share
+// the width the names leave.
+.fphd-guidance-table--fields {
+  :is(th, td):nth-child(1) {
+    width: 15%;
+  }
+
+  :is(th, td):nth-child(2),
+  :is(th, td):nth-child(3) {
+    width: 42.5%;
+  }
+}
+
+// A rule separates each example in a field's Examples column from the one before.
+.fphd-guidance-example + .fphd-guidance-example {
+  padding-top: govuk-spacing(3);
+  border-top: 1px solid $govuk-border-colour;
+}
+
+.fphd-guidance-example:last-child > :last-child {
+  margin-bottom: 0;
+}
+
+// Markdown shown as a publisher types it, in a fixed-width font so every marker can be seen.
+.fphd-code {
+  padding: 0 2px;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9em;
+  color: inherit;
+  background-color: govuk-colour("black", $variant: "tint-95");
+}
