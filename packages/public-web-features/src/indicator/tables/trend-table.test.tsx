@@ -208,6 +208,45 @@ const allColumns: TrendColumns = {
 };
 
 describe('TrendTable benchmark columns', () => {
+  it.each(['england', 'region'] as const)(
+    'lets the spread toggles remove every spread column even when the %s benchmark has no data',
+    (benchmark) => {
+      const props = {
+        ...benchmarked,
+        benchmark,
+        areaData: benchmarked.areaData.slice(0, 1),
+        geography: {
+          ...benchmarked.geography,
+          regionByCode: { E08000003: { code: 'E12000002', name: 'North West' } },
+        },
+        ranges: {},
+        columns: allColumns,
+      };
+      const { rerender } = render(<TrendTable {...props} visibleCaption />);
+      expect(screen.getByRole('columnheader', { name: 'Lowest' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: '25th percentile' })).toBeTruthy();
+      rerender(
+        <TrendTable
+          {...props}
+          columns={{ ...allColumns, minMax: false, percentiles: false, chart: false }}
+          visibleCaption
+        />,
+      );
+      for (const name of [
+        'Lowest',
+        'Highest',
+        '25th percentile',
+        '75th percentile',
+        /^Compared with/,
+      ]) {
+        expect(screen.queryByRole('columnheader', { name })).toBeNull();
+      }
+      const table = screen.getByRole('table', { name: /table with 1 row and 6 columns$/ });
+      expect(within(table).getAllByRole('cell')).toHaveLength(5);
+      expect(within(table).getAllByRole('cell').at(-1)?.textContent).toBe('-');
+    },
+  );
+
   it.each([
     ['chart', { chart: true }, 3],
     ['minimum and maximum', { minMax: true }, 4],

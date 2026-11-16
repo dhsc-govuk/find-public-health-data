@@ -177,6 +177,15 @@ export function attachStickyTable({
     const headBox = head.getBoundingClientRect();
     const tableBox = current.getBoundingClientRect();
     const above = overflowing ? STICKY_GAP + bar.offsetHeight : 0;
+    if (overflowing && headBox.top < above && tableBox.bottom > 0) {
+      pinBar(
+        Math.min(STICKY_GAP, tableBox.bottom - bar.offsetHeight),
+        scrollerBox.left,
+        clientWidth,
+      );
+    } else {
+      unpinBar();
+    }
     if (
       !headerPinned({
         headTop: headBox.top,
@@ -186,7 +195,6 @@ export function attachStickyTable({
       })
     ) {
       header.style.display = 'none';
-      unpinBar();
       return;
     }
 
@@ -230,12 +238,6 @@ export function attachStickyTable({
         cell.style.left = sticky ? '0' : '';
       });
     });
-
-    if (overflowing) {
-      pinBar(top - bar.offsetHeight, scrollerBox.left, clientWidth);
-    } else {
-      unpinBar();
-    }
   };
 
   const queue = () => {

@@ -34,9 +34,11 @@ export function topicDataTableModel(
   const areas = cellAreas
     .filter(({ code }) => !compared || code !== 'E92000001')
     .sort((a, b) => a.name.localeCompare(b.name));
+  const levels = new Set(areas.map(({ code }) => geography.levelByCode[code]));
   return {
     kind: 'data' as const,
     compared,
+    ...(levels.size > 1 ? { mixedGeographyLevels: true } : {}),
     areas,
     rows: rows.flatMap((row) => {
       const entry = byId.get(row.shortId);
@@ -70,7 +72,8 @@ export function topicDataTableModel(
             : undefined;
         return range ? { min: range.min, p25: range.p25, p75: range.p75, max: range.max } : null;
       };
-      const englandRange = compared ? rangeFor(newest) : null;
+      // A shared spread has no single meaning when the chosen areas have different levels.
+      const englandRange = compared && levels.size === 1 ? rangeFor(newest) : null;
       return [
         {
           key: row.key,

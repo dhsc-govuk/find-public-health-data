@@ -214,6 +214,14 @@ export const TopicDataTable = memo(function TopicDataTable({
             ? `${title} indicators: ${areaList} compared with England`
             : `${title} indicators for England`}
           <TableSize rows={rows.length} columns={columnCount} />
+          {model.mixedGeographyLevels &&
+          (columns.includes('minmax') || columns.includes('percentiles')) ? (
+            <span className="fphd-table-note">
+              {' '}
+              England spread values are unavailable when chosen areas have different geography
+              types.
+            </span>
+          ) : null}
         </caption>
         <colgroup>
           {/* Width attributes, not styles: the content security policy blocks inline styles. */}

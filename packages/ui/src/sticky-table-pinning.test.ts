@@ -117,4 +117,27 @@ describe('attachStickyTable', () => {
     expect(bar.parentElement).toBe(barContainer);
     expect(document.querySelector('.fphd-sticky-header')).toBeNull();
   });
+
+  it('keeps the scrollbar available after the header releases until the last rows leave', () => {
+    const { bar, barContainer, slot, scrollTo, elements } = setUp();
+    const sticky = attachStickyTable(elements);
+    scrollTo(-740);
+    sticky.refresh();
+    for (const frame of frames.splice(0)) frame(0);
+    expect(document.querySelector<HTMLElement>('.fphd-sticky-header')?.style.display).toBe('none');
+    expect(barContainer.parentElement).toBe(document.body);
+    expect(bar.style.top).toBe('6px');
+
+    scrollTo(-788);
+    sticky.refresh();
+    for (const frame of frames.splice(0)) frame(0);
+    expect(barContainer.parentElement).toBe(document.body);
+    expect(bar.style.top).toBe('-12px');
+
+    scrollTo(-801);
+    sticky.refresh();
+    for (const frame of frames.splice(0)) frame(0);
+    expect(barContainer.parentElement).toBe(slot);
+    sticky.detach();
+  });
 });

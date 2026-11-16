@@ -342,6 +342,9 @@ export function topicPageTests() {
     const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
     const table = panel.getByRole('table');
     await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+    const initialCsv = await page.request.get('/topics/diabetes/table.csv?tab-topic=data');
+    expect(initialCsv.ok()).toBe(true);
+    expect((await initialCsv.text()).split('\n')[0]?.split(',')).toContain('Last updated');
     await panel.getByRole('checkbox', { name: 'Count', exact: true }).check();
     await panel.getByRole('checkbox', { name: 'Numerator', exact: true }).check();
     await panel.getByRole('checkbox', { name: 'Data last updated', exact: true }).uncheck();
@@ -364,7 +367,7 @@ export function topicPageTests() {
     const csv = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
     expect(csv.text.split('\n')[0]).toContain('England count');
     expect(csv.text.split('\n')[0]).toContain('England numerator');
-    expect(csv.text.split('\n')[0]).not.toContain('Data last updated');
+    expect(csv.text.split('\n')[0]?.split(',')).not.toContain('Last updated');
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

@@ -15,6 +15,14 @@ import {
 } from './data.ts';
 import type { TrendColumns } from './trend.ts';
 
+function currentOptionParams(search: string) {
+  const params = new URLSearchParams(search);
+  for (const name of [...params.keys()]) {
+    if (/^cr-(?:\d+|compare)$/.test(name)) params.delete(name);
+  }
+  return params;
+}
+
 /** The confidence-interval choices, narrowed to what the indicator publishes. */
 export function confidenceOptions(levels: string[]) {
   return [
@@ -31,7 +39,7 @@ export function useOptionParamNavigation() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   return (entries: readonly (readonly [string, string, string])[]) => {
-    const params = new URLSearchParams(navigation.location?.search ?? location.search);
+    const params = currentOptionParams(navigation.location?.search ?? location.search);
     for (const [key, value, empty] of entries) {
       if (value === empty) {
         params.delete(key);
@@ -105,7 +113,7 @@ function OptionsForm({
   target: OptionTarget;
 }) {
   const location = useLocation();
-  const preserved = [...new URLSearchParams(location.search)].filter(
+  const preserved = [...currentOptionParams(location.search)].filter(
     ([name]) => name !== target.tabParam && !names.includes(name),
   );
   return (

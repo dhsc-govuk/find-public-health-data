@@ -53,6 +53,33 @@ for (const javaScriptEnabled of [true, false]) {
   });
 }
 
+test('does not give England an arbitrary spread when chosen areas have different geography types', async ({
+  page,
+}) => {
+  await openTopicPage(
+    page,
+    '/topics/mortality-and-life-expectancy?tab-topic=data&ga=E12000007&ga=E08000003&columns-topic=value,minmax,percentiles',
+  );
+  const table = page.getByRole('tabpanel', { name: 'Data', exact: true }).getByRole('table');
+  await expect(table.locator('caption')).toContainText(
+    'England spread values are unavailable when chosen areas have different geography types.',
+  );
+  for (const label of [
+    'England lowest',
+    'England 25th percentile',
+    'England 75th percentile',
+    'England highest',
+  ]) {
+    const id = await table
+      .getByRole('columnheader', { name: label, exact: true })
+      .getAttribute('id');
+    expect(id).toBeTruthy();
+    const cells = table.locator(`tbody td[headers~="${id}"]`);
+    expect(await cells.count()).toBeGreaterThan(0);
+    for (const cell of await cells.all()) await expect(cell).toHaveText('-No data');
+  }
+});
+
 test('compares a chosen area with England and shows minimum and maximum values', async ({
   page,
 }, testInfo) => {

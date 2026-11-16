@@ -36,7 +36,7 @@ test('uses the selected period label when options change during selection', asyn
 test('table options update the series and keep their choices on reload', async ({
   page,
 }, testInfo) => {
-  await openIndicatorPage(page, MORTALITY_PATH);
+  await openIndicatorPage(page, `${MORTALITY_PATH}?cr-108=yes&cr-compare=no`);
   const options = page
     .locator('.fphd-filter-card')
     .filter({ has: page.getByRole('button', { name: 'Table columns', exact: true }) });
@@ -44,6 +44,7 @@ test('table options update the series and keep their choices on reload', async (
   const table = trendTable(page);
   await options.getByLabel('Select sex').selectOption('Male');
   await expect(page).toHaveURL(/sex-108=Male/);
+  await expect(page).not.toHaveURL(/cr-/);
   await expect(table).toHaveAccessibleName(
     /<75 yrs, Male\s*, table with \d+ rows and \d+ columns$/,
   );
@@ -168,7 +169,7 @@ test.describe('without JavaScript', () => {
   test('table and inequality options apply through their Apply options buttons', async ({
     page,
   }) => {
-    await page.goto(MORTALITY_PATH);
+    await page.goto(`${MORTALITY_PATH}?cr-108=yes&cr-compare=no`);
     await expect(page.getByRole('status').filter({ hasText: /^Loading / })).toHaveCount(0);
     const tableOptions = filterCard(page, 'Table columns');
     await tableOptions.getByLabel('Select sex').selectOption('Male');
@@ -177,6 +178,7 @@ test.describe('without JavaScript', () => {
     await tableOptions.getByRole('button', { name: 'Apply options' }).click();
 
     await expect(page).toHaveURL(/sex-108=Male/);
+    await expect(page).not.toHaveURL(/cr-/);
     await expect(page).toHaveURL(/pt-108=1-year/);
     await expect(page).toHaveURL(/#indicator-data$/);
     const table = trendTable(page);

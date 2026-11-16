@@ -1609,8 +1609,8 @@ $fphd-sticky-gap: 6px;
 }
 
 // Identifying columns stay at the left while the rest scroll. The second frozen column sits
-// after the first, at the first's measured width; on phones only the first stays frozen,
-// and it never takes more than 40% of the screen.
+// after the first, at the first's measured width. Without that measurement or on phones,
+// only the first stays frozen, and on phones it never takes more than 40% of the screen.
 .fphd-table__frozen {
   position: sticky;
   z-index: 1;
@@ -1623,17 +1623,20 @@ thead .fphd-table__frozen {
 }
 
 .fphd-table__frozen--second {
-  left: var(--fphd-frozen-offset, 0);
+  position: static;
+}
+
+@include govuk-media-query($from: tablet) {
+  .fphd-table-scroll--enhanced .fphd-table__frozen--second {
+    position: sticky;
+    left: var(--fphd-frozen-offset, 0);
+  }
 }
 
 // 40% of the table's region: the window less the page's gutters.
 $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
 
 @include govuk-media-query($until: tablet) {
-  .fphd-table__frozen--second {
-    position: static;
-  }
-
   .fphd-table__frozen:not(.fphd-table__frozen--second) {
     max-width: $fphd-frozen-cap;
     padding-right: govuk-spacing(2);

@@ -500,3 +500,60 @@ it('leaves the spread out when the area’s level has no range for its period', 
   expect(model.rows[0]?.cells[0]).not.toHaveProperty('range');
   expect(model.rows[0]?.england).not.toHaveProperty('min');
 });
+
+it.each([false, true])(
+  'does not present one level’s spread as shared by mixed levels (reversed: %s)',
+  (reverse) => {
+    const source = structuredClone(entry);
+    const local = source.areaData[1];
+    if (!local) throw new Error('Area fixture missing');
+    source.areaData.push({
+      areaCode: 'E08000003',
+      areaName: 'Manchester',
+      observations: [observation(2023, 12)],
+    });
+    if (reverse) source.areaData.reverse();
+    source.ranges = {
+      'Statistical regions': [
+        {
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          segment: '',
+          min: 10,
+          p25: 15,
+          p75: 20,
+          max: 25,
+        },
+      ],
+      'Local authorities': [
+        {
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          segment: '',
+          min: 1,
+          p25: 5,
+          p75: 30,
+          max: 40,
+        },
+      ],
+    };
+    const model = topicDataTableModel([source], 'diabetes', {
+      regionByCode: {},
+      levelByCode: { E12000001: 'Statistical regions', E08000003: 'Local authorities' },
+    });
+    const row = model.rows[0];
+    expect(row?.england).toEqual({ value: 28, count: 280, numerator: 140 });
+    expect(row?.cells.find(({ areaCode }) => areaCode === 'E12000001')?.range).toEqual({
+      min: 10,
+      p25: 15,
+      p75: 20,
+      max: 25,
+    });
+    expect(row?.cells.find(({ areaCode }) => areaCode === 'E08000003')?.range).toEqual({
+      min: 1,
+      p25: 5,
+      p75: 30,
+      max: 40,
+    });
+  },
+);
