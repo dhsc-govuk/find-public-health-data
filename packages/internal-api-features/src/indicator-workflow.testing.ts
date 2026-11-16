@@ -3,6 +3,7 @@ import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import { ukDateTime } from '@fphd/utils/uk-time';
+import type { UpdateDecision } from '@fphd/utils/update-decision';
 import { eq } from 'drizzle-orm';
 
 import {
@@ -10,6 +11,7 @@ import {
   type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
+import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import {
   ACTOR,
   AS_ACTOR,
@@ -19,8 +21,10 @@ import {
 } from './indicator-repository.testing.ts';
 import { schedulePublication } from './indicator-scheduling-repository.ts';
 import { completeTaskListDraft } from './indicator-task-list.testing.ts';
+import type { IndicatorDraftLists } from './indicator-version-lists-repository.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
 import { type ReviewResponse, respondToReview } from './review-response-repository.ts';
+import { decideUpdate } from './update-decision-repository.ts';
 
 const { indicatorVersion, topic, uploadBatch } = schema;
 
@@ -194,4 +198,156 @@ export async function scheduledDraft(db: Database, name: string): Promise<SentBa
   );
   if (!scheduled.ok) throw new Error(`scheduledDraft could not schedule: ${scheduled.reason}`);
   return draft;
+}
+
+/** A live indicator's update: the draft opened from it, and the published version beside it. */
+export interface OpenedUpdate extends CreatedIndicatorDraft {
+  publishedId: string;
+}
+
+/**
+ * A complete new draft published as it stands, without going through review, and an update
+ * opened from it by the repository tests' actor. The update still answers every task as the
+ * published version does, and has no publishing date or update summary of its own yet.
+ */
+export async function openedUpdate(db: Database, name: string): Promise<OpenedUpdate> {
+  const created = await newDraft(db, name);
+  await completeDraft(db, created);
+  await db
+    .update(indicatorVersion)
+    .set({ status: 'published', isLocked: true, publishedAt: new Date('2026-01-01T00:00:00Z') })
+    .where(eq(indicatorVersion.id, created.versionId));
+  const opened = await createDraftFromPublished(db, created.indicatorId, AS_ACTOR);
+  if (!opened.ok) throw new Error(`openedUpdate could not open a draft: ${opened.reason}`);
+  return { ...created, versionId: opened.versionId, publishedId: created.versionId };
+}
+
+/**
+ * Gives an update its publishing date and summary, with `answers` and `lists` saved over the
+ * published version's, and returns the `updatedAt` its task list would show. `answers` may give
+ * the update a summary of its own.
+ */
+export async function answerUpdate(
+  db: Database,
+  { indicatorId, versionId }: Pick<CreatedIndicatorDraft, 'indicatorId' | 'versionId'>,
+  answers: IndicatorDraftAttributes,
+  lists: IndicatorDraftLists = {},
+): Promise<Date> {
+  const saved = await updateIndicatorDraft(
+    db,
+    indicatorId,
+    'update-summary',
+    {
+      scheduledPublishAt: new Date('2030-06-01T08:30:00Z'),
+      updateSummary: 'Changed the polarity.',
+      ...answers,
+    },
+    lists,
+    AS_ACTOR,
+  );
+  if (!saved.ok) throw new Error(`answerUpdate could not save: ${saved.reason}`);
+  return draftUpdatedAt(db, versionId);
+}
+
+/** An update that changes the polarity, submitted by the repository tests' actor. */
+export async function submittedUpdate(db: Database, name: string): Promise<OpenedUpdate> {
+  const update = await openedUpdate(db, name);
+  const shown = await answerUpdate(db, update, { polarity: 'no-polarity' });
+  const submitted = await submitIndicator(db, update.indicatorId, shown, AS_ACTOR);
+  if (!submitted.ok) throw new Error(`submittedUpdate could not submit: ${submitted.reason}`);
+  return update;
+}
+
+/**
+ * An update that changes the polarity, submitted by the repository tests' actor, sent to IMRG by
+ * an admin and in review with the IMRG reviewer assigned.
+ */
+export async function updateInReview(db: Database, name: string): Promise<OpenedUpdate> {
+  const update = await submittedUpdate(db, name);
+  const decided = await decideUpdate(
+    db,
+    update.indicatorId,
+    { submissionNumber: 1, decision: 'imrg_review' },
+    AS_ADMIN,
+  );
+  if (!decided.ok) throw new Error(`updateInReview could not send to IMRG: ${decided.reason}`);
+  const assigned = await assignReviewers(
+    db,
+    update.indicatorId,
+    { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
+    { userId: FAKE_USER_IDS.imrgManager, requestId: null },
+  );
+  if (!assigned.ok) throw new Error(`updateInReview could not assign: ${assigned.reason}`);
+  return update;
+}
+
+/** The core team's decisions that lead to an update's publication. */
+export type PublishingDecision = Exclude<UpdateDecision, 'request_revisions'>;
+
+/**
+ * An update that changes the polarity, and `answers` besides, submitted by the repository tests'
+ * actor and approved for publishing. A publish decision approves it outright. IMRG review sends
+ * it to the IMRG reviewer, who approves it.
+ */
+export async function approvedUpdate(
+  db: Database,
+  name: string,
+  decision: PublishingDecision,
+  answers: IndicatorDraftAttributes = {},
+): Promise<OpenedUpdate> {
+  const update = await openedUpdate(db, name);
+  const shown = await answerUpdate(db, update, { polarity: 'no-polarity', ...answers });
+  const submitted = await submitIndicator(db, update.indicatorId, shown, AS_ACTOR);
+  if (!submitted.ok) throw new Error(`approvedUpdate could not submit: ${submitted.reason}`);
+  const decided = await decideUpdate(
+    db,
+    update.indicatorId,
+    { submissionNumber: 1, decision },
+    AS_ADMIN,
+  );
+  if (!decided.ok) throw new Error(`approvedUpdate could not decide: ${decided.reason}`);
+  if (decision !== 'imrg_review') return update;
+
+  const assigned = await assignReviewers(
+    db,
+    update.indicatorId,
+    { submissionNumber: 1, previousReviewerIds: [], reviewerIds: [FAKE_USER_IDS.imrgReviewer] },
+    { userId: FAKE_USER_IDS.imrgManager, requestId: null },
+  );
+  if (!assigned.ok) throw new Error(`approvedUpdate could not assign: ${assigned.reason}`);
+  const approved = await respondToReview(
+    db,
+    update.indicatorId,
+    {
+      submissionNumber: 1,
+      kind: 'approved',
+      imrgReviewedOn: null,
+      clarificationRequest: null,
+      flags: [],
+    },
+    AS_REVIEWER,
+  );
+  if (!approved.ok) throw new Error(`approvedUpdate could not approve: ${approved.reason}`);
+  return update;
+}
+
+/**
+ * An approved update, scheduled by an admin confirming its publication date as it stands.
+ */
+export async function scheduledUpdate(
+  db: Database,
+  name: string,
+  decision: PublishingDecision,
+  answers: IndicatorDraftAttributes = {},
+): Promise<OpenedUpdate> {
+  const update = await approvedUpdate(db, name, decision, answers);
+  const at = await scheduledPublishAtOf(db, update.versionId);
+  const scheduled = await schedulePublication(
+    db,
+    update.indicatorId,
+    { scheduledPublishAt: at, shownScheduledPublishAt: at },
+    AS_ADMIN,
+  );
+  if (!scheduled.ok) throw new Error(`scheduledUpdate could not schedule: ${scheduled.reason}`);
+  return update;
 }

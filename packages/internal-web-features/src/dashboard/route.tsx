@@ -10,12 +10,15 @@ export const meta: MetaFunction<typeof loader> = ({ loaderData }) => [
 ];
 
 export function DashboardRoute() {
-  const { underReview, toReview, scheduled, list, notification } = useLoaderData<typeof loader>();
+  const { search, underReview, toReview, scheduled, awaitingDecision, list, notification } =
+    useLoaderData<typeof loader>();
   return (
     <DashboardPage
+      search={search}
       underReview={underReview}
       toReview={toReview}
       scheduled={scheduled}
+      awaitingDecision={awaitingDecision}
       list={list}
       notification={notification}
     />

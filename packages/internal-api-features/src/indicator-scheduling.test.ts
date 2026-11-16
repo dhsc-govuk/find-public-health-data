@@ -33,6 +33,7 @@ const approvedRow: IndicatorAdminDetailRow = {
   draftLocked: true,
   draftSubmissionStatus: 'approved',
   draftResponseKind: 'approved',
+  draftUpdateDecision: null,
   draftReviewers: [{ id: '00000000-0000-7000-8000-0000000000a1', name: 'A reviewer' }],
   shortId: 90366,
   publishedSlug: null,

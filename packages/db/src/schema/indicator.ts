@@ -296,6 +296,12 @@ export const indicatorVersion = pgTable(
     sponsorsAndStakeholders: text(),
     hasReviewerComments: boolean(),
     reviewerCommentsDetail: text(),
+    // Update summary
+    // What an update to a live indicator changed: a summary for the public history, and more
+    // for the reviewers. Each update writes its own, so a draft opened from a published version
+    // starts without them.
+    updateSummary: text(),
+    updateSummaryForReviewers: text(),
     // The writer of a version is always known: a publisher, or the system user of an import.
     ...audit,
   },

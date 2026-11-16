@@ -1,4 +1,4 @@
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { type Browser, expect, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { assignReviewers } from '../support/assign-reviewers.ts';
@@ -6,42 +6,16 @@ import { completeDraft, submitDraft } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
 import { openIndicatorPage } from '../support/indicator-page.ts';
+import {
+  confirmPublicationAt,
+  MINUTE,
+  nextPublicationTime,
+  publicIndicatorUrl,
+  waitForPublication,
+} from '../support/published-indicator.ts';
 import { asUser, respondToReview } from '../support/review-response.ts';
 import { ADMIN, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 import { answerTo } from '../support/summary-list.ts';
-import { ukDateTime } from '../support/uk-date-time.ts';
-import { PUBLIC_WEB_URL } from '../support/web-urls.ts';
-
-const MINUTE = 60_000;
-// The confirm publication date page refuses a time that is not in the future. The test leaves
-// itself at least 15 seconds to fill in and submit that form before the publication time arrives.
-const LEAST_NOTICE = 15_000;
-
-/** The first whole minute after `now` that is at least `LEAST_NOTICE` away, in milliseconds. */
-function nextPublicationTime(now: number) {
-  const next = (Math.floor(now / MINUTE) + 1) * MINUTE;
-  return next - now < LEAST_NOTICE ? next + MINUTE : next;
-}
-
-/**
- * Confirms the indicator's publication date and time as `at`, through the confirm publication
- * date form an admin uses. The form takes the date and time in UK time.
- */
-async function confirmPublicationAt(page: Page, id: string, at: number) {
-  const { day, month, year, hour, minute } = ukDateTime(new Date(at));
-  const field = (group: 'Date' | 'Time', label: string) =>
-    page.getByRole('group', { name: group }).getByLabel(label, { exact: true });
-
-  await page.goto(`/dashboard/indicators/${id}`);
-  await page.getByRole('button', { name: 'Confirm publication date' }).click();
-  await field('Date', 'Day').fill(day);
-  await field('Date', 'Month').fill(month);
-  await field('Date', 'Year').fill(year);
-  await field('Time', 'Hour').fill(hour);
-  await field('Time', 'Minute').fill(minute);
-  await page.getByRole('button', { name: 'Submit' }).click();
-  await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
-}
 
 // Values for England and for London. England is the benchmark, and London gives the published
 // indicator's Compare areas tab a region to compare with it.
@@ -96,7 +70,7 @@ test('publishes a scheduled indicator at its publication time', async ({
   // to 65 seconds more for the worker's sweep to publish the indicator.
   test.setTimeout(4 * MINUTE);
   const { id, name } = await approvedWithRegion(browser);
-  const publicUrl = `${PUBLIC_WEB_URL}/indicator/${name.toLowerCase().replaceAll(' ', '-')}`;
+  const publicUrl = publicIndicatorUrl(name);
 
   const publishAt = nextPublicationTime(Date.now());
   await confirmPublicationAt(page, id, publishAt);
@@ -107,15 +81,7 @@ test('publishes a scheduled indicator at its publication time', async ({
   await expectNoAccessibilityViolations(page, testInfo);
   expect((await page.request.get(publicUrl)).status()).toBe(404);
 
-  await expect
-    .poll(async () => (await page.request.get(publicUrl)).status(), {
-      // The worker sweeps one second past each minute, so it should publish the indicator about
-      // a second after its publication time. Waiting 65 seconds also covers the following sweep,
-      // in case the first one misses the indicator.
-      timeout: publishAt + 65_000 - Date.now(),
-      intervals: [1_000],
-    })
-    .toBe(200);
+  await waitForPublication(page, name, publishAt);
   expect(Date.now()).toBeGreaterThanOrEqual(publishAt);
 
   await openIndicatorPage(page, publicUrl);

@@ -40,6 +40,8 @@ import {
   type SexGenderAndEthnicityField,
   UPDATE_FREQUENCY_REASON_FIELDS,
   type UpdateFrequencyField,
+  type UpdateSummary,
+  type UpdateSummaryField,
   type ValueTypeAndUnits,
   type ValueTypeAndUnitsField,
   type VarianceAndQuality,
@@ -237,6 +239,18 @@ export const otherCommentsColumns: OwnFieldColumns<OtherCommentsField, OtherComm
   toAttributes: (answers) => ({
     ...otherCommentsAnswers.toAttributes(answers),
     sponsorsAndStakeholders: answers.sponsorsAndStakeholders || null,
+  }),
+};
+
+export const updateSummaryColumns: OwnFieldColumns<UpdateSummaryField, UpdateSummary> = {
+  fromDraft: ({ updateSummary, updateSummaryForReviewers }) => ({
+    updateSummary,
+    updateSummaryForReviewers,
+  }),
+  // The information for the reviewers is optional, and none given is stored as none.
+  toAttributes: (answers) => ({
+    ...answers,
+    updateSummaryForReviewers: answers.updateSummaryForReviewers || null,
   }),
 };
 

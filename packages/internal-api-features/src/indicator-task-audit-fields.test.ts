@@ -21,6 +21,7 @@ import {
   publishingDateColumns,
   sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
+  updateSummaryColumns,
   valueTypeAndUnitsColumns,
 } from './indicator-section-columns.ts';
 import {
@@ -60,8 +61,9 @@ const UNSAVED_COLUMNS = [
   'updatedBy',
 ];
 
-// The notes for reviewers are never flagged, but their columns are still a task's own.
-const NOTES_FOR_REVIEWERS_FIELDS = [
+// The notes for reviewers and the update summary are never flagged, but their columns are still
+// a task's own.
+const UNFLAGGED_FIELDS = [
   ...varianceAndQualitySection.fields.options,
   ...justificationsSection.fields.options,
   ...otherCommentsSection.fields.options,
@@ -190,6 +192,11 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ageDetail: '',
     }),
   tagging: () => savedFields(taggingColumns, tagging),
+  'update-summary': () =>
+    savedFields(updateSummaryColumns, {
+      updateSummary: 'Polarity corrected.',
+      updateSummaryForReviewers: 'The source changed.',
+    }),
 };
 
 describe('TASK_AUDIT_FIELDS', () => {
@@ -208,12 +215,12 @@ describe('TASK_AUDIT_FIELDS', () => {
   });
 
   it('gives each field to one task', () => {
-    const all = [...mapped, ...NOTES_FOR_REVIEWERS_FIELDS];
+    const all = [...mapped, ...UNFLAGGED_FIELDS];
     expect(all.filter((field, index) => all.indexOf(field) !== index)).toEqual([]);
   });
 
   it('covers every column a task saves', () => {
-    const owned = new Set([...mapped, ...NOTES_FOR_REVIEWERS_FIELDS, ...UNSAVED_COLUMNS]);
+    const owned = new Set([...mapped, ...UNFLAGGED_FIELDS, ...UNSAVED_COLUMNS]);
     expect(columns.filter((column) => !owned.has(column))).toEqual([]);
   });
 

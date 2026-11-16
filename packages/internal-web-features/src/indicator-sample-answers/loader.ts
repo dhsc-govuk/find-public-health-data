@@ -10,6 +10,7 @@ import {
   tagOptionsSchema,
   valueTypeAndUnitOptionsSchema,
 } from '@fphd/internal-api-features/contract';
+import { draftTaskKeys } from '@fphd/utils/indicator-task-key';
 import { type ApiWriteResult, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type ActionFunctionArgs, type RouterContextProvider, redirect } from 'react-router';
@@ -55,7 +56,7 @@ export async function fillInSampleAnswers({
 
   const id = requireIndicatorId(params);
   const api = context.get(apiContext);
-  const { tasks, editable } = await api.get(
+  const { tasks, editable, isUpdate } = await api.get(
     apiPath`/api/internal/indicators/${id}/task-list`,
     indicatorTaskListSchema,
   );
@@ -71,7 +72,7 @@ export async function fillInSampleAnswers({
   const samples = sampleAnswers(
     { valueTypesAndUnits, ciMethods, dataProviders, tags },
     new Date(),
-  ).filter(({ key }) => tasks[key] !== 'completed');
+  ).filter(({ key }) => draftTaskKeys(isUpdate).includes(key) && tasks[key] !== 'completed');
 
   // One at a time, as a publisher saves them, so no two writes to the draft race.
   for (const { key, answers, schema, answersSchema, errorSchema } of samples) {

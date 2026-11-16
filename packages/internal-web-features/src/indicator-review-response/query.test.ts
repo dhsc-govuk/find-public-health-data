@@ -22,6 +22,7 @@ describe('the review journey', () => {
     ['a submission given twice', '?submission=1&submission=2'],
     ['an unknown kind', '?submission=1&kind=rejected'],
     ['a date that is not YYYY-MM-DD', '?submission=1&reviewedOn=29/10/2026'],
+    ['an unknown kind of feedback', '?submission=1&reason=rejection'],
   ])('reads none from an address with %s', (_, search) => {
     expect(journeyAt(search)).toBeUndefined();
   });
@@ -34,6 +35,19 @@ describe('the review journey', () => {
     };
 
     expect(journeySearch(journey)).toBe('?submission=3&kind=approved&reviewedOn=2026-10-01');
+    expect(journeyAt(journeySearch(journey))).toEqual(journey);
+  });
+
+  it("carries an update reviewer's kinds of feedback", () => {
+    const journey = {
+      submissionNumber: 3,
+      kind: 'pre_imrg_feedback' as const,
+      reasons: ['revisions' as const, 'clarification' as const],
+    };
+
+    expect(journeySearch(journey)).toBe(
+      '?submission=3&kind=pre_imrg_feedback&reason=revisions&reason=clarification',
+    );
     expect(journeyAt(journeySearch(journey))).toEqual(journey);
   });
 

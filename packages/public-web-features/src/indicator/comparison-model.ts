@@ -20,7 +20,13 @@ export function indicatorComparisonModel(
 ) {
   const primary = selected[0];
   if (!primary) throw new Error('The indicator page needs one indicator');
-  const { compareAreasData, comparedAreasData, ...controls } = comparison;
+  const {
+    compareAreasData,
+    comparedAreasData,
+    compareAreaOptions,
+    compareAreaGroup,
+    comparisonDisplayGroups,
+  } = comparison;
   const areas = areaComparisonRows(primary, compareAreasData, 'descending');
   const compared = selected[1];
   const forPair = (indicator: SelectedIndicator, areaData: SelectedIndicator['areaData']) => ({
@@ -34,7 +40,9 @@ export function indicatorComparisonModel(
     ? indicatorPair([forPair(primary, compareAreasData), forPair(compared, comparedAreasData)])
     : undefined;
   return {
-    ...controls,
+    compareAreaOptions,
+    compareAreaGroup,
+    comparisonDisplayGroups,
     areas: {
       period: areas.period,
       multiYear: areas.multiYear,

@@ -149,6 +149,12 @@
       "types": "./src/update-frequency.ts",
       "default": "./dist/update-frequency.js"
     },
+    "./update-decision": {
+      "browser": "./src/update-decision.ts",
+      "development": "./src/update-decision.ts",
+      "types": "./src/update-decision.ts",
+      "default": "./dist/update-decision.js"
+    },
     "./value-type-and-unit": {
       "browser": "./src/value-type-and-unit.ts",
       "development": "./src/value-type-and-unit.ts",

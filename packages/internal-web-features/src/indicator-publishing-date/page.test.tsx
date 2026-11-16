@@ -52,6 +52,14 @@ describe('PublishingDatePage', () => {
     expect(document.title).toBe(`${TITLE} - ${serviceName} - GOV.UK`);
   });
 
+  it('asks when the update is published, for a draft of a live indicator', () => {
+    renderPage({ isUpdate: true });
+
+    const title = 'When should this update be published?';
+    expect(screen.getByRole('heading', { level: 1, name: title })).toBeTruthy();
+    expect(document.title).toBe(`${title} - ${serviceName} - GOV.UK`);
+  });
+
   it('posts each part under the name the action reads it by', () => {
     renderPage();
 

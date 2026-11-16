@@ -235,7 +235,7 @@ function CalculationPart({
   );
 }
 
-/** About tab: Overview, Data attributes, Calculation, Other notes. */
+/** About tab: Overview, Data attributes, Calculation, Other notes, and History. */
 export function BackgroundInformation({
   indicator,
   observations = [],
@@ -341,6 +341,19 @@ export function BackgroundInformation({
             ].map((item) => ({
               ...item,
               children: <span className="fphd-metadata-text">{item.children}</span>,
+            }))}
+          />
+        </>
+      ) : null}
+
+      {indicator.updateSummaries.length > 0 ? (
+        <>
+          <SectionBreak size="m" visible />
+          <h2 className="govuk-heading-m">History</h2>
+          <SummaryList
+            items={indicator.updateSummaries.map(({ publishedAt, summary }) => ({
+              name: formatDate(publishedAt, 'long'),
+              children: <span className="fphd-metadata-text">{summary}</span>,
             }))}
           />
         </>

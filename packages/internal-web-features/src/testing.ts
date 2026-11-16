@@ -41,6 +41,7 @@ export function indicatorDetail(
     draftLocked: false,
     draftSubmissionStatus: null,
     draftResponseKind: null,
+    draftUpdateDecision: null,
     draftReviewers: [],
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
@@ -79,6 +80,7 @@ export function indicatorTaskList(overrides: Partial<IndicatorTaskList> = {}): I
     draftStatus,
     draftSubmissionStatus,
     draftResponseKind,
+    draftUpdateDecision,
   } = indicatorDetail();
 
   return {
@@ -90,10 +92,12 @@ export function indicatorTaskList(overrides: Partial<IndicatorTaskList> = {}): I
       draftStatus,
       draftSubmissionStatus,
       draftResponseKind,
+      draftUpdateDecision,
     },
     isUpdate: false,
     canSubmit: true,
     tasks: taskStatuses('completed'),
+    changedTasks: [],
     review: null,
     draftUpdatedAt: '2026-10-22T09:30:00.123Z',
     editable: true,

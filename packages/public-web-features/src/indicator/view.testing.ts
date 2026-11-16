@@ -38,6 +38,7 @@ export function indicatorDetail(
     areaTypes: [],
     topics: [],
     classifications: [],
+    updateSummaries: [],
     ...overrides,
   };
 }

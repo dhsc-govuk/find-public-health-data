@@ -142,9 +142,58 @@ export function topicPageTests() {
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Highlighted indicators' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Diabetes: QOF prevalence' })).toBeVisible();
+    const highlight = page.getByRole('region', {
+      name: 'Diabetes: QOF prevalence, England: trend chart',
+    });
+    const sparkline = highlight.getByRole('img', {
+      name: 'Diabetes: QOF prevalence, England: trend chart',
+    });
+    await expect(sparkline.locator('polyline')).toBeVisible();
+    await expect(sparkline).toHaveAttribute('viewBox', '0 0 120 40');
+    await expect(sparkline).toHaveCSS('height', '56px');
+    await expect(sparkline.locator('polyline')).toHaveAttribute('stroke', '#12436d');
+    await expect(sparkline.locator('polyline')).toHaveAttribute('stroke-width', '2');
+    await expect(sparkline.locator('polyline')).toHaveAttribute('points', /^(?:\S+ ){7}\S+$/);
+    await expect(sparkline.locator('circle')).toHaveAttribute('r', '3');
+    await expect(sparkline).toHaveAccessibleDescription(
+      /rising from 6\.8% in 2017 to 2018, to 7\.9% in 2024 to 2025$/,
+    );
+    await expect(highlight.locator('.fphd-sparkline__endpoints')).toContainText('7.9%');
+    await expect(highlight.locator('details, table')).toHaveCount(0);
+    const mortality = page.getByRole('region', { name: /Mortality.*England: trend chart/ });
+    await expect(mortality.getByRole('img').locator('polyline')).toHaveAttribute(
+      'points',
+      /^(?:\S+ ){7}\S+$/,
+    );
+    await expect(mortality.getByRole('img')).toHaveAccessibleDescription(
+      /rose from 92\.3 per 100,000 in 2015 to 2017, peaked at 125\.6 in 2020 to 2022, and has since decreased to 109\.6 in 2022 to 2024$/,
+    );
+    for (const [chart, period, count, value] of [
+      [highlight, '2024 to 2025', '4,109,134', '7.9%'],
+      [mortality, '2022 to 2024', '186,922', '109.6 per 100,000'],
+    ] as const) {
+      const card = page.locator('.fphd-topic-highlight').filter({ has: chart });
+      await expect(card.locator('.govuk-summary-list__key')).toHaveText([
+        'Most recent period',
+        'Count',
+        'Calculated value',
+        'Trend (last 5 periods)',
+      ]);
+      await expect(card.locator('.govuk-summary-list__value').nth(0)).toHaveText(period);
+      await expect(card.locator('.govuk-summary-list__value').nth(1)).toHaveText(count);
+      await expect(card.locator('.govuk-summary-list__value').nth(2)).toHaveText(value);
+    }
+    const cards = page.locator('.fphd-topic-highlight');
+    await expect(cards).toHaveCount(2);
+    await expect(cards.nth(0).locator('.fphd-trend-tag')).toHaveText('Increasing');
+    await expect(cards.nth(1).locator('.fphd-trend-tag')).toHaveCount(0);
+    await expect(cards.nth(1).locator('.fphd-trend-reason')).toHaveText('multi-year periods');
+    await expect(cards.nth(1).locator('.govuk-summary-list__value').nth(3)).toHaveText(
+      'Trend unavailable (multi-year periods)',
+    );
     await expect(
-      page.getByRole('region', { name: 'Diabetes: QOF prevalence, England: trend chart' }),
-    ).toContainText('Data visualisation to follow');
+      cards.nth(1).locator('.govuk-summary-list__value').nth(2).locator('.govuk-hint'),
+    ).toHaveText('per 100,000');
     await expect(page.getByRole('link', { name: 'View all diabetes indicators' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -153,7 +202,8 @@ export function topicPageTests() {
     page,
   }) => {
     await openTopicPage(page, '/topics/diabetes');
-    for (const width of [320, 654, 764, 960, 1020, 1280]) {
+    await expect(page.locator('#topic-overview .fphd-topic-highlight')).toHaveCount(2);
+    for (const width of [320, 640, 641, 654, 764, 960, 1020, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
       const sidebar = await page
@@ -169,6 +219,43 @@ export function topicPageTests() {
         expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
           true,
         );
+      }
+      const cards = page.locator('#topic-overview .fphd-topic-highlight');
+      const first = await cards.nth(0).boundingBox();
+      const second = await cards.nth(1).boundingBox();
+      if (width < 641) {
+        expect(first?.x).toBe(second?.x);
+        expect((second?.y ?? 0) - (first?.y ?? 0) - (first?.height ?? 0)).toBeCloseTo(40, 1);
+      } else {
+        expect(first?.y).toBe(second?.y);
+        expect(second?.x).toBeGreaterThan(first?.x ?? 0);
+        for (let index = 0; index + 1 < (await cards.count()); index += 2) {
+          for (const selector of [
+            'h3',
+            '.fphd-chart-section, .fphd-topic-highlight__no-trend',
+            '.govuk-summary-list',
+          ]) {
+            const left = await cards.nth(index).locator(selector).boundingBox();
+            const right = await cards
+              .nth(index + 1)
+              .locator(selector)
+              .boundingBox();
+            expect(left?.y).toBe(right?.y);
+          }
+        }
+        if (width === 1280) {
+          for (const card of await cards.all()) {
+            const lines = await card
+              .locator('.govuk-summary-list__key')
+              .nth(3)
+              .evaluate((key) => {
+                const range = document.createRange();
+                range.selectNodeContents(key);
+                return range.getClientRects().length;
+              });
+            expect(lines).toBe(1);
+          }
+        }
       }
       const overflowingTags = await page
         .locator('#topic-overview .fphd-topic-highlight .fphd-trend-tag')
@@ -221,6 +308,32 @@ export function topicPageTests() {
     await expect(
       panel.getByRole('link', { name: MORTALITY_NAME, exact: true }).first(),
     ).toHaveAttribute('href', MORTALITY_PATH);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test('keeps England beside a picked area on the data tab with a comparison summary', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=data&ga=E12000007`);
+    const panel = page.getByRole('tabpanel', { name: 'Data' });
+    const table = panel.getByRole('table', {
+      name: 'Mortality and life expectancy indicators: London compared with England',
+    });
+    await expect(table).toBeVisible();
+    for (const column of ['London', 'Comparison summary', 'England']) {
+      await expect(table.getByRole('columnheader', { name: column })).toBeVisible();
+    }
+    await expect(table.getByRole('columnheader').last()).toHaveText(/Calculated\s*value/);
+    await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+    await panel.getByRole('checkbox', { name: 'Calculated value', exact: true }).uncheck();
+    await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toBeVisible();
+    await expect(
+      table.getByRole('columnheader', { name: 'Calculated value', exact: true }),
+    ).toHaveCount(1);
+    await panel.getByText('Download or share data', { exact: true }).click();
+    const csv = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
+    expect(csv.text.split('\n')[0]).toContain('England calculated value');
+    expect(csv.text.split('\n')[0]).not.toContain('London calculated value');
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

@@ -16,6 +16,7 @@
     "@fphd/ui": "workspace:*",
     "@fphd/utils": "workspace:*",
     "@fphd/web-server": "workspace:*",
+    "diff": "catalog:",
     "uuid": "catalog:"
   },
   "peerDependencies": {

@@ -17,6 +17,7 @@ import {
   polaritySection,
   sexGenderAndEthnicitySection,
   updateFrequencySection,
+  updateSummarySection,
   varianceAndQualitySection,
 } from './contract.ts';
 import { indicatorSectionRouter } from './indicator-section.ts';
@@ -35,6 +36,7 @@ import {
   publishingDateColumns,
   sexGenderAndEthnicityColumns,
   updateFrequencyColumns,
+  updateSummaryColumns,
   valueTypeAndUnitsColumns,
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
@@ -139,5 +141,6 @@ export function indicatorSectionsRouter(
     ),
     indicatorSectionRouter(indicators, session, agesSection, agesColumns),
     indicatorSectionRouter(indicators, session, taggingServerSection(tags), taggingColumns),
+    indicatorSectionRouter(indicators, session, updateSummarySection, updateSummaryColumns),
   );
 }

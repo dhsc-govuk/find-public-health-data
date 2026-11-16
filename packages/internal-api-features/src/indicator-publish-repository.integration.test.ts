@@ -4,6 +4,7 @@ import { describe, expect, vi } from 'vitest';
 
 import {
   getIndicatorDraftState,
+  getPublishedAnswers,
   type IndicatorDraftAttributes,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
@@ -23,6 +24,7 @@ import {
   storedTopicIdsOf,
   underFive,
 } from './indicator-repository.testing.ts';
+import { indicatorTaskList } from './indicator-task-list.ts';
 
 const {
   indicatorVersionClassification,
@@ -318,6 +320,29 @@ describe('createDraftFromPublished', () => {
   );
 
   seededRepositoryTest(
+    'starts the new draft without the update summaries of the published version',
+    async ({ db }) => {
+      const { indicatorId, currentId } = await indicatorWithTwoPublications(
+        db,
+        'Summarised when published',
+      );
+      await db
+        .update(indicatorVersion)
+        .set({
+          updateSummary: 'Added the 2024 data.',
+          updateSummaryForReviewers: 'No other changes.',
+        })
+        .where(eq(indicatorVersion.id, currentId));
+
+      const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+
+      if (!result.ok) throw new Error('expected a draft');
+      const state = await getIndicatorDraftState(db, indicatorId);
+      expect(state?.draft).toMatchObject({ updateSummary: null, updateSummaryForReviewers: null });
+    },
+  );
+
+  seededRepositoryTest(
     'copies the demographics and age ranges of the published version, leaving them on it too',
     async ({ db }) => {
       const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
@@ -441,5 +466,95 @@ describe('createDraftFromPublished', () => {
       ok: false,
       reason: 'not_published',
     });
+  });
+});
+
+describe('getPublishedAnswers', () => {
+  seededRepositoryTest(
+    'reads the published version as a draft opened from it reads, so no task looks changed',
+    async ({ db }) => {
+      const { indicatorId, currentId } = await indicatorWithTwoPublications(
+        db,
+        'Every list when published',
+      );
+      const subtopics = await db
+        .selectDistinctOn([schema.subtopic.topicId], {
+          id: schema.subtopic.id,
+          topicId: schema.subtopic.topicId,
+        })
+        .from(schema.subtopic)
+        .limit(2);
+      const [primary, secondary] = subtopics;
+      if (!primary || !secondary) throw new Error('The seed holds too few subtopics');
+      const lifeStage = await classificationIn(db, 'life_stage');
+      const framework = await classificationIn(db, 'framework');
+      const indicatorType = await classificationIn(db, 'indicator_type');
+      const { liveBirths, onsAlone } = await onsSources(db);
+
+      await db
+        .update(indicatorVersion)
+        .set({ hasLifeStage: true, hasFramework: true, ageType: 'range' })
+        .where(eq(indicatorVersion.id, currentId));
+      await db.insert(indicatorVersionTopic).values([
+        { indicatorVersionId: currentId, topicId: primary.topicId, isPrimary: true },
+        { indicatorVersionId: currentId, topicId: secondary.topicId },
+      ]);
+      await db.insert(schema.indicatorVersionSubtopic).values([
+        {
+          indicatorVersionId: currentId,
+          topicId: primary.topicId,
+          subtopicId: primary.id,
+          isPrimary: true,
+        },
+        { indicatorVersionId: currentId, topicId: secondary.topicId, subtopicId: secondary.id },
+      ]);
+      await db.insert(indicatorVersionClassification).values(
+        [indicatorType, lifeStage, framework].map(({ id }) => ({
+          classificationId: id,
+          indicatorVersionId: currentId,
+        })),
+      );
+      await db.insert(indicatorVersionAgeRange).values([
+        { indicatorVersionId: currentId, position: 0, ...sixteenPlus },
+        { indicatorVersionId: currentId, position: 1, ...underFive },
+      ]);
+      await db.insert(indicatorVersionSource).values([
+        { indicatorVersionId: currentId, part: 'numerator', position: 0, ...liveBirths },
+        { indicatorVersionId: currentId, part: 'numerator', position: 1, ...onsAlone },
+        { indicatorVersionId: currentId, part: 'denominator', position: 0, ...onsAlone },
+      ]);
+
+      expect(await createDraftFromPublished(db, indicatorId, AS_ACTOR)).toMatchObject({
+        ok: true,
+      });
+      const [state, published] = await Promise.all([
+        getIndicatorDraftState(db, indicatorId),
+        getPublishedAnswers(db, indicatorId),
+      ]);
+      if (!state?.draft || published === undefined) throw new Error('expected both versions');
+      const { draft, draftCiMethodKind, ...indicator } = state;
+
+      expect(published).toMatchObject({
+        numeratorSources: [liveBirths, onsAlone],
+        ageRanges: [sixteenPlus, underFive],
+        primaryTopicId: primary.topicId,
+        primarySubtopicId: primary.id,
+      });
+      expect(published.classifications).toHaveLength(3);
+      expect(
+        indicatorTaskList({
+          indicator,
+          draft: { ...draft, ciMethodKind: draftCiMethodKind },
+          published,
+          review: null,
+        }).changedTasks,
+      ).toEqual([]);
+    },
+  );
+
+  seededRepositoryTest('reads nothing for a new indicator', async ({ db }) => {
+    const created = await newDraft(db, 'Nothing published to read');
+
+    expect(await getPublishedAnswers(db, created.indicatorId)).toBeUndefined();
   });
 });

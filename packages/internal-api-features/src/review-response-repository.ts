@@ -1,11 +1,11 @@
 import { type Database, schema } from '@fphd/db';
-import type { Actor } from '@fphd/db/audit-log';
+import type { Actor, AuditChanges } from '@fphd/db/audit-log';
 import {
   type IndicatorStepResult,
   type IndicatorStepWrite,
   takeIndicatorStep,
 } from '@fphd/internal-workflow';
-import type { FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
+import { type FlaggableTaskKey, isFlaggableOn } from '@fphd/utils/indicator-task-key';
 import type { ReviewResponseKind } from '@fphd/utils/review-response-kind';
 import { and, eq, sql } from 'drizzle-orm';
 
@@ -23,7 +23,7 @@ const {
 export interface ReviewResponse {
   submissionNumber: number;
   kind: ReviewResponseKind;
-  /** The IMRG meeting's date, `YYYY-MM-DD`; null for feedback before it. */
+  /** The IMRG meeting's date, `YYYY-MM-DD`; null for feedback before it and for any response to an update. */
   imrgReviewedOn: string | null;
   clarificationRequest: string | null;
   flags: readonly { task: FlaggableTaskKey; notes: string }[];
@@ -56,38 +56,65 @@ async function firstSubmittedOn(tx: Transaction, versionId: string): Promise<str
   return first?.on;
 }
 
-/** The write that inserts the response and its flags as the actor's, answering them for the audit. */
+/** Who responds to a submission: an assigned reviewer, or a core team member deciding on an update. */
+export type Responder = { reviewerId: string } | { coreTeamMemberId: string };
+
+/**
+ * Inserts a response to the submission and its flags, written by `responder`, and answers them for
+ * the audit.
+ */
+export async function insertResponse(
+  tx: Transaction,
+  submissionId: string,
+  response: Omit<ReviewResponse, 'submissionNumber'>,
+  responder: Responder,
+): Promise<AuditChanges> {
+  const [row] = await tx
+    .insert(indicatorVersionSubmissionResponse)
+    .values({
+      submissionId,
+      ...responder,
+      kind: response.kind,
+      imrgReviewedOn: response.imrgReviewedOn,
+      clarificationRequest: response.clarificationRequest,
+    })
+    .returning();
+  if (row === undefined) throw new Error(`inserted no response to ${submissionId}`);
+  const flags =
+    response.flags.length === 0
+      ? []
+      : await tx
+          .insert(indicatorVersionSubmissionFlag)
+          .values(
+            response.flags.map(({ task, notes }) => ({
+              responseId: row.id,
+              taskKey: task,
+              notes,
+            })),
+          )
+          .returning({
+            taskKey: indicatorVersionSubmissionFlag.taskKey,
+            notes: indicatorVersionSubmissionFlag.notes,
+          });
+  return { response: { before: null, after: { ...row, flags } } };
+}
+
+/** The write that inserts the response and its flags as the reviewer's, answering them for the audit. */
 export function responseWrite(response: ReviewResponse, actor: Actor): IndicatorStepWrite {
-  return async (tx, submission) => {
-    const [row] = await tx
-      .insert(indicatorVersionSubmissionResponse)
-      .values({
-        submissionId: submission.id,
-        reviewerId: actor.userId,
-        kind: response.kind,
-        imrgReviewedOn: response.imrgReviewedOn,
-        clarificationRequest: response.clarificationRequest,
-      })
-      .returning();
-    if (row === undefined) throw new Error(`inserted no response to ${submission.id}`);
-    const flags =
-      response.flags.length === 0
-        ? []
-        : await tx
-            .insert(indicatorVersionSubmissionFlag)
-            .values(
-              response.flags.map(({ task, notes }) => ({
-                responseId: row.id,
-                taskKey: task,
-                notes,
-              })),
-            )
-            .returning({
-              taskKey: indicatorVersionSubmissionFlag.taskKey,
-              notes: indicatorVersionSubmissionFlag.notes,
-            });
-    return { response: { before: null, after: { ...row, flags } } };
-  };
+  return (tx, submission) =>
+    insertResponse(tx, submission.id, response, { reviewerId: actor.userId });
+}
+
+/**
+ * Whether the response does not fit the draft. An update's reviewer gives no IMRG date, and a new
+ * indicator's approval needs one. Only an update has an update summary to flag.
+ */
+function misfitsDraft(response: ReviewResponse, isUpdate: boolean): boolean {
+  if (isUpdate) return response.imrgReviewedOn !== null;
+  return (
+    (response.kind === 'approved' && response.imrgReviewedOn === null) ||
+    response.flags.some(({ task }) => !isFlaggableOn(task, false))
+  );
 }
 
 /**
@@ -95,8 +122,10 @@ export function responseWrite(response: ReviewResponse, actor: Actor): Indicator
  * feedback and revisions send the draft back to the publisher, and an approval keeps it locked
  * for publication on its date. Refused as `changed` when the submission is not the one the
  * reviewer was shown, `not_a_reviewer` when they are not assigned to it,
- * `reviewed_before_submission` for an IMRG date before the version was first submitted, and
- * `no_publication_date` for an approval of a draft with no date.
+ * `reviewed_before_submission` for an IMRG date before the version was first submitted,
+ * `no_publication_date` for an approval of a draft with no date, and `not_allowed` for a response
+ * that does not fit the draft: an IMRG date on an update, an approval of a new indicator with no
+ * IMRG date, or a flag on the update summary of a new indicator, which has none.
  */
 export function respondToReview(
   db: Database,
@@ -107,11 +136,12 @@ export function respondToReview(
   const step = RESPONSE_STEPS[response.kind];
 
   return takeIndicatorStep(db, indicatorId, step, actor, {
-    precondition: async (tx, { draft, latest }) => {
+    precondition: async (tx, { draft, latest, indicatorStatus }) => {
       if (latest?.number !== response.submissionNumber) return 'changed';
       if (!(await assignedReviewerIds(tx, latest.id)).includes(actor.userId)) {
         return 'not_a_reviewer';
       }
+      if (misfitsDraft(response, indicatorStatus === 'live')) return 'not_allowed';
       if (response.imrgReviewedOn !== null) {
         const firstOn = await firstSubmittedOn(tx, draft.id);
         if (firstOn !== undefined && response.imrgReviewedOn < firstOn) {

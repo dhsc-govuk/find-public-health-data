@@ -11,7 +11,7 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     areaTypes: 101,
     dimensionTypes: 153,
     dimensionValues: 1384,
-    noteTypes: 235,
+    noteTypes: 236,
   });
 });
 

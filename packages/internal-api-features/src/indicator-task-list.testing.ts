@@ -88,4 +88,5 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   numeratorDefinition: 'Deaths registered in the year.',
   denominatorSources: [ons],
   denominatorDefinition: 'Mid-year population.',
+  updateSummary: 'Added the 2024 data.',
 };

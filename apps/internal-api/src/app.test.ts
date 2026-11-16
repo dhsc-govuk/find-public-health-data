@@ -216,6 +216,27 @@ describe('internal API', () => {
     expect(asAdmin.status).toBe(403);
   });
 
+  it('mounts the start of an update behind the publisher role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findAccess: vi.fn().mockResolvedValue(stepRow),
+        draftFromPublished: async () => ({ ok: true, versionId: stepRow.id }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/draft';
+
+    const asPublisher = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['publisher']));
+    const asAdmin = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['admin']));
+
+    expect(asPublisher.status).toBe(204);
+    expect(asAdmin.status).toBe(403);
+  });
+
   it('mounts the assign reviewers step behind the IMRG manager role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
@@ -273,6 +294,45 @@ describe('internal API', () => {
 
     expect(asAdmin.status).toBe(204);
     expect(asPublisher.status).toBe(403);
+  });
+
+  it("mounts the core team's update decision behind the admin role", async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findAccess: vi.fn().mockResolvedValue(stepRow),
+        decideUpdate: async () => ({ ok: true }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/update-decision';
+    const body = {
+      submissionNumber: 1,
+      decision: 'request_revisions',
+      clarificationRequest: 'Why now?',
+      flags: [],
+    };
+
+    const asAdmin = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['admin']))
+      .send(body);
+    const asPublisher = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['publisher']))
+      .send(body);
+
+    expect(asAdmin.status).toBe(204);
+    expect(asPublisher.status).toBe(403);
+
+    // Its own body limit, over the default 100 kB.
+    const long = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['admin']))
+      .send({
+        ...body,
+        flags: flaggableTaskKeySchema.options.map((task) => ({ task, notes: '€'.repeat(10_000) })),
+      });
+    expect(long.status).toBe(204);
   });
 
   it('mounts the review response behind the IMRG reviewer role', async () => {
@@ -387,6 +447,7 @@ describe('internal API', () => {
           submissions: [],
           assignments: [],
           scheduling: [],
+          updates: [],
           saves: [],
         }),
       },
@@ -503,6 +564,24 @@ describe('internal API', () => {
     });
     const app = createTestApp(createFakeRepositories(), internalRepositories);
     const path = '/api/internal/indicators-scheduled';
+
+    const asAdmin = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['admin']));
+    const asManager = await request(app)
+      .get(path)
+      .set('Cookie', await createCookie(['imrg-manager']));
+
+    expect(asAdmin.status).toBe(200);
+    expect(asManager.status).toBe(403);
+  });
+
+  it('mounts the updates awaiting a decision behind the admin role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: { listAwaitingDecision: async () => [] },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/updates-awaiting-decision';
 
     const asAdmin = await request(app)
       .get(path)

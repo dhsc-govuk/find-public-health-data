@@ -70,6 +70,28 @@ function pickStrings(value: unknown, maxLength = MAX_FILTER_VALUE_LENGTH): strin
 export function indicatorsRouter(indicators: Repositories['indicators']): Router {
   const router = Router();
 
+  router.get('/api/indicator-scatter', async (request, response) => {
+    const areaCodes = pickAreaCodes(request.query.areaCode, MAX_RANKING_AREAS);
+    const raw = request.query.indicator;
+    if (
+      !areaCodes.length ||
+      !Array.isArray(raw) ||
+      raw.length !== 2 ||
+      !raw.every((value) => typeof value === 'string' && isShortId(value))
+    ) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const first = Number(raw[0]);
+    const second = Number(raw[1]);
+    if (first === second) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+    const points = await indicators.findScatterData([first, second], areaCodes);
+    response.status(points ? 200 : 404).json(points ? { points } : { error: 'not_found' });
+  });
+
   router.get('/api/indicators/:indicator/ranking', async (request, response) => {
     const areaCodes = pickAreaCodes(request.query.areaCode, MAX_RANKING_AREAS);
     const indicatorId = areaCodes.length
@@ -97,10 +119,13 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       response.status(404).json({ error: 'not_found' });
       return;
     }
+    const { observationHistory } = indicatorDataQuerySchema.parse(request.query);
     const entries =
-      indicatorDataQuerySchema.parse(request.query).observationHistory === 'latestPerSeries'
+      observationHistory === 'latestPerSeries'
         ? await indicators.findTableData(shortIds, areaCodes, 'latest')
-        : await indicators.findTableData(shortIds, areaCodes);
+        : observationHistory === 'lastEightPeriodsPerSeries'
+          ? await indicators.findTableData(shortIds, areaCodes, 'sparkline')
+          : await indicators.findTableData(shortIds, areaCodes);
     if (entries.length !== shortIds.length || entries.some(({ areaData }) => !areaData.length)) {
       response.status(404).json({ error: 'not_found' });
       return;

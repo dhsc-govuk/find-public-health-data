@@ -108,6 +108,8 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'sponsors_and_stakeholders',
     'has_reviewer_comments',
     'reviewer_comments_detail',
+    'update_summary',
+    'update_summary_for_reviewers',
     'created_at',
     'updated_at',
     // pholio-migration, which the importer loads as the PHOLIO migration user, as it does uploaded_by.

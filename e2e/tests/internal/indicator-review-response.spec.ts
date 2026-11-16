@@ -184,6 +184,23 @@ test.describe('as an assigned IMRG reviewer', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  // An update's own first page needs a live indicator, which only publication gives, so its
+  // journey is in the publishing project's indicator-update.spec.ts.
+  test("the update approval page sends a new indicator's reviewer to the response type page", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const { id } = await inReview(browser, 'not an update');
+
+    await page.goto(`${overviewPath(id)}/review/update-approval`);
+
+    await expect(page).toHaveURL(`${overviewPath(id)}/review/response-type`);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'What response are you submitting?' }),
+    ).toBeVisible();
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
   test('the date page refuses a date in the future and one before the first submission', async ({
     browser,
     page,

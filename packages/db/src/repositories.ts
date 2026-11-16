@@ -33,6 +33,7 @@ import {
   searchIndicators,
   searchPublishedIndicators,
 } from './indicator-repository.ts';
+import { getPublishedIndicatorScatterData } from './indicator-scatter-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
 import {
   getTopicBySlug,
@@ -44,10 +45,14 @@ import {
 } from './topic-repository.ts';
 
 export interface IndicatorRepository {
+  findScatterData(
+    shortIds: [number, number],
+    areaCodes: string[],
+  ): ReturnType<typeof getPublishedIndicatorScatterData>;
   findTableData(
     shortIds: number[],
     areaCodes: string[],
-    points?: 'recent' | 'latest',
+    points?: 'recent' | 'latest' | 'sparkline',
   ): ReturnType<typeof getIndicatorTableData>;
   listAreas(
     indicatorId: string,
@@ -126,6 +131,8 @@ export function createRepositories(db: Database): Repositories {
         getIndicatorObservations(db, indicatorId, areaCode),
       findObservationsForAreas: (indicatorId, areaCodes) =>
         getIndicatorObservationsForAreas(db, indicatorId, areaCodes),
+      findScatterData: (shortIds, areaCodes) =>
+        getPublishedIndicatorScatterData(db, shortIds, areaCodes),
       findRankingData: (indicatorId, areaCodes) =>
         getIndicatorRankingData(db, indicatorId, areaCodes),
       findObservationRange: (indicatorId, displayGroup) =>
@@ -140,9 +147,13 @@ export function createRepositories(db: Database): Repositories {
       listSubtopics: (slug) => listTopicSubtopics(db, slug),
     },
   };
+  // Resolving a short id or slug is a one-row index lookup, so it is never shared between
+  // requests. Sharing it would make the number of statements a page costs depend on whether
+  // its API requests happen to overlap.
+  const { resolveId, resolveIdBySlug } = repositories.indicators;
   return {
     areas: coalescedReads(repositories.areas),
-    indicators: coalescedReads(repositories.indicators),
+    indicators: { ...coalescedReads(repositories.indicators), resolveId, resolveIdBySlug },
     topics: coalescedReads(repositories.topics),
   };
 }

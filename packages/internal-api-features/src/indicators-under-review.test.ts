@@ -7,6 +7,7 @@ import {
   indicatorsScheduledSchema,
   indicatorsToReviewSchema,
   indicatorsUnderReviewSchema,
+  updatesAwaitingDecisionSchema,
 } from './contract.ts';
 import type { IndicatorAdminListRow } from './indicator-list-repository.ts';
 import { internalIndicatorsUnderReviewRouter } from './indicators-under-review.ts';
@@ -20,6 +21,8 @@ import {
 
 const path = '/api/internal/indicators-under-review';
 const toReviewPath = '/api/internal/indicators-to-review';
+const scheduledPath = '/api/internal/indicators-scheduled';
+const awaitingPath = '/api/internal/updates-awaiting-decision';
 
 const row: IndicatorAdminListRow = {
   id: '00000000-0000-7000-8000-000000000001',
@@ -34,6 +37,7 @@ const row: IndicatorAdminListRow = {
   draftLocked: true,
   draftSubmissionStatus: 'submitted',
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 
@@ -50,6 +54,13 @@ const scheduled: IndicatorAdminListRow = {
   draftStatus: 'scheduled',
   draftSubmissionStatus: 'approved',
   draftResponseKind: 'approved',
+  draftUpdateDecision: null,
+};
+
+const awaitingDecision: IndicatorAdminListRow = {
+  ...row,
+  id: '00000000-0000-7000-8000-000000000004',
+  indicatorStatus: 'live',
 };
 
 function createTestApp(
@@ -60,10 +71,13 @@ function createTestApp(
   listScheduled: InternalIndicatorRepository['listScheduled'] = vi
     .fn()
     .mockResolvedValue([scheduled]),
+  listAwaitingDecision: InternalIndicatorRepository['listAwaitingDecision'] = vi
+    .fn()
+    .mockResolvedValue([awaitingDecision]),
 ): Express {
   return createRouterTestApp(
     internalIndicatorsUnderReviewRouter(
-      { listUnderReview, listToReview, listScheduled },
+      { listUnderReview, listToReview, listScheduled, listAwaitingDecision },
       testSessionVerifier,
     ),
   );
@@ -94,7 +108,7 @@ describe('GET /api/internal/indicators-under-review', () => {
       .get(path)
       .set('Cookie', await managerCookie());
 
-    expect(listUnderReview).toHaveBeenCalledWith({ all: true });
+    expect(listUnderReview).toHaveBeenCalledWith({ all: true }, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -140,7 +154,7 @@ describe('GET /api/internal/indicators-to-review', () => {
       .get(toReviewPath)
       .set('Cookie', await testSessionCookie(['publisher', 'imrg-reviewer']));
 
-    expect(listToReview).toHaveBeenCalledWith(TEST_USER_ID);
+    expect(listToReview).toHaveBeenCalledWith(TEST_USER_ID, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -163,8 +177,6 @@ describe('GET /api/internal/indicators-to-review', () => {
 });
 
 describe('GET /api/internal/indicators-scheduled', () => {
-  const scheduledPath = '/api/internal/indicators-scheduled';
-
   function adminCookie() {
     return testSessionCookie(['admin'], []);
   }
@@ -188,7 +200,7 @@ describe('GET /api/internal/indicators-scheduled', () => {
       .get(scheduledPath)
       .set('Cookie', await adminCookie());
 
-    expect(listScheduled).toHaveBeenCalledWith({ all: true });
+    expect(listScheduled).toHaveBeenCalledWith({ all: true }, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -208,4 +220,101 @@ describe('GET /api/internal/indicators-scheduled', () => {
 
     expect(response.status).toBe(403);
   });
+});
+
+describe('GET /api/internal/updates-awaiting-decision', () => {
+  function adminCookie() {
+    return testSessionCookie(['admin'], []);
+  }
+
+  it('answers the list in the shape the contract describes', async () => {
+    const response = await request(createTestApp())
+      .get(awaitingPath)
+      .set('Cookie', await adminCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      indicators: [{ ...awaitingDecision, updatedAt: '2026-08-04T10:00:00.000Z' }],
+    });
+    expect(updatesAwaitingDecisionSchema.safeParse(response.body).success).toBe(true);
+  });
+
+  it("lists the updates the admin's scope lets them see", async () => {
+    const listAwaitingDecision = vi.fn().mockResolvedValue([]);
+
+    await request(createTestApp(undefined, undefined, undefined, listAwaitingDecision))
+      .get(awaitingPath)
+      .set('Cookie', await adminCookie());
+
+    expect(listAwaitingDecision).toHaveBeenCalledWith({ all: true }, undefined);
+  });
+
+  it('rejects an anonymous request', async () => {
+    const response = await request(createTestApp()).get(awaitingPath);
+
+    expect(response.status).toBe(401);
+  });
+
+  it.each([
+    ['a publisher', ['publisher']],
+    ['the IMRG manager', ['imrg-manager']],
+    ['a reviewer', ['imrg-reviewer']],
+  ])('rejects %s', async (_, roles) => {
+    const response = await request(createTestApp())
+      .get(awaitingPath)
+      .set('Cookie', await testSessionCookie(roles));
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('the search on each queue', () => {
+  const ALL_ROLES = ['imrg-manager', 'imrg-reviewer', 'admin'];
+
+  function queues() {
+    const lists = {
+      listUnderReview: vi.fn().mockResolvedValue({ unassigned: [], assigned: [] }),
+      listToReview: vi.fn().mockResolvedValue([]),
+      listScheduled: vi.fn().mockResolvedValue([]),
+      listAwaitingDecision: vi.fn().mockResolvedValue([]),
+    };
+    const app = createTestApp(
+      lists.listUnderReview,
+      lists.listToReview,
+      lists.listScheduled,
+      lists.listAwaitingDecision,
+    );
+    return { app, lists };
+  }
+
+  it.each([
+    [path, 'listUnderReview'],
+    [toReviewPath, 'listToReview'],
+    [scheduledPath, 'listScheduled'],
+    [awaitingPath, 'listAwaitingDecision'],
+  ] as const)('%s lists the indicators matching a search', async (queuePath, list) => {
+    const { app, lists } = queues();
+
+    const response = await request(app)
+      .get(`${queuePath}?search=%20life%20expectancy%20`)
+      .set('Cookie', await testSessionCookie(ALL_ROLES, []));
+
+    expect(response.status).toBe(200);
+    expect(lists[list]).toHaveBeenCalledWith(expect.anything(), 'life expectancy');
+  });
+
+  it.each([path, toReviewPath, scheduledPath, awaitingPath])(
+    '%s rejects a search given twice',
+    async (queuePath) => {
+      const { app, lists } = queues();
+
+      const response = await request(app)
+        .get(`${queuePath}?search=a&search=b`)
+        .set('Cookie', await testSessionCookie(ALL_ROLES, []));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: 'invalid_search' });
+      expect(Object.values(lists).flatMap((list) => list.mock.calls)).toEqual([]);
+    },
+  );
 });

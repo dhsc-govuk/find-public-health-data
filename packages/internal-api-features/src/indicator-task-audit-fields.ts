@@ -12,6 +12,7 @@ import {
   periodTypeSection,
   polaritySection,
   sexGenderAndEthnicitySection,
+  updateSummarySection,
   valueTypeAndUnitsSection,
 } from './contract.ts';
 import { UNORDERED_LISTS } from './indicator-version-lists-repository.ts';
@@ -48,6 +49,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   'sex-gender-and-ethnicity': sexGenderAndEthnicitySection.fields.options,
   ages: agesSection.fields.options,
   tagging: [...UNORDERED_LISTS, 'primaryTopicId', 'isAreaContext', 'hasLifeStage', 'hasFramework'],
+  'update-summary': updateSummarySection.fields.options,
 };
 
 /** Whether a save that changed `fields` changed any of the task's answers. */

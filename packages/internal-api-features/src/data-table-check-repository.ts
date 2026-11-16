@@ -6,11 +6,18 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { DataTableRow } from './data-table-check-contract.ts';
 import { columnsOf, type DataTableColumn } from './data-table-columns.ts';
 import { nameKey } from './data-table-names.ts';
-import { draftJoin, draftVersion } from './indicator-repository-sql.ts';
+import {
+  draftJoin,
+  draftVersion,
+  publishedJoin,
+  publishedVersion,
+  publishedVersionJoin,
+} from './indicator-repository-sql.ts';
 import { clearFlag } from './review-flag-repository.ts';
 
 const {
   area,
+  currentPublishedVersion,
   dimensionType,
   dimensionValue,
   indicator,
@@ -32,6 +39,12 @@ export interface DraftDataTableRow {
   columns: DataTableColumn[];
   rowCount: number;
   yearType: PublicYearType | null;
+  /**
+   * True when the draft updates a live indicator and has a data table of its own, which replaces
+   * the published version's. False for a new indicator, and for an update still on the published
+   * version's data table.
+   */
+  replacesPublished: boolean;
 }
 
 export type FindDraftDataTableResult =
@@ -53,10 +66,14 @@ export async function findDraftDataTable(
       yearType: draftVersion.yearType,
       yearEndDay: draftVersion.yearEndDay,
       yearEndMonth: draftVersion.yearEndMonth,
+      publishedId: publishedVersion.id,
+      publishedBatchId: publishedVersion.uploadBatchId,
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)
     .leftJoin(uploadBatch, eq(uploadBatch.id, draftVersion.uploadBatchId))
+    .leftJoin(currentPublishedVersion, publishedJoin)
+    .leftJoin(publishedVersion, publishedVersionJoin)
     .where(eq(indicator.id, indicatorId));
 
   if (row === undefined) return { found: false, reason: 'not_found' };
@@ -80,6 +97,7 @@ export async function findDraftDataTable(
                 ? null
                 : { day: yearEndDay, month: yearEndMonth },
             ),
+      replacesPublished: row.publishedId !== null && row.publishedBatchId !== row.batchId,
     },
   };
 }

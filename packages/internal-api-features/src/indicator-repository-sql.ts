@@ -9,6 +9,7 @@ import type {
   DraftSubmissionStatus,
   IndicatorStatus,
   ReviewResponseKind,
+  UpdateDecision,
 } from './contract.ts';
 
 const {
@@ -72,6 +73,14 @@ const latestDraftSubmission = new QueryBuilder({ casing: 'snake_case' })
   .limit(1);
 // A subquery, so a select list sorted and limited runs it for the rows it returns alone.
 export const draftSubmissionStatus = sql<DraftSubmissionStatus | null>`(${latestDraftSubmission})`;
+const latestDraftUpdateDecision = new QueryBuilder({ casing: 'snake_case' })
+  .select({ updateDecision: indicatorVersionSubmission.updateDecision })
+  .from(indicatorVersionSubmission)
+  .where(eq(indicatorVersionSubmission.indicatorVersionId, draftVersion.id))
+  .orderBy(desc(indicatorVersionSubmission.number))
+  .limit(1);
+// The core team's decision on the draft's latest submission, which only an update has.
+export const draftUpdateDecision = sql<UpdateDecision | null>`(${latestDraftUpdateDecision})`;
 const latestDraftSubmissionNumber = new QueryBuilder({ casing: 'snake_case' })
   .select({ number: max(indicatorVersionSubmission.number) })
   .from(indicatorVersionSubmission)

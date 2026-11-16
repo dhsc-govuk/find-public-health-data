@@ -27,6 +27,7 @@ const indicator: IndicatorAdminDetail = {
   draftLocked: false,
   draftSubmissionStatus: 'changes_requested',
   draftResponseKind: 'minor_revisions',
+  draftUpdateDecision: null,
   draftReviewers: [],
   draftSubmissionNumber: 1,
   draftScheduledPublishAt: null,

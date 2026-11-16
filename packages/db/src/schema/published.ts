@@ -45,6 +45,7 @@ export const publishedObservationSeries = publishedSchema
     latestObservationId: uuid('latest_observation_id').notNull(),
     rankingObservationId: uuid('ranking_observation_id'),
     recentObservationIds: uuid('recent_observation_ids').array().notNull(),
+    sparklineObservationIds: uuid('sparkline_observation_ids').array(),
     recentValues: doublePrecision('recent_values').array().notNull(),
   })
   .existing();
@@ -85,6 +86,20 @@ export const publishedIndicator = publishedSchema
     // `indicator_version_published_at_check` gives every published version a `published_at`.
     firstPublishedAt: timestamp('first_published_at', { withTimezone: true }).notNull(),
     lastPublishedAt: timestamp('last_published_at', { withTimezone: true }).notNull(),
+  })
+  .existing();
+
+/**
+ * The summaries of published updates, each with the time its version was published: every
+ * update but one the core team published without visibility in history. Only a published
+ * version whose latest submission has a core team decision is here, so a new indicator's first
+ * version never is.
+ */
+export const publishedIndicatorUpdateSummary = publishedSchema
+  .view('indicator_update_summary', {
+    indicatorId: uuid('indicator_id').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
+    updateSummary: text('update_summary').notNull(),
   })
   .existing();
 

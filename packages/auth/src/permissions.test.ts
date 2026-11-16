@@ -5,6 +5,7 @@ import {
   canBrowseAllIndicators,
   canCreateIndicator,
   canCreateIndicatorInTeam,
+  canDecideUpdates,
   canEditIndicator,
   canEditIndicators,
   canListIndicators,
@@ -295,6 +296,13 @@ describe('the role-wide checks', () => {
     expect(canSchedulePublication(admin)).toBe(true);
     for (const asking of [publisherAB, publisherReviewer, manager, reviewer]) {
       expect(canSchedulePublication(asking), asking.sub).toBe(false);
+    }
+  });
+
+  it('lets an admin, and no one else, decide what happens to a submitted update', () => {
+    expect(canDecideUpdates(admin)).toBe(true);
+    for (const asking of [publisherAB, publisherReviewer, manager, reviewer]) {
+      expect(canDecideUpdates(asking), asking.sub).toBe(false);
     }
   });
 

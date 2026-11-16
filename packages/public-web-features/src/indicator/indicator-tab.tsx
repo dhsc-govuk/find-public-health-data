@@ -1,8 +1,10 @@
-import { A, ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
+import { A, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { isOneOf } from '@fphd/utils/is-one-of';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
+import { englandCode } from './charts/chart-data.ts';
+import { TrendChart } from './charts/trend-chart.tsx';
 import {
   availableConfidenceLevels,
   availableMeasures,
@@ -72,6 +74,19 @@ export function IndicatorTab({
   const regionAvailable = pickedAreaData.some(
     ({ areaCode }) => benchmarkGeography.regionByCode[areaCode],
   );
+  const trendAreas = hasPickedAreas
+    ? [
+        ...pickedAreaData.map(narrow),
+        ...(options.benchmark === 'england'
+          ? filtered.filter(({ areaCode }) => areaCode === englandCode)
+          : []),
+        ...(options.benchmark === 'region'
+          ? filteredRegions.filter(
+              ({ areaCode }) => !pickedAreaData.some((area) => area.areaCode === areaCode),
+            )
+          : []),
+      ]
+    : filtered;
   const geography = (
     <IndicatorGeographies
       displayGroups={displayGroups}
@@ -180,10 +195,34 @@ export function IndicatorTab({
           {download}
           <div className="fphd-indicator-chart fphd-indicator-chart--trend">
             <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
-            <ChartSection
+            {hasPickedAreas ||
+            confidenceLevels.length > 0 ||
+            sexes.length > 0 ||
+            periodTypes.length > 1 ? (
+              <PanelOptionsPanel
+                benchmarks={hasPickedAreas ? { region: regionAvailable } : undefined}
+                confidenceLevels={confidenceLevels}
+                label="Chart options"
+                onChange={applyOptions}
+                options={options}
+                panel="chart"
+                periodTypes={periodTypes}
+                scope={id}
+                sexes={sexes}
+                showConfidence
+                target={{
+                  tabParam: 'tab-indicator',
+                  tabValue: 'indicator',
+                  anchor: 'indicator-data',
+                }}
+              />
+            ) : null}
+            <TrendChart
               id="indicator-trend-chart"
               title={`${detail.name} trend chart`}
-              description="How this indicator has changed over time for the selected geographies."
+              areas={trendAreas}
+              indicator={detail}
+              confidence={confidence}
             />
           </div>
           <div id="indicator-table" className="govuk-!-margin-top-4">

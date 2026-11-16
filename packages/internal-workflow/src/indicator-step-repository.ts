@@ -8,6 +8,7 @@ import {
   changesBetween,
   recordAudit,
 } from '@fphd/db/audit-log';
+import type { IndicatorStatus } from '@fphd/utils/indicator-status';
 import type { IndicatorStep } from '@fphd/utils/indicator-step';
 import type { IndicatorSubmissionStatus } from '@fphd/utils/indicator-submission-status';
 import { and, desc, eq, sql } from 'drizzle-orm';
@@ -36,12 +37,17 @@ export type IndicatorStepResult<Reason extends string = never> =
 
 /**
  * A step's own check of the draft version and its latest submission, run while the step holds the
- * lock on the draft version's row. It returns the reason the step is refused, or undefined to let
- * the step go ahead.
+ * lock on the draft version's row. `indicatorStatus` says whether the draft is a new indicator's
+ * or an update to a live one. It returns the reason the step is refused, or undefined to let the
+ * step go ahead.
  */
 export type IndicatorStepPrecondition<Reason extends string> = (
   tx: Transaction,
-  state: { draft: IndicatorDraftVersion; latest: Submission | undefined },
+  state: {
+    draft: IndicatorDraftVersion;
+    latest: Submission | undefined;
+    indicatorStatus: IndicatorStatus;
+  },
 ) => Promise<Reason | undefined>;
 
 /**
@@ -81,6 +87,9 @@ export type IndicatorStepChoice =
 const STEP_ACTIONS: Readonly<Record<IndicatorStep, AuditAction>> = {
   submit: 'indicator.submitted',
   withdraw: 'indicator.submission_withdrawn',
+  send_update_to_imrg: 'indicator.update_sent_to_imrg',
+  request_update_revisions: 'indicator.update_revisions_requested',
+  approve_update: 'indicator.update_approved',
   assign_reviewers: 'indicator.reviewers_assigned',
   give_feedback: 'indicator.review_feedback_given',
   request_changes: 'indicator.changes_requested',
@@ -164,6 +173,10 @@ const SUBMISSION_WRITES: Readonly<
 > = {
   submit: insertNextSubmission,
   withdraw: endLatestSubmission,
+  // The decision itself is the step's own write, which knows which decision was made.
+  send_update_to_imrg: keepLatestSubmission,
+  request_update_revisions: endLatestSubmission,
+  approve_update: endLatestSubmission,
   // The first assignment moves the submission from 'submitted' to 'in_review'. Changing the
   // reviewers of a submission already in review leaves its row as it is.
   assign_reviewers: async ({ tx, latest, status }) => {
@@ -220,10 +233,11 @@ export interface IndicatorStepOptions<Reason extends string> {
 async function reviewersCarriedBy(
   tx: Transaction,
   step: IndicatorStep,
+  context: IndicatorWorkflowContext,
   state: { indicatorId: string; latest: Submission | undefined; actor: Actor },
   reviewersToCarry: ReviewersToCarry | undefined,
 ): Promise<CarriedReviewer[]> {
-  if (!carriesReviewers(step)) return [];
+  if (!carriesReviewers(step, context.indicatorStatus)) return [];
   if (reviewersToCarry === undefined) throw new Error(`${step} was given no reviewersToCarry`);
   const { latest } = state;
   return latest === undefined ? [] : reviewersToCarry(tx, { ...state, latest });
@@ -286,6 +300,7 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
     versionStatus: draft.status,
     isLocked: draft.isLocked,
     latestSubmissionStatus: latest?.status ?? null,
+    latestUpdateDecision: latest?.updateDecision ?? null,
   };
 
   if (!allowedSteps(context).includes(step)) {
@@ -297,6 +312,7 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
   const carried = await reviewersCarriedBy(
     tx,
     step,
+    context,
     { indicatorId, latest, actor },
     reviewersToCarry,
   );
@@ -304,7 +320,11 @@ export async function takeIndicatorStepIn<Reason extends string = never>(
 
   if (!next.ok) return next;
 
-  const refusal = await precondition?.(tx, { draft, latest });
+  const refusal = await precondition?.(tx, {
+    draft,
+    latest,
+    indicatorStatus: context.indicatorStatus,
+  });
   if (refusal !== undefined) return { ok: false, reason: refusal };
 
   // `indicator_version_published_at_check` requires `published_at` to be set exactly when the

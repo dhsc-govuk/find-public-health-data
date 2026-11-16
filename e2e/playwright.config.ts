@@ -5,8 +5,9 @@
 // Specs run in parallel workers against one shared seeded database, which makes one rule
 // load-bearing: a spec never mutates data another spec reads. A test of a write flow creates
 // its own rows and asserts on those. The one exception is the `publishing` project below, whose
-// test publishes an indicator. That project is defined only when `E2E_PUBLISHING=1` is set, which
-// `test:e2e:publishing` does, so neither `test:e2e` nor a bare `playwright test` runs it.
+// tests publish indicators, some of them to update one. That project is defined only when
+// `E2E_PUBLISHING=1` is set, which `test:e2e:publishing` does, so neither `test:e2e` nor a bare
+// `playwright test` runs it.
 import { defineConfig, devices } from '@playwright/test';
 
 import { INTERNAL_WEB_URL, PUBLIC_WEB_URL } from './tests/support/web-urls.ts';

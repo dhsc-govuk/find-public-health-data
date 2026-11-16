@@ -4,6 +4,7 @@ import {
 } from '@fphd/utils/indicator-submission-status';
 import { FLAGGABLE_TASK_KEYS, type FlaggableTaskKey } from '@fphd/utils/indicator-task-key';
 import { REVIEW_RESPONSE_KINDS } from '@fphd/utils/review-response-kind';
+import { UPDATE_DECISIONS } from '@fphd/utils/update-decision';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -11,6 +12,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -50,6 +52,16 @@ export const indicatorVersionSubmission = pgTable(
     endedAt: timestamp({ withTimezone: true }),
     // The publisher's reply to this round's feedback, written while its changes are requested.
     revisionResponse: text(),
+    // The core team's decision on a submitted update to a live indicator. Null on a submitted
+    // update means the update is waiting for that decision, and a new indicator never has one.
+    updateDecision: text({ enum: UPDATE_DECISIONS }),
+    // The core team member who made the update decision, and when. Both are set with the decision.
+    updateDecidedBy: uuid(),
+    updateDecidedAt: timestamp({ withTimezone: true }),
+    // What a submitted update changed from the published version it was opened from, as it
+    // stood when it was submitted: a JSON array of tasks, each with its changed answers. The
+    // internal API writes and reads it. Null for a new indicator's submission.
+    updateChanges: jsonb().$type<unknown[]>(),
   },
   (t) => [
     // Pairing the version with indicator_id keeps a submission on a version of its own indicator.
@@ -68,11 +80,28 @@ export const indicatorVersionSubmission = pgTable(
       columns: [t.endedBy],
       foreignColumns: [appUser.id],
     }),
+    foreignKey({
+      name: 'indicator_version_submission_update_decided_by_fk',
+      columns: [t.updateDecidedBy],
+      foreignColumns: [appUser.id],
+    }),
     check(
       'indicator_version_submission_status_check',
       sql`${t.status} IN (${literals(INDICATOR_SUBMISSION_STATUSES)})`,
     ),
     check('indicator_version_submission_number_check', sql`${t.number} > 0`),
+    check(
+      'indicator_version_submission_update_changes_check',
+      sql`jsonb_typeof(${t.updateChanges}) = 'array'`,
+    ),
+    check(
+      'indicator_version_submission_update_decision_check',
+      sql`${t.updateDecision} IN (${literals(UPDATE_DECISIONS)})`,
+    ),
+    check(
+      'indicator_version_submission_update_decided_check',
+      sql`(${t.updateDecision} IS NULL) = (${t.updateDecidedBy} IS NULL) AND (${t.updateDecidedBy} IS NULL) = (${t.updateDecidedAt} IS NULL)`,
+    ),
     check(
       'indicator_version_submission_ended_check',
       sql`(${t.status} IN (${literals(ENDED_STATUSES)})) = (${t.endedBy} IS NOT NULL) AND (${t.endedBy} IS NULL) = (${t.endedAt} IS NULL)`,
@@ -126,7 +155,8 @@ export const indicatorVersionSubmissionReviewer = pgTable(
 );
 
 /**
- * A reviewer's response to a submission, which ends it. A response is final: the app never
+ * A response to a submission, which ends it: an assigned reviewer's, or the core team's when it
+ * sends an update back for revisions before any IMRG review. A response is final: the app never
  * updates or deletes one. One per submission for now, by the unique index.
  */
 export const indicatorVersionSubmissionResponse = pgTable(
@@ -134,9 +164,13 @@ export const indicatorVersionSubmissionResponse = pgTable(
   {
     id: uuidPrimaryKey(),
     submissionId: uuid().notNull(),
-    reviewerId: uuid().notNull(),
+    // The assigned reviewer who responded, or null for the core team's response.
+    reviewerId: uuid(),
+    // The core team member who sent an update back for revisions, or null for a reviewer's response.
+    coreTeamMemberId: uuid(),
     kind: text({ enum: REVIEW_RESPONSE_KINDS }).notNull(),
-    // The day of the IMRG meeting that made the decision; none for feedback before it.
+    // The day of the IMRG meeting that made the decision; none for feedback before it, and none
+    // for a reviewer's approval of an update, which no IMRG meeting decides.
     imrgReviewedOn: date({ mode: 'string' }),
     clarificationRequest: text(),
     respondedAt: timestamp({ withTimezone: true }).notNull().default(sql`clock_timestamp()`),
@@ -157,13 +191,27 @@ export const indicatorVersionSubmissionResponse = pgTable(
         indicatorVersionSubmissionReviewer.reviewerId,
       ],
     }),
+    foreignKey({
+      name: 'indicator_version_submission_response_core_team_member_fk',
+      columns: [t.coreTeamMemberId],
+      foreignColumns: [appUser.id],
+    }),
+    // Exactly one of a reviewer or a core team member responds. The core team only asks for
+    // revisions before IMRG review, so the IMRG decisions stay with the reviewers.
+    check(
+      'indicator_version_submission_response_responder_check',
+      sql`(${t.reviewerId} IS NULL) <> (${t.coreTeamMemberId} IS NULL) AND (${t.coreTeamMemberId} IS NULL OR ${t.kind} = 'pre_imrg_feedback')`,
+    ),
     check(
       'indicator_version_submission_response_kind_check',
       sql`${t.kind} IN (${literals(REVIEW_RESPONSE_KINDS)})`,
     ),
+    // Feedback before IMRG has no meeting date and minor or major revisions always have one. An
+    // approval of a new indicator has one too, but an approval of an update has none. This table
+    // cannot tell an update from a new indicator, so the internal API checks the approval's date.
     check(
       'indicator_version_submission_response_imrg_reviewed_on_check',
-      sql`(${t.imrgReviewedOn} IS NULL) = (${t.kind} = 'pre_imrg_feedback')`,
+      sql`(${t.imrgReviewedOn} IS NULL) = (${t.kind} = 'pre_imrg_feedback') OR ${t.kind} = 'approved'`,
     ),
     check(
       'indicator_version_submission_response_clarification_check',

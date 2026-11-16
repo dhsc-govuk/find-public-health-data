@@ -1,11 +1,21 @@
 import { formatDate } from '@fphd/ui';
 import type { LoaderFunctionArgs } from 'react-router';
-import { comparisonTable } from '../indicator/comparison.ts';
 import { recentTrend } from '../indicator/data.ts';
 import { tableCsv } from '../indicator/download.ts';
-import { JUDGEMENT_LABELS, topicColumns, topicSubtopics } from './data.ts';
+import {
+  comparisonSummary,
+  JUDGEMENT_LABELS,
+  type TopicColumn,
+  topicColumns,
+  topicEnglandMeasures,
+} from './data.ts';
 import { loadTopic } from './loader.ts';
-import { sortTopicAreaTable, topicAreaTableModel } from './table-models.ts';
+import {
+  sortTopicAreaTable,
+  type TopicDataTableModel,
+  topicAreaTableModel,
+  topicDataTableModel,
+} from './table-models.ts';
 
 function areaSummariesCsv({ areas, rows }: ReturnType<typeof sortTopicAreaTable>) {
   return tableCsv([
@@ -52,7 +62,7 @@ export async function loader(args: LoaderFunctionArgs) {
           url.searchParams,
         ),
       )
-    : dataCsv(data, topic.slug, url.searchParams);
+    : dataCsv(topicDataTableModel(data.selected, topic.slug), url.searchParams);
   return new Response(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
@@ -61,24 +71,28 @@ export async function loader(args: LoaderFunctionArgs) {
   });
 }
 
-function dataCsv(
-  data: NonNullable<Awaited<ReturnType<typeof loadTopic>>['content']>['data'],
-  topicSlug: string,
-  params: URLSearchParams,
-) {
-  const model = comparisonTable(data.selected, data.benchmarkGeography, 'none');
-  const byId = new Map(data.selected.map((entry) => [entry.detail.shortId, entry]));
+// Built from the same model as the on-screen table, so the download has the same columns.
+function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
   const columns = topicColumns(params);
   const measures = columns.filter((column) =>
     ['trend', 'count', 'numerator', 'value'].includes(column),
   );
-  const dataAreas = [...model.areas].sort((a, b) =>
-    a.areaCode === 'E92000001'
-      ? -1
-      : b.areaCode === 'E92000001'
-        ? 1
-        : a.areaName.localeCompare(b.areaName),
-  );
+  const englandMeasures = topicEnglandMeasures(columns, table.compared);
+  const measureLabel = (measure: TopicColumn) =>
+    measure === 'trend'
+      ? 'trend (last 5 periods)'
+      : measure === 'count' || measure === 'numerator'
+        ? measure
+        : 'calculated value';
+  const measureValue = (
+    measure: TopicColumn,
+    cell: Partial<TopicDataTableModel['rows'][number]['cells'][number]> | null | undefined,
+  ) =>
+    measure === 'trend'
+      ? (cell?.trend ?? recentTrend([], null)).label
+      : measure === 'count' || measure === 'numerator'
+        ? (cell?.[measure] ?? null)
+        : (cell?.value ?? null);
   return tableCsv([
     [
       'Indicator',
@@ -86,41 +100,35 @@ function dataCsv(
       'Unit',
       ...(columns.includes('period') ? ['Most recent period'] : []),
       ...(columns.includes('updated') ? ['Last updated'] : []),
-      ...dataAreas.flatMap(({ areaName }) =>
-        measures.map(
-          (measure) =>
-            `${areaName} ${measure === 'trend' ? 'trend (last 5 periods)' : measure === 'count' || measure === 'numerator' ? measure : 'calculated value'}`,
-        ),
-      ),
+      ...table.areas.flatMap(({ name }) => [
+        ...measures.map((measure) => `${name} ${measureLabel(measure)}`),
+        ...(table.compared ? [`${name} period`, `${name} comparison summary`] : []),
+      ]),
+      ...englandMeasures.map((measure) => `England ${measureLabel(measure)}`),
     ],
-    ...model.rows.flatMap((row) => {
-      const entry = byId.get(row.shortId);
-      if (!entry) return [];
-      return [
-        [
-          row.name + (row.suffix ? ` ${row.suffix}` : ''),
-          topicSubtopics(entry, topicSlug).join('; '),
-          row.unit,
-          ...(columns.includes('period') ? [row.period || 'No data'] : []),
-          ...(columns.includes('updated')
-            ? [
-                entry.detail.dataUpdatedAt
-                  ? formatDate(entry.detail.dataUpdatedAt, 'short')
-                  : 'Not known',
-              ]
+    ...table.rows.map((row) => [
+      row.name + (row.suffix ? ` ${row.suffix}` : ''),
+      row.subtopics.join('; '),
+      row.unit,
+      ...(columns.includes('period') ? [row.period || 'No data'] : []),
+      ...(columns.includes('updated')
+        ? [row.updatedAt ? formatDate(row.updatedAt, 'short') : 'Not known']
+        : []),
+      ...table.areas.flatMap(({ code }) => {
+        const cell = row.cells.find(({ areaCode }) => areaCode === code);
+        return [
+          ...measures.map((measure) => measureValue(measure, cell)),
+          ...(table.compared
+            ? cell?.value == null
+              ? ['No data', 'No data']
+              : [
+                  cell.period ?? row.period,
+                  comparisonSummary(cell.judgement, cell.benchmark, row.unit),
+                ]
             : []),
-          ...dataAreas.flatMap(({ areaCode }) =>
-            measures.map((measure) => {
-              const cell = row.cells.find((cell) => cell.areaCode === areaCode);
-              return measure === 'trend'
-                ? recentTrend(cell?.series ?? [], entry.detail.polarity, cell?.trendDirection).label
-                : measure === 'count' || measure === 'numerator'
-                  ? (cell?.[measure] ?? null)
-                  : (cell?.value ?? null);
-            }),
-          ),
-        ],
-      ];
-    }),
+        ];
+      }),
+      ...englandMeasures.map((measure) => measureValue(measure, row.england)),
+    ]),
   ]);
 }

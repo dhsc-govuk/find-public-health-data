@@ -1,5 +1,6 @@
 import {
   canAssignReviewers,
+  canDecideUpdates,
   canRespondToReview,
   canSchedulePublication,
   canSubmitIndicator,
@@ -16,6 +17,7 @@ import {
   type IndicatorStatus,
   type IndicatorStep,
   indicatorAccess,
+  type UpdateDecision,
 } from './contract.ts';
 
 type StepPermission = (user: SessionUser, indicator: IndicatorAccess) => boolean;
@@ -28,6 +30,9 @@ const noUser = () => false;
 const STEP_PERMISSIONS: Readonly<Record<IndicatorStep, StepPermission>> = {
   submit: canSubmitIndicator,
   withdraw: canWithdrawSubmission,
+  send_update_to_imrg: canDecideUpdates,
+  request_update_revisions: canDecideUpdates,
+  approve_update: canDecideUpdates,
   assign_reviewers: canAssignReviewers,
   give_feedback: canRespondToReview,
   request_changes: canRespondToReview,
@@ -57,6 +62,7 @@ export interface IndicatorWorkflowRow
   draftStatus: DraftStatus | null;
   draftLocked: boolean;
   draftSubmissionStatus: DraftSubmissionStatus | null;
+  draftUpdateDecision: UpdateDecision | null;
 }
 
 /** The steps open now that the user may take; none while there is no draft. */
@@ -68,5 +74,6 @@ export function stepsOpenTo(user: SessionUser, indicator: IndicatorWorkflowRow):
     versionStatus: indicator.draftStatus,
     isLocked: indicator.draftLocked,
     latestSubmissionStatus: indicator.draftSubmissionStatus,
+    latestUpdateDecision: indicator.draftUpdateDecision,
   }).filter((step) => mayTakeStep(user, indicatorAccess(indicator), step));
 }

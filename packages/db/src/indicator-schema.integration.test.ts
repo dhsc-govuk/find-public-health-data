@@ -651,12 +651,14 @@ describe("a version's child tables", () => {
       'indicator_version_submission_ended_by_fk',
       'indicator_version_submission_flag_cleared_by_fk',
       'indicator_version_submission_flag_response_fk',
+      'indicator_version_submission_response_core_team_member_fk',
       'indicator_version_submission_response_reviewer_fk',
       'indicator_version_submission_response_submission_fk',
       'indicator_version_submission_reviewer_assigned_by_fk',
       'indicator_version_submission_reviewer_reviewer_fk',
       'indicator_version_submission_reviewer_submission_fk',
       'indicator_version_submission_submitted_by_fk',
+      'indicator_version_submission_update_decided_by_fk',
       'indicator_version_submission_version_fk',
       'indicator_version_subtopic_subtopic_fk',
       'indicator_version_subtopic_topic_fk',
@@ -880,7 +882,7 @@ describe('the published views', () => {
               'ci_method_justification', 'data_sources_justification', 'inequalities_included',
               'has_exclusions', 'exclusions_detail', 'has_automation', 'automation_detail',
               'no_automation_reason', 'sponsors_and_stakeholders', 'has_reviewer_comments',
-              'reviewer_comments_detail'
+              'reviewer_comments_detail', 'update_summary_for_reviewers'
             )`,
     )) as unknown as { column_name: string }[];
 

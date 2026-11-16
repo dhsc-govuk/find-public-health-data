@@ -398,6 +398,21 @@ describe('loadIndicatorOverview', () => {
     });
   });
 
+  it.each([
+    ['new', 'Indicator successfully submitted for approval.'],
+    ['live', 'Update successfully submitted for review.'],
+  ] as const)('words the submission of a %s indicator: %s', async (indicatorStatus, text) => {
+    const outcome = await load(
+      indicator.id,
+      apiGet({ ...indicator, indicatorStatus }),
+      ['publisher'],
+      [TEAM_IDS.teamA],
+      await flashCookie('indicator-submitted'),
+    );
+
+    expect(outcome.notification).toEqual({ type: 'success', text });
+  });
+
   it('shows nothing for a message it does not know', async () => {
     const outcome = await load(
       indicator.id,

@@ -6,6 +6,7 @@ import {
   reviewResponseBodySchema,
   reviewResponseSchemaFor,
   reviewResponseTypeSchema,
+  updateApprovalSchema,
 } from './review-response-contract.ts';
 
 // 23:30 on 1 November 2026 in the UK, which is on GMT then; the UK date is the 1st.
@@ -131,6 +132,31 @@ describe('reviewApprovalSchema', () => {
   });
 });
 
+describe('updateApprovalSchema', () => {
+  it('asks whether the update is approved', () => {
+    expect(issues(updateApprovalSchema.safeParse({ reasons: [] }))).toEqual({
+      approved: 'Select whether you approve this update for publishing',
+    });
+  });
+
+  it('asks for a kind of feedback when it is not', () => {
+    expect(issues(updateApprovalSchema.safeParse({ approved: 'no', reasons: [] }))).toEqual({
+      reasons: 'Select at least one kind of feedback',
+    });
+  });
+
+  it.each([
+    [{ approved: 'yes', reasons: [] }, { approved: true }],
+    [{ approved: 'yes', reasons: ['revisions'] }, { approved: true }],
+    [
+      { approved: 'no', reasons: ['revisions', 'clarification'] },
+      { approved: false, reasons: ['revisions', 'clarification'] },
+    ],
+  ])('answers %j as %j', (answers, decided) => {
+    expect(updateApprovalSchema.parse(answers)).toEqual(decided);
+  });
+});
+
 const feedback = {
   submissionNumber: 1,
   kind: 'pre_imrg_feedback',
@@ -186,6 +212,19 @@ describe('reviewResponseSchemaFor', () => {
     expect(schema.parse({ ...approval, imrgReviewedOn: '2026-11-01' })).toEqual({
       ...approval,
       imrgReviewedOn: '2026-11-01',
+    });
+  });
+
+  it('accepts an approval with no date, as an update is approved', () => {
+    expect(schema.parse({ ...approval, imrgReviewedOn: null })).toEqual({
+      ...approval,
+      imrgReviewedOn: null,
+    });
+  });
+
+  it('refuses an approval dated after today', () => {
+    expect(issues(schema.safeParse({ ...approval, imrgReviewedOn: '2026-11-02' }))).toEqual({
+      imrgReviewedOn: 'Date reviewed by IMRG must be today or in the past',
     });
   });
 

@@ -1,6 +1,5 @@
 import { schema } from '@fphd/db';
 import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
-import { rebuildReadModelTables } from '@fphd/internal-read-models';
 import { publishDueVersions, publishNextDueVersion } from '@fphd/internal-workflow';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { sql } from 'drizzle-orm';
@@ -15,6 +14,7 @@ import {
   deferScheduledVersions,
   dueDraft,
   readModelRowsOf,
+  rowsAfterWholeRebuild,
   versionOf,
 } from './scheduled-publication.testing.ts';
 
@@ -31,24 +31,6 @@ afterEach(() => deferScheduledVersions(db));
 afterAll(async () => {
   await testDb.drop();
 });
-
-class RolledBack extends Error {}
-
-/**
- * The read-model rows that rebuilding every indicator's read models would give this indicator. The
- * rebuild runs in a transaction that is rolled back once the rows are read, so it changes nothing.
- */
-async function rowsAfterWholeRebuild(indicatorId: string): Promise<string[]> {
-  let rows: string[] = [];
-  await expect(
-    db.transaction(async (tx) => {
-      await rebuildReadModelTables(tx);
-      rows = await readModelRowsOf(tx, indicatorId);
-      throw new RolledBack();
-    }),
-  ).rejects.toBeInstanceOf(RolledBack);
-  return rows;
-}
 
 function publishedEntriesFor(indicatorId: string) {
   return auditEntriesFor(db, indicatorId).then((entries) =>
@@ -95,6 +77,7 @@ describe('publishNextDueVersion', () => {
       versionId,
       scheduledPublishAt: expect.any(Date),
       publishedAt: expect.any(Date),
+      slugTaken: null,
     });
     if (result.kind !== 'published') throw new Error('expected a publication');
     const publishedAt = result.publishedAt.toISOString();
@@ -113,7 +96,7 @@ describe('publishNextDueVersion', () => {
     expect(times?.same).toBe(true);
     const rows = await readModelRowsOf(db, indicatorId);
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows).toEqual(await rowsAfterWholeRebuild(indicatorId));
+    expect(rows).toEqual(await rowsAfterWholeRebuild(db, indicatorId));
     expect(await publishedEntriesFor(indicatorId)).toEqual([
       {
         actorId: SYSTEM_USER_IDS.scheduledPublication,

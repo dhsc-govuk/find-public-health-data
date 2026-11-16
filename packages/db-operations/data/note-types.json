@@ -1173,5 +1173,10 @@
     "id": "019de0d5-c800-7012-8000-000000000474",
     "text": "Data has not been presented for males and females due to a system issue affecting the provider trust. Over 10% of the indicator count in this area has missing values in the sex field.",
     "category": "missing"
+  },
+  {
+    "id": "019de0d5-c800-7012-8000-000000000476",
+    "text": "Crime data may have been recorded under an unassigned Community Safety Partnership group. Data may therefore be incomplete and should be interpreted with caution",
+    "category": "quality"
   }
 ]

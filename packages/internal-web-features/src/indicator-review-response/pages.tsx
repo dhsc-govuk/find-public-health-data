@@ -15,7 +15,7 @@ import {
 } from '@fphd/ui';
 
 import { IndicatorSectionForm, QUESTION_HEADING_SIZE } from '../indicator-section-form.tsx';
-import { TASK_GROUPS } from '../indicator-tasks.ts';
+import { taskGroups } from '../indicator-tasks.ts';
 import {
   type ApprovalValues,
   type DateValues,
@@ -24,6 +24,7 @@ import {
   REVIEW_DATE_PARTS,
   type ResponseTypeValues,
   type RevisionsValues,
+  type UpdateApprovalValues,
 } from './form.ts';
 
 /** What every response page gets: its answers so far, and the errors of the last attempt. */
@@ -188,30 +189,100 @@ export function ApprovalPage({
   );
 }
 
+const UPDATE_APPROVAL_QUESTION = 'Can this update be published?';
+
+/**
+ * A reviewer's answer on an update: Yes approves it, and No goes on to the revisions page once a
+ * kind of feedback is ticked. It is sent with the submission the reviewer was shown.
+ */
+export function UpdateApprovalPage({
+  recap,
+  submissionNumber,
+  ...form
+}: ReviewPageProps<keyof UpdateApprovalValues, UpdateApprovalValues> & {
+  recap: Recap;
+  submissionNumber: number;
+}) {
+  const { fieldErrors, values } = form;
+
+  return (
+    <IndicatorSectionForm
+      fieldIds={{ approved: firstRadioId('approved'), reasons: firstCheckboxId('reasons') }}
+      fields={['approved', 'reasons']}
+      form={form}
+      questionIsHeading
+      title={UPDATE_APPROVAL_QUESTION}
+    >
+      <input name="submissionNumber" type="hidden" value={submissionNumber} />
+      <Radios
+        defaultValue={values.approved}
+        error={fieldErrors.approved}
+        hint={<RecapList {...recap} />}
+        label={UPDATE_APPROVAL_QUESTION}
+        labelClassModifiers={QUESTION_HEADING_SIZE}
+        labelHeading="h1"
+        name="approved"
+        options={[
+          { value: 'yes', label: 'Yes' },
+          {
+            value: 'no',
+            label: 'No',
+            // Shown without JavaScript; with it, only while No is chosen.
+            conditional: (
+              <Checkboxes
+                classModifiers="small"
+                defaultValue={values.reasons}
+                error={fieldErrors.reasons}
+                label="Select reasons"
+                labelClassModifiers="s"
+                name="reasons"
+                options={[
+                  { value: 'revisions', label: 'Revisions needed' },
+                  { value: 'clarification', label: 'Request for clarification' },
+                ]}
+              />
+            ),
+          },
+        ]}
+      />
+    </IndicatorSectionForm>
+  );
+}
+
 const REVISIONS_TITLE = 'What needs to be revised or clarified?';
 
-/** The groups a reviewer flags tasks from: the task list's, without the notes for reviewers. */
-const FLAG_GROUPS = TASK_GROUPS.map((group) => ({
-  ...group,
-  tasks: group.tasks.flatMap(({ key, title }) => {
-    const task = flaggableTaskKeySchema.safeParse(key);
-    return task.success ? [{ key: task.data, title }] : [];
-  }),
-})).filter(({ tasks }) => tasks.length > 0);
-
-const REVISIONS_FIELDS: readonly ReviewResponseField[] = [
-  'flags',
-  'clarificationRequest',
-  ...FLAG_GROUPS.flatMap(({ tasks }) => tasks.map(({ key }) => flagNotesName(key))),
-];
+/**
+ * The groups tasks are flagged from: the draft's task list groups, without the notes for
+ * reviewers. An update's Publishing group ends with its update summary.
+ */
+function flagGroups(isUpdate: boolean) {
+  return taskGroups(isUpdate)
+    .map((group) => ({
+      ...group,
+      tasks: group.tasks.flatMap(({ key, title }) => {
+        const task = flaggableTaskKeySchema.safeParse(key);
+        return task.success ? [{ key: task.data, title }] : [];
+      }),
+    }))
+    .filter(({ tasks }) => tasks.length > 0);
+}
 
 export function RevisionsPage({
   kind,
+  isUpdate,
   ...form
 }: ReviewPageProps<ReviewResponseField, RevisionsValues> & {
   kind: Exclude<ReviewResponseKind, 'approved'>;
+  /** Whether the draft is an update, which has an update summary to flag. */
+  isUpdate: boolean;
 }) {
   const { fieldErrors, values } = form;
+  const groups = flagGroups(isUpdate);
+  const fields: readonly ReviewResponseField[] = [
+    'flags',
+    'clarificationRequest',
+    ...groups.flatMap(({ tasks }) => tasks.map(({ key }) => flagNotesName(key))),
+  ];
   const notesLabel =
     kind === 'pre_imrg_feedback'
       ? 'Enter advised revisions or clarification request'
@@ -220,7 +291,7 @@ export function RevisionsPage({
   return (
     <IndicatorSectionForm
       fieldIds={{ flags: firstCheckboxId('clarification') }}
-      fields={REVISIONS_FIELDS}
+      fields={fields}
       form={form}
       title={REVISIONS_TITLE}
     >
@@ -248,7 +319,7 @@ export function RevisionsPage({
           },
         ]}
       />
-      {FLAG_GROUPS.map(({ id, title, tasks }) => (
+      {groups.map(({ id, title, tasks }) => (
         <Checkboxes
           classModifiers="small"
           defaultValue={values.flags}

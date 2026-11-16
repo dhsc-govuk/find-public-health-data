@@ -4,10 +4,13 @@ import type {
   IndicatorStatus,
   IndicatorTaskStatus,
   ReviewResponseKind,
+  UpdateDecision,
 } from '@fphd/internal-api-features/contract';
 import { Tag } from '@fphd/ui';
 
-type Colour = 'blue' | 'green' | 'orange' | 'red' | 'teal' | 'yellow';
+import type { UpdateTaskStatus } from '../indicator-tasks.ts';
+
+type Colour = 'blue' | 'green' | 'grey' | 'orange' | 'red' | 'teal' | 'yellow';
 
 interface TagFace {
   label: string;
@@ -34,11 +37,18 @@ const SUBMISSION_STATUS: Partial<Record<DraftSubmissionStatus, TagFace>> = {
   approved: { label: 'Pending scheduling', colour: 'yellow' },
 };
 
+// A submitted update waits for the core team to decide what happens to it, before any review.
+const PENDING_DECISION: TagFace = { label: 'Pending decision', colour: 'yellow' };
+
 const CHANGES_REQUESTED: Record<Exclude<ReviewResponseKind, 'approved'>, TagFace> = {
   pre_imrg_feedback: { label: 'Revisions or clarifications advised', colour: 'orange' },
   minor_revisions: { label: 'Minor revisions needed', colour: 'orange' },
   major_revisions: { label: 'Major revisions needed', colour: 'red' },
 };
+
+// An update sent back reads the same whoever sent it and whatever they asked for, and is already
+// named as an update by its indicator status, so it takes no "Update " prefix.
+const UPDATE_SENT_BACK: TagFace = { label: 'Revisions or clarifications needed', colour: 'orange' };
 
 const PUBLISHED: TagFace = { label: 'Published', colour: 'green' };
 
@@ -50,10 +60,22 @@ const TASK_STATUS: Record<IndicatorTaskStatus, TagFace | string> = {
   completed: 'Completed',
 };
 
-// A task a review response flagged, until it is saved: advised before IMRG meets, needed after.
-const REVISION_STATUS: Record<'advised' | 'needed', TagFace> = {
+// A task on an update reads against the live indicator. The publishing date and the update
+// summary have nothing to publish until another task changes, and are tagged complete once saved.
+const UPDATE_TASK_STATUS: Record<UpdateTaskStatus, TagFace | string> = {
+  changed: { label: 'Changed', colour: 'orange' },
+  unchanged: { label: 'Unchanged', colour: 'grey' },
+  no_changes: 'No changes to publish',
+  incomplete: { label: 'Incomplete', colour: 'blue' },
+  complete: { label: 'Complete', colour: 'green' },
+};
+
+// A task a review response flagged, until it is saved. On a new indicator, revisions are advised
+// before IMRG meets and needed after. On an update, they read as needed in orange whoever asked.
+const REVISION_STATUS: Record<'advised' | 'needed' | 'update', TagFace> = {
   advised: { label: 'Revisions advised', colour: 'orange' },
   needed: { label: 'Revisions needed', colour: 'red' },
+  update: { label: 'Revisions needed', colour: 'orange' },
 };
 
 interface PublishingState {
@@ -61,13 +83,23 @@ interface PublishingState {
   draftStatus: DraftStatus | null;
   draftSubmissionStatus: DraftSubmissionStatus | null;
   draftResponseKind: ReviewResponseKind | null;
+  draftUpdateDecision: UpdateDecision | null;
 }
 
 /** Where the draft's latest submission stands, if that names the draft's label. */
 function submissionFace({
+  indicatorStatus,
   draftSubmissionStatus,
   draftResponseKind,
+  draftUpdateDecision,
 }: PublishingState): TagFace | undefined {
+  if (
+    indicatorStatus === 'live' &&
+    draftSubmissionStatus === 'submitted' &&
+    draftUpdateDecision === null
+  ) {
+    return PENDING_DECISION;
+  }
   if (draftSubmissionStatus === 'changes_requested') {
     return draftResponseKind === null || draftResponseKind === 'approved'
       ? undefined
@@ -86,6 +118,13 @@ function publishingStatus(state: PublishingState): TagFace | undefined {
   const { indicatorStatus, draftStatus } = state;
 
   if (draftStatus === null) return indicatorStatus === 'live' ? PUBLISHED : undefined;
+  if (
+    indicatorStatus === 'live' &&
+    draftStatus === 'draft' &&
+    state.draftSubmissionStatus === 'changes_requested'
+  ) {
+    return UPDATE_SENT_BACK;
+  }
 
   const { colour, label } =
     draftStatus === 'scheduled'
@@ -101,6 +140,7 @@ export type StatusTagProps = (
   | { type: 'indicator'; status: IndicatorStatus }
   | ({ type: 'publishing' } & PublishingState)
   | { type: 'task'; status: IndicatorTaskStatus }
+  | { type: 'update-task'; status: UpdateTaskStatus }
   | { type: 'revision'; status: keyof typeof REVISION_STATUS }
 ) & {
   /**
@@ -124,6 +164,8 @@ function faceOf(props: StatusTagProps): TagFace | string | undefined {
       return publishingStatus(props);
     case 'task':
       return TASK_STATUS[props.status];
+    case 'update-task':
+      return UPDATE_TASK_STATUS[props.status];
     case 'revision':
       return REVISION_STATUS[props.status];
   }

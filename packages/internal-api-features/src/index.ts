@@ -18,6 +18,7 @@ import { internalReviewersRouter } from './reviewers.ts';
 import { revisionResponseRouter } from './revision-response.ts';
 import { internalTagsRouter } from './tags.ts';
 import { internalTopicsRouter } from './topics.ts';
+import { updateDecisionRouter } from './update-decision.ts';
 import { internalValueTypesAndUnitsRouter } from './value-types-and-units.ts';
 
 export { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
@@ -45,6 +46,7 @@ export function internalApiRoutes({
   router.use(indicatorSectionsRouter(repositories, session));
   router.use(indicatorSubmissionsRouter(repositories.indicators, session));
   router.use(indicatorSchedulingRouter(repositories.indicators, session));
+  router.use(updateDecisionRouter(repositories.indicators, session));
   router.use(internalReviewersRouter(repositories.reviewers, repositories.indicators, session));
   router.use(internalNotesForReviewersRouter(repositories.indicators, session));
   router.use(indicatorHistoryRouter(repositories.indicators, session));

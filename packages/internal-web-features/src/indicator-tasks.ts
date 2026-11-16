@@ -1,6 +1,7 @@
 import {
   INDICATOR_TASK_TITLES,
   type IndicatorTaskKey,
+  type IndicatorTaskList,
   type IndicatorTaskStatus,
 } from '@fphd/internal-api-features/contract';
 
@@ -81,3 +82,39 @@ export const TASK_GROUPS: readonly TaskGroup[] = [
     tasks: [task('variance-and-quality'), task('justifications'), task('other-comments')],
   },
 ];
+
+/** The task list's groups for a draft: an update's Publishing group ends with its summary. */
+export function taskGroups(isUpdate: boolean): readonly TaskGroup[] {
+  if (!isUpdate) return TASK_GROUPS;
+
+  return TASK_GROUPS.map((group) =>
+    group.id === 'publishing'
+      ? { ...group, tasks: [...group.tasks, task('update-summary')] }
+      : group,
+  );
+}
+
+/** Where a task on an update stands, as the update's task list shows it. */
+export type UpdateTaskStatus = 'changed' | 'unchanged' | 'no_changes' | 'incomplete' | 'complete';
+
+/** The tasks every update answers afresh, which wait until the update changes something else. */
+const PUBLISHING_TASKS: readonly IndicatorTaskKey[] = ['publishing-date', 'update-summary'];
+
+/**
+ * Where a task on an update stands. Each task reads changed or unchanged against the live
+ * indicator, or incomplete while its answers would not let the update be submitted, as a
+ * section the live indicator left unanswered would not. The publishing date and the update
+ * summary have nothing to publish until another task changes, and then are complete once their
+ * answers are.
+ */
+export function updateTaskStatus(
+  { tasks, changedTasks }: Pick<IndicatorTaskList, 'tasks' | 'changedTasks'>,
+  key: IndicatorTaskKey,
+): UpdateTaskStatus {
+  if (!PUBLISHING_TASKS.includes(key)) {
+    if (tasks[key] !== 'completed') return 'incomplete';
+    return changedTasks.includes(key) ? 'changed' : 'unchanged';
+  }
+  if (changedTasks.length === 0) return 'no_changes';
+  return tasks[key] === 'completed' ? 'complete' : 'incomplete';
+}

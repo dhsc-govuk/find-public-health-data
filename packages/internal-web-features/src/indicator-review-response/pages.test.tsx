@@ -3,7 +3,13 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ApprovalPage, ResponseTypePage, ReviewDatePage, RevisionsPage } from './pages.tsx';
+import {
+  ApprovalPage,
+  ResponseTypePage,
+  ReviewDatePage,
+  RevisionsPage,
+  UpdateApprovalPage,
+} from './pages.tsx';
 
 afterEach(cleanup);
 
@@ -97,11 +103,45 @@ describe('the response pages', () => {
     expect(screen.getByRole('alert').textContent).toContain('Select a reason');
   });
 
+  it('ask whether an update can be published, recapping it and revealing the kinds of feedback under No', () => {
+    inRouter(
+      <UpdateApprovalPage
+        fieldErrors={{ reasons: 'Select at least one kind of feedback' }}
+        formError={undefined}
+        recap={recap}
+        submissionNumber={2}
+        values={{ approved: 'no', reasons: [] }}
+      />,
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Can this update be published?' }),
+    ).toBeTruthy();
+    expect(screen.getByText('Indicator name:').closest('li')?.textContent).toBe(
+      'Indicator name: Hip fractures',
+    );
+    expect(screen.getByText('Scheduled publication date:').closest('li')?.textContent).toBe(
+      'Scheduled publication date: 1 April 2027 at 9:30am',
+    );
+    expect(screen.getByRole('group', { name: 'Select reasons' })).toBeTruthy();
+    expect(screen.getByLabelText('Revisions needed')).toBeTruthy();
+    expect(screen.getByLabelText('Request for clarification')).toBeTruthy();
+    const link = screen.getByRole('alert').querySelector('a');
+    expect(link?.textContent).toBe('Select at least one kind of feedback');
+    expect(link?.getAttribute('href')).toBe(
+      `#${screen.getByLabelText('Revisions needed').getAttribute('id')}`,
+    );
+    expect(document.querySelector('input[name="submissionNumber"]')?.getAttribute('value')).toBe(
+      '2',
+    );
+  });
+
   it('offer every task but the notes for reviewers, grouped as the task list groups them', () => {
     inRouter(
       <RevisionsPage
         fieldErrors={{}}
         formError={undefined}
+        isUpdate={false}
         kind="minor_revisions"
         values={noRevisions}
       />,
@@ -119,11 +159,46 @@ describe('the response pages', () => {
     expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(19);
   });
 
+  it('offer the update summary under Publishing on an update', () => {
+    inRouter(
+      <RevisionsPage
+        fieldErrors={{}}
+        formError={undefined}
+        isUpdate
+        kind="pre_imrg_feedback"
+        values={noRevisions}
+      />,
+    );
+
+    const publishing = screen.getByRole('group', { name: 'Publishing' });
+    expect(
+      Array.from(publishing.querySelectorAll('input[name="flags"]'), (input) =>
+        input.getAttribute('value'),
+      ),
+    ).toEqual(['update-frequency', 'publishing-date', 'update-summary']);
+    expect(screen.getByLabelText('Update summary')).toBeTruthy();
+  });
+
+  it('offer no update summary on a new indicator', () => {
+    inRouter(
+      <RevisionsPage
+        fieldErrors={{}}
+        formError={undefined}
+        isUpdate={false}
+        kind="pre_imrg_feedback"
+        values={noRevisions}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Update summary')).toBeNull();
+  });
+
   it('word the notes as advice for feedback before the meeting', () => {
     inRouter(
       <RevisionsPage
         fieldErrors={{}}
         formError={undefined}
+        isUpdate={false}
         kind="pre_imrg_feedback"
         values={noRevisions}
       />,
@@ -140,6 +215,7 @@ describe('the response pages', () => {
       <RevisionsPage
         fieldErrors={{ 'flags.polarity': message }}
         formError={undefined}
+        isUpdate={false}
         kind="minor_revisions"
         values={{
           ...noRevisions,

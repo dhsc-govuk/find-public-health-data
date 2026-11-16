@@ -306,6 +306,20 @@ describe('CheckDataTablePage', () => {
     expect(screen.getByText('Your upload contains 52,365 rows')).toBeTruthy();
   });
 
+  it("summarises an update's replacement as the number of data values replaced", () => {
+    renderCheck({ dataTable: { ...DATA_TABLE, replacesPublished: true } });
+
+    const summary = document.querySelector('dl.govuk-summary-list');
+    expect(summary?.querySelector('dt')?.textContent).toBe('Number of data values replaced');
+    expect(summary?.querySelector('dd')?.textContent).toBe('52,365');
+  });
+
+  it('has no summary of changes for a new indicator', () => {
+    renderCheck();
+
+    expect(document.querySelector('.govuk-summary-list')).toBeNull();
+  });
+
   it('tells apart rows that differ only by category type, in a column of its own', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const decile = { ...ROW, sex: null, category: 'Most deprived decile' };

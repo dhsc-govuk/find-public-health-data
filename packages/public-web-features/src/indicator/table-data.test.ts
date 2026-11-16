@@ -92,23 +92,31 @@ describe('shared table data', () => {
     expect(result.selected).toHaveLength(15);
   });
 
-  it('loads whole area summary groups in API batches without truncating them to 19 areas', async () => {
-    const client = api();
-    const result = await loadIndicatorTableData(
-      args(client, 'http://localhost/topics/a?is=108&als=Local+authorities', ''),
-      ['Local authorities'],
-      true,
-    );
-    expect(result.selected[0]?.areaData).toHaveLength(26);
-    expect(Object.keys(result.selected[0]?.tableSeries?.[0]?.segments ?? {})).toHaveLength(26);
-    expect(Object.keys(result.selected[0]?.tableSeries?.[0]?.trends ?? {})).toHaveLength(26);
-    expect(result.selectedAreas).toHaveLength(25);
-    expect(result.areasLimited).toBe(false);
-    const dataCalls = client.calls.filter(({ path }) => path.startsWith('/api/indicator-data?'));
-    const batches = dataCalls.map((call) => query(call).getAll('areaCode'));
-    expect(batches.map((batch) => batch.length)).toEqual([20, 6]);
-    expect(
-      dataCalls.every((call) => query(call).get('observationHistory') === 'latestPerSeries'),
-    ).toBe(true);
-  });
+  it.each(['latestPerSeries', 'recentPerSeries', 'lastEightPeriodsPerSeries'] as const)(
+    'loads whole area summary groups in API batches with %s history without truncating them to 19 areas',
+    async (observationHistory) => {
+      const client = api();
+      const result = await loadIndicatorTableData(
+        args(client, 'http://localhost/topics/a?is=108&als=Local+authorities', ''),
+        ['Local authorities'],
+        true,
+        observationHistory,
+      );
+      expect(result.selected[0]?.areaData).toHaveLength(26);
+      expect(Object.keys(result.selected[0]?.tableSeries?.[0]?.segments ?? {})).toHaveLength(26);
+      expect(Object.keys(result.selected[0]?.tableSeries?.[0]?.trends ?? {})).toHaveLength(26);
+      expect(result.selectedAreas).toHaveLength(25);
+      expect(result.areasLimited).toBe(false);
+      const dataCalls = client.calls.filter(({ path }) => path.startsWith('/api/indicator-data?'));
+      const batches = dataCalls.map((call) => query(call).getAll('areaCode'));
+      expect(batches.map((batch) => batch.length)).toEqual([20, 6]);
+      expect(
+        dataCalls.every(
+          (call) =>
+            query(call).get('observationHistory') ===
+            (observationHistory === 'recentPerSeries' ? null : observationHistory),
+        ),
+      ).toBe(true);
+    },
+  );
 });

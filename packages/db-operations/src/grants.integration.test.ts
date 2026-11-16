@@ -282,6 +282,7 @@ describe('the internal role', () => {
     'published.indicator_source',
     'published.data_provider',
     'published.data_provider_source',
+    'published.indicator_update_summary',
     'public.data_provider',
     'public.data_provider_source',
     'public.team',
@@ -369,10 +370,12 @@ describe('an indicator whose only version is a draft', () => {
         FROM published.observation_series WHERE indicator_id = ${draftIndicatorId}
       UNION ALL SELECT 'observation_series_batch', count(*)::int
         FROM published.observation_series_batch WHERE indicator_id = ${draftIndicatorId}
+      UNION ALL SELECT 'indicator_update_summary', count(*)::int
+        FROM published.indicator_update_summary WHERE indicator_id = ${draftIndicatorId}
     `;
 
     expect(counts.filter(({ rows }) => rows > 0)).toEqual([]);
-    expect(counts).toHaveLength(12);
+    expect(counts).toHaveLength(13);
   });
 
   it.each([

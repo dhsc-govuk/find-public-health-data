@@ -21,12 +21,14 @@ const indicator: IndicatorAdminListItem = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 
 const UNDER_REVIEW = '/api/internal/indicators-under-review';
 const TO_REVIEW = '/api/internal/indicators-to-review';
 const SCHEDULED = '/api/internal/indicators-scheduled';
+const AWAITING_DECISION = '/api/internal/updates-awaiting-decision';
 
 async function load(
   url: string,
@@ -77,6 +79,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: null,
       scheduled: null,
+      awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 1, totalPages: 3 },
       notification: undefined,
     });
@@ -108,6 +111,7 @@ describe('loadDashboard', () => {
   it('shows an admin the scheduled indicators beside the list', async () => {
     const api = createFakeApiClient({
       [`GET ${SCHEDULED}`]: { indicators: [indicator] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 0, []),
     });
 
@@ -117,9 +121,22 @@ describe('loadDashboard', () => {
     expect(outcome.list).toMatchObject({ indicators: [], page: 1 });
   });
 
+  it('shows an admin the updates waiting for their decision', async () => {
+    const api = createFakeApiClient({
+      [`GET ${SCHEDULED}`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [indicator] },
+      'GET /api/internal/indicators?page=1': listPage(1, 0, []),
+    });
+
+    const outcome = await load('https://internal.test/dashboard', api, ['admin'], []);
+
+    expect(outcome.awaitingDecision).toEqual([indicator]);
+  });
+
   it('offers an admin no create action', async () => {
     const api = createFakeApiClient({
       [`GET ${SCHEDULED}`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 1),
     });
 
@@ -166,6 +183,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: null,
       scheduled: null,
+      awaitingDecision: null,
       list: null,
       notification: undefined,
     });
@@ -197,6 +215,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: null,
       scheduled: null,
+      awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
       notification: undefined,
     });
@@ -212,6 +231,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: [indicator],
       scheduled: null,
+      awaitingDecision: null,
       list: null,
       notification: undefined,
     });
@@ -236,6 +256,7 @@ describe('loadDashboard', () => {
       underReview,
       toReview: [indicator],
       scheduled: null,
+      awaitingDecision: null,
       list: null,
       notification: undefined,
     });
@@ -246,7 +267,11 @@ describe('loadDashboard', () => {
     [
       'an admin',
       ['admin'],
-      ['/api/internal/indicators-scheduled', '/api/internal/indicators?page=1'],
+      [
+        '/api/internal/indicators-scheduled',
+        '/api/internal/indicators?page=1',
+        '/api/internal/updates-awaiting-decision',
+      ],
     ],
     ['an IMRG manager', ['imrg-manager'], ['/api/internal/indicators-under-review']],
     ['an IMRG reviewer', ['imrg-reviewer'], ['/api/internal/indicators-to-review']],
@@ -257,6 +282,7 @@ describe('loadDashboard', () => {
         '/api/internal/indicators-scheduled',
         '/api/internal/indicators-to-review',
         '/api/internal/indicators?page=1',
+        '/api/internal/updates-awaiting-decision',
       ],
     ],
     [
@@ -273,6 +299,7 @@ describe('loadDashboard', () => {
       [`GET ${UNDER_REVIEW}`]: { unassigned: [], assigned: [] },
       [`GET ${TO_REVIEW}`]: { indicators: [] },
       [`GET ${SCHEDULED}`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 0, []),
       'GET /api/internal/indicators?page=1&teams=own': listPage(1, 0, []),
     });
@@ -309,6 +336,7 @@ describe('loadDashboard', () => {
       underReview: null,
       toReview: [indicator],
       scheduled: null,
+      awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
       notification: undefined,
     });
@@ -324,5 +352,65 @@ describe('loadDashboard', () => {
     );
 
     expect(outcome.notification).toBe('You are no longer a reviewer of this indicator.');
+  });
+});
+
+describe('loadDashboard with a search', () => {
+  it('asks every list for the matches of the search, trimmed of spaces', async () => {
+    const api = createFakeApiClient({
+      [`GET ${UNDER_REVIEW}?search=life+expectancy`]: { unassigned: [], assigned: [] },
+      [`GET ${TO_REVIEW}?search=life+expectancy`]: { indicators: [] },
+      [`GET ${SCHEDULED}?search=life+expectancy`]: { indicators: [] },
+      [`GET ${AWAITING_DECISION}?search=life+expectancy`]: { indicators: [] },
+      'GET /api/internal/indicators?page=1&search=life+expectancy': listPage(1, 0, []),
+    });
+
+    const outcome = await load(
+      'https://internal.test/dashboard?search=%20life%20expectancy%20',
+      api,
+      ['admin', 'imrg-manager', 'imrg-reviewer'],
+      [],
+    );
+
+    expect(pathsAsked(api)).toHaveLength(5);
+    expect(outcome.search).toBe('life expectancy');
+  });
+
+  it('keeps the search with the page and the own-teams filter', async () => {
+    const api = createFakeApiClient({
+      [`GET ${UNDER_REVIEW}?search=asthma`]: { unassigned: [], assigned: [] },
+      'GET /api/internal/indicators?page=2&teams=own&search=asthma': listPage(2, 11),
+    });
+
+    await load('https://internal.test/dashboard?search=asthma&page=2', api, [
+      'publisher',
+      'imrg-manager',
+    ]);
+
+    expect(pathsAsked(api)).toEqual([
+      `${UNDER_REVIEW}?search=asthma`,
+      '/api/internal/indicators?page=2&teams=own&search=asthma',
+    ]);
+  });
+
+  it('treats a blank search as none', async () => {
+    const api = apiPage(1, 1);
+
+    const outcome = await load('https://internal.test/dashboard?search=%20%20', api);
+
+    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=1']);
+    expect(outcome.search).toBeUndefined();
+  });
+
+  it.each([
+    ['longer than 200 characters', `search=${'a'.repeat(201)}`],
+    ['given twice', 'search=a&search=b'],
+  ])('responds 404 to a search %s without asking the API', async (_, query) => {
+    const api = createFakeApiClient();
+
+    await expect(load(`https://internal.test/dashboard?${query}`, api)).rejects.toSatisfy(
+      (error: unknown) => error instanceof Response && error.status === 404,
+    );
+    expect(api.calls).toEqual([]);
   });
 });

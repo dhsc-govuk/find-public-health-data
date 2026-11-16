@@ -5,6 +5,7 @@ import {
   areaComparisonGroups,
   areaComparisonOptions,
   areaComparisonRows,
+  comparisonRankingData,
 } from './area-comparison.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
@@ -106,4 +107,33 @@ it('uses one zero-based bar scale with confidence-interval headroom and prototyp
   expect(areaComparisonBarColour('Quartile 1 (lowest)', 'quartiles', false)).toBe('#440154');
   expect(areaComparisonBarColour('Quintile 5 (highest)', 'quintiles', false)).toBe('#B4DE2C');
   expect(areaComparisonBarMaximum([])).toBe(1);
+});
+
+it('projects shared histories to the latest non-null comparison period using stored segments', () => {
+  const older = point('2023-01-01', '2023-12-31', 10);
+  const newer = point('2024-01-01', '2024-12-31', 12);
+  const indicator = series([], []);
+  indicator.areaData = [
+    { areaCode: 'a', areaName: 'A', observations: [older, { ...newer, value: null }] },
+    { areaCode: 'b', areaName: 'B', observations: [older, newer] },
+    { areaCode: 'c', areaName: 'C', observations: [older] },
+  ];
+  indicator.tableSeries = [{ sex: '', periodType: 'all', segments: { a: '', b: '', c: '' } }];
+  expect(comparisonRankingData(indicator).map(({ observations }) => observations)).toEqual([
+    [],
+    [newer],
+    [],
+  ]);
+});
+
+it('uses the latest local period when England alone has a newer value', () => {
+  const older = point('2023-01-01', '2023-12-31', 10);
+  const newer = point('2024-01-01', '2024-12-31', 12);
+  const indicator = series([older, newer], [older]);
+  expect(comparisonRankingData(indicator).map(({ observations }) => observations)).toEqual([
+    [],
+    [older],
+  ]);
+  indicator.areaData = indicator.areaData.slice(0, 1);
+  expect(comparisonRankingData(indicator)[0]?.observations).toEqual([newer]);
 });

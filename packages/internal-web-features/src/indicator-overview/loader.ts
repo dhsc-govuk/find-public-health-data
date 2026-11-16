@@ -35,6 +35,8 @@ export type { HistoryItem, HistoryRow } from './history-items.ts';
 export type { OverviewNotification } from './notifications.ts';
 export type { AuthorNotes } from './overview-reviewer-notes.ts';
 export type { ReviewerNoteForm } from './reviewer-note-form.ts';
+export type { ChangeLine, ChangeRow } from './update-changes.ts';
+export type { DiffRun } from './word-diff.ts';
 
 // A reviewer unassigned since the detail was read gets no notes or history, not a missing page.
 function noneIfNotFound(error: unknown): null {
@@ -78,7 +80,7 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
   ]);
 
   // Taken after the fetches, so a failed page load does not consume the message it would show.
-  const notification = overviewNotification(takeFlash(context));
+  const notification = overviewNotification(takeFlash(context), indicator.indicatorStatus);
 
   return {
     canEdit: session !== undefined && canEditIndicator(session, indicator),

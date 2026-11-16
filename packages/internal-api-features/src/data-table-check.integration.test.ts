@@ -137,6 +137,7 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
         'value_note',
       ],
       yearType: null,
+      replacesPublished: false,
       page: 1,
       rowsPerPage: 10,
     });
@@ -235,6 +236,22 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ dataTable: null });
+  });
+
+  it("says an update's data table replaces the live one only once the draft has its own", async () => {
+    const published = await seededPublished(2);
+    await createDraftFromPublished(internalDb, published.indicatorId, AS_ACTOR);
+
+    const inherited = await check(published.indicatorId);
+    const batchId = await load(published.indicatorId);
+    const replaced = await check(published.indicatorId);
+
+    expect(inherited.body.dataTable).toMatchObject({ replacesPublished: false });
+    expect(replaced.body.dataTable).toMatchObject({
+      batchId,
+      rowCount: 4,
+      replacesPublished: true,
+    });
   });
 
   it('answers 404 for an indicator with no draft', async () => {

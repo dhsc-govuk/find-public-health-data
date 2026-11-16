@@ -46,6 +46,7 @@ export {
   listTopicsForIndicator,
   type TopicSummaryForIndicator,
 } from './indicator-topic-repository.ts';
+export { escapeLike } from './like-pattern.ts';
 export {
   type AreaRepository,
   createRepositories,

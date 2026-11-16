@@ -37,6 +37,7 @@ export const DATA_TABLE: NonNullable<DataTableCheck['dataTable']> = {
   ],
   rowCount: 52_365,
   yearType: null,
+  replacesPublished: false,
   page: 1,
   rowsPerPage: 10,
   rows: [ROW],

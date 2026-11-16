@@ -29,6 +29,10 @@ function submission(overrides: Partial<HistorySubmissionRecord>): HistorySubmiss
     endedAt: null,
     endedBy: null,
     revisionResponse: null,
+    updateChanges: null,
+    updateDecision: null,
+    updateDecidedBy: null,
+    updateDecidedAt: null,
     responses: [],
     ...overrides,
   };
@@ -36,7 +40,8 @@ function submission(overrides: Partial<HistorySubmissionRecord>): HistorySubmiss
 
 function response(overrides: Partial<HistoryResponseRecord>): HistoryResponseRecord {
   return {
-    reviewer: 'Jamie Evans',
+    respondedBy: 'Jamie Evans',
+    fromCoreTeam: false,
     kind: 'minor_revisions',
     imrgReviewedOn: null,
     clarificationRequest: null,
@@ -55,6 +60,7 @@ const noRecords = {
   submissions: [],
   assignments: [],
   scheduling: [],
+  updates: [],
   saves: [],
 };
 
@@ -121,6 +127,7 @@ describe('historyEntries', () => {
         response: 'approved',
         flags: [],
         clarificationRequest: null,
+        isUpdate: false,
       },
       { kind: 'imrg_reviewed', on: '2026-06-03', by: 'Jamie Evans' },
       {
@@ -128,6 +135,7 @@ describe('historyEntries', () => {
         at: '2026-06-02T10:00:00.000Z',
         by: 'Avery Clarke',
         reviewers: ['Jamie Evans'],
+        isUpdate: false,
       },
       { kind: 'submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor' },
       { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
@@ -153,6 +161,142 @@ describe('historyEntries', () => {
       { kind: 'publication_date_changed', at: '2026-06-05T09:00:00.000Z', by: 'Riley Singh' },
       { kind: 'publication_scheduled', at: '2026-06-04T09:00:00.000Z', by: 'Riley Singh' },
       expect.objectContaining({ kind: 'responded', response: 'approved' }),
+    ]);
+  });
+
+  it('lists each update started after the publication it updates', () => {
+    const entries = historyEntries({
+      ...noRecords,
+      versions: [version({ publishedAt: at('02T09:00:00') })],
+      updates: [{ at: at('10T09:00:00'), by: 'Charlie Owen' }],
+    });
+
+    expect(entries).toEqual([
+      { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
+      { kind: 'published', at: '2026-06-02T09:00:00.000Z', by: null },
+      { kind: 'created', at: '2026-06-01T09:00:00.000Z', by: 'Sam Taylor' },
+    ]);
+  });
+
+  it('lists the submission of an update with the changes it kept', () => {
+    const changes = [
+      {
+        task: 'polarity' as const,
+        parts: [{ kind: 'value' as const, field: 'polarity', value: 'Higher is better' }],
+      },
+    ];
+    const entries = historyEntries({
+      ...noRecords,
+      versions: [version({ publishedAt: at('02T09:00:00') })],
+      submissions: [submission({ submittedAt: at('11T09:00:00'), updateChanges: changes })],
+      updates: [{ at: at('10T09:00:00'), by: 'Charlie Owen' }],
+    });
+
+    expect(entries.slice(0, 2)).toEqual([
+      { kind: 'update_submitted', at: '2026-06-11T09:00:00.000Z', by: 'Sam Taylor', changes },
+      { kind: 'update_started', at: '2026-06-10T09:00:00.000Z', by: 'Charlie Owen' },
+    ]);
+  });
+
+  it("marks an update's assignment, response and resubmission, after the first publication", () => {
+    const entries = historyEntries({
+      ...noRecords,
+      versions: [version({ publishedAt: at('02T09:00:00') })],
+      submissions: [
+        submission({
+          submittedAt: at('11T09:00:00'),
+          status: 'changes_requested',
+          updateChanges: [],
+          updateDecision: 'imrg_review',
+          responses: [
+            response({
+              kind: 'pre_imrg_feedback',
+              imrgReviewedOn: null,
+              respondedAt: at('13T09:00:00'),
+            }),
+          ],
+        }),
+        submission({
+          submittedAt: at('14T09:00:00'),
+          previousStatus: 'changes_requested',
+          updateChanges: [],
+        }),
+      ],
+      assignments: [{ at: at('12T09:00:00'), by: 'Avery Clarke', reviewers: ['Jamie Evans'] }],
+    });
+
+    expect(
+      entries.flatMap((entry) => ('isUpdate' in entry ? [[entry.kind, entry.isUpdate]] : [])),
+    ).toEqual([
+      ['resubmitted', true],
+      ['responded', true],
+      ['reviewers_assigned', true],
+    ]);
+  });
+
+  it.each(['imrg_review', 'publish_with_history', 'publish_without_history'] as const)(
+    "lists the core team's %s decision on an update, by whoever made it",
+    (decision) => {
+      const entries = historyEntries({
+        ...noRecords,
+        submissions: [
+          submission({
+            updateChanges: [],
+            updateDecision: decision,
+            updateDecidedBy: 'Robin Shah',
+            updateDecidedAt: at('04T10:00:00'),
+          }),
+        ],
+      });
+
+      expect(entries[0]).toEqual({
+        kind: 'update_decided',
+        at: '2026-06-04T10:00:00.000Z',
+        by: 'Robin Shah',
+        decision,
+      });
+    },
+  );
+
+  it("lists the core team's request for revisions once, from its response, with its flags", () => {
+    const entries = historyEntries({
+      ...noRecords,
+      submissions: [
+        submission({
+          status: 'changes_requested',
+          updateChanges: [],
+          updateDecision: 'request_revisions',
+          updateDecidedBy: 'Robin Shah',
+          updateDecidedAt: at('04T10:00:00'),
+          responses: [
+            response({
+              respondedBy: 'Robin Shah',
+              fromCoreTeam: true,
+              kind: 'pre_imrg_feedback',
+              respondedAt: at('04T10:00:00'),
+              clarificationRequest: 'Why now?',
+              flags: [
+                { task: 'update-summary', notes: 'Say what changed' },
+                { task: 'polarity', notes: 'Check it' },
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(entries.slice(0, 2)).toEqual([
+      {
+        kind: 'update_revisions_requested',
+        at: '2026-06-04T10:00:00.000Z',
+        by: 'Robin Shah',
+        flags: [
+          { task: 'polarity', notes: 'Check it' },
+          { task: 'update-summary', notes: 'Say what changed' },
+        ],
+        clarificationRequest: 'Why now?',
+      },
+      { kind: 'update_submitted', at: '2026-06-02T09:00:00.000Z', by: 'Sam Taylor', changes: [] },
     ]);
   });
 
@@ -188,6 +332,7 @@ describe('historyEntries', () => {
         { task: 'tagging', notes: 'Add a topic' },
       ],
       clarificationRequest: 'Which **year** is this?',
+      isUpdate: false,
     });
   });
 
@@ -281,6 +426,7 @@ describe('historyEntries', () => {
           { task: 'definition-and-rationale', revised: false },
         ],
         reply: 'Done as asked',
+        isUpdate: false,
       });
     });
 
@@ -334,6 +480,7 @@ describe('historyEntries', () => {
 
       expect(entries.find(({ kind }) => kind === 'resubmitted')).toMatchObject({
         reply: 'Done as asked',
+        isUpdate: false,
       });
     });
   });

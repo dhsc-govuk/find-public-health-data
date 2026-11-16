@@ -150,6 +150,18 @@ describe('fillInSampleAnswers', () => {
     expect(response.headers.get('location')).toBe(`/publish/indicators/${id}/task-list`);
   });
 
+  it('fills in the update summary of an update alone, which a new indicator does not have', async () => {
+    const summaryPath = `/api/internal/indicators/${id}/update-summary`;
+    const newClient = api(taskList, savesEach, tableAccepted);
+    const updateClient = api({ ...taskList, isUpdate: true }, savesEach, tableAccepted);
+
+    await fillIn(newClient);
+    await fillIn(updateClient);
+
+    expect(saves(newClient).map(({ path }) => path)).not.toContain(summaryPath);
+    expect(saves(updateClient).map(({ path }) => path)).toContain(summaryPath);
+  });
+
   it('leaves a confirmed data table alone', async () => {
     const list: IndicatorTaskList = {
       ...taskList,

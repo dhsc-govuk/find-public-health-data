@@ -1,6 +1,8 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    // Recharts dependencies include declaration files that fail exactOptionalPropertyTypes.
+    "skipLibCheck": true,
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     // server.ts runs under Node's type stripping, which resolves the specifier as written —
     // a '.js' extension would not find the '.ts' file on disk.

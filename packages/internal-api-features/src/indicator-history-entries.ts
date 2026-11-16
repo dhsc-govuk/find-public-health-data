@@ -13,7 +13,7 @@ import { changesTask } from './indicator-task-audit-fields.ts';
 
 type HistoryRecords = Pick<
   IndicatorHistoryRow,
-  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'saves'
+  'versions' | 'submissions' | 'assignments' | 'scheduling' | 'updates' | 'saves'
 >;
 
 const SCHEDULING_KINDS = {
@@ -50,13 +50,34 @@ function imrgSortsAt(on: string, respondedAt: string): number {
   return Math.min(endOfDay, new Date(respondedAt).getTime());
 }
 
-function responseEntries(response: HistoryResponseRecord): Dated[] {
+/**
+ * Whether something that happened at `at` happened to an update. Every update follows the
+ * indicator's first publication, and nothing of its first version's review comes after it.
+ */
+type IsUpdate = (at: string) => boolean;
+
+function responseEntries(response: HistoryResponseRecord, isUpdate: IsUpdate): Dated[] {
+  if (response.fromCoreTeam) {
+    return [
+      dated(
+        {
+          kind: 'update_revisions_requested',
+          at: iso(response.respondedAt),
+          by: response.respondedBy,
+          flags: byTaskOrder(response.flags),
+          clarificationRequest: response.clarificationRequest,
+        },
+        response.respondedAt,
+      ),
+    ];
+  }
+
   const imrg: Dated[] =
     response.imrgReviewedOn === null
       ? []
       : [
           {
-            entry: { kind: 'imrg_reviewed', on: response.imrgReviewedOn, by: response.reviewer },
+            entry: { kind: 'imrg_reviewed', on: response.imrgReviewedOn, by: response.respondedBy },
             sortsAt: imrgSortsAt(response.imrgReviewedOn, response.respondedAt),
           },
         ];
@@ -67,10 +88,11 @@ function responseEntries(response: HistoryResponseRecord): Dated[] {
       {
         kind: 'responded',
         at: iso(response.respondedAt),
-        by: response.reviewer,
+        by: response.respondedBy,
         response: response.kind,
         flags: byTaskOrder(response.flags),
         clarificationRequest: response.clarificationRequest,
+        isUpdate: isUpdate(response.respondedAt),
       },
       response.respondedAt,
     ),
@@ -99,6 +121,7 @@ function resubmissionEntry(
   submission: HistorySubmissionRecord,
   sentBack: HistorySubmissionRecord,
   saves: readonly HistorySaveRecord[],
+  isUpdate: IsUpdate,
 ): Dated {
   const flags = sentBack.responses.flatMap((response) =>
     response.flags.map(({ task }) => ({
@@ -114,23 +137,67 @@ function resubmissionEntry(
       by: submission.submittedBy,
       flags: byTaskOrder(flags),
       reply: sentBack.revisionResponse,
+      isUpdate: isUpdate(submission.submittedAt),
     },
     submission.submittedAt,
   );
+}
+
+/**
+ * The entry for a first submission, or for one after a withdrawal. An update's entry also lists
+ * what the update changed.
+ */
+function submittedEntry({
+  submittedAt,
+  submittedBy,
+  updateChanges,
+}: HistorySubmissionRecord): HistoryEntry {
+  const at = iso(submittedAt);
+  return updateChanges === null
+    ? { kind: 'submitted', at, by: submittedBy }
+    : { kind: 'update_submitted', at, by: submittedBy, changes: updateChanges };
+}
+
+/**
+ * The core team's decision on an update to send it to IMRG or publish it. A request for revisions
+ * has its entry from the core team's response, which holds what it asked for.
+ */
+function decisionEntries({
+  updateDecision,
+  updateDecidedAt,
+  updateDecidedBy,
+}: HistorySubmissionRecord): Dated[] {
+  if (
+    updateDecision === null ||
+    updateDecision === 'request_revisions' ||
+    updateDecidedAt === null ||
+    updateDecidedBy === null
+  ) {
+    return [];
+  }
+  return [
+    dated(
+      {
+        kind: 'update_decided',
+        at: iso(updateDecidedAt),
+        by: updateDecidedBy,
+        decision: updateDecision,
+      },
+      updateDecidedAt,
+    ),
+  ];
 }
 
 function submissionEntries(
   submission: HistorySubmissionRecord,
   previous: HistorySubmissionRecord | undefined,
   saves: readonly HistorySaveRecord[],
+  isUpdate: IsUpdate,
 ): Dated[] {
   const sent =
     previous !== undefined && submission.previousStatus === 'changes_requested'
-      ? resubmissionEntry(submission, previous, saves)
-      : dated(
-          { kind: 'submitted', at: iso(submission.submittedAt), by: submission.submittedBy },
-          submission.submittedAt,
-        );
+      ? resubmissionEntry(submission, previous, saves, isUpdate)
+      : dated(submittedEntry(submission), submission.submittedAt);
   const withdrawn =
     submission.status === 'withdrawn' && submission.endedAt !== null && submission.endedBy !== null
       ? [
@@ -141,7 +208,12 @@ function submissionEntries(
         ]
       : [];
 
-  return [sent, ...submission.responses.flatMap(responseEntries), ...withdrawn];
+  return [
+    sent,
+    ...decisionEntries(submission),
+    ...submission.responses.flatMap((response) => responseEntries(response, isUpdate)),
+    ...withdrawn,
+  ];
 }
 
 function versionEntries({ versions }: HistoryRecords): Dated[] {
@@ -170,7 +242,13 @@ function versionEntries({ versions }: HistoryRecords): Dated[] {
  * at the same instant keep the order they happened in, the later first.
  */
 export function historyEntries(records: HistoryRecords): HistoryEntry[] {
-  const { submissions, assignments, scheduling, saves } = records;
+  const { versions, submissions, assignments, scheduling, updates, saves } = records;
+  const firstPublishedAt = Math.min(
+    ...versions.flatMap(({ publishedAt }) =>
+      publishedAt === null ? [] : [new Date(publishedAt).getTime()],
+    ),
+  );
+  const isUpdate: IsUpdate = (at) => new Date(at).getTime() > firstPublishedAt;
   const happened = [
     ...versionEntries(records),
     ...submissions.flatMap((submission, index) =>
@@ -178,14 +256,16 @@ export function historyEntries(records: HistoryRecords): HistoryEntry[] {
         submission,
         submissions.slice(0, index).findLast(({ versionId }) => versionId === submission.versionId),
         saves,
+        isUpdate,
       ),
     ),
     ...assignments.map(({ at, by, reviewers }) =>
-      dated({ kind: 'reviewers_assigned', at: iso(at), by, reviewers }, at),
+      dated({ kind: 'reviewers_assigned', at: iso(at), by, reviewers, isUpdate: isUpdate(at) }, at),
     ),
     ...scheduling.map(({ at, by, action }) =>
       dated({ kind: SCHEDULING_KINDS[action], at: iso(at), by }, at),
     ),
+    ...updates.map(({ at, by }) => dated({ kind: 'update_started', at: iso(at), by }, at)),
   ];
 
   return happened

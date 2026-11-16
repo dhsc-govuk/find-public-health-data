@@ -8,12 +8,12 @@ import {
   TaskList,
 } from '@fphd/ui';
 
-import { TASK_GROUPS } from '../indicator-tasks.ts';
+import { type TaskGroup, taskGroups } from '../indicator-tasks.ts';
 import { indicatorSampleAnswersPath, indicatorTaskListPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
-import { StatusTag } from '../status-tag/status-tag.tsx';
 import type { IndicatorTaskList, ReviewerRequests } from './loader.ts';
 import { ReviewTaskList } from './review-task-list.tsx';
+import { taskItem } from './task-item.tsx';
 
 interface TaskListPageProps {
   taskList: IndicatorTaskList;
@@ -27,7 +27,8 @@ interface TaskListPageProps {
 
 /**
  * Offered once the workflow lets the user submit or resubmit the draft and the step would pass:
- * every task complete and, for a draft sent back, every flagged task saved and the reply written.
+ * every task complete, a task changed on an update and, for a draft sent back, every flagged task
+ * saved and the reply written.
  */
 function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
   const offered = taskList.actions.includes('submit') || taskList.actions.includes('resubmit');
@@ -41,7 +42,7 @@ function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
       <form action={indicatorTaskListPath(taskList.indicator.id)} method="post">
         <input name="draftUpdatedAt" type="hidden" value={taskList.draftUpdatedAt} />
         <Button preventDoubleClick type="submit">
-          Submit for approval
+          {taskList.isUpdate ? 'Submit for review' : 'Submit for approval'}
         </Button>
       </form>
     </>
@@ -63,13 +64,23 @@ function SampleAnswersForm({ id }: { id: string }) {
   );
 }
 
+/** One group of a draft's tasks, each linking to its page with its status. */
+function TaskGroupList({ group, taskList }: { group: TaskGroup; taskList: IndicatorTaskList }) {
+  return (
+    <div>
+      <h2 className="govuk-heading-m">{group.title}</h2>
+      <TaskList id={group.id} items={group.tasks.map((row) => taskItem(row, taskList))} />
+    </div>
+  );
+}
+
 export function IndicatorTaskListPage({
   taskList,
   requests = null,
   offersSampleAnswers = false,
   formError,
 }: TaskListPageProps) {
-  const { indicator, tasks } = taskList;
+  const { indicator, isUpdate } = taskList;
 
   return (
     <GridRow>
@@ -81,27 +92,11 @@ export function IndicatorTaskListPage({
           You can complete these sections in any order. If you exit at any point, any section you
           have completed will be saved.
         </InsetText>
-        {TASK_GROUPS.map((group) =>
+        {taskGroups(isUpdate).map((group) =>
           requests === null ? (
-            <div key={group.id}>
-              <h2 className="govuk-heading-m">{group.title}</h2>
-              <TaskList
-                id={group.id}
-                items={group.tasks.map(({ key, path, title }) => ({
-                  title,
-                  href: path(indicator.id, tasks[key]),
-                  status: <StatusTag type="task" status={tasks[key]} />,
-                }))}
-              />
-            </div>
+            <TaskGroupList group={group} key={group.id} taskList={taskList} />
           ) : (
-            <ReviewTaskList
-              group={group}
-              id={indicator.id}
-              key={group.id}
-              requests={requests}
-              tasks={tasks}
-            />
+            <ReviewTaskList group={group} key={group.id} requests={requests} taskList={taskList} />
           ),
         )}
         {offersSampleAnswers && <SampleAnswersForm id={indicator.id} />}

@@ -6,6 +6,8 @@ import {
 } from '@fphd/internal-api-features/contract';
 import { type MarkdownHtml, renderMarkdown } from '@fphd/ui/markdown';
 
+import { type ChangeRow, updateChangeRows } from './update-changes.ts';
+
 /** A row of the Section and Comments table under an entry: our wording, or Markdown a user wrote. */
 export interface HistoryRow {
   section: string;
@@ -20,6 +22,8 @@ export interface HistoryItem {
   /** Who did it, where anything records who. */
   by: string | null;
   rows: readonly HistoryRow[];
+  /** What an update changed, for its Section and Changes table; absent for any other entry. */
+  changes?: readonly ChangeRow[];
 }
 
 const RESPONSE_ACTIONS: Readonly<Record<ReviewResponseKind, string>> = {
@@ -30,10 +34,38 @@ const RESPONSE_ACTIONS: Readonly<Record<ReviewResponseKind, string>> = {
   approved: 'Indicator approved for publishing',
 };
 
+// An update's reviewer approves it or sends it back with feedback, with no IMRG meeting.
+const UPDATE_RESPONSE_ACTIONS: Readonly<Partial<Record<ReviewResponseKind, string>>> = {
+  pre_imrg_feedback:
+    'Revisions or clarifications requested before update can be approved for publishing.',
+  approved: 'Update approved for publishing',
+};
+
+type DecisionEntry = Extract<HistoryEntry, { kind: 'update_decided' }>;
+
+const DECISION_ACTIONS: Readonly<Record<DecisionEntry['decision'], string>> = {
+  imrg_review: 'Update sent for IMRG review',
+  publish_with_history: 'Update approved for publishing with visibility in history',
+  publish_without_history: 'Update approved for publishing without visibility in history',
+};
+
 const names = new Intl.ListFormat('en-GB', { type: 'conjunction' });
 
 function markdownRow(section: string, text: string): HistoryRow {
   return { section, comments: renderMarkdown(text, 's') };
+}
+
+/** What a response asked to revise or clarify, as rows of the Section and Comments table. */
+function requestedRows({
+  flags,
+  clarificationRequest,
+}: Extract<HistoryEntry, { kind: 'responded' | 'update_revisions_requested' }>): HistoryRow[] {
+  return [
+    ...flags.map(({ task, notes }) => markdownRow(INDICATOR_TASK_TITLES[task], notes)),
+    ...(clarificationRequest === null
+      ? []
+      : [markdownRow('Clarification request', clarificationRequest)]),
+  ];
 }
 
 function historyItem(entry: HistoryEntry): HistoryItem {
@@ -49,7 +81,7 @@ function historyItem(entry: HistoryEntry): HistoryItem {
     case 'reviewers_assigned':
       return {
         date: entry.at,
-        action: `Indicator assigned for review by ${names.format(entry.reviewers)}.`,
+        action: `${entry.isUpdate ? 'Update' : 'Indicator'} assigned for review by ${names.format(entry.reviewers)}.`,
         by: entry.by,
         rows: [],
       };
@@ -58,19 +90,18 @@ function historyItem(entry: HistoryEntry): HistoryItem {
     case 'responded':
       return {
         date: entry.at,
-        action: RESPONSE_ACTIONS[entry.response],
+        action:
+          (entry.isUpdate ? UPDATE_RESPONSE_ACTIONS[entry.response] : undefined) ??
+          RESPONSE_ACTIONS[entry.response],
         by: entry.by,
-        rows: [
-          ...entry.flags.map(({ task, notes }) => markdownRow(INDICATOR_TASK_TITLES[task], notes)),
-          ...(entry.clarificationRequest === null
-            ? []
-            : [markdownRow('Clarification request', entry.clarificationRequest)]),
-        ],
+        rows: requestedRows(entry),
       };
     case 'resubmitted':
       return {
         date: entry.at,
-        action: 'Indicator resubmitted for approval.',
+        action: entry.isUpdate
+          ? 'Update resubmitted for review.'
+          : 'Indicator resubmitted for approval.',
         by: entry.by,
         rows: [
           ...entry.flags.map(({ task, revised }) => ({
@@ -86,6 +117,25 @@ function historyItem(entry: HistoryEntry): HistoryItem {
       return { date: entry.at, action: 'Publication date confirmed', by: entry.by, rows: [] };
     case 'publication_date_changed':
       return { date: entry.at, action: 'Publication date changed', by: entry.by, rows: [] };
+    case 'update_started':
+      return { date: entry.at, action: 'Indicator update started', by: entry.by, rows: [] };
+    case 'update_submitted':
+      return {
+        date: entry.at,
+        action: 'Update submitted for review',
+        by: entry.by,
+        rows: [],
+        changes: updateChangeRows(entry.changes),
+      };
+    case 'update_decided':
+      return { date: entry.at, action: DECISION_ACTIONS[entry.decision], by: entry.by, rows: [] };
+    case 'update_revisions_requested':
+      return {
+        date: entry.at,
+        action: 'Revisions or clarifications requested before IMRG review',
+        by: entry.by,
+        rows: requestedRows(entry),
+      };
   }
 }
 

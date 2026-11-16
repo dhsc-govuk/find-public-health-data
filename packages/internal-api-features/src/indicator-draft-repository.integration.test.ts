@@ -2,6 +2,7 @@ import { TEAM_IDS } from '@fphd/auth';
 import { type Database, schema } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
+import { SLUG_LOCK_NAMESPACE } from '@fphd/internal-workflow';
 import { MAX_AGE } from '@fphd/utils/ages';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
@@ -14,7 +15,6 @@ import {
   getIndicatorNotesForReviewers,
   type IndicatorDraft,
   type IndicatorDraftAttributes,
-  SLUG_LOCK_NAMESPACE,
   updateIndicatorDraft,
 } from './indicator-draft-repository.ts';
 import { getIndicatorById } from './indicator-list-repository.ts';
@@ -325,6 +325,84 @@ describe('updateIndicatorDraft', () => {
       expect(await slugOf(db, opened.versionId)).toBe(currentSlug);
       expect(await getIndicatorById(db, indicatorId)).toMatchObject({
         name: 'Renamed in the draft',
+        publishedSlug: currentSlug,
+      });
+    },
+  );
+
+  repositoryTest(
+    "refuses to rename a live indicator's draft to a name whose slug another indicator carries",
+    async ({ db }) => {
+      await newDraft(db, 'A name another holds');
+      const { indicatorId } = await indicatorWithTwoPublications(db, 'Live before the rename');
+      const opened = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      if (!opened.ok) throw new Error('expected a draft');
+
+      await expect(
+        updateIndicatorDraft(
+          db,
+          indicatorId,
+          'name',
+          { name: 'A name another holds' },
+          {},
+          AS_ACTOR,
+        ),
+      ).resolves.toEqual({ ok: false, reason: 'slug_taken' });
+      expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+        name: 'Live before the rename',
+      });
+    },
+  );
+
+  repositoryTest(
+    "answers locked or no_draft, not slug_taken, for a live indicator's draft it cannot edit",
+    async ({ db }) => {
+      await newDraft(db, 'A name held elsewhere');
+      const withoutDraft = await indicatorWithTwoPublications(db, 'Live with no draft');
+      const withLockedDraft = await indicatorWithTwoPublications(db, 'Live with a locked draft');
+      const opened = await createDraftFromPublished(db, withLockedDraft.indicatorId, AS_ACTOR);
+      if (!opened.ok) throw new Error('expected a draft');
+      await db
+        .update(indicatorVersion)
+        .set({ isLocked: true })
+        .where(eq(indicatorVersion.id, opened.versionId));
+
+      const rename = (indicatorId: string) =>
+        updateIndicatorDraft(
+          db,
+          indicatorId,
+          'name',
+          { name: 'A name held elsewhere' },
+          {},
+          AS_ACTOR,
+        );
+
+      await expect(rename(withoutDraft.indicatorId)).resolves.toEqual({
+        ok: false,
+        reason: 'no_draft',
+      });
+      await expect(rename(withLockedDraft.indicatorId)).resolves.toEqual({
+        ok: false,
+        reason: 'locked',
+      });
+    },
+  );
+
+  repositoryTest(
+    "renames a live indicator's draft back to a name one of its own versions carries",
+    async ({ db }) => {
+      const { indicatorId, currentSlug } = await indicatorWithTwoPublications(
+        db,
+        'Renamed and back',
+      );
+      await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      await updateIndicatorDraft(db, indicatorId, 'name', { name: 'Renamed away' }, {}, AS_ACTOR);
+
+      await expect(
+        updateIndicatorDraft(db, indicatorId, 'name', { name: 'Renamed and back' }, {}, AS_ACTOR),
+      ).resolves.toEqual({ ok: true });
+      expect(await getIndicatorById(db, indicatorId)).toMatchObject({
+        name: 'Renamed and back',
         publishedSlug: currentSlug,
       });
     },
@@ -775,6 +853,38 @@ describe('updateIndicatorDraft given the version a form was shown', () => {
       });
       expect(await definitionOf(db, created.versionId)).toBe('First');
       expect(await auditEntriesFor(db, created.indicatorId)).toHaveLength(2);
+    },
+  );
+
+  repositoryTest(
+    "answers changed, not slug_taken, for a stale form renaming a live indicator's draft onto a taken slug",
+    async ({ db }) => {
+      await newDraft(db, 'Taken by another');
+      const { indicatorId } = await indicatorWithTwoPublications(db, 'Live and renamed twice');
+      const opened = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+      if (!opened.ok) throw new Error('expected a draft');
+      const nameVersionOf = (draft: IndicatorDraft) => editVersion({ name: draft.name });
+      const shownName = editVersion({ name: 'Live and renamed twice' });
+      await updateIndicatorDraft(db, indicatorId, 'name', { name: 'Renamed first' }, {}, AS_ACTOR, {
+        version: shownName,
+        versionOf: nameVersionOf,
+      });
+
+      const result = await updateIndicatorDraft(
+        db,
+        indicatorId,
+        'name',
+        { name: 'Taken by another' },
+        {},
+        AS_OTHER_ACTOR,
+        { version: shownName, versionOf: nameVersionOf },
+      );
+
+      expect(result).toEqual({
+        ok: false,
+        reason: 'changed',
+        version: editVersion({ name: 'Renamed first' }),
+      });
     },
   );
 

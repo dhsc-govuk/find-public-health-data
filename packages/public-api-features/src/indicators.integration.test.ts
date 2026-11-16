@@ -70,7 +70,9 @@ describe('public routers against the seeded database', () => {
       .parse(projected.body)
       .find(({ areaCode }) => areaCode === 'E92000001');
     expect(england?.observations).toHaveLength(1);
-    expect(indicatorAreaDataListSchema.parse(projected.body)).toEqual(
+    const ranked = indicatorAreaDataListSchema.parse(projected.body);
+    expect(ranked.every(({ populationKeys }) => populationKeys?.length)).toBe(true);
+    expect(ranked.map(({ populationKeys: _, ...area }) => area)).toEqual(
       rankingAreaSeries(indicatorAreaDataListSchema.parse(full.body)),
     );
     const draft = await insertDraftOnlyIndicator(600092, 'Draft projection', 'draft-projection');

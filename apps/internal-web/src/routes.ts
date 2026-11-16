@@ -49,6 +49,14 @@ export default [
         '../../../packages/internal-web-features/src/indicator-scheduling/route.tsx',
       ),
       route(
+        'dashboard/indicators/:id/update-decision',
+        '../../../packages/internal-web-features/src/indicator-update-decision/decision-route.tsx',
+      ),
+      route(
+        'dashboard/indicators/:id/update-decision/revisions',
+        '../../../packages/internal-web-features/src/indicator-update-decision/revisions-route.tsx',
+      ),
+      route(
         'dashboard/indicators/:id/review/response-type',
         '../../../packages/internal-web-features/src/indicator-review-response/response-type-route.tsx',
       ),
@@ -59,6 +67,10 @@ export default [
       route(
         'dashboard/indicators/:id/review/approval',
         '../../../packages/internal-web-features/src/indicator-review-response/approval-route.tsx',
+      ),
+      route(
+        'dashboard/indicators/:id/review/update-approval',
+        '../../../packages/internal-web-features/src/indicator-review-response/update-approval-route.tsx',
       ),
       route(
         'dashboard/indicators/:id/review/revisions',
@@ -89,6 +101,10 @@ export default [
       route(
         'publish/indicators/:id/sample-answers',
         '../../../packages/internal-web-features/src/indicator-sample-answers/route.ts',
+      ),
+      route(
+        'publish/indicators/:id/start-update',
+        '../../../packages/internal-web-features/src/indicator-update/route.ts',
       ),
       route(
         'publish/indicators/:id/withdraw-submission',
@@ -185,6 +201,10 @@ export default [
       route(
         'publish/indicators/:id/tagging',
         '../../../packages/internal-web-features/src/indicator-tagging/route.tsx',
+      ),
+      route(
+        'publish/indicators/:id/update-summary',
+        '../../../packages/internal-web-features/src/indicator-update-summary/route.tsx',
       ),
     ]),
     layout('./admin.tsx', [

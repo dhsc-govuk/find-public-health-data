@@ -166,6 +166,15 @@ export function canSchedulePublication(user: SessionUser): boolean {
   return holds(user, 'admin');
 }
 
+/**
+ * Whether the user may decide what happens to a submitted update to a live indicator: send it to
+ * IMRG, send it back for revisions, or approve it for publishing. The core team decides, and
+ * holds the admin role.
+ */
+export function canDecideUpdates(user: SessionUser): boolean {
+  return holds(user, 'admin');
+}
+
 /** Whether the user may manage the service's shared content, such as its topics. */
 export function canManage(user: SessionUser): boolean {
   return holds(user, 'admin');

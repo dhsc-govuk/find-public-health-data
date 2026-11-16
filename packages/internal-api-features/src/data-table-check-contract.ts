@@ -42,6 +42,8 @@ export const dataTableRowSchema = z.object({
  * One page of the draft's uploaded data table, or null if no file has been uploaded yet. It has
  * the columns the file included, the total number of rows, and the rows on this page. Confirming
  * the table sends back `batchId`. `yearType` is the draft's, and is used to label the periods.
+ * `replacesPublished` is true on an update whose draft has a data table of its own, which replaces
+ * all of the live indicator's data values.
  */
 export const dataTableCheckSchema = z.object({
   dataTable: z
@@ -50,6 +52,7 @@ export const dataTableCheckSchema = z.object({
       columns: z.array(z.enum(DATA_TABLE_COLUMNS)),
       rowCount: z.number().int().min(0),
       yearType: z.object({ value: z.enum(YEAR_TYPES), label: z.string().min(1) }).nullable(),
+      replacesPublished: z.boolean(),
       page: z.number().int().min(1),
       rowsPerPage: z.number().int().min(1),
       rows: z.array(dataTableRowSchema),

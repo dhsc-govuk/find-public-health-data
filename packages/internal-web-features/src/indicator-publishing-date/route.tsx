@@ -23,10 +23,14 @@ export const meta = titleFromPage;
 export const handle = sectionBackLinkHandle;
 
 export function PublishingDateRoute() {
-  const { dateExample } = useLoaderData<typeof loader>();
+  const { dateExample, isUpdate } = useLoaderData<typeof loader>();
 
   return (
-    <PublishingDatePage {...useSectionForm<PublishingDateField>()} dateExample={dateExample} />
+    <PublishingDatePage
+      {...useSectionForm<PublishingDateField>()}
+      dateExample={dateExample}
+      isUpdate={isUpdate}
+    />
   );
 }
 

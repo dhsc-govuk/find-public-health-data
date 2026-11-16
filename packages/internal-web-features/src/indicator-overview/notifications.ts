@@ -1,3 +1,4 @@
+import type { IndicatorStatus } from '@fphd/internal-api-features/contract';
 import { setFlash } from '@fphd/web-server/flash';
 
 type FlashContext = Parameters<typeof setFlash>[0];
@@ -72,6 +73,19 @@ const NOTIFICATIONS = {
     type: 'important',
     text: 'This indicator cannot be approved because it has no publication date.',
   },
+  'update-revisions-requested': {
+    type: 'important',
+    colour: 'orange',
+    text: 'Revisions or clarifications requested before update can be published',
+  },
+  'update-decision-not-waiting': {
+    type: 'important',
+    text: 'This update is no longer waiting for a decision.',
+  },
+  'update-decision-changed': {
+    type: 'important',
+    text: 'This update has been resubmitted since you opened this page. Check it, then decide what should happen to it.',
+  },
   'publication-date-confirmed': { type: 'success', text: 'Indicator publication date confirmed' },
   'publication-date-refused': {
     type: 'important',
@@ -85,15 +99,36 @@ const NOTIFICATIONS = {
 
 export type OverviewFlash = keyof typeof NOTIFICATIONS;
 
+/** The messages an update to a live indicator words its own way. */
+const UPDATE_NOTIFICATIONS: Partial<Record<OverviewFlash, OverviewNotification>> = {
+  'indicator-submitted': { type: 'success', text: 'Update successfully submitted for review.' },
+  'reviewers-assigned': { type: 'success', text: 'Reviewers successfully assigned to update' },
+  'review-approved': { type: 'success', text: 'Update approved for publishing' },
+  'review-feedback-given': {
+    type: 'important',
+    colour: 'orange',
+    text: 'Revisions or clarifications requested before update can be published',
+  },
+};
+
 /** Leaves the overview a message to show once the user is redirected to it. */
 export function setOverviewFlash(context: FlashContext, flash: OverviewFlash): void {
   setFlash(context, flash);
 }
 
-/** The message a flash asks for, or none for a flash the overview does not know. */
-export function overviewNotification(flash: string | undefined): OverviewNotification | undefined {
+/**
+ * The message a flash asks for, or none for a flash the overview does not know. A live
+ * indicator's message is about its update, where that is worded differently.
+ */
+export function overviewNotification(
+  flash: string | undefined,
+  indicatorStatus: IndicatorStatus,
+): OverviewNotification | undefined {
   // `in` would also admit inherited keys like 'constructor'.
-  return flash !== undefined && Object.hasOwn(NOTIFICATIONS, flash)
-    ? NOTIFICATIONS[flash as OverviewFlash]
-    : undefined;
+  if (flash === undefined || !Object.hasOwn(NOTIFICATIONS, flash)) return undefined;
+
+  const known = flash as OverviewFlash;
+  return (
+    (indicatorStatus === 'live' ? UPDATE_NOTIFICATIONS[known] : undefined) ?? NOTIFICATIONS[known]
+  );
 }

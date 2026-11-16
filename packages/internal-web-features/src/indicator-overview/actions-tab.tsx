@@ -31,7 +31,15 @@ export function ActionsTab({
   return sections.map(({ heading, button, links }, index) => (
     <section key={heading}>
       <h2 className="govuk-heading-m">{heading}</h2>
-      {button === null ? null : <Button href={button.href}>{button.label}</Button>}
+      {button === null ? null : button.posts ? (
+        <form action={button.href} method="post">
+          <Button preventDoubleClick type="submit">
+            {button.label}
+          </Button>
+        </form>
+      ) : (
+        <Button href={button.href}>{button.label}</Button>
+      )}
       {links.length === 0 ? null : (
         <ul className="govuk-list">
           {links.map(({ href, label }) => (

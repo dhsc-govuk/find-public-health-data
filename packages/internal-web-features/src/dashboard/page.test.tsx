@@ -25,6 +25,7 @@ const indicator: IndicatorAdminListItem = {
   draftLocked: false,
   draftSubmissionStatus: null,
   draftResponseKind: null,
+  draftUpdateDecision: null,
   draftReviewers: [],
 };
 
@@ -41,6 +42,7 @@ function renderPage(
         underReview={underReview}
         toReview={toReview}
         scheduled={null}
+        awaitingDecision={null}
         list={{ canCreate: true, indicators: [indicator], page: 1, totalPages: 1, ...list }}
       />
     </MemoryRouter>,
@@ -50,7 +52,13 @@ function renderPage(
 function renderManagerPage(underReview: IndicatorsUnderReview) {
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <DashboardPage underReview={underReview} toReview={null} scheduled={null} list={null} />
+      <DashboardPage
+        underReview={underReview}
+        toReview={null}
+        scheduled={null}
+        awaitingDecision={null}
+        list={null}
+      />
     </MemoryRouter>,
   );
 }
@@ -58,7 +66,13 @@ function renderManagerPage(underReview: IndicatorsUnderReview) {
 function renderReviewerPage(toReview: IndicatorAdminListItem[]) {
   return render(
     <MemoryRouter initialEntries={['/dashboard']}>
-      <DashboardPage underReview={null} toReview={toReview} scheduled={null} list={null} />
+      <DashboardPage
+        underReview={null}
+        toReview={toReview}
+        scheduled={null}
+        awaitingDecision={null}
+        list={null}
+      />
     </MemoryRouter>,
   );
 }
@@ -231,6 +245,7 @@ describe('DashboardPage', () => {
             underReview={{ unassigned: [submitted], assigned: [inReview] }}
             toReview={null}
             scheduled={null}
+            awaitingDecision={null}
             list={null}
           />
         </MemoryRouter>,
@@ -317,6 +332,7 @@ describe('DashboardPage', () => {
         draftLocked: false,
         draftSubmissionStatus: 'changes_requested',
         draftResponseKind: 'minor_revisions',
+        draftUpdateDecision: null,
       };
 
       renderPage({}, '/dashboard', null, [inReview, sentBack]);
@@ -352,6 +368,7 @@ describe('DashboardPage', () => {
           underReview={{ unassigned: [submitted], assigned: [] }}
           toReview={[inReview]}
           scheduled={null}
+          awaitingDecision={null}
           list={null}
         />
       </MemoryRouter>,
@@ -409,6 +426,7 @@ describe('DashboardPage', () => {
       ...submitted,
       draftSubmissionStatus: 'approved',
       draftResponseKind: 'approved',
+      draftUpdateDecision: null,
     };
     const scheduled: IndicatorAdminListItem = {
       ...pending,
@@ -417,25 +435,37 @@ describe('DashboardPage', () => {
       draftStatus: 'scheduled',
     };
 
-    function renderAdminPage(scheduledIndicators: IndicatorAdminListItem[]) {
+    const awaitingDecision: IndicatorAdminListItem = {
+      ...submitted,
+      id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5e',
+      name: 'Falls in older people',
+      indicatorStatus: 'live',
+    };
+
+    function renderAdminPage(
+      scheduledIndicators: IndicatorAdminListItem[],
+      awaitingDecisionIndicators: IndicatorAdminListItem[] = [],
+    ) {
       return render(
         <MemoryRouter initialEntries={['/dashboard']}>
           <DashboardPage
             underReview={null}
             toReview={null}
             scheduled={scheduledIndicators}
+            awaitingDecision={awaitingDecisionIndicators}
             list={{ canCreate: false, indicators: [indicator], page: 1, totalPages: 1 }}
           />
         </MemoryRouter>,
       );
     }
 
-    it('offers a Scheduled indicators tab, counting them, first and open, then All indicators', () => {
+    it('offers a Scheduled indicators tab, counting them, first and open, then Update decision needed and All indicators', () => {
       renderAdminPage([scheduled, pending]);
 
       expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'Scheduled indicators (2)',
+        'Update decision needed',
         'All indicators',
       ]);
       expect(
@@ -482,6 +512,30 @@ describe('DashboardPage', () => {
         ),
       ).toBeTruthy();
     });
+
+    it('counts the updates waiting for a decision on their tab, each "Update pending decision"', () => {
+      renderAdminPage([], [awaitingDecision]);
+
+      const table = within(
+        screen.getByRole('tabpanel', { name: 'Update decision needed (1)' }),
+      ).getByRole('table', { name: 'Updates waiting for a decision, oldest submission first' });
+      expect(
+        within(table)
+          .getAllByRole('row')
+          .slice(1)
+          .map((row) => [...row.querySelectorAll('.govuk-tag')].map((tag) => tag.textContent)),
+      ).toEqual([['Live', 'Update pending decision']]);
+    });
+
+    it('says so when no update waits for a decision', () => {
+      renderAdminPage([]);
+
+      expect(
+        within(screen.getByRole('tabpanel', { name: 'Update decision needed' })).getByText(
+          'There are no updates waiting for a decision.',
+        ),
+      ).toBeTruthy();
+    });
   });
 
   it('shows what the page before left to say in an important banner', () => {
@@ -491,6 +545,7 @@ describe('DashboardPage', () => {
           underReview={null}
           toReview={[]}
           scheduled={null}
+          awaitingDecision={null}
           list={null}
           notification="You are no longer a reviewer of this indicator."
         />
@@ -499,6 +554,116 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('region', { name: 'Important' }).textContent).toContain(
       'You are no longer a reviewer of this indicator.',
+    );
+  });
+});
+
+describe('the dashboard search', () => {
+  const LABEL = 'Search indicators by name or who created them';
+
+  function renderSearched(
+    search: string | undefined,
+    url: string,
+    props: Partial<Parameters<typeof DashboardPage>[0]> = {},
+  ) {
+    return render(
+      <MemoryRouter initialEntries={[url]}>
+        <DashboardPage
+          search={search}
+          underReview={null}
+          toReview={null}
+          scheduled={null}
+          awaitingDecision={null}
+          list={null}
+          {...props}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  const emptyList: IndicatorList = { canCreate: true, indicators: [], page: 1, totalPages: 1 };
+
+  it('offers a search of the dashboard, sent to the dashboard as a query', () => {
+    renderSearched(undefined, '/dashboard', { list: emptyList });
+
+    const search = screen.getByRole('search');
+    const form = search.querySelector('form');
+    expect(form?.getAttribute('action')).toBe('/dashboard');
+    expect(form?.getAttribute('method')).toBe('get');
+    expect(within(search).getByRole('searchbox', { name: LABEL }).getAttribute('name')).toBe(
+      'search',
+    );
+    expect(within(search).getByRole('button', { name: 'Search' })).toBeTruthy();
+  });
+
+  it('puts the search above the tabs', () => {
+    renderSearched(undefined, '/dashboard', { underReview: { unassigned: [], assigned: [] } });
+
+    const search = screen.getByRole('search');
+    const tabs = screen.getByRole('tablist');
+    expect(search.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows the search the lists match', () => {
+    renderSearched('asthma', '/dashboard?search=asthma', { list: emptyList });
+
+    expect((screen.getByRole('searchbox', { name: LABEL }) as HTMLInputElement).value).toBe(
+      'asthma',
+    );
+  });
+
+  it('sends the open tab with a search, and no page', () => {
+    renderSearched(undefined, '/dashboard?tab=assigned&page=2', {
+      underReview: { unassigned: [], assigned: [] },
+    });
+
+    const form = screen.getByRole('search').querySelector('form');
+    const hidden = [...(form?.querySelectorAll('input[type="hidden"]') ?? [])].map((input) => [
+      input.getAttribute('name'),
+      input.getAttribute('value'),
+    ]);
+    expect(hidden).toEqual([['tab', 'assigned']]);
+  });
+
+  it('says no indicators match when the search matched none of the list', () => {
+    renderSearched('quokka', '/dashboard?search=quokka', { list: emptyList });
+
+    expect(screen.getByText('No indicators match your search.')).toBeTruthy();
+    expect(screen.queryByText('There are no indicators for you to see yet.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Create new indicator' })).toBeTruthy();
+  });
+
+  it('says no indicators match on each tab whose table the search left empty', () => {
+    renderSearched('quokka', '/dashboard?search=quokka', {
+      underReview: { unassigned: [], assigned: [inReview] },
+      toReview: [],
+      scheduled: [],
+      awaitingDecision: [],
+      list: emptyList,
+    });
+
+    const noMatches = (tab: string) =>
+      within(screen.getByRole('tabpanel', { name: tab })).queryByText(
+        'No indicators match your search.',
+      );
+    expect(noMatches('Unassigned indicators')).toBeTruthy();
+    expect(noMatches('Assigned indicators')).toBeNull();
+    expect(noMatches('Review')).toBeTruthy();
+    expect(noMatches('Scheduled indicators')).toBeTruthy();
+    expect(noMatches('Update decision needed')).toBeTruthy();
+    expect(noMatches('Create and edit')).toBeTruthy();
+  });
+
+  it('keeps the search in the page links', () => {
+    renderSearched('asthma', '/dashboard?search=asthma&page=2', {
+      list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
+    });
+
+    expect(screen.getByRole('link', { name: '1' }).getAttribute('href')).toBe(
+      '/dashboard?search=asthma',
+    );
+    expect(screen.getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+      '/dashboard?search=asthma&page=3',
     );
   });
 });

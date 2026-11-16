@@ -2,15 +2,18 @@ import { INDICATOR_SORTS, type IndicatorSort } from '@fphd/utils/indicator-sort'
 import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
+  availablePeriodTypes,
   type BenchmarkJudgement,
   benchmarkJudgement,
   type ComparisonRow,
   comparisonRows,
   filterObservations,
+  formatCalculatedValue,
   sameSegment,
   trendSeries,
+  withUnit,
 } from '../indicator/data.ts';
-import type { SelectedIndicator } from '../indicator/loader.ts';
+import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
 
 const SORT_LABELS: Record<IndicatorSort, string> = {
   'subtopic-asc': 'Subtopic (A to Z)',
@@ -56,6 +59,15 @@ export const TOPIC_COLUMNS = [
   { value: 'value', label: 'Calculated value' },
 ] as const;
 export type TopicColumn = (typeof TOPIC_COLUMNS)[number]['value'];
+
+export function topicEnglandMeasures(columns: TopicColumn[], compared: boolean) {
+  return compared
+    ? (['count', 'numerator', 'value'] as const).filter(
+        (measure) => measure === 'value' || columns.includes(measure),
+      )
+    : [];
+}
+
 export function topicColumns(params: URLSearchParams): TopicColumn[] {
   const selected = params.has('columns-topic')
     ? params.getAll('columns-topic').flatMap((value) => value.split(','))
@@ -100,13 +112,21 @@ export function observationPeriod(
 export function topicTableSelection(
   selected: SelectedIndicator[],
   trendPoints = 5,
+  sparklinePeriods = 0,
 ): SelectedIndicator[] {
   return selected.map((entry) => {
     const rows = comparisonRows([entry]);
     const keep = new Set<SelectedIndicator['areaData'][number]['observations'][number]>();
+    const keepSparkline = (series: IndicatorObservation[]) => {
+      if (!sparklinePeriods) return;
+      const periodType = availablePeriodTypes(series).length > 1 ? '3-year' : 'all';
+      for (const point of filterObservations(series, { periodType }).slice(-sparklinePeriods))
+        keep.add(point);
+    };
     for (const row of rows) {
       const england = entry.areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
       const benchmarkSeries = trendSeries(filterObservations(england?.observations ?? [], row));
+      keepSparkline(benchmarkSeries);
       for (const point of trendPoints
         ? benchmarkSeries.filter(({ value }) => value !== null).slice(-trendPoints)
         : [])
@@ -114,6 +134,7 @@ export function topicTableSelection(
       const benchmarkLatest = benchmarkSeries.at(-1);
       if (benchmarkLatest) keep.add(benchmarkLatest);
       for (const cell of row.cells) {
+        keepSparkline(cell.series);
         for (const point of trendPoints
           ? cell.series.filter(({ value }) => value !== null).slice(-trendPoints)
           : [])
@@ -142,6 +163,22 @@ export const JUDGEMENT_LABELS: Record<BenchmarkJudgement, string> = {
   higher: 'Higher than England',
   none: 'No comparison available',
 };
+
+// The prototype gives no verdict wherever Fingertips gives none or the indicator has no polarity.
+export function comparisonSummary(
+  judgement: BenchmarkJudgement | null | undefined,
+  benchmark?: { value: number; period: string },
+  unit?: string | null,
+): string {
+  if (judgement == null) return JUDGEMENT_LABELS.none;
+  const summary =
+    judgement === 'better' || judgement === 'similar' || judgement === 'worse'
+      ? JUDGEMENT_LABELS[judgement]
+      : 'Neither better nor worse';
+  return benchmark
+    ? `${summary} (England: ${withUnit(formatCalculatedValue(benchmark.value), unit ?? null)}, ${benchmark.period})`
+    : summary;
+}
 
 export function topicJudgement(...args: Parameters<typeof benchmarkJudgement>): BenchmarkJudgement {
   return args[2].polarity === 'no-polarity' ? 'none' : benchmarkJudgement(...args);

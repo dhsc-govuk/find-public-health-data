@@ -36,6 +36,7 @@ import {
   listTopicsForIndicators,
 } from './indicator-topic-repository.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
+import { escapeLike } from './like-pattern.ts';
 import {
   publishedArea as area,
   publishedAreaType as areaType,
@@ -52,6 +53,7 @@ import {
   publishedIndicatorSource as indicatorSource,
   publishedIndicatorSubtopic as indicatorSubtopic,
   publishedIndicatorTopic as indicatorTopic,
+  publishedIndicatorUpdateSummary as indicatorUpdateSummary,
   publishedObservation as observation,
   publishedObservationRange as observationRange,
   publishedSubtopic as subtopic,
@@ -134,10 +136,7 @@ function exactIdentifierMatch(db: Database, query: string) {
 }
 
 function escapedSearchTerms(query: string): string[] {
-  return query
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.replace(/[\\%_]/g, '\\$&'));
+  return query.trim().split(/\s+/).map(escapeLike);
 }
 
 /** The published indicator surface, ordered by name. */
@@ -161,7 +160,7 @@ export async function searchPublishedIndicators(
     .from(indicator)
     .where(or(identifierMatch, and(...terms.map((term) => ilike(indicator.name, `%${term}%`)))))
     .orderBy(
-      sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${query.replace(/[\\%_]/g, '\\$&')}%`} then 2 else 3 end`,
+      sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${escapeLike(query)}%`} then 2 else 3 end`,
       sql`position(lower(${query}) in lower(${indicator.name}))`,
       asc(indicator.name),
     )
@@ -230,6 +229,16 @@ export interface IndicatorDetail {
   areaTypes: IndicatorAreaType[];
   topics: IndicatorTopic[];
   classifications: IndicatorClassification[];
+  /**
+   * The summaries of the published updates, other than those published without visibility in
+   * history, newest first, each with when its update went live. Empty for an indicator with none, such as an imported one.
+   */
+  updateSummaries: IndicatorUpdateSummary[];
+}
+
+export interface IndicatorUpdateSummary {
+  publishedAt: string;
+  summary: string;
 }
 
 /** The internal id behind a public short id — the one place the external id resolves. */
@@ -309,6 +318,18 @@ export async function getPublishedIndicatorsByIds(
       notes: indicator.otherNotesDetail,
       dataSourceName: dataSource.name,
       dataSourceUrl: dataSource.url,
+      // Read in this statement, rather than in one of its own, so the page costs no more queries.
+      updateSummaries: sql<{ publishedAt: string; summary: string }[]>`(
+        SELECT coalesce(
+          json_agg(
+            json_build_object('publishedAt', ${indicatorUpdateSummary.publishedAt}, 'summary', ${indicatorUpdateSummary.updateSummary})
+            ORDER BY ${indicatorUpdateSummary.publishedAt} DESC
+          ),
+          '[]'
+        )
+        FROM ${indicatorUpdateSummary}
+        WHERE ${indicatorUpdateSummary.indicatorId} = ${indicator.id}
+      )`,
     })
     .from(indicator)
     .innerJoin(valueType, eq(indicator.valueTypeId, valueType.id))
@@ -389,6 +410,10 @@ export async function getPublishedIndicatorsByIds(
               .map(({ indicatorId: _id, ...entry }) => entry),
             topics: topics.get(row.id) ?? [],
             classifications: classifications.get(row.id) ?? [],
+            updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({
+              publishedAt: new Date(publishedAt).toISOString(),
+              summary,
+            })),
           },
         ],
       ];
@@ -693,7 +718,7 @@ export async function searchIndicators(
       ),
     );
 
-  const escapedQuery = query.replace(/[\\%_]/g, '\\$&');
+  const escapedQuery = escapeLike(query);
   const relevance = sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${escapedQuery}%`} then 2 when ${indicator.name} ilike ${`%${escapedQuery}%`} then 3 else 4 end`;
   const countQuery = db
     .select({ total: countDistinct(indicator.id) })

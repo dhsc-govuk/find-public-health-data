@@ -9,8 +9,9 @@ import { describe, expect } from 'vitest';
 
 import { type CreatedIndicatorDraft, createIndicatorDraft } from './indicator-draft-repository.ts';
 import { AS_ACTOR, newDraft, repositoryTest } from './indicator-repository.testing.ts';
-import { completeDraft } from './indicator-workflow.testing.ts';
+import { answerUpdate, completeDraft, updateInReview } from './indicator-workflow.testing.ts';
 import { assignReviewers, submitIndicator } from './indicator-workflow-repository.ts';
+import { respondToReview } from './review-response-repository.ts';
 
 const {
   indicatorVersion,
@@ -112,6 +113,42 @@ async function teamCDraft(db: Database, name: string): Promise<CreatedIndicatorD
 }
 
 describe('a resubmission', () => {
+  repositoryTest(
+    "of an update starts a submission with no reviewers and no decision, keeping the update's changes",
+    async ({ db }) => {
+      const update = await updateInReview(db, 'Update resubmitted');
+      await respondToReview(
+        db,
+        update.indicatorId,
+        {
+          submissionNumber: 1,
+          kind: 'pre_imrg_feedback',
+          imrgReviewedOn: null,
+          clarificationRequest: null,
+          flags: [{ task: 'update-summary', notes: 'Say why' }],
+        },
+        AS_REVIEWER,
+      );
+      const shown = await answerUpdate(db, update, { polarity: 'no-polarity' });
+      await db
+        .update(indicatorVersionSubmission)
+        .set({ revisionResponse: 'Said why' })
+        .where(eq(indicatorVersionSubmission.indicatorVersionId, update.versionId));
+
+      expect(await submitIndicator(db, update.indicatorId, shown, AS_ACTOR)).toEqual({ ok: true });
+
+      const latest = await latestOf(db, update.versionId);
+      expect(latest).toMatchObject({
+        number: 2,
+        status: 'submitted',
+        updateDecision: null,
+        updateChanges: expect.arrayContaining([expect.objectContaining({ task: 'polarity' })]),
+      });
+      expect(await reviewersOf(db, latest.id)).toEqual([]);
+      expect(await isLocked(db, update.versionId)).toBe(true);
+    },
+  );
+
   repositoryTest('goes straight back to the same reviewers, in review', async ({ db }) => {
     const round = await inReview(db, await newDraft(db, 'Resubmitted to its reviewers'), [
       REVIEWER,

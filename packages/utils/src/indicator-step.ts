@@ -5,6 +5,9 @@
 export const INDICATOR_STEPS = [
   'submit',
   'withdraw',
+  'send_update_to_imrg',
+  'request_update_revisions',
+  'approve_update',
   'assign_reviewers',
   'give_feedback',
   'request_changes',
