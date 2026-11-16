@@ -2,7 +2,7 @@ import { indicatorDetailSchema } from '@fphd/public-api-features/contract';
 import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
-import { providerSourceText, updateFrequencyText } from './metadata-data.ts';
+import { DATA_USE, providerSourceText, updateFrequencyText } from './metadata-data.ts';
 import { indicatorMetadataPath, isIndicatorSegment, redirectStatus } from './paths.ts';
 
 export async function loader({ context, params }: LoaderFunctionArgs): Promise<Response> {
@@ -34,6 +34,7 @@ export async function loader({ context, params }: LoaderFunctionArgs): Promise<R
     ['Disclosure control', detail.disclosureControl],
     ['Notes', detail.notes],
     ['Caveats', detail.caveats],
+    ...DATA_USE.map(({ name, text }) => [name, text]),
   ];
   return new Response(
     `${entries

@@ -462,6 +462,10 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(metadata.filename).toMatch(/metadata\.txt$/);
   expect(metadata.text).toContain(MORTALITY_NAME);
   expect(metadata.text).toContain('Numerator definition:');
+  expect(metadata.text).toContain('Copyright: © Crown Copyright');
+  expect(metadata.text).toContain(
+    'Data re-use: The data may be used referencing Office for Health Improvement and Disparities',
+  );
 });
 
 test('plots trends, area comparisons, inequalities and paired indicators', async ({
