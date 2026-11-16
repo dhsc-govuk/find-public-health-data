@@ -74,12 +74,20 @@ export function highlightedAreaCodes(params: URLSearchParams, areas: AreaOption[
   const before = new Set(params.getAll('highlightRegionBefore'));
   const query = params.get('geo-q')?.trim().toLowerCase() ?? '';
   const highlighted = new Set(params.getAll('highlight'));
-  for (const { code, name, parent } of areas) {
-    if (!parent || (query && !name.toLowerCase().includes(query) && code.toLowerCase() !== query))
-      continue;
+  const matches = areas.filter(
+    ({ code, name }) =>
+      !query || name.toLowerCase().includes(query) || code.toLowerCase() === query,
+  );
+  const untickedRegions = new Set([...before].filter((code) => !regions.has(code)));
+  // Missing member ticks take precedence when both a region and its members are unticked.
+  for (const { code, parent } of matches) {
+    if (parent && !highlighted.has(code)) untickedRegions.delete(parent.code);
+  }
+  for (const { code, parent } of matches) {
+    if (!parent) continue;
     // Unchanged region boxes leave individual ticks in charge after a no-script submission.
     if (regions.has(parent.code) && !before.has(parent.code)) highlighted.add(code);
-    if (before.has(parent.code) && !regions.has(parent.code)) highlighted.delete(code);
+    if (untickedRegions.has(parent.code)) highlighted.delete(code);
   }
   return [...highlighted];
 }

@@ -40,6 +40,29 @@ it('honours individual no-script unticks and changes to region boxes', () => {
   ).toEqual(['c', 'a']);
 });
 
+it.each([
+  ['highlight=b&highlight=c&highlight=d&highlightRegionBefore=r', ['b', 'c', 'd']],
+  ['highlight=c&highlight=d&highlightRegionBefore=r', ['c', 'd']],
+  ['highlight=d&highlightRegionBefore=r', ['d']],
+  ['highlight=a&highlight=b&highlight=c&highlight=d&highlightRegionBefore=r', ['d']],
+  [
+    'highlight=a&highlight=b&highlight=c&highlight=d&highlightRegionBefore=r&geo-q=alpha',
+    ['c', 'd'],
+  ],
+  ['highlight=a&highlight=b&highlight=d&highlightRegionBefore=r&geo-q=alpha', ['d']],
+  ['highlight=b&highlight=c&highlight=d&highlightRegionBefore=r&geo-q=alpha', ['b', 'c', 'd']],
+  ['highlight=b&highlight=c&highlight=d&highlightRegionBefore=r&geo-q=B', ['c', 'd']],
+])('reconciles no-script region and member unticks: %s', (query, expected) => {
+  const parent = { code: 'r', name: 'Region' };
+  const areas = [
+    { code: 'a', name: 'Alpha', parent },
+    { code: 'b', name: 'Alpha Beta', parent },
+    { code: 'c', name: 'Gamma', parent },
+    { code: 'd', name: 'Delta', parent: { code: 's', name: 'Elsewhere' } },
+  ];
+  expect(highlightedAreaCodes(new URLSearchParams(query), areas)).toEqual(expected);
+});
+
 it('compares counties and unitary authorities together without mixing in their districts', () => {
   const areas = ['E07000001', 'E06000001', 'E08000001', 'E09000001', 'E10000001'].map((code) => ({
     code,

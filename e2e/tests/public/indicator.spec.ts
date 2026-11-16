@@ -496,9 +496,10 @@ test('adds and removes regional and individual highlights without JavaScript', a
     await withoutJs.goto(
       `${MORTALITY_PATH}?render=complete&tab-indicator=areas#indicator-compare-areas`,
     );
-    await withoutJs
-      .getByRole('checkbox', { name: /^North East: all \d+ upper tier local authorities$/ })
-      .check();
+    const region = withoutJs.getByRole('checkbox', {
+      name: /^North East: all \d+ upper tier local authorities$/,
+    });
+    await region.check();
     await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
     await expect(withoutJs).toHaveURL(/highlightRegion=E12000001/);
     const headers = withoutJs
@@ -506,6 +507,9 @@ test('adds and removes regional and individual highlights without JavaScript', a
       .locator('tbody')
       .getByRole('rowheader');
     await expect(headers.first()).toHaveText(/\(highlighted\)$/);
+    const highlighted = await headers.filter({ hasText: /\(highlighted\)$/ }).allTextContents();
+    const remaining = highlighted.filter((name) => name !== 'Hartlepool (highlighted)');
+    expect(remaining.length).toBeGreaterThan(0);
     await expect(
       withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
     ).toBeChecked();
@@ -515,14 +519,19 @@ test('adds and removes regional and individual highlights without JavaScript', a
       withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
     ).not.toBeChecked();
     await expect(headers.filter({ hasText: /^Hartlepool$/ })).toHaveCount(1);
-    const region = withoutJs.getByRole('checkbox', {
-      name: /^North East: all \d+ upper tier local authorities$/,
-    });
+    await expect(headers.filter({ hasText: /\(highlighted\)$/ })).toHaveText(remaining);
     await region.check();
     await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
     await expect(
       withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
     ).toBeChecked();
+    await region.uncheck();
+    await withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }).uncheck();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(headers.filter({ hasText: /^Hartlepool$/ })).toHaveCount(1);
+    await expect(headers.filter({ hasText: /\(highlighted\)$/ })).toHaveText(remaining);
+    await region.check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
     await region.uncheck();
     await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
     await expect(headers.first()).toHaveText('England (benchmark)');
