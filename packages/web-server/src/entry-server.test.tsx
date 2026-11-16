@@ -24,7 +24,7 @@ vi.mock('react-dom/server', () => ({
 import handleRequest, { handleError, streamTimeout } from './entry-server.tsx';
 
 const entryContext = { isSpaMode: false } as EntryContext;
-const logger = { error: vi.fn() };
+const logger = { error: vi.fn(), warn: vi.fn() };
 
 function loadContextWithNonce() {
   const context = new RouterContextProvider();
@@ -41,13 +41,14 @@ function startRequest() {
     entryContext,
     loadContextWithNonce(),
   );
-  const onShellReady = renderer.options?.onShellReady;
+  const onAllReady = renderer.options?.onAllReady;
 
-  if (onShellReady === undefined) {
-    throw new Error('Expected the renderer to provide onShellReady');
+  if (onAllReady === undefined) {
+    throw new Error('Expected the renderer to provide onAllReady');
   }
 
-  onShellReady();
+  renderer.options?.onShellReady?.();
+  onAllReady();
   return response;
 }
 
@@ -55,6 +56,7 @@ describe('React Router server rendering', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     logger.error.mockReset();
+    logger.warn.mockReset();
     renderer.abort.mockReset();
     renderer.options = undefined;
     renderer.pipe.mockReset();
@@ -64,7 +66,34 @@ describe('React Router server rendering', () => {
     vi.useRealTimers();
   });
 
-  it('gives React the nonce, so its streamed boundary scripts satisfy the CSP', async () => {
+  it.each([
+    { userAgent: '', isSpaMode: false },
+    { userAgent: 'Mozilla/5.0 Chrome/131.0.0.0 Safari/537.36', isSpaMode: false },
+    { userAgent: 'Googlebot', isSpaMode: false },
+    { userAgent: '', isSpaMode: true },
+  ])('waits for every boundary with $userAgent and SPA mode $isSpaMode', async (options) => {
+    const ready = vi.fn();
+    const response = handleRequest(
+      new Request('https://example.com/', { headers: { 'user-agent': options.userAgent } }),
+      200,
+      new Headers(),
+      { ...entryContext, isSpaMode: options.isSpaMode },
+      loadContextWithNonce(),
+    ).then(ready);
+
+    await Promise.resolve();
+    renderer.options?.onShellReady?.();
+    expect(ready).not.toHaveBeenCalled();
+    expect(renderer.pipe).not.toHaveBeenCalled();
+
+    renderer.options?.onShellReady?.();
+    renderer.options?.onAllReady?.();
+    await response;
+    expect(ready).toHaveBeenCalledOnce();
+    expect(renderer.pipe).toHaveBeenCalledOnce();
+  });
+
+  it('gives React the nonce so inline scripts satisfy the CSP', async () => {
     await startRequest();
 
     expect(renderer.options?.nonce).toBe('test-nonce');
@@ -87,6 +116,55 @@ describe('React Router server rendering', () => {
 
     expect(renderer.abort).toHaveBeenCalledOnce();
   });
+
+  it('flushes an overdue document without turning its ready shell into a 500', async () => {
+    renderer.abort.mockImplementation((reason: unknown) => {
+      renderer.options?.onError?.(reason, {});
+      renderer.options?.onError?.(reason, {});
+      renderer.options?.onAllReady?.();
+    });
+    const response = handleRequest(
+      new Request('https://example.com/'),
+      200,
+      new Headers(),
+      entryContext,
+      loadContextWithNonce(),
+    );
+    renderer.options?.onShellReady?.();
+
+    vi.advanceTimersByTime(streamTimeout + 1_000);
+
+    expect((await response).status).toBe(200);
+    expect(renderer.abort).toHaveBeenCalledOnce();
+    expect(renderer.pipe).toHaveBeenCalledOnce();
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+      { url: 'https://example.com/', unfinishedSections: 2 },
+      'Document render deadline exceeded',
+    );
+  });
+
+  it.each([false, true])(
+    'reports genuine errors after the deadline (response sent: %s)',
+    async (sent) => {
+      const response = handleRequest(
+        new Request('https://example.com/'),
+        200,
+        new Headers(),
+        entryContext,
+        loadContextWithNonce(),
+      );
+      renderer.options?.onShellReady?.();
+      vi.advanceTimersByTime(streamTimeout + 1_000);
+      if (sent) renderer.options?.onAllReady?.();
+      const error = new Error('genuine rendering failure');
+      renderer.options?.onError?.(error, {});
+      if (!sent) renderer.options?.onAllReady?.();
+      expect((await response).status).toBe(sent ? 200 : 500);
+      expect(logger.error).toHaveBeenCalledExactlyOnceWith({ err: error }, 'Streaming failed');
+      expect(logger.warn).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('clears the abort deadline when the shell fails', async () => {
     const error = new Error('render failed');
@@ -124,6 +202,7 @@ describe('React Router server rendering', () => {
       loadContextWithNonce(),
     );
     renderer.options?.onShellReady?.();
+    renderer.options?.onAllReady?.();
     await response;
     controller.abort();
     renderer.options?.onError?.(new Error('destination closed'), {});
@@ -148,6 +227,7 @@ describe('React Router server rendering', () => {
 describe('handleError', () => {
   beforeEach(() => {
     logger.error.mockReset();
+    logger.warn.mockReset();
   });
 
   function report(error: unknown, request = new Request('https://example.com/topics?page=2')) {

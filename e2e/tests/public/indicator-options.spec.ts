@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { filterCard, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
@@ -6,6 +6,32 @@ import { filterCard, MORTALITY_PATH, openIndicatorPage } from '../support/indica
 function trendTable(page: import('@playwright/test').Page) {
   return page.getByRole('table', { name: /^Table:/ });
 }
+
+async function selectEarlierInequalityPeriod(options: Locator) {
+  const select = options.getByLabel('Time period', { exact: true });
+  const previous = await select.inputValue();
+  const [value] = await select.selectOption({ index: 1 });
+  if (value === undefined) throw new Error('Expected an earlier published inequality period');
+  expect(value).not.toBe(previous);
+  const label = await select.locator('option:checked').innerText();
+  return { value, label };
+}
+
+test('uses the selected period label when options change during selection', async ({ page }) => {
+  await page.setContent(`
+    <label for="period">Time period</label><select id="period">
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+    <script>
+      document.querySelector('select').addEventListener('input', (event) => {
+        event.target.selectedOptions[0].textContent = '2024 revised';
+      });
+    </script>
+  `);
+  const period = await selectEarlierInequalityPeriod(page.locator('body'));
+  expect(period).toEqual({ value: '2024', label: '2024 revised' });
+});
 
 test('table options update the series and keep their choices on reload', async ({
   page,
@@ -55,13 +81,16 @@ test('inequality options change the breakdown period', async ({ page }) => {
     .locator('.fphd-filter-card')
     .filter({ has: page.getByRole('button', { name: 'Chart options', exact: true }) });
   await options
-    .getByRole('radio', { name: /Districts and unitary authorities by deprivation/ })
+    .getByRole('radio', { name: /Districts and unitary authorities by deprivation \(IMD 2019,/ })
     .check();
   await expect(page).toHaveURL(/ic-108=/);
-  await options.getByLabel('Time period', { exact: true }).selectOption('2023');
-  await expect(
-    page.getByRole('table', { name: /Districts and unitary authorities by deprivation.*2023/ }),
-  ).toBeVisible();
+  const table = page.getByRole('table', {
+    name: /Districts and unitary authorities by deprivation/,
+  });
+  await expect(table).toBeVisible();
+  const period = await selectEarlierInequalityPeriod(options);
+  await expect(page).toHaveURL((url) => url.searchParams.get('ip-108') === period.value);
+  await expect(table.locator('caption')).toContainText(period.label);
 });
 
 test.describe('without JavaScript', () => {
@@ -71,8 +100,7 @@ test.describe('without JavaScript', () => {
     page,
   }) => {
     await page.goto(MORTALITY_PATH);
-    await page.getByRole('link', { name: 'Show all sections', exact: true }).click();
-    await expect(page).toHaveURL(/render=complete/);
+    await expect(page.getByRole('status').filter({ hasText: /^Loading / })).toHaveCount(0);
     const tableOptions = filterCard(page, 'Table columns');
     await tableOptions.getByLabel('Select sex').selectOption('Male');
     await tableOptions.getByLabel('Select time period type').selectOption('1 year');
@@ -81,7 +109,7 @@ test.describe('without JavaScript', () => {
 
     await expect(page).toHaveURL(/sex-108=Male/);
     await expect(page).toHaveURL(/pt-108=1-year/);
-    await expect(page).toHaveURL(/render=complete/);
+    await expect(page).toHaveURL(/#indicator-data$/);
     const table = trendTable(page);
     await expect(table).toHaveAccessibleName(/<75 yrs, Male$/);
     await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(
@@ -91,15 +119,18 @@ test.describe('without JavaScript', () => {
 
     const inequalityOptions = filterCard(page, 'Chart options');
     await inequalityOptions
-      .getByRole('radio', { name: /Districts and unitary authorities by deprivation/ })
+      .getByRole('radio', { name: /Districts and unitary authorities by deprivation \(IMD 2019,/ })
       .check();
-    await inequalityOptions.getByLabel('Time period', { exact: true }).selectOption('2023');
     await inequalityOptions.getByRole('button', { name: 'Apply options' }).click();
-
     await expect(page).toHaveURL(/ic-108=/);
-    await expect(
-      page.getByRole('table', { name: /Districts and unitary authorities by deprivation.*2023/ }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/#indicator-inequalities$/);
+    const period = await selectEarlierInequalityPeriod(inequalityOptions);
+    await inequalityOptions.getByRole('button', { name: 'Apply options' }).click();
+    await expect(page).toHaveURL((url) => url.searchParams.get('ip-108') === period.value);
+    const inequalityTable = page.getByRole('table', {
+      name: /Districts and unitary authorities by deprivation/,
+    });
+    await expect(inequalityTable.locator('caption')).toContainText(period.label);
     await expect(page).toHaveURL(/sex-108=Male/);
   });
 });

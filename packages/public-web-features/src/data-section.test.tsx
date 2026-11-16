@@ -1,11 +1,62 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
-import { renderToString } from 'react-dom/server';
+import { CollapsibleFilterCard } from '@fphd/ui';
+import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { DataSection, useDataReady } from './data-section.tsx';
 
 afterEach(cleanup);
+
+it('shows loading rather than a failure on the first client commit', () => {
+  let firstCommit: string | null = null;
+  function FirstCommit() {
+    useLayoutEffect(() => {
+      firstCommit = document.body.textContent;
+    }, []);
+    return null;
+  }
+
+  render(
+    <MemoryRouter>
+      <DataSection label="data" resolve={new Promise<string>(() => {})}>
+        {(value) => <p>{value}</p>}
+      </DataSection>
+      <FirstCommit />
+    </MemoryRouter>,
+  );
+
+  expect(firstCommit).toContain('Loading data…');
+  expect(firstCommit).not.toContain('could not be loaded');
+});
+
+it('keeps an open control when document data becomes deferred navigation data', async () => {
+  const section = Promise.withResolvers<string>();
+  const content = (resolve: string | Promise<string>) => (
+    <MemoryRouter>
+      <DataSection label="data" resolve={resolve}>
+        {(value) => (
+          <CollapsibleFilterCard active={false} title="Table columns">
+            <p>{value}</p>
+          </CollapsibleFilterCard>
+        )}
+      </DataSection>
+    </MemoryRouter>
+  );
+  const { rerender } = render(content('Document table'));
+  fireEvent.click(screen.getByRole('button', { name: 'Table columns' }));
+  expect(screen.getByRole('button', { name: 'Table columns' }).getAttribute('aria-expanded')).toBe(
+    'true',
+  );
+
+  rerender(content(section.promise));
+  await act(async () => section.resolve('Navigation table'));
+
+  expect(screen.getByText('Navigation table')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Table columns' }).getAttribute('aria-expanded')).toBe(
+    'true',
+  );
+});
 
 it('waits for every section in an array and tracks replacement promises', async () => {
   const sections = Array.from({ length: 4 }, () => Promise.withResolvers<void>());
@@ -27,19 +78,6 @@ it('waits for every section in an array and tracks replacement promises', async 
   expect(result.current).toBe(false);
   await act(async () => replacement.resolve());
   expect(result.current).toBe(true);
-});
-
-it('puts completed content in the initial HTML without a loading fallback', () => {
-  const html = renderToString(
-    <MemoryRouter>
-      <DataSection label="data" resolve={{ value: 'Complete table' }}>
-        {({ value }) => <p>{value}</p>}
-      </DataSection>
-    </MemoryRouter>,
-  );
-  expect(html).toContain('Complete table');
-  expect(html).not.toContain('Loading');
-  expect(html).not.toContain('<template');
 });
 
 it('renders navigation while sections load and reveals each section independently', async () => {
