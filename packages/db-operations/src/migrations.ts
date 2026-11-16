@@ -10,6 +10,7 @@ import {
   readLocalMigrations,
 } from './migration-status.ts';
 import { OWNER_GROUP, prepareOwnerGroup } from './owner-group.ts';
+import { createPreviewViews, dropPreviewViews } from './preview-views.ts';
 
 export { migrationsFolder };
 
@@ -49,6 +50,9 @@ export async function withTeardown<T>(
  *
  * And the pre-flight, because the states it refuses are ones the migrator reports success on
  * having applied nothing at all.
+ *
+ * Inside both, the preview views are dropped before the migrations and recreated after them (see
+ * `preview-views.ts`).
  */
 export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
   if (sql.options.max !== 1) {
@@ -61,10 +65,25 @@ export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
   await withTeardown(
     async () => {
       assertMigratable(compareMigrations(readLocalMigrations(), await readAppliedMigrations(sql)));
-      await asOwnerGroup(sql, () => migrate(drizzle(sql), { migrationsFolder }));
+      await asOwnerGroup(sql, () =>
+        withPreviewViewsRecreated(sql, () => migrate(drizzle(sql), { migrationsFolder })),
+      );
     },
     () => sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`,
   );
+}
+
+/**
+ * Drops the preview views, runs `work`, then recreates them from the published views as `work`
+ * left them. The views are recreated even when `work` fails, because a failed migration rolls
+ * back and leaves the published views as they were.
+ */
+export async function withPreviewViewsRecreated<T>(
+  sql: postgres.Sql,
+  work: () => Promise<T>,
+): Promise<T> {
+  await dropPreviewViews(sql);
+  return withTeardown(work, () => createPreviewViews(sql));
 }
 
 /**
