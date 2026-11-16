@@ -63,6 +63,9 @@ VERSION_COLUMNS = [
     "updated_by",
 ]
 
+# The e2e suite covers indicators imported without an update frequency through this one.
+WITHOUT_UPDATE_FREQUENCY = {"94194"}
+
 METADATA_COLUMNS = VERSION_COLUMNS[VERSION_COLUMNS.index("definition") : VERSION_COLUMNS.index("created_at")]
 
 
@@ -140,7 +143,7 @@ def main(seed_dir):
         )
         version["update_frequency"] = (
             update_frequency_value(frequency_names[row["frequency_id"]])
-            if row["frequency_id"]
+            if row["frequency_id"] and row["short_id"] not in WITHOUT_UPDATE_FREQUENCY
             else ""
         )
         if row["year_type_id"]:
