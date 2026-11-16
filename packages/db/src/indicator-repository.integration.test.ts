@@ -24,7 +24,7 @@ import {
   searchIndicators,
   searchPublishedIndicators,
 } from './indicator-repository.ts';
-import { publishedIndicator, SYSTEM_USER_IDS } from './schema/index.ts';
+import { publishedViews, SYSTEM_USER_IDS } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
@@ -52,7 +52,7 @@ let diabetesId: string;
 let diabetesMortalityId: string;
 
 async function resolvedId(shortId: number): Promise<string> {
-  const id = await resolvePublishedIndicatorId(db, shortId);
+  const id = await resolvePublishedIndicatorId(db, publishedViews, shortId);
   if (!id) {
     throw new Error(`seed is missing indicator ${shortId}`);
   }
@@ -75,7 +75,7 @@ afterAll(async () => {
 
 describe('listPublishedIndicators', () => {
   it('returns the seeded indicators in name order', async () => {
-    const indicators = await listPublishedIndicators(db);
+    const indicators = await listPublishedIndicators(db, publishedViews);
 
     expect(indicators).toHaveLength(12);
     const names = indicators.map(({ name }) => name);
@@ -83,7 +83,7 @@ describe('listPublishedIndicators', () => {
   });
 
   it('carries the slug each link is built from', async () => {
-    const indicators = await listPublishedIndicators(db);
+    const indicators = await listPublishedIndicators(db, publishedViews);
 
     expect(indicators).toContainEqual(
       expect.objectContaining({ shortId: MORTALITY_UNDER_75, slug: MORTALITY_SLUG }),
@@ -93,52 +93,56 @@ describe('listPublishedIndicators', () => {
 
 describe('searchPublishedIndicators', () => {
   it('matches case-insensitively anywhere in the name', async () => {
-    const results = await searchPublishedIndicators(db, 'DIABETES', 20);
+    const results = await searchPublishedIndicators(db, publishedViews, 'DIABETES', 20);
 
     expect(results.length).toBeGreaterThanOrEqual(2);
     expect(results.every(({ name }) => name.toLowerCase().includes('diabetes'))).toBe(true);
   });
 
   it('ranks a match earlier in the name above a later one', async () => {
-    const results = await searchPublishedIndicators(db, 'diabetes', 20);
+    const results = await searchPublishedIndicators(db, publishedViews, 'diabetes', 20);
 
     expect(results[0]?.name).toBe('Diabetes: QOF prevalence');
   });
 
   it('matches a slug exactly, case-folded', async () => {
-    await expect(searchPublishedIndicators(db, MORTALITY_SLUG.toUpperCase(), 20)).resolves.toEqual([
-      expect.objectContaining({ shortId: MORTALITY_UNDER_75 }),
-    ]);
+    await expect(
+      searchPublishedIndicators(db, publishedViews, MORTALITY_SLUG.toUpperCase(), 20),
+    ).resolves.toEqual([expect.objectContaining({ shortId: MORTALITY_UNDER_75 })]);
   });
 
   it('matches an exact short id but not the internal id', async () => {
-    await expect(searchPublishedIndicators(db, String(MORTALITY_UNDER_75), 20)).resolves.toEqual([
-      expect.objectContaining({ shortId: MORTALITY_UNDER_75 }),
-    ]);
-    await expect(searchPublishedIndicators(db, mortalityId, 20)).resolves.toEqual([]);
+    await expect(
+      searchPublishedIndicators(db, publishedViews, String(MORTALITY_UNDER_75), 20),
+    ).resolves.toEqual([expect.objectContaining({ shortId: MORTALITY_UNDER_75 })]);
+    await expect(searchPublishedIndicators(db, publishedViews, mortalityId, 20)).resolves.toEqual(
+      [],
+    );
   });
 
   it('respects the limit', async () => {
-    expect(await searchPublishedIndicators(db, 'a', 3)).toHaveLength(3);
+    expect(await searchPublishedIndicators(db, publishedViews, 'a', 3)).toHaveLength(3);
   });
 
   it('treats LIKE syntax in the query as literal text', async () => {
-    expect(await searchPublishedIndicators(db, '%', 20)).toEqual([]);
-    expect(await searchPublishedIndicators(db, '_', 20)).toEqual([]);
+    expect(await searchPublishedIndicators(db, publishedViews, '%', 20)).toEqual([]);
+    expect(await searchPublishedIndicators(db, publishedViews, '_', 20)).toEqual([]);
   });
 });
 
 describe('resolvePublishedIndicatorId', () => {
   it('answers the internal id for a seeded short id and nothing otherwise', async () => {
-    expect(await resolvePublishedIndicatorId(db, MORTALITY_UNDER_75)).toMatch(/^[0-9a-f-]{36}$/);
-    expect(await resolvePublishedIndicatorId(db, 424242)).toBeUndefined();
+    expect(await resolvePublishedIndicatorId(db, publishedViews, MORTALITY_UNDER_75)).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
+    expect(await resolvePublishedIndicatorId(db, publishedViews, 424242)).toBeUndefined();
   });
 });
 
 describe('resolveIndicatorIdBySlug', () => {
   it('answers the internal id for a published slug and nothing otherwise', async () => {
-    expect(await resolveIndicatorIdBySlug(db, MORTALITY_SLUG)).toBe(mortalityId);
-    expect(await resolveIndicatorIdBySlug(db, 'no-such-indicator')).toBeUndefined();
+    expect(await resolveIndicatorIdBySlug(db, publishedViews, MORTALITY_SLUG)).toBe(mortalityId);
+    expect(await resolveIndicatorIdBySlug(db, publishedViews, 'no-such-indicator')).toBeUndefined();
   });
 
   // The added publication is older than the seed's, so it supersedes nothing the rest of
@@ -153,15 +157,17 @@ describe('resolveIndicatorIdBySlug', () => {
     );
     await owner.$client.end();
 
-    expect(await resolveIndicatorIdBySlug(db, 'an-earlier-name')).toBe(mortalityId);
+    expect(await resolveIndicatorIdBySlug(db, publishedViews, 'an-earlier-name')).toBe(mortalityId);
     // The canonical slug is still the latest publication's.
-    expect((await getPublishedIndicatorById(db, mortalityId))?.slug).toBe(MORTALITY_SLUG);
+    expect((await getPublishedIndicatorById(db, publishedViews, mortalityId))?.slug).toBe(
+      MORTALITY_SLUG,
+    );
   });
 });
 
 describe('getPublishedIndicatorById', () => {
   it('resolves the lookups, metadata and available area types in one result', async () => {
-    const indicator = await getPublishedIndicatorById(db, mortalityId);
+    const indicator = await getPublishedIndicatorById(db, publishedViews, mortalityId);
 
     expect(indicator).toMatchObject({
       shortId: MORTALITY_UNDER_75,
@@ -187,12 +193,12 @@ describe('getPublishedIndicatorById', () => {
   it('gives no unit to values that have none', async () => {
     const id = await resolvedId(RESIDENT_POPULATION);
 
-    expect((await getPublishedIndicatorById(db, id))?.unit).toBeNull();
+    expect((await getPublishedIndicatorById(db, publishedViews, id))?.unit).toBeNull();
   });
 
   it('dates the first and the latest publication', async () => {
     const id = await resolvedId(RESIDENT_POPULATION);
-    const imported = await getPublishedIndicatorById(db, id);
+    const imported = await getPublishedIndicatorById(db, publishedViews, id);
 
     // An imported indicator has one published version.
     expect(imported?.firstPublishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -207,7 +213,7 @@ describe('getPublishedIndicatorById', () => {
     );
     await owner.$client.end();
 
-    const withEarlier = await getPublishedIndicatorById(db, id);
+    const withEarlier = await getPublishedIndicatorById(db, publishedViews, id);
 
     expect(withEarlier?.firstPublishedAt).toBe('2000-01-01T00:00:00.000Z');
     expect(withEarlier?.lastPublishedAt).toBe(imported?.lastPublishedAt);
@@ -220,7 +226,9 @@ describe('getPublishedIndicatorById', () => {
           WHERE indicator_id = ${id}`,
     );
 
-    expect((await getPublishedIndicatorById(db, id))?.unit).toBe('per 1,000 live births');
+    expect((await getPublishedIndicatorById(db, publishedViews, id))?.unit).toBe(
+      'per 1,000 live births',
+    );
   });
 
   it('serves an indicator imported without an update frequency', async () => {
@@ -230,7 +238,7 @@ describe('getPublishedIndicatorById', () => {
           WHERE indicator_id = ${id}`,
     );
 
-    expect(await getPublishedIndicatorById(db, id)).toMatchObject({
+    expect(await getPublishedIndicatorById(db, publishedViews, id)).toMatchObject({
       shortId: DIABETES_MORTALITY,
       updateFrequency: null,
     });
@@ -244,7 +252,7 @@ describe('getPublishedIndicatorById', () => {
         sql`UPDATE indicator_version SET update_frequency = ${updateFrequency}, update_frequency_reason = NULL, update_frequency_text = 'Academic year.\nPublished in winter.' WHERE indicator_id = ${id}`,
       );
 
-      expect(await getPublishedIndicatorById(db, id)).toMatchObject({
+      expect(await getPublishedIndicatorById(db, publishedViews, id)).toMatchObject({
         updateFrequency,
         updateFrequencyText: 'Academic year.\nPublished in winter.',
       });
@@ -252,11 +260,11 @@ describe('getPublishedIndicatorById', () => {
   );
 
   it('returns undefined for an id no indicator carries', async () => {
-    expect(await getPublishedIndicatorById(db, UNSEEDED_ID)).toBeUndefined();
+    expect(await getPublishedIndicatorById(db, publishedViews, UNSEEDED_ID)).toBeUndefined();
   });
 
   it('includes the prototype diabetes indicator with its high-fidelity geography coverage', async () => {
-    const indicator = await getPublishedIndicatorById(db, diabetesId);
+    const indicator = await getPublishedIndicatorById(db, publishedViews, diabetesId);
 
     expect(indicator).toMatchObject({
       shortId: DIABETES_QOF_PREVALENCE,
@@ -291,7 +299,7 @@ describe('getPublishedIndicatorById', () => {
           LEFT JOIN data_provider_source s ON s.provider_id = p.id AND s.name = entry.source`,
     );
 
-    const indicator = await getPublishedIndicatorById(db, diabetesId);
+    const indicator = await getPublishedIndicatorById(db, publishedViews, diabetesId);
 
     expect(indicator?.numeratorSources).toEqual([
       { provider: 'NHS England (NHSE)', source: 'Hospital Episode Statistics (HES)' },
@@ -306,7 +314,7 @@ describe('getPublishedIndicatorById', () => {
 
 describe('getIndicatorObservations', () => {
   it('returns every published observation for the area with its dimension labels', async () => {
-    const data = await getIndicatorObservations(db, mortalityId, ENGLAND);
+    const data = await getIndicatorObservations(db, publishedViews, mortalityId, ENGLAND);
 
     expect(data?.areaName).toBe('England');
     expect(data?.observations.length).toBeGreaterThan(1000);
@@ -327,23 +335,32 @@ describe('getIndicatorObservations', () => {
 
   it('returns an empty observation list when the area holds no data for the indicator', async () => {
     // 93622 is seeded for deprivation-within-area only, so lower-tier authorities are empty.
-    const [lowerTier] = await listAreasByType(db, 'LA unchanged');
+    const [lowerTier] = await listAreasByType(db, publishedViews, 'LA unchanged');
     expect(lowerTier).toBeTruthy();
 
-    const data = await getIndicatorObservations(db, await resolvedId(93622), lowerTier?.code ?? '');
+    const data = await getIndicatorObservations(
+      db,
+      publishedViews,
+      await resolvedId(93622),
+      lowerTier?.code ?? '',
+    );
 
     expect(data?.observations).toEqual([]);
     expect(data?.areaName).toBe(lowerTier?.name);
   });
 
   it('returns undefined only for an unknown area, now the id arrives resolved', async () => {
-    expect(await getIndicatorObservations(db, mortalityId, 'E00000000')).toBeUndefined();
+    expect(
+      await getIndicatorObservations(db, publishedViews, mortalityId, 'E00000000'),
+    ).toBeUndefined();
     // An id that resolved but holds no rows is an empty series, not an error.
-    expect((await getIndicatorObservations(db, UNSEEDED_ID, ENGLAND))?.observations).toEqual([]);
+    expect(
+      (await getIndicatorObservations(db, publishedViews, UNSEEDED_ID, ENGLAND))?.observations,
+    ).toEqual([]);
   });
 
   it('returns the published Cornwall trend for the prototype diabetes indicator', async () => {
-    const data = await getIndicatorObservations(db, diabetesId, CORNWALL);
+    const data = await getIndicatorObservations(db, publishedViews, diabetesId, CORNWALL);
 
     expect(data?.areaName).toBe('Cornwall');
     expect(data?.observations).toHaveLength(13);
@@ -361,8 +378,8 @@ describe('getIndicatorObservations', () => {
 describe('getObservationRange', () => {
   it('brackets each period of the trend series across every area of the level', async () => {
     const [range, cornwall] = await Promise.all([
-      getObservationRange(db, diabetesId, 'Local authorities'),
-      getIndicatorObservations(db, diabetesId, CORNWALL),
+      getObservationRange(db, publishedViews, diabetesId, 'Local authorities'),
+      getIndicatorObservations(db, publishedViews, diabetesId, CORNWALL),
     ]);
 
     expect(range.length).toBeGreaterThan(0);
@@ -380,12 +397,19 @@ describe('getObservationRange', () => {
   });
 
   it('returns an empty range for an unknown group or an id holding no data', async () => {
-    expect(await getObservationRange(db, diabetesId, 'No Such Level')).toEqual([]);
-    expect(await getObservationRange(db, UNSEEDED_ID, 'Local authorities')).toEqual([]);
+    expect(await getObservationRange(db, publishedViews, diabetesId, 'No Such Level')).toEqual([]);
+    expect(await getObservationRange(db, publishedViews, UNSEEDED_ID, 'Local authorities')).toEqual(
+      [],
+    );
   });
 
   it('returns one range per sex segment beside the aggregate series', async () => {
-    const range = await getObservationRange(db, diabetesMortalityId, 'Local authorities');
+    const range = await getObservationRange(
+      db,
+      publishedViews,
+      diabetesMortalityId,
+      'Local authorities',
+    );
 
     const segments = new Set(range.map(({ segment }) => segment));
     expect(segments.has('')).toBe(true);
@@ -397,7 +421,7 @@ describe('getObservationRange', () => {
   });
 
   it('includes selectable segments when an aggregate series also exists', async () => {
-    const range = await getObservationRange(db, mortalityId, 'Local authorities');
+    const range = await getObservationRange(db, publishedViews, mortalityId, 'Local authorities');
     const segments = new Set(range.map(({ segment }) => segment));
 
     expect(segments.has('<75 yrs')).toBe(true);
@@ -408,7 +432,7 @@ describe('getObservationRange', () => {
 
 describe('listAreaParents', () => {
   it('maps each area to its parent of the requested type', async () => {
-    const parents = await listAreaParents(db, [CORNWALL], 'Regions (statistical)');
+    const parents = await listAreaParents(db, publishedViews, [CORNWALL], 'Regions (statistical)');
 
     expect(parents).toEqual([
       {
@@ -420,14 +444,14 @@ describe('listAreaParents', () => {
   });
 
   it('returns nothing for empty input or a parent type the areas do not roll up to', async () => {
-    expect(await listAreaParents(db, [], 'Regions (statistical)')).toEqual([]);
-    expect(await listAreaParents(db, [CORNWALL], 'No Such Type')).toEqual([]);
+    expect(await listAreaParents(db, publishedViews, [], 'Regions (statistical)')).toEqual([]);
+    expect(await listAreaParents(db, publishedViews, [CORNWALL], 'No Such Type')).toEqual([]);
   });
 });
 
 describe('listAreasByType', () => {
   it('returns the current areas of the type in name order', async () => {
-    const regions = await listAreasByType(db, 'Regions (statistical)');
+    const regions = await listAreasByType(db, publishedViews, 'Regions (statistical)');
 
     expect(regions).toHaveLength(9);
     const names = regions.map(({ name }) => name);
@@ -436,13 +460,13 @@ describe('listAreasByType', () => {
   });
 
   it('returns nothing for an area type that does not exist', async () => {
-    expect(await listAreasByType(db, 'No Such Area Type')).toEqual([]);
+    expect(await listAreasByType(db, publishedViews, 'No Such Area Type')).toEqual([]);
   });
 });
 
 describe('listDisplayGroups', () => {
   it('returns the user-facing levels in display order', async () => {
-    expect(await listDisplayGroups(db)).toEqual([
+    expect(await listDisplayGroups(db, publishedViews)).toEqual([
       'Local authorities',
       'Statistical regions',
       'NHS regions',
@@ -455,7 +479,7 @@ describe('listDisplayGroups', () => {
 
 describe('listAreasByGroup', () => {
   it('returns every current area across the group types, bare-named and ordered', async () => {
-    const regions = await listAreasByGroup(db, 'Statistical regions');
+    const regions = await listAreasByGroup(db, publishedViews, 'Statistical regions');
 
     expect(regions.map(({ name }) => name)).toEqual([
       'East Midlands',
@@ -471,37 +495,43 @@ describe('listAreasByGroup', () => {
   });
 
   it('returns nothing for an unknown group', async () => {
-    expect(await listAreasByGroup(db, 'No Such Level')).toEqual([]);
+    expect(await listAreasByGroup(db, publishedViews, 'No Such Level')).toEqual([]);
   });
 
   it('limits a group preview without changing its order', async () => {
-    expect((await listAreasByGroup(db, 'Statistical regions', 2)).map(({ name }) => name)).toEqual([
-      'East Midlands',
-      'East of England',
-    ]);
+    expect(
+      (await listAreasByGroup(db, publishedViews, 'Statistical regions', 2)).map(
+        ({ name }) => name,
+      ),
+    ).toEqual(['East Midlands', 'East of England']);
   });
 });
 
 describe('listAreasByGroups', () => {
   it('limits each display group independently and keeps requested order', async () => {
     expect(
-      await listAreasByGroups(db, ['Statistical regions', 'No Such Level', 'NHS regions'], 2),
+      await listAreasByGroups(
+        db,
+        publishedViews,
+        ['Statistical regions', 'No Such Level', 'NHS regions'],
+        2,
+      ),
     ).toEqual([
       {
         displayGroup: 'Statistical regions',
-        areas: await listAreasByGroup(db, 'Statistical regions', 2),
+        areas: await listAreasByGroup(db, publishedViews, 'Statistical regions', 2),
       },
       { displayGroup: 'No Such Level', areas: [] },
       {
         displayGroup: 'NHS regions',
-        areas: await listAreasByGroup(db, 'NHS regions', 2),
+        areas: await listAreasByGroup(db, publishedViews, 'NHS regions', 2),
       },
     ]);
   });
 
   it('orders areas with the same name consistently by code', async () => {
-    const [group] = await listAreasByGroups(db, ['GP practices']);
-    expect(group?.areas).toEqual(await listAreasByGroup(db, 'GP practices'));
+    const [group] = await listAreasByGroups(db, publishedViews, ['GP practices']);
+    expect(group?.areas).toEqual(await listAreasByGroup(db, publishedViews, 'GP practices'));
     const duplicateNames = group?.areas.filter(({ name }) => name === 'High Street Surgery') ?? [];
     expect(duplicateNames.length).toBeGreaterThan(1);
     expect(duplicateNames.map(({ code }) => code)).toEqual(
@@ -512,7 +542,7 @@ describe('listAreasByGroups', () => {
 
 describe('listAreasByCodes', () => {
   it('resolves each code to its current name and area type', async () => {
-    expect(await listAreasByCodes(db, [CORNWALL, ENGLAND])).toEqual([
+    expect(await listAreasByCodes(db, publishedViews, [CORNWALL, ENGLAND])).toEqual([
       {
         code: CORNWALL,
         name: 'Cornwall',
@@ -524,8 +554,8 @@ describe('listAreasByCodes', () => {
   });
 
   it('returns nothing for empty input, silently skipping unknown codes', async () => {
-    expect(await listAreasByCodes(db, [])).toEqual([]);
-    expect(await listAreasByCodes(db, ['X99999999'])).toEqual([]);
+    expect(await listAreasByCodes(db, publishedViews, [])).toEqual([]);
+    expect(await listAreasByCodes(db, publishedViews, ['X99999999'])).toEqual([]);
   });
 });
 
@@ -537,29 +567,31 @@ describe('searchAreas', () => {
       areaType: 'UA unchanged',
       displayGroup: 'Local authorities',
     };
-    const results = await searchAreas(db, 'cornwall', 10);
+    const results = await searchAreas(db, publishedViews, 'cornwall', 10);
 
     // The council ranks above the ICB and practices that contain the same word.
     expect(results[0]).toEqual(cornwall);
     expect(results.every(({ name }) => name.toLowerCase().includes('cornwall'))).toBe(true);
     expect(results.every(({ displayGroup }) => displayGroup !== null)).toBe(true);
-    expect((await searchAreas(db, 'e06000052', 10))[0]).toEqual(cornwall);
+    expect((await searchAreas(db, publishedViews, 'e06000052', 10))[0]).toEqual(cornwall);
   });
 
   it('never surfaces an area whose type has no display group', async () => {
-    expect((await searchAreas(db, 'england', 20)).every(({ code }) => code !== ENGLAND)).toBe(true);
+    expect(
+      (await searchAreas(db, publishedViews, 'england', 20)).every(({ code }) => code !== ENGLAND),
+    ).toBe(true);
   });
 
   it('ranks earlier matches first and applies the limit', async () => {
-    const names = (await searchAreas(db, 'west', 3)).map(({ name }) => name);
+    const names = (await searchAreas(db, publishedViews, 'west', 3)).map(({ name }) => name);
 
     expect(names).toHaveLength(3);
     expect(names.every((name) => name.startsWith('West'))).toBe(true);
   });
 
   it('treats pattern characters literally instead of as wildcards', async () => {
-    expect(await searchAreas(db, '%', 10)).toEqual([]);
-    expect(await searchAreas(db, '____', 10)).toEqual([]);
+    expect(await searchAreas(db, publishedViews, '%', 10)).toEqual([]);
+    expect(await searchAreas(db, publishedViews, '____', 10)).toEqual([]);
   });
 });
 
@@ -585,17 +617,29 @@ function noFilters(overrides: Partial<IndicatorSearchFilters> = {}): IndicatorSe
 describe('searchIndicators', () => {
   it('no-filter total equals listPublished count', async () => {
     const [all, { total }] = await Promise.all([
-      listPublishedIndicators(db),
-      searchIndicators(db, noFilters()),
+      listPublishedIndicators(db, publishedViews),
+      searchIndicators(db, publishedViews, noFilters()),
     ]);
 
     expect(total).toBe(all.length);
   });
 
   it('keyword matches across words with AND semantics', async () => {
-    const { total: both } = await searchIndicators(db, noFilters({ query: 'mortality cancer' }));
-    const { total: first } = await searchIndicators(db, noFilters({ query: 'mortality' }));
-    const { total: second } = await searchIndicators(db, noFilters({ query: 'cancer' }));
+    const { total: both } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'mortality cancer' }),
+    );
+    const { total: first } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'mortality' }),
+    );
+    const { total: second } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'cancer' }),
+    );
 
     expect(both).toBeGreaterThan(0);
     expect(both).toBeLessThanOrEqual(first);
@@ -603,14 +647,22 @@ describe('searchIndicators', () => {
   });
 
   it('matches a slug exactly, case-folded', async () => {
-    const bySlug = await searchIndicators(db, noFilters({ query: MORTALITY_SLUG.toUpperCase() }));
+    const bySlug = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: MORTALITY_SLUG.toUpperCase() }),
+    );
 
     expect(bySlug.total).toBe(1);
     expect(bySlug.indicators).toEqual([expect.objectContaining({ shortId: MORTALITY_UNDER_75 })]);
   });
 
   it('matches an exact short id but not the internal id', async () => {
-    const byShortId = await searchIndicators(db, noFilters({ query: String(MORTALITY_UNDER_75) }));
+    const byShortId = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: String(MORTALITY_UNDER_75) }),
+    );
 
     expect(byShortId.total).toBe(1);
     expect(byShortId.indicators).toEqual([
@@ -618,7 +670,11 @@ describe('searchIndicators', () => {
     ]);
     expect(byShortId.indicators[0]).not.toHaveProperty('id');
 
-    const byInternalId = await searchIndicators(db, noFilters({ query: mortalityId }));
+    const byInternalId = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: mortalityId }),
+    );
 
     expect(byInternalId.total).toBe(0);
   });
@@ -626,10 +682,18 @@ describe('searchIndicators', () => {
   it('matches associated topic and classification slugs', async () => {
     const [topicResult, topicFilter, classificationResult, classificationFilter] =
       await Promise.all([
-        searchIndicators(db, noFilters({ query: 'mortality-and-life-expectancy' })),
-        searchIndicators(db, noFilters({ topics: ['mortality-and-life-expectancy'] })),
-        searchIndicators(db, noFilters({ query: 'indicator-type-outcome' })),
-        searchIndicators(db, noFilters({ indicatorTypes: ['indicator-type-outcome'] })),
+        searchIndicators(db, publishedViews, noFilters({ query: 'mortality-and-life-expectancy' })),
+        searchIndicators(
+          db,
+          publishedViews,
+          noFilters({ topics: ['mortality-and-life-expectancy'] }),
+        ),
+        searchIndicators(db, publishedViews, noFilters({ query: 'indicator-type-outcome' })),
+        searchIndicators(
+          db,
+          publishedViews,
+          noFilters({ indicatorTypes: ['indicator-type-outcome'] }),
+        ),
       ]);
 
     expect(topicResult.total).toBe(topicFilter.total);
@@ -639,45 +703,71 @@ describe('searchIndicators', () => {
   });
 
   it('lets words match across the indicator name and its taxonomy', async () => {
-    const result = await searchIndicators(db, noFilters({ query: 'diabetes prevalence' }));
+    const result = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'diabetes prevalence' }),
+    );
 
     expect(result.total).toBeGreaterThan(0);
     expect(result.indicators[0]?.name).toContain('Diabetes');
   });
 
   it('ranks direct name matches ahead of taxonomy-only matches', async () => {
-    const { indicators } = await searchIndicators(db, noFilters({ query: 'diabetes' }));
+    const { indicators } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'diabetes' }),
+    );
 
     expect(indicators[0]?.name).toBe('Diabetes: QOF prevalence');
   });
 
   it('treats LIKE syntax in the keyword query as literal text', async () => {
-    await expect(searchIndicators(db, noFilters({ query: '%' }))).resolves.toMatchObject({
+    await expect(
+      searchIndicators(db, publishedViews, noFilters({ query: '%' })),
+    ).resolves.toMatchObject({
       total: 0,
       indicators: [],
     });
-    await expect(searchIndicators(db, noFilters({ query: '_' }))).resolves.toMatchObject({
+    await expect(
+      searchIndicators(db, publishedViews, noFilters({ query: '_' })),
+    ).resolves.toMatchObject({
       total: 0,
       indicators: [],
     });
   });
 
   it('keyword search is case-insensitive', async () => {
-    const { total: upper } = await searchIndicators(db, noFilters({ query: 'DIABETES' }));
-    const { total: lower } = await searchIndicators(db, noFilters({ query: 'diabetes' }));
+    const { total: upper } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'DIABETES' }),
+    );
+    const { total: lower } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'diabetes' }),
+    );
 
     expect(upper).toBeGreaterThan(0);
     expect(upper).toBe(lower);
   });
 
   it('topic filter uses OR within dimension', async () => {
-    const { total: diabetes } = await searchIndicators(db, noFilters({ topics: ['diabetes'] }));
+    const { total: diabetes } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ topics: ['diabetes'] }),
+    );
     const { total: mortality } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ topics: ['mortality-and-life-expectancy'] }),
     );
     const { total: both } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ topics: ['diabetes', 'mortality-and-life-expectancy'] }),
     );
 
@@ -687,9 +777,14 @@ describe('searchIndicators', () => {
   });
 
   it('AND across topic and classification dimensions', async () => {
-    const { total: topicOnly } = await searchIndicators(db, noFilters({ topics: ['diabetes'] }));
+    const { total: topicOnly } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ topics: ['diabetes'] }),
+    );
     const { total: topicAndType } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({
         topics: ['diabetes'],
         indicatorTypes: ['indicator-type-outcome'],
@@ -704,14 +799,17 @@ describe('searchIndicators', () => {
   it('indicator type filter works (OR within dimension)', async () => {
     const { total: outcome } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ indicatorTypes: ['indicator-type-outcome'] }),
     );
     const { total: prevalence } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ indicatorTypes: ['indicator-type-risk-factor'] }),
     );
     const { total: both } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({
         indicatorTypes: ['indicator-type-outcome', 'indicator-type-risk-factor'],
       }),
@@ -725,6 +823,7 @@ describe('searchIndicators', () => {
   it('does not infer life stage tags where the workbook leaves them to age metadata', async () => {
     const { total } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ lifeStages: ['life-stage-older-people'] }),
     );
 
@@ -734,6 +833,7 @@ describe('searchIndicators', () => {
   it('framework filter exercises the framework dimension', async () => {
     const { total } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ frameworks: ['framework-public-health-outcomes-framework'] }),
     );
 
@@ -743,6 +843,7 @@ describe('searchIndicators', () => {
   it('does not retain the former all-ages population tag', async () => {
     const { total } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ populations: ['population-all-ages'] }),
     );
 
@@ -752,6 +853,7 @@ describe('searchIndicators', () => {
   it('does not infer inequality tags from available observation breakdowns', async () => {
     const { total } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ inequalities: ['inequality-deprivation-or-income'] }),
     );
 
@@ -761,6 +863,7 @@ describe('searchIndicators', () => {
   it('display group filter returns indicators available in that geography level', async () => {
     const { total } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ displayGroups: ['Local authorities'] }),
     );
 
@@ -770,6 +873,7 @@ describe('searchIndicators', () => {
   it('area filters require usable data for every selected area', async () => {
     const { indicators } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ areaCodes: ['E07000223', 'E07000032'] }),
     );
     const ids = indicators.map(({ shortId }) => shortId);
@@ -779,38 +883,54 @@ describe('searchIndicators', () => {
   });
 
   it('source filter returns indicators with that data source', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
     const firstSource = facets.sources[0];
 
     if (!firstSource) {
       return;
     }
 
-    const { total } = await searchIndicators(db, noFilters({ sources: [firstSource] }));
+    const { total } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ sources: [firstSource] }),
+    );
     expect(total).toBeGreaterThan(0);
   });
 
   it('value type filter returns indicators with that value type', async () => {
-    const { total } = await searchIndicators(db, noFilters({ valueTypes: ['Proportion'] }));
+    const { total } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ valueTypes: ['Proportion'] }),
+    );
 
     expect(total).toBeGreaterThan(0);
   });
 
   it('year type filter returns indicators with that year type', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
     const firstYearType = facets.yearTypes[0];
 
     if (!firstYearType) {
       return;
     }
 
-    const { total } = await searchIndicators(db, noFilters({ yearTypes: [firstYearType] }));
+    const { total } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ yearTypes: [firstYearType] }),
+    );
     expect(total).toBeGreaterThan(0);
   });
 
   it('limit 1 returns 1 row but total is unchanged', async () => {
-    const { total: fullTotal } = await searchIndicators(db, noFilters());
-    const { total, indicators } = await searchIndicators(db, noFilters({ limit: 1 }));
+    const { total: fullTotal } = await searchIndicators(db, publishedViews, noFilters());
+    const { total, indicators } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ limit: 1 }),
+    );
 
     expect(total).toBe(fullTotal);
     expect(indicators).toHaveLength(1);
@@ -819,6 +939,7 @@ describe('searchIndicators', () => {
   it('empty combination returns total 0 and empty indicators', async () => {
     const { total, indicators } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({
         topics: ['diabetes', 'mortality-and-life-expectancy'],
         frameworks: ['framework-public-health-outcomes-framework'],
@@ -837,6 +958,7 @@ describe('searchIndicators', () => {
     // No indicator has slug "no-such-topic"
     const { total, indicators } = await searchIndicators(
       db,
+      publishedViews,
       noFilters({ topics: ['no-such-topic-slug-zxqw'] }),
     );
 
@@ -845,7 +967,11 @@ describe('searchIndicators', () => {
   });
 
   it('rows carry topics and classifications', async () => {
-    const { indicators } = await searchIndicators(db, noFilters({ topics: ['diabetes'] }));
+    const { indicators } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ topics: ['diabetes'] }),
+    );
 
     expect(indicators.length).toBeGreaterThan(0);
     for (const row of indicators) {
@@ -865,8 +991,16 @@ describe('searchIndicators', () => {
 
   it('is deterministic — same query returns the same order on repeated calls', async () => {
     const [first, second] = await Promise.all([
-      searchIndicators(db, noFilters({ topics: ['mortality-and-life-expectancy'] })),
-      searchIndicators(db, noFilters({ topics: ['mortality-and-life-expectancy'] })),
+      searchIndicators(
+        db,
+        publishedViews,
+        noFilters({ topics: ['mortality-and-life-expectancy'] }),
+      ),
+      searchIndicators(
+        db,
+        publishedViews,
+        noFilters({ topics: ['mortality-and-life-expectancy'] }),
+      ),
     ]);
 
     expect(first.indicators.map((i) => i.shortId)).toEqual(second.indicators.map((i) => i.shortId));
@@ -879,14 +1013,15 @@ describe('searchIndicators', () => {
         (
           await db
             .select({
-              shortId: publishedIndicator.shortId,
-              dataUpdatedAt: publishedIndicator.dataUpdatedAt,
+              shortId: publishedViews.indicator.shortId,
+              dataUpdatedAt: publishedViews.indicator.dataUpdatedAt,
             })
-            .from(publishedIndicator)
+            .from(publishedViews.indicator)
         ).map(({ shortId, dataUpdatedAt }) => [shortId, dataUpdatedAt?.getTime() ?? null]),
       );
       const { indicators } = await searchIndicators(
         db,
+        publishedViews,
         noFilters({ query, sort: 'recently-updated' }),
       );
       const dates = indicators.map(({ shortId }) => updated.get(shortId) ?? null);
@@ -899,7 +1034,11 @@ describe('searchIndicators', () => {
 
   it('indicators with a unique first-topic are sub-ordered by name', async () => {
     // These indicators share one topic, so the sub-order is by name.
-    const { indicators } = await searchIndicators(db, noFilters({ topics: ['health-behaviours'] }));
+    const { indicators } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ topics: ['health-behaviours'] }),
+    );
 
     expect(indicators.length).toBeGreaterThan(0);
     const names = indicators.map((i) => i.name);
@@ -909,24 +1048,24 @@ describe('searchIndicators', () => {
 
 describe('listIndicatorFacets', () => {
   it('topics are scoped to published indicators — every topic slug returns at least one result when searched', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     expect(facets.topics.length).toBeGreaterThan(0);
     for (const { slug } of facets.topics) {
-      const { total } = await searchIndicators(db, noFilters({ topics: [slug] }));
+      const { total } = await searchIndicators(db, publishedViews, noFilters({ topics: [slug] }));
       expect(total).toBeGreaterThan(0);
     }
   });
 
   it('topics are ordered by title', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     const titles = facets.topics.map((t) => t.title);
     expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
   });
 
   it('classifications are ordered by dimension then name', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     expect(facets.classifications.length).toBeGreaterThan(0);
     const pairs = facets.classifications.map((c) => `${c.dimension}|${c.name}`);
@@ -934,14 +1073,14 @@ describe('listIndicatorFacets', () => {
   });
 
   it('uses the workbook tag groups without duplicating population and inequality metadata', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     const dimensions = new Set(facets.classifications.map((c) => c.dimension));
     expect(dimensions).toEqual(new Set(['indicator_type', 'framework']));
   });
 
   it('sources are deduplicated — no duplicate name in the list', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     const names = facets.sources;
     const unique = new Set(names);
@@ -949,14 +1088,14 @@ describe('listIndicatorFacets', () => {
   });
 
   it('sources are ordered alphabetically', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     const names = facets.sources;
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
   it('value types and year types are non-empty and ordered', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     expect(facets.valueTypes.length).toBeGreaterThan(0);
     expect(facets.valueTypes).toEqual([...facets.valueTypes].sort((a, b) => a.localeCompare(b)));
@@ -966,7 +1105,7 @@ describe('listIndicatorFacets', () => {
   });
 
   it('all facet classification slugs return at least one result when searched', async () => {
-    const facets = await listIndicatorFacets(db);
+    const facets = await listIndicatorFacets(db, publishedViews);
 
     for (const { dimension, slug } of facets.classifications) {
       const filterKey = {
@@ -977,7 +1116,11 @@ describe('listIndicatorFacets', () => {
         inequality: 'inequalities',
       }[dimension] as keyof IndicatorSearchFilters;
 
-      const { total } = await searchIndicators(db, noFilters({ [filterKey]: [slug] }));
+      const { total } = await searchIndicators(
+        db,
+        publishedViews,
+        noFilters({ [filterKey]: [slug] }),
+      );
       expect(total).toBeGreaterThan(0);
     }
   });

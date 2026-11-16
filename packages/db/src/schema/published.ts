@@ -353,6 +353,7 @@ export const publishedObservationRange = publishedSchema
  */
 export const publishedViews = {
   area: publishedArea,
+  areaNeighbour: publishedAreaNeighbour,
   areaRelationship: publishedAreaRelationship,
   areaType: publishedAreaType,
   availableData: publishedAvailableData,

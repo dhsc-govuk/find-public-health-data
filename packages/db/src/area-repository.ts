@@ -2,14 +2,7 @@ import { and, asc, eq, exists, ilike, inArray, isNotNull, isNull, lte, or, sql }
 
 import type { Database } from './client.ts';
 import { escapeLike } from './like-pattern.ts';
-import {
-  publishedArea as area,
-  publishedAreaNeighbour as areaNeighbour,
-  publishedAreaRelationship as areaRelationship,
-  publishedAreaType as areaType,
-  publishedAvailableData as availableData,
-  publishedObservation as observation,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 export interface AreaSummary {
   code: string;
@@ -37,9 +30,11 @@ export interface IndicatorAreaFilters {
 
 export async function listIndicatorAreas(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
   { displayGroup, query, limit, scope, parentType }: IndicatorAreaFilters = {},
 ): Promise<{ displayGroup: string; areas: AreaWithParent[] }[]> {
+  const { area, areaType, availableData, observation } = views;
   const escaped = query === undefined ? undefined : escapeLike(query);
   const ranked = db
     .select({
@@ -115,7 +110,8 @@ export async function listIndicatorAreas(
 }
 
 /** The user-facing geography levels in display order, straight from area_type. */
-export async function listDisplayGroups(db: Database): Promise<string[]> {
+export async function listDisplayGroups(db: Database, views: ViewSet): Promise<string[]> {
+  const { areaType } = views;
   const rows = await db
     .selectDistinct({ name: areaType.displayGroup, order: areaType.displayOrder })
     .from(areaType)
@@ -127,9 +123,11 @@ export async function listDisplayGroups(db: Database): Promise<string[]> {
 /** Current areas across every type of one display group, ordered by name and code. */
 export async function listAreasByGroup(
   db: Database,
+  views: ViewSet,
   displayGroup: string,
   limit?: number,
 ): Promise<AreaSummary[]> {
+  const { area, areaType } = views;
   const query = db
     .select({ code: area.code, name: area.name })
     .from(area)
@@ -142,9 +140,11 @@ export async function listAreasByGroup(
 /** Bounded previews for several display groups in one repository query. */
 export async function listAreasByGroups(
   db: Database,
+  views: ViewSet,
   displayGroups: string[],
   limit?: number,
 ): Promise<{ displayGroup: string; areas: AreaSummary[] }[]> {
+  const { area, areaType } = views;
   if (displayGroups.length === 0) return [];
   const ranked = db
     .select({
@@ -178,7 +178,12 @@ export interface AreaParent {
 }
 
 /** Current areas of one area type, ordered by name. */
-export async function listAreasByType(db: Database, areaTypeName: string): Promise<AreaSummary[]> {
+export async function listAreasByType(
+  db: Database,
+  views: ViewSet,
+  areaTypeName: string,
+): Promise<AreaSummary[]> {
+  const { area, areaType } = views;
   return db
     .select({ code: area.code, name: area.name })
     .from(area)
@@ -195,7 +200,12 @@ export interface AreaLookup {
 }
 
 /** The given areas with their types, for resolving a selection without the full catalogue. */
-export async function listAreasByCodes(db: Database, codes: string[]): Promise<AreaLookup[]> {
+export async function listAreasByCodes(
+  db: Database,
+  views: ViewSet,
+  codes: string[],
+): Promise<AreaLookup[]> {
+  const { area, areaType } = views;
   if (codes.length === 0) {
     return [];
   }
@@ -215,9 +225,11 @@ export async function listAreasByCodes(db: Database, codes: string[]): Promise<A
 /** Case-insensitive search over current areas of displayed types, matching name or code. */
 export async function searchAreas(
   db: Database,
+  views: ViewSet,
   query: string,
   limit: number,
 ): Promise<AreaLookup[]> {
+  const { area, areaType } = views;
   const escaped = escapeLike(query);
   return db
     .select({
@@ -239,7 +251,12 @@ export async function searchAreas(
 }
 
 /** The statistical neighbours of each given current area that has any, most similar first. */
-export async function listAreaNeighbours(db: Database, codes: string[]): Promise<AreaNeighbours[]> {
+export async function listAreaNeighbours(
+  db: Database,
+  views: ViewSet,
+  codes: string[],
+): Promise<AreaNeighbours[]> {
+  const { area, areaNeighbour } = views;
   if (codes.length === 0) {
     return [];
   }
@@ -268,9 +285,11 @@ export async function listAreaNeighbours(db: Database, codes: string[]): Promise
 /** Each given area's current parent of one area type, e.g. a council's statistical region. */
 export async function listAreaParents(
   db: Database,
+  views: ViewSet,
   childCodes: string[],
   parentTypeName: string,
 ): Promise<AreaParent[]> {
+  const { area, areaRelationship, areaType } = views;
   if (childCodes.length === 0) {
     return [];
   }

@@ -14,6 +14,7 @@ import {
   indicatorVersion,
   observation,
   observationDimension,
+  publishedViews,
   SYSTEM_USER_IDS,
   uploadBatch,
 } from './schema/index.ts';
@@ -123,7 +124,7 @@ it.each([0, 1])(
         );
       }
     }
-    expect(await indicatorTrendDirections(publicDb, [identity.id])).toEqual(
+    expect(await indicatorTrendDirections(publicDb, publishedViews, [identity.id])).toEqual(
       new Map([[identity.id, 'up']]),
     );
   },

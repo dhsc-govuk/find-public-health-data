@@ -1,7 +1,7 @@
 import type { Readable } from 'node:stream';
 import type { IndicatorListScope } from '@fphd/auth/permissions';
 
-import { type Database, listTopics, type Topic } from '@fphd/db';
+import { type Database, listTopics, publishedViews, type Topic } from '@fphd/db';
 import type { Actor } from '@fphd/db/audit-log';
 import type { IndicatorStepResult } from '@fphd/internal-workflow';
 
@@ -382,7 +382,7 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       listOptions: () => listTagOptions(db),
     },
     topics: {
-      list: () => listTopics(db),
+      list: () => listTopics(db, publishedViews),
       findById: (id) => getTopicById(db, id),
       countLinkedIndicators: (id) => countLinkedIndicators(db, id),
       create: (values, actor) => createTopic(db, values, actor),

@@ -25,6 +25,7 @@ import {
   publishedArea,
   publishedIndicator,
   publishedObservationSeries,
+  publishedViews,
   uploadBatch,
 } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
@@ -46,9 +47,9 @@ afterAll(async () => {
 it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], [['UNKNOWN']]])(
   'matches history-based table cells, trends and rankings for %j',
   async (areas) => {
-    const full = await getIndicatorObservationData(db, ids, areas);
+    const full = await getIndicatorObservationData(db, publishedViews, ids, areas);
     for (const mode of ['recent', 'latest', 'ranking', 'sparkline'] as const) {
-      const cached = await getIndicatorSeriesData(db, ids, areas, mode);
+      const cached = await getIndicatorSeriesData(db, publishedViews, ids, areas, mode);
       expect(cached).toBeDefined();
       for (const id of ids) {
         const history = full.get(id)?.areaData ?? [];
@@ -103,10 +104,10 @@ it('includes all elected population keys without changing ranking values or SQL 
       .where(eq(publishedObservationSeries.indicatorId, id));
     const query = vi.spyOn(db.$client, 'unsafe');
     try {
-      const plain = await getIndicatorSeriesData(db, [id], codes, 'ranking');
+      const plain = await getIndicatorSeriesData(db, publishedViews, [id], codes, 'ranking');
       const statements = query.mock.calls.map(([text]) => text);
       query.mockClear();
-      const ranked = await getIndicatorRankingData(db, id, codes);
+      const ranked = await getIndicatorRankingData(db, publishedViews, id, codes);
       expect(query.mock.calls.map(([text]) => text)).toEqual(statements);
       expect(ranked.map(({ populationKeys: _, ...area }) => area)).toEqual(
         plain?.get(id)?.areaData,
@@ -132,7 +133,7 @@ it('includes all elected population keys without changing ranking values or SQL 
 
 it('retains eight periods of both shapes when the all-period series mixes annual and rolling data', async () => {
   const codes = ['E92000001'];
-  const full = await getIndicatorObservationData(db, ids, codes);
+  const full = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const mixed = [...full].find(([, entry]) => {
     const history = headlineSeries(entry.areaData[0]?.observations ?? []);
     return (
@@ -143,7 +144,7 @@ it('retains eight periods of both shapes when the all-period series mixes annual
   if (!mixed) throw new Error('Expected seeded annual and rolling histories in one segment');
   const [id, entry] = mixed;
   const history = headlineSeries(entry.areaData[0]?.observations ?? []);
-  const cached = await getIndicatorSeriesData(db, [id], codes, 'sparkline');
+  const cached = await getIndicatorSeriesData(db, publishedViews, [id], codes, 'sparkline');
   const points = cached?.get(id)?.areaData[0]?.observations;
   for (const series of [
     history,
@@ -161,7 +162,7 @@ it('falls back when a sparkline history point disappears before hydration', asyn
     .where(eq(publishedIndicator.shortId, 241));
   if (!indicator) throw new Error('Expected diabetes seed data');
   const codes = ['E92000001'];
-  const recent = await getIndicatorSeriesData(db, [indicator.id], codes, 'recent');
+  const recent = await getIndicatorSeriesData(db, publishedViews, [indicator.id], codes, 'recent');
   const key = (point: IndicatorObservation) =>
     `${point.fromDate}:${point.toDate}:${observationSegmentKey(point)}`;
   const recentPoints = new Set(
@@ -181,7 +182,7 @@ it('falls back when a sparkline history point disappears before hydration', asyn
     },
   });
   expect(
-    await getIndicatorSeriesData(changing, [indicator.id], codes, 'sparkline'),
+    await getIndicatorSeriesData(changing, publishedViews, [indicator.id], codes, 'sparkline'),
   ).toBeUndefined();
   expect(disappeared).toBe(true);
 });
@@ -195,13 +196,27 @@ it('uses canonical eight-period history until the new cache column has been rebu
     .where(eq(publishedIndicator.id, id));
   if (!identity) throw new Error('Expected a published identity');
   const codes = ['E92000001'];
-  const expected = await getIndicatorTableData(db, [identity.shortId], codes, 'sparkline');
+  const expected = await getIndicatorTableData(
+    db,
+    publishedViews,
+    [identity.shortId],
+    codes,
+    'sparkline',
+  );
   await database.db
     .update(observationSeries)
     .set({ sparklineObservationIds: null })
     .where(eq(observationSeries.indicatorId, id));
-  expect(await getIndicatorSeriesData(db, [id], codes, 'sparkline')).toBeUndefined();
-  const actual = await getIndicatorTableData(db, [identity.shortId], codes, 'sparkline');
+  expect(
+    await getIndicatorSeriesData(db, publishedViews, [id], codes, 'sparkline'),
+  ).toBeUndefined();
+  const actual = await getIndicatorTableData(
+    db,
+    publishedViews,
+    [identity.shortId],
+    codes,
+    'sparkline',
+  );
   const normalise = (entries: typeof expected) =>
     entries.map(({ tableSeries, areaData, ...entry }) => ({
       ...entry,
@@ -226,26 +241,33 @@ it('uses canonical data when the published batch has no completed read model', a
   if (!id) throw new Error('Expected seed data');
   const areas = ['E92000001'];
   await database.sql`delete from observation_series_batch where indicator_id = ${id}`;
-  expect(await getIndicatorSeriesData(db, [id], areas, 'latest')).toBeUndefined();
+  expect(await getIndicatorSeriesData(db, publishedViews, [id], areas, 'latest')).toBeUndefined();
   const [identity] = await database.sql<
     { shortId: number }[]
   >`select short_id as "shortId" from indicator where id = ${id}`;
   for (const mode of ['latest', 'sparkline'] as const) {
     const full = await getIndicatorObservationData(
       db,
+      publishedViews,
       [id],
       areas,
       mode === 'latest' ? 'summary' : mode,
     );
-    const [result] = await getIndicatorTableData(db, [identity?.shortId ?? 0], areas, mode);
+    const [result] = await getIndicatorTableData(
+      db,
+      publishedViews,
+      [identity?.shortId ?? 0],
+      areas,
+      mode,
+    );
     expect(result?.areaData).toEqual(full.get(id)?.areaData);
   }
 });
 
 it('matches canonical topic trends when published-batch trend inputs are available', async () => {
-  const cached = await indicatorTrendDirections(db, ids);
+  const cached = await indicatorTrendDirections(db, publishedViews, ids);
   await database.sql`update observation_series_batch set trend_values = null`;
-  expect(await indicatorTrendDirections(db, ids)).toEqual(cached);
+  expect(await indicatorTrendDirections(db, publishedViews, ids)).toEqual(cached);
 });
 
 it.each(['latest', 'recent', 'ranking', 'sparkline'] as const)(
@@ -266,12 +288,15 @@ it.each(['latest', 'recent', 'ranking', 'sparkline'] as const)(
         };
       },
     });
-    expect(await getIndicatorSeriesData(changing, [id], ['E92000001'], mode)).toBeUndefined();
+    expect(
+      await getIndicatorSeriesData(changing, publishedViews, [id], ['E92000001'], mode),
+    ).toBeUndefined();
     expect(switched).toBe(true);
     const [identity] = await database.sql<{ shortId: number }[]>`
       select short_id as "shortId" from indicator where id = ${id}`;
     const [loaded] = await getIndicatorTableData(
       db,
+      publishedViews,
       [identity?.shortId ?? 0],
       ['E92000001'],
       'latest',
@@ -298,7 +323,13 @@ it('keeps selected values and older England benchmarks in one publication snapsh
   `;
   if (!candidate) throw new Error('Expected a local period preceding the England headline');
   const codes = [candidate.code, 'E92000001'];
-  const expected = await getIndicatorSeriesData(db, [candidate.id], codes, 'latest');
+  const expected = await getIndicatorSeriesData(
+    db,
+    publishedViews,
+    [candidate.id],
+    codes,
+    'latest',
+  );
   expect(expected).toBeDefined();
   let switched = false;
   const changing = new Proxy(db, {
@@ -314,7 +345,9 @@ it('keeps selected values and older England benchmarks in one publication snapsh
       };
     },
   });
-  expect(await getIndicatorSeriesData(changing, [candidate.id], codes, 'latest')).toEqual(expected);
+  expect(
+    await getIndicatorSeriesData(changing, publishedViews, [candidate.id], codes, 'latest'),
+  ).toEqual(expected);
   expect(switched).toBe(true);
 });
 
@@ -335,12 +368,21 @@ it('uses canonical history when one code identifies multiple historical areas', 
     isCurrent: true,
     name: 'Current Cornwall',
   });
-  expect(await getIndicatorSeriesData(db, [id], [original.code], 'latest')).toBeUndefined();
+  expect(
+    await getIndicatorSeriesData(db, publishedViews, [id], [original.code], 'latest'),
+  ).toBeUndefined();
   const [identity] = await database.sql<{ shortId: number }[]>`
     select short_id as "shortId" from indicator where id = ${id}`;
-  const expected = await getIndicatorObservationData(db, [id], [original.code], 'summary');
+  const expected = await getIndicatorObservationData(
+    db,
+    publishedViews,
+    [id],
+    [original.code],
+    'summary',
+  );
   const [actual] = await getIndicatorTableData(
     db,
+    publishedViews,
     [identity?.shortId ?? 0],
     [original.code],
     'latest',
