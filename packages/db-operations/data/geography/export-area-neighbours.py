@@ -34,9 +34,11 @@ def fetch(path):
         return json.load(response)
 
 
-def deterministic_uuid7(numeric_id):
+def deterministic_uuid7(code, position):
     timestamp_ms = 1777593600000
-    value = (timestamp_ms << 80) | (0x7 << 76) | (TABLE_TAG << 64) | (0x2 << 62) | (2 * numeric_id)
+    key = f"{code}\0{SCHEME}\0{position}".encode()
+    suffix = int.from_bytes(hashlib.sha256(key).digest()[:8], "big") & ((1 << 62) - 1)
+    value = (timestamp_ms << 80) | (0x7 << 76) | (TABLE_TAG << 64) | (0x2 << 62) | suffix
     hexed = f"{value:032x}"
     return f"{hexed[:8]}-{hexed[8:12]}-{hexed[12:16]}-{hexed[16:20]}-{hexed[20:]}"
 
@@ -50,15 +52,26 @@ def current_areas():
     return ids
 
 
-def main():
-    ids = current_areas()
+def neighbour_rows():
     rows = []
     for area in sorted(fetch(f"areas/by_area_type?area_type_id={AREA_TYPE}"), key=lambda a: a["Code"]):
         detail = fetch(f"areas/nearest_neighbours?area_type_id={AREA_TYPE}&area_code={area['Code']}")
         groups = [g for g in detail["NeighbourAreaDet"] if g["NeighbourTypeId"] == NEIGHBOUR_TYPE]
-        for group in groups:
-            for neighbour in sorted(group["NeighbourAreas"], key=lambda n: n["Position"]):
-                rows.append((area["Code"], neighbour["AreaCode"], neighbour["Position"]))
+        if len(groups) != 1:
+            raise ValueError(f"Expected one neighbour-type-{NEIGHBOUR_TYPE} group for {area['Code']}")
+        neighbours = sorted(groups[0]["NeighbourAreas"], key=lambda n: n["Position"])
+        if ([n["Position"] for n in neighbours] != list(range(1, 16))
+                or len({n["AreaCode"] for n in neighbours}) != 15):
+            raise ValueError(f"Expected 15 ranked neighbours for {area['Code']}")
+        rows.extend((area["Code"], n["AreaCode"], n["Position"]) for n in neighbours)
+    if not rows:
+        raise ValueError("No upper tier local authorities returned")
+    return rows
+
+
+def main():
+    ids = current_areas()
+    rows = neighbour_rows()
 
     missing = sorted({code for row in rows for code in row[:2] if len(ids.get(code, [])) != 1})
     if missing:
@@ -67,8 +80,8 @@ def main():
     buffer = io.StringIO()
     writer = csv.writer(buffer, quoting=csv.QUOTE_ALL, lineterminator="\n")
     writer.writerow(["id", "area_id", "neighbour_area_id", "scheme", "position"])
-    for index, (code, neighbour, position) in enumerate(rows, start=1):
-        writer.writerow([deterministic_uuid7(index), ids[code][0], ids[neighbour][0], SCHEME, position])
+    for code, neighbour, position in rows:
+        writer.writerow([deterministic_uuid7(code, position), ids[code][0], ids[neighbour][0], SCHEME, position])
     data = gzip.compress(buffer.getvalue().encode(), mtime=0)
     (HERE / "area_neighbour.csv.gz").write_bytes(data)
     areas = len({row[0] for row in rows})

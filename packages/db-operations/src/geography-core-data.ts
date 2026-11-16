@@ -152,6 +152,12 @@ async function upsertGeography(
     SELECT count(*)::int AS count FROM "${table}" existing
     WHERE NOT EXISTS (SELECT 1 FROM core_source_${table} source WHERE ${matching})
   `);
+  if (table === 'area_neighbour') {
+    await tx.unsafe(`
+      DELETE FROM area_neighbour existing
+      WHERE NOT EXISTS (SELECT 1 FROM core_source_area_neighbour source WHERE ${matching})
+    `);
+  }
   return {
     summary: { ...changed, unchanged: expected - changed.inserted - changed.updated },
     orphaned: orphaned?.count ?? 0,
@@ -192,6 +198,18 @@ export async function importGeographyCoreData(
       'area_relationship',
       manifest.files.area_relationship.rows,
     );
+    const unmapped = await tx<{ id: string }[]>`
+      SELECT neighbour.id FROM core_source_area_neighbour neighbour
+      LEFT JOIN core_area_map anchor ON anchor.source_id = neighbour.area_id
+      LEFT JOIN core_area_map peer ON peer.source_id = neighbour.neighbour_area_id
+      WHERE anchor.core_id IS NULL OR peer.core_id IS NULL
+      ORDER BY neighbour.id LIMIT 20
+    `;
+    if (unmapped.length) {
+      throw new Error(
+        `Core geography neighbours reference areas missing from the source: ${unmapped.map(({ id }) => id).join(', ')}`,
+      );
+    }
     await tx`
       UPDATE core_source_area_neighbour neighbour
       SET area_id = anchor.core_id, neighbour_area_id = peer.core_id

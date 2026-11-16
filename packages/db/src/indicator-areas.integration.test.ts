@@ -3,7 +3,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { listAreaNeighbours, listAreasByGroup, listIndicatorAreas } from './area-repository.ts';
 import type { Database } from './client.ts';
 import { resolvePublishedIndicatorId } from './indicator-repository.ts';
-import { area, areaType, observation } from './schema/index.ts';
+import { area, areaNeighbour, areaType, observation } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 let database: TestDb;
@@ -117,6 +117,19 @@ it('adds each area’s current parent of the requested type in the same listing'
 });
 
 it('lists an upper tier council’s 15 NHS England peer group neighbours, most similar first', async () => {
+  const [current] = await db
+    .select({ areaId: areaNeighbour.areaId, neighbourAreaId: areaNeighbour.neighbourAreaId })
+    .from(areaNeighbour)
+    .innerJoin(area, eq(area.id, areaNeighbour.areaId))
+    .where(eq(area.code, 'E06000001'))
+    .limit(1);
+  if (!current) throw new Error('Missing neighbour fixture');
+  await db.insert(areaNeighbour).values({
+    areaId: current.areaId,
+    neighbourAreaId: current.neighbourAreaId,
+    scheme: 'An older scheme',
+    position: 1,
+  });
   const lists = await listAreaNeighbours(db, ['E06000001', 'E07000223', 'X']);
   expect(lists.map(({ code }) => code)).toEqual(['E06000001']);
   expect(lists[0]?.neighbours).toHaveLength(15);

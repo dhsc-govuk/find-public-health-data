@@ -21,8 +21,8 @@
       "file": "area_neighbour.csv.gz",
       "source": "Fingertips API, neighbour type 15: NHS England peer groups (2024), upper tier local authorities (area type 502)",
       "rows": 2265,
-      "bytes": 21246,
-      "sha256": "a929ac275d464a6636d77a34ceb4f56ac08754305bcbccc5d98b78288a48e298"
+      "bytes": 41931,
+      "sha256": "4881b253d9df62feaefa8598065452f96213bff1b3892f7c1b20b81b3df2641e"
     }
   }
 }

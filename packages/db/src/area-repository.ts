@@ -260,6 +260,7 @@ export async function listAreaNeighbours(db: Database, codes: string[]): Promise
       ),
     )
     .innerJoin(area, and(eq(areaNeighbour.neighbourAreaId, area.id), eq(area.isCurrent, true)))
+    .where(eq(areaNeighbour.scheme, 'NHS England peer groups (2024)'))
     .groupBy(anchor.code)
     .orderBy(asc(anchor.code));
 }
