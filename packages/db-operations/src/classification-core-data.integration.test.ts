@@ -77,8 +77,8 @@ describe('upsertClassifications', () => {
   it('matches on id, rewriting a renamed or re-slugged row in place, and reports strays', async () => {
     const { db } = testDb;
     const [stray] = await sql<{ id: string }[]>`
-      INSERT INTO classification (dimension, slug, name)
-      VALUES ('population', 'population-no-file-lists', 'A population no file lists')
+      INSERT INTO classification (dimension, slug, name, position)
+      VALUES ('population', 'population-no-file-lists', 'A population no file lists', 0)
       RETURNING id
     `;
     const renamed = { ...outcome, slug: 'indicator-type-outcomes', name: 'Outcomes' };
@@ -97,5 +97,30 @@ describe('upsertClassifications', () => {
     expect(rewritten.summary).toEqual({ inserted: 0, updated: 1, unchanged: 0 });
     expect(rows).toEqual([renamed]);
     expect(rewritten.orphaned).toEqual([{ id: stray?.id, slug: 'population-no-file-lists' }]);
+  });
+
+  it("stores each row's place in the file as its position, and moves it when the file does", async () => {
+    const { db } = testDb;
+    const second = {
+      ...outcome,
+      id: '01a1e2d0-0000-7000-8000-000000000001',
+      slug: 'indicator-type-second',
+      name: 'Second',
+    };
+    const positions = async () =>
+      sql<{ slug: string; position: number }[]>`
+        SELECT slug, position FROM classification
+        WHERE id IN (${outcome.id}, ${second.id}) ORDER BY position
+      `;
+
+    await upsertClassifications(db, [outcome, second]);
+    expect((await positions()).map(({ slug }) => slug)).toEqual([outcome.slug, second.slug]);
+
+    const moved = await upsertClassifications(db, [second, outcome]);
+    expect(moved.summary).toEqual({ inserted: 0, updated: 2, unchanged: 0 });
+    expect(await positions()).toEqual([
+      { slug: second.slug, position: 0 },
+      { slug: outcome.slug, position: 1 },
+    ]);
   });
 });

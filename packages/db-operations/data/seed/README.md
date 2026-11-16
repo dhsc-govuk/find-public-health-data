@@ -126,11 +126,12 @@ It stamps both manifests with `reference_names: "tidied"`. The resulting private
 by `db import-published-snapshot`; do not commit it. The old A-clone Python snapshot exporter is
 retired because its archives do not match the current receiver.
 
-Topic and tag assignments come from the V2 taxonomy workbook snapshot in `../taxonomy-v2.json`.
+Topic and tag assignments come from the V2 taxonomy workbook snapshot in `../taxonomy-v2.json`,
+mapped onto the core data's lists by the migration tool's `generate-taxonomy-relationships`.
 `indicator-topics.json` and `indicator-classifications.json` contain exactly its assignments for the
-12 seed indicators. Resident population has no topic or tags because it is area context. The full
-snapshot relationship file uses the same source, including primary and secondary subtopic
-placements. The profile and title heuristics have been retired. Production packages require the
+12 seed indicators. Resident population has no topic or tags because the workbook leaves it untagged
+as area context. The full snapshot relationship file uses the same source, including every subtopic
+placement. The profile and title heuristics have been retired. Production packages require the
 separate approved indicator list and reviewed relationships described in the migration tool's
 README.
 

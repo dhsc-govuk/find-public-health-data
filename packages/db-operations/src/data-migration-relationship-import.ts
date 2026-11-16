@@ -107,7 +107,7 @@ export async function applyRelationships(
     await tx`DELETE FROM indicator_version_classification WHERE indicator_version_id IN ${tx(versionIds)}`;
     await tx`
       UPDATE indicator_version
-      SET has_framework = false, has_life_stage = false
+      SET has_framework = false, has_life_stage = false, has_risk_factor = false
       WHERE id IN ${tx(versionIds)}
     `;
   }
@@ -152,7 +152,7 @@ export async function applyRelationships(
     JOIN current_published_version current ON current.indicator_id = i.id
     JOIN indicator_version v ON v.id = current.id
     WHERE v.created_by = ${MIGRATION_USER_ID} AND v.updated_by = ${MIGRATION_USER_ID}
-      AND NOT v.is_area_context
+      AND i.short_id <> ALL (${tx.array(relationships.areaContextIndicators)}::integer[])
       AND NOT EXISTS (
       SELECT 1 FROM indicator_version_topic t
       WHERE t.indicator_version_id = current.id

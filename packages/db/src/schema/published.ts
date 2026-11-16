@@ -115,7 +115,6 @@ export const publishedIndicatorTopic = publishedSchema
   .view('indicator_topic', {
     indicatorId: uuid('indicator_id').notNull(),
     topicId: uuid('topic_id').notNull(),
-    isPrimary: boolean('is_primary').notNull(),
   })
   .existing();
 
@@ -135,7 +134,6 @@ export const publishedIndicatorSubtopic = publishedSchema
     indicatorId: uuid('indicator_id').notNull(),
     topicId: uuid('topic_id').notNull(),
     subtopicId: uuid('subtopic_id').notNull(),
-    isPrimary: boolean('is_primary').notNull(),
   })
   .existing();
 

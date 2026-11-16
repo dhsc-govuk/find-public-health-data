@@ -9,7 +9,10 @@ import type { TagOptions } from './contract.ts';
 
 const { classification, subtopic, topic } = schema;
 
-/** Every topic and tagging classification, each list ordered by name as the page shows it. */
+/**
+ * Every topic and tagging classification, each list in the order the page shows it: topics and
+ * subtopics by name, and classifications in the order of the core data file, then by name.
+ */
 export async function listTagOptions(db: Database): Promise<TagOptions> {
   const [topics, subtopics, classifications] = await Promise.all([
     db.select({ id: topic.id, name: topic.title }).from(topic).orderBy(asc(topic.title)),
@@ -25,7 +28,7 @@ export async function listTagOptions(db: Database): Promise<TagOptions> {
       })
       .from(classification)
       .where(inArray(classification.dimension, [...TAGGING_DIMENSIONS]))
-      .orderBy(asc(classification.name)),
+      .orderBy(asc(classification.position), asc(classification.name)),
   ]);
   const ofDimension = (dimension: ClassificationDimension) =>
     classifications
@@ -36,7 +39,8 @@ export async function listTagOptions(db: Database): Promise<TagOptions> {
     topics,
     subtopics,
     indicatorTypes: ofDimension('indicator_type'),
-    lifeStages: ofDimension('life_stage'),
     frameworks: ofDimension('framework'),
+    lifeStages: ofDimension('life_stage'),
+    riskFactors: ofDimension('risk_factor'),
   };
 }

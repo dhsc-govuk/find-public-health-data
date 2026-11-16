@@ -38,7 +38,7 @@ describe('sampleAnswers', () => {
     });
     expect(answers.tagging).toMatchObject({
       topicIds: ['019a0000-0000-7000-8000-000000000007'],
-      primaryTopicId: '019a0000-0000-7000-8000-000000000007',
+      subtopicIds: ['019a0000-0000-7000-8000-000000000009'],
       indicatorTypeIds: ['019a0000-0000-7000-8000-000000000008'],
     });
   });

@@ -53,7 +53,6 @@ const UNSAVED_COLUMNS = [
   'dataSourceId',
   'ciConfidenceLevel',
   'comparatorMethodId',
-  'hasRiskFactor',
   'createdAt',
   'updatedAt',
   'createdBy',
@@ -74,7 +73,7 @@ const mapped = Object.values(TASK_AUDIT_FIELDS).flat();
 /** The audit fields a save of these lists records, as `replaceLists` names them. */
 function listAuditFields(lists: IndicatorDraftLists): string[] {
   return Object.entries(lists).flatMap(([list, value]) => {
-    if (list === 'subtopicIds' || list === 'primarySubtopicId') return ['subtopicPlacements'];
+    if (list === 'subtopicIds') return ['subtopicPlacements'];
     if (list === 'classificationIds') {
       return Object.keys(value ?? {}).map((dimension) =>
         classificationAuditField(dimension as Parameters<typeof classificationAuditField>[0]),

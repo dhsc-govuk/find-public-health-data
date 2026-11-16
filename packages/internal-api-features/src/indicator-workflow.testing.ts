@@ -53,9 +53,7 @@ export async function completeDraft(
     uploadBatchId: _uploadBatchId,
     ageRanges,
     topicIds: _topicIds,
-    primaryTopicId: _primaryTopicId,
     subtopicIds: _subtopicIds,
-    primarySubtopicId: _primarySubtopicId,
     classifications: _classifications,
     numeratorSources: _numeratorSources,
     denominatorSources: _denominatorSources,
@@ -92,7 +90,6 @@ export async function completeDraft(
     {
       ageRanges,
       topicIds: [firstTopic.id],
-      primaryTopicId: firstTopic.id,
       classificationIds: { indicator_type: [indicatorType.id], life_stage: [lifeStage.id] },
       numeratorSources: [onsAlone],
       denominatorSources: [onsAlone],

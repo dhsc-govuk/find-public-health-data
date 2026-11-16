@@ -42,7 +42,10 @@ export interface ClassificationUpsertResult {
   orphaned: { id: string; slug: string }[];
 }
 
-/** Upserts the classifications, matched on id, rewriting a row only when the file disagrees. */
+/**
+ * Upserts the classifications, matched on id, rewriting a row only when the file disagrees. Each
+ * row's position is its place in the file, which is the order the publisher's lists show.
+ */
 export async function upsertClassifications(
   db: Database,
   records: schema.ClassificationRecord[],
@@ -55,16 +58,17 @@ export async function upsertClassifications(
     const outcomes = records.length
       ? await tx
           .insert(classification)
-          .values(records)
+          .values(records.map((record, position) => ({ ...record, position })))
           .onConflictDoUpdate({
             target: classification.id,
             set: {
               dimension: sql`excluded.dimension`,
               slug: sql`excluded.slug`,
               name: sql`excluded.name`,
+              position: sql`excluded.position`,
               updatedAt: sql`now()`,
             },
-            setWhere: sql`(${classification.dimension}, ${classification.slug}, ${classification.name}) IS DISTINCT FROM (excluded.dimension, excluded.slug, excluded.name)`,
+            setWhere: sql`(${classification.dimension}, ${classification.slug}, ${classification.name}, ${classification.position}) IS DISTINCT FROM (excluded.dimension, excluded.slug, excluded.name, excluded.position)`,
           })
           .returning({ id: classification.id, wasInsert: sql<boolean>`xmax = 0` })
       : [];

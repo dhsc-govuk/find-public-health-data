@@ -82,7 +82,7 @@ async function newTopicId(slug: string): Promise<string> {
 async function newClassificationId(slug: string): Promise<string> {
   const [row] = await db
     .insert(classification)
-    .values({ dimension: 'population', slug, name: slug })
+    .values({ dimension: 'population', slug, name: slug, position: 0 })
     .returning({ id: classification.id });
   if (!row) throw new Error('inserted no classification');
   return row.id;
@@ -880,6 +880,15 @@ describe('the published views', () => {
     const rows = (await db.execute(
       sql`SELECT table_name FROM information_schema.columns
           WHERE table_schema = 'published' AND column_name = 'fast_track_reason'`,
+    )) as unknown as { table_name: string }[];
+
+    expect(rows).toEqual([]);
+  });
+
+  it('keep the PHOF indicator number off the public surface', async () => {
+    const rows = (await db.execute(
+      sql`SELECT table_name FROM information_schema.columns
+          WHERE table_schema = 'published' AND column_name = 'phof_indicator_number'`,
     )) as unknown as { table_name: string }[];
 
     expect(rows).toEqual([]);

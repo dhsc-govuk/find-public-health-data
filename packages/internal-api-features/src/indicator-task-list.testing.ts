@@ -74,7 +74,7 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   ageDetail: null,
   hasLifeStage: true,
   hasFramework: false,
-  primaryTopicId: '019fa38f-073f-764e-9ac6-1c4d03b10001',
+  hasRiskFactor: false,
   topicIds: ['019fa38f-073f-764e-9ac6-1c4d03b10001'],
   classifications: [
     { id: '019fa38f-073f-764e-9ac6-1c4d03b10002', dimension: 'indicator_type' },

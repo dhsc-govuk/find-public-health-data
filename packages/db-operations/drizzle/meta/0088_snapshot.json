@@ -1,5 +1,5 @@
 {
-  "id": "9be5c649-7e08-4ea9-9c45-106492c25d23",
+  "id": "fab06ba3-00af-4ce1-b144-2f77c6320bea",
   "prevId": "d951983f-8b51-4cc0-ab4c-a5ba88de9c58",
   "version": "7",
   "dialect": "postgresql",
@@ -450,6 +450,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -497,7 +503,7 @@
       "checkConstraints": {
         "classification_dimension_check": {
           "name": "classification_dimension_check",
-          "value": "\"classification\".\"dimension\" IN ('indicator_type', 'population', 'inequality', 'framework', 'life_stage')"
+          "value": "\"classification\".\"dimension\" IN ('indicator_type', 'population', 'inequality', 'framework', 'life_stage', 'risk_factor')"
         }
       },
       "isRLSEnabled": false
@@ -986,110 +992,6 @@
         "area_validity_order_check": {
           "name": "area_validity_order_check",
           "value": "\"area\".\"valid_to\" IS NULL OR \"area\".\"valid_from\" <= \"area\".\"valid_to\""
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.area_neighbour": {
-      "name": "area_neighbour",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "neighbour_area_id": {
-          "name": "neighbour_area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "idx_area_neighbour_area_scheme_position": {
-          "name": "idx_area_neighbour_area_scheme_position",
-          "columns": [
-            {
-              "expression": "area_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scheme",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "area_neighbour_area_id_area_id_fk": {
-          "name": "area_neighbour_area_id_area_id_fk",
-          "tableFrom": "area_neighbour",
-          "tableTo": "area",
-          "columnsFrom": [
-            "area_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "area_neighbour_neighbour_area_id_area_id_fk": {
-          "name": "area_neighbour_neighbour_area_id_area_id_fk",
-          "tableFrom": "area_neighbour",
-          "tableTo": "area",
-          "columnsFrom": [
-            "neighbour_area_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "area_neighbour_position_check": {
-          "name": "area_neighbour_position_check",
-          "value": "\"area_neighbour\".\"position\" > 0"
         }
       },
       "isRLSEnabled": false
@@ -1687,18 +1589,17 @@
           "primaryKey": false,
           "notNull": false
         },
+        "phof_indicator_number": {
+          "name": "phof_indicator_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "has_life_stage": {
           "name": "has_life_stage",
           "type": "boolean",
           "primaryKey": false,
           "notNull": false
-        },
-        "is_area_context": {
-          "name": "is_area_context",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "update_frequency": {
           "name": "update_frequency",
@@ -4026,32 +3927,9 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         }
       },
       "indexes": {
-        "idx_indicator_version_subtopic_primary": {
-          "name": "idx_indicator_version_subtopic_primary",
-          "columns": [
-            {
-              "expression": "indicator_version_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"indicator_version_subtopic\".\"is_primary\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_indicator_version_subtopic_subtopic": {
           "name": "idx_indicator_version_subtopic_subtopic",
           "columns": [
@@ -4129,13 +4007,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         }
       },
       "indexes": {
@@ -4150,22 +4021,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_indicator_version_topic_primary": {
-          "name": "idx_indicator_version_topic_primary",
-          "columns": [
-            {
-              "expression": "indicator_version_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"indicator_version_topic\".\"is_primary\"",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4733,44 +4588,6 @@
         }
       },
       "name": "area",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
-    },
-    "published.area_neighbour": {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "neighbour_area_id": {
-          "name": "neighbour_area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "name": "area_neighbour",
       "schema": "published",
       "isExisting": true,
       "materialized": false
@@ -5424,12 +5241,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
         }
       },
       "name": "indicator_subtopic",
@@ -5448,12 +5259,6 @@
         "topic_id": {
           "name": "topic_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
           "primaryKey": false,
           "notNull": true
         }

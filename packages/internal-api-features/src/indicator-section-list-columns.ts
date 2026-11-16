@@ -1,4 +1,4 @@
-import { CLASSIFICATION_DIMENSIONS } from '@fphd/utils/classification-dimension';
+import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
 import {
   type Ages,
   type AgesAnswers,
@@ -88,52 +88,47 @@ function idsIn(
 export const taggingColumns: IndicatorSectionColumns<TaggingField, Tagging, TaggingAnswers> = {
   fromDraft: ({
     topicIds,
-    primaryTopicId,
     subtopicIds,
-    primarySubtopicId,
     classifications,
-    hasLifeStage,
     hasFramework,
-    isAreaContext,
+    phofIndicatorNumber,
+    hasLifeStage,
+    hasRiskFactor,
   }) => ({
-    ...(isAreaContext ? { isAreaContext: 'yes' as const } : {}),
     topicIds,
-    primaryTopicId,
     subtopicIds,
-    primarySubtopicId,
     indicatorTypeIds: idsIn(classifications, 'indicator_type'),
-    hasLifeStage: yesNoAnswer(hasLifeStage),
-    lifeStageIds: idsIn(classifications, 'life_stage'),
     hasFramework: yesNoAnswer(hasFramework),
     frameworkIds: idsIn(classifications, 'framework'),
+    phofIndicatorNumber,
+    hasLifeStage: yesNoAnswer(hasLifeStage),
+    lifeStageIds: idsIn(classifications, 'life_stage'),
+    hasRiskFactor: yesNoAnswer(hasRiskFactor),
+    riskFactorIds: idsIn(classifications, 'risk_factor'),
   }),
-  toAttributes: ({ hasLifeStage, hasFramework, isAreaContext }) => ({
-    isAreaContext: isAreaContext === 'yes',
-    hasLifeStage: hasLifeStage === 'yes',
-    hasFramework: hasFramework === 'yes',
+  // The PHOF indicator number is kept only while the Public Health Outcomes Framework is chosen.
+  toAttributes: (answers) => ({
+    hasFramework: answers.hasFramework === 'yes',
+    phofIndicatorNumber:
+      isTagListAsked(answers, 'frameworkIds') &&
+      answers.frameworkIds.includes(CLASSIFICATION_IDS.publicHealthOutcomesFramework) &&
+      answers.phofIndicatorNumber !== ''
+        ? answers.phofIndicatorNumber
+        : null,
+    hasLifeStage: answers.hasLifeStage === 'yes',
+    hasRiskFactor: answers.hasRiskFactor === 'yes',
   }),
   toLists: (answers) => {
-    if (answers.isAreaContext === 'yes')
-      return {
-        topicIds: [],
-        primaryTopicId: null,
-        subtopicIds: [],
-        primarySubtopicId: null,
-        classificationIds: Object.fromEntries(
-          CLASSIFICATION_DIMENSIONS.map((dimension) => [dimension, []]),
-        ),
-      };
     const kept = (list: TagList) => (isTagListAsked(answers, list) ? answers[list] : []);
 
     return {
       topicIds: answers.topicIds,
-      primaryTopicId: answers.primaryTopicId,
       subtopicIds: answers.subtopicIds,
-      primarySubtopicId: answers.primarySubtopicId || null,
       classificationIds: {
         indicator_type: kept('indicatorTypeIds'),
-        life_stage: kept('lifeStageIds'),
         framework: kept('frameworkIds'),
+        life_stage: kept('lifeStageIds'),
+        risk_factor: kept('riskFactorIds'),
       },
     };
   },

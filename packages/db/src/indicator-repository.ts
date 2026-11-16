@@ -186,8 +186,7 @@ export interface IndicatorAreaType {
 export interface IndicatorTopic {
   slug: string;
   title: string;
-  isPrimary?: boolean;
-  subtopics?: { slug: string; title: string; isPrimary: boolean }[];
+  subtopics?: { slug: string; title: string }[];
 }
 
 export interface IndicatorDetail {

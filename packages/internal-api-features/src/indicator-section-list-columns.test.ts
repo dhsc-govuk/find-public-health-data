@@ -1,3 +1,4 @@
+import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
 import { describe, expect, it } from 'vitest';
 import type { Ages, Tagging } from './contract.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
@@ -115,44 +116,47 @@ describe('taggingColumns', () => {
     expect(
       taggingColumns.fromDraft({
         ...unansweredDraft,
-        hasLifeStage: true,
         hasFramework: false,
+        hasLifeStage: true,
+        hasRiskFactor: true,
         topicIds: [TAGS.topic],
         classifications: [
           { id: TAGS.framework, dimension: 'framework' },
           { id: TAGS.type, dimension: 'indicator_type' },
-          { id: '019fa38f-073f-764e-9ac6-1c4d03b10006', dimension: 'population' },
+          { id: '019fa38f-073f-764e-9ac6-1c4d03b10099', dimension: 'population' },
           { id: TAGS.lifeStage, dimension: 'life_stage' },
+          { id: TAGS.riskFactor, dimension: 'risk_factor' },
         ],
       }),
     ).toEqual({
       topicIds: [TAGS.topic],
-      primaryTopicId: null,
       subtopicIds: [],
-      primarySubtopicId: null,
       indicatorTypeIds: [TAGS.type],
-      hasLifeStage: 'yes',
-      lifeStageIds: [TAGS.lifeStage],
       hasFramework: 'no',
       frameworkIds: [TAGS.framework],
+      phofIndicatorNumber: null,
+      hasLifeStage: 'yes',
+      lifeStageIds: [TAGS.lifeStage],
+      hasRiskFactor: 'yes',
+      riskFactorIds: [TAGS.riskFactor],
     });
   });
 
   it('writes the answers and replaces only the dimensions the page asks about', () => {
     expect(taggingColumns.toAttributes(tagging)).toEqual({
-      isAreaContext: false,
-      hasLifeStage: true,
       hasFramework: false,
+      phofIndicatorNumber: null,
+      hasLifeStage: true,
+      hasRiskFactor: false,
     });
     expect(taggingColumns.toLists?.(tagging)).toEqual({
       topicIds: [TAGS.otherTopic, TAGS.topic],
-      primaryTopicId: TAGS.otherTopic,
       subtopicIds: [],
-      primarySubtopicId: null,
       classificationIds: {
         indicator_type: [TAGS.type],
-        life_stage: [TAGS.lifeStage],
         framework: [],
+        life_stage: [TAGS.lifeStage],
+        risk_factor: [],
       },
     });
   });
@@ -160,13 +164,41 @@ describe('taggingColumns', () => {
   it('drops the tags beside a "No", whatever the form sent', () => {
     const sent: Tagging = {
       ...tagging,
-      hasLifeStage: 'no',
       hasFramework: 'no',
       frameworkIds: [TAGS.framework],
+      hasLifeStage: 'no',
+      hasRiskFactor: 'no',
+      riskFactorIds: [TAGS.riskFactor],
     };
 
     expect(taggingColumns.toLists?.(sent)).toMatchObject({
-      classificationIds: { life_stage: [], framework: [] },
+      classificationIds: { framework: [], life_stage: [], risk_factor: [] },
+    });
+  });
+
+  describe('the PHOF indicator number', () => {
+    const phof = CLASSIFICATION_IDS.publicHealthOutcomesFramework;
+    const withPhof: Tagging = {
+      ...tagging,
+      hasFramework: 'yes',
+      frameworkIds: [TAGS.framework, phof],
+      phofIndicatorNumber: '2.12',
+    };
+
+    it('is kept beside the Public Health Outcomes Framework', () => {
+      expect(taggingColumns.toAttributes(withPhof)).toMatchObject({
+        phofIndicatorNumber: '2.12',
+      });
+    });
+
+    it.each([
+      ['without the Public Health Outcomes Framework', { frameworkIds: [TAGS.framework] }],
+      ['beside a "No"', { hasFramework: 'no' as const }],
+      ['when left blank', { phofIndicatorNumber: '' }],
+    ])('is cleared %s', (_, change) => {
+      expect(taggingColumns.toAttributes({ ...withPhof, ...change })).toMatchObject({
+        phofIndicatorNumber: null,
+      });
     });
   });
 });

@@ -40,16 +40,18 @@ export const submitTagging = versionedAction(
   async (args: ActionFunctionArgs, { formData, version }): Promise<TaggingPageState | Response> => {
     const id = requireIndicatorId(args.params);
     const { intent, values } = readTaggingForm(formData);
+    // A topic is added, removed and taken in by whether it has subtopics.
+    const options = await args.context.get(apiContext).get('/api/internal/tags', tagOptionsSchema);
 
     if (intent.to !== 'continue' && intent.list !== undefined) {
       return intent.to === 'add'
-        ? withTagAdded(values, intent.list)
-        : withTagRemoved(values, intent.list, intent.index);
+        ? withTagAdded(values, intent.list, options)
+        : withTagRemoved(values, intent.list, intent.index, options);
     }
 
     return saveIndicatorSectionValues(args.context, id, taggingSection, values, {
       answersSchema: taggingAnswersSchema,
-      takeIn: withChosenTagsTakenIn,
+      takeIn: (sent) => withChosenTagsTakenIn(sent, options),
       version,
     });
   },

@@ -50,8 +50,8 @@ describe('the V2 taxonomy import', () => {
     const [draft] = await sql<
       { id: string }[]
     >`INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by) VALUES (${identity?.id ?? ''}, 'Taxonomy draft only', 'taxonomy-draft-only', ${SYSTEM_USER_IDS.pholioMigration}, ${SYSTEM_USER_IDS.pholioMigration}) RETURNING id`;
-    await sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id, is_primary) VALUES (${draft?.id ?? ''}, ${child?.topic_id ?? ''}, true)`;
-    await sql`INSERT INTO indicator_version_subtopic (indicator_version_id, topic_id, subtopic_id, is_primary) VALUES (${draft?.id ?? ''}, ${child?.topic_id ?? ''}, ${child?.id ?? ''}, true)`;
+    await sql`INSERT INTO indicator_version_topic (indicator_version_id, topic_id) VALUES (${draft?.id ?? ''}, ${child?.topic_id ?? ''})`;
+    await sql`INSERT INTO indicator_version_subtopic (indicator_version_id, topic_id, subtopic_id) VALUES (${draft?.id ?? ''}, ${child?.topic_id ?? ''}, ${child?.id ?? ''})`;
     expect(
       await sql`SELECT subtopic_id FROM published.indicator_subtopic WHERE indicator_id = ${identity?.id ?? ''} AND subtopic_id = ${child?.id ?? ''}`,
     ).toEqual([]);
@@ -66,13 +66,13 @@ describe('the V2 taxonomy import', () => {
       sql`INSERT INTO indicator_version_subtopic (indicator_version_id, topic_id, subtopic_id) VALUES (${version?.id ?? ''}, ${version?.topic_id ?? ''}, ${child?.id ?? ''})`,
     ).rejects.toThrow(/indicator_version_subtopic_subtopic_fk/);
   });
-  it('imports only the 19 V2 topics and their 92 subtopics', async () => {
+  it('imports only the 19 topics and their 86 subtopics', async () => {
     expect((await sql`SELECT id FROM published.topic`).length).toBe(19);
     expect((await sql`SELECT id FROM topic`).length).toBe(19);
-    expect((await sql`SELECT id FROM published.subtopic`).length).toBe(92);
+    expect((await sql`SELECT id FROM published.subtopic`).length).toBe(86);
     const imported = await importCoreData(sql);
     expect(imported.subtopics).toEqual({
-      summary: { inserted: 0, updated: 0, unchanged: 92 },
+      summary: { inserted: 0, updated: 0, unchanged: 86 },
       orphaned: [],
     });
     expect(imported.topics.summary).toEqual({ inserted: 0, updated: 0, unchanged: 19 });
@@ -91,24 +91,18 @@ describe('the V2 taxonomy import', () => {
     await sql`DELETE FROM subtopic WHERE id = ${extra?.id ?? ''}`;
   });
 
-  it('retains two subtopic placements within a single primary topic', async () => {
+  it('retains two subtopic placements within a single topic', async () => {
     const [indicator] = await sql<{ id: string }[]>`SELECT id FROM indicator WHERE short_id = 108`;
     const topics = await listTopicsForIndicator(database.db, indicator?.id ?? '');
     expect(topics).toEqual([
       {
         slug: 'mortality-and-life-expectancy',
         title: 'Mortality and life expectancy',
-        isPrimary: true,
         subtopics: [
-          {
-            slug: 'all-cause-and-winter-mortality',
-            title: 'All-cause and winter mortality',
-            isPrimary: false,
-          },
+          { slug: 'all-cause-mortality', title: 'All-cause mortality' },
           {
             slug: 'preventable-mortality-and-deaths-under-75',
             title: 'Preventable mortality and deaths under 75',
-            isPrimary: true,
           },
         ],
       },
@@ -128,17 +122,14 @@ describe('the V2 taxonomy import', () => {
       classificationLinks: 0,
       unknownIndicators: [],
     });
-    const [after] = await sql<
-      { context: boolean; topics: number; classifications: number; observations: number }[]
-    >`
-      SELECT v.is_area_context AS context,
+    const [after] = await sql<{ topics: number; classifications: number; observations: number }[]>`
+      SELECT
         (SELECT count(*)::int FROM indicator_version_topic t WHERE t.indicator_version_id = v.id) AS topics,
         (SELECT count(*)::int FROM indicator_version_classification c WHERE c.indicator_version_id = v.id) AS classifications,
         (SELECT count(*)::int FROM observation o WHERE o.indicator_id = i.id) AS observations
       FROM indicator i JOIN current_published_version cpv ON cpv.indicator_id = i.id JOIN indicator_version v ON v.id = cpv.id WHERE i.short_id = 92708
     `;
     expect(after).toEqual({
-      context: true,
       topics: 0,
       classifications: 0,
       observations: before?.count,
@@ -146,7 +137,7 @@ describe('the V2 taxonomy import', () => {
     expect(after?.observations).toBeGreaterThan(0);
   });
 
-  it('imports life stage and programme tags without deriving them from a title', async () => {
+  it('imports the tags the service offers, dropping other frameworks, without reading the title', async () => {
     const [identity] = await sql<
       { id: string }[]
     >`INSERT INTO indicator (short_id, team_id) VALUES (383, ${IMPORTED_INDICATOR_TEAM_ID}) RETURNING id`;
@@ -156,13 +147,12 @@ describe('the V2 taxonomy import', () => {
       SELECT c.dimension, c.name FROM published.indicator_classification ic JOIN published.classification c ON c.id = ic.classification_id WHERE ic.indicator_id = ${identity?.id ?? ''} ORDER BY c.dimension
     `;
     expect(rows).toEqual([
-      { dimension: 'framework', name: 'MSF dementia and frailty (suggested)' },
       { dimension: 'indicator_type', name: 'Outcome' },
-      { dimension: 'life_stage', name: 'Older people' },
+      { dimension: 'life_stage', name: 'Older people (65 years old and over)' },
     ]);
     const [flags] = await sql<
-      { has_life_stage: boolean; has_framework: boolean }[]
-    >`SELECT has_life_stage, has_framework FROM indicator_version WHERE indicator_id = ${identity?.id ?? ''}`;
-    expect(flags).toEqual({ has_life_stage: true, has_framework: true });
+      { has_life_stage: boolean; has_framework: boolean; has_risk_factor: boolean }[]
+    >`SELECT has_life_stage, has_framework, has_risk_factor FROM indicator_version WHERE indicator_id = ${identity?.id ?? ''}`;
+    expect(flags).toEqual({ has_life_stage: true, has_framework: false, has_risk_factor: false });
   });
 });

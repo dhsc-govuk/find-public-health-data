@@ -27,14 +27,6 @@ describe('parseDataMigrationRelationships', () => {
       parseDataMigrationRelationships({ ...relationships, indicators: [108, 108] }),
     ).toThrow('coverage contains duplicate indicators');
   });
-  it('requires a primary topic when primary flags are supplied', () => {
-    expect(() =>
-      parseDataMigrationRelationships({
-        ...relationships,
-        indicatorTopics: [{ ...relationships.indicatorTopics[0], isPrimary: false }],
-      }),
-    ).toThrow('Missing primary topic: 108');
-  });
   it.each([
     { indicatorTopics: [{ ...relationships.indicatorTopics[0], fingertipsId: 109 }] },
     {

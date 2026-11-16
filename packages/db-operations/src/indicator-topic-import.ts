@@ -93,10 +93,10 @@ export async function applyIndicatorTopics(
     indicators.flatMap((row) => (row.versionId === null ? [] : [[row.shortId, row.versionId]])),
   );
 
-  const links = file.indicatorTopics.flatMap(({ topicId, fingertipsId, isPrimary }) => {
+  const links = file.indicatorTopics.flatMap(({ topicId, fingertipsId }) => {
     const indicatorVersionId = versionIdByShortId.get(fingertipsId);
     return knownTopicIds.has(topicId) && indicatorVersionId
-      ? [{ topicId, indicatorVersionId, isPrimary: isPrimary ?? false }]
+      ? [{ topicId, indicatorVersionId }]
       : [];
   });
 
@@ -117,39 +117,21 @@ export async function applyIndicatorTopics(
   }
 
   const parentBySubtopic = new Map(subtopics.map(({ id, topicId }) => [id, topicId]));
-  const subtopicLinks = file.indicatorSubtopics.flatMap(
-    ({ fingertipsId, topicId, subtopicId, isPrimary }) => {
-      const indicatorVersionId = versionIdByShortId.get(fingertipsId);
-      return indicatorVersionId &&
-        knownTopicIds.has(topicId) &&
-        parentBySubtopic.get(subtopicId) === topicId
-        ? [{ indicatorVersionId, topicId, subtopicId, isPrimary: isPrimary ?? false }]
-        : [];
-    },
-  );
+  const subtopicLinks = file.indicatorSubtopics.flatMap(({ fingertipsId, topicId, subtopicId }) => {
+    const indicatorVersionId = versionIdByShortId.get(fingertipsId);
+    return indicatorVersionId &&
+      knownTopicIds.has(topicId) &&
+      parentBySubtopic.get(subtopicId) === topicId
+      ? [{ indicatorVersionId, topicId, subtopicId }]
+      : [];
+  });
   if (subtopicLinks.length) await db.insert(indicatorVersionSubtopic).values(subtopicLinks);
-  if (versionIds.length)
-    await db
-      .update(indicatorVersion)
-      .set({ isAreaContext: false })
-      .where(inArray(indicatorVersion.id, versionIds));
   if (explicitlyCovered.length) {
     await db
       .update(indicatorVersion)
-      .set({
-        hasFramework: false,
-        hasLifeStage: false,
-      })
+      .set({ hasFramework: false, hasLifeStage: false, hasRiskFactor: false })
       .where(inArray(indicatorVersion.id, explicitlyCovered));
   }
-  const contextVersions = file.areaContextIndicators.flatMap(
-    (id) => versionIdByShortId.get(id) ?? [],
-  );
-  if (contextVersions.length)
-    await db
-      .update(indicatorVersion)
-      .set({ isAreaContext: true })
-      .where(inArray(indicatorVersion.id, contextVersions));
 
   let timestamps = 0;
   for (const [fingertipsId, updatedAt] of Object.entries(file.indicatorDataUpdatedAt)) {
@@ -234,19 +216,14 @@ async function applyIndicatorClassifications(
       links.filter((link) => link.dimension === dimension).map((link) => link.indicatorVersionId),
     ),
   ];
-  const withFramework = answeredYes('framework');
-  const withLifeStage = answeredYes('life_stage');
-  if (withLifeStage.length)
-    await db
-      .update(indicatorVersion)
-      .set({ hasLifeStage: true })
-      .where(inArray(indicatorVersion.id, withLifeStage));
-
-  if (withFramework.length > 0) {
-    await db
-      .update(indicatorVersion)
-      .set({ hasFramework: true })
-      .where(inArray(indicatorVersion.id, withFramework));
+  for (const [dimension, answer] of [
+    ['framework', { hasFramework: true }],
+    ['life_stage', { hasLifeStage: true }],
+    ['risk_factor', { hasRiskFactor: true }],
+  ] as const) {
+    const withTags = answeredYes(dimension);
+    if (withTags.length > 0)
+      await db.update(indicatorVersion).set(answer).where(inArray(indicatorVersion.id, withTags));
   }
 
   return { links: links.length, unknownIds: ids.filter((id) => !dimensionById.has(id)) };
