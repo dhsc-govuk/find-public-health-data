@@ -454,6 +454,11 @@ describe('loadWebServerConfig', () => {
       ],
       ['a top-level domain', JSON.stringify([{ domain: 'com', label: 'x' }]), /like example.com/],
       ['an invalid domain', JSON.stringify([{ domain: 'not a domain', label: 'x' }]), /domain/],
+      [
+        'a domain with a trailing dot',
+        JSON.stringify([{ domain: 'example.com.', label: 'x' }]),
+        /like example.com/,
+      ],
       ['an empty list', '[]', /BETA_ACCESS_INVITEES/],
       ['an invalid address', JSON.stringify([{ email: 'nobody', label: 'x' }]), /email/],
       ['a missing label', JSON.stringify([{ email: 'a@example.com' }]), /label/],

@@ -214,13 +214,17 @@ export type BetaInviteeEntry = BetaInvitee | { domain: string; label: string };
 const inviteeSchema = z
   .object({
     email: z.string().trim().toLowerCase().pipe(z.email()).optional(),
-    // Needs a dot, so a whole top-level domain such as `com` can't be listed by mistake.
+    // Dot-separated labels of letters, digits and hyphens, ending in a top-level domain of letters,
+    // so a whole top-level domain such as `com` can't be listed by mistake.
     domain: z
       .string()
       .trim()
       .toLowerCase()
-      .pipe(z.hostname())
-      .refine((domain) => domain.includes('.'), 'must be a domain, like example.com')
+      .max(253)
+      .regex(
+        /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/,
+        'must be a domain, like example.com',
+      )
       .optional(),
     label: z.string().trim().min(1),
   })
