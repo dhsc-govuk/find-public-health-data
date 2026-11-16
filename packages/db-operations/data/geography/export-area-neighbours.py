@@ -63,6 +63,8 @@ def neighbour_rows():
         if ([n["Position"] for n in neighbours] != list(range(1, 16))
                 or len({n["AreaCode"] for n in neighbours}) != 15):
             raise ValueError(f"Expected 15 ranked neighbours for {area['Code']}")
+        if any(n["AreaCode"] == area["Code"] for n in neighbours):
+            raise ValueError(f"Council cannot be its own neighbour: {area['Code']}")
         rows.extend((area["Code"], n["AreaCode"], n["Position"]) for n in neighbours)
     if not rows:
         raise ValueError("No upper tier local authorities returned")

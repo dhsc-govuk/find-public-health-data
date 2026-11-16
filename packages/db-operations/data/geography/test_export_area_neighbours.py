@@ -36,6 +36,13 @@ class AreaNeighbourExportTest(unittest.TestCase):
         with patch.object(export, "fetch", side_effect=[[{"Code": "E06000001"}], {"NeighbourAreaDet": groups}]):
             self.assertEqual(export.neighbour_rows(), [("E06000001", n["AreaCode"], n["Position"]) for n in neighbours])
 
+    def test_council_cannot_be_its_own_neighbour(self):
+        neighbours = [{"AreaCode": f"E060000{i:02}", "Position": i} for i in range(1, 16)]
+        group = {"NeighbourTypeId": 15, "NeighbourAreas": neighbours}
+        with patch.object(export, "fetch", side_effect=[[{"Code": "E06000001"}], {"NeighbourAreaDet": [group]}]):
+            with self.assertRaisesRegex(ValueError, "own neighbour.*E06000001"):
+                export.neighbour_rows()
+
 
 if __name__ == "__main__":
     unittest.main()
