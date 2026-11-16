@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 
 import { VERSION_FIELD } from './edit-version.ts';
 import type { FormValues } from './form-values.ts';
+import type { GuidanceAnchor } from './publisher-guidance/paths.ts';
+import { RelatedGuidanceLink } from './related-guidance-link.tsx';
 
 /**
  * The size a question keeps when it is the page heading. NotGovUK sizes an h1 label or legend
@@ -39,6 +41,13 @@ type IndicatorSectionFormProps<Field extends string> = {
   fieldIds?: Partial<Record<Field, string>>;
   /** Set when the form has buttons of its own before Continue, which Enter would otherwise press. */
   continueOnEnter?: boolean;
+  /**
+   * The part of the publisher guidance the page links to, under the h1. On a page whose question
+   * is the heading, the link follows the question instead. There the heading sits in the
+   * question's label or legend, and the only place between it and the control is the hint, which
+   * GOV.UK says must not hold a link.
+   */
+  guidance?: GuidanceAnchor;
   /** Shown under the h1, before the form, such as who the answers are for. */
   intro?: ReactNode;
   /** The submit button's wording, where the page does not continue to another. */
@@ -65,6 +74,7 @@ export function IndicatorSectionForm<Field extends string>(
     children,
     continueOnEnter = false,
     form: { fieldErrors, formError, version },
+    guidance,
     intro = null,
     questionIsHeading = false,
     submitLabel = 'Continue',
@@ -79,13 +89,20 @@ export function IndicatorSectionForm<Field extends string>(
     return message === undefined || repeated ? [] : [{ name, message, id: fieldIds[name] }];
   });
 
+  const guidanceLink = guidance === undefined ? null : <RelatedGuidanceLink anchor={guidance} />;
+
   return (
     <>
       <DocumentTitle hasErrors={errors.length > 0 || formError !== undefined} pageTitle={title} />
       <ErrorSummary errors={errors} formError={formError} />
       <GridRow>
         <GridColumn width="two-thirds">
-          {questionIsHeading ? null : <h1 className="govuk-heading-xl">{title}</h1>}
+          {questionIsHeading ? null : (
+            <>
+              <h1 className="govuk-heading-xl">{title}</h1>
+              {guidanceLink}
+            </>
+          )}
           {intro}
           {/* A plain form posting back to its own page, so it works without JavaScript. */}
           <form method="post">
@@ -104,6 +121,7 @@ export function IndicatorSectionForm<Field extends string>(
               </button>
             ) : null}
             {children}
+            {questionIsHeading ? guidanceLink : null}
             <Button preventDoubleClick type="submit">
               {submitLabel}
             </Button>

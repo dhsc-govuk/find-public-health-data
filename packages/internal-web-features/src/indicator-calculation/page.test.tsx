@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { CalculationPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -48,6 +48,14 @@ function conditional() {
 }
 
 describe('CalculationPage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#non-standard-calculation-method',
+    );
+  });
+
   it('asks for the methodology and who calculated the indicator under the page heading', () => {
     renderPage();
 

@@ -101,6 +101,7 @@ export function NumeratorDenominatorPage({
 
   return (
     <IndicatorSectionForm
+      guidance="numerator"
       continueOnEnter
       fieldIds={{ sources: fieldInputId('providerId') }}
       fields={FIELDS}

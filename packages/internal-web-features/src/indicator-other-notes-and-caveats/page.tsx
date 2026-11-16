@@ -34,6 +34,7 @@ export function OtherNotesAndCaveatsPage(form: SectionPageProps<OtherNotesAndCav
 
   return (
     <IndicatorSectionForm
+      guidance="caveats"
       form={form}
       fieldIds={Object.fromEntries(QUESTIONS.map(({ answer }) => [answer, firstRadioId(answer)]))}
       section={otherNotesAndCaveatsSection}

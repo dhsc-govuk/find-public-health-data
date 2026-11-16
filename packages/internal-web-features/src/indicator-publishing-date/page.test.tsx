@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { publishingDateControlNames } from '../publishing-date-form.ts';
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { PublishingDatePage } from './page.tsx';
 
 afterEach(cleanup);
@@ -41,6 +41,14 @@ function marked(container: HTMLElement) {
 }
 
 describe('PublishingDatePage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#publishing-date',
+    );
+  });
+
   it('asks for a date and a time under the page heading', () => {
     renderPage();
 

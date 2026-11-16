@@ -79,6 +79,10 @@ export default [
     ]),
     layout('./publisher.tsx', [
       route(
+        'publish/guidance',
+        '../../../packages/internal-web-features/src/publisher-guidance/route.tsx',
+      ),
+      route(
         'publish/indicators/new/team',
         '../../../packages/internal-web-features/src/indicator-team/route.tsx',
       ),

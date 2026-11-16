@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { ADD_INTENT, removeIntent } from '../list-form.ts';
-import { noRefusal, SHOWN_VERSION } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK, SHOWN_VERSION } from '../testing.ts';
 import type { NumeratorDenominatorPageValues } from './form.ts';
 import { NumeratorDenominatorPage } from './page.tsx';
 
@@ -77,6 +77,17 @@ function optionsOf(select: HTMLSelectElement) {
 }
 
 describe('NumeratorDenominatorPage', () => {
+  it('links both parts to the guidance on the numerator, which covers the indicator format', () => {
+    for (const part of ['numerator', 'denominator'] as const) {
+      renderPage({ part });
+
+      expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+        '/publish/guidance#numerator',
+      );
+      cleanup();
+    }
+  });
+
   it('asks about the part it is given, as the page heading and title', () => {
     renderPage({ part: 'denominator' });
 

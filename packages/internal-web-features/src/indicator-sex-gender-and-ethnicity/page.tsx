@@ -87,6 +87,7 @@ export function SexGenderAndEthnicityPage(
 
   return (
     <IndicatorSectionForm
+      guidance="sex-gender-and-ethnicity"
       fieldIds={{
         demographics: firstCheckboxId('demographics'),
         sexes: firstCheckboxId('sexes'),

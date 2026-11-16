@@ -12,6 +12,7 @@ export function VarianceAndQualityPage(form: SectionPageProps<VarianceAndQuality
 
   return (
     <IndicatorSectionForm
+      guidance="variation"
       form={form}
       intro={<ReviewerUseOnly />}
       section={varianceAndQualitySection}

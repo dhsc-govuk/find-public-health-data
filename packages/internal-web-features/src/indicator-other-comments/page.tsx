@@ -13,6 +13,7 @@ export function OtherCommentsPage(form: SectionPageProps<OtherCommentsField>) {
 
   return (
     <IndicatorSectionForm
+      guidance="sponsors-and-stakeholders"
       form={form}
       intro={<ReviewerUseOnly />}
       fieldIds={{ hasReviewerComments: firstRadioId('hasReviewerComments') }}

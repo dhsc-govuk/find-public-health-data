@@ -53,6 +53,7 @@ export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>
 
   return (
     <IndicatorSectionForm
+      guidance="update-frequency"
       form={form}
       fieldIds={{ updateFrequency: firstRadioId('updateFrequency') }}
       section={updateFrequencySection}

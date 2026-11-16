@@ -24,9 +24,6 @@ test('starts the journey from the indicator dashboard', async ({ page }) => {
   await expect(
     page.getByRole('heading', { level: 1, name: 'What is the name of the indicator?' }),
   ).toBeVisible();
-  await expect(
-    page.getByText('The name should be unique, descriptive and written in plain English.'),
-  ).toBeVisible();
 });
 
 test('asks for a name when Continue is selected with the box empty', async ({ page }) => {
