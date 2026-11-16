@@ -119,10 +119,12 @@ describe('GET /api/internal/indicators', () => {
       .set('Cookie', await publisherCookie());
 
     expect(response.status).toBe(200);
-    expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, {
-      all: false,
-      teamIds: [TEAM_ID],
-    });
+    expect(listPage).toHaveBeenCalledWith(
+      1,
+      INDICATORS_PAGE_SIZE,
+      { all: false, teamIds: [TEAM_ID] },
+      undefined,
+    );
     expect(response.body).toEqual({
       indicators: [
         {
@@ -156,7 +158,7 @@ describe('GET /api/internal/indicators', () => {
       .set('Cookie', await publisherCookie());
 
     expect(response.status).toBe(200);
-    expect(listPage).toHaveBeenCalledWith(3, INDICATORS_PAGE_SIZE, expect.anything());
+    expect(listPage).toHaveBeenCalledWith(3, INDICATORS_PAGE_SIZE, expect.anything(), undefined);
     expect(response.body).toMatchObject({ indicators: [], page: 3, total: 23 });
   });
 
@@ -172,7 +174,7 @@ describe('GET /api/internal/indicators', () => {
       .set('Cookie', await testSessionCookie(roles, [TEAM_ID]));
 
     expect(response.status).toBe(200);
-    expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, scope);
+    expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, scope, undefined);
   });
 
   it("lists only a publisher's own teams when asked, though they manage IMRG", async () => {
@@ -183,10 +185,50 @@ describe('GET /api/internal/indicators', () => {
       .set('Cookie', await testSessionCookie(['publisher', 'imrg-manager'], [TEAM_ID]));
 
     expect(response.status).toBe(200);
-    expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, {
-      all: false,
-      teamIds: [TEAM_ID],
-    });
+    expect(listPage).toHaveBeenCalledWith(
+      1,
+      INDICATORS_PAGE_SIZE,
+      { all: false, teamIds: [TEAM_ID] },
+      undefined,
+    );
+  });
+
+  it('lists the indicators matching a search, trimmed of spaces', async () => {
+    const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
+
+    const response = await request(createTestApp({ listPage }))
+      .get('/api/internal/indicators?search=%20life%20expectancy%20')
+      .set('Cookie', await publisherCookie());
+
+    expect(response.status).toBe(200);
+    expect(listPage).toHaveBeenCalledWith(
+      1,
+      INDICATORS_PAGE_SIZE,
+      expect.anything(),
+      'life expectancy',
+    );
+  });
+
+  it('lists every indicator for a blank search', async () => {
+    const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
+
+    await request(createTestApp({ listPage }))
+      .get('/api/internal/indicators?search=%20%20')
+      .set('Cookie', await publisherCookie());
+
+    expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, expect.anything(), undefined);
+  });
+
+  it.each([
+    ['longer than 200 characters', `search=${'a'.repeat(201)}`],
+    ['given twice', 'search=a&search=b'],
+  ])('rejects a search %s', async (_, query) => {
+    const response = await request(createTestApp())
+      .get(`/api/internal/indicators?${query}`)
+      .set('Cookie', await publisherCookie());
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_search' });
   });
 
   it('rejects a teams filter other than own as a bad request', async () => {

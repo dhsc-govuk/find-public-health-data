@@ -1,8 +1,10 @@
 import { Button, GridColumn, GridRow, NotificationBanner, Pagination, Table, Tabs } from '@fphd/ui';
+import type { ReactNode } from 'react';
 import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
 import { ALL_INDICATORS_TAB, CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
+import { DashboardSearch } from './search-form.tsx';
 import {
   AssignedTable,
   AwaitingDecisionTable,
@@ -21,6 +23,19 @@ export interface IndicatorList {
 interface IndicatorListSectionProps extends IndicatorList {
   /** The tab the list is in, which its page links keep open. */
   tab?: string | undefined;
+  /** The search the list matches, which its page links keep. */
+  search?: string | undefined;
+}
+
+const NO_MATCHES = 'No indicators match your search.';
+
+/** A list's table, or with a search that matched none of its indicators, a message saying so. */
+function tableOrNoMatches(search: string | undefined, indicators: unknown[], table: ReactNode) {
+  return search !== undefined && indicators.length === 0 ? (
+    <p className="govuk-body">{NO_MATCHES}</p>
+  ) : (
+    table
+  );
 }
 
 function IndicatorListSection({
@@ -29,10 +44,11 @@ function IndicatorListSection({
   page,
   totalPages,
   tab,
+  search,
 }: IndicatorListSectionProps) {
   // Plain anchors: the router-aware link would also mark every link to the bare path as current.
   const pageLink = (number: number) => ({
-    href: dashboardPath(number, tab),
+    href: dashboardPath(number, tab, search),
     forceExternal: true,
     ...(number === page ? { 'aria-current': 'page' as const } : {}),
   });
@@ -41,7 +57,9 @@ function IndicatorListSection({
     <>
       {canCreate ? <Button href={NEW_INDICATOR_PATH}>Create new indicator</Button> : null}
       {indicators.length === 0 ? (
-        <p className="govuk-body">There are no indicators for you to see yet.</p>
+        <p className="govuk-body">
+          {search === undefined ? 'There are no indicators for you to see yet.' : NO_MATCHES}
+        </p>
       ) : (
         <Table
           aria-label="Indicators, most recently edited first"
@@ -66,6 +84,8 @@ function countedLabel(label: string, count: number): string {
 }
 
 interface DashboardPageProps {
+  /** The search every list matches; undefined when the lists are unfiltered. */
+  search?: string | undefined;
   underReview: IndicatorsUnderReview | null;
   toReview: IndicatorAdminListItem[] | null;
   /** The approved indicators an admin schedules; null for anyone else. */
@@ -90,25 +110,31 @@ export function dashboardHeading(data?: DashboardPageProps): string {
 }
 
 /** The list's section: Create and edit for someone who may create, otherwise every indicator. */
-function listSection(list: IndicatorList, tabbed: boolean) {
+function listSection(list: IndicatorList, tabbed: boolean, search: string | undefined) {
   const tab = list.canCreate
     ? { id: CREATE_AND_EDIT_TAB, label: 'Create and edit' }
     : { id: ALL_INDICATORS_TAB, label: 'All indicators' };
-  return { ...tab, content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} /> };
+  return {
+    ...tab,
+    content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} search={search} />,
+  };
 }
 
 /** An IMRG manager's two sections: the submissions waiting for reviewers, then those in review. */
-function underReviewSections({ unassigned, assigned }: IndicatorsUnderReview) {
+function underReviewSections(
+  { unassigned, assigned }: IndicatorsUnderReview,
+  search: string | undefined,
+) {
   return [
     {
       id: 'unassigned',
       label: 'Unassigned indicators',
-      content: <UnassignedTable indicators={unassigned} />,
+      content: tableOrNoMatches(search, unassigned, <UnassignedTable indicators={unassigned} />),
     },
     {
       id: 'assigned',
       label: 'Assigned indicators',
-      content: <AssignedTable indicators={assigned} />,
+      content: tableOrNoMatches(search, assigned, <AssignedTable indicators={assigned} />),
     },
   ];
 }
@@ -119,6 +145,7 @@ function underReviewSections({ unassigned, assigned }: IndicatorsUnderReview) {
  * admin, then the indicator list.
  */
 function dashboardSections({
+  search,
   underReview,
   toReview,
   scheduled,
@@ -126,7 +153,7 @@ function dashboardSections({
   list,
 }: DashboardPageProps) {
   const sectionsBeforeList = [
-    ...(underReview === null ? [] : underReviewSections(underReview)),
+    ...(underReview === null ? [] : underReviewSections(underReview, search)),
     toReview === null
       ? null
       : {
@@ -137,21 +164,25 @@ function dashboardSections({
             toReview.filter(({ draftSubmissionStatus }) => draftSubmissionStatus === 'in_review')
               .length,
           ),
-          content: <ReviewTable indicators={toReview} />,
+          content: tableOrNoMatches(search, toReview, <ReviewTable indicators={toReview} />),
         },
     scheduled === null
       ? null
       : {
           id: 'scheduled',
           label: countedLabel('Scheduled indicators', scheduled.length),
-          content: <ScheduledTable indicators={scheduled} />,
+          content: tableOrNoMatches(search, scheduled, <ScheduledTable indicators={scheduled} />),
         },
     awaitingDecision === null
       ? null
       : {
           id: 'update-decision',
           label: countedLabel('Update decision needed', awaitingDecision.length),
-          content: <AwaitingDecisionTable indicators={awaitingDecision} />,
+          content: tableOrNoMatches(
+            search,
+            awaitingDecision,
+            <AwaitingDecisionTable indicators={awaitingDecision} />,
+          ),
         },
   ].filter((section) => section !== null);
 
@@ -159,13 +190,14 @@ function dashboardSections({
   // other sections come before it.
   return list === null
     ? sectionsBeforeList
-    : [...sectionsBeforeList, listSection(list, sectionsBeforeList.length > 0)];
+    : [...sectionsBeforeList, listSection(list, sectionsBeforeList.length > 0, search)];
 }
 
 /**
  * Shows an IMRG manager the indicators under review, an IMRG reviewer the indicators assigned to
  * them, an admin the indicators waiting to be published, and anyone else a page of their
- * indicators. Each table gets a tab of its own whenever there is more than one.
+ * indicators. Each table gets a tab of its own whenever there is more than one. The search above
+ * them narrows every table.
  */
 export function DashboardPage(props: DashboardPageProps) {
   const sections = dashboardSections(props);
@@ -178,6 +210,7 @@ export function DashboardPage(props: DashboardPageProps) {
           <NotificationBanner disableAutoFocus>{props.notification}</NotificationBanner>
         )}
         <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
+        <DashboardSearch search={props.search} />
         {tabbed ? <Tabs items={sections} paramKey="tab" /> : sections[0]?.content}
       </GridColumn>
     </GridRow>

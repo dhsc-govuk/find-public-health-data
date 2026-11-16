@@ -1,6 +1,6 @@
 import type { IndicatorListScope } from '@fphd/auth/permissions';
-import { type Database, schema } from '@fphd/db';
-import { and, asc, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
+import { type Database, escapeLike, schema } from '@fphd/db';
+import { and, asc, count, desc, eq, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type {
@@ -96,24 +96,44 @@ function inNoTeams(scope: IndicatorListScope): boolean {
   return !scope.all && scope.teamIds.length === 0;
 }
 
+/** The display name of whoever wrote the indicator's first version. */
+function createdByName(db: Database) {
+  return sql<string | null>`(${db
+    .select({ name: creator.displayName })
+    .from(creator)
+    .where(eq(creator.id, indicatorCreatedBy))})`;
+}
+
+/**
+ * Each word of the search must appear in the indicator's name or its creator's name, ignoring
+ * case and in any order. A LIKE wildcard the user types is matched as the character itself.
+ * Without a search there is no condition. The condition reads the draft and published versions,
+ * so the query it goes in must join them.
+ */
+function searchCondition(db: Database, search: string | undefined): SQL | undefined {
+  if (search === undefined) return undefined;
+
+  const createdBy = createdByName(db);
+  const words = search.split(/\s+/).map(escapeLike);
+
+  return and(
+    ...words.map((word) => or(ilike(currentName, `%${word}%`), ilike(createdBy, `%${word}%`))),
+  );
+}
+
 /**
  * The dashboard's rows, unfiltered and unsorted. The team and the people are joined into the
  * same query, and the creator is a select-list subquery, which Postgres runs after any sort and
  * limit, for the rows returned alone.
  */
 function listRowsQuery(db: Database) {
-  const createdBy = sql<string | null>`(${db
-    .select({ name: creator.displayName })
-    .from(creator)
-    .where(eq(creator.id, indicatorCreatedBy))})`;
-
   return db
     .select({
       id: indicator.id,
       name: currentName,
       teamId: indicator.teamId,
       teamName: team.name,
-      createdBy,
+      createdBy: createdByName(db),
       updatedAt: latestUpdatedAt,
       lastEditedBy: lastEditor.displayName,
       indicatorStatus,
@@ -133,6 +153,22 @@ function listRowsQuery(db: Database) {
 }
 
 /**
+ * How many indicators in scope match the search. Without a search the count reads the indicator
+ * table alone. A search matches on the current name, so the count then joins the versions too.
+ */
+function countQuery(db: Database, inScope: SQL | undefined, search: string | undefined) {
+  if (search === undefined) return db.select({ total: count() }).from(indicator).where(inScope);
+
+  return db
+    .select({ total: count() })
+    .from(indicator)
+    .leftJoin(draftVersion, draftJoin)
+    .leftJoin(currentPublishedVersion, publishedJoin)
+    .leftJoin(publishedVersion, publishedVersionJoin)
+    .where(and(inScope, searchCondition(db, search)));
+}
+
+/**
  * The indicators in scope whatever their status, newest edit first; the id breaks any remaining
  * tie. A page costs two queries, this and its count, however many rows it shows.
  */
@@ -141,17 +177,18 @@ export async function listIndicatorsPage(
   page: number,
   pageSize: number,
   scope: IndicatorListScope,
+  search?: string,
 ): Promise<IndicatorAdminRows> {
   if (inNoTeams(scope)) return { indicators: [], total: 0 };
 
   const inScope = scopeCondition(scope);
   const [indicators, [counted]] = await Promise.all([
     listRowsQuery(db)
-      .where(inScope)
+      .where(and(inScope, searchCondition(db, search)))
       .orderBy(desc(latestUpdatedAt), asc(currentName), asc(indicator.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    db.select({ total: count() }).from(indicator).where(inScope),
+    countQuery(db, inScope, search),
   ]);
 
   return { indicators, total: counted?.total ?? 0 };
@@ -173,6 +210,7 @@ const forImrg = sql`(${indicatorStatus} = 'new' or ${draftUpdateDecision} = 'imr
 export async function listIndicatorsUnderReview(
   db: Database,
   scope: IndicatorListScope,
+  search?: string,
 ): Promise<IndicatorsUnderReviewRows> {
   if (inNoTeams(scope)) return { unassigned: [], assigned: [] };
 
@@ -182,6 +220,7 @@ export async function listIndicatorsUnderReview(
         scopeCondition(scope),
         inArray(draftSubmissionStatus, ['submitted', 'in_review', 'changes_requested', 'approved']),
         forImrg,
+        searchCondition(db, search),
       ),
     )
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
@@ -199,11 +238,12 @@ export async function listIndicatorsUnderReview(
 export async function listUpdatesAwaitingDecision(
   db: Database,
   scope: IndicatorListScope,
+  search?: string,
 ): Promise<IndicatorAdminListRow[]> {
   if (inNoTeams(scope)) return [];
 
   return listRowsQuery(db)
-    .where(and(scopeCondition(scope), awaitsUpdateDecision))
+    .where(and(scopeCondition(scope), awaitsUpdateDecision, searchCondition(db, search)))
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
 }
 
@@ -214,6 +254,7 @@ export async function listUpdatesAwaitingDecision(
 export async function listIndicatorsToReview(
   db: Database,
   reviewerId: string,
+  search?: string,
 ): Promise<IndicatorAdminListRow[]> {
   const assignedSubmissionIds = db
     .select({ id: indicatorVersionSubmissionReviewer.submissionId })
@@ -225,6 +266,7 @@ export async function listIndicatorsToReview(
       and(
         inArray(draftSubmissionStatus, ['in_review', 'changes_requested']),
         inArray(draftSubmissionId, assignedSubmissionIds),
+        searchCondition(db, search),
       ),
     )
     .orderBy(asc(draftSubmittedAt), asc(indicator.id));
@@ -237,11 +279,18 @@ export async function listIndicatorsToReview(
 export async function listIndicatorsScheduled(
   db: Database,
   scope: IndicatorListScope,
+  search?: string,
 ): Promise<IndicatorAdminListRow[]> {
   if (inNoTeams(scope)) return [];
 
   return listRowsQuery(db)
-    .where(and(scopeCondition(scope), eq(draftSubmissionStatus, 'approved')))
+    .where(
+      and(
+        scopeCondition(scope),
+        eq(draftSubmissionStatus, 'approved'),
+        searchCondition(db, search),
+      ),
+    )
     .orderBy(asc(draftVersion.scheduledPublishAt), asc(indicator.id));
 }
 

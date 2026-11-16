@@ -863,3 +863,88 @@ describe('sharing one connection with the public repositories', () => {
     },
   );
 });
+
+describe('the dashboard search', () => {
+  /** The ids of the rows on one page as long as the whole list, and its total. */
+  async function searched(db: Database, search: string) {
+    const all = (await idsNewestFirst(db)).length;
+    const { indicators, total } = await listIndicatorsPage(db, 1, all, EVERY_INDICATOR, search);
+    return { ids: indicators.map((row) => row.id), total };
+  }
+
+  /** A new draft whose first version Casey Patel wrote, rather than Sam Taylor. */
+  async function draftByOtherActor(db: Database, name: string) {
+    const created = await newDraft(db, name);
+    await db
+      .update(schema.indicatorVersion)
+      .set({ createdBy: OTHER_ACTOR })
+      .where(eq(schema.indicatorVersion.indicatorId, created.indicatorId));
+    return created.indicatorId;
+  }
+
+  seededRepositoryTest(
+    'lists and counts the indicators with the search in their name, ignoring case',
+    async ({ db }) => {
+      const matching = (await newDraft(db, 'Quokka sightings per hectare')).indicatorId;
+      await newDraft(db, 'Wombat sightings per hectare');
+
+      expect(await searched(db, 'QUOKKA')).toEqual({ ids: [matching], total: 1 });
+    },
+  );
+
+  seededRepositoryTest(
+    'lists the indicators created by someone the search names',
+    async ({ db }) => {
+      const byCasey = await draftByOtherActor(db, 'Numbat sightings by Casey');
+      await newDraft(db, 'Numbat sightings by Sam');
+
+      expect(await searched(db, 'numbat casey patel')).toEqual({ ids: [byCasey], total: 1 });
+    },
+  );
+
+  seededRepositoryTest(
+    'needs every word of the search, in any order, from the name or the creator',
+    async ({ db }) => {
+      const byCasey = await draftByOtherActor(db, 'Dugong sightings at dusk');
+      await newDraft(db, 'Dugong sightings at dawn');
+      await draftByOtherActor(db, 'Echidna sightings at dusk');
+
+      expect(await searched(db, 'patel dugong')).toEqual({ ids: [byCasey], total: 1 });
+    },
+  );
+
+  seededRepositoryTest('matches a percent sign or underscore as itself', async ({ db }) => {
+    const percent = (await newDraft(db, 'Kakapo sightings, 100% of sites')).indicatorId;
+    await newDraft(db, 'Kakapo sightings, 1000 sites');
+
+    expect(await searched(db, 'kakapo 0%')).toEqual({ ids: [percent], total: 1 });
+    expect(await searched(db, 'kakapo_')).toEqual({ ids: [], total: 0 });
+  });
+
+  seededRepositoryTest('keeps to the scope as well as the search', async ({ db }) => {
+    await newDraft(db, 'Platypus sightings in Team A');
+
+    await expect(
+      listIndicatorsPage(db, 1, 10, { all: false, teamIds: [TEAM_IDS.teamB] }, 'platypus'),
+    ).resolves.toEqual({ indicators: [], total: 0 });
+  });
+
+  seededRepositoryTest('narrows the IMRG queues to the matching indicators', async ({ db }) => {
+    const waiting = await submitted(db, 'Axolotl sightings waiting');
+    const inReview = await submitted(db, 'Axolotl sightings in review');
+    await assign(db, inReview, [FAKE_USER_IDS.imrgReviewer]);
+    await submitted(db, 'Pangolin sightings waiting');
+    const otherInReview = await submitted(db, 'Pangolin sightings in review');
+    await assign(db, otherInReview, [FAKE_USER_IDS.imrgReviewer]);
+
+    const ids = (rows: { id: string }[]) => rows.map((row) => row.id);
+    const underReview = await listIndicatorsUnderReview(db, EVERY_INDICATOR, 'axolotl');
+    const toReview = await listIndicatorsToReview(db, FAKE_USER_IDS.imrgReviewer, 'axolotl');
+
+    expect({
+      unassigned: ids(underReview.unassigned),
+      assigned: ids(underReview.assigned),
+    }).toEqual({ unassigned: [waiting], assigned: [inReview] });
+    expect(ids(toReview)).toEqual([inReview]);
+  });
+});

@@ -36,6 +36,7 @@ import {
   listTopicsForIndicators,
 } from './indicator-topic-repository.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
+import { escapeLike } from './like-pattern.ts';
 import {
   publishedArea as area,
   publishedAreaType as areaType,
@@ -135,10 +136,7 @@ function exactIdentifierMatch(db: Database, query: string) {
 }
 
 function escapedSearchTerms(query: string): string[] {
-  return query
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.replace(/[\\%_]/g, '\\$&'));
+  return query.trim().split(/\s+/).map(escapeLike);
 }
 
 /** The published indicator surface, ordered by name. */
@@ -162,7 +160,7 @@ export async function searchPublishedIndicators(
     .from(indicator)
     .where(or(identifierMatch, and(...terms.map((term) => ilike(indicator.name, `%${term}%`)))))
     .orderBy(
-      sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${query.replace(/[\\%_]/g, '\\$&')}%`} then 2 else 3 end`,
+      sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${escapeLike(query)}%`} then 2 else 3 end`,
       sql`position(lower(${query}) in lower(${indicator.name}))`,
       asc(indicator.name),
     )
@@ -720,7 +718,7 @@ export async function searchIndicators(
       ),
     );
 
-  const escapedQuery = query.replace(/[\\%_]/g, '\\$&');
+  const escapedQuery = escapeLike(query);
   const relevance = sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${escapedQuery}%`} then 2 when ${indicator.name} ilike ${`%${escapedQuery}%`} then 3 else 4 end`;
   const countQuery = db
     .select({ total: countDistinct(indicator.id) })

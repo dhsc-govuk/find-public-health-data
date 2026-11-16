@@ -135,15 +135,27 @@ export interface InternalTopicRepository {
 
 /** The publisher's view of indicators: every status, unlike the public repository. */
 export interface InternalIndicatorRepository {
-  listPage(page: number, pageSize: number, scope: IndicatorListScope): Promise<IndicatorAdminRows>;
+  /**
+   * The dashboard's lists. Each takes the dashboard's search, which keeps the indicators whose
+   * name or creator's name holds every word of it.
+   */
+  listPage(
+    page: number,
+    pageSize: number,
+    scope: IndicatorListScope,
+    search?: string,
+  ): Promise<IndicatorAdminRows>;
   /** The open submissions in scope, waiting for reviewers or in review, oldest first. */
-  listUnderReview(scope: IndicatorListScope): Promise<IndicatorsUnderReviewRows>;
+  listUnderReview(scope: IndicatorListScope, search?: string): Promise<IndicatorsUnderReviewRows>;
   /** The submissions in review assigned to the reviewer, oldest first. */
-  listToReview(reviewerId: string): Promise<IndicatorAdminListRow[]>;
+  listToReview(reviewerId: string, search?: string): Promise<IndicatorAdminListRow[]>;
   /** The approved drafts in scope, pending scheduling or scheduled, soonest date first. */
-  listScheduled(scope: IndicatorListScope): Promise<IndicatorAdminListRow[]>;
+  listScheduled(scope: IndicatorListScope, search?: string): Promise<IndicatorAdminListRow[]>;
   /** The submitted updates in scope waiting for the core team's decision, oldest first. */
-  listAwaitingDecision(scope: IndicatorListScope): Promise<IndicatorAdminListRow[]>;
+  listAwaitingDecision(
+    scope: IndicatorListScope,
+    search?: string,
+  ): Promise<IndicatorAdminListRow[]>;
   findById(id: string): Promise<IndicatorAdminDetailRow | undefined>;
   /** The indicator's team and draft reviewers, for an access check, or undefined with none. */
   findAccess(id: string): Promise<IndicatorAccessRow | undefined>;
@@ -325,11 +337,12 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       confirm: (indicatorId, batchId, actor) => confirmDataTable(db, indicatorId, batchId, actor),
     },
     indicators: {
-      listPage: (page, pageSize, scope) => listIndicatorsPage(db, page, pageSize, scope),
-      listUnderReview: (scope) => listIndicatorsUnderReview(db, scope),
-      listToReview: (reviewerId) => listIndicatorsToReview(db, reviewerId),
-      listScheduled: (scope) => listIndicatorsScheduled(db, scope),
-      listAwaitingDecision: (scope) => listUpdatesAwaitingDecision(db, scope),
+      listPage: (page, pageSize, scope, search) =>
+        listIndicatorsPage(db, page, pageSize, scope, search),
+      listUnderReview: (scope, search) => listIndicatorsUnderReview(db, scope, search),
+      listToReview: (reviewerId, search) => listIndicatorsToReview(db, reviewerId, search),
+      listScheduled: (scope, search) => listIndicatorsScheduled(db, scope, search),
+      listAwaitingDecision: (scope, search) => listUpdatesAwaitingDecision(db, scope, search),
       findById: (id) => getIndicatorById(db, id),
       findAccess: (id) => findIndicatorAccess(db, id),
       findDraftState: (id) => getIndicatorDraftState(db, id),

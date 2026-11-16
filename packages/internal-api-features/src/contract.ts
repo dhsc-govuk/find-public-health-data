@@ -167,6 +167,22 @@ export const indicatorPageQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
 });
 
+/** The longest search the dashboard accepts, which its search box also enforces. */
+export const INDICATOR_SEARCH_MAX_LENGTH = 200;
+
+/**
+ * The dashboard's search, which every list on it takes. An absent, empty or blank search means
+ * no search, so the lists are unfiltered.
+ */
+export const indicatorSearchQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .max(INDICATOR_SEARCH_MAX_LENGTH)
+    .optional()
+    .transform((search) => (search === '' ? undefined : search)),
+});
+
 /** The API list's filter: `teams=own` keeps to the teams the user publishes for. */
 export const indicatorListTeamsQuerySchema = z.object({ teams: z.literal('own').optional() });
 

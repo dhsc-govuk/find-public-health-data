@@ -11,6 +11,7 @@ import {
   IMRG_REVIEWER,
   PUBLISHER,
   PUBLISHER_AND_REVIEWER,
+  SECOND_TEAM_A_PUBLISHER,
   TEAM_B_PUBLISHER,
 } from '../support/sign-in.ts';
 
@@ -266,5 +267,87 @@ test.describe('as an IMRG reviewer who publishes', () => {
         .getByRole('tabpanel', { name: 'Create and edit' })
         .getByRole('button', { name: 'Create new indicator' }),
     ).toBeVisible();
+  });
+});
+
+test.describe('searching the dashboard', () => {
+  const SEARCH_LABEL = 'Search indicators by name or who created them';
+
+  async function search(page: Page, text: string) {
+    await page.getByRole('searchbox', { name: SEARCH_LABEL }).fill(text);
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page).toHaveURL(/[?&]search=/);
+  }
+
+  function rowNames(page: Page) {
+    return page.getByRole('table').locator('tbody tr').getByRole('rowheader');
+  }
+
+  test('narrows the list to the indicators whose name matches the search', async ({ page }) => {
+    const wanted = uniqueIndicatorName('search quokka');
+    await createDraft(page, wanted);
+    await createDraft(page, uniqueIndicatorName('search wombat'));
+    await page.goto('/dashboard');
+
+    await search(page, wanted);
+
+    await expect(rowNames(page)).toHaveText([wanted]);
+    await expect(page.getByRole('searchbox', { name: SEARCH_LABEL })).toHaveValue(wanted);
+  });
+
+  test('narrows the list to the indicators whose creator matches the search', async ({ page }) => {
+    const name = uniqueIndicatorName('search creator');
+    await createDraft(page, name);
+    await page.goto('/dashboard');
+
+    await search(page, `${name} ${PUBLISHER.name}`);
+    await expect(rowNames(page)).toHaveText([name]);
+
+    await search(page, `${name} ${SECOND_TEAM_A_PUBLISHER.name}`);
+    await expect(page.getByText('No indicators match your search.')).toBeVisible();
+  });
+
+  test('says no indicators match a search that finds none', async ({ page }, testInfo) => {
+    await search(page, uniqueIndicatorName('search nothing'));
+
+    await expect(page.getByText('No indicators match your search.')).toBeVisible();
+    await expect(page.getByRole('table')).toHaveCount(0);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test.describe('without JavaScript', () => {
+    test.use({ javaScriptEnabled: false });
+
+    test('narrows the list to the matches of the search', async ({ page }) => {
+      const wanted = uniqueIndicatorName('search no js');
+      await createDraft(page, wanted);
+      await page.goto('/dashboard');
+
+      await search(page, wanted);
+
+      await expect(rowNames(page)).toHaveText([wanted]);
+    });
+  });
+
+  test.describe('as an IMRG reviewer who publishes', () => {
+    test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
+
+    test('keeps the open tab after a search', async ({ page }) => {
+      await page.getByRole('tab', { name: 'Create and edit' }).click();
+      await expect(page).toHaveURL(/[?&]tab=create-and-edit/);
+
+      await search(page, uniqueIndicatorName('search tab'));
+
+      await expect(page).toHaveURL(/[?&]tab=create-and-edit/);
+      await expect(page.getByRole('tab', { name: 'Create and edit' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expect(
+        page
+          .getByRole('tabpanel', { name: 'Create and edit' })
+          .getByText('No indicators match your search.'),
+      ).toBeVisible();
+    });
   });
 });

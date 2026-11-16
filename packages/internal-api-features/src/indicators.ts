@@ -25,6 +25,7 @@ import {
   indicatorListTeamsQuerySchema,
   indicatorNameSchema,
   indicatorPageQuerySchema,
+  indicatorSearchQuerySchema,
   indicatorTeamSchema,
   toFieldErrors,
 } from './contract.ts';
@@ -127,11 +128,18 @@ export function internalIndicatorsRouter(
       return;
     }
 
+    const search = indicatorSearchQuerySchema.safeParse(request.query);
+
+    if (!search.success) {
+      response.status(400).json({ error: 'invalid_search' });
+      return;
+    }
+
     const { page } = query.data;
     const session = requireApiSession(response);
     const scope =
       filter.data.teams === 'own' ? ownTeamsListScope(session) : indicatorListScope(session);
-    const rows = await indicators.listPage(page, INDICATORS_PAGE_SIZE, scope);
+    const rows = await indicators.listPage(page, INDICATORS_PAGE_SIZE, scope, search.data.search);
     const body: IndicatorAdminPage = {
       indicators: rows.indicators.map(toListItem),
       page,
