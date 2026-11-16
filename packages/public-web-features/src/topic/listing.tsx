@@ -11,7 +11,7 @@ import {
   topicAreaRowSort,
   topicColumns,
 } from './data.ts';
-import { topicDataKey } from './filters.ts';
+import { topicDataKey, topicSort } from './filters.ts';
 import type { loadTopicPage } from './loader.ts';
 import { AreaSummariesTable } from './tables/area-summaries-table.tsx';
 import { TopicDataTable } from './tables/data-table.tsx';
@@ -125,7 +125,9 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
             label={areas ? 'Sort indicators by:' : 'Sort by'}
             name={sortParam}
             options={areas ? [...AREA_SUMMARY_SORTS] : TOPIC_SORTS}
-            value={areas ? topicAreaRowSort(params) : (params.get('sort') ?? listing.sort)}
+            value={
+              areas ? topicAreaRowSort(params) : (topicSort(params.get('sort')) ?? listing.sort)
+            }
             onChange={(event) => event.currentTarget.form?.requestSubmit()}
           />
           <noscript>

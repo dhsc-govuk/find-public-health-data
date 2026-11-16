@@ -24,6 +24,31 @@ const RECENTLY_UPDATED_MORTALITY = [
   'Mortality rate for deaths involving diabetes, all ages',
 ];
 
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(`subtopic sorting with JavaScript ${javaScriptEnabled ? 'enabled' : 'disabled'}`, () => {
+    test.use({ javaScriptEnabled });
+
+    test('keeps the subtopic filter when changing the sort', async ({ page }) => {
+      await page.goto('/search?t=diabetes&subtopic=prevalence-and-risk');
+      if (javaScriptEnabled)
+        await expect(page.getByRole('tab', { name: /^Indicators/ })).toBeVisible();
+      const links = results(page).getByRole('link');
+      await expect(links).toHaveText(['Diabetes: QOF prevalence']);
+
+      for (const sort of ['recently-updated', 'relevance']) {
+        await sortBy(page).selectOption(sort);
+        if (!javaScriptEnabled)
+          await page.getByRole('button', { name: 'Sort indicators', exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`sort=${sort}`));
+        const params = new URL(page.url()).searchParams;
+        expect(params.getAll('subtopic')).toEqual(['prevalence-and-risk']);
+        expect(params.get('t')).toBe('diabetes');
+        await expect(links).toHaveText(['Diabetes: QOF prevalence']);
+      }
+    });
+  });
+}
+
 test('loads the search page with h1', async ({ page }) => {
   await page.goto('/search');
 

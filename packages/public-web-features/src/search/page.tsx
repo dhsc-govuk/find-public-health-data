@@ -14,6 +14,7 @@ function stateFrom(data: SearchData): SearchState {
   return {
     q: data.q,
     topics: data.topics,
+    subtopics: data.subtopics ?? [],
     indicatorTypes: data.indicatorTypes,
     lifeStages: data.lifeStages,
     frameworks: data.frameworks,
