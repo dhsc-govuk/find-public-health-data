@@ -20,6 +20,7 @@ export function PublishingDatePage({
 }: PublishingDatePageProps) {
   return (
     <IndicatorSectionForm
+      guidance="publishing-date"
       fieldIds={publishingDateFieldIds}
       form={form}
       section={publishingDateSection}

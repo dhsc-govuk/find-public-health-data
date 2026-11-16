@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { firstRadioId, Radios, serviceName, Textarea } from '@fphd/ui';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { IndicatorSectionForm } from './indicator-section-form.tsx';
-import { SHOWN_VERSION } from './testing.ts';
+import type { GuidanceAnchor } from './publisher-guidance/paths.ts';
+import { RELATED_GUIDANCE_LINK, SHOWN_VERSION } from './testing.ts';
 
 afterEach(cleanup);
 
@@ -16,6 +18,8 @@ interface FormProps {
   formError?: string;
   questionIsHeading?: boolean;
   continueOnEnter?: boolean;
+  guidance?: GuidanceAnchor;
+  intro?: ReactNode;
   submitLabel?: string;
   version?: string;
 }
@@ -59,6 +63,43 @@ describe('IndicatorSectionForm', () => {
 
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
     expect(document.title).toBe(`A section - ${serviceName} - GOV.UK`);
+  });
+
+  it('links to its part of the publisher guidance under the heading, before the intro', () => {
+    const { container } = renderForm({ guidance: 'caveats', intro: <p>An intro</p> });
+    const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
+
+    expect(link.getAttribute('href')).toBe('/publish/guidance#caveats');
+    expect([...container.querySelectorAll('h1, p')].map((element) => element.textContent)).toEqual([
+      'A section',
+      RELATED_GUIDANCE_LINK,
+      'An intro',
+    ]);
+  });
+
+  it('opens the guidance in a new tab, so answers not yet saved stay on the page', () => {
+    renderForm({ guidance: 'caveats' });
+    const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
+
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noreferrer noopener');
+  });
+
+  it('puts the guidance link after the question when the question is the heading', () => {
+    const { container } = renderForm({ guidance: 'caveats', questionIsHeading: true });
+    const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
+    const lastQuestion = screen.getByLabelText('Two');
+
+    expect(container.querySelector('form')?.contains(link)).toBe(true);
+    expect(
+      lastQuestion.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('links to no guidance unless the page names its part', () => {
+    renderForm();
+
+    expect(screen.queryByRole('link', { name: RELATED_GUIDANCE_LINK })).toBeNull();
   });
 
   it('continues with a form that posts back to its own page', () => {

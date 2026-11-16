@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { DefinitionAndRationalePage } from './page.tsx';
 
 afterEach(cleanup);
@@ -29,6 +29,14 @@ function rationaleField() {
 }
 
 describe('DefinitionAndRationalePage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#definition',
+    );
+  });
+
   it('asks for the definition and the rationale under the section heading', () => {
     renderPage();
 

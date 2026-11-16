@@ -9,6 +9,7 @@ export function CalculationPage(form: SectionPageProps<CalculationField>) {
 
   return (
     <IndicatorSectionForm
+      guidance="non-standard-calculation-method"
       form={form}
       fieldIds={{ calculatedBy: firstRadioId('calculatedBy') }}
       section={calculationSection}

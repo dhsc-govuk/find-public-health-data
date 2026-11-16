@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SHOWN_VERSION } from '../testing.ts';
+import { RELATED_GUIDANCE_LINK, SHOWN_VERSION } from '../testing.ts';
 import { IndicatorNamePage } from './page.tsx';
 
 afterEach(cleanup);
@@ -32,14 +32,16 @@ describe('IndicatorNamePage', () => {
     expect(nameField().getAttribute('name')).toBe('name');
   });
 
-  it('describes the field with the hint', () => {
-    renderPage();
+  it('links to the guidance on names after the field, and gives no hint', () => {
+    const { container } = renderPage();
+    const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
 
-    const hint = screen.getByText(
-      'The name should be unique, descriptive and written in plain English.',
-    );
-
-    expect(nameField().getAttribute('aria-describedby')).toBe(hint.id);
+    expect(link.getAttribute('href')).toBe('/publish/guidance#name');
+    expect(
+      nameField().compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(nameField().getAttribute('aria-describedby')).toBeNull();
+    expect(container.querySelector('.govuk-hint')).toBeNull();
   });
 
   it('posts back to its own address, so it works without JavaScript', () => {

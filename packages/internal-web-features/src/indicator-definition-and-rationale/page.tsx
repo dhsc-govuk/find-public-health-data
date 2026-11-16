@@ -11,6 +11,7 @@ export function DefinitionAndRationalePage(form: SectionPageProps<DefinitionAndR
 
   return (
     <IndicatorSectionForm
+      guidance="definition"
       form={form}
       section={definitionAndRationaleSection}
       title="Definition and rationale"

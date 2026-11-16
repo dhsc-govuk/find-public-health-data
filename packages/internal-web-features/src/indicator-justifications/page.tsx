@@ -19,6 +19,7 @@ export function JustificationsPage(form: SectionPageProps<JustificationsField>) 
 
   return (
     <IndicatorSectionForm
+      guidance="ci-method-justification"
       form={form}
       intro={<ReviewerUseOnly />}
       fieldIds={{

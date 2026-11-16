@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { OtherCommentsPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -32,14 +32,22 @@ function comments() {
 }
 
 describe('OtherCommentsPage', () => {
-  it('says under the heading that the answers are for reviewer use only', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#sponsors-and-stakeholders',
+    );
+  });
+
+  it('says under the heading and its guidance link that the answers are for reviewer use only', () => {
     renderPage();
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Other comments' });
-    expect(heading.nextElementSibling?.textContent).toBe(
-      'The information you provide here is for reviewer use only',
-    );
-    expect(heading.nextElementSibling?.className).toContain('govuk-inset-text');
+    const inset = heading.nextElementSibling?.nextElementSibling;
+    expect(heading.nextElementSibling?.textContent).toBe(RELATED_GUIDANCE_LINK);
+    expect(inset?.textContent).toBe('The information you provide here is for reviewer use only');
+    expect(inset?.className).toContain('govuk-inset-text');
   });
 
   it('asks for the sponsors and stakeholders, then whether there are comments', () => {
