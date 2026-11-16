@@ -31,9 +31,14 @@ in.
 
 Links and cookies are JWTs signed with `BETA_ACCESS_SECRET`, with different audiences so neither
 works as the other. Links are built from `SITE_URL`, never from the request's Host header, which a
-client can set. Each address is emailed at most once a minute. That count is held in memory, so each
-replica keeps its own. It limits each address, not the service: with a domain on the list, anyone
-can have links sent to any number of addresses at it, made-up ones included.
+client can set. A link works any number of times until it expires. Single-use links would need
+somewhere to record used tokens, and the email security scanners many organisations run open links
+before the recipient does, which would use one up.
+
+Each address is emailed at most once a minute. Every address at a listed domain can be sent a link,
+made-up ones included, so the addresses a domain entry lets in are also sent at most 10 links an
+hour between them. An address on the list itself isn't held back by its domain's limit. Both counts
+are held in memory, so each replica keeps its own.
 
 ## Tests
 

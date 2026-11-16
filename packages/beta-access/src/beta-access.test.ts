@@ -315,6 +315,49 @@ describe('createBetaAccess', () => {
       });
     });
 
+    it("sends at most 10 links an hour to the domain's addresses", async () => {
+      const lee = { email: 'lee@team.example.org', label: 'Research round 2' };
+      const { betaAccess, clock, sent } = createEmailing({ invitees: [team, lee] });
+
+      for (let n = 1; n <= 10; n++)
+        await betaAccess.requestLink(`person${n}@team.example.org`, '/');
+      clock.advance(59 * 60 * 1_000);
+      await expect(betaAccess.requestLink('person11@team.example.org', '/')).resolves.toEqual({
+        outcome: 'domain_limit',
+        invitee: { email: 'person11@team.example.org', label: 'Team' },
+      });
+      // An address on the list itself isn't held back by its domain's limit.
+      await expect(betaAccess.requestLink(lee.email, '/')).resolves.toMatchObject({
+        outcome: 'sent',
+      });
+      clock.advance(60 * 1_000);
+      await expect(betaAccess.requestLink('person11@team.example.org', '/')).resolves.toMatchObject(
+        { outcome: 'sent' },
+      );
+
+      expect(sent).toHaveLength(12);
+    });
+
+    it("gives the domain's link back when sending fails", async () => {
+      let failing = true;
+      const betaAccess = createBetaAccess({
+        config: { ...config, invitees: [team] },
+        sendEmail: async () => {
+          if (failing) throw new Error('The email service is down');
+        },
+        now: createClock('2026-11-10T09:00:00Z').now,
+      });
+
+      for (let n = 1; n <= 10; n++) {
+        await expect(betaAccess.requestLink(`person${n}@team.example.org`, '/')).rejects.toThrow();
+      }
+      failing = false;
+
+      await expect(betaAccess.requestLink('person1@team.example.org', '/')).resolves.toMatchObject({
+        outcome: 'sent',
+      });
+    });
+
     it("ends the domain's access once it is taken off the list", async () => {
       const first = createEmailing({ invitees: [team] });
       const { cookie } = await signInAs(first.betaAccess, first.sent, 'jo@team.example.org');

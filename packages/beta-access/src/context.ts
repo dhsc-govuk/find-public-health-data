@@ -10,6 +10,8 @@ export type LinkRequest =
   // Local and test have no email service, so the page shows the link instead.
   | { outcome: 'shown'; invitee: BetaInvitee; link: string }
   | { outcome: 'already_sent'; invitee: BetaInvitee }
+  // The invitee's domain entry has had its links for the past hour.
+  | { outcome: 'domain_limit'; invitee: BetaInvitee }
   | { outcome: 'not_invited' };
 
 export type SignIn =

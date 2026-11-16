@@ -59,6 +59,12 @@ function logLinkRequest(logger: Logger, request: LinkRequest): void {
     case 'already_sent':
       logger.info({ invitee: request.invitee.label }, 'Private beta link not sent: sent recently');
       return;
+    case 'domain_limit':
+      logger.warn(
+        { invitee: request.invitee.label },
+        'Private beta link not sent: its domain has had its links for the hour',
+      );
+      return;
     case 'not_invited':
       logger.info('Private beta link not sent: not invited');
   }
