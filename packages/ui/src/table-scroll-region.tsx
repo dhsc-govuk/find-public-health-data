@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { attachStickyTable } from './sticky-table.ts';
 
 /**
@@ -10,6 +11,8 @@ import { attachStickyTable } from './sticky-table.ts';
 export function TableScrollRegion({ children, label }: { children: ReactNode; label: string }) {
   const root = useRef<HTMLDivElement>(null);
   const captionCopy = useRef<HTMLParagraphElement>(null);
+  const slot = useRef<HTMLDivElement>(null);
+  const [barContainer, setBarContainer] = useState<HTMLDivElement>();
   const bar = useRef<HTMLDivElement>(null);
   const thumb = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLElement>(null);
@@ -18,9 +21,15 @@ export function TableScrollRegion({ children, label }: { children: ReactNode; la
   const sticky = useRef<ReturnType<typeof attachStickyTable>>(undefined);
 
   useEffect(() => {
+    setBarContainer(document.createElement('div'));
+  }, []);
+
+  useEffect(() => {
     if (
       !root.current ||
       !captionCopy.current ||
+      !slot.current ||
+      !barContainer ||
       !bar.current ||
       !thumb.current ||
       !scroller.current ||
@@ -30,10 +39,12 @@ export function TableScrollRegion({ children, label }: { children: ReactNode; la
     ) {
       return;
     }
+    slot.current.append(barContainer);
     root.current.classList.add('fphd-table-scroll--enhanced');
     sticky.current = attachStickyTable({
       root: root.current,
       captionCopy: captionCopy.current,
+      barContainer,
       bar: bar.current,
       thumb: thumb.current,
       scroller: scroller.current,
@@ -43,8 +54,9 @@ export function TableScrollRegion({ children, label }: { children: ReactNode; la
     return () => {
       sticky.current?.detach();
       sticky.current = undefined;
+      barContainer.remove();
     };
-  }, []);
+  }, [barContainer]);
 
   // A re-rendered table can change width or head, so every render rechecks the layout.
   useEffect(() => {
@@ -54,11 +66,14 @@ export function TableScrollRegion({ children, label }: { children: ReactNode; la
   return (
     <div className="fphd-table-scroll" ref={root}>
       <p aria-hidden="true" className="fphd-table-caption-copy" hidden ref={captionCopy} />
-      <div className="fphd-table-scrollbar-slot">
-        <div aria-hidden="true" className="fphd-table-scrollbar" ref={bar}>
-          <div className="fphd-table-scrollbar__thumb" ref={thumb} />
-        </div>
-      </div>
+      <div className="fphd-table-scrollbar-slot" ref={slot} />
+      {barContainer &&
+        createPortal(
+          <div aria-hidden="true" className="fphd-table-scrollbar" ref={bar}>
+            <div className="fphd-table-scrollbar__thumb" ref={thumb} />
+          </div>,
+          barContainer,
+        )}
       <div className="fphd-table-scroll__frame">
         <section
           aria-label={label}

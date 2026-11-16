@@ -19,7 +19,7 @@ function setUp() {
     <div class="fphd-tabs" style="transform: translateX(-50%)">
       <div id="root">
         <p id="caption-copy" hidden></p>
-        <div id="slot"><div id="bar"><div id="thumb"></div></div></div>
+        <div id="slot"><div id="bar-container"><div id="bar"><div id="thumb"></div></div></div></div>
         <section id="scroller">
           <table><caption>Table</caption><thead><tr><th>Period</th></tr></thead>
           <tbody><tr><th>2024</th></tr></tbody></table>
@@ -44,6 +44,7 @@ function setUp() {
   scroller.getBoundingClientRect = () => box(headTop, 800);
   return {
     bar,
+    barContainer: byId('bar-container'),
     slot: byId('slot'),
     scrollTo: (top: number) => {
       headTop = top;
@@ -51,6 +52,7 @@ function setUp() {
     elements: {
       root: byId('root'),
       captionCopy: byId('caption-copy'),
+      barContainer: byId('bar-container'),
       bar,
       thumb: byId('thumb'),
       scroller,
@@ -86,21 +88,24 @@ describe('attachStickyTable', () => {
   });
 
   it('floats the scrollbar from the body, out of any transformed ancestor, while the head is pinned', () => {
-    const { bar, slot, scrollTo, elements } = setUp();
+    const { bar, barContainer, slot, scrollTo, elements } = setUp();
     const sticky = attachStickyTable(elements);
-    expect(bar.parentElement).toBe(slot);
+    expect(barContainer.parentElement).toBe(slot);
+    expect(bar.parentElement).toBe(barContainer);
 
     scrollTo(-200);
     window.dispatchEvent(new Event('scroll'));
     for (const frame of frames.splice(0)) frame(0);
-    expect(bar.parentElement).toBe(document.body);
+    expect(barContainer.parentElement).toBe(document.body);
+    expect(bar.parentElement).toBe(barContainer);
     expect(bar.classList).toContain('fphd-table-scrollbar--floating');
     expect(bar.style.top).toBe('6px');
 
     scrollTo(100);
     window.dispatchEvent(new Event('scroll'));
     for (const frame of frames.splice(0)) frame(0);
-    expect(bar.parentElement).toBe(slot);
+    expect(barContainer.parentElement).toBe(slot);
+    expect(bar.parentElement).toBe(barContainer);
     expect(bar.classList).not.toContain('fphd-table-scrollbar--floating');
     expect(bar.style.top).toBe('');
 
@@ -108,7 +113,8 @@ describe('attachStickyTable', () => {
     window.dispatchEvent(new Event('scroll'));
     for (const frame of frames.splice(0)) frame(0);
     sticky.detach();
-    expect(bar.parentElement).toBe(slot);
+    expect(barContainer.parentElement).toBe(slot);
+    expect(bar.parentElement).toBe(barContainer);
     expect(document.querySelector('.fphd-sticky-header')).toBeNull();
   });
 });

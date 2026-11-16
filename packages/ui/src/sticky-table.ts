@@ -40,6 +40,7 @@ export function headerPinned({
 interface StickyTableElements {
   root: HTMLElement;
   captionCopy: HTMLElement;
+  barContainer: HTMLElement;
   bar: HTMLElement;
   thumb: HTMLElement;
   scroller: HTMLElement;
@@ -95,6 +96,7 @@ function visibleCaption(caption: HTMLTableCaptionElement): string {
 export function attachStickyTable({
   root,
   captionCopy,
+  barContainer,
   bar,
   thumb,
   scroller,
@@ -111,17 +113,17 @@ export function attachStickyTable({
   let frame = 0;
 
   const table = () => scroller.querySelector('table');
-  const slot = bar.parentElement;
+  const slot = barContainer.parentElement;
 
   const pinBar = (top: number, left: number, width: number) => {
-    // Moved to the body for the same reason as the header copy.
-    if (bar.parentElement !== document.body) document.body.append(bar);
+    // Move the portal container so React can still remove its children on unmount.
+    if (barContainer.parentElement !== document.body) document.body.append(barContainer);
     bar.classList.add('fphd-table-scrollbar--floating');
     Object.assign(bar.style, { top: `${top}px`, left: `${left}px`, width: `${width}px` });
   };
 
   const unpinBar = () => {
-    if (slot && bar.parentElement !== slot) slot.append(bar);
+    if (slot && barContainer.parentElement !== slot) slot.append(barContainer);
     bar.classList.remove('fphd-table-scrollbar--floating');
     bar.style.removeProperty('top');
     bar.style.removeProperty('left');

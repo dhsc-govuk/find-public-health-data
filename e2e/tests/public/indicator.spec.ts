@@ -757,7 +757,14 @@ test('keeps the primary indicator when a shared comparison is unavailable', asyn
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('keeps a wide trend table’s scrollbar, head and periods in view', async ({ page }) => {
+test('keeps a wide trend table usable and switches tabs while its scrollbar is pinned', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
   await page.setViewportSize({ width: 768, height: 700 });
   await openIndicatorPage(
     page,
@@ -792,10 +799,21 @@ test('keeps a wide trend table’s scrollbar, head and periods in view', async (
   // Only this table's head pins, not those of the chart tables in closed details.
   await expect(header).toHaveCount(1);
   expect((await header.boundingBox())?.y).toBeLessThan(40);
-  const floatingBar = page.locator('body > .fphd-table-scrollbar--floating');
+  const floatingBar = page.locator('.fphd-table-scrollbar--floating');
   await expect(floatingBar).toBeVisible();
   expect((await floatingBar.boundingBox())?.y).toBeLessThan(10);
+  expect(Math.round((await floatingBar.boundingBox())?.x ?? -1)).toBe(
+    Math.round(regionBox?.x ?? 0),
+  );
   await expect(header).toHaveAttribute('aria-hidden', 'true');
+
+  // Scrolling the tab into view before clicking would unpin the bar before React deletes it.
+  await page.getByRole('tab', { name: 'About this indicator', exact: true }).dispatchEvent('click');
+  await expect(page.getByRole('heading', { name: 'Data attributes' })).toBeVisible();
+  await expect(region).toHaveCount(0);
+  await expect(floatingBar).toHaveCount(0);
+  await expect(header).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
 test('lets a table that fits keep the browser’s layout without a custom scrollbar', async ({
