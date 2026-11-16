@@ -36,7 +36,7 @@ it('declares every view of the preview schema, with the columns the database giv
     .sort((a, b) => a.name.localeCompare(b.name));
   const rows = await testDb.sql<{ name: string; column: string }[]>`
     SELECT table_name AS name, column_name AS column FROM information_schema.columns
-    WHERE table_schema = 'preview' AND table_name <> 'current_version'
+    WHERE table_schema = 'preview' AND table_name <> 'current_published_version'
     ORDER BY table_name, column_name
   `;
   const actual = [...Map.groupBy(rows, ({ name }) => name)].map(([name, columns]) => ({

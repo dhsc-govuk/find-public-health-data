@@ -9,7 +9,7 @@ import type postgres from 'postgres';
  * `db migrate` drops these views before it migrates, so that a migration can change a column a
  * preview view reads, and recreates them afterwards from the published views as they then are.
  * The generator copies each published view that chooses its versions through
- * `current_published_version`, reading `preview.current_version` instead. The published views
+ * `current_published_version`, reading `preview.current_published_version` instead. The published views
  * that choose versions some other way have a preview view written here by hand, and any other
  * such view stops the migration until it has one. A published view that reads no versioned data,
  * such as the areas or units, has no preview view: the preview reads the published one.
@@ -41,7 +41,7 @@ const PUBLISHED_BATCH = `(SELECT live.upload_batch_id
  * published version of every other indicator.
  */
 const CURRENT_VERSION = `
-CREATE VIEW preview.current_version AS
+CREATE VIEW preview.current_published_version AS
 SELECT v.id, v.indicator_id
 FROM public.indicator_version v
 WHERE v.id = ${PREVIEW_VERSION_ID}
@@ -99,7 +99,7 @@ SELECT i.id,
   p.first_published_at,
   p.last_published_at
 FROM public.indicator i
-JOIN preview.current_version cv ON cv.indicator_id = i.id
+JOIN preview.current_published_version cv ON cv.indicator_id = i.id
 JOIN public.indicator_version v ON v.id = cv.id
 CROSS JOIN LATERAL (
   SELECT pg_catalog.min(t.at) AS first_published_at, pg_catalog.max(t.at) AS last_published_at
@@ -212,6 +212,14 @@ export function planPreviewViews(views: PublishedViewReads[]): PreviewViewPlan {
   };
 }
 
+/**
+ * A reference to `public.current_published_version` in a view definition, as a whole name. The
+ * preview's version selector has the same name in its own schema, so a column qualified with the
+ * bare relation name, such as `current_published_version.id`, still resolves once only the schema
+ * is changed.
+ */
+const CURRENT_PUBLISHED_VERSION = /(?<![\w$."])public\.current_published_version(?![\w$"])/g;
+
 function quoted(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
@@ -315,8 +323,8 @@ export async function createPreviewViews(sql: postgres.Sql): Promise<PreviewView
           AS definition
       `;
       const definition = view?.definition.replaceAll(
-        'public.current_published_version',
-        'preview.current_version',
+        CURRENT_PUBLISHED_VERSION,
+        'preview.current_published_version',
       );
       if (definition === undefined || definition === view?.definition) {
         throw new Error(`published.${name} does not read public.current_published_version`);

@@ -104,7 +104,7 @@ describe('the preview views on the seeded database', () => {
   it('has a preview view for each published view that depends on the version', async () => {
     expect(await viewsIn(sql, 'preview')).toEqual([
       'available_data',
-      'current_version',
+      'current_published_version',
       'indicator',
       'indicator_classification',
       'indicator_slug',
@@ -130,7 +130,9 @@ describe('the preview views on the seeded database', () => {
       const found: string[] = [];
       for (const name of names) {
         const published =
-          name === 'current_version' ? 'public.current_published_version' : `published.${name}`;
+          name === 'current_published_version'
+            ? 'public.current_published_version'
+            : `published.${name}`;
         const [row] = await tx.unsafe<{ differ: boolean }[]>(`
           SELECT EXISTS (SELECT * FROM preview.${name} EXCEPT ALL SELECT * FROM ${published})
             OR EXISTS (SELECT * FROM ${published} EXCEPT ALL SELECT * FROM preview.${name})
@@ -338,7 +340,7 @@ describe('the preview views on the seeded database', () => {
     await expect(pub`SELECT count(*) FROM preview.indicator`).rejects.toThrow(
       /permission denied for schema preview/,
     );
-    await expect(pub`SELECT count(*) FROM preview.current_version`).rejects.toThrow(
+    await expect(pub`SELECT count(*) FROM preview.current_published_version`).rejects.toThrow(
       /permission denied for schema preview/,
     );
   });
@@ -380,6 +382,35 @@ describe('recreating the preview views around a migration', () => {
       WHERE table_schema = 'preview' AND table_name = 'observation_note'
     `;
     expect(columns).toEqual([{ column_name: 'observation_id' }]);
+  });
+
+  it('copies a view that names current_published_version without an alias, and only that name', async () => {
+    try {
+      // As the owner group, which db migrate checks owns every object.
+      await asOwnerGroup(sql, async () => {
+        await sql`CREATE TABLE current_published_version_note (indicator_id uuid, note text)`;
+        await sql`
+          CREATE VIEW published.indicator_note AS
+          SELECT current_published_version.indicator_id, n.note
+          FROM current_published_version
+          JOIN current_published_version_note n
+            ON n.indicator_id = current_published_version.indicator_id
+        `;
+        await withPreviewViewsRecreated(sql, async () => {});
+      });
+      // With no search path, every relation in the definition carries its schema.
+      const [view] = await sql.begin(async (tx) => {
+        await tx`SET LOCAL search_path = ''`;
+        return tx<{ definition: string }[]>`
+          SELECT pg_catalog.pg_get_viewdef('preview.indicator_note'::pg_catalog.regclass) AS definition
+        `;
+      });
+      expect(view?.definition).toContain('FROM (preview.current_published_version');
+      expect(view?.definition).toContain('public.current_published_version_note');
+      expect(view?.definition).not.toMatch(/public\.current_published_version(?!_)/);
+    } finally {
+      await sql`DROP TABLE current_published_version_note CASCADE`;
+    }
   });
 
   it('recreates the preview views when the migration fails', async () => {
