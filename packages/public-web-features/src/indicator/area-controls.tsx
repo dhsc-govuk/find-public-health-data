@@ -1,21 +1,10 @@
+import type { AreaWithParent } from '@fphd/public-api-features/contract';
 import { Button, CollapsibleFilterCard, GeographyTree, Select } from '@fphd/ui';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import type { AreaSummary } from './loader.ts';
+import { areaColourMode, areaComparisonRegions, highlightedAreaCodes } from './area-comparison.ts';
 
-export function AreaControls({
-  slug,
-  group,
-  groups,
-  areas,
-  displayOptions = true,
-}: {
-  slug: string;
-  group: string;
-  groups: string[];
-  areas: AreaSummary[];
-  displayOptions?: boolean;
-}) {
+function useAreaParams(anchor: string) {
   const location = useLocation();
   const navigate = useNavigate();
   const navigation = useNavigation();
@@ -24,12 +13,12 @@ export function AreaControls({
       ? navigation.location.search
       : location.search,
   );
-  const action = `${location.pathname}#${displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators'}`;
-  const highlighted = params.getAll('highlight');
-  const search = params.get('geo-q')?.trim() ?? '';
+  const action = `${location.pathname}#${anchor}`;
   const update = (key: string, value: string | string[]) => {
     const next = new URLSearchParams(params);
     next.delete(key);
+    // Region ticks are folded into the highlight list, so a later untick is not undone.
+    if (key === 'highlight') next.delete('highlightRegion');
     for (const entry of Array.isArray(value) ? value : [value]) if (entry) next.append(key, entry);
     void navigate(
       { search: `?${next}` },
@@ -42,6 +31,52 @@ export function AreaControls({
       .map(([key, value], index) => (
         <input key={`${key}-${index}`} name={key} type="hidden" value={value} />
       ));
+  return { params, action, update, hidden };
+}
+
+export function AreaSortControl() {
+  const { params, action, update, hidden } = useAreaParams('indicator-compare-areas');
+  return (
+    <Form method="get" action={action} className="fphd-area-sort">
+      {hidden(['areaSort'])}
+      <Select
+        id="compare-area-sort"
+        name="areaSort"
+        label="Sort by:"
+        value={params.get('areaSort') ?? 'descending'}
+        options={[
+          { label: 'Highest to lowest', value: 'descending' },
+          { label: 'Lowest to highest', value: 'ascending' },
+          { label: 'Alphabetical', value: 'alphabetical' },
+        ]}
+        onChange={(event) => update('areaSort', event.currentTarget.value)}
+      />
+      <noscript>
+        <Button type="submit">Sort</Button>
+      </noscript>
+    </Form>
+  );
+}
+
+export function AreaControls({
+  slug,
+  group,
+  groups,
+  areas,
+  displayOptions = true,
+}: {
+  slug: string;
+  group: string;
+  groups: string[];
+  areas: AreaWithParent[];
+  displayOptions?: boolean;
+}) {
+  const { params, action, update, hidden } = useAreaParams(
+    displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators',
+  );
+  const highlighted = highlightedAreaCodes(params, areas);
+  const regions = areaComparisonRegions(areas);
+  const search = params.get('geo-q')?.trim() ?? '';
   const matches = search
     ? areas.filter(({ name }) => name.toLowerCase().includes(search.toLowerCase()))
     : areas;
@@ -50,7 +85,7 @@ export function AreaControls({
       <h2 className="govuk-heading-m">Geographies</h2>
       <CollapsibleFilterCard active headingLevel={3} title="Geographies">
         <Form method="get" action={action}>
-          {hidden(['areaType', 'highlight', 'geo-q'])}
+          {hidden(['areaType', 'highlight', 'highlightRegion', 'geo-q'])}
           <Select
             id={displayOptions ? 'compare-area-type' : 'pair-area-type'}
             name="areaType"
@@ -64,7 +99,7 @@ export function AreaControls({
           </noscript>
         </Form>
         <Form method="get" action={action}>
-          {hidden(['geo-q', 'highlight'])}
+          {hidden(['geo-q', 'highlight', 'highlightRegion'])}
           <GeographyTree
             key={group}
             flat
@@ -72,6 +107,13 @@ export function AreaControls({
             levels={[group]}
             selected={highlighted}
             selectedLevels={[]}
+            regions={regions}
+            regionName="highlightRegion"
+            regionAreasNoun={
+              group === 'Local authorities'
+                ? 'upper tier local authorities'
+                : geographyGroupLabel(group)
+            }
             searchLabel={`Highlight ${geographyGroupLabel(group)}`}
             searchHint="Search areas"
             lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}`}
@@ -95,27 +137,14 @@ export function AreaControls({
           <h2 className="govuk-heading-m">Display options</h2>
           <CollapsibleFilterCard active headingLevel={3} title="Table and map options">
             <Form method="get" action={action}>
-              {hidden(['areaSort', 'areaColour'])}
-              <Select
-                id="compare-area-sort"
-                name="areaSort"
-                label="Sort by"
-                value={params.get('areaSort') ?? 'descending'}
-                options={[
-                  { label: 'Highest to lowest', value: 'descending' },
-                  { label: 'Lowest to highest', value: 'ascending' },
-                  { label: 'Alphabetical', value: 'alphabetical' },
-                ]}
-                onChange={(event) => update('areaSort', event.currentTarget.value)}
-              />
+              {hidden(['areaColour'])}
               <Select
                 id="compare-area-colour"
                 name="areaColour"
                 label="Colour geographies by"
-                value={params.get('areaColour') ?? 'england'}
+                value={areaColourMode(params.get('areaColour'))}
                 options={[
                   { label: 'Compared with England', value: 'england' },
-                  { label: '4 equal groups (quartiles)', value: 'quartiles' },
                   { label: '5 equal groups (quintiles)', value: 'quintiles' },
                 ]}
                 onChange={(event) => update('areaColour', event.currentTarget.value)}

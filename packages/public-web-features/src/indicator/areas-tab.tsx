@@ -2,7 +2,8 @@ import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fph
 import { useMemo } from 'react';
 import { useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import { AreaControls } from './area-controls.tsx';
+import { areaColourMode, highlightedAreaCodes } from './area-comparison.ts';
+import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
 import { quintileParam } from './charts/chart-data.ts';
 import { expandIndicator } from './compact-data.ts';
@@ -85,12 +86,13 @@ export function CompareAreasTab({
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <GridRow className="fphd-area-table-layout">
             <GridColumn width="one-half" className="fphd-area-table">
+              <AreaSortControl />
               <AreaComparisonTable
                 indicator={primary}
                 model={comparison}
                 sort={params.get('areaSort') ?? 'descending'}
-                highlighted={params.getAll('highlight')}
-                colour={params.get('areaColour') ?? 'england'}
+                highlighted={highlightedAreaCodes(params, compareAreaOptions)}
+                colour={areaColourMode(params.get('areaColour'))}
               />
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">

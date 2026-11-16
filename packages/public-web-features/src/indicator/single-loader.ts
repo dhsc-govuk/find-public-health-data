@@ -1,5 +1,5 @@
 import {
-  type AreaSummary,
+  type AreaWithParent,
   areaDisplayGroupListSchema,
   DEFAULT_INDICATOR_SEARCH_RESULTS,
   type IndicatorAreaData,
@@ -19,7 +19,11 @@ import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
-import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import {
+  AREA_COMPARISON_GROUPS,
+  AREA_COMPARISON_PARENT_TYPES,
+  areaComparisonOptions,
+} from './area-comparison.ts';
 import { englandCode, quintileParam, scatterPair } from './charts/chart-data.ts';
 import { loadRankingScatterComparison, loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
@@ -189,15 +193,15 @@ async function loadIndicatorComparison(
   let compareAreasData: IndicatorAreaData[] = [];
   let chartIndicators: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
-  let compareAreaOptions: AreaSummary[] = [];
+  let compareAreaOptions: AreaWithParent[] = [];
   if (compareAreaGroup) {
-    const groupsFor = (slug: string) =>
+    const groupsFor = (slug: string, parentType?: string) =>
       api.get(
-        `${apiPath`/api/indicators/${slug}/areas`}?displayGroup=${encodeURIComponent(compareAreaGroup)}`,
+        `${apiPath`/api/indicators/${slug}/areas`}?displayGroup=${encodeURIComponent(compareAreaGroup)}${parentType ? `&parentType=${encodeURIComponent(parentType)}` : ''}`,
         areaDisplayGroupListSchema,
       );
     const [groups, otherGroups] = await Promise.all([
-      groupsFor(routeDetail.slug),
+      groupsFor(routeDetail.slug, AREA_COMPARISON_PARENT_TYPES[compareAreaGroup]),
       comparedDetail ? groupsFor(comparedDetail.slug) : Promise.resolve(undefined),
     ]);
     const otherCodes = otherGroups

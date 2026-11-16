@@ -14,6 +14,44 @@ export const AREA_COMPARISON_GROUPS = new Set([
   'Integrated care boards',
 ]);
 
+/** The area type whose areas group each comparison level in the picker, as in the prototype. */
+export const AREA_COMPARISON_PARENT_TYPES: Partial<Record<string, string>> = {
+  'Local authorities': 'Regions (statistical)',
+  'Integrated care boards': 'NHS regions',
+};
+
+type AreaOption = {
+  code: string;
+  name: string;
+  parent?: { code: string; name: string } | null | undefined;
+};
+
+/** The comparison areas under their regions, regions by name, areas in their listed order. */
+export function areaComparisonRegions(areas: AreaOption[]) {
+  const regions = new Map<string, { code: string; name: string; areas: string[] }>();
+  for (const { code, parent } of areas) {
+    if (!parent) continue;
+    const region = regions.get(parent.code) ?? { ...parent, areas: [] };
+    region.areas.push(code);
+    regions.set(parent.code, region);
+  }
+  return [...regions.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/**
+ * Highlighted areas in the order picked, plus every area of each `highlightRegion` — what a
+ * region checkbox sends when the page runs without scripting.
+ */
+export function highlightedAreaCodes(params: URLSearchParams, areas: AreaOption[]): string[] {
+  const regions = new Set(params.getAll('highlightRegion'));
+  return [
+    ...new Set([
+      ...params.getAll('highlight'),
+      ...areas.flatMap(({ code, parent }) => (parent && regions.has(parent.code) ? [code] : [])),
+    ]),
+  ];
+}
+
 export function areaComparisonOptions<T extends { code: string }>(areas: T[], group: string): T[] {
   if (group !== 'Local authorities') return areas;
   const upperTier = areasInGeographyGroup(areas, 'Upper-tier local authorities');
@@ -85,12 +123,7 @@ export function areaComparisonRows(
         }
       : benchmarkCell;
   const areas = (row?.cells.filter(({ areaCode }) => areaCode !== 'E92000001') ?? []).sort(
-    (left, right) =>
-      sort === 'alphabetical'
-        ? left.areaName.localeCompare(right.areaName)
-        : sort === 'ascending'
-          ? (left.value ?? Number.POSITIVE_INFINITY) - (right.value ?? Number.POSITIVE_INFINITY)
-          : (right.value ?? Number.NEGATIVE_INFINITY) - (left.value ?? Number.NEGATIVE_INFINITY),
+    compareAreaRows(sort),
   );
   return {
     england,
@@ -100,6 +133,48 @@ export function areaComparisonRows(
       ? Date.parse(reference.toDate) - Date.parse(reference.fromDate) > 400 * 86400000
       : false,
   };
+}
+
+type SortableAreaRow = { areaCode: string; areaName: string; value: number | null };
+
+// Areas without a value go last, alphabetically, whatever the sort.
+function compareAreaRows(sort: string) {
+  return (left: SortableAreaRow, right: SortableAreaRow) => {
+    if (sort === 'alphabetical') return left.areaName.localeCompare(right.areaName);
+    if (left.value === null || right.value === null) {
+      return left.value === right.value
+        ? left.areaName.localeCompare(right.areaName)
+        : left.value === null
+          ? 1
+          : -1;
+    }
+    return sort === 'ascending' ? left.value - right.value : right.value - left.value;
+  };
+}
+
+/** Highlighted areas in the order they were picked, then England, then the rest by `sort`. */
+export function orderAreaComparisonRows<T extends SortableAreaRow>(
+  rows: T[],
+  sort: string,
+  highlighted: string[],
+): T[] {
+  const byCode = new Map(rows.map((row) => [row.areaCode, row]));
+  const first = [...new Set(highlighted)].flatMap((code) => {
+    const row = code === 'E92000001' ? undefined : byCode.get(code);
+    return row ? [row] : [];
+  });
+  const england = byCode.get('E92000001');
+  const rest = rows
+    .filter((row) => row.areaCode !== 'E92000001' && !first.includes(row))
+    .sort(compareAreaRows(sort));
+  return [...first, ...(england ? [england] : []), ...rest];
+}
+
+export type AreaColourMode = 'england' | 'quintiles';
+
+// Links from before quartiles were dropped still carry areaColour=quartiles.
+export function areaColourMode(value: string | null): AreaColourMode {
+  return value === 'quintiles' ? 'quintiles' : 'england';
 }
 
 export function areaComparisonLabel(
@@ -121,10 +196,10 @@ export function areaComparisonLabel(
 
 export function areaComparisonGroups(
   rows: Pick<ReturnType<typeof areaComparisonRows>['rows'][number], 'areaCode' | 'value'>[],
-  colour: string,
+  colour: AreaColourMode,
 ) {
-  const size = colour === 'quartiles' ? 4 : colour === 'quintiles' ? 5 : 0;
-  const heading = size === 4 ? 'Quartile' : size === 5 ? 'Quintile' : 'Compared with England';
+  const size = colour === 'quintiles' ? 5 : 0;
+  const heading = size ? 'Quintile' : 'Compared with England';
   const labels = new Map<string, string>();
   if (!size) return { heading, labels };
   const sorted = rows
@@ -158,18 +233,20 @@ export function areaComparisonBarMaximum(rows: ReturnType<typeof areaComparisonR
 
 export function areaComparisonBarColour(
   label: string,
-  mode: string,
+  mode: AreaColourMode,
   benchmark: boolean,
   neutral = false,
 ) {
   if (benchmark) return '#b1b4b6';
-  const palette =
-    mode === 'quartiles'
-      ? ['#440154', '#31688E', '#35B779', '#B4DE2C']
-      : mode === 'quintiles'
-        ? ['#440154', '#3E4A89', '#26828E', '#35B779', '#B4DE2C']
-        : undefined;
-  if (palette) return palette[Number(label.split(' ')[1]) - 1] ?? '#b1b4b6';
+  // Tonal steps of the chart turquoise, lightest for the lowest values. Each step is at least
+  // 1.5:1 from the next, so neighbouring groups stay apart in greyscale; bars carry a dark
+  // outline because the lighter steps are under 3:1 against white.
+  if (mode === 'quintiles') {
+    return (
+      ['#C5EEE9', '#84CAC2', '#27A096', '#027068', '#004842'][Number(label.split(' ')[1]) - 1] ??
+      '#b1b4b6'
+    );
+  }
   const colours: Record<string, string> = {
     Better: '#8ED973',
     Similar: neutral ? '#FFFFFF' : '#FFC000',

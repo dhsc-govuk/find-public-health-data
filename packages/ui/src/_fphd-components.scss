@@ -1257,6 +1257,23 @@ body.govuk-frontend-supported .fphd-filter-card {
   font-weight: 400;
 }
 
+.fphd-area-sort {
+  display: flex;
+  justify-content: flex-end;
+
+  .govuk-form-group {
+    display: flex;
+    align-items: center;
+    gap: govuk-spacing(2);
+    margin-bottom: govuk-spacing(2);
+  }
+
+  .govuk-label {
+    @include govuk-font($size: 16, $weight: bold);
+    margin-bottom: 0;
+  }
+}
+
 .fphd-geo-alt__more {
   color: govuk-colour("black", $variant: "tint-25");
   margin-bottom: 0;

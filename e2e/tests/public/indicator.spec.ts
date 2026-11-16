@@ -309,7 +309,7 @@ test('sorts hydrated area comparisons without Array.prototype.toSorted', async (
   page.on('request', (request) => {
     if (request.url().includes('.data?')) requests.push(request.url());
   });
-  await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('alphabetical');
+  await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('alphabetical');
   const headers = table.locator('tbody').getByRole('rowheader');
   await expect(headers).toHaveCount(10);
   const names = await headers.allTextContents();
@@ -317,7 +317,7 @@ test('sorts hydrated area comparisons without Array.prototype.toSorted', async (
   expect(names.slice(1)).toEqual(
     [...names.slice(1)].sort((left, right) => left.localeCompare(right)),
   );
-  await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('ascending');
+  await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('ascending');
   await expect(page).toHaveURL(/areaSort=ascending/);
   const values = (await table.locator('tbody tr td:first-of-type').allTextContents())
     .slice(1)
@@ -341,7 +341,7 @@ test('finds and highlights an area within the selected comparison geography', as
   await expect(
     table
       .getByRole('row')
-      .filter({ has: page.getByRole('rowheader', { name: 'Leeds', exact: true }) }),
+      .filter({ has: page.getByRole('rowheader', { name: 'Leeds (highlighted)', exact: true }) }),
   ).toHaveClass(/fphd-highlighted-area/);
   await expectNoAccessibilityViolations(page, testInfo);
 });
@@ -445,6 +445,62 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(metadata.text).toContain('Numerator definition:');
 });
 
+test('ticks every local authority in a statistical region and lists highlights above England', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  const northEast = panel.getByRole('checkbox', {
+    name: /^North East: all \d+ upper tier local authorities$/,
+  });
+  const size = Number((await northEast.getAttribute('aria-label'))?.match(/all (\d+)/)?.[1]);
+  expect(size).toBeGreaterThan(1);
+  await northEast.check();
+  await expect(northEast).toBeChecked();
+  const table = panel.getByRole('table', { name: /Table of area comparisons/ });
+  const headers = table.locator('tbody').getByRole('rowheader');
+  await expect(headers.nth(size)).toHaveText('England (benchmark)');
+  const highlighted = (await headers.allTextContents()).slice(0, size);
+  expect(highlighted.every((name) => name.endsWith('(highlighted)'))).toBe(true);
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('highlight').length).toBe(size);
+  await panel.getByRole('checkbox', { name: 'Hartlepool', exact: true }).uncheck();
+  await expect(northEast).not.toBeChecked();
+  expect(await northEast.evaluate((input: HTMLInputElement) => input.indeterminate)).toBe(true);
+  await northEast.check();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('highlight').length).toBe(size);
+  await northEast.uncheck();
+  await expect(headers.first()).toHaveText('England (benchmark)');
+});
+
+test('adds a region’s local authorities from its checkbox without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({ baseURL, javaScriptEnabled: false });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(
+      `${MORTALITY_PATH}?render=complete&tab-indicator=areas#indicator-compare-areas`,
+    );
+    await withoutJs
+      .getByRole('checkbox', { name: /^North East: all \d+ upper tier local authorities$/ })
+      .check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(withoutJs).toHaveURL(/highlightRegion=E12000001/);
+    const headers = withoutJs
+      .getByRole('table', { name: /Table of area comparisons/ })
+      .locator('tbody')
+      .getByRole('rowheader');
+    await expect(headers.first()).toHaveText(/\(highlighted\)$/);
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).toBeChecked();
+  } finally {
+    await context.close();
+  }
+});
+
 test('plots trends, area comparisons, inequalities and paired indicators', async ({
   page,
 }, testInfo) => {
@@ -476,7 +532,8 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await page.screenshot({ path: testInfo.outputPath('comparison-charts.png') });
   await expectNoAccessibilityViolations(page, testInfo);
   await page.getByRole('combobox', { name: 'Colour geographies by' }).selectOption('quintiles');
-  await expect(bar).toHaveAttribute('fill', /#440154|#3E4A89|#26828E|#35B779|#B4DE2C/);
+  await expect(bar).toHaveAttribute('fill', /#C5EEE9|#84CAC2|#27A096|#027068|#004842/);
+  await expect(page.getByRole('option', { name: /quartiles/ })).toHaveCount(0);
   await page.getByLabel('Colour areas by', { exact: true }).selectOption('yes');
   await expect(page).toHaveURL(/quintile-241=yes/);
   await expect(chart).toContainText(
@@ -553,7 +610,9 @@ test('keeps a pending geography choice when sorting the area table', async ({ pa
       .getByRole('combobox', { name: 'Type of geography', exact: true })
       .selectOption('Statistical regions');
     await request;
-    await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('alphabetical');
+    await page
+      .getByRole('combobox', { name: 'Sort by:', exact: true })
+      .selectOption('alphabetical');
   } finally {
     release();
   }

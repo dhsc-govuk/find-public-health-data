@@ -113,3 +113,76 @@ it('searches a flat catalogue supplied after the tab loader finishes', () => {
     '0',
   );
 });
+
+describe('GeographyTree regions', () => {
+  const areas = [
+    { code: 'E06000001', name: 'Hartlepool' },
+    { code: 'E06000047', name: 'County Durham' },
+    { code: 'E08000025', name: 'Birmingham' },
+    { code: 'E09000001', name: 'City of London' },
+  ];
+  const regions = [
+    { code: 'E12000001', name: 'North East', areas: ['E06000047', 'E06000001'] },
+    { code: 'E12000005', name: 'West Midlands', areas: ['E08000025'] },
+  ];
+  const tree = (selected: string[], onChange = vi.fn()) => (
+    <GeographyTree
+      flat
+      levels={['Local authorities']}
+      name="highlight"
+      regions={regions}
+      regionName="highlightRegion"
+      regionAreasNoun="upper tier local authorities"
+      selected={selected}
+      selectedLevels={[]}
+      fallback={{
+        query: '',
+        level: '',
+        groups: [],
+        previews: [{ name: 'Local authorities', areas }],
+        error: false,
+      }}
+      onChange={onChange}
+      onLevelsChange={() => undefined}
+    />
+  );
+
+  it('ticks and unticks every area in a region from its checkbox', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(tree(['E08000025'], onChange));
+    const northEast = screen.getByRole('checkbox', {
+      name: 'North East: all 2 upper tier local authorities',
+    }) as HTMLInputElement;
+    expect(northEast.name).toBe('highlightRegion');
+    expect(northEast.value).toBe('E12000001');
+    fireEvent.click(northEast);
+    expect(onChange).toHaveBeenLastCalledWith(['E08000025', 'E06000047', 'E06000001']);
+    rerender(tree(['E08000025', 'E06000047', 'E06000001'], onChange));
+    expect(northEast.checked).toBe(true);
+    fireEvent.click(northEast);
+    expect(onChange).toHaveBeenLastCalledWith(['E08000025']);
+    expect(
+      screen.getByText('All 2 upper tier local authorities in North East removed'),
+    ).toBeTruthy();
+  });
+
+  it('shows a part-ticked region as indeterminate and lists areas outside every region', () => {
+    render(tree(['E06000001']));
+    const northEast = screen.getByRole('checkbox', {
+      name: 'North East: all 2 upper tier local authorities',
+    }) as HTMLInputElement;
+    expect(northEast.checked).toBe(false);
+    expect(northEast.indeterminate).toBe(true);
+    expect(screen.getByRole('checkbox', { name: 'City of London' })).toBeTruthy();
+  });
+
+  it('keeps ticks in a collapsed region submitting and narrows regions to search matches', () => {
+    const { container } = render(tree(['E06000001']));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse North East' }));
+    expect(screen.queryByRole('checkbox', { name: 'Hartlepool' })).toBeNull();
+    expect(container.querySelector('input[type="hidden"][value="E06000001"]')).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'birm' } });
+    expect(screen.getByRole('checkbox', { name: 'Birmingham' })).toBeTruthy();
+    expect(screen.queryByRole('checkbox', { name: /North East/ })).toBeNull();
+  });
+});

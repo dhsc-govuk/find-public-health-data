@@ -1,11 +1,15 @@
 import { expect, it } from 'vitest';
 import {
+  areaColourMode,
   areaComparisonBarColour,
   areaComparisonBarMaximum,
   areaComparisonGroups,
   areaComparisonOptions,
+  areaComparisonRegions,
   areaComparisonRows,
   comparisonRankingData,
+  highlightedAreaCodes,
+  orderAreaComparisonRows,
 } from './area-comparison.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
@@ -29,15 +33,14 @@ it('groups available areas by rank, keeps ties together, and excludes England', 
     { areaCode: 'd', value: 4 },
     { areaCode: 'missing', value: null },
   ];
-  const quartiles = areaComparisonGroups(rows, 'quartiles');
-  expect(quartiles.heading).toBe('Quartile');
-  expect([...quartiles.labels]).toEqual([
-    ['a', 'Quartile 1 (lowest)'],
-    ['b', 'Quartile 1 (lowest)'],
-    ['c', 'Quartile 3'],
-    ['d', 'Quartile 4 (highest)'],
+  const quintiles = areaComparisonGroups(rows, 'quintiles');
+  expect(quintiles.heading).toBe('Quintile');
+  expect([...quintiles.labels]).toEqual([
+    ['a', 'Quintile 1 (lowest)'],
+    ['b', 'Quintile 1 (lowest)'],
+    ['c', 'Quintile 3'],
+    ['d', 'Quintile 4'],
   ]);
-  expect(areaComparisonGroups(rows, 'quintiles').heading).toBe('Quintile');
   expect(areaComparisonGroups(rows, 'england').heading).toBe('Compared with England');
 });
 
@@ -104,8 +107,8 @@ it('uses one zero-based bar scale with confidence-interval headroom and prototyp
   expect(areaComparisonBarColour('Higher', 'england', false, true)).toBe('#254BA4');
   expect(areaComparisonBarColour('Similar', 'england', false, true)).toBe('#FFFFFF');
   expect(areaComparisonBarColour('Worse', 'england', false)).toBe('#C00000');
-  expect(areaComparisonBarColour('Quartile 1 (lowest)', 'quartiles', false)).toBe('#440154');
-  expect(areaComparisonBarColour('Quintile 5 (highest)', 'quintiles', false)).toBe('#B4DE2C');
+  expect(areaComparisonBarColour('Quintile 1 (lowest)', 'quintiles', false)).toBe('#C5EEE9');
+  expect(areaComparisonBarColour('Quintile 5 (highest)', 'quintiles', false)).toBe('#004842');
   expect(areaComparisonBarMaximum([])).toBe(1);
 });
 
@@ -136,4 +139,55 @@ it('uses the latest local period when England alone has a newer value', () => {
   ]);
   indicator.areaData = indicator.areaData.slice(0, 1);
   expect(comparisonRankingData(indicator)[0]?.observations).toEqual([newer]);
+});
+
+it('offers England comparison and quintiles only, reading old quartile links as England', () => {
+  expect(areaColourMode('quintiles')).toBe('quintiles');
+  expect(areaColourMode('quartiles')).toBe('england');
+  expect(areaColourMode(null)).toBe('england');
+});
+
+it('lists highlighted areas in the order picked, then England, then the rest by sort', () => {
+  const rows = [
+    { areaCode: 'E92000001', areaName: 'England', value: 5 },
+    { areaCode: 'a', areaName: 'Alpha', value: 8 },
+    { areaCode: 'b', areaName: 'Beta', value: 12 },
+    { areaCode: 'c', areaName: 'Gamma', value: 3 },
+    { areaCode: 'n', areaName: 'Nowhere', value: null },
+    { areaCode: 'm', areaName: 'Missing', value: null },
+  ];
+  const order = (sort: string, highlighted: string[]) =>
+    orderAreaComparisonRows(rows, sort, highlighted).map(({ areaCode }) => areaCode);
+  expect(order('descending', [])).toEqual(['E92000001', 'b', 'a', 'c', 'm', 'n']);
+  expect(order('ascending', [])).toEqual(['E92000001', 'c', 'a', 'b', 'm', 'n']);
+  expect(order('alphabetical', [])).toEqual(['E92000001', 'a', 'b', 'c', 'm', 'n']);
+  expect(order('descending', ['c', 'a', 'c', 'E92000001', 'gone'])).toEqual([
+    'c',
+    'a',
+    'E92000001',
+    'b',
+    'm',
+    'n',
+  ]);
+});
+
+it('groups comparison areas under their regions and expands region ticks sent without scripting', () => {
+  const northEast = { code: 'E12000001', name: 'North East' };
+  const london = { code: 'E12000007', name: 'London' };
+  const areas = [
+    { code: 'E09000001', name: 'City of London', parent: london },
+    { code: 'E06000047', name: 'County Durham', parent: northEast },
+    { code: 'E06000001', name: 'Hartlepool', parent: northEast },
+    { code: 'X', name: 'Nowhere', parent: null },
+  ];
+  expect(areaComparisonRegions(areas)).toEqual([
+    { ...london, areas: ['E09000001'] },
+    { ...northEast, areas: ['E06000047', 'E06000001'] },
+  ]);
+  expect(
+    highlightedAreaCodes(
+      new URLSearchParams('highlight=E06000001&highlight=X&highlightRegion=E12000001'),
+      areas,
+    ),
+  ).toEqual(['E06000001', 'X', 'E06000047']);
 });

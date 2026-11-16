@@ -11,6 +11,13 @@ export interface GeographyArea {
   name: string;
 }
 
+export interface GeographyRegion {
+  code: string;
+  name: string;
+  /** Codes of the region's areas, in the order they are listed. */
+  areas: string[];
+}
+
 interface GeographyTreeProps {
   lookupUrl?: string | undefined;
   flat?: boolean;
@@ -40,6 +47,15 @@ interface GeographyTreeProps {
   onLevelsChange: (levels: string[]) => void;
   selected: string[];
   selectedLevels: string[];
+  /**
+   * Flat mode only: lists the areas under their regions, each with a checkbox that ticks or
+   * unticks every area in it. The region checkbox submits under `regionName`, so the page can
+   * add a region's areas without scripting.
+   */
+  regions?: GeographyRegion[] | undefined;
+  regionName?: string;
+  /** Plural noun for a region's areas, for hidden text: "upper tier local authorities". */
+  regionAreasNoun?: string;
 }
 
 // The page preloads one extra row to tell us whether a level exceeds the rendered cap;
@@ -70,6 +86,9 @@ export function GeographyTree({
   searchHint,
   groupAsOne = false,
   showLimitHint = true,
+  regions,
+  regionName = 'region',
+  regionAreasNoun = 'areas',
 }: GeographyTreeProps) {
   const lookup = (query: string) => `${lookupUrl}${lookupUrl.includes('?') ? '&' : '?'}${query}`;
   const idPrefix = useId();
@@ -99,6 +118,8 @@ export function GeographyTree({
     fallback?.error && fallback.level ? [fallback.level] : [],
   );
   const [retry, setRetry] = useState(0);
+  const [closedRegions, setClosedRegions] = useState<string[]>([]);
+  const [regionAnnouncement, setRegionAnnouncement] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const levelRequests = useRef(new Map<string, AbortController>());
   const resultsRef = useRef<HTMLElement>(null);
@@ -194,6 +215,17 @@ export function GeographyTree({
     );
   };
 
+  const toggleRegion = (region: GeographyRegion, checked: boolean) => {
+    const members = new Set(region.areas);
+    const next = checked
+      ? [...new Set([...selected, ...region.areas])]
+      : selected.filter((code) => !members.has(code));
+    onChange(maxAreaTicks === undefined ? next : next.slice(0, maxAreaTicks));
+    setRegionAnnouncement(
+      `All ${region.areas.length} ${regionAreasNoun} in ${region.name} ${checked ? 'added' : 'removed'}`,
+    );
+  };
+
   const toggleLevel = (level: string, checked: boolean) =>
     onLevelsChange(
       checked
@@ -232,10 +264,37 @@ export function GeographyTree({
     group.areas
       .filter((_, index) => index < CHILD_CAP)
       .concat(group.areas.slice(CHILD_CAP).filter(({ code }) => selected.includes(code)));
+  const regionView =
+    flat && regions?.length
+      ? (() => {
+          const shownAreas = groups.flatMap((group) => group.areas);
+          const grouped = new Set(regions.flatMap(({ areas }) => areas));
+          return {
+            regions: regions
+              .map((region) => {
+                const members = new Set(region.areas);
+                return {
+                  ...region,
+                  open: searching || !closedRegions.includes(region.code),
+                  visible: shownAreas.filter(({ code }) => members.has(code)),
+                };
+              })
+              .filter(({ visible }) => visible.length > 0),
+            ungrouped: shownAreas.filter(({ code }) => !grouped.has(code)),
+          };
+        })()
+      : undefined;
   const visibleCodes = new Set(
-    groups
-      .filter(({ name: groupName }) => flat || showingSearchResults || expanded.includes(groupName))
-      .flatMap((group) => shownFor(group).map(({ code }) => code)),
+    regionView
+      ? [
+          ...regionView.regions.flatMap(({ open, visible }) => (open ? visible : [])),
+          ...regionView.ungrouped,
+        ].map(({ code }) => code)
+      : groups
+          .filter(
+            ({ name: groupName }) => flat || showingSearchResults || expanded.includes(groupName),
+          )
+          .flatMap((group) => shownFor(group).map(({ code }) => code)),
   );
 
   return (
@@ -309,7 +368,102 @@ export function GeographyTree({
               Try again
             </Button>
           ) : null}
-          {groups.map((group) => {
+          {regionView ? (
+            <div className="fphd-geo-alt__children">
+              <p aria-live="polite" className="govuk-visually-hidden">
+                {regionAnnouncement}
+              </p>
+              {regionView.regions.map((region) => {
+                const regionId = `${idPrefix}-region-${region.code}`;
+                const picked = region.areas.filter((code) => selected.includes(code)).length;
+                return (
+                  <div key={region.code}>
+                    <div className="fphd-geo-alt__group fphd-geo-alt__region">
+                      {searching ? null : (
+                        <button
+                          aria-expanded={region.open}
+                          className={`fphd-geo-alt__toggle${region.open ? ' fphd-geo-alt__toggle--open' : ''}`}
+                          onClick={() =>
+                            setClosedRegions((current) =>
+                              current.includes(region.code)
+                                ? current.filter((code) => code !== region.code)
+                                : [...current, region.code],
+                            )
+                          }
+                          type="button"
+                        >
+                          <span className="fphd-geo-alt__chevron" aria-hidden="true" />
+                          <span className="govuk-visually-hidden">
+                            {`${region.open ? 'Collapse' : 'Expand'} ${region.name}`}
+                          </span>
+                        </button>
+                      )}
+                      <div className="govuk-checkboxes govuk-checkboxes--small fphd-geo-alt__group-cb">
+                        <div className="govuk-checkboxes__item">
+                          <input
+                            // A visually hidden span would make browsers name it "North East : all…".
+                            aria-label={`${region.name}: all ${region.areas.length} ${regionAreasNoun}`}
+                            checked={picked === region.areas.length}
+                            className="govuk-checkboxes__input"
+                            id={regionId}
+                            name={regionName}
+                            onChange={(event) => toggleRegion(region, event.currentTarget.checked)}
+                            ref={(input) => {
+                              if (input) {
+                                input.indeterminate = picked > 0 && picked < region.areas.length;
+                              }
+                            }}
+                            type="checkbox"
+                            value={region.code}
+                          />
+                          <label className="govuk-label govuk-checkboxes__label" htmlFor={regionId}>
+                            {region.name}
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    {region.open ? (
+                      <div className="fphd-geo-alt__children fphd-geo-alt__region-areas">
+                        <Checkboxes
+                          id={`${regionId}-areas`}
+                          label={
+                            <span className="govuk-visually-hidden">
+                              {`${regionAreasNoun} in ${region.name}`}
+                            </span>
+                          }
+                          name={name}
+                          onChange={(event) => toggleArea(event.target.value, event.target.checked)}
+                          classModifiers="small"
+                          options={region.visible.map((area) => ({
+                            label: area.name,
+                            checked: selected.includes(area.code),
+                            value: area.code,
+                            disabled: !selected.includes(area.code) && atCap,
+                          }))}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {regionView.ungrouped.length ? (
+                <Checkboxes
+                  id={`${idPrefix}-ungrouped-areas`}
+                  label={<span className="govuk-visually-hidden">Other {regionAreasNoun}</span>}
+                  name={name}
+                  onChange={(event) => toggleArea(event.target.value, event.target.checked)}
+                  classModifiers="small"
+                  options={regionView.ungrouped.map((area) => ({
+                    label: area.name,
+                    checked: selected.includes(area.code),
+                    value: area.code,
+                    disabled: !selected.includes(area.code) && atCap,
+                  }))}
+                />
+              ) : null}
+            </div>
+          ) : null}
+          {(regionView ? [] : groups).map((group) => {
             const AreaChoices = single ? Radios : Checkboxes;
             const isOpen = flat || showingSearchResults || expanded.includes(group.name);
             const isLoading = !showingSearchResults && loaded[group.name] === 'loading';

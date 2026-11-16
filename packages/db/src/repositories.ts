@@ -2,6 +2,7 @@ import {
   type AreaLookup,
   type AreaParent,
   type AreaSummary,
+  type AreaWithParent,
   type IndicatorAreaFilters,
   listAreaParents,
   listAreasByCodes,
@@ -57,7 +58,7 @@ export interface IndicatorRepository {
   listAreas(
     indicatorId: string,
     filters?: IndicatorAreaFilters,
-  ): Promise<{ displayGroup: string; areas: AreaSummary[] }[]>;
+  ): Promise<{ displayGroup: string; areas: AreaWithParent[] }[]>;
   listPublished(): Promise<PublishedIndicator[]>;
   search(query: string, limit: number): Promise<PublishedIndicator[]>;
   /** The one place the public short id resolves to an internal id. */

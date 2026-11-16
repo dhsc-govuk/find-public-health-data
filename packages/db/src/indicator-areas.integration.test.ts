@@ -101,3 +101,17 @@ it('bounds ungrouped area types independently in all-data exports', async () => 
   for (const type of types)
     expect(exported.find(({ displayGroup }) => displayGroup === type.name)?.areas).toHaveLength(1);
 });
+
+it('adds each area’s current parent of the requested type in the same listing', async () => {
+  const id = await resolvePublishedIndicatorId(db, 108);
+  if (!id) throw new Error('Seeded indicator missing');
+  const [plain] = await listIndicatorAreas(db, id, { displayGroup: 'Local authorities' });
+  const [withRegions] = await listIndicatorAreas(db, id, {
+    displayGroup: 'Local authorities',
+    parentType: 'Regions (statistical)',
+  });
+  expect(plain?.areas.every((entry) => !('parent' in entry))).toBe(true);
+  expect(withRegions?.areas.map(({ code }) => code)).toEqual(plain?.areas.map(({ code }) => code));
+  const hartlepool = withRegions?.areas.find(({ code }) => code === 'E06000001');
+  expect(hartlepool?.parent).toEqual({ code: 'E12000001', name: 'North East' });
+});

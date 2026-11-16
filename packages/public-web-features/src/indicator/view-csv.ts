@@ -1,9 +1,12 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import {
+  areaColourMode,
   areaComparisonGroups,
   areaComparisonLabel,
   areaComparisonRows,
+  highlightedAreaCodes,
   observationComparisonLabel,
+  orderAreaComparisonRows,
 } from './area-comparison.ts';
 import { availableMeasures, inequalityValueLabel, MEASURES, unitNote } from './data.ts';
 import { tableCsv } from './download.ts';
@@ -19,13 +22,15 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
   const tab = params.get('tab-indicator');
   let rows: (string | number | null)[][];
   if (tab === 'areas') {
-    const areas = areaComparisonRows(
-      primary,
-      data.compareAreasData,
-      params.get('areaSort') ?? 'descending',
-    );
-    const colour = params.get('areaColour') ?? 'england';
+    const sort = params.get('areaSort') ?? 'descending';
+    const areas = areaComparisonRows(primary, data.compareAreasData, sort);
+    const colour = areaColourMode(params.get('areaColour'));
     const groups = areaComparisonGroups(areas.rows, colour);
+    const ordered = orderAreaComparisonRows(
+      areas.rows,
+      sort,
+      highlightedAreaCodes(params, data.compareAreaOptions),
+    );
     rows = [
       [
         'Area',
@@ -34,10 +39,10 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         '95% lower confidence interval',
         '95% upper confidence interval',
       ],
-      ...areas.rows.map((cell) => [
+      ...ordered.map((cell) => [
         cell.areaName + (cell.areaCode === 'E92000001' ? ' (benchmark)' : ''),
         cell.value,
-        colour === 'quartiles' || colour === 'quintiles'
+        colour === 'quintiles'
           ? (groups.labels.get(cell.areaCode) ?? '')
           : areaComparisonLabel(cell, areas.england, primary.detail),
         cell.series.at(-1)?.lowerCi95 ?? null,

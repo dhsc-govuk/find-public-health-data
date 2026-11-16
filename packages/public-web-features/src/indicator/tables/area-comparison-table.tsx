@@ -1,5 +1,10 @@
 import { TableScrollRegion } from '@fphd/ui';
-import { areaComparisonBarColour, areaComparisonGroups } from '../area-comparison.ts';
+import {
+  type AreaColourMode,
+  areaComparisonBarColour,
+  areaComparisonGroups,
+  orderAreaComparisonRows,
+} from '../area-comparison.ts';
 import type { IndicatorComparisonModel } from '../comparison-model.ts';
 import { formatCalculatedValue } from '../data.ts';
 import type { SelectedIndicator } from '../loader.ts';
@@ -15,21 +20,13 @@ export function AreaComparisonTable({
   model: IndicatorComparisonModel['areas'];
   sort: string;
   highlighted: string[];
-  colour?: string;
+  colour?: AreaColourMode;
 }) {
-  const shown = [...model.rows].sort((left, right) =>
-    left.areaCode === 'E92000001'
-      ? -1
-      : right.areaCode === 'E92000001'
-        ? 1
-        : sort === 'alphabetical'
-          ? left.areaName.localeCompare(right.areaName)
-          : sort === 'ascending'
-            ? (left.value ?? Number.POSITIVE_INFINITY) - (right.value ?? Number.POSITIVE_INFINITY)
-            : (right.value ?? Number.NEGATIVE_INFINITY) - (left.value ?? Number.NEGATIVE_INFINITY),
-  );
+  const shown = orderAreaComparisonRows(model.rows, sort, highlighted);
+  const picked = new Set(highlighted);
   const groups = areaComparisonGroups(shown, colour);
   const barMaximum = model.barMaximum;
+  const hasCi = shown.some((cell) => cell.lowerCi95 != null || cell.upperCi95 != null);
   return (
     <TableScrollRegion label={`${indicator.detail.name} comparison across areas data table`}>
       <table className="govuk-table fphd-area-comparison-table">
@@ -49,32 +46,44 @@ export function AreaComparisonTable({
               {groups.heading}
             </th>
             <th className="govuk-table__header fphd-area-comparison-table__bar" scope="col">
-              <span className="govuk-visually-hidden">Bar chart of value</span>
+              Comparison chart
             </th>
-            <th className="govuk-table__header" scope="col">
-              95% lower confidence interval
-            </th>
-            <th className="govuk-table__header" scope="col">
-              95% upper confidence interval
-            </th>
+            {hasCi ? (
+              <>
+                <th className="govuk-table__header" scope="col">
+                  95% lower confidence interval
+                </th>
+                <th className="govuk-table__header" scope="col">
+                  95% upper confidence interval
+                </th>
+              </>
+            ) : null}
           </tr>
         </thead>
         <tbody className="govuk-table__body">
           {shown.map((cell) => {
-            const compare =
-              colour === 'quartiles' || colour === 'quintiles'
-                ? (groups.labels.get(cell.areaCode) ?? '')
-                : cell.label;
+            const benchmark = cell.areaCode === 'E92000001';
+            const isPicked = !benchmark && picked.has(cell.areaCode);
+            const compare = benchmark
+              ? ''
+              : cell.value === null
+                ? 'No data'
+                : colour === 'quintiles'
+                  ? (groups.labels.get(cell.areaCode) ?? '')
+                  : cell.label;
             return (
               <tr
-                className={`govuk-table__row${cell.areaCode === 'E92000001' ? ' fphd-area-comparison-table__benchmark' : ''}${highlighted.includes(cell.areaCode) ? ' fphd-highlighted-area' : ''}`}
+                className={`govuk-table__row${benchmark ? ' fphd-area-comparison-table__benchmark' : ''}${isPicked ? ' fphd-highlighted-area' : ''}`}
                 key={cell.areaCode}
               >
                 <th className="govuk-table__header" scope="row">
                   {cell.areaName}
-                  {cell.areaCode === 'E92000001' ? ' (benchmark)' : ''}
+                  {benchmark ? ' (benchmark)' : ''}
+                  {isPicked ? <span className="govuk-visually-hidden"> (highlighted)</span> : null}
                 </th>
-                <td className="govuk-table__cell">{formatCalculatedValue(cell.value)}</td>
+                <td className="govuk-table__cell">
+                  {cell.value === null ? '-' : formatCalculatedValue(cell.value)}
+                </td>
                 <td className="govuk-table__cell">{compare}</td>
                 <td
                   className="govuk-table__cell fphd-area-comparison-table__bar"
@@ -98,24 +107,26 @@ export function AreaComparisonTable({
                         fill={areaComparisonBarColour(
                           compare,
                           colour,
-                          cell.areaCode === 'E92000001',
+                          benchmark,
                           indicator.detail.polarity === 'no-polarity',
                         )}
-                        stroke={
-                          colour === 'quartiles' || colour === 'quintiles' ? '#0b0c0c' : undefined
-                        }
+                        stroke={colour === 'quintiles' && !benchmark ? '#0b0c0c' : undefined}
                         strokeWidth="0.5"
                         vectorEffect="non-scaling-stroke"
                       />
                     </svg>
                   )}
                 </td>
-                <td className="govuk-table__cell">
-                  {cell.lowerCi95 == null ? '—' : formatCalculatedValue(cell.lowerCi95)}
-                </td>
-                <td className="govuk-table__cell">
-                  {cell.upperCi95 == null ? '—' : formatCalculatedValue(cell.upperCi95)}
-                </td>
+                {hasCi ? (
+                  <>
+                    <td className="govuk-table__cell">
+                      {cell.lowerCi95 == null ? '-' : formatCalculatedValue(cell.lowerCi95)}
+                    </td>
+                    <td className="govuk-table__cell">
+                      {cell.upperCi95 == null ? '-' : formatCalculatedValue(cell.upperCi95)}
+                    </td>
+                  </>
+                ) : null}
               </tr>
             );
           })}

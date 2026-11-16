@@ -41,3 +41,46 @@ it('sorts a copy without ES2023 array methods and keeps England first and missin
   expect(headers()).toEqual(['England (benchmark)', 'Alpha', 'Beta', 'Unknown']);
   expect(model.rows.map(({ areaCode }) => areaCode)).toEqual(['b', 'missing', 'a', 'E92000001']);
 });
+
+it('puts highlighted areas above England, names the chart column, and drops empty CI columns', () => {
+  const primary = selected();
+  const model = indicatorComparisonModel([primary], {
+    compareAreasData: primary.areaData,
+    comparedAreasData: [],
+    compareAreaOptions: [],
+    compareAreaGroup: 'Local authorities',
+    comparisonDisplayGroups: [],
+  }).areas;
+  const row = model.rows[0];
+  if (!row) throw new Error('Expected a benchmark fixture');
+  model.rows = [
+    { ...row, areaCode: 'E92000001', areaName: 'England', lowerCi95: null, upperCi95: null },
+    { ...row, areaCode: 'a', areaName: 'Alpha', value: 8, lowerCi95: null, upperCi95: null },
+    { ...row, areaCode: 'b', areaName: 'Beta', value: 12, lowerCi95: null, upperCi95: null },
+    { ...row, areaCode: 'n', areaName: 'Nowhere', value: null, lowerCi95: null, upperCi95: null },
+  ];
+  render(
+    <AreaComparisonTable
+      indicator={primary}
+      model={model}
+      sort="descending"
+      highlighted={['a']}
+      colour="quintiles"
+    />,
+  );
+  const table = within(screen.getByRole('table'));
+  expect(table.getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual([
+    'Alpha (highlighted)',
+    'England (benchmark)',
+    'Beta',
+    'Nowhere',
+  ]);
+  expect(table.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+    'Area',
+    `Value (${primary.detail.unit ?? 'number'})`,
+    'Quintile',
+    'Comparison chart',
+  ]);
+  const nowhere = table.getByRole('rowheader', { name: 'Nowhere' }).closest('tr');
+  expect(nowhere?.textContent).toContain('No data');
+});
