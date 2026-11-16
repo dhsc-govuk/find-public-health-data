@@ -6,6 +6,11 @@ minutes. The link sets an access cookie, which lasts 30 days or until the privat
 whichever comes first. Every request checks the cookie and that its address is still on the list, so
 taking someone off the list ends their access when public-web next restarts with the new list.
 
+An entry on the list is either one address or a domain. A domain lets in every address at it,
+matched exactly on the part after the `@`, so neither its subdomains nor a longer domain ending in
+it get in. Everyone let in by a domain is named in the logs by that entry's label, so the logs can't
+tell them apart. An entry for an address at a listed domain takes its own label.
+
 Built package; consumed by `public-web`, which builds the service once at startup and sets it on
 each request's context, and by `@fphd/public-web-features`, whose private beta pages use it. It
 holds the Azure Communication Services SDK, so the SDK stays out of internal-web's image.
@@ -27,7 +32,8 @@ in.
 Links and cookies are JWTs signed with `BETA_ACCESS_SECRET`, with different audiences so neither
 works as the other. Links are built from `SITE_URL`, never from the request's Host header, which a
 client can set. Each address is emailed at most once a minute. That count is held in memory, so each
-replica keeps its own.
+replica keeps its own. It limits each address, not the service: with a domain on the list, anyone
+can have links sent to any number of addresses at it, made-up ones included.
 
 ## Tests
 

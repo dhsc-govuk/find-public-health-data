@@ -1,6 +1,6 @@
 import { normalizeReturnTo } from '@fphd/auth';
 import { readCookie } from '@fphd/auth/cookies';
-import type { BetaAccessConfig, BetaInvitee } from '@fphd/config';
+import type { BetaAccessConfig, BetaInvitee, BetaInviteeEntry } from '@fphd/config';
 
 import { type BetaAccess, PRIVATE_BETA_SIGN_IN_PATH } from './context.ts';
 import { type SendEmail, signInEmail } from './email.ts';
@@ -10,7 +10,8 @@ export const ACCESS_COOKIE_NAME = 'fphd_beta_access';
 
 const LINK_LIFETIME_MINUTES = 15;
 const ACCESS_LIFETIME_MS = 30 * 24 * 60 * 60 * 1_000;
-// Only invitees are ever emailed, so this protects their inboxes rather than the service.
+// Limits each address, to protect an invitee's inbox. It doesn't limit the service: with a domain
+// on the list, every address at that domain can be sent a link, including made-up ones.
 const RESEND_INTERVAL_MS = 60 * 1_000;
 
 interface BetaAccessOptions {
@@ -23,6 +24,31 @@ interface BetaAccessOptions {
 /** The form lower-cases and trims an address as the invitee list does. */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Finds the invitee for a normalised address. An entry for the address itself comes first.
+ * Otherwise the part after its `@` must equal a listed domain exactly, so a domain entry lets in
+ * neither its subdomains nor a longer domain that ends with it. Someone let in by a domain entry
+ * is named in the logs by that entry's label.
+ */
+function inviteeLookup(entries: readonly BetaInviteeEntry[]) {
+  const byEmail = new Map<string, BetaInvitee>();
+  const labelByDomain = new Map<string, string>();
+  for (const entry of entries) {
+    if ('email' in entry) byEmail.set(entry.email, entry);
+    else labelByDomain.set(entry.domain, entry.label);
+  }
+
+  return (email: string): BetaInvitee | undefined => {
+    const invitee = byEmail.get(email);
+    if (invitee !== undefined) return invitee;
+
+    const at = email.lastIndexOf('@');
+    if (at < 1) return undefined;
+    const label = labelByDomain.get(email.slice(at + 1));
+    return label === undefined ? undefined : { email, label };
+  };
 }
 
 function accessCookie(token: string, maxAgeSeconds: number, secure: boolean): string {
@@ -42,14 +68,15 @@ export function createBetaAccess({
   now = () => new Date(),
 }: BetaAccessOptions): BetaAccess {
   const { endsAt, secret, secure, siteUrl } = config;
-  const invitees = new Map(config.invitees.map((invitee) => [invitee.email, invitee]));
+  const lookUp = inviteeLookup(config.invitees);
   const signer = createTokenSigner(secret);
-  // Held per replica: with more than one, an invitee may get one link a minute from each.
+  // Held per replica: with more than one, an invitee may get one link a minute from each. It keeps
+  // one entry per address ever sent a link until public-web restarts.
   const lastSentAt = new Map<string, number>();
 
   const hasEnded = () => now() >= endsAt;
   const listed = (email: string | undefined): BetaInvitee | undefined =>
-    email === undefined || hasEnded() ? undefined : invitees.get(email);
+    email === undefined || hasEnded() ? undefined : lookUp(email);
 
   return {
     hasEnded,

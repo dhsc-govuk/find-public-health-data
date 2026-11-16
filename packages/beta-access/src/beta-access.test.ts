@@ -1,3 +1,4 @@
+import type { BetaInviteeEntry } from '@fphd/config';
 import { describe, expect, it } from 'vitest';
 
 import { ACCESS_COOKIE_NAME, createBetaAccess } from './beta-access.ts';
@@ -6,8 +7,9 @@ import type { SignInEmail } from './email.ts';
 
 const sam = { email: 'sam@example.com', label: 'Research round 1' };
 const alex = { email: 'alex@example.com', label: 'Marvell team' };
+const invitees: BetaInviteeEntry[] = [sam, alex];
 const config = {
-  invitees: [sam, alex],
+  invitees,
   endsAt: new Date('2027-01-31T23:59:59Z'),
   secret: 'a-beta-access-secret-that-is-long-enough',
   secure: true,
@@ -266,6 +268,57 @@ describe('createBetaAccess', () => {
       const { cookie } = await signInAs(betaAccess, sent, sam.email);
 
       clock.advance(30 * 24 * 60 * 60 * 1_000);
+
+      await expect(betaAccess.inviteeFor(cookieValue(cookie))).resolves.toBe(undefined);
+    });
+  });
+
+  describe('a domain on the list', () => {
+    const team = { domain: 'team.example.org', label: 'Team' };
+
+    it('lets in any address at the domain, named by its label', async () => {
+      const { betaAccess, sent } = createEmailing({ invitees: [team] });
+      const jo = { email: 'jo@team.example.org', label: 'Team' };
+
+      await expect(betaAccess.requestLink(' Jo@Team.Example.org ', '/')).resolves.toEqual({
+        outcome: 'sent',
+        invitee: jo,
+      });
+      expect(sent[0]?.to).toBe(jo.email);
+      const { cookie, invitee } = signedIn(await betaAccess.signIn(tokenOf(linkIn(sent[0]))));
+      expect(invitee).toEqual(jo);
+      await expect(betaAccess.inviteeFor(cookieValue(cookie))).resolves.toEqual(jo);
+    });
+
+    it.each([
+      ['a subdomain', 'jo@mail.team.example.org'],
+      ['a longer domain ending with it', 'jo@myteam.example.org'],
+      ['a domain that starts with it', 'jo@team.example.org.evil.example'],
+      ['the domain alone', 'team.example.org'],
+      ['an address with no name before the @', '@team.example.org'],
+    ])('lets in nobody at %s', async (_case, email) => {
+      const { betaAccess, sent } = createEmailing({ invitees: [team] });
+
+      await expect(betaAccess.requestLink(email, '/')).resolves.toEqual({
+        outcome: 'not_invited',
+      });
+      expect(sent).toHaveLength(0);
+    });
+
+    it("names an address on the list by its own label rather than its domain's", async () => {
+      const lee = { email: 'lee@team.example.org', label: 'Research round 2' };
+      const { betaAccess } = createEmailing({ invitees: [team, lee] });
+
+      await expect(betaAccess.requestLink(lee.email, '/')).resolves.toEqual({
+        outcome: 'sent',
+        invitee: lee,
+      });
+    });
+
+    it("ends the domain's access once it is taken off the list", async () => {
+      const first = createEmailing({ invitees: [team] });
+      const { cookie } = await signInAs(first.betaAccess, first.sent, 'jo@team.example.org');
+      const { betaAccess } = createEmailing({ invitees: [sam] });
 
       await expect(betaAccess.inviteeFor(cookieValue(cookie))).resolves.toBe(undefined);
     });

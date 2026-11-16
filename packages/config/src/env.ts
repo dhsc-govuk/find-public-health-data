@@ -200,13 +200,39 @@ const signInFields = {
   WEB_SESSION_SECRET: z.string().min(32),
 };
 
-const inviteeSchema = z.object({
-  // Compared as typed into the private beta form, which is lower-cased and trimmed the same way.
-  email: z.string().trim().toLowerCase().pipe(z.email()),
-  label: z.string().trim().min(1),
-});
+/** Someone let in to the private beta: their address, and the label the logs name them by. */
+export interface BetaInvitee {
+  email: string;
+  label: string;
+}
 
-export type BetaInvitee = z.output<typeof inviteeSchema>;
+/** One entry on the invitee list: a single address, or every address at a domain. */
+export type BetaInviteeEntry = BetaInvitee | { domain: string; label: string };
+
+// Both are compared as typed into the private beta form, which is lower-cased and trimmed the
+// same way.
+const inviteeSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().pipe(z.email()).optional(),
+    // Needs a dot, so a whole top-level domain such as `com` can't be listed by mistake.
+    domain: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.hostname())
+      .refine((domain) => domain.includes('.'), 'must be a domain, like example.com')
+      .optional(),
+    label: z.string().trim().min(1),
+  })
+  .transform(({ email, domain, label }, context): BetaInviteeEntry => {
+    if (email !== undefined && domain === undefined) return { email, label };
+    if (domain !== undefined && email === undefined) return { domain, label };
+    context.addIssue({
+      code: 'custom',
+      message: 'each invitee needs an email or a domain, not both',
+    });
+    return z.NEVER;
+  });
 
 const inviteesSchema = z
   .string()

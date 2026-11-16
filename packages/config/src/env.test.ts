@@ -429,8 +429,31 @@ describe('loadWebServerConfig', () => {
       },
     );
 
+    it('reads a domain entry, normalising it', () => {
+      const invitees = JSON.stringify([{ domain: ' Team.Example.org ', label: 'Team' }]);
+
+      expect(
+        loadWebServerConfig(
+          { APP_ENV: 'local', ...betaAccess, BETA_ACCESS_INVITEES: invitees },
+          defaults,
+        ).betaAccess?.invitees,
+      ).toEqual([{ domain: 'team.example.org', label: 'Team' }]);
+    });
+
     it.each([
       ['not JSON', 'not json', /must be a JSON array/],
+      [
+        'an entry with an email and a domain',
+        JSON.stringify([{ email: 'a@example.com', domain: 'example.com', label: 'x' }]),
+        /an email or a domain, not both/,
+      ],
+      [
+        'an entry with neither an email nor a domain',
+        JSON.stringify([{ label: 'x' }]),
+        /an email or a domain, not both/,
+      ],
+      ['a top-level domain', JSON.stringify([{ domain: 'com', label: 'x' }]), /like example.com/],
+      ['an invalid domain', JSON.stringify([{ domain: 'not a domain', label: 'x' }]), /domain/],
       ['an empty list', '[]', /BETA_ACCESS_INVITEES/],
       ['an invalid address', JSON.stringify([{ email: 'nobody', label: 'x' }]), /email/],
       ['a missing label', JSON.stringify([{ email: 'a@example.com' }]), /label/],

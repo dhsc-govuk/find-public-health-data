@@ -93,10 +93,11 @@ personalized responses are marked private and non-cacheable. public-web has no s
 neither secret.
 
 public-web sits behind a private beta while it is invite-only. `BETA_ACCESS_INVITEES` lists the
-invited email addresses. Each invitee asks for a sign-in link on `/private-beta`, and the link,
-emailed through Azure Communication Services (`EMAIL_ENDPOINT`), sets an access cookie signed with
-`BETA_ACCESS_SECRET`. `.env.example` turns it on with one local invitee, `developer@example.com`.
-With no email service, as in local dev and CI, the page shows the link instead of sending it. See
+invited email addresses, and any domains whose every address is invited. Each invitee asks for a
+sign-in link on `/private-beta`, and the link, emailed through Azure Communication Services
+(`EMAIL_ENDPOINT`), sets an access cookie signed with `BETA_ACCESS_SECRET`. `.env.example` turns it
+on with one local invitee, `developer@example.com`. With no email service, as in local dev and CI,
+the page shows the link instead of sending it. See
 [`@fphd/beta-access`](packages/beta-access/README.md).
 
 Authentication currently uses fixed fake users. The sign-in form posts to the web backend, which

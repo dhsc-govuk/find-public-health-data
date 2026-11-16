@@ -7,6 +7,7 @@ export {
   appEnvSchema,
   type BetaAccessConfig,
   type BetaInvitee,
+  type BetaInviteeEntry,
   boolSchema,
   DEV_CLASS_APP_ENVS,
   isDeployedEnv,
