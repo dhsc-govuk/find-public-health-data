@@ -343,6 +343,8 @@
     gap: govuk-spacing(1);
     padding: govuk-spacing(3) 0;
     margin: 0;
+    // The page's button style drops a pressed button 2px, onto the card's "Clear filter" link.
+    top: 0;
 
     &::before {
       content: none;
@@ -1024,6 +1026,7 @@ body.govuk-frontend-supported .fphd-filter-card {
 .fphd-geo-alt__toggle.fphd-geo-alt__toggle {
   padding: 0 8px 0 0;
   margin: 0;
+  top: 0;
   border: 0;
   background: none;
   cursor: pointer;
