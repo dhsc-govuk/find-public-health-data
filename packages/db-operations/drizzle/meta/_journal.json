@@ -645,6 +645,13 @@
       "when": 1794914769736,
       "tag": "0091_update-frequency-text",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794917978304,
+      "tag": "0092_create-preview-schema",
+      "breakpoints": true
     }
   ]
 }
