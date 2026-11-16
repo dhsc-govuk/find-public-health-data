@@ -119,7 +119,7 @@ function TabPanels({
     if (!waitForNavigation) setSelected(index);
     void navigate(
       { search: searchFor(index) },
-      { replace: history === 'replace', preventScrollReset: true },
+      { replace: history === 'replace', preventScrollReset: true, flushSync: !waitForNavigation },
     );
   };
   const focusTab = (index: number) => {

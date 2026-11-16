@@ -45,6 +45,7 @@ export const publishedObservationSeries = publishedSchema
     latestObservationId: uuid('latest_observation_id').notNull(),
     rankingObservationId: uuid('ranking_observation_id'),
     recentObservationIds: uuid('recent_observation_ids').array().notNull(),
+    sparklineObservationIds: uuid('sparkline_observation_ids').array(),
     recentValues: doublePrecision('recent_values').array().notNull(),
   })
   .existing();

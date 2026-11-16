@@ -4,10 +4,8 @@ import type { RecentTrend } from './data.ts';
 export function TrendTag({ trend }: { trend: RecentTrend }) {
   if (trend.direction === null)
     return (
-      <span className="fphd-trend-unavailable">
-        {trend.label}
-        <br />
-        (not enough data points)
+      <span className="govuk-hint govuk-!-margin-bottom-0">
+        {trend.label} <br />(<span className="fphd-trend-reason">{trend.reason}</span>)
       </span>
     );
   return (

@@ -7,19 +7,24 @@ import {
   indicatorAreaDataListSchema,
   indicatorDetailSchema,
   indicatorListResponseSchema,
+  indicatorRangeSchema,
+  indicatorScatterSchema,
   MAX_AREA_PREVIEW,
   MAX_INDICATOR_QUERY_LENGTH,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { isOneOf } from '@fphd/utils/is-one-of';
+import { tableSummary } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import { englandCode, quintileParam, scatterPair } from './charts/chart-data.ts';
+import { loadRankingScatterComparison, loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
-import { loadIndicatorData } from './loader.ts';
+import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 import { createSharedGetsClient } from './shared-gets.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
@@ -32,6 +37,7 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   if (!slug || !isIndicatorSegment(slug)) throw new Response('Not Found', { status: 404 });
   // The comparison tab and the geography picker both ask for the indicator's local authorities.
   const api = createSharedGetsClient(context.get(apiContext));
+  context.set(apiContext, api);
   const routeDetail = await api.get(apiPath`/api/indicators/${slug}`, indicatorDetailSchema);
   if (routeDetail.slug !== slug)
     throw redirect(
@@ -79,7 +85,7 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
     }),
   );
   const comparison = groups.then((groups) =>
-    loadIndicatorComparison(api, url, routeDetail, comparedDetail, groups),
+    loadIndicatorComparison(api, url, routeDetail, comparedDetail, groups, data),
   );
   const complete = url.searchParams.get('render') === 'complete';
   const completed = complete ? await Promise.all([data, comparison]) : undefined;
@@ -112,29 +118,36 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
         .then(({ indicators }) => indicators)
     : Promise.resolve([]);
   const comparison = Promise.resolve(page.comparison).then(async (comparison) => {
-    const selected = comparison.compareAreaGroup
-      ? [
-          { detail: page.detail, areaData: comparison.compareAreasData },
-          ...(page.comparedDetail
-            ? [{ detail: page.comparedDetail, areaData: comparison.comparedAreasData }]
-            : []),
-        ]
+    const { chartIndicators, scatter, compareAreaRanges } = comparison;
+    const selected = chartIndicators.length
+      ? chartIndicators
       : await loadIndicatorTableEntries(
           args.context.get(apiContext),
-          [page.detail.shortId, ...(page.comparedDetail ? [page.comparedDetail.shortId] : [])],
-          ['E92000001'],
+          [page.detail.shortId],
+          [englandCode],
           'latestPerSeries',
         );
-    return indicatorComparisonModel(selected, comparison);
+    return {
+      ...indicatorComparisonModel(selected, comparison),
+      areaChart: compactIndicator({
+        detail: page.detail,
+        areaData: tableSummary(selected[0]?.areaData ?? [], 'latest').areaData,
+      }),
+      compareAreaRanges,
+      scatter,
+    };
   });
   const completed = page.complete ? await Promise.all([data, comparison, findResults]) : undefined;
   return {
     ...page,
     comparedDetail: page.comparedDetail
       ? {
+          shortId: page.comparedDetail.shortId,
           name: page.comparedDetail.name,
           slug: page.comparedDetail.slug,
           unit: page.comparedDetail.unit,
+          yearType: page.comparedDetail.yearType,
+          dataSource: page.comparedDetail.dataSource,
         }
       : undefined,
     data: completed ? completed[0] : data,
@@ -156,6 +169,7 @@ async function loadIndicatorComparison(
   routeDetail: IndicatorDetail,
   comparedDetail: IndicatorDetail | undefined,
   indicatorGroups: { displayGroup: string }[],
+  data: ReturnType<typeof loadIndicatorData>,
 ) {
   const catalogueGroups = indicatorGroups.map(({ displayGroup }) => displayGroup);
   const comparisonGroups = comparedDetail
@@ -176,7 +190,9 @@ async function loadIndicatorComparison(
     : comparisonDisplayGroups.includes('Local authorities')
       ? 'Local authorities'
       : (comparisonDisplayGroups[0] ?? '');
+  let compactScatter: ReturnType<typeof loadScatterComparison>;
   let compareAreasData: IndicatorAreaData[] = [];
+  let chartIndicators: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
   let compareAreaOptions: AreaSummary[] = [];
   if (compareAreaGroup) {
@@ -206,16 +222,68 @@ async function loadIndicatorComparison(
             indicatorAreaDataListSchema,
           )
         : Promise.resolve([]);
-    [compareAreasData, comparedAreasData] = await Promise.all([
-      loadRanking(routeDetail),
-      comparedDetail ? loadRanking(comparedDetail) : Promise.resolve([]),
-    ]);
+    if (comparedDetail) {
+      const [x, y] = scatterPair(
+        [{ detail: routeDetail }, { detail: comparedDetail }],
+        url.searchParams,
+      );
+      if (!x || !y) throw new Error('Expected a comparison pair');
+      const [primary, secondary] = await Promise.all([
+        loadRanking(routeDetail),
+        loadRanking(comparedDetail),
+      ]);
+      compareAreasData = primary;
+      comparedAreasData = secondary;
+      chartIndicators = [
+        { detail: routeDetail, areaData: primary },
+        { detail: comparedDetail, areaData: secondary },
+      ];
+      compactScatter = loadRankingScatterComparison(chartIndicators, url.searchParams);
+      if (!compactScatter) {
+        try {
+          compactScatter = await api.get(
+            `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+            indicatorScatterSchema,
+          );
+        } catch (error) {
+          if (!(error instanceof Response) || error.status !== 404) throw error;
+        }
+      }
+    } else {
+      compareAreasData = await loadRanking(routeDetail);
+      chartIndicators = [{ detail: routeDetail, areaData: compareAreasData }];
+    }
+  } else if (comparedDetail) {
+    const { selected } = await data;
+    chartIndicators =
+      selected.length === 2
+        ? selected
+        : await loadIndicatorTableEntries(
+            api,
+            [routeDetail.shortId, comparedDetail.shortId],
+            selected[0]?.areaData.map(({ areaCode }) => areaCode) ?? [englandCode],
+          );
   }
+  const compareAreaRanges =
+    compareAreaGroup && url.searchParams.get(quintileParam(routeDetail.shortId)) === 'yes'
+      ? (
+          await api.get(
+            `${apiPath`/api/indicators/${String(routeDetail.shortId)}/range`}?displayGroup=${encodeURIComponent(compareAreaGroup)}`,
+            indicatorRangeSchema,
+          )
+        ).periods
+      : [];
+  const scatter = comparedDetail
+    ? (compactScatter ?? loadScatterComparison(chartIndicators, url.searchParams))
+    : undefined;
   return {
     compareAreasData,
     comparedAreasData,
     compareAreaOptions,
     compareAreaGroup,
     comparisonDisplayGroups,
+    chartIndicators,
+    compareAreaRanges,
+    scatter,
   };
 }

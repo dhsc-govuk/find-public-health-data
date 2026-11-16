@@ -1,3 +1,4 @@
+import { rankingAreaSeries } from '@fphd/utils/observation-series';
 import { apiContext } from '@fphd/web-server/api-context';
 import {
   createFakeApiClient,
@@ -9,6 +10,7 @@ import {
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
 import { indicatorDetail, observation, sex } from './view.testing.ts';
@@ -31,8 +33,11 @@ function areaCodes(path: string) {
  * The data of the areas a call asks for, with no observations. The API answers a query of one
  * area with that area alone, and of several with a list.
  */
-function areaData(call: FakeApiCall) {
-  const areas = rankings(call);
+function areaData(call: FakeApiCall, observations?: ReturnType<typeof observation>[]) {
+  const areas = rankings(call).map((area) => ({
+    ...area,
+    observations: observations ?? area.observations,
+  }));
   return areas.length === 1 ? (areas[0] ?? null) : areas;
 }
 
@@ -53,7 +58,8 @@ function indicatorStubs(shortId: number): FakeApiStubs {
     [`GET /api/indicators/${slug}`]: detail,
     [`GET /api/indicators/${shortId}`]: detail,
     [`GET /api/indicators/${slug}/areas`]: localAuthorities,
-    [`GET /api/indicators/${shortId}/data`]: areaData,
+    [`GET /api/indicators/${shortId}/range`]: { periods: [] },
+    [`GET /api/indicators/${shortId}/data`]: (call: FakeApiCall) => areaData(call),
     [`GET /api/indicators/${shortId}/ranking`]: rankings,
   };
 }
@@ -63,6 +69,12 @@ function api(stubs: FakeApiStubs = {}) {
   return createFakeApiClient({
     ...indicatorStubs(108),
     ...indicatorStubs(241),
+    'GET /api/indicator-scatter': { points: [] },
+    'GET /api/indicator-data': (call) =>
+      new URL(call.path, 'http://api').searchParams.getAll('indicator').map((id) => ({
+        detail: indicatorDetail(Number(id)),
+        areaData: rankings(call),
+      })),
     'GET /api/indicators': {
       indicators: [{ shortId: 241, name: 'Diabetes prevalence', slug: 'indicator-241' }],
     },
@@ -251,7 +263,7 @@ describe('loadIndicator', () => {
     expect(comparison.pair?.england).toMatchObject({ code: 'E92000001', values: [10, 20] });
     expect(comparison.areas.period).toBe('2024');
     expect(paths(client)).toContain(
-      '/api/indicator-data?indicator=108&indicator=241&areaCode=E92000001&observationHistory=latestPerSeries',
+      '/api/indicator-data?indicator=108&indicator=241&areaCode=E92000001',
     );
     expect(paths(client).some((path) => path.includes('/ranking?'))).toBe(false);
     await page.data;
@@ -337,6 +349,10 @@ describe('loadIndicator', () => {
     expect(comparison.pair).toBeDefined();
     expect(comparison).not.toHaveProperty('compareAreasData');
     expect(comparison).not.toHaveProperty('comparedAreasData');
+    expect(comparison).not.toHaveProperty('chartIndicators');
+    expect(
+      comparison.areaChart.areaData.every(({ observations }) => typeof observations === 'string'),
+    ).toBe(true);
   });
 
   it('requires one route indicator before any API request', async () => {
@@ -520,5 +536,216 @@ describe('loadIndicator', () => {
       const histories = paths(client).filter((path) => path.includes('/108/data?'));
       expect(histories).toHaveLength(1);
     }
+  });
+
+  it('loads quintile distributions for picked levels and the current comparison group only when needed', async () => {
+    let client = api();
+    await loadIndicator(args(client));
+    expect(paths(client).some((path) => path.includes('/range?'))).toBe(false);
+
+    client = api();
+    await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?quintile-108=yes'));
+    expect(paths(client).filter((path) => path.includes('/range?'))).toEqual([
+      '/api/indicators/108/range?displayGroup=Local%20authorities',
+    ]);
+
+    client = api();
+    await loadIndicator(
+      args(client, 'http://localhost/indicator/indicator-108?quintile-108=yes&as=E06000052'),
+    );
+    expect(paths(client).filter((path) => path.includes('/range?'))).toHaveLength(1);
+  });
+
+  it('pairs the full comparison geography group without paging histories when an area is picked', async () => {
+    const client = api({
+      'GET /api/indicators/108/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [observation(10)] })),
+      'GET /api/indicators/241/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [observation(20)] })),
+      'GET /api/indicator-scatter': (call) => ({
+        points: rankings(call).map((area) => ({
+          code: area.areaCode,
+          name: area.areaName,
+          period: '2024-01-01|2024-12-31',
+          fromDate: '2024-01-01',
+          toDate: '2024-12-31',
+          x: 10,
+          y: 20,
+        })),
+      }),
+      'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
+      'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&as=E06000052',
+      ),
+    );
+    expect(result.scatter?.points).toHaveLength(26);
+    expect(result.scatter?.points.find(({ code }) => code === 'E92000001')).toMatchObject({
+      x: 10,
+      y: 20,
+    });
+    expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
+    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(2);
+    const scatterPaths = paths(client).filter((path) => path.includes('/indicator-scatter?'));
+    expect(scatterPaths).toHaveLength(0);
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(0);
+    expect(result.compareAreasData).toHaveLength(26);
+    expect(result.compareAreasData[0]?.observations).toHaveLength(1);
+  });
+
+  it('preserves picked-area histories when the pair has no supported comparison geography', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [],
+      'GET /api/indicators/indicator-241/areas': [],
+      'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
+      'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&as=E06000052',
+      ),
+    );
+    expect(result.compareAreaGroup).toBe('');
+    expect(result.scatter?.points).toMatchObject([
+      { code: 'E06000052', x: 10, y: 20 },
+      { code: 'E92000001', x: 10, y: 20 },
+    ]);
+  });
+
+  it('keeps the server-selected common period separate from each latest ranking and honours saved axes', async () => {
+    const point = (year: number, value: number) => ({
+      ...observation(value),
+      fromDate: `${year}-01-01`,
+      toDate: `${year}-12-31`,
+    });
+    const client = api({
+      'GET /api/indicators/108/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [point(2024, 11)] })),
+      'GET /api/indicators/241/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: [point(2023, 20)] })),
+      'GET /api/indicator-scatter': (call) => ({
+        points: rankings(call).map((area) => ({
+          code: area.areaCode,
+          name: area.areaName,
+          period: '2023-01-01|2023-12-31',
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          x: 20,
+          y: 10,
+        })),
+      }),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&scatter-x=241&scatter-y=108',
+      ),
+    );
+    expect(result.scatter?.points).toHaveLength(26);
+    expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
+    expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
+    expect(paths(client).find((path) => path.includes('/indicator-scatter?'))).toContain(
+      '/indicator-scatter?indicator=241&indicator=108&',
+    );
+    expect(
+      result.scatter?.points.every(
+        ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 20 && y === 10,
+      ),
+    ).toBe(true);
+  });
+
+  it('falls back to canonical scatter pairing when the scatter endpoint returns 404', async () => {
+    const primary = [observation(0, [sex('Female')])];
+    const secondary = [observation(20, [sex('Female')])];
+    const client = api({
+      'GET /api/indicators/108/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: primary })),
+      'GET /api/indicators/241/ranking': (call) =>
+        rankings(call).map((area) => ({ ...area, observations: secondary })),
+      'GET /api/indicator-scatter': () => fails(new Response(null, { status: 404 })),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?compareWith=indicator-241&scatter-x=241&scatter-y=108',
+      ),
+    );
+    const expected = loadScatterComparison(
+      [
+        { detail: indicatorDetail(108), areaData: result.compareAreasData },
+        { detail: indicatorDetail(241), areaData: result.comparedAreasData },
+      ],
+      new URLSearchParams('scatter-x=241&scatter-y=108'),
+    );
+    expect(expected?.points).toHaveLength(26);
+    expect(result.scatter).toEqual(expected);
+    expect(result.scatter?.points[0]).toMatchObject({ x: 20, y: 0 });
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-scatter?'))).toHaveLength(
+      1,
+    );
+  });
+
+  it.each(['Age', 'Ethnicity'])(
+    'returns canonical earlier points when latest rankings select different %s segments',
+    async (type) => {
+      const point = (year: number, value: number, segment: string) => ({
+        ...observation(value, [{ type, value: segment, dimensionClass: 'core', sortOrder: 1 }]),
+        fromDate: `${year}-01-01`,
+        toDate: `${year}-12-31`,
+      });
+      const selected = [108, 241].map((shortId, index) => ({
+        detail: indicatorDetail(shortId),
+        areaData: [
+          {
+            areaCode: 'E00000000',
+            areaName: 'Area 0',
+            observations: index
+              ? [point(2023, 20, 'First'), point(2024, 21, 'First')]
+              : [point(2023, 0, 'First')],
+          },
+          { areaCode: 'E00000001', areaName: 'Area 1', observations: [point(2024, 30, 'Second')] },
+        ],
+      }));
+      const params = new URLSearchParams('scatter-x=241&scatter-y=108');
+      const expected = loadScatterComparison(selected, params);
+      if (!expected) throw new Error('Expected a comparison pair');
+      expect(expected.points).toMatchObject([
+        { code: 'E00000000', x: 20, y: 0, fromDate: '2023-01-01' },
+      ]);
+      const client = api({
+        ...Object.fromEntries(
+          selected.map(({ detail, areaData }) => [
+            `GET /api/indicators/${detail.shortId}/ranking`,
+            rankingAreaSeries(areaData),
+          ]),
+        ),
+        'GET /api/indicator-scatter': expected,
+      });
+      const result = await loadIndicator(
+        args(
+          client,
+          `http://localhost/indicator/indicator-108?compareWith=indicator-241&${params}`,
+        ),
+      );
+      expect(result.scatter).toEqual(expected);
+      expect(
+        paths(client).filter((path) => path.startsWith('/api/indicator-scatter?')),
+      ).toHaveLength(1);
+    },
+  );
+
+  it('propagates scatter endpoint failures other than 404', async () => {
+    const client = api({
+      'GET /api/indicator-scatter': () => fails(new Response(null, { status: 502 })),
+    });
+    await expect(
+      loadIndicator(
+        args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+      ),
+    ).rejects.toMatchObject({ status: 502 });
   });
 });

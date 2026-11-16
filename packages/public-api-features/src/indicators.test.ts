@@ -84,6 +84,13 @@ describe('GET /api/indicators/:indicator/ranking', () => {
 });
 
 describe('GET /api/indicator-data', () => {
+  it('requests bounded sparkline periods separately from recent trend history', async () => {
+    const findTableData = vi.fn().mockResolvedValue([]);
+    await request(createTestApp({ findTableData })).get(
+      '/api/indicator-data?indicator=108&observationHistory=lastEightPeriodsPerSeries',
+    );
+    expect(findTableData).toHaveBeenCalledExactlyOnceWith([108], ['E92000001'], 'sparkline');
+  });
   it.each(['', '&observationHistory=recentPerSeries', '&observationHistory=invalid'])(
     'defaults to recent history for query %s',
     async (query) => {
@@ -553,5 +560,44 @@ describe('search ordering and workload bounds', () => {
     expect(searchWithFilters).toHaveBeenCalledWith(
       expect.objectContaining({ page: 2, limit: 200 }),
     );
+  });
+});
+
+describe('GET /api/indicator-scatter', () => {
+  it('loads one bounded pair in axis and area order, including an empty scatter', async () => {
+    const findScatterData = vi.fn().mockResolvedValue([]);
+    const response = await request(createTestApp({ findScatterData })).get(
+      '/api/indicator-scatter?indicator=241&indicator=108&areaCode=E06000052&areaCode=E92000001&areaCode=E06000052',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ points: [] });
+    expect(findScatterData).toHaveBeenCalledExactlyOnceWith([241, 108], ['E06000052', 'E92000001']);
+  });
+
+  it('caps areas and rejects incomplete, repeated or unpublished indicators', async () => {
+    const findScatterData = vi.fn(async (ids: [number, number], _codes: string[]) =>
+      ids.includes(999) ? undefined : [],
+    );
+    const app = createTestApp({ findScatterData });
+    const query = new URLSearchParams(
+      Array.from({ length: 501 }, (_, i) => ['areaCode', `E${String(i).padStart(8, '0')}`]),
+    );
+    expect(
+      (await request(app).get(`/api/indicator-scatter?indicator=108&indicator=241&${query}`))
+        .status,
+    ).toBe(200);
+    expect(findScatterData.mock.calls[0]?.[1]).toHaveLength(500);
+    for (const query of [
+      'indicator=108&indicator=241',
+      'areaCode=E92000001',
+      'indicator=108&areaCode=E92000001',
+      'indicator=108&indicator=108&areaCode=E92000001',
+      'indicator=108&indicator=241&indicator=40501&areaCode=E92000001',
+      'indicator=bad&indicator=108&areaCode=E92000001',
+      'indicator=999&indicator=108&areaCode=E92000001',
+      'indicator=108&indicator=999&areaCode=E92000001',
+    ])
+      expect((await request(app).get(`/api/indicator-scatter?${query}`)).status).toBe(404);
+    expect(findScatterData).toHaveBeenCalledTimes(3);
   });
 });

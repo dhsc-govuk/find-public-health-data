@@ -1,6 +1,7 @@
 import { TableScrollRegion } from '@fphd/ui';
 import { periodLabel } from '@fphd/utils/period-label';
 import { Fragment } from 'react';
+import { SpineChartKey } from '../charts/spine-chart.tsx';
 import type { BenchmarkChoice } from '../comparison.ts';
 import { type ConfidenceLevel, formatCalculatedValue, formatValue, segmentLabel } from '../data.ts';
 import type {
@@ -92,6 +93,9 @@ export function TrendTable({
 
   return (
     <>
+      {showRange && benchmarks.size > 0 && [...benchmarks.values()].some(Boolean) ? (
+        <SpineChartKey />
+      ) : null}
       <TableScrollRegion label={`${indicator.name} trends over time`}>
         <table
           className="govuk-table fphd-trend-table"
@@ -256,6 +260,7 @@ export function TrendTable({
                           )}
                           indicator={indicator}
                           rangePeriod={rangePeriod}
+                          unit={indicator.unit}
                           showRange={showRange}
                         />
                       ) : null}

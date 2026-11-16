@@ -77,3 +77,22 @@ export function periodLabel(
 
   return `${dayLabel(from)} to ${dayLabel(to)}`;
 }
+
+export function shortPeriodLabel(period: Period, yearType?: PublicYearType | null): string {
+  return periodLabel(period, yearType).replace(
+    /^(\d+) to (\d+)$/,
+    (_, from, to) => `${from}-${from.slice(0, -2) === to.slice(0, -2) ? to.slice(-2) : to}`,
+  );
+}
+
+export function expandedPeriodLabel(period: Period, yearType?: PublicYearType | null): string {
+  const from = dayOf(period.fromDate);
+  const to = dayOf(period.toDate);
+  if (
+    wholeYears(from, to) > 0 &&
+    ((from.month === 1 && from.day === 1) || (yearType != null && yearType.value !== 'rolling'))
+  ) {
+    return from.year === to.year ? String(from.year) : `${from.year} to ${to.year}`;
+  }
+  return periodLabel(period, yearType);
+}

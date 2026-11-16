@@ -118,6 +118,11 @@ async function insertSeries(
           ORDER BY ${points.toDate} DESC, ${points.fromDate} DESC)
           FILTER (WHERE ${points.value} IS NOT NULL))[1]`.as('ranking_id'),
         recentIds: recentNonNull<string>(points.id, points).as('recent_ids'),
+        sparklineIds: sql<
+          string[]
+        >`(array_agg(${points.id} ORDER BY ${points.fromDate} DESC, ${points.toDate} DESC))[1:8]`.as(
+          'sparkline_ids',
+        ),
         recentValues: recentNonNull<number>(points.value, points).as('recent_values'),
       })
       .from(points)
@@ -196,6 +201,7 @@ async function insertSeries(
     latestId: segments.latestId,
     rankingId: segments.rankingId,
     recentIds: segments.recentIds,
+    sparklineIds: segments.sparklineIds,
     recentValues: segments.recentValues,
   };
   const candidates = tx.$with('candidates').as(
@@ -243,6 +249,7 @@ async function insertSeries(
           latestObservationId: winners.latestId,
           rankingObservationId: winners.rankingId,
           recentObservationIds: winners.recentIds,
+          sparklineObservationIds: winners.sparklineIds,
           recentValues: winners.recentValues,
         })
         .from(winners)

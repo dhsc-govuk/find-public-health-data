@@ -75,7 +75,7 @@ export function tableSummary<
   },
 >(
   areas: T[],
-  points: 'recent' | 'latest' = 'recent',
+  points: 'recent' | 'latest' | 'sparkline' = 'recent',
 ): { tableSeries: TableSeriesSelection[]; areaData: T[] } {
   const sexes = new Set([
     '',
@@ -110,9 +110,10 @@ export function tableSummary<
         if (!latest) continue;
         selection.segments[area.areaCode] = observationSegmentKey(latest);
         trends[area.areaCode] = recentTrendDirection(series.map(({ value }) => value));
-        if (points === 'recent')
+        if (points !== 'latest')
           for (const point of series.filter(({ value }) => value !== null).slice(-5))
             keep.add(point);
+        if (points === 'sparkline') for (const point of series.slice(-8)) keep.add(point);
         keep.add(latest);
         for (const point of england?.observations ?? [])
           if (
@@ -250,4 +251,65 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
       ),
     };
   });
+}
+
+export interface ScatterObservation extends SeriesObservation {
+  value: number | null;
+}
+
+export interface ScatterArea {
+  areaCode: string;
+  areaName: string;
+  observations: ScatterObservation[];
+}
+
+export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
+  const samePopulation = (a: ScatterObservation, b: ScatterObservation) =>
+    a.dimensions.length === b.dimensions.length &&
+    a.dimensions.every(
+      (dimension, index) =>
+        dimension.type === b.dimensions[index]?.type &&
+        dimension.value === b.dimensions[index]?.value,
+    );
+
+  const aligned = (areas: ScatterArea[]) => {
+    const first = areas.find(({ observations }) =>
+      observations.some(({ value }) => value !== null),
+    );
+    const reference = first && headlineSeries(first.observations)[0];
+    return areas.map(({ areaCode, areaName, observations }) => ({
+      code: areaCode,
+      name: areaName,
+      observations: new Map(
+        observations
+          .filter((point) => reference && samePopulation(point, reference))
+          .map((point) => [`${point.fromDate}|${point.toDate}`, point]),
+      ),
+    }));
+  };
+  const ySeries = new Map(aligned(yAreas).map((area) => [area.code, area.observations]));
+  const matches = aligned(xAreas).flatMap(({ code, name, observations }) => {
+    const y = ySeries.get(code);
+    return [...observations].flatMap(([period, x]) => {
+      const other = y?.get(period);
+      return x.value == null || other?.value == null || !samePopulation(x, other)
+        ? []
+        : [
+            {
+              code,
+              name,
+              period,
+              fromDate: x.fromDate,
+              toDate: x.toDate,
+              x: x.value,
+              y: other.value,
+            },
+          ];
+    });
+  });
+  const local = matches.filter(({ code }) => code !== ENGLAND_AREA_CODE);
+  const latest = (local.length ? local : matches)
+    .toSorted((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
+    .at(-1)?.period;
+  return matches.filter(({ period }) => period === latest);
 }

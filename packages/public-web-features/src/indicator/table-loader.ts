@@ -37,7 +37,7 @@ export async function loadIndicatorTableEntries(
           const params = new URLSearchParams();
           for (const id of ids) params.append('indicator', String(id));
           for (const code of areas) params.append('areaCode', code);
-          if (observationHistory === 'latestPerSeries')
+          if (observationHistory !== 'recentPerSeries')
             params.set('observationHistory', observationHistory);
           return api.get(`/api/indicator-data?${params}`, indicatorTableDataSchema);
         })
