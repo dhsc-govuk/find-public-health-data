@@ -108,7 +108,7 @@ function measureValue(
 }
 
 function ComparisonChart({ areaName, cell, row }: { areaName: string; cell: Cell; row: Row }) {
-  const benchmarkValue = cell.benchmark?.value ?? row.england?.value ?? null;
+  const benchmarkValue = cell.benchmark?.value ?? (cell.period ? null : row.england?.value) ?? null;
   const { range } = cell;
   if (cell.value == null || benchmarkValue == null || !range) return <NoData />;
   const label = (value: number) => withUnit(formatCalculatedValue(value), row.unit);

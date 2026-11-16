@@ -142,13 +142,11 @@ export async function loadIndicatorCsv(
       (requestedBenchmark === 'england' || requestedBenchmark === 'region')
         ? requestedBenchmark
         : 'none';
-    const columns = url.searchParams.has(`columns-${shortId}`)
-      ? selectedTrendColumns(url.searchParams, shortId, [
-          ...availableMeasures(shownObservations),
-          ...availableConfidenceLevels(shownObservations),
-        ])
-      : undefined;
-    const showRange = benchmark !== 'none' && (columns?.minMax || columns?.percentiles) === true;
+    const columns = selectedTrendColumns(url.searchParams, shortId, [
+      ...availableMeasures(shownObservations),
+      ...availableConfidenceLevels(shownObservations),
+    ]);
+    const showRange = benchmark !== 'none' && (columns.minMax || columns.percentiles);
 
     const codeQuery = pickedCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
     const [lookedUp, parents] = await Promise.all([

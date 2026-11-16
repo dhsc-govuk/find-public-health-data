@@ -87,7 +87,6 @@ export function TrendTable({
     areaSeries.series.find(inPeriod(period));
   const columnsPerArea =
     Number(hasCounts) + Number(hasNumerators) + Number(showValues) + intervals.length * 2;
-  if (columnsPerArea === 0) return <p className="govuk-body">Select at least one table column.</p>;
   const areaColumns = (areaCode: string) =>
     columnsPerArea + Number(showChart && benchmarks.get(areaCode) !== undefined);
   const columnCount =
@@ -97,6 +96,13 @@ export function TrendTable({
         total + areaColumns(data.areaCode) + (benchmarks.get(data.areaCode) ? benchmarkColumns : 0),
       0,
     );
+  if (columnCount === 1) return <p className="govuk-body">Select at least one table column.</p>;
+  const hasChartRange = [...benchmarks.values()].some((areaBenchmark) =>
+    areaBenchmark?.rangePeriods.some(
+      (range) =>
+        range.segment === referenceSegment && periods.some((period) => inPeriod(period)(range)),
+    ),
+  );
   const valueSuffix = indicator.unit === '%' ? '%' : '';
   // Every distinct value note gets a sequential marker, explained under the table.
   const noteTexts = [
@@ -127,7 +133,7 @@ export function TrendTable({
 
   return (
     <>
-      {showChart && [...benchmarks.values()].some(Boolean) ? <SpineChartKey /> : null}
+      {showChart && hasChartRange ? <SpineChartKey /> : null}
       <TableScrollRegion label={`${indicator.name} trends over time`}>
         <table
           className="govuk-table fphd-trend-table"
@@ -157,14 +163,16 @@ export function TrendTable({
               <td aria-hidden="true" className="govuk-table__header fphd-table__frozen" />
               {seriesByArea.map(({ data }, area) => (
                 <Fragment key={data.areaCode}>
-                  <th
-                    id={groupId(area, 'area')}
-                    scope="colgroup"
-                    colSpan={areaColumns(data.areaCode)}
-                    className={HEADER}
-                  >
-                    {data.areaName}
-                  </th>
+                  {areaColumns(data.areaCode) > 0 ? (
+                    <th
+                      id={groupId(area, 'area')}
+                      scope="colgroup"
+                      colSpan={areaColumns(data.areaCode)}
+                      className={HEADER}
+                    >
+                      {data.areaName}
+                    </th>
+                  ) : null}
                   {benchmarks.get(data.areaCode) ? (
                     <th
                       id={groupId(area, 'benchmark')}

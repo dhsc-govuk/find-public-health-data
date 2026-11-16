@@ -208,8 +208,81 @@ const allColumns: TrendColumns = {
 };
 
 describe('TrendTable benchmark columns', () => {
+  it.each([
+    ['chart', { chart: true }, 3],
+    ['minimum and maximum', { minMax: true }, 4],
+    ['percentiles', { percentiles: true }, 4],
+  ])(
+    'renders only the %s and benchmark columns when measures are unchecked',
+    (_, choice, columnCount) => {
+      render(
+        <TrendTable
+          {...benchmarked}
+          columns={{
+            count: false,
+            numerator: false,
+            value: false,
+            confidence: [],
+            minMax: false,
+            percentiles: false,
+            chart: false,
+            ...choice,
+          }}
+          visibleCaption
+        />,
+      );
+      expect(screen.queryByText('Select at least one table column.')).toBeNull();
+      const table = screen.getByRole('table', {
+        name: new RegExp(`table with 1 row and ${columnCount} columns$`),
+      });
+      expect(within(table).getAllByRole('cell')).toHaveLength(columnCount - 1);
+      expect(table.querySelector('[colspan="0"]')).toBeNull();
+    },
+  );
+
+  it('asks for a column when no selected column can be shown without a benchmark', () => {
+    render(
+      <TrendTable
+        {...benchmarked}
+        benchmark="none"
+        columns={{ ...allColumns, count: false, value: false, confidence: [] }}
+      />,
+    );
+    expect(screen.getByText('Select at least one table column.')).toBeTruthy();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it.each([
+    ['no ranges', {}],
+    ['empty ranges', { 'Local authorities': [] }],
+    [
+      'another period',
+      {
+        'Local authorities': benchmarked.ranges['Local authorities'].map((range) => ({
+          ...range,
+          fromDate: '2022-04-01',
+          toDate: '2023-03-31',
+        })),
+      },
+    ],
+    [
+      'another segment',
+      {
+        'Local authorities': benchmarked.ranges['Local authorities'].map((range) => ({
+          ...range,
+          segment: 'Male',
+        })),
+      },
+    ],
+  ])('hides the chart key with %s', (_, ranges) => {
+    render(<TrendTable {...benchmarked} ranges={ranges} columns={allColumns} />);
+    expect(screen.queryByText('Key to the comparison chart')).toBeNull();
+    expect(document.querySelector('.fphd-range-slot')).toBeNull();
+  });
+
   it('orders the area columns as value, count, chart, intervals and the benchmark as value, spread', () => {
     render(<TrendTable {...benchmarked} columns={allColumns} visibleCaption />);
+    expect(screen.getByText('Key to the comparison chart')).toBeTruthy();
     const headings = screen
       .getAllByRole('columnheader')
       .map((heading) => heading.textContent?.trim());

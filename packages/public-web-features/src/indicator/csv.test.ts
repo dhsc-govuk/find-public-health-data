@@ -77,6 +77,63 @@ function paths(client: FakeApiClient) {
 }
 
 describe('loadIndicatorCsv', () => {
+  it.each(['england', 'region'])(
+    'exports the default %s spread without a columns parameter',
+    async (benchmark) => {
+      const client = api(
+        [
+          { areaCode: 'E06000052', areaName: 'Cornwall', observations: [observation()] },
+          {
+            areaCode: 'E92000001',
+            areaName: 'England',
+            observations: [observation({ value: 300 })],
+          },
+        ],
+        {
+          'GET /api/areas/lookup': [
+            {
+              code: 'E06000052',
+              name: 'Cornwall',
+              areaType: 'Unitary authority',
+              displayGroup: 'Local authorities',
+            },
+          ],
+          'GET /api/areas/parents': [
+            { code: 'E06000052', parentCode: 'E12000009', parentName: 'South West' },
+          ],
+          [`GET ${DETAIL}/range`]: {
+            periods: [
+              {
+                fromDate: '2023-01-01',
+                toDate: '2023-12-31',
+                segment: '',
+                min: 200,
+                p25: 250,
+                p75: 350,
+                max: 400,
+              },
+            ],
+          },
+        },
+      );
+      const url = `http://localhost/indicator/${SLUG}/table.csv?as=E06000052&cmp-108=${benchmark}`;
+      const response = await loadIndicatorCsv(args(client, url), 'table');
+      const csv = await response.text();
+      const explicit = await loadIndicatorCsv(
+        args(client, `${url}&columns-108=value,95,minmax,percentiles,chart`),
+        'table',
+      );
+
+      expect(csv).toBe(await explicit.text());
+      expect(csv.split('\n')[0]).toMatch(/lowest,.*25th percentile,.*75th percentile,.*highest$/);
+      expect(csv).toContain(',200,250,350,400\n');
+      expect(csv).not.toContain('Cornwall count');
+      expect(paths(client)).toContain(
+        `${DETAIL}/range?displayGroup=${encodeURIComponent(benchmark === 'england' ? 'Local authorities' : 'Statistical regions')}`,
+      );
+    },
+  );
+
   it('serves the trend table as an attachment, quoting fields that need it', async () => {
     const client = api([
       { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
@@ -92,8 +149,10 @@ describe('loadIndicatorCsv', () => {
       'attachment; filename="108-table.csv"',
     );
     const body = await response.text();
-    expect(body).toContain('Period,"England calculated value (per 100,000)",England count');
-    expect(body).toContain('2023,341.1,130000');
+    expect(body).toContain(
+      'Period,"England calculated value (per 100,000)",England lower 95% CI,England upper 95% CI',
+    );
+    expect(body).toContain('2023,341.1,339,343.2');
   });
 
   it('adds no unit to the headings of values that have none', async () => {
@@ -107,7 +166,9 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
 
-    expect(await response.text()).toContain('Period,England calculated value,England count\n');
+    expect(await response.text()).toContain(
+      'Period,England calculated value,England lower 95% CI,England upper 95% CI\n',
+    );
   });
 
   it('loads the linked areas with England riding along and filters the trend by options', async () => {
@@ -139,8 +200,8 @@ describe('loadIndicatorCsv', () => {
 
     expect(paths(client)).toContain(`${DETAIL}/data?areaCode=E06000052&areaCode=E92000001`);
     const body = await response.text();
-    expect(body).toContain('2023,1,130000');
-    expect(body).not.toContain('2023,2,130000');
+    expect(body).toContain('2023,1,339,343.2');
+    expect(body).not.toContain('2023,2,339,343.2');
   });
 
   it('serves every observation with segments and notes in the all-data download', async () => {
@@ -314,7 +375,7 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
 
-    expect(await response.text()).toContain('2023,7,130000');
+    expect(await response.text()).toContain('2023,7,339,343.2');
   });
 
   it('offers only the first area sexes, exactly as the page does', async () => {
@@ -341,7 +402,7 @@ describe('loadIndicatorCsv', () => {
     );
 
     // Male exists only in England's series, so the filter is ignored, not applied.
-    expect(await response.text()).toContain('2023,9,130000');
+    expect(await response.text()).toContain('2023,9,339,343.2');
   });
 
   it('404s a segment shaped like neither identifier without calling the api', async () => {

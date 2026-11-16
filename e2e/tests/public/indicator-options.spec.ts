@@ -106,6 +106,44 @@ test('the benchmark spread and comparison chart columns toggle independently', a
   await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(0);
 });
 
+test('keeps a table when only comparison columns are selected', async ({ page }) => {
+  for (const [columns, heading] of [
+    ['chart', 'Compared with England'],
+    ['minmax', 'Lowest'],
+    ['percentiles', '25th percentile'],
+  ] as const) {
+    await openIndicatorPage(
+      page,
+      `${MORTALITY_PATH}?as=E08000003&cmp-108=england&columns-108=${columns}`,
+    );
+    const table = trendTable(page);
+    await expect(table.getByRole('columnheader', { name: heading, exact: true })).toBeVisible();
+    await expect(table.locator('tbody tr').first()).toBeVisible();
+    await expect(table.locator('[colspan="0"]')).toHaveCount(0);
+    await expect(page.getByText('Select at least one table column.')).toHaveCount(0);
+  }
+});
+
+test('downloads the default benchmark spread without an explicit column selection', async ({
+  page,
+}) => {
+  const query = 'as=E08000003&cmp-108=england';
+  await openIndicatorPage(page, `${MORTALITY_PATH}?${query}`);
+  const table = trendTable(page);
+  for (const name of ['Lowest', '25th percentile', '75th percentile', 'Highest']) {
+    await expect(table.getByRole('columnheader', { name, exact: true })).toBeVisible();
+  }
+  const response = await page.request.get(`${MORTALITY_PATH}/table.csv?${query}`);
+  expect(response.ok()).toBe(true);
+  const csv = await response.text();
+  const explicit = await page.request.get(
+    `${MORTALITY_PATH}/table.csv?${query}&columns-108=value,95,minmax,percentiles,chart`,
+  );
+  expect(explicit.ok()).toBe(true);
+  expect(csv).toBe(await explicit.text());
+  expect(csv.split('\n')[0]).toMatch(/lowest,.*25th percentile,.*75th percentile,.*highest$/);
+});
+
 test('inequality options change the breakdown period', async ({ page }) => {
   await openIndicatorPage(page, `${MORTALITY_PATH}?tab-indicator=inequalities`);
   const options = page

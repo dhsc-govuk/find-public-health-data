@@ -74,6 +74,32 @@ const observation = (value: number) => ({
   upperCi998: null,
 });
 
+it.each([1234.5678, null])(
+  'exports matching area and England numeric measures for %s',
+  async (value) => {
+    const lines = await dataDownload(
+      [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [annualObservation(2023, value)],
+        },
+        {
+          areaCode: 'E12000001',
+          areaName: 'North East',
+          observations: [annualObservation(2023, value)],
+        },
+      ],
+      'count,numerator,value',
+    );
+    const fields = lines[1]?.split(',') ?? [];
+    const expected =
+      value == null ? ['', '', ''] : [String(value * 10), String(value * 5), String(value)];
+    expect(fields.slice(3, 6)).toEqual(expected);
+    expect(fields.slice(-3)).toEqual(expected);
+  },
+);
+
 it('exports No data as the latest period for indicators without observations', async () => {
   vi.mocked(loadTopic).mockResolvedValue({
     topic: { slug: 'example', title: 'Example' },

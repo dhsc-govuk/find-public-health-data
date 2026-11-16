@@ -327,6 +327,32 @@ it('turns the minimum/maximum and percentile columns on independently', () => {
   expect(screen.queryByRole('columnheader', { name: 'England lowest' })).toBeNull();
 });
 
+it.each([
+  ['a matching England value', undefined, undefined, 28],
+  ['an older matching England value', '2022', { value: 30, period: '2022' }, 30],
+  ['no England value for the older period', '2022', undefined, null],
+])('charts the area with %s', (_, period, benchmark, expected) => {
+  const smoking = spread();
+  smoking.cells = smoking.cells.map((cell) => ({
+    ...cell,
+    ...(period ? { period } : {}),
+    ...(benchmark ? { benchmark } : {}),
+    judgement: expected == null ? null : cell.judgement,
+  }));
+  render(
+    <MemoryRouter>
+      <TopicDataTable model={compared([smoking])} title="Diabetes" columns={['chart', 'summary']} />
+    </MemoryRouter>,
+  );
+  const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+  if (expected == null) {
+    expect(cells[0]?.textContent).toBe('-No data');
+    expect(cells[1]?.textContent).toBe('No comparison available(2022)');
+  } else {
+    expect(cells[0]?.textContent).toContain(`England: ${expected}.0%`);
+  }
+});
+
 it('associates each value with its row, area and column headings', () => {
   render(
     <MemoryRouter>
