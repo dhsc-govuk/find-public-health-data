@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { expectHydrated } from '../support/govuk-frontend.ts';
 import { openSectionPage } from '../support/section-page.ts';
 import { IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 
@@ -11,6 +12,7 @@ test.describe('as a publisher', () => {
 
   test('shows a publisher the guidance, with its contents', async ({ page }) => {
     await page.goto('/publish/guidance');
+    await expectHydrated(page);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Publisher guidance' })).toBeVisible();
     const contents = page.getByRole('navigation', { name: 'Contents' });
@@ -28,6 +30,7 @@ test.describe('as a publisher', () => {
       key: 'definition-and-rationale',
       taskName: 'Definition and rationale',
     });
+    await expectHydrated(page);
 
     const [guidance] = await Promise.all([
       page.waitForEvent('popup'),
