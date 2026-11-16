@@ -346,3 +346,42 @@ export const publishedObservationRange = publishedSchema
     quintileCutoffs: doublePrecision('quintile_cutoffs').array(),
   })
   .existing();
+
+/**
+ * Every published view, keyed by its name. The repository functions read whichever set of views
+ * they are given, so the same queries can run on another schema's views of the same shape.
+ */
+export const publishedViews = {
+  area: publishedArea,
+  areaRelationship: publishedAreaRelationship,
+  areaType: publishedAreaType,
+  availableData: publishedAvailableData,
+  ciMethod: publishedCiMethod,
+  classification: publishedClassification,
+  comparatorMethod: publishedComparatorMethod,
+  dataProvider: publishedDataProvider,
+  dataProviderSource: publishedDataProviderSource,
+  dataSource: publishedDataSource,
+  dimensionType: publishedDimensionType,
+  dimensionValue: publishedDimensionValue,
+  indicator: publishedIndicator,
+  indicatorClassification: publishedIndicatorClassification,
+  indicatorSlug: publishedIndicatorSlug,
+  indicatorSource: publishedIndicatorSource,
+  indicatorSubtopic: publishedIndicatorSubtopic,
+  indicatorTopic: publishedIndicatorTopic,
+  indicatorUpdateSummary: publishedIndicatorUpdateSummary,
+  noteType: publishedNoteType,
+  observation: publishedObservation,
+  observationDimension: publishedObservationDimension,
+  observationNote: publishedObservationNote,
+  observationRange: publishedObservationRange,
+  observationSeries: publishedObservationSeries,
+  observationSeriesBatch: publishedObservationSeriesBatch,
+  subtopic: publishedSubtopic,
+  topic: publishedTopic,
+  unit: publishedUnit,
+  valueType: publishedValueType,
+};
+
+export type ViewSet = typeof publishedViews;
