@@ -22,16 +22,19 @@ const MIGRATION_LOCK_KEY = 0x6d696772; // 'migr'
  * A plain `finally` would let a failing teardown replace the error that caused it — a dead
  * connection rejects the unlock too, and the job would log the teardown instead of the
  * migration that failed. The teardown error only propagates when the work itself succeeded.
+ * When both fail, `onTeardownError` is given the teardown's error, so a caller can report it
+ * beside the one thrown.
  */
 export async function withTeardown<T>(
   run: () => Promise<T>,
   teardown: () => Promise<unknown>,
+  onTeardownError: (error: unknown) => void = () => {},
 ): Promise<T> {
   let result: T;
   try {
     result = await run();
   } catch (error) {
-    await teardown().catch(() => {});
+    await teardown().catch(onTeardownError);
     throw error;
   }
   await teardown();
@@ -54,7 +57,19 @@ export async function withTeardown<T>(
  * Inside both, the preview views are dropped before the migrations and recreated after them (see
  * `preview-views.ts`).
  */
-export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
+export interface MigrateOptions {
+  /**
+   * Given the error that stopped the preview views being recreated after a failed migration.
+   * The migration's own error is the one thrown, so without this the reason the preview schema
+   * is empty would be lost.
+   */
+  onPreviewViewsLost?: (error: unknown) => void;
+}
+
+export async function migrateToLatest(
+  sql: postgres.Sql,
+  { onPreviewViewsLost }: MigrateOptions = {},
+): Promise<void> {
   if (sql.options.max !== 1) {
     throw new Error(
       `migrateToLatest needs a client with max: 1, got ${sql.options.max} — the advisory lock binds to a single session`,
@@ -66,7 +81,11 @@ export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
     async () => {
       assertMigratable(compareMigrations(readLocalMigrations(), await readAppliedMigrations(sql)));
       await asOwnerGroup(sql, () =>
-        withPreviewViewsRecreated(sql, () => migrate(drizzle(sql), { migrationsFolder })),
+        withPreviewViewsRecreated(
+          sql,
+          () => migrate(drizzle(sql), { migrationsFolder }),
+          onPreviewViewsLost,
+        ),
       );
     },
     () => sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`,
@@ -76,14 +95,16 @@ export async function migrateToLatest(sql: postgres.Sql): Promise<void> {
 /**
  * Drops the preview views, runs `work`, then recreates them from the published views as `work`
  * left them. The views are recreated even when `work` fails, because a failed migration rolls
- * back and leaves the published views as they were.
+ * back and leaves the published views as they were. If recreating them then fails too, its
+ * error goes to `onRecreateError` and `work`'s error is thrown.
  */
 export async function withPreviewViewsRecreated<T>(
   sql: postgres.Sql,
   work: () => Promise<T>,
+  onRecreateError?: (error: unknown) => void,
 ): Promise<T> {
   await dropPreviewViews(sql);
-  return withTeardown(work, () => createPreviewViews(sql));
+  return withTeardown(work, () => createPreviewViews(sql), onRecreateError);
 }
 
 /**

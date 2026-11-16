@@ -41,7 +41,14 @@ export const commands: Record<string, Command> = {
   },
   'db migrate': {
     description: 'Apply every pending migration',
-    run: ({ sql }) => migrateToLatest(sql),
+    run: ({ sql, logger }) =>
+      migrateToLatest(sql, {
+        onPreviewViewsLost: (error) =>
+          logger.error(
+            { err: error },
+            'Could not recreate the preview views after the migration failed',
+          ),
+      }),
   },
   'db status': {
     description: 'Report the state of every migration, and fail if one blocks migrating',
