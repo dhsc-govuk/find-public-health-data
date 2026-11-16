@@ -34,7 +34,9 @@ export function topicDataTableModel(
   const areas = cellAreas
     .filter(({ code }) => !compared || code !== 'E92000001')
     .sort((a, b) => a.name.localeCompare(b.name));
-  const levels = new Set(areas.map(({ code }) => geography.levelByCode[code]));
+  const levels = new Set(
+    areas.map(({ code }) => geography.levelByCode[code]).filter((level) => level !== undefined),
+  );
   return {
     kind: 'data' as const,
     compared,

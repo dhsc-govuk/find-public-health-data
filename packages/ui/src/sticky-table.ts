@@ -187,6 +187,7 @@ export function attachStickyTable({
       unpinBar();
     }
     if (
+      !overflowing ||
       !headerPinned({
         headTop: headBox.top,
         headHeight: headBox.height,

@@ -14,7 +14,7 @@ const box = (top: number, height: number) =>
     y: top,
   }) as DOMRect;
 
-function setUp() {
+function setUp(scrollWidth = 1500) {
   document.body.innerHTML = `
     <div class="fphd-tabs" style="transform: translateX(-50%)">
       <div id="root">
@@ -33,7 +33,7 @@ function setUp() {
   Object.defineProperties(scroller, {
     offsetParent: { get: () => document.body },
     clientWidth: { get: () => 500 },
-    scrollWidth: { get: () => 1500 },
+    scrollWidth: { get: () => scrollWidth },
   });
   Object.defineProperty(bar, 'offsetHeight', { get: () => 24 });
   const table = scroller.querySelector('table') as HTMLTableElement;
@@ -137,6 +137,17 @@ describe('attachStickyTable', () => {
     scrollTo(-801);
     sticky.refresh();
     for (const frame of frames.splice(0)) frame(0);
+    expect(barContainer.parentElement).toBe(slot);
+    sticky.detach();
+  });
+
+  it('leaves the header in the table when its columns fit without horizontal scrolling', () => {
+    const { barContainer, slot, scrollTo, elements } = setUp(500);
+    const sticky = attachStickyTable(elements);
+    scrollTo(-200);
+    sticky.refresh();
+    for (const frame of frames.splice(0)) frame(0);
+    expect(document.querySelector<HTMLElement>('.fphd-sticky-header')?.style.display).toBe('none');
     expect(barContainer.parentElement).toBe(slot);
     sticky.detach();
   });

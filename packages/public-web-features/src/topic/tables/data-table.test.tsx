@@ -423,3 +423,45 @@ it('shows a dash, read as No data, for a missing value or chart', () => {
   const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
   expect(cells.slice(0, 2).map((cell) => cell.textContent)).toEqual(['-No data', '-No data']);
 });
+
+it.each([undefined, 'No data', '2022'])(
+  'does not chart an area without data regardless of its period label (%s)',
+  (period) => {
+    const smoking = spread();
+    smoking.cells = smoking.cells.map((cell) => ({
+      ...cell,
+      value: null,
+      ...(period !== undefined ? { period } : {}),
+    }));
+    render(
+      <MemoryRouter>
+        <TopicDataTable model={compared([smoking])} title="Diabetes" columns={['chart']} />
+      </MemoryRouter>,
+    );
+    const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
+    expect(cells[0]?.textContent).toBe('-No data');
+    expect(within(cells[0] as HTMLElement).queryByRole('img')).toBeNull();
+  },
+);
+
+it.each([false, true])(
+  'keeps finite widths with all columns deselected (compared: %s)',
+  (compare) => {
+    const model: TopicDataTableModel = compare
+      ? compared([spread()])
+      : {
+          kind: 'data',
+          compared: false,
+          areas: [{ code: 'E92000001', name: 'England' }],
+          rows: [row('Smoking', { value: 28, judgement: null }, null)],
+        };
+    render(
+      <MemoryRouter>
+        <TopicDataTable model={model} title="Diabetes" columns={[]} />
+      </MemoryRouter>,
+    );
+    expect(
+      [...document.querySelectorAll('col')].map((column) => column.getAttribute('width')),
+    ).toEqual(compare ? ['50', '150'] : ['680']);
+  },
+);

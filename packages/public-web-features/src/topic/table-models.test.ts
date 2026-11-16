@@ -502,6 +502,41 @@ it('leaves the spread out when the area’s level has no range for its period', 
 });
 
 it.each([false, true])(
+  'keeps a known level’s England spread when another area’s level is unknown (reversed: %s)',
+  (reverse) => {
+    const source = structuredClone(entry);
+    source.areaData.push({
+      areaCode: 'E12000003',
+      areaName: 'Yorkshire',
+      observations: [observation(2022, 12)],
+    });
+    if (reverse) source.areaData.reverse();
+    source.ranges = {
+      'Statistical regions': [
+        {
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          segment: '',
+          min: 10,
+          p25: 15,
+          p75: 20,
+          max: 25,
+        },
+      ],
+    };
+    const model = topicDataTableModel([source], 'diabetes', {
+      regionByCode: {},
+      levelByCode: { E12000001: 'Statistical regions' },
+    });
+    expect(model.mixedGeographyLevels).toBeUndefined();
+    expect(model.rows[0]?.england).toMatchObject({ min: 10, p25: 15, p75: 20, max: 25 });
+    expect(
+      model.rows[0]?.cells.find(({ areaCode }) => areaCode === 'E12000003'),
+    ).not.toHaveProperty('range');
+  },
+);
+
+it.each([false, true])(
   'does not present one level’s spread as shared by mixed levels (reversed: %s)',
   (reverse) => {
     const source = structuredClone(entry);

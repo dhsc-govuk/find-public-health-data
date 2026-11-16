@@ -826,4 +826,10 @@ test('lets a table that fits keep the browser’s layout without a custom scroll
   await expect(
     page.locator('.fphd-table-scroll').filter({ has: region }).locator('.fphd-table-scrollbar'),
   ).toBeHidden();
+  await region
+    .locator('tbody tr')
+    .nth(5)
+    .evaluate((row) => window.scrollTo(0, row.getBoundingClientRect().top + window.scrollY));
+  await expect(page.locator('.fphd-sticky-header').filter({ visible: true })).toHaveCount(0);
+  await expect(page.locator('.fphd-table-scrollbar--floating')).toHaveCount(0);
 });

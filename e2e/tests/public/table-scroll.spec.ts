@@ -1,10 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
 import { openTopicPage } from '../support/topic-page.ts';
 
 const topicPath = '/topics/mortality-and-life-expectancy?tab-topic=data&ga=E12000007';
 
-test('keeps a horizontal scrollbar available for a table’s tail rows', async ({ page }) => {
+test('keeps a horizontal scrollbar available for a table’s tail rows', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 1024, height: 800 });
   await openTopicPage(page, topicPath);
   const region = page.getByRole('region', {
@@ -27,6 +30,7 @@ test('keeps a horizontal scrollbar available for a table’s tail rows', async (
   await page.mouse.move(box.x + box.width / 2 + 50, box.y + box.height / 2);
   await page.mouse.up();
   await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  await expectNoAccessibilityViolations(page, testInfo);
   await table.evaluate((element) =>
     window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY + 1),
   );
