@@ -269,12 +269,6 @@ export const indicatorVersion = pgTable(
     hasFramework: boolean(),
     hasLifeStage: boolean(),
     isAreaContext: boolean().notNull().default(false),
-    // Copyright and data re-use
-    // True when the indicator states its own copyright or re-use terms instead of the defaults.
-    hasCustomCopyright: boolean(),
-    customCopyrightDetail: text(),
-    hasCustomDataReuse: boolean(),
-    customDataReuseDetail: text(),
     // Update frequency
     updateFrequency: text({ enum: UPDATE_FREQUENCIES }),
     updateFrequencyReason: text(),
@@ -384,14 +378,6 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_other_notes_detail_check',
       detailBesideYes(t.hasOtherNotes, t.otherNotesDetail),
-    ),
-    check(
-      'indicator_version_custom_copyright_detail_check',
-      detailBesideYes(t.hasCustomCopyright, t.customCopyrightDetail),
-    ),
-    check(
-      'indicator_version_custom_data_reuse_detail_check',
-      detailBesideYes(t.hasCustomDataReuse, t.customDataReuseDetail),
     ),
     check(
       'indicator_version_goal_polarity_check',

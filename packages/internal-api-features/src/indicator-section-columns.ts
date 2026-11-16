@@ -11,8 +11,6 @@ import {
   type ConfidenceIntervals,
   type ConfidenceIntervalsField,
   calculationSection,
-  copyrightAndDataReuseQuestions,
-  copyrightAndDataReuseSection,
   type DataQualityField,
   definitionAndRationaleSection,
   goalValue,
@@ -253,11 +251,6 @@ export const updateSummaryColumns: OwnFieldColumns<UpdateSummaryField, UpdateSum
     updateSummaryForReviewers: answers.updateSummaryForReviewers || null,
   }),
 };
-
-export const copyrightAndDataReuseColumns = yesNoDetailColumns(
-  copyrightAndDataReuseSection,
-  copyrightAndDataReuseQuestions,
-);
 
 export const benchmarkingColumns: IndicatorSectionColumns<BenchmarkingField, Benchmarking> = {
   fromDraft: (draft) => ({

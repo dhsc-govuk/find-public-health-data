@@ -12,7 +12,6 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
-  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   otherNotesAndCaveatsColumns,
@@ -158,13 +157,6 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
     savedFields(publishingDateColumns, {
       ...publishingDate,
       scheduledPublishAt: new Date('2027-09-14T08:30:00.000Z'),
-    }),
-  'copyright-and-data-reuse': () =>
-    savedFields(copyrightAndDataReuseColumns, {
-      hasCustomCopyright: 'yes',
-      customCopyrightDetail: 'Crown copyright',
-      hasCustomDataReuse: 'yes',
-      customDataReuseDetail: 'Open Government Licence',
     }),
   benchmarking: () =>
     savedFields(benchmarkingColumns, {

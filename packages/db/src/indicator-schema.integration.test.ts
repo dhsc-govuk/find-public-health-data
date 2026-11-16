@@ -432,13 +432,6 @@ describe('indicator_version', () => {
       'no reviewer comments',
       { hasReviewerComments: false, reviewerCommentsDetail: 'Replaces 108' },
     ],
-    ['copyright of nobody', { customCopyrightDetail: 'NHS England' }],
-    ['the default copyright', { hasCustomCopyright: false, customCopyrightDetail: 'NHS England' }],
-    ['data re-use of nobody', { customDataReuseDetail: 'Cite NHS England' }],
-    [
-      'the default data re-use',
-      { hasCustomDataReuse: false, customDataReuseDetail: 'Cite NHS England' },
-    ],
   ] as const)('refuses a detail beside %s', async (_, values) => {
     await expect(addVersion(await newIndicatorId(), 'draft', values)).rejects.toMatchObject({
       cause: { code: CHECK_VIOLATION },
@@ -462,10 +455,6 @@ describe('indicator_version', () => {
         automationDetail: 'Pipeline',
         hasReviewerComments: true,
         reviewerCommentsDetail: 'Replaces 108',
-        hasCustomCopyright: true,
-        customCopyrightDetail: 'NHS England',
-        hasCustomDataReuse: true,
-        customDataReuseDetail: 'Cite NHS England',
         hasCiMethodModifications: true,
         ciMethodModificationsDetail: 'Adjusted for repeat admissions',
       }),
@@ -513,8 +502,6 @@ describe('indicator_version', () => {
     ['exclusions', { hasExclusions: true }, 'exclusions_detail'],
     ['automation', { hasAutomation: true }, 'automation_detail'],
     ['reviewer comments', { hasReviewerComments: true }, 'reviewer_comments_detail'],
-    ['a custom copyright', { hasCustomCopyright: true }, 'custom_copyright_detail'],
-    ['custom data re-use', { hasCustomDataReuse: true }, 'custom_data_reuse_detail'],
     [
       'CI method modifications',
       { hasCiMethodModifications: true },

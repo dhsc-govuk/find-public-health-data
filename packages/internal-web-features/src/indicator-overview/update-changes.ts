@@ -4,7 +4,6 @@ import {
   type BenchmarkingField,
   type CalculationField,
   type ConfidenceIntervalsField,
-  type CopyrightAndDataReuseField,
   type DefinitionAndRationaleField,
   INDICATOR_TASK_TITLES,
   type IndicatorTaskKey,
@@ -52,7 +51,6 @@ interface SectionFields {
   'variance-and-quality': VarianceAndQualityField;
   justifications: JustificationsField;
   'other-comments': OtherCommentsField;
-  'copyright-and-data-reuse': CopyrightAndDataReuseField;
   benchmarking: BenchmarkingField;
   'sex-gender-and-ethnicity': SexGenderAndEthnicityField;
   ages: AgesField;
@@ -127,12 +125,6 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       sponsorsAndStakeholders: 'Sponsors',
       hasReviewerComments: 'Has additional comments',
       reviewerCommentsDetail: 'Comments',
-    },
-    'copyright-and-data-reuse': {
-      hasCustomCopyright: 'Custom copyright',
-      customCopyrightDetail: 'Copyright detail',
-      hasCustomDataReuse: 'Custom data re-use',
-      customDataReuseDetail: 'Data re-use detail',
     },
     benchmarking: {
       hasGoalBenchmark: 'Policy goal benchmark',

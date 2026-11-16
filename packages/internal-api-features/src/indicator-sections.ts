@@ -5,7 +5,6 @@ import {
   agesSection,
   benchmarkingSection,
   calculationSection,
-  copyrightAndDataReuseSection,
   dataQualitySection,
   definitionAndRationaleSection,
   denominatorSection,
@@ -25,7 +24,6 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
-  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
@@ -126,12 +124,6 @@ export function indicatorSectionsRouter(
     ),
     indicatorSectionRouter(indicators, session, justificationsSection, justificationsColumns),
     indicatorSectionRouter(indicators, session, otherCommentsSection, otherCommentsColumns),
-    indicatorSectionRouter(
-      indicators,
-      session,
-      copyrightAndDataReuseSection,
-      copyrightAndDataReuseColumns,
-    ),
     indicatorSectionRouter(indicators, session, benchmarkingSection, benchmarkingColumns),
     indicatorSectionRouter(
       indicators,

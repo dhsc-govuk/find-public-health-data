@@ -7,7 +7,6 @@ interface YesNoQuestionProps<Field extends string> {
   answer: Field;
   detail: Field;
   legend: string;
-  hint?: string;
   detailLabel: string;
   detailRows: number;
   /** A details field that No reveals, for a question that asks for details under either answer. */
@@ -28,7 +27,6 @@ export function YesNoQuestion<Field extends string>({
   detailLabel,
   detailRows,
   fieldErrors,
-  hint,
   legend,
   moreOptions = [],
   noDetail,
@@ -49,7 +47,6 @@ export function YesNoQuestion<Field extends string>({
     <Radios
       defaultValue={values[answer]}
       error={fieldErrors[answer]}
-      hint={hint}
       label={legend}
       labelHeading="h2"
       name={answer}

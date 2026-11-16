@@ -603,6 +603,13 @@
       "when": 1794583425664,
       "tag": "0085_cache-sparkline-periods",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794837066280,
+      "tag": "0086_remove-copyright-and-data-reuse-task",
+      "breakpoints": true
     }
   ]
 }

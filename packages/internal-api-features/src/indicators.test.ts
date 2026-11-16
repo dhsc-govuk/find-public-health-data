@@ -1228,7 +1228,6 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         'variance-and-quality': 'not_started',
         justifications: 'not_started',
         'other-comments': 'not_started',
-        'copyright-and-data-reuse': 'not_started',
         benchmarking: 'not_started',
         'sex-gender-and-ethnicity': 'not_started',
         ages: 'not_started',
