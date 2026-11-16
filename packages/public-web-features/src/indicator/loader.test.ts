@@ -111,6 +111,41 @@ function args(
 }
 
 describe('loadIndicator', () => {
+  it.each([
+    ['', false],
+    ['tab-indicator=areas', true],
+    ['render=complete', true],
+  ])(
+    'includes only highlighted neighbours in page loader data when needed: %s',
+    async (query, detailed) => {
+      const client = api({
+        'GET /api/indicators/indicator-108/areas': [
+          {
+            displayGroup: 'Local authorities',
+            areas: [
+              { code: 'E06000001', name: 'Hartlepool' },
+              { code: 'E06000047', name: 'County Durham' },
+            ],
+          },
+        ],
+        'GET /api/areas/neighbours': [{ code: 'E06000001', neighbours: ['E06000006'] }],
+      });
+      const page = await loadIndicatorPage(
+        args(client, `http://localhost/indicator/indicator-108?highlight=E06000001&${query}`),
+      );
+      const comparison = await page.comparison;
+      expect(
+        comparison.compareAreaOptions.map(({ code, neighbours }) => ({ code, neighbours })),
+      ).toEqual([
+        { code: 'E06000001', neighbours: detailed ? ['E06000006'] : undefined },
+        { code: 'E06000047', neighbours: undefined },
+      ]);
+      expect(paths(client).filter((path) => path.startsWith('/api/areas/neighbours?'))).toEqual(
+        detailed ? ['/api/areas/neighbours?areaCode=E06000001'] : [],
+      );
+    },
+  );
+
   it('loads neighbours for every SSR highlight in capped requests', async () => {
     const areas = Array.from({ length: MAX_NEIGHBOUR_AREAS_PER_REQUEST + 1 }, (_, index) => ({
       code: `E06${String(index).padStart(6, '0')}`,

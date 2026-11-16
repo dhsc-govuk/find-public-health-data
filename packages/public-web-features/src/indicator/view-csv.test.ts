@@ -70,6 +70,35 @@ describe('indicator view CSV', () => {
     expect(lines.every((line) => line.split(',').length === 3)).toBe(true);
   });
 
+  it('exports England and its intervals when England is the only area with intervals', async () => {
+    const data = await loadIndicator(args(''));
+    vi.mocked(loadIndicator).mockResolvedValue({
+      ...data,
+      compareAreasData: areas.map((area) => ({
+        ...area,
+        observations: area.observations.map((observation) => ({
+          ...observation,
+          lowerCi95: null,
+          upperCi95: null,
+        })),
+      })),
+    });
+    const lines = (await (await loadIndicatorViewCsv(args('tab-indicator=areas'))).text())
+      .trim()
+      .split('\n');
+    expect(lines[0]).toBe(
+      'Area,Value (%),Compared with England,95% lower confidence interval,95% upper confidence interval',
+    );
+    expect(lines).toContain('England (benchmark),40,,39,41');
+    expect(
+      lines
+        .find((line) => line.startsWith('Cornwall,'))
+        ?.split(',')
+        .slice(3),
+    ).toEqual(['', '']);
+    expect(lines.every((line) => line.split(',').length === 5)).toBe(true);
+  });
+
   it('keeps CI columns when filtering out the only area with intervals', async () => {
     const data = await loadIndicator(args(''));
     vi.mocked(loadIndicator).mockResolvedValue({

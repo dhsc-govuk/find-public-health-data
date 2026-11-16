@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createRoutesStub, useLocation } from 'react-router';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createMemoryRouter, createRoutesStub, RouterProvider, useLocation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
+import { highlightedAreaCodes } from './area-comparison.ts';
 import { AreaControls, AreaSortControl } from './area-controls.tsx';
 
 afterEach(cleanup);
@@ -109,3 +111,40 @@ it('offers individual area highlights without region controls on Compare indicat
   expect(screen.queryByRole('checkbox', { name: /North East/ })).toBeNull();
   expect(screen.getByRole('checkbox', { name: 'Area 1' })).toBeTruthy();
 });
+
+it.each(['Area 1', 'e06000001'])(
+  'matches the picker and no-script region reconciliation for %s before hydration',
+  (query) => {
+    const params = new URLSearchParams({ 'geo-q': query, highlightRegion: 'E12000001' });
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/',
+          element: (
+            <AreaControls
+              slug="indicator-108"
+              group="Local authorities"
+              groups={['Local authorities']}
+              areas={areas}
+            />
+          ),
+        },
+      ],
+      { initialEntries: [`/?${params}`] },
+    );
+    const document = new DOMParser().parseFromString(
+      renderToStaticMarkup(<RouterProvider router={router} />),
+      'text/html',
+    );
+    const shown = [
+      ...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"][name="highlight"]'),
+    ];
+    expect(shown.map(({ value }) => value)).toEqual(['E06000001']);
+    expect(shown.every(({ checked }) => checked)).toBe(true);
+    expect(highlightedAreaCodes(params, areas)).toEqual(['E06000001']);
+    expect(
+      document.querySelector('input[name="highlightRegion"]')?.getAttribute('aria-label'),
+    ).toBe('North East: all 1 upper tier local authorities');
+    router.dispose();
+  },
+);
