@@ -13,6 +13,12 @@ export {
 } from './indicator-step-repository.ts';
 export { type IndicatorDraftVersion, isPublished } from './indicator-version-repository.ts';
 export { allowedSteps, type IndicatorWorkflowContext } from './indicator-workflow.ts';
+export {
+  slugOfRename,
+  slugOnPublication,
+  slugOnPublicationOf,
+  type VersionSlugParts,
+} from './publication-slug-repository.ts';
 export type { CarriedReviewer } from './reviewer-repository.ts';
 export {
   type PublicationResult,
