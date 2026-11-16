@@ -44,9 +44,7 @@ export interface IndicatorDraftClassification {
 /** The draft's answers held in tables of their own; each is replaced whole when given. */
 export interface IndicatorDraftLists extends Partial<IndicatorDraftSources> {
   topicIds?: string[];
-  primaryTopicId?: string | null;
   subtopicIds?: string[];
-  primarySubtopicId?: string | null;
   /** Each dimension given is replaced; the others are left as they are. */
   classificationIds?: Partial<Record<ClassificationDimension, string[]>>;
   /** In the order they are shown. */
@@ -76,9 +74,7 @@ export async function sourcesOf(
 
 export interface IndicatorDraftTaxonomy {
   topicIds: string[];
-  primaryTopicId: string | null;
   subtopicIds: string[];
-  primarySubtopicId: string | null;
 }
 
 export async function taxonomyOf(
@@ -88,9 +84,7 @@ export async function taxonomyOf(
   const rows = await db
     .select({
       topicId: indicatorVersionTopic.topicId,
-      isPrimary: indicatorVersionTopic.isPrimary,
       subtopicId: indicatorVersionSubtopic.subtopicId,
-      subtopicIsPrimary: indicatorVersionSubtopic.isPrimary,
     })
     .from(indicatorVersionTopic)
     .innerJoin(topic, eq(topic.id, indicatorVersionTopic.topicId))
@@ -105,9 +99,7 @@ export async function taxonomyOf(
     .orderBy(asc(topic.title), asc(indicatorVersionSubtopic.subtopicId));
   return {
     topicIds: [...new Set(rows.map(({ topicId }) => topicId))],
-    primaryTopicId: rows.find(({ isPrimary }) => isPrimary)?.topicId ?? null,
     subtopicIds: rows.flatMap(({ subtopicId }) => subtopicId ?? []),
-    primarySubtopicId: rows.find(({ subtopicIsPrimary }) => subtopicIsPrimary)?.subtopicId ?? null,
   };
 }
 
@@ -166,7 +158,6 @@ export function classificationAuditField(
 /** Every list a replacement may rewrite, by the field the audit log records it as. */
 export const LIST_AUDIT_FIELDS = [
   'topicIds',
-  'primaryTopicId',
   'subtopicPlacements',
   ...CLASSIFICATION_DIMENSIONS.map(classificationAuditField),
   'ageRanges',
@@ -225,9 +216,7 @@ export async function replaceLists(
     ageRanges,
     classificationIds,
     topicIds,
-    primaryTopicId,
     subtopicIds,
-    primarySubtopicId,
     numeratorSources,
     denominatorSources,
   }: IndicatorDraftLists,
@@ -243,21 +232,11 @@ export async function replaceLists(
     const removed = await tx
       .delete(indicatorVersionTopic)
       .where(eq(indicatorVersionTopic.indicatorVersionId, versionId))
-      .returning({
-        topicId: indicatorVersionTopic.topicId,
-        isPrimary: indicatorVersionTopic.isPrimary,
-      });
+      .returning({ topicId: indicatorVersionTopic.topicId });
     if (topicIds.length > 0) {
-      await tx.insert(indicatorVersionTopic).values(
-        topicIds.map((topicId) => ({
-          topicId,
-          indicatorVersionId: versionId,
-          isPrimary:
-            primaryTopicId === undefined
-              ? removed.some((row) => row.topicId === topicId && row.isPrimary)
-              : topicId === primaryTopicId,
-        })),
-      );
+      await tx
+        .insert(indicatorVersionTopic)
+        .values(topicIds.map((topicId) => ({ topicId, indicatorVersionId: versionId })));
     }
     const retained =
       subtopicIds === undefined
@@ -268,26 +247,18 @@ export async function replaceLists(
                 .from(subtopic)
                 .where(inArray(subtopic.id, subtopicIds))
             : []
-          ).map((row) => ({
-            ...row,
-            indicatorVersionId: versionId,
-            isPrimary: row.subtopicId === primarySubtopicId,
-          }));
+          ).map((row) => ({ ...row, indicatorVersionId: versionId }));
     if (retained.length) await tx.insert(indicatorVersionSubtopic).values(retained);
     if (placements.length || retained.length) {
       const placement = ({
         topicId,
         subtopicId,
-        isPrimary,
-      }: typeof indicatorVersionSubtopic.$inferSelect) => ({ topicId, subtopicId, isPrimary });
+      }: typeof indicatorVersionSubtopic.$inferSelect) => ({
+        topicId,
+        subtopicId,
+      });
       before.subtopicPlacements = placements.map(placement);
       after.subtopicPlacements = retained.map(placement);
-    }
-    if (primaryTopicId !== undefined) {
-      before.primaryTopicId = removed
-        .filter(({ isPrimary }) => isPrimary)
-        .map(({ topicId }) => topicId);
-      after.primaryTopicId = primaryTopicId === null ? [] : [primaryTopicId];
     }
     before.topicIds = removed.map(({ topicId }) => topicId);
     after.topicIds = topicIds;
@@ -353,26 +324,16 @@ export async function replaceLists(
   return { before, after };
 }
 
+/** Copies a version's subtopic placements onto another that already holds the same topics. */
 export async function copyTaxonomyPlacements(
   tx: Transaction,
   fromVersionId: string,
   toVersionId: string,
 ): Promise<unknown[]> {
   const topics = await tx
-    .select()
+    .select({ topicId: indicatorVersionTopic.topicId })
     .from(indicatorVersionTopic)
     .where(eq(indicatorVersionTopic.indicatorVersionId, fromVersionId));
-  for (const placement of topics.filter(({ isPrimary }) => isPrimary)) {
-    await tx
-      .update(indicatorVersionTopic)
-      .set({ isPrimary: true })
-      .where(
-        and(
-          eq(indicatorVersionTopic.indicatorVersionId, toVersionId),
-          eq(indicatorVersionTopic.topicId, placement.topicId),
-        ),
-      );
-  }
   const subtopics = await tx
     .select()
     .from(indicatorVersionSubtopic)
@@ -381,12 +342,11 @@ export async function copyTaxonomyPlacements(
     await tx
       .insert(indicatorVersionSubtopic)
       .values(subtopics.map((row) => ({ ...row, indicatorVersionId: toVersionId })));
-  return topics.map(({ topicId, isPrimary }) => ({
+  return topics.map(({ topicId }) => ({
     topicId,
-    isPrimary,
     subtopics: subtopics
       .filter((row) => row.topicId === topicId)
-      .map(({ subtopicId, isPrimary }) => ({ subtopicId, isPrimary })),
+      .map(({ subtopicId }) => ({ subtopicId })),
   }));
 }
 

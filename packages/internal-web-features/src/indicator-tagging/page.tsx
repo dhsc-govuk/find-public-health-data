@@ -1,11 +1,20 @@
 import {
+  subtopicsOf,
   TAG_LIST_DETAILS,
   type TagList,
   type TagOption,
   type TagOptions,
 } from '@fphd/internal-api-features/contract';
-import { Button, fieldInputId, firstRadioId, Radios, SelectAutocomplete } from '@fphd/ui';
-import type { ElementType } from 'react';
+import {
+  Button,
+  fieldInputId,
+  firstRadioId,
+  Radios,
+  SelectAutocomplete,
+  TextInput,
+} from '@fphd/ui';
+import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
+import type { ElementType, ReactNode } from 'react';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 import { addIntent, removeIntent } from '../list-form.ts';
@@ -13,27 +22,159 @@ import { ADD_TAG_FIELDS, type TaggingPageField, type TaggingPageValues } from '.
 
 type FieldErrors = Partial<Record<TaggingPageField, string>>;
 
-const LIFE_STAGE_QUESTION = 'Does this indicator need a life stage tag?';
+/** The lists with a picker of their own; topics and subtopics share the topic picker. */
+type PickerList = Exclude<TagList, 'topicIds' | 'subtopicIds'>;
+
 const FRAMEWORK_QUESTION = 'Is this indicator part of a framework or programme?';
+const LIFE_STAGE_QUESTION = 'Do you need to include the life stage the indicator relates to?';
+const RISK_FACTOR_QUESTION = 'Does this indicator include a risk factor?';
 
 // The order the error summary lists them in, which is the order the page asks.
 const FIELDS: readonly TaggingPageField[] = [
-  'isAreaContext',
   'topicIds',
   'addTopic',
-  'primaryTopicId',
   'subtopicIds',
   'addSubtopic',
-  'primarySubtopicId',
   'indicatorTypeIds',
   'addIndicatorType',
-  'hasLifeStage',
-  'lifeStageIds',
-  'addLifeStage',
   'hasFramework',
   'frameworkIds',
   'addFramework',
+  'phofIndicatorNumber',
+  'hasLifeStage',
+  'lifeStageIds',
+  'addLifeStage',
+  'hasRiskFactor',
+  'riskFactorIds',
+  'addRiskFactor',
 ];
+
+/** A tag added so far, with the button that removes it from its list. */
+interface AddedTag {
+  name: string;
+  list: TagList;
+  index: number;
+}
+
+function selectOptions(options: readonly TagOption[]) {
+  return [
+    { label: 'Select', value: '' },
+    ...options.map(({ id, name }) => ({ label: name, value: id })),
+  ];
+}
+
+/** The tags added so far, each with a Remove button and named in the hidden text after it. */
+function AddedTags({ added, noun }: { added: readonly AddedTag[]; noun: string }) {
+  return added.length === 0 ? null : (
+    <ul className="fphd-added-list">
+      {added.map(({ name, list, index }) => (
+        <li className="fphd-added-list__item" key={`${list}-${index}`}>
+          <span>{name}</span>
+          <Button
+            classModifiers="secondary"
+            className="govuk-!-margin-bottom-0"
+            name="intent"
+            value={removeIntent(index, list)}
+          >
+            {'Remove '}
+            <span className="govuk-visually-hidden">
+              {noun} {name}
+            </span>
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A hidden field for each id of the list the page offers, so Continue saves it. */
+function HiddenIds({ list, ids }: { list: TagList; ids: readonly string[] }) {
+  return ids.map((id) => <input key={id} name={list} type="hidden" value={id} />);
+}
+
+/**
+ * The topics added so far, in the order added, each shown with every subtopic chosen under it as
+ * "Topic: Subtopic". The ids are those the page offers, which the form sends back.
+ */
+function addedTopics(
+  topicIds: readonly string[],
+  subtopicIds: readonly string[],
+  options: TagOptions,
+): AddedTag[] {
+  return topicIds.flatMap((topicId, topicIndex): AddedTag[] => {
+    const topic = options.topics.find(({ id }) => id === topicId);
+    const subtopics = subtopicIds.flatMap((subtopicId, index) => {
+      const subtopic = options.subtopics.find(({ id }) => id === subtopicId);
+      return subtopic?.topicId === topicId ? [{ name: subtopic.name, index }] : [];
+    });
+
+    if (topic === undefined) return [];
+    if (subtopics.length === 0) return [{ name: topic.name, list: 'topicIds', index: topicIndex }];
+    return subtopics.map(({ name, index }) => ({
+      name: `${topic.name}: ${name}`,
+      list: 'subtopicIds',
+      index,
+    }));
+  });
+}
+
+/**
+ * The topic question: a select and its Add button, then, once a topic with subtopics is chosen,
+ * a select of that topic's subtopics, which adds the two together.
+ */
+function TopicPicker({
+  options,
+  values,
+  fieldErrors,
+}: {
+  options: TagOptions;
+  values: TaggingPageValues;
+  fieldErrors: FieldErrors;
+}) {
+  const chosen = options.topics.find(({ id }) => id === values.addTopic);
+  const subtopics = chosen === undefined ? [] : subtopicsOf(options, chosen.id);
+  const offered = (list: 'topicIds' | 'subtopicIds') =>
+    values[list].filter((id) => options[TAG_LIST_DETAILS[list].options].some((o) => o.id === id));
+  const topicIds = offered('topicIds');
+  const subtopicIds = offered('subtopicIds');
+
+  return (
+    <div className="govuk-!-margin-bottom-6">
+      <div className="fphd-field-row fphd-field-row--with-button">
+        <SelectAutocomplete
+          defaultValue={values.addTopic}
+          // A topic without the subtopic it needs is refused on the topic question.
+          error={fieldErrors.addTopic ?? fieldErrors.topicIds ?? fieldErrors.subtopicIds}
+          label="Select a topic"
+          labelHeading="h2"
+          name="addTopic"
+          options={selectOptions(options.topics)}
+        />
+        <Button classModifiers="secondary" name="intent" value={addIntent('topicIds')}>
+          Add topic
+        </Button>
+      </div>
+      {chosen === undefined || subtopics.length === 0 ? null : (
+        <div className="fphd-field-row fphd-field-row--with-button govuk-!-margin-top-3">
+          <SelectAutocomplete
+            defaultValue={values.addSubtopic}
+            error={fieldErrors.addSubtopic}
+            label={`Select a subtopic for ${chosen.name}`}
+            labelHeading="h3"
+            name="addSubtopic"
+            options={selectOptions(subtopics)}
+          />
+          <Button classModifiers="secondary" name="intent" value={addIntent('subtopicIds')}>
+            Add topic and subtopic
+          </Button>
+        </div>
+      )}
+      <HiddenIds ids={topicIds} list="topicIds" />
+      <HiddenIds ids={subtopicIds} list="subtopicIds" />
+      <AddedTags added={addedTopics(topicIds, subtopicIds, options)} noun="topic" />
+    </div>
+  );
+}
 
 /**
  * One list of tags: a select and its Add button, then the tags added so far, each carried in
@@ -46,12 +187,11 @@ function TagPicker({
   fieldErrors,
   labelHeading,
 }: {
-  list: TagList;
+  list: PickerList;
   options: readonly TagOption[];
   values: TaggingPageValues;
   fieldErrors: FieldErrors;
-  /** Set where the picker asks a question of its own, rather than answering one above it. */
-  labelHeading?: ElementType | undefined;
+  labelHeading: ElementType;
 }) {
   const { article, noun } = TAG_LIST_DETAILS[list];
   const field = ADD_TAG_FIELDS[list];
@@ -68,36 +208,14 @@ function TagPicker({
           label={`Select ${article} ${noun}`}
           labelHeading={labelHeading}
           name={field}
-          options={[
-            { label: 'Select', value: '' },
-            ...options.map(({ id, name }) => ({ label: name, value: id })),
-          ]}
+          options={selectOptions(options)}
         />
         <Button classModifiers="secondary" name="intent" value={addIntent(list)}>
           Add {noun}
         </Button>
       </div>
-      {added.length === 0 ? null : (
-        <ul className="fphd-added-list">
-          {added.map(({ id, name }, index) => (
-            <li className="fphd-added-list__item" key={id}>
-              <input name={list} type="hidden" value={id} />
-              <span>{name}</span>
-              <Button
-                classModifiers="secondary"
-                className="govuk-!-margin-bottom-0"
-                name="intent"
-                value={removeIntent(index, list)}
-              >
-                {'Remove '}
-                <span className="govuk-visually-hidden">
-                  {noun} {name}
-                </span>
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <HiddenIds ids={added.map(({ id }) => id)} list={list} />
+      <AddedTags added={added.map(({ name }, index) => ({ name, list, index }))} noun={noun} />
     </div>
   );
 }
@@ -108,36 +226,31 @@ interface TaggingPageProps extends SectionPageProps<TaggingPageField, TaggingPag
 
 export function TaggingPage({ options, ...form }: TaggingPageProps) {
   const { fieldErrors, values } = form;
-  const offeredSubtopics = options.subtopics
-    .filter(({ topicId }) => values.topicIds.includes(topicId))
-    .map((entry) => ({
-      ...entry,
-      name: `${options.topics.find(({ id }) => id === entry.topicId)?.name}: ${entry.name}`,
-    }));
-  const primaryPicker = (
-    name: 'primaryTopicId' | 'primarySubtopicId',
-    label: string,
-    choices: TagOption[],
-  ) => (
-    <SelectAutocomplete
-      name={name}
-      label={label}
-      labelHeading="h2"
-      defaultValue={values[name]}
-      error={fieldErrors[name]}
-      options={[
-        { label: 'Select', value: '' },
-        ...choices.map(({ id, name }) => ({ label: name, value: id })),
-      ]}
-    />
-  );
-  const picker = (list: TagList, labelHeading?: ElementType) => (
+  const picker = (list: PickerList, labelHeading: ElementType) => (
     <TagPicker
       fieldErrors={fieldErrors}
-      list={list}
       labelHeading={labelHeading}
-      options={list === 'subtopicIds' ? offeredSubtopics : options[TAG_LIST_DETAILS[list].options]}
+      list={list}
+      options={options[TAG_LIST_DETAILS[list].options]}
       values={values}
+    />
+  );
+  const yesNo = (
+    name: 'hasFramework' | 'hasLifeStage' | 'hasRiskFactor',
+    label: string,
+    // Shown without JavaScript; with it, only while "Yes" is chosen.
+    whenYes: ReactNode,
+  ) => (
+    <Radios
+      defaultValue={values[name]}
+      error={fieldErrors[name]}
+      label={label}
+      labelHeading="h2"
+      name={name}
+      options={[
+        { label: 'Yes', value: 'yes', conditional: whenYes },
+        { label: 'No', value: 'no' },
+      ]}
     />
   );
 
@@ -145,77 +258,44 @@ export function TaggingPage({ options, ...form }: TaggingPageProps) {
     <IndicatorSectionForm
       continueOnEnter
       fieldIds={{
-        isAreaContext: firstRadioId('isAreaContext'),
         topicIds: fieldInputId('addTopic'),
-        primaryTopicId: fieldInputId('primaryTopicId'),
-        subtopicIds: fieldInputId('addSubtopic'),
-        primarySubtopicId: fieldInputId('primarySubtopicId'),
+        subtopicIds: fieldInputId('addTopic'),
         indicatorTypeIds: fieldInputId('addIndicatorType'),
-        hasLifeStage: firstRadioId('hasLifeStage'),
-        lifeStageIds: fieldInputId('addLifeStage'),
         hasFramework: firstRadioId('hasFramework'),
         frameworkIds: fieldInputId('addFramework'),
+        hasLifeStage: firstRadioId('hasLifeStage'),
+        lifeStageIds: fieldInputId('addLifeStage'),
+        hasRiskFactor: firstRadioId('hasRiskFactor'),
+        riskFactorIds: fieldInputId('addRiskFactor'),
       }}
       fields={FIELDS}
       form={form}
+      intro={
+        <p className="govuk-body">You can select as many tags as are relevant to this indicator.</p>
+      }
       title="Add tags for this indicator"
     >
-      <Radios
-        defaultValue={values.isAreaContext === 'yes' ? 'yes' : 'no'}
-        error={fieldErrors.isAreaContext}
-        label="Does this indicator provide population or area context?"
-        hint="Area context indicators do not have topic or tag assignments."
-        labelHeading="h2"
-        name="isAreaContext"
-        options={[
-          { label: 'Yes', value: 'yes' },
-          {
-            label: 'No',
-            value: 'no',
-            conditional: (
-              <>
-                {picker('topicIds', 'h2')}
-                {primaryPicker(
-                  'primaryTopicId',
-                  'Select a primary topic',
-                  options.topics.filter(({ id }) => values.topicIds.includes(id)),
-                )}
-                {picker('subtopicIds', 'h2')}
-                {primaryPicker(
-                  'primarySubtopicId',
-                  'Select a primary subtopic',
-                  offeredSubtopics.filter(({ id }) => values.subtopicIds.includes(id)),
-                )}
-                {picker('indicatorTypeIds', 'h2')}
-                <Radios
-                  defaultValue={values.hasLifeStage}
-                  error={fieldErrors.hasLifeStage}
-                  label={LIFE_STAGE_QUESTION}
-                  hint="Only add a life stage tag where the age metadata does not show it."
-                  labelHeading="h2"
-                  name="hasLifeStage"
-                  options={[
-                    // Shown without JavaScript; with it, only while "Yes" is chosen.
-                    { label: 'Yes', value: 'yes', conditional: picker('lifeStageIds', 'h3') },
-                    { label: 'No', value: 'no' },
-                  ]}
-                />
-                <Radios
-                  defaultValue={values.hasFramework}
-                  error={fieldErrors.hasFramework}
-                  label={FRAMEWORK_QUESTION}
-                  labelHeading="h2"
-                  name="hasFramework"
-                  options={[
-                    { label: 'Yes', value: 'yes', conditional: picker('frameworkIds', 'h3') },
-                    { label: 'No', value: 'no' },
-                  ]}
-                />
-              </>
-            ),
-          },
-        ]}
-      />
+      <TopicPicker fieldErrors={fieldErrors} options={options} values={values} />
+      {picker('indicatorTypeIds', 'h2')}
+      {yesNo(
+        'hasFramework',
+        FRAMEWORK_QUESTION,
+        <>
+          {picker('frameworkIds', 'h3')}
+          {values.frameworkIds.includes(CLASSIFICATION_IDS.publicHealthOutcomesFramework) ? (
+            <TextInput
+              autoComplete="off"
+              className="govuk-input--width-10"
+              defaultValue={values.phofIndicatorNumber}
+              error={fieldErrors.phofIndicatorNumber}
+              label="Enter PHOF indicator number"
+              name="phofIndicatorNumber"
+            />
+          ) : null}
+        </>,
+      )}
+      {yesNo('hasLifeStage', LIFE_STAGE_QUESTION, picker('lifeStageIds', 'h3'))}
+      {yesNo('hasRiskFactor', RISK_FACTOR_QUESTION, picker('riskFactorIds', 'h3'))}
     </IndicatorSectionForm>
   );
 }

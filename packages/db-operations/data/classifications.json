@@ -1,5 +1,23 @@
 [
   {
+    "id": "01a15bd8-dac5-72b7-b12c-f63b2f2f223c",
+    "dimension": "indicator_type",
+    "slug": "indicator-type-data-quality",
+    "name": "Data quality"
+  },
+  {
+    "id": "01a15bd8-dac5-72b7-b12c-f63a854ed90d",
+    "dimension": "indicator_type",
+    "slug": "indicator-type-inequality-summary-measure",
+    "name": "Inequality summary measure"
+  },
+  {
+    "id": "01a15bd8-dac5-72b7-b12c-f6384d6c3e17",
+    "dimension": "indicator_type",
+    "slug": "indicator-type-intervention-or-service",
+    "name": "Intervention or service"
+  },
+  {
     "id": "01a0edef-f609-758f-8890-c2d9a81ec617",
     "dimension": "indicator_type",
     "slug": "indicator-type-outcome",
@@ -12,130 +30,28 @@
     "name": "Risk factor"
   },
   {
+    "id": "01a15bd8-dac5-72b7-b12c-f63978f5c28c",
+    "dimension": "indicator_type",
+    "slug": "indicator-type-screening-or-testing",
+    "name": "Screening or testing"
+  },
+  {
     "id": "01a15bd8-dac5-72b7-b12c-f637ad5876f4",
     "dimension": "indicator_type",
     "slug": "indicator-type-wider-determinant",
     "name": "Wider determinant"
   },
   {
-    "id": "01a15bd8-dac5-72b7-b12c-f6384d6c3e17",
-    "dimension": "indicator_type",
-    "slug": "indicator-type-intervention-or-service",
-    "name": "Intervention or service"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f63978f5c28c",
-    "dimension": "indicator_type",
-    "slug": "indicator-type-screening",
-    "name": "Screening"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f63a854ed90d",
-    "dimension": "indicator_type",
-    "slug": "indicator-type-inequality-summary-measure",
-    "name": "Inequality summary measure"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f63b2f2f223c",
-    "dimension": "indicator_type",
-    "slug": "indicator-type-data-quality",
-    "name": "Data quality"
+    "id": "01a1e2b1-9d78-75f5-9f74-4ebab866c3f7",
+    "dimension": "framework",
+    "slug": "framework-local-outcomes-framework-health-and-wellbeing-domain",
+    "name": "Local Outcomes Framework (LOF): Health and wellbeing domain"
   },
   {
     "id": "01a0edef-f609-758f-8891-079e7e9029dc",
     "dimension": "framework",
     "slug": "framework-public-health-outcomes-framework",
-    "name": "Public Health Outcomes Framework"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f63d97afc09d",
-    "dimension": "framework",
-    "slug": "framework-quality-and-outcomes-framework",
-    "name": "Quality and Outcomes Framework"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f63e5604c388",
-    "dimension": "framework",
-    "slug": "framework-national-child-measurement-programme",
-    "name": "National Child Measurement Programme"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f63fe6584f94",
-    "dimension": "framework",
-    "slug": "framework-nhs-health-check",
-    "name": "NHS Health Check"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f640f3531a98",
-    "dimension": "framework",
-    "slug": "framework-national-immunisation-programme",
-    "name": "National Immunisation Programme"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f641201b1f79",
-    "dimension": "framework",
-    "slug": "framework-nhs-screening-programme",
-    "name": "NHS Screening Programme"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f6428e3947d6",
-    "dimension": "framework",
-    "slug": "framework-stop-smoking-services",
-    "name": "Stop smoking services"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f643b57bcb08",
-    "dimension": "framework",
-    "slug": "framework-healthy-child-programme",
-    "name": "Healthy Child Programme"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f644e005bd4b",
-    "dimension": "framework",
-    "slug": "framework-child-poverty-strategy",
-    "name": "Child poverty strategy"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f645687f40c9",
-    "dimension": "framework",
-    "slug": "framework-tb-action-plan",
-    "name": "TB Action Plan"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f6460b680abc",
-    "dimension": "framework",
-    "slug": "framework-marmot-indicators",
-    "name": "Marmot indicators"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f64795d8b209",
-    "dimension": "framework",
-    "slug": "framework-msf-respiratory-suggested",
-    "name": "MSF respiratory (suggested)"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f648971e2708",
-    "dimension": "framework",
-    "slug": "framework-msf-dementia-and-frailty-suggested",
-    "name": "MSF dementia and frailty (suggested)"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f649eedf8a24",
-    "dimension": "framework",
-    "slug": "framework-msf-palliative-and-end-of-life-care-suggested",
-    "name": "MSF palliative and end of life care (suggested)"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f64a1b40e850",
-    "dimension": "framework",
-    "slug": "framework-msf-sepsis-suggested",
-    "name": "MSF sepsis (suggested)"
-  },
-  {
-    "id": "01a15bd8-dac5-72b7-b12c-f64b45d7a1bf",
-    "dimension": "framework",
-    "slug": "framework-msf-cardiovascular-suggested",
-    "name": "MSF cardiovascular (suggested)"
+    "name": "Public Health Outcomes Framework (PHOF)"
   },
   {
     "id": "01a15bd8-dac5-72b7-b12c-f64cca3f38d8",
@@ -147,24 +63,84 @@
     "id": "01a15bd8-dac5-72b7-b12c-f64de07b99d8",
     "dimension": "life_stage",
     "slug": "life-stage-children",
-    "name": "Children"
+    "name": "Children (0 to 15 years old)"
   },
   {
     "id": "01a15bd8-dac5-72b7-b12c-f64ec01a9450",
     "dimension": "life_stage",
     "slug": "life-stage-young-people",
-    "name": "Young people"
+    "name": "Young people (16 to 24 years old)"
   },
   {
     "id": "01a15bd8-dac5-72b7-b12c-f64fb1b436e6",
     "dimension": "life_stage",
     "slug": "life-stage-working-age-adults",
-    "name": "Working-age adults"
+    "name": "Working-age adults (16 to 64 years old)"
   },
   {
     "id": "01a15bd8-dac5-72b7-b12c-f650d47a109e",
     "dimension": "life_stage",
     "slug": "life-stage-older-people",
-    "name": "Older people"
+    "name": "Older people (65 years old and over)"
+  },
+  {
+    "id": "01a1e2b1-9d7b-7a18-90af-bd4d36dafa1c",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-air-pollution-or-environment",
+    "name": "Air pollution or environment"
+  },
+  {
+    "id": "01a1e2b1-9d7e-7d27-bbf8-f904eb94aad2",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-alcohol",
+    "name": "Alcohol"
+  },
+  {
+    "id": "01a1e2b1-9d81-7dd3-b322-cb6de70415e2",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-diet-and-nutrition",
+    "name": "Diet and nutrition"
+  },
+  {
+    "id": "01a1e2b1-9d84-7ac9-8805-99a152b709c1",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-drug-use",
+    "name": "Drug use"
+  },
+  {
+    "id": "01a1e2b1-9d87-7f82-a00d-fda984eda09f",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-excess-weight-or-obesity",
+    "name": "Excess weight or obesity"
+  },
+  {
+    "id": "01a1e2b1-9d8a-7d36-be49-34a5a09fd4cd",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-gambling",
+    "name": "Gambling"
+  },
+  {
+    "id": "01a1e2b1-9d8d-72e0-8fa8-ac2d49940b50",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-high-blood-pressure-or-cholesterol",
+    "name": "High blood pressure or cholesterol"
+  },
+  {
+    "id": "01a1e2b1-9d90-7746-8f04-4e50f5ff2807",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-physical-activity-or-inactivity",
+    "name": "Physical activity or inactivity"
+  },
+  {
+    "id": "01a1e2b1-9d93-76ab-b7ae-03061848053e",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-smoking-and-tobacco",
+    "name": "Smoking and tobacco"
+  },
+  {
+    "id": "01a1e2b1-9d96-719f-a8b5-9099ec2da3fa",
+    "dimension": "risk_factor",
+    "slug": "risk-factor-violence",
+    "name": "Violence"
   }
 ]

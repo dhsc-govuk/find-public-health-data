@@ -85,9 +85,7 @@ describe('indicatorSectionsRouter', () => {
         .set('Cookie', await testSessionCookie(['publisher']));
 
       expect(response.status).toBe(200);
-      expect(Object.keys(response.body.answers).sort()).toEqual(
-        [...section.fields.options].filter((field) => field !== 'isAreaContext').sort(),
-      );
+      expect(Object.keys(response.body.answers).sort()).toEqual([...section.fields.options].sort());
       for (const answer of Object.values(response.body.answers)) {
         expect(answer === null || (Array.isArray(answer) && answer.length === 0)).toBe(true);
       }

@@ -155,18 +155,20 @@ fields:
 
 `indicators` must exactly match the indicators in the package. Each needs a topic assignment or an
 explicit entry in `areaContextIndicators`; an area-context indicator cannot also carry topics or
-classifications. `indicatorTopics` accepts `isPrimary` and `indicatorSubtopics` contains
-`{ fingertipsId, topicId, subtopicId, isPrimary }` rows. Packages use format version 9 and
-`canonical-v9`, including explicit area status and nullable area validity dates. Every area file
-requires `is_current`; missing status is rejected rather than filled from the database default.
-Every `indicator_version` file requires `is_locked` in the same way, and a version whose `is_locked`
-is false is refused, so a published version never arrives unlocked. Migrate the receiver's schema
-and regenerate older packages before importing; the receiver refuses an older format rather than
-applying different area or measure semantics. Preparation checks coverage before writing prepared
-output; the importer verifies all applied topic, subtopic and classification links before
-committing.
+classifications. `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId }` rows.
+Packages use format version 9 and `canonical-v9`, including explicit area status and nullable area
+validity dates. Every area file requires `is_current`; missing status is rejected rather than filled
+from the database default. Every `indicator_version` file requires `is_locked` in the same way, and
+a version whose `is_locked` is false is refused, so a published version never arrives unlocked.
+Migrate the receiver's schema and regenerate older packages before importing; the receiver refuses
+an older format rather than applying different area or measure semantics. Preparation checks
+coverage before writing prepared output; the importer verifies all applied topic, subtopic and
+classification links before committing.
 
-Generate draft relationships from the committed V2 workbook snapshot:
+Generate draft relationships from the committed V2 workbook snapshot. The command maps the
+workbook's topic, subtopic and tag names onto the core data's lists through the name maps in
+`src/taxonomy.ts`, and stops on a name they don't cover or a topic-level placement under a topic
+that has subtopics. Frameworks other than the Public Health Outcomes Framework are dropped:
 
 ```sh
 pnpm --filter @fphd/data-migration data-migration generate-taxonomy-relationships \

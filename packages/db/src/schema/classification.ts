@@ -2,7 +2,16 @@ import { z } from '@fphd/config';
 import { CLASSIFICATION_DIMENSIONS } from '@fphd/utils/classification-dimension';
 import { SLUG_PATTERN } from '@fphd/utils/slug';
 import { sql } from 'drizzle-orm';
-import { check, foreignKey, index, pgTable, primaryKey, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  check,
+  foreignKey,
+  index,
+  pgTable,
+  primaryKey,
+  smallint,
+  text,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { literals, timestamps, uuidPrimaryKey } from './helpers.ts';
 import { indicatorVersion } from './indicator.ts';
@@ -19,6 +28,8 @@ export const classification = pgTable(
     dimension: text({ enum: CLASSIFICATION_DIMENSIONS }).notNull(),
     slug: text().notNull().unique(),
     name: text().notNull(),
+    // The order the publisher's lists show the classifications in, that of classifications.json.
+    position: smallint().notNull(),
     ...timestamps,
   },
   (t) => [

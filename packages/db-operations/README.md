@@ -67,32 +67,39 @@ do.
 
 ## Core data import
 
-The V2 taxonomy comes from the
+The topics, subtopics and tags follow the publisher design's tagging page, which DHSC has still to
+agree. `topics.json` contains its 19 topics and `subtopics.json` its 86 subtopics. Dental and oral
+health, Muscles, bones and joints, and Sight and hearing have no subtopics. `classifications.json`
+holds its measure types (`indicator_type`), frameworks and programmes (`framework`), life stages
+(`life_stage`) and risk factors (`risk_factor`), each dimension in the order the page lists it. The
+import stores each classification's place in the file as its `position`, and the tagging page lists
+each dimension in that order.
+
+The Fingertips indicators' placements come from the V2
 [taxonomy workbook](https://docs.google.com/spreadsheets/d/1BEmVbqbxgjD2fbvX6Fg9GlAQ44eKioII/edit).
-`data/taxonomy-v2.json` records the source snapshot, its proposal status and workbook hash.
-`topics.json` contains its 19 topics; `subtopics.json` contains 92 subtopics. Dental and oral health
-and Sight and hearing have topic-level placements. The snapshot's `overrides` records provisional
-placements separately from the source workbook, including indicator 276 under Cancer → All cancers;
-confirm that placement before launch.
+`data/taxonomy-v2.json` records the source snapshot, its proposal status and workbook hash. The
+migration tool's `generate-taxonomy-relationships` maps the workbook's names onto the lists above,
+and stops on a name it has no mapping for. Only the workbook's Public Health Outcomes Framework maps
+to a framework the lists hold. The snapshot's `overrides` records provisional placements separately
+from the source workbook, including indicator 276 under Cancer → All cancers; confirm that placement
+before launch.
 
-Topic memberships hold their primary placement flag. An indicator may have several subtopic
-placements under the same topic; the subtopic bridge's foreign keys require both that topic
-membership and a subtopic belonging to it. Each version has at most one primary topic and one
-primary subtopic. Topic-level placements remain valid without subtopics. Draft copies preserve
-placements, and the tagging page edits primary topics, subtopics and primary subtopics. Population
-and area-context versions carry `is_area_context` and have no topic or classification assignments.
+An indicator may have several subtopic placements under the same topic. The subtopic bridge's
+foreign keys require both that topic membership and a subtopic belonging to it. A topic with
+subtopics needs at least one of them, which the tagging page and the migration tool both check.
+Draft copies preserve placements. The workbook leaves 15 population and area-context indicators
+untagged, and the relationship files list them in `areaContextIndicators`, with no topic or
+classification.
 
-V2 uses measure type (`indicator_type`), plans and programmes (`framework`) and life stage
-(`life_stage`). The source's measure types and life-stage tags remain a first pass needing subject
-matter review; this snapshot does not constitute production approval or change the launch indicator
-selection.
+The source's measure types and life-stage tags remain a first pass needing subject matter review;
+this snapshot does not constitute production approval or change the launch indicator selection.
 
-Install V2 in development with `db reset` → deploy the V2 commit (which runs `db migrate`) →
-`db import-core-data` → `db migrate-live-data` for the approved package, or `db seed-dummy-data` for
-the committed sample. Reset removes publisher drafts and publications. Every existing development
-database must reset before loading V2; core-data imports upsert rows and do not remove the former
-taxonomy. There is no in-place taxonomy upgrade command. V1 migration packages must be regenerated
-as V2 packages before import.
+Install a changed taxonomy in development with `db reset` → deploy the commit (which runs
+`db migrate`) → `db import-core-data` → `db migrate-live-data` for the approved package, or
+`db seed-dummy-data` for the committed sample. Reset removes publisher drafts and publications.
+Every existing development database must reset before loading it, because core-data imports upsert
+rows and do not remove topics, subtopics or classifications the files no longer hold. There is no
+in-place taxonomy upgrade command. Migration packages must be regenerated before import.
 
 ```sh
 pnpm db:import-core-data         # imports topics, classifications and the publisher's lists

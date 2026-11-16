@@ -10,7 +10,7 @@ const indicatorSchema = z.object({
   measureType: z.string().nullable(),
   programmes: z.array(z.string()),
   lifeStage: z.string().nullable(),
-  placements: z.array(z.object({ topic: z.string(), subtopic: z.string(), primary: z.boolean() })),
+  placements: z.array(z.object({ topic: z.string(), subtopic: z.string() })),
 });
 
 const sourceSchema = z.object({
@@ -35,7 +35,80 @@ interface Classification {
   name: string;
 }
 
-/** Translates explicit workbook placements; names and profiles never supply inferred links. */
+/** The workbook's topic names that the service's topic list has renamed since. */
+const TOPIC_NAMES: Readonly<Record<string, string>> = {
+  'Heart and kidney disease': 'Heart, kidney and cardiovascular-related diseases',
+};
+
+/**
+ * The workbook's subtopics, as "Topic > Subtopic", that the service's lists have renamed,
+ * merged into another subtopic or removed since. A subtopic mapped to null is placed at topic
+ * level, because the service's topic has no subtopics. Any other subtopic keeps its name.
+ */
+const SUBTOPIC_NAMES: Readonly<Record<string, string | null>> = {
+  'Mortality and life expectancy > Life expectancy and healthy life expectancy': 'Life expectancy',
+  'Mortality and life expectancy > All-cause and winter mortality': 'All-cause mortality',
+  'Cancer > Cervical cancer': 'Other cancers',
+  'Cancer > Lung cancer': 'Other cancers',
+  "Mental health and wellbeing > Adult's common mental health conditions":
+    'Adult common mental health conditions',
+  "Mental health and wellbeing > Adult's severe mental illness": 'Adult severe mental illness',
+  'Mental health and wellbeing > Wellbeing': 'Mental wellbeing',
+  'Liver disease > Non-alcoholic fatty liver disease': 'All liver disease',
+  'Muscles, bones and joints > Living with MSK conditions': null,
+  'Muscles, bones and joints > Arthritis and joint problems': null,
+  'Muscles, bones and joints > Back pain': null,
+  'Muscles, bones and joints > Osteoporosis and fractures': null,
+  'Stopping the spread of infection > Healthcare-associated infections':
+    'Other infections and antibiotic use',
+  'Stopping the spread of infection > Antibiotic use and resistance':
+    'Other infections and antibiotic use',
+  'Stopping the spread of infection > Infection prevention and control':
+    'Other infections and antibiotic use',
+  'Stopping the spread of infection > Other infections': 'Other infections and antibiotic use',
+  'Fairness in health and vulnerable groups > Disability, long-term conditions and mental health':
+    'Disability and long-term conditions',
+};
+
+/**
+ * The workbook's tags, as "dimension: name", that the service's lists have renamed or dropped
+ * since. A tag mapped to null is dropped, because the service offers nothing like it: only the
+ * Public Health Outcomes Framework is among the frameworks the service offers.
+ */
+const TAG_NAMES: Readonly<Record<string, string | null>> = {
+  'indicator_type: Screening': 'Screening or testing',
+  'framework: Public Health Outcomes Framework': 'Public Health Outcomes Framework (PHOF)',
+  'framework: Quality and Outcomes Framework': null,
+  'framework: National Child Measurement Programme': null,
+  'framework: NHS Health Check': null,
+  'framework: National Immunisation Programme': null,
+  'framework: NHS Screening Programme': null,
+  'framework: Stop smoking services': null,
+  'framework: Healthy Child Programme': null,
+  'framework: Child poverty strategy': null,
+  'framework: TB Action Plan': null,
+  'framework: Marmot indicators': null,
+  'framework: MSF respiratory (suggested)': null,
+  'framework: MSF dementia and frailty (suggested)': null,
+  'framework: MSF palliative and end of life care (suggested)': null,
+  'framework: MSF sepsis (suggested)': null,
+  'framework: MSF cardiovascular (suggested)': null,
+  'life_stage: Children': 'Children (0 to 15 years old)',
+  'life_stage: Young people': 'Young people (16 to 24 years old)',
+  'life_stage: Working-age adults': 'Working-age adults (16 to 64 years old)',
+  'life_stage: Older people': 'Older people (65 years old and over)',
+};
+
+/** The service's name for a workbook name, null for one it drops, or the name unchanged. */
+function renamed(names: Readonly<Record<string, string | null>>, key: string, name: string) {
+  return Object.hasOwn(names, key) ? (names[key] ?? null) : name;
+}
+
+/**
+ * Translates explicit workbook placements onto the service's topics, subtopics and tags, through
+ * the name maps above; names and profiles never supply inferred links. A placement under a topic
+ * that has subtopics must name one of them.
+ */
 export function taxonomyRelationships(
   value: unknown,
   topics: readonly Topic[],
@@ -59,6 +132,7 @@ export function taxonomyRelationships(
   const subtopicByTitle = new Map(
     subtopics.map((subtopic) => [`${subtopic.topicId}:${subtopic.title}`, subtopic.id]),
   );
+  const topicsWithSubtopics = new Set(subtopics.map(({ topicId }) => topicId));
   const classificationByName = new Map(
     classifications.map((classification) => [
       `${classification.dimension}:${classification.name}`,
@@ -88,26 +162,29 @@ export function taxonomyRelationships(
       file.areaContextIndicators.push(fingertipsId);
       continue;
     }
-    if (indicator.placements.filter(({ primary }) => primary).length !== 1)
-      throw new Error(`Indicator needs exactly one primary placement: ${fingertipsId}`);
-    const memberships = new Map<string, boolean>();
+    const topicIds = new Set<string>();
+    const subtopicIds = new Map<string, string>();
     for (const placement of indicator.placements) {
-      const topicId = topicByTitle.get(placement.topic);
+      const title = TOPIC_NAMES[placement.topic] ?? placement.topic;
+      const topicId = topicByTitle.get(title);
       if (!topicId) throw new Error(`Unknown taxonomy topic: ${placement.topic}`);
-      memberships.set(topicId, (memberships.get(topicId) ?? false) || placement.primary);
-      const subtopicId = subtopicByTitle.get(`${topicId}:${placement.subtopic}`);
-      if (subtopicId)
-        file.indicatorSubtopics.push({
-          fingertipsId,
-          topicId,
-          subtopicId,
-          isPrimary: placement.primary,
-        });
-      else if (placement.subtopic !== placement.topic)
+      topicIds.add(topicId);
+      const subtopic = renamed(
+        SUBTOPIC_NAMES,
+        `${placement.topic} > ${placement.subtopic}`,
+        placement.subtopic,
+      );
+      const atTopicLevel = subtopic === null || subtopic === placement.topic;
+      const subtopicId = atTopicLevel ? undefined : subtopicByTitle.get(`${topicId}:${subtopic}`);
+      if (subtopicId) subtopicIds.set(subtopicId, topicId);
+      else if (!atTopicLevel)
         throw new Error(`Unknown taxonomy subtopic: ${placement.topic} > ${placement.subtopic}`);
+      else if (topicsWithSubtopics.has(topicId))
+        throw new Error(`Taxonomy topic needs a subtopic: ${fingertipsId}: ${title}`);
     }
-    for (const [topicId, isPrimary] of memberships)
-      file.indicatorTopics.push({ fingertipsId, topicId, isPrimary });
+    for (const topicId of topicIds) file.indicatorTopics.push({ fingertipsId, topicId });
+    for (const [subtopicId, topicId] of subtopicIds)
+      file.indicatorSubtopics.push({ fingertipsId, topicId, subtopicId });
     const tags = [
       ...(indicator.measureType ? [['indicator_type', indicator.measureType]] : []),
       ...indicator.programmes.map((name) => ['framework', name]),
@@ -117,7 +194,9 @@ export function taxonomyRelationships(
     ];
     const used = new Set<string>();
     for (const [dimension, name] of tags) {
-      const classificationId = classificationByName.get(`${dimension}:${name}`);
+      const serviceName = renamed(TAG_NAMES, `${dimension}: ${name}`, name ?? '');
+      if (serviceName === null) continue;
+      const classificationId = classificationByName.get(`${dimension}:${serviceName}`);
       if (!classificationId) throw new Error(`Unknown taxonomy tag: ${dimension}: ${name}`);
       if (used.has(classificationId))
         throw new Error(`Duplicate taxonomy tag: ${fingertipsId}: ${name}`);

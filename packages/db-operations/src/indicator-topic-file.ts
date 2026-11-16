@@ -9,24 +9,14 @@ import { z } from '@fphd/config';
  */
 export const indicatorTopicFileSchema = z.object({
   indicators: z.array(z.number().int()).default([]),
+  // Indicators the taxonomy workbook leaves untagged as population or area context.
   areaContextIndicators: z.array(z.number().int()).default([]),
   indicatorTopics: z
-    .array(
-      z.object({
-        topicId: z.uuidv7(),
-        fingertipsId: z.number().int(),
-        isPrimary: z.boolean().optional(),
-      }),
-    )
+    .array(z.object({ topicId: z.uuidv7(), fingertipsId: z.number().int() }))
     .default([]),
   indicatorSubtopics: z
     .array(
-      z.object({
-        topicId: z.uuidv7(),
-        subtopicId: z.uuidv7(),
-        fingertipsId: z.number().int(),
-        isPrimary: z.boolean().optional(),
-      }),
+      z.object({ topicId: z.uuidv7(), subtopicId: z.uuidv7(), fingertipsId: z.number().int() }),
     )
     .default([]),
   indicatorDataUpdatedAt: z
@@ -52,43 +42,19 @@ export function parseIndicatorTopicFile(data: unknown): IndicatorTopicFile {
 
 export function assertValidIndicatorRelationships(file: IndicatorTopicFile): void {
   const topics = new Set<string>();
-  const primary = new Set<number>();
-  const primaryTopics = new Set<string>();
-  const explicitPrimaries = new Set<number>();
   for (const link of file.indicatorTopics) {
     const key = `${link.fingertipsId}:${link.topicId}`;
     if (topics.has(key)) throw new Error(`Duplicate topic placement: ${key}`);
     topics.add(key);
-    if (link.isPrimary !== undefined) explicitPrimaries.add(link.fingertipsId);
-    if (link.isPrimary) {
-      if (primary.has(link.fingertipsId))
-        throw new Error(`Multiple primary topics: ${link.fingertipsId}`);
-      primary.add(link.fingertipsId);
-      primaryTopics.add(key);
-    }
   }
   const subtopics = new Set<string>();
-  const primarySubtopics = new Set<number>();
-  const primaryTopicsWithChildren = new Set<number>();
   for (const link of file.indicatorSubtopics) {
     const parent = `${link.fingertipsId}:${link.topicId}`;
     const key = `${link.fingertipsId}:${link.subtopicId}`;
     if (!topics.has(parent)) throw new Error(`Subtopic has no topic placement: ${parent}`);
     if (subtopics.has(key)) throw new Error(`Duplicate subtopic placement: ${key}`);
     subtopics.add(key);
-    if (!primary.has(link.fingertipsId))
-      throw new Error(`Missing primary topic: ${link.fingertipsId}`);
-    if (primaryTopics.has(parent)) primaryTopicsWithChildren.add(link.fingertipsId);
-    if (link.isPrimary) {
-      if (!primaryTopics.has(parent) || primarySubtopics.has(link.fingertipsId))
-        throw new Error(`Invalid primary subtopic: ${link.fingertipsId}`);
-      primarySubtopics.add(link.fingertipsId);
-    }
   }
-  for (const id of explicitPrimaries)
-    if (!primary.has(id)) throw new Error(`Missing primary topic: ${id}`);
-  for (const id of primaryTopicsWithChildren)
-    if (!primarySubtopics.has(id)) throw new Error(`Missing primary subtopic: ${id}`);
   const linked = new Set(file.indicatorTopics.map(({ fingertipsId }) => fingertipsId));
   const contexts = new Set(file.areaContextIndicators);
   if (contexts.size !== file.areaContextIndicators.length)

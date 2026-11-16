@@ -67,13 +67,7 @@ it('links each subtopic to the filtered topic data page', () => {
             {
               slug: 'diabetes',
               title: 'Diabetes',
-              subtopics: [
-                {
-                  slug: 'prevalence-and-risk',
-                  title: 'Prevalence and risk',
-                  isPrimary: true,
-                },
-              ],
+              subtopics: [{ slug: 'prevalence-and-risk', title: 'Prevalence and risk' }],
             },
           ],
         }}

@@ -197,11 +197,8 @@ export const indicatorDetailSchema = z.object({
     z.object({
       slug: z.string().min(1),
       title: z.string().min(1),
-      isPrimary: z.boolean().optional(),
       subtopics: z
-        .array(
-          z.object({ slug: z.string().min(1), title: z.string().min(1), isPrimary: z.boolean() }),
-        )
+        .array(z.object({ slug: z.string().min(1), title: z.string().min(1) }))
         .optional(),
     }),
   ),

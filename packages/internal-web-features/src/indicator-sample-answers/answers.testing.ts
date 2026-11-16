@@ -25,9 +25,15 @@ export const sampleAnswerOptions: SampleAnswerOptions = {
   dataProviders: [{ ...option('019a0000-0000-7000-8000-000000000006', 'ONS'), sources: [] }],
   tags: {
     topics: [option('019a0000-0000-7000-8000-000000000007', 'Smoking')],
-    subtopics: [],
+    subtopics: [
+      {
+        ...option('019a0000-0000-7000-8000-000000000009', 'Smoking and vaping'),
+        topicId: '019a0000-0000-7000-8000-000000000007',
+      },
+    ],
     indicatorTypes: [option('019a0000-0000-7000-8000-000000000008', 'Outcome')],
-    lifeStages: [],
     frameworks: [],
+    lifeStages: [],
+    riskFactors: [],
   },
 };

@@ -38,7 +38,7 @@ export function mobileFilterTests(scan: (page: Page, testInfo: TestInfo) => Prom
     for (const [title, role, name] of [
       ['Geographies', 'searchbox', 'Search for a geography'],
       ['Topics and types', 'checkbox', 'Diabetes'],
-      ['Frameworks and programmes', 'checkbox', 'Public Health Outcomes Framework'],
+      ['Frameworks and programmes', 'checkbox', 'Public Health Outcomes Framework (PHOF)'],
       ['About the data', 'checkbox', 'Proportion'],
       ['Years the data covers', 'textbox', 'From'],
       ['Last updated', 'combobox', 'Last updated'],

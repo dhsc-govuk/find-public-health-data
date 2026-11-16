@@ -270,8 +270,9 @@ export const indicatorVersion = pgTable(
     // rows, so the API keeps them in step: null until asked, false for an answered no.
     hasRiskFactor: boolean(),
     hasFramework: boolean(),
+    // Asked only beside the Public Health Outcomes Framework, and never published.
+    phofIndicatorNumber: text(),
     hasLifeStage: boolean(),
-    isAreaContext: boolean().notNull().default(false),
     // Update frequency
     updateFrequency: text({ enum: UPDATE_FREQUENCIES }),
     updateFrequencyReason: text(),

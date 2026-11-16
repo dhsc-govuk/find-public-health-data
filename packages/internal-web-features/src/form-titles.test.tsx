@@ -116,27 +116,30 @@ const agesUnanswered = {
 
 const taggingUnanswered = {
   topicIds: [],
-  primaryTopicId: '',
   subtopicIds: [],
-  primarySubtopicId: '',
   indicatorTypeIds: [],
-  hasLifeStage: '',
-  lifeStageIds: [],
   hasFramework: '',
   frameworkIds: [],
+  phofIndicatorNumber: '',
+  hasLifeStage: '',
+  lifeStageIds: [],
+  hasRiskFactor: '',
+  riskFactorIds: [],
   addTopic: '',
   addSubtopic: '',
   addIndicatorType: '',
-  addLifeStage: '',
   addFramework: '',
+  addLifeStage: '',
+  addRiskFactor: '',
 };
 
 const tagOptions = {
   topics: [],
   subtopics: [],
   indicatorTypes: [],
-  lifeStages: [],
   frameworks: [],
+  lifeStages: [],
+  riskFactors: [],
 };
 
 const providerSourcesUnanswered = { sources: [], definition: '', providerId: '', sourceId: '' };

@@ -24,7 +24,7 @@ const { indicatorVersionClassification } = schema;
 
 describe('updateIndicatorDraft', () => {
   repositoryTest(
-    'replaces primary and subtopic placements together when the primary topic is removed',
+    'replaces topics and subtopic placements together when a topic is removed',
     async ({ db }) => {
       const created = await newDraft(db, 'Editable taxonomy placements');
       const children = await db.select().from(schema.subtopic);
@@ -36,17 +36,10 @@ describe('updateIndicatorDraft', () => {
         created.indicatorId,
         'tagging',
         {},
-        {
-          topicIds: [first.topicId, second.topicId],
-          primaryTopicId: first.topicId,
-          subtopicIds: [first.id, second.id],
-          primarySubtopicId: first.id,
-        },
+        { topicIds: [first.topicId, second.topicId], subtopicIds: [first.id, second.id] },
         AS_ACTOR,
       );
       expect((await getIndicatorDraftState(db, created.indicatorId))?.draft).toMatchObject({
-        primaryTopicId: first.topicId,
-        primarySubtopicId: first.id,
         subtopicIds: expect.arrayContaining([first.id, second.id]),
       });
       await updateIndicatorDraft(
@@ -54,23 +47,18 @@ describe('updateIndicatorDraft', () => {
         created.indicatorId,
         'tagging',
         {},
-        {
-          topicIds: [second.topicId],
-          primaryTopicId: second.topicId,
-          subtopicIds: [second.id],
-          primarySubtopicId: second.id,
-        },
+        { topicIds: [second.topicId], subtopicIds: [second.id] },
         AS_ACTOR,
       );
       expect((await getIndicatorDraftState(db, created.indicatorId))?.draft).toMatchObject({
         topicIds: [second.topicId],
-        primaryTopicId: second.topicId,
         subtopicIds: [second.id],
-        primarySubtopicId: second.id,
       });
       const changes = (await auditEntriesFor(db, created.indicatorId)).at(-1)?.changes;
       expect(changes).toMatchObject({
-        primaryTopicId: { before: [first.topicId], after: [second.topicId] },
+        subtopicPlacements: {
+          after: [{ topicId: second.topicId, subtopicId: second.id }],
+        },
       });
     },
   );

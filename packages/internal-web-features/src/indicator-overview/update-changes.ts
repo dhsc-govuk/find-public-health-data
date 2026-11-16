@@ -147,16 +147,16 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       ageDetail: 'Other ages',
     },
     tagging: {
-      isAreaContext: 'Population or area context',
       topicIds: 'Topics',
-      primaryTopicId: 'Primary topic',
       subtopicIds: 'Subtopics',
-      primarySubtopicId: 'Primary subtopic',
       indicatorTypeIds: 'Indicator types',
-      hasLifeStage: 'Life stage',
-      lifeStageIds: 'Life stages',
       hasFramework: 'Framework',
       frameworkIds: 'Frameworks',
+      phofIndicatorNumber: 'PHOF indicator number',
+      hasLifeStage: 'Life stage',
+      lifeStageIds: 'Life stages',
+      hasRiskFactor: 'Risk factor',
+      riskFactorIds: 'Risk factors',
     },
   };
 

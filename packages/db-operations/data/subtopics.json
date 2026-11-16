@@ -2,14 +2,14 @@
   {
     "id": "01a15bd8-dac0-7004-9175-39ecf4fd9742",
     "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
-    "slug": "life-expectancy-and-healthy-life-expectancy",
-    "title": "Life expectancy and healthy life expectancy"
+    "slug": "life-expectancy",
+    "title": "Life expectancy"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-39ed7304a50d",
     "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
-    "slug": "all-cause-and-winter-mortality",
-    "title": "All-cause and winter mortality"
+    "slug": "all-cause-mortality",
+    "title": "All-cause mortality"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-39ee6523d3ae",
@@ -52,18 +52,6 @@
     "topicId": "019f93b8-2b47-75d0-b03a-edb3edd0ffbc",
     "slug": "breast-cancer",
     "title": "Breast cancer"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-39f55ac827e8",
-    "topicId": "019f93b8-2b47-75d0-b03a-edb3edd0ffbc",
-    "slug": "cervical-cancer",
-    "title": "Cervical cancer"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-39f6b1072fd9",
-    "topicId": "019f93b8-2b47-75d0-b03a-edb3edd0ffbc",
-    "slug": "lung-cancer",
-    "title": "Lung cancer"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-39f77bce1c87",
@@ -128,14 +116,14 @@
   {
     "id": "01a15bd8-dac0-7004-9175-3a01d42b514f",
     "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
-    "slug": "adults-common-mental-health-conditions",
-    "title": "Adult's common mental health conditions"
+    "slug": "adult-common-mental-health-conditions",
+    "title": "Adult common mental health conditions"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a02e29941d5",
     "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
-    "slug": "adults-severe-mental-illness",
-    "title": "Adult's severe mental illness"
+    "slug": "adult-severe-mental-illness",
+    "title": "Adult severe mental illness"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a031c2d7d35",
@@ -158,8 +146,8 @@
   {
     "id": "01a15bd8-dac0-7004-9175-3a06d8cb9297",
     "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
-    "slug": "wellbeing",
-    "title": "Wellbeing"
+    "slug": "mental-wellbeing",
+    "title": "Mental wellbeing"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a07fbd71064",
@@ -172,6 +160,12 @@
     "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
     "slug": "mental-health-services",
     "title": "Mental health services"
+  },
+  {
+    "id": "01a1e2b1-9d6c-729d-8993-59df98c113d0",
+    "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
+    "slug": "other-mental-health-conditions",
+    "title": "Other mental health conditions"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a099e3822d2",
@@ -228,36 +222,6 @@
     "title": "Alcohol-related liver disease"
   },
   {
-    "id": "01a15bd8-dac0-7004-9175-3a12894842d0",
-    "topicId": "019f93b8-2b47-75d0-b03a-edc26d6344d9",
-    "slug": "non-alcoholic-fatty-liver-disease",
-    "title": "Non-alcoholic fatty liver disease"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a13529750d1",
-    "topicId": "01a15bd5-b819-7198-9a23-2c297f283a45",
-    "slug": "living-with-msk-conditions",
-    "title": "Living with MSK conditions"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a14188858fd",
-    "topicId": "01a15bd5-b819-7198-9a23-2c297f283a45",
-    "slug": "arthritis-and-joint-problems",
-    "title": "Arthritis and joint problems"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a1548e84bb6",
-    "topicId": "01a15bd5-b819-7198-9a23-2c297f283a45",
-    "slug": "back-pain",
-    "title": "Back pain"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a1642fc0905",
-    "topicId": "01a15bd5-b819-7198-9a23-2c297f283a45",
-    "slug": "osteoporosis-and-fractures",
-    "title": "Osteoporosis and fractures"
-  },
-  {
     "id": "01a15bd8-dac0-7004-9175-3a17fec28074",
     "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
     "slug": "vaccination-and-immunisation",
@@ -268,24 +232,6 @@
     "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
     "slug": "vaccine-preventable-diseases",
     "title": "Vaccine-preventable diseases"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a1919f95729",
-    "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
-    "slug": "healthcare-associated-infections",
-    "title": "Healthcare-associated infections"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a1af581bf19",
-    "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
-    "slug": "antibiotic-use-and-resistance",
-    "title": "Antibiotic use and resistance"
-  },
-  {
-    "id": "01a15bd8-dac0-7004-9175-3a1b6204b86e",
-    "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
-    "slug": "infection-prevention-and-control",
-    "title": "Infection prevention and control"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a1ce3adad2f",
@@ -320,8 +266,8 @@
   {
     "id": "01a15bd8-dac0-7004-9175-3a214c69afaf",
     "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
-    "slug": "other-infections",
-    "title": "Other infections"
+    "slug": "other-infections-and-antibiotic-use",
+    "title": "Other infections and antibiotic use"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a223bd5ed73",
@@ -352,6 +298,12 @@
     "topicId": "019f93b8-2b47-75d0-b03a-edcd10805883",
     "slug": "teenage-pregnancy",
     "title": "Teenage pregnancy"
+  },
+  {
+    "id": "01a1e2b1-9d6f-78da-8c58-464b93255c5f",
+    "topicId": "019f93b8-2b47-75d0-b03a-edcd10805883",
+    "slug": "conditions-related-to-reproductive-health",
+    "title": "Conditions related to reproductive health"
   },
   {
     "id": "01a15bd8-dac0-7004-9175-3a27fa7912a7",
@@ -506,8 +458,8 @@
   {
     "id": "01a15bd8-dac1-7141-b626-313533affb5d",
     "topicId": "01a15bd5-b819-7198-9a23-2c32f52ed884",
-    "slug": "disability-long-term-conditions-and-mental-health",
-    "title": "Disability, long-term conditions and mental health"
+    "slug": "disability-and-long-term-conditions",
+    "title": "Disability and long-term conditions"
   },
   {
     "id": "01a15bd8-dac1-7141-b626-3136a867bd58",
@@ -534,6 +486,12 @@
     "title": "People in contact with the justice system"
   },
   {
+    "id": "01a1e2b1-9d71-77b4-951f-657a5b340da1",
+    "topicId": "01a15bd5-b819-7198-9a23-2c32f52ed884",
+    "slug": "mental-health",
+    "title": "Mental health"
+  },
+  {
     "id": "01a15bd8-dac1-7141-b626-313a3173906f",
     "topicId": "01a15bd5-b819-7198-9a23-2c33ea1f3e73",
     "slug": "hospital-admissions-and-ae",
@@ -550,5 +508,11 @@
     "topicId": "01a15bd5-b819-7198-9a23-2c33ea1f3e73",
     "slug": "social-care-services-and-experience",
     "title": "Social care services and experience"
+  },
+  {
+    "id": "01a1e2b1-9d74-7b51-95b0-557dc78643bc",
+    "topicId": "01a15bd5-b819-7198-9a23-2c33ea1f3e73",
+    "slug": "outpatient-services",
+    "title": "Outpatient services"
   }
 ]

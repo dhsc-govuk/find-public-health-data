@@ -13,8 +13,7 @@ import {
 export interface TopicSummaryForIndicator {
   slug: string;
   title: string;
-  isPrimary?: boolean;
-  subtopics?: { slug: string; title: string; isPrimary: boolean }[];
+  subtopics?: { slug: string; title: string }[];
 }
 
 export interface IndicatorClassification {
@@ -41,10 +40,8 @@ export async function listTopicsForIndicators(
       indicatorId: publishedIndicatorTopic.indicatorId,
       slug: publishedTopic.slug,
       title: publishedTopic.title,
-      isPrimary: publishedIndicatorTopic.isPrimary,
       subtopicSlug: publishedSubtopic.slug,
       subtopicTitle: publishedSubtopic.title,
-      subtopicIsPrimary: publishedIndicatorSubtopic.isPrimary,
     })
     .from(publishedIndicatorTopic)
     .innerJoin(publishedTopic, eq(publishedIndicatorTopic.topicId, publishedTopic.id))
@@ -65,15 +62,10 @@ export async function listTopicsForIndicators(
     const entry: Required<TopicSummaryForIndicator> = topics.get(row.slug) ?? {
       slug: row.slug,
       title: row.title,
-      isPrimary: row.isPrimary,
       subtopics: [],
     };
-    if (row.subtopicSlug !== null && row.subtopicTitle !== null && row.subtopicIsPrimary !== null)
-      entry.subtopics.push({
-        slug: row.subtopicSlug,
-        title: row.subtopicTitle,
-        isPrimary: row.subtopicIsPrimary,
-      });
+    if (row.subtopicSlug !== null && row.subtopicTitle !== null)
+      entry.subtopics.push({ slug: row.subtopicSlug, title: row.subtopicTitle });
     topics.set(row.slug, entry);
     byIndicator.set(row.indicatorId, topics);
   }
