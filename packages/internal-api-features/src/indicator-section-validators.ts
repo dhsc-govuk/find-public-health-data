@@ -7,8 +7,11 @@ import {
   type ConfidenceIntervalsField,
   confidenceIntervalsSection,
   confidenceIntervalsSectionFor,
+  FUTURE_PUBLISHING_DATE,
   type ProviderSourcesSection,
+  PUBLISHING_DATE_FIELDS,
   PUBLISHING_NOTICE_DAYS,
+  PUBLISHING_NOTICE_WEEKS,
   type PublishingDateField,
   publishingDateSection,
   REAL_PUBLISHING_TIME,
@@ -137,8 +140,9 @@ export function valueTypeAndUnitsServerSection(
 }
 
 /**
- * The form's schema, then a date at least the notice period after today's in the UK, whatever
- * the time, and the instant the answers name, which must exist in UK time.
+ * The form's schema, then the instant the answers name, which must exist in UK time. The date
+ * must be at least the notice period after today's in the UK, whatever the time. A fast-tracked
+ * indicator skips the notice, but its date and time must still be in the future.
  */
 export function publishingDateServerSection(
   now: () => Date,
@@ -151,12 +155,13 @@ export function publishingDateServerSection(
         month: Number(answers.publishingDateMonth),
         day: Number(answers.publishingDateDay),
       };
+      const fastTracked = answers.fastTracked === 'yes';
 
-      if (ukDaysUntil(now(), date) < PUBLISHING_NOTICE_DAYS) {
+      if (!fastTracked && ukDaysUntil(now(), date) < PUBLISHING_NOTICE_DAYS) {
         addIssues(
           ctx,
-          ['publishingDateDay', 'publishingDateMonth', 'publishingDateYear'],
-          `Publishing date must be at least ${PUBLISHING_NOTICE_DAYS} days from today`,
+          PUBLISHING_DATE_FIELDS,
+          `Publishing date and time must be at least ${PUBLISHING_NOTICE_WEEKS} weeks in the future`,
         );
         return z.NEVER;
       }
@@ -169,6 +174,11 @@ export function publishingDateServerSection(
 
       if (scheduledPublishAt === null) {
         addIssues(ctx, ['publishingTimeHour', 'publishingTimeMinute'], REAL_PUBLISHING_TIME);
+        return z.NEVER;
+      }
+
+      if (fastTracked && scheduledPublishAt <= now()) {
+        addIssues(ctx, PUBLISHING_DATE_FIELDS, FUTURE_PUBLISHING_DATE);
         return z.NEVER;
       }
 

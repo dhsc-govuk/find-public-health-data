@@ -36,6 +36,7 @@ const submittedUpdateRow: IndicatorAdminDetailRow = {
   publishedSlug: 'life-expectancy-at-birth',
   draftSubmissionNumber: 2,
   draftScheduledPublishAt: new Date('2027-01-04T09:30:00.000Z'),
+  draftFastTrackReason: null,
   draftFirstSubmittedAt: new Date('2026-10-20T09:30:00.000Z'),
   draftResponse: null,
 };

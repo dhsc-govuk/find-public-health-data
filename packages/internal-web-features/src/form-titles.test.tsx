@@ -229,7 +229,7 @@ const forms: {
     publishingDateSection,
     'When should this indicator be published?',
     { publishingDateDay: 'Enter the publishing date' },
-    { dateExample: '9 11 2027', isUpdate: false },
+    { isUpdate: false },
     { ...unanswered(publishingDateSection), ...DEFAULT_PUBLISHING_TIME },
   ),
   ...(
@@ -313,6 +313,7 @@ const forms: {
         draftReviewers: [],
         draftSubmissionNumber: 1,
         draftScheduledPublishAt: null,
+        draftFastTrackReason: null,
         draftFirstSubmittedAt: '2026-01-02T00:00:00.000Z',
         nameVersion: 'a'.repeat(64),
         actions: [],

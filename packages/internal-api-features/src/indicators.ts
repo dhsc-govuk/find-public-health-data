@@ -91,6 +91,7 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
     publishedSlug: row.publishedSlug,
     draftSubmissionNumber: row.draftSubmissionNumber,
     draftScheduledPublishAt: row.draftScheduledPublishAt?.toISOString() ?? null,
+    draftFastTrackReason: row.draftFastTrackReason,
     draftFirstSubmittedAt: row.draftFirstSubmittedAt?.toISOString() ?? null,
     draftResponse: row.draftResponse,
     nameVersion: nameVersion(row.name),

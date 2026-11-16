@@ -82,6 +82,8 @@ export interface IndicatorAdminDetailRow extends IndicatorAdminRow {
   publishedSlug: string | null;
   /** When the draft asks to be published; null with no draft or no answer yet. */
   draftScheduledPublishAt: Date | null;
+  /** Why the publisher asks for the draft to be fast-tracked; null when it is not. */
+  draftFastTrackReason: string | null;
   /** When the draft was first submitted; null until it is. */
   draftFirstSubmittedAt: Date | null;
   /** The latest response to the draft's latest submission; null until a reviewer responds. */
@@ -316,6 +318,7 @@ export async function getIndicatorById(
       draftUpdateDecision,
       draftReviewers,
       draftScheduledPublishAt: draftVersion.scheduledPublishAt,
+      draftFastTrackReason: draftVersion.fastTrackReason,
       draftFirstSubmittedAt,
       draftResponse,
     })

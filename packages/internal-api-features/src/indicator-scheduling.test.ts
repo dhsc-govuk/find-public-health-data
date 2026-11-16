@@ -39,6 +39,7 @@ const approvedRow: IndicatorAdminDetailRow = {
   publishedSlug: null,
   draftSubmissionNumber: 1,
   draftScheduledPublishAt: new Date(SHOWN),
+  draftFastTrackReason: null,
   draftFirstSubmittedAt: new Date('2026-10-20T09:30:00.000Z'),
   draftResponse: { kind: 'approved', flaggedTaskCount: 0 },
 };

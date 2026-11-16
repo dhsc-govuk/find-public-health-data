@@ -245,6 +245,8 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
   draftSubmissionNumber: z.number().int().positive().nullable(),
   /** When the draft asks to be published; null with no draft or no answer yet. */
   draftScheduledPublishAt: z.iso.datetime().nullable(),
+  /** Why the publisher asks for the draft to be fast-tracked; null when it is not. */
+  draftFastTrackReason: z.string().nullable(),
   /** When the draft was first submitted, which no IMRG review date may precede; null until then. */
   draftFirstSubmittedAt: z.iso.datetime().nullable(),
   /** The latest response to the draft's latest submission, null until a reviewer responds. */

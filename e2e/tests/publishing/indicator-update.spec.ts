@@ -240,13 +240,16 @@ test('the update summary page asks "What is the summary of this update?", and re
   await expect(taskStatus(page, 'Update summary')).toHaveText('Complete');
 });
 
-test('on an update the publishing date page asks "When should this update be published?", and reads "Complete" once saved', async ({
+test('on an update the publishing date page asks "When should this update be published?" and whether the update needs to be fast-tracked, and reads "Complete" once saved', async ({
   page,
 }, testInfo) => {
   await page.goto(taskListPath());
   await page.getByRole('link', { name: 'Publishing date', exact: true }).click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'When should this update be published?' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('checkbox', { name: 'This update needs to be fast-tracked' }),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
 

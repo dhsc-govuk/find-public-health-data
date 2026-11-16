@@ -27,6 +27,7 @@ const indicator: IndicatorAdminDetail = {
   draftReviewers: [],
   draftSubmissionNumber: null,
   draftScheduledPublishAt: null,
+  draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
   nameVersion: SHOWN_VERSION,
@@ -85,6 +86,20 @@ describe('IndicatorOverviewPage', () => {
 
     expect(document.querySelector('p:has(.govuk-tag) + p')?.textContent).toBe(
       'Scheduled publication date: 1 April 2027 at 9:30am',
+    );
+  });
+
+  it('shows the reason a fast-tracked draft gives under its publication date', () => {
+    renderPage({
+      draftStatus: 'draft',
+      draftScheduledPublishAt: '2027-04-01T08:30:00.000Z',
+      draftFastTrackReason: 'For a ministerial briefing.',
+    });
+
+    const line = document.querySelector('p:has(.govuk-tag) + p');
+    expect(line?.innerHTML).toContain('<br>');
+    expect(line?.textContent).toBe(
+      'Proposed publication date: 1 April 2027 at 9:30amFast-track reason: For a ministerial briefing.',
     );
   });
 

@@ -31,6 +31,7 @@ import {
   type PeriodTypeField,
   type PublishingDate,
   type PublishingDateField,
+  type PublishingDateTimeField,
   polaritySection,
   publishingDateValues,
   type SexGenderAndEthnicity,
@@ -303,9 +304,9 @@ export const sexGenderAndEthnicityColumns: IndicatorSectionColumns<
 export type PublishingDateWithInstant = PublishingDate & { scheduledPublishAt: Date };
 
 /** The date and time a publisher typed, from the instant they name in UK time. */
-function publishingDateAnswers(
+function publishingDateTimeAnswers(
   scheduledPublishAt: Date | null,
-): Record<PublishingDateField, string | null> {
+): Record<PublishingDateTimeField, string | null> {
   if (scheduledPublishAt === null) {
     return {
       publishingDateDay: null,
@@ -319,10 +320,19 @@ function publishingDateAnswers(
   return publishingDateValues(scheduledPublishAt);
 }
 
+// A draft is fast-tracked when it holds a reason. A reason typed and then unticked is dropped,
+// whatever the form sent.
 export const publishingDateColumns: IndicatorSectionColumns<
   PublishingDateField,
   PublishingDateWithInstant
 > = {
-  fromDraft: (draft) => publishingDateAnswers(draft.scheduledPublishAt),
-  toAttributes: ({ scheduledPublishAt }) => ({ scheduledPublishAt }),
+  fromDraft: ({ scheduledPublishAt, fastTrackReason }) => ({
+    ...publishingDateTimeAnswers(scheduledPublishAt),
+    fastTracked: fastTrackReason === null ? null : 'yes',
+    fastTrackReason,
+  }),
+  toAttributes: ({ scheduledPublishAt, fastTracked, fastTrackReason }) => ({
+    scheduledPublishAt,
+    fastTrackReason: fastTracked === 'yes' ? fastTrackReason : null,
+  }),
 };

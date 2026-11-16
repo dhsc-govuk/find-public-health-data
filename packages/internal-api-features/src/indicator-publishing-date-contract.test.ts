@@ -1,15 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { publishingDateSection as section } from './indicator-publishing-date-contract.ts';
+import {
+  publishingDateTimeSchema,
+  publishingDateSection as section,
+} from './indicator-publishing-date-contract.ts';
 import { sectionFieldErrors } from './testing.ts';
 
 const answers = {
   publishingDateDay: '14',
   publishingDateMonth: '9',
   publishingDateYear: '2027',
+  fastTracked: '',
+  fastTrackReason: '',
   publishingTimeHour: '09',
   publishingTimeMinute: '30',
 };
+
+const fastTracked = (reason: string) => ({
+  ...answers,
+  fastTracked: 'yes',
+  fastTrackReason: reason,
+});
+
+const ENTER_REASON = 'Enter the reason for fast-tracking';
 
 const date = (day: string, month: string, year: string) => ({
   ...answers,
@@ -131,5 +144,50 @@ describe('publishingDateSection', () => {
       publishingTimeHour: 'Enter the publishing time',
       publishingTimeMinute: 'Enter the publishing time',
     });
+  });
+
+  it('takes a fast-tracked date with a reason, trimmed', () => {
+    expect(section.schema.parse(fastTracked('  For a ministerial briefing. '))).toEqual(
+      fastTracked('For a ministerial briefing.'),
+    );
+  });
+
+  it.each([
+    ['none', ''],
+    ['only spaces', '   '],
+  ])('asks for the reason a fast-tracked indicator gives %s', (_, reason) => {
+    expect(sectionFieldErrors(section, fastTracked(reason))).toEqual({
+      fastTrackReason: ENTER_REASON,
+    });
+  });
+
+  it('asks for the reason beside any problem with the date', () => {
+    expect(
+      sectionFieldErrors(section, {
+        ...fastTracked(''),
+        publishingDateDay: '31',
+        publishingDateMonth: '2',
+      }),
+    ).toEqual({ publishingDateDay: REAL_DATE, fastTrackReason: ENTER_REASON });
+  });
+
+  it('takes a reason left in the form when the box is not ticked', () => {
+    expect(
+      sectionFieldErrors(section, { ...answers, fastTrackReason: 'Typed, then unticked.' }),
+    ).toBeUndefined();
+  });
+
+  it('refuses a fast-track answer other than a ticked box', () => {
+    expect(sectionFieldErrors(section, { ...answers, fastTracked: 'no' })).toHaveProperty(
+      'fastTracked',
+    );
+  });
+});
+
+describe('publishingDateTimeSchema', () => {
+  it('takes the date and time alone, as the admin confirms them', () => {
+    const { fastTracked: _, fastTrackReason: __, ...dateTime } = answers;
+
+    expect(publishingDateTimeSchema.parse(dateTime)).toEqual(dateTime);
   });
 });

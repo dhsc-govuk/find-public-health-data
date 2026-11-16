@@ -320,6 +320,26 @@ describe('createDraftFromPublished', () => {
   );
 
   seededRepositoryTest(
+    'leaves the new draft not fast-tracked, whatever the published version gave as its reason',
+    async ({ db }) => {
+      const { indicatorId, currentId } = await indicatorWithTwoPublications(
+        db,
+        'Fast-tracked when published',
+      );
+      await db
+        .update(indicatorVersion)
+        .set({ fastTrackReason: 'For a ministerial briefing.' })
+        .where(eq(indicatorVersion.id, currentId));
+
+      const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+
+      if (!result.ok) throw new Error('expected a draft');
+      const state = await getIndicatorDraftState(db, indicatorId);
+      expect(state?.draft?.fastTrackReason).toBeNull();
+    },
+  );
+
+  seededRepositoryTest(
     'starts the new draft without the update summaries of the published version',
     async ({ db }) => {
       const { indicatorId, currentId } = await indicatorWithTwoPublications(

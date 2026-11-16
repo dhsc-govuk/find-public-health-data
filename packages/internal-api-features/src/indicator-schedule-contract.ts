@@ -3,19 +3,18 @@ import { ukInstant } from '@fphd/utils/uk-time';
 
 import {
   addIssues,
-  type PublishingDateField,
-  publishingDateSection,
+  FUTURE_PUBLISHING_DATE,
+  PUBLISHING_DATE_FIELDS,
+  type PublishingDateTimeField,
+  publishingDateTimeFields,
+  publishingDateTimeSchema,
   REAL_PUBLISHING_TIME,
 } from './indicator-publishing-date-contract.ts';
 
-export const FUTURE_PUBLISHING_DATE = 'Publishing date and time must be in the future';
-
-const DATE_PARTS: readonly PublishingDateField[] = [
-  'publishingDateDay',
-  'publishingDateMonth',
-  'publishingDateYear',
+const TIME_PARTS: readonly PublishingDateTimeField[] = [
+  'publishingTimeHour',
+  'publishingTimeMinute',
 ];
-const TIME_PARTS: readonly PublishingDateField[] = ['publishingTimeHour', 'publishingTimeMinute'];
 
 /**
  * An admin's confirmation of a publication date: the date and time as the publisher's page asks
@@ -35,7 +34,7 @@ export const indicatorScheduleBodySchema = z.object({
  * approved, naming an instant that exists in UK time and comes after `now`.
  */
 export function scheduleSchemaFor(now: Date) {
-  return publishingDateSection.schema.transform((answers, ctx) => {
+  return publishingDateTimeSchema.transform((answers, ctx) => {
     const scheduledPublishAt = ukInstant({
       year: Number(answers.publishingDateYear),
       month: Number(answers.publishingDateMonth),
@@ -49,7 +48,7 @@ export function scheduleSchemaFor(now: Date) {
       return z.NEVER;
     }
     if (scheduledPublishAt <= now) {
-      addIssues(ctx, DATE_PARTS, FUTURE_PUBLISHING_DATE);
+      addIssues(ctx, PUBLISHING_DATE_FIELDS, FUTURE_PUBLISHING_DATE);
       return z.NEVER;
     }
     return { scheduledPublishAt };
@@ -57,7 +56,7 @@ export function scheduleSchemaFor(now: Date) {
 }
 
 export const indicatorScheduleFieldErrorsSchema = z.partialRecord(
-  publishingDateSection.fields,
+  publishingDateTimeFields,
   z.string(),
 );
 

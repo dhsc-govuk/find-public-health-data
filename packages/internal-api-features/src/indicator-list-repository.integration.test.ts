@@ -683,26 +683,31 @@ describe('getIndicatorById', () => {
     },
   );
 
-  seededRepositoryTest('reads the publication date the draft asks for', async ({ db }) => {
-    const created = await newDraft(db, 'Asks for a date');
-    expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
-      draftScheduledPublishAt: null,
-    });
+  seededRepositoryTest(
+    'reads the publication date the draft asks for, and why it is fast-tracked',
+    async ({ db }) => {
+      const created = await newDraft(db, 'Asks for a date');
+      expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+        draftScheduledPublishAt: null,
+        draftFastTrackReason: null,
+      });
 
-    const scheduledPublishAt = new Date('2031-04-01T08:30:00.000Z');
-    await updateIndicatorDraft(
-      db,
-      created.indicatorId,
-      'publishing-date',
-      { scheduledPublishAt },
-      {},
-      AS_ACTOR,
-    );
+      const scheduledPublishAt = new Date('2031-04-01T08:30:00.000Z');
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'publishing-date',
+        { scheduledPublishAt, fastTrackReason: 'Needed for a ministerial briefing.' },
+        {},
+        AS_ACTOR,
+      );
 
-    expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
-      draftScheduledPublishAt: scheduledPublishAt,
-    });
-  });
+      expect(await getIndicatorById(db, created.indicatorId)).toMatchObject({
+        draftScheduledPublishAt: scheduledPublishAt,
+        draftFastTrackReason: 'Needed for a ministerial briefing.',
+      });
+    },
+  );
 
   seededRepositoryTest(
     'reads when the draft was first submitted, through later rounds',
@@ -802,17 +807,21 @@ describe('getIndicatorById', () => {
   });
 
   seededRepositoryTest(
-    "ignores a published version's date when there is no draft",
+    "ignores a published version's date and fast-track reason when there is no draft",
     async ({ db }) => {
       const { indicatorId } = await indicatorWithTwoPublications(db, 'Published with a date');
       await db
         .update(schema.indicatorVersion)
-        .set({ scheduledPublishAt: new Date('2030-01-01T09:30:00.000Z') })
+        .set({
+          scheduledPublishAt: new Date('2030-01-01T09:30:00.000Z'),
+          fastTrackReason: 'Needed for a ministerial briefing.',
+        })
         .where(eq(schema.indicatorVersion.indicatorId, indicatorId));
 
       expect(await getIndicatorById(db, indicatorId)).toMatchObject({
         draftStatus: null,
         draftScheduledPublishAt: null,
+        draftFastTrackReason: null,
       });
     },
   );

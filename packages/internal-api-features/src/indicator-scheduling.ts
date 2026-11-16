@@ -5,7 +5,7 @@ import { Router } from 'express';
 import {
   type IndicatorScheduleError,
   indicatorScheduleBodySchema,
-  publishingDateSection,
+  publishingDateTimeFields,
   scheduleSchemaFor,
   toFieldErrors,
 } from './contract.ts';
@@ -43,7 +43,7 @@ export function indicatorSchedulingRouter(
       if (!sent.success) {
         response.status(400).json({
           error: 'validation_failed',
-          fieldErrors: toFieldErrors(sent.error, publishingDateSection.fields),
+          fieldErrors: toFieldErrors(sent.error, publishingDateTimeFields),
         } satisfies IndicatorScheduleError);
         return;
       }

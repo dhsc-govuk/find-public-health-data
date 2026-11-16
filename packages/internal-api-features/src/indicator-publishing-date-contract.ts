@@ -2,12 +2,34 @@ import { z } from '@fphd/config/zod';
 import { isDayOfMonth } from '@fphd/utils/period-type';
 import { ukDateTime } from '@fphd/utils/uk-time';
 
-import { type IndicatorSection, isSmallNumber, textSection } from './indicator-section-contract.ts';
+import {
+  type DetailedQuestion,
+  type IndicatorSection,
+  isSmallNumber,
+  requireDetails,
+  textSection,
+} from './indicator-section-contract.ts';
+import { longText } from './text-contract.ts';
 
+/** The date and time, which the publisher's page and the admin's confirmation both ask. */
+export const publishingDateTimeFields = z.enum([
+  'publishingDateDay',
+  'publishingDateMonth',
+  'publishingDateYear',
+  'publishingTimeHour',
+  'publishingTimeMinute',
+]);
+
+export type PublishingDateTimeField = z.infer<typeof publishingDateTimeFields>;
+
+// The publisher's page asks whether the indicator needs to be fast-tracked between the date and
+// the time.
 const fields = z.enum([
   'publishingDateDay',
   'publishingDateMonth',
   'publishingDateYear',
+  'fastTracked',
+  'fastTrackReason',
   'publishingTimeHour',
   'publishingTimeMinute',
 ]);
@@ -20,7 +42,7 @@ export const DEFAULT_PUBLISHING_TIME = {
   publishingTimeMinute: '30',
 } as const;
 
-type Answers = Record<PublishingDateField, string>;
+type Answers = Record<PublishingDateTimeField, string>;
 type Problems = Partial<Answers>;
 
 const DATE_PARTS = [
@@ -29,13 +51,27 @@ const DATE_PARTS = [
   ['publishingDateYear', 'year'],
 ] as const;
 
+/** The date's fields, which a message about the whole date is given on. */
+export const PUBLISHING_DATE_FIELDS: readonly PublishingDateTimeField[] = DATE_PARTS.map(
+  ([field]) => field,
+);
+
 const TIME_PARTS = [
   ['publishingTimeHour', 'an hour'],
   ['publishingTimeMinute', 'a minute'],
 ] as const;
 
-/** How many days after today's date in the UK a publishing date must be, at least. */
-export const PUBLISHING_NOTICE_DAYS = 28;
+/**
+ * How many weeks after today's date in the UK a publishing date must be, at least, unless the
+ * indicator is fast-tracked. The notice gives IMRG time to review the indicator.
+ */
+export const PUBLISHING_NOTICE_WEEKS = 8;
+
+/** The notice in days, which the API counts as whole UK calendar days. */
+export const PUBLISHING_NOTICE_DAYS = PUBLISHING_NOTICE_WEEKS * 7;
+
+// Given when a fast-tracked date, or a date the admin confirms, has already passed.
+export const FUTURE_PUBLISHING_DATE = 'Publishing date and time must be in the future';
 
 const REAL_DATE = 'Publishing date must be a real date';
 // Also given by the API for a time the spring clock change skips.
@@ -67,11 +103,11 @@ export function publishingDateValues(instant: Date): Answers {
   };
 }
 
-function each(parts: readonly PublishingDateField[], message: string): Problems {
+function each(parts: readonly PublishingDateTimeField[], message: string): Problems {
   return Object.fromEntries(parts.map((part) => [part, message]));
 }
 
-function unless(ok: boolean, field: PublishingDateField, message: string): Problems {
+function unless(ok: boolean, field: PublishingDateTimeField, message: string): Problems {
   return ok ? {} : { [field]: message };
 }
 
@@ -144,25 +180,50 @@ function timeProblems(answers: Answers): Problems {
   };
 }
 
+const dateTimeShape = {
+  publishingDateDay: z.string().trim(),
+  publishingDateMonth: z.string().trim(),
+  publishingDateYear: z.string().trim(),
+  publishingTimeHour: z.string().trim(),
+  publishingTimeMinute: z.string().trim(),
+};
+
+/** Gives each message about the date and time on the part it names. */
+function addDateTimeIssues(answers: Answers, ctx: z.RefinementCtx): void {
+  const problems = { ...dateProblems(answers), ...timeProblems(answers) };
+
+  for (const [field, message] of Object.entries(problems)) {
+    ctx.addIssue({ code: 'custom', path: [field], message });
+  }
+}
+
 /**
  * A real date and a real 24-hour time, in UK local time. A message about the whole date or
  * time is given on each of its parts, so the page marks every part to correct.
  */
-const schema = z
-  .object({
-    publishingDateDay: z.string().trim(),
-    publishingDateMonth: z.string().trim(),
-    publishingDateYear: z.string().trim(),
-    publishingTimeHour: z.string().trim(),
-    publishingTimeMinute: z.string().trim(),
-  })
-  .superRefine((answers, ctx) => {
-    const problems = { ...dateProblems(answers), ...timeProblems(answers) };
+export const publishingDateTimeSchema = z.object(dateTimeShape).superRefine(addDateTimeIssues);
 
-    for (const [field, message] of Object.entries(problems)) {
-      ctx.addIssue({ code: 'custom', path: [field], message });
-    }
-  });
+/** The reason a fast-tracked indicator needs, which the checkbox reveals. */
+const FAST_TRACK_REASON = [
+  {
+    answer: 'fastTracked',
+    detail: 'fastTrackReason',
+    detailRequired: 'Enter the reason for fast-tracking',
+  },
+] as const satisfies readonly DetailedQuestion<'fastTracked', 'fastTrackReason'>[];
+
+/**
+ * The date and time, and whether the indicator is fast-tracked, with the reason why. The
+ * checkbox sends "yes" when it is ticked and nothing otherwise.
+ */
+const schema = requireDetails(
+  z.object({
+    ...dateTimeShape,
+    fastTracked: z.enum(['', 'yes']),
+    fastTrackReason: longText('Reason for fast-tracking'),
+  }),
+  FAST_TRACK_REASON,
+).superRefine(addDateTimeIssues);
 
 export type PublishingDate = z.infer<typeof schema>;
 
