@@ -4,7 +4,6 @@ import {
   benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
-  copyrightAndDataReuseColumns,
   dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
@@ -375,44 +374,6 @@ describe('otherNotesAndCaveatsColumns', () => {
   });
 });
 
-// yesNoDetailColumns, shown through a section built on it alone.
-describe('copyrightAndDataReuseColumns', () => {
-  const answered = {
-    hasCustomCopyright: 'yes',
-    customCopyrightDetail: 'NHS England.',
-    hasCustomDataReuse: 'no',
-    customDataReuseDetail: 'Typed before No was chosen.',
-  } as const;
-
-  it('writes a yes as true beside its details, and a no as false without them', () => {
-    expect(copyrightAndDataReuseColumns.toAttributes(answered)).toEqual({
-      hasCustomCopyright: true,
-      customCopyrightDetail: 'NHS England.',
-      hasCustomDataReuse: false,
-      customDataReuseDetail: null,
-    });
-  });
-
-  it.each([
-    [true, 'yes'],
-    [false, 'no'],
-    [null, null],
-  ])('reads a stored %s as %s, beside its details as they are', (hasCustomCopyright, answer) => {
-    expect(
-      copyrightAndDataReuseColumns.fromDraft({
-        ...unansweredDraft,
-        hasCustomCopyright,
-        customCopyrightDetail: 'NHS England.',
-      }),
-    ).toEqual({
-      hasCustomCopyright: answer,
-      customCopyrightDetail: 'NHS England.',
-      hasCustomDataReuse: null,
-      customDataReuseDetail: null,
-    });
-  });
-});
-
 describe('varianceAndQualityColumns', () => {
   const answered = {
     variation: 'Varies by area.',
@@ -637,8 +598,10 @@ describe('sexGenderAndEthnicityColumns', () => {
 });
 
 describe('publishingDateColumns', () => {
+  const notFastTracked = { fastTracked: null, fastTrackReason: null };
+
   it.each([
-    ['in BST', '2027-09-14T08:30:00.000Z', publishingDate],
+    ['in BST', '2027-09-14T08:30:00.000Z', { ...publishingDate, ...notFastTracked }],
     [
       'in GMT, as the clock showed it',
       '2027-01-04T15:05:00.000Z',
@@ -646,6 +609,7 @@ describe('publishingDateColumns', () => {
         publishingDateDay: '4',
         publishingDateMonth: '1',
         publishingDateYear: '2027',
+        ...notFastTracked,
         publishingTimeHour: '15',
         publishingTimeMinute: '05',
       },
@@ -658,8 +622,17 @@ describe('publishingDateColumns', () => {
 
   it('reads an unscheduled publication as unanswered', () => {
     expect(Object.values(publishingDateColumns.fromDraft(unansweredDraft))).toEqual(
-      Array(5).fill(null),
+      Array(7).fill(null),
     );
+  });
+
+  it('reads a draft with a fast-track reason as fast-tracked', () => {
+    const draft = { ...unansweredDraft, fastTrackReason: 'For a ministerial briefing.' };
+
+    expect(publishingDateColumns.fromDraft(draft)).toMatchObject({
+      fastTracked: 'yes',
+      fastTrackReason: 'For a ministerial briefing.',
+    });
   });
 
   it('writes the instant the answers name', () => {
@@ -667,6 +640,32 @@ describe('publishingDateColumns', () => {
 
     expect(publishingDateColumns.toAttributes({ ...publishingDate, scheduledPublishAt })).toEqual({
       scheduledPublishAt,
+      fastTrackReason: null,
     });
+  });
+
+  it('writes the reason of a fast-tracked indicator', () => {
+    const scheduledPublishAt = new Date('2027-09-14T08:30:00.000Z');
+
+    expect(
+      publishingDateColumns.toAttributes({
+        ...publishingDate,
+        fastTracked: 'yes',
+        fastTrackReason: 'For a ministerial briefing.',
+        scheduledPublishAt,
+      }),
+    ).toEqual({ scheduledPublishAt, fastTrackReason: 'For a ministerial briefing.' });
+  });
+
+  it('clears a reason left in the form when the box is not ticked', () => {
+    const scheduledPublishAt = new Date('2027-09-14T08:30:00.000Z');
+
+    expect(
+      publishingDateColumns.toAttributes({
+        ...publishingDate,
+        fastTrackReason: 'Typed, then unticked.',
+        scheduledPublishAt,
+      }),
+    ).toEqual({ scheduledPublishAt, fastTrackReason: null });
   });
 });

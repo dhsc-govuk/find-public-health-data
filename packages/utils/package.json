@@ -131,6 +131,12 @@
       "types": "./src/source-part.ts",
       "default": "./dist/source-part.js"
     },
+    "./standard-methods": {
+      "browser": "./src/standard-methods.ts",
+      "development": "./src/standard-methods.ts",
+      "types": "./src/standard-methods.ts",
+      "default": "./dist/standard-methods.js"
+    },
     "./tidy-name": {
       "browser": "./src/tidy-name.ts",
       "development": "./src/tidy-name.ts",

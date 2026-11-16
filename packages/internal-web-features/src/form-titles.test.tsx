@@ -3,7 +3,6 @@ import {
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
-  copyrightAndDataReuseSection,
   DEFAULT_PUBLISHING_TIME,
   dataQualitySection,
   definitionAndRationaleSection,
@@ -31,7 +30,6 @@ import * as ages from './indicator-ages/route.tsx';
 import * as benchmarking from './indicator-benchmarking/route.tsx';
 import * as calculation from './indicator-calculation/route.tsx';
 import * as confidenceIntervals from './indicator-confidence-intervals/route.tsx';
-import * as copyrightAndDataReuse from './indicator-copyright-and-data-reuse/route.tsx';
 import * as dataQuality from './indicator-data-quality/route.tsx';
 import * as definitionAndRationale from './indicator-definition-and-rationale/route.tsx';
 import * as justifications from './indicator-justifications/route.tsx';
@@ -231,7 +229,7 @@ const forms: {
     publishingDateSection,
     'When should this indicator be published?',
     { publishingDateDay: 'Enter the publishing date' },
-    { dateExample: '9 11 2027', isUpdate: false },
+    { isUpdate: false },
     { ...unanswered(publishingDateSection), ...DEFAULT_PUBLISHING_TIME },
   ),
   ...(
@@ -262,13 +260,6 @@ const forms: {
   sectionForm('other comments', otherComments, otherCommentsSection, 'Other comments', {
     hasReviewerComments: 'Select whether you have additional comments',
   }),
-  sectionForm(
-    'copyright and data re-use',
-    copyrightAndDataReuse,
-    copyrightAndDataReuseSection,
-    'Copyright and data re-use',
-    { hasCustomCopyright: 'Select whether the copyright is anything other than Crown copyright' },
-  ),
   sectionForm(
     'update summary',
     updateSummary,
@@ -322,6 +313,7 @@ const forms: {
         draftReviewers: [],
         draftSubmissionNumber: 1,
         draftScheduledPublishAt: null,
+        draftFastTrackReason: null,
         draftFirstSubmittedAt: '2026-01-02T00:00:00.000Z',
         nameVersion: 'a'.repeat(64),
         actions: [],

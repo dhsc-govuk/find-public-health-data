@@ -6,7 +6,7 @@ import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { ConfidenceIntervalsPage } from './page.tsx';
 
 afterEach(() => {
@@ -103,6 +103,14 @@ function otherDetail() {
 }
 
 describe('ConfidenceIntervalsPage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#other-or-modified-ci-method',
+    );
+  });
+
   it('offers every method under the section heading, after an empty choice', () => {
     renderPage();
 

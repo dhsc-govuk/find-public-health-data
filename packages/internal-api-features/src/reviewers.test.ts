@@ -39,6 +39,7 @@ const submitted: IndicatorAdminDetailRow = {
   draftSubmissionNumber: 1,
   draftReviewers: [],
   draftScheduledPublishAt: null,
+  draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
 };

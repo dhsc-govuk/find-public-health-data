@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { UpdateFrequencyPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -38,6 +38,14 @@ function reason(answer: string) {
 }
 
 describe('UpdateFrequencyPage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#update-frequency',
+    );
+  });
+
   it('asks the question as the page heading, which also names the group of options', () => {
     renderPage();
 

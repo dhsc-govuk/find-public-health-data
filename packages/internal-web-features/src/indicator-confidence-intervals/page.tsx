@@ -25,6 +25,7 @@ export function ConfidenceIntervalsPage({ methods, ...form }: ConfidenceInterval
 
   return (
     <IndicatorSectionForm
+      guidance="other-or-modified-ci-method"
       fieldIds={{ hasCiMethodModifications: firstRadioId('hasCiMethodModifications') }}
       form={form}
       section={confidenceIntervalsSection}

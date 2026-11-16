@@ -89,7 +89,7 @@ describe('IndicatorTaskListPage', () => {
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
     ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
     expect(group('Data').getAllByRole('listitem')).toHaveLength(7);
-    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(10);
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(9);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
       group('Notes for reviewers (not visible to consumers)').getAllByRole('listitem'),
@@ -162,7 +162,6 @@ describe('IndicatorTaskListPage', () => {
       'Benchmarking',
       'Other notes and caveats',
       'Tagging',
-      'Copyright and data re-use',
       'Update frequency',
       'Publishing date',
       'Variance and quality',
@@ -188,7 +187,6 @@ describe('IndicatorTaskListPage', () => {
     ['Metadata', 'Benchmarking', 'benchmarking'],
     ['Metadata', 'Other notes and caveats', 'other-notes-and-caveats'],
     ['Metadata', 'Tagging', 'tagging'],
-    ['Metadata', 'Copyright and data re-use', 'copyright-and-data-reuse'],
     ['Publishing', 'Update frequency', 'update-frequency'],
     ['Publishing', 'Publishing date', 'publishing-date'],
     [NOTES, 'Variance and quality', 'variance-and-quality'],
@@ -436,7 +434,7 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
 
     expect(document.querySelector('.govuk-grid-column-three-quarters')).not.toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
-    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(10);
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(9);
   });
 
   it('shows a flagged task’s notes, tagged as needing revisions until it is saved', () => {

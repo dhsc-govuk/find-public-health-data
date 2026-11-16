@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { publishingDateControlNames } from '../publishing-date-form.ts';
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { PublishingDatePage } from './page.tsx';
 
 afterEach(cleanup);
@@ -15,15 +15,20 @@ const values = {
   publishingDateDay: '14',
   publishingDateMonth: '9',
   publishingDateYear: '2027',
+  fastTracked: '',
+  fastTrackReason: '',
   publishingTimeHour: '09',
   publishingTimeMinute: '30',
 };
+
+const FAST_TRACKED = 'This indicator needs to be fast-tracked';
+const REASON = 'Enter reason for fast-tracking';
 
 // The error summary's links read router state, so the page renders inside a router.
 function renderPage(props: Partial<Parameters<typeof PublishingDatePage>[0]> = {}) {
   return render(
     <MemoryRouter>
-      <PublishingDatePage {...noRefusal} dateExample="12 11 2027" values={values} {...props} />
+      <PublishingDatePage {...noRefusal} values={values} {...props} />
     </MemoryRouter>,
   );
 }
@@ -41,13 +46,25 @@ function marked(container: HTMLElement) {
 }
 
 describe('PublishingDatePage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#publishing-date',
+    );
+  });
+
   it('asks for a date and a time under the page heading', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: TITLE })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Date' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Time' })).toBeTruthy();
-    expect(screen.getByText('For example, 12 11 2027')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'This date must be at least 8 weeks from when you submit the indicator, to allow for IMRG review. Unless this indicator needs to be fast-tracked, but you will need to explain why. Use numbers only in the format DD MM YYYY.',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText(/This will be 09:30 local UK time by default/)).toBeTruthy();
     expect(document.title).toBe(`${TITLE} - ${serviceName} - GOV.UK`);
   });
@@ -58,6 +75,59 @@ describe('PublishingDatePage', () => {
     const title = 'When should this update be published?';
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeTruthy();
     expect(document.title).toBe(`${title} - ${serviceName} - GOV.UK`);
+    expect(
+      screen.getByText(
+        'This date must be at least 8 weeks from when you submit the update, to allow for possible IMRG review. Unless this update needs to be fast-tracked, but you will need to explain why. Use numbers only in the format DD MM YYYY.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('This update needs to be fast-tracked')).toBeTruthy();
+  });
+
+  it('asks whether the indicator needs to be fast-tracked between the date and the time', () => {
+    const { container } = renderPage();
+    const checkbox = screen.getByLabelText(FAST_TRACKED) as HTMLInputElement;
+    const order = [
+      screen.getByRole('group', { name: 'Date' }),
+      checkbox,
+      screen.getByRole('group', { name: 'Time' }),
+    ];
+
+    expect([checkbox.name, checkbox.value, checkbox.checked]).toEqual([
+      'fastTracked',
+      'yes',
+      false,
+    ]);
+    expect(
+      order.every(
+        (element, index) =>
+          index === 0 ||
+          (order[index - 1] as Element).compareDocumentPosition(element) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(container.querySelector('.govuk-checkboxes__conditional--hidden')).not.toBeNull();
+  });
+
+  it('reveals the reason of a fast-tracked draft', () => {
+    const { container } = renderPage({
+      values: { ...values, fastTracked: 'yes', fastTrackReason: 'For a ministerial briefing.' },
+    });
+    const reason = screen.getByLabelText(REASON) as HTMLTextAreaElement;
+
+    expect((screen.getByLabelText(FAST_TRACKED) as HTMLInputElement).checked).toBe(true);
+    expect([reason.name, reason.value]).toEqual(['fastTrackReason', 'For a ministerial briefing.']);
+    expect(container.querySelector('.govuk-checkboxes__conditional--hidden')).toBeNull();
+  });
+
+  it('links a missing reason from the error summary to its box', () => {
+    renderPage({
+      values: { ...values, fastTracked: 'yes' },
+      fieldErrors: { fastTrackReason: 'Enter the reason for fast-tracking' },
+    });
+
+    const [link] = within(screen.getByRole('alert')).getAllByRole('link');
+
+    expect(link?.getAttribute('href')).toBe(`#${screen.getByLabelText(REASON).id}`);
   });
 
   it('posts each part under the name the action reads it by', () => {

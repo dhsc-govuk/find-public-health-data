@@ -6,3 +6,15 @@ export function pageSearch(url: URL): string {
 
   return search === '' ? '' : `?${search}`;
 }
+
+/**
+ * The page a request is for, as a return address. A client-side navigation arrives as a data
+ * request, `/manage.data?_routes=…` or `/_.data` for the root, so its data endpoint is mapped back
+ * to the page.
+ */
+export function pagePath(requestUrl: URL): string {
+  const pathname = requestUrl.pathname.endsWith('/_.data')
+    ? requestUrl.pathname.replace(/_\.data$/, '')
+    : requestUrl.pathname.replace(/\.data$/, '');
+  return `${pathname}${pageSearch(requestUrl)}`;
+}

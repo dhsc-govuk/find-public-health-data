@@ -79,6 +79,10 @@ export default [
     ]),
     layout('./publisher.tsx', [
       route(
+        'publish/guidance',
+        '../../../packages/internal-web-features/src/publisher-guidance/route.tsx',
+      ),
+      route(
         'publish/indicators/new/team',
         '../../../packages/internal-web-features/src/indicator-team/route.tsx',
       ),
@@ -181,10 +185,6 @@ export default [
       route(
         'publish/indicators/:id/other-comments',
         '../../../packages/internal-web-features/src/indicator-other-comments/route.tsx',
-      ),
-      route(
-        'publish/indicators/:id/copyright-and-data-reuse',
-        '../../../packages/internal-web-features/src/indicator-copyright-and-data-reuse/route.tsx',
       ),
       route(
         'publish/indicators/:id/benchmarking',

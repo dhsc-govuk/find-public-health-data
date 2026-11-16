@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { OtherNotesAndCaveatsPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -56,6 +56,14 @@ function conditional(legend: string) {
 }
 
 describe('OtherNotesAndCaveatsPage', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#caveats',
+    );
+  });
+
   it('asks the four questions under the page heading, each a medium heading in its legend', () => {
     const { container } = renderPage();
 

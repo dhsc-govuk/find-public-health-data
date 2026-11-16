@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ukDateAfter, ukDateTime, ukDaysUntil, ukInstant } from './uk-time.ts';
+import { ukDateTime, ukDaysUntil, ukInstant } from './uk-time.ts';
 
 describe('ukInstant', () => {
   it.each([
@@ -67,17 +67,6 @@ describe('ukDateTime', () => {
     ['the second occurrence of a repeated time', '2027-10-31T01:30:00.000Z', [2027, 10, 31, 1, 30]],
   ] as const)('reads an instant %s', (_, instant, [year, month, day, hour, minute]) => {
     expect(ukDateTime(new Date(instant))).toEqual({ year, month, day, hour, minute });
-  });
-});
-
-describe('ukDateAfter', () => {
-  it('counts on from the UK date, not the UTC one', () => {
-    // 00:30 BST on 15 September, still 14 September in UTC.
-    expect(ukDateAfter(new Date('2027-09-14T23:30:00.000Z'), 28)).toEqual({
-      year: 2027,
-      month: 10,
-      day: 13,
-    });
   });
 });
 

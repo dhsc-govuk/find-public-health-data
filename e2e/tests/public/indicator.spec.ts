@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { downloadFrom } from '../support/downloads.ts';
 import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
+import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
 
 test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
@@ -152,8 +153,10 @@ test('loads every indicator section without JavaScript and keeps comparison sear
   baseURL,
 }) => {
   if (baseURL === undefined) throw new Error('A base URL is required');
+  // A new context starts empty, so it takes the invitee's private beta access explicitly.
   const context = await browser.newContext({
     baseURL,
+    storageState: INVITEE_STORAGE_STATE,
     javaScriptEnabled: false,
     viewport: { width: 390, height: 844 },
   });
@@ -309,20 +312,26 @@ test('sorts hydrated area comparisons without Array.prototype.toSorted', async (
   page.on('request', (request) => {
     if (request.url().includes('.data?')) requests.push(request.url());
   });
-  await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('alphabetical');
+  // React Router replaces the URL before React commits the re-sorted table, so the checks below
+  // poll the table until it shows the expected order rather than reading it once.
   const headers = table.locator('tbody').getByRole('rowheader');
   await expect(headers).toHaveCount(10);
-  const names = await headers.allTextContents();
-  expect(names[0]).toBe('England (benchmark)');
-  expect(names.slice(1)).toEqual(
-    [...names.slice(1)].sort((left, right) => left.localeCompare(right)),
-  );
+  const areas = (await headers.allTextContents()).filter((name) => name !== 'England (benchmark)');
+  await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('alphabetical');
+  await expect
+    .poll(() => headers.allTextContents())
+    .toEqual([
+      'England (benchmark)',
+      ...[...areas].sort((left, right) => left.localeCompare(right)),
+    ]);
+  const values = async () =>
+    (await table.locator('tbody tr td:first-of-type').allTextContents())
+      .slice(1)
+      .map((value) => Number(value.replaceAll(',', '')));
+  const ascending = (await values()).sort((left, right) => left - right);
   await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('ascending');
   await expect(page).toHaveURL(/areaSort=ascending/);
-  const values = (await table.locator('tbody tr td:first-of-type').allTextContents())
-    .slice(1)
-    .map((value) => Number(value.replaceAll(',', '')));
-  expect(values).toEqual([...values].sort((left, right) => left - right));
+  await expect.poll(values).toEqual(ascending);
   expect(requests).toEqual([]);
 });
 

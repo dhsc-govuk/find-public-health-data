@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
+import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import {
   describeSectionPage,
   openSectionPage,
@@ -63,6 +63,30 @@ async function expectShown(page: Page, { day, month, year, hour, minute }: DateT
   await expect(part(page, 'Time', 'Minute')).toHaveValue(minute);
 }
 
+const FAST_TRACKED = 'This indicator needs to be fast-tracked';
+const REASON = 'Enter reason for fast-tracking';
+const ENTER_REASON = 'Enter the reason for fast-tracking';
+const BRIEFING = 'Needed for a ministerial briefing.';
+
+function fastTracked(page: Page) {
+  return page.getByRole('checkbox', { name: FAST_TRACKED });
+}
+
+function reason(page: Page) {
+  return page.getByRole('textbox', { name: REASON });
+}
+
+async function fastTrack(page: Page, text: string) {
+  await fastTracked(page).check();
+  await reason(page).fill(text);
+}
+
+/** The overview of the draft whose page is open. */
+function overviewPath(page: Page): string {
+  const [, id] = new URL(page.url()).pathname.match(/^\/publish\/indicators\/([^/]+)\//) ?? [];
+  return `/dashboard/indicators/${id}`;
+}
+
 async function submitImpossibleDate(page: Page) {
   await fill(page, { ...LATER, day: '31', month: '2' });
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -76,6 +100,7 @@ describeSectionPage(SECTION, {
       page.getByRole('heading', { level: 1, name: 'When should this indicator be published?' }),
     ).toBeVisible();
     await expectShown(page, { day: '', month: '', year: '', hour: '09', minute: '30' });
+    await expect(fastTracked(page)).not.toBeChecked();
   },
   refusal: {
     messages: ['Enter the publishing date'],
@@ -108,15 +133,116 @@ test('refuses a time that does not exist', async ({ page }) => {
   await expect(part(page, 'Time', 'Hour')).toBeFocused();
 });
 
-test('refuses a publishing date less than 28 days from today', async ({ page }) => {
+test('refuses a publishing date less than 8 weeks from today', async ({ page }) => {
   await openSectionPage(page, SECTION);
 
-  await fill(page, { ...ukDateInDays(27), hour: '23', minute: '59' });
+  await fill(page, { ...ukDateInDays(55), hour: '23', minute: '59' });
   await page.getByRole('button', { name: 'Continue' }).click();
 
   await expect(page.getByRole('alert').getByRole('link')).toHaveText([
-    'Publishing date must be at least 28 days from today',
+    'Publishing date and time must be at least 8 weeks in the future',
   ]);
+});
+
+test('accepts any time on the date 8 weeks from today', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+
+  await fill(page, { ...ukDateInDays(56), hour: '00', minute: '00' });
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(taskListPath);
+  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+});
+
+test('reveals the reason for fast-tracking only while the box is ticked', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+  await expectHydrated(page);
+
+  await expect(reason(page)).toBeHidden();
+
+  await fastTracked(page).check();
+  await expect(reason(page)).toBeVisible();
+
+  await fastTracked(page).uncheck();
+  await expect(reason(page)).toBeHidden();
+});
+
+test('saves a fast-tracked date inside the notice period, and the overview shows the reason', async ({
+  page,
+}) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  const soon = { ...ukDateInDays(7), hour: '09', minute: '30' };
+
+  await fill(page, soon);
+  await expectHydrated(page);
+  await fastTrack(page, `  ${BRIEFING}  `);
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page).toHaveURL(taskListPath);
+  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+
+  await page.goto(pagePath);
+  await expectShown(page, soon);
+  await expect(fastTracked(page)).toBeChecked();
+  await expect(reason(page)).toHaveValue(BRIEFING);
+
+  await page.goto(overviewPath(page));
+  await expect(page.getByRole('main').locator('p:has(.govuk-tag) + p')).toContainText(
+    `Fast-track reason: ${BRIEFING}`,
+  );
+});
+
+test('asks for the reason when the box is ticked without one', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+
+  await fill(page, LATER);
+  await fastTracked(page).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  const summary = page.getByRole('alert');
+  await expect(summary.getByRole('link')).toHaveText([ENTER_REASON]);
+  await expect(fastTracked(page)).toBeChecked();
+
+  await expectErrorSummaryReady(page);
+  await summary.getByRole('link').click();
+  await expect(reason(page)).toBeFocused();
+});
+
+test('refuses a fast-tracked date in the past', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+
+  await fill(page, { ...ukDateInDays(-1), hour: '09', minute: '30' });
+  await expectHydrated(page);
+  await fastTrack(page, BRIEFING);
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page.getByRole('alert').getByRole('link')).toHaveText([
+    'Publishing date and time must be in the future',
+  ]);
+});
+
+test('forgets the reason once the box is unticked', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  await fill(page, LATER);
+  await expectHydrated(page);
+  await fastTrack(page, BRIEFING);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+
+  await page.goto(pagePath);
+  await fastTracked(page).uncheck();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+
+  await page.goto(pagePath);
+  await expect(fastTracked(page)).not.toBeChecked();
+  await fastTracked(page).check();
+  await expect(reason(page)).toHaveValue('');
+
+  await page.goto(overviewPath(page));
+  await expect(page.getByText('Fast-track reason:')).toHaveCount(0);
 });
 
 test('refuses a time the spring clock change skips', async ({ page }) => {
@@ -143,23 +269,6 @@ test('accepts a time the autumn clock change repeats', async ({ page }) => {
   await expect(page).toHaveURL(taskListPath);
   await taskRow(page, SECTION.taskName).getByRole('link').click();
   await expectShown(page, repeated);
-});
-
-test('accepts the date its hint gives as an example', async ({ page }) => {
-  const taskListPath = await openSectionPage(page, SECTION);
-  const hint = await page
-    .getByRole('group', { name: 'Date' })
-    .getByText(/^For example, /)
-    .textContent();
-  const [, day = '', month = '', year = ''] = hint?.match(/(\d+) (\d+) (\d+)$/) ?? [];
-
-  await part(page, 'Date', 'Day').fill(day);
-  await part(page, 'Date', 'Month').fill(month);
-  await part(page, 'Date', 'Year').fill(year);
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  await expect(page).toHaveURL(taskListPath);
-  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
 });
 
 test('saves nothing until the date and time are accepted', async ({ page }) => {
@@ -192,6 +301,27 @@ test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
+test('has no WCAG 2.2 AA violations with the reason for fast-tracking revealed', async ({
+  page,
+}, testInfo) => {
+  await openSectionPage(page, SECTION);
+  await expectHydrated(page);
+  await fastTracked(page).check();
+  await expect(reason(page)).toBeVisible();
+
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('has no WCAG 2.2 AA violations when the reason is refused', async ({ page }, testInfo) => {
+  await openSectionPage(page, SECTION);
+  await fill(page, LATER);
+  await fastTracked(page).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('alert')).toContainText(ENTER_REASON);
+
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
 test('has no WCAG 2.2 AA violations when the date is refused', async ({ page }, testInfo) => {
   await openSectionPage(page, SECTION);
   await submitImpossibleDate(page);
@@ -211,5 +341,20 @@ test.describe('without JavaScript', () => {
 
     await expect(page).toHaveURL(taskListPath);
     await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+  });
+
+  test('shows the reason for fast-tracking and saves it', async ({ page }) => {
+    await openSectionPage(page, SECTION);
+    const pagePath = new URL(page.url()).pathname;
+
+    await expect(reason(page)).toBeVisible();
+    await fill(page, { ...ukDateInDays(7), hour: '09', minute: '30' });
+    await fastTrack(page, BRIEFING);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+
+    await page.goto(pagePath);
+    await expect(fastTracked(page)).toBeChecked();
+    await expect(reason(page)).toHaveValue(BRIEFING);
   });
 });

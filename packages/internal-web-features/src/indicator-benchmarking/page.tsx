@@ -9,6 +9,7 @@ export function BenchmarkingPage(form: SectionPageProps<BenchmarkingField>) {
 
   return (
     <IndicatorSectionForm
+      guidance="policy-goal"
       form={form}
       fieldIds={{
         hasGoalBenchmark: firstRadioId('hasGoalBenchmark'),

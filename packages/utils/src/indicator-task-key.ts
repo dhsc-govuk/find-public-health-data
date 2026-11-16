@@ -19,7 +19,6 @@ export const INDICATOR_TASK_KEYS = [
   'variance-and-quality',
   'justifications',
   'other-comments',
-  'copyright-and-data-reuse',
   'benchmarking',
   'sex-gender-and-ethnicity',
   'ages',

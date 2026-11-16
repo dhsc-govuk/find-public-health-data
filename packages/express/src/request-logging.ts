@@ -12,6 +12,11 @@ function pathOf(url: string | undefined): string {
   return url?.split('?', 1)[0] ?? '';
 }
 
+/** A `token` query parameter, such as a sign-in link's, would let anyone reading the log use it. */
+function withoutTokens(url: string): string {
+  return url.replace(/([?&]token=)[^&#]*/g, '$1[redacted]');
+}
+
 interface ErrorObject {
   err: unknown;
   res: unknown;
@@ -68,7 +73,7 @@ export function requestLogging(
       req: (request: StdSerializedResults['req']) => ({
         id: request.id,
         method: request.method,
-        url: request.url,
+        url: withoutTokens(request.url),
         // Front Door's reference for the request, the same value its access log records.
         ...optional('azureRef', singleHeader(request.headers['x-azure-ref'])),
         ...(servesWebApps

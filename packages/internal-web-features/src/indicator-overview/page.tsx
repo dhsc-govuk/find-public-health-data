@@ -45,12 +45,29 @@ interface OverviewProps {
   notification?: OverviewNotification | undefined;
 }
 
-/** The publisher's date is a proposal until an admin confirms it, which schedules the version. */
-function PublicationDate({ at, scheduled }: { at: string; scheduled: boolean }) {
+interface PublicationDateProps {
+  at: string;
+  scheduled: boolean;
+  /** Why the publisher asks for the date inside the notice period; null when they don't. */
+  fastTrackReason: string | null;
+}
+
+/**
+ * The publisher's date is a proposal until an admin confirms it, which schedules the version.
+ * A fast-tracked draft shows the publisher's reason under it.
+ */
+function PublicationDate({ at, scheduled, fastTrackReason }: PublicationDateProps) {
   return (
     <p className="govuk-body govuk-!-margin-bottom-6">
       <strong>{scheduled ? 'Scheduled' : 'Proposed'} publication date:</strong>{' '}
       <time dateTime={at}>{formatDate(at, 'longWithTime')}</time>
+      {fastTrackReason === null ? null : (
+        <>
+          <br />
+          <strong>Fast-track reason:</strong>{' '}
+          <span className="fphd-metadata-text">{fastTrackReason}</span>
+        </>
+      )}
     </p>
   );
 }
@@ -127,6 +144,7 @@ export function IndicatorOverviewPage({
             {indicator.draftScheduledPublishAt === null ? null : (
               <PublicationDate
                 at={indicator.draftScheduledPublishAt}
+                fastTrackReason={indicator.draftFastTrackReason}
                 scheduled={indicator.draftStatus === 'scheduled'}
               />
             )}

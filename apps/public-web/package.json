@@ -17,6 +17,7 @@
     "typecheck": "react-router typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@fphd/beta-access": "workspace:*",
     "@fphd/config": "workspace:*",
     "@fphd/logger": "workspace:*",
     "@fphd/web-server": "workspace:*",

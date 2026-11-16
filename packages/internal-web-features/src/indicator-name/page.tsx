@@ -28,6 +28,7 @@ export function IndicatorNamePage({
 }: IndicatorNamePageProps) {
   return (
     <IndicatorSectionForm
+      guidance="name"
       fields={[NAME_FIELD]}
       form={{ fieldErrors, formError, version }}
       questionIsHeading
@@ -45,7 +46,6 @@ export function IndicatorNamePage({
       <TextInput
         defaultValue={name}
         error={fieldErrors[NAME_FIELD]}
-        hint="The name should be unique, descriptive and written in plain English."
         label={INDICATOR_NAME_HEADING}
         labelClassModifiers={QUESTION_HEADING_SIZE}
         labelHeading="h1"

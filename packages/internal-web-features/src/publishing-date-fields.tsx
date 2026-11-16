@@ -1,5 +1,6 @@
-import type { PublishingDateField } from '@fphd/internal-api-features/contract';
+import type { PublishingDateTimeField } from '@fphd/internal-api-features/contract';
 import { DateInput, datePartId, TimeInput } from '@fphd/ui';
+import type { ReactNode } from 'react';
 
 import {
   eachPublishingDatePart,
@@ -13,11 +14,11 @@ export const publishingDateFieldIds = eachPublishingDatePart(datePartId);
 
 /** The messages on one group's parts, by part; none when no part has one. */
 function groupError(
-  fieldErrors: Partial<Record<PublishingDateField, string>>,
+  fieldErrors: Partial<Record<PublishingDateTimeField, string>>,
   group: string,
 ): Record<string, string> | undefined {
   const errors = Object.entries(PUBLISHING_DATE_PARTS).flatMap(([field, [inGroup, part]]) => {
-    const message = fieldErrors[field as PublishingDateField];
+    const message = fieldErrors[field as PublishingDateTimeField];
     return inGroup === group && message !== undefined ? [[part, message]] : [];
   });
 
@@ -25,16 +26,23 @@ function groupError(
 }
 
 interface PublishingDateFieldsProps {
-  values: Record<PublishingDateField, string>;
-  fieldErrors: Partial<Record<PublishingDateField, string>>;
+  values: Record<PublishingDateTimeField, string>;
+  fieldErrors: Partial<Record<PublishingDateTimeField, string>>;
   dateHint: string;
+  /** What the page asks between the date and the time, such as the publisher's fast-track box. */
+  children?: ReactNode;
 }
 
 /**
  * The publishing date and time, as the publisher's page and the admin's confirmation ask them.
  * Each group shows its first message and marks only the parts given one.
  */
-export function PublishingDateFields({ values, fieldErrors, dateHint }: PublishingDateFieldsProps) {
+export function PublishingDateFields({
+  values,
+  fieldErrors,
+  dateHint,
+  children,
+}: PublishingDateFieldsProps) {
   return (
     <>
       <DateInput
@@ -49,6 +57,7 @@ export function PublishingDateFields({ values, fieldErrors, dateHint }: Publishi
         labelHeading="h2"
         name={PUBLISHING_DATE_GROUP}
       />
+      {children}
       <TimeInput
         defaultValue={{ hour: values.publishingTimeHour, minute: values.publishingTimeMinute }}
         error={groupError(fieldErrors, PUBLISHING_TIME_GROUP)}

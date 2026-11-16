@@ -64,6 +64,8 @@ export const publishingDate = {
   publishingDateDay: '14',
   publishingDateMonth: '9',
   publishingDateYear: '2027',
+  fastTracked: '' as const,
+  fastTrackReason: '',
   publishingTimeHour: '09',
   publishingTimeMinute: '30',
 };

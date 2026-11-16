@@ -1,5 +1,5 @@
 {
-  "id": "e2938d26-4327-454e-89b2-08398bb96a51",
+  "id": "96edde7d-f629-4b7f-963e-65faad03adb2",
   "prevId": "1c98548a-5091-40ca-875d-aac0598c7b2b",
   "version": "7",
   "dialect": "postgresql",
@@ -990,110 +990,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.area_neighbour": {
-      "name": "area_neighbour",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "neighbour_area_id": {
-          "name": "neighbour_area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "idx_area_neighbour_area_scheme_position": {
-          "name": "idx_area_neighbour_area_scheme_position",
-          "columns": [
-            {
-              "expression": "area_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scheme",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "area_neighbour_area_id_area_id_fk": {
-          "name": "area_neighbour_area_id_area_id_fk",
-          "tableFrom": "area_neighbour",
-          "tableTo": "area",
-          "columnsFrom": [
-            "area_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "area_neighbour_neighbour_area_id_area_id_fk": {
-          "name": "area_neighbour_neighbour_area_id_area_id_fk",
-          "tableFrom": "area_neighbour",
-          "tableTo": "area",
-          "columnsFrom": [
-            "neighbour_area_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "area_neighbour_position_check": {
-          "name": "area_neighbour_position_check",
-          "value": "\"area_neighbour\".\"position\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.area_relationship": {
       "name": "area_relationship",
       "schema": "",
@@ -1694,30 +1590,6 @@
           "notNull": true,
           "default": false
         },
-        "has_custom_copyright": {
-          "name": "has_custom_copyright",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "custom_copyright_detail": {
-          "name": "custom_copyright_detail",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "has_custom_data_reuse": {
-          "name": "has_custom_data_reuse",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "custom_data_reuse_detail": {
-          "name": "custom_data_reuse_detail",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "update_frequency": {
           "name": "update_frequency",
           "type": "text",
@@ -2144,14 +2016,6 @@
         "indicator_version_other_notes_detail_check": {
           "name": "indicator_version_other_notes_detail_check",
           "value": "(\"indicator_version\".\"has_other_notes\" IS TRUE) = (\"indicator_version\".\"other_notes_detail\" IS NOT NULL)"
-        },
-        "indicator_version_custom_copyright_detail_check": {
-          "name": "indicator_version_custom_copyright_detail_check",
-          "value": "(\"indicator_version\".\"has_custom_copyright\" IS TRUE) = (\"indicator_version\".\"custom_copyright_detail\" IS NOT NULL)"
-        },
-        "indicator_version_custom_data_reuse_detail_check": {
-          "name": "indicator_version_custom_data_reuse_detail_check",
-          "value": "(\"indicator_version\".\"has_custom_data_reuse\" IS TRUE) = (\"indicator_version\".\"custom_data_reuse_detail\" IS NOT NULL)"
         },
         "indicator_version_goal_polarity_check": {
           "name": "indicator_version_goal_polarity_check",
@@ -3730,7 +3594,7 @@
       "checkConstraints": {
         "indicator_version_submission_flag_task_key_check": {
           "name": "indicator_version_submission_flag_task_key_check",
-          "value": "\"indicator_version_submission_flag\".\"task_key\" IN ('name', 'data-table', 'definition-and-rationale', 'polarity', 'data-quality', 'numerator', 'denominator', 'calculation', 'confidence-intervals', 'update-frequency', 'value-type-and-units', 'period-type', 'other-notes-and-caveats', 'publishing-date', 'copyright-and-data-reuse', 'benchmarking', 'sex-gender-and-ethnicity', 'ages', 'tagging', 'update-summary')"
+          "value": "\"indicator_version_submission_flag\".\"task_key\" IN ('name', 'data-table', 'definition-and-rationale', 'polarity', 'data-quality', 'numerator', 'denominator', 'calculation', 'confidence-intervals', 'update-frequency', 'value-type-and-units', 'period-type', 'other-notes-and-caveats', 'publishing-date', 'benchmarking', 'sex-gender-and-ethnicity', 'ages', 'tagging', 'update-summary')"
         },
         "indicator_version_submission_flag_notes_check": {
           "name": "indicator_version_submission_flag_notes_check",
@@ -4759,44 +4623,6 @@
         }
       },
       "name": "area",
-      "schema": "published",
-      "isExisting": true,
-      "materialized": false
-    },
-    "published.area_neighbour": {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "neighbour_area_id": {
-          "name": "neighbour_area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheme": {
-          "name": "scheme",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "name": "area_neighbour",
       "schema": "published",
       "isExisting": true,
       "materialized": false

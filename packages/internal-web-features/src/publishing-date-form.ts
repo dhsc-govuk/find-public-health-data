@@ -1,5 +1,5 @@
 // No @fphd/ui imports here, so the actions that read the form unit-test without jsdom.
-import type { PublishingDateField } from '@fphd/internal-api-features/contract';
+import type { PublishingDateTimeField } from '@fphd/internal-api-features/contract';
 
 export const PUBLISHING_DATE_GROUP = 'publishingDate';
 export const PUBLISHING_TIME_GROUP = 'publishingTime';
@@ -11,18 +11,18 @@ export const PUBLISHING_DATE_PARTS = {
   publishingDateYear: [PUBLISHING_DATE_GROUP, 'year'],
   publishingTimeHour: [PUBLISHING_TIME_GROUP, 'hour'],
   publishingTimeMinute: [PUBLISHING_TIME_GROUP, 'minute'],
-} as const satisfies Record<PublishingDateField, readonly [string, string]>;
+} as const satisfies Record<PublishingDateTimeField, readonly [string, string]>;
 
 /** Each field's value of `control`, given its group and part. */
 export function eachPublishingDatePart(
   control: (group: string, part: string) => string,
-): Record<PublishingDateField, string> {
+): Record<PublishingDateTimeField, string> {
   return Object.fromEntries(
     Object.entries(PUBLISHING_DATE_PARTS).map(([field, [group, part]]) => [
       field,
       control(group, part),
     ]),
-  ) as Record<PublishingDateField, string>;
+  ) as Record<PublishingDateTimeField, string>;
 }
 
 /** The name each field is posted under, as `datePartName` in `@fphd/ui` writes it. */

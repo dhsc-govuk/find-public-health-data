@@ -10,6 +10,9 @@ import type { FakeApiAnswer, FakeApiCall } from '@fphd/web-server/testing';
 
 import type { SectionPageProps } from './indicator-section-form.tsx';
 
+/** The link each section page gives to its part of the publisher guidance. */
+export const RELATED_GUIDANCE_LINK = 'Related guidance for this section (opens in new tab)';
+
 /** A well-formed version, as the API would return one. */
 export const SHOWN_VERSION = 'a'.repeat(64);
 
@@ -45,6 +48,7 @@ export function indicatorDetail(
     draftReviewers: [],
     draftSubmissionNumber: null,
     draftScheduledPublishAt: null,
+    draftFastTrackReason: null,
     draftFirstSubmittedAt: null,
     draftResponse: null,
     nameVersion: SHOWN_VERSION,

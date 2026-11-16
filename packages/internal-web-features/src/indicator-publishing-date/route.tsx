@@ -13,8 +13,9 @@ import { PublishingDatePage } from './page.tsx';
 
 export const loader = loadPublishingDate;
 
-// The form checks the date and time are real; the API checks the date is at least
-// PUBLISHING_NOTICE_DAYS from today and the time exists in UK time on it.
+// The form checks the date and time are real and a fast-tracked indicator has a reason. The API
+// checks the date is at least PUBLISHING_NOTICE_DAYS from today, unless the indicator is
+// fast-tracked, and that the time exists in UK time on it.
 export const action = (args: ActionFunctionArgs) =>
   saveIndicatorSection(args, publishingDateSection, publishingDateControlNames);
 
@@ -23,15 +24,9 @@ export const meta = titleFromPage;
 export const handle = sectionBackLinkHandle;
 
 export function PublishingDateRoute() {
-  const { dateExample, isUpdate } = useLoaderData<typeof loader>();
+  const { isUpdate } = useLoaderData<typeof loader>();
 
-  return (
-    <PublishingDatePage
-      {...useSectionForm<PublishingDateField>()}
-      dateExample={dateExample}
-      isUpdate={isUpdate}
-    />
-  );
+  return <PublishingDatePage {...useSectionForm<PublishingDateField>()} isUpdate={isUpdate} />;
 }
 
 export default PublishingDateRoute;

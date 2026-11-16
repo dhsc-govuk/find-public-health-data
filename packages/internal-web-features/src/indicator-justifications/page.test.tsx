@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { noRefusal } from '../testing.ts';
+import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
 import { JustificationsPage } from './page.tsx';
 
 afterEach(cleanup);
@@ -48,14 +48,22 @@ function question(legend: string) {
 }
 
 describe('JustificationsPage', () => {
-  it('says under the heading that the answers are for reviewer use only', () => {
+  it('links to its part of the publisher guidance', () => {
+    renderPage();
+
+    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
+      '/publish/guidance#ci-method-justification',
+    );
+  });
+
+  it('says under the heading and its guidance link that the answers are for reviewer use only', () => {
     renderPage();
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Justifications' });
-    expect(heading.nextElementSibling?.textContent).toBe(
-      'The information you provide here is for reviewer use only',
-    );
-    expect(heading.nextElementSibling?.className).toContain('govuk-inset-text');
+    const inset = heading.nextElementSibling?.nextElementSibling;
+    expect(heading.nextElementSibling?.textContent).toBe(RELATED_GUIDANCE_LINK);
+    expect(inset?.textContent).toBe('The information you provide here is for reviewer use only');
+    expect(inset?.className).toContain('govuk-inset-text');
   });
 
   it('asks three questions in text, then about exclusions and automation', () => {
