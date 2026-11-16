@@ -216,13 +216,17 @@ export function GeographyTree({
   };
 
   const toggleRegion = (region: GeographyRegion, checked: boolean) => {
+    if (checked && atCap) return;
     const members = new Set(region.areas);
     const next = checked
       ? [...new Set([...selected, ...region.areas])]
       : selected.filter((code) => !members.has(code));
-    onChange(maxAreaTicks === undefined ? next : next.slice(0, maxAreaTicks));
+    const limited = maxAreaTicks === undefined ? next : next.slice(0, maxAreaTicks);
+    onChange(limited);
     setRegionAnnouncement(
-      `All ${region.areas.length} ${regionAreasNoun} in ${region.name} ${checked ? 'added' : 'removed'}`,
+      checked && limited.length < next.length
+        ? `Added ${limited.length - selected.length} of ${region.areas.length} ${regionAreasNoun} in ${region.name}. You have selected the maximum number of areas.`
+        : `All ${region.areas.length} ${regionAreasNoun} in ${region.name} ${checked ? 'added' : 'removed'}`,
     );
   };
 
@@ -409,6 +413,7 @@ export function GeographyTree({
                             // A visually hidden span would make browsers name it "North East : all…".
                             aria-label={`${region.name}: all ${region.areas.length} ${regionAreasNoun}`}
                             checked={picked === region.areas.length}
+                            disabled={picked < region.areas.length && atCap}
                             className="govuk-checkboxes__input"
                             id={regionId}
                             name={regionName}

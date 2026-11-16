@@ -125,7 +125,7 @@ describe('GeographyTree regions', () => {
     { code: 'E12000001', name: 'North East', areas: ['E06000047', 'E06000001'] },
     { code: 'E12000005', name: 'West Midlands', areas: ['E08000025'] },
   ];
-  const tree = (selected: string[], onChange = vi.fn()) => (
+  const tree = (selected: string[], onChange = vi.fn(), maxAreaTicks?: number) => (
     <GeographyTree
       flat
       levels={['Local authorities']}
@@ -134,6 +134,7 @@ describe('GeographyTree regions', () => {
       regionName="highlightRegion"
       regionAreasNoun="upper tier local authorities"
       selected={selected}
+      {...(maxAreaTicks === undefined ? {} : { maxAreaTicks })}
       selectedLevels={[]}
       fallback={{
         query: '',
@@ -174,6 +175,39 @@ describe('GeographyTree regions', () => {
     expect(northEast.checked).toBe(false);
     expect(northEast.indeterminate).toBe(true);
     expect(screen.getByRole('checkbox', { name: 'City of London' })).toBeTruthy();
+  });
+
+  it('announces only the areas added when a region reaches the selection cap', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(tree(['E08000025'], onChange, 2));
+    const northEast = screen.getByRole('checkbox', {
+      name: 'North East: all 2 upper tier local authorities',
+    }) as HTMLInputElement;
+    fireEvent.click(northEast);
+    expect(onChange).toHaveBeenLastCalledWith(['E08000025', 'E06000047']);
+    expect(
+      screen.getByText(
+        'Added 1 of 2 upper tier local authorities in North East. You have selected the maximum number of areas.',
+      ),
+    ).toBeTruthy();
+    rerender(tree(['E08000025', 'E06000047'], onChange, 2));
+    expect(northEast.disabled).toBe(true);
+    expect(
+      (screen.getByRole('checkbox', { name: 'Hartlepool' }) as HTMLInputElement).disabled,
+    ).toBe(true);
+    const westMidlands = screen.getByRole('checkbox', {
+      name: 'West Midlands: all 1 upper tier local authorities',
+    }) as HTMLInputElement;
+    expect(westMidlands.disabled).toBe(false);
+    fireEvent.click(westMidlands);
+    expect(onChange).toHaveBeenLastCalledWith(['E06000047']);
+  });
+
+  it('disables an unselected region at the selection cap', () => {
+    render(tree(['E09000001'], vi.fn(), 1));
+    expect(
+      (screen.getByRole('checkbox', { name: /North East: all/ }) as HTMLInputElement).disabled,
+    ).toBe(true);
   });
 
   it('selects only matching areas when a region is narrowed by search', () => {
