@@ -23,12 +23,13 @@ import {
   observation,
   observationSeries,
   publishedArea,
-  publishedIndicator,
-  publishedObservationSeries,
   publishedViews,
   uploadBatch,
 } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+
+const { indicator: publishedIndicator, observationSeries: publishedObservationSeries } =
+  publishedViews;
 
 let database: TestDb;
 let db: Database;

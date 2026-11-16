@@ -16,9 +16,6 @@ import {
   observation,
   observationDimension,
   publishedArea,
-  publishedIndicator,
-  publishedIndicatorSubtopic,
-  publishedObservation,
   publishedSubtopic,
   publishedTopic,
   publishedViews,
@@ -26,6 +23,12 @@ import {
 } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 import { listTopicSubtopics } from './topic-repository.ts';
+
+const {
+  indicator: publishedIndicator,
+  indicatorSubtopic: publishedIndicatorSubtopic,
+  observation: publishedObservation,
+} = publishedViews;
 
 let database: TestDb;
 let db: Database;
