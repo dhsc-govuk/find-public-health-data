@@ -27,6 +27,10 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
     const areas = areaComparisonRows(primary, data.compareAreasData, sort);
     const colour = areaColourMode(params.get('areaColour'));
     const groups = areaComparisonGroups(areas.rows, colour);
+    const hasCi = areas.rows.some((cell) => {
+      const latest = cell.series.at(-1);
+      return latest?.lowerCi95 != null || latest?.upperCi95 != null;
+    });
     const ordered = orderAreaComparisonRows(
       areas.rows,
       sort,
@@ -38,8 +42,7 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         'Area',
         `Value${unitNote(primary.detail.unit)}`,
         groups.heading,
-        '95% lower confidence interval',
-        '95% upper confidence interval',
+        ...(hasCi ? ['95% lower confidence interval', '95% upper confidence interval'] : []),
       ],
       ...ordered.map((cell) => [
         cell.areaName + (cell.areaCode === 'E92000001' ? ' (benchmark)' : ''),
@@ -47,8 +50,9 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         colour === 'quintiles'
           ? (groups.labels.get(cell.areaCode) ?? '')
           : areaComparisonLabel(cell, areas.england, primary.detail),
-        cell.series.at(-1)?.lowerCi95 ?? null,
-        cell.series.at(-1)?.upperCi95 ?? null,
+        ...(hasCi
+          ? [cell.series.at(-1)?.lowerCi95 ?? null, cell.series.at(-1)?.upperCi95 ?? null]
+          : []),
       ]),
     ];
   } else if (tab === 'compare') {

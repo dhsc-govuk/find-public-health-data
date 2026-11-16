@@ -28,7 +28,7 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
   if (parentType && !isIndicatorSegment(indicator)) {
     return new Response('Not Found', { status: 404 });
   }
-  const [groups, neighbours] = await Promise.all([
+  const [groups, neighbours] = await Promise.allSettled([
     parentType
       ? api.get(
           `${apiPath`/api/indicators/${indicator}/areas`}?displayGroup=${encodeURIComponent(displayGroup)}&parentType=${encodeURIComponent(parentType)}`,
@@ -44,9 +44,9 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
   ]);
   return Response.json({
     parents:
-      groups?.flatMap(({ areas }) =>
+      (groups.status === 'fulfilled' ? groups.value : undefined)?.flatMap(({ areas }) =>
         areas.map(({ code, parent }) => ({ code, parent: parent ?? null })),
       ) ?? null,
-    neighbours,
+    neighbours: neighbours.status === 'fulfilled' ? neighbours.value : null,
   });
 }

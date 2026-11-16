@@ -16,6 +16,30 @@ import {
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
 
+it('honours individual no-script unticks and changes to region boxes', () => {
+  const areas = [
+    { code: 'a', name: 'Alpha', parent: { code: 'r', name: 'Region' } },
+    { code: 'b', name: 'Beta', parent: { code: 'r', name: 'Region' } },
+    { code: 'c', name: 'Gamma', parent: { code: 's', name: 'Elsewhere' } },
+  ];
+  expect(highlightedAreaCodes(new URLSearchParams('highlightRegion=r'), areas)).toEqual(['a', 'b']);
+  expect(
+    highlightedAreaCodes(
+      new URLSearchParams('highlight=b&highlight=c&highlightRegion=r&highlightRegionBefore=r'),
+      areas,
+    ),
+  ).toEqual(['b', 'c']);
+  expect(
+    highlightedAreaCodes(
+      new URLSearchParams('highlight=a&highlight=b&highlight=c&highlightRegionBefore=r'),
+      areas,
+    ),
+  ).toEqual(['c']);
+  expect(
+    highlightedAreaCodes(new URLSearchParams('highlight=c&highlightRegion=r&geo-q=Alpha'), areas),
+  ).toEqual(['c', 'a']);
+});
+
 it('compares counties and unitary authorities together without mixing in their districts', () => {
   const areas = ['E07000001', 'E06000001', 'E08000001', 'E09000001', 'E10000001'].map((code) => ({
     code,

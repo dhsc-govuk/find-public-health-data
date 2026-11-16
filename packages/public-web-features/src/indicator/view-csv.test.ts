@@ -30,6 +30,71 @@ function args(query: string): LoaderFunctionArgs {
 }
 
 describe('indicator view CSV', () => {
+  it('omits CI columns when the full area table has no intervals', async () => {
+    const data = await loadIndicator(args(''));
+    const withoutCi = (entries: typeof primary.areaData) =>
+      entries.map((area) => ({
+        ...area,
+        observations: area.observations.map((observation) => ({
+          ...observation,
+          lowerCi95: null,
+          upperCi95: null,
+        })),
+      }));
+    vi.mocked(loadIndicator).mockResolvedValue({
+      ...data,
+      selected: [{ ...primary, areaData: withoutCi(primary.areaData) }],
+      compareAreasData: withoutCi(areas),
+    });
+    const lines = (await (await loadIndicatorViewCsv(args('tab-indicator=areas'))).text())
+      .trim()
+      .split('\n');
+    expect(lines[0]).toBe('Area,Value (%),Compared with England');
+    expect(lines.every((line) => line.split(',').length === 3)).toBe(true);
+  });
+
+  it('keeps CI columns when filtering out the only area with intervals', async () => {
+    const data = await loadIndicator(args(''));
+    vi.mocked(loadIndicator).mockResolvedValue({
+      ...data,
+      selected: [
+        {
+          ...primary,
+          areaData: primary.areaData.map((area) => ({
+            ...area,
+            observations: area.observations.map((observation) => ({
+              ...observation,
+              lowerCi95: null,
+              upperCi95: null,
+            })),
+          })),
+        },
+      ],
+      compareAreasData: [
+        areas[0] as (typeof areas)[number],
+        {
+          ...(areas[1] as (typeof areas)[number]),
+          observations: [{ ...observation(10), lowerCi95: null, upperCi95: null }],
+        },
+      ],
+      compareAreaOptions: data.compareAreaOptions.map((area) => ({
+        ...area,
+        neighbours: ['E06000001'],
+      })),
+    });
+    const lines = (
+      await (
+        await loadIndicatorViewCsv(
+          args('tab-indicator=areas&highlight=E06000001&neighbours=E06000001'),
+        )
+      ).text()
+    )
+      .trim()
+      .split('\n');
+    expect(lines[0]).toContain('95% lower confidence interval');
+    expect(lines.some((line) => line.startsWith('Cornwall'))).toBe(false);
+    expect(lines.every((line) => line.split(',').length === 5)).toBe(true);
+  });
   it('exports the area table in the selected sort and colour order', async () => {
     const response = await loadIndicatorViewCsv(
       args('tab-indicator=areas&areaSort=alphabetical&areaColour=quintiles'),

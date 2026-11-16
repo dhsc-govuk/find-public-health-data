@@ -28,7 +28,10 @@ function useAreaParams(anchor: string) {
     const next = new URLSearchParams(params);
     next.delete(key);
     // Region ticks are folded into the highlight list, so a later untick is not undone.
-    if (key === 'highlight') next.delete('highlightRegion');
+    if (key === 'highlight') {
+      next.delete('highlightRegion');
+      next.delete('highlightRegionBefore');
+    }
     for (const entry of Array.isArray(value) ? value : [value]) if (entry) next.append(key, entry);
     void navigate(
       { search: `?${next}` },
@@ -80,9 +83,9 @@ function NeighbourControl({
   const ticked = new Set(params.getAll('neighbours'));
   const extra = anchors.slice(VISIBLE_NEIGHBOUR_ANCHORS);
   const [scripted, setScripted] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => extra.some(({ code }) => ticked.has(code)));
   useEffect(() => setScripted(true), []);
-  const showExtra = !scripted || open || extra.some(({ code }) => ticked.has(code));
+  const showExtra = !scripted || open;
   const item = ({ code, name }: CompareAreaOption) => (
     <div className="govuk-checkboxes__item" key={code}>
       <input
@@ -167,8 +170,10 @@ export function AreaControls({
   const { params, action, update, hidden } = useAreaParams(
     displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators',
   );
-  const highlighted = highlightedAreaCodes(params, areas);
-  const regions = areaComparisonRegions(areas);
+  const highlighted = displayOptions
+    ? highlightedAreaCodes(params, areas)
+    : params.getAll('highlight');
+  const regions = displayOptions ? areaComparisonRegions(areas) : [];
   const anchors = displayOptions ? neighbourAnchors(highlighted, areas) : [];
   const search = params.get('geo-q')?.trim() ?? '';
   const matches = search
@@ -179,7 +184,7 @@ export function AreaControls({
       <h2 className="govuk-heading-m">Geographies</h2>
       <CollapsibleFilterCard active headingLevel={3} title="Geographies">
         <Form method="get" action={action}>
-          {hidden(['areaType', 'highlight', 'highlightRegion', 'geo-q'])}
+          {hidden(['areaType', 'highlight', 'highlightRegion', 'highlightRegionBefore', 'geo-q'])}
           <Select
             id={displayOptions ? 'compare-area-type' : 'pair-area-type'}
             name="areaType"
@@ -193,7 +198,7 @@ export function AreaControls({
           </noscript>
         </Form>
         <Form method="get" action={action}>
-          {hidden(['geo-q', 'highlight', 'highlightRegion'])}
+          {hidden(['geo-q', 'highlight', 'highlightRegion', 'highlightRegionBefore'])}
           <GeographyTree
             key={group}
             flat

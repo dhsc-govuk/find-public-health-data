@@ -273,10 +273,12 @@ export function GeographyTree({
             regions: regions
               .map((region) => {
                 const members = new Set(region.areas);
+                const visible = shownAreas.filter(({ code }) => members.has(code));
                 return {
                   ...region,
+                  areas: searching ? visible.map(({ code }) => code) : region.areas,
                   open: searching || !closedRegions.includes(region.code),
-                  visible: shownAreas.filter(({ code }) => members.has(code)),
+                  visible,
                 };
               })
               .filter(({ visible }) => visible.length > 0),
@@ -378,6 +380,9 @@ export function GeographyTree({
                 const picked = region.areas.filter((code) => selected.includes(code)).length;
                 return (
                   <div key={region.code}>
+                    {picked === region.areas.length ? (
+                      <input type="hidden" name={`${regionName}Before`} value={region.code} />
+                    ) : null}
                     <div className="fphd-geo-alt__group fphd-geo-alt__region">
                       {searching ? null : (
                         <button

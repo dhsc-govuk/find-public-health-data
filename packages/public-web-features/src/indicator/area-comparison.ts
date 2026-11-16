@@ -66,17 +66,22 @@ export function areaComparisonRegions(areas: AreaOption[]) {
 }
 
 /**
- * Highlighted areas in the order picked, plus every area of each `highlightRegion` — what a
- * region checkbox sends when the page runs without scripting.
+ * Apply region checkbox changes to the submitted area ticks. The original region state lets
+ * no-script submissions distinguish a bulk change from an individual area's untick.
  */
 export function highlightedAreaCodes(params: URLSearchParams, areas: AreaOption[]): string[] {
   const regions = new Set(params.getAll('highlightRegion'));
-  return [
-    ...new Set([
-      ...params.getAll('highlight'),
-      ...areas.flatMap(({ code, parent }) => (parent && regions.has(parent.code) ? [code] : [])),
-    ]),
-  ];
+  const before = new Set(params.getAll('highlightRegionBefore'));
+  const query = params.get('geo-q')?.trim().toLowerCase() ?? '';
+  const highlighted = new Set(params.getAll('highlight'));
+  for (const { code, name, parent } of areas) {
+    if (!parent || (query && !name.toLowerCase().includes(query) && code.toLowerCase() !== query))
+      continue;
+    // Unchanged region boxes leave individual ticks in charge after a no-script submission.
+    if (regions.has(parent.code) && !before.has(parent.code)) highlighted.add(code);
+    if (before.has(parent.code) && !regions.has(parent.code)) highlighted.delete(code);
+  }
+  return [...highlighted];
 }
 
 /** Highlighted areas that have statistical neighbours, in the order they were highlighted. */

@@ -29,7 +29,7 @@ export function AreaComparisonTable({
   // Quintiles rank every area, so showing only neighbours never moves an area's group.
   const groups = areaComparisonGroups(model.rows, colour);
   const barMaximum = model.barMaximum;
-  const hasCi = shown.some((cell) => cell.lowerCi95 != null || cell.upperCi95 != null);
+  const hasCi = model.rows.some((cell) => cell.lowerCi95 != null || cell.upperCi95 != null);
   return (
     <TableScrollRegion label={`${indicator.detail.name} comparison across areas data table`}>
       <table className="govuk-table fphd-area-comparison-table">

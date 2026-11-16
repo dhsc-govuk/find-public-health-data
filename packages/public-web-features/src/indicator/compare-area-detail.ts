@@ -30,10 +30,17 @@ export function useCompareAreaDetail({
   const [shown, setShown] = useState(false);
   const [parents, setParents] = useState<{ group: string; byCode: Map<string, Parent> }>();
   const [neighbours, setNeighbours] = useState(new Map<string, string[]>());
+  const [parentsError, setParentsError] = useState('');
+  const [neighboursError, setNeighboursError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const element = ref.current;
     if (!element || shown) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setShown(true);
+      return;
+    }
     // Within a screen's height counts, so a shown tab loads before the picker is scrolled to,
     // while a hidden tab (display: none) never intersects at all.
     const observer = new IntersectionObserver(
@@ -52,20 +59,27 @@ export function useCompareAreaDetail({
   useEffect(() => {
     if (!shown || !needsParents || parents?.group === group) return;
     const controller = new AbortController();
+    setParentsError('');
     const query = new URLSearchParams({ indicator: slug, displayGroup: group, parents: '1' });
     void fetch(`/compare-areas?${query}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : undefined))
+      .then((response) => {
+        if (!response.ok) throw new Error('Could not load regions');
+        return response.json();
+      })
       .then((body: { parents: { code: string; parent: Parent }[] | null } | undefined) => {
-        if (body?.parents) {
+        if (!body?.parents) throw new Error('Could not load regions');
+        if (!controller.signal.aborted) {
           setParents({
             group,
             byCode: new Map(body.parents.map(({ code, parent }) => [code, parent])),
           });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted) setParentsError(group);
+      });
     return () => controller.abort();
-  }, [shown, needsParents, parents?.group, slug, group]);
+  }, [shown, needsParents, parents?.group, slug, group, attempt]);
 
   const withParents =
     parents?.group === group
@@ -83,11 +97,16 @@ export function useCompareAreaDetail({
     if (!shown || !missingKey) return;
     const codes = missingKey.split(',');
     const controller = new AbortController();
+    setNeighboursError('');
     const query = new URLSearchParams(codes.map((code) => ['areaCode', code]));
     void fetch(`/compare-areas?${query}`, { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((body: { neighbours: { code: string; neighbours: string[] }[] } | undefined) => {
-        if (!body) return;
+      .then((response) => {
+        if (!response.ok) throw new Error('Could not load statistical neighbours');
+        return response.json();
+      })
+      .then((body: { neighbours: { code: string; neighbours: string[] }[] | null }) => {
+        if (!body.neighbours) throw new Error('Could not load statistical neighbours');
+        if (controller.signal.aborted) return;
         const found = new Map(body.neighbours.map(({ code, neighbours: list }) => [code, list]));
         setNeighbours((previous) => {
           const next = new Map(previous);
@@ -96,12 +115,18 @@ export function useCompareAreaDetail({
           return next;
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted) setNeighboursError(missingKey);
+      });
     return () => controller.abort();
-  }, [shown, missingKey]);
+  }, [shown, missingKey, attempt]);
 
   return {
     ref,
+    error:
+      (needsParents && parents?.group !== group && parentsError === group) ||
+      (Boolean(missingKey) && neighboursError === missingKey),
+    retry: () => setAttempt((value) => value + 1),
     areas: withNeighbours(
       withParents,
       [...neighbours].map(([code, list]) => ({ code, neighbours: list })),

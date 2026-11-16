@@ -481,12 +481,16 @@ test('ticks every local authority in a statistical region and lists highlights a
   await expect(headers.first()).toHaveText('England (benchmark)');
 });
 
-test('adds a region’s local authorities from its checkbox without JavaScript', async ({
+test('adds and removes regional and individual highlights without JavaScript', async ({
   browser,
   baseURL,
 }) => {
   if (baseURL === undefined) throw new Error('A base URL is required');
-  const context = await browser.newContext({ baseURL, javaScriptEnabled: false });
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
   const withoutJs = await context.newPage();
   try {
     await withoutJs.goto(
@@ -505,6 +509,26 @@ test('adds a region’s local authorities from its checkbox without JavaScript',
     await expect(
       withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
     ).toBeChecked();
+    await withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }).uncheck();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).not.toBeChecked();
+    await expect(headers.filter({ hasText: /^Hartlepool$/ })).toHaveCount(1);
+    const region = withoutJs.getByRole('checkbox', {
+      name: /^North East: all \d+ upper tier local authorities$/,
+    });
+    await region.check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).toBeChecked();
+    await region.uncheck();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(headers.first()).toHaveText('England (benchmark)');
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).not.toBeChecked();
   } finally {
     await context.close();
   }
@@ -532,6 +556,15 @@ test('lists a highlighted council with only its statistical neighbours when its 
   await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
   await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
   expect(await headers.count()).toBeLessThanOrEqual(17);
+  await neighbours.getByRole('button', { name: 'Show fewer areas' }).click();
+  await expect(
+    neighbours.getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' }),
+  ).not.toBeVisible();
+  await expect(neighbours.getByRole('button', { name: /^Show \d+ more areas$/ })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
 });
 
 test('shows a council’s statistical neighbours from its checkbox without JavaScript', async ({
@@ -539,7 +572,11 @@ test('shows a council’s statistical neighbours from its checkbox without JavaS
   baseURL,
 }) => {
   if (baseURL === undefined) throw new Error('A base URL is required');
-  const context = await browser.newContext({ baseURL, javaScriptEnabled: false });
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
   const withoutJs = await context.newPage();
   try {
     await withoutJs.goto(
@@ -557,9 +594,48 @@ test('shows a council’s statistical neighbours from its checkbox without JavaS
     await expect(headers.first()).toHaveText('Hartlepool (highlighted)');
     await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
     await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+    await withoutJs.getByRole('checkbox', { name: 'County Durham', exact: true }).check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+    await withoutJs.getByRole('button', { name: 'Change geography type' }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
   } finally {
     await context.close();
   }
+});
+
+test('selects only the visible search matches in a region', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await expect(panel.getByRole('checkbox', { name: /^North East: all/ })).toBeVisible();
+  await panel.getByRole('searchbox', { name: 'Highlight local authorities' }).fill('Hartlepool');
+  await panel
+    .getByRole('checkbox', { name: 'North East: all 1 upper tier local authorities' })
+    .check();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('highlight'))
+    .toEqual(['E06000001']);
+});
+
+test('retries unavailable comparison details when the user asks', async ({ page }) => {
+  let failed = false;
+  await page.route('**/compare-areas?*', async (route) => {
+    if (!failed) {
+      failed = true;
+      await route.fulfill({ status: 503 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await expect(
+    panel.getByText(/Regions or statistical neighbours could not be loaded/),
+  ).toBeVisible();
+  await panel.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(panel.getByRole('checkbox', { name: /^North East: all/ })).toBeVisible();
+  await expect(panel.getByText(/could not be loaded/)).toHaveCount(0);
 });
 
 test('plots trends, area comparisons, inequalities and paired indicators', async ({

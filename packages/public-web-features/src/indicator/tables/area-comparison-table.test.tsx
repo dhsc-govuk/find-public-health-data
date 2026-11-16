@@ -84,3 +84,32 @@ it('puts highlighted areas above England, names the chart column, and drops empt
   const nowhere = table.getByRole('rowheader', { name: 'Nowhere' }).closest('tr');
   expect(nowhere?.textContent).toContain('No data');
 });
+
+it('keeps CI columns when only the filtered-out areas have confidence intervals', () => {
+  const primary = selected();
+  const model = indicatorComparisonModel([primary], {
+    compareAreasData: primary.areaData,
+    comparedAreasData: [],
+    compareAreaOptions: [],
+    compareAreaGroup: 'Local authorities',
+    comparisonDisplayGroups: [],
+  }).areas;
+  const row = model.rows[0];
+  if (!row) throw new Error('Missing row fixture');
+  model.rows = [
+    { ...row, areaCode: 'a', areaName: 'Alpha', lowerCi95: null, upperCi95: null },
+    { ...row, areaCode: 'b', areaName: 'Beta', lowerCi95: 1, upperCi95: 2 },
+  ];
+  render(
+    <AreaComparisonTable
+      indicator={primary}
+      model={model}
+      sort="descending"
+      highlighted={[]}
+      only={new Set(['a'])}
+    />,
+  );
+  expect(screen.queryByRole('rowheader', { name: 'Beta' })).toBeNull();
+  expect(screen.getByRole('columnheader', { name: '95% lower confidence interval' })).toBeTruthy();
+  expect(screen.getByRole('columnheader', { name: '95% upper confidence interval' })).toBeTruthy();
+});

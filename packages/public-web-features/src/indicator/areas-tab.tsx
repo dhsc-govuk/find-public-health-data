@@ -34,7 +34,12 @@ export function CompareAreasTab({
 }: ComparisonTabProps) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
-  const { ref: detailRef, areas: areaOptions } = useCompareAreaDetail({
+  const {
+    ref: detailRef,
+    areas: areaOptions,
+    error,
+    retry,
+  } = useCompareAreaDetail({
     slug: detail.slug,
     group: compareAreaGroup,
     areas: compareAreaOptions,
@@ -81,6 +86,14 @@ export function CompareAreasTab({
       <GridRow>
         <GridColumn width="one-quarter">
           <div ref={detailRef}>
+            {error ? (
+              <p className="govuk-body-s" role="status">
+                Regions or statistical neighbours could not be loaded.{' '}
+                <button type="button" className="fphd-link-button" onClick={retry}>
+                  Try again
+                </button>
+              </p>
+            ) : null}
             <AreaControls
               slug={detail.slug}
               group={compareAreaGroup}
