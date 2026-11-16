@@ -1279,7 +1279,7 @@ body.govuk-frontend-supported .fphd-filter-card {
 
 // A button that reads as a link, for in-page toggles such as "Show 2 more areas". Qualified with
 // the element and type to outrank the template's own styling of every button.
-button.fphd-link-button[type='button'] {
+button.fphd-link-button[type="button"] {
   @include govuk-font($size: 16);
   width: auto;
   margin: 0;

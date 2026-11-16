@@ -1,4 +1,3 @@
-import type { AreaWithParent } from '@fphd/public-api-features/contract';
 import { Button, CollapsibleFilterCard, GeographyTree, Select } from '@fphd/ui';
 import { useEffect, useState } from 'react';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
@@ -6,6 +5,7 @@ import { geographyGroupLabel } from '../geography/groups.ts';
 import {
   areaColourMode,
   areaComparisonRegions,
+  type CompareAreaOption,
   highlightedAreaCodes,
   neighbourAnchors,
 } from './area-comparison.ts';
@@ -75,7 +75,7 @@ function NeighbourControl({
   update,
   hidden,
 }: {
-  anchors: AreaWithParent[];
+  anchors: CompareAreaOption[];
 } & Pick<ReturnType<typeof useAreaParams>, 'params' | 'action' | 'update' | 'hidden'>) {
   const ticked = new Set(params.getAll('neighbours'));
   const extra = anchors.slice(VISIBLE_NEIGHBOUR_ANCHORS);
@@ -83,7 +83,7 @@ function NeighbourControl({
   const [open, setOpen] = useState(false);
   useEffect(() => setScripted(true), []);
   const showExtra = !scripted || open || extra.some(({ code }) => ticked.has(code));
-  const item = ({ code, name }: AreaWithParent) => (
+  const item = ({ code, name }: CompareAreaOption) => (
     <div className="govuk-checkboxes__item" key={code}>
       <input
         className="govuk-checkboxes__input"
@@ -161,7 +161,7 @@ export function AreaControls({
   slug: string;
   group: string;
   groups: string[];
-  areas: AreaWithParent[];
+  areas: CompareAreaOption[];
   displayOptions?: boolean;
 }) {
   const { params, action, update, hidden } = useAreaParams(

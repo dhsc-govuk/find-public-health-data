@@ -11,6 +11,7 @@ import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
 import { quintileParam } from './charts/chart-data.ts';
 import { expandIndicator } from './compact-data.ts';
+import { useCompareAreaDetail } from './compare-area-detail.ts';
 import type { ComparisonTabProps } from './compare-tab.tsx';
 import {
   availableConfidenceLevels,
@@ -33,6 +34,12 @@ export function CompareAreasTab({
 }: ComparisonTabProps) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
+  const { ref: detailRef, areas: areaOptions } = useCompareAreaDetail({
+    slug: detail.slug,
+    group: compareAreaGroup,
+    areas: compareAreaOptions,
+    params,
+  });
   const [options, applyOptions] = usePanelOptions(detail.shortId);
   const compareAreasData = useMemo(() => expandIndicator(areaChart).areaData, [areaChart]);
   const observations = compareAreasData.flatMap(({ observations }) => observations);
@@ -73,12 +80,14 @@ export function CompareAreasTab({
       </p>
       <GridRow>
         <GridColumn width="one-quarter">
-          <AreaControls
-            slug={detail.slug}
-            group={compareAreaGroup}
-            groups={comparisonDisplayGroups}
-            areas={compareAreaOptions}
-          />
+          <div ref={detailRef}>
+            <AreaControls
+              slug={detail.slug}
+              group={compareAreaGroup}
+              groups={comparisonDisplayGroups}
+              areas={areaOptions}
+            />
+          </div>
         </GridColumn>
         <GridColumn width="three-quarters">
           <div className="fphd-indicator-showing">
@@ -95,9 +104,9 @@ export function CompareAreasTab({
                 indicator={primary}
                 model={comparison}
                 sort={params.get('areaSort') ?? 'descending'}
-                highlighted={highlightedAreaCodes(params, compareAreaOptions)}
+                highlighted={highlightedAreaCodes(params, areaOptions)}
                 colour={areaColourMode(params.get('areaColour'))}
-                only={statisticalNeighbourAreas(params, compareAreaOptions)}
+                only={statisticalNeighbourAreas(params, areaOptions)}
               />
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">

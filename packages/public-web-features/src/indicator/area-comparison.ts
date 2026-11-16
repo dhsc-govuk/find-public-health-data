@@ -27,6 +27,32 @@ type AreaOption = {
   neighbours?: string[] | undefined;
 };
 
+/** A comparison area with its region and, once looked up, its statistical neighbours. */
+export type CompareAreaOption = AreaOption;
+
+/** Only councils have statistical neighbours: NHS England's peer groups for upper tier ones. */
+export const AREA_NEIGHBOUR_GROUPS = new Set(['Local authorities']);
+
+/**
+ * Whether a request should carry the compare areas tab's regions and neighbours: only when that
+ * tab is asked for, or every section is, so other tabs don't pay for them.
+ */
+export function wantsCompareAreaDetail(params: URLSearchParams) {
+  return params.get('tab-indicator') === 'areas' || params.get('render') === 'complete';
+}
+
+/** The options with each listed area's neighbours added. */
+export function withNeighbours<T extends AreaOption>(
+  areas: T[],
+  lists: { code: string; neighbours: string[] }[],
+): T[] {
+  const byCode = new Map(lists.map(({ code, neighbours }) => [code, neighbours]));
+  return areas.map((area) => {
+    const neighbours = byCode.get(area.code);
+    return neighbours ? { ...area, neighbours } : area;
+  });
+}
+
 /** The comparison areas under their regions, regions by name, areas in their listed order. */
 export function areaComparisonRegions(areas: AreaOption[]) {
   const regions = new Map<string, { code: string; name: string; areas: string[] }>();

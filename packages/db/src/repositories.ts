@@ -1,9 +1,11 @@
 import {
   type AreaLookup,
+  type AreaNeighbours,
   type AreaParent,
   type AreaSummary,
   type AreaWithParent,
   type IndicatorAreaFilters,
+  listAreaNeighbours,
   listAreaParents,
   listAreasByCodes,
   listAreasByGroup,
@@ -88,6 +90,7 @@ export interface AreaRepository {
   listByCodes(codes: string[]): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
+  listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
 }
 
 export interface TopicRepository {
@@ -118,6 +121,7 @@ export function createRepositories(db: Database): Repositories {
       listByCodes: (codes) => listAreasByCodes(db, codes),
       search: (query, limit) => searchAreas(db, query, limit),
       listParents: (childCodes, parentTypeName) => listAreaParents(db, childCodes, parentTypeName),
+      listNeighbours: (codes) => listAreaNeighbours(db, codes),
     },
     indicators: {
       findTableData: (shortIds, areaCodes, points) =>

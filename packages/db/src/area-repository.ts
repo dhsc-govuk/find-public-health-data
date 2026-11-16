@@ -4,6 +4,7 @@ import type { Database } from './client.ts';
 import { escapeLike } from './like-pattern.ts';
 import {
   publishedArea as area,
+  publishedAreaNeighbour as areaNeighbour,
   publishedAreaRelationship as areaRelationship,
   publishedAreaType as areaType,
   publishedAvailableData as availableData,
@@ -17,8 +18,12 @@ export interface AreaSummary {
 
 export interface AreaWithParent extends AreaSummary {
   parent?: AreaSummary | null;
+}
+
+export interface AreaNeighbours {
+  code: string;
   /** The area's statistical neighbours' codes, most similar first. */
-  neighbours?: string[];
+  neighbours: string[];
 }
 
 export interface IndicatorAreaFilters {
@@ -26,10 +31,7 @@ export interface IndicatorAreaFilters {
   displayGroup?: string | undefined;
   query?: string | undefined;
   limit?: number | undefined;
-  /**
-   * Adds each area's current parent of this area type, e.g. a council's statistical region, and
-   * its statistical neighbours where it has any.
-   */
+  /** Adds each area's current parent of this area type, e.g. a council's statistical region. */
   parentType?: string | undefined;
 }
 
@@ -63,15 +65,6 @@ export async function listIndicatorAreas(
           )`
         : sql<AreaSummary | null>`null`
       ).as('parent'),
-      neighbours: (parentType
-        ? sql<string[] | null>`(
-            select json_agg(peer.code order by neighbour.position)
-            from published.area_neighbour neighbour
-            join published.area peer on peer.id = neighbour.neighbour_area_id
-            where neighbour.area_id = ${area.id} and peer.is_current
-          )`
-        : sql<string[] | null>`null`
-      ).as('neighbours'),
       rank: sql<number>`row_number() over (partition by coalesce(${areaType.displayGroup}, ${areaType.name}) order by ${area.name}, ${area.code})`.as(
         'rank',
       ),
@@ -113,12 +106,7 @@ export async function listIndicatorAreas(
     const areas = groups.get(row.displayGroup) ?? [];
     areas.push(
       parentType
-        ? {
-            code: row.code,
-            name: row.name,
-            parent: row.parent,
-            ...(row.neighbours?.length ? { neighbours: row.neighbours } : {}),
-          }
+        ? { code: row.code, name: row.name, parent: row.parent }
         : { code: row.code, name: row.name },
     );
     groups.set(row.displayGroup, areas);
@@ -248,6 +236,32 @@ export async function searchAreas(
     )
     .orderBy(sql`position(lower(${query}) in lower(${area.name}))`, asc(area.name))
     .limit(limit);
+}
+
+/** The statistical neighbours of each given current area that has any, most similar first. */
+export async function listAreaNeighbours(db: Database, codes: string[]): Promise<AreaNeighbours[]> {
+  if (codes.length === 0) {
+    return [];
+  }
+  // A subquery rather than alias(): drizzle's table alias cannot carry a view's columns.
+  const anchor = db.select().from(area).as('anchor');
+  return db
+    .select({
+      code: anchor.code,
+      neighbours: sql<string[]>`json_agg(${area.code} order by ${areaNeighbour.position})`,
+    })
+    .from(areaNeighbour)
+    .innerJoin(
+      anchor,
+      and(
+        eq(areaNeighbour.areaId, anchor.id),
+        inArray(anchor.code, codes),
+        eq(anchor.isCurrent, true),
+      ),
+    )
+    .innerJoin(area, and(eq(areaNeighbour.neighbourAreaId, area.id), eq(area.isCurrent, true)))
+    .groupBy(anchor.code)
+    .orderBy(asc(anchor.code));
 }
 
 /** Each given area's current parent of one area type, e.g. a council's statistical region. */
