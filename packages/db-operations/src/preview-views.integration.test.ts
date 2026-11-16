@@ -25,6 +25,8 @@ describe('the preview views on the seeded database', () => {
   let newBatch: { id: string; indicatorId: string };
   /** The only version of an indicator never published. */
   let newIndicator: { id: string; indicatorId: string };
+  /** A published update, with a summary for History, of an indicator whose first version it supersedes. */
+  let publishedUpdate: { id: string; indicatorId: string };
 
   /** Copies an indicator's current published version as a draft, with the changes given. */
   async function draftOf(indicatorId: string, changes: Record<string, unknown>) {
@@ -56,10 +58,28 @@ describe('the preview views on the seeded database', () => {
     testDb = await createTestDb({ template: 'seeded' });
     sql = testDb.sql;
     const published = await sql<{ id: string }[]>`
-      SELECT id FROM published.indicator ORDER BY short_id LIMIT 2
+      SELECT id FROM published.indicator ORDER BY short_id LIMIT 3
     `;
-    const [first, second] = published.map(({ id }) => id);
-    if (first === undefined || second === undefined) throw new Error('seed has too few indicators');
+    const [first, second, third] = published.map(({ id }) => id);
+    if (first === undefined || second === undefined || third === undefined) {
+      throw new Error('seed has too few indicators');
+    }
+
+    // The seed's indicators each have one published version and no submissions, so this gives
+    // the parity tests a superseded version, a second slug and a History entry to compare.
+    publishedUpdate = await draftOf(third, {
+      status: 'published',
+      published_at: new Date().toISOString(),
+      slug: 'renamed-in-a-published-update',
+      update_summary: 'Added the 2025 data.',
+    });
+    await sql`
+      INSERT INTO indicator_version_submission
+        (indicator_version_id, indicator_id, number, status, submitted_by, ended_by, ended_at,
+         update_decision, update_decided_by, update_decided_at)
+      VALUES (${publishedUpdate.id}, ${third}, 1, 'approved', ${ACTOR}, ${ACTOR}, now(),
+        'publish_with_history', ${ACTOR}, now())
+    `;
 
     keepsBatch = await draftOf(first, {
       name: 'A previewed name',
@@ -146,10 +166,18 @@ describe('the preview views on the seeded database', () => {
   });
 
   it('shows exactly what the published views show when the version named is published', async () => {
-    const [current] = await sql<{ id: string }[]>`
-      SELECT id FROM current_published_version WHERE indicator_id = ${keepsBatch.indicatorId}
+    const [published] = await sql<{ updated: boolean; slugs: number; summaries: number }[]>`
+      SELECT
+        (SELECT first_published_at < last_published_at FROM published.indicator
+          WHERE id = ${publishedUpdate.indicatorId}) AS updated,
+        (SELECT count(*)::int FROM published.indicator_slug
+          WHERE indicator_id = ${publishedUpdate.indicatorId}) AS slugs,
+        (SELECT count(*)::int FROM published.indicator_update_summary
+          WHERE indicator_id = ${publishedUpdate.indicatorId}) AS summaries
     `;
-    const differing = await inPreview(current?.id ?? '', async (tx) => {
+    expect(published).toEqual({ updated: true, slugs: 2, summaries: 1 });
+
+    const differing = await inPreview(publishedUpdate.id, async (tx) => {
       const names: string[] = [];
       for (const name of ['indicator', 'indicator_slug', 'indicator_update_summary']) {
         const [row] = await tx.unsafe<{ differ: boolean }[]>(`
