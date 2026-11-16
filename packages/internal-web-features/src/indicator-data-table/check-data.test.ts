@@ -11,7 +11,7 @@ function cells(row = ROW, columns = DATA_TABLE.columns, yearType = DATA_TABLE.ye
 describe('checkColumns', () => {
   it('shows the columns the file had, the period once for its two dates', () => {
     expect(checkColumns(DATA_TABLE.columns).map(({ heading }) => heading)).toEqual([
-      'Data values',
+      'Value',
       'Lower CI 95.0 limit',
       'Upper CI 95.0 limit',
       'Period',
@@ -42,14 +42,14 @@ describe('checkColumns', () => {
     ]);
 
     expect(columns.map(({ heading }) => heading)).toEqual([
-      'Data values',
+      'Count',
+      'Numerator',
+      'Denominator',
+      'Value',
       'Lower CI 95.0 limit',
       'Upper CI 95.0 limit',
       'Lower CI 99.8 limit',
       'Upper CI 99.8 limit',
-      'Count',
-      'Numerator',
-      'Denominator',
       'Period',
       'Area code',
       'Sex',
@@ -62,7 +62,7 @@ describe('checkColumns', () => {
 
   it('shows numbers as loaded, and an empty number as nothing', () => {
     expect(cells({ ...ROW, value: 1500, lowerCi95: 0.000_01, upperCi95: null })).toMatchObject({
-      'Data values': '1500',
+      Value: '1500',
       'Lower CI 95.0 limit': '0.00001',
       'Upper CI 95.0 limit': '',
     });

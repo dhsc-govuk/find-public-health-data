@@ -23,7 +23,20 @@ function number(value: number | null): string {
 }
 
 const COLUMNS: readonly CheckColumn[] = [
-  { key: 'value', heading: 'Data values', from: ['value'], cell: (row) => number(row.value) },
+  { key: 'count', heading: 'Count', from: ['count'], cell: (row) => number(row.count) },
+  {
+    key: 'numerator',
+    heading: 'Numerator',
+    from: ['numerator'],
+    cell: (row) => number(row.numerator),
+  },
+  {
+    key: 'denominator',
+    heading: 'Denominator',
+    from: ['denominator'],
+    cell: (row) => number(row.denominator),
+  },
+  { key: 'value', heading: 'Value', from: ['value'], cell: (row) => number(row.value) },
   {
     key: 'lowerCi95',
     heading: 'Lower CI 95.0 limit',
@@ -47,19 +60,6 @@ const COLUMNS: readonly CheckColumn[] = [
     heading: 'Upper CI 99.8 limit',
     from: ['upper_ci_998'],
     cell: (row) => number(row.upperCi998),
-  },
-  { key: 'count', heading: 'Count', from: ['count'], cell: (row) => number(row.count) },
-  {
-    key: 'numerator',
-    heading: 'Numerator',
-    from: ['numerator'],
-    cell: (row) => number(row.numerator),
-  },
-  {
-    key: 'denominator',
-    heading: 'Denominator',
-    from: ['denominator'],
-    cell: (row) => number(row.denominator),
   },
   {
     key: 'period',
