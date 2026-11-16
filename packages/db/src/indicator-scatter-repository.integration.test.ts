@@ -144,6 +144,45 @@ it('retains nulls, zeroes and an older common period while using current publish
   expect(points.every((point) => point.x === 0)).toBe(true);
 });
 
+it.each([2022, 2024])('matches canonical annual histories ending in %i and 2018', async (end) => {
+  const models = await database.db
+    .selectDistinct({ id: observationSeries.indicatorId, batch: observationSeries.uploadBatchId })
+    .from(observationSeries)
+    .where(inArray(observationSeries.indicatorId, ids));
+  const areas = await database.db.select().from(area).where(inArray(area.code, codes));
+  await database.db.delete(observation).where(inArray(observation.indicatorId, ids));
+  for (const model of models) {
+    const lastYear = model.id === ids[0] ? end : 2018;
+    await database.db.insert(observation).values(
+      areas.flatMap((area) =>
+        Array.from({ length: lastYear - 2014 }, (_, index) => ({
+          indicatorId: model.id,
+          uploadBatchId: model.batch,
+          areaId: area.id,
+          fromDate: `${2015 + index}-01-01`,
+          toDate: `${2015 + index}-12-31`,
+          dimensionKey: '',
+          value: index + (area.code === 'E92000001' ? 100 : 1),
+        })),
+      ),
+    );
+    await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
+  }
+  const history = await getIndicatorObservationData(db, ids, codes);
+  const untrimmed = pairedAreaValues(
+    history.get(ids[0])?.areaData ?? [],
+    history.get(ids[1])?.areaData ?? [],
+  );
+  expect(untrimmed.map(({ code }) => code)).toEqual(codes.slice(0, 2));
+  expect(untrimmed.every(({ toDate }) => toDate === '2018-12-31')).toBe(true);
+  const expected = await canonical();
+  expect(expected).toEqual(end === 2022 ? untrimmed : []);
+  const cached = await getCachedScatterAreas(db, ids, codes);
+  expect(cached).toBeDefined();
+  expect(pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? [])).toEqual(expected);
+  expect(await getIndicatorScatterData(db, ids, codes)).toEqual(expected);
+});
+
 it('falls back for stale point IDs and missing batch markers', async () => {
   const expected = await canonical();
   await database.db

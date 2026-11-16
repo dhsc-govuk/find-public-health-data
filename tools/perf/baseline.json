@@ -126,7 +126,7 @@
     "bytes": 27754
   },
   "public-web /indicator/diabetes-qof-prevalence": {
-    "statements": 17,
+    "statements": 18,
     "buffers": 38017,
     "rows": 2583,
     "bytes": 406046
@@ -144,7 +144,7 @@
     "bytes": 483073
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&find=mortality": {
-    "statements": 18,
+    "statements": 19,
     "buffers": 38044,
     "rows": 2587,
     "bytes": 408853
