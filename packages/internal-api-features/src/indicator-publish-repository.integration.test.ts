@@ -129,6 +129,10 @@ describe('createDraftFromPublished', () => {
       const target = seededIds[0];
       if (target === undefined) throw new Error('The seed holds no indicators');
       const publishedId = await publishedVersionId(db, target);
+      await db
+        .update(indicatorVersion)
+        .set({ updateFrequencyText: 'Academic year.\nPublished in winter.' })
+        .where(eq(indicatorVersion.id, publishedId));
       const publishedTopics = await storedTopicIdsOf(db, publishedId);
       expect(publishedTopics.length).toBeGreaterThan(0);
 
@@ -153,6 +157,7 @@ describe('createDraftFromPublished', () => {
         name: published?.name,
         slug: published?.slug,
         definition: published?.definition,
+        updateFrequencyText: 'Academic year.\nPublished in winter.',
         valueTypeId: published?.valueTypeId,
         createdBy: ACTOR,
       });

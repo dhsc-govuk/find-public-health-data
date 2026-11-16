@@ -206,6 +206,7 @@ const CHANGED_SECTIONS: Readonly<
     updateFrequency: option(UPDATE_FREQUENCY_LABELS),
     noFixedFrequencyReason: 'text',
     noLongerUpdatedReason: 'text',
+    updateFrequencyText: 'text',
   }),
   'value-type-and-units': sectionOf(valueTypeAndUnitsSection, valueTypeAndUnitsColumns, {
     valueTypeId: named,

@@ -847,10 +847,50 @@ it('writes the indicator frequency from source prose', async () => {
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.update_frequency).toBe('quarterly');
 });
+it.each([
+  [
+    'Annual measurements during the academic year.',
+    'Annual measurements during the academic year.',
+    DATA_MIGRATION_NULL,
+  ],
+  ['<p>Quarterly</p>', 'Quarterly', 'quarterly'],
+  [
+    '<p>Academic year &amp; term time</p><p>Published in winter.</p>',
+    'Academic year & term time\nPublished in winter.',
+    DATA_MIGRATION_NULL,
+  ],
+  ['', DATA_MIGRATION_NULL, DATA_MIGRATION_NULL],
+  ['  \n\t ', DATA_MIGRATION_NULL, DATA_MIGRATION_NULL],
+  ['<p>&nbsp;</p>', DATA_MIGRATION_NULL, DATA_MIGRATION_NULL],
+])('keeps original frequency prose %j as plain text', async (frequencyProse, text, frequency) => {
+  indicatorQueries('No unit', undefined, [], { frequencyProse });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    update_frequency_text: text,
+    update_frequency: frequency,
+  });
+});
+it.each([
+  ['Updated annually.', 'annually'],
+  ['Academic year, published in winter.', DATA_MIGRATION_NULL],
+])('keeps prose %j alongside a structured frequency', async (frequencyProse, updateFrequency) => {
+  indicatorQueries('No unit', undefined, [], {
+    frequency: 'Annual',
+    frequencyProse,
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    update_frequency_text: frequencyProse,
+    update_frequency: updateFrequency,
+  });
+});
 it('leaves missing indicator frequency unanswered', async () => {
   indicatorQueries();
   await exportIndicators(options);
-  expect((await rows('indicator_version'))[0]?.update_frequency).toBe(DATA_MIGRATION_NULL);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    update_frequency: DATA_MIGRATION_NULL,
+    update_frequency_text: DATA_MIGRATION_NULL,
+  });
 });
 it.each([
   ['Quarterly', 'quarterly'],

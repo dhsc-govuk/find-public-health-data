@@ -27,15 +27,14 @@ export function sourceLink(source: IndicatorDetail['dataSource']) {
   return source.url ? <A href={source.url}>{source.name}</A> : source.name;
 }
 
-/** The update frequency, and below it the reason the publisher gave for it, if there is one. */
-function UpdateFrequency({
-  frequency,
-  reason: given,
-}: {
-  frequency: NonNullable<IndicatorDetail['updateFrequency']>;
-  reason: string | null;
-}) {
-  const { text, reason } = publicUpdateFrequency(frequency, given);
+function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
+  if (indicator.updateFrequencyText)
+    return <div className="fphd-metadata-text">{indicator.updateFrequencyText}</div>;
+  if (!indicator.updateFrequency) return null;
+  const { text, reason } = publicUpdateFrequency(
+    indicator.updateFrequency,
+    indicator.updateFrequencyReason,
+  );
 
   return (
     <>
@@ -46,14 +45,11 @@ function UpdateFrequency({
 }
 
 function updateFrequencyRow(name: string, indicator: IndicatorDetail) {
-  const frequency = indicator.updateFrequency;
-  return frequency
+  return indicator.updateFrequencyText || indicator.updateFrequency
     ? [
         {
           name,
-          children: (
-            <UpdateFrequency frequency={frequency} reason={indicator.updateFrequencyReason} />
-          ),
+          children: <UpdateFrequency indicator={indicator} />,
         },
       ]
     : [];

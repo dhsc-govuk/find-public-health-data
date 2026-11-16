@@ -205,6 +205,7 @@ export interface IndicatorDetail {
    * frequency, and beside those two for an indicator imported without one.
    */
   updateFrequencyReason: string | null;
+  updateFrequencyText: string | null;
   polarity: Polarity;
   ciMethod: string | null;
   ciConfidenceLevel: CiConfidenceLevel | null;
@@ -300,6 +301,7 @@ export async function getPublishedIndicatorsByIds(
       yearEndMonth: indicator.yearEndMonth,
       updateFrequency: indicator.updateFrequency,
       updateFrequencyReason: indicator.updateFrequencyReason,
+      updateFrequencyText: indicator.updateFrequencyText,
       polarity: indicator.polarity,
       ciMethod: ciMethod.name,
       ciConfidenceLevel: indicator.ciConfidenceLevel,
@@ -383,6 +385,7 @@ export async function getPublishedIndicatorsByIds(
             yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
             updateFrequency: row.updateFrequency,
             updateFrequencyReason: row.updateFrequencyReason,
+            updateFrequencyText: row.updateFrequencyText,
             polarity: row.polarity,
             ciMethod: row.ciMethod,
             ciConfidenceLevel: row.ciConfidenceLevel,

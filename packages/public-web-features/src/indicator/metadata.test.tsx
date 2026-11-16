@@ -17,6 +17,7 @@ const indicator: IndicatorDetail = {
   yearType: { value: 'calendar', label: 'Calendar' },
   updateFrequency: 'annually',
   updateFrequencyReason: null,
+  updateFrequencyText: null,
   polarity: 'lower-is-better',
   ciMethod: null,
   ciConfidenceLevel: null,
@@ -239,4 +240,37 @@ describe('BackgroundInformation', () => {
 
     expect(screen.queryByRole('heading', { name: 'History' })).toBeNull();
   });
+});
+
+describe.each(['summary', 'background'] as const)('%s update frequency text', (surface) => {
+  it.each(['annually', 'no-fixed-frequency', null] as const)(
+    'shows the original text in place of %s and any reason',
+    (updateFrequency) => {
+      const updateFrequencyText =
+        'Annual measurements during the academic year.\nPublished in winter.';
+      const detail = {
+        ...indicator,
+        updateFrequency,
+        updateFrequencyReason: 'Survey runs irregularly.',
+        updateFrequencyText,
+      };
+      render(
+        <MemoryRouter>
+          {surface === 'summary' ? (
+            <IndicatorSummary indicator={detail} observations={[]} />
+          ) : (
+            <BackgroundInformation indicator={detail} />
+          )}
+        </MemoryRouter>,
+      );
+      const name = surface === 'summary' ? 'Update frequency' : 'Frequency';
+      const row = screen
+        .getAllByRole('term')
+        .find((term) => term.textContent === name)?.nextElementSibling;
+
+      expect(row?.textContent).toBe(updateFrequencyText);
+      expect(row?.querySelector('.fphd-metadata-text')?.textContent).toBe(updateFrequencyText);
+      expect(screen.queryByText('Survey runs irregularly.')).toBeNull();
+    },
+  );
 });

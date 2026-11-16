@@ -46,6 +46,30 @@ describe('updateChanges', () => {
     });
   });
 
+  it('includes the frequency description when it is added or cleared', () => {
+    const updateFrequencyText = 'Academic year, published in winter.';
+    const [added] = changesTo({ updateFrequencyText });
+    expect(added).toEqual({
+      task: 'update-frequency',
+      parts: [
+        { kind: 'text', field: 'updateFrequencyText', before: '', after: updateFrequencyText },
+      ],
+    });
+
+    const [cleared] = updateChanges({
+      published: { ...published, updateFrequencyText },
+      submitted: published,
+      names,
+      replacedValues: 0,
+    });
+    expect(cleared).toEqual({
+      task: 'update-frequency',
+      parts: [
+        { kind: 'text', field: 'updateFrequencyText', before: updateFrequencyText, after: '' },
+      ],
+    });
+  });
+
   it('gives the name as free text', () => {
     const [change] = changesTo({ name: 'Life expectancy at 65' });
 

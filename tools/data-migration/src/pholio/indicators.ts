@@ -374,6 +374,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       update_frequency: updateFrequency,
       // Fingertips holds no reason for an update frequency.
       update_frequency_reason: null,
+      update_frequency_text: plainTextFromHtml(text?.Frequency ?? '') || null,
       variation: null,
       quality_assurance: null,
       source_data_issues_detail: null,

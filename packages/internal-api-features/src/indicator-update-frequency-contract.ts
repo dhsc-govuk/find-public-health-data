@@ -22,7 +22,12 @@ const REASON_REQUIRED: Readonly<Record<UpdateFrequencyWithReason, string>> = {
   'no-longer-updated': 'Enter the reason this indicator will no longer be updated',
 };
 
-const fields = z.enum(['updateFrequency', 'noFixedFrequencyReason', 'noLongerUpdatedReason']);
+const fields = z.enum([
+  'updateFrequency',
+  'noFixedFrequencyReason',
+  'noLongerUpdatedReason',
+  'updateFrequencyText',
+]);
 
 // Each reason is asked for only under its own answer, so only then is it required.
 const schema = z
@@ -32,6 +37,7 @@ const schema = z
     }),
     noFixedFrequencyReason: longText('Reason for having no fixed update frequency'),
     noLongerUpdatedReason: longText('Reason for no longer updating this indicator'),
+    updateFrequencyText: longText('Description of update frequency'),
   })
   .superRefine(({ updateFrequency, ...reasons }, ctx) => {
     if (!hasUpdateFrequencyReason(updateFrequency)) return;

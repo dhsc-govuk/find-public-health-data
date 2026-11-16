@@ -91,6 +91,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'has_framework',
     'update_frequency',
     'update_frequency_reason',
+    'update_frequency_text',
     'variation',
     'quality_assurance',
     'source_data_issues_detail',

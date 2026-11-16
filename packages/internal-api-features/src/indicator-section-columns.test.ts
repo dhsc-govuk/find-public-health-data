@@ -65,11 +65,27 @@ describe('dataQualityColumns', () => {
 });
 
 describe('updateFrequencyColumns', () => {
+  it('clears an optional frequency description without changing its frequency', () => {
+    expect(
+      updateFrequencyColumns.toAttributes({
+        updateFrequency: 'annually',
+        noFixedFrequencyReason: '',
+        noLongerUpdatedReason: '',
+        updateFrequencyText: '',
+      }),
+    ).toEqual({
+      updateFrequency: 'annually',
+      updateFrequencyReason: null,
+      updateFrequencyText: null,
+    });
+  });
+
   it('reads a frequency that has no reason, leaving both reasons empty', () => {
     expect(
       updateFrequencyColumns.fromDraft({ ...unansweredDraft, updateFrequency: 'annually' }),
     ).toEqual({
       updateFrequency: 'annually',
+      updateFrequencyText: null,
       noFixedFrequencyReason: null,
       noLongerUpdatedReason: null,
     });
@@ -87,7 +103,12 @@ describe('updateFrequencyColumns', () => {
           updateFrequency,
           updateFrequencyReason: 'The survey has ended.',
         }),
-      ).toEqual({ updateFrequency, [shown]: 'The survey has ended.', [empty]: null });
+      ).toEqual({
+        updateFrequency,
+        updateFrequencyText: null,
+        [shown]: 'The survey has ended.',
+        [empty]: null,
+      });
     },
   );
 
@@ -99,10 +120,15 @@ describe('updateFrequencyColumns', () => {
     expect(
       updateFrequencyColumns.toAttributes({
         updateFrequency,
+        updateFrequencyText: 'Annual measurements, published in winter.',
         noFixedFrequencyReason: 'Published when the survey runs.',
         noLongerUpdatedReason: 'The survey has ended.',
       }),
-    ).toEqual({ updateFrequency, updateFrequencyReason });
+    ).toEqual({
+      updateFrequency,
+      updateFrequencyReason,
+      updateFrequencyText: 'Annual measurements, published in winter.',
+    });
   });
 });
 

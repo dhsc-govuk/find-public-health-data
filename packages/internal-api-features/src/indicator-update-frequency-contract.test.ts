@@ -4,8 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { updateFrequencySection as section } from './indicator-update-frequency-contract.ts';
 import { sectionFieldErrors } from './testing.ts';
 
-const NO_REASONS = { noFixedFrequencyReason: '', noLongerUpdatedReason: '' };
+const NO_REASONS = {
+  updateFrequencyText: '',
+  noFixedFrequencyReason: '',
+  noLongerUpdatedReason: '',
+};
 const REASONS = {
+  updateFrequencyText: '',
   noFixedFrequencyReason: 'Published when the survey runs.',
   noLongerUpdatedReason: 'The survey has ended.',
 };
@@ -29,25 +34,44 @@ describe('updateFrequencySection', () => {
     expect(
       section.schema.parse({
         updateFrequency: 'no-fixed-frequency',
+        updateFrequencyText: '',
         noFixedFrequencyReason: '  When the survey runs\r\n',
         noLongerUpdatedReason: '',
       }),
     ).toEqual({
       updateFrequency: 'no-fixed-frequency',
+      updateFrequencyText: '',
       noFixedFrequencyReason: 'When the survey runs',
       noLongerUpdatedReason: '',
     });
   });
 
+  it.each(['  Academic year\r\nPublished in winter.  ', '', ' \n '])(
+    'takes an optional description %j',
+    (updateFrequencyText) => {
+      expect(
+        section.schema.parse({ updateFrequency: 'annually', ...NO_REASONS, updateFrequencyText }),
+      ).toMatchObject({ updateFrequencyText: updateFrequencyText.replaceAll('\r\n', '\n').trim() });
+    },
+  );
+
   it.each([
     [
       'no-fixed-frequency',
-      { noFixedFrequencyReason: ' \n', noLongerUpdatedReason: 'The survey has ended.' },
+      {
+        updateFrequencyText: '',
+        noFixedFrequencyReason: ' \n',
+        noLongerUpdatedReason: 'The survey has ended.',
+      },
       { noFixedFrequencyReason: 'Enter the reason this indicator has no fixed update frequency' },
     ],
     [
       'no-longer-updated',
-      { noFixedFrequencyReason: 'Published when the survey runs.', noLongerUpdatedReason: '' },
+      {
+        updateFrequencyText: '',
+        noFixedFrequencyReason: 'Published when the survey runs.',
+        noLongerUpdatedReason: '',
+      },
       { noLongerUpdatedReason: 'Enter the reason this indicator will no longer be updated' },
     ],
   ])('asks for the reason beside %s', (updateFrequency, reasons, errors) => {

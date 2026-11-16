@@ -14,7 +14,12 @@ const NO_FIXED = 'No fixed frequency';
 const NO_LONGER_UPDATED = 'This indicator will no longer be updated';
 const NO_FIXED_ERROR = 'Enter the reason this indicator has no fixed update frequency';
 
-const empty = { updateFrequency: '', noFixedFrequencyReason: '', noLongerUpdatedReason: '' };
+const empty = {
+  updateFrequencyText: '',
+  updateFrequency: '',
+  noFixedFrequencyReason: '',
+  noLongerUpdatedReason: '',
+};
 
 // The error summary's links read router state, so the page renders inside a router.
 function renderPage(props: Partial<Parameters<typeof UpdateFrequencyPage>[0]> = {}) {
@@ -119,7 +124,24 @@ describe('UpdateFrequencyPage', () => {
     for (const answer of ['Monthly', 'Quarterly', 'Annually', 'Every 2 years']) {
       expect(option(answer).getAttribute('aria-controls')).toBeNull();
     }
-    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+    expect(screen.getAllByRole('textbox')).toHaveLength(3);
+  });
+
+  it('shows the optional description with its hint outside the conditional reasons', () => {
+    renderPage({
+      values: { ...empty, updateFrequencyText: 'Academic year.\nPublished in winter.' },
+    });
+    const field = screen.getByLabelText(
+      'Describe how often it is updated (optional)',
+    ) as HTMLTextAreaElement;
+
+    expect(field.name).toBe('updateFrequencyText');
+    expect(field.rows).toBe(5);
+    expect(field.value).toBe('Academic year.\nPublished in winter.');
+    expect(field.closest('.govuk-radios__conditional')).toBeNull();
+    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+      "Shown on the indicator page in place of the frequency above, for example 'Annual measurements during the academic year, published in the final quarter of the calendar year.'",
+    );
   });
 
   it('reveals the reason when its answer is chosen', () => {
