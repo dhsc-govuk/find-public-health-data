@@ -52,6 +52,10 @@ it.each([
   ['highlight=a&highlight=b&highlight=d&highlightRegionBefore=r&geo-q=alpha', ['d']],
   ['highlight=b&highlight=c&highlight=d&highlightRegionBefore=r&geo-q=alpha', ['b', 'c', 'd']],
   ['highlight=b&highlight=c&highlight=d&highlightRegionBefore=r&geo-q=B', ['c', 'd']],
+  [
+    'highlight=a&highlight=b&highlight=d&highlightRegion=r&highlightRegionBefore=r&geo-q=alpha',
+    ['a', 'b', 'd'],
+  ],
 ])('reconciles no-script region and member unticks: %s', (query, expected) => {
   const parent = { code: 'r', name: 'Region' };
   const areas = [

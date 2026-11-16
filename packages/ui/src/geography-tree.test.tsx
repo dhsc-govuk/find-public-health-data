@@ -189,6 +189,21 @@ describe('GeographyTree regions', () => {
     expect(container.querySelector('input[type="hidden"][value="E06000047"]')).toBeTruthy();
   });
 
+  it('submits a region narrowed by search and fully ticked as still ticked', () => {
+    const { container } = render(tree(['E06000001']));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Hartlepool' } });
+    const region = screen.getByRole('checkbox', {
+      name: 'North East: all 1 upper tier local authorities',
+    }) as HTMLInputElement;
+    expect(region.checked).toBe(true);
+    expect(region.name).toBe('highlightRegion');
+    expect(
+      container.querySelector(
+        'input[type="hidden"][name="highlightRegionBefore"][value="E12000001"]',
+      ),
+    ).toBeTruthy();
+  });
+
   it('keeps ticks in a collapsed region submitting and narrows regions to search matches', () => {
     const { container } = render(tree(['E06000001']));
     fireEvent.click(screen.getByRole('button', { name: 'Collapse North East' }));
