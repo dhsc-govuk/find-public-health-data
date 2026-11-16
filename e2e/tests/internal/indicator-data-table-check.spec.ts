@@ -68,7 +68,7 @@ test('shows a preview of the uploaded data table', async ({ page }) => {
   await expect(page.getByText('Your upload contains 23 rows')).toBeVisible();
   const table = page.getByRole('region', { name: 'Data table' }).getByRole('table');
   await expect(table.getByRole('columnheader')).toHaveText([
-    'Data values',
+    'Value',
     'Lower CI 95.0 limit',
     'Upper CI 95.0 limit',
     'Period',
@@ -87,7 +87,9 @@ test('shows a preview of the uploaded data table', async ({ page }) => {
   await expect(page.getByText('Showing 1 to 10 of 23 rows')).toBeVisible();
 });
 
-test('keeps an uploaded count and numerator in separate columns', async ({ page }) => {
+test('shows the count, numerator and denominator before the value, in separate columns', async ({
+  page,
+}) => {
   const id = await createDraft(page, uniqueIndicatorName('check data'));
   const csv = [
     'area_code,period_start,period_end,value,count,numerator,denominator',
@@ -98,18 +100,18 @@ test('keeps an uploaded count and numerator in separate columns', async ({ page 
 
   const table = page.getByRole('region', { name: 'Data table' }).getByRole('table');
   await expect(table.getByRole('columnheader')).toHaveText([
-    'Data values',
     'Count',
     'Numerator',
     'Denominator',
+    'Value',
     'Period',
     'Area code',
   ]);
   await expect(dataRows(page).first().locator('th, td')).toHaveText([
-    '25',
     '120',
     '100',
     '400',
+    '25',
     '2019',
     'E92000001',
   ]);

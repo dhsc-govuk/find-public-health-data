@@ -339,7 +339,7 @@ describe('CheckDataTablePage', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((header) => header.textContent),
-    ).toEqual(['Data values', 'Period', 'Area code', 'Category type', 'Category']);
+    ).toEqual(['Value', 'Period', 'Area code', 'Category type', 'Category']);
     const rows = within(table).getAllByRole('row').slice(1);
     expect(
       rows.map((row) =>
@@ -364,7 +364,7 @@ describe('CheckDataTablePage', () => {
         .getAllByRole('columnheader')
         .map((header) => header.textContent),
     ).toEqual([
-      'Data values',
+      'Value',
       'Lower CI 95.0 limit',
       'Upper CI 95.0 limit',
       'Period',
