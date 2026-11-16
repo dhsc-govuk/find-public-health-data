@@ -85,7 +85,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
           ))}
         </FilterChips>
       </div>
-      <div className="fphd-results-sort fphd-topic-toolbar govuk-!-margin-bottom-3">
+      <div className="fphd-results-sort govuk-!-margin-bottom-3">
         <h2
           aria-atomic="true"
           aria-live="polite"
@@ -98,8 +98,20 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
             </span>
           ) : null}
         </h2>
+      </div>
+      <div className="fphd-topic-sort-row">
+        {hasRows ? (
+          <DownloadShareData
+            inline
+            href={`${path}/table.csv?${params}`}
+            allDataHref={`${path}/table.csv?tab-topic=data`}
+            downloadLabel="Download filtered data (CSV)"
+            allDataLabel="Download all data (CSV)"
+          />
+        ) : null}
         <Form
           action={`${path}#${areas ? 'topic-area-summaries' : 'topic-data'}`}
+          className="fphd-sort-inline"
           method="get"
           preventScrollReset
         >
@@ -123,15 +135,6 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
           </noscript>
         </Form>
       </div>
-      {hasRows ? (
-        <DownloadShareData
-          inline
-          href={`${path}/table.csv?${params}`}
-          allDataHref={`${path}/table.csv?tab-topic=data`}
-          downloadLabel="Download filtered data (CSV)"
-          allDataLabel="Download all data (CSV)"
-        />
-      ) : null}
       {search.searchResult.page === undefined &&
       search.searchResult.total > search.searchResult.limit ? (
         <InsetText>

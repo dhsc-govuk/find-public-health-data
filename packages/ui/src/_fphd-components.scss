@@ -1705,17 +1705,9 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: govuk-spacing(4);
 }
 
-// The search's "Sort by" has its own line under the count, its label beside the select, as in
-// the prototype. Below tablet the label stacks above a full-width select, which would
-// otherwise push the page wider than the screen.
-.fphd-search-sort {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-
-  > form {
-    flex: 0 0 100%;
-  }
-
+// A "Sort by" label beside its select. Below tablet the label stacks above a full-width
+// select, which would otherwise push the page wider than the screen.
+.fphd-sort-inline {
   .govuk-form-group {
     display: flex;
     align-items: baseline;
@@ -1730,8 +1722,6 @@ body.govuk-frontend-supported .fphd-filter-card {
   }
 
   @include govuk-media-query($until: tablet) {
-    row-gap: govuk-spacing(2);
-
     .govuk-form-group {
       display: block;
     }
@@ -1743,6 +1733,54 @@ body.govuk-frontend-supported .fphd-filter-card {
     .govuk-select {
       width: 100%;
       min-width: 0;
+    }
+  }
+}
+
+// The search's sort has a line of its own under the count.
+.fphd-search-sort {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+
+  > form {
+    flex: 0 0 100%;
+  }
+
+  @include govuk-media-query($until: tablet) {
+    row-gap: govuk-spacing(2);
+  }
+}
+
+// The topic tabs' sort sits at the right of the "Download or share data" row, the link level
+// with the select, and stays put when the downloads open.
+.fphd-topic-sort-row {
+  display: flex;
+  align-items: flex-start;
+  gap: govuk-spacing(4);
+
+  > .fphd-inline-download {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-top: govuk-spacing(2);
+  }
+
+  > form {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  @include govuk-media-query($until: tablet) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+
+    > .fphd-inline-download {
+      margin-top: 0;
+    }
+
+    > form {
+      margin-left: 0;
+      margin-bottom: govuk-spacing(4);
     }
   }
 }
@@ -1914,35 +1952,6 @@ body.govuk-frontend-supported .fphd-filter-card {
 }
 .fphd-rug-cell--none {
   background: #bfbfbf;
-}
-
-.fphd-topic-toolbar {
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.fphd-topic-toolbar form {
-  min-width: 0;
-  max-width: 100%;
-  margin-left: auto;
-}
-
-.fphd-topic-toolbar .govuk-form-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: govuk-spacing(2);
-  margin-bottom: 0;
-}
-
-.fphd-topic-toolbar .govuk-label {
-  @include govuk-font($size: 16, $weight: bold);
-  margin-bottom: 0;
-}
-
-.fphd-topic-toolbar .govuk-select {
-  @include govuk-font-size($size: 16);
-  max-width: 100%;
 }
 
 .fphd-topic-download {

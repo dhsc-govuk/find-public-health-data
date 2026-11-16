@@ -82,7 +82,7 @@ export function SearchResults({
         >
           {total.toLocaleString()} {total === 1 ? 'indicator' : 'indicators'}
         </h2>
-        <Form action="/search" method="get" preventScrollReset>
+        <Form action="/search" className="fphd-sort-inline" method="get" preventScrollReset>
           <HiddenFilters state={state} extraParams={extraParams} />
           <Select
             id="search-sort"
