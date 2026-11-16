@@ -305,7 +305,12 @@ export const displayGroupListSchema = z.array(z.string().min(1));
 export const areaDisplayGroupListSchema = z.array(
   z.object({
     displayGroup: z.string().min(1),
-    areas: z.array(areaSummarySchema.extend({ parent: areaSummarySchema.nullable().optional() })),
+    areas: z.array(
+      areaSummarySchema.extend({
+        parent: areaSummarySchema.nullable().optional(),
+        neighbours: z.array(z.string().min(1)).optional(),
+      }),
+    ),
   }),
 );
 

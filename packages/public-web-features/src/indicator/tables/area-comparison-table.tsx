@@ -15,16 +15,19 @@ export function AreaComparisonTable({
   sort,
   highlighted,
   colour = 'england',
+  only = null,
 }: {
   indicator: Pick<SelectedIndicator, 'detail'>;
   model: IndicatorComparisonModel['areas'];
   sort: string;
   highlighted: string[];
   colour?: AreaColourMode;
+  only?: Set<string> | null;
 }) {
-  const shown = orderAreaComparisonRows(model.rows, sort, highlighted);
+  const shown = orderAreaComparisonRows(model.rows, sort, highlighted, only);
   const picked = new Set(highlighted);
-  const groups = areaComparisonGroups(shown, colour);
+  // Quintiles rank every area, so showing only neighbours never moves an area's group.
+  const groups = areaComparisonGroups(model.rows, colour);
   const barMaximum = model.barMaximum;
   const hasCi = shown.some((cell) => cell.lowerCi95 != null || cell.upperCi95 != null);
   return (

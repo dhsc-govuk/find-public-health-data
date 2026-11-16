@@ -501,6 +501,58 @@ test('adds a region’s local authorities from its checkbox without JavaScript',
   }
 });
 
+test('lists a highlighted council with only its statistical neighbours when its box is ticked', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await panel
+    .getByRole('checkbox', { name: /^North East: all \d+ upper tier local authorities$/ })
+    .check();
+  const neighbours = panel.getByRole('group', { name: 'Show statistical neighbours' });
+  await expect(neighbours.getByRole('checkbox')).toHaveCount(3);
+  await neighbours.getByRole('button', { name: /^Show \d+ more areas$/ }).click();
+  await neighbours.getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' }).check();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('neighbours'))
+    .toEqual(['E06000001']);
+  const headers = panel
+    .getByRole('table', { name: /Table of area comparisons/ })
+    .locator('tbody')
+    .getByRole('rowheader');
+  await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
+  await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+  expect(await headers.count()).toBeLessThanOrEqual(17);
+});
+
+test('shows a council’s statistical neighbours from its checkbox without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({ baseURL, javaScriptEnabled: false });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(
+      `${MORTALITY_PATH}?render=complete&tab-indicator=areas&highlight=E06000001#indicator-compare-areas`,
+    );
+    await withoutJs
+      .getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' })
+      .check();
+    await withoutJs.getByRole('button', { name: 'Show neighbours' }).click();
+    await expect(withoutJs).toHaveURL(/neighbours=E06000001/);
+    const headers = withoutJs
+      .getByRole('table', { name: /Table of area comparisons/ })
+      .locator('tbody')
+      .getByRole('rowheader');
+    await expect(headers.first()).toHaveText('Hartlepool (highlighted)');
+    await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
+    await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
 test('plots trends, area comparisons, inequalities and paired indicators', async ({
   page,
 }, testInfo) => {

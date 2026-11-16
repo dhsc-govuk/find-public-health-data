@@ -9,7 +9,9 @@ import {
   areaComparisonRows,
   comparisonRankingData,
   highlightedAreaCodes,
+  neighbourAnchors,
   orderAreaComparisonRows,
+  statisticalNeighbourAreas,
 } from './area-comparison.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
@@ -190,4 +192,31 @@ it('groups comparison areas under their regions and expands region ticks sent wi
       areas,
     ),
   ).toEqual(['E06000001', 'X', 'E06000047']);
+});
+
+it('offers neighbours for highlighted areas that have them and lists only ticked areas with theirs', () => {
+  const areas = [
+    { code: 'A', name: 'Alpha', neighbours: ['B', 'C'] },
+    { code: 'B', name: 'Beta', neighbours: ['A'] },
+    { code: 'C', name: 'Gamma' },
+    { code: 'D', name: 'Delta', neighbours: ['C'] },
+  ];
+  expect(neighbourAnchors(['D', 'C', 'A'], areas).map(({ code }) => code)).toEqual(['D', 'A']);
+  expect(statisticalNeighbourAreas(new URLSearchParams('highlight=A'), areas)).toBeNull();
+  expect(
+    statisticalNeighbourAreas(new URLSearchParams('highlight=B&neighbours=A'), areas),
+  ).toBeNull();
+  expect([
+    ...(statisticalNeighbourAreas(
+      new URLSearchParams('highlight=A&highlight=D&neighbours=A&neighbours=D'),
+      areas,
+    ) ?? []),
+  ]).toEqual(['A', 'B', 'C', 'D']);
+  const row = (areaCode: string, value: number) => ({ areaCode, areaName: areaCode, value });
+  const rows = [row('E92000001', 5), row('A', 1), row('B', 9), row('C', 4), row('D', 7)];
+  expect(
+    orderAreaComparisonRows(rows, 'descending', ['A'], new Set(['A', 'B'])).map(
+      ({ areaCode }) => areaCode,
+    ),
+  ).toEqual(['A', 'E92000001', 'B']);
 });

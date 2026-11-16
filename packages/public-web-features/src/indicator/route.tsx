@@ -13,6 +13,7 @@ const AREA_DISPLAY_OPTIONS = new Set([
   'areaColour',
   'highlight',
   'highlightRegion',
+  'neighbours',
   'tab-indicator',
 ]);
 

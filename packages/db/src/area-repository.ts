@@ -17,6 +17,8 @@ export interface AreaSummary {
 
 export interface AreaWithParent extends AreaSummary {
   parent?: AreaSummary | null;
+  /** The area's statistical neighbours' codes, most similar first. */
+  neighbours?: string[];
 }
 
 export interface IndicatorAreaFilters {
@@ -24,7 +26,10 @@ export interface IndicatorAreaFilters {
   displayGroup?: string | undefined;
   query?: string | undefined;
   limit?: number | undefined;
-  /** Adds each area's current parent of this area type, e.g. a council's statistical region. */
+  /**
+   * Adds each area's current parent of this area type, e.g. a council's statistical region, and
+   * its statistical neighbours where it has any.
+   */
   parentType?: string | undefined;
 }
 
@@ -58,6 +63,15 @@ export async function listIndicatorAreas(
           )`
         : sql<AreaSummary | null>`null`
       ).as('parent'),
+      neighbours: (parentType
+        ? sql<string[] | null>`(
+            select json_agg(peer.code order by neighbour.position)
+            from published.area_neighbour neighbour
+            join published.area peer on peer.id = neighbour.neighbour_area_id
+            where neighbour.area_id = ${area.id} and peer.is_current
+          )`
+        : sql<string[] | null>`null`
+      ).as('neighbours'),
       rank: sql<number>`row_number() over (partition by coalesce(${areaType.displayGroup}, ${areaType.name}) order by ${area.name}, ${area.code})`.as(
         'rank',
       ),
@@ -99,7 +113,12 @@ export async function listIndicatorAreas(
     const areas = groups.get(row.displayGroup) ?? [];
     areas.push(
       parentType
-        ? { code: row.code, name: row.name, parent: row.parent }
+        ? {
+            code: row.code,
+            name: row.name,
+            parent: row.parent,
+            ...(row.neighbours?.length ? { neighbours: row.neighbours } : {}),
+          }
         : { code: row.code, name: row.name },
     );
     groups.set(row.displayGroup, areas);

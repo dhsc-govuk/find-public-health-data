@@ -115,3 +115,19 @@ it('adds each area’s current parent of the requested type in the same listing'
   const hartlepool = withRegions?.areas.find(({ code }) => code === 'E06000001');
   expect(hartlepool?.parent).toEqual({ code: 'E12000001', name: 'North East' });
 });
+
+it('lists an upper tier council’s 15 NHS England peer group neighbours, most similar first', async () => {
+  const id = await resolvePublishedIndicatorId(db, 108);
+  if (!id) throw new Error('Seeded indicator missing');
+  const [plain] = await listIndicatorAreas(db, id, { displayGroup: 'Local authorities' });
+  const [withNeighbours] = await listIndicatorAreas(db, id, {
+    displayGroup: 'Local authorities',
+    parentType: 'Regions (statistical)',
+  });
+  expect(plain?.areas.every((entry) => !('neighbours' in entry))).toBe(true);
+  const hartlepool = withNeighbours?.areas.find(({ code }) => code === 'E06000001');
+  expect(hartlepool?.neighbours).toHaveLength(15);
+  expect(hartlepool?.neighbours?.slice(0, 3)).toEqual(['E06000006', 'E08000023', 'E08000011']);
+  const district = withNeighbours?.areas.find(({ code }) => code.startsWith('E07'));
+  if (district) expect(district.neighbours).toBeUndefined();
+});

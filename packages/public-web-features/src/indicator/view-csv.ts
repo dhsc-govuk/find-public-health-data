@@ -7,6 +7,7 @@ import {
   highlightedAreaCodes,
   observationComparisonLabel,
   orderAreaComparisonRows,
+  statisticalNeighbourAreas,
 } from './area-comparison.ts';
 import { availableMeasures, inequalityValueLabel, MEASURES, unitNote } from './data.ts';
 import { tableCsv } from './download.ts';
@@ -30,6 +31,7 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
       areas.rows,
       sort,
       highlightedAreaCodes(params, data.compareAreaOptions),
+      statisticalNeighbourAreas(params, data.compareAreaOptions),
     );
     rows = [
       [

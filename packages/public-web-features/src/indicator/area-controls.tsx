@@ -1,8 +1,18 @@
 import type { AreaWithParent } from '@fphd/public-api-features/contract';
 import { Button, CollapsibleFilterCard, GeographyTree, Select } from '@fphd/ui';
+import { useEffect, useState } from 'react';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import { areaColourMode, areaComparisonRegions, highlightedAreaCodes } from './area-comparison.ts';
+import {
+  areaColourMode,
+  areaComparisonRegions,
+  highlightedAreaCodes,
+  neighbourAnchors,
+} from './area-comparison.ts';
+
+const VISIBLE_NEIGHBOUR_ANCHORS = 3;
+// How NHS England groups each upper tier council with its 15 most similar peers.
+const NEIGHBOUR_METHOD_URL = 'https://github.com/NHSDigital/ASC_LA_Peer_Groups';
 
 function useAreaParams(anchor: string) {
   const location = useLocation();
@@ -58,6 +68,89 @@ export function AreaSortControl() {
   );
 }
 
+function NeighbourControl({
+  anchors,
+  params,
+  action,
+  update,
+  hidden,
+}: {
+  anchors: AreaWithParent[];
+} & Pick<ReturnType<typeof useAreaParams>, 'params' | 'action' | 'update' | 'hidden'>) {
+  const ticked = new Set(params.getAll('neighbours'));
+  const extra = anchors.slice(VISIBLE_NEIGHBOUR_ANCHORS);
+  const [scripted, setScripted] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => setScripted(true), []);
+  const showExtra = !scripted || open || extra.some(({ code }) => ticked.has(code));
+  const item = ({ code, name }: AreaWithParent) => (
+    <div className="govuk-checkboxes__item" key={code}>
+      <input
+        className="govuk-checkboxes__input"
+        id={`compare-neighbours-${code}`}
+        name="neighbours"
+        type="checkbox"
+        value={code}
+        checked={ticked.has(code)}
+        onChange={(event) =>
+          update(
+            'neighbours',
+            event.currentTarget.checked
+              ? [...ticked, code]
+              : [...ticked].filter((entry) => entry !== code),
+          )
+        }
+      />
+      <label className="govuk-label govuk-checkboxes__label" htmlFor={`compare-neighbours-${code}`}>
+        Statistical neighbours for {name}
+      </label>
+    </div>
+  );
+  return (
+    <Form method="get" action={action} className="fphd-compare-neighbours">
+      {hidden(['neighbours'])}
+      <fieldset className="govuk-fieldset" aria-describedby="compare-neighbours-hint">
+        <legend className="govuk-fieldset__legend govuk-fieldset__legend--s">
+          Show statistical neighbours
+        </legend>
+        <div
+          className="govuk-hint govuk-body-s govuk-!-margin-bottom-1"
+          id="compare-neighbours-hint"
+        >
+          Show the 15 most{' '}
+          <a className="govuk-link" href={NEIGHBOUR_METHOD_URL}>
+            statistically similar areas
+          </a>
+        </div>
+        <div className="govuk-checkboxes govuk-checkboxes--small">
+          {anchors.slice(0, VISIBLE_NEIGHBOUR_ANCHORS).map(item)}
+          {extra.length ? (
+            <div id="compare-neighbours-more" hidden={!showExtra}>
+              {extra.map(item)}
+            </div>
+          ) : null}
+        </div>
+        {extra.length && scripted ? (
+          <button
+            type="button"
+            className="fphd-link-button govuk-body-s govuk-!-margin-top-1"
+            aria-expanded={showExtra}
+            aria-controls="compare-neighbours-more"
+            onClick={() => setOpen(!showExtra)}
+          >
+            {showExtra
+              ? 'Show fewer areas'
+              : `Show ${extra.length} more area${extra.length === 1 ? '' : 's'}`}
+          </button>
+        ) : null}
+      </fieldset>
+      <noscript>
+        <Button type="submit">Show neighbours</Button>
+      </noscript>
+    </Form>
+  );
+}
+
 export function AreaControls({
   slug,
   group,
@@ -76,6 +169,7 @@ export function AreaControls({
   );
   const highlighted = highlightedAreaCodes(params, areas);
   const regions = areaComparisonRegions(areas);
+  const anchors = displayOptions ? neighbourAnchors(highlighted, areas) : [];
   const search = params.get('geo-q')?.trim() ?? '';
   const matches = search
     ? areas.filter(({ name }) => name.toLowerCase().includes(search.toLowerCase()))
@@ -131,6 +225,15 @@ export function AreaControls({
             <Button type="submit">Apply highlights</Button>
           </noscript>
         </Form>
+        {anchors.length ? (
+          <NeighbourControl
+            anchors={anchors}
+            params={params}
+            action={action}
+            update={update}
+            hidden={hidden}
+          />
+        ) : null}
       </CollapsibleFilterCard>
       {displayOptions ? (
         <>

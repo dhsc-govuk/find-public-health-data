@@ -24,6 +24,7 @@ type AreaOption = {
   code: string;
   name: string;
   parent?: { code: string; name: string } | null | undefined;
+  neighbours?: string[] | undefined;
 };
 
 /** The comparison areas under their regions, regions by name, areas in their listed order. */
@@ -50,6 +51,31 @@ export function highlightedAreaCodes(params: URLSearchParams, areas: AreaOption[
       ...areas.flatMap(({ code, parent }) => (parent && regions.has(parent.code) ? [code] : [])),
     ]),
   ];
+}
+
+/** Highlighted areas that have statistical neighbours, in the order they were highlighted. */
+export function neighbourAnchors<T extends AreaOption>(highlighted: string[], areas: T[]): T[] {
+  const byCode = new Map(areas.map((area) => [area.code, area]));
+  return highlighted.flatMap((code) => {
+    const area = byCode.get(code);
+    return area?.neighbours?.length ? [area] : [];
+  });
+}
+
+/**
+ * The areas to list while some "Statistical neighbours for" boxes are ticked: each ticked area
+ * and its neighbours. Null while none is ticked, when every area is listed.
+ */
+export function statisticalNeighbourAreas(
+  params: URLSearchParams,
+  areas: AreaOption[],
+): Set<string> | null {
+  const ticked = new Set(params.getAll('neighbours'));
+  const anchors = neighbourAnchors(highlightedAreaCodes(params, areas), areas).filter(({ code }) =>
+    ticked.has(code),
+  );
+  if (anchors.length === 0) return null;
+  return new Set(anchors.flatMap(({ code, neighbours = [] }) => [code, ...neighbours]));
 }
 
 export function areaComparisonOptions<T extends { code: string }>(areas: T[], group: string): T[] {
@@ -152,19 +178,27 @@ function compareAreaRows(sort: string) {
   };
 }
 
-/** Highlighted areas in the order they were picked, then England, then the rest by `sort`. */
+/**
+ * Highlighted areas in the order they were picked, then England, then the rest by `sort`. While
+ * statistical neighbours are shown, only those areas are listed, with England.
+ */
 export function orderAreaComparisonRows<T extends SortableAreaRow>(
   rows: T[],
   sort: string,
   highlighted: string[],
+  only: Set<string> | null = null,
 ): T[] {
-  const byCode = new Map(rows.map((row) => [row.areaCode, row]));
+  const byCode = new Map(
+    rows
+      .filter((row) => !only || row.areaCode === 'E92000001' || only.has(row.areaCode))
+      .map((row) => [row.areaCode, row]),
+  );
   const first = [...new Set(highlighted)].flatMap((code) => {
     const row = code === 'E92000001' ? undefined : byCode.get(code);
     return row ? [row] : [];
   });
   const england = byCode.get('E92000001');
-  const rest = rows
+  const rest = [...byCode.values()]
     .filter((row) => row.areaCode !== 'E92000001' && !first.includes(row))
     .sort(compareAreaRows(sort));
   return [...first, ...(england ? [england] : []), ...rest];

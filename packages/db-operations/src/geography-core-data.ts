@@ -20,11 +20,17 @@ const fileSchema = z.object({
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
 const manifestSchema = z.object({
-  files: z.object({ area: fileSchema, area_relationship: fileSchema }),
+  files: z.object({
+    area: fileSchema,
+    area_relationship: fileSchema,
+    area_neighbour: fileSchema,
+  }),
 });
+const GEOGRAPHY_FILES = ['area', 'area_relationship', 'area_neighbour'] as const;
+type GeographyTable = (typeof GEOGRAPHY_FILES)[number];
 export type GeographyManifest = z.infer<typeof manifestSchema>;
 export type GeographyCoreDataImport = Record<
-  'area' | 'area_relationship',
+  GeographyTable,
   {
     summary: UpsertSummary;
     orphaned: number;
@@ -35,7 +41,7 @@ export function readGeographyManifest(): GeographyManifest {
   const manifest = manifestSchema.parse(
     JSON.parse(readFileSync(`${directory}/manifest.json`, 'utf8')),
   );
-  for (const table of ['area', 'area_relationship'] as const) {
+  for (const table of GEOGRAPHY_FILES) {
     const file = manifest.files[table];
     if (file.file !== `${table}.csv.gz`)
       throw new Error(`Unexpected core geography file for ${table}`);
@@ -54,7 +60,7 @@ async function stageGeography(
   tx: postgres.TransactionSql,
   manifest: GeographyManifest,
 ): Promise<void> {
-  for (const table of ['area', 'area_relationship'] as const) {
+  for (const table of GEOGRAPHY_FILES) {
     const file = manifest.files[table];
     const path = `${directory}/${file.file}`;
     const { rawHeader } = await validateMigrationHeader(tx, table, path);
@@ -80,7 +86,8 @@ async function stageGeography(
   }
   await tx`CREATE UNIQUE INDEX ON core_source_area (code, area_type_id)`;
   await tx`CREATE UNIQUE INDEX ON core_source_area_relationship (parent_area_id, child_area_id)`;
-  await tx`ANALYZE core_source_area, core_source_area_relationship`;
+  await tx`CREATE UNIQUE INDEX ON core_source_area_neighbour (area_id, scheme, position)`;
+  await tx`ANALYZE core_source_area, core_source_area_relationship, core_source_area_neighbour`;
   const ambiguous = await tx<{ code: string }[]>`
     SELECT a.code FROM area a JOIN core_source_area source
       ON source.code = a.code AND source.area_type_id = a.area_type_id
@@ -93,18 +100,27 @@ async function stageGeography(
   }
 }
 
+const DEFINITIONS = {
+  area: schema.area,
+  area_relationship: schema.areaRelationship,
+  area_neighbour: schema.areaNeighbour,
+};
+const MATCHING: Record<GeographyTable, string> = {
+  area: 'existing.code = source.code AND existing.area_type_id = source.area_type_id',
+  area_relationship:
+    'existing.parent_area_id = source.parent_area_id AND existing.child_area_id = source.child_area_id',
+  area_neighbour:
+    'existing.area_id = source.area_id AND existing.scheme = source.scheme AND existing.position = source.position',
+};
+
 async function upsertGeography(
   tx: postgres.TransactionSql,
-  table: 'area' | 'area_relationship',
+  table: GeographyTable,
   expected: number,
 ): Promise<GeographyCoreDataImport['area']> {
-  const definition = table === 'area' ? schema.area : schema.areaRelationship;
-  const fields = Object.keys(getTableColumns(definition));
+  const fields = Object.keys(getTableColumns(DEFINITIONS[table]));
   const columns = fields.map(toSnakeCase);
-  const matching =
-    table === 'area'
-      ? 'existing.code = source.code AND existing.area_type_id = source.area_type_id'
-      : 'existing.parent_area_id = source.parent_area_id AND existing.child_area_id = source.child_area_id';
+  const matching = MATCHING[table];
   const dataColumns = columns.filter((column) => column !== 'id');
   const qualified = (alias: string) =>
     dataColumns.map((column) => `${alias}."${column}"`).join(', ');
@@ -176,7 +192,18 @@ export async function importGeographyCoreData(
       'area_relationship',
       manifest.files.area_relationship.rows,
     );
-    await tx`ANALYZE area, area_relationship`;
-    return { area, area_relationship: areaRelationship };
+    await tx`
+      UPDATE core_source_area_neighbour neighbour
+      SET area_id = anchor.core_id, neighbour_area_id = peer.core_id
+      FROM core_area_map anchor, core_area_map peer
+      WHERE anchor.source_id = neighbour.area_id AND peer.source_id = neighbour.neighbour_area_id
+    `;
+    const areaNeighbour = await upsertGeography(
+      tx,
+      'area_neighbour',
+      manifest.files.area_neighbour.rows,
+    );
+    await tx`ANALYZE area, area_relationship, area_neighbour`;
+    return { area, area_relationship: areaRelationship, area_neighbour: areaNeighbour };
   });
 }

@@ -603,6 +603,20 @@
       "when": 1794583425664,
       "tag": "0085_cache-sparkline-periods",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794831928868,
+      "tag": "0086_area-neighbours",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1794831933574,
+      "tag": "0087_publish-area-neighbours",
+      "breakpoints": true
     }
   ]
 }

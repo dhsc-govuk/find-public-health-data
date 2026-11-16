@@ -270,6 +270,16 @@ export const publishedAreaRelationship = publishedSchema
   })
   .existing();
 
+export const publishedAreaNeighbour = publishedSchema
+  .view('area_neighbour', {
+    id: uuid('id').notNull(),
+    areaId: uuid('area_id').notNull(),
+    neighbourAreaId: uuid('neighbour_area_id').notNull(),
+    scheme: text('scheme').notNull(),
+    position: integer('position').notNull(),
+  })
+  .existing();
+
 export const publishedNoteType = publishedSchema
   .view('note_type', {
     id: uuid('id').notNull(),
