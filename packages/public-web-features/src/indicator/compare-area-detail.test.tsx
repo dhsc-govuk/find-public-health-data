@@ -18,12 +18,16 @@ const options = {
 };
 
 function mount(props: Parameters<typeof useCompareAreaDetail>[0] = options) {
-  const result = {} as { current: ReturnType<typeof useCompareAreaDetail> };
-  function Harness() {
+  const result = {} as {
+    current: ReturnType<typeof useCompareAreaDetail>;
+    rerender: (props: Parameters<typeof useCompareAreaDetail>[0]) => void;
+  };
+  function Harness(props: Parameters<typeof useCompareAreaDetail>[0]) {
     result.current = useCompareAreaDetail(props);
     return <div ref={result.current.ref} />;
   }
-  render(<Harness />);
+  const view = render(<Harness {...props} />);
+  result.rerender = (props) => view.rerender(<Harness {...props} />);
   return result;
 }
 
@@ -48,6 +52,52 @@ it('loads details without IntersectionObserver and retries failed regions and ne
   expect(result.current.areas[0]?.parent?.name).toBe('North East');
   expect(result.current.error).toBe(false);
   expect(fetcher).toHaveBeenCalledTimes(4);
+});
+
+it.each(['Statistical regions', 'NHS regions'])(
+  'does not request parents for %s, which has no configured parent type',
+  (group) => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    const result = mount({ ...options, group });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(false);
+  },
+);
+
+it('keeps failed neighbours visible through highlight changes until they load or are unhighlighted', async () => {
+  vi.stubGlobal('IntersectionObserver', undefined);
+  const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
+  vi.stubGlobal('fetch', fetcher);
+  const props = {
+    ...options,
+    areas: [
+      { code: 'E06000001', name: 'Hartlepool', parent: null },
+      { code: 'E06000047', name: 'County Durham', parent: null },
+    ],
+    params: new URLSearchParams('highlight=E06000001&highlight=E06000047'),
+  };
+  const result = mount(props);
+  await waitFor(() => expect(result.current.error).toBe(true));
+  const pending = Promise.withResolvers<void>();
+  fetcher.mockImplementation(async () => {
+    await pending.promise;
+    return Response.json({ neighbours: [{ code: 'E06000001', neighbours: ['E06000006'] }] });
+  });
+  result.rerender({ ...props, params: new URLSearchParams('highlight=E06000001') });
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(result.current.areas[0]?.neighbours).toBeUndefined();
+  expect(result.current.error).toBe(true);
+  result.rerender({ ...props, params: new URLSearchParams() });
+  expect(result.current.error).toBe(false);
+  result.rerender({ ...props, params: new URLSearchParams('highlight=E06000001') });
+  expect(result.current.error).toBe(true);
+  await act(async () => {
+    pending.resolve();
+  });
+  expect(result.current.areas[0]?.neighbours).toEqual(['E06000006']);
+  expect(result.current.error).toBe(false);
 });
 
 it('does not cache an unsuccessful neighbour response as an empty list', async () => {

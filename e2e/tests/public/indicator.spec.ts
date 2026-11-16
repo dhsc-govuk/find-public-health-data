@@ -658,6 +658,52 @@ test('retries unavailable comparison details when the user asks', async ({ page 
   await expect(panel.getByText(/could not be loaded/)).toHaveCount(0);
 });
 
+test('keeps the neighbours error visible when highlights change until missing neighbours load', async ({
+  page,
+}) => {
+  const pending = Promise.withResolvers<void>();
+  let failed = false;
+  await page.route('**/compare-areas?*', async (route) => {
+    if (!new URL(route.request().url()).searchParams.has('areaCode')) {
+      await route.continue();
+    } else if (!failed) {
+      failed = true;
+      await route.fulfill({ status: 503 });
+    } else {
+      await pending.promise;
+      await route.continue();
+    }
+  });
+  try {
+    await page.getByRole('tab', { name: 'Compare areas' }).click();
+    const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+    await expect(panel.getByRole('checkbox', { name: /^North East: all/ })).toBeVisible();
+    await panel.getByRole('checkbox', { name: 'Hartlepool', exact: true }).check();
+    const banner = panel.getByText(/Regions or statistical neighbours could not be loaded/);
+    await expect(banner).toBeVisible();
+    const request = page.waitForRequest((request) => {
+      const url = new URL(request.url());
+      return (
+        url.pathname === '/compare-areas' &&
+        url.searchParams.getAll('areaCode').includes('E06000047')
+      );
+    });
+    await panel.getByRole('checkbox', { name: 'County Durham', exact: true }).check();
+    await request;
+    await expect(banner).toBeVisible();
+    pending.resolve();
+    await expect(
+      panel.getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole('checkbox', { name: 'Statistical neighbours for County Durham' }),
+    ).toBeVisible();
+    await expect(banner).toHaveCount(0);
+  } finally {
+    pending.resolve();
+  }
+});
+
 test('plots trends, area comparisons, inequalities and paired indicators', async ({
   page,
 }, testInfo) => {

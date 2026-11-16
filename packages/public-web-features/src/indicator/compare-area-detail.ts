@@ -32,7 +32,7 @@ export function useCompareAreaDetail({
   const [parents, setParents] = useState<{ group: string; byCode: Map<string, Parent> }>();
   const [neighbours, setNeighbours] = useState(new Map<string, string[]>());
   const [parentsError, setParentsError] = useState('');
-  const [neighboursError, setNeighboursError] = useState('');
+  const [neighboursError, setNeighboursError] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -98,7 +98,6 @@ export function useCompareAreaDetail({
     if (!shown || !missingKey) return;
     const codes = missingKey.split(',').slice(0, MAX_NEIGHBOUR_AREAS_PER_REQUEST);
     const controller = new AbortController();
-    setNeighboursError('');
     const query = new URLSearchParams(codes.map((code) => ['areaCode', code]));
     void fetch(`/compare-areas?${query}`, { signal: controller.signal })
       .then((response) => {
@@ -115,9 +114,12 @@ export function useCompareAreaDetail({
           for (const code of codes) next.set(code, found.get(code) ?? []);
           return next;
         });
+        setNeighboursError((previous) => previous.filter((code) => !codes.includes(code)));
       })
       .catch(() => {
-        if (!controller.signal.aborted) setNeighboursError(missingKey);
+        if (!controller.signal.aborted) {
+          setNeighboursError((previous) => [...new Set([...previous, ...codes])]);
+        }
       });
     return () => controller.abort();
   }, [shown, missingKey, attempt]);
@@ -126,7 +128,7 @@ export function useCompareAreaDetail({
     ref,
     error:
       (needsParents && parents?.group !== group && parentsError === group) ||
-      (Boolean(missingKey) && neighboursError === missingKey),
+      missing.some((code) => neighboursError.includes(code)),
     retry: () => setAttempt((value) => value + 1),
     areas: withNeighbours(
       withParents,
