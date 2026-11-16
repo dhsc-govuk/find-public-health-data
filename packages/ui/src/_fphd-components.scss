@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "@not-govuk/sass-base" as *;
 
 // Each app frames its pages at its own width. AppShell tags the page with the audience.
@@ -524,15 +525,14 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
     white-space: normal;
   }
 
-  .govuk-tabs__panel .fphd-trend-table th:not([scope="colgroup"]),
+  .govuk-tabs__panel .fphd-trend-table th,
   .govuk-tabs__panel .fphd-trend-table td {
-    width: 120px;
-    min-width: 120px;
-    padding: 4px 6px;
+    padding: 4px 6px 4px 0;
     white-space: normal;
 
-    &:first-child {
-      padding-left: 0;
+    &.fphd-trend-table__benchmark-group,
+    &.fphd-trend-table__benchmark-cell {
+      padding-left: 6px;
     }
   }
 
@@ -1395,8 +1395,6 @@ body.govuk-frontend-supported .fphd-filter-card {
 }
 
 // Columns keep a minimum 135px width however few there are.
-.fphd-trend-table th,
-.fphd-trend-table td,
 .fphd-compare-table th,
 .fphd-compare-table td {
   min-width: 135px;
@@ -1526,7 +1524,7 @@ $fphd-sticky-gap: 6px;
   left: 0;
   height: 16px;
   border-radius: 8px;
-  background-color: govuk-colour("black", $variant: "tint-25");
+  background-color: color.adjust(govuk-colour("black", $variant: "tint-80"), $lightness: -15%);
   cursor: grab;
 
   // The bar's full height grabs the thumb, not just its 16px.
@@ -1539,14 +1537,13 @@ $fphd-sticky-gap: 6px;
     left: 0;
   }
 
-  &:hover,
-  &:active,
-  &--dragging {
-    background-color: govuk-colour("black");
+  &:hover {
+    background-color: govuk-colour("black", $variant: "tint-25");
   }
 
   &:active,
   &--dragging {
+    background-color: govuk-colour("black");
     cursor: grabbing;
   }
 }
@@ -1629,16 +1626,20 @@ thead .fphd-table__frozen {
   left: var(--fphd-frozen-offset, 0);
 }
 
+// 40% of the table's region: the window less the page's gutters.
+$fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
+
 @include govuk-media-query($until: tablet) {
   .fphd-table__frozen--second {
     position: static;
   }
 
   .fphd-table__frozen:not(.fphd-table__frozen--second) {
-    max-width: 40vw;
+    max-width: $fphd-frozen-cap;
     padding-right: govuk-spacing(2);
     white-space: normal;
-    overflow-wrap: anywhere;
+    // Not `anywhere`, which would shrink a min-content table's column to one character.
+    overflow-wrap: break-word;
   }
 }
 
@@ -1647,8 +1648,33 @@ thead .fphd-table__frozen {
   padding-bottom: 8px;
 }
 
+// The spine chart fills its cell, so a narrowest-width table gives the cell the chart's width.
+.fphd-table-scroll-wrapper .fphd-trend-table td.fphd-table__chart-cell {
+  box-sizing: content-box;
+  min-width: 166px;
+}
+
 .fphd-table-scroll-wrapper .fphd-trend-table {
   white-space: nowrap;
+}
+
+// Each column takes its narrowest width, headings and periods wrapping at their spaces, and
+// the table still fills its region when that is wider.
+.fphd-table-scroll-wrapper .fphd-trend-table {
+  width: min-content;
+  min-width: 100%;
+}
+
+.fphd-table-scroll-wrapper .fphd-trend-table tbody > tr > *,
+.fphd-topic-data .fphd-topic-data-table tbody > tr > * {
+  vertical-align: middle;
+}
+
+// The blank cells above the identifying columns draw nothing, not even the header's rule.
+.fphd-table-scroll-wrapper .fphd-trend-table thead td[aria-hidden="true"],
+.fphd-topic-data .fphd-topic-data-table thead td[aria-hidden="true"] {
+  padding: 0;
+  border-bottom: 0;
 }
 
 // Inside tables the trend tag stays on one line — the scroll wrapper absorbs the width —
@@ -2215,33 +2241,49 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 .fphd-topic-data .fphd-compare-table th,
 .fphd-topic-data .fphd-compare-table td {
   box-sizing: border-box;
-  min-width: 120px;
+  min-width: 0;
   white-space: normal;
-  padding: 4px 25px 4px 0;
+  padding: 4px 6px 4px 0;
+
+  &.fphd-trend-table__benchmark-group,
+  &.fphd-trend-table__benchmark-cell {
+    padding-left: 6px;
+  }
 }
 
-.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__period {
-  width: 16.5%;
+// Column widths come from the table's colgroup, and the table grows to their sum.
+.fphd-topic-data .fphd-topic-data-table {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  tbody th {
+    font-weight: 400;
+  }
+
+  // The trend column has a fixed width, so its tags wrap within it.
+  .fphd-trend-tag {
+    white-space: normal;
+  }
+
+  // GOV.UK's hint size would otherwise win over its small body size.
+  .fphd-topic-subtopic {
+    @include govuk-font-size($size: 16);
+  }
+
+  thead th[scope="colgroup"] {
+    vertical-align: middle;
+  }
 }
-.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__updated {
-  width: 13.5%;
+
+@include govuk-media-query($until: tablet) {
+  .fphd-topic-data-table__indicator-column {
+    width: $fphd-frozen-cap;
+  }
 }
 
 .fphd-topic-data .fphd-compare-table {
   width: 100%;
-  table-layout: auto;
-
-  th:first-child,
-  tbody td:first-child {
-    min-width: 240px;
-    max-width: none;
-    width: 25%;
-
-    @include govuk-media-query($until: tablet) {
-      min-width: 0;
-      max-width: 40vw;
-    }
-  }
 
   thead th {
     vertical-align: bottom;
