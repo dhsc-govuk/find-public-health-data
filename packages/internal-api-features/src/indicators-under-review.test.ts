@@ -21,6 +21,8 @@ import {
 
 const path = '/api/internal/indicators-under-review';
 const toReviewPath = '/api/internal/indicators-to-review';
+const scheduledPath = '/api/internal/indicators-scheduled';
+const awaitingPath = '/api/internal/updates-awaiting-decision';
 
 const row: IndicatorAdminListRow = {
   id: '00000000-0000-7000-8000-000000000001',
@@ -106,7 +108,7 @@ describe('GET /api/internal/indicators-under-review', () => {
       .get(path)
       .set('Cookie', await managerCookie());
 
-    expect(listUnderReview).toHaveBeenCalledWith({ all: true });
+    expect(listUnderReview).toHaveBeenCalledWith({ all: true }, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -152,7 +154,7 @@ describe('GET /api/internal/indicators-to-review', () => {
       .get(toReviewPath)
       .set('Cookie', await testSessionCookie(['publisher', 'imrg-reviewer']));
 
-    expect(listToReview).toHaveBeenCalledWith(TEST_USER_ID);
+    expect(listToReview).toHaveBeenCalledWith(TEST_USER_ID, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -175,8 +177,6 @@ describe('GET /api/internal/indicators-to-review', () => {
 });
 
 describe('GET /api/internal/indicators-scheduled', () => {
-  const scheduledPath = '/api/internal/indicators-scheduled';
-
   function adminCookie() {
     return testSessionCookie(['admin'], []);
   }
@@ -200,7 +200,7 @@ describe('GET /api/internal/indicators-scheduled', () => {
       .get(scheduledPath)
       .set('Cookie', await adminCookie());
 
-    expect(listScheduled).toHaveBeenCalledWith({ all: true });
+    expect(listScheduled).toHaveBeenCalledWith({ all: true }, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -223,8 +223,6 @@ describe('GET /api/internal/indicators-scheduled', () => {
 });
 
 describe('GET /api/internal/updates-awaiting-decision', () => {
-  const awaitingPath = '/api/internal/updates-awaiting-decision';
-
   function adminCookie() {
     return testSessionCookie(['admin'], []);
   }
@@ -248,7 +246,7 @@ describe('GET /api/internal/updates-awaiting-decision', () => {
       .get(awaitingPath)
       .set('Cookie', await adminCookie());
 
-    expect(listAwaitingDecision).toHaveBeenCalledWith({ all: true });
+    expect(listAwaitingDecision).toHaveBeenCalledWith({ all: true }, undefined);
   });
 
   it('rejects an anonymous request', async () => {
@@ -268,4 +266,55 @@ describe('GET /api/internal/updates-awaiting-decision', () => {
 
     expect(response.status).toBe(403);
   });
+});
+
+describe('the search on each queue', () => {
+  const ALL_ROLES = ['imrg-manager', 'imrg-reviewer', 'admin'];
+
+  function queues() {
+    const lists = {
+      listUnderReview: vi.fn().mockResolvedValue({ unassigned: [], assigned: [] }),
+      listToReview: vi.fn().mockResolvedValue([]),
+      listScheduled: vi.fn().mockResolvedValue([]),
+      listAwaitingDecision: vi.fn().mockResolvedValue([]),
+    };
+    const app = createTestApp(
+      lists.listUnderReview,
+      lists.listToReview,
+      lists.listScheduled,
+      lists.listAwaitingDecision,
+    );
+    return { app, lists };
+  }
+
+  it.each([
+    [path, 'listUnderReview'],
+    [toReviewPath, 'listToReview'],
+    [scheduledPath, 'listScheduled'],
+    [awaitingPath, 'listAwaitingDecision'],
+  ] as const)('%s lists the indicators matching a search', async (queuePath, list) => {
+    const { app, lists } = queues();
+
+    const response = await request(app)
+      .get(`${queuePath}?search=%20life%20expectancy%20`)
+      .set('Cookie', await testSessionCookie(ALL_ROLES, []));
+
+    expect(response.status).toBe(200);
+    expect(lists[list]).toHaveBeenCalledWith(expect.anything(), 'life expectancy');
+  });
+
+  it.each([path, toReviewPath, scheduledPath, awaitingPath])(
+    '%s rejects a search given twice',
+    async (queuePath) => {
+      const { app, lists } = queues();
+
+      const response = await request(app)
+        .get(`${queuePath}?search=a&search=b`)
+        .set('Cookie', await testSessionCookie(ALL_ROLES, []));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: 'invalid_search' });
+      expect(Object.values(lists).flatMap((list) => list.mock.calls)).toEqual([]);
+    },
+  );
 });

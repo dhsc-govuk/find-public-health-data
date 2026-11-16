@@ -2091,3 +2091,14 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 .govuk-notification-banner.fphd-notification-banner--red {
   --_govuk-notification-banner-colour: #{govuk-colour("red")};
 }
+
+// A search input with its button beside it, as on the dashboard.
+.fphd-inline-search {
+  display: flex;
+  align-items: flex-start;
+  gap: govuk-spacing(2);
+}
+
+.fphd-inline-search__input {
+  max-width: 30em;
+}

@@ -1,6 +1,7 @@
 import { and, asc, eq, exists, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 
 import type { Database } from './client.ts';
+import { escapeLike } from './like-pattern.ts';
 import {
   publishedArea as area,
   publishedAreaRelationship as areaRelationship,
@@ -26,7 +27,7 @@ export async function listIndicatorAreas(
   indicatorId: string,
   { displayGroup, query, limit, scope }: IndicatorAreaFilters = {},
 ): Promise<{ displayGroup: string; areas: AreaSummary[] }[]> {
-  const escaped = query?.replace(/[\\%_]/g, '\\$&');
+  const escaped = query === undefined ? undefined : escapeLike(query);
   const ranked = db
     .select({
       displayGroup: sql<string>`coalesce(${areaType.displayGroup}, ${areaType.name})`.as(
@@ -184,7 +185,7 @@ export async function searchAreas(
   query: string,
   limit: number,
 ): Promise<AreaLookup[]> {
-  const escaped = query.replace(/[\\%_]/g, '\\$&');
+  const escaped = escapeLike(query);
   return db
     .select({
       code: area.code,
