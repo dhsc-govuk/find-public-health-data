@@ -574,6 +574,9 @@ test('lists a highlighted council with only its statistical neighbours when its 
     'false',
   );
   await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
+  await panel.getByRole('checkbox', { name: /^North East: all/ }).uncheck();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('neighbours')).toEqual([]);
+  await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(1);
 });
 
 test('shows a council’s statistical neighbours from its checkbox without JavaScript', async ({
@@ -596,6 +599,12 @@ test('shows a council’s statistical neighbours from its checkbox without JavaS
       .check();
     await withoutJs.getByRole('button', { name: 'Show neighbours' }).click();
     await expect(withoutJs).toHaveURL(/neighbours=E06000001/);
+    await withoutJs.getByRole('button', { name: 'Show neighbours' }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    await withoutJs.getByLabel('Sort by:', { exact: true }).selectOption('alphabetical');
+    await withoutJs.getByRole('button', { name: 'Sort', exact: true }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('highlight')).toEqual(['E06000001']);
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
     const headers = withoutJs
       .getByRole('table', { name: /Table of area comparisons/ })
       .locator('tbody')
@@ -609,6 +618,8 @@ test('shows a council’s statistical neighbours from its checkbox without JavaS
     await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
     await withoutJs.getByRole('button', { name: 'Change geography type' }).click();
     expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    await withoutJs.getByRole('button', { name: 'Sort', exact: true }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual([]);
   } finally {
     await context.close();
   }

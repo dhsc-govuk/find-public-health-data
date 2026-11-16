@@ -30,6 +30,23 @@ function args(query: string): LoaderFunctionArgs {
 }
 
 describe('indicator view CSV', () => {
+  it.each(['england', 'quintiles'])(
+    'keeps missing CSV values and comparisons blank in %s mode',
+    async (colour) => {
+      const data = await loadIndicator(args(''));
+      vi.mocked(loadIndicator).mockResolvedValue({
+        ...data,
+        compareAreasData: [
+          ...areas,
+          { areaCode: 'E06000002', areaName: 'Missing', observations: [] },
+        ],
+      });
+      const lines = (
+        await (await loadIndicatorViewCsv(args(`tab-indicator=areas&areaColour=${colour}`))).text()
+      ).split('\n');
+      expect(lines).toContain('Missing,,,,');
+    },
+  );
   it('omits CI columns when the full area table has no intervals', async () => {
     const data = await loadIndicator(args(''));
     const withoutCi = (entries: typeof primary.areaData) =>

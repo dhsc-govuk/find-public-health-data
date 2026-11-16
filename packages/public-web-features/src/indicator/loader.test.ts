@@ -1,3 +1,4 @@
+import { MAX_NEIGHBOUR_AREAS_PER_REQUEST } from '@fphd/public-api-features/contract';
 import { rankingAreaSeries } from '@fphd/utils/observation-series';
 import { apiContext } from '@fphd/web-server/api-context';
 import {
@@ -110,6 +111,53 @@ function args(
 }
 
 describe('loadIndicator', () => {
+  it('loads neighbours for every SSR highlight in capped requests', async () => {
+    const areas = Array.from({ length: MAX_NEIGHBOUR_AREAS_PER_REQUEST + 1 }, (_, index) => ({
+      code: `E06${String(index).padStart(6, '0')}`,
+      name: `Area ${index}`,
+    }));
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [{ displayGroup: 'Local authorities', areas }],
+      'GET /api/areas/neighbours': (call) =>
+        areaCodes(call.path)
+          .slice(0, MAX_NEIGHBOUR_AREAS_PER_REQUEST)
+          .map((code) => ({ code, neighbours: ['E06000006'] })),
+    });
+    const query = new URLSearchParams([
+      ['tab-indicator', 'areas'],
+      ...areas.map(({ code }) => ['highlight', code]),
+    ]);
+    const result = await loadIndicator(
+      args(client, `http://localhost/indicator/indicator-108?${query}`),
+    );
+    expect(result.compareAreaOptions.every(({ neighbours }) => neighbours?.length === 1)).toBe(
+      true,
+    );
+    const requested = paths(client)
+      .filter((path) => path.startsWith('/api/areas/neighbours?'))
+      .map(areaCodes);
+    expect(requested.map((codes) => codes.length)).toEqual([MAX_NEIGHBOUR_AREAS_PER_REQUEST, 1]);
+    expect(requested.flat()).toEqual(areas.map(({ code }) => code));
+  });
+
+  it('keeps SSR indicator data and comparisons available when neighbours fail', async () => {
+    const client = api({
+      'GET /api/areas/neighbours': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?tab-indicator=areas&highlight=E00000000&neighbours=E00000000',
+      ),
+    );
+    expect(result.selected[0]?.detail.shortId).toBe(108);
+    expect(result.compareAreasData).toHaveLength(26);
+    expect(result.compareAreaOptions).toHaveLength(25);
+    expect(result.compareAreaOptions.every(({ neighbours }) => neighbours === undefined)).toBe(
+      true,
+    );
+  });
+
   it('defers observations and rankings on client navigations', async () => {
     const client = api();
     const gate = Promise.withResolvers<void>();

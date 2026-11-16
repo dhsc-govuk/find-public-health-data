@@ -84,9 +84,7 @@ export function AreaComparisonTable({
                   {benchmark ? ' (benchmark)' : ''}
                   {isPicked ? <span className="govuk-visually-hidden"> (highlighted)</span> : null}
                 </th>
-                <td className="govuk-table__cell">
-                  {cell.value === null ? '-' : formatCalculatedValue(cell.value)}
-                </td>
+                <td className="govuk-table__cell">{formatCalculatedValue(cell.value)}</td>
                 <td className="govuk-table__cell">{compare}</td>
                 <td
                   className="govuk-table__cell fphd-area-comparison-table__bar"

@@ -14,7 +14,7 @@ const VISIBLE_NEIGHBOUR_ANCHORS = 3;
 // How NHS England groups each upper tier council with its 15 most similar peers.
 const NEIGHBOUR_METHOD_URL = 'https://github.com/NHSDigital/ASC_LA_Peer_Groups';
 
-function useAreaParams(anchor: string) {
+function useAreaParams(anchor: string, areas: CompareAreaOption[]) {
   const location = useLocation();
   const navigate = useNavigate();
   const navigation = useNavigation();
@@ -24,6 +24,19 @@ function useAreaParams(anchor: string) {
       : location.search,
   );
   const action = `${location.pathname}#${anchor}`;
+  const pruneNeighbours = (values: URLSearchParams) => {
+    // Until parent regions load, region ticks can't be expanded, so their members would look unhighlighted.
+    if (
+      (values.has('highlightRegion') || values.has('highlightRegionBefore')) &&
+      areas.some(({ parent }) => parent === undefined)
+    )
+      return;
+    const highlighted = new Set(highlightedAreaCodes(values, areas));
+    for (const code of values.getAll('neighbours')) {
+      if (!highlighted.has(code)) values.delete('neighbours', code);
+    }
+  };
+  pruneNeighbours(params);
   const update = (key: string, value: string | string[]) => {
     const next = new URLSearchParams(params);
     next.delete(key);
@@ -33,6 +46,7 @@ function useAreaParams(anchor: string) {
       next.delete('highlightRegionBefore');
     }
     for (const entry of Array.isArray(value) ? value : [value]) if (entry) next.append(key, entry);
+    pruneNeighbours(next);
     void navigate(
       { search: `?${next}` },
       { replace: true, preventScrollReset: true, flushSync: true },
@@ -47,8 +61,8 @@ function useAreaParams(anchor: string) {
   return { params, action, update, hidden };
 }
 
-export function AreaSortControl() {
-  const { params, action, update, hidden } = useAreaParams('indicator-compare-areas');
+export function AreaSortControl({ areas }: { areas: CompareAreaOption[] }) {
+  const { params, action, update, hidden } = useAreaParams('indicator-compare-areas', areas);
   return (
     <Form method="get" action={action} className="fphd-area-sort">
       {hidden(['areaSort'])}
@@ -169,6 +183,7 @@ export function AreaControls({
 }) {
   const { params, action, update, hidden } = useAreaParams(
     displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators',
+    areas,
   );
   const highlighted = displayOptions
     ? highlightedAreaCodes(params, areas)

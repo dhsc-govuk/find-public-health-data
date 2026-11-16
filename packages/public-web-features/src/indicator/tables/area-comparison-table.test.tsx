@@ -82,7 +82,12 @@ it('puts highlighted areas above England, names the chart column, and drops empt
     'Comparison chart',
   ]);
   const nowhere = table.getByRole('rowheader', { name: 'Nowhere' }).closest('tr');
-  expect(nowhere?.textContent).toContain('No data');
+  if (!nowhere) throw new Error('Expected missing-value row');
+  expect(
+    within(nowhere)
+      .getAllByRole('cell')
+      .map((cell) => cell.textContent),
+  ).toEqual(['No data', 'No data']);
 });
 
 it('keeps CI columns when only the filtered-out areas have confidence intervals', () => {

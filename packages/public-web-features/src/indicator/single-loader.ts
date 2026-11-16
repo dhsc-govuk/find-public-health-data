@@ -226,18 +226,18 @@ async function loadIndicatorComparison(
     );
     const anchors =
       detailed && AREA_NEIGHBOUR_GROUPS.has(compareAreaGroup)
-        ? highlightedAreaCodes(url.searchParams, compareAreaOptions).slice(
-            0,
-            MAX_NEIGHBOUR_AREAS_PER_REQUEST,
-          )
+        ? highlightedAreaCodes(url.searchParams, compareAreaOptions)
         : [];
-    if (anchors.length) {
+    for (let offset = 0; offset < anchors.length; offset += MAX_NEIGHBOUR_AREAS_PER_REQUEST) {
+      const codes = anchors.slice(offset, offset + MAX_NEIGHBOUR_AREAS_PER_REQUEST);
       compareAreaOptions = withNeighbours(
         compareAreaOptions,
-        await api.get(
-          `/api/areas/neighbours?${anchors.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
-          areaNeighbourListSchema,
-        ),
+        await api
+          .get(
+            `/api/areas/neighbours?${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+            areaNeighbourListSchema,
+          )
+          .catch(() => []),
       );
     }
     const codes = [...compareAreaOptions.map(({ code }) => code), 'E92000001'];

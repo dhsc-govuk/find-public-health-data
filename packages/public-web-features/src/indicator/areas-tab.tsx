@@ -112,7 +112,7 @@ export function CompareAreasTab({
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <GridRow className="fphd-area-table-layout">
             <GridColumn width="one-half" className="fphd-area-table">
-              <AreaSortControl />
+              <AreaSortControl areas={areaOptions} />
               <AreaComparisonTable
                 indicator={primary}
                 model={comparison}

@@ -1,3 +1,4 @@
+import { MAX_NEIGHBOUR_AREAS_PER_REQUEST } from '@fphd/public-api-features/contract';
 import { useEffect, useRef, useState } from 'react';
 
 import {
@@ -95,7 +96,7 @@ export function useCompareAreaDetail({
   const missingKey = missing.join(',');
   useEffect(() => {
     if (!shown || !missingKey) return;
-    const codes = missingKey.split(',');
+    const codes = missingKey.split(',').slice(0, MAX_NEIGHBOUR_AREAS_PER_REQUEST);
     const controller = new AbortController();
     setNeighboursError('');
     const query = new URLSearchParams(codes.map((code) => ['areaCode', code]));
