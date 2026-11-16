@@ -25,4 +25,8 @@ describe('updateFrequencyText', () => {
       updateFrequencyText({ updateFrequency: 'no-fixed-frequency', updateFrequencyReason: null }),
     ).toBe('No fixed frequency');
   });
+
+  it('gives nothing for an indicator imported without a frequency', () => {
+    expect(updateFrequencyText({ updateFrequency: null, updateFrequencyReason: null })).toBeNull();
+  });
 });

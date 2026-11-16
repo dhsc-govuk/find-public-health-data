@@ -199,7 +199,7 @@ export interface IndicatorDetail {
   unit: string | null;
   /** Null for an indicator of months, which have no year type. */
   yearType: PublicYearType | null;
-  updateFrequency: UpdateFrequency;
+  updateFrequency: UpdateFrequency | null;
   /**
    * Why an indicator has no fixed frequency or will no longer be updated. Null beside any other
    * frequency, and beside those two for an indicator imported without one.
@@ -365,7 +365,7 @@ export async function getPublishedIndicatorsByIds(
   ]);
   return new Map(
     rows.flatMap((row): [string, IndicatorDetail][] => {
-      if (row.polarity === null || row.updateFrequency === null) return [];
+      if (row.polarity === null) return [];
       const sourcesOf = (part: IndicatorSourcePart) =>
         sources
           .filter((entry) => entry.indicatorId === row.id && entry.part === part)
