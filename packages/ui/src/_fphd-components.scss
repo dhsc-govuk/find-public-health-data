@@ -1124,6 +1124,22 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-left: 0;
 }
 
+.fphd-geo-alt--flat .fphd-geo-alt__region-areas {
+  margin-left: 45px;
+}
+
+// GOV.UK checkboxes have no part-ticked style, so a region with only some of its areas ticked
+// shows the tick's own ::after flattened to a dash.
+.fphd-geo-alt__group-cb .govuk-checkboxes__input:indeterminate + .govuk-checkboxes__label::after {
+  opacity: 1;
+  transform: none;
+  border-width: 0 0 3px;
+  width: 12px;
+  height: 0;
+  top: 19px;
+  left: 8px;
+}
+
 .fphd-indicator-chart {
   width: 100%;
   max-width: 780px;
@@ -1989,10 +2005,6 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   max-height: 20rem;
   overflow-y: auto;
   margin-top: 1rem;
-}
-
-.fphd-highlighted-area {
-  background: #ffdd00;
 }
 
 .fphd-topic-trend-counts .govuk-list > li {
