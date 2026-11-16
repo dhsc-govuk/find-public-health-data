@@ -191,7 +191,7 @@ describe('the preview views on the seeded database', () => {
     expect(previewed).toEqual([]);
   });
 
-  it('dates an update as if it were published now, or at its scheduled time', async () => {
+  it('dates an update as if it were published now, or at its scheduled time if that is later', async () => {
     const [published] = await sql<{ first: Date; data: Date | null }[]>`
       SELECT first_published_at AS first, data_updated_at AS data
       FROM published.indicator WHERE id = ${keepsBatch.indicatorId}
@@ -218,6 +218,16 @@ describe('the preview views on the seeded database', () => {
         `,
       );
       expect(later?.last).toEqual(scheduled);
+
+      await sql`UPDATE indicator_version SET scheduled_publish_at = '2026-01-01T09:30:00Z' WHERE id = ${keepsBatch.id}`;
+      const [overdue] = await inPreview(
+        keepsBatch.id,
+        (tx) => tx<{ last: Date; now: Date }[]>`
+          SELECT last_published_at AS last, now() AS now
+          FROM preview.indicator WHERE id = ${keepsBatch.indicatorId}
+        `,
+      );
+      expect(overdue?.last).toEqual(overdue?.now);
     } finally {
       await sql`UPDATE indicator_version SET scheduled_publish_at = NULL WHERE id = ${keepsBatch.id}`;
     }

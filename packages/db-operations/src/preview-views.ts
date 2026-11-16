@@ -21,8 +21,11 @@ import type postgres from 'postgres';
 /** The version the preview shows, or null when the transaction has not named one. */
 const PREVIEW_VERSION_ID = `NULLIF(pg_catalog.current_setting('fphd.preview_version_id', true), '')::uuid`;
 
-/** When the previewed version would be published: its scheduled time, or now if it has none. */
-const WOULD_BE_PUBLISHED_AT = `COALESCE(v.scheduled_publish_at, pg_catalog.now())`;
+/**
+ * When the previewed version would be published: its scheduled time, or now if it has none or that
+ * time has passed. The publication sweep publishes an overdue version when it next runs.
+ */
+const WOULD_BE_PUBLISHED_AT = `GREATEST(v.scheduled_publish_at, pg_catalog.now())`;
 
 /**
  * The batch of an indicator's current published version, for a query that has the indicator's
