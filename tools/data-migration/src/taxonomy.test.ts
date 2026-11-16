@@ -17,24 +17,33 @@ const classifications = data('classifications');
 const build = (input = source, selection?: number[]) =>
   taxonomyRelationships(input, topics, subtopics, classifications, selection);
 
+const idOfTopic = (title: string) =>
+  topics.find((topic: { title: string }) => topic.title === title).id;
+const idOfSubtopic = (topic: string, title: string) =>
+  subtopics.find(
+    (subtopic: { topicId: string; title: string }) =>
+      subtopic.topicId === idOfTopic(topic) && subtopic.title === title,
+  ).id;
+const nameOfClassification = (id: string) =>
+  classifications.find((classification: { id: string }) => classification.id === id).name;
+
 describe('the V2 workbook assignments', () => {
   it('reproduces the committed relationships without inferring memberships', () => {
     const file = build();
     expect(file).toEqual(data('published-indicator-topics'));
     expect(file.indicators).toHaveLength(881);
     expect(file.areaContextIndicators).toHaveLength(15);
-    expect(file.indicatorTopics.filter(({ isPrimary }) => isPrimary)).toHaveLength(866);
     expect(topics).toHaveLength(19);
-    expect(subtopics).toHaveLength(92);
-    expect(classifications).toHaveLength(28);
+    expect(subtopics).toHaveLength(86);
+    expect(classifications).toHaveLength(24);
   });
 
-  it('keeps two mortality subtopics for indicator 108 under one primary topic', () => {
+  it('keeps two mortality subtopics for indicator 108 under one topic', () => {
     const file = build(source, [108]);
-    expect(file.indicatorTopics).toHaveLength(1);
-    expect(file.indicatorTopics[0]?.isPrimary).toBe(true);
+    expect(file.indicatorTopics).toEqual([
+      { fingertipsId: 108, topicId: idOfTopic('Mortality and life expectancy') },
+    ]);
     expect(file.indicatorSubtopics).toHaveLength(2);
-    expect(file.indicatorSubtopics.filter(({ isPrimary }) => isPrimary)).toHaveLength(1);
   });
 
   it('leaves population indicators explicitly untagged as area context', () => {
@@ -53,16 +62,13 @@ describe('the V2 workbook assignments', () => {
 
   it('keeps the explicitly selected cancer dataset under its provisional reviewed placement', () => {
     const file = build(source, [276]);
-    const topicId = topics.find(({ title }: { title: string }) => title === 'Cancer').id;
-    const subtopicId = subtopics.find(
-      ({ topicId: parent, title }: { topicId: string; title: string }) =>
-        parent === topicId && title === 'All cancers',
-    ).id;
+    const topicId = idOfTopic('Cancer');
+    const subtopicId = idOfSubtopic('Cancer', 'All cancers');
     expect(file).toMatchObject({
       indicators: [276],
       areaContextIndicators: [],
-      indicatorTopics: [{ fingertipsId: 276, topicId, isPrimary: true }],
-      indicatorSubtopics: [{ fingertipsId: 276, topicId, subtopicId, isPrimary: true }],
+      indicatorTopics: [{ fingertipsId: 276, topicId }],
+      indicatorSubtopics: [{ fingertipsId: 276, topicId, subtopicId }],
       indicatorClassifications: [],
     });
     expect(build().indicators).toContain(276);
@@ -75,34 +81,99 @@ describe('the V2 workbook assignments', () => {
     expect(() => build(changed)).toThrow('Taxonomy contains duplicate indicator ids');
   });
 
-  it('rejects ambiguous primaries and unknown subtopics', () => {
-    const ambiguous = structuredClone(source);
-    const indicator = ambiguous.indicators.find(
+  it('rejects an unknown subtopic', () => {
+    const changed = structuredClone(source);
+    const indicator = changed.indicators.find(
       ({ fingertipsId }: { fingertipsId: number }) => fingertipsId === 108,
     );
-    indicator.placements[1].primary = true;
-    expect(() => build(ambiguous, [108])).toThrow('exactly one primary placement: 108');
-    indicator.placements[1].primary = false;
     indicator.placements[1].subtopic = 'Unreviewed guess';
-    expect(() => build(ambiguous, [108])).toThrow('Unknown taxonomy subtopic');
+    expect(() => build(changed, [108])).toThrow('Unknown taxonomy subtopic');
   });
 
-  it('keeps dental and sensory indicators at topic level', () => {
+  it('rejects a topic-level placement under a topic that has subtopics', () => {
+    const changed = structuredClone(source);
+    const indicator = changed.indicators.find(
+      ({ fingertipsId }: { fingertipsId: number }) => fingertipsId === 108,
+    );
+    indicator.placements[1].subtopic = 'Mortality and life expectancy';
+    expect(() => build(changed, [108])).toThrow(
+      'Taxonomy topic needs a subtopic: 108: Mortality and life expectancy',
+    );
+  });
+
+  it('gives every placement under a topic with subtopics one of them', () => {
+    const file = build();
+    const withSubtopics = new Set(subtopics.map(({ topicId }: { topicId: string }) => topicId));
+    const placed = new Set(
+      file.indicatorSubtopics.map(({ fingertipsId, topicId }) => `${fingertipsId}:${topicId}`),
+    );
+    expect(
+      file.indicatorTopics.filter(
+        ({ fingertipsId, topicId }) =>
+          withSubtopics.has(topicId) && !placed.has(`${fingertipsId}:${topicId}`),
+      ),
+    ).toEqual([]);
+  });
+
+  it('places the renamed heart topic and merges two cancers into Other cancers once', () => {
+    const changed = structuredClone(source);
+    const indicator = changed.indicators.find(
+      ({ fingertipsId }: { fingertipsId: number }) => fingertipsId === 108,
+    );
+    indicator.placements = [
+      { topic: 'Cancer', subtopic: 'Cervical cancer' },
+      { topic: 'Cancer', subtopic: 'Lung cancer' },
+      { topic: 'Heart and kidney disease', subtopic: 'Stroke' },
+    ];
+    const file = build(changed, [108]);
+    const heart = 'Heart, kidney and cardiovascular-related diseases';
+    expect(file.indicatorTopics.map(({ topicId }) => topicId)).toEqual([
+      idOfTopic('Cancer'),
+      idOfTopic(heart),
+    ]);
+    expect(file.indicatorSubtopics.map(({ subtopicId }) => subtopicId)).toEqual([
+      idOfSubtopic('Cancer', 'Other cancers'),
+      idOfSubtopic(heart, 'Stroke'),
+    ]);
+  });
+
+  it('keeps dental, sensory and musculoskeletal indicators at topic level', () => {
+    const levelTopics = [
+      'Dental and oral health',
+      'Sight and hearing',
+      'Muscles, bones and joints',
+    ];
     const ids = source.indicators
       .filter((indicator: { placements: { topic: string }[] }) =>
-        indicator.placements.some(
-          ({ topic }) => topic === 'Dental and oral health' || topic === 'Sight and hearing',
-        ),
+        indicator.placements.some(({ topic }) => levelTopics.includes(topic)),
       )
       .map(({ fingertipsId }: { fingertipsId: number }) => fingertipsId);
     const file = build(source, ids);
-    const topicIds = new Set(
-      topics
-        .filter(({ title }: { title: string }) =>
-          ['Dental and oral health', 'Sight and hearing'].includes(title),
-        )
-        .map(({ id }: { id: string }) => id),
-    );
+    const topicIds = new Set(levelTopics.map(idOfTopic));
+    expect(
+      file.indicatorTopics.filter(({ topicId }) => topicIds.has(topicId)).length,
+    ).toBeGreaterThan(0);
     expect(file.indicatorSubtopics.filter(({ topicId }) => topicIds.has(topicId))).toEqual([]);
+  });
+
+  it('maps the measure types, frameworks and life stages onto the service names', () => {
+    const names = build().indicatorClassifications.map(({ classificationId }) =>
+      nameOfClassification(classificationId),
+    );
+    expect(names).toContain('Screening or testing');
+    expect(names).toContain('Public Health Outcomes Framework (PHOF)');
+    expect(names).toContain('Children (0 to 15 years old)');
+    expect(names).not.toContain('Quality and Outcomes Framework');
+  });
+
+  it('rejects a tag the maps do not name', () => {
+    const changed = structuredClone(source);
+    const indicator = changed.indicators.find(
+      ({ fingertipsId }: { fingertipsId: number }) => fingertipsId === 108,
+    );
+    indicator.programmes = ['Unreviewed programme'];
+    expect(() => build(changed, [108])).toThrow(
+      'Unknown taxonomy tag: framework: Unreviewed programme',
+    );
   });
 });

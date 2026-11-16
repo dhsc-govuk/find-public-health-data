@@ -162,23 +162,11 @@ describe('createDraftFromPublished', () => {
           .select({
             topicId: schema.indicatorVersionSubtopic.topicId,
             subtopicId: schema.indicatorVersionSubtopic.subtopicId,
-            isPrimary: schema.indicatorVersionSubtopic.isPrimary,
           })
           .from(schema.indicatorVersionSubtopic)
           .where(eq(schema.indicatorVersionSubtopic.indicatorVersionId, versionId))
           .orderBy(schema.indicatorVersionSubtopic.subtopicId);
-      const primaryTopics = async (versionId: string) =>
-        db
-          .select({ topicId: indicatorVersionTopic.topicId })
-          .from(indicatorVersionTopic)
-          .where(
-            and(
-              eq(indicatorVersionTopic.indicatorVersionId, versionId),
-              eq(indicatorVersionTopic.isPrimary, true),
-            ),
-          );
       expect(await placements(result.versionId)).toEqual(await placements(publishedId));
-      expect(await primaryTopics(result.versionId)).toEqual(await primaryTopics(publishedId));
       await updateIndicatorDraft(
         db,
         target,
@@ -188,7 +176,6 @@ describe('createDraftFromPublished', () => {
         AS_ACTOR,
       );
       expect(await placements(result.versionId)).toEqual(await placements(publishedId));
-      expect(await primaryTopics(result.versionId)).toEqual(await primaryTopics(publishedId));
     },
   );
 
@@ -516,16 +503,11 @@ describe('getPublishedAnswers', () => {
         .set({ hasLifeStage: true, hasFramework: true, ageType: 'range' })
         .where(eq(indicatorVersion.id, currentId));
       await db.insert(indicatorVersionTopic).values([
-        { indicatorVersionId: currentId, topicId: primary.topicId, isPrimary: true },
+        { indicatorVersionId: currentId, topicId: primary.topicId },
         { indicatorVersionId: currentId, topicId: secondary.topicId },
       ]);
       await db.insert(schema.indicatorVersionSubtopic).values([
-        {
-          indicatorVersionId: currentId,
-          topicId: primary.topicId,
-          subtopicId: primary.id,
-          isPrimary: true,
-        },
+        { indicatorVersionId: currentId, topicId: primary.topicId, subtopicId: primary.id },
         { indicatorVersionId: currentId, topicId: secondary.topicId, subtopicId: secondary.id },
       ]);
       await db.insert(indicatorVersionClassification).values(
@@ -557,8 +539,8 @@ describe('getPublishedAnswers', () => {
       expect(published).toMatchObject({
         numeratorSources: [liveBirths, onsAlone],
         ageRanges: [sixteenPlus, underFive],
-        primaryTopicId: primary.topicId,
-        primarySubtopicId: primary.id,
+        topicIds: expect.arrayContaining([primary.topicId, secondary.topicId]),
+        subtopicIds: expect.arrayContaining([primary.id, secondary.id]),
       });
       expect(published.classifications).toHaveLength(3);
       expect(

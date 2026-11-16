@@ -39,15 +39,17 @@ describe('taggingServerSection', () => {
       await fieldErrorsOf({
         ...tagging,
         topicIds: [TAGS.type],
-        primaryTopicId: TAGS.type,
         lifeStageIds: ['019fa38f-073f-764e-9ac6-1c4d03b10999'],
         hasFramework: 'yes',
         frameworkIds: [TAGS.topic],
+        hasRiskFactor: 'yes',
+        riskFactorIds: [TAGS.lifeStage],
       }),
     ).toEqual({
       topicIds: 'Select a topic from the list',
-      lifeStageIds: 'Select a life stage from the list',
       frameworkIds: 'Select a framework or programme from the list',
+      lifeStageIds: 'Select a life stage from the list',
+      riskFactorIds: 'Select a risk factor from the list',
     });
   });
 
@@ -57,27 +59,31 @@ describe('taggingServerSection', () => {
     ).toBeUndefined();
   });
 
-  it('requires subtopics to belong to the selected topics and the primary subtopic to its primary topic', async () => {
+  describe('subtopics', () => {
     const child = '019fa38f-073f-764e-9ac6-1c4d03b10100';
     const options = {
       ...tagOptions,
       subtopics: [{ id: child, name: 'A subtopic', topicId: TAGS.topic }],
     };
-    const values = { ...tagging, subtopicIds: [child], primarySubtopicId: child };
-    expect(await fieldErrorsOf({ ...values, primaryTopicId: TAGS.topic }, options)).toBeUndefined();
-    expect(await fieldErrorsOf(values, options)).toEqual({
-      primarySubtopicId: 'Select a primary subtopic belonging to the primary topic',
+
+    it('accepts a subtopic under a topic added', async () => {
+      expect(await fieldErrorsOf({ ...tagging, subtopicIds: [child] }, options)).toBeUndefined();
     });
-    expect(await fieldErrorsOf({ ...values, topicIds: [TAGS.otherTopic] }, options)).toEqual({
-      subtopicIds: 'Select subtopics belonging to the topics added',
-      primarySubtopicId: 'Select a primary subtopic belonging to the primary topic',
+
+    it('refuses a subtopic whose topic is not added', async () => {
+      expect(
+        await fieldErrorsOf(
+          { ...tagging, topicIds: [TAGS.otherTopic], subtopicIds: [child] },
+          options,
+        ),
+      ).toEqual({ subtopicIds: 'Select subtopics belonging to the topics added' });
     });
-    expect(
-      await fieldErrorsOf(
-        { ...values, primaryTopicId: TAGS.topic, primarySubtopicId: '' },
-        options,
-      ),
-    ).toEqual({ primarySubtopicId: 'Select a primary subtopic belonging to the primary topic' });
+
+    it('refuses a topic that has subtopics without one of them', async () => {
+      expect(await fieldErrorsOf(tagging, options)).toEqual({
+        subtopicIds: 'Select a subtopic for Alcohol',
+      });
+    });
   });
 });
 

@@ -1,17 +1,6 @@
 import { z } from '@fphd/config';
 import { SLUG_PATTERN } from '@fphd/utils/slug';
-import { sql } from 'drizzle-orm';
-import {
-  boolean,
-  foreignKey,
-  index,
-  pgTable,
-  primaryKey,
-  text,
-  unique,
-  uniqueIndex,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { foreignKey, index, pgTable, primaryKey, text, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { timestamps, uuidPrimaryKey } from './helpers.ts';
 import { indicatorVersion } from './indicator.ts';
@@ -34,7 +23,6 @@ export const indicatorVersionTopic = pgTable(
   {
     indicatorVersionId: uuid().notNull(),
     topicId: uuid().notNull(),
-    isPrimary: boolean().notNull().default(false),
   },
   (t) => [
     primaryKey({ name: 'indicator_version_topic_pk', columns: [t.indicatorVersionId, t.topicId] }),
@@ -49,9 +37,6 @@ export const indicatorVersionTopic = pgTable(
       foreignColumns: [topic.id],
     }),
     index('idx_indicator_version_topic_topic').on(t.topicId),
-    uniqueIndex('idx_indicator_version_topic_primary')
-      .on(t.indicatorVersionId)
-      .where(sql`${t.isPrimary}`),
   ],
 );
 
@@ -91,7 +76,6 @@ export const indicatorVersionSubtopic = pgTable(
     indicatorVersionId: uuid().notNull(),
     topicId: uuid().notNull(),
     subtopicId: uuid().notNull(),
-    isPrimary: boolean().notNull().default(false),
   },
   (t) => [
     primaryKey({
@@ -108,9 +92,6 @@ export const indicatorVersionSubtopic = pgTable(
       columns: [t.subtopicId, t.topicId],
       foreignColumns: [subtopic.id, subtopic.topicId],
     }),
-    uniqueIndex('idx_indicator_version_subtopic_primary')
-      .on(t.indicatorVersionId)
-      .where(sql`${t.isPrimary}`),
     index('idx_indicator_version_subtopic_subtopic').on(t.subtopicId),
   ],
 );

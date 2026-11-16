@@ -9,6 +9,33 @@ const ACTOR = schema.SYSTEM_USER_IDS.testSeed;
 let testDb: TestDb;
 let db: Database;
 
+/**
+ * The classifications' order as the core data gives it. Older people comes before Children, so
+ * the order cannot be by name. The two measure types share a position, so they fall back to it.
+ */
+const POSITIONS: Readonly<Record<string, number>> = { 'Older people': 1, Children: 2 };
+
+/** The classifications inserted, as the core data file would give them. */
+const CLASSIFICATIONS: Omit<typeof schema.classification.$inferInsert, 'position'>[] = [
+  { dimension: 'indicator_type', slug: 'indicator-type-outcome', name: 'Outcome' },
+  {
+    dimension: 'indicator_type',
+    slug: 'indicator-type-healthcare-utilisation',
+    name: 'Healthcare utilisation',
+  },
+  { dimension: 'life_stage', slug: 'life-stage-children', name: 'Children' },
+  { dimension: 'life_stage', slug: 'life-stage-older-people', name: 'Older people' },
+  {
+    dimension: 'framework',
+    slug: 'framework-public-health-outcomes-framework',
+    name: 'Public Health Outcomes Framework',
+  },
+  { dimension: 'risk_factor', slug: 'risk-factor-gambling', name: 'Gambling' },
+  { dimension: 'risk_factor', slug: 'risk-factor-violence', name: 'Violence' },
+  { dimension: 'population', slug: 'population-all-ages', name: 'All ages' },
+  { dimension: 'inequality', slug: 'inequality-sex', name: 'Sex' },
+];
+
 /** Each inserted row's id by the name the page shows. */
 const ids = new Map<string, string>();
 
@@ -33,23 +60,7 @@ beforeAll(async () => {
     .returning({ id: schema.topic.id, name: schema.topic.title });
   const classifications = await db
     .insert(schema.classification)
-    .values([
-      { dimension: 'indicator_type', slug: 'indicator-type-outcome', name: 'Outcome' },
-      {
-        dimension: 'indicator_type',
-        slug: 'indicator-type-healthcare-utilisation',
-        name: 'Healthcare utilisation',
-      },
-      { dimension: 'life_stage', slug: 'life-stage-children', name: 'Children' },
-      { dimension: 'life_stage', slug: 'life-stage-older-people', name: 'Older people' },
-      {
-        dimension: 'framework',
-        slug: 'framework-public-health-outcomes-framework',
-        name: 'Public Health Outcomes Framework',
-      },
-      { dimension: 'population', slug: 'population-all-ages', name: 'All ages' },
-      { dimension: 'inequality', slug: 'inequality-sex', name: 'Sex' },
-    ])
+    .values(CLASSIFICATIONS.map((record) => ({ ...record, position: POSITIONS[record.name] ?? 0 })))
     .returning({ id: schema.classification.id, name: schema.classification.name });
 
   for (const { id, name } of [...topics, ...classifications]) ids.set(name, id);
@@ -68,7 +79,7 @@ afterAll(async () => {
 });
 
 describe('listTagOptions', () => {
-  it('lists the topics and each tagged dimension by name, leaving the other dimensions out', async () => {
+  it('lists the topics by name and each tagged dimension in order, leaving the others out', async () => {
     const option = (name: string) => ({ id: idOf(name), name });
 
     await expect(listTagOptions(db)).resolves.toEqual({
@@ -78,8 +89,9 @@ describe('listTagOptions', () => {
         { ...option('Treatment'), topicId: idOf('Alcohol') },
       ],
       indicatorTypes: [option('Healthcare utilisation'), option('Outcome')],
-      lifeStages: [option('Children'), option('Older people')],
       frameworks: [option('Public Health Outcomes Framework')],
+      lifeStages: [option('Older people'), option('Children')],
+      riskFactors: [option('Gambling'), option('Violence')],
     });
   });
 });

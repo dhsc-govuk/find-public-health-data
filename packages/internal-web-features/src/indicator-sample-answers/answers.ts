@@ -23,6 +23,7 @@ import {
   publishingDateSection,
   sexGenderAndEthnicityAnswersSchema,
   sexGenderAndEthnicitySection,
+  subtopicsOf,
   type TagOptions,
   taggingAnswersSchema,
   taggingSection,
@@ -109,6 +110,10 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
   const { valueTypesAndUnits, ciMethods, dataProviders, tags } = options;
   const sources = [{ providerId: first(dataProviders, 'data provider').id, sourceId: null }];
   const topicId = first(tags.topics, 'topic').id;
+  // A topic with subtopics is tagged with one of them.
+  const subtopicIds = subtopicsOf(tags, topicId)
+    .slice(0, 1)
+    .map(({ id }) => id);
 
   return [
     text(valueTypeAndUnitsSection, {
@@ -163,14 +168,15 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       taggingSection,
       {
         topicIds: [topicId],
-        primaryTopicId: topicId,
-        subtopicIds: [],
-        primarySubtopicId: '',
+        subtopicIds,
         indicatorTypeIds: [first(tags.indicatorTypes, 'indicator type').id],
-        hasLifeStage: 'no',
-        lifeStageIds: [],
         hasFramework: 'no',
         frameworkIds: [],
+        phofIndicatorNumber: '',
+        hasLifeStage: 'no',
+        lifeStageIds: [],
+        hasRiskFactor: 'no',
+        riskFactorIds: [],
       },
       taggingAnswersSchema,
     ),

@@ -46,7 +46,13 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   benchmarking: benchmarkingSection.fields.options,
   'sex-gender-and-ethnicity': sexGenderAndEthnicitySection.fields.options,
   ages: agesSection.fields.options,
-  tagging: [...UNORDERED_LISTS, 'primaryTopicId', 'isAreaContext', 'hasLifeStage', 'hasFramework'],
+  tagging: [
+    ...UNORDERED_LISTS,
+    'hasFramework',
+    'phofIndicatorNumber',
+    'hasLifeStage',
+    'hasRiskFactor',
+  ],
   'update-summary': updateSummarySection.fields.options,
 };
 

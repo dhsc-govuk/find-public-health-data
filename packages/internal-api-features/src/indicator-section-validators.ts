@@ -18,6 +18,8 @@ import {
   SELECT_DATA_PROVIDER,
   SELECT_UNITS,
   SELECT_VALUE_TYPE,
+  subtopicRequiredMessage,
+  subtopicsOf,
   TAG_LIST_DETAILS,
   TAG_LISTS,
   type Tagging,
@@ -43,14 +45,16 @@ import type {
   InternalValueTypeAndUnitRepository,
 } from './repositories.ts';
 
-/** The form's schema, then that every tag asked for is one the page offers under its question. */
+/**
+ * The form's schema, then that every tag asked for is one the page offers under its question,
+ * that each subtopic is under a topic added, and that each topic with subtopics has one.
+ */
 export function taggingServerSection(
   tags: InternalTagRepository,
 ): IndicatorSection<TaggingField, Tagging, TaggingFormValues, TaggingField, TaggingAnswers> {
   return {
     ...taggingSection,
     schema: taggingSection.schema.transform(async (answers, ctx) => {
-      if (answers.isAreaContext === 'yes') return answers;
       const options = await tags.listOptions();
       let refused = false;
 
@@ -74,17 +78,17 @@ export function taggingServerSection(
         });
         refused = true;
       }
-      const primaryChildren = selectedSubtopics.filter(
-        ({ topicId }) => topicId === answers.primaryTopicId,
+      const withoutSubtopic = options.topics.find(
+        ({ id }) =>
+          answers.topicIds.includes(id) &&
+          subtopicsOf(options, id).length > 0 &&
+          !selectedSubtopics.some(({ topicId }) => topicId === id),
       );
-      if (
-        (primaryChildren.length > 0 || answers.primarySubtopicId !== '') &&
-        !primaryChildren.some(({ id }) => id === answers.primarySubtopicId)
-      ) {
+      if (withoutSubtopic !== undefined) {
         ctx.addIssue({
           code: 'custom',
-          path: ['primarySubtopicId'],
-          message: 'Select a primary subtopic belonging to the primary topic',
+          path: ['subtopicIds'],
+          message: subtopicRequiredMessage(withoutSubtopic),
         });
         refused = true;
       }

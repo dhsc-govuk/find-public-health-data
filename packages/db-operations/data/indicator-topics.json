@@ -4,165 +4,136 @@
   "indicatorTopics": [
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
-      "fingertipsId": 108,
-      "isPrimary": true
+      "fingertipsId": 108
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edb8e3fdd4b8",
-      "fingertipsId": 241,
-      "isPrimary": true
+      "fingertipsId": 241
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edb3edd0ffbc",
-      "fingertipsId": 40501,
-      "isPrimary": true
+      "fingertipsId": 40501
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
-      "fingertipsId": 40501,
-      "isPrimary": false
+      "fingertipsId": 40501
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3159517a82",
-      "fingertipsId": 90851,
-      "isPrimary": true
+      "fingertipsId": 90851
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3099dc95e7",
-      "fingertipsId": 92026,
-      "isPrimary": true
+      "fingertipsId": 92026
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3099dc95e7",
-      "fingertipsId": 92033,
-      "isPrimary": true
+      "fingertipsId": 92033
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3099dc95e7",
-      "fingertipsId": 92443,
-      "isPrimary": true
+      "fingertipsId": 92443
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
-      "fingertipsId": 93622,
-      "isPrimary": true
+      "fingertipsId": 93622
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3159517a82",
-      "fingertipsId": 93861,
-      "isPrimary": true
+      "fingertipsId": 93861
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
-      "fingertipsId": 93861,
-      "isPrimary": false
+      "fingertipsId": 93861
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edb8e3fdd4b8",
-      "fingertipsId": 93995,
-      "isPrimary": true
+      "fingertipsId": 93995
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
-      "fingertipsId": 93995,
-      "isPrimary": false
+      "fingertipsId": 93995
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
-      "fingertipsId": 94194,
-      "isPrimary": true
+      "fingertipsId": 94194
     }
   ],
   "indicatorSubtopics": [
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
       "subtopicId": "01a15bd8-dac0-7004-9175-39ef2b2888fe",
-      "fingertipsId": 108,
-      "isPrimary": true
+      "fingertipsId": 108
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
       "subtopicId": "01a15bd8-dac0-7004-9175-39ed7304a50d",
-      "fingertipsId": 108,
-      "isPrimary": false
+      "fingertipsId": 108
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edb8e3fdd4b8",
       "subtopicId": "01a15bd8-dac0-7004-9175-39fe82a6643b",
-      "fingertipsId": 241,
-      "isPrimary": true
+      "fingertipsId": 241
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edb3edd0ffbc",
       "subtopicId": "01a15bd8-dac0-7004-9175-39f2106f3ce5",
-      "fingertipsId": 40501,
-      "isPrimary": true
+      "fingertipsId": 40501
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
       "subtopicId": "01a15bd8-dac0-7004-9175-39ef2b2888fe",
-      "fingertipsId": 40501,
-      "isPrimary": false
+      "fingertipsId": 40501
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3159517a82",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a36c6220de2",
-      "fingertipsId": 90851,
-      "isPrimary": true
+      "fingertipsId": 90851
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3099dc95e7",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a3343a50906",
-      "fingertipsId": 92026,
-      "isPrimary": true
+      "fingertipsId": 92026
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3099dc95e7",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a3343a50906",
-      "fingertipsId": 92033,
-      "isPrimary": true
+      "fingertipsId": 92033
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3099dc95e7",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a30eed415bf",
-      "fingertipsId": 92443,
-      "isPrimary": true
+      "fingertipsId": 92443
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc440dd6701",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a08b2a7b87f",
-      "fingertipsId": 93622,
-      "isPrimary": true
+      "fingertipsId": 93622
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c3159517a82",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a3a46ca5f5b",
-      "fingertipsId": 93861,
-      "isPrimary": true
+      "fingertipsId": 93861
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
       "subtopicId": "01a15bd8-dac0-7004-9175-39ee6523d3ae",
-      "fingertipsId": 93861,
-      "isPrimary": false
+      "fingertipsId": 93861
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edb8e3fdd4b8",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a00d872b2c5",
-      "fingertipsId": 93995,
-      "isPrimary": true
+      "fingertipsId": 93995
     },
     {
       "topicId": "019f93b8-2b47-75d0-b03a-edc56969334f",
       "subtopicId": "01a15bd8-dac0-7004-9175-39ee6523d3ae",
-      "fingertipsId": 93995,
-      "isPrimary": false
+      "fingertipsId": 93995
     },
     {
       "topicId": "01a15bd5-b819-7198-9a23-2c2c9834e0f9",
       "subtopicId": "01a15bd8-dac0-7004-9175-3a1e2ff496c8",
-      "fingertipsId": 94194,
-      "isPrimary": true
+      "fingertipsId": 94194
     }
   ]
 }

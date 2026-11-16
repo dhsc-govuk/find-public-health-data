@@ -270,16 +270,16 @@ const CHANGED_SECTIONS: Readonly<
     ageDetail: 'text',
   }),
   tagging: sectionOf(taggingSection, taggingColumns, {
-    isAreaContext: (value) => (value === 'yes' ? 'Yes' : 'No'),
     topicIds: namedList,
-    primaryTopicId: named,
     subtopicIds: namedList,
-    primarySubtopicId: named,
     indicatorTypeIds: namedList,
-    hasLifeStage: yesNo,
-    lifeStageIds: namedList,
     hasFramework: yesNo,
     frameworkIds: namedList,
+    phofIndicatorNumber: entered,
+    hasLifeStage: yesNo,
+    lifeStageIds: namedList,
+    hasRiskFactor: yesNo,
+    riskFactorIds: namedList,
   }),
 };
 

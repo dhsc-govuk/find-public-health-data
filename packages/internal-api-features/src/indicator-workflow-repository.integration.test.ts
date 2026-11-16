@@ -358,7 +358,7 @@ describe('submitIndicator', () => {
           uploadBatchId: batch?.id,
           dataTableConfirmedAt: new Date(),
         },
-        { topicIds, primaryTopicId: published?.topicId ?? null },
+        { topicIds },
       );
 
       await expect(submitIndicator(db, indicatorId, shown, AS_ACTOR)).resolves.toEqual({
