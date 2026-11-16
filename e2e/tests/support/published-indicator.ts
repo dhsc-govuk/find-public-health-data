@@ -1,5 +1,6 @@
 import { type Browser, expect, type Page } from '@playwright/test';
 
+import { addInviteeAccess } from './private-beta.ts';
 import { approvedIndicator, asUser } from './review-response.ts';
 import { ADMIN } from './sign-in.ts';
 import { ukDateTime } from './uk-date-time.ts';
@@ -49,6 +50,9 @@ export function publicIndicatorUrl(name: string) {
  * sweep, in case the first one misses the indicator.
  */
 export async function waitForPublication(page: Page, name: string, publishAt: number) {
+  // Without the invitee's access, public-web would send the request to the private beta page,
+  // which answers 200 whether or not the indicator is published.
+  await addInviteeAccess(page.context());
   await expect
     .poll(async () => (await page.request.get(publicIndicatorUrl(name))).status(), {
       timeout: publishAt + 65_000 - Date.now(),
