@@ -39,6 +39,18 @@ describe('backLinkFrom', () => {
     });
   });
 
+  it('derives the text from the loader data, for a route reached from more than one page', () => {
+    const handle = backLinkHandle<{ from: string }>(
+      (data) => `/${data.from}`,
+      (data) => `Back to ${data.from}`,
+    );
+
+    expect(
+      backLinkFrom([root, match({ id: 'leaf', handle, loaderData: { from: 'task-list' } })]),
+    ).toEqual({ href: '/task-list', text: 'Back to task-list' });
+    expect(backLinkFrom([root, match({ id: 'leaf', handle })])).toBeUndefined();
+  });
+
   it('leaves a data-derived back link out when the loader did not run', () => {
     const handle = backLinkHandle<{ id: string }>((data) => data.id);
 
