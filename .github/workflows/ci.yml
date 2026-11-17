@@ -251,6 +251,24 @@ jobs:
           name: playwright-report-${{ matrix.report }}
           path: e2e/playwright-report
 
+      # Each container's log, so a failed request in the report can be followed into the apps by
+      # its x-fphd-request-id. docker logs rather than docker compose logs, which would need every
+      # variable the stack started with.
+      - name: Save the container logs
+        if: ${{ failure() }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/container-logs"
+          for name in $(docker ps --all --format '{{.Names}}'); do
+            docker logs --timestamps "${name}" > "${RUNNER_TEMP}/container-logs/${name}.log" 2>&1
+          done
+
+      - name: Upload the container logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: container-logs-${{ matrix.report }}
+          path: ${{ runner.temp }}/container-logs
+
   # Per-route work budgets, checked against tools/perf/baseline.json. Counts rather than timings:
   # the SQL statements, database pages and rows each route costs, and its response size, which do
   # not drift with runner noise. Time is only checked against generous absolute limits. Beside
