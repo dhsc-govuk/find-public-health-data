@@ -16,13 +16,17 @@ vi.mock('./geographies.tsx', () => ({ TopicGeographies: () => null }));
 
 type Props = ComponentProps<typeof TopicOverview>;
 
-function card(observations: IndicatorObservation[], detail: Partial<SelectedIndicator['detail']>) {
+function card(
+  observations: IndicatorObservation[],
+  detail: Partial<SelectedIndicator['detail']>,
+  topicSlug = 'diabetes',
+) {
   const entry = selected();
   const html = renderToStaticMarkup(
     <MemoryRouter>
       <TopicOverview
         topic={
-          { slug: 'diabetes', title: 'Diabetes', description: 'About diabetes' } as Props['topic']
+          { slug: topicSlug, title: 'Diabetes', description: 'About diabetes' } as Props['topic']
         }
         overview={{
           search: EMPTY_SEARCH_STATE as Props['overview']['search'],
@@ -127,6 +131,34 @@ it('labels the prevalence numerator as Count and expands summary and accessible 
   );
   expect(doc.querySelectorAll('.govuk-summary-list__value')[2]?.innerHTML).toBe('7.9%');
 });
+
+it.each(['per 1,000', 'per 1,000 live births'])(
+  'preserves the source unit %s in the mortality value and description without repeating it in captions',
+  (unit) => {
+    const doc = card(
+      [3.9, 4.2].map((value, index) => ({
+        ...observation(value),
+        fromDate: `${2021 + index}-01-01`,
+        toDate: `${2023 + index}-12-31`,
+        count: null,
+        numerator: 7117,
+      })),
+      { name: 'Infant mortality rate', unit },
+      'mortality-and-life-expectancy',
+    );
+    expect(summary(doc).slice(0, 3)).toEqual([
+      ['Most recent period', '2022 to 2024'],
+      ['Count', '7,117'],
+      ['Calculated value', `4.2 ${unit}`],
+    ]);
+    expect(doc.querySelector('desc')?.textContent).toBe(
+      `Infant mortality rate, England: rising from 3.9 ${unit} in 2021 to 2023, to 4.2 in 2022 to 2024`,
+    );
+    expect(
+      [...doc.querySelectorAll('.fphd-sparkline__endpoints > span')].map((el) => el.innerHTML),
+    ).toEqual(['3.9<br>in 2021-23', '4.2<br>in 2022-24']);
+  },
+);
 
 it('uses the selected period trend when missing values push valid points beyond the chart history', () => {
   const annual = [1, 2, 3, 4, 5, null, null, null, null, null, null, null, 6, 7, null].map(

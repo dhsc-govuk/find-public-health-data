@@ -107,6 +107,7 @@ export function TopicOverview({
                   indicator={highlight}
                   areaName={highlight.areaName}
                   points={highlight.points}
+                  showEndpointUnit={topic.slug !== 'mortality-and-life-expectancy'}
                 />
               ) : (
                 <p className="govuk-hint fphd-topic-highlight__no-trend">
