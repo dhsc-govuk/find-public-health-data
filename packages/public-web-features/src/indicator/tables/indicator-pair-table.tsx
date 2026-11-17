@@ -9,11 +9,13 @@ export function IndicatorPairTable({
   model,
   group = 'Local authorities',
   highlighted = [],
+  correlation,
 }: {
   indicators: [Pick<IndicatorDetail, 'name' | 'unit'>, Pick<IndicatorDetail, 'name' | 'unit'>];
   model: NonNullable<IndicatorComparisonModel['pair']>;
   group?: string;
   highlighted?: string[];
+  correlation?: number | undefined;
 }) {
   const [first, second] = indicators;
   const displayValue = (value: number | null, index: number) =>
@@ -69,6 +71,16 @@ export function IndicatorPairTable({
                     {range}
                   </td>
                 ))}
+              </tr>
+            ) : null}
+            {correlation !== undefined ? (
+              <tr className="govuk-table__row">
+                <th className="govuk-table__header" scope="row">
+                  Correlation (r, estimated)
+                </th>
+                <td className="govuk-table__cell" colSpan={2}>
+                  {correlation.toFixed(2)}
+                </td>
               </tr>
             ) : null}
           </tbody>

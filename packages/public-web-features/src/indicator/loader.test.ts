@@ -758,7 +758,9 @@ describe('loadIndicator', () => {
     expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(2);
     const scatterPaths = paths(client).filter((path) => path.includes('/indicator-scatter?'));
     expect(scatterPaths).toHaveLength(0);
-    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(0);
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toEqual([
+      '/api/indicator-data?indicator=108&indicator=241&areaCode=E92000001',
+    ]);
     expect(result.compareAreasData).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations).toHaveLength(1);
   });

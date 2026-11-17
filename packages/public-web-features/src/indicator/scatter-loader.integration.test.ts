@@ -48,7 +48,7 @@ async function load(url: string, onRead: (path: string) => void = () => {}) {
 it.each(before)('preserves the old loader scatter for $ids in $group', async (fixture) => {
   const comparison = await load(fixture.url);
   expect(comparison.compareAreaGroup).toBe(fixture.group);
-  expect(comparison.scatter).toEqual(fixture.scatter);
+  expect(comparison.scatter).toMatchObject(fixture.scatter);
 });
 
 it('keeps the saved axis order, periods and every area value', async () => {
@@ -83,12 +83,12 @@ it('preserves the old loader scatter when either completed read model is unavail
             .where(eq(schema.indicator.shortId, shortId)),
         ),
       );
-    expect((await load(fixture.url)).scatter).toEqual(fixture.scatter);
+    expect((await load(fixture.url)).scatter).toMatchObject(fixture.scatter);
   }
 });
 
 it.each([40501])(
-  'uses ranking values without history for seeded pair ending in %i',
+  'keeps canonical values alongside sex variants for seeded pair ending in %i',
   async (other) => {
     const fixture = before.find(
       ({ ids, group }) => ids[1] === other && group === 'Local authorities',
@@ -96,7 +96,7 @@ it.each([40501])(
     if (!fixture) throw new Error('Expected fixture');
     const paths: string[] = [];
     const comparison = await load(fixture.url, (path) => paths.push(path));
-    expect(comparison.scatter).toEqual(fixture.scatter);
+    expect(comparison.scatter).toMatchObject(fixture.scatter);
     expect(paths.some((path) => path.startsWith('/api/indicator-scatter'))).toBe(false);
   },
 );
@@ -108,7 +108,7 @@ it('skips history for the seed pair with disjoint canonical populations', async 
   if (!fixture) throw new Error('Expected fixture');
   const paths: string[] = [];
   const comparison = await load(fixture.url, (path) => paths.push(path));
-  expect(comparison.scatter).toEqual(fixture.scatter);
-  expect(comparison.scatter).toEqual({ points: [] });
+  expect(comparison.scatter).toMatchObject(fixture.scatter);
+  expect(comparison.scatter).toMatchObject({ points: [] });
   expect(paths.filter((path) => path.startsWith('/api/indicator-scatter'))).toHaveLength(0);
 });

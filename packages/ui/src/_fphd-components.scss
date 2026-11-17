@@ -2574,3 +2574,40 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   color: inherit;
   background-color: govuk-colour("black", $variant: "tint-95");
 }
+
+.fphd-scatter-canvas {
+  margin-top: govuk-spacing(4);
+  margin-bottom: govuk-spacing(2);
+}
+
+.fphd-indicator-chart--scatter .fphd-chart-key {
+  row-gap: govuk-spacing(1);
+}
+
+.fphd-scatter-canvas .recharts-text {
+  font-size: 16px;
+}
+
+.fphd-indicator-chart--scatter .fphd-chart-actions {
+  align-items: center;
+  column-gap: govuk-spacing(6);
+  margin-bottom: govuk-spacing(4);
+}
+
+.fphd-indicator-chart--scatter .govuk-heading-s,
+.fphd-indicator-chart--scatter .fphd-chart-key {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.fphd-scatter-canvas__viewport {
+  position: relative;
+  aspect-ratio: 780 / 560;
+}
+
+.fphd-scatter-canvas__plot {
+  position: absolute;
+  width: 780px;
+  height: 560px;
+  transform-origin: top left;
+}

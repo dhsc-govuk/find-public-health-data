@@ -31,7 +31,12 @@ import {
   withNeighbours,
 } from './area-comparison.ts';
 import { englandCode, quintileParam, scatterPair } from './charts/chart-data.ts';
-import { loadRankingScatterComparison, loadScatterComparison } from './charts/scatter-loader.ts';
+import {
+  loadRankingScatterComparison,
+  loadScatterComparison,
+  type ScatterComparison,
+  scatterSexComparisons,
+} from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
@@ -195,7 +200,7 @@ async function loadIndicatorComparison(
     : comparisonDisplayGroups.includes('Local authorities')
       ? 'Local authorities'
       : (comparisonDisplayGroups[0] ?? '');
-  let compactScatter: ReturnType<typeof loadScatterComparison>;
+  let compactScatter: ScatterComparison | undefined;
   let compareAreasData: IndicatorAreaData[] = [];
   let chartIndicators: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
@@ -225,7 +230,7 @@ async function loadIndicatorComparison(
       compareAreaGroup,
     );
     const anchors =
-      detailed && AREA_NEIGHBOUR_GROUPS.has(compareAreaGroup)
+      (detailed || Boolean(comparedDetail)) && AREA_NEIGHBOUR_GROUPS.has(compareAreaGroup)
         ? highlightedAreaCodes(url.searchParams, compareAreaOptions)
         : [];
     for (let offset = 0; offset < anchors.length; offset += MAX_NEIGHBOUR_AREAS_PER_REQUEST) {
@@ -264,7 +269,26 @@ async function loadIndicatorComparison(
         { detail: routeDetail, areaData: primary },
         { detail: comparedDetail, areaData: secondary },
       ];
-      compactScatter = loadRankingScatterComparison(chartIndicators, url.searchParams);
+      const comparisonEntries = await loadIndicatorTableEntries(
+        api,
+        [routeDetail.shortId, comparedDetail.shortId],
+        [englandCode],
+      );
+      const hasSex = comparisonEntries.some(({ areaData }) =>
+        areaData.some(({ observations }) =>
+          observations.some(({ dimensions }) => dimensions.some(({ type }) => type === 'Sex')),
+        ),
+      );
+      if (hasSex) {
+        const entries = await loadIndicatorTableEntries(
+          api,
+          [routeDetail.shortId, comparedDetail.shortId],
+          codes,
+        );
+        compactScatter = scatterSexComparisons(entries, url.searchParams);
+      } else {
+        compactScatter = loadRankingScatterComparison(chartIndicators, url.searchParams);
+      }
       if (!compactScatter) {
         try {
           compactScatter = await api.get(

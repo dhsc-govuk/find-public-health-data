@@ -1,7 +1,11 @@
 import { rankingAreaSeries, tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
 import { expect, it } from 'vitest';
 import { observation, selected, sex } from '../view.testing.ts';
-import { loadRankingScatterComparison, loadScatterComparison } from './scatter-loader.ts';
+import {
+  loadRankingScatterComparison,
+  loadScatterComparison,
+  scatterSexComparisons,
+} from './scatter-loader.ts';
 
 function pair(xYear = 2024, yYear = 2024) {
   return [selected(108), selected(241)].map((entry, index) => ({
@@ -155,4 +159,33 @@ it('keeps the fallback when bounded annual and rolling histories can elect a com
     })),
   }));
   expect(loadRankingScatterComparison(rankings, new URLSearchParams())).toBeUndefined();
+});
+
+it('pairs a selected sex with an unsexed indicator and retains axis qualifiers', () => {
+  const indicators = pair();
+  const first = indicators[0];
+  if (!first) throw new Error('Expected indicator');
+  const firstArea = first.areaData[0];
+  if (!firstArea) throw new Error('Expected area');
+  firstArea.observations = [observation(8, [sex('Female')]), observation(9, [sex('Male')])];
+  const result = scatterSexComparisons(indicators, new URLSearchParams());
+  expect(result.variants).toMatchObject([
+    { sex: 'Female', axisSexes: ['Female', ''], points: [{ x: 8, y: 20 }] },
+    { sex: 'Male', axisSexes: ['Male', ''], points: [{ x: 9, y: 20 }] },
+  ]);
+});
+
+it('keeps other population dimensions comparable when choosing a sex', () => {
+  const indicators = pair();
+  indicators.forEach((entry, index) => {
+    const area = entry.areaData[0];
+    if (!area) throw new Error('Expected area');
+    area.observations = [
+      observation(10, [
+        sex('Female'),
+        { type: 'Age', value: index ? '65+' : '18+', dimensionClass: 'core', sortOrder: 1 },
+      ]),
+    ];
+  });
+  expect(scatterSexComparisons(indicators, new URLSearchParams()).points).toEqual([]);
 });

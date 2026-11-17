@@ -214,11 +214,9 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
     within(screen.getByRole('tabpanel', { name: 'Compare indicators' })).getByRole('region', {
       name: 'Indicator comparison scatter chart',
     }).textContent,
-  ).toContain('View chart data as a table');
-  expect(
-    screen.getByRole('heading', { name: /^Diabetes mortality compared with Diabetes prevalence/ }),
-  ).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Swap axes' })).toBeTruthy();
+  ).toContain('Table of indicator comparison');
+  expect(screen.getByRole('heading', { name: 'Chart of indicator comparison' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Swap axis' })).toBeTruthy();
   expect(
     within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
       'rowheader',
@@ -239,7 +237,7 @@ it('labels cached scatter axes in the order requested by a saved comparison link
   const table = within(chart.getByRole('table', { hidden: true }));
   expect(
     table.getAllByRole('columnheader', { hidden: true }).map((cell) => cell.textContent),
-  ).toEqual(['Area', 'Diabetes mortality (%)', 'Diabetes prevalence (%)']);
+  ).toEqual(['Area', 'Diabetes mortality (2024/25)', 'Diabetes prevalence (2024/25)']);
   expect(table.getAllByRole('cell', { hidden: true }).map((cell) => cell.textContent)).toEqual([
     '109.6%',
     '7.9%',
