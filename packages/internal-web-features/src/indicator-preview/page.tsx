@@ -5,7 +5,9 @@ import type { ReactNode } from 'react';
 export function IndicatorPreviewPage({ children }: { children: ReactNode }) {
   return (
     <>
-      <NotificationBanner disableAutoFocus>This is a preview of the indicator</NotificationBanner>
+      <NotificationBanner disableAutoFocus>
+        <p className="govuk-body">This is a preview of the indicator</p>
+      </NotificationBanner>
       {children}
     </>
   );
