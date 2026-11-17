@@ -145,7 +145,7 @@ export function createBetaAccess({
       } catch (error) {
         if (lastSentAt.get(invitee.email) === sentAt) lastSentAt.delete(invitee.email);
         if (domain !== undefined) returnDomainLink(domain, sentAt);
-        throw error;
+        return { outcome: 'send_failed', invitee, error };
       }
       return { outcome: 'sent', invitee };
     },

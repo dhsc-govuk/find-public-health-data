@@ -4,7 +4,10 @@ import { createContext } from 'react-router';
 export const PRIVATE_BETA_PATH = '/private-beta';
 export const PRIVATE_BETA_SIGN_IN_PATH = '/private-beta/sign-in';
 
-/** The outcome of asking for a sign-in link. Every outcome shows the person the same page. */
+/**
+ * The outcome of asking for a sign-in link. Every outcome but `send_failed` shows the person the
+ * same page.
+ */
 export type LinkRequest =
   | { outcome: 'sent'; invitee: BetaInvitee }
   // Local and test have no email service, so the page shows the link instead.
@@ -12,6 +15,9 @@ export type LinkRequest =
   | { outcome: 'already_sent'; invitee: BetaInvitee }
   // The invitee's domain entry has had its links for the past hour.
   | { outcome: 'domain_limit'; invitee: BetaInvitee }
+  // The email service refused or failed to take the link. Neither limit counts it, so the
+  // invitee can ask again at once.
+  | { outcome: 'send_failed'; invitee: BetaInvitee; error: unknown }
   | { outcome: 'not_invited' };
 
 export type SignIn =
