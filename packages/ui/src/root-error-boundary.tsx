@@ -5,6 +5,8 @@ import { NotFoundPage, PageIntro } from './content-page.tsx';
 
 interface RootErrorBoundaryProps {
   audience: 'Public' | 'Internal';
+  environmentName?: string | undefined;
+  feedbackMailbox?: string | undefined;
   navigation: AppNavigationItem[];
   serviceHref?: string | undefined;
 }
@@ -14,12 +16,24 @@ interface RootErrorBoundaryProps {
  * AppShell normally comes from) whenever a route error bubbles up with nothing closer to
  * catch it — the root's `Layout` export still wraps it in the HTML document shell.
  */
-export function RootErrorBoundary({ audience, navigation, serviceHref }: RootErrorBoundaryProps) {
+export function RootErrorBoundary({
+  audience,
+  environmentName,
+  feedbackMailbox,
+  navigation,
+  serviceHref,
+}: RootErrorBoundaryProps) {
   const error = useRouteError();
   const isNotFound = isRouteErrorResponse(error) && error.status === 404;
 
   return (
-    <AppShell audience={audience} navigation={navigation} serviceHref={serviceHref}>
+    <AppShell
+      audience={audience}
+      environmentName={environmentName}
+      feedbackMailbox={feedbackMailbox}
+      navigation={navigation}
+      serviceHref={serviceHref}
+    >
       {isNotFound ? (
         <NotFoundPage />
       ) : (

@@ -3,6 +3,7 @@ import { loadSignInWebServerConfig } from '@fphd/config';
 export const {
   basicAuth,
   development,
+  environmentName,
   host,
   offersDevTools,
   port,

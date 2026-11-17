@@ -25,6 +25,11 @@
       "types": "./src/entry-server.tsx",
       "default": "./dist/entry-server.js"
     },
+    "./environment-context": {
+      "development": "./src/environment-context.ts",
+      "types": "./src/environment-context.ts",
+      "default": "./dist/environment-context.js"
+    },
     "./flash": {
       "development": "./src/flash.ts",
       "types": "./src/flash.ts",
@@ -39,6 +44,11 @@
       "development": "./src/fake-auth-react-router-app.ts",
       "types": "./src/fake-auth-react-router-app.ts",
       "default": "./dist/fake-auth-react-router-app.js"
+    },
+    "./feedback-mailbox-context": {
+      "development": "./src/feedback-mailbox-context.ts",
+      "types": "./src/feedback-mailbox-context.ts",
+      "default": "./dist/feedback-mailbox-context.js"
     },
     "./logger-context": {
       "development": "./src/logger-context.ts",

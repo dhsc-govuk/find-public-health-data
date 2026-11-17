@@ -15,6 +15,14 @@ it('revalidates server filters while keeping tab and column switches local', () 
     expect(topicDataKey(new URL(query, base))).not.toBe(topicDataKey(base));
 });
 
+it('builds the same key from a data request that loads only some routes', () => {
+  const page = new URL('http://local/topics/diabetes?geo=NHS+regions');
+  const dataRequest = new URL(
+    'http://local/topics/diabetes?geo=NHS+regions&_routes=..%2Ftopic%2Froute',
+  );
+  expect(topicDataKey(dataRequest)).toBe(topicDataKey(page));
+});
+
 it('carries columns and sorting through topic filter forms', () => {
   const display = {
     'columns-topic': 'period,value',

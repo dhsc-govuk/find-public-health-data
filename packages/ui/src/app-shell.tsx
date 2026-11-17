@@ -2,7 +2,8 @@ import A from '@not-govuk/link';
 import { GovUKPage } from '@not-govuk/page';
 import type { ReactNode } from 'react';
 
-export const serviceName = 'Find public health data';
+import { EnvironmentBanner } from './environment-banner.tsx';
+import { serviceName } from './service-name.ts';
 
 const footerLinks = [
   { text: 'Help', href: '/help' },
@@ -29,6 +30,10 @@ interface AppShellProps {
   /** What that link says; without it Page names it "Back". */
   backText?: string | undefined;
   children: ReactNode;
+  /** The environment the banner above the header names. The live service has none. */
+  environmentName?: string | undefined;
+  /** The address the feedback link in the public phase banner emails. Without it, there's no link. */
+  feedbackMailbox?: string | undefined;
   navigation: AppNavigationItem[];
   /** Where the service name in the header links to. */
   serviceHref?: string | undefined;
@@ -39,34 +44,46 @@ export function AppShell({
   backHref,
   backText,
   children,
+  environmentName,
+  feedbackMailbox,
   navigation,
   serviceHref = '/',
 }: AppShellProps) {
   const isInternal = audience === 'Internal';
 
   return (
-    <GovUKPage
-      backHref={backHref}
-      backText={backText}
-      // Lands on the page element only, so the stylesheet can size each app's frame.
-      className={`fphd-app--${audience.toLowerCase()}`}
-      meta={footerLinks}
-      navigation={navigation}
-      phase={isInternal ? 'Internal' : 'Alpha'}
-      phaseBannerContent={
-        isInternal ? (
-          'This service is for authorised staff managing public health data.'
-        ) : (
-          <>
-            This is a new service – your <A href="/feedback">feedback</A> will help us to improve
-            it.
-          </>
-        )
-      }
-      serviceHref={serviceHref}
-      serviceName={serviceName}
-    >
-      {children}
-    </GovUKPage>
+    <>
+      {environmentName === undefined ? null : (
+        <EnvironmentBanner audience={audience} environmentName={environmentName} />
+      )}
+      <GovUKPage
+        backHref={backHref}
+        backText={backText}
+        // Lands on the page element only, so the stylesheet can size each app's frame.
+        className={`fphd-app--${audience.toLowerCase()}`}
+        meta={footerLinks}
+        navigation={navigation}
+        phase={isInternal ? 'Internal' : 'Beta'}
+        phaseBannerContent={
+          isInternal ? (
+            'This service is for authorised staff managing public health data.'
+          ) : (
+            <>
+              This is a new service – your{' '}
+              {feedbackMailbox === undefined ? (
+                'feedback'
+              ) : (
+                <A href={`mailto:${feedbackMailbox}`}>feedback</A>
+              )}{' '}
+              will help us to improve it.
+            </>
+          )
+        }
+        serviceHref={serviceHref}
+        serviceName={serviceName}
+      >
+        {children}
+      </GovUKPage>
+    </>
   );
 }

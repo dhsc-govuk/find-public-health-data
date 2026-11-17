@@ -68,7 +68,7 @@ describe('public application routes', () => {
     );
     expect(screen.getByRole('link', { name: 'Topics' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeTruthy();
-    expect(screen.getByText('Alpha')).toBeTruthy();
+    expect(screen.getByText('Beta')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'GOV.UK' })).toBeTruthy();
   });
 
