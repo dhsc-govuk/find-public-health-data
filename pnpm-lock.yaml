@@ -277,6 +277,7 @@ overrides:
 pnpmfileChecksum: sha256-CZAJzV29393EAcq1yVNJqo8Ta+cjp6u6e8Qi/zuta/E=
 
 patchedDependencies:
+  picomatch@4.0.7: fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5
   postgres@3.4.9: 34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5
 
 importers:
@@ -5525,7 +5526,7 @@ snapshots:
       detect-libc: 2.1.2
       is-glob: 4.0.3
       node-addon-api: 7.1.1
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5)
     optionalDependencies:
       '@parcel/watcher-android-arm64': 2.6.0
       '@parcel/watcher-darwin-arm64': 2.6.0
@@ -6329,9 +6330,9 @@ snapshots:
       strnum: 2.5.1
       xml-naming: 0.3.0
 
-  fdir@6.5.0(picomatch@4.0.7):
+  fdir@6.5.0(picomatch@4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5)):
     optionalDependencies:
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5)
 
   finalhandler@2.1.1:
     dependencies:
@@ -6760,7 +6761,7 @@ snapshots:
 
   picocolors@1.1.1: {}
 
-  picomatch@4.0.7: {}
+  picomatch@4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5): {}
 
   pino-abstract-transport@3.0.0:
     dependencies:
@@ -7147,8 +7148,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.7)
-      picomatch: 4.0.7
+      fdir: 6.5.0(picomatch@4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5))
+      picomatch: 4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5)
 
   tldts-core@7.4.7: {}
 
@@ -7228,7 +7229,7 @@ snapshots:
   vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(sass@1.108.1)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5)
       postcss: 8.5.32
       rolldown: 1.2.16
       tinyglobby: 0.2.17
@@ -7249,7 +7250,7 @@ snapshots:
       expect-type: 1.4.0
       magic-string: 1.4.5
       obug: 3.0.0
-      picomatch: 4.0.7
+      picomatch: 4.0.7(patch_hash=fabb1ef289ff859c54ed76d78cfd8088ffad7e98323a0400f6a8055facb720d5)
       std-env: 4.3.0
       tinybench: 6.2.3
       tinyexec: 1.3.1

@@ -21,6 +21,12 @@ overrides:
   # no fixed release is coming. Scoped so drizzle-kit's and tsx's own esbuild stay untouched.
   "@esbuild-kit/core-utils>esbuild": ">=0.24.3 <0.26"
 
+auditConfig:
+  ignoreGhsas:
+    # Fixed by patches/picomatch@4.0.7.patch (see patchedDependencies). pnpm audit matches
+    # versions only, so it cannot see the patch. Remove with the patch once picomatch is fixed.
+    - GHSA-fc5q-39xc-vjpf
+
 allowBuilds:
   "@parcel/watcher": true
   esbuild: true
@@ -122,6 +128,10 @@ catalog:
   zod: 4.6.7
 
 patchedDependencies:
+  # GHSA-fc5q-39xc-vjpf: a repeated extglob over one branch with a top-level `*`, such as `+(*)`,
+  # backtracks exponentially. The patch compiles it without the nested quantifier, matching the
+  # same strings. No fixed picomatch is released; drop the patch when one is.
+  picomatch@4.0.7: patches/picomatch@4.0.7.patch
   # COPY errors must settle the writable: https://github.com/porsager/postgres/pull/1183.
   # A password function that rejects must fail the connection, not leave the rejection unhandled.
   postgres@3.4.9: patches/postgres@3.4.9.patch
