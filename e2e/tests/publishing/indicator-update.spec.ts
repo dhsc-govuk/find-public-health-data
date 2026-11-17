@@ -277,6 +277,20 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
   expect(await lookup.json()).toEqual(
     await (await page.request.get(`/geographies?indicator=${slug}`)).json(),
   );
+  // The Compare areas tab's region and neighbour lookups go through the preview too.
+  const compareAreas = await page.request.get(
+    `${preview}/compare-areas?${new URLSearchParams({
+      indicator: slug,
+      displayGroup: 'Local authorities',
+      parents: '1',
+      areaCode: 'E06000001',
+    })}`,
+  );
+  expect(compareAreas.status()).toBe(200);
+  expect(await compareAreas.json()).toEqual({
+    parents: expect.any(Array),
+    neighbours: expect.any(Array),
+  });
 
   await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
   const about = page.getByRole('tabpanel', { name: 'About this indicator' });
