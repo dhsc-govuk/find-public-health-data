@@ -20,11 +20,15 @@ overrides:
   # drizzle-kit's deprecated @esbuild-kit loader, which pins ~0.18 and was merged into tsx, so
   # no fixed release is coming. Scoped so drizzle-kit's and tsx's own esbuild stay untouched.
   "@esbuild-kit/core-utils>esbuild": ">=0.24.3 <0.26"
+  # GHSA-fc5q-39xc-vjpf has no fixed release, so every vulnerable picomatch resolves to the one
+  # version patched under patchedDependencies, and none can enter the tree unpatched.
+  "picomatch@<4.0.8": 4.0.7
 
 auditConfig:
   ignoreGhsas:
-    # Fixed by patches/picomatch@4.0.7.patch (see patchedDependencies). pnpm audit matches
-    # versions only, so it cannot see the patch. Remove with the patch once picomatch is fixed.
+    # Fixed by patches/picomatch@4.0.7.patch, which the picomatch override above makes the only
+    # picomatch installed. pnpm audit matches versions only, so it cannot see the patch. Remove the
+    # override, patch and this entry together once a fixed picomatch is released.
     - GHSA-fc5q-39xc-vjpf
 
 allowBuilds:

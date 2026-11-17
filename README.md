@@ -175,6 +175,15 @@ skips the verification entirely.
 COPY finishes sending must reject the writable so the transaction rolls back. Remove the patch when
 a released version includes that fix.
 
+`picomatch@4.0.7` has a pnpm patch for
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), a ReDoS in repeated
+extglobs over one branch with a top-level `*`, such as `+(*)`, which no picomatch release fixes yet.
+The patch compiles such a pattern without the nested quantifier and matches the same strings. An
+override resolves every vulnerable picomatch to 4.0.7, so none is installed unpatched, and
+`auditConfig.ignoreGhsas` records the advisory as fixed, because `pnpm audit` only compares
+versions. Remove the patch, the override and the audit entry together once a fixed picomatch is
+released.
+
 Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integration` and
 `pnpm test:e2e` individually.
 
