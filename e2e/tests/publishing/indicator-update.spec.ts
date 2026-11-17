@@ -16,6 +16,7 @@ import {
 } from '../support/published-indicator.ts';
 import { asUser } from '../support/review-response.ts';
 import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
+import { answerTo } from '../support/summary-list.ts';
 
 // Only a publication gives a publisher a live indicator of their own, so the tests share one and
 // run in order: the first starts its update, and the rest work on it. A second live indicator,
@@ -238,6 +239,31 @@ test('the update summary page asks "What is the summary of this update?", and re
 
   await expect(page).toHaveURL(taskListPath());
   await expect(taskStatus(page, 'Update summary')).toHaveText('Complete');
+});
+
+test('"Preview indicator" shows an update that keeps the published data, with "Status: Updated" and its summary under History dated as if published today', async ({
+  page,
+}, testInfo) => {
+  await page.goto(taskListPath());
+  await page.getByRole('button', { name: 'Preview indicator' }).click();
+  await expect(page).toHaveURL(`${overviewPath()}/preview?from=task-list`);
+  await expect(page.getByRole('tab', { name: 'Indicator', exact: true })).toBeVisible();
+  await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);
+
+  await expect(page.getByRole('region', { name: 'Important' })).toHaveText(
+    /This is a preview of the indicator/,
+  );
+  await expect(answerTo(page, 'Status')).toHaveText('Updated');
+  await expect(answerTo(page, 'Period covered')).not.toHaveText(/^\[/);
+  await expect(page.getByRole('region', { name: `${indicator.name} trend chart` })).toBeVisible();
+  await expect(page.getByText(/\[(Not provided yet|Data isn't shown)/)).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
+  await expect(answerTo(page, 'Polarity')).toHaveText('Higher is better');
+  await expect(answerTo(page, historyToday())).toHaveText(
+    'Polarity corrected to higher is better.',
+  );
+  await expectNoAccessibilityViolations(page, testInfo);
 });
 
 test('on an update the publishing date page asks "When should this update be published?" and whether the update needs to be fast-tracked, and reads "Complete" once saved', async ({

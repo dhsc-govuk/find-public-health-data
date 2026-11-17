@@ -110,9 +110,10 @@ test.describe('as an admin, who sees the seeded indicators in Fingertips', () =>
 
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
     await expect(page.getByRole('link', { name: /^Continue/ })).toHaveCount(0);
-    await expect(
-      page.getByText('There are no actions available for this indicator yet.'),
-    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'View indicator preview' })).toHaveAttribute(
+      'href',
+      `/dashboard/indicators/${id}/preview`,
+    );
   });
 });
 

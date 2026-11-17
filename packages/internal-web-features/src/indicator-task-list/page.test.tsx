@@ -60,6 +60,14 @@ function group(title: string) {
   return within(list);
 }
 
+it('offers a preview of the draft, which goes back to the task list', () => {
+  renderPage();
+
+  expect(screen.getByRole('button', { name: 'Preview indicator' }).getAttribute('href')).toBe(
+    `/dashboard/indicators/${taskList.indicator.id}/preview?from=task-list`,
+  );
+});
+
 describe('IndicatorTaskListPage', () => {
   it('names the indicator and captions it with its public number', () => {
     renderPage();

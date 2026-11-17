@@ -42,6 +42,12 @@ export default withRouteIds([
         'dashboard/indicators/:id',
         '../../../packages/internal-web-features/src/indicator-overview/route.tsx',
       ),
+      route('dashboard/indicators/:id/preview', './indicator-preview.tsx'),
+      route('dashboard/indicators/:id/preview/table.csv', './indicator-preview-table-csv.ts'),
+      route('dashboard/indicators/:id/preview/all-data.csv', './indicator-preview-all-data-csv.ts'),
+      route('dashboard/indicators/:id/preview/metadata.txt', './indicator-preview-metadata.ts'),
+      route('dashboard/indicators/:id/preview/geographies', './indicator-preview-geographies.ts'),
+      route('dashboard/indicators/:id/preview/indicators/search', './indicator-preview-search.ts'),
       route(
         'dashboard/indicators/:id/assign-reviewers',
         '../../../packages/internal-web-features/src/indicator-reviewer-assignment/route.tsx',

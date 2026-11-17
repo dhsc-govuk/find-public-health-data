@@ -11,6 +11,8 @@ const respond = {
   label: 'Submit review response',
 };
 const viewLive = { href: '/indicator/hip-fractures', label: 'View live indicator' };
+const preview = { href: `/dashboard/indicators/${ID}/preview`, label: 'View indicator preview' };
+const previewUpdate = { ...preview, label: 'Preview updated indicator' };
 const continueCreating = {
   href: `/publish/indicators/${ID}/task-list`,
   label: 'Continue creating indicator',
@@ -93,16 +95,16 @@ describe('actionsTabSections', () => {
   describe('for an assigned reviewer who does nothing else', () => {
     it('offers the response in a Review section alone, while the round waits for one', () => {
       expect(sections({ ...inReview, actions: RESPOND }, { isReviewer: true })).toEqual([
-        { heading: 'Review', button: respond, links: [] },
+        { heading: 'Review', button: respond, links: [preview] },
       ]);
     });
 
     it('keeps the Review section, without the button, once a response is sent', () => {
       expect(sections(sentBack, { isReviewer: true })).toEqual([
-        { heading: 'Review', button: null, links: [] },
+        { heading: 'Review', button: null, links: [preview] },
       ]);
       expect(sections(approved, { isReviewer: true })).toEqual([
-        { heading: 'Review', button: null, links: [] },
+        { heading: 'Review', button: null, links: [preview] },
       ]);
     });
 
@@ -114,7 +116,7 @@ describe('actionsTabSections', () => {
             href: `/dashboard/indicators/${ID}/review/update-approval`,
             label: 'Submit review response',
           },
-          links: [viewLive],
+          links: [previewUpdate, viewLive],
         },
       ]);
     });
@@ -124,12 +126,12 @@ describe('actionsTabSections', () => {
     it('offers the response alone while the draft is in review', () => {
       expect(
         sections({ ...inReview, actions: RESPOND }, { isReviewer: true, canEdit: true }),
-      ).toEqual([{ heading: 'Review', button: respond, links: [] }]);
+      ).toEqual([{ heading: 'Review', button: respond, links: [preview] }]);
     });
 
     it('shows only the Review section while the draft is locked and they have nothing to do', () => {
       expect(sections(approved, { isReviewer: true, canEdit: true })).toEqual([
-        { heading: 'Review', button: null, links: [] },
+        { heading: 'Review', button: null, links: [preview] },
       ]);
     });
 
@@ -137,7 +139,7 @@ describe('actionsTabSections', () => {
       expect(
         sections({ ...sentBack, actions: ['resubmit'] }, { isReviewer: true, canEdit: true }),
       ).toEqual([
-        { heading: 'Review', button: null, links: [] },
+        { heading: 'Review', button: null, links: [preview] },
         { heading: 'Actions', button: respondToRevision, links: [] },
       ]);
     });
@@ -146,13 +148,13 @@ describe('actionsTabSections', () => {
   describe('for an IMRG manager', () => {
     it('offers a button to assign the first reviewers', () => {
       expect(sections({ ...submitted, actions: ['assign_reviewers'] })).toEqual([
-        { heading: 'Actions', button: assignFirst, links: [] },
+        { heading: 'Actions', button: assignFirst, links: [preview] },
       ]);
     });
 
     it('offers a link to change them while in review', () => {
       expect(sections({ ...inReview, actions: ['assign_reviewers'] })).toEqual([
-        { heading: 'Actions', button: null, links: [changeReviewers] },
+        { heading: 'Actions', button: null, links: [preview, changeReviewers] },
       ]);
     });
 
@@ -167,34 +169,38 @@ describe('actionsTabSections', () => {
         {
           heading: 'Actions',
           button: { ...assignFirst, label: 'Assign reviewer to update' },
-          links: [viewLive],
+          links: [previewUpdate, viewLive],
         },
       ]);
       expect(sections({ ...updateInReview, actions: ['assign_reviewers'] })).toEqual([
         {
           heading: 'Actions',
           button: null,
-          links: [viewLive, { ...changeReviewers, label: 'Change reviewer for this update' }],
+          links: [
+            previewUpdate,
+            viewLive,
+            { ...changeReviewers, label: 'Change reviewer for this update' },
+          ],
         },
       ]);
     });
 
     it('keeps an empty Actions section once the round is answered', () => {
-      expect(sections(approved)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
+      expect(sections(approved)).toEqual([{ heading: 'Actions', button: null, links: [preview] }]);
     });
 
     it('gives a manager who also edits the indicator one Actions section with both sets of links', () => {
       expect(
         sections({ ...submitted, actions: ['withdraw', 'assign_reviewers'] }, { canEdit: true }),
-      ).toEqual([{ heading: 'Actions', button: assignFirst, links: [withdraw] }]);
+      ).toEqual([{ heading: 'Actions', button: assignFirst, links: [preview, withdraw] }]);
       expect(sections({ ...inReview, actions: ['assign_reviewers'] }, { canEdit: true })).toEqual([
-        { heading: 'Actions', button: null, links: [changeReviewers] },
+        { heading: 'Actions', button: null, links: [preview, changeReviewers] },
       ]);
     });
 
     it('leaves a manager who reviewed it only the Review section once the round is answered', () => {
       expect(sections(sentBack, { isReviewer: true })).toEqual([
-        { heading: 'Review', button: null, links: [] },
+        { heading: 'Review', button: null, links: [preview] },
       ]);
     });
 
@@ -202,7 +208,7 @@ describe('actionsTabSections', () => {
       expect(
         sections({ ...inReview, actions: ['assign_reviewers', ...RESPOND] }, { isReviewer: true }),
       ).toEqual([
-        { heading: 'Review', button: respond, links: [] },
+        { heading: 'Review', button: respond, links: [preview] },
         { heading: 'Actions', button: null, links: [changeReviewers] },
       ]);
     });
@@ -211,13 +217,13 @@ describe('actionsTabSections', () => {
   describe('for an admin', () => {
     it('offers a button to confirm the publication date of an approved draft', () => {
       expect(sections({ ...approved, actions: ['schedule'] })).toEqual([
-        { heading: 'Actions', button: confirmDate, links: [] },
+        { heading: 'Actions', button: confirmDate, links: [preview] },
       ]);
     });
 
     it('offers a link to change the date once it is confirmed, and no button', () => {
       expect(sections({ ...scheduled, actions: ['change_publication_date'] })).toEqual([
-        { heading: 'Actions', button: null, links: [changeDate] },
+        { heading: 'Actions', button: null, links: [preview, changeDate] },
       ]);
     });
 
@@ -230,14 +236,14 @@ describe('actionsTabSections', () => {
       };
 
       expect(sections(submittedUpdate)).toEqual([
-        { heading: 'Actions', button: decideUpdate, links: [viewLive] },
+        { heading: 'Actions', button: decideUpdate, links: [previewUpdate, viewLive] },
       ]);
     });
   });
 
   describe('for anyone with no section of their own, such as an admin', () => {
     it('keeps an empty Actions section for a new indicator', () => {
-      expect(sections(newDraft)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
+      expect(sections(newDraft)).toEqual([{ heading: 'Actions', button: null, links: [preview] }]);
     });
 
     it('holds the live page in the Actions section for a live indicator', () => {
@@ -257,15 +263,17 @@ describe('actionsTabSections', () => {
       expect(sections(live)[0]?.button).toBeNull();
     });
 
-    it('lists the live page before the task list', () => {
+    it('lists the preview and the live page before the task list', () => {
       expect(
         sections({ ...live, draftStatus: 'draft' }, { canEdit: true }).map(({ links }) => links),
-      ).toEqual([[viewLive, { ...continueCreating, label: 'Continue updating indicator' }]]);
+      ).toEqual([
+        [previewUpdate, viewLive, { ...continueCreating, label: 'Continue updating indicator' }],
+      ]);
     });
 
     it('offers a button to respond to the requested revision in place of the task list link', () => {
       expect(sections({ ...sentBack, actions: ['resubmit'] }, { canEdit: true })).toEqual([
-        { heading: 'Actions', button: respondToRevision, links: [] },
+        { heading: 'Actions', button: respondToRevision, links: [preview] },
       ]);
     });
 
@@ -312,12 +320,12 @@ describe('actionsTabSections', () => {
     });
 
     it('offers no response to a publisher who may not edit the indicator', () => {
-      expect(sections(sentBack)).toEqual([{ heading: 'Actions', button: null, links: [] }]);
+      expect(sections(sentBack)).toEqual([{ heading: 'Actions', button: null, links: [preview] }]);
     });
 
     it('offers the withdrawal of a submission waiting for reviewers', () => {
       expect(sections({ ...submitted, actions: ['withdraw'] }, { canEdit: true })).toEqual([
-        { heading: 'Actions', button: null, links: [withdraw] },
+        { heading: 'Actions', button: null, links: [preview, withdraw] },
       ]);
     });
   });

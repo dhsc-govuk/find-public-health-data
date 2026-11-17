@@ -303,6 +303,16 @@ describe('the role-gated route tables', () => {
     expect(gated).toContain('dashboard/indicators/:id/assign-reviewers');
     expect(gated).toContain('dashboard/indicators/:id/publication-date');
     expect(gated).toContain('dashboard/indicators/:id/review/revisions');
+    for (const path of [
+      'preview',
+      'preview/table.csv',
+      'preview/all-data.csv',
+      'preview/metadata.txt',
+      'preview/geographies',
+      'preview/indicators/search',
+    ]) {
+      expect(gated).toContain(`dashboard/indicators/:id/${path}`);
+    }
   });
 
   it('keeps every publishing route under the publisher layout', () => {
