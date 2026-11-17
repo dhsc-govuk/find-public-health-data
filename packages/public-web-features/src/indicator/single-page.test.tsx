@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
-import { compactIndicator } from './compact-data.ts';
+import { compactIndicator, compactScatterComparison } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
@@ -82,6 +82,7 @@ function page(
 ) {
   const primary = entries[0];
   if (!primary) throw new Error('Indicator fixture missing');
+  const scatter = loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams);
   const Routes = createRoutesStub([
     {
       path: 'indicator/:slug',
@@ -114,7 +115,7 @@ function page(
               areaData: [...areas, ...(entries[0]?.areaData ?? [])],
             }),
             compareAreaRanges: [],
-            scatter: loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams),
+            scatter: scatter ? compactScatterComparison(scatter) : undefined,
             ...indicatorComparisonModel(entries, {
               compareAreasData: areas,
               comparedAreasData: [],

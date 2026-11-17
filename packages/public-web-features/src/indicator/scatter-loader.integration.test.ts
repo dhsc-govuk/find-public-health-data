@@ -7,7 +7,8 @@ import { createFakeApiClient } from '@fphd/web-server/testing';
 import { eq, inArray } from 'drizzle-orm';
 import express from 'express';
 import { RouterContextProvider } from 'react-router';
-import { afterAll, beforeAll, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
+import { expandScatterComparison } from './compact-data.ts';
 import captured from './fixtures/scatter-before.json';
 import { loadIndicatorPage } from './single-loader.ts';
 
@@ -52,8 +53,39 @@ async function load(url: string, onRead: (path: string) => void = () => {}) {
     params: { slug: new URL(url).pathname.split('/').at(-1) },
   } as unknown as Parameters<typeof loadIndicatorPage>[0]);
   const [, comparison] = await Promise.all([page.data, page.comparison]);
-  return comparison;
+  return {
+    ...comparison,
+    scatter: comparison.scatter ? expandScatterComparison(comparison.scatter) : undefined,
+  };
 }
+
+it('keeps the seeded diabetes and smoking comparison within its statement budget', async () => {
+  const query = vi.spyOn(db.$client, 'unsafe');
+  const paths: string[] = [];
+  try {
+    const comparison = await load(
+      'http://localhost/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032',
+      (path) => paths.push(path),
+    );
+    expect(comparison.scatter?.points.length).toBeGreaterThan(1);
+    expect(query.mock.calls.length).toBeLessThanOrEqual(34);
+    expect(paths.filter((path) => path.startsWith('/api/indicator-scatter?'))).toHaveLength(1);
+    expect(paths.some((path) => /\/(indicator-data|ranking)\?/.test(path))).toBe(false);
+    for (const variant of comparison.scatter?.variants ?? []) {
+      expect(variant.points).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'E92000001',
+            xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+            yPeriod: expect.objectContaining({ toDate: '2024-12-31' }),
+          }),
+        ]),
+      );
+    }
+  } finally {
+    query.mockRestore();
+  }
+});
 
 it.each(before.filter(({ scatter }) => scatter.points.length > 0))(
   'preserves the old loader scatter for $ids in $group',
@@ -112,7 +144,8 @@ it.each([40501])(
     const paths: string[] = [];
     const comparison = await load(fixture.url, (path) => paths.push(path));
     expect(comparison.scatter).toMatchObject(fixture.scatter);
-    expect(paths.some((path) => path.startsWith('/api/indicator-scatter'))).toBe(false);
+    expect(paths.filter((path) => path.startsWith('/api/indicator-scatter'))).toHaveLength(1);
+    expect(paths.some((path) => path.startsWith('/api/indicator-data?'))).toBe(false);
   },
 );
 

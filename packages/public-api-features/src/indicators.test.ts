@@ -595,18 +595,20 @@ describe('search ordering and workload bounds', () => {
 
 describe('GET /api/indicator-scatter', () => {
   it('loads one bounded pair in axis and area order, including an empty scatter', async () => {
-    const findScatterData = vi.fn().mockResolvedValue([]);
+    const findScatterData = vi
+      .fn()
+      .mockResolvedValue({ points: [], variants: [], rankings: [[], []] });
     const response = await request(createTestApp({ findScatterData })).get(
       '/api/indicator-scatter?indicator=241&indicator=108&areaCode=E06000052&areaCode=E92000001&areaCode=E06000052',
     );
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ points: [] });
+    expect(response.body).toEqual({ points: [], variants: [], rankings: [[], []] });
     expect(findScatterData).toHaveBeenCalledExactlyOnceWith([241, 108], ['E06000052', 'E92000001']);
   });
 
   it('caps areas and rejects incomplete, repeated or unpublished indicators', async () => {
     const findScatterData = vi.fn(async (ids: [number, number], _codes: string[]) =>
-      ids.includes(999) ? undefined : [],
+      ids.includes(999) ? undefined : { points: [], variants: [], rankings: [[], []] },
     );
     const app = createTestApp({ findScatterData });
     const query = new URLSearchParams(

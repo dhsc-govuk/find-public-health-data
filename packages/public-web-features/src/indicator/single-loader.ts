@@ -35,9 +35,8 @@ import {
   loadRankingScatterComparison,
   loadScatterComparison,
   type ScatterComparison,
-  scatterSexComparisons,
 } from './charts/scatter-loader.ts';
-import { compactIndicator } from './compact-data.ts';
+import { compactIndicator, compactScatterComparison } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
@@ -141,7 +140,7 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
         areaData: tableSummary(selected[0]?.areaData ?? [], 'latest').areaData,
       }),
       compareAreaRanges,
-      scatter,
+      scatter: scatter ? compactScatterComparison(scatter) : undefined,
     };
   });
   // Wait for the final models so document HTML includes compact data, comparisons and search results.
@@ -259,46 +258,33 @@ async function loadIndicatorComparison(
         url.searchParams,
       );
       if (!x || !y) throw new Error('Expected a comparison pair');
-      const [primary, secondary] = await Promise.all([
-        loadRanking(routeDetail),
-        loadRanking(comparedDetail),
-      ]);
+      let rankings: [IndicatorAreaData[], IndicatorAreaData[]] | undefined;
+      try {
+        const {
+          rankings: loadedRankings,
+          variants,
+          ...scatter
+        } = await api.get(
+          `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+          indicatorScatterSchema,
+        );
+        rankings = loadedRankings;
+        compactScatter = { ...scatter, ...(variants ? { variants } : {}) };
+      } catch (error) {
+        if (!(error instanceof Response) || error.status !== 404) throw error;
+      }
+      const [primary, secondary] = rankings
+        ? x.detail.shortId === routeDetail.shortId
+          ? rankings
+          : [rankings[1], rankings[0]]
+        : await Promise.all([loadRanking(routeDetail), loadRanking(comparedDetail)]);
       compareAreasData = primary;
       comparedAreasData = secondary;
       chartIndicators = [
         { detail: routeDetail, areaData: primary },
         { detail: comparedDetail, areaData: secondary },
       ];
-      const comparisonEntries = await loadIndicatorTableEntries(
-        api,
-        [routeDetail.shortId, comparedDetail.shortId],
-        [englandCode],
-      );
-      const hasSex = comparisonEntries.some(({ areaData }) =>
-        areaData.some(({ observations }) =>
-          observations.some(({ dimensions }) => dimensions.some(({ type }) => type === 'Sex')),
-        ),
-      );
-      if (hasSex) {
-        const entries = await loadIndicatorTableEntries(
-          api,
-          [routeDetail.shortId, comparedDetail.shortId],
-          codes,
-        );
-        compactScatter = scatterSexComparisons(entries, url.searchParams);
-      } else {
-        compactScatter = loadRankingScatterComparison(chartIndicators, url.searchParams);
-      }
-      if (!compactScatter) {
-        try {
-          compactScatter = await api.get(
-            `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
-            indicatorScatterSchema,
-          );
-        } catch (error) {
-          if (!(error instanceof Response) || error.status !== 404) throw error;
-        }
-      }
+      compactScatter ??= loadRankingScatterComparison(chartIndicators, url.searchParams);
     } else {
       compareAreasData = await loadRanking(routeDetail);
       chartIndicators = [{ detail: routeDetail, areaData: compareAreasData }];

@@ -738,6 +738,9 @@ describe('loadIndicator', () => {
           x: 10,
           y: 20,
         })),
+        rankings: [10, 20].map((value) =>
+          rankings(call).map((area) => ({ ...area, observations: [observation(value)] })),
+        ),
       }),
       'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
       'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
@@ -754,12 +757,10 @@ describe('loadIndicator', () => {
       y: 20,
     });
     expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
-    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(2);
+    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(0);
     const scatterPaths = paths(client).filter((path) => path.includes('/indicator-scatter?'));
-    expect(scatterPaths).toHaveLength(0);
-    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toEqual([
-      '/api/indicator-data?indicator=108&indicator=241&areaCode=E92000001',
-    ]);
+    expect(scatterPaths).toHaveLength(1);
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toEqual([]);
     expect(result.compareAreasData).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations).toHaveLength(1);
   });
@@ -800,10 +801,14 @@ describe('loadIndicator', () => {
           code: area.areaCode,
           name: area.areaName,
           xPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
-          yPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
+          yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
           x: 20,
-          y: 10,
+          y: 11,
         })),
+        rankings: [
+          rankings(call).map((area) => ({ ...area, observations: [point(2023, 20)] })),
+          rankings(call).map((area) => ({ ...area, observations: [point(2024, 11)] })),
+        ],
       }),
     });
     const result = await loadIndicator(
@@ -815,7 +820,7 @@ describe('loadIndicator', () => {
     expect(result.scatter?.points).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
     expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
-    expect(paths(client).filter((path) => path.includes('/indicator-scatter?'))).toHaveLength(0);
+    expect(paths(client).filter((path) => path.includes('/indicator-scatter?'))).toHaveLength(1);
     expect(
       result.scatter?.points.every(
         ({ xPeriod, yPeriod, x, y }) =>

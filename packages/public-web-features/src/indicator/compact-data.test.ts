@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { compactIndicator, expandIndicator } from './compact-data.ts';
+import {
+  compactIndicator,
+  compactScatterComparison,
+  expandIndicator,
+  expandScatterComparison,
+} from './compact-data.ts';
 import { observation, selected, sex } from './view.testing.ts';
 
 it('preserves every observation field and its order through the hydration boundary', () => {
@@ -36,4 +41,25 @@ it('shares periods, dimensions and notes across histories and benchmark areas', 
   expect(compact.catalogue.notes).toHaveLength(1);
   expect(JSON.stringify(compact).length).toBeLessThan(JSON.stringify(source).length / 4);
   expect(expandIndicator(JSON.parse(JSON.stringify(compact)))).toEqual(source);
+});
+
+it('preserves scatter values, independent periods and sex variants through hydration', () => {
+  const point = {
+    code: 'E92000001',
+    name: 'England',
+    xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+    yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+    x: 0,
+    y: -0.123456789,
+  };
+  const source = {
+    points: [point],
+    variants: [
+      { sex: 'Female', axisSexes: ['', 'Female'], points: [{ ...point, y: 20 }] },
+      { sex: 'Male', axisSexes: ['', 'Male'], points: [] },
+    ],
+  };
+  const compact = compactScatterComparison(source);
+  expect(expandScatterComparison(JSON.parse(JSON.stringify(compact)))).toEqual(source);
+  expect(expandScatterComparison(compactScatterComparison({ points: [] }))).toEqual({ points: [] });
 });

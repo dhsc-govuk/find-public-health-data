@@ -255,6 +255,7 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
 
 export interface ScatterObservation extends SeriesObservation {
   value: number | null;
+  dimensions: { type: string; value: string; sortOrder?: number }[];
 }
 
 export interface ScatterArea {
@@ -309,4 +310,46 @@ export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
           },
         ];
   });
+}
+
+export function pairedAreaSexValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
+  const pair = [xAreas, yAreas];
+  const sexesByIndicator = pair.map((areas) => {
+    const sexes = new Map<string, number>();
+    for (const { observations } of areas)
+      for (const { dimensions } of observations)
+        for (const dimension of dimensions)
+          if (dimension.type === SEX_DIMENSION_NAME)
+            sexes.set(dimension.value, dimension.sortOrder ?? 0);
+    return [...sexes].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([sex]) => sex);
+  });
+  const sexes = (sexesByIndicator.find((values) => values.length) ?? []).filter((sex) =>
+    sexesByIndicator.every((values) => !values.length || values.includes(sex)),
+  );
+  sexes.sort((a, b) => (a === 'Female' ? -1 : b === 'Female' ? 1 : 0));
+  const variants = sexes.map((sex) => {
+    const areas = pair.map((areas, index) =>
+      areas.map((area) => ({
+        ...area,
+        observations: area.observations
+          .filter(
+            ({ dimensions }) =>
+              !sexesByIndicator[index]?.length ||
+              dimensions.some(
+                (dimension) => dimension.type === SEX_DIMENSION_NAME && dimension.value === sex,
+              ),
+          )
+          .map((point) => ({
+            ...point,
+            dimensions: point.dimensions.filter(({ type }) => type !== SEX_DIMENSION_NAME),
+          })),
+      })),
+    );
+    return {
+      sex,
+      axisSexes: sexesByIndicator.map((values) => (values.length ? sex : '')),
+      points: pairedAreaValues(areas[0] ?? [], areas[1] ?? []),
+    };
+  });
+  return { points: pairedAreaValues(xAreas, yAreas), variants };
 }

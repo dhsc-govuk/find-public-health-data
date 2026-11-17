@@ -88,8 +88,8 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       response.status(404).json({ error: 'not_found' });
       return;
     }
-    const points = await indicators.findScatterData([first, second], areaCodes);
-    response.status(points ? 200 : 404).json(points ? { points } : { error: 'not_found' });
+    const scatter = await indicators.findScatterData([first, second], areaCodes);
+    response.status(scatter ? 200 : 404).json(scatter ?? { error: 'not_found' });
   });
 
   router.get('/api/indicators/:indicator/ranking', async (request, response) => {

@@ -371,15 +371,23 @@ export type IndicatorSearchRow = z.infer<typeof indicatorSearchRowSchema>;
 export type IndicatorSearchResult = z.infer<typeof indicatorSearchResultSchema>;
 export type IndicatorFacets = z.infer<typeof indicatorFacetsSchema>;
 
+const scatterPointsSchema = z.array(
+  z.object({
+    code: z.string(),
+    name: z.string(),
+    xPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
+    yPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
+    x: z.number(),
+    y: z.number(),
+  }),
+);
+
 export const indicatorScatterSchema = z.object({
-  points: z.array(
-    z.object({
-      code: z.string(),
-      name: z.string(),
-      xPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
-      yPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
-      x: z.number(),
-      y: z.number(),
-    }),
-  ),
+  points: scatterPointsSchema,
+  variants: z
+    .array(
+      z.object({ sex: z.string(), axisSexes: z.array(z.string()), points: scatterPointsSchema }),
+    )
+    .optional(),
+  rankings: z.tuple([indicatorAreaDataListSchema, indicatorAreaDataListSchema]).optional(),
 });

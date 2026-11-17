@@ -1,4 +1,5 @@
 import { dataDictionary, dictionaryEntry } from '../data-dictionary.ts';
+import type { ScatterComparison } from './charts/scatter-loader.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
 
 type ObservationRow = [
@@ -98,5 +99,67 @@ export function expandIndicator({
     ...rest,
     areaData: indicator.areaData.map(expandArea),
     ...(regionData ? { regionData: regionData.map(expandArea) } : {}),
+  };
+}
+
+type ScatterRow = [area: number, xPeriod: number, yPeriod: number, x: number, y: number];
+
+export function compactScatterComparison(scatter: ScatterComparison) {
+  const areas = dataDictionary<[string, string]>();
+  const periods = dataDictionary<ScatterComparison['points'][number]['xPeriod']>();
+  const points = (values: ScatterComparison['points']) =>
+    JSON.stringify(
+      values.map(
+        (point): ScatterRow => [
+          areas.index([point.code, point.name]),
+          periods.index(point.xPeriod),
+          periods.index(point.yPeriod),
+          point.x,
+          point.y,
+        ],
+      ),
+    );
+  const compact = {
+    points: points(scatter.points),
+    ...(scatter.variants
+      ? {
+          variants: scatter.variants.map((variant) => ({
+            ...variant,
+            points: points(variant.points),
+          })),
+        }
+      : {}),
+  };
+  return { ...compact, catalogue: { areas: areas.entries, periods: periods.entries } };
+}
+
+export function expandScatterComparison({
+  catalogue,
+  ...scatter
+}: ReturnType<typeof compactScatterComparison>): ScatterComparison {
+  const points = (value: string) => {
+    const rows: ScatterRow[] = JSON.parse(value);
+    return rows.map(([area, xPeriod, yPeriod, x, y]) => {
+      const [code, name] = dictionaryEntry(catalogue.areas, area);
+      return {
+        code,
+        name,
+        xPeriod: dictionaryEntry(catalogue.periods, xPeriod),
+        yPeriod: dictionaryEntry(catalogue.periods, yPeriod),
+        x,
+        y,
+      };
+    });
+  };
+  return {
+    points: points(scatter.points),
+    ...(scatter.variants
+      ? {
+          variants: scatter.variants.map((variant) => ({
+            ...variant,
+            points: points(variant.points),
+          })),
+        }
+      : {}),
   };
 }

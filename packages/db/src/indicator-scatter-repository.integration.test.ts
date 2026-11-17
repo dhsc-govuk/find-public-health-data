@@ -1,6 +1,7 @@
 import {
   headlineSeries,
   observationSegmentKey,
+  pairedAreaSexValues,
   pairedAreaValues,
 } from '@fphd/utils/observation-series';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -13,6 +14,7 @@ import {
   getIndicatorScatterData,
   getPublishedIndicatorScatterData,
 } from './indicator-scatter-repository.ts';
+import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import {
   area,
   observation,
@@ -65,7 +67,7 @@ it('reads bounded cached candidates, markers and benchmarks in one statement', a
   }
 });
 
-it('resolves both published axes in one bulk read without coalescing ranking lookups', async () => {
+it('loads both published axes, rankings and sex variants in five statements', async () => {
   const expected = (await canonical()).map((point) => ({
     ...point,
     x: point.y,
@@ -73,18 +75,52 @@ it('resolves both published axes in one bulk read without coalescing ranking loo
     xPeriod: point.yPeriod,
     yPeriod: point.xPeriod,
   }));
+  const recent = await getIndicatorSeriesData(db, publishedViews, ids, codes, 'recent');
+  const ranking = await getIndicatorSeriesData(db, publishedViews, ids, codes, 'ranking', true);
+  const variants = pairedAreaSexValues(
+    recent?.get(ids[1])?.areaData ?? [],
+    recent?.get(ids[0])?.areaData ?? [],
+  ).variants;
   const query = vi.spyOn(db.$client, 'unsafe');
   try {
-    expect(await getPublishedIndicatorScatterData(db, publishedViews, [40501, 108], codes)).toEqual(
-      expected,
+    const comparison = await getPublishedIndicatorScatterData(
+      db,
+      publishedViews,
+      [40501, 108],
+      codes,
     );
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(comparison?.points).toEqual(expected);
+    expect(comparison?.variants).toEqual(variants);
+    expect(comparison?.rankings).toEqual([
+      ranking?.get(ids[1])?.areaData,
+      ranking?.get(ids[0])?.areaData,
+    ]);
+    expect(query).toHaveBeenCalledTimes(5);
   } finally {
     query.mockRestore();
   }
   expect(
     await getPublishedIndicatorScatterData(db, publishedViews, [108, 999999], codes),
   ).toBeUndefined();
+});
+
+it('keeps published scatter variants and rankings when a cached point is stale', async () => {
+  const expected = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);
+  await database.db
+    .update(observationSeries)
+    .set({ latestObservationId: '00000000-0000-0000-0000-000000000001' })
+    .where(eq(observationSeries.indicatorId, ids[0]));
+  const comparison = await getPublishedIndicatorScatterData(
+    db,
+    publishedViews,
+    [108, 40501],
+    codes,
+  );
+  expect(comparison?.points).toEqual(expected?.points);
+  expect(comparison?.variants).toEqual(expected?.variants);
+  expect(
+    comparison?.rankings.map((areas) => areas.map(({ populationKeys: _, ...area }) => area)),
+  ).toEqual(expected?.rankings.map((areas) => areas.map(({ populationKeys: _, ...area }) => area)));
 });
 
 it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
@@ -235,7 +271,7 @@ it('uses canonical history for an area code shared by historical areas', async (
   expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(await canonical());
 });
 
-it('keeps tied sex headlines identical when the cached query uses canonical data', async () => {
+it('uses canonical label ordering for tied sex headlines', async () => {
   const models = await database.db
     .selectDistinct({ id: observationSeries.indicatorId, batch: observationSeries.uploadBatchId })
     .from(observationSeries)
@@ -273,7 +309,7 @@ it('keeps tied sex headlines identical when the cached query uses canonical data
   );
   const expected = pairedAreaValues(ordered(ids[0]), ordered(ids[1]));
   expect(expected.length).toBeGreaterThan(0);
-  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeDefined();
   expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
 });
 
