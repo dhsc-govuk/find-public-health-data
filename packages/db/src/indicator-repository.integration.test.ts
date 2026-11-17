@@ -13,6 +13,7 @@ import {
 } from './area-repository.ts';
 import type { Database } from './client.ts';
 import {
+  completeIndicatorDetail,
   getIndicatorDetailById,
   getIndicatorObservations,
   getObservationRange,
@@ -190,10 +191,26 @@ describe('getIndicatorDetailById', () => {
     expect(areaTypeNames).toEqual([...areaTypeNames].sort((a, b) => a.localeCompare(b)));
   });
 
-  it('gives no unit to values that have none', async () => {
+  it('gives no unit to values that have none, which answers the unit question', async () => {
     const id = await resolvedId(RESIDENT_POPULATION);
 
-    expect((await getIndicatorDetailById(db, publishedViews, id))?.unit).toBeNull();
+    expect(await getIndicatorDetailById(db, publishedViews, id)).toMatchObject({
+      unit: null,
+      unanswered: [],
+    });
+  });
+
+  it('names the unit unanswered when the version has no unit at all', async () => {
+    const id = await resolvedId(GASTROENTERITIS_ADMISSIONS);
+    await db.execute(
+      sql`UPDATE indicator_version SET unit_id = NULL, unit_detail = NULL WHERE indicator_id = ${id}`,
+    );
+
+    const found = await getIndicatorDetailById(db, publishedViews, id);
+
+    expect(found?.unit).toBeNull();
+    expect(found?.unanswered).toContain('unit');
+    expect(found && completeIndicatorDetail(found)).toBeUndefined();
   });
 
   it('dates the first and the latest publication', async () => {
@@ -231,17 +248,22 @@ describe('getIndicatorDetailById', () => {
     );
   });
 
-  it('serves an indicator imported without an update frequency', async () => {
+  it('serves an indicator imported without an update frequency, naming the question unanswered', async () => {
     const id = await resolvedId(DIABETES_MORTALITY);
     await db.execute(
-      sql`UPDATE indicator_version SET update_frequency = NULL, update_frequency_reason = NULL
+      sql`UPDATE indicator_version SET update_frequency = NULL, update_frequency_reason = NULL,
+            update_frequency_text = NULL
           WHERE indicator_id = ${id}`,
     );
 
-    expect(await getIndicatorDetailById(db, publishedViews, id)).toMatchObject({
+    const found = await getIndicatorDetailById(db, publishedViews, id);
+
+    expect(found).toMatchObject({
       shortId: DIABETES_MORTALITY,
       updateFrequency: null,
+      unanswered: ['updateFrequency'],
     });
+    expect(found && completeIndicatorDetail(found)).toMatchObject({ updateFrequency: null });
   });
 
   it.each(['annually', null] as const)(
@@ -252,9 +274,11 @@ describe('getIndicatorDetailById', () => {
         sql`UPDATE indicator_version SET update_frequency = ${updateFrequency}, update_frequency_reason = NULL, update_frequency_text = 'Academic year.\nPublished in winter.' WHERE indicator_id = ${id}`,
       );
 
+      // The original text answers the question, with or without a frequency beside it.
       expect(await getIndicatorDetailById(db, publishedViews, id)).toMatchObject({
         updateFrequency,
         updateFrequencyText: 'Academic year.\nPublished in winter.',
+        unanswered: [],
       });
     },
   );
