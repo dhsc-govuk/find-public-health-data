@@ -186,10 +186,10 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   the production images the image build job made (see [Container images](#container-images)),
   restores the database a seed job seeded once for the run, with the same commands a developer runs,
   runs its share of the suite, and uploads its own Playwright report when it fails. Add a shard to
-  the matrix as the suite grows. Once its share has finished, the first shard also runs
-  `pnpm test:e2e:publishing`, the `publishing` project. It runs separately because publishing an
-  indicator changes the public search total and a topic's list of indicators, which other specs
-  read.
+  the matrix as the suite grows. One more matrix entry runs `pnpm test:e2e:publishing`, the
+  `publishing` project, on a stack of its own. It runs separately because publishing an indicator
+  changes the public search total and a topic's list of indicators, which other specs read, and
+  because it waits up to 2 minutes 20 seconds for the worker to publish.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new
