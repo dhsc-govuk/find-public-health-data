@@ -4,8 +4,10 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
-import { publishedIndicator, publishedViews } from './schema/index.ts';
+import { publishedViews } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+
+const { indicator: publishedIndicator } = publishedViews;
 
 let database: TestDb;
 let db: Database;

@@ -9,6 +9,7 @@ import {
   doublePrecision,
   integer,
   jsonb,
+  type PgSchema,
   pgSchema,
   smallint,
   text,
@@ -27,98 +28,6 @@ import type { ObservationSeriesVariant } from './cache.ts';
  */
 export const publishedSchema = pgSchema('published');
 
-export const publishedObservationSeriesBatch = publishedSchema
-  .view('observation_series_batch', {
-    trendValues: doublePrecision('trend_values').array(),
-    indicatorId: uuid('indicator_id').notNull(),
-  })
-  .existing();
-
-export const publishedObservationSeries = publishedSchema
-  .view('observation_series', {
-    indicatorId: uuid('indicator_id').notNull(),
-    areaId: uuid('area_id').notNull(),
-    dimensionKey: text('dimension_key').notNull(),
-    sex: text('sex').notNull(),
-    periodType: text('period_type', { enum: ['all', '1-year', '3-year'] }).notNull(),
-    variants: jsonb('variants').$type<ObservationSeriesVariant[]>().notNull(),
-    latestObservationId: uuid('latest_observation_id').notNull(),
-    rankingObservationId: uuid('ranking_observation_id'),
-    recentObservationIds: uuid('recent_observation_ids').array().notNull(),
-    sparklineObservationIds: uuid('sparkline_observation_ids').array(),
-    recentValues: doublePrecision('recent_values').array().notNull(),
-  })
-  .existing();
-
-export const publishedIndicator = publishedSchema
-  .view('indicator', {
-    id: uuid('id').notNull(),
-    shortId: integer('short_id').notNull(),
-    dataUpdatedAt: timestamp('data_updated_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
-    // A version is complete before it can be published, so the public surface always has a name.
-    name: text('name').notNull(),
-    // The canonical slug: the one the latest published version carries.
-    slug: text('slug').notNull(),
-    valueTypeId: uuid('value_type_id'),
-    unitId: uuid('unit_id'),
-    unitDetail: text('unit_detail'),
-    yearType: text('year_type', { enum: YEAR_TYPES }),
-    yearEndDay: smallint('year_end_day'),
-    yearEndMonth: smallint('year_end_month'),
-    ciMethodId: uuid('ci_method_id'),
-    polarity: text('polarity', { enum: POLARITIES }),
-    updateFrequency: text('update_frequency', { enum: UPDATE_FREQUENCIES }),
-    updateFrequencyReason: text('update_frequency_reason'),
-    updateFrequencyText: text('update_frequency_text'),
-    comparatorMethodId: uuid('comparator_method_id'),
-    ciConfidenceLevel: text('ci_confidence_level', { enum: CI_CONFIDENCE_LEVELS }),
-    definition: text('definition'),
-    rationale: text('rationale'),
-    methodology: text('methodology'),
-    numeratorDefinition: text('numerator_definition'),
-    denominatorDefinition: text('denominator_definition'),
-    disclosureControlDetail: text('disclosure_control_detail'),
-    caveatsDetail: text('caveats_detail'),
-    otherNotesDetail: text('other_notes_detail'),
-    dataSourceId: uuid('data_source_id'),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
-    // The view joins only indicators with a published version, and
-    // `indicator_version_published_at_check` gives every published version a `published_at`.
-    firstPublishedAt: timestamp('first_published_at', { withTimezone: true }).notNull(),
-    lastPublishedAt: timestamp('last_published_at', { withTimezone: true }).notNull(),
-  })
-  .existing();
-
-/**
- * The summaries of published updates, each with the time its version was published: every
- * update but one the core team published without visibility in history. Only a published
- * version whose latest submission has a core team decision is here, so a new indicator's first
- * version never is.
- */
-export const publishedIndicatorUpdateSummary = publishedSchema
-  .view('indicator_update_summary', {
-    indicatorId: uuid('indicator_id').notNull(),
-    publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
-    updateSummary: text('update_summary').notNull(),
-  })
-  .existing();
-
-/** Every slug any published version carries, so an indicator's earlier addresses resolve. */
-export const publishedIndicatorSlug = publishedSchema
-  .view('indicator_slug', {
-    slug: text('slug').notNull(),
-    indicatorId: uuid('indicator_id').notNull(),
-  })
-  .existing();
-
-export const publishedIndicatorTopic = publishedSchema
-  .view('indicator_topic', {
-    indicatorId: uuid('indicator_id').notNull(),
-    topicId: uuid('topic_id').notNull(),
-  })
-  .existing();
-
 export const publishedSubtopic = publishedSchema
   .view('subtopic', {
     id: uuid('id').notNull(),
@@ -127,21 +36,6 @@ export const publishedSubtopic = publishedSchema
     title: text('title').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
-  })
-  .existing();
-
-export const publishedIndicatorSubtopic = publishedSchema
-  .view('indicator_subtopic', {
-    indicatorId: uuid('indicator_id').notNull(),
-    topicId: uuid('topic_id').notNull(),
-    subtopicId: uuid('subtopic_id').notNull(),
-  })
-  .existing();
-
-export const publishedIndicatorClassification = publishedSchema
-  .view('indicator_classification', {
-    indicatorId: uuid('indicator_id').notNull(),
-    classificationId: uuid('classification_id').notNull(),
   })
   .existing();
 
@@ -189,17 +83,6 @@ export const publishedComparatorMethod = publishedSchema
 
 export const publishedDataSource = publishedSchema
   .view('data_source', { id: uuid('id').notNull(), name: text('name').notNull(), url: text('url') })
-  .existing();
-
-/** The providers and sources of each published indicator's numerator and denominator. */
-export const publishedIndicatorSource = publishedSchema
-  .view('indicator_source', {
-    indicatorId: uuid('indicator_id').notNull(),
-    part: text('part', { enum: INDICATOR_SOURCE_PARTS }).notNull(),
-    position: smallint('position').notNull(),
-    providerId: uuid('provider_id').notNull(),
-    sourceId: uuid('source_id'),
-  })
   .existing();
 
 export const publishedDataProvider = publishedSchema
@@ -287,65 +170,181 @@ export const publishedNoteType = publishedSchema
   })
   .existing();
 
-export const publishedObservation = publishedSchema
-  .view('observation', {
-    id: uuid('id').notNull(),
-    indicatorId: uuid('indicator_id').notNull(),
-    areaId: uuid('area_id').notNull(),
-    fromDate: date('from_date').notNull(),
-    toDate: date('to_date').notNull(),
-    value: doublePrecision('value'),
-    count: doublePrecision('count'),
-    numerator: doublePrecision('numerator'),
-    denominator: doublePrecision('denominator'),
-    denominator2: doublePrecision('denominator_2'),
-    lowerCi95: doublePrecision('lower_ci_95'),
-    upperCi95: doublePrecision('upper_ci_95'),
-    lowerCi998: doublePrecision('lower_ci_998'),
-    upperCi998: doublePrecision('upper_ci_998'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
-    dimensionKey: text('dimension_key').notNull(),
-  })
-  .existing();
+/**
+ * The published views that depend on which version of an indicator is visible, declared in the
+ * schema given. The internal apps declare the same views in another schema, whose definitions
+ * choose a different version, and run the same queries on them.
+ */
+export function createVersionedViews(schema: PgSchema<string>) {
+  return {
+    observationSeriesBatch: schema
+      .view('observation_series_batch', {
+        trendValues: doublePrecision('trend_values').array(),
+        indicatorId: uuid('indicator_id').notNull(),
+      })
+      .existing(),
+    observationSeries: schema
+      .view('observation_series', {
+        indicatorId: uuid('indicator_id').notNull(),
+        areaId: uuid('area_id').notNull(),
+        dimensionKey: text('dimension_key').notNull(),
+        sex: text('sex').notNull(),
+        periodType: text('period_type', { enum: ['all', '1-year', '3-year'] }).notNull(),
+        variants: jsonb('variants').$type<ObservationSeriesVariant[]>().notNull(),
+        latestObservationId: uuid('latest_observation_id').notNull(),
+        rankingObservationId: uuid('ranking_observation_id'),
+        recentObservationIds: uuid('recent_observation_ids').array().notNull(),
+        sparklineObservationIds: uuid('sparkline_observation_ids').array(),
+        recentValues: doublePrecision('recent_values').array().notNull(),
+      })
+      .existing(),
+    indicator: schema
+      .view('indicator', {
+        id: uuid('id').notNull(),
+        shortId: integer('short_id').notNull(),
+        dataUpdatedAt: timestamp('data_updated_at', { withTimezone: true }),
+        createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+        // A version is complete before it can be published, so the public surface always has a name.
+        name: text('name').notNull(),
+        // The canonical slug: the one the latest published version carries.
+        slug: text('slug').notNull(),
+        valueTypeId: uuid('value_type_id'),
+        unitId: uuid('unit_id'),
+        unitDetail: text('unit_detail'),
+        yearType: text('year_type', { enum: YEAR_TYPES }),
+        yearEndDay: smallint('year_end_day'),
+        yearEndMonth: smallint('year_end_month'),
+        ciMethodId: uuid('ci_method_id'),
+        polarity: text('polarity', { enum: POLARITIES }),
+        updateFrequency: text('update_frequency', { enum: UPDATE_FREQUENCIES }),
+        updateFrequencyReason: text('update_frequency_reason'),
+        updateFrequencyText: text('update_frequency_text'),
+        comparatorMethodId: uuid('comparator_method_id'),
+        ciConfidenceLevel: text('ci_confidence_level', { enum: CI_CONFIDENCE_LEVELS }),
+        definition: text('definition'),
+        rationale: text('rationale'),
+        methodology: text('methodology'),
+        numeratorDefinition: text('numerator_definition'),
+        denominatorDefinition: text('denominator_definition'),
+        disclosureControlDetail: text('disclosure_control_detail'),
+        caveatsDetail: text('caveats_detail'),
+        otherNotesDetail: text('other_notes_detail'),
+        dataSourceId: uuid('data_source_id'),
+        updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+        // The view joins only indicators with a published version, and
+        // `indicator_version_published_at_check` gives every published version a `published_at`.
+        firstPublishedAt: timestamp('first_published_at', { withTimezone: true }).notNull(),
+        lastPublishedAt: timestamp('last_published_at', { withTimezone: true }).notNull(),
+      })
+      .existing(),
+    /**
+     * The summaries of published updates, each with the time its version was published: every
+     * update but one the core team published without visibility in history. Only a published
+     * version whose latest submission has a core team decision is here, so a new indicator's first
+     * version never is.
+     */
+    indicatorUpdateSummary: schema
+      .view('indicator_update_summary', {
+        indicatorId: uuid('indicator_id').notNull(),
+        publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
+        updateSummary: text('update_summary').notNull(),
+      })
+      .existing(),
+    /** Every slug any published version carries, so an indicator's earlier addresses resolve. */
+    indicatorSlug: schema
+      .view('indicator_slug', {
+        slug: text('slug').notNull(),
+        indicatorId: uuid('indicator_id').notNull(),
+      })
+      .existing(),
+    indicatorTopic: schema
+      .view('indicator_topic', {
+        indicatorId: uuid('indicator_id').notNull(),
+        topicId: uuid('topic_id').notNull(),
+      })
+      .existing(),
+    indicatorSubtopic: schema
+      .view('indicator_subtopic', {
+        indicatorId: uuid('indicator_id').notNull(),
+        topicId: uuid('topic_id').notNull(),
+        subtopicId: uuid('subtopic_id').notNull(),
+      })
+      .existing(),
+    indicatorClassification: schema
+      .view('indicator_classification', {
+        indicatorId: uuid('indicator_id').notNull(),
+        classificationId: uuid('classification_id').notNull(),
+      })
+      .existing(),
+    /** The providers and sources of each published indicator's numerator and denominator. */
+    indicatorSource: schema
+      .view('indicator_source', {
+        indicatorId: uuid('indicator_id').notNull(),
+        part: text('part', { enum: INDICATOR_SOURCE_PARTS }).notNull(),
+        position: smallint('position').notNull(),
+        providerId: uuid('provider_id').notNull(),
+        sourceId: uuid('source_id'),
+      })
+      .existing(),
+    observation: schema
+      .view('observation', {
+        id: uuid('id').notNull(),
+        indicatorId: uuid('indicator_id').notNull(),
+        areaId: uuid('area_id').notNull(),
+        fromDate: date('from_date').notNull(),
+        toDate: date('to_date').notNull(),
+        value: doublePrecision('value'),
+        count: doublePrecision('count'),
+        numerator: doublePrecision('numerator'),
+        denominator: doublePrecision('denominator'),
+        denominator2: doublePrecision('denominator_2'),
+        lowerCi95: doublePrecision('lower_ci_95'),
+        upperCi95: doublePrecision('upper_ci_95'),
+        lowerCi998: doublePrecision('lower_ci_998'),
+        upperCi998: doublePrecision('upper_ci_998'),
+        createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+        dimensionKey: text('dimension_key').notNull(),
+      })
+      .existing(),
+    observationDimension: schema
+      .view('observation_dimension', {
+        observationId: uuid('observation_id').notNull(),
+        dimensionValueId: uuid('dimension_value_id').notNull(),
+        dimensionTypeId: uuid('dimension_type_id').notNull(),
+      })
+      .existing(),
+    observationNote: schema
+      .view('observation_note', {
+        observationId: uuid('observation_id').notNull(),
+        noteTypeId: uuid('note_type_id').notNull(),
+      })
+      .existing(),
+    availableData: schema
+      .view('available_data', {
+        indicatorId: uuid('indicator_id').notNull(),
+        areaTypeId: uuid('area_type_id').notNull(),
+        areaTypeName: text('area_type_name').notNull(),
+        areaCount: integer('area_count').notNull(),
+      })
+      .existing(),
+    observationRange: schema
+      .view('observation_range', {
+        indicatorId: uuid('indicator_id').notNull(),
+        displayGroup: text('display_group').notNull(),
+        fromDate: date('from_date').notNull(),
+        toDate: date('to_date').notNull(),
+        segment: text('segment').notNull(),
+        min: doublePrecision('min').notNull(),
+        max: doublePrecision('max').notNull(),
+        p25: doublePrecision('p25'),
+        p75: doublePrecision('p75'),
+        quintileCutoffs: doublePrecision('quintile_cutoffs').array(),
+      })
+      .existing(),
+  };
+}
 
-export const publishedObservationDimension = publishedSchema
-  .view('observation_dimension', {
-    observationId: uuid('observation_id').notNull(),
-    dimensionValueId: uuid('dimension_value_id').notNull(),
-    dimensionTypeId: uuid('dimension_type_id').notNull(),
-  })
-  .existing();
-
-export const publishedObservationNote = publishedSchema
-  .view('observation_note', {
-    observationId: uuid('observation_id').notNull(),
-    noteTypeId: uuid('note_type_id').notNull(),
-  })
-  .existing();
-
-export const publishedAvailableData = publishedSchema
-  .view('available_data', {
-    indicatorId: uuid('indicator_id').notNull(),
-    areaTypeId: uuid('area_type_id').notNull(),
-    areaTypeName: text('area_type_name').notNull(),
-    areaCount: integer('area_count').notNull(),
-  })
-  .existing();
-
-export const publishedObservationRange = publishedSchema
-  .view('observation_range', {
-    indicatorId: uuid('indicator_id').notNull(),
-    displayGroup: text('display_group').notNull(),
-    fromDate: date('from_date').notNull(),
-    toDate: date('to_date').notNull(),
-    segment: text('segment').notNull(),
-    min: doublePrecision('min').notNull(),
-    max: doublePrecision('max').notNull(),
-    p25: doublePrecision('p25'),
-    p75: doublePrecision('p75'),
-    quintileCutoffs: doublePrecision('quintile_cutoffs').array(),
-  })
-  .existing();
+const publishedVersionedViews = createVersionedViews(publishedSchema);
 
 /**
  * Every published view, keyed by its name. The repository functions read whichever set of views
@@ -356,7 +355,6 @@ export const publishedViews = {
   areaNeighbour: publishedAreaNeighbour,
   areaRelationship: publishedAreaRelationship,
   areaType: publishedAreaType,
-  availableData: publishedAvailableData,
   ciMethod: publishedCiMethod,
   classification: publishedClassification,
   comparatorMethod: publishedComparatorMethod,
@@ -365,24 +363,12 @@ export const publishedViews = {
   dataSource: publishedDataSource,
   dimensionType: publishedDimensionType,
   dimensionValue: publishedDimensionValue,
-  indicator: publishedIndicator,
-  indicatorClassification: publishedIndicatorClassification,
-  indicatorSlug: publishedIndicatorSlug,
-  indicatorSource: publishedIndicatorSource,
-  indicatorSubtopic: publishedIndicatorSubtopic,
-  indicatorTopic: publishedIndicatorTopic,
-  indicatorUpdateSummary: publishedIndicatorUpdateSummary,
   noteType: publishedNoteType,
-  observation: publishedObservation,
-  observationDimension: publishedObservationDimension,
-  observationNote: publishedObservationNote,
-  observationRange: publishedObservationRange,
-  observationSeries: publishedObservationSeries,
-  observationSeriesBatch: publishedObservationSeriesBatch,
   subtopic: publishedSubtopic,
   topic: publishedTopic,
   unit: publishedUnit,
   valueType: publishedValueType,
+  ...publishedVersionedViews,
 };
 
 export type ViewSet = typeof publishedViews;

@@ -18,10 +18,11 @@ import {
   observation,
   observationSeries,
   observationSeriesBatch,
-  publishedIndicator,
   publishedViews,
 } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+
+const { indicator: publishedIndicator } = publishedViews;
 
 let database: TestDb;
 let db: Database;

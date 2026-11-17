@@ -21,6 +21,21 @@ describe('withTeardown', () => {
     ).rejects.toBe(original);
   });
 
+  it('reports the teardown failure when the work fails too', async () => {
+    const original = new Error('migration failed');
+    const teardownError = new Error('recreate failed');
+    const onTeardownError = vi.fn();
+
+    await expect(
+      withTeardown(
+        () => Promise.reject(original),
+        () => Promise.reject(teardownError),
+        onTeardownError,
+      ),
+    ).rejects.toBe(original);
+    expect(onTeardownError).toHaveBeenCalledWith(teardownError);
+  });
+
   it('propagates a teardown failure when the work itself succeeded', async () => {
     const teardownError = new Error('reset failed');
 
