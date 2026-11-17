@@ -28,11 +28,14 @@ export function sourceLink(source: IndicatorDetail['dataSource']) {
 }
 
 /** The update frequency, and below it the reason the publisher gave for it, if there is one. */
-function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
-  const { text, reason } = publicUpdateFrequency(
-    indicator.updateFrequency,
-    indicator.updateFrequencyReason,
-  );
+function UpdateFrequency({
+  frequency,
+  reason: given,
+}: {
+  frequency: NonNullable<IndicatorDetail['updateFrequency']>;
+  reason: string | null;
+}) {
+  const { text, reason } = publicUpdateFrequency(frequency, given);
 
   return (
     <>
@@ -40,6 +43,20 @@ function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
       {reason ? <div className="fphd-metadata-text govuk-!-margin-top-2">{reason}</div> : null}
     </>
   );
+}
+
+function updateFrequencyRow(name: string, indicator: IndicatorDetail) {
+  const frequency = indicator.updateFrequency;
+  return frequency
+    ? [
+        {
+          name,
+          children: (
+            <UpdateFrequency frequency={frequency} reason={indicator.updateFrequencyReason} />
+          ),
+        },
+      ]
+    : [];
 }
 
 export function IndicatorSummary({
@@ -71,7 +88,7 @@ export function IndicatorSummary({
             ...(indicator.dataUpdatedAt
               ? [{ name: 'Last updated', children: formatDate(indicator.dataUpdatedAt, 'long') }]
               : []),
-            { name: 'Update frequency', children: <UpdateFrequency indicator={indicator} /> },
+            ...updateFrequencyRow('Update frequency', indicator),
             ...(indicator.lastPublishedAt !== indicator.firstPublishedAt
               ? [{ name: 'Status', children: 'Updated' }]
               : []),
@@ -280,7 +297,7 @@ export function BackgroundInformation({
               (observations.length ? 'Persons' : null),
           ),
           ...attribute('Year type', indicator.yearType?.label ?? null),
-          { name: 'Frequency', children: <UpdateFrequency indicator={indicator} /> },
+          ...updateFrequencyRow('Frequency', indicator),
           ...attribute('Polarity', POLARITY_LABELS[indicator.polarity]),
           ...(indicator.dataSource
             ? [{ name: 'Data source', children: sourceLink(indicator.dataSource) }]

@@ -343,6 +343,8 @@
     gap: govuk-spacing(1);
     padding: govuk-spacing(3) 0;
     margin: 0;
+    // The page's button style drops a pressed button 2px, onto the card's "Clear filter" link.
+    top: 0;
 
     &::before {
       content: none;
@@ -1024,6 +1026,7 @@ body.govuk-frontend-supported .fphd-filter-card {
 .fphd-geo-alt__toggle.fphd-geo-alt__toggle {
   padding: 0 8px 0 0;
   margin: 0;
+  top: 0;
   border: 0;
   background: none;
   cursor: pointer;
@@ -1768,6 +1771,86 @@ button.fphd-link-button[type="button"] {
   margin-bottom: govuk-spacing(4);
 }
 
+// A "Sort by" label beside its select. Below tablet the label stacks above a full-width
+// select, which would otherwise push the page wider than the screen.
+.fphd-sort-inline {
+  .govuk-form-group {
+    display: flex;
+    align-items: baseline;
+    gap: govuk-spacing(2);
+    margin-bottom: 0;
+  }
+
+  .govuk-label {
+    @include govuk-font($size: 19, $weight: bold);
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+
+  @include govuk-media-query($until: tablet) {
+    .govuk-form-group {
+      display: block;
+    }
+
+    .govuk-label {
+      margin-bottom: govuk-spacing(1);
+    }
+
+    .govuk-select {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+}
+
+// The search's sort has a line of its own under the count.
+.fphd-search-sort {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+
+  > form {
+    flex: 0 0 100%;
+  }
+
+  @include govuk-media-query($until: tablet) {
+    row-gap: govuk-spacing(2);
+  }
+}
+
+// The topic tabs' sort sits at the right of the "Download or share data" row, the link level
+// with the select, and stays put when the downloads open.
+.fphd-topic-sort-row {
+  display: flex;
+  align-items: flex-start;
+  gap: govuk-spacing(4);
+
+  > .fphd-inline-download {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-top: govuk-spacing(2);
+  }
+
+  > form {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  @include govuk-media-query($until: tablet) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+
+    > .fphd-inline-download {
+      margin-top: 0;
+    }
+
+    > form {
+      margin-left: 0;
+      margin-bottom: govuk-spacing(4);
+    }
+  }
+}
+
 .fphd-search-results {
   margin-top: govuk-spacing(4);
 
@@ -1935,35 +2018,6 @@ button.fphd-link-button[type="button"] {
 }
 .fphd-rug-cell--none {
   background: #bfbfbf;
-}
-
-.fphd-topic-toolbar {
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.fphd-topic-toolbar form {
-  min-width: 0;
-  max-width: 100%;
-  margin-left: auto;
-}
-
-.fphd-topic-toolbar .govuk-form-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: govuk-spacing(2);
-  margin-bottom: 0;
-}
-
-.fphd-topic-toolbar .govuk-label {
-  @include govuk-font($size: 16, $weight: bold);
-  margin-bottom: 0;
-}
-
-.fphd-topic-toolbar .govuk-select {
-  @include govuk-font-size($size: 16);
-  max-width: 100%;
 }
 
 .fphd-topic-download {

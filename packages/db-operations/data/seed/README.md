@@ -64,7 +64,9 @@ That yields 433,678 observations, 657,869 bridge rows and 67,978 observation not
   `export/polarity.py` and carry no `polarity` table; a name it has no value for stops the export.
 - `indicator_version.update_frequency` likewise holds one of the service's values from
   `@fphd/utils/update-frequency` in place of Pholio's frequency lookup, translated by
-  `export/update_frequency.py`; neither export carries a `frequency` table.
+  `export/update_frequency.py`; neither export carries a `frequency` table. The export leaves the
+  frequency of gastroenteritis admissions (94194) empty, so the e2e suite covers imported indicators
+  without one on their public page and in downloads.
 - `numerator_source_id` and `denominator_source_id` in `indicator_version.csv.gz` name rows of
   Pholio's `numerator_denominator_source.csv.gz`. The service has neither the columns nor the table:
   the load maps each name onto the core data providers through

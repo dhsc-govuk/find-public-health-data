@@ -847,6 +847,14 @@ it('writes the indicator frequency from source prose', async () => {
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.update_frequency).toBe('quarterly');
 });
+it('exports the structured frequency when the source prose is unrecognised', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    frequency: 'Annual',
+    frequencyProse: 'The data will normally be updated annually.',
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.update_frequency).toBe('annually');
+});
 it('leaves missing indicator frequency unanswered', async () => {
   indicatorQueries();
   await exportIndicators(options);
@@ -854,6 +862,7 @@ it('leaves missing indicator frequency unanswered', async () => {
 });
 it.each([
   ['Quarterly', 'quarterly'],
+  ['The data will normally be updated annually.', DATA_MIGRATION_NULL],
   [undefined, DATA_MIGRATION_NULL],
 ])('allows a null structured frequency with prose %s', async (frequencyProse, expected) => {
   indicatorQueries('No unit', undefined, [], {
@@ -888,14 +897,19 @@ it.each(['approved', 'development-snapshot'] as const)(
     expect(await readdir(directory)).toEqual([]);
   },
 );
-it('refuses contradictory source frequency before writing indicator tables', async () => {
-  indicatorQueries('No unit', undefined, [], {
-    frequency: 'Annual',
-    frequencyProse: 'Monthly',
-  });
-  await expect(exportIndicators(options)).rejects.toThrow('Conflicting source update frequencies');
-  expect(await readdir(directory)).toEqual([]);
-});
+it.each(['Monthly', 'The data will be updated monthly.'])(
+  'refuses contradictory source frequency %s before writing indicator tables',
+  async (frequencyProse) => {
+    indicatorQueries('No unit', undefined, [], {
+      frequency: 'Annual',
+      frequencyProse,
+    });
+    await expect(exportIndicators(options)).rejects.toThrow(
+      'Conflicting source update frequencies',
+    );
+    expect(await readdir(directory)).toEqual([]);
+  },
+);
 it('writes the owning profile polarity and comparator instead of the other profile', async () => {
   indicatorQueries('No unit', undefined, [], {
     ownerProfileId: 10,
@@ -936,22 +950,28 @@ it('preserves an all-not-applicable source polarity', async () => {
   expect((await rows('indicator_version'))[0]?.polarity).toBe('no-comparison-possible');
 });
 it('preserves profile references and raw frequency text in source provenance', async () => {
-  indicatorQueries('No unit', undefined, [], {}, [
-    {
-      IndicatorID: 108,
-      ProfileId: 10,
-      Name: 'B03 - Indicator 108',
-      Frequency: 'Every 3 years',
-      StructuredFrequency: 'Annual',
-    },
-    {
-      IndicatorID: 109,
-      ProfileId: 20,
-      Name: 'Unselected',
-      Frequency: 'Monthly',
-      StructuredFrequency: null,
-    },
-  ]);
+  indicatorQueries(
+    'No unit',
+    undefined,
+    [],
+    { frequency: 'Annual', frequencyProse: 'Every 3 years' },
+    [
+      {
+        IndicatorID: 108,
+        ProfileId: 10,
+        Name: 'B03 - Indicator 108',
+        Frequency: 'Every 3 years',
+        StructuredFrequency: 'Annual',
+      },
+      {
+        IndicatorID: 109,
+        ProfileId: 20,
+        Name: 'Unselected',
+        Frequency: 'Monthly',
+        StructuredFrequency: null,
+      },
+    ],
+  );
   const result = await exportIndicators(options);
   expect(result.profileMetadata).toEqual([
     {
@@ -963,6 +983,7 @@ it('preserves profile references and raw frequency text in source provenance', a
     },
   ]);
   expect((await rows('indicator_version'))[0]?.name).toBe('Indicator 108');
+  expect((await rows('indicator_version'))[0]?.update_frequency).toBe('annually');
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',

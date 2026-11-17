@@ -199,7 +199,7 @@ export interface IndicatorDetail {
   unit: string | null;
   /** Null for an indicator of months, which have no year type. */
   yearType: PublicYearType | null;
-  updateFrequency: UpdateFrequency;
+  updateFrequency: UpdateFrequency | null;
   /**
    * Why an indicator has no fixed frequency or will no longer be updated. Null beside any other
    * frequency, and beside those two for an indicator imported without one.
@@ -365,7 +365,7 @@ export async function getPublishedIndicatorsByIds(
   ]);
   return new Map(
     rows.flatMap((row): [string, IndicatorDetail][] => {
-      if (row.polarity === null || row.updateFrequency === null) return [];
+      if (row.polarity === null) return [];
       const sourcesOf = (part: IndicatorSourcePart) =>
         sources
           .filter((entry) => entry.indicatorId === row.id && entry.part === part)
@@ -760,13 +760,19 @@ export async function searchIndicators(
                   asc(indicator.name),
                   asc(indicator.shortId),
                 ]
-              : query
+              : filters.sort === 'recently-updated'
                 ? [
-                    relevance,
-                    sql`position(lower(${query}) in lower(${indicator.name}))`,
+                    sql`${indicator.dataUpdatedAt} desc nulls last`,
                     asc(indicator.name),
+                    asc(indicator.shortId),
                   ]
-                : [sql`(${firstTopicTitle}) nulls last`, asc(indicator.name)];
+                : query
+                  ? [
+                      relevance,
+                      sql`position(lower(${query}) in lower(${indicator.name}))`,
+                      asc(indicator.name),
+                    ]
+                  : [sql`(${firstTopicTitle}) nulls last`, asc(indicator.name)];
   const trendSort = filters.sort?.startsWith('trend-') ?? false;
   const rowQuery = (page = 1) => {
     const query = db

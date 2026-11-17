@@ -14,7 +14,7 @@ import {
   queryText,
   topicSummaryListSchema,
 } from '@fphd/public-api-features/contract';
-import { indicatorSort } from '@fphd/utils/indicator-sort';
+import { searchSort } from '@fphd/utils/indicator-sort';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
@@ -25,6 +25,7 @@ import {
 } from '../geography/groups.ts';
 import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
+import { topicSort } from '../topic/filters.ts';
 import { DIMENSIONS, PERIOD_PARAMS } from './url.ts';
 
 export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies: boolean) {
@@ -34,6 +35,7 @@ export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies
   ]);
   return {
     ...search,
+    sort: searchSort(new URL(args.request.url).searchParams.get('sort')),
     geographyLookupUrl: publicGeographies ? '/geographies?scheme=public' : '/geographies',
     topicResults,
   };
@@ -199,7 +201,10 @@ export async function loadSearch(
   }
 
   let searchQuery = buildSearchQuery(query, params, displayGroups, gaCodes);
-  if (topicSlug) searchQuery += `&sort=${indicatorSort(params.get('sort')) ?? 'subtopic-asc'}`;
+  const sort = topicSlug
+    ? (topicSort(params.get('sort')) ?? 'subtopic-asc')
+    : searchSort(params.get('sort'));
+  if (sort !== 'relevance') searchQuery += `${searchQuery ? '&' : ''}sort=${sort}`;
 
   const [facets, firstResult, geographyOptions] = await Promise.all([
     api.get('/api/indicators/facets', indicatorFacetsSchema),
