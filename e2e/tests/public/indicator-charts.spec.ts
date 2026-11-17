@@ -30,6 +30,21 @@ for (const count of [1, 2, 8, 12]) {
       } else await openIndicatorPage(page, path);
       const region = page.getByRole('region', { name: /trend chart$/ }).first();
       const chart = region.locator('.fphd-chart-canvas').first();
+      await expect(chart.locator('.recharts-label')).toHaveText('Year');
+      await expect(
+        region.locator('.fphd-chart-canvas').nth(1).locator('.recharts-label'),
+      ).toHaveText('Period');
+      const title = chart.locator('.fphd-line-axis-title');
+      if (width === 1020) await expect(title.locator('tspan')).toHaveCount(1);
+      const titleBox = await title.boundingBox();
+      const axisBox = await chart
+        .locator('.recharts-yAxis .recharts-cartesian-axis-line')
+        .boundingBox();
+      expect(titleBox?.x).toBeGreaterThanOrEqual(0);
+      expect((titleBox?.x ?? 0) + (titleBox?.width ?? 0)).toBeLessThanOrEqual(width);
+      expect(
+        Math.abs((titleBox?.x ?? 0) + (titleBox?.width ?? 0) / 2 - (axisBox?.x ?? 0)),
+      ).toBeLessThan(1);
       await expect(chart.locator('.fphd-chart-series-label')).toHaveCount(
         width === 375 ? 0 : count,
       );
@@ -135,24 +150,35 @@ test('average bars are sorted highest to lowest and retain muting while pinned',
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('RAG average variant computes its mean and uses the judgement palette', async ({
+test('Compare areas bars use the England value and match the table judgements', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1020, height: 1000 });
   await openIndicatorPage(
     page,
-    '/indicator/resident-population?tab-indicator=areas&areaType=Statistical+regions',
+    '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages?tab-indicator=areas&areaType=Statistical+regions',
   );
   const chart = page.getByRole('region', { name: /^Compare areas:/ }).first();
   const bars = chart.locator('.recharts-bar-rectangle');
   await expect(bars.first()).toBeVisible();
-  await expect(bars.first().locator('path')).toHaveAttribute('fill', '#8ed973');
+  await expect(bars.first().locator('path')).toHaveAttribute('fill', '#c00000');
   await expect(chart.locator('.recharts-reference-line-line')).toHaveCount(1);
   await bars.first().hover();
   const tooltip = chart.getByRole('status');
   await expect(tooltip).toContainText('Area:');
   await expect(tooltip).toContainText('Value:');
-  await expect(tooltip).toContainText('England average:');
-  await expect(tooltip).toContainText('Comparison: Better than average');
+  await expect(tooltip).toContainText('England:');
+  await expect(tooltip).not.toContainText('average');
+  await expect(tooltip).toContainText('Comparison: Worse than England');
+  const table = page.locator('.fphd-area-comparison-table');
+  const england = table.getByRole('row', { name: /^England \(benchmark\)/ });
+  const englandValue = await england.locator('td').first().innerText();
+  await expect(tooltip).toContainText(`England: ${englandValue}`);
+  const firstArea = (await chart.locator('tbody th').first().textContent())?.trim() ?? '';
+  const tableRow = table
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: firstArea, exact: true }) });
+  await expect(tableRow.locator('td').nth(1)).toHaveText('Worse');
+  await expect(chart.locator('.recharts-reference-line-line')).toHaveAttribute('stroke-width', '1');
   await expectNoAccessibilityViolations(page, testInfo);
 });

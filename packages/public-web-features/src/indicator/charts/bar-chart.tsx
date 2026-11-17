@@ -1,6 +1,7 @@
 import { ChartSection } from '@fphd/ui';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
+  benchmarkJudgement,
   type ConfidenceLevel,
   inequalityCategoryLabel,
   segmentLabel,
@@ -83,6 +84,7 @@ export function CompareAreasChart({
 }) {
   const series = alignedSeries(areas);
   const local = series.filter(({ code }) => code !== englandCode);
+  const england = series.find(({ code }) => code === englandCode);
   const observations = local.flatMap(({ observations }) => [...observations]);
   const latest = observations
     .filter(([, point]) => point.value !== null)
@@ -97,6 +99,7 @@ export function CompareAreasChart({
       </NoChartData>
     );
   const [period, observation] = latest;
+  const benchmarkValue = england?.observations.get(period)?.value ?? null;
   const segment = segmentValuesKey(observation);
   const rows = local
     .map(({ code, name, observations }) => {
@@ -115,6 +118,7 @@ export function CompareAreasChart({
         key: code,
         name,
         observation: point,
+        comparison: benchmarkJudgement(point, benchmarkValue, indicator),
         quintile: areaQuintile(point?.value, range?.quintileCutoffs),
       };
     })
@@ -136,11 +140,9 @@ export function CompareAreasChart({
         title={title}
         group="Area"
         colourByQuintile={colourByQuintile}
-        {...(series.some(({ code }) => code === englandCode) && !colourByQuintile
-          ? { averageEntity: 'England' }
-          : {})}
-        colourMode={indicator.polarity === 'higher-is-better' ? 'rag' : 'magnitude'}
-        comparisonConfidence={confidence}
+        {...(benchmarkValue === null || colourByQuintile
+          ? {}
+          : { benchmark: { name: 'England', value: benchmarkValue } })}
       />
       <ChartSources indicators={[indicator]} />
     </ChartSection>

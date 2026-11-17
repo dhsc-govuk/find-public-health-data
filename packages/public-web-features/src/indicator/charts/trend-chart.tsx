@@ -1,6 +1,6 @@
 import { ChartSection } from '@fphd/ui';
 import { shortPeriodLabel } from '@fphd/utils/period-label';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { CartesianGrid, ErrorBar, Label, Line, LineChart, Symbols, XAxis, YAxis } from 'recharts';
 import {
   availablePeriodTypes,
@@ -28,6 +28,17 @@ import { EndLabels, lineColour } from './trend-labels.tsx';
 import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
+
+export function trendTitleLines(title: string, width: number) {
+  const characters = Math.max(20, Math.floor((width - 16) / 7.4));
+  return title.split(' ').reduce<string[]>((lines, word) => {
+    const last = lines.at(-1);
+    if (last && last.length + word.length + 1 <= characters)
+      lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+    return lines;
+  }, []);
+}
 
 function SeriesMark({ index, size = 78 }: { index: number; size?: number }) {
   return (
@@ -59,6 +70,18 @@ function TrendPlot({
   const selection = useChartSelection<TrendSelection>();
   const active = selection.active?.index ?? null;
   const [width, setWidth] = useState(640);
+  const [spaceBefore, setSpaceBefore] = useState(0);
+  const [titleWidth, setTitleWidth] = useState(0);
+  const titleRef = useCallback((element: SVGTextElement | null) => {
+    if (!element?.getBBox) return;
+    const measure = () => setTitleWidth(element.getBBox().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const yTitle = `${indicator.name}${unitNote(indicator.unit)}`;
+  const yTitleLines = trendTitleLines(yTitle, width);
   const series = alignedSeries(areas).filter(({ observations }) =>
     [...observations.values()].some(({ value }) => value !== null),
   );
@@ -101,20 +124,14 @@ function TrendPlot({
   const right = narrow
     ? tickInset
     : Math.max(126, tickInset, Math.min(width * 0.4, 24 + longest * 8.4));
-  const yTitle = `${indicator.name}${unitNote(indicator.unit)}`;
-  const yTitleLines = yTitle.split(' ').reduce<string[]>((lines, word) => {
-    const last = lines.at(-1);
-    if (last && last.length + word.length < 17) lines[lines.length - 1] = `${last} ${word}`;
-    else lines.push(word);
-    return lines;
-  }, []);
   const titleHeight = yTitleLines.length * 18 + 24;
+  const left = Math.max(8, titleWidth / 2 - spaceBefore - 56);
   const periodAxis = periods.some(({ label }) => !/^\d{4}(\/\d{2})?$/.test(label))
     ? 'Period'
     : indicator.yearType?.value === 'financial'
       ? 'Financial year'
       : indicator.yearType?.value === 'calendar'
-        ? 'Calendar year'
+        ? 'Year'
         : 'Period';
   const latestValue = latest && primary.observations.get(latest.key)?.value;
   const firstValue = first && primary.observations.get(first.key)?.value;
@@ -148,7 +165,12 @@ function TrendPlot({
             narrow ? 300 : series.length * (series.length > 8 ? 90 : 60) + 100,
           ) + Math.max(0, titleHeight - 50)
         }
-        onResize={setWidth}
+        onResize={(width) => {
+          setWidth(width);
+          setSpaceBefore(
+            Math.max(0, (selection.ref.current?.getBoundingClientRect().left ?? 0) - 15),
+          );
+        }}
         instruction={
           series.length > 1
             ? 'Use the left and right arrow keys to move between periods, and the up and down arrow keys to move between series.'
@@ -181,11 +203,12 @@ function TrendPlot({
       >
         {(descriptionId) => (
           <LineChart
+            className="fphd-line-chart"
             accessibilityLayer
             aria-label={chartTitle}
             aria-describedby={descriptionId}
             data={points}
-            margin={{ top: titleHeight, right, left: 8, bottom: 8 }}
+            margin={{ top: titleHeight, right, left, bottom: 8 }}
             onMouseLeave={selection.leave}
             onMouseMove={(_, event) => {
               if (
@@ -221,6 +244,7 @@ function TrendPlot({
                 content={({ viewBox }) =>
                   viewBox && 'x' in viewBox && 'width' in viewBox && 'y' in viewBox ? (
                     <text
+                      ref={titleRef}
                       className="recharts-text fphd-line-axis-title"
                       x={Number(viewBox.x) + Number(viewBox.width)}
                       y={Number(viewBox.y) - 20 - (yTitleLines.length - 1) * 18}

@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { type ConfidenceLevel, formatValue, unitNote } from '../data.ts';
+import { type BenchmarkJudgement, type ConfidenceLevel, formatValue, unitNote } from '../data.ts';
 import type { IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
 import {
   type BarColourMode,
@@ -84,8 +84,27 @@ export interface BarRow {
   key: string;
   name: string;
   observation: IndicatorObservation | undefined;
+  comparison?: BenchmarkJudgement;
   quintile?: number | null;
 }
+
+const comparisonColours = {
+  better: '#8ed973',
+  worse: '#c00000',
+  similar: '#ffc000',
+  higher: '#5555e6',
+  lower: '#bed2ff',
+  none: axisColour,
+} satisfies Record<BenchmarkJudgement, string>;
+
+const comparisonText = {
+  better: 'Better than England',
+  worse: 'Worse than England',
+  similar: 'Similar to England',
+  higher: 'Higher than England',
+  lower: 'Lower than England',
+  none: 'Not compared with England',
+} satisfies Record<BenchmarkJudgement, string>;
 
 export function ObservationBars({
   rows: unsortedRows,
@@ -94,6 +113,7 @@ export function ObservationBars({
   title,
   group,
   averageEntity,
+  benchmark: suppliedBenchmark,
   colourMode = 'magnitude',
   comparisonConfidence = '95',
   colourByQuintile = false,
@@ -105,6 +125,7 @@ export function ObservationBars({
   title: string;
   group: string;
   averageEntity?: string;
+  benchmark?: { name: string; value: number };
   colourMode?: BarColourMode;
   comparisonConfidence?: ConfidenceLevel;
   colourByQuintile?: boolean;
@@ -117,7 +138,9 @@ export function ObservationBars({
   );
   const mean = barMean(rows.map(({ observation }) => observation?.value));
   const benchmark =
-    averageEntity && mean !== null ? { name: averageEntity, value: mean } : undefined;
+    suppliedBenchmark ??
+    (averageEntity && mean !== null ? { name: averageEntity, value: mean } : undefined);
+  const benchmarkTitle = suppliedBenchmark ? benchmark?.name : `${benchmark?.name} average`;
   const mode =
     colourMode === 'rag' && indicator.polarity === 'higher-is-better' ? 'rag' : 'magnitude';
   const comparison = (row: BarRow) =>
@@ -131,12 +154,14 @@ export function ObservationBars({
   const [width, setWidth] = useState(640);
   const colour = (row: BarRow) => {
     if (colourByQuintile) return quintileColours[(row.quintile ?? 0) - 1] ?? axisColour;
+    if (suppliedBenchmark) return comparisonColours[row.comparison ?? 'none'];
     const status = comparison(row);
     return benchmark && status ? barPalettes[mode][status] : seriesColours[0];
   };
   const comparisonLabel = (row: BarRow) => {
     if (colourByQuintile)
       return row.quintile ? quintileLabel(row.quintile) : 'Quintile unavailable';
+    if (suppliedBenchmark) return comparisonText[row.comparison ?? 'none'];
     return barComparisonText(comparison(row), mode);
   };
   const key = colourByQuintile
@@ -321,7 +346,7 @@ export function ObservationBars({
                 stroke="#000000"
                 strokeWidth={1}
                 label={{
-                  value: `${benchmark.name} average ${chartValue(benchmark.value, indicator.unit)}`,
+                  value: `${benchmarkTitle} ${chartValue(benchmark.value, indicator.unit)}`,
                   position: 'top',
                   fontWeight: 700,
                   fontSize: 16,
@@ -346,7 +371,7 @@ export function ObservationBars({
                   {benchmark ? (
                     <>
                       <div>
-                        <strong>{benchmark.name} average:</strong>{' '}
+                        <strong>{benchmarkTitle}:</strong>{' '}
                         {chartValue(benchmark.value, indicator.unit)}
                       </div>
                       <div>

@@ -241,6 +241,10 @@
   margin-bottom: govuk-spacing(1);
 }
 
+.fphd-line-chart .recharts-surface {
+  overflow: visible;
+}
+
 .fphd-scatter-axis-title {
   text-align: center;
 }

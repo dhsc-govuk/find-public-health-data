@@ -1,9 +1,30 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it } from 'vitest';
+import { cloneElement, type ReactElement, type Ref } from 'react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { indicatorComparisonModel } from '../comparison-model.ts';
 import type { IndicatorAreaData, IndicatorRangePeriod, SelectedIndicator } from '../loader.ts';
+import { AreaComparisonTable } from '../tables/area-comparison-table.tsx';
 import { indicatorDetail, observation } from '../view.testing.ts';
 import { CompareAreasChart } from './bar-chart.tsx';
+
+vi.mock('./chart-elements.tsx', async (original) => ({
+  ...(await original<typeof import('./chart-elements.tsx')>()),
+  ChartCanvas: ({
+    children,
+    chartRef,
+  }: {
+    children: (id: string) => ReactElement;
+    chartRef: Ref<HTMLDivElement>;
+  }) => (
+    <div ref={chartRef}>
+      {cloneElement(children('description') as ReactElement<{ width: number; height: number }>, {
+        width: 640,
+        height: 400,
+      })}
+    </div>
+  ),
+}));
 
 afterEach(cleanup);
 
@@ -70,6 +91,28 @@ it('shows the represented quintiles when both levels have matching ranges', () =
   ).toEqual(['Quintile 1 (lowest)', 'Quintile 3']);
 });
 
+it('keeps quintile colours and omits the England line in quintile mode', () => {
+  const { container } = render(
+    <CompareAreasChart
+      areas={[
+        ...areas,
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation(20)] },
+      ]}
+      confidence="95"
+      indicator={indicatorDetail()}
+      colourByQuintile
+      levelByCode={{ A: 'local-authorities', B: 'local-authorities' }}
+      ranges={{ 'local-authorities': [range] }}
+    />,
+  );
+  expect(
+    [...container.querySelectorAll('.recharts-bar-rectangle path')].map((bar) =>
+      bar.getAttribute('fill'),
+    ),
+  ).toEqual(['#27a096', '#c5eee9']);
+  expect(container.querySelector('.recharts-reference-line-line')).toBeNull();
+});
+
 it('does not add an unavailable quintile for an area without a bar in the latest period', () => {
   render(
     <CompareAreasChart
@@ -94,3 +137,115 @@ it('does not add an unavailable quintile for an area without a bar in the latest
       .map((item) => item.textContent),
   ).toEqual(['Quintile 1 (lowest)']);
 });
+
+it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-possible'] as const)(
+  'matches the table Compared with England judgements and colours for %s',
+  (polarity) => {
+    const detail = indicatorDetail(108, { polarity });
+    const areaData: IndicatorAreaData[] = [
+      { areaCode: 'E92000001', areaName: 'England', observations: [observation(10.2)] },
+      ...[8, 9.8, 10.2, 12, 50].map((value) => ({
+        areaCode: String(value),
+        areaName: `Area ${value}`,
+        observations: [
+          {
+            ...observation(value),
+            lowerCi95: value === 50 ? 5 : value - 0.1,
+            upperCi95: value === 50 ? 55 : value + 0.1,
+          },
+        ],
+      })),
+      {
+        areaCode: 'missing-ci',
+        areaName: 'Missing interval',
+        observations: [{ ...observation(20), lowerCi95: null, upperCi95: null }],
+      },
+    ];
+    const primary = { detail, areaData };
+    const model = indicatorComparisonModel([primary], {
+      compareAreasData: areaData,
+      comparedAreasData: [],
+      compareAreaOptions: [],
+      compareAreaGroup: 'Local authorities',
+      comparisonDisplayGroups: [],
+    }).areas;
+    const colours: Record<string, string> = {
+      Better: '#8ed973',
+      Similar: '#ffc000',
+      Worse: '#c00000',
+      Higher: '#5555e6',
+      Lower: '#bed2ff',
+      '': '#505a5f',
+    };
+    for (const confidence of ['none', '95', '99.8'] as const) {
+      const { container, unmount } = render(
+        <>
+          <AreaComparisonTable
+            indicator={primary}
+            model={model}
+            sort="descending"
+            highlighted={[]}
+          />
+          <CompareAreasChart
+            areas={areaData}
+            confidence={confidence}
+            indicator={detail}
+            colourByQuintile={false}
+            levelByCode={{}}
+            ranges={{}}
+          />
+        </>,
+      );
+      const tableRows = container.querySelectorAll('.fphd-area-comparison-table tbody tr');
+      const judgements = [...tableRows].slice(1).map((row) => row.children[2]?.textContent ?? '');
+      expect(new Set(judgements).size).toBe(polarity === 'no-comparison-possible' ? 1 : 4);
+      const chart = container.querySelector('.fphd-chart-section');
+      const chartRows = chart?.querySelectorAll('tbody tr') ?? [];
+      expect(
+        [...chartRows].map((row) => row.children[row.children.length - 1]?.textContent),
+      ).toEqual(
+        judgements.map((label) =>
+          label
+            ? `${label} ${label === 'Similar' ? 'to' : 'than'} England`
+            : 'Not compared with England',
+        ),
+      );
+      expect(
+        [...(chart?.querySelectorAll('.recharts-bar-rectangle path') ?? [])].map((bar) =>
+          bar.getAttribute('fill'),
+        ),
+      ).toEqual(judgements.map((label) => colours[label]));
+      expect(chart?.textContent).toContain('England 10.2%');
+      expect(chart?.textContent).not.toContain('average');
+      expect(
+        chart?.querySelector('.recharts-reference-line-line')?.getAttribute('stroke-width'),
+      ).toBe('1');
+      unmount();
+    }
+  },
+);
+
+it.each([
+  undefined,
+  { ...observation(40), fromDate: '2023-01-01', toDate: '2023-12-31' },
+  { ...observation(), value: null },
+])(
+  'does not invent an England reference when its matching observation is missing: %j',
+  (england) => {
+    const { container } = render(
+      <CompareAreasChart
+        areas={[
+          ...areas,
+          { areaCode: 'E92000001', areaName: 'England', observations: england ? [england] : [] },
+        ]}
+        confidence="none"
+        indicator={indicatorDetail()}
+        colourByQuintile={false}
+        levelByCode={{}}
+        ranges={{}}
+      />,
+    );
+    expect(container.querySelector('.recharts-reference-line-line')).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Comparison key' })).toBeNull();
+  },
+);
