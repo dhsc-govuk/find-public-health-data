@@ -1,6 +1,6 @@
 import { ChartSection } from '@fphd/ui';
 import { formatCalculatedValue } from '../data.ts';
-import type { IndicatorDetail } from '../loader.ts';
+import type { IndicatorPageDetail } from '../loader.ts';
 import type { sparklineModel } from './chart-data.ts';
 import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
 
@@ -35,7 +35,7 @@ export function Sparkline({
 }: {
   id: string;
   title: string;
-  indicator: Pick<IndicatorDetail, 'name' | 'unit'>;
+  indicator: Pick<IndicatorPageDetail, 'name' | 'unit'>;
 } & ReturnType<typeof sparklineModel>) {
   const first = points.find(({ value }) => value !== null);
   const latest = points.findLast(({ value }) => value !== null);

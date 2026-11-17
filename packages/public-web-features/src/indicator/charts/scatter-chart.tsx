@@ -12,7 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { formatValue, unitNote } from '../data.ts';
-import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
+import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { englandCode, pairedObservations, regression } from './chart-data.ts';
 import {
   axisColour,
@@ -40,7 +40,7 @@ export function CompareIndicatorsChart({
   selectedAreaCodes = [],
 }: {
   selected: {
-    detail: Pick<IndicatorDetail, 'name' | 'unit' | 'yearType' | 'dataSource'>;
+    detail: Pick<IndicatorPageDetail, 'name' | 'unit' | 'yearType' | 'dataSource'>;
     areaData?: IndicatorAreaData[];
   }[];
   selectedAreaCodes?: string[] | undefined;

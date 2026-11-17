@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { ResponsiveContainer } from 'recharts';
 import { formatCalculatedValue, withUnit } from '../data.ts';
-import type { IndicatorDetail } from '../loader.ts';
+import type { IndicatorPageDetail } from '../loader.ts';
 import { sourceLink } from '../metadata.tsx';
 
 export const axisColour = '#505a5f';
@@ -123,7 +123,7 @@ export function ChartCanvas({
 export function ChartSources({
   indicators,
 }: {
-  indicators: Pick<IndicatorDetail, 'dataSource'>[];
+  indicators: Pick<IndicatorPageDetail, 'dataSource'>[];
 }) {
   const sources = new Map(
     indicators.flatMap(({ dataSource }) =>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { SpineChart } from '../charts/spine-chart.tsx';
 import { benchmarkJudgement, formatCalculatedValue, withUnit } from '../data.ts';
-import type { IndicatorDetail, IndicatorObservation, IndicatorRangePeriod } from '../loader.ts';
+import type { IndicatorObservation, IndicatorPageDetail, IndicatorRangePeriod } from '../loader.ts';
 
 const BENCHMARK_HEADER = 'govuk-table__header fphd-trend-table__benchmark-cell';
 const BENCHMARK_CELL = 'govuk-table__cell fphd-trend-table__benchmark-cell';
@@ -112,7 +112,7 @@ export function BenchmarkChartCell({
   benchmarkName: string;
   benchmarkValue: number | null;
   confidence?: '95' | '99.8';
-  indicator: Pick<IndicatorDetail, 'polarity' | 'comparatorMethod'>;
+  indicator: Pick<IndicatorPageDetail, 'polarity' | 'comparatorMethod'>;
   rangePeriod: IndicatorRangePeriod | undefined;
 }) {
   const labelValue = (value: number) => withUnit(formatCalculatedValue(value), unit);

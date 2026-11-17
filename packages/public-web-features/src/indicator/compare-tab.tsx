@@ -8,7 +8,7 @@ import type { compactIndicator } from './compact-data.ts';
 import { ComparePicker } from './compare-picker.tsx';
 import type { IndicatorComparisonModel } from './comparison-model.ts';
 import type {
-  IndicatorDetail,
+  IndicatorPageDetail,
   IndicatorRangePeriod,
   IndicatorSummary,
   SelectedIndicator,
@@ -35,7 +35,7 @@ export function CompareIndicatorsTab({
   scatter,
 }: ComparisonTabProps & {
   compared:
-    | Pick<IndicatorDetail, 'shortId' | 'name' | 'slug' | 'unit' | 'yearType' | 'dataSource'>
+    | Pick<IndicatorPageDetail, 'shortId' | 'name' | 'slug' | 'unit' | 'yearType' | 'dataSource'>
     | undefined;
   findResults: IndicatorSummary[] | Promise<IndicatorSummary[]>;
   findSubject: string;

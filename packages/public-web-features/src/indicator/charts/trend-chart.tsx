@@ -23,7 +23,7 @@ import {
   segmentLabel,
   unitNote,
 } from '../data.ts';
-import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
+import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { alignedSeries, bounds, chartPeriods, errorOffsets } from './chart-data.ts';
 import {
   axisColour,
@@ -152,7 +152,7 @@ function TrendPlot({
   title,
 }: {
   areas: IndicatorAreaData[];
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
   title: string;
 }) {
@@ -414,7 +414,7 @@ export function TrendChart({
   id: string;
   title: string;
   areas: IndicatorAreaData[];
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   confidence?: ConfidenceLevel;
 }) {
   const types = availablePeriodTypes(areas.flatMap(({ observations }) => observations));

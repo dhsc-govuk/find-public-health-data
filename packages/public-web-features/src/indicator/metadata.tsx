@@ -3,7 +3,13 @@ import { CI_CONFIDENCE_LEVEL_LABELS } from '@fphd/utils/ci-confidence-level';
 import { POLARITY_LABELS } from '@fphd/utils/polarity';
 import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
 import { dimensionValues, periodCovered, recentTrend } from './data.ts';
-import type { IndicatorDetail, IndicatorObservation, IndicatorProviderSource } from './loader.ts';
+import type {
+  IndicatorObservation,
+  IndicatorPageDetail,
+  IndicatorProviderSource,
+  IndicatorQuestion,
+} from './loader.ts';
+import { dataPlaceholder, isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
 import { TrendTag } from './trend-tag.tsx';
 
 export function DefinitionBlock({ title, text }: { title: string; text: string | null }) {
@@ -19,7 +25,7 @@ export function DefinitionBlock({ title, text }: { title: string; text: string |
   );
 }
 
-export function sourceLink(source: IndicatorDetail['dataSource']) {
+export function sourceLink(source: IndicatorPageDetail['dataSource']) {
   if (!source) {
     return null;
   }
@@ -29,7 +35,7 @@ export function sourceLink(source: IndicatorDetail['dataSource']) {
 
 // The original text stands in for the fixed label only: a reason the publisher had to give
 // still follows it.
-function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
+function UpdateFrequency({ indicator }: { indicator: IndicatorPageDetail }) {
   const description = indicator.updateFrequencyText;
   const fixed =
     indicator.updateFrequency &&
@@ -50,7 +56,8 @@ function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
   );
 }
 
-function updateFrequencyRow(name: string, indicator: IndicatorDetail) {
+function updateFrequencyRow(name: string, indicator: IndicatorPageDetail) {
+  if (isUnanswered(indicator, 'updateFrequency')) return [{ name, children: NOT_ENTERED_YET }];
   return indicator.updateFrequencyText || indicator.updateFrequency
     ? [
         {
@@ -65,12 +72,13 @@ export function IndicatorSummary({
   indicator,
   observations,
 }: {
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   observations: IndicatorObservation[];
 }) {
   const ofDimension = (dimension: string) =>
     indicator.classifications.filter((entry) => entry.dimension === dimension);
   const trend = recentTrend(observations, indicator.polarity);
+  const placeholder = dataPlaceholder(indicator);
   const indicatorTypes = ofDimension('indicator_type');
   const lifeStages = ofDimension('life_stage');
   const frameworks = ofDimension('framework');
@@ -85,7 +93,8 @@ export function IndicatorSummary({
           items={[
             {
               name: 'Period covered',
-              children: periodCovered(observations, indicator.yearType) || 'No data',
+              children:
+                placeholder ?? (periodCovered(observations, indicator.yearType) || 'No data'),
             },
             ...(indicator.dataUpdatedAt
               ? [{ name: 'Last updated', children: formatDate(indicator.dataUpdatedAt, 'long') }]
@@ -94,7 +103,10 @@ export function IndicatorSummary({
             ...(indicator.lastPublishedAt !== indicator.firstPublishedAt
               ? [{ name: 'Status', children: 'Updated' }]
               : []),
-            { name: 'Trend (last 5 periods)', children: <TrendTag trend={trend} /> },
+            {
+              name: 'Trend (last 5 periods)',
+              children: placeholder ?? <TrendTag trend={trend} />,
+            },
           ]}
         />
       </GridColumn>
@@ -259,7 +271,7 @@ export function BackgroundInformation({
   indicator,
   observations = [],
 }: {
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   observations?: IndicatorObservation[];
 }) {
   const confidenceLevel = indicator.ciConfidenceLevel
@@ -267,6 +279,9 @@ export function BackgroundInformation({
     : null;
   const attribute = (name: string, value: string | null) =>
     value ? [{ name, children: value }] : [];
+  const answer = (name: string, question: IndicatorQuestion, value: string | null) =>
+    attribute(name, isUnanswered(indicator, question) ? NOT_ENTERED_YET : value);
+  const placeholder = dataPlaceholder(indicator);
 
   return (
     <section id={`background-${indicator.shortId}`}>
@@ -290,17 +305,22 @@ export function BackgroundInformation({
       <h2 className="govuk-heading-m">Data attributes</h2>
       <SummaryList
         items={[
-          ...attribute('Value type', indicator.valueType),
-          ...attribute('Unit', indicator.unit),
-          ...attribute('Ages', dimensionValues(observations, 'Age').join(', ')),
+          ...answer('Value type', 'valueType', indicator.valueType),
+          ...answer('Unit', 'unit', indicator.unit),
+          ...attribute('Ages', placeholder ?? dimensionValues(observations, 'Age').join(', ')),
           ...attribute(
             'Sex',
-            dimensionValues(observations, 'Sex').join(', ') ||
-              (observations.length ? 'Persons' : null),
+            placeholder ??
+              (dimensionValues(observations, 'Sex').join(', ') ||
+                (observations.length ? 'Persons' : null)),
           ),
           ...attribute('Year type', indicator.yearType?.label ?? null),
           ...updateFrequencyRow('Frequency', indicator),
-          ...attribute('Polarity', POLARITY_LABELS[indicator.polarity]),
+          ...answer(
+            'Polarity',
+            'polarity',
+            indicator.polarity === null ? null : POLARITY_LABELS[indicator.polarity],
+          ),
           ...(indicator.dataSource
             ? [{ name: 'Data source', children: sourceLink(indicator.dataSource) }]
             : []),
