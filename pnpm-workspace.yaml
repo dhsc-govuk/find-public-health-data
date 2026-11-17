@@ -21,6 +21,14 @@ overrides:
   # no fixed release is coming. Scoped so drizzle-kit's and tsx's own esbuild stay untouched.
   "@esbuild-kit/core-utils>esbuild": ">=0.24.3 <0.26"
 
+auditConfig:
+  ignoreGhsas:
+    # GHSA-fc5q-39xc-vjpf picomatch <=4.0.7 ReDoS from a crafted extglob pattern. Reaches only
+    # the build and dev tooling (Vite, @react-router/dev, tinyglobby), which never match a glob
+    # anyone else supplies; no production dependency uses it. No fixed release exists yet: remove
+    # this once picomatch 4.0.8 is published and the lockfile has it.
+    - GHSA-fc5q-39xc-vjpf
+
 allowBuilds:
   "@parcel/watcher": true
   esbuild: true
