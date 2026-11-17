@@ -259,10 +259,18 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
   await expect(page.getByText(/\[(Not provided yet|Data isn't shown)/)).toHaveCount(0);
 
   await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
+  const about = page.getByRole('tabpanel', { name: 'About this indicator' });
   await expect(answerTo(page, 'Polarity')).toHaveText('Higher is better');
-  await expect(answerTo(page, historyToday())).toHaveText(
-    'Polarity corrected to higher is better.',
-  );
+  // History is a section of the About tab, as on the public page.
+  await expect(about.getByRole('heading', { level: 2, name: 'History' })).toBeVisible();
+  await expect(
+    about
+      .locator('.govuk-summary-list__row')
+      .filter({
+        has: page.getByRole('term').filter({ hasText: new RegExp(`^${historyToday()}$`) }),
+      })
+      .locator('dd'),
+  ).toHaveText('Polarity corrected to higher is better.');
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
