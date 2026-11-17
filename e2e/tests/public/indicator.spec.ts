@@ -1139,8 +1139,13 @@ test('switches the scatter between all local authorities and statistical neighbo
   await neighbour.check();
   await expect(marks).toHaveCount(17);
   await expect(chart.getByRole('list', { name: 'Chart key' })).toContainText(
-    'Statistical neighbours for West Sussex (16)',
+    'West Sussex and its statistical neighbours (16)',
   );
+  await expect(
+    chart.getByText(
+      'Show data for all 16 areas plotted (West Sussex and its statistical neighbours)',
+    ),
+  ).toBeVisible();
   await expect(chart.locator('circle[fill="#12436d"][stroke="#fff"]')).toHaveCount(1);
   await expect(chart.locator('.recharts-scatter-symbol polygon[fill="#801650"]')).toHaveCount(1);
   await chart.getByRole('checkbox', { name: 'Show line of best fit and correlation (r)' }).check();

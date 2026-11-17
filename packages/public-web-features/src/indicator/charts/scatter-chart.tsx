@@ -264,6 +264,7 @@ export function CompareIndicatorsChart({
             group={group}
             highlighted={selectedAreaCodes}
             correlation={fit?.r}
+            plotted={only !== null}
           />
           <ChartSources indicators={[x.detail, y.detail]} />
         </>

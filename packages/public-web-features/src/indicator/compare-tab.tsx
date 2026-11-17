@@ -65,7 +65,7 @@ export function CompareIndicatorsTab({
     ({ code }) => params.getAll('neighbours').includes(code),
   );
   const groupLabel = only
-    ? `Statistical neighbours for ${anchors.map(({ name }) => name).join(' and ')}`
+    ? `${anchors.map(({ name }) => name).join(' and ')} and ${anchors.length > 1 ? 'their' : 'its'} statistical neighbours`
     : compareAreaGroup;
   const [options, applyOptions] = usePanelOptions('compare');
   const sexes = scatter?.variants?.map(({ sex }) => sex) ?? [];

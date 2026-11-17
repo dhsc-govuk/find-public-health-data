@@ -10,14 +10,17 @@ export function IndicatorPairTable({
   group = 'Local authorities',
   highlighted = [],
   correlation,
+  plotted = false,
 }: {
   indicators: [Pick<IndicatorDetail, 'name' | 'unit'>, Pick<IndicatorDetail, 'name' | 'unit'>];
   model: NonNullable<IndicatorComparisonModel['pair']>;
   group?: string;
   highlighted?: string[];
   correlation?: number | undefined;
+  plotted?: boolean;
 }) {
   const [first, second] = indicators;
+  const allAreas = plotted ? `areas plotted (${group})` : geographyGroupLabel(group);
   const displayValue = (value: number | null, index: number) =>
     value === null
       ? 'No data'
@@ -87,12 +90,10 @@ export function IndicatorPairTable({
         </table>
       </TableScrollRegion>
       {areas.length ? (
-        <Details summary={`Show data for all ${areas.length} ${geographyGroupLabel(group)}`}>
+        <Details summary={`Show data for all ${areas.length} ${allAreas}`}>
           <TableScrollRegion label="All areas in the indicator comparison">
             <table className="govuk-table">
-              <caption className="govuk-visually-hidden">
-                All {geographyGroupLabel(group)} in the comparison
-              </caption>
+              <caption className="govuk-visually-hidden">All {allAreas} in the comparison</caption>
               <thead className="govuk-table__head">
                 <tr>
                   <th scope="col" className="govuk-table__header">
