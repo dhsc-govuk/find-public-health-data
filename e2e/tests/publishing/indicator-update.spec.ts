@@ -4,7 +4,7 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { addReviewer, assignReviewers } from '../support/assign-reviewers.ts';
 import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
-import { openIndicatorPage } from '../support/indicator-page.ts';
+import { MORTALITY_NAME, MORTALITY_SLUG, openIndicatorPage } from '../support/indicator-page.ts';
 import { addInviteeAccess } from '../support/private-beta.ts';
 import {
   confirmPublicationAt,
@@ -258,6 +258,26 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
   await expect(page.getByRole('region', { name: `${indicator.name} trend chart` })).toBeVisible();
   await expect(page.getByText(/\[(Not provided yet|Data isn't shown)/)).toHaveCount(0);
 
+  // The page's downloads and lookups stay inside the preview, and answer from it.
+  const preview = `${overviewPath()}/preview`;
+  const indicatorTab = page.getByRole('tabpanel', { name: 'Indicator' });
+  for (const [name, path] of [
+    ["Download data for the areas you've chosen (CSV)", `${preview}/table.csv`],
+    ['Download data for all areas (CSV)', `${preview}/all-data.csv`],
+    ['Download metadata about this indicator (TXT)', `${preview}/metadata.txt`],
+  ] as const) {
+    const href = (await indicatorTab.getByText(name, { exact: true }).getAttribute('href')) ?? '';
+    expect(href.startsWith(path), `${name} links to ${href}`).toBe(true);
+    expect((await page.request.get(href)).status()).toBe(200);
+  }
+  const slug = new URL(publicIndicatorUrl(indicator.name)).pathname.split('/').at(-1) ?? '';
+  // The sample data covers England alone, which no area list offers, so both lists are empty.
+  const lookup = await page.request.get(`${preview}/geographies?indicator=${slug}`);
+  expect(lookup.status()).toBe(200);
+  expect(await lookup.json()).toEqual(
+    await (await page.request.get(`/geographies?indicator=${slug}`)).json(),
+  );
+
   await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
   const about = page.getByRole('tabpanel', { name: 'About this indicator' });
   await expect(answerTo(page, 'Polarity')).toHaveText('Higher is better');
@@ -272,6 +292,13 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
       .locator('dd'),
   ).toHaveText('Polarity corrected to higher is better.');
   await expectNoAccessibilityViolations(page, testInfo);
+
+  // A comparison with a published indicator stays in the preview.
+  await page.goto(`${preview}?compareWith=${MORTALITY_SLUG}`);
+  await expect(page).toHaveURL(`${preview}?compareWith=${MORTALITY_SLUG}`);
+  await expect(page.getByRole('tabpanel', { name: 'Compare indicators' })).toContainText(
+    MORTALITY_NAME,
+  );
 });
 
 test('on an update the publishing date page asks "When should this update be published?" and whether the update needs to be fast-tracked, and reads "Complete" once saved', async ({

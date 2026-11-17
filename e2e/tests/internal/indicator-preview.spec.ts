@@ -4,10 +4,8 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { completeDraft } from '../support/complete-draft.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { openIndicatorPage } from '../support/indicator-page.ts';
-import { addInviteeAccess } from '../support/private-beta.ts';
 import { PUBLISHER, TEAM_B_PUBLISHER } from '../support/sign-in.ts';
 import { answerTo } from '../support/summary-list.ts';
-import { PUBLIC_WEB_URL } from '../support/web-urls.ts';
 
 test.use({ storageState: PUBLISHER.storageState });
 
@@ -142,17 +140,12 @@ test('the compare search in the preview finds the draft as if it were published,
   expect(((await published.json()) as { indicators: unknown[] }).indicators).toEqual([]);
 });
 
-test('the draft never shows on the public site', async ({ browser }) => {
-  const context = await browser.newContext({ storageState: PUBLISHER.storageState });
-  const page = await context.newPage();
+test('the draft never shows as a published indicator page', async ({ page }) => {
   const name = uniqueIndicatorName('preview not public');
   await createDraft(page, name);
-  await context.close();
 
-  const visitor = await browser.newContext({ baseURL: PUBLIC_WEB_URL });
-  await addInviteeAccess(visitor);
-  const response = await visitor.request.get(`/indicator/${slugOf(name)}`);
-  await visitor.close();
+  // internal-web serves the public pages too, through the same published views as public-web.
+  const response = await page.request.get(`/indicator/${slugOf(name)}`);
 
   expect(response.status()).toBe(404);
 });
