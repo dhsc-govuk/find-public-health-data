@@ -424,7 +424,11 @@ describe('public application routes', () => {
     expect(trend.getByRole('columnheader', { name: 'Compared with England' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '300.1' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: '500.9' })).toBeTruthy();
-    expect(screen.getByText(/Cornwall: 395.6.*England: 410.3.*Range: 300.1.*500.9/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Value: 395.6.*Area: Cornwall.*Value: 410.3.*Area: England.*Range: 300.1.*500.9/,
+      ),
+    ).toBeTruthy();
 
     // Switching off the minimum and maximum leaves the chart in place.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Minimum/Maximum values' }));

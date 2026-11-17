@@ -1951,8 +1951,7 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
 
 .fphd-range-slot {
   width: 100%;
-  min-width: 60px;
-  max-width: 213px;
+  max-width: 120px;
 }
 
 .fphd-range-plot {
@@ -1975,18 +1974,24 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
   max-width: 15em;
 }
 
+.fphd-range-target {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid $govuk-focus-colour;
+  }
+}
+
 .fphd-range-tooltip {
-  position: absolute;
-  z-index: 1;
-  right: 0;
-  bottom: 100%;
+  position: fixed;
+  z-index: 1000;
   padding: govuk-spacing(2);
   width: max-content;
   max-width: min(19em, 75vw);
   color: #ffffff;
   background: #0b0c0c;
   border-radius: 3px;
-  @include govuk-font-size($size: 16);
+  @include govuk-font($size: 16);
 
   strong,
   span {
@@ -1995,11 +2000,10 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
 }
 
 .fphd-range-key {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   max-width: 540px;
 
   li {
+    @include govuk-font-size($size: 16);
     display: flex;
     align-items: center;
     gap: govuk-spacing(2);
@@ -2010,6 +2014,7 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
   display: block;
   max-width: 100%;
   height: auto;
+  margin-bottom: 15px;
 }
 
 // Fit the range plot within a normal text-height row so toggling it does not resize rows.
