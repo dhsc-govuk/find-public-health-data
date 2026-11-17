@@ -7,7 +7,12 @@ import { type BenchmarkChoice, comparisonTable } from '../comparison.ts';
 import { formatCalculatedValue, formatValue, withUnit } from '../data.ts';
 import type { BenchmarkGeography, SelectedIndicator } from '../loader.ts';
 import { TrendTag } from '../trend-tag.tsx';
-import { BenchmarkCells, BenchmarkHeaderCells } from './benchmark-cells.tsx';
+import {
+  BenchmarkCells,
+  BenchmarkChartCell,
+  BenchmarkHeaderCells,
+  benchmarkColumnCount,
+} from './benchmark-cells.tsx';
 import { NoteFootnotes, noteMarker } from './note-markers.tsx';
 
 export function ComparisonTable({
@@ -34,7 +39,8 @@ export function ComparisonTable({
   );
   const slugs = new Map(selected.map(({ detail }) => [detail.shortId, detail.slug]));
   const noteTexts = [...new Set(rows.flatMap(({ cells }) => cells.flatMap(({ notes }) => notes)))];
-  const benchmarkColumns = 1 + (showRange ? 3 : 0);
+  const spread = { minMax: showRange, percentiles: false };
+  const benchmarkColumns = benchmarkColumnCount(spread) + (showRange ? 1 : 0);
   const valueWithUnit = (row: (typeof rows)[number], value: number) =>
     withUnit(formatCalculatedValue(value), row.unit);
   return (
@@ -84,7 +90,14 @@ export function ComparisonTable({
                     Calculated value
                   </th>
                   {benchmarkNameFor(areaCode) ? (
-                    <BenchmarkHeaderCells showRange={showRange} />
+                    <>
+                      <BenchmarkHeaderCells columns={spread} />
+                      {showRange ? (
+                        <th scope="col" className="govuk-table__header">
+                          Comparison
+                        </th>
+                      ) : null}
+                    </>
                   ) : null}
                 </Fragment>
               ))}
@@ -135,22 +148,30 @@ export function ComparisonTable({
                         ? (() => {
                             const benchmarkCell = benchmarkCellFor(row, cell);
                             return (
-                              <BenchmarkCells
-                                areaName={cell.areaName}
-                                areaObservation={benchmarkCell?.areaObservation}
-                                benchmarkName={benchmarkNameFor(cell.areaCode) ?? ''}
-                                benchmarkValue={benchmarkCell?.value ?? null}
-                                format={(value) => valueWithUnit(row, value)}
-                                indicator={
-                                  benchmarkCell?.detail ?? {
-                                    polarity: 'no-comparison-possible',
-                                    comparatorMethod: null,
-                                  }
-                                }
-                                rangePeriod={benchmarkCell?.rangePeriod}
-                                unit={row.unit}
-                                showRange={showRange}
-                              />
+                              <>
+                                <BenchmarkCells
+                                  benchmarkValue={benchmarkCell?.value ?? null}
+                                  columns={spread}
+                                  format={(value) => valueWithUnit(row, value)}
+                                  rangePeriod={benchmarkCell?.rangePeriod}
+                                />
+                                {showRange ? (
+                                  <BenchmarkChartCell
+                                    areaName={cell.areaName}
+                                    areaObservation={benchmarkCell?.areaObservation}
+                                    benchmarkName={benchmarkNameFor(cell.areaCode) ?? ''}
+                                    benchmarkValue={benchmarkCell?.value ?? null}
+                                    indicator={
+                                      benchmarkCell?.detail ?? {
+                                        polarity: 'no-comparison-possible',
+                                        comparatorMethod: null,
+                                      }
+                                    }
+                                    rangePeriod={benchmarkCell?.rangePeriod}
+                                    unit={row.unit}
+                                  />
+                                ) : null}
+                              </>
                             );
                           })()
                         : null}

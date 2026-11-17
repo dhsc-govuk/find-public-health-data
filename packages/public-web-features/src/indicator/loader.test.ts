@@ -582,6 +582,24 @@ describe('loadIndicator', () => {
     expect(areaCodes(path)).toEqual([...codes.slice(0, 19), 'E92000001']);
   });
 
+  it("loads the spread of the picked areas' level with an England benchmark", async () => {
+    const range = { periods: [] };
+    const client = api({ 'GET /api/indicators/108/range': range });
+    const result = await loadIndicator(
+      args(client, 'http://localhost/indicator/indicator-108?as=E00000001&cmp-108=england'),
+    );
+
+    expect(paths(client)).toContain('/api/indicators/108/range?displayGroup=Local%20authorities');
+    expect(result.selected[0]?.ranges).toEqual({ 'Local authorities': [] });
+  });
+
+  it('loads no spread without a benchmark', async () => {
+    const client = api();
+    await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?as=E00000001'));
+
+    expect(paths(client).some((path) => path.includes('/range'))).toBe(false);
+  });
+
   it('loads every section and requests compact rankings for all comparison areas', async () => {
     for (const query of ['', '?tab-indicator=areas']) {
       const client = api();

@@ -5,8 +5,8 @@ import { SingleIndicatorPage } from './single-page.tsx';
 
 export const loader = loadIndicatorPage;
 
-// Changing a display option only re-renders with data the page already has; benchmark
-// options (`cmp-`, `cr-`) are not listed because they decide what the loader fetches.
+// Changing a display option only re-renders with data the page already has; the benchmark
+// option (`cmp-`) is not listed because it decides what the loader fetches.
 const DISPLAY_OPTION_PARAM = /^(ci|pt|sex|ic|ip|ig|columns)-/;
 const AREA_DISPLAY_OPTIONS = new Set(['areaSort', 'areaColour', 'highlight', 'tab-indicator']);
 

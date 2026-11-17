@@ -15,6 +15,14 @@ import {
 } from './data.ts';
 import type { TrendColumns } from './trend.ts';
 
+function currentOptionParams(search: string) {
+  const params = new URLSearchParams(search);
+  for (const name of [...params.keys()]) {
+    if (/^cr-(?:\d+|compare)$/.test(name)) params.delete(name);
+  }
+  return params;
+}
+
 /** The confidence-interval choices, narrowed to what the indicator publishes. */
 export function confidenceOptions(levels: string[]) {
   return [
@@ -31,7 +39,7 @@ export function useOptionParamNavigation() {
   const navigation = useNavigation();
   const navigate = useNavigate();
   return (entries: readonly (readonly [string, string, string])[]) => {
-    const params = new URLSearchParams(navigation.location?.search ?? location.search);
+    const params = currentOptionParams(navigation.location?.search ?? location.search);
     for (const [key, value, empty] of entries) {
       if (value === empty) {
         params.delete(key);
@@ -50,8 +58,6 @@ export interface PanelOptions {
   benchmark: BenchmarkChoice;
   confidence: ConfidenceLevel;
   periodType: PeriodType;
-  /** Whether the benchmark columns include the min/max spread and comparison plot. */
-  range: boolean;
   sex: string;
 }
 
@@ -62,7 +68,6 @@ function panelOptionNames(scope: OptionScope) {
     benchmark: `cmp-${scope}`,
     confidence: `ci-${scope}`,
     periodType: `pt-${scope}`,
-    range: `cr-${scope}`,
     sex: `sex-${scope}`,
   };
 }
@@ -80,7 +85,6 @@ export function usePanelOptions(scope: OptionScope) {
     benchmark: benchmark === 'england' || benchmark === 'region' ? benchmark : 'none',
     confidence: confidence === '95' || confidence === '99.8' ? confidence : 'none',
     periodType: periodType === '1-year' || periodType === '3-year' ? periodType : 'all',
-    range: params.get(names.range) === 'yes',
     sex: params.get(names.sex) ?? '',
   };
   const update = (next: PanelOptions) =>
@@ -88,7 +92,6 @@ export function usePanelOptions(scope: OptionScope) {
       [names.benchmark, next.benchmark, 'none'],
       [names.confidence, next.confidence, 'none'],
       [names.periodType, next.periodType, 'all'],
-      [names.range, next.range ? 'yes' : '', ''],
       [names.sex, next.sex, ''],
     ]);
   return [options, update] as const;
@@ -110,7 +113,7 @@ function OptionsForm({
   target: OptionTarget;
 }) {
   const location = useLocation();
-  const preserved = [...new URLSearchParams(location.search)].filter(
+  const preserved = [...currentOptionParams(location.search)].filter(
     ([name]) => name !== target.tabParam && !names.includes(name),
   );
   return (
@@ -174,17 +177,21 @@ export function PanelOptionsPanel({
     benchmark: useId(),
     confidence: useId(),
     period: useId(),
-    range: useId(),
     sex: useId(),
     colour: useId(),
   };
   const apply = useOptionParamNavigation();
   const colourParam = quintileParam(scope);
   const names = panelOptionNames(scope);
-  const rangeOptions = [
-    { label: 'Yes', value: 'yes', checked: options.range },
-    { label: 'No', value: 'no', checked: !options.range },
-  ];
+  // The spread and chart columns describe a benchmark, so they are offered only with one.
+  const rangeColumns = columns
+    ? [
+        { value: 'minmax', label: 'Minimum/Maximum values', checked: columns.minMax },
+        { value: 'percentiles', label: '25th/75th percentiles', checked: columns.percentiles },
+        { value: 'chart', label: 'Comparison chart', checked: columns.chart },
+      ]
+    : [];
+  const offerRange = benchmarks !== undefined && options.benchmark !== 'none';
   const columnOptions = columns
     ? [
         ...MEASURES.filter(({ key }) => measures.includes(key)).map(({ key, label }) => ({
@@ -198,6 +205,7 @@ export function PanelOptionsPanel({
           label: `${value}% confidence intervals`,
           checked: columns.confidence.includes(value),
         })),
+        ...(offerRange ? rangeColumns : []),
       ]
     : [];
 
@@ -206,7 +214,6 @@ export function PanelOptionsPanel({
       names={[
         ...Object.values(names).filter(
           (name) =>
-            (name !== names.range || (panel === 'table' && !!benchmarks)) &&
             (name !== names.benchmark || !!benchmarks) &&
             (name !== names.sex || sexes.length > (accordion ? 1 : 0)) &&
             (name !== names.periodType || periodTypes.length > 1) &&
@@ -221,6 +228,14 @@ export function PanelOptionsPanel({
       {columns && onColumnsChange ? (
         <>
           <input type="hidden" name={`columns-${scope}`} value="" />
+          {/* Without JavaScript the form drops unoffered columns, so their choices ride along. */}
+          {offerRange
+            ? null
+            : rangeColumns
+                .filter(({ checked }) => checked)
+                .map(({ value }) => (
+                  <input key={value} type="hidden" name={`columns-${scope}`} value={value} />
+                ))}
           <Checkboxes
             id={`columns-${scope}`}
             name={`columns-${scope}`}
@@ -229,9 +244,17 @@ export function PanelOptionsPanel({
             options={columnOptions}
             onChange={(event) => {
               const { value, checked } = event.currentTarget;
+              const toggles = {
+                count: 'count',
+                numerator: 'numerator',
+                value: 'value',
+                minmax: 'minMax',
+                percentiles: 'percentiles',
+                chart: 'chart',
+              } as const;
               onColumnsChange(
-                value === 'count' || value === 'numerator' || value === 'value'
-                  ? { ...columns, [value]: checked }
+                value in toggles
+                  ? { ...columns, [toggles[value as keyof typeof toggles]]: checked }
                   : {
                       ...columns,
                       confidence: (['95', '99.8'] as const).filter((level) =>
@@ -257,16 +280,6 @@ export function PanelOptionsPanel({
             ...(benchmarks.region ? [{ label: 'Statistical regions', value: 'region' }] : []),
           ]}
           value={options.benchmark}
-        />
-      ) : null}
-      {panel === 'table' && benchmarks && options.benchmark !== 'none' ? (
-        <Radios
-          classModifiers="inline"
-          id={ids.range}
-          label="Show comparison range"
-          name={names.range}
-          onChange={(event) => onChange({ ...options, range: event.currentTarget.value === 'yes' })}
-          options={rangeOptions}
         />
       ) : null}
       <div className="fphd-segmentation-options__selects">

@@ -8,12 +8,38 @@ function entry(shortId = 108) {
   return { ...source, detail: { ...source.detail, topics: [] } };
 }
 
-it('preserves table measures, trends, row metadata and area ordering after hydration', () => {
-  const model = topicDataTableModel([entry(), entry(241)], 'diabetes');
-  const compact = compactTopicDataTable(model);
-  expect(expandTopicTable(JSON.parse(JSON.stringify(compact)))).toEqual(model);
-  expect(compact.trends.length).toBeLessThan(model.rows.flatMap(({ cells }) => cells).length);
-});
+it.each(['Local authorities', 'Statistical regions'])(
+  'preserves table measures, trends, row metadata and area ordering after hydration with an empty %s area',
+  (emptyLevel) => {
+    const source = entry();
+    source.ranges = {
+      'Local authorities': [
+        {
+          fromDate: '2024-01-01',
+          toDate: '2024-12-31',
+          segment: 'Female',
+          min: 5,
+          max: 50,
+          p25: 10,
+          p75: 40,
+        },
+      ],
+    };
+    source.areaData.push({ areaCode: 'empty', areaName: 'Empty', observations: [] });
+    const model = topicDataTableModel([source, entry(241)], 'diabetes', {
+      regionByCode: {},
+      levelByCode: { E06000052: 'Local authorities', empty: emptyLevel },
+    });
+    expect(model.rows.some(({ cells }) => cells.some(({ range }) => range?.min === 5))).toBe(true);
+    expect(model.rows.some(({ england }) => england?.p25 === 10 && england.p75 === 40)).toBe(
+      emptyLevel === 'Local authorities',
+    );
+    expect(model.mixedGeographyLevels ?? false).toBe(emptyLevel !== 'Local authorities');
+    const compact = compactTopicDataTable(model);
+    expect(expandTopicTable(JSON.parse(JSON.stringify(compact)))).toEqual(model);
+    expect(compact.trends.length).toBeLessThan(model.rows.flatMap(({ cells }) => cells).length);
+  },
+);
 
 it('preserves comparisons and lagging periods through JSON hydration', () => {
   const source = entry();

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { topicPageTests } from '../support/topic-page.ts';
+import { openTopicPage, topicPageTests } from '../support/topic-page.ts';
 
 test('shows a topic', async ({ page }) => {
   await page.goto('/topics/health-behaviours');
@@ -52,3 +52,83 @@ for (const javaScriptEnabled of [true, false]) {
     }
   });
 }
+
+test('keeps unchecked comparison columns off after removing and re-adding an area', async ({
+  page,
+}, testInfo) => {
+  await openTopicPage(page, '/topics/diabetes?tab-topic=data&ga=E10000032');
+  const panel = page.locator('#topic-data');
+  await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+  for (const name of ['Compared with England', 'Comparison summary']) {
+    await panel.getByRole('checkbox', { name, exact: true }).uncheck();
+  }
+  const search = panel.getByRole('searchbox', { name: 'Search for a geography', exact: true });
+  await search.fill('West Sussex');
+  const area = panel.getByRole('checkbox', { name: 'West Sussex', exact: true });
+  await area.uncheck();
+  await expect(page).not.toHaveURL(/ga=E10000032/);
+  await expect(panel.getByRole('checkbox', { name: 'Compared with England' })).toHaveCount(0);
+  await area.check();
+  await expect(page).toHaveURL(/ga=E10000032/);
+  for (const name of ['Compared with England', 'Comparison summary']) {
+    await expect(panel.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
+    await expect(panel.getByRole('columnheader', { name, exact: true })).toHaveCount(0);
+  }
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('does not give England an arbitrary spread when chosen areas have different geography types', async ({
+  page,
+}) => {
+  await openTopicPage(
+    page,
+    '/topics/mortality-and-life-expectancy?tab-topic=data&ga=E12000007&ga=E08000003&columns-topic=value,minmax,percentiles',
+  );
+  const table = page.getByRole('tabpanel', { name: 'Data', exact: true }).getByRole('table');
+  await expect(table.locator('caption')).toContainText(
+    'England spread values are unavailable when chosen areas have different geography types.',
+  );
+  for (const label of [
+    'England lowest',
+    'England 25th percentile',
+    'England 75th percentile',
+    'England highest',
+  ]) {
+    const id = await table
+      .getByRole('columnheader', { name: label, exact: true })
+      .getAttribute('id');
+    expect(id).toBeTruthy();
+    const cells = table.locator(`tbody td[headers~="${id}"]`);
+    expect(await cells.count()).toBeGreaterThan(0);
+    for (const cell of await cells.all()) await expect(cell).toHaveText('-No data');
+  }
+});
+
+test('compares a chosen area with England and shows minimum and maximum values', async ({
+  page,
+}, testInfo) => {
+  await openTopicPage(page, '/topics/diabetes?tab-topic=data');
+  const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+  await panel
+    .getByRole('searchbox', { name: 'Search for a geography', exact: true })
+    .fill('West Sussex');
+  await panel.getByRole('checkbox', { name: 'West Sussex', exact: true }).check();
+  await expect(page).toHaveURL(/ga=E10000032/);
+  const table = panel.getByRole('table');
+  await expect(
+    table.getByRole('columnheader', { name: 'Compared with England', exact: true }),
+  ).toBeVisible();
+  await expect(
+    table.getByRole('columnheader', { name: 'Comparison summary', exact: true }),
+  ).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
+  await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+  await panel.getByRole('checkbox', { name: 'Minimum/Maximum values', exact: true }).check();
+  await expect(
+    table.getByRole('columnheader', { name: 'England lowest', exact: true }),
+  ).toBeVisible();
+  await expect(
+    table.getByRole('columnheader', { name: 'England highest', exact: true }),
+  ).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
+});

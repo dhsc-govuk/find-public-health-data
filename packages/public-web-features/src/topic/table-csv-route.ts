@@ -6,6 +6,7 @@ import {
   comparisonSummary,
   JUDGEMENT_LABELS,
   type TopicColumn,
+  type TopicEnglandMeasure,
   topicColumns,
   topicEnglandMeasures,
 } from './data.ts';
@@ -62,7 +63,10 @@ export async function loader(args: LoaderFunctionArgs) {
           url.searchParams,
         ),
       )
-    : dataCsv(topicDataTableModel(data.selected, topic.slug), url.searchParams);
+    : dataCsv(
+        topicDataTableModel(data.selected, topic.slug, data.benchmarkGeography),
+        url.searchParams,
+      );
   return new Response(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
@@ -78,12 +82,20 @@ function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
     ['trend', 'count', 'numerator', 'value'].includes(column),
   );
   const englandMeasures = topicEnglandMeasures(columns, table.compared);
-  const measureLabel = (measure: TopicColumn) =>
+  const spreadLabels = {
+    min: 'lowest',
+    p25: '25th percentile',
+    p75: '75th percentile',
+    max: 'highest',
+  } as const;
+  const measureLabel = (measure: TopicColumn | TopicEnglandMeasure) =>
     measure === 'trend'
       ? 'trend (last 5 periods)'
       : measure === 'count' || measure === 'numerator'
         ? measure
-        : 'calculated value';
+        : measure in spreadLabels
+          ? spreadLabels[measure as keyof typeof spreadLabels]
+          : 'calculated value';
   const measureValue = (
     measure: TopicColumn,
     cell: Partial<TopicDataTableModel['rows'][number]['cells'][number]> | null | undefined,
@@ -128,7 +140,7 @@ function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
             : []),
         ];
       }),
-      ...englandMeasures.map((measure) => measureValue(measure, row.england)),
+      ...englandMeasures.map((measure) => row.england?.[measure] ?? null),
     ]),
   ]);
 }

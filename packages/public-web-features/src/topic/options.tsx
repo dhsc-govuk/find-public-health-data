@@ -1,6 +1,6 @@
 import { Button, Checkboxes, CollapsibleFilterCard, SearchField } from '@fphd/ui';
 import { Form, Link, useLocation, useNavigate, useNavigation } from 'react-router';
-import { TOPIC_COLUMNS, topicColumns } from './data.ts';
+import { TOPIC_AREA_COLUMNS, TOPIC_COLUMNS, topicColumns } from './data.ts';
 
 export function TopicKeywordSearch({ title }: { title: string }) {
   const location = useLocation();
@@ -55,6 +55,12 @@ export function TopicTableColumns() {
       : location.search,
   );
   const columns = topicColumns(params);
+  const hasAreas =
+    params.getAll('ga').some((code) => code && code !== 'E92000001') ||
+    params.getAll('geo').some(Boolean);
+  const offered = TOPIC_COLUMNS.filter(
+    ({ value }) => hasAreas || !TOPIC_AREA_COLUMNS.includes(value),
+  );
   return (
     <>
       <h2 className="govuk-heading-m">Display options</h2>
@@ -66,12 +72,19 @@ export function TopicTableColumns() {
               <input key={`${name}-${index}`} type="hidden" name={name} value={value} />
             ))}
           <input type="hidden" name="columns-topic" value="none" />
+          {!hasAreas
+            ? columns
+                .filter((value) => TOPIC_AREA_COLUMNS.includes(value))
+                .map((value) => (
+                  <input key={value} type="hidden" name="columns-topic" value={value} />
+                ))
+            : null}
           <Checkboxes
             id="topic-columns"
             name="columns-topic"
             classModifiers="small"
             label={<span className="govuk-visually-hidden">Table columns</span>}
-            options={TOPIC_COLUMNS.map((option) => ({
+            options={offered.map((option) => ({
               ...option,
               checked: columns.includes(option.value),
             }))}
