@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { rebuildReadModels, seedPublishedTables } from '@fphd/db-operations';
+import { seedPublishedTables } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
@@ -35,7 +35,6 @@ it('imports a generated development snapshot with version batch pointers and pub
   expect(imported.relationships.unknownIndicators).toEqual([]);
   for (const [table, record] of Object.entries(manifest.tables))
     expect(imported.tables[table], table).toBe(record.rows);
-  await rebuildReadModels(sql);
   const versionId = deterministicUuid('indicator_version', '108');
   const batchId = deterministicUuid('upload_batch', '108');
   const [version] = await sql<
