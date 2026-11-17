@@ -120,6 +120,18 @@ describe('public API', () => {
     ['post', `/api/internal/indicators/${anyId}/update-decision`],
     ['get', '/api/internal/updates-awaiting-decision'],
     ['post', `/api/internal/indicators/${anyId}/draft`],
+    ...[
+      '/api/indicators/108',
+      '/api/indicators/108/areas',
+      '/api/indicators/108/data',
+      '/api/indicators/108/range?displayGroup=Regions',
+      '/api/indicators/108/ranking?areaCode=E92000001',
+      '/api/indicator-data?indicator=108',
+      '/api/indicator-scatter?indicator=108&indicator=241&areaCode=E92000001',
+      '/api/indicators?q=diabetes',
+      '/api/indicators/search?q=diabetes',
+      '/api/areas/lookup?areaCode=E92000001',
+    ].map((path) => ['get', `/api/internal/indicators/${anyId}/preview${path}`] as const),
   ] as const)('does not expose the internal surface at %s %s', async (method, path) => {
     const response = await request(createTestApp())[method](path);
 

@@ -79,6 +79,8 @@ import {
   submitIndicator,
   withdrawSubmission,
 } from './indicator-workflow-repository.ts';
+import type { InternalPreviewRepository } from './preview.ts';
+import { createPreviewRepositories, findPreviewVersion } from './preview-repository.ts';
 import {
   type RespondToReviewResult,
   type ReviewResponse,
@@ -312,6 +314,7 @@ export interface InternalRepositories {
   dataProviders: InternalDataProviderRepository;
   dataUploads: InternalDataUploadRepository;
   indicators: InternalIndicatorRepository;
+  preview: InternalPreviewRepository;
   reviewerNotes: InternalReviewerNoteRepository;
   reviewers: InternalReviewerRepository;
   tags: InternalTagRepository;
@@ -327,6 +330,10 @@ export function createInternalRepositories(db: Database): InternalRepositories {
     },
     dataProviders: {
       list: () => listDataProviders(db),
+    },
+    preview: {
+      findVersion: (indicatorId) => findPreviewVersion(db, indicatorId),
+      repositoriesFor: (version) => createPreviewRepositories(db, version),
     },
     dataUploads: {
       findDraft: (indicatorId) => findUploadDraftVersion(db, indicatorId),
