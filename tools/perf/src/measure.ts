@@ -78,8 +78,17 @@ export function connect(): postgres.Sql {
  * (CI turns it off). Then adds the data the seed lacks, analysed but not vacuumed, as a batch is
  * just after upload. Finally enables the statistics extension, which needs
  * `shared_preload_libraries` (compose.perf.yaml).
+ *
+ * Both analyses run at the highest statistics target, so they read every row rather than a random
+ * sample. At the default target, ANALYZE samples 30,000 rows a table, and observation_series has
+ * more rows than that. Whether England then made the most common values for its area_id column
+ * depended on the sample, and it changed the plan of the topic pages' series query, which read
+ * 38 more buffers on /topics/diabetes in about one run in ten. The highest target samples up to
+ * 3,000,000 rows, more than any seeded table holds.
  */
 export async function prepare(sql: postgres.Sql): Promise<void> {
+  // The connection is the only one in its pool, so the setting applies to both analyses below.
+  await sql`set default_statistics_target = 10000`;
   await sql`vacuum analyze`.simple();
   await createDataTableDraft(sql);
   await sql`analyze indicator, indicator_version, upload_batch, observation, observation_dimension`;
