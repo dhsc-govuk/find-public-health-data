@@ -1,6 +1,8 @@
 import { index, layout, type RouteConfig, route } from '@react-router/dev/routes';
 
-export default [
+import { withRouteIds } from '../../route-ids.ts';
+
+export default withRouteIds([
   index('./home.tsx'),
   route('sign-in', './sign-in.tsx'),
   route('access-denied', './access-denied.tsx'),
@@ -20,15 +22,15 @@ export default [
     route(
       'indicator/:slug/table.csv',
       '../../../packages/public-web-features/src/indicator/table-csv-route.ts',
-      { id: 'single-indicator-table-csv' },
+      { id: 'single_indicator_table_csv' },
     ),
     route(
       'indicator/:slug/all-data.csv',
       '../../../packages/public-web-features/src/indicator/all-data-csv-route.ts',
-      { id: 'single-indicator-all-data-csv' },
+      { id: 'single_indicator_all_data_csv' },
     ),
     route('indicator/:slug', '../../../packages/public-web-features/src/indicator/route.tsx', {
-      id: 'indicator-detail',
+      id: 'indicator_detail',
     }),
     route(
       'indicator/:slug/metadata.txt',
@@ -228,4 +230,4 @@ export default [
     ]),
   ]),
   route('*', '../../../packages/ui/src/not-found-route.tsx'),
-] satisfies RouteConfig;
+]) satisfies RouteConfig;

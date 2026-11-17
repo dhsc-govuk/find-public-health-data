@@ -144,7 +144,11 @@ describe('createBetaAccess', () => {
         now: createClock('2026-11-10T09:00:00Z').now,
       });
 
-      await expect(betaAccess.requestLink(sam.email, '/')).rejects.toThrow('down');
+      await expect(betaAccess.requestLink(sam.email, '/')).resolves.toEqual({
+        outcome: 'send_failed',
+        invitee: sam,
+        error: new Error('The email service is down'),
+      });
       await expect(betaAccess.requestLink(sam.email, '/')).resolves.toEqual({
         outcome: 'sent',
         invitee: sam,
@@ -349,7 +353,9 @@ describe('createBetaAccess', () => {
       });
 
       for (let n = 1; n <= 10; n++) {
-        await expect(betaAccess.requestLink(`person${n}@team.example.org`, '/')).rejects.toThrow();
+        await expect(
+          betaAccess.requestLink(`person${n}@team.example.org`, '/'),
+        ).resolves.toMatchObject({ outcome: 'send_failed' });
       }
       failing = false;
 
