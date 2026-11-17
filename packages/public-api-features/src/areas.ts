@@ -28,7 +28,9 @@ export function areasRouter(areas: Repositories['areas']): Router {
       return;
     }
 
-    response.status(200).json(await areas.listByCodes(codes));
+    response
+      .status(200)
+      .json(await areas.listByCodes(codes, request.query.includeBenchmarks === 'true'));
   });
 
   router.get('/api/areas/search', async (request, response) => {
@@ -73,15 +75,6 @@ export function areasRouter(areas: Repositories['areas']): Router {
 
     // Areas without statistical neighbours are simply absent from the answer.
     response.status(200).json(await areas.listNeighbours(codes));
-  });
-
-  router.get('/api/areas/deprivation', async (request, response) => {
-    const codes = pickAreaCodes(request.query.areaCode, MAX_NEIGHBOUR_AREAS_PER_REQUEST);
-    if (codes.length === 0) {
-      response.status(400).json({ error: 'area_code_required' });
-      return;
-    }
-    response.status(200).json(await areas.listDeprivation(codes));
   });
 
   router.get('/api/areas', async (request, response) => {

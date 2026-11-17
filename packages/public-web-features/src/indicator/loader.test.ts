@@ -11,6 +11,8 @@ import {
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { benchmarkFixture } from './benchmark.testing.ts';
+import { benchmarkCheckboxOptions } from './benchmarks.ts';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { loadIndicator } from './loader.ts';
 import { loadIndicatorPage } from './single-loader.ts';
@@ -88,7 +90,6 @@ function api(stubs: FakeApiStubs = {}) {
         displayGroup: 'Local authorities',
       })),
     'GET /api/areas/parents': [],
-    'GET /api/areas/deprivation': [],
     'GET /api/areas/neighbours': [],
     ...stubs,
   });
@@ -113,6 +114,57 @@ function args(
 }
 
 describe('loadIndicator', () => {
+  it('keeps all benchmark choices on compare pages using the enriched area lookup', async () => {
+    const fixture = benchmarkFixture();
+    const client = api({
+      'GET /api/indicators/indicator-108': fixture.detail,
+      'GET /api/indicators/108/data': fixture.areaData,
+      'GET /api/areas/lookup': fixture.lookup,
+      'GET /api/areas/parents': Object.entries(fixture.geography.regionByCode).map(
+        ([code, parent]) => ({
+          code,
+          parentCode: parent.code,
+          parentName: parent.name,
+        }),
+      ),
+    });
+    const page = await loadIndicatorPage(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?tab-indicator=compare&compareWith=indicator-241&as=E08000003&as=E06000052',
+      ),
+    );
+    const data = await page.data;
+    expect(
+      benchmarkCheckboxOptions(true, {
+        areas: fixture.areaData.slice(0, 2),
+        geography: data.benchmarkGeography,
+        englandObservations: fixture.areaData[2]?.observations ?? [],
+        goal: fixture.detail.goal,
+      }).map(({ value }) => value),
+    ).toEqual([
+      'england',
+      'region',
+      'imd2025',
+      'imd2019',
+      'goal',
+      'neighbours:E08000003',
+      'neighbours:E06000052',
+      'ca:E08000003',
+      'ca:E06000052',
+    ]);
+    const requests = paths(client);
+    expect(requests).toContain(
+      '/api/areas/lookup?areaCode=E08000003&areaCode=E06000052&includeBenchmarks=true',
+    );
+    expect(requests.filter((path) => path.startsWith('/api/areas/parents?'))).toEqual([
+      '/api/areas/parents?areaCode=E08000003&areaCode=E06000052&parentType=Regions%20(statistical)',
+    ]);
+    expect(requests.some((path) => /^\/api\/areas\/(deprivation|neighbours)\?/.test(path))).toBe(
+      false,
+    );
+  });
+
   it.each([
     ['', false],
     ['tab-indicator=areas', true],

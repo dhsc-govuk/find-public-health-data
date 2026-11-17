@@ -137,7 +137,7 @@ describe('benchmark options', () => {
     'requires the matching %s tier and scheme as well as England decile observations',
     (tier) => {
       const fixture = benchmarkFixture();
-      const firstMembership = fixture.memberships[0];
+      const firstMembership = fixture.geography.deprivation[0];
       if (!firstMembership) throw new Error('Missing membership');
       const membership = { ...firstMembership, tier, scheme: 'IMD2025' as const };
       const geography = {

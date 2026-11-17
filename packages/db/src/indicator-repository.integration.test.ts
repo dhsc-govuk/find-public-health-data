@@ -3,7 +3,6 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
-  listAreaDeprivation,
   listAreaParents,
   listAreasByCodes,
   listAreasByGroup,
@@ -1132,12 +1131,14 @@ describe('listIndicatorFacets', () => {
 describe('area deprivation memberships', () => {
   it('reads both tiers and schemes through the public role', async () => {
     const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
-    const rows = await listAreaDeprivation(publicDb, publishedViews, [
-      'E10000032',
-      CORNWALL,
-      ENGLAND,
-      'UNKNOWN',
-    ]);
+    const rows = (
+      await listAreasByCodes(
+        publicDb,
+        publishedViews,
+        ['E10000032', CORNWALL, ENGLAND, 'UNKNOWN'],
+        true,
+      )
+    ).flatMap(({ benchmarks }) => benchmarks?.deprivation ?? []);
     expect(rows.map(({ code, scheme, tier, decile }) => ({ code, scheme, tier, decile }))).toEqual(
       expect.arrayContaining([
         { code: 'E10000032', scheme: 'IMD2025', tier: 'upper', decile: 9 },
@@ -1149,8 +1150,12 @@ describe('area deprivation memberships', () => {
       ]),
     );
     expect(rows).toHaveLength(6);
-    expect(await listAreaDeprivation(publicDb, publishedViews, [])).toEqual([]);
-    expect(await listAreaDeprivation(publicDb, publishedViews, [ENGLAND])).toEqual([]);
+    expect(await listAreasByCodes(publicDb, publishedViews, [], true)).toEqual([]);
+    expect(
+      (await listAreasByCodes(publicDb, publishedViews, [ENGLAND], true)).flatMap(
+        ({ benchmarks }) => benchmarks?.deprivation ?? [],
+      ),
+    ).toEqual([]);
     for (const row of rows) {
       expect(row.dimensionTypeId).toMatch(/^[0-9a-f-]{36}$/);
       expect(row.dimensionValueId).toMatch(/^[0-9a-f-]{36}$/);
@@ -1208,7 +1213,9 @@ describe('getObservationRangeByCategory', () => {
   it('computes exact segment percentiles using only member areas and the published batch', async () => {
     const sql = testDb.sql;
     const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
-    const memberships = await listAreaDeprivation(publicDb, publishedViews, [CORNWALL]);
+    const memberships = (
+      await listAreasByCodes(publicDb, publishedViews, [CORNWALL], true)
+    ).flatMap(({ benchmarks }) => benchmarks?.deprivation ?? []);
     const category = memberships.find(
       ({ scheme, tier }) => scheme === 'IMD2025' && tier === 'upper',
     )?.dimensionValueId;

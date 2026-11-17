@@ -193,17 +193,6 @@ export const indicatorRangeQuerySchema = z.union([
   }),
 ]);
 
-export const areaDeprivationListSchema = z.array(
-  z.object({
-    code: z.string().min(1),
-    scheme: z.enum(['IMD2025', 'IMD2019']),
-    tier: z.enum(['upper', 'lower']),
-    dimensionTypeId: z.uuid(),
-    dimensionValueId: z.uuid(),
-    decile: z.number().int().min(1).max(10),
-  }),
-);
-
 export const indicatorDetailSchema = z.object({
   goal: indicatorGoalSchema.nullable(),
   shortId: z.number().int(),
@@ -342,6 +331,22 @@ export const areaLookupListSchema = z.array(
     name: z.string().min(1),
     areaType: z.string().min(1),
     displayGroup: z.string().min(1).nullable(),
+    benchmarks: z
+      .object({
+        deprivation: z.array(
+          z.object({
+            code: z.string().min(1),
+            scheme: z.enum(['IMD2025', 'IMD2019']),
+            tier: z.enum(['upper', 'lower']),
+            dimensionTypeId: z.uuid(),
+            dimensionValueId: z.uuid(),
+            decile: z.number().int().min(1).max(10),
+          }),
+        ),
+        neighbours: z.array(z.string().min(1)),
+        combinedAuthority: areaSummarySchema.nullable(),
+      })
+      .optional(),
   }),
 );
 

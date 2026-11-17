@@ -1,33 +1,27 @@
-import { MAX_AREA_CODES_PER_REQUEST } from '@fphd/public-api-features/contract';
 import { createFakeApiClient } from '@fphd/web-server/testing';
 import { expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
-import { loadBenchmarkData, loadBenchmarkMemberships } from './benchmark-loader.ts';
+import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 
-it('batches and resolves deprivation, neighbours and combined-authority memberships', async () => {
+it('reads memberships from enriched lookups and skips absent memberships', () => {
   const fixture = benchmarkFixture();
-  const client = createFakeApiClient({
-    'GET /api/areas/deprivation': fixture.memberships,
-    'GET /api/areas/neighbours': [{ code: 'E08000003', neighbours: ['E08000001'] }],
-    'GET /api/areas/parents': [
-      { code: 'E08000003', parentCode: 'E47000001', parentName: 'Greater Manchester' },
-    ],
+  const memberships = benchmarkMemberships([
+    ...fixture.lookup,
+    { code: 'E92000001', name: 'England', areaType: 'England', displayGroup: 'England' },
+    {
+      code: 'E10000032',
+      name: 'West Sussex',
+      areaType: 'County',
+      displayGroup: 'Local authorities',
+      benchmarks: { deprivation: [], neighbours: [], combinedAuthority: null },
+    },
+  ]);
+  expect(memberships).toEqual({
+    deprivation: fixture.geography.deprivation,
+    neighboursByCode: fixture.geography.neighboursByCode,
+    caByCode: fixture.geography.caByCode,
   });
-  const codes = Array.from(
-    { length: MAX_AREA_CODES_PER_REQUEST + 1 },
-    (_, index) => `E${String(index).padStart(8, '0')}`,
-  );
-  const memberships = await loadBenchmarkMemberships(client, codes);
-  expect(memberships.neighboursByCode).toEqual({ E08000003: ['E08000001'] });
-  expect(memberships.caByCode).toEqual({
-    E08000003: { code: 'E47000001', name: 'Greater Manchester' },
-  });
-  expect(memberships.deprivation).toContainEqual(fixture.memberships[0]);
-  expect(client.calls.length).toBe(6);
-  for (const { path } of client.calls)
-    expect(new URL(path, 'http://api').searchParams.getAll('areaCode').length).toBeLessThanOrEqual(
-      MAX_AREA_CODES_PER_REQUEST,
-    );
+  expect(benchmarkMemberships([])).toEqual({ deprivation: [], neighboursByCode: {}, caByCode: {} });
 });
 
 it('fetches category and region ranges and batches only neighbours and CAs not already loaded', async () => {
@@ -57,7 +51,7 @@ it('fetches category and region ranges and batches only neighbours and CAs not a
   ]);
   expect(Object.keys(data.ranges).sort()).toEqual(
     [
-      ...fixture.memberships.map(({ dimensionValueId }) => dimensionValueId),
+      ...fixture.geography.deprivation.map(({ dimensionValueId }) => dimensionValueId),
       'england:upper',
       'region:E12000002:upper',
       'region:E12000009:upper',

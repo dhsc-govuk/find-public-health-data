@@ -6,7 +6,6 @@ import {
   indicatorAreaDataSchema,
   indicatorDetailSchema,
   MAX_AREA_CODES_PER_REQUEST,
-  pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
 import { apiPath } from '@fphd/web-server/api-client';
@@ -15,7 +14,7 @@ import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { areaTypeLabel } from '../geography/groups.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
-import { loadBenchmarkData, loadBenchmarkMemberships } from './benchmark-loader.ts';
+import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { isRangeBenchmark, selectedBenchmarks } from './benchmarks.ts';
 import {
   availableConfidenceLevels,
@@ -28,11 +27,15 @@ import {
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
-import { indicatorCsvPath, isIndicatorSegment, redirectStatus } from './paths.ts';
+import {
+  ENGLAND_CODE,
+  indicatorCsvPath,
+  isIndicatorSegment,
+  redirectStatus,
+  requestedAreaCodes,
+} from './paths.ts';
 import { selectedTrendColumns, trendTableModel } from './trend.ts';
 import { loadIndicatorViewCsv } from './view-csv.ts';
-
-const ENGLAND = 'E92000001';
 
 /**
  * Serves the indicator page's downloads server-side, so they work without scripting.
@@ -49,10 +52,8 @@ export async function loadIndicatorCsv(
   }
 
   const url = new URL(request.url);
-  const pickedCodes = pickAreaCodes(url.searchParams.getAll('as'), Number.POSITIVE_INFINITY)
-    .filter((code) => code !== ENGLAND)
-    .slice(0, MAX_SELECTED_AREAS);
-  const codesToLoad = [...pickedCodes, ENGLAND];
+  const pickedCodes = requestedAreaCodes(url.searchParams).slice(0, MAX_SELECTED_AREAS);
+  const codesToLoad = [...pickedCodes, ENGLAND_CODE];
   const api = context.get(apiContext);
   const dataFor = (codes: string[]) =>
     api.get(
@@ -124,7 +125,9 @@ export async function loadIndicatorCsv(
     const sexes = dimensionValues(areaData[0]?.observations ?? [], 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = (
-      pickedCodes.length > 0 ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND) : areaData
+      pickedCodes.length > 0
+        ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND_CODE)
+        : areaData
     ).flatMap(({ observations }) => observations);
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
     const periodType: PeriodType = isOneOf(availablePeriodTypes(shownObservations), requestedPeriod)
@@ -147,13 +150,18 @@ export async function loadIndicatorCsv(
     const showRange = benchmarks.some(isRangeBenchmark) && (columns.minMax || columns.percentiles);
 
     const codeQuery = pickedCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
-    const [lookedUp, parents, memberships] = await Promise.all([
+    const includeBenchmarks = benchmarks.some(
+      (choice) =>
+        choice.startsWith('imd') || choice.startsWith('neighbours:') || choice.startsWith('ca:'),
+    );
+    const [lookedUp, parents] = await Promise.all([
       pickedCodes.length > 0 &&
-      (benchmarks.some(
-        (choice) => choice === 'england' || choice === 'region' || choice.startsWith('imd'),
-      ) ||
-        benchmarks.some((choice) => choice.startsWith('neighbours:') || choice.startsWith('ca:')))
-        ? api.get(`/api/areas/lookup?${codeQuery}`, areaLookupListSchema)
+      (includeBenchmarks ||
+        benchmarks.some((choice) => choice === 'england' || choice === 'region'))
+        ? api.get(
+            `/api/areas/lookup?${codeQuery}${includeBenchmarks ? '&includeBenchmarks=true' : ''}`,
+            areaLookupListSchema,
+          )
         : Promise.resolve([]),
       pickedCodes.length > 0 && benchmarks.includes('region')
         ? api.get(
@@ -161,17 +169,11 @@ export async function loadIndicatorCsv(
             areaParentListSchema,
           )
         : Promise.resolve([]),
-      benchmarks.some(
-        (choice) =>
-          choice.startsWith('imd') || choice.startsWith('neighbours:') || choice.startsWith('ca:'),
-      )
-        ? loadBenchmarkMemberships(api, pickedCodes)
-        : Promise.resolve({}),
     ]);
     const geography: BenchmarkGeography = {
       regionByCode: {},
       levelByCode: {},
-      ...memberships,
+      ...benchmarkMemberships(lookedUp),
       tierByCode: Object.fromEntries(
         pickedCodes
           .filter((code) => url.searchParams.get(`tier-${code}`) === 'lower')

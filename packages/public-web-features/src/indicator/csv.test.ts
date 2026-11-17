@@ -90,19 +90,10 @@ describe('loadIndicatorCsv', () => {
         );
         return data.length === 1 ? data[0] : data;
       },
-      'GET /api/areas/lookup': Object.entries(fixture.geography.levelByCode).map(
-        ([code, displayGroup]) => ({ code, name: code, displayGroup, areaType: displayGroup }),
+      'GET /api/areas/lookup': fixture.lookup,
+      'GET /api/areas/parents': Object.entries(fixture.geography.regionByCode).map(
+        ([code, parent]) => ({ code, parentCode: parent.code, parentName: parent.name }),
       ),
-      'GET /api/areas/deprivation': fixture.memberships,
-      'GET /api/areas/neighbours': Object.entries(fixture.geography.neighboursByCode ?? {}).map(
-        ([code, neighbours]) => ({ code, neighbours }),
-      ),
-      'GET /api/areas/parents': (call) =>
-        Object.entries(
-          new URL(call.path, 'http://api').searchParams.get('parentType') === 'Combined authorities'
-            ? (fixture.geography.caByCode ?? {})
-            : fixture.geography.regionByCode,
-        ).map(([code, parent]) => ({ code, parentCode: parent.code, parentName: parent.name })),
       [`GET ${DETAIL}/range`]: { periods: fixture.ranges['england:upper'] ?? [] },
     });
     const query = new URLSearchParams([
@@ -149,6 +140,13 @@ describe('loadIndicatorCsv', () => {
       '2024,3,8,5,1,2,20,30,5,1,2,20,30,6,1,2,20,30,7,1,2,20,30,9,1,2,20,30,8,1,2,20,30,10,1,2,20,30,Good,Bad,15,15,9,',
     );
     expect(paths(client).filter((path) => path.includes('/range?category=')).length).toBe(4);
+    expect(paths(client).filter((path) => path.startsWith('/api/areas/lookup?'))).toEqual([
+      '/api/areas/lookup?areaCode=E08000003&areaCode=E06000052&includeBenchmarks=true',
+    ]);
+    expect(paths(client).filter((path) => path.startsWith('/api/areas/parents?'))).toEqual([
+      '/api/areas/parents?areaCode=E08000003&areaCode=E06000052&parentType=Regions%20(statistical)',
+    ]);
+    expect(paths(client).some((path) => path.startsWith('/api/areas/neighbours?'))).toBe(false);
     expect(
       paths(client).some((path) =>
         path.includes(

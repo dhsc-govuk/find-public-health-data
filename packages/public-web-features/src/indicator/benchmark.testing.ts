@@ -29,7 +29,7 @@ export function benchmarkFixture() {
     areaName,
     observations: [observation(value, [sex('Female')])],
   });
-  const geography: BenchmarkGeography = {
+  const geography: BenchmarkGeography & { deprivation: DeprivationMembership[] } = {
     regionByCode: {
       E08000003: { code: 'E12000002', name: 'North West' },
       E06000052: { code: 'E12000009', name: 'South West' },
@@ -52,15 +52,28 @@ export function benchmarkFixture() {
   england.observations.push(
     ...memberships.map((membership, index) => decileObservation(membership, 7 + index)),
   );
+  const areaData = [area('E08000003', 'Manchester', 3), area('E06000052', 'Cornwall', 8), england];
   return {
     area,
-    memberships,
     decileObservation,
     geography,
     detail: indicatorDetail(108, {
       goal: { lower: 4, upper: 6, polarity: 'lower-is-better', policyDetail: null },
     }),
-    areaData: [area('E08000003', 'Manchester', 3), area('E06000052', 'Cornwall', 8), england],
+    areaData,
+    lookup: areaData
+      .filter(({ areaCode }) => areaCode !== 'E92000001')
+      .map(({ areaCode, areaName }) => ({
+        code: areaCode,
+        name: areaName,
+        areaType: 'UA unchanged',
+        displayGroup: geography.levelByCode[areaCode] ?? 'Local authorities',
+        benchmarks: {
+          deprivation: memberships.filter(({ code }) => code === areaCode),
+          neighbours: geography.neighboursByCode?.[areaCode] ?? [],
+          combinedAuthority: geography.caByCode?.[areaCode] ?? null,
+        },
+      })),
     regionData: [area('E12000002', 'North West', 5), area('E12000009', 'South West', 6)],
     benchmarkData: [
       area('E08000001', 'Neighbour A', 10),

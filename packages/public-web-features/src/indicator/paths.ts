@@ -1,3 +1,8 @@
+import {
+  MAX_AREA_GROUPS_PER_REQUEST,
+  MAX_AREA_NAME_LENGTH,
+  pickAreaCodes,
+} from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { isReservedSlug, SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -30,6 +35,23 @@ export function isIndicatorSegment(segment: string): boolean {
   return (
     lowered.length <= SLUG_MAX_LENGTH && SLUG_PATTERN.test(lowered) && !isReservedSlug(lowered)
   );
+}
+
+export const ENGLAND_CODE = 'E92000001';
+
+/** Picked area codes from the URL, de-duplicated so a repeated code is not fetched or rendered twice. */
+export function requestedAreaCodes(params: URLSearchParams): string[] {
+  return pickAreaCodes(params.getAll('as'), Number.POSITIVE_INFINITY).filter(
+    (code) => code !== ENGLAND_CODE,
+  );
+}
+
+export function requestedAreaLevels(params: URLSearchParams): string[] {
+  return [
+    ...new Set(
+      params.getAll('als').filter((level) => level !== '' && level.length <= MAX_AREA_NAME_LENGTH),
+    ),
+  ].slice(0, MAX_AREA_GROUPS_PER_REQUEST);
 }
 
 export function indicatorMetadataPath(slug: string): string {

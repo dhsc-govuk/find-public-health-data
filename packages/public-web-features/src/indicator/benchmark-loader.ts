@@ -1,7 +1,5 @@
 import {
-  areaDeprivationListSchema,
-  areaNeighbourListSchema,
-  areaParentListSchema,
+  type areaLookupListSchema,
   indicatorRangeSchema,
   MAX_AREA_CODES_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
@@ -11,37 +9,17 @@ import { benchmarkRange, deprivationFor } from './benchmarks.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
 
-export async function loadBenchmarkMemberships(api: ApiClient, codes: string[]) {
-  const batches = Array.from(
-    { length: Math.ceil(codes.length / MAX_AREA_CODES_PER_REQUEST) },
-    (_, index) =>
-      codes.slice(index * MAX_AREA_CODES_PER_REQUEST, (index + 1) * MAX_AREA_CODES_PER_REQUEST),
-  );
-  const results = await loadInBatches(batches, async (batch) => {
-    const query = batch.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
-    const [deprivation, neighbours, parents] = await Promise.all([
-      api.get(`/api/areas/deprivation?${query}`, areaDeprivationListSchema),
-      api.get(`/api/areas/neighbours?${query}`, areaNeighbourListSchema),
-      api.get(
-        `/api/areas/parents?${query}&parentType=${encodeURIComponent('Combined authorities')}`,
-        areaParentListSchema,
-      ),
-    ]);
-    return { deprivation, neighbours, parents };
-  });
+export function benchmarkMemberships(areas: typeof areaLookupListSchema._output) {
   return {
-    deprivation: results.flatMap(({ deprivation }) => deprivation),
+    deprivation: areas.flatMap(({ benchmarks }) => benchmarks?.deprivation ?? []),
     neighboursByCode: Object.fromEntries(
-      results.flatMap(({ neighbours }) =>
-        neighbours.map(({ code, neighbours }) => [code, neighbours]),
+      areas.flatMap(({ code, benchmarks }) =>
+        benchmarks?.neighbours.length ? [[code, benchmarks.neighbours]] : [],
       ),
     ),
     caByCode: Object.fromEntries(
-      results.flatMap(({ parents }) =>
-        parents.map(({ code, parentCode, parentName }) => [
-          code,
-          { code: parentCode, name: parentName },
-        ]),
+      areas.flatMap(({ code, benchmarks }) =>
+        benchmarks?.combinedAuthority ? [[code, benchmarks.combinedAuthority]] : [],
       ),
     ),
   };

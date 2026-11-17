@@ -31,7 +31,7 @@ describe('trendTableModel', () => {
 
   it('aligns each IMD decile by period and exact remaining segment and uses its category range', () => {
     const fixture = benchmarkFixture();
-    const membership = fixture.memberships[1];
+    const membership = fixture.geography.deprivation[1];
     if (!membership) throw new Error('Missing IMD 2025 membership');
     const england = fixture.areaData[2];
     if (!england) throw new Error('Missing England');

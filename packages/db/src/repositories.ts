@@ -1,12 +1,10 @@
 import {
-  type AreaDeprivation,
   type AreaLookup,
   type AreaNeighbours,
   type AreaParent,
   type AreaSummary,
   type AreaWithParent,
   type IndicatorAreaFilters,
-  listAreaDeprivation,
   listAreaNeighbours,
   listAreaParents,
   listAreasByCodes,
@@ -101,10 +99,9 @@ export interface AreaRepository {
     displayGroups: string[],
     limit?: number,
   ): Promise<{ displayGroup: string; areas: AreaSummary[] }[]>;
-  listByCodes(codes: string[]): Promise<AreaLookup[]>;
+  listByCodes(codes: string[], includeBenchmarks?: boolean): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
-  listDeprivation(codes: string[]): Promise<AreaDeprivation[]>;
   listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
 }
 
@@ -134,11 +131,11 @@ export function createRepositories(db: Database): Repositories {
       listDisplayGroups: () => listDisplayGroups(db, views),
       listByGroup: (displayGroup, limit) => listAreasByGroup(db, views, displayGroup, limit),
       listByGroups: (displayGroups, limit) => listAreasByGroups(db, views, displayGroups, limit),
-      listByCodes: (codes) => listAreasByCodes(db, views, codes),
+      listByCodes: (codes, includeBenchmarks) =>
+        listAreasByCodes(db, views, codes, includeBenchmarks),
       search: (query, limit) => searchAreas(db, views, query, limit),
       listParents: (childCodes, parentTypeName) =>
         listAreaParents(db, views, childCodes, parentTypeName),
-      listDeprivation: (codes) => listAreaDeprivation(db, views, codes),
       listNeighbours: (codes) => listAreaNeighbours(db, views, codes),
     },
     indicators: {
