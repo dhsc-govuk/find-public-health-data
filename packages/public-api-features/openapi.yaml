@@ -1505,7 +1505,7 @@ components:
             - areaTypes
             - periods
             - dimensions
-            - notes
+            - valueNotes
           properties:
             firstPublishedAt:
               type: string
@@ -1529,6 +1529,9 @@ components:
               type: [string, "null"]
             caveats:
               type: [string, "null"]
+            notes:
+              type: [string, "null"]
+              description: Other notes about the indicator.
             disclosureControl:
               type: [string, "null"]
             dataSource:
@@ -1609,7 +1612,7 @@ components:
                     type: array
                     items:
                       $ref: "#/components/schemas/Slug"
-            notes:
+            valueNotes:
               type: array
               description: The notes that the indicator's values carry, by code.
               items:

@@ -86,6 +86,7 @@ export function toIndicatorDetail(entry: CatalogueEntry) {
     numeratorDefinition: detail.numeratorDefinition,
     denominatorDefinition: detail.denominatorDefinition,
     caveats: detail.caveats,
+    notes: detail.notes,
     disclosureControl: detail.disclosureControl,
     dataSource: detail.dataSource,
     numeratorSources: detail.numeratorSources,
@@ -96,7 +97,7 @@ export function toIndicatorDetail(entry: CatalogueEntry) {
     areaTypes: entry.levels,
     periods: entry.periods,
     dimensions: dimensionsOf(entry),
-    notes: entry.notes,
+    valueNotes: entry.notes,
   };
 }
 
