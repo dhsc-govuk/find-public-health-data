@@ -114,6 +114,12 @@ describe('IndicatorSummary', () => {
     expect(summaryRow('Update frequency')).toBe('Annually');
   });
 
+  it('leaves out the update frequency of an indicator imported without one', () => {
+    renderSummary({ ...indicator, updateFrequency: null });
+
+    expect(summaryRow('Update frequency')).toBeUndefined();
+  });
+
   it.each([
     ['no-fixed-frequency', 'No fixed frequency, for the following reason:'],
     ['no-longer-updated', 'This indicator will no longer be updated for the following reason:'],
@@ -163,6 +169,13 @@ describe('BackgroundInformation', () => {
 
     expect(attributeNames()).toEqual(expect.arrayContaining(['Value type', 'Unit']));
     expect(screen.getByText('%')).toBeTruthy();
+  });
+
+  it('lists no frequency for an indicator imported without one', () => {
+    renderBackground({ ...indicator, updateFrequency: null });
+
+    expect(attributeNames()).not.toContain('Frequency');
+    expect(attributeNames()).toContain('Polarity');
   });
 
   it('lists no unit for values that have none', () => {

@@ -223,6 +223,19 @@ describe('getPublishedIndicatorById', () => {
     expect((await getPublishedIndicatorById(db, id))?.unit).toBe('per 1,000 live births');
   });
 
+  it('serves an indicator imported without an update frequency', async () => {
+    const id = await resolvedId(DIABETES_MORTALITY);
+    await db.execute(
+      sql`UPDATE indicator_version SET update_frequency = NULL, update_frequency_reason = NULL
+          WHERE indicator_id = ${id}`,
+    );
+
+    expect(await getPublishedIndicatorById(db, id)).toMatchObject({
+      shortId: DIABETES_MORTALITY,
+      updateFrequency: null,
+    });
+  });
+
   it('returns undefined for an id no indicator carries', async () => {
     expect(await getPublishedIndicatorById(db, UNSEEDED_ID)).toBeUndefined();
   });

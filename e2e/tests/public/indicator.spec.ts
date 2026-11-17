@@ -454,6 +454,38 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(metadata.text).toContain('Numerator definition:');
 });
 
+test('serves an indicator without an update frequency on its page and in downloads', async ({
+  page,
+}) => {
+  const name = 'Emergency admissions for gastroenteritis (0 to 4 years)';
+  await openIndicatorPage(page, '/indicator/emergency-admissions-for-gastroenteritis-0-to-4-years');
+  await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+  await expect(page.getByRole('term').filter({ hasText: /^Update frequency$/ })).toHaveCount(0);
+  await expect(page.getByRole('table', { name: /^Table:/ })).toContainText('England');
+
+  await page
+    .getByRole('tabpanel', { name: 'Indicator', exact: true })
+    .getByText('Download or share data', { exact: true })
+    .click();
+  const table = await downloadFrom(page, "Download data for the areas you've chosen (CSV)", 'link');
+  expect(table.filename).toMatch(/\.csv$/);
+  expect(table.text).toContain('England calculated value');
+  const all = await downloadFrom(page, 'Download data for all areas (CSV)', 'link');
+  expect(all.filename).toMatch(/\.csv$/);
+  expect(all.text).toContain(name);
+  expect(all.text).toContain(',England,England,');
+  const metadata = await downloadFrom(page, 'Download metadata about this indicator (TXT)', 'link');
+  expect(metadata.filename).toBe('94194-metadata.txt');
+  expect(metadata.text).toContain(`Indicator: ${name}`);
+  expect(metadata.text).toContain('Definition: Crude rate of emergency admissions');
+  expect(metadata.text).not.toContain('Update frequency:');
+
+  await page.getByRole('tab', { name: 'About this indicator' }).click();
+  await expect(page.getByRole('heading', { name: 'Data attributes', exact: true })).toBeVisible();
+  await expect(page.getByRole('term').filter({ hasText: /^Frequency$/ })).toHaveCount(0);
+  await expect(page.getByRole('term').filter({ hasText: /^Polarity$/ })).toBeVisible();
+});
+
 test('plots trends, area comparisons, inequalities and paired indicators', async ({
   page,
 }, testInfo) => {
