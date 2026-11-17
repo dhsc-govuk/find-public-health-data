@@ -49,7 +49,7 @@ export function IndicatorTab({
   geographyOptions?: GeographyOptions | undefined;
   selection: IndicatorSelection;
 }) {
-  const { detail, areaData, regionData = [], ranges = {} } = primary;
+  const { detail, areaData, regionData = [], benchmarkData = [], ranges = {} } = primary;
   const id = detail.shortId;
   const location = useLocation();
   const navigation = useNavigation();
@@ -84,13 +84,27 @@ export function IndicatorTab({
   const regionAvailable = pickedAreaData.some(
     ({ areaCode }) => benchmarkGeography.regionByCode[areaCode],
   );
+  const benchmarkOptions = benchmarkCheckboxOptions(regionAvailable, {
+    areas: pickedAreaData,
+    geography: benchmarkGeography,
+    englandObservations: allObservations,
+    goal: detail.goal,
+  });
+  const benchmarks = options.benchmarks.filter((choice) =>
+    hasPickedAreas
+      ? benchmarkOptions.some(({ value }) => value === choice)
+      : choice === 'goal' && detail.goal,
+  );
+  const policyGoal = benchmarks.includes('goal') ? detail.goal : null;
   const model = trendTableModel({
     areaData: filtered,
-    benchmarks: options.benchmarks,
+    benchmarks,
     confidence,
     geography: benchmarkGeography,
     ranges,
     regionData: filteredRegions,
+    benchmarkData: benchmarkData.map(narrow),
+    goal: detail.goal,
   });
   const trendAreas = trendChartAreas(model);
   const geography = (
@@ -106,6 +120,7 @@ export function IndicatorTab({
           choices={options.benchmarks}
           onChange={(benchmarks) => applyOptions({ ...options, benchmarks })}
           region={regionAvailable}
+          availableOptions={benchmarkOptions}
           scope={id}
           target={{ tabParam: 'tab-indicator', tabValue: 'indicator', anchor: 'indicator-data' }}
         />
@@ -115,13 +130,17 @@ export function IndicatorTab({
   const downloadParams = (withOptions: boolean) => {
     const next = new URLSearchParams();
     for (const { areaCode } of pickedAreaData) next.append('as', areaCode);
+    for (const { areaCode } of pickedAreaData) {
+      if (benchmarkGeography.tierByCode?.[areaCode] === 'lower')
+        next.set(`tier-${areaCode}`, 'lower');
+    }
     if (withOptions) {
       next.set('order', 'desc');
       next.set(`columns-${id}`, trendColumnsParam(columns));
       if (sexes.includes(options.sex) && options.sex) next.set(`sex-${id}`, options.sex);
       if (periodType !== 'all') next.set(`pt-${id}`, periodType);
       if (confidence !== 'none') next.set(`ci-${id}`, confidence);
-      setBenchmarkParams(next, id, options.benchmarks);
+      setBenchmarkParams(next, id, benchmarks);
     }
     return [...next];
   };
@@ -161,29 +180,27 @@ export function IndicatorTab({
             </FilterChip>
           );
         })}
-        {hasPickedAreas
-          ? benchmarkCheckboxOptions(regionAvailable)
-              .filter(({ value }) => options.benchmarks.includes(value))
-              .map(({ value, label }) => {
-                const next = new URLSearchParams(location.search);
-                setBenchmarkParams(
-                  next,
-                  id,
-                  options.benchmarks.filter((choice) => choice !== value),
-                );
-                return (
-                  <FilterChip
-                    key={value}
-                    value={value}
-                    removeLabel={label}
-                    onRemove={`${location.pathname}?${next}`}
-                    replace
-                  >
-                    {label}
-                  </FilterChip>
-                );
-              })
-          : null}
+        {(hasPickedAreas ? benchmarkOptions : [{ value: 'goal' as const, label: 'Policy goal' }])
+          .filter(({ value }) => benchmarks.includes(value))
+          .map(({ value, label }) => {
+            const next = new URLSearchParams(location.search);
+            setBenchmarkParams(
+              next,
+              id,
+              options.benchmarks.filter((choice) => choice !== value),
+            );
+            return (
+              <FilterChip
+                key={value}
+                value={value}
+                removeLabel={label}
+                onRemove={`${location.pathname}?${next}`}
+                replace
+              >
+                {label}
+              </FilterChip>
+            );
+          })}
       </FilterChips>
     </div>
   );
@@ -212,7 +229,8 @@ export function IndicatorTab({
             onColumnsChange={(next) =>
               applyOptionParams([[`columns-${id}`, trendColumnsParam(next), 'default']])
             }
-            rangeBenchmarks={hasPickedAreas && options.benchmarks.some(isRangeBenchmark)}
+            rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
+            policyGoal={!!policyGoal}
             confidenceLevels={confidenceLevels}
             measures={measures}
             label="Table columns"
@@ -235,11 +253,13 @@ export function IndicatorTab({
           <div className="fphd-indicator-chart fphd-indicator-chart--trend">
             <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
             {hasPickedAreas ||
+            detail.goal ||
             confidenceLevels.length > 0 ||
             sexes.length > 0 ||
             periodTypes.length > 1 ? (
               <PanelOptionsPanel
-                rangeBenchmarks={hasPickedAreas && options.benchmarks.some(isRangeBenchmark)}
+                rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
+                goalRadios={!hasPickedAreas && !!detail.goal}
                 confidenceLevels={confidenceLevels}
                 label="Chart options"
                 onChange={applyOptions}
@@ -263,6 +283,7 @@ export function IndicatorTab({
               benchmarkCodes={model.benchmarkGroups.map(({ areaCode }) => areaCode)}
               indicator={detail}
               confidence={confidence}
+              goal={policyGoal}
             />
           </div>
           <div id="indicator-table" className="govuk-!-margin-top-4">
@@ -272,11 +293,12 @@ export function IndicatorTab({
               visibleCaption
               indicator={detail}
               areaData={filtered}
-              benchmarks={options.benchmarks}
+              benchmarks={benchmarks}
               confidence={confidence}
               geography={benchmarkGeography}
               ranges={ranges}
               regionData={filteredRegions}
+              benchmarkData={benchmarkData.map(narrow)}
             />
           </div>
           {detail.dataSource ? (

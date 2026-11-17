@@ -1,5 +1,6 @@
 import type { ObservationHistory } from '@fphd/public-api-features/contract';
 import {
+  type areaDeprivationListSchema,
   areaDisplayGroupListSchema,
   areaLookupListSchema,
   areaParentListSchema,
@@ -33,6 +34,7 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
 import { loadInBatches } from './batches.ts';
+import { loadBenchmarkData, loadBenchmarkMemberships } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
@@ -63,6 +65,7 @@ export interface SelectedIndicator {
   tableSeries?: TableSeriesSelection[];
   /** The statistical regions the selected areas roll up to, for the region benchmark. */
   regionData?: IndicatorAreaData[];
+  benchmarkData?: IndicatorAreaData[];
   /** Distribution across all areas of each display level, per period and segment. */
   ranges?: Record<string, IndicatorRangePeriod[]>;
 }
@@ -76,6 +79,10 @@ export interface SelectedArea {
 
 /** Which benchmark each selected area can be compared against. */
 export interface BenchmarkGeography {
+  deprivation?: typeof areaDeprivationListSchema._output;
+  neighboursByCode?: Record<string, string[]>;
+  caByCode?: Record<string, { code: string; name: string }>;
+  tierByCode?: Record<string, 'upper' | 'lower'>;
   /** Selected area code → its statistical region, where one exists. */
   regionByCode: Record<string, { code: string; name: string }>;
   /** Selected area code → its display level, for picking the England range. */
@@ -211,7 +218,7 @@ export async function loadIndicatorData(
   // Only the picked areas resolve to names and levels — the tree fetches its own
   // catalogue on demand, keeping thousands of areas out of the page payload.
   const codeQuery = nonEnglandCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
-  const [lookedUp, areaParents, catalogueGroups] = await Promise.all([
+  const [lookedUp, areaParents, catalogueGroups, memberships] = await Promise.all([
     nonEnglandCodes.length > 0
       ? Promise.all(
           Array.from(
@@ -244,6 +251,9 @@ export async function loadIndicatorData(
         : includePageData
           ? api.get('/api/areas/display-groups', displayGroupListSchema)
           : Promise.resolve([]),
+    tableDisplayGroups === undefined
+      ? loadBenchmarkMemberships(api, nonEnglandCodes)
+      : Promise.resolve({}),
   ]);
   const displayGroups = singlePage ? publicGeographyLevels(catalogueGroups) : catalogueGroups;
   const areaLevels = requestedLevels.filter((level) => displayGroups.includes(level));
@@ -268,6 +278,23 @@ export async function loadIndicatorData(
   for (const { code, parentCode, parentName } of areaParents) {
     regionByCode[code] = { code: parentCode, name: parentName };
   }
+  const benchmarkGeography: BenchmarkGeography = {
+    regionByCode,
+    levelByCode,
+    ...memberships,
+    tierByCode: Object.fromEntries(
+      selectedAreas.map(({ code, level }) => [
+        code,
+        requestedLevels.includes('Lower-tier local authorities') &&
+        !requestedLevels.includes('Upper-tier local authorities') &&
+        areasInGeographyGroup([{ code }], 'Lower-tier local authorities').length > 0
+          ? 'lower'
+          : level.toLowerCase().includes('lower') || /^E07/.test(code)
+            ? 'lower'
+            : 'upper',
+      ]),
+    ),
+  };
 
   const pickedLevels = [...new Set(Object.values(levelByCode))];
   const regionCodes = [...new Set(Object.values(regionByCode).map(({ code }) => code))];
@@ -370,11 +397,20 @@ export async function loadIndicatorData(
               return [level, range.periods] as const;
             }),
           ]);
+          const additional = await loadBenchmarkData(
+            api,
+            String(id),
+            selectedBenchmarks(url.searchParams, id),
+            benchmarkGeography,
+            dataFor,
+            [...areaData, ...regionData],
+          );
           return {
             detail,
             areaData,
             regionData,
-            ranges: Object.fromEntries(rangeEntries),
+            benchmarkData: additional.benchmarkData,
+            ranges: { ...Object.fromEntries(rangeEntries), ...additional.ranges },
           };
         });
 
@@ -382,7 +418,7 @@ export async function loadIndicatorData(
     selected,
     selectedAreas,
     displayGroups,
-    benchmarkGeography: { regionByCode, levelByCode } satisfies BenchmarkGeography,
+    benchmarkGeography,
     findSubject,
     findResults,
     geographyOptions,

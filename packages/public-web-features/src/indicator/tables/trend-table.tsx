@@ -10,6 +10,7 @@ import type {
   IndicatorDetail,
   IndicatorRangePeriod,
 } from '../loader.ts';
+import { goalThresholdText, goalVerdict } from '../policy-goal.ts';
 import { type AreaBenchmark, type TrendColumns, trendTableModel } from '../trend.ts';
 import {
   BenchmarkCells,
@@ -39,6 +40,7 @@ export function TrendTable({
   indicator,
   ranges = {},
   regionData = [],
+  benchmarkData = [],
   newestFirst = false,
   columns,
   visibleCaption = false,
@@ -50,6 +52,7 @@ export function TrendTable({
   indicator: IndicatorDetail;
   ranges?: Record<string, IndicatorRangePeriod[]>;
   regionData?: IndicatorAreaData[];
+  benchmarkData?: IndicatorAreaData[];
   newestFirst?: boolean;
   columns?: TrendColumns;
   visibleCaption?: boolean;
@@ -62,6 +65,8 @@ export function TrendTable({
     geography,
     ranges,
     regionData,
+    benchmarkData,
+    goal: indicator.goal,
   });
   const {
     benchmarkGroups,
@@ -73,6 +78,7 @@ export function TrendTable({
     periods,
     referenceSegment,
     seriesByArea,
+    policyGoal,
   } = model;
   const hasCounts = columns ? columns.count : availableCounts;
   const hasNumerators = columns ? columns.numerator : availableNumerators;
@@ -80,6 +86,8 @@ export function TrendTable({
   const intervals = columns?.confidence ?? (confidence === 'none' ? [] : [confidence]);
   const spread = { minMax: columns?.minMax ?? false, percentiles: columns?.percentiles ?? false };
   const showChart = columns?.chart ?? false;
+  const showGoal = !!policyGoal && (columns?.goal ?? true);
+  const thresholdText = policyGoal ? goalThresholdText(policyGoal, indicator.unit) : '';
   if (!firstObservation) {
     return <p className="govuk-body">No data matches the selected options.</p>;
   }
@@ -95,9 +103,11 @@ export function TrendTable({
     areaSeries.series.find(inPeriod(period));
   const columnsPerArea =
     Number(hasCounts) + Number(hasNumerators) + Number(showValues) + intervals.length * 2;
-  const areaColumns = (areaCode: string) => columnsPerArea + chartBenchmarks(areaCode).length;
+  const areaColumns = (areaCode: string) =>
+    columnsPerArea + chartBenchmarks(areaCode).length + Number(showGoal);
   const columnCount =
     1 +
+    Number(!!policyGoal) +
     seriesByArea.reduce((total, { data }) => total + areaColumns(data.areaCode), 0) +
     benchmarkGroups.reduce(
       (total, benchmark) => total + benchmarkColumnCount(spreadFor(benchmark)),
@@ -194,6 +204,15 @@ export function TrendTable({
                   {benchmark.name}
                 </th>
               ))}
+              {policyGoal ? (
+                <th
+                  id={`${id}-goal-group`}
+                  scope="colgroup"
+                  className={`${HEADER} fphd-trend-table__benchmark-group`}
+                >
+                  Policy goal
+                </th>
+              ) : null}
             </tr>
             <tr className="govuk-table__row">
               <th id={`${id}-period`} scope="col" className={`${HEADER} fphd-table__frozen`}>
@@ -241,6 +260,7 @@ export function TrendTable({
                         )}
                       </Fragment>
                     ))}
+                    {showGoal ? heading(area, 'goal', 'Compared with policy goal') : null}
                     {intervals.map((level) => (
                       <Fragment key={level}>
                         {heading(area, `lower-${level}`, `${level}% lower confidence interval`)}
@@ -258,6 +278,15 @@ export function TrendTable({
                   unit={<UnitNote unit={indicator.unit} />}
                 />
               ))}
+              {policyGoal ? (
+                <th
+                  id={`${id}-goal-threshold`}
+                  scope="col"
+                  className={`${HEADER} fphd-trend-table__benchmark-cell`}
+                >
+                  {thresholdText}
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="govuk-table__body">
@@ -316,6 +345,11 @@ export function TrendTable({
                           unit={indicator.unit}
                         />
                       ))}
+                      {showGoal && policyGoal ? (
+                        <td headers={at('goal')} className="govuk-table__cell">
+                          {goalVerdict(observation?.value, policyGoal)}
+                        </td>
+                      ) : null}
                       {intervals.map((level) => {
                         const lower =
                           level === '95' ? observation?.lowerCi95 : observation?.lowerCi998;
@@ -356,6 +390,14 @@ export function TrendTable({
                     )}
                   />
                 ))}
+                {policyGoal ? (
+                  <td
+                    headers={`${rowId(row)} ${id}-goal-group ${id}-goal-threshold`}
+                    className="govuk-table__cell fphd-trend-table__benchmark-cell"
+                  >
+                    {thresholdText}
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

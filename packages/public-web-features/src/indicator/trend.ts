@@ -1,12 +1,19 @@
-import { canonicalBenchmarks } from './benchmarks.ts';
+import { canonicalBenchmarks, deprivationFor, deprivationType } from './benchmarks.ts';
 import type { BenchmarkChoice } from './comparison.ts';
-import { alignedTrendSeries, type ConfidenceLevel, segmentValuesKey, trendSeries } from './data.ts';
+import {
+  alignedTrendSeries,
+  type ConfidenceLevel,
+  sameSegment,
+  segmentValuesKey,
+  trendSeries,
+} from './data.ts';
 import type {
   BenchmarkGeography,
   IndicatorAreaData,
   IndicatorObservation,
   IndicatorRangePeriod,
 } from './loader.ts';
+import type { PolicyGoal } from './policy-goal.ts';
 
 export interface AreaBenchmark {
   key: string;
@@ -31,6 +38,7 @@ export interface TrendColumns {
   percentiles: boolean;
   /** The chart comparing each value with the benchmark and its spread. */
   chart: boolean;
+  goal?: boolean;
 }
 
 /** The benchmark spread columns, shown by default whenever a benchmark is chosen. */
@@ -47,6 +55,7 @@ export function selectedTrendColumns(
     ? params.getAll(key).flatMap((value) => value.split(','))
     : [
         'value',
+        'goal',
         ...RANGE_COLUMNS,
         ...(params.has(`ci-${id}`)
           ? params.getAll(`ci-${id}`)
@@ -66,6 +75,7 @@ export function selectedTrendColumns(
     minMax: values.includes('minmax'),
     percentiles: values.includes('percentiles'),
     chart: values.includes('chart'),
+    goal: values.includes('goal'),
   };
 }
 
@@ -80,6 +90,7 @@ export function trendColumnsParam(columns: TrendColumns): string {
       columns.minMax ? 'minmax' : '',
       columns.percentiles ? 'percentiles' : '',
       columns.chart ? 'chart' : '',
+      columns.goal ? 'goal' : '',
     ]
       .filter(Boolean)
       .join(',') || 'none'
@@ -93,6 +104,8 @@ export function trendTableModel({
   geography = { regionByCode: {}, levelByCode: {} },
   ranges = {},
   regionData = [],
+  benchmarkData = [],
+  goal,
 }: {
   areaData: IndicatorAreaData[];
   benchmarks?: readonly BenchmarkChoice[];
@@ -100,6 +113,8 @@ export function trendTableModel({
   geography?: BenchmarkGeography;
   ranges?: Record<string, IndicatorRangePeriod[]>;
   regionData?: IndicatorAreaData[];
+  benchmarkData?: IndicatorAreaData[];
+  goal?: PolicyGoal | null;
 }) {
   const nonEngland = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const england = areaData.filter(({ areaCode }) => areaCode === 'E92000001');
@@ -110,6 +125,10 @@ export function trendTableModel({
   const seriesFor = (observations: IndicatorObservation[]) =>
     alignedTrendSeries(observations, reference);
   const englandSeries = england[0] ? seriesFor(england[0].observations) : [];
+  const policyGoal = benchmarks.includes('goal') ? goal : undefined;
+  const seriesByArea = shownAreas
+    .map((data) => ({ data, series: seriesFor(data.observations) }))
+    .filter(({ series }) => series.length > 0);
   const benchmarkFor = (choice: BenchmarkChoice, areaCode: string): AreaBenchmark | undefined => {
     if (choice === 'england') {
       return {
@@ -138,11 +157,108 @@ export function trendTableModel({
         rangePeriods: ranges['Statistical regions'] ?? [],
       };
     }
+    const area = seriesByArea.find(({ data }) => data.areaCode === areaCode);
+    if (!area) return undefined;
+    if (choice === 'imd2019' || choice === 'imd2025') {
+      const membership = deprivationFor(geography, areaCode, choice);
+      if (!membership) return undefined;
+      const type = deprivationType(membership);
+      const deciles = (england[0]?.observations ?? []).filter(({ dimensions }) =>
+        dimensions.some(
+          (dimension) => dimension.type === type && dimension.sortOrder === membership.decile,
+        ),
+      );
+      if (!deciles.length) return undefined;
+      const name = `Decile ${membership.decile} (IMD ${choice.slice(3)})`;
+      const key = `${choice}:${membership.dimensionValueId}:${area.series[0] ? segmentValuesKey(area.series[0]) : ''}`;
+      return {
+        key,
+        choice,
+        areaCode: key,
+        name,
+        label: `similarly deprived areas (IMD ${choice.slice(3)})`,
+        chartLabel: name,
+        series: area.series.flatMap((observation) => {
+          const match = deciles.find(
+            (candidate) =>
+              candidate.fromDate === observation.fromDate &&
+              candidate.toDate === observation.toDate &&
+              sameSegment(observation, {
+                ...candidate,
+                dimensions: candidate.dimensions.filter((dimension) => dimension.type !== type),
+              }),
+          );
+          return match ? [{ ...match, dimensions: observation.dimensions }] : [];
+        }),
+        rangePeriods: ranges[membership.dimensionValueId] ?? [],
+      };
+    }
+    if (choice === `neighbours:${areaCode}`) {
+      const neighbours = geography.neighboursByCode?.[areaCode];
+      if (!neighbours?.length) return undefined;
+      const name = `Statistical neighbours (${area.data.areaName})`;
+      return {
+        key: choice,
+        choice,
+        areaCode: choice,
+        name,
+        label: name,
+        chartLabel: name,
+        series: area.series.map((observation) => {
+          const values = neighbours.flatMap((code) => {
+            const match = benchmarkData
+              .find((data) => data.areaCode === code)
+              ?.observations.find(
+                (candidate) =>
+                  candidate.fromDate === observation.fromDate &&
+                  candidate.toDate === observation.toDate &&
+                  sameSegment(candidate, observation),
+              );
+            return match?.value == null ? [] : [match.value];
+          });
+          return {
+            ...observation,
+            value: values.length
+              ? values.reduce((sum, value) => sum + value, 0) / values.length
+              : null,
+            count: null,
+            numerator: null,
+            denominator: null,
+            lowerCi95: null,
+            upperCi95: null,
+            lowerCi998: null,
+            upperCi998: null,
+            notes: [],
+          };
+        }),
+      };
+    }
+    if (choice === `ca:${areaCode}`) {
+      const ca = geography.caByCode?.[areaCode];
+      if (!ca) return undefined;
+      const name = `Combined authority (${area.data.areaName})`;
+      const observations =
+        benchmarkData.find((data) => data.areaCode === ca.code)?.observations ?? [];
+      return {
+        key: choice,
+        choice,
+        areaCode: choice,
+        name,
+        label: name,
+        chartLabel: name,
+        series: area.series.flatMap((observation) => {
+          const match = observations.find(
+            (candidate) =>
+              candidate.fromDate === observation.fromDate &&
+              candidate.toDate === observation.toDate &&
+              sameSegment(candidate, observation),
+          );
+          return match ? [match] : [];
+        }),
+      };
+    }
     return undefined;
   };
-  const seriesByArea = shownAreas
-    .map((data) => ({ data, series: seriesFor(data.observations) }))
-    .filter(({ series }) => series.length > 0);
   const benchmarksByArea = new Map(
     seriesByArea.map(({ data }) => [
       data.areaCode,
@@ -155,10 +271,35 @@ export function trendTableModel({
       const benchmark = benchmarksByArea
         .get(data.areaCode)
         ?.find((entry) => entry.choice === choice);
-      if (benchmark && !groups.has(benchmark.key)) groups.set(benchmark.key, benchmark);
+      if (benchmark) {
+        const existing = groups.get(benchmark.key);
+        groups.set(
+          benchmark.key,
+          existing
+            ? {
+                ...existing,
+                series: [
+                  ...new Map(
+                    [...existing.series, ...benchmark.series].map((observation) => [
+                      `${observation.fromDate}/${observation.toDate}`,
+                      observation,
+                    ]),
+                  ).values(),
+                ],
+              }
+            : benchmark,
+        );
+      }
     }
   }
-  const benchmarkGroups = [...groups.values()];
+  const benchmarkGroups = [...groups.values()].sort((a, b) => {
+    const family = a.choice.split(':')[0];
+    if (family !== b.choice.split(':')[0] || !['neighbours', 'ca'].includes(family ?? '')) return 0;
+    return (
+      shownAreas.findIndex(({ areaCode }) => areaCode === a.choice.split(':')[1]) -
+      shownAreas.findIndex(({ areaCode }) => areaCode === b.choice.split(':')[1])
+    );
+  });
   const periods = [
     ...new Map(
       shownAreas
@@ -191,6 +332,7 @@ export function trendTableModel({
     inPeriod,
     lowerOf,
     periods,
+    policyGoal,
     referenceSegment,
     seriesByArea,
     upperOf,

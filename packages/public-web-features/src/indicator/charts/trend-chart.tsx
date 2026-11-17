@@ -6,6 +6,7 @@ import {
   Label,
   Line,
   LineChart,
+  ReferenceLine,
   Symbols,
   Tooltip,
   usePlotArea,
@@ -24,6 +25,7 @@ import {
   unitNote,
 } from '../data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
+import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
 import { alignedSeries, bounds, chartPeriods, errorOffsets } from './chart-data.ts';
 import {
   axisColour,
@@ -151,12 +153,14 @@ function TrendPlot({
   indicator,
   confidence,
   title,
+  goal,
 }: {
   areas: IndicatorAreaData[];
   benchmarkCodes: readonly string[];
   indicator: IndicatorDetail;
   confidence: ConfidenceLevel;
   title: string;
+  goal?: PolicyGoal | null;
 }) {
   const [active, setActive] = useState<number | null>(null);
   const [width, setWidth] = useState(640);
@@ -317,10 +321,38 @@ function TrendPlot({
                         {intervalText(period, Number(String(entry.dataKey).slice(1)))}
                       </div>
                     ))}
+                    {goal ? (
+                      <div>Policy goal: {goalThresholdText(goal, indicator.unit)}</div>
+                    ) : null}
                   </ChartTooltip>
                 ) : null;
               }}
             />
+            {goal
+              ? goalThresholds(goal).map(({ value, colour }) => (
+                  <ReferenceLine
+                    key={`${value}-${colour}`}
+                    y={value}
+                    stroke={colour}
+                    strokeDasharray="6 4"
+                    strokeWidth={2}
+                    ifOverflow="extendDomain"
+                    shape={({ x1, x2, y1, y2 }) => (
+                      <line
+                        x1={x1}
+                        x2={x2}
+                        y1={y1}
+                        y2={y2}
+                        stroke={colour}
+                        strokeDasharray="6 4"
+                        strokeWidth={2}
+                      >
+                        <title>Policy goal: {goalThresholdText(goal, indicator.unit)}</title>
+                      </line>
+                    )}
+                  />
+                ))
+              : null}
             {series.map(({ code, name }, index) => {
               const colour = active === null || active === index ? lineColour(index) : gridColour;
               return (
@@ -401,6 +433,27 @@ function TrendPlot({
           ))}
         </ul>
       ) : null}
+      {goal ? (
+        <ul className="govuk-list fphd-chart-key" aria-label="Policy goals key">
+          <li title={`Policy goal: ${goalThresholdText(goal, indicator.unit)}`}>
+            <svg width="32" height="18" aria-hidden="true">
+              {goalThresholds(goal).map(({ colour }, index) => (
+                <line
+                  key={colour}
+                  x1="0"
+                  x2="32"
+                  y1={6 + index * 6}
+                  y2={6 + index * 6}
+                  stroke={colour}
+                  strokeDasharray="6 4"
+                  strokeWidth={2}
+                />
+              ))}
+            </svg>
+            Policy goals
+          </li>
+        </ul>
+      ) : null}
       <ChartDataTable
         title={chartTitle}
         columns={['Period', ...series.map(({ name }) => name)]}
@@ -424,6 +477,7 @@ export function TrendChart({
   benchmarkCodes = [],
   indicator,
   confidence = 'none',
+  goal,
 }: {
   id: string;
   title: string;
@@ -431,6 +485,7 @@ export function TrendChart({
   benchmarkCodes?: readonly string[];
   indicator: IndicatorDetail;
   confidence?: ConfidenceLevel;
+  goal?: PolicyGoal | null;
 }) {
   const types = availablePeriodTypes(areas.flatMap(({ observations }) => observations));
   const variants = types.length > 1 ? types : (['all'] as const);
@@ -452,6 +507,7 @@ export function TrendChart({
               indicator={indicator}
               confidence={confidence}
               title={variantTitle}
+              goal={goal ?? null}
             />
           </div>
         );

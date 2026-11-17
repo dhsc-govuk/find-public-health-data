@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { benchmarkFixture } from '../benchmark.testing.ts';
 import { trendCsv } from '../download.ts';
 import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
 import { type TrendColumns, trendTableModel } from '../trend.ts';
@@ -42,6 +43,107 @@ const areaData = [
 ];
 
 describe('TrendTable', () => {
+  it('orders all benchmark groups and per-area comparison columns for two areas, including plain goal verdicts', () => {
+    const fixture = benchmarkFixture();
+    const columns: TrendColumns = {
+      count: false,
+      numerator: false,
+      value: true,
+      confidence: [],
+      minMax: true,
+      percentiles: true,
+      chart: true,
+      goal: true,
+    };
+    const { container } = render(
+      <TrendTable {...fixture} indicator={fixture.detail} confidence="95" columns={columns} />,
+    );
+    const groups = [...container.querySelectorAll('thead tr:first-child th')];
+    expect(groups.map((group) => group.textContent)).toEqual([
+      'Manchester',
+      'Cornwall',
+      'England',
+      'North West (Statistical region)',
+      'South West (Statistical region)',
+      'Decile 1 (IMD 2019)',
+      'Decile 2 (IMD 2019)',
+      'Decile 1 (IMD 2025)',
+      'Decile 2 (IMD 2025)',
+      'Statistical neighbours (Manchester)',
+      'Statistical neighbours (Cornwall)',
+      'Combined authority (Manchester)',
+      'Combined authority (Cornwall)',
+      'Policy goal',
+    ]);
+    expect(
+      [...container.querySelectorAll('thead tr:nth-child(2) th')]
+        .map((heading) => heading.textContent)
+        .filter((text) => text?.startsWith('Compared with')),
+    ).toEqual([
+      'Compared with England',
+      'Compared with North West',
+      'Compared with similarly deprived areas (IMD 2019)',
+      'Compared with similarly deprived areas (IMD 2025)',
+      'Compared with policy goal',
+      'Compared with England',
+      'Compared with South West',
+      'Compared with similarly deprived areas (IMD 2019)',
+      'Compared with similarly deprived areas (IMD 2025)',
+      'Compared with policy goal',
+    ]);
+    const cells = [...container.querySelectorAll('tbody tr:first-child td')];
+    expect(cells[5]?.textContent).toBe('Good');
+    expect(cells[11]?.textContent).toBe('Bad');
+    expect(cells[5]?.children.length).toBe(0);
+    expect(cells.at(-2)?.textContent).toBe('-');
+    expect(screen.getByRole('columnheader', { name: '<4% is good, >6% is bad' })).toBeTruthy();
+    expect(groups.slice(-5, -1).map((group) => group.getAttribute('colspan'))).toEqual([
+      '1',
+      '1',
+      '1',
+      '1',
+    ]);
+    for (const cell of cells) {
+      for (const header of (cell.getAttribute('headers') ?? '').split(' '))
+        expect(container.querySelector(`[id="${header}"]`)).toBeTruthy();
+    }
+  });
+
+  it('compares England with the goal without picked areas and can hide its verdict column', () => {
+    const fixture = benchmarkFixture();
+    const areaData = fixture.areaData.filter(({ areaCode }) => areaCode === 'E92000001');
+    const { rerender } = render(
+      <TrendTable
+        areaData={areaData}
+        benchmarks={['goal']}
+        indicator={fixture.detail}
+        confidence="none"
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'England' })).toBeTruthy();
+    expect(screen.getByRole('cell', { name: 'Neither good nor bad' })).toBeTruthy();
+    const columns: TrendColumns = {
+      count: false,
+      numerator: false,
+      value: true,
+      confidence: [],
+      minMax: false,
+      percentiles: false,
+      chart: false,
+      goal: false,
+    };
+    rerender(
+      <TrendTable
+        areaData={areaData}
+        benchmarks={['goal']}
+        indicator={fixture.detail}
+        confidence="none"
+        columns={columns}
+      />,
+    );
+    expect(screen.queryByRole('columnheader', { name: 'Compared with policy goal' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'Policy goal' })).toBeTruthy();
+  });
   it('keeps count, numerator, value and both interval column choices consistent with the CSV', () => {
     const columns: TrendColumns = {
       count: true,

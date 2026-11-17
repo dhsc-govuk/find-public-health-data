@@ -3,6 +3,7 @@ import { stringify } from 'csv-stringify/sync';
 
 import { type ConfidenceLevel, segmentLabel, unitNote } from './data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from './loader.ts';
+import { goalThresholdText, goalVerdict } from './policy-goal.ts';
 import type { TrendColumns, trendTableModel } from './trend.ts';
 
 export function tableCsv(
@@ -36,10 +37,12 @@ export function trendCsv(
     periods,
     referenceSegment,
     seriesByArea,
+    policyGoal,
   } = model;
   const hasCounts = columns ? columns.count : availableCounts;
   const hasNumerators = columns ? columns.numerator : availableNumerators;
   const showValues = columns?.value ?? true;
+  const showGoal = !!policyGoal && (columns?.goal ?? true);
   const intervals = columns?.confidence ?? (confidence === 'none' ? [] : [confidence]);
   const spread = [
     ...(columns?.minMax ? (['min'] as const) : []),
@@ -59,6 +62,7 @@ export function trendCsv(
         ...(showValues ? [`${data.areaName} calculated value${unitNote(indicator.unit)}`] : []),
         ...(hasCounts ? [`${data.areaName} count`] : []),
         ...(hasNumerators ? [`${data.areaName} numerator`] : []),
+        ...(showGoal ? [`${data.areaName} compared with policy goal`] : []),
         ...intervals.flatMap((level) => [
           `${data.areaName} lower ${level}% CI`,
           `${data.areaName} upper ${level}% CI`,
@@ -71,6 +75,7 @@ export function trendCsv(
         ? spread.map((key) => `${benchmark.name} ${spreadLabels[key]}`)
         : []),
     ]),
+    ...(policyGoal ? ['Policy goal'] : []),
   ];
   const rows = periods.map((period) => [
     periodLabel(period, indicator.yearType),
@@ -80,6 +85,7 @@ export function trendCsv(
         ...(showValues ? [observation?.value ?? null] : []),
         ...(hasCounts ? [observation?.count ?? null] : []),
         ...(hasNumerators ? [observation?.numerator ?? null] : []),
+        ...(showGoal && policyGoal ? [goalVerdict(observation?.value, policyGoal)] : []),
         ...intervals.flatMap((level) =>
           level === '95'
             ? [observation?.lowerCi95 ?? null, observation?.upperCi95 ?? null]
@@ -96,6 +102,7 @@ export function trendCsv(
         ...(benchmark.rangePeriods ? spread.map((key) => range?.[key] ?? null) : []),
       ];
     }),
+    ...(policyGoal ? [goalThresholdText(policyGoal, indicator.unit)] : []),
   ]);
   return tableCsv([headers, ...rows]);
 }

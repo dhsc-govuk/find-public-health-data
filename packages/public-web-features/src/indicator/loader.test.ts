@@ -88,6 +88,8 @@ function api(stubs: FakeApiStubs = {}) {
         displayGroup: 'Local authorities',
       })),
     'GET /api/areas/parents': [],
+    'GET /api/areas/deprivation': [],
+    'GET /api/areas/neighbours': [],
     ...stubs,
   });
 }

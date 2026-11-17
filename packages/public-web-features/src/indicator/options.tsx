@@ -2,7 +2,12 @@ import { Button, Checkboxes, CollapsibleFilterCard, Details, Hint, Radios, Selec
 import { type ReactNode, useId } from 'react';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 
-import { benchmarkCheckboxOptions, canonicalBenchmarks, selectedBenchmarks } from './benchmarks.ts';
+import {
+  type BenchmarkOption,
+  benchmarkCheckboxOptions,
+  canonicalBenchmarks,
+  selectedBenchmarks,
+} from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import {
@@ -141,12 +146,14 @@ export function BenchmarksPanel({
   choices,
   onChange,
   region,
+  availableOptions = benchmarkCheckboxOptions(region),
   scope,
   target,
 }: {
   choices: readonly BenchmarkChoice[];
   onChange: (choices: BenchmarkChoice[]) => void;
   region: boolean;
+  availableOptions?: BenchmarkOption[];
   scope: number;
   target: OptionTarget;
 }) {
@@ -163,7 +170,7 @@ export function BenchmarksPanel({
             Compare with geographies, deprivation levels or policy goals (where available).
           </Hint>
           <div className="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-            {benchmarkCheckboxOptions(region).map(({ value, label }) => (
+            {availableOptions.map(({ value, label }) => (
               <Checkboxes.Item
                 key={value}
                 id={`${id}-${value}`}
@@ -198,6 +205,8 @@ export function PanelOptionsPanel({
   columns,
   onColumnsChange,
   rangeBenchmarks = false,
+  policyGoal = false,
+  goalRadios = false,
   confidenceLevels,
   label,
   measures = [],
@@ -215,6 +224,8 @@ export function PanelOptionsPanel({
   columns?: TrendColumns;
   onColumnsChange?: (columns: TrendColumns) => void;
   rangeBenchmarks?: boolean;
+  policyGoal?: boolean;
+  goalRadios?: boolean;
   confidenceLevels: Exclude<ConfidenceLevel, 'none'>[];
   label: string;
   /** The raw numbers the data has, which the table columns offer. */
@@ -234,6 +245,7 @@ export function PanelOptionsPanel({
     period: useId(),
     sex: useId(),
     colour: useId(),
+    goal: useId(),
   };
   const apply = useOptionParamNavigation();
   const colourParam = quintileParam(scope);
@@ -261,6 +273,9 @@ export function PanelOptionsPanel({
           checked: columns.confidence.includes(value),
         })),
         ...(offerRange ? rangeColumns : []),
+        ...(policyGoal
+          ? [{ value: 'goal', label: 'Compared with policy goal', checked: columns.goal ?? true }]
+          : []),
       ]
     : [];
 
@@ -276,6 +291,7 @@ export function PanelOptionsPanel({
               (!columns && showConfidence && confidenceLevels.length > 0)),
         ),
         ...(columns ? [`columns-${scope}`] : []),
+        ...(goalRadios ? [names.benchmark] : []),
         ...(panel === 'compare-areas' ? [colourParam] : []),
       ]}
       target={target}
@@ -283,6 +299,9 @@ export function PanelOptionsPanel({
       {columns && onColumnsChange ? (
         <>
           <input type="hidden" name={`columns-${scope}`} value="" />
+          {!policyGoal && (columns.goal ?? true) ? (
+            <input type="hidden" name={`columns-${scope}`} value="goal" />
+          ) : null}
           {/* Without JavaScript the form drops unoffered columns, so their choices ride along. */}
           {offerRange
             ? null
@@ -306,6 +325,7 @@ export function PanelOptionsPanel({
                 minmax: 'minMax',
                 percentiles: 'percentiles',
                 chart: 'chart',
+                goal: 'goal',
               } as const;
               onColumnsChange(
                 value in toggles
@@ -320,6 +340,37 @@ export function PanelOptionsPanel({
             }}
           />
         </>
+      ) : null}
+      {goalRadios ? (
+        <fieldset className="govuk-fieldset">
+          <legend className="govuk-fieldset__legend govuk-fieldset__legend--s">Policy goal</legend>
+          <div
+            className="govuk-radios govuk-radios--inline govuk-radios--small"
+            data-module="govuk-radios"
+          >
+            {[
+              { value: 'goal', label: 'Yes' },
+              { value: '', label: 'No' },
+            ].map(({ value, label }) => (
+              <div key={label} className="govuk-radios__item">
+                <input
+                  className="govuk-radios__input"
+                  id={`${ids.goal}-${label}`}
+                  type="radio"
+                  name={names.benchmark}
+                  value={value}
+                  checked={options.benchmarks.includes('goal') === (value === 'goal')}
+                  onChange={() =>
+                    onChange({ ...options, benchmarks: value === 'goal' ? ['goal'] : [] })
+                  }
+                />
+                <label className="govuk-label govuk-radios__label" htmlFor={`${ids.goal}-${label}`}>
+                  {label}
+                </label>
+              </div>
+            ))}
+          </div>
+        </fieldset>
       ) : null}
       <div className="fphd-segmentation-options__selects">
         {panel === 'compare-areas' ? (

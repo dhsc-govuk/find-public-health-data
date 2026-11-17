@@ -7,6 +7,45 @@ function trendTable(page: import('@playwright/test').Page) {
   return page.getByRole('table', { name: /^Table:/ });
 }
 
+test('adds IMD 2025, neighbours and the combined authority for Manchester diabetes data', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, '/indicator/diabetes-qof-prevalence?as=E08000003');
+  const benchmarks = filterCard(page, 'Benchmarks');
+  const imdLabel =
+    'Areas with similar deprivation to the selected area (Index of Multiple Deprivation (IMD) 2025)';
+  await benchmarks.getByRole('checkbox', { name: imdLabel, exact: true }).check();
+  await benchmarks
+    .getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true })
+    .check();
+  await benchmarks
+    .getByRole('checkbox', { name: 'Combined authority (Manchester)', exact: true })
+    .check();
+  const table = trendTable(page);
+  for (const name of [
+    'Decile 1 (IMD 2025)',
+    'Statistical neighbours (Manchester)',
+    'Combined authority (Manchester)',
+    'Compared with similarly deprived areas (IMD 2025)',
+  ]) {
+    await expect(table.getByRole('columnheader', { name, exact: true })).toBeVisible();
+  }
+  await expect(
+    page.getByRole('link', { name: `Remove ${imdLabel} filter`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', {
+      name: 'Remove Statistical neighbours (Manchester) filter',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(benchmarks.getByRole('checkbox', { name: imdLabel, exact: true })).toBeChecked();
+  await expect(
+    benchmarks.getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true }),
+  ).toBeChecked();
+});
+
 async function selectEarlierInequalityPeriod(options: Locator) {
   const select = options.getByLabel('Time period', { exact: true });
   const previous = await select.inputValue();
@@ -198,6 +237,32 @@ test('inequality options change the breakdown period', async ({ page }) => {
 
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
+
+  test('applies IMD 2025 and neighbours together through the benchmark GET form', async ({
+    page,
+  }) => {
+    await page.goto('/indicator/diabetes-qof-prevalence?as=E08000003');
+    const benchmarks = filterCard(page, 'Benchmarks');
+    await benchmarks
+      .getByRole('checkbox', {
+        name: 'Areas with similar deprivation to the selected area (Index of Multiple Deprivation (IMD) 2025)',
+        exact: true,
+      })
+      .check();
+    await benchmarks
+      .getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true })
+      .check();
+    await benchmarks.getByRole('button', { name: 'Apply options', exact: true }).click();
+    await expect(
+      trendTable(page).getByRole('columnheader', { name: 'Decile 1 (IMD 2025)', exact: true }),
+    ).toBeVisible();
+    await expect(
+      trendTable(page).getByRole('columnheader', {
+        name: 'Statistical neighbours (Manchester)',
+        exact: true,
+      }),
+    ).toBeVisible();
+  });
 
   test('checks England for the first geography and keeps all benchmarks unticked after a GET submit', async ({
     page,
