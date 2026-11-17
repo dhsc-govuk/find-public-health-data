@@ -5,6 +5,7 @@ import {
   areaComparisonLabel,
   areaComparisonRows,
   highlightedAreaCodes,
+  highlightedAreaRows,
   observationComparisonLabel,
   orderAreaComparisonRows,
   statisticalNeighbourAreas,
@@ -39,12 +40,9 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
       return latest?.lowerCi95 != null || latest?.upperCi95 != null;
     });
     const highlighted = highlightedAreaCodes(params, data.compareAreaOptions);
-    const ordered = orderAreaComparisonRows(
-      areas.rows,
-      sort,
-      highlighted,
-      statisticalNeighbourAreas(params, data.compareAreaOptions),
-    );
+    const only = statisticalNeighbourAreas(params, data.compareAreaOptions);
+    const ordered = orderAreaComparisonRows(areas.rows, sort, highlighted, only);
+    const chosen = highlightedAreaRows(areas.rows, highlighted, only);
     rows = [
       [
         'Area',
@@ -71,15 +69,10 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
       rows.push([], [`Source: ${primary.detail.dataSource.name}`]);
     }
     let caption = `Table of area comparisons: ${primary.detail.name}`;
-    if (highlighted.length === 1) {
-      const code = highlighted[0];
-      const name =
-        areas.rows.find(({ areaCode }) => areaCode === code)?.areaName ??
-        data.compareAreaOptions.find((area) => area.code === code)?.name ??
-        code;
-      caption += `, ${name}`;
-    } else if (highlighted.length > 1) {
-      caption += `, ${highlighted.length} chosen areas`;
+    if (chosen.length === 1) {
+      caption += `, ${chosen[0]?.areaName}`;
+    } else if (chosen.length > 1) {
+      caption += `, ${chosen.length} chosen areas`;
     }
     filename = `${caption
       .toLowerCase()

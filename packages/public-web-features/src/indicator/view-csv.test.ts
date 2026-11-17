@@ -119,13 +119,15 @@ describe('indicator view CSV', () => {
     ['&highlightRegion=E12000001', '-hartlepool'],
     ['&highlight=E06000052&highlight=E06000001', '-2-chosen-areas'],
     ['&highlightRegion=E12000009&highlightRegion=E12000001', '-2-chosen-areas'],
+    ['&highlight=E92000001', ''],
+    ['&highlight=E06000052&highlight=E92000001&highlight=E99999999', '-cornwall'],
   ])('names the download using the highlighted areas for %s', async (query, suffix) => {
     const response = await loadIndicatorViewCsv(args(`tab-indicator=areas${query}`));
     expect(response.headers.get('Content-Disposition')).toBe(
       `attachment; filename="table-of-area-comparisons-indicator-108${suffix}.csv"`,
     );
   });
-  it('slugs caption punctuation and resolves a highlighted name from the options without a row', async () => {
+  it('slugs caption punctuation and leaves out highlights the table does not list', async () => {
     const data = await loadIndicator(args(''));
     vi.mocked(loadIndicator).mockResolvedValue({
       ...data,
@@ -134,7 +136,7 @@ describe('indicator view CSV', () => {
     });
     const response = await loadIndicatorViewCsv(args('tab-indicator=areas&highlight=E06000052'));
     expect(response.headers.get('Content-Disposition')).toBe(
-      'attachment; filename="table-of-area-comparisons-rate-caf-costs-cornwall.csv"',
+      'attachment; filename="table-of-area-comparisons-rate-caf-costs.csv"',
     );
   });
   it('omits CI columns when the full area table has no intervals', async () => {
