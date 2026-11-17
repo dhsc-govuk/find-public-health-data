@@ -21,5 +21,5 @@ export function sourceUpdateFrequency(
     described = 'no-longer-updated';
   if (structured !== null && described !== null && structured !== described)
     throw new Error(`Conflicting source update frequencies: ${lookup}; ${prose}`);
-  return described;
+  return described ?? structured;
 }
