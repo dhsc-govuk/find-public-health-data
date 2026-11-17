@@ -163,8 +163,10 @@ export function assertSeedingAllowed(appEnv: string | undefined, action = 'seed 
   assertDevClassEnv(action, appEnv);
 }
 
-/** A reset erases the whole application schema. Same gate as seeding, deliberately. */
+// A reset erases the whole application schema. Test (preview) may also be reset, so it can be
+// reloaded from a fresh Pholio export; it is still never seeded, and production never reset.
 export function assertResetAllowed(appEnv: string | undefined): void {
+  if (appEnv === 'preview') return;
   assertDevClassEnv('reset', appEnv);
 }
 

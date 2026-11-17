@@ -7,7 +7,12 @@ import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { IndicatorTopicImportSummary } from './indicator-topic-import.ts';
-import { assertPublishedRelationships, streamSeedCsv } from './seeding.ts';
+import {
+  assertPublishedRelationships,
+  assertResetAllowed,
+  assertSeedingAllowed,
+  streamSeedCsv,
+} from './seeding.ts';
 
 const directories: string[] = [];
 
@@ -111,4 +116,16 @@ describe('assertPublishedRelationships', () => {
       ).toThrow('Published topic mapping did not match');
     },
   );
+});
+
+describe('assertResetAllowed', () => {
+  it.each(['local', 'test', 'dev', 'preview'])('allows a reset in %s', (appEnv) => {
+    expect(() => assertResetAllowed(appEnv)).not.toThrow();
+  });
+  it.each(['production', undefined])('refuses a reset in %s', (appEnv) => {
+    expect(() => assertResetAllowed(appEnv)).toThrow('Refusing to reset');
+  });
+  it('still refuses to seed preview', () => {
+    expect(() => assertSeedingAllowed('preview')).toThrow('Refusing to seed dummy data');
+  });
 });
