@@ -2,8 +2,8 @@ import { createFakeRepositories, type FakeRepositoryOverrides } from '@fphd/db/t
 import { request } from '@fphd/express/testing';
 import express, { type Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
-
 import { areasRouter } from './areas.ts';
+import { areaDeprivationListSchema, MAX_NEIGHBOUR_AREAS_PER_REQUEST } from './contract.ts';
 
 function createTestApp(overrides: FakeRepositoryOverrides['areas'] = {}): Express {
   const app = express();
@@ -222,5 +222,48 @@ describe('GET /api/areas', () => {
     expect((await request(app).get('/api/areas?areaType=GPs&colour=teal')).status).toBe(200);
     expect(listByType).toHaveBeenCalledWith('GPs');
     expect((await request(app).get('/api/areas?colour=teal')).status).toBe(400);
+  });
+});
+
+describe('GET /api/areas/deprivation', () => {
+  it('returns memberships, deduplicates and caps valid area codes at the neighbours limit', async () => {
+    const memberships = [
+      {
+        code: 'E10000032',
+        scheme: 'IMD2025',
+        tier: 'upper',
+        dimensionTypeId: '019de0d5-c800-700a-8000-000000000924',
+        dimensionValueId: '019de0d5-c800-700b-8000-0000001e8480',
+        decile: 9,
+      },
+    ];
+    const listDeprivation = vi.fn().mockResolvedValue(memberships);
+    const codes = Array.from(
+      { length: MAX_NEIGHBOUR_AREAS_PER_REQUEST + 1 },
+      (_, index) => `E${String(index).padStart(8, '0')}`,
+    );
+    const response = await request(createTestApp({ listDeprivation })).get(
+      `/api/areas/deprivation?${[codes[0], '..%2Fbad', ...codes].map((code) => `areaCode=${code}`).join('&')}`,
+    );
+    expect(response.status).toBe(200);
+    expect(areaDeprivationListSchema.parse(response.body)).toEqual(memberships);
+    expect(listDeprivation).toHaveBeenCalledWith(codes.slice(0, MAX_NEIGHBOUR_AREAS_PER_REQUEST));
+  });
+
+  it.each(['', '?areaCode=..%2Fbad', '?areaCode[bad]=E10000032'])(
+    'rejects requests with no valid codes: %s',
+    async (query) => {
+      const response = await request(createTestApp()).get(`/api/areas/deprivation${query}`);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: 'area_code_required' });
+    },
+  );
+
+  it('returns an empty list for areas with no deprivation membership', async () => {
+    const response = await request(createTestApp({ listDeprivation: async () => [] })).get(
+      '/api/areas/deprivation?areaCode=E92000001',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
   });
 });

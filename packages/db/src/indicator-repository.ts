@@ -6,7 +6,7 @@ import {
   type YearEnd,
   yearTypeValuesLabelled,
 } from '@fphd/utils/period-type';
-import type { Polarity } from '@fphd/utils/polarity';
+import type { GoalPolarity, Polarity } from '@fphd/utils/polarity';
 import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import type { IndicatorSourcePart } from '@fphd/utils/source-part';
@@ -37,6 +37,7 @@ import {
 } from './indicator-topic-repository.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import { escapeLike } from './like-pattern.ts';
+import { observationRangeSql, observationSegmentSql } from './observation-range-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export interface IndicatorSearchFilters {
@@ -174,6 +175,12 @@ export interface IndicatorTopic {
 }
 
 export interface IndicatorDetail {
+  goal: {
+    lower: number;
+    upper: number | null;
+    polarity: GoalPolarity;
+    policyDetail: string | null;
+  } | null;
   shortId: number;
   /** The canonical slug: the one the latest published version carries. */
   slug: string;
@@ -306,6 +313,11 @@ export async function getPublishedIndicatorsByIds(
       updateFrequencyReason: indicator.updateFrequencyReason,
       updateFrequencyText: indicator.updateFrequencyText,
       polarity: indicator.polarity,
+      hasGoalBenchmark: indicator.hasGoalBenchmark,
+      goalLowerValue: indicator.goalLowerValue,
+      goalUpperValue: indicator.goalUpperValue,
+      goalPolarity: indicator.goalPolarity,
+      goalPolicyDetail: indicator.goalPolicyDetail,
       ciMethod: ciMethod.name,
       ciConfidenceLevel: indicator.ciConfidenceLevel,
       comparatorMethod: comparatorMethod.name,
@@ -380,6 +392,17 @@ export async function getPublishedIndicatorsByIds(
         [
           row.id,
           {
+            goal:
+              row.hasGoalBenchmark === true &&
+              row.goalLowerValue !== null &&
+              row.goalPolarity !== null
+                ? {
+                    lower: row.goalLowerValue,
+                    upper: row.goalUpperValue,
+                    polarity: row.goalPolarity,
+                    policyDetail: row.goalPolicyDetail,
+                  }
+                : null,
             shortId: row.shortId,
             slug: row.slug,
             name: row.name,
@@ -475,6 +498,48 @@ export async function getObservationRange(
       ),
     )
     .orderBy(asc(observationRange.fromDate), asc(observationRange.toDate));
+}
+
+export async function getObservationRangeByCategory(
+  db: Database,
+  views: ViewSet,
+  indicatorId: string,
+  dimensionValueId: string,
+): Promise<ObservationRangePeriod[]> {
+  const { areaCategory, dimensionType, dimensionValue, observation, observationDimension } = views;
+  const points = db.$with('category_range_observations').as(
+    db
+      .select({
+        fromDate: observation.fromDate,
+        toDate: observation.toDate,
+        value: observation.value,
+        segment: observationSegmentSql(dimensionValue.name, dimensionType.name).as('segment'),
+      })
+      .from(observation)
+      .innerJoin(
+        areaCategory,
+        and(
+          eq(areaCategory.areaId, observation.areaId),
+          eq(areaCategory.dimensionValueId, dimensionValueId),
+        ),
+      )
+      .leftJoin(observationDimension, eq(observationDimension.observationId, observation.id))
+      .leftJoin(dimensionValue, eq(dimensionValue.id, observationDimension.dimensionValueId))
+      .leftJoin(dimensionType, eq(dimensionType.id, observationDimension.dimensionTypeId))
+      .where(and(eq(observation.indicatorId, indicatorId), isNotNull(observation.value)))
+      .groupBy(observation.id, observation.fromDate, observation.toDate, observation.value),
+  );
+  return db
+    .with(points)
+    .select({
+      fromDate: points.fromDate,
+      toDate: points.toDate,
+      segment: points.segment,
+      ...observationRangeSql(points.value),
+    })
+    .from(points)
+    .groupBy(points.fromDate, points.toDate, points.segment)
+    .orderBy(asc(points.fromDate), asc(points.toDate), asc(points.segment));
 }
 
 export async function searchIndicators(

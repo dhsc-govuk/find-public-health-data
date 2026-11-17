@@ -2,7 +2,7 @@ import { z } from '@fphd/config/zod';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
-import { POLARITIES } from '@fphd/utils/polarity';
+import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { tidyName } from '@fphd/utils/tidy-name';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
@@ -161,7 +161,38 @@ export const indicatorProviderSourceSchema = z.object({
   source: z.string().min(1).nullable(),
 });
 
+export const indicatorGoalSchema = z.object({
+  lower: z.number(),
+  upper: z.number().nullable(),
+  polarity: z.enum(GOAL_POLARITIES),
+  policyDetail: z.string().nullable(),
+});
+
+export const indicatorRangeQuerySchema = z.union([
+  z.object({
+    displayGroup: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !CONTROL_CHARACTER.test(value)),
+    category: z.undefined().optional(),
+  }),
+  z.object({ displayGroup: z.undefined().optional(), category: z.uuid() }),
+]);
+
+export const areaDeprivationListSchema = z.array(
+  z.object({
+    code: z.string().min(1),
+    scheme: z.enum(['IMD2025', 'IMD2019']),
+    tier: z.enum(['upper', 'lower']),
+    dimensionTypeId: z.uuid(),
+    dimensionValueId: z.uuid(),
+    decile: z.number().int().min(1).max(10),
+  }),
+);
+
 export const indicatorDetailSchema = z.object({
+  goal: indicatorGoalSchema.nullable(),
   shortId: z.number().int(),
   slug: indicatorSlugSchema,
   name: z.string().min(1),

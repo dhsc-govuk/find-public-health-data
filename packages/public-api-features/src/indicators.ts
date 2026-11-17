@@ -16,6 +16,7 @@ import {
   DEFAULT_INDICATOR_SEARCH_RESULTS,
   indicatorDataQuerySchema,
   indicatorPeriodFiltersSchema,
+  indicatorRangeQuerySchema,
   MAX_AREA_NAME_LENGTH,
   MAX_AREA_PREVIEW,
   MAX_FILTER_LABEL_LENGTH,
@@ -261,14 +262,8 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
   });
 
   router.get('/api/indicators/:indicator/range', async (request, response) => {
-    const displayGroup = request.query.displayGroup;
-
-    if (
-      typeof displayGroup !== 'string' ||
-      displayGroup === '' ||
-      displayGroup.length > 100 ||
-      CONTROL_CHARACTER.test(displayGroup)
-    ) {
+    const query = indicatorRangeQuerySchema.safeParse(request.query);
+    if (!query.success) {
       response.status(404).json({ error: 'not_found' });
       return;
     }
@@ -282,7 +277,10 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     // An indicator with no data at this level answers with an empty range rather than an
     // error, matching how /api/areas treats unknown groups.
     response.status(200).json({
-      periods: await indicators.findObservationRange(indicatorId, displayGroup),
+      periods:
+        query.data.category === undefined
+          ? await indicators.findObservationRange(indicatorId, query.data.displayGroup)
+          : await indicators.findObservationRangeByCategory(indicatorId, query.data.category),
     });
   });
 

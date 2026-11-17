@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  listAreaDeprivation,
   listAreaParents,
   listAreasByCodes,
   listAreasByGroup,
@@ -15,6 +16,7 @@ import type { Database } from './client.ts';
 import {
   getIndicatorObservations,
   getObservationRange,
+  getObservationRangeByCategory,
   getPublishedIndicatorById,
   type IndicatorSearchFilters,
   listIndicatorFacets,
@@ -25,7 +27,7 @@ import {
   searchPublishedIndicators,
 } from './indicator-repository.ts';
 import { publishedViews, SYSTEM_USER_IDS } from './schema/index.ts';
-import { createTestDb, type TestDb } from './testing.ts';
+import { apiLogin, createTestDb, type TestDb } from './testing.ts';
 
 const ACTOR = SYSTEM_USER_IDS.pholioMigration;
 
@@ -1122,6 +1124,181 @@ describe('listIndicatorFacets', () => {
         noFilters({ [filterKey]: [slug] }),
       );
       expect(total).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('area deprivation memberships', () => {
+  it('reads both tiers and schemes through the public role', async () => {
+    const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
+    const rows = await listAreaDeprivation(publicDb, publishedViews, [
+      'E10000032',
+      CORNWALL,
+      ENGLAND,
+      'UNKNOWN',
+    ]);
+    expect(rows.map(({ code, scheme, tier, decile }) => ({ code, scheme, tier, decile }))).toEqual(
+      expect.arrayContaining([
+        { code: 'E10000032', scheme: 'IMD2025', tier: 'upper', decile: 9 },
+        { code: 'E10000032', scheme: 'IMD2019', tier: 'upper', decile: 9 },
+        { code: CORNWALL, scheme: 'IMD2025', tier: 'upper', decile: 6 },
+        { code: CORNWALL, scheme: 'IMD2019', tier: 'upper', decile: 5 },
+        { code: CORNWALL, scheme: 'IMD2025', tier: 'lower', decile: 4 },
+        { code: CORNWALL, scheme: 'IMD2019', tier: 'lower', decile: 4 },
+      ]),
+    );
+    expect(rows).toHaveLength(6);
+    expect(await listAreaDeprivation(publicDb, publishedViews, [])).toEqual([]);
+    expect(await listAreaDeprivation(publicDb, publishedViews, [ENGLAND])).toEqual([]);
+    for (const row of rows) {
+      expect(row.dimensionTypeId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(row.dimensionValueId).toMatch(/^[0-9a-f-]{36}$/);
+    }
+  });
+});
+
+describe('published policy goals', () => {
+  it('returns numeric single-value and interval goals and null without a goal', async () => {
+    const indicatorId = await resolvedId(GASTROENTERITIS_ADMISSIONS);
+    const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
+    try {
+      for (const upper of [null, 95.5]) {
+        await testDb.sql`
+          UPDATE indicator_version SET has_goal_benchmark = true, goal_lower_value = 90.25,
+            goal_upper_value = ${upper}, goal_polarity = 'higher-is-better', goal_policy_detail = 'Policy target'
+          WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
+        `;
+        expect(
+          (await getPublishedIndicatorById(publicDb, publishedViews, indicatorId))?.goal,
+        ).toEqual({
+          lower: 90.25,
+          upper,
+          polarity: 'higher-is-better',
+          policyDetail: 'Policy target',
+        });
+      }
+      await testDb.sql`
+        UPDATE indicator_version SET has_goal_benchmark = true, goal_lower_value = 10,
+          goal_upper_value = null, goal_polarity = 'lower-is-better', goal_policy_detail = null
+        WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
+      `;
+      expect(
+        (await getPublishedIndicatorById(publicDb, publishedViews, indicatorId))?.goal,
+      ).toEqual({
+        lower: 10,
+        upper: null,
+        polarity: 'lower-is-better',
+        policyDetail: null,
+      });
+    } finally {
+      await testDb.sql`
+        UPDATE indicator_version SET has_goal_benchmark = false, goal_lower_value = null,
+          goal_upper_value = null, goal_polarity = null, goal_policy_detail = null
+        WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
+      `;
+    }
+    expect(
+      (await getPublishedIndicatorById(publicDb, publishedViews, indicatorId))?.goal,
+    ).toBeNull();
+  });
+});
+
+describe('getObservationRangeByCategory', () => {
+  it('computes exact segment percentiles using only member areas and the published batch', async () => {
+    const sql = testDb.sql;
+    const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
+    const memberships = await listAreaDeprivation(publicDb, publishedViews, [CORNWALL]);
+    const category = memberships.find(
+      ({ scheme, tier }) => scheme === 'IMD2025' && tier === 'upper',
+    )?.dimensionValueId;
+    if (!category) throw new Error('Missing category fixture');
+    const members = await sql<
+      { area_id: string }[]
+    >`SELECT area_id FROM area_category WHERE dimension_value_id = ${category} ORDER BY area_id LIMIT 5`;
+    expect(members).toHaveLength(5);
+    const [outsider] = await sql<{ id: string }[]>`SELECT a.id FROM area a WHERE NOT EXISTS (
+      SELECT 1 FROM area_category c WHERE c.area_id = a.id AND c.dimension_value_id = ${category}
+    ) ORDER BY a.id LIMIT 1`;
+    const [published] = await sql<{ id: string; upload_batch_id: string }[]>`
+      SELECT v.id, v.upload_batch_id FROM indicator_version v JOIN current_published_version cpv ON cpv.id = v.id
+      WHERE cpv.indicator_id = ${diabetesMortalityId}
+    `;
+    if (!published || !outsider) throw new Error('Missing range fixtures');
+    const [unpublished] = await sql<{ id: string }[]>`
+      INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by)
+      VALUES (${diabetesMortalityId}, ${published.id}, 'unpublished-range.csv', ${ACTOR}) RETURNING id
+    `;
+    if (!unpublished) throw new Error('Missing unpublished batch');
+    try {
+      for (const [index, member] of members.entries()) {
+        await sql`
+          INSERT INTO observation (indicator_id, area_id, upload_batch_id, from_date, to_date, value, dimension_key)
+          VALUES (${diabetesMortalityId}, ${member.area_id}, ${published.upload_batch_id}, '2099-01-01', '2099-12-31', ${[1, 2, 3, 4, 100][index] ?? 0}, '')
+        `;
+      }
+      const first = members[0];
+      if (!first) throw new Error('Missing first category member');
+      await sql`
+        INSERT INTO observation (indicator_id, area_id, upload_batch_id, from_date, to_date, value, dimension_key)
+        VALUES (${diabetesMortalityId}, ${outsider.id}, ${published.upload_batch_id}, '2099-01-01', '2099-12-31', 1000, ''),
+          (${diabetesMortalityId}, ${first.area_id}, ${unpublished.id}, '2099-01-01', '2099-12-31', 10000, ''),
+          (${diabetesMortalityId}, ${first.area_id}, ${published.upload_batch_id}, '2098-01-01', '2098-12-31', null, '')
+      `;
+      await sql`
+        WITH dimensions AS (
+          SELECT dv.id, dv.dimension_type_id FROM dimension_value dv JOIN dimension_type dt ON dt.id = dv.dimension_type_id
+          WHERE (dt.name = 'Age' AND dv.name = '<75 yrs') OR (dt.name = 'Sex' AND dv.name = 'Male')
+        ), inserted AS (
+          INSERT INTO observation (indicator_id, area_id, upload_batch_id, from_date, to_date, value, dimension_key)
+          SELECT ${diabetesMortalityId}, ${first.area_id}, ${published.upload_batch_id}, '2099-01-01', '2099-12-31', 7,
+            string_agg(id::text, ',' ORDER BY id) FROM dimensions RETURNING id
+        )
+        INSERT INTO observation_dimension (observation_id, dimension_value_id, dimension_type_id)
+        SELECT inserted.id, dimensions.id, dimensions.dimension_type_id FROM inserted, dimensions
+      `;
+      const range = await getObservationRangeByCategory(
+        publicDb,
+        publishedViews,
+        diabetesMortalityId,
+        category,
+      );
+      expect(range.filter(({ fromDate }) => fromDate === '2099-01-01')).toEqual([
+        {
+          fromDate: '2099-01-01',
+          toDate: '2099-12-31',
+          segment: '',
+          min: 1,
+          max: 100,
+          p25: 2,
+          p75: 4,
+          quintileCutoffs: [1, 2, 3, 4],
+        },
+        {
+          fromDate: '2099-01-01',
+          toDate: '2099-12-31',
+          segment: '<75 yrs|Male',
+          min: 7,
+          max: 7,
+          p25: 7,
+          p75: 7,
+          quintileCutoffs: null,
+        },
+      ]);
+      expect(range.some(({ fromDate }) => fromDate === '2098-01-01')).toBe(false);
+      expect(
+        await getObservationRangeByCategory(
+          publicDb,
+          publishedViews,
+          diabetesMortalityId,
+          UNSEEDED_ID,
+        ),
+      ).toEqual([]);
+      expect(
+        await getObservationRangeByCategory(publicDb, publishedViews, UNSEEDED_ID, category),
+      ).toEqual([]);
+    } finally {
+      await sql`DELETE FROM observation WHERE indicator_id = ${diabetesMortalityId} AND from_date >= '2098-01-01'`;
+      await sql`DELETE FROM upload_batch WHERE id = ${unpublished.id}`;
     }
   });
 });

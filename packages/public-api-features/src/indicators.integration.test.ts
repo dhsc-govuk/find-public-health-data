@@ -7,9 +7,11 @@ import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  areaDeprivationListSchema,
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
   indicatorDetailSchema,
+  indicatorRangeSchema,
   indicatorSearchResultSchema,
   indicatorTableDataSchema,
 } from './contract.ts';
@@ -444,5 +446,35 @@ describe('control characters', () => {
 
     expect(unknown.body).toEqual([]);
     expect(refused.body).toEqual(unknown.body);
+  });
+});
+
+describe('deprivation benchmark APIs', () => {
+  it('resolves published category memberships and uses their ids for ranges', async () => {
+    const response = await request(app).get(
+      '/api/areas/deprivation?areaCode=E10000032&areaCode=E06000052',
+    );
+    expect(response.status).toBe(200);
+    const memberships = areaDeprivationListSchema.parse(response.body);
+    expect(memberships).toHaveLength(6);
+    const westSussex = memberships.filter(
+      ({ code, tier }) => code === 'E10000032' && tier === 'upper',
+    );
+    expect(westSussex.map(({ scheme, decile }) => ({ scheme, decile }))).toEqual([
+      { scheme: 'IMD2019', decile: 9 },
+      { scheme: 'IMD2025', decile: 9 },
+    ]);
+    const cornwall = memberships.find(
+      ({ code, tier, scheme }) => code === 'E06000052' && tier === 'upper' && scheme === 'IMD2025',
+    );
+    expect(cornwall?.decile).toBe(6);
+    const range = await request(app).get(
+      `/api/indicators/108/range?category=${cornwall?.dimensionValueId}`,
+    );
+    expect(range.status).toBe(200);
+    expect(indicatorRangeSchema.parse(range.body).periods.length).toBeGreaterThan(0);
+    const detail = await request(app).get('/api/indicators/108');
+    expect(detail.status).toBe(200);
+    expect(indicatorDetailSchema.parse(detail.body).goal).toBeNull();
   });
 });

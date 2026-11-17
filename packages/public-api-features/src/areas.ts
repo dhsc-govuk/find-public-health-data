@@ -75,6 +75,15 @@ export function areasRouter(areas: Repositories['areas']): Router {
     response.status(200).json(await areas.listNeighbours(codes));
   });
 
+  router.get('/api/areas/deprivation', async (request, response) => {
+    const codes = pickAreaCodes(request.query.areaCode, MAX_NEIGHBOUR_AREAS_PER_REQUEST);
+    if (codes.length === 0) {
+      response.status(400).json({ error: 'area_code_required' });
+      return;
+    }
+    response.status(200).json(await areas.listDeprivation(codes));
+  });
+
   router.get('/api/areas', async (request, response) => {
     // De-duplicate and cap names before querying or expanding groups.
     const pick = (value: unknown) =>

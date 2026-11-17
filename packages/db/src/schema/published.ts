@@ -1,6 +1,6 @@
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
-import { POLARITIES } from '@fphd/utils/polarity';
+import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 import {
@@ -220,6 +220,11 @@ export function createVersionedViews(schema: PgSchema<string>) {
         updateFrequencyReason: text('update_frequency_reason'),
         updateFrequencyText: text('update_frequency_text'),
         comparatorMethodId: uuid('comparator_method_id'),
+        hasGoalBenchmark: boolean('has_goal_benchmark'),
+        goalLowerValue: doublePrecision('goal_lower_value'),
+        goalUpperValue: doublePrecision('goal_upper_value'),
+        goalPolarity: text('goal_polarity', { enum: GOAL_POLARITIES }),
+        goalPolicyDetail: text('goal_policy_detail'),
         ciConfidenceLevel: text('ci_confidence_level', { enum: CI_CONFIDENCE_LEVELS }),
         definition: text('definition'),
         rationale: text('rationale'),
@@ -346,12 +351,37 @@ export function createVersionedViews(schema: PgSchema<string>) {
 
 const publishedVersionedViews = createVersionedViews(publishedSchema);
 
+export const {
+  observationSeriesBatch: publishedObservationSeriesBatch,
+  observationSeries: publishedObservationSeries,
+  indicator: publishedIndicator,
+  indicatorUpdateSummary: publishedIndicatorUpdateSummary,
+  indicatorSlug: publishedIndicatorSlug,
+  indicatorTopic: publishedIndicatorTopic,
+  indicatorSubtopic: publishedIndicatorSubtopic,
+  indicatorClassification: publishedIndicatorClassification,
+  indicatorSource: publishedIndicatorSource,
+  observation: publishedObservation,
+  observationDimension: publishedObservationDimension,
+  observationNote: publishedObservationNote,
+  availableData: publishedAvailableData,
+  observationRange: publishedObservationRange,
+} = publishedVersionedViews;
+
+export const publishedAreaCategory = publishedSchema
+  .view('area_category', {
+    areaId: uuid('area_id').notNull(),
+    dimensionValueId: uuid('dimension_value_id').notNull(),
+  })
+  .existing();
+
 /**
  * Every published view, keyed by its name. The repository functions read whichever set of views
  * they are given, so the same queries can run on another schema's views of the same shape.
  */
 export const publishedViews = {
   area: publishedArea,
+  areaCategory: publishedAreaCategory,
   areaNeighbour: publishedAreaNeighbour,
   areaRelationship: publishedAreaRelationship,
   areaType: publishedAreaType,

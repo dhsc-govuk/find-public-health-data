@@ -2,10 +2,15 @@ import { createFakeRepositories, type FakeRepositoryOverrides } from '@fphd/db/t
 import { request } from '@fphd/express/testing';
 import express, { type Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
-import { indicatorTableDataSchema } from './contract.ts';
+import {
+  indicatorDetailSchema,
+  indicatorGoalSchema,
+  indicatorTableDataSchema,
+} from './contract.ts';
 import { indicatorsRouter } from './indicators.ts';
 
 const indicatorDetail = {
+  goal: null,
   shortId: 108,
   slug: 'under-75-mortality-rate-from-all-causes',
   name: 'Under 75 mortality rate from all causes',
@@ -629,5 +634,102 @@ describe('GET /api/indicator-scatter', () => {
     ])
       expect((await request(app).get(`/api/indicator-scatter?${query}`)).status).toBe(404);
     expect(findScatterData).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('category range query', () => {
+  const category = '019de0d5-c800-700b-8000-0000001e8480';
+  it.each(['241', 'diabetes-qof-prevalence'])(
+    'serves a category range for %s',
+    async (identifier) => {
+      const periods = [
+        {
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          segment: 'Male',
+          min: 1,
+          max: 2,
+          p25: 1.25,
+          p75: 1.75,
+          quintileCutoffs: null,
+        },
+      ];
+      const findObservationRangeByCategory = vi.fn().mockResolvedValue(periods);
+      const app = createTestApp({
+        resolveId: async () => 'ind-1',
+        resolveIdBySlug: async () => 'ind-1',
+        findObservationRangeByCategory,
+      });
+      const response = await request(app).get(
+        `/api/indicators/${identifier}/range?category=${category}`,
+      );
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ periods });
+      expect(findObservationRangeByCategory).toHaveBeenCalledWith('ind-1', category);
+    },
+  );
+
+  it.each([
+    'category=',
+    'category=not-a-uuid',
+    'category=%00',
+    `category=${category}&displayGroup=Local+authorities`,
+    `category=${category}&displayGroup=`,
+    `category=${category}&category=${category}`,
+    `category[value]=${category}`,
+    'displayGroup=Local+authorities&displayGroup=Regions',
+  ])('rejects malformed or ambiguous selectors: %s', async (query) => {
+    const response = await request(createTestApp()).get(`/api/indicators/241/range?${query}`);
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('returns no periods for an unknown category and 404 for an unknown indicator', async () => {
+    const app = createTestApp({
+      resolveId: async (id) => (id === 241 ? 'ind-1' : undefined),
+      findObservationRangeByCategory: async () => [],
+    });
+    expect((await request(app).get(`/api/indicators/241/range?category=${category}`)).body).toEqual(
+      { periods: [] },
+    );
+    expect(
+      (await request(app).get(`/api/indicators/999999/range?category=${category}`)).status,
+    ).toBe(404);
+  });
+});
+
+describe('public policy goals', () => {
+  it.each([
+    null,
+    { lower: 95.5, upper: null, polarity: 'higher-is-better', policyDetail: 'National policy' },
+    { lower: 1, upper: 5, polarity: 'lower-is-better', policyDetail: null },
+  ])('serves and validates goal %j', async (goal) => {
+    const detail = { ...indicatorDetail, goal: indicatorGoalSchema.nullable().parse(goal) };
+    const app = createTestApp({
+      resolveId: async () => 'ind-1',
+      findPublishedById: async () => detail,
+    });
+    const response = await request(app).get('/api/indicators/108');
+    expect(response.status).toBe(200);
+    expect(indicatorDetailSchema.parse(response.body).goal).toEqual(goal);
+  });
+
+  it('rejects string values and unsupported polarities', () => {
+    expect(
+      indicatorGoalSchema.safeParse({
+        lower: '95',
+        upper: null,
+        polarity: 'higher-is-better',
+        policyDetail: null,
+      }).success,
+    ).toBe(false);
+    expect(
+      indicatorGoalSchema.safeParse({
+        lower: 95,
+        upper: null,
+        polarity: 'no-judgement',
+        policyDetail: null,
+      }).success,
+    ).toBe(false);
   });
 });

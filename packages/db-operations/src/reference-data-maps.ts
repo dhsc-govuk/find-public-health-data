@@ -3,7 +3,7 @@ import type postgres from 'postgres';
 import { copyInto, type DataMigrationProgressReporter } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
 import { dataMigrationKey } from './data-migration-manifest.ts';
-import { CORE_REFERENCE_TABLES, GEOGRAPHY_CORE_TABLES } from './seed-tables.ts';
+import { CORE_REFERENCE_TABLES, PACKAGE_GEOGRAPHY_TABLES } from './seed-tables.ts';
 
 const matches = {
   area_type: 'core.name = source.name',
@@ -32,7 +32,7 @@ export async function stageReferenceMaps(
   report: DataMigrationProgressReporter = () => {},
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
-  for (const table of [...CORE_REFERENCE_TABLES, ...GEOGRAPHY_CORE_TABLES]) {
+  for (const table of [...CORE_REFERENCE_TABLES, ...PACKAGE_GEOGRAPHY_TABLES]) {
     const stage = `core_source_${table}`;
     const file = `${directory}/${table}.csv.gz`;
     const { rawHeader: columns } = await validateMigrationHeader(tx, table, file);

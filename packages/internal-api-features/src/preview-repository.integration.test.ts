@@ -1,5 +1,6 @@
 import {
   createDbFromTransaction,
+  getPublishedIndicatorById,
   listPublishedIndicators,
   publishedViews,
   resolveIndicatorIdBySlug,
@@ -87,6 +88,52 @@ it('shows the version the setting names through the public repository functions'
   expect(previewed.names).toContain('A name only the preview shows');
   expect(published.id).toBeUndefined();
   expect(published.names).not.toContain('A name only the preview shows');
+});
+
+it('reads draft policy goals through the preview while keeping the published goal', async () => {
+  const update = await openedUpdate(testDb.db, 'Policy goals in preview');
+  const publishedGoal = (
+    await getPublishedIndicatorById(internalDb, publishedViews, update.indicatorId)
+  )?.goal;
+  await testDb.db
+    .update(indicatorVersion)
+    .set({
+      hasGoalBenchmark: true,
+      goalLowerValue: 90.25,
+      goalUpperValue: 95.5,
+      goalPolarity: 'higher-is-better',
+      goalPolicyDetail: 'A draft policy target',
+    })
+    .where(eq(indicatorVersion.id, update.versionId));
+
+  const previewed = await internal.begin(async (tx) => {
+    await tx`SELECT set_config(${PREVIEW_VERSION_SETTING}, ${update.versionId}, true)`;
+    const db = createDbFromTransaction(tx);
+    return {
+      draft: (await getPublishedIndicatorById(db, previewViews, update.indicatorId))?.goal,
+      published: (await getPublishedIndicatorById(db, publishedViews, update.indicatorId))?.goal,
+    };
+  });
+
+  expect(previewed.draft).toEqual({
+    lower: 90.25,
+    upper: 95.5,
+    polarity: 'higher-is-better',
+    policyDetail: 'A draft policy target',
+  });
+  expect(previewed.published).toEqual(publishedGoal);
+});
+
+it('reads the shared area categories with the internal API role', async () => {
+  expect(previewViews.areaCategory).toBe(publishedViews.areaCategory);
+  const { area, areaCategory } = previewViews;
+  const rows = await internalDb
+    .select({ dimensionValueId: areaCategory.dimensionValueId })
+    .from(areaCategory)
+    .innerJoin(area, eq(area.id, areaCategory.areaId))
+    .where(eq(area.code, 'E06000052'));
+
+  expect(rows).toHaveLength(4);
 });
 
 describe('the slug of a renamed update', () => {

@@ -282,6 +282,49 @@ export async function listAreaNeighbours(
     .orderBy(asc(anchor.code));
 }
 
+export interface AreaDeprivation {
+  code: string;
+  scheme: 'IMD2025' | 'IMD2019';
+  tier: 'upper' | 'lower';
+  dimensionTypeId: string;
+  dimensionValueId: string;
+  decile: number;
+}
+
+export async function listAreaDeprivation(
+  db: Database,
+  views: ViewSet,
+  codes: string[],
+): Promise<AreaDeprivation[]> {
+  const { area, areaCategory, dimensionType, dimensionValue } = views;
+  if (codes.length === 0) return [];
+  const types = [
+    'County & UA deprivation deciles in England (IMD2025, 4/23 geography)',
+    'County & UA deprivation deciles in England (IMD2019, 4/23 geography)',
+    'District & UA deprivation deciles in England (IMD2025, 4/23 geography)',
+    'District & UA deprivation deciles in England (IMD2019, 4/23 geography)',
+  ];
+  return db
+    .select({
+      code: area.code,
+      scheme: sql<AreaDeprivation['scheme']>`${dimensionType.classificationScheme}`,
+      tier: sql<
+        AreaDeprivation['tier']
+      >`case when ${dimensionType.name} like 'County & UA %' then 'upper' else 'lower' end`,
+      dimensionTypeId: dimensionType.id,
+      dimensionValueId: dimensionValue.id,
+      decile: sql<number>`${dimensionValue.code}::int`,
+    })
+    .from(areaCategory)
+    .innerJoin(area, eq(area.id, areaCategory.areaId))
+    .innerJoin(dimensionValue, eq(dimensionValue.id, areaCategory.dimensionValueId))
+    .innerJoin(dimensionType, eq(dimensionType.id, dimensionValue.dimensionTypeId))
+    .where(
+      and(inArray(area.code, codes), eq(area.isCurrent, true), inArray(dimensionType.name, types)),
+    )
+    .orderBy(asc(area.code), asc(dimensionType.name));
+}
+
 /** Each given area's current parent of one area type, e.g. a council's statistical region. */
 export async function listAreaParents(
   db: Database,

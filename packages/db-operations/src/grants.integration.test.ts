@@ -160,6 +160,11 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.update_frequency_reason text',
   'indicator.update_frequency_text text',
   'indicator.comparator_method_id uuid',
+  'indicator.has_goal_benchmark boolean',
+  'indicator.goal_lower_value double precision',
+  'indicator.goal_upper_value double precision',
+  'indicator.goal_polarity text',
+  'indicator.goal_policy_detail text',
   'indicator.ci_confidence_level text',
   'indicator.definition text',
   'indicator.rationale text',
@@ -231,6 +236,7 @@ describe('the public role', () => {
     'data_migration',
     'observation_series',
     'observation_series_batch',
+    'area_category',
   ])('is refused a direct read of %s', async (relation) => {
     await expect(member.unsafe(`SELECT 1 FROM public.${relation} LIMIT 1`)).rejects.toMatchObject({
       code: '42501',
@@ -277,6 +283,7 @@ describe('the internal role', () => {
   it.each([
     'public.current_published_version',
     'published.indicator',
+    'published.area_category',
     'published.indicator_topic',
     'published.indicator_classification',
     'published.indicator_source',

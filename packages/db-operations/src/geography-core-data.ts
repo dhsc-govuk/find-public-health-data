@@ -10,6 +10,8 @@ import type postgres from 'postgres';
 
 import { copyInto, quoteIdentifiers } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
+import { GEOGRAPHY_CORE_TABLES } from './seed-tables.ts';
+import { readCsvHeader } from './seeding.ts';
 import type { UpsertSummary } from './topic-import.ts';
 
 const directory = fileURLToPath(new URL('../data/geography/', import.meta.url));
@@ -24,10 +26,12 @@ const manifestSchema = z.object({
     area: fileSchema,
     area_relationship: fileSchema,
     area_neighbour: fileSchema,
+    area_category: fileSchema,
   }),
 });
-const GEOGRAPHY_FILES = ['area', 'area_relationship', 'area_neighbour'] as const;
+const GEOGRAPHY_FILES = GEOGRAPHY_CORE_TABLES;
 type GeographyTable = (typeof GEOGRAPHY_FILES)[number];
+type GeographyIdTable = Exclude<GeographyTable, 'area_category'>;
 export type GeographyManifest = z.infer<typeof manifestSchema>;
 export type GeographyCoreDataImport = Record<
   GeographyTable,
@@ -63,6 +67,31 @@ async function stageGeography(
   for (const table of GEOGRAPHY_FILES) {
     const file = manifest.files[table];
     const path = `${directory}/${file.file}`;
+    if (table === 'area_category') {
+      const columns = await readCsvHeader(path);
+      if (columns.join(',') !== 'area_code,dimension_value_id')
+        throw new Error('Unexpected core area_category CSV columns');
+      await tx`CREATE TEMP TABLE core_source_area_category (
+        area_code text NOT NULL,
+        dimension_value_id uuid NOT NULL,
+        PRIMARY KEY (area_code, dimension_value_id)
+      ) ON COMMIT DROP`;
+      await copyInto(
+        tx,
+        'core_source_area_category',
+        columns,
+        path,
+        'staging core area_category',
+        { table, phase: 'upsert' },
+        () => {},
+      );
+      const [loaded] = await tx<
+        { count: number }[]
+      >`SELECT count(*)::int AS count FROM core_source_area_category`;
+      if (loaded?.count !== file.rows)
+        throw new Error('Core geography row count failed for area_category');
+      continue;
+    }
     const { rawHeader } = await validateMigrationHeader(tx, table, path);
     const stage = `core_source_${table}`;
     await tx.unsafe(
@@ -105,7 +134,7 @@ const DEFINITIONS = {
   area_relationship: schema.areaRelationship,
   area_neighbour: schema.areaNeighbour,
 };
-const MATCHING: Record<GeographyTable, string> = {
+const MATCHING: Record<GeographyIdTable, string> = {
   area: 'existing.code = source.code AND existing.area_type_id = source.area_type_id',
   area_relationship:
     'existing.parent_area_id = source.parent_area_id AND existing.child_area_id = source.child_area_id',
@@ -115,7 +144,7 @@ const MATCHING: Record<GeographyTable, string> = {
 
 async function upsertGeography(
   tx: postgres.TransactionSql,
-  table: GeographyTable,
+  table: GeographyIdTable,
   expected: number,
 ): Promise<GeographyCoreDataImport['area']> {
   const fields = Object.keys(getTableColumns(DEFINITIONS[table]));
@@ -161,6 +190,42 @@ async function upsertGeography(
   return {
     summary: { ...changed, unchanged: expected - changed.inserted - changed.updated },
     orphaned: orphaned?.count ?? 0,
+  };
+}
+
+async function importAreaCategories(
+  tx: postgres.TransactionSql,
+  expected: number,
+): Promise<GeographyCoreDataImport['area_category']> {
+  const invalid = await tx<{ area_code: string }[]>`
+    SELECT source.area_code FROM core_source_area_category source
+    LEFT JOIN area a ON a.code = source.area_code AND a.is_current
+    LEFT JOIN dimension_value dv ON dv.id = source.dimension_value_id
+    GROUP BY source.area_code, source.dimension_value_id
+    HAVING count(a.id) <> 1 OR count(dv.id) <> 1
+    ORDER BY source.area_code LIMIT 20
+  `;
+  if (invalid.length)
+    throw new Error(
+      `Core geography categories require exactly one current area and dimension value: ${invalid.map(({ area_code }) => area_code).join(', ')}`,
+    );
+  await tx`CREATE TEMP TABLE core_area_category ON COMMIT DROP AS
+    SELECT a.id AS area_id, source.dimension_value_id FROM core_source_area_category source
+    JOIN area a ON a.code = source.area_code AND a.is_current`;
+  await tx`ALTER TABLE core_area_category ADD PRIMARY KEY (area_id, dimension_value_id)`;
+  const inserted = await tx`
+    INSERT INTO area_category SELECT * FROM core_area_category
+    ON CONFLICT DO NOTHING RETURNING area_id
+  `;
+  const removed = await tx`
+    DELETE FROM area_category existing WHERE NOT EXISTS (
+      SELECT 1 FROM core_area_category source
+      WHERE source.area_id = existing.area_id AND source.dimension_value_id = existing.dimension_value_id
+    ) RETURNING area_id
+  `;
+  return {
+    summary: { inserted: inserted.length, updated: 0, unchanged: expected - inserted.length },
+    orphaned: removed.length,
   };
 }
 
@@ -221,7 +286,13 @@ export async function importGeographyCoreData(
       'area_neighbour',
       manifest.files.area_neighbour.rows,
     );
-    await tx`ANALYZE area, area_relationship, area_neighbour`;
-    return { area, area_relationship: areaRelationship, area_neighbour: areaNeighbour };
+    const areaCategory = await importAreaCategories(tx, manifest.files.area_category.rows);
+    await tx`ANALYZE area, area_relationship, area_neighbour, area_category`;
+    return {
+      area,
+      area_relationship: areaRelationship,
+      area_neighbour: areaNeighbour,
+      area_category: areaCategory,
+    };
   });
 }

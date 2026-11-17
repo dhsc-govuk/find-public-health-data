@@ -1,10 +1,12 @@
 import {
+  type AreaDeprivation,
   type AreaLookup,
   type AreaNeighbours,
   type AreaParent,
   type AreaSummary,
   type AreaWithParent,
   type IndicatorAreaFilters,
+  listAreaDeprivation,
   listAreaNeighbours,
   listAreaParents,
   listAreasByCodes,
@@ -21,6 +23,7 @@ import {
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
   getObservationRange,
+  getObservationRangeByCategory,
   getPublishedIndicatorById,
   type IndicatorAreaData,
   type IndicatorDetail,
@@ -76,6 +79,10 @@ export interface IndicatorRepository {
     indicatorId: string,
     displayGroup: string,
   ): Promise<ObservationRangePeriod[]>;
+  findObservationRangeByCategory(
+    indicatorId: string,
+    dimensionValueId: string,
+  ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
 }
@@ -91,6 +98,7 @@ export interface AreaRepository {
   listByCodes(codes: string[]): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
+  listDeprivation(codes: string[]): Promise<AreaDeprivation[]>;
   listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
 }
 
@@ -124,6 +132,7 @@ export function createRepositories(db: Database): Repositories {
       search: (query, limit) => searchAreas(db, views, query, limit),
       listParents: (childCodes, parentTypeName) =>
         listAreaParents(db, views, childCodes, parentTypeName),
+      listDeprivation: (codes) => listAreaDeprivation(db, views, codes),
       listNeighbours: (codes) => listAreaNeighbours(db, views, codes),
     },
     indicators: {
@@ -145,6 +154,8 @@ export function createRepositories(db: Database): Repositories {
         getIndicatorRankingData(db, views, indicatorId, areaCodes),
       findObservationRange: (indicatorId, displayGroup) =>
         getObservationRange(db, views, indicatorId, displayGroup),
+      findObservationRangeByCategory: (indicatorId, dimensionValueId) =>
+        getObservationRangeByCategory(db, views, indicatorId, dimensionValueId),
       searchWithFilters: (filters) => searchIndicators(db, views, filters),
       listFacets: () => listIndicatorFacets(db, views),
     },
