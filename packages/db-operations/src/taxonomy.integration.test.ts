@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { listTopicsForIndicator, schema } from '@fphd/db';
+import { listTopicsForIndicator, publishedViews, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -93,7 +93,7 @@ describe('the V2 taxonomy import', () => {
 
   it('retains two subtopic placements within a single topic', async () => {
     const [indicator] = await sql<{ id: string }[]>`SELECT id FROM indicator WHERE short_id = 108`;
-    const topics = await listTopicsForIndicator(database.db, indicator?.id ?? '');
+    const topics = await listTopicsForIndicator(database.db, publishedViews, indicator?.id ?? '');
     expect(topics).toEqual([
       {
         slug: 'mortality-and-life-expectancy',

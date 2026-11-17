@@ -37,30 +37,7 @@ import {
 } from './indicator-topic-repository.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import { escapeLike } from './like-pattern.ts';
-import {
-  publishedArea as area,
-  publishedAreaType as areaType,
-  publishedAvailableData as availableData,
-  publishedCiMethod as ciMethod,
-  publishedClassification as classification,
-  publishedComparatorMethod as comparatorMethod,
-  publishedDataProvider as dataProvider,
-  publishedDataProviderSource as dataProviderSource,
-  publishedDataSource as dataSource,
-  publishedIndicator as indicator,
-  publishedIndicatorClassification as indicatorClassification,
-  publishedIndicatorSlug as indicatorSlug,
-  publishedIndicatorSource as indicatorSource,
-  publishedIndicatorSubtopic as indicatorSubtopic,
-  publishedIndicatorTopic as indicatorTopic,
-  publishedIndicatorUpdateSummary as indicatorUpdateSummary,
-  publishedObservation as observation,
-  publishedObservationRange as observationRange,
-  publishedSubtopic as subtopic,
-  publishedTopic as topic,
-  publishedUnit as unit,
-  publishedValueType as valueType,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 export interface IndicatorSearchFilters {
   query: string;
@@ -118,7 +95,8 @@ export interface PublishedIndicator {
  * any slug a published version carries, so an indicator's earlier address finds it too.
  * A slug is never digits only, so a digit run matches a short id or nothing.
  */
-function exactIdentifierMatch(db: Database, query: string) {
+function exactIdentifierMatch(db: Database, views: ViewSet, query: string) {
+  const { indicator, indicatorSlug } = views;
   if (SHORT_ID_PATTERN.test(query)) {
     return isShortId(query) ? eq(indicator.shortId, Number(query)) : sql<boolean>`false`;
   }
@@ -140,7 +118,11 @@ function escapedSearchTerms(query: string): string[] {
 }
 
 /** The published indicator surface, ordered by name. */
-export async function listPublishedIndicators(db: Database): Promise<PublishedIndicator[]> {
+export async function listPublishedIndicators(
+  db: Database,
+  views: ViewSet,
+): Promise<PublishedIndicator[]> {
+  const { indicator } = views;
   return db
     .select({ shortId: indicator.shortId, slug: indicator.slug, name: indicator.name })
     .from(indicator)
@@ -150,11 +132,13 @@ export async function listPublishedIndicators(db: Database): Promise<PublishedIn
 /** Case-insensitive indicator lookup by name or exact identifier. */
 export async function searchPublishedIndicators(
   db: Database,
+  views: ViewSet,
   query: string,
   limit: number,
 ): Promise<PublishedIndicator[]> {
+  const { indicator } = views;
   const terms = escapedSearchTerms(query);
-  const identifierMatch = exactIdentifierMatch(db, query.trim());
+  const identifierMatch = exactIdentifierMatch(db, views, query.trim());
   return db
     .select({ shortId: indicator.shortId, slug: indicator.slug, name: indicator.name })
     .from(indicator)
@@ -244,8 +228,10 @@ export interface IndicatorUpdateSummary {
 /** The internal id behind a public short id — the one place the external id resolves. */
 export async function resolvePublishedIndicatorId(
   db: Database,
+  views: ViewSet,
   shortId: number,
 ): Promise<string | undefined> {
+  const { indicator } = views;
   const [row] = await db
     .select({ id: indicator.id })
     .from(indicator)
@@ -260,8 +246,10 @@ export async function resolvePublishedIndicatorId(
  */
 export async function resolveIndicatorIdBySlug(
   db: Database,
+  views: ViewSet,
   slug: string,
 ): Promise<string | undefined> {
+  const { indicatorSlug } = views;
   const [row] = await db
     .select({ id: indicatorSlug.indicatorId })
     .from(indicatorSlug)
@@ -276,15 +264,30 @@ export async function resolveIndicatorIdBySlug(
  */
 export async function getPublishedIndicatorById(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
 ): Promise<IndicatorDetail | undefined> {
-  return (await getPublishedIndicatorsByIds(db, [indicatorId])).get(indicatorId);
+  return (await getPublishedIndicatorsByIds(db, views, [indicatorId])).get(indicatorId);
 }
 
 export async function getPublishedIndicatorsByIds(
   db: Database,
+  views: ViewSet,
   indicatorIds: string[],
 ): Promise<Map<string, IndicatorDetail>> {
+  const {
+    availableData,
+    ciMethod,
+    comparatorMethod,
+    dataProvider,
+    dataProviderSource,
+    dataSource,
+    indicator,
+    indicatorSource,
+    indicatorUpdateSummary,
+    unit,
+    valueType,
+  } = views;
   if (!indicatorIds.length) return new Map();
   const rows = await db
     .select({
@@ -350,8 +353,8 @@ export async function getPublishedIndicatorsByIds(
       .from(availableData)
       .where(inArray(availableData.indicatorId, indicatorIds))
       .orderBy(asc(availableData.areaTypeName)),
-    listTopicsForIndicators(db, indicatorIds),
-    listClassificationsForIndicators(db, indicatorIds),
+    listTopicsForIndicators(db, views, indicatorIds),
+    listClassificationsForIndicators(db, views, indicatorIds),
     db
       .select({
         indicatorId: indicatorSource.indicatorId,
@@ -448,9 +451,11 @@ export interface ObservationRangePeriod {
 /** The precomputed per-period range for each least-disaggregated segment at a display level. */
 export async function getObservationRange(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
   displayGroup: string,
 ): Promise<ObservationRangePeriod[]> {
+  const { observationRange } = views;
   return db
     .select({
       fromDate: observationRange.fromDate,
@@ -474,8 +479,24 @@ export async function getObservationRange(
 
 export async function searchIndicators(
   db: Database,
+  views: ViewSet,
   filters: IndicatorSearchFilters,
 ): Promise<IndicatorSearchResult> {
+  const {
+    area,
+    areaType,
+    availableData,
+    classification,
+    dataSource,
+    indicator,
+    indicatorClassification,
+    indicatorSubtopic,
+    indicatorTopic,
+    observation,
+    subtopic,
+    topic,
+    valueType,
+  } = views;
   const classificationExists = (dimension: string, slugs: string[]) =>
     exists(
       db
@@ -496,7 +517,7 @@ export async function searchIndicators(
   const conditions: SQL[] = [];
 
   const query = filters.query.trim();
-  const identifierMatch = exactIdentifierMatch(db, query);
+  const identifierMatch = exactIdentifierMatch(db, views, query);
   const topicQueryMatch = (term: string) =>
     exists(
       db
@@ -809,6 +830,7 @@ export async function searchIndicators(
   if (trendSort) {
     const directions = await indicatorTrendDirections(
       db,
+      views,
       matches.map(({ id }) => id),
     );
     const rank = (row: (typeof matches)[number]) => {
@@ -910,7 +932,8 @@ function yearEndOf({
 }
 
 /** The labels of the year types published indicators have, for the search filter to offer. */
-async function listPublishedYearTypeLabels(db: Database): Promise<string[]> {
+async function listPublishedYearTypeLabels(db: Database, views: ViewSet): Promise<string[]> {
+  const { indicator } = views;
   const rows = await db
     .selectDistinct({
       yearType: indicator.yearType,
@@ -925,7 +948,16 @@ async function listPublishedYearTypeLabels(db: Database): Promise<string[]> {
   return [...new Set(labels)].sort((a, b) => a.localeCompare(b));
 }
 
-export async function listIndicatorFacets(db: Database): Promise<IndicatorFacets> {
+export async function listIndicatorFacets(db: Database, views: ViewSet): Promise<IndicatorFacets> {
+  const {
+    classification,
+    dataSource,
+    indicator,
+    indicatorClassification,
+    indicatorTopic,
+    topic,
+    valueType,
+  } = views;
   const publishedIds = db.select({ id: indicator.id }).from(indicator);
 
   const [topics, classifications, sources, valueTypes, yearTypes] = await Promise.all([
@@ -958,7 +990,7 @@ export async function listIndicatorFacets(db: Database): Promise<IndicatorFacets
       .from(valueType)
       .innerJoin(indicator, eq(indicator.valueTypeId, valueType.id))
       .orderBy(asc(valueType.name)),
-    listPublishedYearTypeLabels(db),
+    listPublishedYearTypeLabels(db, views),
   ]);
 
   return {

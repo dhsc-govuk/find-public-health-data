@@ -1,6 +1,6 @@
 import { FAKE_USER_IDS, TEAM_IDS } from '@fphd/auth';
 import type { IndicatorListScope } from '@fphd/auth/permissions';
-import { type Database, listIndicatorFacets, schema } from '@fphd/db';
+import { type Database, listIndicatorFacets, publishedViews, schema } from '@fphd/db';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect } from 'vitest';
 
@@ -865,7 +865,7 @@ describe('sharing one connection with the public repositories', () => {
     async ({ db }) => {
       await listIndicatorsPage(db, 1, 1, EVERY_INDICATOR);
 
-      await expect(listIndicatorFacets(db)).resolves.toMatchObject({
+      await expect(listIndicatorFacets(db, publishedViews)).resolves.toMatchObject({
         sources: expect.any(Array),
         valueTypes: expect.any(Array),
       });

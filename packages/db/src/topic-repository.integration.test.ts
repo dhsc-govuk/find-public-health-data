@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Database } from './client.ts';
-import { SYSTEM_USER_IDS, type TopicRecord, topic } from './schema.ts';
+import { publishedViews, SYSTEM_USER_IDS, type TopicRecord, topic } from './schema.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
 import { getTopicBySlug, listTopics } from './topic-repository.ts';
 
@@ -41,13 +41,13 @@ afterAll(async () => {
 
 describe('listTopics', () => {
   it('orders topics alphabetically by title', async () => {
-    const titles = (await listTopics(db)).map((row) => row.title);
+    const titles = (await listTopics(db, publishedViews)).map((row) => row.title);
 
     expect(titles).toEqual(['Apple topic', 'Zebra topic']);
   });
 
   it('returns the full row, timestamps included', async () => {
-    const found = (await listTopics(db)).find((row) => row.slug === 'zebra-topic');
+    const found = (await listTopics(db, publishedViews)).find((row) => row.slug === 'zebra-topic');
 
     expect(found).toMatchObject({
       id: zebra.id,
@@ -62,7 +62,7 @@ describe('listTopics', () => {
 
 describe('getTopicBySlug', () => {
   it('returns the topic matching the given slug', async () => {
-    const found = await getTopicBySlug(db, 'zebra-topic');
+    const found = await getTopicBySlug(db, publishedViews, 'zebra-topic');
 
     expect(found).toMatchObject({
       id: zebra.id,
@@ -73,7 +73,7 @@ describe('getTopicBySlug', () => {
   });
 
   it('returns undefined for an unknown slug', async () => {
-    expect(await getTopicBySlug(db, 'no-such-topic')).toBeUndefined();
+    expect(await getTopicBySlug(db, publishedViews, 'no-such-topic')).toBeUndefined();
   });
 });
 

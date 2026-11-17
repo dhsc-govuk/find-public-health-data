@@ -38,6 +38,7 @@ import {
 } from './indicator-repository.ts';
 import { getPublishedIndicatorScatterData } from './indicator-scatter-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
+import { publishedViews } from './schema/index.ts';
 import {
   getTopicBySlug,
   getTopicTrendSummary,
@@ -112,44 +113,46 @@ export interface Repositories {
 }
 
 export function createRepositories(db: Database): Repositories {
+  const views = publishedViews;
   const repositories: Repositories = {
     areas: {
-      listByType: (areaTypeName) => listAreasByType(db, areaTypeName),
-      listDisplayGroups: () => listDisplayGroups(db),
-      listByGroup: (displayGroup, limit) => listAreasByGroup(db, displayGroup, limit),
-      listByGroups: (displayGroups, limit) => listAreasByGroups(db, displayGroups, limit),
-      listByCodes: (codes) => listAreasByCodes(db, codes),
-      search: (query, limit) => searchAreas(db, query, limit),
-      listParents: (childCodes, parentTypeName) => listAreaParents(db, childCodes, parentTypeName),
-      listNeighbours: (codes) => listAreaNeighbours(db, codes),
+      listByType: (areaTypeName) => listAreasByType(db, views, areaTypeName),
+      listDisplayGroups: () => listDisplayGroups(db, views),
+      listByGroup: (displayGroup, limit) => listAreasByGroup(db, views, displayGroup, limit),
+      listByGroups: (displayGroups, limit) => listAreasByGroups(db, views, displayGroups, limit),
+      listByCodes: (codes) => listAreasByCodes(db, views, codes),
+      search: (query, limit) => searchAreas(db, views, query, limit),
+      listParents: (childCodes, parentTypeName) =>
+        listAreaParents(db, views, childCodes, parentTypeName),
+      listNeighbours: (codes) => listAreaNeighbours(db, views, codes),
     },
     indicators: {
       findTableData: (shortIds, areaCodes, points) =>
-        getIndicatorTableData(db, shortIds, areaCodes, points),
-      listAreas: (indicatorId, filters) => listIndicatorAreas(db, indicatorId, filters),
-      listPublished: () => listPublishedIndicators(db),
-      search: (query, limit) => searchPublishedIndicators(db, query, limit),
-      resolveId: (shortId) => resolvePublishedIndicatorId(db, shortId),
-      resolveIdBySlug: (slug) => resolveIndicatorIdBySlug(db, slug),
-      findPublishedById: (indicatorId) => getPublishedIndicatorById(db, indicatorId),
+        getIndicatorTableData(db, views, shortIds, areaCodes, points),
+      listAreas: (indicatorId, filters) => listIndicatorAreas(db, views, indicatorId, filters),
+      listPublished: () => listPublishedIndicators(db, views),
+      search: (query, limit) => searchPublishedIndicators(db, views, query, limit),
+      resolveId: (shortId) => resolvePublishedIndicatorId(db, views, shortId),
+      resolveIdBySlug: (slug) => resolveIndicatorIdBySlug(db, views, slug),
+      findPublishedById: (indicatorId) => getPublishedIndicatorById(db, views, indicatorId),
       findObservations: (indicatorId, areaCode) =>
-        getIndicatorObservations(db, indicatorId, areaCode),
+        getIndicatorObservations(db, views, indicatorId, areaCode),
       findObservationsForAreas: (indicatorId, areaCodes) =>
-        getIndicatorObservationsForAreas(db, indicatorId, areaCodes),
+        getIndicatorObservationsForAreas(db, views, indicatorId, areaCodes),
       findScatterData: (shortIds, areaCodes) =>
-        getPublishedIndicatorScatterData(db, shortIds, areaCodes),
+        getPublishedIndicatorScatterData(db, views, shortIds, areaCodes),
       findRankingData: (indicatorId, areaCodes) =>
-        getIndicatorRankingData(db, indicatorId, areaCodes),
+        getIndicatorRankingData(db, views, indicatorId, areaCodes),
       findObservationRange: (indicatorId, displayGroup) =>
-        getObservationRange(db, indicatorId, displayGroup),
-      searchWithFilters: (filters) => searchIndicators(db, filters),
-      listFacets: () => listIndicatorFacets(db),
+        getObservationRange(db, views, indicatorId, displayGroup),
+      searchWithFilters: (filters) => searchIndicators(db, views, filters),
+      listFacets: () => listIndicatorFacets(db, views),
     },
     topics: {
-      list: () => listTopics(db),
-      findBySlug: (slug) => getTopicBySlug(db, slug),
-      trendSummary: (slug) => getTopicTrendSummary(db, slug),
-      listSubtopics: (slug) => listTopicSubtopics(db, slug),
+      list: () => listTopics(db, views),
+      findBySlug: (slug) => getTopicBySlug(db, views, slug),
+      trendSummary: (slug) => getTopicTrendSummary(db, views, slug),
+      listSubtopics: (slug) => listTopicSubtopics(db, views, slug),
     },
   };
   // Resolving a short id or slug is a one-row index lookup, so it is never shared between

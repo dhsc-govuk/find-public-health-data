@@ -21,6 +21,7 @@ import {
   publishedObservation,
   publishedSubtopic,
   publishedTopic,
+  publishedViews,
   uploadBatch,
 } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
@@ -84,6 +85,7 @@ it('paginates a topic-sized result set past the old 200-indicator cap', async ()
   );
   const result = await searchIndicators(
     db,
+    publishedViews,
     filters({ query: 'Topic pagination fixture', page: 21 }),
   );
   expect(result).toMatchObject({ total: 205, page: 21, limit: 10 });
@@ -92,6 +94,7 @@ it('paginates a topic-sized result set past the old 200-indicator cap', async ()
   ]);
   const descending = await searchIndicators(
     db,
+    publishedViews,
     filters({ query: 'Topic pagination fixture', sort: 'name-desc', page: 99 }),
   );
   expect(descending.page).toBe(21);
@@ -101,7 +104,11 @@ it('paginates a topic-sized result set past the old 200-indicator cap', async ()
 });
 
 it('sorts by the most recent published period before selecting a page', async () => {
-  const result = await searchIndicators(db, filters({ sort: 'period-desc', limit: 2 }));
+  const result = await searchIndicators(
+    db,
+    publishedViews,
+    filters({ sort: 'period-desc', limit: 2 }),
+  );
   const periods = await Promise.all(
     result.indicators.map(async ({ shortId }) => {
       const [identity] = await db
@@ -126,6 +133,7 @@ it('sorts by the most recent published period before selecting a page', async ()
 it('sorts a whole topic by its subtopics before paginating', async () => {
   const all = await searchIndicators(
     db,
+    publishedViews,
     filters({ topics: ['diabetes'], sort: 'subtopic-asc', limit: 100 }),
   );
   const ids = all.indicators.map(({ shortId }) => shortId);
@@ -151,18 +159,20 @@ it('sorts a whole topic by its subtopics before paginating', async () => {
   );
   const secondPage = await searchIndicators(
     db,
+    publishedViews,
     filters({ topics: ['diabetes'], sort: 'subtopic-asc', limit: 1, page: 2 }),
   );
   expect(secondPage.indicators.map(({ shortId }) => shortId)).toEqual(ids.slice(1, 2));
 });
 
 it('filters subtopics within their topic before paginating', async () => {
-  expect(await listTopicSubtopics(db, 'diabetes')).toContainEqual({
+  expect(await listTopicSubtopics(db, publishedViews, 'diabetes')).toContainEqual({
     slug: 'prevalence-and-risk',
     title: 'Prevalence and risk',
   });
   const result = await searchIndicators(
     db,
+    publishedViews,
     filters({
       topics: ['diabetes'],
       subtopics: ['prevalence-and-risk'],
@@ -173,6 +183,7 @@ it('filters subtopics within their topic before paginating', async () => {
   expect(result.indicators.map(({ shortId }) => shortId)).toEqual([241]);
   const both = await searchIndicators(
     db,
+    publishedViews,
     filters({
       topics: ['diabetes'],
       subtopics: ['prevalence-and-risk', 'complications'],
@@ -184,6 +195,7 @@ it('filters subtopics within their topic before paginating', async () => {
     (
       await searchIndicators(
         db,
+        publishedViews,
         filters({
           topics: ['diabetes'],
           subtopics: ['all-cancers'],
@@ -207,19 +219,28 @@ it('filters year coverage and data refreshes without exposing unpublished data',
     (
       await searchIndicators(
         db,
+        publishedViews,
         filters({ query: '108', dataFromYear: 2020, dataToYear: 2020, updatedWithinMonths: 3 }),
       )
     ).total,
   ).toBe(1);
-  expect((await searchIndicators(db, filters({ query: '108', dataToYear: 2999 }))).total).toBe(0);
-  expect((await searchIndicators(db, filters({ query: '108', dataFromYear: 2999 }))).total).toBe(0);
-  expect((await searchIndicators(db, filters({ query: '108', dataToYear: 1000 }))).total).toBe(0);
+  expect(
+    (await searchIndicators(db, publishedViews, filters({ query: '108', dataToYear: 2999 }))).total,
+  ).toBe(0);
+  expect(
+    (await searchIndicators(db, publishedViews, filters({ query: '108', dataFromYear: 2999 })))
+      .total,
+  ).toBe(0);
+  expect(
+    (await searchIndicators(db, publishedViews, filters({ query: '108', dataToYear: 1000 }))).total,
+  ).toBe(0);
   await db
     .update(indicator)
     .set({ dataUpdatedAt: new Date('2000-01-01') })
     .where(eq(indicator.id, identity.id));
   expect(
-    (await searchIndicators(db, filters({ query: '108', updatedWithinMonths: 12 }))).total,
+    (await searchIndicators(db, publishedViews, filters({ query: '108', updatedWithinMonths: 12 })))
+      .total,
   ).toBe(0);
 });
 
@@ -229,7 +250,7 @@ it('keeps requested area order, empty known areas, dimensions and value notes in
     .from(publishedIndicator)
     .where(eq(publishedIndicator.shortId, 108));
   if (!identity) throw new Error('Seed indicator missing');
-  const data = await getIndicatorObservationsForAreas(db, identity.id, [
+  const data = await getIndicatorObservationsForAreas(db, publishedViews, identity.id, [
     'E07000223',
     'UNKNOWN',
     'E92000001',
@@ -245,10 +266,12 @@ it('keeps requested area order, empty known areas, dimensions and value notes in
     .where(and(eq(publishedArea.code, 'E92000001')));
   expect(known).toBeTruthy();
   expect(
-    await getIndicatorObservationsForAreas(db, '00000000-0000-7000-8000-000000000000', [
-      'E92000001',
-      'UNKNOWN',
-    ]),
+    await getIndicatorObservationsForAreas(
+      db,
+      publishedViews,
+      '00000000-0000-7000-8000-000000000000',
+      ['E92000001', 'UNKNOWN'],
+    ),
   ).toEqual([{ areaCode: 'E92000001', areaName: 'England', observations: [] }]);
 });
 
@@ -262,16 +285,25 @@ it('sorts trends across all matching indicators before paginating, with uncalcul
     .from(publishedIndicator);
   const directions = await indicatorTrendDirections(
     db,
+    publishedViews,
     all.map(({ id }) => id),
   );
-  const results = await searchIndicators(db, filters({ sort: 'trend-desc', limit: 2 }));
+  const results = await searchIndicators(
+    db,
+    publishedViews,
+    filters({ sort: 'trend-desc', limit: 2 }),
+  );
   const rank = (shortId: number) => {
     const direction = directions.get(all.find((entry) => entry.shortId === shortId)?.id ?? '');
     return direction == null ? 3 : direction === 'up' ? 0 : direction === 'right' ? 1 : 2;
   };
   expect(results.indicators).toHaveLength(2);
   expect(results.indicators.every(({ shortId }) => rank(shortId) < 3)).toBe(true);
-  const last = await searchIndicators(db, filters({ sort: 'trend-asc', page: 999 }));
+  const last = await searchIndicators(
+    db,
+    publishedViews,
+    filters({ sort: 'trend-asc', page: 999 }),
+  );
   expect(last.indicators.every(({ shortId }) => rank(shortId) === 3)).toBe(true);
 });
 
@@ -287,7 +319,7 @@ it('uses polarity to put improving or worsening trends first', async () => {
     .where(eq(indicatorVersion.indicatorId, diabetes.id));
   try {
     for (const sort of ['trend-better', 'trend-worse'] as const) {
-      const result = await searchIndicators(db, filters({ sort, limit: 100 }));
+      const result = await searchIndicators(db, publishedViews, filters({ sort, limit: 100 }));
       const ids = result.indicators.map(({ shortId }) => shortId);
       expect(ids).toContain(108);
       expect(ids).toContain(241);
@@ -379,5 +411,7 @@ it('selects the longest valid trend among equally disaggregated series', async (
       })),
     );
   }
-  expect((await indicatorTrendDirections(db, [identity.id])).get(identity.id)).toBe('up');
+  expect((await indicatorTrendDirections(db, publishedViews, [identity.id])).get(identity.id)).toBe(
+    'up',
+  );
 });

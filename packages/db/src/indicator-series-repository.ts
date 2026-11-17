@@ -10,20 +10,18 @@ import type {
   IndicatorAreaData,
   IndicatorObservation,
 } from './indicator-observation-repository.ts';
-import {
-  publishedArea as area,
-  publishedObservationSeriesBatch as batches,
-  publishedDimensionType as dimensionType,
-  publishedDimensionValue as dimensionValue,
-  publishedNoteType as noteType,
-  publishedObservation as observation,
-  publishedObservationNote as observationNote,
-  publishedObservationSeries as series,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 type Result = Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>;
 
-async function readPoints(db: Database, ids: string[], benchmarkIds: string[], englandId?: string) {
+async function readPoints(
+  db: Database,
+  views: ViewSet,
+  ids: string[],
+  benchmarkIds: string[],
+  englandId?: string,
+) {
+  const { dimensionType, dimensionValue, noteType, observation, observationNote } = views;
   if (!ids.length && !benchmarkIds.length) return [];
   return db.execute<{
     id: string;
@@ -70,11 +68,13 @@ async function readPoints(db: Database, ids: string[], benchmarkIds: string[], e
 
 export async function getIndicatorSeriesData(
   db: Database,
+  views: ViewSet,
   indicatorIds: string[],
   codes: string[],
   mode: 'ranking' | 'recent' | 'latest' | 'sparkline',
   includePopulationKeys = false,
 ): Promise<Result | undefined> {
+  const { area, observationSeriesBatch: batches, observationSeries: series } = views;
   if (!indicatorIds.length || !codes.length) return new Map();
   const areas = await db
     .select({ id: area.id, code: area.code, name: area.name })
@@ -171,7 +171,7 @@ export async function getIndicatorSeriesData(
         ),
       ]
     : [];
-  const extra = await readPoints(db, [...wanted], benchmarkIds, england?.id);
+  const extra = await readPoints(db, views, [...wanted], benchmarkIds, england?.id);
   const byId = new Map(extra.map((row) => [row.id, row.point]));
   // A publication can change after the marker read and hide the selected points.
   if ([...wanted].some((id) => !byId.has(id))) return undefined;
