@@ -153,6 +153,11 @@ const calculatedValueFormat = new Intl.NumberFormat('en-GB', {
   maximumFractionDigits: 1,
 });
 
+export const calculatedValueCsvFormat = new Intl.NumberFormat('en-GB', {
+  ...calculatedValueFormat.resolvedOptions(),
+  useGrouping: false,
+});
+
 /** Calculated values always show one decimal place ("6.0%"), matching Fingertips. */
 export function formatCalculatedValue(value: number | null): string {
   return value === null ? 'No data' : calculatedValueFormat.format(value);
