@@ -121,6 +121,25 @@ describe('requestPrivateBetaLink', () => {
     ).resolves.toEqual({ status: 'requested', email: sam.email, link });
   });
 
+  it('asks the visitor to try again when the email service fails, logging the error', async () => {
+    const { context, lines } = setUp({
+      requestLink: async () => {
+        throw new Error('Denied by the resource provider.');
+      },
+    });
+
+    await expect(
+      requestPrivateBetaLink(args(context, page, { email: sam.email, returnTo: '/' })),
+    ).resolves.toEqual({ status: 'send_failed', email: sam.email });
+    expect(lines).toMatchObject([
+      {
+        level: 50,
+        err: { message: 'Denied by the resource provider.' },
+        msg: 'Private beta link not sent: the email service failed',
+      },
+    ]);
+  });
+
   it.each([
     ['', 'Enter your email address'],
     ['not-an-address', 'Enter an email address in the correct format, like name@example.com'],

@@ -24,7 +24,9 @@ export interface PrivateBetaData {
 export type PrivateBetaRequest =
   | { status: 'invalid'; email: string; error: string }
   // `link` only where there is no email service to send it, in local and test.
-  | { status: 'requested'; email: string; link: string | undefined };
+  | { status: 'requested'; email: string; link: string | undefined }
+  // The email service refused or failed to take the link, so the visitor can try again.
+  | { status: 'send_failed'; email: string };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -91,8 +93,17 @@ export async function requestPrivateBetaLink({
   const error = emailError(email);
   if (error !== undefined) return { status: 'invalid', email, error };
 
-  const result = await betaAccess.requestLink(email, formText(form, 'returnTo'));
-  logLinkRequest(context.get(loggerContext), result);
+  const logger = context.get(loggerContext);
+  let result: LinkRequest;
+  try {
+    result = await betaAccess.requestLink(email, formText(form, 'returnTo'));
+  } catch (err) {
+    // Logged here rather than left to the request's error handler, which would show the error
+    // page: the visitor is told to try again instead.
+    logger.error({ err }, 'Private beta link not sent: the email service failed');
+    return { status: 'send_failed', email };
+  }
+  logLinkRequest(logger, result);
 
   return { status: 'requested', email, link: result.outcome === 'shown' ? result.link : undefined };
 }

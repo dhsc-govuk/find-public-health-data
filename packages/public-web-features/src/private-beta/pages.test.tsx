@@ -67,6 +67,20 @@ describe('PrivateBetaPage', () => {
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe(link);
   });
 
+  it('asks the visitor to try again when the link could not be sent, keeping what was typed', () => {
+    renderPage(data, { status: 'send_failed', email: 'sam@example.com' });
+
+    expect(screen.getByRole('alert').textContent).toContain(
+      'We could not send your sign-in link. Try again in a few minutes.',
+    );
+    expect((screen.getByLabelText('Email address') as HTMLInputElement).value).toBe(
+      'sam@example.com',
+    );
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      'Sign in to the private beta',
+    );
+  });
+
   it('says the private beta has ended, whatever was asked', () => {
     renderPage(
       { ...data, ended: true },
