@@ -524,6 +524,18 @@ describe('search ordering and workload bounds', () => {
     await request(app).get('/api/indicators/search');
     expect(searchWithFilters.mock.calls[1]?.[0]).not.toHaveProperty('sort');
   });
+  it('passes the recently updated sort to the repository with or without a keyword', async () => {
+    const searchWithFilters = vi.fn().mockResolvedValue({ total: 0, limit: 200, indicators: [] });
+    const app = createTestApp({ searchWithFilters });
+    await request(app).get('/api/indicators/search?q=diabetes&sort=recently-updated');
+    expect(searchWithFilters).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: 'diabetes', sort: 'recently-updated' }),
+    );
+    await request(app).get('/api/indicators/search?sort=recently-updated');
+    expect(searchWithFilters).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: '', sort: 'recently-updated' }),
+    );
+  });
   it.each([
     ['blood%09pressure', 'blood pressure'],
     ['blood%00pressure', 'blood pressure'],

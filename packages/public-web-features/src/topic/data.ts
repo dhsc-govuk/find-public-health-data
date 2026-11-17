@@ -1,4 +1,3 @@
-import { INDICATOR_SORTS, type IndicatorSort } from '@fphd/utils/indicator-sort';
 import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
@@ -14,8 +13,9 @@ import {
   withUnit,
 } from '../indicator/data.ts';
 import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
+import { TOPIC_SORT_VALUES, type TopicSort } from './filters.ts';
 
-const SORT_LABELS: Record<IndicatorSort, string> = {
+const SORT_LABELS: Record<TopicSort, string> = {
   'subtopic-asc': 'Subtopic (A to Z)',
   'subtopic-desc': 'Subtopic (Z to A)',
   'name-asc': 'Indicator name (A to Z)',
@@ -26,7 +26,7 @@ const SORT_LABELS: Record<IndicatorSort, string> = {
   'trend-better': 'Trend: getting better first',
   'trend-worse': 'Trend: getting worse first',
 };
-export const TOPIC_SORTS = INDICATOR_SORTS.map((value) => ({ value, label: SORT_LABELS[value] }));
+export const TOPIC_SORTS = TOPIC_SORT_VALUES.map((value) => ({ value, label: SORT_LABELS[value] }));
 
 export const AREA_SUMMARY_SORTS = [
   { value: 'subtopic-asc', label: SORT_LABELS['subtopic-asc'] },

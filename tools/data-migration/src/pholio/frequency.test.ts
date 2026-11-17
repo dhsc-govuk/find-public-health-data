@@ -22,10 +22,22 @@ it.each([
   'Quarterly and annually',
   'The data will be updated monthly and annually.',
   'The data are not updated monthly.',
-])('leaves unsupported or mixed prose for review: %s', (prose) =>
-  expect(sourceUpdateFrequency(null, prose)).toBeNull(),
+])('uses only the structured setting for unsupported or mixed prose: %s', (prose) => {
+  expect(sourceUpdateFrequency(null, prose)).toBeNull();
+  expect(sourceUpdateFrequency('Annual', prose)).toBe('annually');
+});
+it.each([
+  'The data will normally be updated annually.',
+  'The indicator will be updated annually in the Sexual and Reproductive Health Profiles.',
+  'Annual updates',
+])('keeps the structured setting when prose is unrecognised: %s', (prose) => {
+  expect(sourceUpdateFrequency('Annual', prose)).toBe('annually');
+  expect(sourceUpdateFrequency(null, prose)).toBeNull();
+});
+it.each(['Quarterly', 'The data will be updated quarterly.', 'The data are updated monthly.'])(
+  'refuses a conflict between structured and recognised prose frequency: %s',
+  (prose) =>
+    expect(() => sourceUpdateFrequency('Annual', prose)).toThrow(
+      'Conflicting source update frequencies',
+    ),
 );
-it('refuses a conflict between structured and prose frequency', () =>
-  expect(() => sourceUpdateFrequency('Annual', 'Quarterly')).toThrow(
-    'Conflicting source update frequencies',
-  ));

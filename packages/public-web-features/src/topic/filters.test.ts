@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { topicDataKey, topicDisplayParams } from './filters.ts';
+import { topicDataKey, topicDisplayParams, topicSort } from './filters.ts';
 
 it('revalidates server filters while keeping tab and column switches local', () => {
   const base = new URL('http://local/topics/diabetes');
@@ -25,4 +25,11 @@ it('carries columns and sorting through topic filter forms', () => {
   expect(topicDisplayParams(new URLSearchParams({ ...display, q: 'diabetes', page: '2' }))).toEqual(
     display,
   );
+});
+
+it("doesn't offer the search page's recently updated sort on the topic Data tab", () => {
+  expect(topicSort('recently-updated')).toBeUndefined();
+  expect(topicSort('period-desc')).toBe('period-desc');
+  const base = new URL('http://local/topics/diabetes');
+  expect(topicDataKey(new URL('?sort=recently-updated', base))).toBe(topicDataKey(base));
 });
