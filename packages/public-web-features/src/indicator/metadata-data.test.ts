@@ -35,19 +35,31 @@ describe('updateFrequencyLine', () => {
     ).toBe('No fixed frequency');
   });
 
-  it.each(['annually', 'no-longer-updated', null] as const)(
-    'uses the original text in place of %s and its reason',
+  it.each(['annually', 'no-fixed-frequency', null] as const)(
+    'uses the original text in place of %s when there is no reason',
     (updateFrequency) => {
       expect(
         updateFrequencyLine({
           updateFrequency,
-          updateFrequencyReason: 'The survey has ended.',
+          updateFrequencyReason: null,
           updateFrequencyText:
             'Annual measurements during the academic year.\nPublished in winter.',
         }),
       ).toBe('Annual measurements during the academic year.\nPublished in winter.');
     },
   );
+
+  it('keeps the reason given after the original text', () => {
+    expect(
+      updateFrequencyLine({
+        updateFrequency: 'no-longer-updated',
+        updateFrequencyReason: 'The survey has ended.',
+        updateFrequencyText: 'Annual measurements during the academic year.',
+      }),
+    ).toBe(
+      'Annual measurements during the academic year.\nThis indicator will no longer be updated for the following reason:\nThe survey has ended.',
+    );
+  });
 
   it('gives nothing for an indicator imported without a frequency', () => {
     expect(

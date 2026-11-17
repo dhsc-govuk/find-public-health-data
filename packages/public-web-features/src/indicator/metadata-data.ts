@@ -14,8 +14,9 @@ export function updateFrequencyLine({
 }: Pick<IndicatorDetail, 'updateFrequency' | 'updateFrequencyReason' | 'updateFrequencyText'>):
   | string
   | null {
-  if (updateFrequencyText) return updateFrequencyText;
-  if (!updateFrequency) return null;
-  const { text, reason } = publicUpdateFrequency(updateFrequency, updateFrequencyReason);
-  return reason ? `${text}\n${reason}` : text;
+  const fixed = updateFrequency && publicUpdateFrequency(updateFrequency, updateFrequencyReason);
+  if (fixed?.reason) {
+    return [updateFrequencyText, fixed.text, fixed.reason].filter(Boolean).join('\n');
+  }
+  return updateFrequencyText || fixed?.text || null;
 }

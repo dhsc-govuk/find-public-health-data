@@ -27,19 +27,25 @@ export function sourceLink(source: IndicatorDetail['dataSource']) {
   return source.url ? <A href={source.url}>{source.name}</A> : source.name;
 }
 
+// The original text stands in for the fixed label only: a reason the publisher had to give
+// still follows it.
 function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
-  if (indicator.updateFrequencyText)
-    return <div className="fphd-metadata-text">{indicator.updateFrequencyText}</div>;
-  if (!indicator.updateFrequency) return null;
-  const { text, reason } = publicUpdateFrequency(
-    indicator.updateFrequency,
-    indicator.updateFrequencyReason,
-  );
+  const description = indicator.updateFrequencyText;
+  const fixed =
+    indicator.updateFrequency &&
+    publicUpdateFrequency(indicator.updateFrequency, indicator.updateFrequencyReason);
+  if (description && !fixed?.reason) return <div className="fphd-metadata-text">{description}</div>;
+  if (!fixed) return null;
 
   return (
     <>
-      {text}
-      {reason ? <div className="fphd-metadata-text govuk-!-margin-top-2">{reason}</div> : null}
+      {description ? (
+        <div className="fphd-metadata-text govuk-!-margin-bottom-2">{description}</div>
+      ) : null}
+      {fixed.text}
+      {fixed.reason ? (
+        <div className="fphd-metadata-text govuk-!-margin-top-2">{fixed.reason}</div>
+      ) : null}
     </>
   );
 }

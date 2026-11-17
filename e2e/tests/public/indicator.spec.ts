@@ -486,6 +486,37 @@ test('serves an indicator without an update frequency on its page and in downloa
   await expect(page.getByRole('term').filter({ hasText: /^Polarity$/ })).toBeVisible();
 });
 
+test("shows Pholio's own wording of the update frequency on its page and in downloads", async ({
+  page,
+}) => {
+  const wording =
+    'Annual measurements during academic year. Data published in the final quarter of the calendar year.';
+  await openIndicatorPage(
+    page,
+    '/indicator/reception-prevalence-of-obesity-including-severe-obesity-5-years-data-combined',
+  );
+  await expect(
+    page.locator('.govuk-summary-list__row').filter({
+      has: page.getByRole('term').filter({ hasText: /^Update frequency$/ }),
+    }),
+  ).toContainText(wording);
+
+  await page
+    .getByRole('tabpanel', { name: 'Indicator', exact: true })
+    .getByText('Download or share data', { exact: true })
+    .click();
+  const metadata = await downloadFrom(page, 'Download metadata about this indicator (TXT)', 'link');
+  expect(metadata.text).toContain(`Update frequency: ${wording}`);
+
+  await page.getByRole('tab', { name: 'About this indicator' }).click();
+  await expect(
+    page
+      .getByRole('term')
+      .filter({ hasText: /^Frequency$/ })
+      .locator('xpath=following-sibling::*[1]'),
+  ).toHaveText(wording);
+});
+
 test('plots trends, area comparisons, inequalities and paired indicators', async ({
   page,
 }, testInfo) => {
