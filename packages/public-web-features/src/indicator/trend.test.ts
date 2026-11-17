@@ -10,6 +10,25 @@ import {
 import { observation, sex } from './view.testing.ts';
 
 describe('trendTableModel', () => {
+  it("uses the range for each picked area's region and display level", () => {
+    const fixture = benchmarkFixture();
+    fixture.geography.regionByCode.E06000052 = { code: 'E12000002', name: 'North West' };
+    fixture.geography.levelByCode.E06000052 = 'Lower-tier local authorities';
+    const upper = fixture.ranges['region:E12000002:upper'] ?? [];
+    const lower = upper.map((period) => ({ ...period, min: 3, p25: 4, p75: 8, max: 9 }));
+    const model = trendTableModel({
+      ...fixture,
+      confidence: 'none',
+      ranges: { ...fixture.ranges, 'region:E12000002:lower': lower },
+    });
+    const regionFor = (code: string) =>
+      model.benchmarksByArea.get(code)?.find(({ choice }) => choice === 'region');
+    expect(regionFor('E08000003')?.rangePeriods).toBe(upper);
+    expect(regionFor('E06000052')?.rangePeriods).toBe(lower);
+    expect(regionFor('E08000003')?.series[0]?.value).toBe(5);
+    expect(regionFor('E06000052')?.series[0]?.value).toBe(5);
+  });
+
   it('aligns each IMD decile by period and exact remaining segment and uses its category range', () => {
     const fixture = benchmarkFixture();
     const membership = fixture.memberships[1];
@@ -86,6 +105,8 @@ describe('trendTableModel', () => {
       'Decile 2 (IMD 2019)',
       'Decile 1 (IMD 2025)',
       'Decile 2 (IMD 2025)',
+      'Policy goal',
+      'Policy goal',
       'Statistical neighbours (Manchester)',
       'Statistical neighbours (Cornwall)',
       'Combined authority (Manchester)',

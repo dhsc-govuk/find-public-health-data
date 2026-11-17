@@ -24,6 +24,7 @@ import {
   getIndicatorObservationsForAreas,
   getObservationRange,
   getObservationRangeByCategory,
+  getObservationRangeByTier,
   getPublishedIndicatorById,
   type IndicatorAreaData,
   type IndicatorDetail,
@@ -82,6 +83,11 @@ export interface IndicatorRepository {
   findObservationRangeByCategory(
     indicatorId: string,
     dimensionValueId: string,
+  ): Promise<ObservationRangePeriod[]>;
+  findObservationRangeByTier(
+    indicatorId: string,
+    tier: 'upper' | 'lower',
+    parentCode?: string,
   ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
@@ -156,6 +162,8 @@ export function createRepositories(db: Database): Repositories {
         getObservationRange(db, views, indicatorId, displayGroup),
       findObservationRangeByCategory: (indicatorId, dimensionValueId) =>
         getObservationRangeByCategory(db, views, indicatorId, dimensionValueId),
+      findObservationRangeByTier: (indicatorId, tier, parentCode) =>
+        getObservationRangeByTier(db, views, indicatorId, tier, parentCode),
       searchWithFilters: (filters) => searchIndicators(db, views, filters),
       listFacets: () => listIndicatorFacets(db, views),
     },

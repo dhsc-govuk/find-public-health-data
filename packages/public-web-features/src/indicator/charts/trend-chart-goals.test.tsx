@@ -1,21 +1,37 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { cloneElement, type ReactElement } from 'react';
+import { cloneElement, type ReactElement, useEffect } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { benchmarkFixture } from '../benchmark.testing.ts';
 import { trendChartAreas, trendTableModel } from '../trend.ts';
 import { TrendChart } from './trend-chart.tsx';
 
+const chartSize = vi.hoisted(() => ({ width: 800 }));
+
 vi.mock('./chart-elements.tsx', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./chart-elements.tsx')>()),
-  ChartCanvas: ({ children }: { children: (id: string) => ReactElement }) =>
-    cloneElement(children('description') as ReactElement<{ width: number; height: number }>, {
-      width: 800,
-      height: 400,
-    }),
+  ChartCanvas: function Canvas({
+    children,
+    onResize,
+  }: {
+    children: (id: string) => ReactElement;
+    onResize?: (width: number) => void;
+  }) {
+    useEffect(() => onResize?.(chartSize.width), [onResize]);
+    return cloneElement(
+      children('description') as ReactElement<{ width: number; height: number }>,
+      {
+        width: chartSize.width,
+        height: 400,
+      },
+    );
+  },
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  chartSize.width = 800;
+});
 
 it.each([null, 6])('renders goal reference lines, key and tooltip with upper %s', async (upper) => {
   const fixture = benchmarkFixture();
@@ -37,6 +53,9 @@ it.each([null, 6])('renders goal reference lines, key and tooltip with upper %s'
     ),
   );
   const lines = [...container.querySelectorAll('.recharts-reference-line line')];
+  expect(container.querySelectorAll('line[stroke="#00703c"], line[stroke="#d4351c"]').length).toBe(
+    upper === null ? 1 : 2,
+  );
   expect(lines.map((line) => line.getAttribute('stroke'))).toEqual(
     upper === null ? ['#00703c'] : ['#00703c', '#d4351c'],
   );
@@ -53,3 +72,40 @@ it.each([null, 6])('renders goal reference lines, key and tooltip with upper %s'
   expect(screen.getByText('Statistical neighbours (Manchester): 15.0%.')).toBeTruthy();
   expect(screen.getByText('Combined authority (Manchester): 9.0%.')).toBeTruthy();
 });
+
+it.each([800, 320])(
+  'shows full benchmark labels at width %s, using the chart key on narrow screens',
+  async (width) => {
+    chartSize.width = width;
+    const fixture = benchmarkFixture();
+    const names = [
+      'West Sussex',
+      'Statistical neighbours (West Sussex)',
+      'Combined authority (West Sussex)',
+    ];
+    const { container } = render(
+      <TrendChart
+        id="labels"
+        title="Trend"
+        indicator={fixture.detail}
+        areas={names.map((areaName, index) => fixture.area(`area-${index}`, areaName, 4 + index))}
+      />,
+    );
+    if (width === 320) {
+      const key = await screen.findByRole('list', { name: 'Chart key' });
+      expect([...key.querySelectorAll('li')].map((item) => item.textContent)).toEqual(names);
+      expect(container.querySelectorAll('.fphd-chart-series-label')).toHaveLength(0);
+    } else {
+      await waitFor(() =>
+        expect(container.querySelectorAll('.fphd-chart-series-label')).toHaveLength(3),
+      );
+      const labels = [...container.querySelectorAll('.fphd-chart-series-label')];
+      expect(labels.map((label) => label.textContent).sort()).toEqual([...names].sort());
+      for (const label of labels)
+        expect(
+          Number(label.getAttribute('x')) + (label.textContent?.length ?? 0) * 8.4,
+        ).toBeLessThan(width);
+      expect(screen.queryByRole('list', { name: 'Chart key' })).toBeNull();
+    }
+  },
+);

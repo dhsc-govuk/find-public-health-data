@@ -463,6 +463,26 @@ describe('GET /api/indicators/:indicator/data', () => {
 });
 
 describe('GET /api/indicators/:indicator/range', () => {
+  it.each(['upper', 'lower'])(
+    'serves the England %s council range without changing display-group reads',
+    async (tier) => {
+      const findObservationRangeByTier = vi.fn().mockResolvedValue([]);
+      const findObservationRange = vi.fn().mockResolvedValue([]);
+      const app = createTestApp({
+        resolveId: async () => 'ind-1',
+        findObservationRangeByTier,
+        findObservationRange,
+      });
+      expect((await request(app).get(`/api/indicators/241/range?tier=${tier}`)).body).toEqual({
+        periods: [],
+      });
+      expect(findObservationRangeByTier).toHaveBeenCalledExactlyOnceWith('ind-1', tier, undefined);
+      expect(findObservationRange).not.toHaveBeenCalled();
+      await request(app).get('/api/indicators/241/range?displayGroup=Local+authorities');
+      expect(findObservationRange).toHaveBeenCalledExactlyOnceWith('ind-1', 'Local authorities');
+      expect(findObservationRangeByTier).toHaveBeenCalledTimes(1);
+    },
+  );
   it('serves a per-segment range for the requested display group', async () => {
     const periods = [
       { fromDate: '2023-01-01', toDate: '2023-12-31', segment: 'Male', min: 1, max: 2 },
@@ -489,6 +509,52 @@ describe('GET /api/indicators/:indicator/range', () => {
 
     expect(response.status).toBe(200);
     expect(findObservationRange).toHaveBeenCalledWith('ind-1', 'Local authorities');
+  });
+
+  it.each(['241', 'diabetes-qof-prevalence'])(
+    'serves a parent range at the requested council tier for %s',
+    async (identifier) => {
+      const periods = [
+        {
+          fromDate: '2024-04-01',
+          toDate: '2025-03-31',
+          segment: '18+ yrs',
+          min: 5,
+          p25: 6.5,
+          p75: 7.9,
+          max: 11,
+          quintileCutoffs: [6, 7, 8, 9],
+        },
+      ];
+      const findObservationRangeByTier = vi.fn().mockResolvedValue(periods);
+      const app = createTestApp({
+        resolveId: async () => 'ind-1',
+        resolveIdBySlug: async () => 'ind-1',
+        findObservationRangeByTier,
+      });
+      const response = await request(app).get(
+        `/api/indicators/${identifier}/range?tier=upper&parent=E12000008`,
+      );
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ periods });
+      expect(findObservationRangeByTier).toHaveBeenCalledExactlyOnceWith(
+        'ind-1',
+        'upper',
+        'E12000008',
+      );
+    },
+  );
+
+  it('returns no periods for an unknown parent and 404 for an unknown indicator', async () => {
+    const app = createTestApp({
+      resolveId: async (id) => (id === 241 ? 'ind-1' : undefined),
+      findObservationRangeByTier: async () => [],
+    });
+    const query = 'tier=upper&parent=UNKNOWN';
+    expect((await request(app).get(`/api/indicators/241/range?${query}`)).body).toEqual({
+      periods: [],
+    });
+    expect((await request(app).get(`/api/indicators/999999/range?${query}`)).status).toBe(404);
   });
 
   it('rejects a range request without area types or with an unusable identifier', async () => {
@@ -675,9 +741,28 @@ describe('category range query', () => {
     'category=%00',
     `category=${category}&displayGroup=Local+authorities`,
     `category=${category}&displayGroup=`,
+    `category=${category}&parent=E12000008`,
+    `category=${category}&parent=`,
+    `category=${category}&parent=E12000008&displayGroup=Local+authorities`,
     `category=${category}&category=${category}`,
     `category[value]=${category}`,
     'displayGroup=Local+authorities&displayGroup=Regions',
+    'parent=E12000008',
+    'parent=E12000008&displayGroup=',
+    'parent=&displayGroup=Local+authorities',
+    'parent=%00&displayGroup=Local+authorities',
+    'parent=South+East&displayGroup=Local+authorities',
+    'parent=E12000008&parent=E12000009&displayGroup=Local+authorities',
+    'tier=',
+    'tier=middle',
+    'tier=upper&tier=lower',
+    'tier[value]=upper',
+    'tier=upper&displayGroup=Local+authorities',
+    `tier=upper&category=${category}`,
+    `tier=lower&parent=E12000008&category=${category}`,
+    'tier=upper&parent=',
+    'tier=lower&parent=South+East',
+    'tier=upper&parent=E12000008&parent=E12000009',
   ])('rejects malformed or ambiguous selectors: %s', async (query) => {
     const response = await request(createTestApp()).get(`/api/indicators/241/range?${query}`);
     expect(response.status).toBe(404);

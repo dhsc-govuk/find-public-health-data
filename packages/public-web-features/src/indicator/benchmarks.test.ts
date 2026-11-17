@@ -2,11 +2,55 @@ import { describe, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import {
   benchmarkCheckboxOptions,
+  benchmarkRange,
   canonicalBenchmarks,
   deprivationType,
   selectedBenchmarks,
   setBenchmarkParams,
 } from './benchmarks.ts';
+
+describe('benchmark ranges', () => {
+  it.each([
+    ['E10000032', 'Upper-tier local authorities', 'upper'],
+    ['E07000223', 'Lower-tier local authorities', 'lower'],
+    ['E06000052', 'Upper-tier local authorities', 'upper'],
+    ['E06000052', 'Lower-tier local authorities', 'lower'],
+    ['E08000003', 'Lower-tier local authorities', 'lower'],
+    ['E09000001', 'Upper-tier local authorities', 'upper'],
+  ])('uses the public tier for %s at %s', (code, level, tier) => {
+    const geography = {
+      levelByCode: { [code]: level },
+      regionByCode: { [code]: { code: 'E12000008', name: 'South East' } },
+    };
+    expect(benchmarkRange(geography, code, 'england')).toEqual({
+      key: `england:${tier}`,
+      query: `tier=${tier}`,
+    });
+    expect(benchmarkRange(geography, code, 'region')).toEqual({
+      key: `region:E12000008:${tier}`,
+      query: `tier=${tier}&parent=E12000008`,
+    });
+  });
+
+  it.each([
+    ['E54000026', 'Integrated care boards'],
+    ['E12000008', 'Statistical regions'],
+  ])('keeps the display-group ranges for %s', (code, level) => {
+    const geography = {
+      levelByCode: { [code]: level },
+      regionByCode: { [code]: { code: 'E12000008', name: 'South East' } },
+      tierByCode: { [code]: 'upper' as const },
+    };
+    expect(benchmarkRange(geography, code, 'england')).toEqual({
+      key: level,
+      query: `displayGroup=${encodeURIComponent(level)}`,
+    });
+    expect(benchmarkRange(geography, code, 'region')).toEqual({
+      key: 'Statistical regions',
+      query: 'displayGroup=Statistical%20regions',
+    });
+  });
+});
 
 describe('selectedBenchmarks', () => {
   it('deduplicates repeated parameters in canonical order', () => {
@@ -36,9 +80,9 @@ describe('selectedBenchmarks', () => {
 
   it('reserves the later benchmark types in display order', () => {
     const choices = [
-      'goal',
       'ca:E10000032',
       'neighbours:E10000032',
+      'goal',
       'imd2025',
       'imd2019',
       'region',
@@ -81,11 +125,11 @@ describe('benchmark options', () => {
       'Statistical regions',
       'Areas with similar deprivation to the selected area (Index of Multiple Deprivation (IMD) 2025)',
       'Areas with similar deprivation to the selected area (Index of Multiple Deprivation (IMD) 2019)',
+      'Policy goal',
       'Statistical neighbours (Manchester)',
       'Statistical neighbours (Cornwall)',
       'Combined authority (Manchester)',
       'Combined authority (Cornwall)',
-      'Policy goal',
     ]);
   });
 

@@ -69,7 +69,6 @@ export function TrendTable({
     goal: indicator.goal,
   });
   const {
-    benchmarkGroups,
     benchmarksByArea,
     firstObservation,
     hasCounts: availableCounts,
@@ -87,7 +86,7 @@ export function TrendTable({
   const spread = { minMax: columns?.minMax ?? false, percentiles: columns?.percentiles ?? false };
   const showChart = columns?.chart ?? false;
   const showGoal = !!policyGoal && (columns?.goal ?? true);
-  const thresholdText = policyGoal ? goalThresholdText(policyGoal, indicator.unit) : '';
+  const benchmarkGroups = model.benchmarkGroups.filter((benchmark) => !benchmark.goal || showGoal);
   if (!firstObservation) {
     return <p className="govuk-body">No data matches the selected options.</p>;
   }
@@ -103,14 +102,13 @@ export function TrendTable({
     areaSeries.series.find(inPeriod(period));
   const columnsPerArea =
     Number(hasCounts) + Number(hasNumerators) + Number(showValues) + intervals.length * 2;
-  const areaColumns = (areaCode: string) =>
-    columnsPerArea + chartBenchmarks(areaCode).length + Number(showGoal);
+  const areaColumns = (areaCode: string) => columnsPerArea + chartBenchmarks(areaCode).length;
   const columnCount =
     1 +
-    Number(!!policyGoal) +
     seriesByArea.reduce((total, { data }) => total + areaColumns(data.areaCode), 0) +
     benchmarkGroups.reduce(
-      (total, benchmark) => total + benchmarkColumnCount(spreadFor(benchmark)),
+      (total, benchmark) =>
+        total + (benchmark.goal ? 1 : benchmarkColumnCount(spreadFor(benchmark))),
       0,
     );
   if (columnCount === 1) return <p className="govuk-body">Select at least one table column.</p>;
@@ -198,21 +196,21 @@ export function TrendTable({
                   key={benchmark.key}
                   id={groupId(index, 'benchmark')}
                   scope="colgroup"
-                  colSpan={benchmarkColumnCount(spreadFor(benchmark))}
+                  colSpan={benchmark.goal ? 1 : benchmarkColumnCount(spreadFor(benchmark))}
                   className={`${HEADER} fphd-trend-table__benchmark-group`}
                 >
                   {benchmark.name}
+                  {benchmark.goal ? (
+                    <>
+                      {' '}
+                      <br />
+                      <span className="fphd-table-note">
+                        {goalThresholdText(benchmark.goal, indicator.unit)}
+                      </span>
+                    </>
+                  ) : null}
                 </th>
               ))}
-              {policyGoal ? (
-                <th
-                  id={`${id}-goal-group`}
-                  scope="colgroup"
-                  className={`${HEADER} fphd-trend-table__benchmark-group`}
-                >
-                  Policy goal
-                </th>
-              ) : null}
             </tr>
             <tr className="govuk-table__row">
               <th id={`${id}-period`} scope="col" className={`${HEADER} fphd-table__frozen`}>
@@ -260,7 +258,6 @@ export function TrendTable({
                         )}
                       </Fragment>
                     ))}
-                    {showGoal ? heading(area, 'goal', 'Compared with policy goal') : null}
                     {intervals.map((level) => (
                       <Fragment key={level}>
                         {heading(area, `lower-${level}`, `${level}% lower confidence interval`)}
@@ -270,23 +267,25 @@ export function TrendTable({
                   </Fragment>
                 );
               })}
-              {benchmarkGroups.map((benchmark, index) => (
-                <BenchmarkHeaderCells
-                  key={benchmark.key}
-                  columns={spreadFor(benchmark)}
-                  idFor={(column) => headingId(index, `benchmark-${column}`)}
-                  unit={<UnitNote unit={indicator.unit} />}
-                />
-              ))}
-              {policyGoal ? (
-                <th
-                  id={`${id}-goal-threshold`}
-                  scope="col"
-                  className={`${HEADER} fphd-trend-table__benchmark-cell`}
-                >
-                  {thresholdText}
-                </th>
-              ) : null}
+              {benchmarkGroups.map((benchmark, index) =>
+                benchmark.goal ? (
+                  <th
+                    key={benchmark.key}
+                    id={headingId(index, 'benchmark-goal')}
+                    scope="col"
+                    className={`${HEADER} fphd-trend-table__benchmark-cell`}
+                  >
+                    Compared with policy goal
+                  </th>
+                ) : (
+                  <BenchmarkHeaderCells
+                    key={benchmark.key}
+                    columns={spreadFor(benchmark)}
+                    idFor={(column) => headingId(index, `benchmark-${column}`)}
+                    unit={<UnitNote unit={indicator.unit} />}
+                  />
+                ),
+              )}
             </tr>
           </thead>
           <tbody className="govuk-table__body">
@@ -345,11 +344,6 @@ export function TrendTable({
                           unit={indicator.unit}
                         />
                       ))}
-                      {showGoal && policyGoal ? (
-                        <td headers={at('goal')} className="govuk-table__cell">
-                          {goalVerdict(observation?.value, policyGoal)}
-                        </td>
-                      ) : null}
                       {intervals.map((level) => {
                         const lower =
                           level === '95' ? observation?.lowerCi95 : observation?.lowerCi998;
@@ -373,31 +367,33 @@ export function TrendTable({
                     </Fragment>
                   );
                 })}
-                {benchmarkGroups.map((benchmark, index) => (
-                  <BenchmarkCells
-                    key={benchmark.key}
-                    benchmarkValue={benchmark.series.find(inPeriod(period))?.value ?? null}
-                    columns={spreadFor(benchmark)}
-                    format={(value) => (
-                      <>
-                        {formatCalculatedValue(value)}
-                        {valueSuffix}
-                      </>
-                    )}
-                    headersFor={(column) => headers(row, index, 'benchmark', column)}
-                    rangePeriod={benchmark.rangePeriods?.find(
-                      (range) => inPeriod(period)(range) && range.segment === referenceSegment,
-                    )}
-                  />
-                ))}
-                {policyGoal ? (
-                  <td
-                    headers={`${rowId(row)} ${id}-goal-group ${id}-goal-threshold`}
-                    className="govuk-table__cell fphd-trend-table__benchmark-cell"
-                  >
-                    {thresholdText}
-                  </td>
-                ) : null}
+                {benchmarkGroups.map((benchmark, index) =>
+                  benchmark.goal ? (
+                    <td
+                      key={benchmark.key}
+                      headers={headers(row, index, 'benchmark', 'goal')}
+                      className="govuk-table__cell fphd-trend-table__benchmark-cell"
+                    >
+                      {goalVerdict(benchmark.series.find(inPeriod(period))?.value, benchmark.goal)}
+                    </td>
+                  ) : (
+                    <BenchmarkCells
+                      key={benchmark.key}
+                      benchmarkValue={benchmark.series.find(inPeriod(period))?.value ?? null}
+                      columns={spreadFor(benchmark)}
+                      format={(value) => (
+                        <>
+                          {formatCalculatedValue(value)}
+                          {valueSuffix}
+                        </>
+                      )}
+                      headersFor={(column) => headers(row, index, 'benchmark', column)}
+                      rangePeriod={benchmark.rangePeriods?.find(
+                        (range) => inPeriod(period)(range) && range.segment === referenceSegment,
+                      )}
+                    />
+                  ),
+                )}
               </tr>
             ))}
           </tbody>

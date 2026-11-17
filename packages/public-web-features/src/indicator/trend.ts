@@ -1,4 +1,9 @@
-import { canonicalBenchmarks, deprivationFor, deprivationType } from './benchmarks.ts';
+import {
+  benchmarkRange,
+  canonicalBenchmarks,
+  deprivationFor,
+  deprivationType,
+} from './benchmarks.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import {
   alignedTrendSeries,
@@ -25,6 +30,7 @@ export interface AreaBenchmark {
   chartLabel: string;
   series: IndicatorObservation[];
   rangePeriods?: IndicatorRangePeriod[];
+  goal?: PolicyGoal;
 }
 
 export interface TrendColumns {
@@ -139,7 +145,7 @@ export function trendTableModel({
         label: 'England',
         chartLabel: 'England',
         series: englandSeries,
-        rangePeriods: ranges[geography.levelByCode[areaCode] ?? ''] ?? [],
+        rangePeriods: ranges[benchmarkRange(geography, areaCode, 'england')?.key ?? ''] ?? [],
       };
     }
     if (choice === 'region') {
@@ -154,7 +160,7 @@ export function trendTableModel({
         label: region.name,
         chartLabel: region.name,
         series: data ? seriesFor(data.observations) : [],
-        rangePeriods: ranges['Statistical regions'] ?? [],
+        rangePeriods: ranges[benchmarkRange(geography, areaCode, 'region')?.key ?? ''] ?? [],
       };
     }
     const area = seriesByArea.find(({ data }) => data.areaCode === areaCode);
@@ -292,9 +298,26 @@ export function trendTableModel({
       }
     }
   }
+  if (policyGoal) {
+    for (const { data, series } of seriesByArea) {
+      const key = `goal:${data.areaCode}`;
+      groups.set(key, {
+        key,
+        choice: 'goal',
+        areaCode: key,
+        name: 'Policy goal',
+        label: data.areaName,
+        chartLabel: 'Policy goal',
+        series,
+        goal: policyGoal,
+      });
+    }
+  }
   const benchmarkGroups = [...groups.values()].sort((a, b) => {
     const family = a.choice.split(':')[0];
-    if (family !== b.choice.split(':')[0] || !['neighbours', 'ca'].includes(family ?? '')) return 0;
+    if (family !== b.choice.split(':')[0])
+      return canonicalBenchmarks([a.choice, b.choice])[0] === a.choice ? -1 : 1;
+    if (!['neighbours', 'ca'].includes(family ?? '')) return 0;
     return (
       shownAreas.findIndex(({ areaCode }) => areaCode === a.choice.split(':')[1]) -
       shownAreas.findIndex(({ areaCode }) => areaCode === b.choice.split(':')[1])
@@ -344,7 +367,9 @@ export function trendChartAreas(model: ReturnType<typeof trendTableModel>): Indi
     ...model.seriesByArea.map(({ data, series }) => ({ ...data, observations: series })),
     ...model.benchmarkGroups
       .filter(
-        (benchmark) => !model.seriesByArea.some(({ data }) => data.areaCode === benchmark.areaCode),
+        (benchmark) =>
+          !benchmark.goal &&
+          !model.seriesByArea.some(({ data }) => data.areaCode === benchmark.areaCode),
       )
       .map((benchmark) => ({
         areaCode: benchmark.areaCode,

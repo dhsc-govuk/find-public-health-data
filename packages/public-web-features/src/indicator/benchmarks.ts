@@ -1,3 +1,4 @@
+import { publicCouncilTier } from '../geography/groups.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import type {
   BenchmarkGeography,
@@ -12,6 +13,25 @@ export interface BenchmarkOption {
 }
 
 export type DeprivationMembership = NonNullable<BenchmarkGeography['deprivation']>[number];
+
+export function benchmarkRange(
+  geography: BenchmarkGeography,
+  code: string,
+  choice: 'england' | 'region',
+) {
+  const level = geography.levelByCode[code] ?? '';
+  const publicTier = publicCouncilTier(code, level);
+  const tier = publicTier ? (geography.tierByCode?.[code] ?? publicTier) : undefined;
+  const parent = choice === 'region' ? geography.regionByCode[code]?.code : undefined;
+  if (choice === 'region' && !parent) return undefined;
+  if (tier)
+    return {
+      key: parent ? `region:${parent}:${tier}` : `england:${tier}`,
+      query: `tier=${tier}${parent ? `&parent=${encodeURIComponent(parent)}` : ''}`,
+    };
+  const displayGroup = choice === 'region' ? 'Statistical regions' : level;
+  return { key: displayGroup, query: `displayGroup=${encodeURIComponent(displayGroup)}` };
+}
 
 export function deprivationType(membership: DeprivationMembership): string {
   return `${membership.tier === 'upper' ? 'County' : 'District'} & UA deprivation deciles in England (${membership.scheme}, 4/23 geography)`;
@@ -31,7 +51,7 @@ export function deprivationFor(
   );
 }
 
-const BENCHMARK_ORDER = ['england', 'region', 'imd2019', 'imd2025', 'neighbours', 'ca', 'goal'];
+const BENCHMARK_ORDER = ['england', 'region', 'imd2019', 'imd2025', 'goal', 'neighbours', 'ca'];
 
 function benchmarkOrder(choice: BenchmarkChoice): number {
   return BENCHMARK_ORDER.indexOf(choice.split(':')[0] ?? '');
@@ -99,6 +119,7 @@ export function benchmarkCheckboxOptions(
           ]
         : [],
     ),
+    ...(context?.goal ? [{ value: 'goal' as const, label: 'Policy goal' }] : []),
     ...(context?.areas.flatMap(({ areaCode, areaName }) =>
       context.geography.neighboursByCode?.[areaCode]?.length
         ? [
@@ -114,7 +135,6 @@ export function benchmarkCheckboxOptions(
         ? [{ value: `ca:${areaCode}` as const, label: `Combined authority (${areaName})` }]
         : [],
     ) ?? []),
-    ...(context?.goal ? [{ value: 'goal' as const, label: 'Policy goal' }] : []),
   ];
 }
 

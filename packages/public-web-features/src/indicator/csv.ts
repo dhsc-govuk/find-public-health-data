@@ -5,7 +5,6 @@ import {
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
   indicatorDetailSchema,
-  indicatorRangeSchema,
   MAX_AREA_CODES_PER_REQUEST,
   pickAreaCodes,
 } from '@fphd/public-api-features/contract';
@@ -150,7 +149,9 @@ export async function loadIndicatorCsv(
     const codeQuery = pickedCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
     const [lookedUp, parents, memberships] = await Promise.all([
       pickedCodes.length > 0 &&
-      (showRange ||
+      (benchmarks.some(
+        (choice) => choice === 'england' || choice === 'region' || choice.startsWith('imd'),
+      ) ||
         benchmarks.some((choice) => choice.startsWith('neighbours:') || choice.startsWith('ca:')))
         ? api.get(`/api/areas/lookup?${codeQuery}`, areaLookupListSchema)
         : Promise.resolve([]),
@@ -184,26 +185,7 @@ export async function loadIndicatorCsv(
       geography.regionByCode[code] = { code: parentCode, name: parentName };
     }
     const regionCodes = [...new Set(parents.map(({ parentCode }) => parentCode))];
-    const rangeLevels = [
-      ...new Set([
-        ...(benchmarks.includes('england') ? Object.values(geography.levelByCode) : []),
-        ...(benchmarks.includes('region') ? ['Statistical regions'] : []),
-      ]),
-    ];
-    const [regionData, rangeEntries] = await Promise.all([
-      regionCodes.length > 0 ? dataFor(regionCodes) : Promise.resolve([] as IndicatorAreaData[]),
-      showRange
-        ? Promise.all(
-            rangeLevels.map(async (level) => {
-              const range = await api.get(
-                `${apiPath`/api/indicators/${segment}/range`}?displayGroup=${encodeURIComponent(level)}`,
-                indicatorRangeSchema,
-              );
-              return [level, range.periods] as const;
-            }),
-          )
-        : Promise.resolve([]),
-    ]);
+    const regionData = regionCodes.length > 0 ? await dataFor(regionCodes) : [];
     const additional = await loadBenchmarkData(
       api,
       segment,
@@ -222,7 +204,7 @@ export async function loadIndicatorCsv(
       benchmarks,
       confidence,
       geography,
-      ranges: { ...Object.fromEntries(rangeEntries), ...additional.ranges },
+      ranges: additional.ranges,
       regionData: regionData.map(narrow),
       benchmarkData: additional.benchmarkData.map(narrow),
       goal: detail.goal,

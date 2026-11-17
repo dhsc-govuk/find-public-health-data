@@ -278,9 +278,15 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
     // error, matching how /api/areas treats unknown groups.
     response.status(200).json({
       periods:
-        query.data.category === undefined
-          ? await indicators.findObservationRange(indicatorId, query.data.displayGroup)
-          : await indicators.findObservationRangeByCategory(indicatorId, query.data.category),
+        query.data.tier !== undefined
+          ? await indicators.findObservationRangeByTier(
+              indicatorId,
+              query.data.tier,
+              query.data.parent,
+            )
+          : query.data.category !== undefined
+            ? await indicators.findObservationRangeByCategory(indicatorId, query.data.category)
+            : await indicators.findObservationRange(indicatorId, query.data.displayGroup),
     });
   });
 

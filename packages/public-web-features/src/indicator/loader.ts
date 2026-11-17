@@ -27,6 +27,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import {
   areasInGeographyGroup,
   normalizePublicLevels,
+  publicCouncilTier,
   publicGeographyLevels,
   sourceGeographyGroup,
 } from '../geography/groups.ts';
@@ -283,16 +284,16 @@ export async function loadIndicatorData(
     levelByCode,
     ...memberships,
     tierByCode: Object.fromEntries(
-      selectedAreas.map(({ code, level }) => [
-        code,
-        requestedLevels.includes('Lower-tier local authorities') &&
-        !requestedLevels.includes('Upper-tier local authorities') &&
-        areasInGeographyGroup([{ code }], 'Lower-tier local authorities').length > 0
-          ? 'lower'
-          : level.toLowerCase().includes('lower') || /^E07/.test(code)
-            ? 'lower'
-            : 'upper',
-      ]),
+      selectedAreas.flatMap(({ code, level }) => {
+        const tier = publicCouncilTier(
+          code,
+          requestedLevels.includes('Lower-tier local authorities') &&
+            !requestedLevels.includes('Upper-tier local authorities')
+            ? 'Lower-tier local authorities'
+            : level,
+        );
+        return tier ? [[code, tier]] : [];
+      }),
     ),
   };
 
@@ -302,25 +303,25 @@ export async function loadIndicatorData(
   // A benchmark's spread is fetched with it: its columns show by default, and switching
   // them on and off only re-renders.
   const comparisonFor = (id: number) => {
-    const choices = [
-      ...selectedBenchmarks(url.searchParams, id),
-      ...selectedBenchmarks(url.searchParams, 'compare'),
-    ];
+    const choices = selectedBenchmarks(url.searchParams, id);
+    const compareChoices = selectedBenchmarks(url.searchParams, 'compare');
     const rangeLevels = new Set<string>();
     if (includePageData && url.searchParams.get(quintileParam(id)) === 'yes') {
       for (const level of pickedLevels) rangeLevels.add(level);
     }
-    for (const choice of choices) {
+    for (const choice of compareChoices) {
       if (choice === 'england') {
         for (const level of pickedLevels) {
           rangeLevels.add(level);
         }
       }
-      if (choice === 'region') {
-        rangeLevels.add('Statistical regions');
-      }
     }
-    return { region: choices.includes('region'), rangeLevels: [...rangeLevels] };
+    if (compareChoices.includes('region')) rangeLevels.add('Statistical regions');
+    return {
+      choices,
+      region: [...choices, ...compareChoices].includes('region'),
+      rangeLevels: [...rangeLevels],
+    };
   };
 
   const shortIds =
@@ -400,7 +401,7 @@ export async function loadIndicatorData(
           const additional = await loadBenchmarkData(
             api,
             String(id),
-            selectedBenchmarks(url.searchParams, id),
+            comparison.choices,
             benchmarkGeography,
             dataFor,
             [...areaData, ...regionData],

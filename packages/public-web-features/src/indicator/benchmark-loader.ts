@@ -7,7 +7,7 @@ import {
 } from '@fphd/public-api-features/contract';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { loadInBatches } from './batches.ts';
-import { deprivationFor } from './benchmarks.ts';
+import { benchmarkRange, deprivationFor } from './benchmarks.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
 
@@ -79,6 +79,16 @@ export async function loadBenchmarkData(
       ),
     ),
   ];
+  const rangeQueries = new Map(
+    categories.map((category) => [category, `category=${encodeURIComponent(category)}`]),
+  );
+  for (const choice of choices) {
+    if (choice !== 'england' && choice !== 'region') continue;
+    for (const code of Object.keys(geography.levelByCode)) {
+      const range = benchmarkRange(geography, code, choice);
+      if (range) rangeQueries.set(range.key, range.query);
+    }
+  }
   const [data, ranges] = await Promise.all([
     loadInBatches(
       Array.from({ length: Math.ceil(missing.length / MAX_AREA_CODES_PER_REQUEST) }, (_, index) =>
@@ -86,12 +96,12 @@ export async function loadBenchmarkData(
       ),
       dataFor,
     ),
-    loadInBatches(withRanges ? categories : [], async (category) => {
+    loadInBatches(withRanges ? [...rangeQueries] : [], async ([key, query]) => {
       const range = await api.get(
-        `${apiPath`/api/indicators/${indicator}/range`}?category=${encodeURIComponent(category)}`,
+        `${apiPath`/api/indicators/${indicator}/range`}?${query}`,
         indicatorRangeSchema,
       );
-      return [category, range.periods] as const;
+      return [key, range.periods] as const;
     }),
   ]);
   return {

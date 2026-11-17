@@ -69,11 +69,12 @@ describe('TrendTable', () => {
       'Decile 2 (IMD 2019)',
       'Decile 1 (IMD 2025)',
       'Decile 2 (IMD 2025)',
+      'Policy goal <4% is good, >6% is bad',
+      'Policy goal <4% is good, >6% is bad',
       'Statistical neighbours (Manchester)',
       'Statistical neighbours (Cornwall)',
       'Combined authority (Manchester)',
       'Combined authority (Cornwall)',
-      'Policy goal',
     ]);
     expect(
       [...container.querySelectorAll('thead tr:nth-child(2) th')]
@@ -84,20 +85,24 @@ describe('TrendTable', () => {
       'Compared with North West',
       'Compared with similarly deprived areas (IMD 2019)',
       'Compared with similarly deprived areas (IMD 2025)',
-      'Compared with policy goal',
       'Compared with England',
       'Compared with South West',
       'Compared with similarly deprived areas (IMD 2019)',
       'Compared with similarly deprived areas (IMD 2025)',
       'Compared with policy goal',
+      'Compared with policy goal',
     ]);
     const cells = [...container.querySelectorAll('tbody tr:first-child td')];
-    expect(cells[5]?.textContent).toBe('Good');
-    expect(cells[11]?.textContent).toBe('Bad');
-    expect(cells[5]?.children.length).toBe(0);
-    expect(cells.at(-2)?.textContent).toBe('-');
-    expect(screen.getByRole('columnheader', { name: '<4% is good, >6% is bad' })).toBeTruthy();
-    expect(groups.slice(-5, -1).map((group) => group.getAttribute('colspan'))).toEqual([
+    const goals = cells.filter((cell) => cell.getAttribute('headers')?.includes('benchmark-goal'));
+    expect(goals.map((cell) => cell.textContent)).toEqual(['Good', 'Bad']);
+    expect(goals.every((cell) => cell.children.length === 0)).toBe(true);
+    expect(cells.at(-1)?.textContent).toBe('-');
+    expect(
+      screen.getAllByRole('columnheader', { name: 'Policy goal <4% is good, >6% is bad' }),
+    ).toHaveLength(2);
+    expect(groups.slice(-6).map((group) => group.getAttribute('colspan'))).toEqual([
+      '1',
+      '1',
       '1',
       '1',
       '1',
@@ -142,7 +147,7 @@ describe('TrendTable', () => {
       />,
     );
     expect(screen.queryByRole('columnheader', { name: 'Compared with policy goal' })).toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'Policy goal' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: /Policy goal/ })).toBeNull();
   });
   it('keeps count, numerator, value and both interval column choices consistent with the CSV', () => {
     const columns: TrendColumns = {
@@ -285,7 +290,7 @@ const benchmarked = {
     comparatorMethod: 'Confidence intervals overlapping reference value',
   } as IndicatorDetail,
   ranges: {
-    'Local authorities': [
+    'england:upper': [
       {
         fromDate: '2023-04-01',
         toDate: '2024-03-31',
@@ -333,7 +338,8 @@ describe('TrendTable benchmark columns', () => {
           }}
           ranges={{
             ...benchmarked.ranges,
-            'Statistical regions': benchmarked.ranges['Local authorities'],
+            'region:E12000002:upper': benchmarked.ranges['england:upper'],
+            'region:E12000009:upper': benchmarked.ranges['england:upper'],
           }}
           regionData={[
             {
@@ -506,11 +512,11 @@ describe('TrendTable benchmark columns', () => {
 
   it.each([
     ['no ranges', {}],
-    ['empty ranges', { 'Local authorities': [] }],
+    ['empty ranges', { 'england:upper': [] }],
     [
       'another period',
       {
-        'Local authorities': benchmarked.ranges['Local authorities'].map((range) => ({
+        'Local authorities': benchmarked.ranges['england:upper'].map((range) => ({
           ...range,
           fromDate: '2022-04-01',
           toDate: '2023-03-31',
@@ -520,7 +526,7 @@ describe('TrendTable benchmark columns', () => {
     [
       'another segment',
       {
-        'Local authorities': benchmarked.ranges['Local authorities'].map((range) => ({
+        'Local authorities': benchmarked.ranges['england:upper'].map((range) => ({
           ...range,
           segment: 'Male',
         })),

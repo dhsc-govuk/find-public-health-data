@@ -175,9 +175,22 @@ export const indicatorRangeQuerySchema = z.union([
       .min(1)
       .max(100)
       .refine((value) => !CONTROL_CHARACTER.test(value)),
+    parent: z.undefined().optional(),
+    tier: z.undefined().optional(),
     category: z.undefined().optional(),
   }),
-  z.object({ displayGroup: z.undefined().optional(), category: z.uuid() }),
+  z.object({
+    displayGroup: z.undefined().optional(),
+    parent: z.undefined().optional(),
+    tier: z.undefined().optional(),
+    category: z.uuid(),
+  }),
+  z.object({
+    tier: z.enum(['upper', 'lower']),
+    parent: z.string().min(1).max(100).regex(AREA_CODE_RE).optional(),
+    category: z.undefined().optional(),
+    displayGroup: z.undefined().optional(),
+  }),
 ]);
 
 export const areaDeprivationListSchema = z.array(

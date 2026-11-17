@@ -22,6 +22,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  isNull,
   max,
   min,
   or,
@@ -527,6 +528,81 @@ export async function getObservationRangeByCategory(
       .leftJoin(dimensionValue, eq(dimensionValue.id, observationDimension.dimensionValueId))
       .leftJoin(dimensionType, eq(dimensionType.id, observationDimension.dimensionTypeId))
       .where(and(eq(observation.indicatorId, indicatorId), isNotNull(observation.value)))
+      .groupBy(observation.id, observation.fromDate, observation.toDate, observation.value),
+  );
+  return db
+    .with(points)
+    .select({
+      fromDate: points.fromDate,
+      toDate: points.toDate,
+      segment: points.segment,
+      ...observationRangeSql(points.value),
+    })
+    .from(points)
+    .groupBy(points.fromDate, points.toDate, points.segment)
+    .orderBy(asc(points.fromDate), asc(points.toDate), asc(points.segment));
+}
+
+export async function getObservationRangeByTier(
+  db: Database,
+  views: ViewSet,
+  indicatorId: string,
+  tier: 'upper' | 'lower',
+  parentCode?: string,
+): Promise<ObservationRangePeriod[]> {
+  const {
+    area,
+    areaRelationship,
+    dimensionType,
+    dimensionValue,
+    observation,
+    observationDimension,
+  } = views;
+  const parent = db.select().from(area).as('parent');
+  const councils = db
+    .select({ id: area.id })
+    .from(area)
+    .where(
+      and(
+        eq(area.isCurrent, true),
+        sql`${area.code} ~ ${tier === 'upper' ? '^E(06|08|09|10)[0-9]{6}$' : '^E(06|07|08|09)[0-9]{6}$'}`,
+        parentCode === undefined
+          ? undefined
+          : exists(
+              db
+                .select({ id: areaRelationship.id })
+                .from(areaRelationship)
+                .innerJoin(parent, eq(areaRelationship.parentAreaId, parent.id))
+                .where(
+                  and(
+                    eq(areaRelationship.childAreaId, area.id),
+                    eq(parent.code, parentCode),
+                    eq(parent.isCurrent, true),
+                    isNull(areaRelationship.validTo),
+                  ),
+                ),
+            ),
+      ),
+    );
+  const points = db.$with('tier_range_observations').as(
+    db
+      .select({
+        fromDate: observation.fromDate,
+        toDate: observation.toDate,
+        value: observation.value,
+        segment: observationSegmentSql(dimensionValue.name, dimensionType.name).as('segment'),
+      })
+      .from(observation)
+      .leftJoin(observationDimension, eq(observationDimension.observationId, observation.id))
+      .leftJoin(dimensionValue, eq(dimensionValue.id, observationDimension.dimensionValueId))
+      .leftJoin(dimensionType, eq(dimensionType.id, observationDimension.dimensionTypeId))
+      .where(
+        and(
+          eq(observation.indicatorId, indicatorId),
+          inArray(observation.areaId, councils),
+          isNotNull(observation.value),
+        ),
+      )
       .groupBy(observation.id, observation.fromDate, observation.toDate, observation.value),
   );
   return db

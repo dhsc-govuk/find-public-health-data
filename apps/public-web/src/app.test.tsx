@@ -378,8 +378,8 @@ describe('public application routes', () => {
                         },
                       ],
                       ranges: {
-                        'Local authorities': [rangePeriod],
-                        'Statistical regions': [rangePeriod],
+                        'england:upper': [rangePeriod],
+                        'region:E12000009:upper': [rangePeriod],
                       },
                     },
                   ],

@@ -44,6 +44,27 @@ test('adds IMD 2025, neighbours and the combined authority for Manchester diabet
   await expect(
     benchmarks.getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true }),
   ).toBeChecked();
+  await expect(
+    page
+      .locator('#indicator-trend-chart .fphd-chart-series-label')
+      .filter({ hasText: /^Statistical neighbours \(Manchester\)$/ }),
+  ).toBeVisible();
+});
+
+test('uses upper-tier council spreads for England and South East on West Sussex diabetes data', async ({
+  page,
+}) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/diabetes-qof-prevalence?as=E10000032&cmp-241=england&cmp-241=region',
+  );
+  const table = trendTable(page);
+  const latest = table
+    .locator('tbody tr')
+    .filter({ has: table.getByRole('rowheader', { name: '2024 to 2025', exact: true }) });
+  const values = await latest.locator('td.fphd-trend-table__benchmark-cell').allTextContents();
+  expect(values.slice(1, 5)).toEqual(['2.8%', '7.1%', '9.0%', '11.0%']);
+  expect(values.slice(6, 10)).toEqual(['5.0%', '6.5%', '7.9%', '11.0%']);
 });
 
 async function selectEarlierInequalityPeriod(options: Locator) {

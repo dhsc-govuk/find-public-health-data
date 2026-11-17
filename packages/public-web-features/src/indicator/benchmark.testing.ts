@@ -69,8 +69,9 @@ export function benchmarkFixture() {
     ],
     ranges: Object.fromEntries(
       [
-        'Upper-tier local authorities',
-        'Statistical regions',
+        'england:upper',
+        'region:E12000002:upper',
+        'region:E12000009:upper',
         ...memberships.map(({ dimensionValueId }) => dimensionValueId),
       ].map((key) => [
         key,

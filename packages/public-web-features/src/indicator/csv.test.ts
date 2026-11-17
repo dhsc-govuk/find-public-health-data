@@ -103,7 +103,7 @@ describe('loadIndicatorCsv', () => {
             ? (fixture.geography.caByCode ?? {})
             : fixture.geography.regionByCode,
         ).map(([code, parent]) => ({ code, parentCode: parent.code, parentName: parent.name })),
-      [`GET ${DETAIL}/range`]: { periods: fixture.ranges['Statistical regions'] ?? [] },
+      [`GET ${DETAIL}/range`]: { periods: fixture.ranges['england:upper'] ?? [] },
     });
     const query = new URLSearchParams([
       ['as', 'E08000003'],
@@ -129,9 +129,7 @@ describe('loadIndicatorCsv', () => {
       [
         'Period',
         'Manchester calculated value (%)',
-        'Manchester compared with policy goal',
         'Cornwall calculated value (%)',
-        'Cornwall compared with policy goal',
         ...names.flatMap((name) => [
           `${name} calculated value (%)`,
           `${name} lowest`,
@@ -139,15 +137,16 @@ describe('loadIndicatorCsv', () => {
           `${name} 75th percentile`,
           `${name} highest`,
         ]),
+        'Manchester compared with policy goal',
+        'Cornwall compared with policy goal',
         'Statistical neighbours (Manchester) calculated value (%)',
         'Statistical neighbours (Cornwall) calculated value (%)',
         'Combined authority (Manchester) calculated value (%)',
         'Combined authority (Cornwall) calculated value (%)',
-        'Policy goal',
       ].join(','),
     );
     expect(csv.split('\n')[1]).toBe(
-      '2024,3,Good,8,Bad,5,1,2,20,30,5,1,2,20,30,6,1,2,20,30,7,1,2,20,30,9,1,2,20,30,8,1,2,20,30,10,1,2,20,30,15,15,9,,"<4% is good, >6% is bad"',
+      '2024,3,8,5,1,2,20,30,5,1,2,20,30,6,1,2,20,30,7,1,2,20,30,9,1,2,20,30,8,1,2,20,30,10,1,2,20,30,Good,Bad,15,15,9,',
     );
     expect(paths(client).filter((path) => path.includes('/range?category=')).length).toBe(4);
     expect(
@@ -172,7 +171,7 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
     expect(await response.text()).toBe(
-      'Period,England calculated value (%),England compared with policy goal,Policy goal\n2024,5,Neither good nor bad,"<4% is good, >6% is bad"\n',
+      'Period,England calculated value (%),England compared with policy goal\n2024,5,Neither good nor bad\n',
     );
   });
   it('exports England and a shared region once after all selected area columns', async () => {
@@ -214,7 +213,7 @@ describe('loadIndicatorCsv', () => {
             min: 5,
             p25: 10,
             p75: 20,
-            max: call.path.includes('Local') ? 30 : 25,
+            max: call.path.includes('parent=') ? 25 : 30,
           },
         ],
       }),
@@ -302,7 +301,7 @@ describe('loadIndicatorCsv', () => {
       expect(csv).toContain(',200,250,350,400\n');
       expect(csv).not.toContain('Cornwall count');
       expect(paths(client)).toContain(
-        `${DETAIL}/range?displayGroup=${encodeURIComponent(benchmark === 'england' ? 'Local authorities' : 'Statistical regions')}`,
+        `${DETAIL}/range?tier=upper${benchmark === 'region' ? '&parent=E12000009' : ''}`,
       );
     },
   );

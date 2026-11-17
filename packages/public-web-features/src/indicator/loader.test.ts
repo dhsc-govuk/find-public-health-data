@@ -702,14 +702,53 @@ describe('loadIndicator', () => {
         args(client, `http://localhost/indicator/indicator-108?as=E00000001&${query}`),
       );
       expect(paths(client).filter((path) => path.includes('/108/range?'))).toEqual([
-        '/api/indicators/108/range?displayGroup=Local%20authorities',
-        '/api/indicators/108/range?displayGroup=Statistical%20regions',
+        ...(query.startsWith('cmp-compare')
+          ? [
+              '/api/indicators/108/range?displayGroup=Statistical%20regions',
+              '/api/indicators/108/range?displayGroup=Local%20authorities',
+            ]
+          : [
+              '/api/indicators/108/range?displayGroup=Local%20authorities',
+              '/api/indicators/108/range?displayGroup=Statistical%20regions',
+            ]),
       ]);
       expect(result.selected[0]?.regionData?.map(({ areaCode }) => areaCode)).toEqual([
         'E12000008',
       ]);
     },
   );
+
+  it('loads each region and display level once across picked areas', async () => {
+    const client = api({
+      'GET /api/areas/lookup': (call) =>
+        areaCodes(call.path).map((code) => ({
+          code,
+          name: code,
+          areaType: 'Council',
+          displayGroup:
+            code === 'E07000223' ? 'Lower-tier local authorities' : 'Upper-tier local authorities',
+        })),
+      'GET /api/areas/parents': ['E10000032', 'E10000011', 'E07000223'].map((code) => ({
+        code,
+        parentCode: 'E12000008',
+        parentName: 'South East',
+      })),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?as=E10000032&as=E10000011&as=E07000223&cmp-108=region',
+      ),
+    );
+    expect(paths(client).filter((path) => path.includes('/108/range?'))).toEqual([
+      '/api/indicators/108/range?tier=upper&parent=E12000008',
+      '/api/indicators/108/range?tier=lower&parent=E12000008',
+    ]);
+    expect(result.selected[0]?.ranges).toEqual({
+      'region:E12000008:upper': [],
+      'region:E12000008:lower': [],
+    });
+  });
 
   it('loads every section and requests compact rankings for all comparison areas', async () => {
     for (const query of ['', '?tab-indicator=areas']) {

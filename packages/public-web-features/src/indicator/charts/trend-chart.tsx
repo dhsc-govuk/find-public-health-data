@@ -1,5 +1,5 @@
 import { ChartSection } from '@fphd/ui';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import {
   CartesianGrid,
   ErrorBar,
@@ -74,13 +74,25 @@ function EndLabels({
   series,
   active,
   onActive,
-  labelLength,
+  labelWidth,
+  onWidth,
 }: {
   series: SeriesLabel[];
   active: number | null;
   onActive: (index: number | null) => void;
-  labelLength: number;
+  labelWidth: number;
+  onWidth: (width: number) => void;
 }) {
+  const labelsRef = useRef<SVGGElement>(null);
+  useLayoutEffect(() => {
+    const measured = Math.max(
+      0,
+      ...[...(labelsRef.current?.querySelectorAll('text') ?? [])].map(
+        (label) => label.getComputedTextLength?.() ?? 0,
+      ),
+    );
+    if (measured > 0) onWidth(measured);
+  }, [series, onWidth]);
   const x = useXAxisScale();
   const y = useYAxisScale();
   const plot = usePlotArea();
@@ -117,7 +129,7 @@ function EndLabels({
   }
   const labelX = plot.x + plot.width + 9;
   return (
-    <g>
+    <g ref={labelsRef}>
       {labels.map(({ index, name, pointX, pointY, y }) => (
         // biome-ignore lint/a11y/noStaticElementInteractions: this highlight duplicates the non-colour series labels and data table.
         <g key={index} onMouseEnter={() => onActive(index)} onMouseLeave={() => onActive(null)}>
@@ -131,7 +143,7 @@ function EndLabels({
               stroke={active === null || active === index ? lineColour(index) : gridColour}
             />
           ) : null}
-          <rect x={labelX - 3} y={y - 10} width={labelLength * 8} height={20} fill="transparent" />
+          <rect x={labelX - 3} y={y - 10} width={labelWidth} height={20} fill="transparent" />
           <text
             className="fphd-chart-series-label"
             fill={labelColours[index % labelColours.length] ?? axisColour}
@@ -139,7 +151,7 @@ function EndLabels({
             y={y}
             dominantBaseline="central"
           >
-            {name.length > labelLength ? `${name.slice(0, labelLength - 1)}…` : name}
+            {name}
           </text>
         </g>
       ))}
@@ -164,6 +176,7 @@ function TrendPlot({
 }) {
   const [active, setActive] = useState<number | null>(null);
   const [width, setWidth] = useState(640);
+  const [measuredLabelWidth, setMeasuredLabelWidth] = useState(0);
   const tooltip = useChartTooltip();
   const series = alignedSeries(areas).filter(({ observations }) =>
     [...observations.values()].some(({ value }) => value !== null),
@@ -194,11 +207,12 @@ function TrendPlot({
   const first = periods.find(({ key }) => primary.observations.get(key)?.value != null);
   const latest = periods.findLast(({ key }) => primary.observations.get(key)?.value != null);
   const chartTitle = `${title}${segment ? `, ${segmentLabel(segment)}` : ''}`;
-  const narrow = width < 480;
   const longest = Math.max(...series.map(({ name }) => name.length));
+  const labelWidth = Math.max(measuredLabelWidth, longest * 8.4);
+  const narrow = width < 480 || width < labelWidth + 200;
   const lastTickLength = periods.at(-1)?.label.length ?? 0;
   const tickInset = Math.max(26, 8 + lastTickLength * 4.5);
-  const right = narrow ? tickInset : Math.max(tickInset, Math.min(width * 0.4, 24 + longest * 8.4));
+  const right = narrow ? tickInset : Math.max(tickInset, 24 + labelWidth);
   const periodAxis =
     indicator.yearType?.value === 'financial'
       ? 'Financial year'
@@ -404,7 +418,8 @@ function TrendPlot({
                 series={endLabels}
                 active={active}
                 onActive={setActive}
-                labelLength={Math.max(6, Math.floor((right - 16) / 8))}
+                labelWidth={labelWidth}
+                onWidth={setMeasuredLabelWidth}
               />
             )}
           </LineChart>
@@ -438,12 +453,9 @@ function TrendPlot({
           <li title={`Policy goal: ${goalThresholdText(goal, indicator.unit)}`}>
             <svg width="32" height="18" aria-hidden="true">
               {goalThresholds(goal).map(({ colour }, index) => (
-                <line
+                <path
                   key={colour}
-                  x1="0"
-                  x2="32"
-                  y1={6 + index * 6}
-                  y2={6 + index * 6}
+                  d={`M0 ${6 + index * 6}h32`}
                   stroke={colour}
                   strokeDasharray="6 4"
                   strokeWidth={2}

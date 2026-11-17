@@ -3,7 +3,7 @@ import { stringify } from 'csv-stringify/sync';
 
 import { type ConfidenceLevel, segmentLabel, unitNote } from './data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from './loader.ts';
-import { goalThresholdText, goalVerdict } from './policy-goal.ts';
+import { goalVerdict } from './policy-goal.ts';
 import type { TrendColumns, trendTableModel } from './trend.ts';
 
 export function tableCsv(
@@ -30,7 +30,6 @@ export function trendCsv(
   columns?: TrendColumns,
 ): string {
   const {
-    benchmarkGroups,
     hasCounts: availableCounts,
     hasNumerators: availableNumerators,
     inPeriod,
@@ -43,6 +42,7 @@ export function trendCsv(
   const hasNumerators = columns ? columns.numerator : availableNumerators;
   const showValues = columns?.value ?? true;
   const showGoal = !!policyGoal && (columns?.goal ?? true);
+  const benchmarkGroups = model.benchmarkGroups.filter((benchmark) => !benchmark.goal || showGoal);
   const intervals = columns?.confidence ?? (confidence === 'none' ? [] : [confidence]);
   const spread = [
     ...(columns?.minMax ? (['min'] as const) : []),
@@ -62,20 +62,22 @@ export function trendCsv(
         ...(showValues ? [`${data.areaName} calculated value${unitNote(indicator.unit)}`] : []),
         ...(hasCounts ? [`${data.areaName} count`] : []),
         ...(hasNumerators ? [`${data.areaName} numerator`] : []),
-        ...(showGoal ? [`${data.areaName} compared with policy goal`] : []),
         ...intervals.flatMap((level) => [
           `${data.areaName} lower ${level}% CI`,
           `${data.areaName} upper ${level}% CI`,
         ]),
       ];
     }),
-    ...benchmarkGroups.flatMap((benchmark) => [
-      `${benchmark.name} calculated value${unitNote(indicator.unit)}`,
-      ...(benchmark.rangePeriods
-        ? spread.map((key) => `${benchmark.name} ${spreadLabels[key]}`)
-        : []),
-    ]),
-    ...(policyGoal ? ['Policy goal'] : []),
+    ...benchmarkGroups.flatMap((benchmark) =>
+      benchmark.goal
+        ? [`${benchmark.label} compared with policy goal`]
+        : [
+            `${benchmark.name} calculated value${unitNote(indicator.unit)}`,
+            ...(benchmark.rangePeriods
+              ? spread.map((key) => `${benchmark.name} ${spreadLabels[key]}`)
+              : []),
+          ],
+    ),
   ];
   const rows = periods.map((period) => [
     periodLabel(period, indicator.yearType),
@@ -85,7 +87,6 @@ export function trendCsv(
         ...(showValues ? [observation?.value ?? null] : []),
         ...(hasCounts ? [observation?.count ?? null] : []),
         ...(hasNumerators ? [observation?.numerator ?? null] : []),
-        ...(showGoal && policyGoal ? [goalVerdict(observation?.value, policyGoal)] : []),
         ...intervals.flatMap((level) =>
           level === '95'
             ? [observation?.lowerCi95 ?? null, observation?.upperCi95 ?? null]
@@ -93,7 +94,9 @@ export function trendCsv(
         ),
       ];
     }),
-    ...benchmarkGroups.flatMap((benchmark) => {
+    ...benchmarkGroups.flatMap<string | number | null>((benchmark) => {
+      if (benchmark.goal)
+        return [goalVerdict(benchmark.series.find(inPeriod(period))?.value, benchmark.goal)];
       const range = benchmark.rangePeriods?.find(
         (candidate) => inPeriod(period)(candidate) && candidate.segment === referenceSegment,
       );
@@ -102,7 +105,6 @@ export function trendCsv(
         ...(benchmark.rangePeriods ? spread.map((key) => range?.[key] ?? null) : []),
       ];
     }),
-    ...(policyGoal ? [goalThresholdText(policyGoal, indicator.unit)] : []),
   ]);
   return tableCsv([headers, ...rows]);
 }

@@ -99,6 +99,15 @@ it('uses every new checkbox label for its showing chip', () => {
     'Policy goal',
   ])
     expect(screen.getByRole('link', { name: `Remove ${label} filter` })).toBeTruthy();
+  const chips = [
+    ...document.querySelectorAll('.fphd-indicator-showing .fphd-filter-chip span'),
+  ].map((chip) => chip.textContent);
+  expect(chips.indexOf('Policy goal')).toBeLessThan(
+    chips.indexOf('Statistical neighbours (Manchester)'),
+  );
+  expect(chips.indexOf('Statistical neighbours (Manchester)')).toBeLessThan(
+    chips.indexOf('Combined authority (Manchester)'),
+  );
 });
 
 it('shows area chips before removable benchmark chips and keeps the other choices when removing one', async () => {
