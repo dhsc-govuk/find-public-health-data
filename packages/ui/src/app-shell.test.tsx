@@ -8,16 +8,18 @@ import { AppShell } from './app-shell.tsx';
 afterEach(cleanup);
 
 function renderShell({
+  audience = 'Public',
   environmentName,
   feedbackMailbox,
 }: {
+  audience?: 'Public' | 'Internal';
   environmentName?: string;
   feedbackMailbox?: string;
 } = {}) {
   render(
     <MemoryRouter>
       <AppShell
-        audience="Public"
+        audience={audience}
         environmentName={environmentName}
         feedbackMailbox={feedbackMailbox}
         navigation={[]}
@@ -47,18 +49,31 @@ it('shows no environment banner when there is no environment to name', () => {
   expect(screen.getByText('Page content')).toBeTruthy();
 });
 
-it('links feedback in the phase banner to the feedback mailbox', () => {
-  renderShell({ feedbackMailbox: 'feedback@example.com' });
+function phaseBanner() {
+  const banner = screen.getByText('Beta').closest('.govuk-phase-banner');
+  if (!(banner instanceof HTMLElement)) throw new Error('No phase banner');
+  return banner;
+}
 
-  expect(screen.getByText('Beta')).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'feedback' }).getAttribute('href')).toBe(
-    'mailto:feedback@example.com',
-  );
-});
+it.each(['Public', 'Internal'] as const)(
+  'asks for feedback at the feedback mailbox in the %s phase banner',
+  (audience) => {
+    renderShell({ audience, feedbackMailbox: 'feedback@example.com' });
 
-it('asks for feedback without a link when there is no feedback mailbox', () => {
+    expect(phaseBanner().textContent).toBe(
+      'BetaThis is a new service. You can help us to improve it by emailing feedback@example.com.',
+    );
+    expect(screen.getByRole('link', { name: 'feedback@example.com' }).getAttribute('href')).toBe(
+      'mailto:feedback@example.com',
+    );
+  },
+);
+
+it('asks for feedback by emailing us when there is no feedback mailbox', () => {
   renderShell();
 
-  expect(screen.getByText(/your feedback will help us to improve it/)).toBeTruthy();
-  expect(screen.queryByRole('link', { name: 'feedback' })).toBeNull();
+  expect(phaseBanner().textContent).toBe(
+    'BetaThis is a new service. You can help us to improve it by emailing us.',
+  );
+  expect(screen.queryByRole('link', { name: /@/ })).toBeNull();
 });

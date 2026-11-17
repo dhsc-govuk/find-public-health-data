@@ -4,6 +4,7 @@ import { createApiClient, forwardedCookieHeaders } from '@fphd/web-server/api-cl
 import { apiContext } from '@fphd/web-server/api-context';
 import { environmentContext } from '@fphd/web-server/environment-context';
 import { createFakeAuthReactRouterApp } from '@fphd/web-server/fake-auth-react-router';
+import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-context';
 import { createFlashSessionStorage, setFlashStorage } from '@fphd/web-server/flash';
 import { loggerContext } from '@fphd/web-server/logger-context';
 import { forwardedRequestIdHeaders } from '@fphd/web-server/request-id-headers';
@@ -36,5 +37,6 @@ export const app = createFakeAuthReactRouterApp(() => import('virtual:react-rout
     setFlashStorage(context, flashStorage);
     context.set(devToolsContext, config.offersDevTools);
     context.set(environmentContext, config.environmentName);
+    context.set(feedbackMailboxContext, config.feedbackMailbox);
   },
 });

@@ -208,6 +208,8 @@ function webServerFields(defaults: { apiUrl: string; port: number }) {
       .regex(/^[^:]*$/, 'must not contain a colon')
       .optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
+    // The address the feedback link in the phase banner emails.
+    FEEDBACK_MAILBOX: z.email().optional(),
   };
 }
 
@@ -380,6 +382,7 @@ function webServerConfig(parsed: z.output<z.ZodObject<ReturnType<typeof webServe
     apiUrl: parsed.API_URL,
     apiUploadTimeoutMs: parsed.API_UPLOAD_TIMEOUT_MS,
     trustedProxyHops: parsed.TRUSTED_PROXY_HOPS,
+    feedbackMailbox: parsed.FEEDBACK_MAILBOX,
     shutdown: resolveShutdown(parsed.APP_ENV, parsed),
     log: resolveLog(parsed.APP_ENV, parsed),
     basicAuth:
@@ -396,12 +399,7 @@ export function loadWebServerConfig(
 ) {
   const parsed = parseEnv(
     z
-      .object({
-        ...webServerFields(defaults),
-        ...betaAccessFields,
-        // The address the feedback link in the phase banner emails.
-        FEEDBACK_MAILBOX: z.email().optional(),
-      })
+      .object({ ...webServerFields(defaults), ...betaAccessFields })
       .refine(basicAuthSetTogether, basicAuthPairError)
       .superRefine(checkBetaAccess),
     env,
@@ -410,7 +408,6 @@ export function loadWebServerConfig(
   return {
     ...webServerConfig(parsed),
     betaAccess: betaAccessConfig(parsed),
-    feedbackMailbox: parsed.FEEDBACK_MAILBOX,
   } as const;
 }
 

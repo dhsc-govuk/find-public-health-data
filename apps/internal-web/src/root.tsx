@@ -9,6 +9,7 @@ import {
   RootErrorBoundary,
 } from '@fphd/ui';
 import { environmentContext } from '@fphd/web-server/environment-context';
+import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-context';
 import { flashMiddleware } from '@fphd/web-server/flash';
 import { getSession, sessionMiddleware } from '@fphd/web-server/session';
 import { useEffect } from 'react';
@@ -26,6 +27,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return {
     canManage: session !== undefined && canManage(session),
     environmentName: context.get(environmentContext),
+    feedbackMailbox: context.get(feedbackMailboxContext),
     signedIn: session !== undefined,
   };
 }
@@ -57,7 +59,7 @@ function useReloadWhenRestored() {
 }
 
 export default function InternalApp() {
-  const { canManage, environmentName, signedIn } = useLoaderData<typeof loader>();
+  const { canManage, environmentName, feedbackMailbox, signedIn } = useLoaderData<typeof loader>();
   const backLink = backLinkFrom(useMatches());
   useReloadWhenRestored();
 
@@ -65,6 +67,7 @@ export default function InternalApp() {
     <AppShell
       audience="Internal"
       environmentName={environmentName}
+      feedbackMailbox={feedbackMailbox}
       backHref={backLink?.href}
       backText={backLink?.text}
       navigation={navigationFor({ canManage, signedIn })}
@@ -78,11 +81,14 @@ export default function InternalApp() {
 export function ErrorBoundary() {
   // The root loader may not have run, or may be what failed, so there is no session to read
   // here — the error page shows the signed-out navigation rather than guessing. The environment
-  // banner shows whenever the loader did run.
+  // banner and the feedback address show whenever the loader did run.
+  const data = useRouteLoaderData<typeof loader>('root');
+
   return (
     <RootErrorBoundary
       audience="Internal"
-      environmentName={useRouteLoaderData<typeof loader>('root')?.environmentName}
+      environmentName={data?.environmentName}
+      feedbackMailbox={data?.feedbackMailbox}
       navigation={navigationFor({ canManage: false, signedIn: false })}
       serviceHref={href('/dashboard')}
     />
