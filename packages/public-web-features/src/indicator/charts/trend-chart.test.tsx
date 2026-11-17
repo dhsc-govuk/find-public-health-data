@@ -6,6 +6,24 @@ import { TrendChart } from './trend-chart.tsx';
 
 afterEach(cleanup);
 
+it('appends each benchmark latest value to the chart summary', () => {
+  render(
+    <TrendChart
+      id="trend"
+      title="Trend"
+      indicator={indicatorDetail()}
+      benchmarkCodes={['E92000001', 'E12000008']}
+      areas={[
+        { areaCode: 'E10000032', areaName: 'West Sussex', observations: [observation(8)] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation(7.9)] },
+        { areaCode: 'E12000008', areaName: 'South East', observations: [observation(7.3)] },
+      ]}
+    />,
+  );
+  const summary = screen.getByText('England: 7.9%.').closest('p');
+  expect(summary?.textContent).toBe('West Sussex: 8.0% in 2024. England: 7.9%. South East: 7.3%.');
+});
+
 it.each([
   [[null, 0, 12, null], 'England: 12.0% in 2022, up from 0.0% in 2021.'],
   [[null, 12, 0, null], 'England: 0.0% in 2022, down from 12.0% in 2021.'],

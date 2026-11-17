@@ -77,6 +77,81 @@ function paths(client: FakeApiClient) {
 }
 
 describe('loadIndicatorCsv', () => {
+  it('exports England and a shared region once after all selected area columns', async () => {
+    const area = (areaCode: string, areaName: string, value: number) => ({
+      areaCode,
+      areaName,
+      observations: [observation({ value, lowerCi95: value - 1, upperCi95: value + 1 })],
+    });
+    const data = [
+      area('E06000052', 'Cornwall', 14),
+      area('E10000008', 'Devon', 18),
+      area('E92000001', 'England', 12),
+      area('E12000009', 'South West', 15),
+    ];
+    const client = api([], {
+      [`GET ${DETAIL}/data`]: (call: FakeApiCall) => {
+        const rows = areaCodes(call).flatMap(
+          (code) => data.find(({ areaCode }) => areaCode === code) ?? [],
+        );
+        return rows.length === 1 ? rows[0] : rows;
+      },
+      'GET /api/areas/lookup': data.slice(0, 2).map(({ areaCode, areaName }) => ({
+        code: areaCode,
+        name: areaName,
+        areaType: 'Unitary authority',
+        displayGroup: 'Local authorities',
+      })),
+      'GET /api/areas/parents': data.slice(0, 2).map(({ areaCode }) => ({
+        code: areaCode,
+        parentCode: 'E12000009',
+        parentName: 'South West',
+      })),
+      [`GET ${DETAIL}/range`]: (call: FakeApiCall) => ({
+        periods: [
+          {
+            fromDate: '2023-01-01',
+            toDate: '2023-12-31',
+            segment: '',
+            min: 5,
+            p25: 10,
+            p75: 20,
+            max: call.path.includes('Local') ? 30 : 25,
+          },
+        ],
+      }),
+    });
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E06000052&as=E10000008&cmp-108=&cmp-108=region&cmp-108=england&cmp-108=england`,
+      ),
+      'table',
+    );
+    const [header, row] = (await response.text()).trim().split('\n');
+    expect(header).toBe(
+      [
+        'Period',
+        ...['Cornwall', 'Devon'].flatMap((name) => [
+          `${name} calculated value (per 100,000)`,
+          `${name} lower 95% CI`,
+          `${name} upper 95% CI`,
+        ]),
+        ...['England', 'South West (Statistical region)'].flatMap((name) => [
+          `${name} calculated value (per 100,000)`,
+          `${name} lowest`,
+          `${name} 25th percentile`,
+          `${name} 75th percentile`,
+          `${name} highest`,
+        ]),
+      ]
+        .map((label) => (label.includes(',') ? `"${label}"` : label))
+        .join(','),
+    );
+    expect(row).toBe('2023,14,13,15,18,17,19,12,5,10,20,30,15,5,10,20,25');
+    expect(paths(client).filter((path) => path.includes('/range?'))).toHaveLength(2);
+  });
+
   it.each(['england', 'region'])(
     'exports the default %s spread without a columns parameter',
     async (benchmark) => {

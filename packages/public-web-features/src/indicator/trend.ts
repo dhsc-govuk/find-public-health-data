@@ -1,3 +1,4 @@
+import { canonicalBenchmarks } from './benchmarks.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import { alignedTrendSeries, type ConfidenceLevel, segmentValuesKey, trendSeries } from './data.ts';
 import type {
@@ -8,11 +9,15 @@ import type {
 } from './loader.ts';
 
 export interface AreaBenchmark {
+  key: string;
+  choice: BenchmarkChoice;
+  areaCode: string;
   name: string;
   /** The benchmark as the comparison chart's heading names it: "Compared with <label>". */
   label: string;
+  chartLabel: string;
   series: IndicatorObservation[];
-  rangePeriods: IndicatorRangePeriod[];
+  rangePeriods?: IndicatorRangePeriod[];
 }
 
 export interface TrendColumns {
@@ -83,14 +88,14 @@ export function trendColumnsParam(columns: TrendColumns): string {
 
 export function trendTableModel({
   areaData,
-  benchmark = 'none',
+  benchmarks = [],
   confidence,
   geography = { regionByCode: {}, levelByCode: {} },
   ranges = {},
   regionData = [],
 }: {
   areaData: IndicatorAreaData[];
-  benchmark?: BenchmarkChoice;
+  benchmarks?: readonly BenchmarkChoice[];
   confidence: ConfidenceLevel;
   geography?: BenchmarkGeography;
   ranges?: Record<string, IndicatorRangePeriod[]>;
@@ -99,38 +104,61 @@ export function trendTableModel({
   const nonEngland = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const england = areaData.filter(({ areaCode }) => areaCode === 'E92000001');
   const shownAreas = nonEngland.length === 0 ? areaData : nonEngland;
-  const benchmarkActive = benchmark !== 'none' && nonEngland.length > 0;
+  const choices = nonEngland.length ? canonicalBenchmarks(benchmarks) : [];
   const reference = shownAreas[0] ? trendSeries(shownAreas[0].observations)[0] : undefined;
   const referenceSegment = reference ? segmentValuesKey(reference) : '';
   const seriesFor = (observations: IndicatorObservation[]) =>
     alignedTrendSeries(observations, reference);
   const englandSeries = england[0] ? seriesFor(england[0].observations) : [];
-  const benchmarkFor = (areaCode: string): AreaBenchmark | undefined => {
-    if (!benchmarkActive) return undefined;
-    if (benchmark === 'england') {
+  const benchmarkFor = (choice: BenchmarkChoice, areaCode: string): AreaBenchmark | undefined => {
+    if (choice === 'england') {
       return {
+        key: 'england',
+        choice,
+        areaCode: 'E92000001',
         name: 'England',
         label: 'England',
+        chartLabel: 'England',
         series: englandSeries,
         rangePeriods: ranges[geography.levelByCode[areaCode] ?? ''] ?? [],
       };
     }
-    const region = geography.regionByCode[areaCode];
-    if (!region) return undefined;
-    const data = regionData.find(({ areaCode: code }) => code === region.code);
-    return {
-      name: `${region.name} (Statistical region)`,
-      label: region.name,
-      series: data ? seriesFor(data.observations) : [],
-      rangePeriods: ranges['Statistical regions'] ?? [],
-    };
+    if (choice === 'region') {
+      const region = geography.regionByCode[areaCode];
+      if (!region) return undefined;
+      const data = regionData.find(({ areaCode: code }) => code === region.code);
+      return {
+        key: `region:${region.code}`,
+        choice,
+        areaCode: region.code,
+        name: `${region.name} (Statistical region)`,
+        label: region.name,
+        chartLabel: region.name,
+        series: data ? seriesFor(data.observations) : [],
+        rangePeriods: ranges['Statistical regions'] ?? [],
+      };
+    }
+    return undefined;
   };
   const seriesByArea = shownAreas
     .map((data) => ({ data, series: seriesFor(data.observations) }))
     .filter(({ series }) => series.length > 0);
-  const benchmarks = new Map(
-    seriesByArea.map(({ data }) => [data.areaCode, benchmarkFor(data.areaCode)]),
+  const benchmarksByArea = new Map(
+    seriesByArea.map(({ data }) => [
+      data.areaCode,
+      choices.flatMap((choice) => benchmarkFor(choice, data.areaCode) ?? []),
+    ]),
   );
+  const groups = new Map<string, AreaBenchmark>();
+  for (const choice of choices) {
+    for (const { data } of seriesByArea) {
+      const benchmark = benchmarksByArea
+        .get(data.areaCode)
+        ?.find((entry) => entry.choice === choice);
+      if (benchmark && !groups.has(benchmark.key)) groups.set(benchmark.key, benchmark);
+    }
+  }
+  const benchmarkGroups = [...groups.values()];
   const periods = [
     ...new Map(
       shownAreas
@@ -155,7 +183,8 @@ export function trendTableModel({
     confidence === '99.8' ? observation.upperCi998 : observation.upperCi95;
 
   return {
-    benchmarks,
+    benchmarkGroups,
+    benchmarksByArea,
     firstObservation: seriesByArea[0]?.series[0],
     hasCounts,
     hasNumerators,
@@ -166,4 +195,19 @@ export function trendTableModel({
     seriesByArea,
     upperOf,
   };
+}
+
+export function trendChartAreas(model: ReturnType<typeof trendTableModel>): IndicatorAreaData[] {
+  return [
+    ...model.seriesByArea.map(({ data, series }) => ({ ...data, observations: series })),
+    ...model.benchmarkGroups
+      .filter(
+        (benchmark) => !model.seriesByArea.some(({ data }) => data.areaCode === benchmark.areaCode),
+      )
+      .map((benchmark) => ({
+        areaCode: benchmark.areaCode,
+        areaName: benchmark.chartLabel,
+        observations: benchmark.series,
+      })),
+  ];
 }

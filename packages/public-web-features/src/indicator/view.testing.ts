@@ -9,6 +9,7 @@ export function indicatorDetail(
   overrides: Partial<IndicatorDetail> = {},
 ): IndicatorDetail {
   return {
+    goal: null,
     shortId,
     slug: `indicator-${shortId}`,
     name: `Indicator ${shortId}`,

@@ -676,12 +676,38 @@ describe('loadIndicator', () => {
     expect(result.selected[0]?.ranges).toEqual({ 'Local authorities': [] });
   });
 
-  it('loads no spread without a benchmark', async () => {
-    const client = api();
-    await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?as=E00000001'));
+  it.each(['', '&cmp-108=', '&cmp-108=none'])(
+    'loads no spread without a benchmark: %s',
+    async (query) => {
+      const client = api();
+      await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108?as=E00000001${query}`),
+      );
 
-    expect(paths(client).some((path) => path.includes('/range'))).toBe(false);
-  });
+      expect(paths(client).some((path) => path.includes('/range'))).toBe(false);
+    },
+  );
+
+  it.each(['cmp-108=region&cmp-108=england&cmp-108=region', 'cmp-compare=region&cmp-108=england'])(
+    'loads both benchmark distributions once: %s',
+    async (query) => {
+      const client = api({
+        'GET /api/areas/parents': [
+          { code: 'E00000001', parentCode: 'E12000008', parentName: 'South East' },
+        ],
+      });
+      const result = await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108?as=E00000001&${query}`),
+      );
+      expect(paths(client).filter((path) => path.includes('/108/range?'))).toEqual([
+        '/api/indicators/108/range?displayGroup=Local%20authorities',
+        '/api/indicators/108/range?displayGroup=Statistical%20regions',
+      ]);
+      expect(result.selected[0]?.regionData?.map(({ areaCode }) => areaCode)).toEqual([
+        'E12000008',
+      ]);
+    },
+  );
 
   it('loads every section and requests compact rankings for all comparison areas', async () => {
     for (const query of ['', '?tab-indicator=areas']) {

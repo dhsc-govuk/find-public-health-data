@@ -2,6 +2,7 @@ import { Button, Checkboxes, CollapsibleFilterCard, Details, Hint, Radios, Selec
 import { type ReactNode, useId } from 'react';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 
+import { benchmarkCheckboxOptions, canonicalBenchmarks, selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
 import type { BenchmarkChoice } from './comparison.ts';
 import {
@@ -38,10 +39,13 @@ export function useOptionParamNavigation() {
   const location = useLocation();
   const navigation = useNavigation();
   const navigate = useNavigate();
-  return (entries: readonly (readonly [string, string, string])[]) => {
+  return (entries: readonly (readonly [string, string | readonly string[], string])[]) => {
     const params = currentOptionParams(navigation.location?.search ?? location.search);
     for (const [key, value, empty] of entries) {
-      if (value === empty) {
+      if (typeof value !== 'string') {
+        params.delete(key);
+        for (const entry of value.length ? value : ['']) params.append(key, entry);
+      } else if (value === empty) {
         params.delete(key);
       } else {
         params.set(key, value);
@@ -55,7 +59,7 @@ export function useOptionParamNavigation() {
 }
 
 export interface PanelOptions {
-  benchmark: BenchmarkChoice;
+  benchmarks: BenchmarkChoice[];
   confidence: ConfidenceLevel;
   periodType: PeriodType;
   sex: string;
@@ -78,18 +82,19 @@ export function usePanelOptions(scope: OptionScope) {
   const params = new URLSearchParams(navigation.location?.search ?? search);
   const names = panelOptionNames(scope);
   const apply = useOptionParamNavigation();
-  const benchmark = params.get(names.benchmark);
   const confidence = params.get(names.confidence);
   const periodType = params.get(names.periodType);
   const options: PanelOptions = {
-    benchmark: benchmark === 'england' || benchmark === 'region' ? benchmark : 'none',
+    benchmarks: selectedBenchmarks(params, scope),
     confidence: confidence === '95' || confidence === '99.8' ? confidence : 'none',
     periodType: periodType === '1-year' || periodType === '3-year' ? periodType : 'all',
     sex: params.get(names.sex) ?? '',
   };
   const update = (next: PanelOptions) =>
     apply([
-      [names.benchmark, next.benchmark, 'none'],
+      ...(next.benchmarks.join() === options.benchmarks.join()
+        ? []
+        : ([[names.benchmark, canonicalBenchmarks(next.benchmarks), 'none']] as const)),
       [names.confidence, next.confidence, 'none'],
       [names.periodType, next.periodType, 'all'],
       [names.sex, next.sex, ''],
@@ -132,6 +137,58 @@ function OptionsForm({
   );
 }
 
+export function BenchmarksPanel({
+  choices,
+  onChange,
+  region,
+  scope,
+  target,
+}: {
+  choices: readonly BenchmarkChoice[];
+  onChange: (choices: BenchmarkChoice[]) => void;
+  region: boolean;
+  scope: number;
+  target: OptionTarget;
+}) {
+  const id = `benchmark-${useId()}`;
+  const name = `cmp-${scope}`;
+  return (
+    <CollapsibleFilterCard active={false} defaultOpenOnDesktop title="Benchmarks">
+      <OptionsForm names={[name]} target={target}>
+        <input type="hidden" name={name} value="" />
+        {/* The shared container hides the legend text but leaves the legend's spacing. */}
+        <fieldset className="govuk-fieldset" aria-describedby={`${id}-hint`}>
+          <legend className="govuk-fieldset__legend govuk-visually-hidden">Benchmarks</legend>
+          <Hint id={`${id}-hint`}>
+            Compare with geographies, deprivation levels or policy goals (where available).
+          </Hint>
+          <div className="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            {benchmarkCheckboxOptions(region).map(({ value, label }) => (
+              <Checkboxes.Item
+                key={value}
+                id={`${id}-${value}`}
+                name={name}
+                value={value}
+                label={label}
+                checked={choices.includes(value)}
+                onChange={(event) =>
+                  onChange(
+                    canonicalBenchmarks(
+                      event.currentTarget.checked
+                        ? [...choices, value]
+                        : choices.filter((choice) => choice !== value),
+                    ),
+                  )
+                }
+              />
+            ))}
+          </div>
+        </fieldset>
+      </OptionsForm>
+    </CollapsibleFilterCard>
+  );
+}
+
 /**
  * "Chart options" / "Table options" disclosure. Every panel offers the confidence-interval
  * choice; the sex and period controls appear only where the indicator reports those segments.
@@ -140,7 +197,7 @@ export function PanelOptionsPanel({
   accordion = false,
   columns,
   onColumnsChange,
-  benchmarks,
+  rangeBenchmarks = false,
   confidenceLevels,
   label,
   measures = [],
@@ -157,8 +214,7 @@ export function PanelOptionsPanel({
   accordion?: boolean;
   columns?: TrendColumns;
   onColumnsChange?: (columns: TrendColumns) => void;
-  /** Which comparisons the shown areas support; absent when only England is shown. */
-  benchmarks?: { region: boolean } | undefined;
+  rangeBenchmarks?: boolean;
   confidenceLevels: Exclude<ConfidenceLevel, 'none'>[];
   label: string;
   /** The raw numbers the data has, which the table columns offer. */
@@ -174,7 +230,6 @@ export function PanelOptionsPanel({
   target: OptionTarget;
 }) {
   const ids = {
-    benchmark: useId(),
     confidence: useId(),
     period: useId(),
     sex: useId(),
@@ -191,7 +246,7 @@ export function PanelOptionsPanel({
         { value: 'chart', label: 'Comparison chart', checked: columns.chart },
       ]
     : [];
-  const offerRange = benchmarks !== undefined && options.benchmark !== 'none';
+  const offerRange = rangeBenchmarks;
   const columnOptions = columns
     ? [
         ...MEASURES.filter(({ key }) => measures.includes(key)).map(({ key, label }) => ({
@@ -214,7 +269,7 @@ export function PanelOptionsPanel({
       names={[
         ...Object.values(names).filter(
           (name) =>
-            (name !== names.benchmark || !!benchmarks) &&
+            name !== names.benchmark &&
             (name !== names.sex || sexes.length > (accordion ? 1 : 0)) &&
             (name !== names.periodType || periodTypes.length > 1) &&
             (name !== names.confidence ||
@@ -265,22 +320,6 @@ export function PanelOptionsPanel({
             }}
           />
         </>
-      ) : null}
-      {benchmarks ? (
-        <Select
-          id={ids.benchmark}
-          label="Select a geography or goal to compare with"
-          name={names.benchmark}
-          onChange={(event) =>
-            onChange({ ...options, benchmark: event.currentTarget.value as BenchmarkChoice })
-          }
-          options={[
-            { label: 'None', value: 'none' },
-            { label: 'England', value: 'england' },
-            ...(benchmarks.region ? [{ label: 'Statistical regions', value: 'region' }] : []),
-          ]}
-          value={options.benchmark}
-        />
       ) : null}
       <div className="fphd-segmentation-options__selects">
         {panel === 'compare-areas' ? (

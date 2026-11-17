@@ -1,4 +1,5 @@
 import { CollapsibleFilterCard } from '@fphd/ui';
+import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
@@ -6,11 +7,15 @@ import type { IndicatorSelection } from './loader.ts';
 import { indicatorSelectionUrl } from './paths.ts';
 
 export function IndicatorGeographies({
+  children,
+  shortId,
   displayGroups,
   geographyOptions,
   slug,
   selection,
 }: {
+  children?: ReactNode;
+  shortId: number;
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
   slug: string;
@@ -20,7 +25,7 @@ export function IndicatorGeographies({
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
   const urlFor = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(location, areaCodes, areaLevels);
+    indicatorSelectionUrl(location, areaCodes, areaLevels, shortId);
   const picked = selection.areaCodes.length > 0 || selection.areaLevels.length > 0;
 
   return (
@@ -46,6 +51,9 @@ export function IndicatorGeographies({
           }}
           selection={selection}
         >
+          {!picked && !params.has(`cmp-${shortId}`) ? (
+            <input name={`cmp-${shortId}`} type="hidden" value="england" />
+          ) : null}
           {[...params]
             .filter(([name]) => name !== 'as' && name !== 'als' && name !== 'find')
             .map(([name, value], index) => (
@@ -53,6 +61,7 @@ export function IndicatorGeographies({
             ))}
         </GeographyPicker>
       </CollapsibleFilterCard>
+      {children}
     </div>
   );
 }

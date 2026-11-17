@@ -11,12 +11,19 @@ import {
 } from './data.ts';
 import type { BenchmarkGeography, SelectedIndicator } from './loader.ts';
 
-export type BenchmarkChoice = 'none' | 'england' | 'region';
+export type BenchmarkChoice =
+  | 'england'
+  | 'region'
+  | 'imd2019'
+  | 'imd2025'
+  | `neighbours:${string}`
+  | `ca:${string}`
+  | 'goal';
 
 export function comparisonTable(
   selected: SelectedIndicator[],
   geography: BenchmarkGeography,
-  choice: BenchmarkChoice,
+  choice: BenchmarkChoice | 'none',
 ) {
   const rows = comparisonRows(selected);
   const areas = comparisonAreas(selected[0]?.areaData ?? []).map(({ areaCode, areaName }) => ({

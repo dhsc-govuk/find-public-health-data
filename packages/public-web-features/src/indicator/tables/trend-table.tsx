@@ -10,7 +10,7 @@ import type {
   IndicatorDetail,
   IndicatorRangePeriod,
 } from '../loader.ts';
-import { type TrendColumns, trendTableModel } from '../trend.ts';
+import { type AreaBenchmark, type TrendColumns, trendTableModel } from '../trend.ts';
 import {
   BenchmarkCells,
   BenchmarkChartCell,
@@ -33,7 +33,7 @@ function UnitNote({ unit }: { unit: string | null }) {
 
 export function TrendTable({
   areaData,
-  benchmark = 'none',
+  benchmarks = [],
   confidence,
   geography = { regionByCode: {}, levelByCode: {} },
   indicator,
@@ -44,7 +44,7 @@ export function TrendTable({
   visibleCaption = false,
 }: {
   areaData: IndicatorAreaData[];
-  benchmark?: BenchmarkChoice;
+  benchmarks?: readonly BenchmarkChoice[];
   confidence: ConfidenceLevel;
   geography?: BenchmarkGeography;
   indicator: IndicatorDetail;
@@ -57,14 +57,15 @@ export function TrendTable({
   const id = useId();
   const model = trendTableModel({
     areaData,
-    benchmark,
+    benchmarks,
     confidence,
     geography,
     ranges,
     regionData,
   });
   const {
-    benchmarks,
+    benchmarkGroups,
+    benchmarksByArea,
     firstObservation,
     hasCounts: availableCounts,
     hasNumerators: availableNumerators,
@@ -82,27 +83,35 @@ export function TrendTable({
   if (!firstObservation) {
     return <p className="govuk-body">No data matches the selected options.</p>;
   }
-  const benchmarkColumns = benchmarkColumnCount(spread);
+  const spreadFor = (benchmark: AreaBenchmark) =>
+    benchmark.rangePeriods ? spread : { minMax: false, percentiles: false };
+  const chartBenchmarks = (areaCode: string) =>
+    showChart
+      ? (benchmarksByArea.get(areaCode) ?? []).filter(
+          (benchmark) => benchmark.rangePeriods !== undefined,
+        )
+      : [];
   const cell = (areaSeries: (typeof seriesByArea)[number], period: (typeof periods)[number]) =>
     areaSeries.series.find(inPeriod(period));
   const columnsPerArea =
     Number(hasCounts) + Number(hasNumerators) + Number(showValues) + intervals.length * 2;
-  const areaColumns = (areaCode: string) =>
-    columnsPerArea + Number(showChart && benchmarks.get(areaCode) !== undefined);
+  const areaColumns = (areaCode: string) => columnsPerArea + chartBenchmarks(areaCode).length;
   const columnCount =
     1 +
-    seriesByArea.reduce(
-      (total, { data }) =>
-        total + areaColumns(data.areaCode) + (benchmarks.get(data.areaCode) ? benchmarkColumns : 0),
+    seriesByArea.reduce((total, { data }) => total + areaColumns(data.areaCode), 0) +
+    benchmarkGroups.reduce(
+      (total, benchmark) => total + benchmarkColumnCount(spreadFor(benchmark)),
       0,
     );
   if (columnCount === 1) return <p className="govuk-body">Select at least one table column.</p>;
-  const hasChartRange = [...benchmarks.values()].some((areaBenchmark) =>
-    areaBenchmark?.rangePeriods.some(
-      (range) =>
-        range.segment === referenceSegment && periods.some((period) => inPeriod(period)(range)),
-    ),
-  );
+  const hasChartRange = [...benchmarksByArea.values()]
+    .flat()
+    .some((benchmark) =>
+      benchmark.rangePeriods?.some(
+        (range) =>
+          range.segment === referenceSegment && periods.some((period) => inPeriod(period)(range)),
+      ),
+    );
   const valueSuffix = indicator.unit === '%' ? '%' : '';
   // Every distinct value note gets a sequential marker, explained under the table.
   const noteTexts = [
@@ -124,9 +133,9 @@ export function TrendTable({
   const headingId = (index: number, column: string) => `${id}-${index}-${column}`;
   const rowId = (index: number) => `${id}-row-${index}`;
   const headers = (row: number, area: number, group: 'area' | 'benchmark', column: string) =>
-    `${rowId(row)} ${groupId(area, group)} ${headingId(area, column)}`;
+    `${rowId(row)} ${groupId(area, group)} ${headingId(area, `${group}-${column}`)}`;
   const heading = (area: number, column: string, label: ReactNode, className = HEADER) => (
-    <th id={headingId(area, column)} scope="col" className={className}>
+    <th id={headingId(area, `area-${column}`)} scope="col" className={className}>
       {label}
     </th>
   );
@@ -161,29 +170,29 @@ export function TrendTable({
           <thead className="govuk-table__head">
             <tr className="govuk-table__row">
               <td aria-hidden="true" className="govuk-table__header fphd-table__frozen" />
-              {seriesByArea.map(({ data }, area) => (
-                <Fragment key={data.areaCode}>
-                  {areaColumns(data.areaCode) > 0 ? (
-                    <th
-                      id={groupId(area, 'area')}
-                      scope="colgroup"
-                      colSpan={areaColumns(data.areaCode)}
-                      className={HEADER}
-                    >
-                      {data.areaName}
-                    </th>
-                  ) : null}
-                  {benchmarks.get(data.areaCode) ? (
-                    <th
-                      id={groupId(area, 'benchmark')}
-                      scope="colgroup"
-                      colSpan={benchmarkColumns}
-                      className={`${HEADER} fphd-trend-table__benchmark-group`}
-                    >
-                      {benchmarks.get(data.areaCode)?.name}
-                    </th>
-                  ) : null}
-                </Fragment>
+              {seriesByArea.map(({ data }, area) =>
+                areaColumns(data.areaCode) > 0 ? (
+                  <th
+                    key={data.areaCode}
+                    id={groupId(area, 'area')}
+                    scope="colgroup"
+                    colSpan={areaColumns(data.areaCode)}
+                    className={HEADER}
+                  >
+                    {data.areaName}
+                  </th>
+                ) : null,
+              )}
+              {benchmarkGroups.map((benchmark, index) => (
+                <th
+                  key={benchmark.key}
+                  id={groupId(index, 'benchmark')}
+                  scope="colgroup"
+                  colSpan={benchmarkColumnCount(spreadFor(benchmark))}
+                  className={`${HEADER} fphd-trend-table__benchmark-group`}
+                >
+                  {benchmark.name}
+                </th>
               ))}
             </tr>
             <tr className="govuk-table__row">
@@ -191,7 +200,6 @@ export function TrendTable({
                 Period
               </th>
               {seriesByArea.map(({ data }, area) => {
-                const areaBenchmark = benchmarks.get(data.areaCode);
                 return (
                   <Fragment key={data.areaCode}>
                     {showValues
@@ -224,25 +232,32 @@ export function TrendTable({
                           </>,
                         )
                       : null}
-                    {showChart && areaBenchmark
-                      ? heading(area, 'chart', `Compared with ${areaBenchmark.label}`)
-                      : null}
+                    {chartBenchmarks(data.areaCode).map((benchmark) => (
+                      <Fragment key={benchmark.key}>
+                        {heading(
+                          area,
+                          `chart-${benchmark.key}`,
+                          `Compared with ${benchmark.label}`,
+                        )}
+                      </Fragment>
+                    ))}
                     {intervals.map((level) => (
                       <Fragment key={level}>
                         {heading(area, `lower-${level}`, `${level}% lower confidence interval`)}
                         {heading(area, `upper-${level}`, `${level}% upper confidence interval`)}
                       </Fragment>
                     ))}
-                    {areaBenchmark ? (
-                      <BenchmarkHeaderCells
-                        columns={spread}
-                        idFor={(column) => headingId(area, `benchmark-${column}`)}
-                        unit={<UnitNote unit={indicator.unit} />}
-                      />
-                    ) : null}
                   </Fragment>
                 );
               })}
+              {benchmarkGroups.map((benchmark, index) => (
+                <BenchmarkHeaderCells
+                  key={benchmark.key}
+                  columns={spreadFor(benchmark)}
+                  idFor={(column) => headingId(index, `benchmark-${column}`)}
+                  unit={<UnitNote unit={indicator.unit} />}
+                />
+              ))}
             </tr>
           </thead>
           <tbody className="govuk-table__body">
@@ -253,11 +268,6 @@ export function TrendTable({
                 </th>
                 {seriesByArea.map((areaSeries, area) => {
                   const observation = cell(areaSeries, period);
-                  const areaBenchmark = benchmarks.get(areaSeries.data.areaCode);
-                  const benchmarkObservation = areaBenchmark?.series.find(inPeriod(period));
-                  const rangePeriod = areaBenchmark?.rangePeriods.find(
-                    (range) => inPeriod(period)(range) && range.segment === referenceSegment,
-                  );
                   const at = (column: string) => headers(row, area, 'area', column);
                   return (
                     <Fragment key={areaSeries.data.areaCode}>
@@ -289,19 +299,23 @@ export function TrendTable({
                             : formatValue(observation.numerator)}
                         </td>
                       ) : null}
-                      {showChart && areaBenchmark ? (
+                      {chartBenchmarks(areaSeries.data.areaCode).map((benchmark) => (
                         <BenchmarkChartCell
+                          key={benchmark.key}
                           areaName={areaSeries.data.areaName}
                           areaObservation={observation}
-                          benchmarkName={areaBenchmark.name}
-                          benchmarkValue={benchmarkObservation?.value ?? null}
+                          benchmarkName={benchmark.name}
+                          benchmarkValue={benchmark.series.find(inPeriod(period))?.value ?? null}
                           confidence={confidence === '99.8' ? '99.8' : '95'}
-                          headers={at('chart')}
+                          headers={at(`chart-${benchmark.key}`)}
                           indicator={indicator}
-                          rangePeriod={rangePeriod}
+                          rangePeriod={benchmark.rangePeriods?.find(
+                            (range) =>
+                              inPeriod(period)(range) && range.segment === referenceSegment,
+                          )}
                           unit={indicator.unit}
                         />
-                      ) : null}
+                      ))}
                       {intervals.map((level) => {
                         const lower =
                           level === '95' ? observation?.lowerCi95 : observation?.lowerCi998;
@@ -322,25 +336,26 @@ export function TrendTable({
                           </Fragment>
                         );
                       })}
-                      {areaBenchmark ? (
-                        <BenchmarkCells
-                          benchmarkValue={benchmarkObservation?.value ?? null}
-                          columns={spread}
-                          format={(value) => (
-                            <>
-                              {formatCalculatedValue(value)}
-                              {valueSuffix}
-                            </>
-                          )}
-                          headersFor={(column) =>
-                            headers(row, area, 'benchmark', `benchmark-${column}`)
-                          }
-                          rangePeriod={rangePeriod}
-                        />
-                      ) : null}
                     </Fragment>
                   );
                 })}
+                {benchmarkGroups.map((benchmark, index) => (
+                  <BenchmarkCells
+                    key={benchmark.key}
+                    benchmarkValue={benchmark.series.find(inPeriod(period))?.value ?? null}
+                    columns={spreadFor(benchmark)}
+                    format={(value) => (
+                      <>
+                        {formatCalculatedValue(value)}
+                        {valueSuffix}
+                      </>
+                    )}
+                    headersFor={(column) => headers(row, index, 'benchmark', column)}
+                    rangePeriod={benchmark.rangePeriods?.find(
+                      (range) => inPeriod(period)(range) && range.segment === referenceSegment,
+                    )}
+                  />
+                ))}
               </tr>
             ))}
           </tbody>

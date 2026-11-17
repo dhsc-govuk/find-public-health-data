@@ -173,7 +173,7 @@ const benchmarked = {
       observations: [observation('2023-04-01', '2024-03-31', 12)],
     },
   ],
-  benchmark: 'england' as const,
+  benchmarks: ['england'] as const,
   confidence: '95' as const,
   geography: { regionByCode: {}, levelByCode: { E08000003: 'Local authorities' } },
   indicator: {
@@ -208,6 +208,96 @@ const allColumns: TrendColumns = {
 };
 
 describe('TrendTable benchmark columns', () => {
+  it.each([false, true])(
+    'orders shared England and region groups for two areas (same region: %s)',
+    (sameRegion) => {
+      const second = {
+        areaCode: 'E06000052',
+        areaName: 'Cornwall',
+        observations: [observation('2023-04-01', '2024-03-31', 18)],
+      };
+      const northWest = { code: 'E12000002', name: 'North West' };
+      const southWest = { code: 'E12000009', name: 'South West' };
+      const region = sameRegion ? northWest : southWest;
+      const columns = { ...allColumns, count: false };
+      render(
+        <TrendTable
+          {...benchmarked}
+          benchmarks={['region', 'england', 'england']}
+          areaData={[...benchmarked.areaData, second]}
+          geography={{
+            regionByCode: { E08000003: northWest, E06000052: region },
+            levelByCode: { E08000003: 'Local authorities', E06000052: 'Local authorities' },
+          }}
+          ranges={{
+            ...benchmarked.ranges,
+            'Statistical regions': benchmarked.ranges['Local authorities'],
+          }}
+          regionData={[
+            {
+              areaCode: northWest.code,
+              areaName: northWest.name,
+              observations: [observation('2023-04-01', '2024-03-31', 15)],
+            },
+            {
+              areaCode: southWest.code,
+              areaName: southWest.name,
+              observations: [observation('2023-04-01', '2024-03-31', 16)],
+            },
+          ]}
+          columns={columns}
+          visibleCaption
+        />,
+      );
+      const benchmarkHeadings = [
+        'Calculated value (%)',
+        'Lowest',
+        '25th percentile',
+        '75th percentile',
+        'Highest',
+      ];
+      const areaHeadings = (name: string) => [
+        'Calculated value (%)',
+        'Compared with England',
+        `Compared with ${name}`,
+        '95% lower confidence interval',
+        '95% upper confidence interval',
+      ];
+      expect(
+        screen.getAllByRole('columnheader').map((heading) => heading.textContent?.trim()),
+      ).toEqual([
+        'Manchester',
+        'Cornwall',
+        'England',
+        'North West (Statistical region)',
+        ...(sameRegion ? [] : ['South West (Statistical region)']),
+        'Period',
+        ...areaHeadings(northWest.name),
+        ...areaHeadings(region.name),
+        ...benchmarkHeadings,
+        ...benchmarkHeadings,
+        ...(sameRegion ? [] : benchmarkHeadings),
+      ]);
+      expect(screen.getAllByRole('columnheader', { name: 'England' })).toHaveLength(1);
+      const table = screen.getByRole('table', {
+        name: new RegExp(`table with 1 row and ${sameRegion ? 21 : 26} columns$`),
+      });
+      const row = within(table).getByRole('rowheader', { name: '2023 to 2024' }).closest('tr');
+      if (!row) throw new Error('Trend row missing');
+      const cells = within(row).getAllByRole('cell');
+      expect(cells).toHaveLength(sameRegion ? 20 : 25);
+      expect(cells[1]?.textContent).toContain('England: 12.0%');
+      expect(cells[2]?.textContent).toContain('North West (Statistical region): 15.0%');
+      expect(cells[7]?.textContent).toContain(
+        `${region.name} (Statistical region): ${sameRegion ? '15.0%' : '16.0%'}`,
+      );
+      for (const cell of cells) {
+        for (const id of (cell.getAttribute('headers') ?? '').split(' '))
+          expect(document.getElementById(id)).toBeTruthy();
+      }
+    },
+  );
+
   it('shows the area-level spread when England has no observation for the period', () => {
     render(
       <TrendTable
@@ -234,7 +324,7 @@ describe('TrendTable benchmark columns', () => {
     (benchmark) => {
       const props = {
         ...benchmarked,
-        benchmark,
+        benchmarks: [benchmark],
         areaData: benchmarked.areaData.slice(0, 1),
         geography: {
           ...benchmarked.geography,
@@ -304,7 +394,7 @@ describe('TrendTable benchmark columns', () => {
     render(
       <TrendTable
         {...benchmarked}
-        benchmark="none"
+        benchmarks={[]}
         columns={{ ...allColumns, count: false, value: false, confidence: [] }}
       />,
     );
@@ -438,7 +528,7 @@ describe('TrendTable benchmark columns', () => {
 
     expect(
       screen.getByRole('table', {
-        name: 'Table: Resident population, 2 chosen areas, All, table with 1 row and 15 columns',
+        name: 'Table: Resident population, 2 chosen areas, All, table with 1 row and 10 columns',
       }),
     ).toBeTruthy();
   });

@@ -14,6 +14,7 @@ afterEach(cleanup);
 
 function selected(shortId: number, name: string, value: number): SelectedIndicator {
   const detail = {
+    goal: null,
     shortId,
     slug: `indicator-${shortId}`,
     name,

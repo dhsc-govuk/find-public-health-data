@@ -8,6 +8,7 @@ export function CollapsibleFilterCard({
   footer,
   hint,
   active,
+  defaultOpenOnDesktop = false,
   onClear,
   title,
   headingLevel = 3,
@@ -16,6 +17,7 @@ export function CollapsibleFilterCard({
   footer?: ReactNode | undefined;
   hint?: string | undefined;
   active: boolean;
+  defaultOpenOnDesktop?: boolean;
   onClear?: string | undefined;
   title: string;
   headingLevel?: 2 | 3;
@@ -23,6 +25,11 @@ export function CollapsibleFilterCard({
   const bodyId = useId();
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
   const [open, setOpen] = useState(active);
+  useEffect(() => {
+    if (defaultOpenOnDesktop && (window.matchMedia?.('(min-width: 40.0625em)').matches ?? true)) {
+      setOpen(true);
+    }
+  }, [defaultOpenOnDesktop]);
   useEffect(() => {
     if (active) setOpen(true);
   }, [active]);

@@ -40,8 +40,20 @@ export function indicatorSelectionUrl(
   location: { pathname: string; search: string },
   areaCodes: string[],
   areaLevels: string[],
+  shortId?: number,
 ): string {
   const params = new URLSearchParams(location.search);
+  const hasAreas = (codes: string[], levels: string[]) =>
+    codes.some((code) => code !== '' && code !== 'E92000001') || levels.some(Boolean);
+  const hadAreas = hasAreas(params.getAll('as'), params.getAll('als'));
+  if (
+    shortId !== undefined &&
+    !hadAreas &&
+    hasAreas(areaCodes, areaLevels) &&
+    !params.has(`cmp-${shortId}`)
+  ) {
+    params.append(`cmp-${shortId}`, 'england');
+  }
   params.delete('as');
   params.delete('als');
   for (const code of areaCodes) params.append('as', code);

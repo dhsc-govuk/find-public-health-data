@@ -147,11 +147,13 @@ function EndLabels({
 
 function TrendPlot({
   areas,
+  benchmarkCodes,
   indicator,
   confidence,
   title,
 }: {
   areas: IndicatorAreaData[];
+  benchmarkCodes: readonly string[];
   indicator: IndicatorDetail;
   confidence: ConfidenceLevel;
   title: string;
@@ -220,6 +222,17 @@ function TrendPlot({
             ? ''
             : `, ${latestValue === firstValue ? 'the same as' : Number(latestValue) > Number(firstValue) ? 'up from' : 'down from'} ${chartValue(firstValue ?? null, indicator.unit)} in ${first.label}`}
           .
+          {series
+            .filter(({ code }) => benchmarkCodes.includes(code))
+            .map(({ code, name, observations }) => {
+              const latest = [...observations.values()].findLast(({ value }) => value != null);
+              return latest ? (
+                <span key={code}>
+                  {' '}
+                  {name}: {chartValue(latest.value, indicator.unit)}.
+                </span>
+              ) : null;
+            })}
         </p>
       ) : null}
       <p className="govuk-body-s fphd-chart-axis-title">
@@ -408,12 +421,14 @@ export function TrendChart({
   id,
   title,
   areas,
+  benchmarkCodes = [],
   indicator,
   confidence = 'none',
 }: {
   id: string;
   title: string;
   areas: IndicatorAreaData[];
+  benchmarkCodes?: readonly string[];
   indicator: IndicatorDetail;
   confidence?: ConfidenceLevel;
 }) {
@@ -433,6 +448,7 @@ export function TrendChart({
                 ...area,
                 observations: filterObservations(area.observations, { periodType: variant }),
               }))}
+              benchmarkCodes={benchmarkCodes}
               indicator={indicator}
               confidence={confidence}
               title={variantTitle}

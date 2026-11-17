@@ -266,7 +266,7 @@ describe('public application routes', () => {
     ).toBeTruthy();
   });
 
-  it('offers a benchmark beside each picked area with its spread and comparison chart', async () => {
+  it('offers shared benchmarks with their spreads and a comparison chart for each picked area', async () => {
     const observationFor = (value: number) => ({
       fromDate: '2023-01-01',
       toDate: '2023-12-31',
@@ -408,13 +408,15 @@ describe('public application routes', () => {
       .getByRole('button', { name: 'Table columns' })
       .closest<HTMLElement>('.fphd-filter-card');
     if (!tableOptions) throw new Error('Table options missing');
-    const select = within(tableOptions).getByLabelText(
-      'Select a geography or goal to compare with',
-    );
+    const benchmarks = screen
+      .getByRole('button', { name: 'Benchmarks' })
+      .closest<HTMLElement>('.fphd-filter-card');
+    if (!benchmarks) throw new Error('Benchmarks card missing');
+    const england = within(benchmarks).getByRole('checkbox', { name: 'England' });
     const table = within(screen.getByRole('table', { name: /^Table:/ }));
     expect(table.queryByRole('columnheader', { name: 'England' })).toBeNull();
 
-    fireEvent.change(select, { target: { value: 'england' } });
+    fireEvent.click(england);
     expect(await table.findByRole('columnheader', { name: 'England' })).toBeTruthy();
 
     // The benchmark brings its spread and the comparison chart by default.
@@ -432,13 +434,12 @@ describe('public application routes', () => {
     expect(trend.getByRole('columnheader', { name: 'Compared with England' })).toBeTruthy();
 
     // The statistical-region benchmark takes the parent region's name and values.
-    fireEvent.change(select, {
-      target: { value: 'region' },
-    });
+    fireEvent.click(within(benchmarks).getByRole('checkbox', { name: 'Statistical regions' }));
     expect(
       await screen.findByRole('columnheader', { name: 'South West (Statistical region)' }),
     ).toBeTruthy();
     expect(screen.getByRole('cell', { name: '400.2' })).toBeTruthy();
+    expect(trend.getByRole('columnheader', { name: 'England' })).toBeTruthy();
   });
 
   it('renders the not-found page when the indicator loader throws a 404 response', async () => {

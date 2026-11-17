@@ -26,7 +26,7 @@ export function ComparisonTable({
 }: {
   selected: SelectedIndicator[];
   geography?: BenchmarkGeography;
-  benchmark?: BenchmarkChoice;
+  benchmark?: BenchmarkChoice | 'none';
   showRange?: boolean;
   indicatorLinks?: boolean;
   label?: string;

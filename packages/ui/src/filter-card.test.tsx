@@ -1,13 +1,32 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CollapsibleFilterCard } from './filter-card.tsx';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('CollapsibleFilterCard', () => {
+  it.each([true, false])(
+    'defaults to expanded only on desktop when requested (desktop: %s)',
+    (matches) => {
+      vi.stubGlobal('matchMedia', () => ({ matches }));
+      render(
+        <CollapsibleFilterCard active={false} defaultOpenOnDesktop title="Benchmarks">
+          Filters
+        </CollapsibleFilterCard>,
+      );
+      const toggle = screen.getByRole('button', { name: 'Benchmarks' });
+      expect(toggle.getAttribute('aria-expanded')).toBe(String(matches));
+      fireEvent.click(toggle);
+      expect(toggle.getAttribute('aria-expanded')).toBe(String(!matches));
+    },
+  );
+
   it('server renders the title and enhanced toggle', () => {
     const html = renderToString(
       <CollapsibleFilterCard active={false} title="Topics and types">

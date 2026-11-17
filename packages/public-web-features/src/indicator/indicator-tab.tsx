@@ -3,7 +3,7 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
-import { englandCode } from './charts/chart-data.ts';
+import { benchmarkCheckboxOptions, isRangeBenchmark, setBenchmarkParams } from './benchmarks.ts';
 import { TrendChart } from './charts/trend-chart.tsx';
 import {
   availableConfidenceLevels,
@@ -19,10 +19,20 @@ import type {
   SelectedArea,
   SelectedIndicator,
 } from './loader.ts';
-import { PanelOptionsPanel, useOptionParamNavigation, usePanelOptions } from './options.tsx';
+import {
+  BenchmarksPanel,
+  PanelOptionsPanel,
+  useOptionParamNavigation,
+  usePanelOptions,
+} from './options.tsx';
 import { indicatorCsvPath, indicatorMetadataPath, indicatorSelectionUrl } from './paths.ts';
 import { TrendTable } from './tables/trend-table.tsx';
-import { selectedTrendColumns, trendColumnsParam } from './trend.ts';
+import {
+  selectedTrendColumns,
+  trendChartAreas,
+  trendColumnsParam,
+  trendTableModel,
+} from './trend.ts';
 
 export function IndicatorTab({
   primary,
@@ -74,26 +84,33 @@ export function IndicatorTab({
   const regionAvailable = pickedAreaData.some(
     ({ areaCode }) => benchmarkGeography.regionByCode[areaCode],
   );
-  const trendAreas = hasPickedAreas
-    ? [
-        ...pickedAreaData.map(narrow),
-        ...(options.benchmark === 'england'
-          ? filtered.filter(({ areaCode }) => areaCode === englandCode)
-          : []),
-        ...(options.benchmark === 'region'
-          ? filteredRegions.filter(
-              ({ areaCode }) => !pickedAreaData.some((area) => area.areaCode === areaCode),
-            )
-          : []),
-      ]
-    : filtered;
+  const model = trendTableModel({
+    areaData: filtered,
+    benchmarks: options.benchmarks,
+    confidence,
+    geography: benchmarkGeography,
+    ranges,
+    regionData: filteredRegions,
+  });
+  const trendAreas = trendChartAreas(model);
   const geography = (
     <IndicatorGeographies
+      shortId={id}
       displayGroups={displayGroups}
       geographyOptions={geographyOptions}
       slug={detail.slug}
       selection={selection}
-    />
+    >
+      {hasPickedAreas ? (
+        <BenchmarksPanel
+          choices={options.benchmarks}
+          onChange={(benchmarks) => applyOptions({ ...options, benchmarks })}
+          region={regionAvailable}
+          scope={id}
+          target={{ tabParam: 'tab-indicator', tabValue: 'indicator', anchor: 'indicator-data' }}
+        />
+      ) : null}
+    </IndicatorGeographies>
   );
   const downloadParams = (withOptions: boolean) => {
     const next = new URLSearchParams();
@@ -104,17 +121,17 @@ export function IndicatorTab({
       if (sexes.includes(options.sex) && options.sex) next.set(`sex-${id}`, options.sex);
       if (periodType !== 'all') next.set(`pt-${id}`, periodType);
       if (confidence !== 'none') next.set(`ci-${id}`, confidence);
-      if (options.benchmark !== 'none') next.set(`cmp-${id}`, options.benchmark);
+      setBenchmarkParams(next, id, options.benchmarks);
     }
     return [...next];
   };
   const selectionUrl = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(location, areaCodes, areaLevels);
+    indicatorSelectionUrl(location, areaCodes, areaLevels, id);
   const showing = (
     <div className="fphd-indicator-showing">
       <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
       <FilterChips>
-        <FilterChip value="E92000001">England</FilterChip>
+        {!hasPickedAreas ? <FilterChip value="E92000001">England</FilterChip> : null}
         {selection.areaLevels.map((level) => (
           <FilterChip
             key={level}
@@ -144,6 +161,29 @@ export function IndicatorTab({
             </FilterChip>
           );
         })}
+        {hasPickedAreas
+          ? benchmarkCheckboxOptions(regionAvailable)
+              .filter(({ value }) => options.benchmarks.includes(value))
+              .map(({ value, label }) => {
+                const next = new URLSearchParams(location.search);
+                setBenchmarkParams(
+                  next,
+                  id,
+                  options.benchmarks.filter((choice) => choice !== value),
+                );
+                return (
+                  <FilterChip
+                    key={value}
+                    value={value}
+                    removeLabel={label}
+                    onRemove={`${location.pathname}?${next}`}
+                    replace
+                  >
+                    {label}
+                  </FilterChip>
+                );
+              })
+          : null}
       </FilterChips>
     </div>
   );
@@ -172,7 +212,7 @@ export function IndicatorTab({
             onColumnsChange={(next) =>
               applyOptionParams([[`columns-${id}`, trendColumnsParam(next), 'default']])
             }
-            benchmarks={hasPickedAreas ? { region: regionAvailable } : undefined}
+            rangeBenchmarks={hasPickedAreas && options.benchmarks.some(isRangeBenchmark)}
             confidenceLevels={confidenceLevels}
             measures={measures}
             label="Table columns"
@@ -199,7 +239,7 @@ export function IndicatorTab({
             sexes.length > 0 ||
             periodTypes.length > 1 ? (
               <PanelOptionsPanel
-                benchmarks={hasPickedAreas ? { region: regionAvailable } : undefined}
+                rangeBenchmarks={hasPickedAreas && options.benchmarks.some(isRangeBenchmark)}
                 confidenceLevels={confidenceLevels}
                 label="Chart options"
                 onChange={applyOptions}
@@ -220,6 +260,7 @@ export function IndicatorTab({
               id="indicator-trend-chart"
               title={`${detail.name} trend chart`}
               areas={trendAreas}
+              benchmarkCodes={model.benchmarkGroups.map(({ areaCode }) => areaCode)}
               indicator={detail}
               confidence={confidence}
             />
@@ -231,7 +272,7 @@ export function IndicatorTab({
               visibleCaption
               indicator={detail}
               areaData={filtered}
-              benchmark={hasPickedAreas ? options.benchmark : 'none'}
+              benchmarks={options.benchmarks}
               confidence={confidence}
               geography={benchmarkGeography}
               ranges={ranges}

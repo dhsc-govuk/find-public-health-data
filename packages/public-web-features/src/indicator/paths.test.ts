@@ -1,6 +1,69 @@
 import { describe, expect, it } from 'vitest';
 
-import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { indicatorSelectionUrl, isIndicatorSegment, redirectStatus } from './paths.ts';
+
+describe('indicatorSelectionUrl', () => {
+  it('treats empty geography parameters and England as no picked areas', () => {
+    const next = new URL(
+      indicatorSelectionUrl(
+        { pathname: '/indicator/example', search: '?as=&as=E92000001&als=' },
+        ['E10000032'],
+        [],
+        108,
+      ),
+      'http://localhost',
+    );
+    expect(next.searchParams.getAll('cmp-108')).toEqual(['england']);
+  });
+
+  it.each([
+    [['E10000032'], []],
+    [[], ['Local authorities']],
+  ])('checks England when picking the first geographies', (codes, levels) => {
+    const next = new URL(
+      indicatorSelectionUrl(
+        { pathname: '/indicator/example', search: '?sex-108=Male' },
+        codes,
+        levels,
+        108,
+      ),
+      'http://localhost',
+    );
+    expect(next.searchParams.getAll('cmp-108')).toEqual(['england']);
+    expect(next.searchParams.get('sex-108')).toBe('Male');
+  });
+
+  it.each([
+    '?cmp-108=',
+    '?cmp-108=none',
+    '?cmp-108=region',
+    '?as=E10000032',
+    '?als=Local+authorities',
+  ])('preserves an existing choice or selection for %s', (search) => {
+    const next = new URL(
+      indicatorSelectionUrl({ pathname: '/indicator/example', search }, ['E08000003'], [], 108),
+      'http://localhost',
+    );
+    expect(next.searchParams.getAll('cmp-108')).toEqual(
+      new URLSearchParams(search).getAll('cmp-108'),
+    );
+  });
+
+  it('does not check England when clearing geographies or change another indicator', () => {
+    const location = { pathname: '/indicator/example', search: '?cmp-241=region' };
+    expect(
+      new URL(indicatorSelectionUrl(location, [], [], 108), 'http://localhost').searchParams.has(
+        'cmp-108',
+      ),
+    ).toBe(false);
+    const next = new URL(
+      indicatorSelectionUrl(location, ['E10000032'], [], 108),
+      'http://localhost',
+    );
+    expect(next.searchParams.get('cmp-241')).toBe('region');
+    expect(next.searchParams.get('cmp-108')).toBe('england');
+  });
+});
 
 describe('redirectStatus', () => {
   it.each(['108', 'Under-75-Mortality', 'UNDER-75-MORTALITY'])(

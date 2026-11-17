@@ -1064,6 +1064,7 @@ test('keeps a wide trend table usable and switches tabs while its scrollbar is p
   );
   const region = page.getByRole('region', { name: `${MORTALITY_NAME} trends over time` });
   const table = region.getByRole('table');
+  await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toHaveCount(1);
   await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(3);
   const scroll = page.locator('.fphd-table-scroll').filter({ has: region });
   const bar = scroll.locator('.fphd-table-scrollbar');

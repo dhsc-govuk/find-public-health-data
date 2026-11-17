@@ -33,6 +33,7 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
 import { loadInBatches } from './batches.ts';
+import { selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
@@ -275,8 +276,8 @@ export async function loadIndicatorData(
   // them on and off only re-renders.
   const comparisonFor = (id: number) => {
     const choices = [
-      url.searchParams.get(`cmp-${id}`) ?? 'none',
-      url.searchParams.get('cmp-compare') ?? 'none',
+      ...selectedBenchmarks(url.searchParams, id),
+      ...selectedBenchmarks(url.searchParams, 'compare'),
     ];
     const rangeLevels = new Set<string>();
     if (includePageData && url.searchParams.get(quintileParam(id)) === 'yes') {
