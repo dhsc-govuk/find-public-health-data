@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   boolSchema,
+  environmentNameFor,
   isDeployedEnv,
   isDevClassEnv,
   loadSignInWebServerConfig,
@@ -76,6 +77,19 @@ describe('isDeployedEnv', () => {
     expect(isDeployedEnv('dev')).toBe(true);
     expect(isDeployedEnv('preview')).toBe(true);
     expect(isDeployedEnv('production')).toBe(true);
+  });
+});
+
+describe('environmentNameFor', () => {
+  it('names the deployed dev and test environments', () => {
+    expect(environmentNameFor('dev')).toBe('Dev');
+    expect(environmentNameFor('preview')).toBe('Test');
+  });
+
+  it('names no environment for the live service, a developer machine or a test run', () => {
+    expect(environmentNameFor('production')).toBeUndefined();
+    expect(environmentNameFor('local')).toBeUndefined();
+    expect(environmentNameFor('test')).toBeUndefined();
   });
 });
 
@@ -295,6 +309,7 @@ describe('loadWebServerConfig', () => {
       ),
     ).toEqual({
       offersDevTools: false,
+      environmentName: 'Test',
       development: true,
       host: '127.0.0.1',
       port: 8080,

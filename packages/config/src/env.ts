@@ -46,6 +46,24 @@ export function isDevClassEnv(appEnv: string | undefined): boolean {
   return DEV_CLASS_APP_ENVS.some((value) => value === appEnv);
 }
 
+/** The name of a deployed environment that isn't the live service, shown in a banner on every page. */
+export type EnvironmentName = 'Dev' | 'Test';
+
+// 'preview' is the deployed test environment. 'test' is a test run on a developer machine or in
+// CI, which shows no banner, as a developer machine and the live service don't.
+const environmentNames: Record<AppEnv, EnvironmentName | undefined> = {
+  local: undefined,
+  test: undefined,
+  dev: 'Dev',
+  preview: 'Test',
+  production: undefined,
+};
+
+/** The environment the banner names, or undefined where the pages show no banner. */
+export function environmentNameFor(appEnv: AppEnv): EnvironmentName | undefined {
+  return environmentNames[appEnv];
+}
+
 /**
  * No default, deliberately. Every fallback keyed off APP_ENV is safe when deployed and
  * relaxed when not, so a default would have to be `local` — and an unset variable would
@@ -354,6 +372,7 @@ const basicAuthPairError = {
 function webServerConfig(parsed: z.output<z.ZodObject<ReturnType<typeof webServerFields>>>) {
   return {
     offersDevTools: isDevClassEnv(parsed.APP_ENV),
+    environmentName: environmentNameFor(parsed.APP_ENV),
     development: parsed.NODE_ENV === 'development',
     host: parsed.HOST,
     port: parsed.PORT,

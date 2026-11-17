@@ -4,6 +4,7 @@ export const {
   basicAuth,
   betaAccess,
   development,
+  environmentName,
   host,
   port,
   revision,

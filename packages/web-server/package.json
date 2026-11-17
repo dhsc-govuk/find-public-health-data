@@ -25,6 +25,11 @@
       "types": "./src/entry-server.tsx",
       "default": "./dist/entry-server.js"
     },
+    "./environment-context": {
+      "development": "./src/environment-context.ts",
+      "types": "./src/environment-context.ts",
+      "default": "./dist/environment-context.js"
+    },
     "./flash": {
       "development": "./src/flash.ts",
       "types": "./src/flash.ts",

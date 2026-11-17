@@ -2,6 +2,7 @@ import { createAcsEmailSender, createBetaAccess } from '@fphd/beta-access';
 import { betaAccessContext } from '@fphd/beta-access/context';
 import { createApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
+import { environmentContext } from '@fphd/web-server/environment-context';
 import { loggerContext } from '@fphd/web-server/logger-context';
 import { createReactRouterApp } from '@fphd/web-server/react-router';
 import { forwardedRequestIdHeaders } from '@fphd/web-server/request-id-headers';
@@ -25,6 +26,7 @@ export const app = createReactRouterApp(() => import('virtual:react-router/serve
   // Per request, so the API logs each call under the page request's id.
   extendContext: (context, request, signal) => {
     context.set(betaAccessContext, betaAccess);
+    context.set(environmentContext, config.environmentName);
     context.set(
       apiContext,
       createApiClient({
