@@ -18008,6 +18008,295 @@
       ],
       "reason": "Retain the approved launch indicator despite its workbook exclusion; confirm the provisional placement before launch.",
       "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94157,
+      "name": "Breastfeeding prevalence at 6 to 8 weeks of age, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Infant feeding",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94168,
+      "name": "Infants who have received a new birth review, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Early years development and health visiting",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94169,
+      "name": "Infants who have received a 6 to 8 week review, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Early years development and health visiting",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94170,
+      "name": "Children who received a 12 month review, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Early years development and health visiting",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94171,
+      "name": "Children who have received a 2 to 2 and a half year review, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Early years development and health visiting",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94343,
+      "name": "Infants whose mothers received an antenatal review, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Early years development and health visiting",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94344,
+      "name": "Children aged 2 and a half years who reached the expected level of development, CSDS-based (Official Statistics in Development)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Pregnancy and early years",
+          "subtopic": "Early years development and health visiting",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94348,
+      "name": "Proportion of adults who scored 8 or higher on the Problem Gambling Severity Index (PGSI)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94349,
+      "name": "Proportion of adults spending money on any gambling activity excluding lottery draws in the past 4 weeks (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94350,
+      "name": "Proportion of adults spending money on any in person gambling excluding lottery draws in the past 4 weeks (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94351,
+      "name": "Proportion of adults spending money on fruit or slot machines in person and/or played casino games at a machine in past 4 weeks (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94352,
+      "name": "Proportion of adults spending money on any online gambling excluding lottery draws in the past 4 weeks (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94353,
+      "name": "Proportion of adults spending money on any online fruit/slot machine games, online casino games, or online instant-win games in the past 4 weeks (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94356,
+      "name": "Proportion of adults who had experienced at least one severe consequence or potentially adverse consequence (‘fairly often’ or ‘very often’) due to their own gambling (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94357,
+      "name": "Proportion of adults who had experienced at least one severe consequence or potentially adverse consequence (‘fairly often’ or ‘very often’) due to someone else’s gambling (modelled data)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Gambling",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94359,
+      "name": "Healthy life expectancy at birth 2021 Census based",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Mortality and life expectancy",
+          "subtopic": "Life expectancy",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
+    },
+    {
+      "fingertipsId": 94360,
+      "name": "Smoking status at time of delivery (MSDS based) (current method)",
+      "status": "Provisional placement",
+      "measureType": null,
+      "programmes": [],
+      "lifeStage": null,
+      "placements": [
+        {
+          "topic": "Health behaviours",
+          "subtopic": "Smoking and vaping",
+          "primary": true
+        }
+      ],
+      "reason": "Published in Fingertips after the workbook was drafted and added to the launch list in FPH-716; the placement is a temporary draft, confirm it before launch.",
+      "reviewRequired": true
     }
   ]
 }
