@@ -80,7 +80,7 @@ export function Vocabulary() {
       <ul className="govuk-list govuk-list--bullet">
         <li>14 years old</li>
         <li>aged 14 to 25 years</li>
-        <li>‘aged 25 years and over</li>
+        <li>aged 25 years and over</li>
       </ul>
 
       <h4 className="govuk-heading-s">Ampersands</h4>

@@ -39,7 +39,9 @@ const REVIEWER_NOTES_FIELDS: readonly FieldGuidance[] = [
     header: 'What quality assurance has been done on the indicator?',
     guidance: (
       <>
-        <p className="govuk-body">What QA has been done and by whom? This either relates to the:</p>
+        <p className="govuk-body">
+          What quality assurance has been done and by whom? This either relates to the:
+        </p>
         <ul className="govuk-list govuk-list--bullet">
           <li>direct calculation of the indicator values</li>
           <li>accurate transfer of indicator values from another source</li>
@@ -50,7 +52,7 @@ const REVIEWER_NOTES_FIELDS: readonly FieldGuidance[] = [
       <>
         <Example>
           <p className="govuk-body">
-            Independent QA has been done by [person name], using [software used].
+            Independent quality assurance has been done by [person name], using [software used].
           </p>
         </Example>
       </>
@@ -250,7 +252,7 @@ const REVIEWER_NOTES_FIELDS: readonly FieldGuidance[] = [
     guidance: (
       <>
         <p className="govuk-body">
-          Any other information that would be useful for reviewers that hasn't been included in any
+          Any other information that would be useful for reviewers that has not been included in any
           other metadata field.
         </p>
       </>
