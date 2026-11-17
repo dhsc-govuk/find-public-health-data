@@ -2,10 +2,16 @@ import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fph
 import { useMemo } from 'react';
 import { useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
-import { AreaControls } from './area-controls.tsx';
+import {
+  areaColourMode,
+  highlightedAreaCodes,
+  statisticalNeighbourAreas,
+} from './area-comparison.ts';
+import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
 import { quintileParam } from './charts/chart-data.ts';
 import { expandIndicator } from './compact-data.ts';
+import { useCompareAreaDetail } from './compare-area-detail.ts';
 import type { ComparisonTabProps } from './compare-tab.tsx';
 import {
   availableConfidenceLevels,
@@ -28,6 +34,17 @@ export function CompareAreasTab({
 }: ComparisonTabProps) {
   const { detail } = primary;
   const params = new URLSearchParams(useLocation().search);
+  const {
+    ref: detailRef,
+    areas: areaOptions,
+    error,
+    retry,
+  } = useCompareAreaDetail({
+    slug: detail.slug,
+    group: compareAreaGroup,
+    areas: compareAreaOptions,
+    params,
+  });
   const [options, applyOptions] = usePanelOptions(detail.shortId);
   const compareAreasData = useMemo(() => expandIndicator(areaChart).areaData, [areaChart]);
   const observations = compareAreasData.flatMap(({ observations }) => observations);
@@ -68,12 +85,22 @@ export function CompareAreasTab({
       </p>
       <GridRow>
         <GridColumn width="one-quarter">
-          <AreaControls
-            slug={detail.slug}
-            group={compareAreaGroup}
-            groups={comparisonDisplayGroups}
-            areas={compareAreaOptions}
-          />
+          <div ref={detailRef}>
+            {error ? (
+              <p className="govuk-body-s" role="status">
+                Regions or statistical neighbours could not be loaded.{' '}
+                <button type="button" className="fphd-link-button" onClick={retry}>
+                  Try again
+                </button>
+              </p>
+            ) : null}
+            <AreaControls
+              slug={detail.slug}
+              group={compareAreaGroup}
+              groups={comparisonDisplayGroups}
+              areas={areaOptions}
+            />
+          </div>
         </GridColumn>
         <GridColumn width="three-quarters">
           <div className="fphd-indicator-showing">
@@ -85,12 +112,14 @@ export function CompareAreasTab({
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <GridRow className="fphd-area-table-layout">
             <GridColumn width="one-half" className="fphd-area-table">
+              <AreaSortControl areas={areaOptions} />
               <AreaComparisonTable
                 indicator={primary}
                 model={comparison}
                 sort={params.get('areaSort') ?? 'descending'}
-                highlighted={params.getAll('highlight')}
-                colour={params.get('areaColour') ?? 'england'}
+                highlighted={highlightedAreaCodes(params, areaOptions)}
+                colour={areaColourMode(params.get('areaColour'))}
+                only={statisticalNeighbourAreas(params, areaOptions)}
               />
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">

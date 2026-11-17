@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, date, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { literals, uuidPrimaryKey } from './helpers.ts';
 
@@ -66,5 +76,25 @@ export const areaRelationship = pgTable(
     ),
     index('idx_area_relationship_parent').on(t.parentAreaId),
     index('idx_area_relationship_child').on(t.childAreaId),
+  ],
+);
+
+/** An area's statistical neighbours under a scheme, most similar first. Only the ranking is held. */
+export const areaNeighbour = pgTable(
+  'area_neighbour',
+  {
+    id: uuidPrimaryKey(),
+    areaId: uuid()
+      .notNull()
+      .references(() => area.id),
+    neighbourAreaId: uuid()
+      .notNull()
+      .references(() => area.id),
+    scheme: text().notNull(),
+    position: integer().notNull(),
+  },
+  (t) => [
+    check('area_neighbour_position_check', sql`${t.position} > 0`),
+    uniqueIndex('idx_area_neighbour_area_scheme_position').on(t.areaId, t.scheme, t.position),
   ],
 );

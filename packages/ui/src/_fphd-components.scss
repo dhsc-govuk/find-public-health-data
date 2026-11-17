@@ -1127,6 +1127,22 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-left: 0;
 }
 
+.fphd-geo-alt--flat .fphd-geo-alt__region-areas {
+  margin-left: 45px;
+}
+
+// GOV.UK checkboxes have no part-ticked style, so a region with only some of its areas ticked
+// shows the tick's own ::after flattened to a dash.
+.fphd-geo-alt__group-cb .govuk-checkboxes__input:indeterminate + .govuk-checkboxes__label::after {
+  opacity: 1;
+  transform: none;
+  border-width: 0 0 3px;
+  width: 12px;
+  height: 0;
+  top: 19px;
+  left: 8px;
+}
+
 .fphd-indicator-chart {
   width: 100%;
   max-width: 780px;
@@ -1258,6 +1274,53 @@ body.govuk-frontend-supported .fphd-filter-card {
 
 .fphd-table-unit {
   font-weight: 400;
+}
+
+.fphd-compare-neighbours .govuk-checkboxes__label {
+  margin-bottom: 0;
+}
+
+// A button that reads as a link, for in-page toggles such as "Show 2 more areas". Qualified with
+// the element and type to outrank the template's own styling of every button.
+button.fphd-link-button[type="button"] {
+  @include govuk-font($size: 16);
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  color: $govuk-link-colour;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.1em;
+  cursor: pointer;
+
+  &:hover {
+    color: $govuk-link-hover-colour;
+    text-decoration-thickness: max(3px, 0.1875rem, 0.12em);
+  }
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+.fphd-area-sort {
+  display: flex;
+  justify-content: flex-end;
+
+  .govuk-form-group {
+    display: flex;
+    align-items: center;
+    gap: govuk-spacing(2);
+    margin-bottom: govuk-spacing(2);
+  }
+
+  .govuk-label {
+    @include govuk-font($size: 16, $weight: bold);
+    margin-bottom: 0;
+  }
 }
 
 .fphd-geo-alt__more {
@@ -2296,10 +2359,6 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   max-height: 20rem;
   overflow-y: auto;
   margin-top: 1rem;
-}
-
-.fphd-highlighted-area {
-  background: #ffdd00;
 }
 
 .fphd-topic-trend-counts .govuk-list > li {

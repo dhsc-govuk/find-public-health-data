@@ -197,7 +197,7 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       response.status(404).json({ error: 'not_found' });
       return;
     }
-    const { displayGroup, q, limit, scope } = request.query;
+    const { displayGroup, q, limit, scope, parentType } = request.query;
     const requestedLimit = queryLimit(limit, MAX_AREA_PREVIEW);
     if (limit !== undefined && requestedLimit === undefined) {
       response.status(400).json({ error: 'invalid_limit' });
@@ -217,6 +217,9 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
             ? displayGroup.slice(0, MAX_AREA_NAME_LENGTH)
             : undefined,
         query,
+        ...(typeof parentType === 'string' && parentType && !CONTROL_CHARACTER.test(parentType)
+          ? { parentType: parentType.slice(0, MAX_AREA_NAME_LENGTH) }
+          : {}),
         limit:
           requestedLimit ??
           ((typeof displayGroup === 'string' && displayGroup) || scope === 'all-data'

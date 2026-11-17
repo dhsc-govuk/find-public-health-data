@@ -7,6 +7,7 @@ import {
   MAX_AREA_NAME_LENGTH,
   MAX_AREA_PREVIEW,
   MAX_AREA_SEARCH_RESULTS,
+  MAX_NEIGHBOUR_AREAS_PER_REQUEST,
   pickAreaCodes,
   queryLimit,
   queryText,
@@ -60,6 +61,18 @@ export function areasRouter(areas: Repositories['areas']): Router {
 
     // Areas without a parent of the requested type are simply absent from the answer.
     response.status(200).json(await areas.listParents(codes, parentType));
+  });
+
+  router.get('/api/areas/neighbours', async (request, response) => {
+    const codes = pickAreaCodes(request.query.areaCode, MAX_NEIGHBOUR_AREAS_PER_REQUEST);
+
+    if (codes.length === 0) {
+      response.status(400).json({ error: 'area_code_required' });
+      return;
+    }
+
+    // Areas without statistical neighbours are simply absent from the answer.
+    response.status(200).json(await areas.listNeighbours(codes));
   });
 
   router.get('/api/areas', async (request, response) => {

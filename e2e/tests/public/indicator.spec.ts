@@ -317,7 +317,7 @@ test('sorts hydrated area comparisons without Array.prototype.toSorted', async (
   const headers = table.locator('tbody').getByRole('rowheader');
   await expect(headers).toHaveCount(10);
   const areas = (await headers.allTextContents()).filter((name) => name !== 'England (benchmark)');
-  await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('alphabetical');
+  await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('alphabetical');
   await expect
     .poll(() => headers.allTextContents())
     .toEqual([
@@ -329,7 +329,7 @@ test('sorts hydrated area comparisons without Array.prototype.toSorted', async (
       .slice(1)
       .map((value) => Number(value.replaceAll(',', '')));
   const ascending = (await values()).sort((left, right) => left - right);
-  await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('ascending');
+  await page.getByRole('combobox', { name: 'Sort by:', exact: true }).selectOption('ascending');
   await expect(page).toHaveURL(/areaSort=ascending/);
   await expect.poll(values).toEqual(ascending);
   expect(requests).toEqual([]);
@@ -350,7 +350,7 @@ test('finds and highlights an area within the selected comparison geography', as
   await expect(
     table
       .getByRole('row')
-      .filter({ has: page.getByRole('rowheader', { name: 'Leeds', exact: true }) }),
+      .filter({ has: page.getByRole('rowheader', { name: 'Leeds (highlighted)', exact: true }) }),
   ).toHaveClass(/fphd-highlighted-area/);
   await expectNoAccessibilityViolations(page, testInfo);
 });
@@ -454,6 +454,256 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(metadata.text).toContain('Numerator definition:');
 });
 
+test('ticks every local authority in a statistical region and lists highlights above England', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  const northEast = panel.getByRole('checkbox', {
+    name: /^North East: all \d+ upper tier local authorities$/,
+  });
+  const size = Number((await northEast.getAttribute('aria-label'))?.match(/all (\d+)/)?.[1]);
+  expect(size).toBeGreaterThan(1);
+  await northEast.check();
+  await expect(northEast).toBeChecked();
+  const table = panel.getByRole('table', { name: /Table of area comparisons/ });
+  const headers = table.locator('tbody').getByRole('rowheader');
+  await expect(headers.nth(size)).toHaveText('England (benchmark)');
+  const highlighted = (await headers.allTextContents()).slice(0, size);
+  expect(highlighted.every((name) => name.endsWith('(highlighted)'))).toBe(true);
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('highlight').length).toBe(size);
+  await panel.getByRole('checkbox', { name: 'Hartlepool', exact: true }).uncheck();
+  await expect(northEast).not.toBeChecked();
+  expect(await northEast.evaluate((input: HTMLInputElement) => input.indeterminate)).toBe(true);
+  await northEast.check();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('highlight').length).toBe(size);
+  await northEast.uncheck();
+  await expect(headers.first()).toHaveText('England (benchmark)');
+});
+
+test('adds and removes regional and individual highlights without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(
+      `${MORTALITY_PATH}?render=complete&tab-indicator=areas#indicator-compare-areas`,
+    );
+    const region = withoutJs.getByRole('checkbox', {
+      name: /^North East: all \d+ upper tier local authorities$/,
+    });
+    await region.check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(withoutJs).toHaveURL(/highlightRegion=E12000001/);
+    const headers = withoutJs
+      .getByRole('table', { name: /Table of area comparisons/ })
+      .locator('tbody')
+      .getByRole('rowheader');
+    await expect(headers.first()).toHaveText(/\(highlighted\)$/);
+    const highlighted = await headers.filter({ hasText: /\(highlighted\)$/ }).allTextContents();
+    const remaining = highlighted.filter((name) => name !== 'Hartlepool (highlighted)');
+    expect(remaining.length).toBeGreaterThan(0);
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).toBeChecked();
+    await withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }).uncheck();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).not.toBeChecked();
+    await expect(headers.filter({ hasText: /^Hartlepool$/ })).toHaveCount(1);
+    await expect(headers.filter({ hasText: /\(highlighted\)$/ })).toHaveText(remaining);
+    await region.check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).toBeChecked();
+    await region.uncheck();
+    await withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }).uncheck();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(headers.filter({ hasText: /^Hartlepool$/ })).toHaveCount(1);
+    await expect(headers.filter({ hasText: /\(highlighted\)$/ })).toHaveText(remaining);
+    await region.check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await region.uncheck();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(headers.first()).toHaveText('England (benchmark)');
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).not.toBeChecked();
+  } finally {
+    await context.close();
+  }
+});
+
+test('lists a highlighted council with only its statistical neighbours when its box is ticked', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await panel
+    .getByRole('checkbox', { name: /^North East: all \d+ upper tier local authorities$/ })
+    .check();
+  const neighbours = panel.getByRole('group', { name: 'Show statistical neighbours' });
+  await expect(neighbours.getByRole('checkbox')).toHaveCount(3);
+  await neighbours.getByRole('button', { name: /^Show \d+ more areas$/ }).click();
+  await neighbours.getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' }).check();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('neighbours'))
+    .toEqual(['E06000001']);
+  const headers = panel
+    .getByRole('table', { name: /Table of area comparisons/ })
+    .locator('tbody')
+    .getByRole('rowheader');
+  await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
+  await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+  expect(await headers.count()).toBeLessThanOrEqual(17);
+  await neighbours.getByRole('button', { name: 'Show fewer areas' }).click();
+  await expect(
+    neighbours.getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' }),
+  ).not.toBeVisible();
+  await expect(neighbours.getByRole('button', { name: /^Show \d+ more areas$/ })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
+  await panel.getByRole('checkbox', { name: /^North East: all/ }).uncheck();
+  await expect.poll(() => new URL(page.url()).searchParams.getAll('neighbours')).toEqual([]);
+  await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(1);
+});
+
+test('shows a council’s statistical neighbours from its checkbox without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(
+      `${MORTALITY_PATH}?render=complete&tab-indicator=areas&highlight=E06000001#indicator-compare-areas`,
+    );
+    await withoutJs
+      .getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' })
+      .check();
+    await withoutJs.getByRole('button', { name: 'Show neighbours' }).click();
+    await expect(withoutJs).toHaveURL(/neighbours=E06000001/);
+    await withoutJs.getByRole('button', { name: 'Show neighbours' }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    await withoutJs.getByLabel('Sort by:', { exact: true }).selectOption('alphabetical');
+    await withoutJs.getByRole('button', { name: 'Sort', exact: true }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('highlight')).toEqual(['E06000001']);
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    const headers = withoutJs
+      .getByRole('table', { name: /Table of area comparisons/ })
+      .locator('tbody')
+      .getByRole('rowheader');
+    await expect(headers.first()).toHaveText('Hartlepool (highlighted)');
+    await expect(headers.filter({ hasText: /^Halton$/ })).toHaveCount(1);
+    await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+    await withoutJs.getByRole('checkbox', { name: 'County Durham', exact: true }).check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    await expect(headers.filter({ hasText: /^Newham$/ })).toHaveCount(0);
+    await withoutJs.getByRole('button', { name: 'Change geography type' }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual(['E06000001']);
+    await withoutJs.getByRole('button', { name: 'Sort', exact: true }).click();
+    expect(new URL(withoutJs.url()).searchParams.getAll('neighbours')).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test('selects only the visible search matches in a region', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await expect(panel.getByRole('checkbox', { name: /^North East: all/ })).toBeVisible();
+  await panel.getByRole('searchbox', { name: 'Highlight local authorities' }).fill('Hartlepool');
+  await panel
+    .getByRole('checkbox', { name: 'North East: all 1 upper tier local authorities' })
+    .check();
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('highlight'))
+    .toEqual(['E06000001']);
+});
+
+test('retries unavailable comparison details when the user asks', async ({ page }) => {
+  let failed = false;
+  await page.route('**/compare-areas?*', async (route) => {
+    if (!failed) {
+      failed = true;
+      await route.fulfill({ status: 503 });
+    } else {
+      await route.continue();
+    }
+  });
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await expect(
+    panel.getByText(/Regions or statistical neighbours could not be loaded/),
+  ).toBeVisible();
+  await panel.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(panel.getByRole('checkbox', { name: /^North East: all/ })).toBeVisible();
+  await expect(panel.getByText(/could not be loaded/)).toHaveCount(0);
+});
+
+test('keeps the neighbours error visible when highlights change until missing neighbours load', async ({
+  page,
+}) => {
+  const pending = Promise.withResolvers<void>();
+  let failed = false;
+  await page.route('**/compare-areas?*', async (route) => {
+    if (!new URL(route.request().url()).searchParams.has('areaCode')) {
+      await route.continue();
+    } else if (!failed) {
+      failed = true;
+      await route.fulfill({ status: 503 });
+    } else {
+      await pending.promise;
+      await route.continue();
+    }
+  });
+  try {
+    await page.getByRole('tab', { name: 'Compare areas' }).click();
+    const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+    await expect(panel.getByRole('checkbox', { name: /^North East: all/ })).toBeVisible();
+    await panel.getByRole('checkbox', { name: 'Hartlepool', exact: true }).check();
+    const banner = panel.getByText(/Regions or statistical neighbours could not be loaded/);
+    await expect(banner).toBeVisible();
+    const request = page.waitForRequest((request) => {
+      const url = new URL(request.url());
+      return (
+        url.pathname === '/compare-areas' &&
+        url.searchParams.getAll('areaCode').includes('E06000047')
+      );
+    });
+    await panel.getByRole('checkbox', { name: 'County Durham', exact: true }).check();
+    await request;
+    await expect(banner).toBeVisible();
+    pending.resolve();
+    await expect(
+      panel.getByRole('checkbox', { name: 'Statistical neighbours for Hartlepool' }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole('checkbox', { name: 'Statistical neighbours for County Durham' }),
+    ).toBeVisible();
+    await expect(banner).toHaveCount(0);
+  } finally {
+    pending.resolve();
+  }
+});
+
 test('serves an indicator without an update frequency on its page and in downloads', async ({
   page,
 }) => {
@@ -517,7 +767,8 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await page.screenshot({ path: testInfo.outputPath('comparison-charts.png') });
   await expectNoAccessibilityViolations(page, testInfo);
   await page.getByRole('combobox', { name: 'Colour geographies by' }).selectOption('quintiles');
-  await expect(bar).toHaveAttribute('fill', /#440154|#3E4A89|#26828E|#35B779|#B4DE2C/);
+  await expect(bar).toHaveAttribute('fill', /#C5EEE9|#84CAC2|#27A096|#027068|#004842/);
+  await expect(page.getByRole('option', { name: /quartiles/ })).toHaveCount(0);
   await page.getByLabel('Colour areas by', { exact: true }).selectOption('yes');
   await expect(page).toHaveURL(/quintile-241=yes/);
   await expect(chart).toContainText(
@@ -594,7 +845,9 @@ test('keeps a pending geography choice when sorting the area table', async ({ pa
       .getByRole('combobox', { name: 'Type of geography', exact: true })
       .selectOption('Statistical regions');
     await request;
-    await page.getByRole('combobox', { name: 'Sort by', exact: true }).selectOption('alphabetical');
+    await page
+      .getByRole('combobox', { name: 'Sort by:', exact: true })
+      .selectOption('alphabetical');
   } finally {
     release();
   }

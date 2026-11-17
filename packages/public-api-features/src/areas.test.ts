@@ -80,6 +80,28 @@ describe('GET /api/areas/search', () => {
   });
 });
 
+describe('GET /api/areas/neighbours', () => {
+  it('lists the neighbours of well-formed codes only, beyond the usual twenty', async () => {
+    const listNeighbours = vi
+      .fn()
+      .mockResolvedValue([{ code: 'E06000001', neighbours: ['E06000006', 'E08000023'] }]);
+    const app = createTestApp({ listNeighbours });
+    const codes = Array.from(
+      { length: 30 },
+      (_, index) => `E060000${String(index).padStart(2, '0')}`,
+    );
+
+    const response = await request(app).get(
+      `/api/areas/neighbours?${[...codes, '..%2Fbad'].map((code) => `areaCode=${code}`).join('&')}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([{ code: 'E06000001', neighbours: ['E06000006', 'E08000023'] }]);
+    expect(listNeighbours).toHaveBeenCalledWith(codes);
+    expect((await request(app).get('/api/areas/neighbours')).status).toBe(400);
+  });
+});
+
 describe('GET /api/areas/parents', () => {
   it('resolves area parents of one type, filtering malformed codes', async () => {
     const listParents = vi.fn().mockResolvedValue([]);

@@ -8,7 +8,15 @@ export const loader = loadIndicatorPage;
 // Changing a display option only re-renders with data the page already has; the benchmark
 // option (`cmp-`) is not listed because it decides what the loader fetches.
 const DISPLAY_OPTION_PARAM = /^(ci|pt|sex|ic|ip|ig|columns)-/;
-const AREA_DISPLAY_OPTIONS = new Set(['areaSort', 'areaColour', 'highlight', 'tab-indicator']);
+const AREA_DISPLAY_OPTIONS = new Set([
+  'areaSort',
+  'areaColour',
+  'highlight',
+  'highlightRegion',
+  'highlightRegionBefore',
+  'neighbours',
+  'tab-indicator',
+]);
 
 export function shouldRevalidate({ currentUrl, nextUrl }: ShouldRevalidateFunctionArgs) {
   const strip = (url: URL) => {

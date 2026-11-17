@@ -1,9 +1,9 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { listAreasByGroup, listIndicatorAreas } from './area-repository.ts';
+import { listAreaNeighbours, listAreasByGroup, listIndicatorAreas } from './area-repository.ts';
 import type { Database } from './client.ts';
 import { resolvePublishedIndicatorId } from './indicator-repository.ts';
-import { area, areaType, observation } from './schema/index.ts';
+import { area, areaNeighbour, areaType, observation } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 let database: TestDb;
@@ -100,4 +100,39 @@ it('bounds ungrouped area types independently in all-data exports', async () => 
   const exported = await listIndicatorAreas(db, id, { scope: 'all-data', limit: 1 });
   for (const type of types)
     expect(exported.find(({ displayGroup }) => displayGroup === type.name)?.areas).toHaveLength(1);
+});
+
+it('adds each area’s current parent of the requested type in the same listing', async () => {
+  const id = await resolvePublishedIndicatorId(db, 108);
+  if (!id) throw new Error('Seeded indicator missing');
+  const [plain] = await listIndicatorAreas(db, id, { displayGroup: 'Local authorities' });
+  const [withRegions] = await listIndicatorAreas(db, id, {
+    displayGroup: 'Local authorities',
+    parentType: 'Regions (statistical)',
+  });
+  expect(plain?.areas.every((entry) => !('parent' in entry))).toBe(true);
+  expect(withRegions?.areas.map(({ code }) => code)).toEqual(plain?.areas.map(({ code }) => code));
+  const hartlepool = withRegions?.areas.find(({ code }) => code === 'E06000001');
+  expect(hartlepool?.parent).toEqual({ code: 'E12000001', name: 'North East' });
+});
+
+it('lists an upper tier council’s 15 NHS England peer group neighbours, most similar first', async () => {
+  const [current] = await db
+    .select({ areaId: areaNeighbour.areaId, neighbourAreaId: areaNeighbour.neighbourAreaId })
+    .from(areaNeighbour)
+    .innerJoin(area, eq(area.id, areaNeighbour.areaId))
+    .where(eq(area.code, 'E06000001'))
+    .limit(1);
+  if (!current) throw new Error('Missing neighbour fixture');
+  await db.insert(areaNeighbour).values({
+    areaId: current.areaId,
+    neighbourAreaId: current.neighbourAreaId,
+    scheme: 'An older scheme',
+    position: 1,
+  });
+  const lists = await listAreaNeighbours(db, ['E06000001', 'E07000223', 'X']);
+  expect(lists.map(({ code }) => code)).toEqual(['E06000001']);
+  expect(lists[0]?.neighbours).toHaveLength(15);
+  expect(lists[0]?.neighbours.slice(0, 3)).toEqual(['E06000006', 'E08000023', 'E08000011']);
+  expect(await listAreaNeighbours(db, [])).toEqual([]);
 });
