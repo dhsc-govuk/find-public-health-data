@@ -345,7 +345,7 @@ async function assertColumnsMatch(tx: postgres.TransactionSql, names: string[]):
   `;
   if (differing.length > 0) {
     throw new Error(
-      `These preview views' columns differ from their published views': ${differing
+      `These preview views have different columns from their published views: ${differing
         .map(({ name }) => `preview.${name}`)
         .join(', ')}. Update them in preview-views.ts.`,
     );
