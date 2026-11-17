@@ -3,7 +3,7 @@
   "sheet": "Indicators",
   "rule": "Final priority = prioritise, after the PERSON review passes",
   "extractedOn": "2026-11-17",
-  "catalogueSnapshot": "1,320 Fingertips indicators, June 2026",
+  "catalogueSnapshot": "1,338 Fingertips indicators, November 2026",
   "indicators": [
     108, 200, 212, 219, 224, 241, 247, 253, 258, 262, 273, 276, 280, 294, 337, 352, 383, 811, 848,
     849, 1179, 1180, 1203, 1204, 1210, 10301, 10401, 10601, 10602, 11201, 11202, 11401, 11601,
