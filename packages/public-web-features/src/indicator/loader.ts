@@ -44,10 +44,10 @@ export type {
   IndicatorObservation,
   IndicatorPageDetail,
   IndicatorProviderSource,
-  IndicatorQuestion,
   IndicatorRangePeriod,
   IndicatorSummary,
 } from '@fphd/public-api-features/contract';
+export type { IndicatorQuestion } from '@fphd/utils/indicator-page';
 
 export interface IndicatorSelection {
   areaCodes: string[];

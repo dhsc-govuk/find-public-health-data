@@ -1,6 +1,7 @@
 import { z } from '@fphd/config/zod';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
+import { INDICATOR_DATA_STATES, INDICATOR_QUESTIONS } from '@fphd/utils/indicator-page';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -218,18 +219,6 @@ export const indicatorDetailSchema = z.object({
 });
 
 /**
- * The questions a draft may leave unanswered, each a field of the detail. The same list as
- * `INDICATOR_QUESTIONS` in `@fphd/db`, which this module may not import.
- */
-export const INDICATOR_QUESTIONS = ['valueType', 'unit', 'polarity', 'updateFrequency'] as const;
-
-/**
- * Whether a draft's data can be shown: it has none uploaded, its data has no read models yet, or
- * its data is ready.
- */
-export const INDICATOR_DATA_STATES = ['no-upload', 'read-models-missing', 'ready'] as const;
-
-/**
  * The detail as the indicator page reads it, which a preview of a draft may leave incomplete.
  * The public detail is one of these with neither `unanswered` nor `dataState`, so the page shows
  * a placeholder only where a preview names one.
@@ -353,8 +342,6 @@ export type TopicTrendSummary = z.infer<typeof topicTrendSummarySchema>;
 export type IndicatorSummary = z.infer<typeof indicatorSummarySchema>;
 export type IndicatorDetail = z.infer<typeof indicatorDetailSchema>;
 export type IndicatorPageDetail = z.infer<typeof indicatorPageDetailSchema>;
-export type IndicatorQuestion = (typeof INDICATOR_QUESTIONS)[number];
-export type IndicatorDataState = (typeof INDICATOR_DATA_STATES)[number];
 export type IndicatorSource = z.infer<typeof indicatorSourceSchema>;
 export type IndicatorProviderSource = z.infer<typeof indicatorProviderSourceSchema>;
 export type IndicatorObservation = z.infer<typeof indicatorObservationSchema>;

@@ -1,4 +1,5 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
+import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
 import {
   type PublicYearType,
@@ -219,14 +220,6 @@ export interface IndicatorDetail {
    */
   updateSummaries: IndicatorUpdateSummary[];
 }
-
-/**
- * The questions the public page needs answered that a draft may not have answered yet. A preview
- * shows a placeholder for each one its draft leaves unanswered.
- */
-export const INDICATOR_QUESTIONS = ['valueType', 'unit', 'polarity', 'updateFrequency'] as const;
-
-export type IndicatorQuestion = (typeof INDICATOR_QUESTIONS)[number];
 
 /**
  * An indicator's detail as the views hold it, which for a draft may leave questions unanswered.
