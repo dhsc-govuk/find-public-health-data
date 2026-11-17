@@ -12,7 +12,6 @@ import {
   MAX_INDICATOR_QUERY_LENGTH,
   MAX_NEIGHBOUR_AREAS_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
-import { indicatorPath } from '@fphd/utils/indicator-path';
 import { isOneOf } from '@fphd/utils/is-one-of';
 import { tableSummary } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
@@ -49,13 +48,13 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   // The comparison tab and the geography picker both ask for the indicator's local authorities.
   const api = createSharedGetsClient(context.get(apiContext));
   context.set(apiContext, api);
-  const { detailSchema } = context.get(indicatorPageContext);
+  const { detailSchema, links } = context.get(indicatorPageContext);
   const routeDetail = await api.get(apiPath`/api/indicators/${slug}`, detailSchema);
-  if (routeDetail.slug !== slug)
-    throw redirect(
-      `${indicatorPath(routeDetail.slug)}${pageSearch(url)}`,
-      redirectStatus(slug, routeDetail.slug),
-    );
+  // An old or case-variant address redirects to the canonical one, unless the page is shown at
+  // one address whatever the slug, as the preview is.
+  const pagePath = links.page(routeDetail.slug);
+  if (routeDetail.slug !== slug && pagePath !== links.page(slug))
+    throw redirect(`${pagePath}${pageSearch(url)}`, redirectStatus(slug, routeDetail.slug));
 
   const compareSegment = url.searchParams.get('compareWith');
   if (compareSegment && !isIndicatorSegment(compareSegment)) {
@@ -68,17 +67,17 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
     } catch (error) {
       if (!(error instanceof Response) || error.status !== 404) throw error;
       url.searchParams.delete('compareWith');
-      throw redirect(`${indicatorPath(routeDetail.slug)}${pageSearch(url)}`, 302);
+      throw redirect(`${pagePath}${pageSearch(url)}`, 302);
     }
   }
   if (comparedDetail) {
     if (comparedDetail.shortId === routeDetail.shortId) {
       url.searchParams.delete('compareWith');
-      throw redirect(`${indicatorPath(routeDetail.slug)}${pageSearch(url)}`, 302);
+      throw redirect(`${pagePath}${pageSearch(url)}`, 302);
     }
     if (comparedDetail.slug !== compareSegment) {
       url.searchParams.set('compareWith', comparedDetail.slug);
-      throw redirect(`${indicatorPath(routeDetail.slug)}${pageSearch(url)}`, 302);
+      throw redirect(`${pagePath}${pageSearch(url)}`, 302);
     }
   }
 
