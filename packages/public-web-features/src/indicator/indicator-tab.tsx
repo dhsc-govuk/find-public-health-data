@@ -149,7 +149,7 @@ export function IndicatorTab({
   const showing = (
     <div className="fphd-indicator-showing">
       <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
-      <FilterChips>
+      <FilterChips collapse>
         {!hasPickedAreas ? <FilterChip value="E92000001">England</FilterChip> : null}
         {selection.areaLevels.map((level) => (
           <FilterChip

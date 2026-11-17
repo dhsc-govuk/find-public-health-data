@@ -769,6 +769,16 @@ body.govuk-frontend-supported .fphd-filter-card {
   word-break: break-word;
 }
 
+.fphd-filter-chips--collapsible {
+  flex: 1;
+  min-width: 0;
+}
+
+.fphd-filter-chip[hidden],
+.fphd-filter-chips__more[hidden] {
+  display: none;
+}
+
 .fphd-filter-chip__remove {
   flex-shrink: 0;
   align-self: center;
@@ -1318,6 +1328,11 @@ button.fphd-link-button[type="button"] {
   &:focus {
     @include govuk-focused-text;
   }
+}
+
+button.fphd-filter-chips__more[type="button"] {
+  align-self: center;
+  margin-left: govuk-spacing(1);
 }
 
 .fphd-area-sort {

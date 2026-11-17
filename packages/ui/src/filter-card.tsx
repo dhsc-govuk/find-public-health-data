@@ -2,6 +2,7 @@ import Hint from '@not-govuk/hint';
 import type { ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
+import { moreFiltersLabel, useChipOverflow } from './use-chip-overflow.ts';
 
 export function CollapsibleFilterCard({
   children,
@@ -122,11 +123,34 @@ export function FilterChip({
 export function FilterChips({
   children,
   className = 'govuk-!-margin-bottom-2',
+  collapse = false,
 }: {
   children: ReactNode;
   className?: string;
+  collapse?: boolean;
 }) {
+  const id = useId();
+  const overflow = useChipOverflow(children, collapse);
   return (
-    <div className={`fphd-filter-chips fphd-filter-chips--inline ${className}`}>{children}</div>
+    <div
+      className={`fphd-filter-chips fphd-filter-chips--inline${collapse ? ' fphd-filter-chips--collapsible' : ''} ${className}`}
+      id={collapse ? id : undefined}
+      ref={overflow.list}
+    >
+      {children}
+      {collapse && overflow.ready ? (
+        <button
+          aria-controls={id}
+          aria-expanded={overflow.expanded}
+          className="fphd-link-button govuk-body-s fphd-filter-chips__more"
+          hidden={overflow.hiddenCount === 0}
+          onClick={overflow.toggle}
+          ref={overflow.button}
+          type="button"
+        >
+          {overflow.expanded ? 'Show fewer filters' : moreFiltersLabel(overflow.hiddenCount)}
+        </button>
+      ) : null}
+    </div>
   );
 }

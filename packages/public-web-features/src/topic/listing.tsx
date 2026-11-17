@@ -84,7 +84,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
       ) : null}
       <div className="fphd-indicator-showing">
         <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
-        <FilterChips>
+        <FilterChips collapse>
           <FilterChip value="E92000001">England</FilterChip>
           {search.geoLevels.map((level) => (
             <FilterChip key={level} value={level}>
