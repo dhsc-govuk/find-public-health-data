@@ -144,6 +144,24 @@ describe('internal application routes', () => {
     expect(screen.queryByRole('link', { name: 'Back' })).toBeNull();
   });
 
+  it('shows the environment banner from the root loader', async () => {
+    const Routes = createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        Component: InternalApp,
+        loader: () => ({ ...publisher, environmentName: 'Test' }),
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    expect((await screen.findByRole('region', { name: 'Environment' })).textContent).toContain(
+      'Test',
+    );
+  });
+
   it('offers a signed-out visitor sign in rather than an account', async () => {
     const Routes = createRoutesStub([
       {
