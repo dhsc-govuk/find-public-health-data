@@ -259,7 +259,9 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/container-logs"
           for name in $(docker ps --all --format '{{.Names}}'); do
-            docker logs --timestamps "${name}" > "${RUNNER_TEMP}/container-logs/${name}.log" 2>&1
+            # A container whose log can't be read must not stop the others being saved.
+            docker logs --timestamps "${name}" > "${RUNNER_TEMP}/container-logs/${name}.log" 2>&1 \
+              || echo "Could not read the log of ${name}"
           done
 
       - name: Upload the container logs
