@@ -3,11 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { parseDataMigrationRelationships } from './data-migration-relationships.ts';
 
 const relationships = {
-  approval: {
-    approvedBy: 'reviewer',
-    approvedAt: '2026-09-21T10:00:00Z',
-    basis: 'Reviewed topics',
-  },
   indicators: [108],
   indicatorTopics: [{ topicId: '11111111-1111-7111-8111-111111111111', fingertipsId: 108 }],
   indicatorDataUpdatedAt: {},

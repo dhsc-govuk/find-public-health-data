@@ -135,18 +135,13 @@ geography files into the corresponding paths under `packages/db-operations/data/
 rename against existing database references and upload labels before deploying the refreshed
 catalog.
 
-## Reviewed relationship file
+## Relationship file
 
-The prepare step requires JSON accepted by the existing indicator relationship schema, plus these
-fields:
+The prepare step requires JSON accepted by the existing indicator relationship schema, plus the
+package's indicator list:
 
 ```json
 {
-  "approval": {
-    "approvedBy": "person or governance group",
-    "approvedAt": "2026-09-22T12:00:00Z",
-    "basis": "Reference to the reviewed mapping"
-  },
   "indicators": [108, 241],
   "indicatorTopics": [],
   "indicatorDataUpdatedAt": {},

@@ -161,11 +161,6 @@ async function snapshot(
   await writeFile(
     relationships,
     JSON.stringify({
-      approval: {
-        approvedBy: 'round trip fixture',
-        approvedAt: cutoff,
-        basis: 'reviewed test mapping',
-      },
       indicators: withdrawn ? [109] : [108, 109],
       indicatorTopics: [
         ...(withdrawn ? [] : [{ fingertipsId: 108, topicId }]),
