@@ -10,6 +10,20 @@
   --fphd-page-width: 1280px;
 }
 
+// Names a deployed copy of the service used for testing. AppShell renders it above the page.
+.fphd-environment-banner {
+  // The banner sits outside the page element, which is where NotGovUK sets the GOV.UK font.
+  font-family: "GDS Transport", "Arial", sans-serif;
+  border-bottom: 0;
+  background-color: govuk-colour("orange");
+  color: govuk-colour("black");
+
+  .govuk-phase-banner__content__tag {
+    background-color: govuk-colour("black");
+    color: govuk-colour("white");
+  }
+}
+
 .govuk-width-container.govuk-width-container {
   width: calc(100% - 30px);
   max-width: var(--fphd-page-width, 1020px);
