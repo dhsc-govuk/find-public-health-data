@@ -1,5 +1,5 @@
 import { InsetText, Tabs } from '@fphd/ui';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
@@ -25,8 +25,28 @@ function IndicatorDataSection({
   resolve: CompactData | Promise<CompactData>;
   children: (data: ExpandedData) => ReactNode;
 }) {
+  const [completed, setCompleted] = useState(props.resolve);
+  useEffect(() => {
+    if (!(props.resolve instanceof Promise)) {
+      setCompleted(props.resolve);
+      return;
+    }
+    let active = true;
+    void props.resolve.then(
+      (value) => {
+        if (active) setCompleted(value);
+      },
+      () => {
+        if (active) setCompleted(props.resolve);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [props.resolve]);
+  const resolve = props.resolve instanceof Promise ? completed : props.resolve;
   return (
-    <DataSection {...props}>
+    <DataSection {...props} resolve={resolve}>
       {(value) => {
         let data = cache.get(value);
         if (!data) {
@@ -88,7 +108,12 @@ export function SingleIndicatorPage({
         </ol>
       </nav>
       <h1 className="govuk-heading-l govuk-!-margin-bottom-3">{detail.name}</h1>
-      <IndicatorDataSection cache={cache} label="indicator summary" resolve={data}>
+      <IndicatorDataSection
+        key={detail.shortId}
+        cache={cache}
+        label="indicator summary"
+        resolve={data}
+      >
         {({ selected, areasLimited }) => (
           <>
             <IndicatorSummary
@@ -116,7 +141,12 @@ export function SingleIndicatorPage({
             param: 'indicator',
             label: 'Indicator',
             content: (
-              <IndicatorDataSection cache={cache} label="indicator data" resolve={data}>
+              <IndicatorDataSection
+                key={detail.shortId}
+                cache={cache}
+                label="indicator data"
+                resolve={data}
+              >
                 {(data) => (
                   <IndicatorTab
                     primary={primaryIndicator(data.selected)}
@@ -163,7 +193,12 @@ export function SingleIndicatorPage({
             param: 'inequalities',
             label: 'Inequalities',
             content: (
-              <IndicatorDataSection cache={cache} label="inequalities" resolve={data}>
+              <IndicatorDataSection
+                key={detail.shortId}
+                cache={cache}
+                label="inequalities"
+                resolve={data}
+              >
                 {({ selected }) => <InequalitiesTab primary={primaryIndicator(selected)} />}
               </IndicatorDataSection>
             ),
@@ -175,7 +210,12 @@ export function SingleIndicatorPage({
             content: (
               <>
                 <h2 className="govuk-heading-l">About this indicator</h2>
-                <IndicatorDataSection cache={cache} label="background information" resolve={data}>
+                <IndicatorDataSection
+                  key={detail.shortId}
+                  cache={cache}
+                  label="background information"
+                  resolve={data}
+                >
                   {({ selected }) => (
                     <BackgroundInformation
                       indicator={detail}

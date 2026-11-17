@@ -1,6 +1,6 @@
 import { CollapsibleFilterCard } from '@fphd/ui';
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useNavigation } from 'react-router';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
 import type { IndicatorSelection } from './loader.ts';
@@ -22,10 +22,12 @@ export function IndicatorGeographies({
   selection: IndicatorSelection;
 }) {
   const location = useLocation();
+  const navigation = useNavigation();
   const navigate = useNavigate();
-  const params = new URLSearchParams(location.search);
+  const currentLocation = navigation.location ?? location;
+  const params = new URLSearchParams(currentLocation.search);
   const urlFor = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(location, areaCodes, areaLevels, shortId);
+    indicatorSelectionUrl(currentLocation, areaCodes, areaLevels, shortId);
   const picked = selection.areaCodes.length > 0 || selection.areaLevels.length > 0;
 
   return (

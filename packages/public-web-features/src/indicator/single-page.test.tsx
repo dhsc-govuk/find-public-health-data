@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { createRoutesStub } from 'react-router';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
+import { createRoutesStub, useLocation, useNavigation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
@@ -336,6 +337,103 @@ it('replaces deferred comparison models after changing geography', async () => {
     ).findByRole('rowheader', { name: 'London' }),
   ).toBeTruthy();
   expect(screen.queryByRole('rowheader', { name: 'Slough' })).toBeNull();
+});
+
+it('keeps benchmark controls interactive while replacement indicator data is deferred', async () => {
+  const primary = selected(108, 'Mortality', 100);
+  const england = primary.areaData[0];
+  if (!england) throw new Error('England fixture missing');
+  primary.areaData.unshift({ ...england, areaCode: 'E08000003', areaName: 'Manchester' });
+  const data = {
+    selected: [compactIndicator(primary)],
+    selectedAreas: [{ code: 'E08000003', name: 'Manchester', level: 'Local authorities' }],
+    displayGroups: [],
+    benchmarkGeography: {
+      regionByCode: { E08000003: { code: 'E12000002', name: 'North West' } },
+      levelByCode: { E08000003: 'Local authorities' },
+    },
+    findSubject: '',
+    findResults: [],
+    geographyOptions: undefined,
+    areasLimited: false,
+    selection: { areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] },
+  };
+  const pending = Promise.withResolvers<typeof data>();
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      Component: () => {
+        const location = useLocation();
+        const navigation = useNavigation();
+        const [resolve, setResolve] = useState<typeof data | Promise<typeof data>>(data);
+        return (
+          <>
+            <button type="button" onClick={() => setResolve(pending.promise)}>
+              Load benchmark data
+            </button>
+            <SingleIndicatorPage
+              detail={primary.detail}
+              comparedDetail={undefined}
+              data={resolve}
+              findSubject=""
+              findResults={[]}
+              comparison={{
+                areaChart: compactIndicator(primary),
+                compareAreaRanges: [],
+                scatter: undefined,
+                ...indicatorComparisonModel([primary], {
+                  compareAreasData: [],
+                  comparedAreasData: [],
+                  compareAreaOptions: [],
+                  compareAreaGroup: 'Local authorities',
+                  comparisonDisplayGroups: [],
+                }),
+              }}
+            />
+            <output data-testid="location">{navigation.location?.search ?? location.search}</output>
+          </>
+        );
+      },
+    },
+  ]);
+  render(<Routes initialEntries={['/indicator/indicator-108?as=E08000003']} />);
+  const checkbox = await screen.findByRole('checkbox', { name: 'England' });
+  fireEvent.click(checkbox);
+  await waitFor(() =>
+    expect(screen.getByTestId('location').textContent).toContain('cmp-108=england'),
+  );
+  expect(screen.getByRole('checkbox', { name: 'England' })).toBe(checkbox);
+  expect((checkbox as HTMLInputElement).checked).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Load benchmark data' }));
+  expect(screen.getByRole('checkbox', { name: 'England' })).toBe(checkbox);
+  expect(screen.queryByText('Loading indicator data…')).toBeNull();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Statistical regions' }));
+  await waitFor(() =>
+    expect(
+      new URLSearchParams(screen.getByTestId('location').textContent ?? '').getAll('cmp-108'),
+    ).toEqual(['england', 'region']),
+  );
+  await act(async () =>
+    pending.resolve({
+      ...data,
+      selected: [
+        compactIndicator({
+          ...primary,
+          areaData: primary.areaData.map((area) =>
+            area.areaCode === 'E08000003'
+              ? {
+                  ...area,
+                  observations: area.observations.map((point) => ({ ...point, value: 101 })),
+                }
+              : area,
+          ),
+        }),
+      ],
+    }),
+  );
+  expect(
+    within(screen.getByRole('table', { name: /^Table:/ })).getByRole('cell', { name: '101.0%' }),
+  ).toBeTruthy();
 });
 
 it('keeps comparison tables and the search form available while search loads or fails', async () => {
