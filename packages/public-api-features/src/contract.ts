@@ -376,9 +376,8 @@ export const indicatorScatterSchema = z.object({
     z.object({
       code: z.string(),
       name: z.string(),
-      period: z.string(),
-      fromDate: z.iso.date(),
-      toDate: z.iso.date(),
+      xPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
+      yPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
       x: z.number(),
       y: z.number(),
     }),

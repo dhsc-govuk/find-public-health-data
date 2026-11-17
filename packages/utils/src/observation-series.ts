@@ -287,29 +287,26 @@ export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
       ),
     }));
   };
-  const ySeries = new Map(aligned(yAreas).map((area) => [area.code, area.observations]));
-  const matches = aligned(xAreas).flatMap(({ code, name, observations }) => {
+  const latest = (observations: Map<string, ScatterObservation>) =>
+    [...observations.values()]
+      .filter(({ value }) => value !== null)
+      .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
+      .at(-1);
+  const ySeries = new Map(aligned(yAreas).map((area) => [area.code, latest(area.observations)]));
+  return aligned(xAreas).flatMap(({ code, name, observations }) => {
+    const x = latest(observations);
     const y = ySeries.get(code);
-    return [...observations].flatMap(([period, x]) => {
-      const other = y?.get(period);
-      return x.value == null || other?.value == null || !samePopulation(x, other)
-        ? []
-        : [
-            {
-              code,
-              name,
-              period,
-              fromDate: x.fromDate,
-              toDate: x.toDate,
-              x: x.value,
-              y: other.value,
-            },
-          ];
-    });
+    return x?.value == null || y?.value == null
+      ? []
+      : [
+          {
+            code,
+            name,
+            xPeriod: { fromDate: x.fromDate, toDate: x.toDate },
+            yPeriod: { fromDate: y.fromDate, toDate: y.toDate },
+            x: x.value,
+            y: y.value,
+          },
+        ];
   });
-  const local = matches.filter(({ code }) => code !== ENGLAND_AREA_CODE);
-  const latest = (local.length ? local : matches)
-    .toSorted((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
-    .at(-1)?.period;
-  return matches.filter(({ period }) => period === latest);
 }

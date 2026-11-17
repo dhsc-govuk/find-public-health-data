@@ -6,9 +6,7 @@ import {
 } from '@fphd/utils/observation-series';
 import {
   and,
-  asc,
   count,
-  countDistinct,
   desc,
   eq,
   inArray,
@@ -193,9 +191,9 @@ export async function getCachedScatterAreas(
         segments.dimensionKey,
       ),
   );
-  const aligned = () =>
+  const chosen = db.$with('scatter_chosen').as(
     db
-      .select({
+      .selectDistinctOn([points.indicatorId, points.areaId], {
         id: points.id,
         indicatorId: points.indicatorId,
         areaId: points.areaId,
@@ -211,42 +209,10 @@ export async function getCachedScatterAreas(
           eq(references.indicatorId, points.indicatorId),
           eq(references.dimensionKey, points.dimensionKey),
         ),
-      );
-  const pairs = db.$with('scatter_pairs').as(
-    db
-      .select({
-        areaId: points.areaId,
-        fromDate: points.fromDate,
-        toDate: points.toDate,
-      })
-      .from(points)
-      .innerJoin(
-        references,
-        and(
-          eq(references.indicatorId, points.indicatorId),
-          eq(references.dimensionKey, points.dimensionKey),
-        ),
       )
       .where(isNotNull(points.value))
-      .groupBy(points.areaId, points.fromDate, points.toDate, points.dimensionKey)
-      .having(eq(countDistinct(points.indicatorId), 2)),
+      .orderBy(points.indicatorId, points.areaId, desc(points.toDate), desc(points.fromDate)),
   );
-  const latest = db.$with('scatter_latest').as(
-    db
-      .select({ fromDate: pairs.fromDate, toDate: pairs.toDate })
-      .from(pairs)
-      .innerJoin(areas, eq(areas.id, pairs.areaId))
-      .orderBy(asc(eq(areas.code, ENGLAND_AREA_CODE)), desc(pairs.toDate), desc(pairs.fromDate))
-      .limit(1),
-  );
-  const chosen = db
-    .$with('scatter_chosen')
-    .as(
-      aligned().innerJoin(
-        latest,
-        and(eq(latest.fromDate, points.fromDate), eq(latest.toDate, points.toDate)),
-      ),
-    );
   // Tied headline segments need the canonical label ordering rather than UUID ordering.
   const ambiguous = db
     .select({ id: segments.indicatorId })
@@ -274,8 +240,6 @@ export async function getCachedScatterAreas(
       firstAreas,
       segments,
       references,
-      pairs,
-      latest,
       chosen,
     )
     .select({

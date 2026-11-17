@@ -1195,3 +1195,42 @@ test('keeps scatter axes, sex, correlation and controls usable at desktop and mo
     await expectNoAccessibilityViolations(page, testInfo);
   }
 });
+
+test('pairs diabetes QOF prevalence and diabetes mortality at their own latest periods', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=mortality-rate-for-deaths-involving-diabetes-all-ages',
+  );
+  const panel = page.locator('#indicator-compare-indicators');
+  const chart = panel.locator('#compare-chart-section');
+  await expect(chart.locator('.recharts-scatter-symbol').first()).toBeVisible();
+  await expect(
+    chart.getByText('No values for these indicators match by area and period.'),
+  ).toHaveCount(0);
+  await expect(chart.locator('.fphd-chart-axis-title').first()).toContainText(
+    'Diabetes: QOF prevalence',
+  );
+  await expect(chart.locator('.fphd-chart-axis-title').first()).toContainText('2024/25');
+  const mortalityAxis = (
+    await chart.locator('.fphd-chart-axis-title').nth(1).locator('tspan').allTextContents()
+  ).join(' ');
+  expect(mortalityAxis).toContain('Mortality rate for deaths involving diabetes, all ages');
+  expect(mortalityAxis).toMatch(/2022 to 2024|2024/);
+  const headers = await chart.getByRole('columnheader').allTextContents();
+  await chart.getByRole('button', { name: 'Swap axis' }).click();
+  await expect
+    .poll(async () =>
+      (
+        await chart.locator('.fphd-chart-axis-title').first().locator('tspan').allTextContents()
+      ).join(' '),
+    )
+    .toBe(mortalityAxis);
+  expect(await chart.getByRole('columnheader').allTextContents()).toEqual([
+    headers[0],
+    headers[2],
+    headers[1],
+  ]);
+  await expectNoAccessibilityViolations(page, testInfo);
+});

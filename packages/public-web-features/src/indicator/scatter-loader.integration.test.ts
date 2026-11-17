@@ -8,9 +8,19 @@ import { eq, inArray } from 'drizzle-orm';
 import express from 'express';
 import { RouterContextProvider } from 'react-router';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-// A pre-change loader capture prevents shared selection code from redefining the expected scatter.
-import before from './fixtures/scatter-before.json';
+import captured from './fixtures/scatter-before.json';
 import { loadIndicatorPage } from './single-loader.ts';
+
+const before = captured.map((fixture) => ({
+  ...fixture,
+  scatter: {
+    points: fixture.scatter.points.map(({ period, fromDate, toDate, ...point }) => ({
+      ...point,
+      xPeriod: { fromDate, toDate },
+      yPeriod: { fromDate, toDate },
+    })),
+  },
+}));
 
 let database: TestDb;
 let db: Database;
@@ -45,11 +55,14 @@ async function load(url: string, onRead: (path: string) => void = () => {}) {
   return comparison;
 }
 
-it.each(before)('preserves the old loader scatter for $ids in $group', async (fixture) => {
-  const comparison = await load(fixture.url);
-  expect(comparison.compareAreaGroup).toBe(fixture.group);
-  expect(comparison.scatter).toMatchObject(fixture.scatter);
-});
+it.each(before.filter(({ scatter }) => scatter.points.length > 0))(
+  'preserves the old loader scatter for $ids in $group',
+  async (fixture) => {
+    const comparison = await load(fixture.url);
+    expect(comparison.compareAreaGroup).toBe(fixture.group);
+    expect(comparison.scatter).toMatchObject(fixture.scatter);
+  },
+);
 
 it('keeps the saved axis order, periods and every area value', async () => {
   const fixture = before.find(
@@ -62,6 +75,8 @@ it('keeps the saved axis order, periods and every area value', async () => {
       ...point,
       x: point.y,
       y: point.x,
+      xPeriod: point.yPeriod,
+      yPeriod: point.xPeriod,
     })),
   );
 });
@@ -101,14 +116,31 @@ it.each([40501])(
   },
 );
 
-it('skips history for the seed pair with disjoint canonical populations', async () => {
-  const fixture = before.find(
-    ({ ids, group }) => ids[1] === 92443 && group === 'Local authorities',
+it.each(before.filter(({ scatter }) => scatter.points.length === 0))(
+  'plots independent headline values for $ids in $group',
+  async (fixture) => {
+    const comparison = await load(fixture.url);
+    expect(comparison.scatter?.points.length).toBeGreaterThan(1);
+    expect(comparison.scatter?.points.some(({ code }) => code === 'E92000001')).toBe(true);
+  },
+);
+
+it('loads the seeded diabetes comparison with separate financial and calendar periods', async () => {
+  const comparison = await load(
+    'http://localhost/indicator/diabetes-qof-prevalence?compareWith=mortality-rate-for-deaths-involving-diabetes-all-ages',
   );
-  if (!fixture) throw new Error('Expected fixture');
-  const paths: string[] = [];
-  const comparison = await load(fixture.url, (path) => paths.push(path));
-  expect(comparison.scatter).toMatchObject(fixture.scatter);
-  expect(comparison.scatter).toMatchObject({ points: [] });
-  expect(paths.filter((path) => path.startsWith('/api/indicator-scatter'))).toHaveLength(0);
+  const variants = comparison.scatter?.variants;
+  expect(variants?.length).toBeGreaterThan(0);
+  for (const variant of variants ?? []) {
+    expect(variant.points.length).toBeGreaterThan(1);
+    expect(variant.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'E92000001',
+          xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+          yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+        }),
+      ]),
+    );
+  }
 });

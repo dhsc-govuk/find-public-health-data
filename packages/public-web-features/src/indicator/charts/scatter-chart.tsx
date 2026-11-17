@@ -63,12 +63,16 @@ export function CompareIndicatorsChart({
     pairedObservations(selected[0]?.areaData ?? [], selected[1]?.areaData ?? []);
   const points = source
     .filter(({ code }) => !only || code === englandCode || only.has(code))
-    .map((point) => (swapped ? point : { ...point, x: point.y, y: point.x }));
+    .map((point) =>
+      swapped
+        ? point
+        : { ...point, x: point.y, y: point.x, xPeriod: point.yPeriod, yPeriod: point.xPeriod },
+    );
   const category = (code: string) =>
     code === englandCode ? 'england' : selectedAreaCodes.includes(code) ? 'selected' : 'other';
-  const period = points[0];
-  const xPeriod = period ? periodLabel(period, x.detail.yearType) : '';
-  const yPeriod = period ? periodLabel(period, y.detail.yearType) : '';
+  const period = points.find(({ code }) => code === englandCode) ?? points[0];
+  const xPeriod = period ? periodLabel(period.xPeriod, x.detail.yearType) : '';
+  const yPeriod = period ? periodLabel(period.yPeriod, y.detail.yearType) : '';
   const axisSexes = swapped ? variant?.axisSexes : [...(variant?.axisSexes ?? [])].reverse();
   const name = (indicator: ChartIndicator, index: number) =>
     `${indicator.detail.name}${axisSexes?.[index] ? `, ${axisSexes[index]?.toLowerCase()}` : ''}`;
@@ -152,10 +156,12 @@ export function CompareIndicatorsChart({
                         colour={scatterMarks[category(point.code)].fill}
                       >
                         <div>
-                          {xName}: {chartValue(point.x, x.detail.unit)} ({xPeriod})
+                          {xName}: {chartValue(point.x, x.detail.unit)} (
+                          {periodLabel(point.xPeriod, x.detail.yearType)})
                         </div>
                         <div>
-                          {yName}: {chartValue(point.y, y.detail.unit)} ({yPeriod})
+                          {yName}: {chartValue(point.y, y.detail.unit)} (
+                          {periodLabel(point.yPeriod, y.detail.yearType)})
                         </div>
                       </ChartTooltip>
                     ) : null;

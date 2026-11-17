@@ -39,9 +39,8 @@ const indicators = [selected(108), selected(241)].map((entry, index) => ({
 const point = (code: string, x: number, y: number) => ({
   code,
   name: code === 'E92000001' ? 'England' : `Area ${code}`,
-  period: '2024-01-01|2024-12-31',
-  fromDate: '2024-01-01',
-  toDate: '2024-12-31',
+  xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+  yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
   x,
   y,
 });
@@ -215,4 +214,34 @@ it('labels only the applicable sex and changes values with the selected variant'
   expect(table().getByRole('rowheader', { name: 'Area A' }).closest('tr')?.textContent).toContain(
     '9.0%',
   );
+});
+
+it('keeps financial and three-year periods with their axes and table columns when swapped', () => {
+  const { container } = render(
+    <CompareIndicatorsChart
+      selected={indicators}
+      scatter={{
+        points: [
+          {
+            ...point('A', 10, 20),
+            xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+            yPeriod: { fromDate: '2022-01-01', toDate: '2024-12-31' },
+          },
+        ],
+      }}
+    />,
+  );
+  const labels = () =>
+    [...container.querySelectorAll('.fphd-chart-axis-title')].map((node) =>
+      node.textContent?.replaceAll('\u00a0', ' '),
+    );
+  const headers = () =>
+    table()
+      .getAllByRole('columnheader')
+      .map((node) => node.textContent);
+  expect(labels()).toEqual(['Prevalence (%)2024/25', 'Mortality (per 100,000)2022 to 2024']);
+  expect(headers()).toEqual(['Area', 'Mortality (2022 to 2024)', 'Prevalence (2024/25)']);
+  fireEvent.click(screen.getByRole('button', { name: 'Swap axis' }));
+  expect(labels()).toEqual(['Mortality (per 100,000)2022 to 2024', 'Prevalence (%)2024/25']);
+  expect(headers()).toEqual(['Area', 'Prevalence (2024/25)', 'Mortality (2022 to 2024)']);
 });

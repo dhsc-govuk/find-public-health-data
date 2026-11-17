@@ -323,7 +323,7 @@ async function loadIndicatorComparison(
           )
         ).periods
       : [];
-  const scatter = comparedDetail
+  const scatter: ScatterComparison | undefined = comparedDetail
     ? (compactScatter ?? loadScatterComparison(chartIndicators, url.searchParams))
     : undefined;
   return {

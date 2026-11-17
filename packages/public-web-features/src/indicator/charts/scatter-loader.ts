@@ -70,38 +70,16 @@ export function loadRankingScatterComparison(
   // Sex variants can elect a different headline after history is bounded.
   if ([first, second].some(({ dimensions }) => dimensions.some(({ type }) => type === 'Sex')))
     return undefined;
-  if (!sameSegment(first, second)) {
-    const populations = [x, y].map(({ areaData }) =>
-      areaData.every(({ populationKeys }) => populationKeys !== undefined)
-        ? new Set(areaData.flatMap(({ populationKeys }) => populationKeys ?? []))
-        : undefined,
-    );
-    const [firstKeys, secondKeys] = populations;
-    return firstKeys && secondKeys && ![...firstKeys].some((key) => secondKeys.has(key))
-      ? { points: [] }
-      : undefined;
-  }
-  const periods = [x, y].map(
-    ({ areaData }) =>
-      new Set(
-        areaData.flatMap(({ observations }) =>
-          observations
-            .filter(({ value }) => value !== null)
-            .map(({ fromDate, toDate }) => `${fromDate}|${toDate}`),
-        ),
-      ),
-  );
+  if (!sameSegment(first, second)) return undefined;
   if (
-    periods.some((periods) => periods.size !== 1) ||
-    [...(periods[0] ?? [])][0] !== [...(periods[1] ?? [])][0]
+    [x, y].some(({ areaData }) =>
+      areaData.some(({ observations }) => !observations.some(({ value }) => value !== null)),
+    )
   )
     return undefined;
   const scatter = loadScatterComparison(selected, params);
-  // Disjoint latest local values can still have a paired period further back.
-  if (
-    !scatter?.points.some(({ code }) => code !== 'E92000001') &&
+  return !scatter?.points.some(({ code }) => code !== 'E92000001') &&
     [x, y].some(({ areaData }) => areaData.some(({ areaCode }) => areaCode !== 'E92000001'))
-  )
-    return undefined;
-  return scatter;
+    ? undefined
+    : scatter;
 }

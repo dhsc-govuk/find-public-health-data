@@ -64,7 +64,13 @@ it('reads bounded cached candidates, markers and benchmarks in one statement', a
 });
 
 it('resolves both published axes in one bulk read without coalescing ranking lookups', async () => {
-  const expected = (await canonical()).map((point) => ({ ...point, x: point.y, y: point.x }));
+  const expected = (await canonical()).map((point) => ({
+    ...point,
+    x: point.y,
+    y: point.x,
+    xPeriod: point.yPeriod,
+    yPeriod: point.xPeriod,
+  }));
   const query = vi.spyOn(db.$client, 'unsafe');
   try {
     expect(await getPublishedIndicatorScatterData(db, [40501, 108], codes)).toEqual(expected);
@@ -104,7 +110,7 @@ it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
   },
 );
 
-it('retains nulls, zeroes and an older common period while using current published values', async () => {
+it('retains zeroes and each axis’s latest non-null published period', async () => {
   const original = await getCachedScatterAreas(db, ids, codes);
   const latest = original?.get(ids[0])?.[0]?.observations.at(-1);
   if (!latest) throw new Error('Expected recent points');
@@ -123,8 +129,8 @@ it('retains nulls, zeroes and an older common period while using current publish
   expect(
     expected.every(
       (point) =>
-        point.toDate < latest.toDate ||
-        (point.toDate === latest.toDate && point.fromDate < latest.fromDate),
+        point.yPeriod.toDate < latest.toDate ||
+        (point.yPeriod.toDate === latest.toDate && point.yPeriod.fromDate < latest.fromDate),
     ),
   ).toBe(true);
   const common = expected[0];
@@ -135,8 +141,8 @@ it('retains nulls, zeroes and an older common period while using current publish
     .where(
       and(
         eq(observation.indicatorId, ids[0]),
-        eq(observation.fromDate, common.fromDate),
-        eq(observation.toDate, common.toDate),
+        eq(observation.fromDate, common.xPeriod.fromDate),
+        eq(observation.toDate, common.xPeriod.toDate),
       ),
     );
   const points = await getIndicatorScatterData(db, ids, codes);
@@ -174,9 +180,14 @@ it.each([2022, 2024])('matches canonical annual histories ending in %i and 2018'
     history.get(ids[1])?.areaData ?? [],
   );
   expect(untrimmed.map(({ code }) => code)).toEqual(codes.slice(0, 2));
-  expect(untrimmed.every(({ toDate }) => toDate === '2018-12-31')).toBe(true);
+  expect(
+    untrimmed.every(
+      ({ xPeriod, yPeriod }) =>
+        xPeriod.toDate === `${end}-12-31` && yPeriod.toDate === '2018-12-31',
+    ),
+  ).toBe(true);
   const expected = await canonical();
-  expect(expected).toEqual(end === 2022 ? untrimmed : []);
+  expect(expected).toEqual(untrimmed);
   const cached = await getCachedScatterAreas(db, ids, codes);
   expect(cached).toBeDefined();
   expect(pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? [])).toEqual(expected);
@@ -258,4 +269,64 @@ it('keeps tied sex headlines identical when the cached query uses canonical data
   expect(expected.length).toBeGreaterThan(0);
   expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
   expect(await getIndicatorScatterData(db, ids, codes)).toEqual(expected);
+});
+
+it('pairs the latest financial and three-year values independently for each area', async () => {
+  const models = await database.db
+    .selectDistinct({ id: observationSeries.indicatorId, batch: observationSeries.uploadBatchId })
+    .from(observationSeries)
+    .where(inArray(observationSeries.indicatorId, ids));
+  const areas = await database.db.select().from(area).where(inArray(area.code, codes));
+  await database.db.delete(observation).where(inArray(observation.indicatorId, ids));
+  for (const model of models) {
+    await database.db.insert(observation).values(
+      areas.flatMap((area) => {
+        const year = area.code === 'E92000001' ? 2023 : 2024;
+        const financial = model.id === ids[0];
+        const latest = {
+          indicatorId: model.id,
+          uploadBatchId: model.batch,
+          areaId: area.id,
+          dimensionKey: '',
+          fromDate: financial ? `${year}-04-01` : `${year - 2}-01-01`,
+          toDate: financial ? `${year + 1}-03-31` : `${year}-12-31`,
+          value: financial ? 0 : 20,
+        };
+        return [
+          { ...latest, fromDate: '2019-01-01', toDate: '2019-12-31', value: 5 },
+          latest,
+          { ...latest, fromDate: '2026-01-01', toDate: '2026-12-31', value: null },
+        ];
+      }),
+    );
+    await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
+  }
+  const expected = [
+    {
+      code: codes[0],
+      x: 0,
+      y: 20,
+      xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+      yPeriod: { fromDate: '2022-01-01', toDate: '2024-12-31' },
+    },
+    {
+      code: codes[1],
+      x: 0,
+      y: 20,
+      xPeriod: { fromDate: '2023-04-01', toDate: '2024-03-31' },
+      yPeriod: { fromDate: '2021-01-01', toDate: '2023-12-31' },
+    },
+  ];
+  const cached = await getCachedScatterAreas(db, ids, codes);
+  expect(cached).toBeDefined();
+  expect(pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? [])).toMatchObject(
+    expected,
+  );
+  expect(await canonical()).toMatchObject(expected);
+  expect(await getIndicatorScatterData(db, ids, codes)).toMatchObject(expected);
+  await database.db
+    .delete(observationSeriesBatch)
+    .where(eq(observationSeriesBatch.indicatorId, ids[1]));
+  expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
+  expect(await getIndicatorScatterData(db, ids, codes)).toMatchObject(expected);
 });

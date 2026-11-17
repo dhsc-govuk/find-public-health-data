@@ -733,9 +733,8 @@ describe('loadIndicator', () => {
         points: rankings(call).map((area) => ({
           code: area.areaCode,
           name: area.areaName,
-          period: '2024-01-01|2024-12-31',
-          fromDate: '2024-01-01',
-          toDate: '2024-12-31',
+          xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+          yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
           x: 10,
           y: 20,
         })),
@@ -785,7 +784,7 @@ describe('loadIndicator', () => {
     ]);
   });
 
-  it('keeps the server-selected common period separate from each latest ranking and honours saved axes', async () => {
+  it('pairs each latest ranking period and honours saved axes', async () => {
     const point = (year: number, value: number) => ({
       ...observation(value),
       fromDate: `${year}-01-01`,
@@ -800,9 +799,8 @@ describe('loadIndicator', () => {
         points: rankings(call).map((area) => ({
           code: area.areaCode,
           name: area.areaName,
-          period: '2023-01-01|2023-12-31',
-          fromDate: '2023-01-01',
-          toDate: '2023-12-31',
+          xPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
+          yPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
           x: 20,
           y: 10,
         })),
@@ -817,12 +815,14 @@ describe('loadIndicator', () => {
     expect(result.scatter?.points).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
     expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
-    expect(paths(client).find((path) => path.includes('/indicator-scatter?'))).toContain(
-      '/indicator-scatter?indicator=241&indicator=108&',
-    );
+    expect(paths(client).filter((path) => path.includes('/indicator-scatter?'))).toHaveLength(0);
     expect(
       result.scatter?.points.every(
-        ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 20 && y === 10,
+        ({ xPeriod, yPeriod, x, y }) =>
+          xPeriod.fromDate === '2023-01-01' &&
+          yPeriod.fromDate === '2024-01-01' &&
+          x === 20 &&
+          y === 11,
       ),
     ).toBe(true);
   });
@@ -883,7 +883,13 @@ describe('loadIndicator', () => {
       const expected = loadScatterComparison(selected, params);
       if (!expected) throw new Error('Expected a comparison pair');
       expect(expected.points).toMatchObject([
-        { code: 'E00000000', x: 20, y: 0, fromDate: '2023-01-01' },
+        {
+          code: 'E00000000',
+          x: 21,
+          y: 0,
+          xPeriod: { fromDate: '2024-01-01' },
+          yPeriod: { fromDate: '2023-01-01' },
+        },
       ]);
       const client = api({
         ...Object.fromEntries(
