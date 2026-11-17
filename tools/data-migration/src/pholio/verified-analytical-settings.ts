@@ -93,9 +93,10 @@ export default [
     comparator_method_id: 12,
     verified_at: '2026-11-17',
     reason:
-      'The owning profile groups it with polarity 0 and with polarity 99. All three published profiles, including the owning profile, use polarity 0 and comparator method 12.',
+      'The owning profile publishes it with polarity 0 in one domain and polarity 99 in its Quality and outcomes domain. Polarity 0 is the setting in three of its four published groups, including the Public Health Outcomes Framework and the Mortality Profile; every group uses comparator method 12.',
     evidence_urls: [
       'https://fingertips.phe.org.uk/api/profile_group_roots?group_id=1938133452&area_type_id=6',
+      'https://fingertips.phe.org.uk/api/profile_group_roots?group_id=1938133456&area_type_id=6',
       'https://fingertips.phe.org.uk/api/profile_group_roots?group_id=1938133058&area_type_id=6',
       'https://fingertips.phe.org.uk/api/profile_group_roots?group_id=1000044&area_type_id=6',
     ],

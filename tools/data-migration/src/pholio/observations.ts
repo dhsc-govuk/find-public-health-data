@@ -69,6 +69,20 @@ export function computeCiPair(
   return { lower, upper };
 }
 
+// The listed rows are checked against their source values before their inverted limits pass.
+function computeCi95(
+  c: CdsRow,
+  diagnostic: string,
+): { lower: number | null; upper: number | null } {
+  return computeCiPair(
+    c.Value,
+    c.LowerCI95,
+    c.UpperCI95,
+    `${diagnostic}, 95%`,
+    isPublishedInvertedInterval(c),
+  );
+}
+
 // ─── Compound sex+age ─────────────────────────────────────────────────────────
 
 /** AgeIDs that decompose into a male+female pair of observation rows. */
@@ -322,13 +336,7 @@ async function assertDistinctObservations(
     if (areaId === undefined) throw new Error(`${diagnostic}: unknown area ${c.AreaCode}`);
     if (c.ValueNoteId !== 0 && !context.noteTypeCategory.has(c.ValueNoteId))
       throw new Error(`${diagnostic}: unknown note type ${c.ValueNoteId}`);
-    computeCiPair(
-      c.Value,
-      c.LowerCI95,
-      c.UpperCI95,
-      `${diagnostic}, 95%`,
-      isPublishedInvertedInterval(c),
-    );
+    computeCi95(c, diagnostic);
     computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     // Any other sex would silently lose the age, as only SexID 4 is split into the sexed bands.
     if (COMPOUND_AGE_IDS.has(c.AgeID) && c.SexID !== 4)
@@ -452,13 +460,7 @@ export async function exportObservations(context: ObservationExportOptions) {
     const value = nullIfSentinel(c.Value);
     const suppressed = suppressSourceMeasures(c.Value, c.ValueNoteId);
     const diagnostic = `CoreDataSet uid ${c.uid}, indicator ${c.IndicatorID}`;
-    const ci95 = computeCiPair(
-      c.Value,
-      c.LowerCI95,
-      c.UpperCI95,
-      `${diagnostic}, 95%`,
-      isPublishedInvertedInterval(c),
-    );
+    const ci95 = computeCi95(c, diagnostic);
     const ci998 = computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     const halves = observationDimensions(c);
     for (const [split, dimensions] of halves.entries()) {
