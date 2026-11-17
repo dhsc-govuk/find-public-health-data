@@ -1,5 +1,5 @@
 {
-  "id": "b29dfd7c-862b-4724-8c4d-dbf93dad00a9",
+  "id": "b3b875ed-ef4a-4f63-9c84-1f4ccde70bf7",
   "prevId": "fab06ba3-00af-4ce1-b144-2f77c6320bea",
   "version": "7",
   "dialect": "postgresql",
@@ -996,6 +996,110 @@
       },
       "isRLSEnabled": false
     },
+    "public.area_neighbour": {
+      "name": "area_neighbour",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "uuidv7()"
+        },
+        "area_id": {
+          "name": "area_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "neighbour_area_id": {
+          "name": "neighbour_area_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheme": {
+          "name": "scheme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "idx_area_neighbour_area_scheme_position": {
+          "name": "idx_area_neighbour_area_scheme_position",
+          "columns": [
+            {
+              "expression": "area_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "scheme",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "area_neighbour_area_id_area_id_fk": {
+          "name": "area_neighbour_area_id_area_id_fk",
+          "tableFrom": "area_neighbour",
+          "tableTo": "area",
+          "columnsFrom": [
+            "area_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "area_neighbour_neighbour_area_id_area_id_fk": {
+          "name": "area_neighbour_neighbour_area_id_area_id_fk",
+          "tableFrom": "area_neighbour",
+          "tableTo": "area",
+          "columnsFrom": [
+            "neighbour_area_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "area_neighbour_position_check": {
+          "name": "area_neighbour_position_check",
+          "value": "\"area_neighbour\".\"position\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.area_relationship": {
       "name": "area_relationship",
       "schema": "",
@@ -1609,12 +1713,6 @@
         },
         "update_frequency_reason": {
           "name": "update_frequency_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "update_frequency_text": {
-          "name": "update_frequency_text",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -4598,6 +4696,44 @@
       "isExisting": true,
       "materialized": false
     },
+    "published.area_neighbour": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "area_id": {
+          "name": "area_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "neighbour_area_id": {
+          "name": "neighbour_area_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scheme": {
+          "name": "scheme",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "name": "area_neighbour",
+      "schema": "published",
+      "isExisting": true,
+      "materialized": false
+    },
     "published.area_relationship": {
       "columns": {
         "id": {
@@ -5056,12 +5192,6 @@
         },
         "update_frequency_reason": {
           "name": "update_frequency_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "update_frequency_text": {
-          "name": "update_frequency_text",
           "type": "text",
           "primaryKey": false,
           "notNull": false

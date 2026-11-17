@@ -1,8 +1,11 @@
 import {
   type AreaLookup,
+  type AreaNeighbours,
   type AreaParent,
   type AreaSummary,
+  type AreaWithParent,
   type IndicatorAreaFilters,
+  listAreaNeighbours,
   listAreaParents,
   listAreasByCodes,
   listAreasByGroup,
@@ -57,7 +60,7 @@ export interface IndicatorRepository {
   listAreas(
     indicatorId: string,
     filters?: IndicatorAreaFilters,
-  ): Promise<{ displayGroup: string; areas: AreaSummary[] }[]>;
+  ): Promise<{ displayGroup: string; areas: AreaWithParent[] }[]>;
   listPublished(): Promise<PublishedIndicator[]>;
   search(query: string, limit: number): Promise<PublishedIndicator[]>;
   /** The one place the public short id resolves to an internal id. */
@@ -87,6 +90,7 @@ export interface AreaRepository {
   listByCodes(codes: string[]): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
+  listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
 }
 
 export interface TopicRepository {
@@ -117,6 +121,7 @@ export function createRepositories(db: Database): Repositories {
       listByCodes: (codes) => listAreasByCodes(db, codes),
       search: (query, limit) => searchAreas(db, query, limit),
       listParents: (childCodes, parentTypeName) => listAreaParents(db, childCodes, parentTypeName),
+      listNeighbours: (codes) => listAreaNeighbours(db, codes),
     },
     indicators: {
       findTableData: (shortIds, areaCodes, points) =>

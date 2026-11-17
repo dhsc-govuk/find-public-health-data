@@ -10,6 +10,8 @@ import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 // One selection contains up to 19 picked areas and England for comparison.
 export const MAX_SELECTED_AREAS = 19;
 export const MAX_AREA_CODES_PER_REQUEST = MAX_SELECTED_AREAS + 1;
+/** Enough for every upper tier council in the largest region to be highlighted at once. */
+export const MAX_NEIGHBOUR_AREAS_PER_REQUEST = 200;
 export const MAX_RANKING_AREAS = 500;
 export const MAX_AREA_GROUPS_PER_REQUEST = 20;
 export const MAX_AREA_NAME_LENGTH = 100;
@@ -302,7 +304,14 @@ export const areaLookupListSchema = z.array(
 export const displayGroupListSchema = z.array(z.string().min(1));
 
 export const areaDisplayGroupListSchema = z.array(
-  z.object({ displayGroup: z.string().min(1), areas: areaListSchema }),
+  z.object({
+    displayGroup: z.string().min(1),
+    areas: z.array(areaSummarySchema.extend({ parent: areaSummarySchema.nullable().optional() })),
+  }),
+);
+
+export const areaNeighbourListSchema = z.array(
+  z.object({ code: z.string().min(1), neighbours: z.array(z.string().min(1)) }),
 );
 
 export const areaParentListSchema = z.array(
@@ -325,6 +334,7 @@ export type IndicatorAreaData = z.infer<typeof indicatorAreaDataSchema>;
 export type IndicatorRange = z.infer<typeof indicatorRangeSchema>;
 export type IndicatorRangePeriod = IndicatorRange['periods'][number];
 export type AreaSummary = z.infer<typeof areaSummarySchema>;
+export type AreaWithParent = z.infer<typeof areaDisplayGroupListSchema>[number]['areas'][number];
 export type AreaGroup = z.infer<typeof areaGroupListSchema>[number];
 export type AreaLookup = z.infer<typeof areaLookupListSchema>[number];
 export type AreaParent = z.infer<typeof areaParentListSchema>[number];

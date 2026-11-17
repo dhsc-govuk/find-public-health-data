@@ -1,3 +1,4 @@
+import { MAX_NEIGHBOUR_AREAS_PER_REQUEST } from '@fphd/public-api-features/contract';
 import { rankingAreaSeries } from '@fphd/utils/observation-series';
 import { apiContext } from '@fphd/web-server/api-context';
 import {
@@ -110,6 +111,88 @@ function args(
 }
 
 describe('loadIndicator', () => {
+  it.each([
+    ['', false],
+    ['tab-indicator=areas', true],
+    ['render=complete', true],
+  ])(
+    'includes only highlighted neighbours in page loader data when needed: %s',
+    async (query, detailed) => {
+      const client = api({
+        'GET /api/indicators/indicator-108/areas': [
+          {
+            displayGroup: 'Local authorities',
+            areas: [
+              { code: 'E06000001', name: 'Hartlepool' },
+              { code: 'E06000047', name: 'County Durham' },
+            ],
+          },
+        ],
+        'GET /api/areas/neighbours': [{ code: 'E06000001', neighbours: ['E06000006'] }],
+      });
+      const page = await loadIndicatorPage(
+        args(client, `http://localhost/indicator/indicator-108?highlight=E06000001&${query}`),
+      );
+      const comparison = await page.comparison;
+      expect(
+        comparison.compareAreaOptions.map(({ code, neighbours }) => ({ code, neighbours })),
+      ).toEqual([
+        { code: 'E06000001', neighbours: detailed ? ['E06000006'] : undefined },
+        { code: 'E06000047', neighbours: undefined },
+      ]);
+      expect(paths(client).filter((path) => path.startsWith('/api/areas/neighbours?'))).toEqual(
+        detailed ? ['/api/areas/neighbours?areaCode=E06000001'] : [],
+      );
+    },
+  );
+
+  it('loads neighbours for every SSR highlight in capped requests', async () => {
+    const areas = Array.from({ length: MAX_NEIGHBOUR_AREAS_PER_REQUEST + 1 }, (_, index) => ({
+      code: `E06${String(index).padStart(6, '0')}`,
+      name: `Area ${index}`,
+    }));
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [{ displayGroup: 'Local authorities', areas }],
+      'GET /api/areas/neighbours': (call) =>
+        areaCodes(call.path)
+          .slice(0, MAX_NEIGHBOUR_AREAS_PER_REQUEST)
+          .map((code) => ({ code, neighbours: ['E06000006'] })),
+    });
+    const query = new URLSearchParams([
+      ['tab-indicator', 'areas'],
+      ...areas.map(({ code }) => ['highlight', code]),
+    ]);
+    const result = await loadIndicator(
+      args(client, `http://localhost/indicator/indicator-108?${query}`),
+    );
+    expect(result.compareAreaOptions.every(({ neighbours }) => neighbours?.length === 1)).toBe(
+      true,
+    );
+    const requested = paths(client)
+      .filter((path) => path.startsWith('/api/areas/neighbours?'))
+      .map(areaCodes);
+    expect(requested.map((codes) => codes.length)).toEqual([MAX_NEIGHBOUR_AREAS_PER_REQUEST, 1]);
+    expect(requested.flat()).toEqual(areas.map(({ code }) => code));
+  });
+
+  it('keeps SSR indicator data and comparisons available when neighbours fail', async () => {
+    const client = api({
+      'GET /api/areas/neighbours': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?tab-indicator=areas&highlight=E00000000&neighbours=E00000000',
+      ),
+    );
+    expect(result.selected[0]?.detail.shortId).toBe(108);
+    expect(result.compareAreasData).toHaveLength(26);
+    expect(result.compareAreaOptions).toHaveLength(25);
+    expect(result.compareAreaOptions.every(({ neighbours }) => neighbours === undefined)).toBe(
+      true,
+    );
+  });
+
   it('defers observations and rankings on client navigations', async () => {
     const client = api();
     const gate = Promise.withResolvers<void>();
@@ -580,6 +663,24 @@ describe('loadIndicator', () => {
         (candidate) => candidate.includes('/108/data?') && candidate.includes('E92000001'),
       ) ?? '';
     expect(areaCodes(path)).toEqual([...codes.slice(0, 19), 'E92000001']);
+  });
+
+  it("loads the spread of the picked areas' level with an England benchmark", async () => {
+    const range = { periods: [] };
+    const client = api({ 'GET /api/indicators/108/range': range });
+    const result = await loadIndicator(
+      args(client, 'http://localhost/indicator/indicator-108?as=E00000001&cmp-108=england'),
+    );
+
+    expect(paths(client)).toContain('/api/indicators/108/range?displayGroup=Local%20authorities');
+    expect(result.selected[0]?.ranges).toEqual({ 'Local authorities': [] });
+  });
+
+  it('loads no spread without a benchmark', async () => {
+    const client = api();
+    await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?as=E00000001'));
+
+    expect(paths(client).some((path) => path.includes('/range'))).toBe(false);
   });
 
   it('loads every section and requests compact rankings for all comparison areas', async () => {

@@ -6,7 +6,7 @@ import { MORTALITY_NAME, MORTALITY_PATH } from './indicator-page.ts';
 
 const TOPIC_PATH = '/topics/mortality-and-life-expectancy';
 
-async function openTopicPage(page: Page, path: string) {
+export async function openTopicPage(page: Page, path: string) {
   await page.goto(path);
   await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);
 }
@@ -205,7 +205,9 @@ export function topicPageTests() {
     await expect(page.locator('#topic-overview .fphd-topic-highlight')).toHaveCount(2);
     for (const width of [320, 640, 641, 654, 764, 960, 1020, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+        .toBe(width);
       const sidebar = await page
         .locator('#topic-overview .fphd-topic-overview > .govuk-grid-column-one-quarter')
         .boundingBox();
@@ -321,7 +323,7 @@ export function topicPageTests() {
     });
     await expect(table).toBeVisible();
     for (const column of ['London', 'Comparison summary', 'England']) {
-      await expect(table.getByRole('columnheader', { name: column })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: column, exact: true })).toBeVisible();
     }
     await expect(table.getByRole('columnheader').last()).toHaveText(/Calculated\s*value/);
     await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
@@ -342,17 +344,20 @@ export function topicPageTests() {
     const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
     const table = panel.getByRole('table');
     await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+    const initialCsv = await page.request.get('/topics/diabetes/table.csv?tab-topic=data');
+    expect(initialCsv.ok()).toBe(true);
+    expect((await initialCsv.text()).split('\n')[0]?.split(',')).toContain('Last updated');
     await panel.getByRole('checkbox', { name: 'Count', exact: true }).check();
     await panel.getByRole('checkbox', { name: 'Numerator', exact: true }).check();
-    await panel.getByRole('checkbox', { name: 'Last updated', exact: true }).uncheck();
+    await panel.getByRole('checkbox', { name: 'Data last updated', exact: true }).uncheck();
     await expect(panel.getByRole('checkbox', { name: 'Count', exact: true })).toBeChecked();
     await expect(
-      panel.getByRole('checkbox', { name: 'Last updated', exact: true }),
+      panel.getByRole('checkbox', { name: 'Data last updated', exact: true }),
     ).not.toBeChecked();
     await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
     await expect(table.getByRole('columnheader', { name: 'Numerator', exact: true })).toBeVisible();
     await expect(
-      table.getByRole('columnheader', { name: 'Last updated', exact: true }),
+      table.getByRole('columnheader', { name: 'Data last updated', exact: true }),
     ).toHaveCount(0);
     await page.reload();
     await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
@@ -364,7 +369,7 @@ export function topicPageTests() {
     const csv = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
     expect(csv.text.split('\n')[0]).toContain('England count');
     expect(csv.text.split('\n')[0]).toContain('England numerator');
-    expect(csv.text.split('\n')[0]).not.toContain('Last updated');
+    expect(csv.text.split('\n')[0]?.split(',')).not.toContain('Last updated');
     await expectNoAccessibilityViolations(page, testInfo);
   });
 

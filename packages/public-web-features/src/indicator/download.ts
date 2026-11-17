@@ -17,7 +17,6 @@ export function trendCsv(
   indicator: IndicatorDetail,
   model: ReturnType<typeof trendTableModel>,
   confidence: ConfidenceLevel,
-  showRange: boolean,
   columns?: TrendColumns,
 ): string {
   const {
@@ -33,14 +32,25 @@ export function trendCsv(
   const hasNumerators = columns ? columns.numerator : availableNumerators;
   const showValues = columns?.value ?? true;
   const intervals = columns?.confidence ?? (confidence === 'none' ? [] : [confidence]);
+  const spread = [
+    ...(columns?.minMax ? (['min'] as const) : []),
+    ...(columns?.percentiles ? (['p25', 'p75'] as const) : []),
+    ...(columns?.minMax ? (['max'] as const) : []),
+  ];
+  const spreadLabels = {
+    min: 'lowest',
+    p25: '25th percentile',
+    p75: '75th percentile',
+    max: 'highest',
+  };
   const headers = [
     'Period',
     ...seriesByArea.flatMap(({ data }) => {
       const benchmark = benchmarks.get(data.areaCode);
       return [
+        ...(showValues ? [`${data.areaName} calculated value${unitNote(indicator.unit)}`] : []),
         ...(hasCounts ? [`${data.areaName} count`] : []),
         ...(hasNumerators ? [`${data.areaName} numerator`] : []),
-        ...(showValues ? [`${data.areaName} calculated value${unitNote(indicator.unit)}`] : []),
         ...intervals.flatMap((level) => [
           `${data.areaName} lower ${level}% CI`,
           `${data.areaName} upper ${level}% CI`,
@@ -48,12 +58,7 @@ export function trendCsv(
         ...(benchmark
           ? [
               `${data.areaName} ${benchmark.name} calculated value${unitNote(indicator.unit)}`,
-              ...(showRange
-                ? [
-                    `${data.areaName} ${benchmark.name} minimum`,
-                    `${data.areaName} ${benchmark.name} maximum`,
-                  ]
-                : []),
+              ...spread.map((key) => `${data.areaName} ${benchmark.name} ${spreadLabels[key]}`),
             ]
           : []),
       ];
@@ -69,19 +74,16 @@ export function trendCsv(
         (candidate) => inPeriod(period)(candidate) && candidate.segment === referenceSegment,
       );
       return [
+        ...(showValues ? [observation?.value ?? null] : []),
         ...(hasCounts ? [observation?.count ?? null] : []),
         ...(hasNumerators ? [observation?.numerator ?? null] : []),
-        ...(showValues ? [observation?.value ?? null] : []),
         ...intervals.flatMap((level) =>
           level === '95'
             ? [observation?.lowerCi95 ?? null, observation?.upperCi95 ?? null]
             : [observation?.lowerCi998 ?? null, observation?.upperCi998 ?? null],
         ),
         ...(benchmark
-          ? [
-              benchmarkObservation?.value ?? null,
-              ...(showRange ? [range?.min ?? null, range?.max ?? null] : []),
-            ]
+          ? [benchmarkObservation?.value ?? null, ...spread.map((key) => range?.[key] ?? null)]
           : []),
       ];
     }),

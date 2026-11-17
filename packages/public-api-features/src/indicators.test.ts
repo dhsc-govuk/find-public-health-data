@@ -237,6 +237,23 @@ describe('GET /api/indicators/:indicator/areas', () => {
     });
   });
 
+  it('passes a parent area type through so a listing can group areas by region', async () => {
+    const listAreas = vi.fn().mockResolvedValue([]);
+    const app = createTestApp({ resolveIdBySlug: async () => 'indicator-id', listAreas });
+    await request(app).get(
+      '/api/indicators/indicator-108/areas?displayGroup=Local+authorities&parentType=Regions+(statistical)',
+    );
+    expect(listAreas).toHaveBeenLastCalledWith(
+      'indicator-id',
+      expect.objectContaining({ parentType: 'Regions (statistical)' }),
+    );
+    await request(app).get('/api/indicators/indicator-108/areas?parentType=Bad%00Type');
+    expect(listAreas).toHaveBeenLastCalledWith(
+      'indicator-id',
+      expect.not.objectContaining({ parentType: expect.anything() }),
+    );
+  });
+
   it('caps unfiltered previews and preserves explicit complete group and export requests', async () => {
     const listAreas = vi.fn().mockResolvedValue([]);
     const app = createTestApp({ resolveIdBySlug: async () => 'indicator-id', listAreas });

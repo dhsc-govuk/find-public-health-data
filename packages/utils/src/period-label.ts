@@ -85,6 +85,10 @@ export function shortPeriodLabel(period: Period, yearType?: PublicYearType | nul
   );
 }
 
+/**
+ * The period in plain words for a table: whole years read "2024 to 2025" rather than
+ * "2024/25", and anything else is labelled as `periodLabel` labels it.
+ */
 export function expandedPeriodLabel(period: Period, yearType?: PublicYearType | null): string {
   const from = dayOf(period.fromDate);
   const to = dayOf(period.toDate);

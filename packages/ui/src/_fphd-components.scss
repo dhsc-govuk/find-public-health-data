@@ -1,3 +1,4 @@
+@use "sass:color";
 @use "@not-govuk/sass-base" as *;
 
 // Each app frames its pages at its own width. AppShell tags the page with the audience.
@@ -524,15 +525,14 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
     white-space: normal;
   }
 
-  .govuk-tabs__panel .fphd-trend-table th:not([scope="colgroup"]),
+  .govuk-tabs__panel .fphd-trend-table th,
   .govuk-tabs__panel .fphd-trend-table td {
-    width: 120px;
-    min-width: 120px;
-    padding: 4px 6px;
+    padding: 4px 6px 4px 0;
     white-space: normal;
 
-    &:first-child {
-      padding-left: 0;
+    &.fphd-trend-table__benchmark-group,
+    &.fphd-trend-table__benchmark-cell {
+      padding-left: 6px;
     }
   }
 
@@ -1127,6 +1127,22 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-left: 0;
 }
 
+.fphd-geo-alt--flat .fphd-geo-alt__region-areas {
+  margin-left: 45px;
+}
+
+// GOV.UK checkboxes have no part-ticked style, so a region with only some of its areas ticked
+// shows the tick's own ::after flattened to a dash.
+.fphd-geo-alt__group-cb .govuk-checkboxes__input:indeterminate + .govuk-checkboxes__label::after {
+  opacity: 1;
+  transform: none;
+  border-width: 0 0 3px;
+  width: 12px;
+  height: 0;
+  top: 19px;
+  left: 8px;
+}
+
 .fphd-indicator-chart {
   width: 100%;
   max-width: 780px;
@@ -1258,6 +1274,53 @@ body.govuk-frontend-supported .fphd-filter-card {
 
 .fphd-table-unit {
   font-weight: 400;
+}
+
+.fphd-compare-neighbours .govuk-checkboxes__label {
+  margin-bottom: 0;
+}
+
+// A button that reads as a link, for in-page toggles such as "Show 2 more areas". Qualified with
+// the element and type to outrank the template's own styling of every button.
+button.fphd-link-button[type="button"] {
+  @include govuk-font($size: 16);
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  color: $govuk-link-colour;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.1em;
+  cursor: pointer;
+
+  &:hover {
+    color: $govuk-link-hover-colour;
+    text-decoration-thickness: max(3px, 0.1875rem, 0.12em);
+  }
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+}
+
+.fphd-area-sort {
+  display: flex;
+  justify-content: flex-end;
+
+  .govuk-form-group {
+    display: flex;
+    align-items: center;
+    gap: govuk-spacing(2);
+    margin-bottom: govuk-spacing(2);
+  }
+
+  .govuk-label {
+    @include govuk-font($size: 16, $weight: bold);
+    margin-bottom: 0;
+  }
 }
 
 .fphd-geo-alt__more {
@@ -1395,8 +1458,6 @@ body.govuk-frontend-supported .fphd-filter-card {
 }
 
 // Columns keep a minimum 135px width however few there are.
-.fphd-trend-table th,
-.fphd-trend-table td,
 .fphd-compare-table th,
 .fphd-compare-table td {
   min-width: 135px;
@@ -1415,20 +1476,271 @@ body.govuk-frontend-supported .fphd-filter-card {
   font-weight: 700;
 }
 
-// Wide trend tables (one column group per area) scroll sideways inside their own
-// wrapper rather than pushing the whole page out.
+// Wide tables scroll sideways inside their own wrapper rather than pushing the whole page
+// out. Without JavaScript the wrapper keeps the browser's own scrollbar, styled so it is
+// always visible where the table overflows; TableScrollRegion's script swaps it for a bar
+// above the table that stays in view while the page scrolls.
+$fphd-sticky-gap: 6px;
+
+.fphd-table-scroll {
+  margin-bottom: govuk-spacing(3);
+}
+
+.fphd-table-scroll__frame {
+  position: relative;
+}
+
 .fphd-table-scroll-wrapper {
   position: relative;
   overflow-x: auto;
-  margin-bottom: govuk-spacing(3);
+  scrollbar-width: auto;
+  scrollbar-color: govuk-colour("black", $variant: "tint-80")
+    govuk-colour("black", $variant: "tint-95");
+
+  &::-webkit-scrollbar {
+    height: 12px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: govuk-colour("black", $variant: "tint-95");
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border: 2px solid govuk-colour("black", $variant: "tint-95");
+    border-radius: 6px;
+    background-color: govuk-colour("black", $variant: "tint-80");
+  }
 }
 
 .fphd-table-scroll-wrapper:focus-visible {
   @include govuk-focused-box;
 }
 
+.fphd-table-scroll--enhanced .fphd-table-scroll-wrapper {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.fphd-table-caption-copy {
+  @include govuk-font($size: 19, $weight: bold);
+  margin: 0 0 govuk-spacing(2);
+  color: $govuk-text-colour;
+}
+
+.fphd-table__caption--moved {
+  @include govuk-visually-hidden;
+}
+
+.fphd-single-indicator-page .fphd-table-caption-copy,
+.fphd-topic-data .fphd-table-caption-copy {
+  @include govuk-font($size: 16, $weight: bold);
+}
+
+.fphd-table-scrollbar-slot {
+  display: none;
+  height: 24px;
+  margin-bottom: govuk-spacing(1);
+}
+
+.fphd-table-scroll--enhanced.fphd-table-scroll--overflowing .fphd-table-scrollbar-slot {
+  display: block;
+}
+
+// A 24px target around a 16px track, so the bar is easy to see and to land on.
+.fphd-table-scrollbar {
+  position: relative;
+  height: 24px;
+  cursor: pointer;
+  touch-action: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 0;
+    left: 0;
+    height: 16px;
+    border-radius: 8px;
+    background-color: govuk-colour("black", $variant: "tint-95");
+  }
+
+  &:hover::before {
+    background-color: govuk-colour("black", $variant: "tint-80");
+  }
+}
+
+// Pinned under the top of the window while its table scrolls past, on white so the rows
+// beneath don't show through the gap above it.
+.fphd-table-scrollbar--floating {
+  position: fixed;
+  z-index: 5;
+  background-color: govuk-colour("white");
+  box-shadow: 0 (-$fphd-sticky-gap) 0 0 govuk-colour("white");
+}
+
+.fphd-table-scrollbar__thumb {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 16px;
+  border-radius: 8px;
+  background-color: color.adjust(govuk-colour("black", $variant: "tint-80"), $lightness: -15%);
+  cursor: grab;
+
+  // The bar's full height grabs the thumb, not just its 16px.
+  &::after {
+    content: "";
+    position: absolute;
+    top: -4px;
+    right: 0;
+    bottom: -4px;
+    left: 0;
+  }
+
+  &:hover {
+    background-color: govuk-colour("black", $variant: "tint-25");
+  }
+
+  &:active,
+  &--dragging {
+    background-color: govuk-colour("black");
+    cursor: grabbing;
+  }
+}
+
+// A view of the table's head pinned to the top of the window; the real head stays in the
+// table for screen readers.
+.fphd-sticky-header {
+  display: none;
+  position: fixed;
+  z-index: 5;
+  overflow: hidden;
+  background-color: govuk-colour("white");
+  box-shadow: 0 2px 0 0 govuk-colour("black", $variant: "tint-80");
+  pointer-events: none;
+
+  table {
+    table-layout: fixed;
+    margin: 0;
+    border-spacing: 0;
+    background-color: govuk-colour("white");
+  }
+
+  .fphd-table__frozen {
+    z-index: 2;
+    background-color: govuk-colour("white");
+  }
+}
+
+// Shadows at whichever side has columns out of view, the left one just past any frozen
+// columns.
+.fphd-table-edge {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  pointer-events: none;
+
+  &--visible {
+    display: block;
+  }
+
+  &--left {
+    left: var(--fphd-frozen-width, 0);
+    background: linear-gradient(
+      to right,
+      rgba(govuk-colour("black"), 0.4),
+      rgba(govuk-colour("black"), 0.12) 35%,
+      rgba(govuk-colour("black"), 0)
+    );
+  }
+
+  &--right {
+    right: 0;
+    background: linear-gradient(
+      to left,
+      rgba(govuk-colour("black"), 0.4),
+      rgba(govuk-colour("black"), 0.12) 35%,
+      rgba(govuk-colour("black"), 0)
+    );
+  }
+}
+
+// Identifying columns stay at the left while the rest scroll. The second frozen column sits
+// after the first, at the first's measured width. Without that measurement or on phones,
+// only the first stays frozen, and on phones it never takes more than 40% of the screen.
+.fphd-table__frozen {
+  position: sticky;
+  z-index: 1;
+  left: 0;
+  background-color: govuk-colour("white");
+}
+
+thead .fphd-table__frozen {
+  z-index: 2;
+}
+
+.fphd-table__frozen--second {
+  position: static;
+}
+
+@include govuk-media-query($from: tablet) {
+  .fphd-table-scroll--enhanced .fphd-table__frozen--second {
+    position: sticky;
+    left: var(--fphd-frozen-offset, 0);
+  }
+}
+
+// 40% of the table's region: the window less the page's gutters.
+$fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
+
+@include govuk-media-query($until: tablet) {
+  .fphd-table__frozen:not(.fphd-table__frozen--second) {
+    max-width: $fphd-frozen-cap;
+    padding-right: govuk-spacing(2);
+    white-space: normal;
+    // Not `anywhere`, which would shrink a min-content table's column to one character.
+    overflow-wrap: break-word;
+  }
+}
+
+.fphd-table__chart-cell {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+// The spine chart fills its cell, so a narrowest-width table gives the cell the chart's width.
+.fphd-table-scroll-wrapper .fphd-trend-table td.fphd-table__chart-cell {
+  box-sizing: content-box;
+  min-width: 166px;
+}
+
 .fphd-table-scroll-wrapper .fphd-trend-table {
   white-space: nowrap;
+}
+
+// Each column takes its narrowest width, headings and periods wrapping at their spaces, and
+// the table still fills its region when that is wider.
+.fphd-table-scroll-wrapper .fphd-trend-table {
+  width: min-content;
+  min-width: 100%;
+}
+
+.fphd-table-scroll-wrapper .fphd-trend-table tbody > tr > *,
+.fphd-topic-data .fphd-topic-data-table tbody > tr > * {
+  vertical-align: middle;
+}
+
+// The blank cells above the identifying columns draw nothing, not even the header's rule.
+.fphd-table-scroll-wrapper .fphd-trend-table thead td[aria-hidden="true"],
+.fphd-topic-data .fphd-topic-data-table thead td[aria-hidden="true"] {
+  padding: 0;
+  border-bottom: 0;
 }
 
 // Inside tables the trend tag stays on one line — the scroll wrapper absorbs the width —
@@ -1995,28 +2307,49 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 .fphd-topic-data .fphd-compare-table th,
 .fphd-topic-data .fphd-compare-table td {
   box-sizing: border-box;
-  min-width: 120px;
+  min-width: 0;
   white-space: normal;
-  padding: 4px 25px 4px 0;
+  padding: 4px 6px 4px 0;
+
+  &.fphd-trend-table__benchmark-group,
+  &.fphd-trend-table__benchmark-cell {
+    padding-left: 6px;
+  }
 }
 
-.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__period {
-  width: 16.5%;
+// Column widths come from the table's colgroup, and the table grows to their sum.
+.fphd-topic-data .fphd-topic-data-table {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  tbody th {
+    font-weight: 400;
+  }
+
+  // The trend column has a fixed width, so its tags wrap within it.
+  .fphd-trend-tag {
+    white-space: normal;
+  }
+
+  // GOV.UK's hint size would otherwise win over its small body size.
+  .fphd-topic-subtopic {
+    @include govuk-font-size($size: 16);
+  }
+
+  thead th[scope="colgroup"] {
+    vertical-align: middle;
+  }
 }
-.fphd-topic-data .fphd-topic-data-table .fphd-topic-data-table__updated {
-  width: 13.5%;
+
+@include govuk-media-query($until: tablet) {
+  .fphd-topic-data-table__indicator-column {
+    width: $fphd-frozen-cap;
+  }
 }
 
 .fphd-topic-data .fphd-compare-table {
   width: 100%;
-  table-layout: auto;
-
-  th:first-child,
-  tbody td:first-child {
-    min-width: 240px;
-    max-width: none;
-    width: 25%;
-  }
 
   thead th {
     vertical-align: bottom;
@@ -2026,10 +2359,6 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   max-height: 20rem;
   overflow-y: auto;
   margin-top: 1rem;
-}
-
-.fphd-highlighted-area {
-  background: #ffdd00;
 }
 
 .fphd-topic-trend-counts .govuk-list > li {

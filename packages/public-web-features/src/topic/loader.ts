@@ -2,14 +2,17 @@ import {
   areaDisplayGroupListSchema,
   indicatorDetailSchema,
   indicatorPeriodFiltersSchema,
+  indicatorRangeSchema,
   topicDetailSchema,
   topicSummaryListSchema,
   topicTrendSummarySchema,
 } from '@fphd/public-api-features/contract';
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { type ApiClient, type ApiResponseSchema, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type LoaderFunctionArgs, RouterContextProvider } from 'react-router';
 import { areasInGeographyGroup } from '../geography/groups.ts';
+import { loadInBatches } from '../indicator/batches.ts';
 import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
@@ -78,7 +81,9 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
             selectedAreas: content.data.selectedAreas,
             areasLimited: content.data.areasLimited,
           },
-          table: compactTopicDataTable(topicDataTableModel(content.data.selected, topic.slug)),
+          table: compactTopicDataTable(
+            topicDataTableModel(content.data.selected, topic.slug, content.data.benchmarkGeography),
+          ),
         }
       : null,
   );
@@ -240,6 +245,45 @@ export async function loadTopic(
     search.displayGroups,
     tab === 'areas',
   );
+  if (tab === 'data') {
+    const levels = [
+      ...new Set(
+        data.selectedAreas
+          .filter(({ code }) => code !== ENGLAND_AREA_CODE)
+          .map(({ code }) => data.benchmarkGeography.levelByCode[code])
+          .filter((level): level is string => Boolean(level)),
+      ),
+    ];
+    const ids = [...new Set(data.selected.map(({ detail }) => detail.shortId))];
+    const ranges = await loadInBatches(
+      ids.flatMap((id) => levels.map((level) => ({ id, level }))),
+      async ({ id, level }) => {
+        try {
+          const { periods } = await context
+            .get(apiContext)
+            .get(
+              `${apiPath`/api/indicators/${String(id)}/range`}?displayGroup=${encodeURIComponent(level)}`,
+              indicatorRangeSchema,
+            );
+          return { id, level, periods };
+        } catch (error) {
+          if (error instanceof Response && error.status === 404) return { id, level, periods: [] };
+          throw error;
+        }
+      },
+    );
+    data.selected = data.selected.map((entry) => ({
+      ...entry,
+      ranges: {
+        ...entry.ranges,
+        ...Object.fromEntries(
+          ranges
+            .filter(({ id }) => id === entry.detail.shortId)
+            .map(({ level, periods }) => [level, periods]),
+        ),
+      },
+    }));
+  }
   return {
     topic,
     overview: null,

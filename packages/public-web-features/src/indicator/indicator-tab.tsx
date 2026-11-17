@@ -105,7 +105,6 @@ export function IndicatorTab({
       if (periodType !== 'all') next.set(`pt-${id}`, periodType);
       if (confidence !== 'none') next.set(`ci-${id}`, confidence);
       if (options.benchmark !== 'none') next.set(`cmp-${id}`, options.benchmark);
-      if (options.range) next.set(`cr-${id}`, 'yes');
     }
     return [...next];
   };
@@ -237,7 +236,6 @@ export function IndicatorTab({
               geography={benchmarkGeography}
               ranges={ranges}
               regionData={filteredRegions}
-              showRange={options.range}
             />
           </div>
           {detail.dataSource ? (

@@ -11,29 +11,60 @@ describe('selectedTrendColumns', () => {
       numerator: true,
       value: true,
       confidence: [],
+      minMax: false,
+      percentiles: false,
+      chart: false,
     });
   });
 
-  it('shows the value and the first available interval when nothing is chosen', () => {
+  it('shows the value, the first available interval and the benchmark spread when nothing is chosen', () => {
     expect(selectedTrendColumns(new URLSearchParams(), 7, ['count', '99.8'])).toEqual({
       count: false,
       numerator: false,
       value: true,
       confidence: ['99.8'],
+      minMax: true,
+      percentiles: true,
+      chart: true,
     });
+  });
+
+  it('toggles the minimum and maximum, the percentiles and the chart independently', () => {
+    expect(
+      selectedTrendColumns(new URLSearchParams('columns-7=value,percentiles'), 7, []),
+    ).toMatchObject({ minMax: false, percentiles: true, chart: false });
+    expect(
+      selectedTrendColumns(new URLSearchParams('columns-7=minmax,chart'), 7, []),
+    ).toMatchObject({ minMax: true, percentiles: false, chart: true });
   });
 });
 
 describe('trendColumnsParam', () => {
   it('lists the chosen columns in table order', () => {
     expect(
-      trendColumnsParam({ count: true, numerator: true, value: true, confidence: ['95'] }),
-    ).toBe('count,numerator,value,95');
+      trendColumnsParam({
+        count: true,
+        numerator: true,
+        value: true,
+        confidence: ['95'],
+        minMax: true,
+        percentiles: false,
+        chart: true,
+      }),
+    ).toBe('count,numerator,value,95,minmax,chart');
   });
 
   it('says none when no column is chosen', () => {
     expect(
-      trendColumnsParam({ count: false, numerator: false, value: false, confidence: [] }),
+      trendColumnsParam({
+        count: false,
+        numerator: false,
+        value: false,
+        confidence: [],
+        minMax: false,
+        percentiles: false,
+        chart: false,
+      }),
     ).toBe('none');
   });
 });

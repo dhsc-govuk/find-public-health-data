@@ -4,6 +4,7 @@ import type { Database } from './client.ts';
 import { escapeLike } from './like-pattern.ts';
 import {
   publishedArea as area,
+  publishedAreaNeighbour as areaNeighbour,
   publishedAreaRelationship as areaRelationship,
   publishedAreaType as areaType,
   publishedAvailableData as availableData,
@@ -15,18 +16,30 @@ export interface AreaSummary {
   name: string;
 }
 
+export interface AreaWithParent extends AreaSummary {
+  parent?: AreaSummary | null;
+}
+
+export interface AreaNeighbours {
+  code: string;
+  /** The area's statistical neighbours' codes, most similar first. */
+  neighbours: string[];
+}
+
 export interface IndicatorAreaFilters {
   scope?: 'all-data' | undefined;
   displayGroup?: string | undefined;
   query?: string | undefined;
   limit?: number | undefined;
+  /** Adds each area's current parent of this area type, e.g. a council's statistical region. */
+  parentType?: string | undefined;
 }
 
 export async function listIndicatorAreas(
   db: Database,
   indicatorId: string,
-  { displayGroup, query, limit, scope }: IndicatorAreaFilters = {},
-): Promise<{ displayGroup: string; areas: AreaSummary[] }[]> {
+  { displayGroup, query, limit, scope, parentType }: IndicatorAreaFilters = {},
+): Promise<{ displayGroup: string; areas: AreaWithParent[] }[]> {
   const escaped = query === undefined ? undefined : escapeLike(query);
   const ranked = db
     .select({
@@ -36,6 +49,22 @@ export async function listIndicatorAreas(
       displayOrder: areaType.displayOrder,
       code: area.code,
       name: area.name,
+      // A correlated subquery keeps the parent lookup inside this one statement.
+      parent: (parentType
+        ? sql<AreaSummary | null>`(
+            select json_build_object('code', parent.code, 'name', parent.name)
+            from published.area_relationship relationship
+            join published.area parent on parent.id = relationship.parent_area_id
+            join published.area_type parent_type on parent_type.id = parent.area_type_id
+            where relationship.child_area_id = ${area.id}
+              and relationship.valid_to is null
+              and parent.is_current
+              and parent_type.name = ${parentType}
+            order by parent.code
+            limit 1
+          )`
+        : sql<AreaSummary | null>`null`
+      ).as('parent'),
       rank: sql<number>`row_number() over (partition by coalesce(${areaType.displayGroup}, ${areaType.name}) order by ${area.name}, ${area.code})`.as(
         'rank',
       ),
@@ -72,10 +101,14 @@ export async function listIndicatorAreas(
     .from(ranked)
     .where(limit === undefined ? undefined : lte(ranked.rank, limit))
     .orderBy(asc(ranked.displayOrder), asc(ranked.name), asc(ranked.code));
-  const groups = new Map<string, AreaSummary[]>();
+  const groups = new Map<string, AreaWithParent[]>();
   for (const row of rows) {
     const areas = groups.get(row.displayGroup) ?? [];
-    areas.push({ code: row.code, name: row.name });
+    areas.push(
+      parentType
+        ? { code: row.code, name: row.name, parent: row.parent }
+        : { code: row.code, name: row.name },
+    );
     groups.set(row.displayGroup, areas);
   }
   return [...groups].map(([displayGroup, areas]) => ({ displayGroup, areas }));
@@ -203,6 +236,33 @@ export async function searchAreas(
     )
     .orderBy(sql`position(lower(${query}) in lower(${area.name}))`, asc(area.name))
     .limit(limit);
+}
+
+/** The statistical neighbours of each given current area that has any, most similar first. */
+export async function listAreaNeighbours(db: Database, codes: string[]): Promise<AreaNeighbours[]> {
+  if (codes.length === 0) {
+    return [];
+  }
+  // A subquery rather than alias(): drizzle's table alias cannot carry a view's columns.
+  const anchor = db.select().from(area).as('anchor');
+  return db
+    .select({
+      code: anchor.code,
+      neighbours: sql<string[]>`json_agg(${area.code} order by ${areaNeighbour.position})`,
+    })
+    .from(areaNeighbour)
+    .innerJoin(
+      anchor,
+      and(
+        eq(areaNeighbour.areaId, anchor.id),
+        inArray(anchor.code, codes),
+        eq(anchor.isCurrent, true),
+      ),
+    )
+    .innerJoin(area, and(eq(areaNeighbour.neighbourAreaId, area.id), eq(area.isCurrent, true)))
+    .where(eq(areaNeighbour.scheme, 'NHS England peer groups (2024)'))
+    .groupBy(anchor.code)
+    .orderBy(asc(anchor.code));
 }
 
 /** Each given area's current parent of one area type, e.g. a council's statistical region. */

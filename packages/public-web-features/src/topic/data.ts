@@ -52,26 +52,51 @@ export const TOPIC_AREA_GROUPS = [
 
 export const TOPIC_COLUMNS = [
   { value: 'period', label: 'Most recent period' },
-  { value: 'updated', label: 'Last updated' },
+  { value: 'updated', label: 'Data last updated' },
   { value: 'trend', label: 'Trend (last 5 periods)' },
   { value: 'count', label: 'Count' },
   { value: 'numerator', label: 'Numerator' },
   { value: 'value', label: 'Calculated value' },
+  { value: 'chart', label: 'Compared with England' },
+  { value: 'summary', label: 'Comparison summary' },
+  { value: 'minmax', label: 'Minimum/Maximum values' },
+  { value: 'percentiles', label: '25th/75th percentiles' },
 ] as const;
 export type TopicColumn = (typeof TOPIC_COLUMNS)[number]['value'];
+export const DEFAULT_TOPIC_COLUMNS: TopicColumn[] = [
+  'period',
+  'updated',
+  'trend',
+  'value',
+  'chart',
+  'summary',
+];
+export const TOPIC_AREA_COLUMNS: TopicColumn[] = ['chart', 'summary', 'minmax', 'percentiles'];
 
+const ENGLAND_MEASURES = [
+  { measure: 'min', option: 'minmax' },
+  { measure: 'p25', option: 'percentiles' },
+  { measure: 'p75', option: 'percentiles' },
+  { measure: 'max', option: 'minmax' },
+  { measure: 'count', option: 'count' },
+  { measure: 'numerator', option: 'numerator' },
+  { measure: 'value', option: 'value' },
+] as const;
+export type TopicEnglandMeasure = (typeof ENGLAND_MEASURES)[number]['measure'];
+
+/** England's columns beside picked areas, in the prototype's order; its value always shows. */
 export function topicEnglandMeasures(columns: TopicColumn[], compared: boolean) {
   return compared
-    ? (['count', 'numerator', 'value'] as const).filter(
-        (measure) => measure === 'value' || columns.includes(measure),
-      )
+    ? ENGLAND_MEASURES.filter(
+        ({ measure, option }) => measure === 'value' || columns.includes(option),
+      ).map(({ measure }) => measure)
     : [];
 }
 
 export function topicColumns(params: URLSearchParams): TopicColumn[] {
   const selected = params.has('columns-topic')
     ? params.getAll('columns-topic').flatMap((value) => value.split(','))
-    : ['period', 'updated', 'trend', 'value'];
+    : DEFAULT_TOPIC_COLUMNS;
   return TOPIC_COLUMNS.map(({ value }) => value).filter((value) => selected.includes(value));
 }
 

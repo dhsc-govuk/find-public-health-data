@@ -1,6 +1,6 @@
 import {
-  type AreaSummary,
   areaDisplayGroupListSchema,
+  areaNeighbourListSchema,
   DEFAULT_INDICATOR_SEARCH_RESULTS,
   type IndicatorAreaData,
   type IndicatorDetail,
@@ -11,6 +11,7 @@ import {
   indicatorScatterSchema,
   MAX_AREA_PREVIEW,
   MAX_INDICATOR_QUERY_LENGTH,
+  MAX_NEIGHBOUR_AREAS_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { isOneOf } from '@fphd/utils/is-one-of';
@@ -19,7 +20,16 @@ import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
-import { AREA_COMPARISON_GROUPS, areaComparisonOptions } from './area-comparison.ts';
+import {
+  AREA_COMPARISON_GROUPS,
+  AREA_COMPARISON_PARENT_TYPES,
+  AREA_NEIGHBOUR_GROUPS,
+  areaComparisonOptions,
+  type CompareAreaOption,
+  highlightedAreaCodes,
+  wantsCompareAreaDetail,
+  withNeighbours,
+} from './area-comparison.ts';
 import { englandCode, quintileParam, scatterPair } from './charts/chart-data.ts';
 import { loadRankingScatterComparison, loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
@@ -189,15 +199,20 @@ async function loadIndicatorComparison(
   let compareAreasData: IndicatorAreaData[] = [];
   let chartIndicators: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
-  let compareAreaOptions: AreaSummary[] = [];
+  let compareAreaOptions: CompareAreaOption[] = [];
+  const detailed = wantsCompareAreaDetail(url.searchParams);
   if (compareAreaGroup) {
-    const groupsFor = (slug: string) =>
+    const groupsFor = (slug: string, parentType?: string) =>
       api.get(
-        `${apiPath`/api/indicators/${slug}/areas`}?displayGroup=${encodeURIComponent(compareAreaGroup)}`,
+        `${apiPath`/api/indicators/${slug}/areas`}?displayGroup=${encodeURIComponent(compareAreaGroup)}${parentType ? `&parentType=${encodeURIComponent(parentType)}` : ''}`,
         areaDisplayGroupListSchema,
       );
     const [groups, otherGroups] = await Promise.all([
-      groupsFor(routeDetail.slug),
+      // Elsewhere this is the same request as the table's own, so the two are shared.
+      groupsFor(
+        routeDetail.slug,
+        detailed ? AREA_COMPARISON_PARENT_TYPES[compareAreaGroup] : undefined,
+      ),
       comparedDetail ? groupsFor(comparedDetail.slug) : Promise.resolve(undefined),
     ]);
     const otherCodes = otherGroups
@@ -209,6 +224,22 @@ async function loadIndicatorComparison(
         .filter(({ code }) => !otherCodes || otherCodes.has(code)),
       compareAreaGroup,
     );
+    const anchors =
+      detailed && AREA_NEIGHBOUR_GROUPS.has(compareAreaGroup)
+        ? highlightedAreaCodes(url.searchParams, compareAreaOptions)
+        : [];
+    for (let offset = 0; offset < anchors.length; offset += MAX_NEIGHBOUR_AREAS_PER_REQUEST) {
+      const codes = anchors.slice(offset, offset + MAX_NEIGHBOUR_AREAS_PER_REQUEST);
+      compareAreaOptions = withNeighbours(
+        compareAreaOptions,
+        await api
+          .get(
+            `/api/areas/neighbours?${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+            areaNeighbourListSchema,
+          )
+          .catch(() => []),
+      );
+    }
     const codes = [...compareAreaOptions.map(({ code }) => code), 'E92000001'];
     const loadRanking = (detail: IndicatorDetail): Promise<IndicatorAreaData[]> =>
       codes.length
