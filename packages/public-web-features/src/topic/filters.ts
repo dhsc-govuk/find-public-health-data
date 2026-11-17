@@ -25,6 +25,9 @@ export function topicDataKey(url: { pathname: string; search: string }) {
   const params = new URLSearchParams(url.search);
   params.delete('columns-topic');
   params.delete('tab-topic');
+  // React Router adds _routes to a data request that loads only some routes. The loader sees it in
+  // the request URL, but the browser's URL never has it, so the two keys would never match.
+  params.delete('_routes');
   for (const key of AREA_SORT_PARAMS) params.delete(key);
   params.set('sort', topicSort(params.get('sort')) ?? 'subtopic-asc');
   params.sort();
