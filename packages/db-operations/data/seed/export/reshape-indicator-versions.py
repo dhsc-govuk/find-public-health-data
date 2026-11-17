@@ -46,6 +46,7 @@ VERSION_COLUMNS = [
     "ci_method_id",
     "polarity",
     "update_frequency",
+    "update_frequency_text",
     "comparator_method_id",
     "ci_confidence_level",
     "definition",
@@ -65,6 +66,12 @@ VERSION_COLUMNS = [
 
 # The e2e suite covers indicators imported without an update frequency through this one.
 WITHOUT_UPDATE_FREQUENCY = {"94194"}
+
+# Neither export carries Pholio's frequency prose, so the e2e suite's indicator with its own
+# wording takes it from Fingertips here.
+UPDATE_FREQUENCY_TEXTS = {
+    "92026": "Annual measurements during academic year. Data published in the final quarter of the calendar year.",
+}
 
 METADATA_COLUMNS = VERSION_COLUMNS[VERSION_COLUMNS.index("definition") : VERSION_COLUMNS.index("created_at")]
 
@@ -146,6 +153,7 @@ def main(seed_dir):
             if row["frequency_id"] and row["short_id"] not in WITHOUT_UPDATE_FREQUENCY
             else ""
         )
+        version["update_frequency_text"] = UPDATE_FREQUENCY_TEXTS.get(row["short_id"], "")
         if row["year_type_id"]:
             version.update(
                 {

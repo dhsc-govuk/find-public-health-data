@@ -122,6 +122,7 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
   'update-frequency': () =>
     savedFields(updateFrequencyColumns, {
       updateFrequency: 'no-fixed-frequency',
+      updateFrequencyText: '',
       noFixedFrequencyReason: 'Published when the survey runs.',
       noLongerUpdatedReason: '',
     }),

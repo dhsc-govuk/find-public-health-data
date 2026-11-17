@@ -17,6 +17,7 @@ const proseColumns = new Set([
   'disclosure_control_detail',
   'caveats_detail',
   'other_notes_detail',
+  'update_frequency_text',
 ]);
 
 export const DISPLAY_GROUPS: Record<string, readonly [string, number]> = {

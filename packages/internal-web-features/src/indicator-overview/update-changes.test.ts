@@ -35,6 +35,21 @@ describe('updateChangeRows', () => {
     ]);
   });
 
+  it('labels a change to the frequency description', () => {
+    const [row] = updateChangeRows([
+      {
+        task: 'update-frequency',
+        parts: [{ kind: 'text', field: 'updateFrequencyText', before: 'Old.', after: 'New.' }],
+      },
+    ]);
+    expect(row?.lines).toEqual([
+      {
+        label: 'Description of update frequency',
+        change: { kind: 'diff', runs: wordDiff('Old.', 'New.') },
+      },
+    ]);
+  });
+
   it('reads a choice left with no answer as None', () => {
     const [row] = updateChangeRows([
       { task: 'polarity', parts: [{ kind: 'value', field: 'polarity', value: null }] },

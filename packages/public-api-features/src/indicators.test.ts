@@ -14,6 +14,7 @@ const indicatorDetail = {
   yearType: { value: 'calendar' as const, label: 'Calendar' },
   updateFrequency: 'annually' as const,
   updateFrequencyReason: null,
+  updateFrequencyText: null,
   polarity: 'lower-is-better' as const,
   ciMethod: "Dobson & Byar's methods",
   ciConfidenceLevel: '95' as const,

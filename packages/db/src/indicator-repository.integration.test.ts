@@ -236,6 +236,21 @@ describe('getPublishedIndicatorById', () => {
     });
   });
 
+  it.each(['annually', null] as const)(
+    'returns original frequency text beside %s',
+    async (updateFrequency) => {
+      const id = await resolvedId(DIABETES_MORTALITY);
+      await db.execute(
+        sql`UPDATE indicator_version SET update_frequency = ${updateFrequency}, update_frequency_reason = NULL, update_frequency_text = 'Academic year.\nPublished in winter.' WHERE indicator_id = ${id}`,
+      );
+
+      expect(await getPublishedIndicatorById(db, id)).toMatchObject({
+        updateFrequency,
+        updateFrequencyText: 'Academic year.\nPublished in winter.',
+      });
+    },
+  );
+
   it('returns undefined for an id no indicator carries', async () => {
     expect(await getPublishedIndicatorById(db, UNSEEDED_ID)).toBeUndefined();
   });

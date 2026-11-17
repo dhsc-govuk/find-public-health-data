@@ -177,6 +177,7 @@ export const indicatorDetailSchema = z.object({
    * frequency, and beside those two for an indicator imported without one.
    */
   updateFrequencyReason: z.string().nullable(),
+  updateFrequencyText: z.string().nullable(),
   polarity: z.enum(POLARITIES),
   ciMethod: z.string().nullable(),
   ciConfidenceLevel: z.enum(CI_CONFIDENCE_LEVELS).nullable(),

@@ -7,12 +7,16 @@ export function providerSourceText(entries: IndicatorProviderSource[]): string {
     .join('; ');
 }
 
-/** The update frequency for the metadata download, with the reason on the line below it. */
-export function updateFrequencyText({
+export function updateFrequencyLine({
   updateFrequency,
   updateFrequencyReason,
-}: Pick<IndicatorDetail, 'updateFrequency' | 'updateFrequencyReason'>): string | null {
-  if (!updateFrequency) return null;
-  const { text, reason } = publicUpdateFrequency(updateFrequency, updateFrequencyReason);
-  return reason ? `${text}\n${reason}` : text;
+  updateFrequencyText,
+}: Pick<IndicatorDetail, 'updateFrequency' | 'updateFrequencyReason' | 'updateFrequencyText'>):
+  | string
+  | null {
+  const fixed = updateFrequency && publicUpdateFrequency(updateFrequency, updateFrequencyReason);
+  if (fixed?.reason) {
+    return [updateFrequencyText, fixed.text, fixed.reason].filter(Boolean).join('\n');
+  }
+  return updateFrequencyText || fixed?.text || null;
 }

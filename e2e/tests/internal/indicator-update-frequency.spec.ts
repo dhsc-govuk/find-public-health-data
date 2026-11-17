@@ -16,6 +16,7 @@ const NO_FIXED = 'No fixed frequency';
 const NO_LONGER_UPDATED = 'This indicator will no longer be updated';
 const NO_FIXED_ERROR = 'Enter the reason this indicator has no fixed update frequency';
 const NO_LONGER_UPDATED_ERROR = 'Enter the reason this indicator will no longer be updated';
+const DESCRIPTION = 'Describe how often it is updated (optional)';
 
 function answer(page: Page, label: string): Locator {
   return page.getByLabel(label, { exact: true });
@@ -104,6 +105,31 @@ test('saves the update frequency and its reason on Continue and shows the task a
   await taskRow(page, SECTION.taskName).getByRole('link').click();
   await expect(answer(page, NO_LONGER_UPDATED)).toBeChecked();
   await expect(await reasonFor(page, NO_LONGER_UPDATED)).toHaveValue('The survey has ended.');
+});
+
+test('saves the description of how often it is updated beside any answer, and clears it', async ({
+  page,
+}) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  const description = page.getByLabel(DESCRIPTION, { exact: true });
+
+  await answer(page, 'Annually').check();
+  await description.fill('  Annual measurements during the academic year.  ');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(taskListPath);
+  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+
+  await page.goto(pagePath);
+  await expect(answer(page, 'Annually')).toBeChecked();
+  await expect(description).toHaveValue('Annual measurements during the academic year.');
+
+  await description.fill('');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(taskListPath);
+
+  await page.goto(pagePath);
+  await expect(description).toBeEmpty();
 });
 
 test('forgets the reason once another answer is chosen', async ({ page }) => {

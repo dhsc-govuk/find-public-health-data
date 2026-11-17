@@ -276,6 +276,7 @@ export const indicatorVersion = pgTable(
     // Update frequency
     updateFrequency: text({ enum: UPDATE_FREQUENCIES }),
     updateFrequencyReason: text(),
+    updateFrequencyText: text(),
     // Notes for reviewers, never published.
     // Variance and quality
     variation: text(),

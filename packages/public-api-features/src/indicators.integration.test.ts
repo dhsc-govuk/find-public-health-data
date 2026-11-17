@@ -175,6 +175,20 @@ describe('public routers against the seeded database', () => {
     }
   });
 
+  it('serves original frequency text even without an enum frequency', async () => {
+    await owner`UPDATE indicator_version v SET update_frequency = NULL, update_frequency_text = 'Academic year, published in winter.' FROM indicator i WHERE v.indicator_id = i.id AND i.short_id = 92443 AND v.status = 'published'`;
+    try {
+      const response = await request(app).get('/api/indicators/92443');
+      expect(response.status).toBe(200);
+      expect(indicatorDetailSchema.parse(response.body)).toMatchObject({
+        updateFrequency: null,
+        updateFrequencyText: 'Academic year, published in winter.',
+      });
+    } finally {
+      await owner`UPDATE indicator_version v SET update_frequency = 'annually', update_frequency_text = NULL FROM indicator i WHERE v.indicator_id = i.id AND i.short_id = 92443 AND v.status = 'published'`;
+    }
+  });
+
   it('serves the England observations for a seeded indicator, matching the wire contract', async () => {
     const response = await request(app).get('/api/indicators/108/data');
 

@@ -69,6 +69,15 @@ export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>
         name="updateFrequency"
         options={options}
       />
+      <Textarea
+        defaultValue={values.updateFrequencyText}
+        error={fieldErrors.updateFrequencyText}
+        hint="Shown on the indicator page in place of the frequency above. If you chose no fixed frequency or no longer updated, that answer and your reason are still shown after it. For example 'Annual measurements during the academic year, published in the final quarter of the calendar year.'"
+        label="Describe how often it is updated (optional)"
+        labelHeading="h2"
+        name="updateFrequencyText"
+        rows={5}
+      />
     </IndicatorSectionForm>
   );
 }

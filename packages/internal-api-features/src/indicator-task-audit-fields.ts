@@ -33,7 +33,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   denominator: ['denominatorDefinition', 'denominatorSources'],
   calculation: calculationSection.fields.options,
   'confidence-intervals': confidenceIntervalsSection.fields.options,
-  'update-frequency': ['updateFrequency', 'updateFrequencyReason'],
+  'update-frequency': ['updateFrequency', 'updateFrequencyReason', 'updateFrequencyText'],
   'value-type-and-units': [
     ...valueTypeAndUnitsSection.fields.options.filter(
       (field) => field !== 'standardPopulationOther' && field !== 'referencePopulation',

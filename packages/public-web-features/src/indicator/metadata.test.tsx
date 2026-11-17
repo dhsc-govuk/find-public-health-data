@@ -17,6 +17,7 @@ const indicator: IndicatorDetail = {
   yearType: { value: 'calendar', label: 'Calendar' },
   updateFrequency: 'annually',
   updateFrequencyReason: null,
+  updateFrequencyText: null,
   polarity: 'lower-is-better',
   ciMethod: null,
   ciConfidenceLevel: null,
@@ -238,5 +239,56 @@ describe('BackgroundInformation', () => {
     renderBackground(indicator);
 
     expect(screen.queryByRole('heading', { name: 'History' })).toBeNull();
+  });
+});
+
+describe.each(['summary', 'background'] as const)('%s update frequency text', (surface) => {
+  const updateFrequencyText = 'Annual measurements during the academic year.\nPublished in winter.';
+
+  function frequencyRow(detail: IndicatorDetail) {
+    render(
+      <MemoryRouter>
+        {surface === 'summary' ? (
+          <IndicatorSummary indicator={detail} observations={[]} />
+        ) : (
+          <BackgroundInformation indicator={detail} />
+        )}
+      </MemoryRouter>,
+    );
+    const name = surface === 'summary' ? 'Update frequency' : 'Frequency';
+
+    return screen.getAllByRole('term').find((term) => term.textContent === name)
+      ?.nextElementSibling;
+  }
+
+  it.each(['annually', 'no-fixed-frequency', null] as const)(
+    'shows the original text in place of %s when there is no reason',
+    (updateFrequency) => {
+      const row = frequencyRow({
+        ...indicator,
+        updateFrequency,
+        updateFrequencyReason: null,
+        updateFrequencyText,
+      });
+
+      expect(row?.textContent).toBe(updateFrequencyText);
+      expect(row?.querySelector('.fphd-metadata-text')?.textContent).toBe(updateFrequencyText);
+    },
+  );
+
+  it('keeps the reason the publisher gave after the original text', () => {
+    const row = frequencyRow({
+      ...indicator,
+      updateFrequency: 'no-longer-updated',
+      updateFrequencyReason: 'The survey has ended.',
+      updateFrequencyText,
+    });
+
+    expect(row?.textContent).toBe(
+      `${updateFrequencyText}This indicator will no longer be updated for the following reason:The survey has ended.`,
+    );
+    expect(
+      [...(row?.querySelectorAll('.fphd-metadata-text') ?? [])].map((part) => part.textContent),
+    ).toEqual([updateFrequencyText, 'The survey has ended.']);
   });
 });

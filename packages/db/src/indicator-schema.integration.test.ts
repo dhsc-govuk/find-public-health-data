@@ -226,6 +226,23 @@ describe('indicator_version', () => {
   });
 
   it.each([
+    'monthly',
+    'quarterly',
+    'annually',
+    'every-2-years',
+    'no-fixed-frequency',
+    'no-longer-updated',
+    null,
+  ] as const)('holds frequency text independently beside %s', async (updateFrequency) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        updateFrequency,
+        updateFrequencyText: 'Academic year, published in winter.',
+      }),
+    ).resolves.toHaveLength(1);
+  });
+
+  it.each([
     ['an unanswered frequency', {}],
     ['monthly', { updateFrequency: 'monthly' }],
     ['quarterly', { updateFrequency: 'quarterly' }],

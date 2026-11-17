@@ -65,13 +65,15 @@ export const updateFrequencyColumns: IndicatorSectionColumns<
   UpdateFrequencyField,
   IndicatorUpdateFrequency
 > = {
-  fromDraft: ({ updateFrequency, updateFrequencyReason }) => ({
+  fromDraft: ({ updateFrequency, updateFrequencyReason, updateFrequencyText }) => ({
     updateFrequency,
+    updateFrequencyText,
     noFixedFrequencyReason: updateFrequency === 'no-fixed-frequency' ? updateFrequencyReason : null,
     noLongerUpdatedReason: updateFrequency === 'no-longer-updated' ? updateFrequencyReason : null,
   }),
   toAttributes: (answers) => ({
     updateFrequency: answers.updateFrequency,
+    updateFrequencyText: answers.updateFrequencyText || null,
     updateFrequencyReason: hasUpdateFrequencyReason(answers.updateFrequency)
       ? answers[UPDATE_FREQUENCY_REASON_FIELDS[answers.updateFrequency]]
       : null,

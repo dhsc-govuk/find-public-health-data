@@ -87,6 +87,7 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       updateFrequency: 'Update frequency',
       noFixedFrequencyReason: 'Reason',
       noLongerUpdatedReason: 'Reason',
+      updateFrequencyText: 'Description of update frequency',
     },
     'value-type-and-units': {
       valueTypeId: 'Value type',

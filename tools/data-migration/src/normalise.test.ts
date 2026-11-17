@@ -43,6 +43,16 @@ describe('migration transforms', () => {
     );
   });
 
+  it('strips HTML from the original frequency text during preparation', () => {
+    expect(
+      normaliseRow(
+        'indicator_version',
+        ['name', 'update_frequency_text'],
+        ['Example', '<p>Academic year</p><p>Published in winter.</p>'],
+      ),
+    ).toEqual(['Example', 'Academic year\nPublished in winter.', 'example']);
+  });
+
   it('preserves metadata null and empty values', () => {
     expect(
       normaliseRow(

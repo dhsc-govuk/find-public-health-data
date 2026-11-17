@@ -27,33 +27,35 @@ export function sourceLink(source: IndicatorDetail['dataSource']) {
   return source.url ? <A href={source.url}>{source.name}</A> : source.name;
 }
 
-/** The update frequency, and below it the reason the publisher gave for it, if there is one. */
-function UpdateFrequency({
-  frequency,
-  reason: given,
-}: {
-  frequency: NonNullable<IndicatorDetail['updateFrequency']>;
-  reason: string | null;
-}) {
-  const { text, reason } = publicUpdateFrequency(frequency, given);
+// The original text stands in for the fixed label only: a reason the publisher had to give
+// still follows it.
+function UpdateFrequency({ indicator }: { indicator: IndicatorDetail }) {
+  const description = indicator.updateFrequencyText;
+  const fixed =
+    indicator.updateFrequency &&
+    publicUpdateFrequency(indicator.updateFrequency, indicator.updateFrequencyReason);
+  if (description && !fixed?.reason) return <div className="fphd-metadata-text">{description}</div>;
+  if (!fixed) return null;
 
   return (
     <>
-      {text}
-      {reason ? <div className="fphd-metadata-text govuk-!-margin-top-2">{reason}</div> : null}
+      {description ? (
+        <div className="fphd-metadata-text govuk-!-margin-bottom-2">{description}</div>
+      ) : null}
+      {fixed.text}
+      {fixed.reason ? (
+        <div className="fphd-metadata-text govuk-!-margin-top-2">{fixed.reason}</div>
+      ) : null}
     </>
   );
 }
 
 function updateFrequencyRow(name: string, indicator: IndicatorDetail) {
-  const frequency = indicator.updateFrequency;
-  return frequency
+  return indicator.updateFrequencyText || indicator.updateFrequency
     ? [
         {
           name,
-          children: (
-            <UpdateFrequency frequency={frequency} reason={indicator.updateFrequencyReason} />
-          ),
+          children: <UpdateFrequency indicator={indicator} />,
         },
       ]
     : [];

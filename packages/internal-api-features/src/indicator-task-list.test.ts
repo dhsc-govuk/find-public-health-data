@@ -265,6 +265,7 @@ describe('the changes an update makes', () => {
     ['polarity', { polarity: 'higher-is-better' }],
     ['numerator', { numeratorSources: [] }],
     ['update-frequency', { updateFrequency: 'annually' }],
+    ['update-frequency', { updateFrequencyText: 'Academic year, published in winter.' }],
     ['variance-and-quality', { variation: 'Varies little.' }],
     ['tagging', { topicIds: [...complete.topicIds, '019fa38f-073f-764e-9ac6-1c4d03b10004'] }],
     ['ages', { ageType: 'all' }],

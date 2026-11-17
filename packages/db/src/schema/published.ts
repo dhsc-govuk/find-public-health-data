@@ -70,6 +70,7 @@ export const publishedIndicator = publishedSchema
     polarity: text('polarity', { enum: POLARITIES }),
     updateFrequency: text('update_frequency', { enum: UPDATE_FREQUENCIES }),
     updateFrequencyReason: text('update_frequency_reason'),
+    updateFrequencyText: text('update_frequency_text'),
     comparatorMethodId: uuid('comparator_method_id'),
     ciConfidenceLevel: text('ci_confidence_level', { enum: CI_CONFIDENCE_LEVELS }),
     definition: text('definition'),
