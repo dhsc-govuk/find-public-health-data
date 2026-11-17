@@ -49,11 +49,6 @@ async function packageArchive(
   const relationshipsFile = 'indicator-relationships.json';
   const relationships = Buffer.from(
     JSON.stringify({
-      approval: {
-        approvedBy: 'migration test',
-        approvedAt: '2026-09-22T10:00:00Z',
-        basis: 'fixture',
-      },
       indicators: [],
       indicatorTopics: [],
       indicatorDataUpdatedAt: {},
