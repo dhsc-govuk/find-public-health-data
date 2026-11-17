@@ -34,7 +34,7 @@ export async function listIndicatorAreas(
   indicatorId: string,
   { displayGroup, query, limit, scope, parentType }: IndicatorAreaFilters = {},
 ): Promise<{ displayGroup: string; areas: AreaWithParent[] }[]> {
-  const { area, areaType, availableData, observation } = views;
+  const { area, areaRelationship, areaType, availableData, observation } = views;
   const escaped = query === undefined ? undefined : escapeLike(query);
   const ranked = db
     .select({
@@ -48,9 +48,9 @@ export async function listIndicatorAreas(
       parent: (parentType
         ? sql<AreaSummary | null>`(
             select json_build_object('code', parent.code, 'name', parent.name)
-            from published.area_relationship relationship
-            join published.area parent on parent.id = relationship.parent_area_id
-            join published.area_type parent_type on parent_type.id = parent.area_type_id
+            from ${areaRelationship} relationship
+            join ${area} parent on parent.id = relationship.parent_area_id
+            join ${areaType} parent_type on parent_type.id = parent.area_type_id
             where relationship.child_area_id = ${area.id}
               and relationship.valid_to is null
               and parent.is_current
