@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
-import { createRoutesStub, useLocation, useNavigation } from 'react-router';
+import { createRoutesStub, useLocation, useNavigate, useNavigation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator } from './compact-data.ts';
@@ -434,6 +434,93 @@ it('keeps benchmark controls interactive while replacement indicator data is def
   expect(
     within(screen.getByRole('table', { name: /^Table:/ })).getByRole('cell', { name: '101.0%' }),
   ).toBeTruthy();
+});
+
+it('keeps a geography unchecked when earlier benchmark data resolves during navigation', async () => {
+  const primary = selected(108, 'Mortality', 100);
+  const england = primary.areaData[0];
+  if (!england) throw new Error('England fixture missing');
+  primary.areaData.unshift({ ...england, areaCode: 'E08000003', areaName: 'Manchester' });
+  const level = 'Upper-tier local authorities';
+  const data = {
+    selected: [compactIndicator(primary)],
+    selectedAreas: [{ code: 'E08000003', name: 'Manchester', level }],
+    displayGroups: [level],
+    benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+    geographyOptions: {
+      query: '',
+      level,
+      groups: [{ name: level, areas: [{ code: 'E08000003', name: 'Manchester' }] }],
+      error: false,
+    },
+    areasLimited: false,
+    selection: { areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] },
+  };
+  const benchmark = Promise.withResolvers<typeof data>();
+  const removal = Promise.withResolvers<never>();
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      HydrateFallback: () => null,
+      loader: ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        if (!params.has('as')) return removal.promise;
+        return {
+          detail: primary.detail,
+          comparedDetail: undefined,
+          findSubject: '',
+          findResults: [],
+          data: params.get('cmp-108') === 'england' ? data : benchmark.promise,
+          comparison: {
+            areaChart: compactIndicator(primary),
+            compareAreaRanges: [],
+            scatter: undefined,
+            ...indicatorComparisonModel([primary], {
+              compareAreasData: [],
+              comparedAreasData: [],
+              compareAreaOptions: [],
+              compareAreaGroup: level,
+              comparisonDisplayGroups: [],
+            }),
+          },
+        };
+      },
+      Component: () => {
+        const location = useLocation();
+        const navigation = useNavigation();
+        const navigate = useNavigate();
+        return (
+          <>
+            <IndicatorRoute />
+            <button type="button" onClick={() => navigate(-1)}>
+              Previous selection
+            </button>
+            <output data-testid="location">{navigation.location?.search ?? location.search}</output>
+          </>
+        );
+      },
+    },
+  ]);
+  render(<Routes initialEntries={['/indicator/indicator-108?as=E08000003&cmp-108=england']} />);
+  const manchester = await screen.findByRole('checkbox', { name: 'Manchester' });
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'England' }));
+  await waitFor(() =>
+    expect(
+      new URLSearchParams(screen.getByTestId('location').textContent ?? '').get('cmp-108'),
+    ).toBe(''),
+  );
+  fireEvent.click(manchester);
+  await waitFor(() =>
+    expect(new URLSearchParams(screen.getByTestId('location').textContent ?? '').has('as')).toBe(
+      false,
+    ),
+  );
+  expect((manchester as HTMLInputElement).checked).toBe(false);
+  await act(async () => benchmark.resolve(structuredClone(data)));
+  expect(screen.getByRole('checkbox', { name: 'Manchester' })).toBe(manchester);
+  expect((manchester as HTMLInputElement).checked).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Previous selection' }));
+  await waitFor(() => expect((manchester as HTMLInputElement).checked).toBe(true));
 });
 
 it('keeps comparison tables and the search form available while search loads or fails', async () => {
