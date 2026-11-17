@@ -217,6 +217,31 @@ export const indicatorDetailSchema = z.object({
   updateSummaries: z.array(z.object({ publishedAt: z.iso.datetime(), summary: z.string().min(1) })),
 });
 
+/**
+ * The questions a draft may leave unanswered, each a field of the detail. The same list as
+ * `INDICATOR_QUESTIONS` in `@fphd/db`, which this module may not import.
+ */
+export const INDICATOR_QUESTIONS = ['valueType', 'unit', 'polarity', 'updateFrequency'] as const;
+
+/**
+ * Whether a draft's data can be shown: it has none uploaded, its data has no read models yet, or
+ * its data is ready.
+ */
+export const INDICATOR_DATA_STATES = ['no-upload', 'read-models-missing', 'ready'] as const;
+
+/**
+ * The detail as the indicator page reads it, which a preview of a draft may leave incomplete.
+ * The public detail is one of these with neither `unanswered` nor `dataState`, so the page shows
+ * a placeholder only where a preview names one.
+ */
+export const indicatorPageDetailSchema = indicatorDetailSchema.extend({
+  valueType: z.string().min(1).nullable(),
+  polarity: z.enum(POLARITIES).nullable(),
+  /** The questions the draft hasn't answered. A null `unit` is "No unit" unless this names it. */
+  unanswered: z.array(z.enum(INDICATOR_QUESTIONS)).optional(),
+  dataState: z.enum(INDICATOR_DATA_STATES).optional(),
+});
+
 export const indicatorObservationSchema = z.object({
   fromDate: z.string().min(1),
   toDate: z.string().min(1),
@@ -327,6 +352,9 @@ export type TopicDetail = z.infer<typeof topicDetailSchema>;
 export type TopicTrendSummary = z.infer<typeof topicTrendSummarySchema>;
 export type IndicatorSummary = z.infer<typeof indicatorSummarySchema>;
 export type IndicatorDetail = z.infer<typeof indicatorDetailSchema>;
+export type IndicatorPageDetail = z.infer<typeof indicatorPageDetailSchema>;
+export type IndicatorQuestion = (typeof INDICATOR_QUESTIONS)[number];
+export type IndicatorDataState = (typeof INDICATOR_DATA_STATES)[number];
 export type IndicatorSource = z.infer<typeof indicatorSourceSchema>;
 export type IndicatorProviderSource = z.infer<typeof indicatorProviderSourceSchema>;
 export type IndicatorObservation = z.infer<typeof indicatorObservationSchema>;
