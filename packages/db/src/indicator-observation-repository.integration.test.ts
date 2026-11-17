@@ -4,8 +4,10 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
-import { publishedIndicator } from './schema/index.ts';
+import { publishedViews } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+
+const { indicator: publishedIndicator } = publishedViews;
 
 let database: TestDb;
 let db: Database;
@@ -26,10 +28,10 @@ afterAll(async () => {
 it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']]])(
   'keeps every table series and its England benchmarks for %j',
   async (areas) => {
-    const full = await getIndicatorObservationData(db, ids, areas);
-    const candidates = await getIndicatorObservationData(db, ids, areas, 'table');
-    const rankings = await getIndicatorObservationData(db, ids, areas, 'ranking');
-    const summaries = await getIndicatorObservationData(db, ids, areas, 'summary');
+    const full = await getIndicatorObservationData(db, publishedViews, ids, areas);
+    const candidates = await getIndicatorObservationData(db, publishedViews, ids, areas, 'table');
+    const rankings = await getIndicatorObservationData(db, publishedViews, ids, areas, 'ranking');
+    const summaries = await getIndicatorObservationData(db, publishedViews, ids, areas, 'summary');
     expect(ids.length).toBeGreaterThan(1);
     let fullCount = 0;
     let candidateCount = 0;
@@ -91,8 +93,14 @@ it('keeps different area headlines when the first area selects an aggregate comp
     ['E92000001', 'E06000052', 'E07000223'],
     ['E06000052', 'E92000001', 'E07000223'],
   ]) {
-    const full = await getIndicatorObservationData(db, [indicator.id], areas);
-    const ranking = await getIndicatorObservationData(db, [indicator.id], areas, 'ranking');
+    const full = await getIndicatorObservationData(db, publishedViews, [indicator.id], areas);
+    const ranking = await getIndicatorObservationData(
+      db,
+      publishedViews,
+      [indicator.id],
+      areas,
+      'ranking',
+    );
     expect(ranking.get(indicator.id)?.areaData).toEqual(
       rankingAreaSeries(full.get(indicator.id)?.areaData ?? []),
     );

@@ -1,6 +1,6 @@
 import type { MetaFunction } from 'react-router';
 
-import { serviceName } from './app-shell.tsx';
+import { serviceName } from './service-name.ts';
 
 export function formatDocumentTitle(pageTitle?: string, { hasErrors = false } = {}) {
   const title = pageTitle ? `${pageTitle} - ${serviceName} - GOV.UK` : `${serviceName} - GOV.UK`;

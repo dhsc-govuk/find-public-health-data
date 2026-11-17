@@ -3,7 +3,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { listAreaNeighbours, listAreasByGroup, listIndicatorAreas } from './area-repository.ts';
 import type { Database } from './client.ts';
 import { resolvePublishedIndicatorId } from './indicator-repository.ts';
-import { area, areaNeighbour, areaType, observation } from './schema/index.ts';
+import { area, areaNeighbour, areaType, observation, publishedViews } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 let database: TestDb;
@@ -17,9 +17,12 @@ afterAll(async () => {
 });
 
 it('omits catalogue areas that have no published observations for this indicator', async () => {
-  const id = await resolvePublishedIndicatorId(db, 108);
+  const id = await resolvePublishedIndicatorId(db, publishedViews, 108);
   if (!id) throw new Error('Seeded indicator missing');
-  const groups = await listIndicatorAreas(db, id, { displayGroup: 'Local authorities', limit: 2 });
+  const groups = await listIndicatorAreas(db, publishedViews, id, {
+    displayGroup: 'Local authorities',
+    limit: 2,
+  });
   const target = groups[0]?.areas[0];
   if (!target) throw new Error('Seeded local area missing');
   expect(groups[0]?.areas).toHaveLength(2);
@@ -32,8 +35,8 @@ it('omits catalogue areas that have no published observations for this indicator
   await db
     .delete(observation)
     .where(and(eq(observation.indicatorId, id), eq(observation.areaId, record.id)));
-  expect(await listAreasByGroup(db, 'Local authorities')).toContainEqual(target);
-  const available = await listIndicatorAreas(db, id, {
+  expect(await listAreasByGroup(db, publishedViews, 'Local authorities')).toContainEqual(target);
+  const available = await listIndicatorAreas(db, publishedViews, id, {
     displayGroup: 'Local authorities',
     query: target.code,
   });
@@ -41,17 +44,20 @@ it('omits catalogue areas that have no published observations for this indicator
 });
 
 it('bounds previews independently for each geography level', async () => {
-  const id = await resolvePublishedIndicatorId(db, 108);
+  const id = await resolvePublishedIndicatorId(db, publishedViews, 108);
   if (!id) throw new Error('Seeded indicator missing');
-  const groups = await listIndicatorAreas(db, id, { limit: 1 });
+  const groups = await listIndicatorAreas(db, publishedViews, id, { limit: 1 });
   expect(groups.length).toBeGreaterThan(1);
   expect(groups.every(({ areas }) => areas.length === 1)).toBe(true);
 });
 
 it('does not advertise placeholder series whose values are all null', async () => {
-  const id = await resolvePublishedIndicatorId(db, 108);
+  const id = await resolvePublishedIndicatorId(db, publishedViews, 108);
   if (!id) throw new Error('Seeded indicator missing');
-  const groups = await listIndicatorAreas(db, id, { displayGroup: 'Local authorities', limit: 1 });
+  const groups = await listIndicatorAreas(db, publishedViews, id, {
+    displayGroup: 'Local authorities',
+    limit: 1,
+  });
   const target = groups[0]?.areas[0];
   if (!target) throw new Error('Seeded area missing');
   const [record] = await db
@@ -64,10 +70,13 @@ it('does not advertise placeholder series whose values are all null', async () =
     .update(observation)
     .set({ value: null })
     .where(and(eq(observation.indicatorId, id), eq(observation.areaId, record.id)));
-  expect(await listIndicatorAreas(db, id, { query: target.code })).toEqual([]);
-  expect(await listIndicatorAreas(db, id, { query: target.code, scope: 'all-data' })).toEqual([
-    { displayGroup: 'Local authorities', areas: [target] },
-  ]);
+  expect(await listIndicatorAreas(db, publishedViews, id, { query: target.code })).toEqual([]);
+  expect(
+    await listIndicatorAreas(db, publishedViews, id, {
+      query: target.code,
+      scope: 'all-data',
+    }),
+  ).toEqual([{ displayGroup: 'Local authorities', areas: [target] }]);
   expect(
     await db
       .select({ id: observation.id })
@@ -78,9 +87,9 @@ it('does not advertise placeholder series whose values are all null', async () =
 });
 
 it('bounds ungrouped area types independently in all-data exports', async () => {
-  const id = await resolvePublishedIndicatorId(db, 108);
+  const id = await resolvePublishedIndicatorId(db, publishedViews, 108);
   if (!id) throw new Error('Seeded indicator missing');
-  const groups = await listIndicatorAreas(db, id, { limit: 1 });
+  const groups = await listIndicatorAreas(db, publishedViews, id, { limit: 1 });
   const codes = groups.slice(0, 2).flatMap(({ areas }) => areas.map(({ code }) => code));
   const types = await db
     .select({ id: areaType.id, name: areaType.name })
@@ -97,16 +106,21 @@ it('bounds ungrouped area types independently in all-data exports', async () => 
         types.map(({ id }) => id),
       ),
     );
-  const exported = await listIndicatorAreas(db, id, { scope: 'all-data', limit: 1 });
+  const exported = await listIndicatorAreas(db, publishedViews, id, {
+    scope: 'all-data',
+    limit: 1,
+  });
   for (const type of types)
     expect(exported.find(({ displayGroup }) => displayGroup === type.name)?.areas).toHaveLength(1);
 });
 
 it('adds each area’s current parent of the requested type in the same listing', async () => {
-  const id = await resolvePublishedIndicatorId(db, 108);
+  const id = await resolvePublishedIndicatorId(db, publishedViews, 108);
   if (!id) throw new Error('Seeded indicator missing');
-  const [plain] = await listIndicatorAreas(db, id, { displayGroup: 'Local authorities' });
-  const [withRegions] = await listIndicatorAreas(db, id, {
+  const [plain] = await listIndicatorAreas(db, publishedViews, id, {
+    displayGroup: 'Local authorities',
+  });
+  const [withRegions] = await listIndicatorAreas(db, publishedViews, id, {
     displayGroup: 'Local authorities',
     parentType: 'Regions (statistical)',
   });
@@ -130,9 +144,9 @@ it('lists an upper tier council’s 15 NHS England peer group neighbours, most s
     scheme: 'An older scheme',
     position: 1,
   });
-  const lists = await listAreaNeighbours(db, ['E06000001', 'E07000223', 'X']);
+  const lists = await listAreaNeighbours(db, publishedViews, ['E06000001', 'E07000223', 'X']);
   expect(lists.map(({ code }) => code)).toEqual(['E06000001']);
   expect(lists[0]?.neighbours).toHaveLength(15);
   expect(lists[0]?.neighbours.slice(0, 3)).toEqual(['E06000006', 'E08000023', 'E08000011']);
-  expect(await listAreaNeighbours(db, [])).toEqual([]);
+  expect(await listAreaNeighbours(db, publishedViews, [])).toEqual([]);
 });

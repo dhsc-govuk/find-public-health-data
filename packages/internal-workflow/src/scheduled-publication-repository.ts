@@ -2,12 +2,12 @@ import { type Database, schema } from '@fphd/db';
 import { type Actor, type AuditChanges, changesBetween } from '@fphd/db/audit-log';
 import { refreshIndicatorReadModels } from '@fphd/internal-read-models';
 import type { Logger } from '@fphd/logger';
-import { slugify } from '@fphd/utils/slug';
-import { and, asc, eq, lt, lte, ne, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, lt, lte, notInArray, sql } from 'drizzle-orm';
 
 import { hasSqlState, type Transaction } from './database.ts';
 import { type IndicatorStepResult, takeIndicatorStepIn } from './indicator-step-repository.ts';
 import type { IndicatorDraftVersion } from './indicator-version-repository.ts';
+import { slugOfRename, slugOnPublication } from './publication-slug-repository.ts';
 import { lockSlugs } from './slug-lock.ts';
 
 const { indicator, indicatorVersion, isScheduled, SYSTEM_USER_IDS } = schema;
@@ -90,19 +90,11 @@ async function markDataUpdated(
 }
 
 /**
- * Gives a renamed update the slug of its new name. A renamed update keeps the indicator's
- * published slug until it is published, so publishing it moves the indicator to the new slug. The
- * earlier published versions keep the old slug, so the old address still finds the indicator, and
- * the public site redirects it to the new one.
+ * Gives a renamed update the slug of its new name, unless another indicator holds it (see
+ * `slugOnPublication`). The earlier published versions keep the old slug, so the old address still
+ * finds the indicator, and the public site redirects it to the new one. A later update that does
+ * not rename the indicator leaves it where it is.
  *
- * Only a rename moves the indicator: a version whose name is the same as `previousName`, the name
- * of the published version it replaces, keeps the slug it carries, even when that slug is not the
- * slug of its name. A new indicator's first version has no previous name, and its draft already
- * carries the slug of its name.
- *
- * Two indicators never share a slug. If another indicator has taken the new slug since the update
- * was renamed, the version keeps the slug it carries, and the indicator keeps its address. A later
- * update that does not rename the indicator leaves it there.
  * Returns the slug change for the audit entry, and the slug that was taken, if it was.
  */
 async function moveToSlugOfName(
@@ -110,23 +102,14 @@ async function moveToSlugOfName(
   draft: IndicatorDraftVersion,
   previousName: string | null,
 ): Promise<{ changes: AuditChanges; slugTaken: string | null }> {
-  if (previousName === null || draft.name === previousName) {
-    return { changes: {}, slugTaken: null };
-  }
-  const slug = slugify(draft.name);
-  if (slug === draft.slug) return { changes: {}, slugTaken: null };
+  const wanted = slugOfRename(draft, previousName);
+  if (wanted === null) return { changes: {}, slugTaken: null };
 
   // Holds the slug, as a create or a rename of a draft does, so no other writer can take it
   // between this check and the update.
-  await lockSlugs(tx, [slug]);
-  const [holder] = await tx
-    .select({ id: indicatorVersion.id })
-    .from(indicatorVersion)
-    .where(
-      and(eq(indicatorVersion.slug, slug), ne(indicatorVersion.indicatorId, draft.indicatorId)),
-    )
-    .limit(1);
-  if (holder !== undefined) return { changes: {}, slugTaken: slug };
+  await lockSlugs(tx, [wanted]);
+  const { slug, slugTaken } = await slugOnPublication(tx, draft, previousName);
+  if (slug === draft.slug) return { changes: {}, slugTaken };
 
   await tx.update(indicatorVersion).set({ slug }).where(eq(indicatorVersion.id, draft.id));
   return { changes: changesBetween({ slug: draft.slug }, { slug }), slugTaken: null };

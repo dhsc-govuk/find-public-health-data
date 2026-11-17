@@ -10,6 +10,7 @@ import {
   resolvePublishedIndicatorId,
   searchIndicators,
 } from './indicator-repository.ts';
+import { publishedViews } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 // Seeded indicators given the period types the seed does not carry.
@@ -64,7 +65,7 @@ function filters(yearTypes: string[]): IndicatorSearchFilters {
 }
 
 async function shortIdsFound(yearTypes: string[]): Promise<number[]> {
-  const { indicators } = await searchIndicators(db, filters(yearTypes));
+  const { indicators } = await searchIndicators(db, publishedViews, filters(yearTypes));
   return indicators.map(({ shortId }) => shortId).sort((a, b) => a - b);
 }
 
@@ -89,18 +90,18 @@ afterAll(async () => {
 
 describe('the public year type', () => {
   it('names the months of a year ending on the last day of one', async () => {
-    const id = await resolvePublishedIndicatorId(db, WINTER_YEARS);
+    const id = await resolvePublishedIndicatorId(db, publishedViews, WINTER_YEARS);
 
-    expect((await getPublishedIndicatorById(db, id ?? ''))?.yearType).toEqual({
+    expect((await getPublishedIndicatorById(db, publishedViews, id ?? ''))?.yearType).toEqual({
       value: 'specified-end-date',
       label: 'August to July',
     });
   });
 
   it('names the date of a year ending within a month', async () => {
-    const id = await resolvePublishedIndicatorId(db, SURVEY_YEARS);
+    const id = await resolvePublishedIndicatorId(db, publishedViews, SURVEY_YEARS);
 
-    expect((await getPublishedIndicatorById(db, id ?? ''))?.yearType?.label).toBe(
+    expect((await getPublishedIndicatorById(db, publishedViews, id ?? ''))?.yearType?.label).toBe(
       'Year ending 15 November',
     );
   });
@@ -112,22 +113,25 @@ describe('the public year type', () => {
   ])(
     'is the named year type a year ending on its last day is (%i)',
     async (shortId, value, label) => {
-      const id = await resolvePublishedIndicatorId(db, shortId);
+      const id = await resolvePublishedIndicatorId(db, publishedViews, shortId);
 
-      expect((await getPublishedIndicatorById(db, id ?? ''))?.yearType).toEqual({ value, label });
+      expect((await getPublishedIndicatorById(db, publishedViews, id ?? ''))?.yearType).toEqual({
+        value,
+        label,
+      });
     },
   );
 
   it('is null for an indicator of months, which is still published', async () => {
-    const id = await resolvePublishedIndicatorId(db, MONTHLY);
-    const indicator = await getPublishedIndicatorById(db, id ?? '');
+    const id = await resolvePublishedIndicatorId(db, publishedViews, MONTHLY);
+    const indicator = await getPublishedIndicatorById(db, publishedViews, id ?? '');
 
     expect(indicator?.shortId).toBe(MONTHLY);
     expect(indicator?.yearType).toBeNull();
   });
 
   it('offers each label once, in order, as a search filter', async () => {
-    expect((await listIndicatorFacets(db)).yearTypes).toEqual([
+    expect((await listIndicatorFacets(db, publishedViews)).yearTypes).toEqual([
       'Academic',
       'August to July',
       'Calendar',

@@ -46,6 +46,24 @@ export function isDevClassEnv(appEnv: string | undefined): boolean {
   return DEV_CLASS_APP_ENVS.some((value) => value === appEnv);
 }
 
+/** The name of a deployed environment that isn't the live service, shown in a banner on every page. */
+export type EnvironmentName = 'Dev' | 'Test';
+
+// 'preview' is the deployed test environment. 'test' is a test run on a developer machine or in
+// CI, which shows no banner, as a developer machine and the live service don't.
+const environmentNames: Record<AppEnv, EnvironmentName | undefined> = {
+  local: undefined,
+  test: undefined,
+  dev: 'Dev',
+  preview: 'Test',
+  production: undefined,
+};
+
+/** The environment the banner names, or undefined where the pages show no banner. */
+export function environmentNameFor(appEnv: AppEnv): EnvironmentName | undefined {
+  return environmentNames[appEnv];
+}
+
 /**
  * No default, deliberately. Every fallback keyed off APP_ENV is safe when deployed and
  * relaxed when not, so a default would have to be `local` — and an unset variable would
@@ -190,6 +208,8 @@ function webServerFields(defaults: { apiUrl: string; port: number }) {
       .regex(/^[^:]*$/, 'must not contain a colon')
       .optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
+    // The address the feedback link in the phase banner emails.
+    FEEDBACK_MAILBOX: z.email().optional(),
   };
 }
 
@@ -354,6 +374,7 @@ const basicAuthPairError = {
 function webServerConfig(parsed: z.output<z.ZodObject<ReturnType<typeof webServerFields>>>) {
   return {
     offersDevTools: isDevClassEnv(parsed.APP_ENV),
+    environmentName: environmentNameFor(parsed.APP_ENV),
     development: parsed.NODE_ENV === 'development',
     host: parsed.HOST,
     port: parsed.PORT,
@@ -361,6 +382,7 @@ function webServerConfig(parsed: z.output<z.ZodObject<ReturnType<typeof webServe
     apiUrl: parsed.API_URL,
     apiUploadTimeoutMs: parsed.API_UPLOAD_TIMEOUT_MS,
     trustedProxyHops: parsed.TRUSTED_PROXY_HOPS,
+    feedbackMailbox: parsed.FEEDBACK_MAILBOX,
     shutdown: resolveShutdown(parsed.APP_ENV, parsed),
     log: resolveLog(parsed.APP_ENV, parsed),
     basicAuth:
@@ -383,7 +405,10 @@ export function loadWebServerConfig(
     env,
   );
 
-  return { ...webServerConfig(parsed), betaAccess: betaAccessConfig(parsed) } as const;
+  return {
+    ...webServerConfig(parsed),
+    betaAccess: betaAccessConfig(parsed),
+  } as const;
 }
 
 /** A web app people sign in to, such as internal-web: it signs their sessions. */

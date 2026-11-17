@@ -217,6 +217,27 @@ function compareAreaRows(sort: string) {
   };
 }
 
+function listedAreaRows<T extends SortableAreaRow>(rows: T[], only: Set<string> | null) {
+  return new Map(
+    rows
+      .filter((row) => !only || row.areaCode === 'E92000001' || only.has(row.areaCode))
+      .map((row) => [row.areaCode, row]),
+  );
+}
+
+/** The highlighted areas the table lists, in the order picked; England is never highlighted. */
+export function highlightedAreaRows<T extends SortableAreaRow>(
+  rows: T[],
+  highlighted: string[],
+  only: Set<string> | null = null,
+): T[] {
+  const byCode = listedAreaRows(rows, only);
+  return [...new Set(highlighted)].flatMap((code) => {
+    const row = code === 'E92000001' ? undefined : byCode.get(code);
+    return row ? [row] : [];
+  });
+}
+
 /**
  * Highlighted areas in the order they were picked, then England, then the rest by `sort`. While
  * statistical neighbours are shown, only those areas are listed, with England.
@@ -227,15 +248,8 @@ export function orderAreaComparisonRows<T extends SortableAreaRow>(
   highlighted: string[],
   only: Set<string> | null = null,
 ): T[] {
-  const byCode = new Map(
-    rows
-      .filter((row) => !only || row.areaCode === 'E92000001' || only.has(row.areaCode))
-      .map((row) => [row.areaCode, row]),
-  );
-  const first = [...new Set(highlighted)].flatMap((code) => {
-    const row = code === 'E92000001' ? undefined : byCode.get(code);
-    return row ? [row] : [];
-  });
+  const byCode = listedAreaRows(rows, only);
+  const first = highlightedAreaRows(rows, highlighted, only);
   const england = byCode.get('E92000001');
   const rest = [...byCode.values()]
     .filter((row) => row.areaCode !== 'E92000001' && !first.includes(row))

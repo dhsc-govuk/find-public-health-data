@@ -10,6 +10,8 @@ export {
   type BetaInviteeEntry,
   boolSchema,
   DEV_CLASS_APP_ENVS,
+  type EnvironmentName,
+  environmentNameFor,
   isDeployedEnv,
   isDevClassEnv,
   loadSignInWebServerConfig,

@@ -15,9 +15,10 @@ export async function resetDatabase(sql: postgres.Sql): Promise<void> {
     // The migrator's watermark lives here; left behind it would make migrate skip the
     // migrations that rebuild what was just dropped.
     await tx`DROP SCHEMA IF EXISTS drizzle CASCADE`;
-    // Dropping public takes the views with it but leaves the schema behind, and the next
+    // Dropping public takes the views with it but leaves the schemas behind, and the next
     // migrate fails on CREATE SCHEMA.
     await tx`DROP SCHEMA IF EXISTS published CASCADE`;
+    await tx`DROP SCHEMA IF EXISTS preview CASCADE`;
     await tx`DROP SCHEMA IF EXISTS public CASCADE`;
     await tx`CREATE SCHEMA public`;
     await tx`ALTER SCHEMA public OWNER TO pg_database_owner`;

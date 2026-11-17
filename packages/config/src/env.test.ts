@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   boolSchema,
+  environmentNameFor,
   isDeployedEnv,
   isDevClassEnv,
   loadSignInWebServerConfig,
@@ -76,6 +77,19 @@ describe('isDeployedEnv', () => {
     expect(isDeployedEnv('dev')).toBe(true);
     expect(isDeployedEnv('preview')).toBe(true);
     expect(isDeployedEnv('production')).toBe(true);
+  });
+});
+
+describe('environmentNameFor', () => {
+  it('names the deployed dev and test environments', () => {
+    expect(environmentNameFor('dev')).toBe('Dev');
+    expect(environmentNameFor('preview')).toBe('Test');
+  });
+
+  it('names no environment for the live service, a developer machine or a test run', () => {
+    expect(environmentNameFor('production')).toBeUndefined();
+    expect(environmentNameFor('local')).toBeUndefined();
+    expect(environmentNameFor('test')).toBeUndefined();
   });
 });
 
@@ -295,6 +309,7 @@ describe('loadWebServerConfig', () => {
       ),
     ).toEqual({
       offersDevTools: false,
+      environmentName: 'Test',
       development: true,
       host: '127.0.0.1',
       port: 8080,
@@ -305,6 +320,20 @@ describe('loadWebServerConfig', () => {
       log: { level: 'debug', pretty: false, requestDetails: false },
       shutdown: { drainDelayMs: 5_000, gracePeriodMs: 25_000 },
     });
+  });
+
+  it('reads the feedback mailbox, which is optional', () => {
+    expect(
+      loadWebServerConfig({ APP_ENV: 'local', FEEDBACK_MAILBOX: 'feedback@example.com' }, defaults)
+        .feedbackMailbox,
+    ).toBe('feedback@example.com');
+    expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults).feedbackMailbox).toBeUndefined();
+  });
+
+  it('rejects a feedback mailbox that is not an email address', () => {
+    expect(() =>
+      loadWebServerConfig({ APP_ENV: 'local', FEEDBACK_MAILBOX: 'feedback' }, defaults),
+    ).toThrow(/FEEDBACK_MAILBOX/);
   });
 
   it('takes no session secret, as public-web has no sign-in', () => {
@@ -600,6 +629,18 @@ describe('loadSignInWebServerConfig', () => {
       ).toThrow(name);
     },
   );
+
+  it('reads the feedback mailbox, which internal-web also shows in its phase banner', () => {
+    expect(
+      loadSignInWebServerConfig(
+        { APP_ENV: 'local', FEEDBACK_MAILBOX: 'feedback@example.com', ...secrets },
+        defaults,
+      ).feedbackMailbox,
+    ).toBe('feedback@example.com');
+    expect(
+      loadSignInWebServerConfig({ APP_ENV: 'local', ...secrets }, defaults).feedbackMailbox,
+    ).toBeUndefined();
+  });
 
   it('still refuses one basic auth credential without the other', () => {
     expect(() =>

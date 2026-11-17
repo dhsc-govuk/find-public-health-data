@@ -1,14 +1,7 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { Database } from './client.ts';
-import {
-  publishedClassification,
-  publishedIndicatorClassification,
-  publishedIndicatorSubtopic,
-  publishedIndicatorTopic,
-  publishedSubtopic,
-  publishedTopic,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 export interface TopicSummaryForIndicator {
   slug: string;
@@ -25,15 +18,23 @@ export interface IndicatorClassification {
 /** The topics a published indicator belongs to, ordered by title. */
 export async function listTopicsForIndicator(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
 ): Promise<TopicSummaryForIndicator[]> {
-  return (await listTopicsForIndicators(db, [indicatorId])).get(indicatorId) ?? [];
+  return (await listTopicsForIndicators(db, views, [indicatorId])).get(indicatorId) ?? [];
 }
 
 export async function listTopicsForIndicators(
   db: Database,
+  views: ViewSet,
   indicatorIds: string[],
 ): Promise<Map<string, TopicSummaryForIndicator[]>> {
+  const {
+    indicatorSubtopic: publishedIndicatorSubtopic,
+    indicatorTopic: publishedIndicatorTopic,
+    subtopic: publishedSubtopic,
+    topic: publishedTopic,
+  } = views;
   if (!indicatorIds.length) return new Map();
   const rows = await db
     .select({
@@ -75,15 +76,21 @@ export async function listTopicsForIndicators(
 /** A published indicator's classifications, grouped ready for the summary table. */
 export async function listClassificationsForIndicator(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
 ): Promise<IndicatorClassification[]> {
-  return (await listClassificationsForIndicators(db, [indicatorId])).get(indicatorId) ?? [];
+  return (await listClassificationsForIndicators(db, views, [indicatorId])).get(indicatorId) ?? [];
 }
 
 export async function listClassificationsForIndicators(
   db: Database,
+  views: ViewSet,
   indicatorIds: string[],
 ): Promise<Map<string, IndicatorClassification[]>> {
+  const {
+    classification: publishedClassification,
+    indicatorClassification: publishedIndicatorClassification,
+  } = views;
   if (!indicatorIds.length) return new Map();
   const rows = await db
     .select({

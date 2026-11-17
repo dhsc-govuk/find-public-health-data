@@ -18,9 +18,11 @@ import {
   observation,
   observationSeries,
   observationSeriesBatch,
-  publishedIndicator,
+  publishedViews,
 } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+
+const { indicator: publishedIndicator } = publishedViews;
 
 let database: TestDb;
 let db: Database;
@@ -42,7 +44,7 @@ afterEach(async () => {
 });
 
 async function canonical() {
-  const data = await getIndicatorObservationData(db, ids, codes, 'table');
+  const data = await getIndicatorObservationData(db, publishedViews, ids, codes, 'table');
   return pairedAreaValues(data.get(ids[0])?.areaData ?? [], data.get(ids[1])?.areaData ?? []);
 }
 
@@ -51,7 +53,7 @@ it('reads bounded cached candidates, markers and benchmarks in one statement', a
   expect(expected).toHaveLength(2);
   const query = vi.spyOn(db.$client, 'unsafe');
   try {
-    const cached = await getCachedScatterAreas(db, ids, codes);
+    const cached = await getCachedScatterAreas(db, publishedViews, ids, codes);
     expect(query).toHaveBeenCalledTimes(1);
     expect(cached).toBeDefined();
     expect(cached?.get(ids[0])?.map(({ areaCode }) => areaCode)).toEqual(codes.slice(0, 2));
@@ -73,12 +75,16 @@ it('resolves both published axes in one bulk read without coalescing ranking loo
   }));
   const query = vi.spyOn(db.$client, 'unsafe');
   try {
-    expect(await getPublishedIndicatorScatterData(db, [40501, 108], codes)).toEqual(expected);
+    expect(await getPublishedIndicatorScatterData(db, publishedViews, [40501, 108], codes)).toEqual(
+      expected,
+    );
     expect(query).toHaveBeenCalledTimes(2);
   } finally {
     query.mockRestore();
   }
-  expect(await getPublishedIndicatorScatterData(db, [108, 999999], codes)).toBeUndefined();
+  expect(
+    await getPublishedIndicatorScatterData(db, publishedViews, [108, 999999], codes),
+  ).toBeUndefined();
 });
 
 it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
@@ -89,7 +95,7 @@ it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
       .set({ code })
       .where(eq(area.code, codes[0] ?? ''));
     const requested = [codes[1] ?? '', code];
-    const data = await getIndicatorObservationData(db, ids, requested, 'table');
+    const data = await getIndicatorObservationData(db, publishedViews, ids, requested, 'table');
     const expected = pairedAreaValues(
       data.get(ids[0])?.areaData ?? [],
       data.get(ids[1])?.areaData ?? [],
@@ -97,7 +103,7 @@ it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
     expect(expected).toHaveLength(2);
     const query = vi.spyOn(db.$client, 'unsafe');
     try {
-      const cached = await getCachedScatterAreas(db, ids, requested);
+      const cached = await getCachedScatterAreas(db, publishedViews, ids, requested);
       expect(query).toHaveBeenCalledTimes(1);
       expect(query.mock.calls[0]?.[1]).toContainEqual(requested);
       expect(cached?.get(ids[0])?.map(({ areaCode }) => areaCode)).toEqual(requested);
@@ -111,7 +117,7 @@ it.each(['A"quote', 'A,comma', 'A{brace}', 'A\\slash'])(
 );
 
 it('retains zeroes and each axis’s latest non-null published period', async () => {
-  const original = await getCachedScatterAreas(db, ids, codes);
+  const original = await getCachedScatterAreas(db, publishedViews, ids, codes);
   const latest = original?.get(ids[0])?.[0]?.observations.at(-1);
   if (!latest) throw new Error('Expected recent points');
   await database.db
@@ -145,7 +151,7 @@ it('retains zeroes and each axis’s latest non-null published period', async ()
         eq(observation.toDate, common.xPeriod.toDate),
       ),
     );
-  const points = await getIndicatorScatterData(db, ids, codes);
+  const points = await getIndicatorScatterData(db, publishedViews, ids, codes);
   expect(points).toEqual(await canonical());
   expect(points.every((point) => point.x === 0)).toBe(true);
 });
@@ -174,7 +180,7 @@ it.each([2022, 2024])('matches canonical annual histories ending in %i and 2018'
     );
     await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
   }
-  const history = await getIndicatorObservationData(db, ids, codes);
+  const history = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const untrimmed = pairedAreaValues(
     history.get(ids[0])?.areaData ?? [],
     history.get(ids[1])?.areaData ?? [],
@@ -188,10 +194,10 @@ it.each([2022, 2024])('matches canonical annual histories ending in %i and 2018'
   ).toBe(true);
   const expected = await canonical();
   expect(expected).toEqual(untrimmed);
-  const cached = await getCachedScatterAreas(db, ids, codes);
+  const cached = await getCachedScatterAreas(db, publishedViews, ids, codes);
   expect(cached).toBeDefined();
   expect(pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? [])).toEqual(expected);
-  expect(await getIndicatorScatterData(db, ids, codes)).toEqual(expected);
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
 });
 
 it('falls back for stale point IDs and missing batch markers', async () => {
@@ -202,13 +208,13 @@ it('falls back for stale point IDs and missing batch markers', async () => {
       recentObservationIds: sql`array_append(${observationSeries.recentObservationIds}, ${'00000000-0000-0000-0000-000000000001'}::uuid)`,
     })
     .where(eq(observationSeries.indicatorId, ids[0]));
-  expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
-  expect(await getIndicatorScatterData(db, ids, codes)).toEqual(expected);
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
   await database.db
     .delete(observationSeriesBatch)
     .where(eq(observationSeriesBatch.indicatorId, ids[1]));
-  expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
-  expect(await getIndicatorScatterData(db, ids, codes)).toEqual(expected);
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
 });
 
 it('uses canonical history for an area code shared by historical areas', async () => {
@@ -225,8 +231,8 @@ it('uses canonical history for an area code shared by historical areas', async (
     validTo: null,
     isCurrent: true,
   });
-  expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
-  expect(await getIndicatorScatterData(db, ids, codes)).toEqual(await canonical());
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(await canonical());
 });
 
 it('keeps tied sex headlines identical when the cached query uses canonical data', async () => {
@@ -251,7 +257,7 @@ it('keeps tied sex headlines identical when the cached query uses canonical data
     );
   for (const model of models)
     await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
-  const canonical = await getIndicatorObservationData(db, ids, codes, 'table');
+  const canonical = await getIndicatorObservationData(db, publishedViews, ids, codes, 'table');
   const ordered = (id: string) =>
     (canonical.get(id)?.areaData ?? []).map((area) => ({
       ...area,
@@ -267,8 +273,8 @@ it('keeps tied sex headlines identical when the cached query uses canonical data
   );
   const expected = pairedAreaValues(ordered(ids[0]), ordered(ids[1]));
   expect(expected.length).toBeGreaterThan(0);
-  expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
-  expect(await getIndicatorScatterData(db, ids, codes)).toEqual(expected);
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
 });
 
 it('pairs the latest financial and three-year values independently for each area', async () => {
@@ -317,16 +323,16 @@ it('pairs the latest financial and three-year values independently for each area
       yPeriod: { fromDate: '2021-01-01', toDate: '2023-12-31' },
     },
   ];
-  const cached = await getCachedScatterAreas(db, ids, codes);
+  const cached = await getCachedScatterAreas(db, publishedViews, ids, codes);
   expect(cached).toBeDefined();
   expect(pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? [])).toMatchObject(
     expected,
   );
   expect(await canonical()).toMatchObject(expected);
-  expect(await getIndicatorScatterData(db, ids, codes)).toMatchObject(expected);
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toMatchObject(expected);
   await database.db
     .delete(observationSeriesBatch)
     .where(eq(observationSeriesBatch.indicatorId, ids[1]));
-  expect(await getCachedScatterAreas(db, ids, codes)).toBeUndefined();
-  expect(await getIndicatorScatterData(db, ids, codes)).toMatchObject(expected);
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toMatchObject(expected);
 });

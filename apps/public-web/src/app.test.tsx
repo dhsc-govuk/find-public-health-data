@@ -68,7 +68,7 @@ describe('public application routes', () => {
     );
     expect(screen.getByRole('link', { name: 'Topics' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toBeTruthy();
-    expect(screen.getByText('Alpha')).toBeTruthy();
+    expect(screen.getByText('Beta')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'GOV.UK' })).toBeTruthy();
   });
 
@@ -485,6 +485,55 @@ describe('public application routes', () => {
     render(<Routes initialEntries={['/topics/no-such-topic']} />);
 
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeTruthy();
+  });
+
+  it('shows the environment banner and feedback link from the root loader', async () => {
+    const Routes = createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        Component: PublicApp,
+        loader: () => ({ environmentName: 'Dev', feedbackMailbox: 'feedback@example.com' }),
+        children: [{ index: true, Component: PublicHomePage }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/']} />);
+
+    expect((await screen.findByRole('region', { name: 'Environment' })).textContent).toContain(
+      'Dev',
+    );
+    expect(screen.getByRole('link', { name: 'feedback@example.com' }).getAttribute('href')).toBe(
+      'mailto:feedback@example.com',
+    );
+  });
+
+  it('keeps the environment banner on an error page when the root loader ran', async () => {
+    const Routes = createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        Component: PublicApp,
+        ErrorBoundary,
+        loader: () => ({ environmentName: 'Test', feedbackMailbox: undefined }),
+        children: [
+          {
+            path: 'topics/:slug',
+            Component: TopicRoute,
+            loader: () => {
+              throw new Error('The API is down');
+            },
+          },
+        ],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics/diabetes']} />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Sorry, there is a problem with this service' }),
+    ).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Environment' }).textContent).toContain('Test');
   });
 
   it('nav includes Search between Home and Topics', async () => {

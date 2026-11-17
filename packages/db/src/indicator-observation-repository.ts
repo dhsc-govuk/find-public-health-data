@@ -6,14 +6,7 @@ import {
 } from '@fphd/utils/observation-series';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from './client.ts';
-import {
-  publishedArea as area,
-  publishedDimensionType as dimensionType,
-  publishedDimensionValue as dimensionValue,
-  publishedNoteType as noteType,
-  publishedObservation as observation,
-  publishedObservationNote as observationNote,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 export interface ObservationDimensionValue {
   type: string;
@@ -51,22 +44,25 @@ export interface IndicatorAreaData {
  */
 export async function getIndicatorObservationsForAreas(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
   areaCodes: string[],
 ): Promise<IndicatorAreaData[]> {
   return (
-    (await getIndicatorObservationData(db, [indicatorId], areaCodes)).get(indicatorId)?.areaData ??
-    []
+    (await getIndicatorObservationData(db, views, [indicatorId], areaCodes)).get(indicatorId)
+      ?.areaData ?? []
   );
 }
 
 /** Load a table's indicators together so its query count does not grow with its rows. */
 export async function getIndicatorObservationData(
   db: Database,
+  views: ViewSet,
   indicatorIds: string[],
   areaCodes: string[],
   projection?: 'table' | 'summary' | 'ranking' | 'sparkline',
 ): Promise<Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>> {
+  const { area, dimensionType, dimensionValue, noteType, observation, observationNote } = views;
   if (indicatorIds.length === 0 || areaCodes.length === 0) return new Map();
   const fields = {
     obsId: observation.id,
@@ -216,8 +212,9 @@ export async function getIndicatorObservationData(
 
 export async function getIndicatorObservations(
   db: Database,
+  views: ViewSet,
   indicatorId: string,
   areaCode: string,
 ): Promise<IndicatorAreaData | undefined> {
-  return (await getIndicatorObservationsForAreas(db, indicatorId, [areaCode]))[0];
+  return (await getIndicatorObservationsForAreas(db, views, indicatorId, [areaCode]))[0];
 }

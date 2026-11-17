@@ -12,6 +12,8 @@ Built package. `apps/*-web/server.ts` calls `startReactRouterServer`; everything
 | `./entry-server`                          | The `handleRequest` and `handleError` each app's `entry.server.tsx` re-exports                                                                             |
 | `./api-client`                            | The `ApiClient` loaders call the APIs through, with path encoding, timeouts and error mapping in one place                                                 |
 | `./api-context`                           | `apiContext`, the React Router context that hands loaders the client                                                                                       |
+| `./environment-context`                   | `environmentContext`, the environment the banner above the header names, or none on the live service                                                       |
+| `./feedback-mailbox-context`              | `feedbackMailboxContext`, the address the phase banner asks for feedback at, if one is set                                                                 |
 | `./logger-context`                        | `loggerContext`, the request's logger, set before `extendContext` runs                                                                                     |
 | `./session`                               | `sessionMiddleware`, `getSession`, `createSessionContext`, `createRequireSessionMiddleware`                                                                |
 | `./flash`                                 | The cookie-backed flash session for one-shot messages between requests                                                                                     |

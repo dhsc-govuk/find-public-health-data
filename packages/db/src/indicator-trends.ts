@@ -2,17 +2,15 @@ import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { inArray, sql } from 'drizzle-orm';
 import type { Database } from './client.ts';
-import {
-  publishedArea as area,
-  publishedObservationSeriesBatch as batches,
-  publishedObservation as observation,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 /** The least-disaggregated, longest England series, with only its five latest valid values returned. */
 export async function indicatorTrendDirections(
   db: Database,
+  views: ViewSet,
   ids: string[],
 ): Promise<Map<string, TrendDirection>> {
+  const { area, observationSeriesBatch: batches, observation } = views;
   if (ids.length === 0) return new Map();
   const cached = await db
     .select({ id: batches.indicatorId, values: batches.trendValues })

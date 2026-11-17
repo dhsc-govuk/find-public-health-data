@@ -20,21 +20,22 @@ import {
 import { alias, union } from 'drizzle-orm/pg-core';
 import type { Database } from './client.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
-import {
-  publishedArea as area,
-  publishedObservationSeriesBatch as batches,
-  publishedDimensionType as dimensionType,
-  publishedDimensionValue as dimensionValue,
-  publishedObservation as observation,
-  publishedIndicator,
-  publishedObservationSeries as series,
-} from './schema/index.ts';
+import type { ViewSet } from './schema/index.ts';
 
 export async function getCachedScatterAreas(
   db: Database,
+  views: ViewSet,
   indicatorIds: [string, string],
   codes: string[],
 ): Promise<Map<string, ScatterArea[]> | undefined> {
+  const {
+    area,
+    observationSeriesBatch: batches,
+    dimensionType,
+    dimensionValue,
+    observation,
+    observationSeries: series,
+  } = views;
   if (!codes.length) return new Map();
   const areas = db.$with('scatter_areas').as(
     db
@@ -309,14 +310,15 @@ export async function getCachedScatterAreas(
 
 export async function getIndicatorScatterData(
   db: Database,
+  views: ViewSet,
   indicatorIds: [string, string],
   codes: string[],
 ) {
-  const cached = await getCachedScatterAreas(db, indicatorIds, codes);
+  const cached = await getCachedScatterAreas(db, views, indicatorIds, codes);
   const data =
     cached ??
     new Map(
-      [...(await getIndicatorObservationData(db, indicatorIds, codes, 'table'))].map(
+      [...(await getIndicatorObservationData(db, views, indicatorIds, codes, 'table'))].map(
         ([id, entry]) => [
           id,
           entry.areaData.map((area) => ({
@@ -336,9 +338,11 @@ export async function getIndicatorScatterData(
 
 export async function getPublishedIndicatorScatterData(
   db: Database,
+  views: ViewSet,
   shortIds: [number, number],
   codes: string[],
 ) {
+  const { indicator: publishedIndicator } = views;
   const identities = await db
     .select({ id: publishedIndicator.id, shortId: publishedIndicator.shortId })
     .from(publishedIndicator)
@@ -346,5 +350,5 @@ export async function getPublishedIndicatorScatterData(
   const ids = shortIds.map((shortId) => identities.find((row) => row.shortId === shortId)?.id);
   const [first, second] = ids;
   if (!first || !second || first === second) return undefined;
-  return getIndicatorScatterData(db, [first, second], codes);
+  return getIndicatorScatterData(db, views, [first, second], codes);
 }

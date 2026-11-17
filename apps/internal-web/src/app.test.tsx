@@ -58,8 +58,25 @@ describe('internal application routes', () => {
 
     render(<Routes initialEntries={['/manage']} />);
 
-    expect(await screen.findByText('Internal')).toBeTruthy();
+    expect(await screen.findByText('Beta')).toBeTruthy();
     expect(await screen.findByRole('heading', { name: 'Manage public health data' })).toBeTruthy();
+  });
+
+  it('asks for feedback at the mailbox from the root loader', async () => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: InternalApp,
+        loader: () => ({ ...publisher, feedbackMailbox: 'feedback@example.com' }),
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    expect(
+      (await screen.findByRole('link', { name: 'feedback@example.com' })).getAttribute('href'),
+    ).toBe('mailto:feedback@example.com');
   });
 
   it('hides data management from publishers', async () => {
@@ -142,6 +159,24 @@ describe('internal application routes', () => {
 
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Back' })).toBeNull();
+  });
+
+  it('shows the environment banner from the root loader', async () => {
+    const Routes = createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        Component: InternalApp,
+        loader: () => ({ ...publisher, environmentName: 'Test' }),
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    expect((await screen.findByRole('region', { name: 'Environment' })).textContent).toContain(
+      'Test',
+    );
   });
 
   it('offers a signed-out visitor sign in rather than an account', async () => {

@@ -3,14 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { renderToString } from 'react-dom/server';
 import { createRoutesStub, Form, Link, Meta, Outlet, useActionData } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
-
-import { serviceName } from './app-shell.tsx';
 import {
   createDocumentMeta,
   DocumentTitle,
   formatDocumentTitle,
   titleFromPage,
 } from './document-title.tsx';
+import { serviceName } from './service-name.ts';
 
 afterEach(cleanup);
 

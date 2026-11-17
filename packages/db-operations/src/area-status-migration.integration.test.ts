@@ -1,4 +1,4 @@
-import { createRepositories, listAreasByType } from '@fphd/db';
+import { createRepositories, listAreasByType, publishedViews } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, expect, it } from 'vitest';
@@ -36,7 +36,7 @@ it('stores an unknown validity range without treating a retired area as current'
   expect(await client`SELECT valid_from,valid_to,is_current FROM area WHERE code='nSTP_1'`).toEqual(
     [{ valid_from: null, valid_to: null, is_current: false }],
   );
-  expect(await listAreasByType(database.db, 'Status test')).toEqual([
+  expect(await listAreasByType(database.db, publishedViews, 'Status test')).toEqual([
     { code: 'current', name: 'Current' },
   ]);
 });
