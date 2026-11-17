@@ -72,7 +72,7 @@ export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>
       <Textarea
         defaultValue={values.updateFrequencyText}
         error={fieldErrors.updateFrequencyText}
-        hint="Shown on the indicator page in place of the frequency above, for example 'Annual measurements during the academic year, published in the final quarter of the calendar year.'"
+        hint="Shown on the indicator page in place of the frequency above. Any reason you entered is still shown after it. For example 'Annual measurements during the academic year, published in the final quarter of the calendar year.'"
         label="Describe how often it is updated (optional)"
         labelHeading="h2"
         name="updateFrequencyText"
