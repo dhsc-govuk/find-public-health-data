@@ -503,7 +503,7 @@ describe('public application routes', () => {
     expect((await screen.findByRole('region', { name: 'Environment' })).textContent).toContain(
       'Dev',
     );
-    expect(screen.getByRole('link', { name: 'feedback' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'feedback@example.com' }).getAttribute('href')).toBe(
       'mailto:feedback@example.com',
     );
   });

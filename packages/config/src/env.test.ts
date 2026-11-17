@@ -630,6 +630,18 @@ describe('loadSignInWebServerConfig', () => {
     },
   );
 
+  it('reads the feedback mailbox, which internal-web also shows in its phase banner', () => {
+    expect(
+      loadSignInWebServerConfig(
+        { APP_ENV: 'local', FEEDBACK_MAILBOX: 'feedback@example.com', ...secrets },
+        defaults,
+      ).feedbackMailbox,
+    ).toBe('feedback@example.com');
+    expect(
+      loadSignInWebServerConfig({ APP_ENV: 'local', ...secrets }, defaults).feedbackMailbox,
+    ).toBeUndefined();
+  });
+
   it('still refuses one basic auth credential without the other', () => {
     expect(() =>
       loadSignInWebServerConfig(

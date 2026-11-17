@@ -4,6 +4,7 @@ export const {
   basicAuth,
   development,
   environmentName,
+  feedbackMailbox,
   host,
   offersDevTools,
   port,
