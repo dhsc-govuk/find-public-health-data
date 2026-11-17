@@ -30,7 +30,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import {
   type IndicatorClassification,
   listClassificationsForIndicators,
@@ -96,7 +96,7 @@ export interface PublishedIndicator {
  * any slug a published version carries, so an indicator's earlier address finds it too.
  * A slug is never digits only, so a digit run matches a short id or nothing.
  */
-function exactIdentifierMatch(db: Database, views: ViewSet, query: string) {
+function exactIdentifierMatch(db: DatabaseReader, views: ViewSet, query: string) {
   const { indicator, indicatorSlug } = views;
   if (SHORT_ID_PATTERN.test(query)) {
     return isShortId(query) ? eq(indicator.shortId, Number(query)) : sql<boolean>`false`;
@@ -120,7 +120,7 @@ function escapedSearchTerms(query: string): string[] {
 
 /** The published indicator surface, ordered by name. */
 export async function listPublishedIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
 ): Promise<PublishedIndicator[]> {
   const { indicator } = views;
@@ -132,7 +132,7 @@ export async function listPublishedIndicators(
 
 /** Case-insensitive indicator lookup by name or exact identifier. */
 export async function searchPublishedIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   query: string,
   limit: number,
@@ -255,7 +255,7 @@ export interface IndicatorUpdateSummary {
 
 /** The internal id behind a public short id — the one place the external id resolves. */
 export async function resolvePublishedIndicatorId(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   shortId: number,
 ): Promise<string | undefined> {
@@ -273,7 +273,7 @@ export async function resolvePublishedIndicatorId(
  * made before a rename still lands on the indicator; the caller lower-cases first.
  */
 export async function resolveIndicatorIdBySlug(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   slug: string,
 ): Promise<string | undefined> {
@@ -292,7 +292,7 @@ export async function resolveIndicatorIdBySlug(
  * indistinguishable from one that does not exist.
  */
 export async function getIndicatorDetailById(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
 ): Promise<FoundIndicatorDetail | undefined> {
@@ -301,7 +301,7 @@ export async function getIndicatorDetailById(
 
 /** The details of the indicators the views hold, keeping those that leave questions unanswered. */
 export async function getIndicatorDetailsByIds(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
 ): Promise<Map<string, FoundIndicatorDetail>> {
@@ -499,7 +499,7 @@ export interface ObservationRangePeriod {
 
 /** The precomputed per-period range for each least-disaggregated segment at a display level. */
 export async function getObservationRange(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
   displayGroup: string,
@@ -527,7 +527,7 @@ export async function getObservationRange(
 }
 
 export async function searchIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   filters: IndicatorSearchFilters,
 ): Promise<IndicatorSearchResult> {
@@ -981,7 +981,7 @@ function yearEndOf({
 }
 
 /** The labels of the year types published indicators have, for the search filter to offer. */
-async function listPublishedYearTypeLabels(db: Database, views: ViewSet): Promise<string[]> {
+async function listPublishedYearTypeLabels(db: DatabaseReader, views: ViewSet): Promise<string[]> {
   const { indicator } = views;
   const rows = await db
     .selectDistinct({
@@ -997,7 +997,10 @@ async function listPublishedYearTypeLabels(db: Database, views: ViewSet): Promis
   return [...new Set(labels)].sort((a, b) => a.localeCompare(b));
 }
 
-export async function listIndicatorFacets(db: Database, views: ViewSet): Promise<IndicatorFacets> {
+export async function listIndicatorFacets(
+  db: DatabaseReader,
+  views: ViewSet,
+): Promise<IndicatorFacets> {
   const {
     classification,
     dataSource,

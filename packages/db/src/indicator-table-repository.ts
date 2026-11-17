@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm';
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import {
   completeIndicatorDetail,
   getIndicatorDetailsByIds,
@@ -9,7 +9,7 @@ import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export async function getIndicatorRankingData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
   areaCodes: string[],
@@ -21,7 +21,7 @@ export async function getIndicatorRankingData(
 }
 
 export async function getIndicatorTableData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   shortIds: number[],
   areaCodes: string[],

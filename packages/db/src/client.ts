@@ -15,6 +15,15 @@ export type SqlClient = postgres.Sql;
 export type Database = PostgresJsDatabase<Schema> & { $client: postgres.Sql };
 
 /**
+ * What the read repositories need of the database: a client, or a transaction one of them has
+ * open, such as the preview's, which sets which version its views show first.
+ */
+export type DatabaseReader = Pick<
+  Database,
+  'select' | 'selectDistinct' | 'selectDistinctOn' | '$with' | 'with' | 'execute'
+>;
+
+/**
  * Signs in with a password, or with an Entra token from the managed identity whose client ID is
  * given.
  */

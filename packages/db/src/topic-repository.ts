@@ -1,6 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
 
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import type { ViewSet } from './schema/index.ts';
 
@@ -8,14 +8,14 @@ import type { ViewSet } from './schema/index.ts';
 export type Topic = ViewSet['topic']['$inferSelect'];
 
 /** All topics, ordered alphabetically by title. */
-export async function listTopics(db: Database, views: ViewSet): Promise<Topic[]> {
+export async function listTopics(db: DatabaseReader, views: ViewSet): Promise<Topic[]> {
   const { topic: publishedTopic } = views;
   return db.select().from(publishedTopic).orderBy(asc(publishedTopic.title));
 }
 
 /** The topic with the given slug, or `undefined` if no topic matches. */
 export async function getTopicBySlug(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   slug: string,
 ): Promise<Topic | undefined> {
@@ -24,7 +24,7 @@ export async function getTopicBySlug(
   return rows[0];
 }
 
-export async function listTopicSubtopics(db: Database, views: ViewSet, slug: string) {
+export async function listTopicSubtopics(db: DatabaseReader, views: ViewSet, slug: string) {
   const { subtopic: publishedSubtopic, topic: publishedTopic } = views;
   return db
     .select({ slug: publishedSubtopic.slug, title: publishedSubtopic.title })
@@ -46,7 +46,7 @@ export interface TopicTrendSummary {
 
 /** Trend counts across the topic's published indicators for the England headline series. */
 export async function getTopicTrendSummary(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   slug: string,
 ): Promise<TopicTrendSummary> {

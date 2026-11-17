@@ -5,7 +5,7 @@ import {
   tableSummary,
 } from '@fphd/utils/observation-series';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export interface ObservationDimensionValue {
@@ -43,7 +43,7 @@ export interface IndicatorAreaData {
  * An observation with no dimensions is the fully-aggregate value for its period.
  */
 export async function getIndicatorObservationsForAreas(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
   areaCodes: string[],
@@ -56,7 +56,7 @@ export async function getIndicatorObservationsForAreas(
 
 /** Load a table's indicators together so its query count does not grow with its rows. */
 export async function getIndicatorObservationData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
   areaCodes: string[],
@@ -211,7 +211,7 @@ export async function getIndicatorObservationData(
 }
 
 export async function getIndicatorObservations(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
   areaCode: string,
