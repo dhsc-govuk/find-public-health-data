@@ -9,7 +9,7 @@ it('commits the launch list with its provenance and without the test indicator',
   for (const field of ['source', 'sheet', 'rule', 'extractedOn'])
     expect(parsed[field]).toBeTruthy();
   const ids = parseApprovedIndicators(raw);
-  expect(ids.length).toBe(767);
+  expect(ids.length).toBe(785);
   expect(ids).not.toContain(94204);
 });
 
