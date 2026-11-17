@@ -9,7 +9,13 @@ import {
   orderAreaComparisonRows,
   statisticalNeighbourAreas,
 } from './area-comparison.ts';
-import { availableMeasures, inequalityValueLabel, MEASURES, unitNote } from './data.ts';
+import {
+  availableMeasures,
+  calculatedValueCsvFormat,
+  inequalityValueLabel,
+  MEASURES,
+  unitNote,
+} from './data.ts';
 import { tableCsv } from './download.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import { inequalityTableModel } from './inequalities.ts';
@@ -21,6 +27,7 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
   if (!primary) throw new Response('Not Found', { status: 404 });
   const params = new URL(args.request.url).searchParams;
   const tab = params.get('tab-indicator');
+  let filename = `${primary.detail.shortId}-${tab}.csv`;
   let rows: (string | number | null)[][];
   if (tab === 'areas') {
     const sort = params.get('areaSort') ?? 'descending';
@@ -31,10 +38,11 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
       const latest = cell.series.at(-1);
       return latest?.lowerCi95 != null || latest?.upperCi95 != null;
     });
+    const highlighted = highlightedAreaCodes(params, data.compareAreaOptions);
     const ordered = orderAreaComparisonRows(
       areas.rows,
       sort,
-      highlightedAreaCodes(params, data.compareAreaOptions),
+      highlighted,
       statisticalNeighbourAreas(params, data.compareAreaOptions),
     );
     rows = [
@@ -47,14 +55,36 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
       ...ordered.map((cell) => [
         cell.areaName + (cell.areaCode === 'E92000001' ? ' (benchmark)' : ''),
         cell.value,
-        colour === 'quintiles'
-          ? (groups.labels.get(cell.areaCode) ?? '')
-          : areaComparisonLabel(cell, areas.england, primary.detail),
+        cell.areaCode === 'E92000001'
+          ? ''
+          : cell.value === null
+            ? 'No data'
+            : colour === 'quintiles'
+              ? (groups.labels.get(cell.areaCode) ?? '')
+              : areaComparisonLabel(cell, areas.england, primary.detail),
         ...(hasCi
           ? [cell.series.at(-1)?.lowerCi95 ?? null, cell.series.at(-1)?.upperCi95 ?? null]
           : []),
       ]),
     ];
+    if (primary.detail.dataSource) {
+      rows.push([], [`Source: ${primary.detail.dataSource.name}`]);
+    }
+    let caption = `Table of area comparisons: ${primary.detail.name}`;
+    if (highlighted.length === 1) {
+      const code = highlighted[0];
+      const name =
+        areas.rows.find(({ areaCode }) => areaCode === code)?.areaName ??
+        data.compareAreaOptions.find((area) => area.code === code)?.name ??
+        code;
+      caption += `, ${name}`;
+    } else if (highlighted.length > 1) {
+      caption += `, ${highlighted.length} chosen areas`;
+    }
+    filename = `${caption
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')}.csv`;
   } else if (tab === 'compare') {
     const compared = data.selected[1];
     if (!compared) throw new Response('Not Found', { status: 404 });
@@ -127,10 +157,16 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
       ]),
     ];
   }
-  return new Response(tableCsv(rows), {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${primary.detail.shortId}-${tab}.csv"`,
+  return new Response(
+    tableCsv(
+      rows,
+      tab === 'areas' ? { excel: true, formatNumber: calculatedValueCsvFormat.format } : undefined,
+    ),
+    {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
     },
-  });
+  );
 }

@@ -14,6 +14,18 @@ it('escapes formula-like text while retaining negative numeric cells', () => {
   );
 });
 
+it('adds a UTF-8 BOM and CRLF line endings for Excel when requested', () => {
+  expect(
+    tableCsv([['Area', 'Value'], ['Cornwall', -2.5], [], ['Source: Example']], { excel: true }),
+  ).toBe('\uFEFFArea,Value\r\nCornwall,-2.5\r\n\r\nSource: Example\r\n');
+});
+
+it('preserves formatted numeric cells including trailing zeros and negatives', () => {
+  expect(tableCsv([['-text', -8, 8, null]], { formatNumber: (value) => value.toFixed(1) })).toBe(
+    "'-text,-8.0,8.0,\n",
+  );
+});
+
 it('escapes a trend cell that starts with a formula character, keeping negative values', () => {
   const indicator = {
     unit: null,

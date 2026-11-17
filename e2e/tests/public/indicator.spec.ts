@@ -295,7 +295,15 @@ test('compares areas across a selected geography type and sorts the table', asyn
   );
   expect(exported.text).toContain('England (benchmark)');
   expect(exported.text).toContain('London');
-  expect(exported.text).toContain('Compared with England');
+  expect(exported.filename).toBe(
+    'table-of-area-comparisons-under-75-mortality-rate-from-all-causes.csv',
+  );
+  expect(exported.text.startsWith('\uFEFF')).toBe(true);
+  const lines = exported.text.replace(/^\uFEFF/, '').split('\r\n');
+  expect(lines[0]).toBe(
+    'Area,"Value (per 100,000)",Compared with England,95% lower confidence interval,95% upper confidence interval',
+  );
+  expect(lines.slice(-3)).toEqual(['', '"Source: OHID, based on multiple sources"', '']);
 });
 
 test('sorts hydrated area comparisons without Array.prototype.toSorted', async ({ page }) => {

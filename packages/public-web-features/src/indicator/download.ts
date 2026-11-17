@@ -5,10 +5,19 @@ import { type ConfidenceLevel, segmentLabel, unitNote } from './data.ts';
 import type { IndicatorAreaData, IndicatorDetail } from './loader.ts';
 import type { TrendColumns, trendTableModel } from './trend.ts';
 
-export function tableCsv(rows: (string | number | null)[][]): string {
+export function tableCsv(
+  rows: (string | number | null)[][],
+  options: { excel?: boolean; formatNumber?: (value: number) => string } = {},
+): string {
   return stringify(rows, {
+    ...(options.excel ? { bom: true, record_delimiter: '\r\n' } : {}),
     escape_formulas: true,
-    cast: { number: (value) => ({ value: String(value), escape_formulas: false }) },
+    cast: {
+      number: (value) => ({
+        value: options.formatNumber ? options.formatNumber(value) : String(value),
+        escape_formulas: false,
+      }),
+    },
   });
 }
 
