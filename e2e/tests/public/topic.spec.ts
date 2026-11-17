@@ -39,8 +39,6 @@ for (const width of [1020, 375]) {
         for (const caption of await captions.all()) {
           await expect(caption).toHaveCSS('line-height', '22.8px');
           await expect(caption).toHaveCSS('margin-bottom', '15px');
-          if (topic === 'mortality-and-life-expectancy')
-            await expect(caption).toHaveText(/^\d[\d,.]*%?in \d{4}(?:[-/]\d{2})?$/);
         }
         const key = card.locator('.govuk-summary-list__key').first();
         const summary = await card.locator('.govuk-summary-list').boundingBox();

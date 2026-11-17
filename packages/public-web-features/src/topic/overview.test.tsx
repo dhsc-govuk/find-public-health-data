@@ -16,17 +16,13 @@ vi.mock('./geographies.tsx', () => ({ TopicGeographies: () => null }));
 
 type Props = ComponentProps<typeof TopicOverview>;
 
-function card(
-  observations: IndicatorObservation[],
-  detail: Partial<SelectedIndicator['detail']>,
-  topicSlug = 'diabetes',
-) {
+function card(observations: IndicatorObservation[], detail: Partial<SelectedIndicator['detail']>) {
   const entry = selected();
   const html = renderToStaticMarkup(
     <MemoryRouter>
       <TopicOverview
         topic={
-          { slug: topicSlug, title: 'Diabetes', description: 'About diabetes' } as Props['topic']
+          { slug: 'diabetes', title: 'Diabetes', description: 'About diabetes' } as Props['topic']
         }
         overview={{
           search: EMPTY_SEARCH_STATE as Props['overview']['search'],
@@ -133,7 +129,7 @@ it('labels the prevalence numerator as Count and expands summary and accessible 
 });
 
 it.each(['per 1,000', 'per 1,000 live births'])(
-  'preserves the source unit %s in the mortality value and description without repeating it in captions',
+  'shows the source unit %s in the captions, value and description',
   (unit) => {
     const doc = card(
       [3.9, 4.2].map((value, index) => ({
@@ -144,7 +140,6 @@ it.each(['per 1,000', 'per 1,000 live births'])(
         numerator: 7117,
       })),
       { name: 'Infant mortality rate', unit },
-      'mortality-and-life-expectancy',
     );
     expect(summary(doc).slice(0, 3)).toEqual([
       ['Most recent period', '2022 to 2024'],
@@ -156,7 +151,7 @@ it.each(['per 1,000', 'per 1,000 live births'])(
     );
     expect(
       [...doc.querySelectorAll('.fphd-sparkline__endpoints > span')].map((el) => el.innerHTML),
-    ).toEqual(['3.9<br>in 2021-23', '4.2<br>in 2022-24']);
+    ).toEqual([`3.9<br>${unit}<br>in 2021-23`, `4.2<br>${unit}<br>in 2022-24`]);
   },
 );
 

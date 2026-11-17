@@ -32,12 +32,10 @@ export function Sparkline({
   areaName,
   points,
   indicator,
-  showEndpointUnit = true,
 }: {
   id: string;
   title: string;
   indicator: Pick<IndicatorDetail, 'name' | 'unit'>;
-  showEndpointUnit?: boolean;
 } & ReturnType<typeof sparklineModel>) {
   const first = points.find(({ value }) => value !== null);
   const latest = points.findLast(({ value }) => value !== null);
@@ -64,7 +62,7 @@ export function Sparkline({
       <span className="govuk-hint">
         {formatCalculatedValue(point.value)}
         {indicator.unit === '%' ? '%' : null}
-        {showEndpointUnit && indicator.unit && indicator.unit !== '%' ? (
+        {indicator.unit && indicator.unit !== '%' ? (
           <>
             <br />
             {indicator.unit}
