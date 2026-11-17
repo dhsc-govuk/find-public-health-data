@@ -5,6 +5,7 @@ export const {
   betaAccess,
   development,
   environmentName,
+  feedbackMailbox,
   host,
   port,
   revision,

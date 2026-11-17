@@ -322,6 +322,20 @@ describe('loadWebServerConfig', () => {
     });
   });
 
+  it('reads the feedback mailbox, which is optional', () => {
+    expect(
+      loadWebServerConfig({ APP_ENV: 'local', FEEDBACK_MAILBOX: 'feedback@example.com' }, defaults)
+        .feedbackMailbox,
+    ).toBe('feedback@example.com');
+    expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults).feedbackMailbox).toBeUndefined();
+  });
+
+  it('rejects a feedback mailbox that is not an email address', () => {
+    expect(() =>
+      loadWebServerConfig({ APP_ENV: 'local', FEEDBACK_MAILBOX: 'feedback' }, defaults),
+    ).toThrow(/FEEDBACK_MAILBOX/);
+  });
+
   it('takes no session secret, as public-web has no sign-in', () => {
     expect(loadWebServerConfig({ APP_ENV: 'local' }, defaults)).not.toHaveProperty('session');
   });

@@ -3,6 +3,7 @@ import { betaAccessContext } from '@fphd/beta-access/context';
 import { createApiClient } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { environmentContext } from '@fphd/web-server/environment-context';
+import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-context';
 import { loggerContext } from '@fphd/web-server/logger-context';
 import { createReactRouterApp } from '@fphd/web-server/react-router';
 import { forwardedRequestIdHeaders } from '@fphd/web-server/request-id-headers';
@@ -27,6 +28,7 @@ export const app = createReactRouterApp(() => import('virtual:react-router/serve
   extendContext: (context, request, signal) => {
     context.set(betaAccessContext, betaAccess);
     context.set(environmentContext, config.environmentName);
+    context.set(feedbackMailboxContext, config.feedbackMailbox);
     context.set(
       apiContext,
       createApiClient({

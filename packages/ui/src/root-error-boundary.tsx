@@ -6,6 +6,7 @@ import { NotFoundPage, PageIntro } from './content-page.tsx';
 interface RootErrorBoundaryProps {
   audience: 'Public' | 'Internal';
   environmentName?: string | undefined;
+  feedbackMailbox?: string | undefined;
   navigation: AppNavigationItem[];
   serviceHref?: string | undefined;
 }
@@ -18,6 +19,7 @@ interface RootErrorBoundaryProps {
 export function RootErrorBoundary({
   audience,
   environmentName,
+  feedbackMailbox,
   navigation,
   serviceHref,
 }: RootErrorBoundaryProps) {
@@ -28,6 +30,7 @@ export function RootErrorBoundary({
     <AppShell
       audience={audience}
       environmentName={environmentName}
+      feedbackMailbox={feedbackMailbox}
       navigation={navigation}
       serviceHref={serviceHref}
     >

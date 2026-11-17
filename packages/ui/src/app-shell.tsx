@@ -32,6 +32,8 @@ interface AppShellProps {
   children: ReactNode;
   /** The environment the banner above the header names. The live service has none. */
   environmentName?: string | undefined;
+  /** The address the feedback link in the public phase banner emails. Without it, there's no link. */
+  feedbackMailbox?: string | undefined;
   navigation: AppNavigationItem[];
   /** Where the service name in the header links to. */
   serviceHref?: string | undefined;
@@ -43,6 +45,7 @@ export function AppShell({
   backText,
   children,
   environmentName,
+  feedbackMailbox,
   navigation,
   serviceHref = '/',
 }: AppShellProps) {
@@ -60,14 +63,19 @@ export function AppShell({
         className={`fphd-app--${audience.toLowerCase()}`}
         meta={footerLinks}
         navigation={navigation}
-        phase={isInternal ? 'Internal' : 'Alpha'}
+        phase={isInternal ? 'Internal' : 'Beta'}
         phaseBannerContent={
           isInternal ? (
             'This service is for authorised staff managing public health data.'
           ) : (
             <>
-              This is a new service – your <A href="/feedback">feedback</A> will help us to improve
-              it.
+              This is a new service – your{' '}
+              {feedbackMailbox === undefined ? (
+                'feedback'
+              ) : (
+                <A href={`mailto:${feedbackMailbox}`}>feedback</A>
+              )}{' '}
+              will help us to improve it.
             </>
           )
         }

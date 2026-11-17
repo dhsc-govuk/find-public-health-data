@@ -396,13 +396,22 @@ export function loadWebServerConfig(
 ) {
   const parsed = parseEnv(
     z
-      .object({ ...webServerFields(defaults), ...betaAccessFields })
+      .object({
+        ...webServerFields(defaults),
+        ...betaAccessFields,
+        // The address the feedback link in the phase banner emails.
+        FEEDBACK_MAILBOX: z.email().optional(),
+      })
       .refine(basicAuthSetTogether, basicAuthPairError)
       .superRefine(checkBetaAccess),
     env,
   );
 
-  return { ...webServerConfig(parsed), betaAccess: betaAccessConfig(parsed) } as const;
+  return {
+    ...webServerConfig(parsed),
+    betaAccess: betaAccessConfig(parsed),
+    feedbackMailbox: parsed.FEEDBACK_MAILBOX,
+  } as const;
 }
 
 /** A web app people sign in to, such as internal-web: it signs their sessions. */
