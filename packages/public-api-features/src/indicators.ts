@@ -1,4 +1,4 @@
-import type { IndicatorSearchFilters, Repositories } from '@fphd/db';
+import { completeIndicatorDetail, type IndicatorSearchFilters, type Repositories } from '@fphd/db';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
@@ -293,8 +293,10 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       return;
     }
 
+    const found = await indicators.findDetailById(indicatorId);
+    // A draft can leave questions unanswered, but the public page never shows one that does.
     // The annotation binds the repository's shape to the wire contract at compile time.
-    const detail: IndicatorDetail | undefined = await indicators.findPublishedById(indicatorId);
+    const detail: IndicatorDetail | undefined = found && completeIndicatorDetail(found);
 
     if (!detail) {
       response.status(404).json({ error: 'not_found' });
