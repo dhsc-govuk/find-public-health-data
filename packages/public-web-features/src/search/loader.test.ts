@@ -91,6 +91,38 @@ describe('loadSearchPage', () => {
     );
   });
 
+  it('sends the recently updated sort to the API and returns it to the page', async () => {
+    const client = api();
+    const result = await loadSearchPage(
+      loaderArgs(client, 'http://localhost/search?q=diabetes&sort=recently-updated'),
+      true,
+    );
+
+    expect(result.sort).toBe('recently-updated');
+    expect(searchPath(client)).toBe('/api/indicators/search?q=diabetes&sort=recently-updated');
+  });
+
+  it('sorts browse-all by recently updated without a keyword', async () => {
+    const client = api();
+    await loadSearchPage(loaderArgs(client, 'http://localhost/search?sort=recently-updated'), true);
+
+    expect(searchPath(client)).toBe('/api/indicators/search?sort=recently-updated');
+  });
+
+  it.each(['', '&sort=relevance', '&sort=name-desc', '&sort=nonsense'])(
+    'leaves relevance to the API default for %j',
+    async (sort) => {
+      const client = api();
+      const result = await loadSearchPage(
+        loaderArgs(client, `http://localhost/search?q=diabetes${sort}`),
+        true,
+      );
+
+      expect(result.sort).toBe('relevance');
+      expect(searchSent(client).has('sort')).toBe(false);
+    },
+  );
+
   it('loads topic results while indicator search is still waiting for geography data', async () => {
     const groups = Promise.withResolvers<string[]>();
     const topics = [

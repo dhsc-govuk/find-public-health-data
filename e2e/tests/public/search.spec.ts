@@ -14,6 +14,41 @@ async function ready(page: Page, path = '/search') {
   await expect(page.getByRole('tab', { name: /^Indicators/ })).toBeVisible();
 }
 
+const sortBy = (page: Page) => page.getByRole('combobox', { name: 'Sort by', exact: true });
+const MORTALITY_SEARCH = '/search?q=mortality&t=mortality-and-life-expectancy';
+const MOST_RELEVANT_MORTALITY = 'Mortality rate for deaths involving diabetes, all ages';
+const RECENTLY_UPDATED_MORTALITY = [
+  'Under 75 mortality rate from all causes',
+  'Under 75 mortality rate from cancer',
+  'Air pollution: estimated fraction of mortality attributable to particulate air pollution',
+  'Mortality rate for deaths involving diabetes, all ages',
+];
+
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(`subtopic sorting with JavaScript ${javaScriptEnabled ? 'enabled' : 'disabled'}`, () => {
+    test.use({ javaScriptEnabled });
+
+    test('keeps the subtopic filter when changing the sort', async ({ page }) => {
+      await page.goto('/search?t=diabetes&subtopic=prevalence-and-risk');
+      if (javaScriptEnabled)
+        await expect(page.getByRole('tab', { name: /^Indicators/ })).toBeVisible();
+      const links = results(page).getByRole('link');
+      await expect(links).toHaveText(['Diabetes: QOF prevalence']);
+
+      for (const sort of ['recently-updated', 'relevance']) {
+        await sortBy(page).selectOption(sort);
+        if (!javaScriptEnabled)
+          await page.getByRole('button', { name: 'Sort indicators', exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`sort=${sort}`));
+        const params = new URL(page.url()).searchParams;
+        expect(params.getAll('subtopic')).toEqual(['prevalence-and-risk']);
+        expect(params.get('t')).toBe('diabetes');
+        await expect(links).toHaveText(['Diabetes: QOF prevalence']);
+      }
+    });
+  });
+}
+
 test('loads the search page with h1', async ({ page }) => {
   await page.goto('/search');
 
@@ -257,6 +292,48 @@ test('years and last updated filters preserve the keyword and other filters', as
   expect(params.get('t')).toBe('diabetes');
   expect(params.get('fromYear')).toBe('2010');
   expect(params.get('toYear')).toBe('2025');
+});
+
+test('sorts indicators by relevance or by recently updated data', async ({ page }, testInfo) => {
+  await ready(page, MORTALITY_SEARCH);
+  await expect(sortBy(page)).toHaveValue('relevance');
+  await expect(results(page).getByRole('link').first()).toHaveText(MOST_RELEVANT_MORTALITY);
+
+  await sortBy(page).selectOption('recently-updated');
+  await expect(page).toHaveURL(/sort=recently-updated/);
+  await expect(results(page).getByRole('link')).toHaveText(RECENTLY_UPDATED_MORTALITY);
+  const params = new URL(page.url()).searchParams;
+  expect(params.get('q')).toBe('mortality');
+  expect(params.get('t')).toBe('mortality-and-life-expectancy');
+  await expectNoAccessibilityViolations(page, testInfo);
+
+  await sortBy(page).selectOption('relevance');
+  await expect(page).toHaveURL(/sort=relevance/);
+  await expect(results(page).getByRole('link').first()).toHaveText(MOST_RELEVANT_MORTALITY);
+});
+
+test('the sort survives tab switches, new searches and filter changes', async ({ page }) => {
+  await ready(page, '/search?t=mortality-and-life-expectancy&sort=recently-updated');
+  await page.getByRole('tab', { name: /^Topics/ }).click();
+  await expect(page).toHaveURL(/tab-search=topics/);
+  await page.getByRole('tab', { name: /^Indicators/ }).click();
+  await expect(page).not.toHaveURL(/tab-search=topics/);
+  expect(new URL(page.url()).searchParams.get('sort')).toBe('recently-updated');
+  await expect(sortBy(page)).toHaveValue('recently-updated');
+
+  await page.getByRole('searchbox', { name: 'Search by keywords' }).fill('mortality');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page).toHaveURL(/q=mortality/);
+  expect(new URL(page.url()).searchParams.get('sort')).toBe('recently-updated');
+  await expect(results(page).getByRole('link')).toHaveText(RECENTLY_UPDATED_MORTALITY);
+
+  await card(page, 'Last updated')
+    .getByRole('button', { name: 'Last updated', exact: true })
+    .click();
+  await page.getByRole('combobox', { name: 'Last updated', exact: true }).selectOption('12');
+  await expect(page).toHaveURL(/updatedWithin=12/);
+  expect(new URL(page.url()).searchParams.get('sort')).toBe('recently-updated');
+  await expect(sortBy(page)).toHaveValue('recently-updated');
 });
 
 test('a complete long data source remains selected and narrows results', async ({ page }) => {
@@ -596,6 +673,25 @@ test.describe('without JavaScript', () => {
         .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
         .getByRole('checkbox', { name: 'Devon', exact: true }),
     ).toBeVisible();
+  });
+
+  test('sorts indicators and keeps the sort across tabs without JavaScript', async ({ page }) => {
+    await page.goto(MORTALITY_SEARCH);
+    await sortBy(page).selectOption('recently-updated');
+    await page.getByRole('button', { name: 'Sort indicators', exact: true }).click();
+    await expect(page).toHaveURL(/sort=recently-updated/);
+    const params = new URL(page.url()).searchParams;
+    expect(params.get('q')).toBe('mortality');
+    expect(params.get('t')).toBe('mortality-and-life-expectancy');
+    await expect(results(page).getByRole('link')).toHaveText(RECENTLY_UPDATED_MORTALITY);
+
+    await page.getByRole('link', { name: /^Topics \(/ }).click();
+    await expect(page).toHaveURL(/tab-search=topics/);
+    await page.getByRole('link', { name: /^Indicators \(/ }).click();
+    await expect(page).toHaveURL(/tab-search=indicators/);
+    expect(new URL(page.url()).searchParams.get('sort')).toBe('recently-updated');
+    await expect(sortBy(page)).toHaveValue('recently-updated');
+    await expect(results(page).getByRole('link')).toHaveText(RECENTLY_UPDATED_MORTALITY);
   });
 
   test('browsing a geography level reveals areas without losing existing levels', async ({

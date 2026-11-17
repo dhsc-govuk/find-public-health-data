@@ -38,7 +38,7 @@ of those values. Most also export a `*_LABELS` record of the words the pages sho
   the tagging page sets.
 - `./disclosure-control`: whether disclosure control was applied.
 - `./indicator-sort`: the sort orders of the indicator search, and `indicatorSort`, which reads one
-  from a query value.
+  from a query value. `SEARCH_SORTS` and `searchSort` are the orders the search page offers.
 - `./indicator-status`: whether the public can see an indicator.
 - `./indicator-step`: the workflow steps a draft version can take, in the order the workflow allows
   them.
