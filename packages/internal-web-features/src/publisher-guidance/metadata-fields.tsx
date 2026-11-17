@@ -25,7 +25,7 @@ const MANDATORY_FIELDS: readonly FieldGuidance[] = [
           <li>concise - try to keep to 15 words or fewer</li>
           <li>distinct - it should be easy to distinguish it from other indicators</li>
           <li>
-            understandable to a general audience - don’t use words or acronyms only specialists
+            understandable to a general audience - do not use words or acronyms only specialists
             would understand
           </li>
           <li>written in sentence case – only the first word is capitalised</li>
@@ -72,7 +72,7 @@ const MANDATORY_FIELDS: readonly FieldGuidance[] = [
             By reading this definition, any consumer should be able to understand what the indicator
             shows
           </li>
-          <li>Don’t include any methodology</li>
+          <li>Do not include any methodology</li>
         </ul>
       </>
     ),
