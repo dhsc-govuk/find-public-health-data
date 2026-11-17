@@ -506,6 +506,7 @@ describe('a route that shows the page at one address, as the preview does', () =
         metadata: () => '/preview/metadata.txt',
         geographies: '/preview/geographies',
         indicatorSearch: '/preview/indicators/search',
+        compareAreas: '/preview/compare-areas',
       },
     });
     return loaderArgs;

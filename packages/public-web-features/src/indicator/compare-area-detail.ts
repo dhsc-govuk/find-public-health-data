@@ -8,6 +8,7 @@ import {
   highlightedAreaCodes,
   withNeighbours,
 } from './area-comparison.ts';
+import { useIndicatorLinks } from './links.ts';
 
 type Parent = CompareAreaOption['parent'];
 
@@ -27,6 +28,7 @@ export function useCompareAreaDetail({
   areas: CompareAreaOption[];
   params: URLSearchParams;
 }) {
+  const { compareAreas } = useIndicatorLinks();
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   const [parents, setParents] = useState<{ group: string; byCode: Map<string, Parent> }>();
@@ -62,7 +64,7 @@ export function useCompareAreaDetail({
     const controller = new AbortController();
     setParentsError('');
     const query = new URLSearchParams({ indicator: slug, displayGroup: group, parents: '1' });
-    void fetch(`/compare-areas?${query}`, { signal: controller.signal })
+    void fetch(`${compareAreas}?${query}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('Could not load regions');
         return response.json();
@@ -80,7 +82,7 @@ export function useCompareAreaDetail({
         if (!controller.signal.aborted) setParentsError(group);
       });
     return () => controller.abort();
-  }, [shown, needsParents, parents?.group, slug, group, attempt]);
+  }, [shown, needsParents, parents?.group, slug, group, attempt, compareAreas]);
 
   const withParents =
     parents?.group === group
@@ -99,7 +101,7 @@ export function useCompareAreaDetail({
     const codes = missingKey.split(',').slice(0, MAX_NEIGHBOUR_AREAS_PER_REQUEST);
     const controller = new AbortController();
     const query = new URLSearchParams(codes.map((code) => ['areaCode', code]));
-    void fetch(`/compare-areas?${query}`, { signal: controller.signal })
+    void fetch(`${compareAreas}?${query}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('Could not load statistical neighbours');
         return response.json();
@@ -122,7 +124,7 @@ export function useCompareAreaDetail({
         }
       });
     return () => controller.abort();
-  }, [shown, missingKey, attempt]);
+  }, [shown, missingKey, attempt, compareAreas]);
 
   return {
     ref,

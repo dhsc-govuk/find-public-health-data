@@ -4,6 +4,7 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { CompareAreaOption } from './area-comparison.ts';
 import { useCompareAreaDetail } from './compare-area-detail.ts';
+import { IndicatorLinksContext, publicIndicatorLinks } from './links.ts';
 
 afterEach(() => {
   cleanup();
@@ -30,6 +31,36 @@ function mount(props: Parameters<typeof useCompareAreaDetail>[0] = options) {
   result.rerender = (props) => view.rerender(<Harness {...props} />);
   return result;
 }
+
+it("asks the public lookup for regions and neighbours, or the one the page's links give", async () => {
+  vi.stubGlobal('IntersectionObserver', undefined);
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ parents: [], neighbours: [] }));
+  vi.stubGlobal('fetch', fetcher);
+  function Harness() {
+    const { ref } = useCompareAreaDetail(options);
+    return <div ref={ref} />;
+  }
+
+  render(<Harness />);
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  cleanup();
+  render(
+    <IndicatorLinksContext.Provider
+      value={{ ...publicIndicatorLinks, compareAreas: '/preview/compare-areas' }}
+    >
+      <Harness />
+    </IndicatorLinksContext.Provider>,
+  );
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(4));
+
+  const paths = fetcher.mock.calls.map(([url]) => String(url).split('?')[0]);
+  expect(paths).toEqual([
+    '/compare-areas',
+    '/compare-areas',
+    '/preview/compare-areas',
+    '/preview/compare-areas',
+  ]);
+});
 
 it('loads details without IntersectionObserver and retries failed regions and neighbours', async () => {
   vi.stubGlobal('IntersectionObserver', undefined);

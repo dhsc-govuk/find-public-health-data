@@ -47,6 +47,10 @@ export default withRouteIds([
       route('dashboard/indicators/:id/preview/all-data.csv', './indicator-preview-all-data-csv.ts'),
       route('dashboard/indicators/:id/preview/metadata.txt', './indicator-preview-metadata.ts'),
       route('dashboard/indicators/:id/preview/geographies', './indicator-preview-geographies.ts'),
+      route(
+        'dashboard/indicators/:id/preview/compare-areas',
+        './indicator-preview-compare-areas.ts',
+      ),
       route('dashboard/indicators/:id/preview/indicators/search', './indicator-preview-search.ts'),
       route(
         'dashboard/indicators/:id/assign-reviewers',

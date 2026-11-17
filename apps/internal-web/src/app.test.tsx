@@ -309,6 +309,7 @@ describe('the role-gated route tables', () => {
       'preview/all-data.csv',
       'preview/metadata.txt',
       'preview/geographies',
+      'preview/compare-areas',
       'preview/indicators/search',
     ]) {
       expect(gated).toContain(`dashboard/indicators/:id/${path}`);

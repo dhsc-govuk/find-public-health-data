@@ -17,6 +17,8 @@ export interface IndicatorLinks {
   geographies: string;
   /** The indicator search the compare picker asks. */
   indicatorSearch: string;
+  /** The regions and statistical neighbours the Compare areas tab asks for once it is shown. */
+  compareAreas: string;
 }
 
 export const publicIndicatorLinks: IndicatorLinks = {
@@ -25,6 +27,7 @@ export const publicIndicatorLinks: IndicatorLinks = {
   metadata: indicatorMetadataPath,
   geographies: '/geographies',
   indicatorSearch: '/indicators/search',
+  compareAreas: '/compare-areas',
 };
 
 /** The page's links for its components: the public page's unless a route provides others. */
