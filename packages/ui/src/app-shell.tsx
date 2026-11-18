@@ -6,12 +6,6 @@ import { EnvironmentBanner } from './environment-banner.tsx';
 import { serviceName } from './service-name.ts';
 
 const footerLinks = [
-  { text: 'Help', href: '/help' },
-  { text: 'Privacy', href: '/privacy' },
-  { text: 'Cookies', href: '/cookies' },
-  { text: 'Accessibility statement', href: '/accessibility' },
-  { text: 'Contact', href: '/contact' },
-  { text: 'Terms and conditions', href: '/terms' },
   {
     text: 'Government Digital Service',
     href: 'https://www.gov.uk/government/organisations/government-digital-service',
