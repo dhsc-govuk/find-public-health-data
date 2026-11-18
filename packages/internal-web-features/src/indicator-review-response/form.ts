@@ -44,10 +44,9 @@ export interface ApprovalValues {
   revisionsKind: string;
 }
 
-/** "Can this update be published?" as sent: Yes or No, and the kinds of feedback ticked. */
+/** "Can this update be published?" as sent: Yes or No. */
 export interface UpdateApprovalValues {
   approved: string;
-  reasons: string[];
 }
 
 /** The revisions page as sent: what is ticked, and the text under each ticked box. */
@@ -86,11 +85,9 @@ export function approvalValuesFrom({ kind }: ReviewJourney): ApprovalValues {
   return { approved: '', revisionsKind: '' };
 }
 
-/** An update's approval page reopened from the revisions page, with No and its kinds chosen. */
+/** An update's approval page reopened from the revisions page, with No chosen. */
 export function updateApprovalValuesFrom(journey: ReviewJourney | undefined): UpdateApprovalValues {
-  return journey?.kind === 'pre_imrg_feedback'
-    ? { approved: 'no', reasons: journey.reasons ?? [] }
-    : { approved: '', reasons: [] };
+  return { approved: journey?.kind === 'pre_imrg_feedback' ? 'no' : '' };
 }
 
 /**

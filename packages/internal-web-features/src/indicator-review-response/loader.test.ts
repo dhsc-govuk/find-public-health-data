@@ -347,20 +347,20 @@ describe('the response pages', () => {
         submissionNumber: 2,
         name: 'Hip fractures',
         scheduledPublishAt: '2027-04-01T08:30:00.000Z',
-        values: { approved: '', reasons: [] },
+        values: { approved: '' },
       });
     });
 
-    it('reopen with No and the kinds of feedback the revisions page goes back with', async () => {
+    it('reopen with No when the revisions page goes back', async () => {
       const { outcome } = await run(
         loadUpdateApproval,
         reading(updateInReview),
         new Request(
-          `https://internal.test${REVIEW}/update-approval?submission=2&kind=pre_imrg_feedback&reason=clarification`,
+          `https://internal.test${REVIEW}/update-approval?submission=2&kind=pre_imrg_feedback`,
         ),
       );
 
-      expect(outcome).toMatchObject({ values: { approved: 'no', reasons: ['clarification'] } });
+      expect(outcome).toMatchObject({ values: { approved: 'no' } });
     });
 
     it.each([
@@ -379,24 +379,17 @@ describe('the response pages', () => {
       },
     );
 
-    it.each<[string, [string, string][], Record<string, string>]>([
-      ['nothing chosen', [], { approved: 'Select whether you approve this update for publishing' }],
-      [
-        'No without a kind of feedback',
-        [['approved', 'no']],
-        {
-          reasons: 'Select at least one kind of feedback',
-        },
-      ],
-    ])('ask again for %s', async (_, answers, fieldErrors) => {
+    it('ask again when nothing is chosen', async () => {
       const api = createFakeApiClient();
       const { outcome } = await run(
         chooseUpdateApproval,
         api,
-        post(`${REVIEW}/update-approval`, [['submissionNumber', '2'], ...answers]),
+        post(`${REVIEW}/update-approval`, [['submissionNumber', '2']]),
       );
 
-      expect(outcome).toMatchObject({ fieldErrors });
+      expect(outcome).toMatchObject({
+        fieldErrors: { approved: 'Select whether you approve this update for publishing' },
+      });
       expect(api.calls).toEqual([]);
     });
 
@@ -447,42 +440,31 @@ describe('the response pages', () => {
       },
     );
 
-    it.each([
-      [
-        'with the clarification box ticked when clarification was asked for',
-        '&reason=clarification',
-        true,
-      ],
-      ['with nothing ticked for revisions alone', '&reason=revisions', false],
-    ])('open the revisions page %s', async (_, reasons, clarification) => {
+    it('open the revisions page with nothing ticked', async () => {
       const { outcome } = await run(
         loadRevisions,
         reading(updateInReview),
-        new Request(
-          `https://internal.test${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback${reasons}`,
-        ),
+        new Request(`https://internal.test${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`),
       );
 
       expect(outcome).toMatchObject({
         isUpdate: true,
-        values: { clarification, clarificationRequest: '', flags: [] },
+        values: { clarification: false, clarificationRequest: '', flags: [] },
       });
     });
 
-    it('take No on to the revisions page as feedback, with the kinds chosen', async () => {
+    it('take No on to the revisions page as feedback', async () => {
       const { response } = await run(
         chooseUpdateApproval,
         createFakeApiClient(),
         post(`${REVIEW}/update-approval`, [
           ['submissionNumber', '2'],
           ['approved', 'no'],
-          ['reasons', 'revisions'],
-          ['reasons', 'clarification'],
         ]),
       );
 
       expect(response.headers.get('Location')).toBe(
-        `${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback&reason=revisions&reason=clarification`,
+        `${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`,
       );
     });
   });

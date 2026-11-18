@@ -103,14 +103,14 @@ describe('the response pages', () => {
     expect(screen.getByRole('alert').textContent).toContain('Select a reason');
   });
 
-  it('ask whether an update can be published, recapping it and revealing the kinds of feedback under No', () => {
+  it('ask whether an update can be published, recapping it, with nothing more under No', () => {
     inRouter(
       <UpdateApprovalPage
-        fieldErrors={{ reasons: 'Select at least one kind of feedback' }}
+        fieldErrors={{ approved: 'Select whether you approve this update for publishing' }}
         formError={undefined}
         recap={recap}
         submissionNumber={2}
-        values={{ approved: 'no', reasons: [] }}
+        values={{ approved: '' }}
       />,
     );
 
@@ -123,14 +123,14 @@ describe('the response pages', () => {
     expect(screen.getByText('Scheduled publication date:').closest('li')?.textContent).toBe(
       'Scheduled publication date: 1 April 2027 at 9:30am',
     );
-    expect(screen.getByRole('group', { name: 'Select reasons' })).toBeTruthy();
-    expect(screen.getByLabelText('Revisions needed')).toBeTruthy();
-    expect(screen.getByLabelText('Request for clarification')).toBeTruthy();
+    expect(screen.getAllByRole('radio').map((radio) => radio.getAttribute('value'))).toEqual([
+      'yes',
+      'no',
+    ]);
+    expect(screen.queryAllByRole('checkbox')).toEqual([]);
     const link = screen.getByRole('alert').querySelector('a');
-    expect(link?.textContent).toBe('Select at least one kind of feedback');
-    expect(link?.getAttribute('href')).toBe(
-      `#${screen.getByLabelText('Revisions needed').getAttribute('id')}`,
-    );
+    expect(link?.textContent).toBe('Select whether you approve this update for publishing');
+    expect(link?.getAttribute('href')).toBe(`#${screen.getByLabelText('Yes').getAttribute('id')}`);
     expect(document.querySelector('input[name="submissionNumber"]')?.getAttribute('value')).toBe(
       '2',
     );
