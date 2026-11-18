@@ -493,7 +493,7 @@ test('ticks every local authority in a statistical region and lists highlights a
   await expect(headers.first()).toHaveText('England (benchmark)');
 });
 
-test('shows the highlighted areas next to Showing and removes one from its chip', async ({
+test('shows the highlighted areas next to Showing, removes one from its chip and clears them all', async ({
   page,
 }, testInfo) => {
   await page.getByRole('tab', { name: 'Compare areas' }).click();
@@ -519,6 +519,16 @@ test('shows the highlighted areas next to Showing and removes one from its chip'
       .getByRole('table', { name: /Table of area comparisons/ })
       .getByRole('rowheader', { name: 'Hartlepool', exact: true }),
   ).toBeVisible();
+  await panel.getByRole('link', { name: 'Clear all', exact: true }).click();
+  await expect(chips).toHaveText(['Local authorities']);
+  await expect(panel.getByRole('link', { name: 'Clear all', exact: true })).toHaveCount(0);
+  await expect(
+    panel
+      .getByRole('table', { name: /Table of area comparisons/ })
+      .locator('tbody')
+      .getByRole('rowheader')
+      .first(),
+  ).toHaveText('England (benchmark)');
 });
 
 test('removes an area highlighted through its region from its chip without JavaScript', async ({

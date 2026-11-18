@@ -1,6 +1,6 @@
 import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { useMemo } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
 import {
   areaColourMode,
@@ -8,6 +8,7 @@ import {
   highlightedAreas,
   statisticalNeighbourAreas,
   withoutHighlightedArea,
+  withoutHighlightedAreas,
 } from './area-comparison.ts';
 import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
@@ -125,6 +126,16 @@ export function CompareAreasTab({
                 </FilterChip>
               ))}
             </FilterChips>
+            {shownAreas.length ? (
+              <Link
+                className="govuk-link govuk-body-s"
+                preventScrollReset
+                replace
+                to={areasTabUrl(withoutHighlightedAreas(params))}
+              >
+                Clear all
+              </Link>
+            ) : null}
           </div>
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <GridRow className="fphd-area-table-layout">
