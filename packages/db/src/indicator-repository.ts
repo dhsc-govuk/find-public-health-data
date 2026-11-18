@@ -1000,9 +1000,10 @@ export async function searchIndicators(
                       asc(indicator.name),
                       asc(indicator.shortId),
                     ];
-  // England's first series variant is the indicator's first row on the topic Data tab. A
-  // correlated subquery keeps the lookup inside the row statement, and Postgres runs it only for
-  // the rows a page returns.
+  // England's first series variant is the indicator's first row on the topic Data tab. Its
+  // observation_series row already holds the headline segment the tab shows, and the published
+  // batch has one row per area, sex and period type. A correlated subquery keeps the lookup inside
+  // the row statement, and Postgres runs it only for the rows a page returns.
   const englandArea = db
     .select({ id: area.id })
     .from(area)
@@ -1022,7 +1023,7 @@ export async function searchIndicators(
         sql`${observationSeries.periodType} = ${observationSeries.variants} -> 0 ->> 'periodType'`,
       ),
     )
-    .orderBy(desc(observation.toDate))
+    .orderBy(desc(observation.toDate), asc(observation.id))
     .limit(1);
   const trendSort = filters.sort?.startsWith('trend-') ?? false;
   const rowQuery = (page = 1) => {
