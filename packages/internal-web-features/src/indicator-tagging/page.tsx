@@ -162,7 +162,8 @@ function TopicPicker({
         <div className="fphd-field-row fphd-field-row--with-button govuk-!-margin-top-3">
           <Select
             defaultValue={chosen.id === values.addTopic ? values.addSubtopic : ''}
-            error={fieldErrors.addSubtopic}
+            // The refusal was for the topic sent, not one chosen since.
+            error={chosen.id === values.addTopic ? fieldErrors.addSubtopic : undefined}
             // Remounted for each topic, so the choice starts again with its subtopics.
             key={chosen.id}
             label={`Select a subtopic for ${chosen.name}`}

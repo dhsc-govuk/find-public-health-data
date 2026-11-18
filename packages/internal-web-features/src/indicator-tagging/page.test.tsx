@@ -204,6 +204,31 @@ describe('TaggingPage', () => {
     expect(screen.getByRole('button', { name: 'Add topic' })).toBeTruthy();
   });
 
+  it('drops the subtopic refusal once another topic is chosen', () => {
+    const other = '019fa38f-073f-764e-9ac6-1c4d03b10009';
+    const complications = '019fa38f-073f-764e-9ac6-1c4d03b10010';
+    renderPage({
+      options: {
+        ...options,
+        topics: [...options.topics, { id: other, name: 'Diabetes' }],
+        subtopics: [
+          ...options.subtopics,
+          { id: complications, name: 'Complications', topicId: other },
+        ],
+      },
+      values: { ...empty, addTopic: cancer },
+      fieldErrors: { addSubtopic: 'Select a subtopic for Cancer' },
+    });
+    expect(select('Select a subtopic for Cancer').getAttribute('aria-describedby')).toBe(
+      'addSubtopic-error',
+    );
+
+    fireEvent.change(select('Select a topic'), { target: { value: other } });
+
+    expect(select('Select a subtopic for Diabetes').getAttribute('aria-describedby')).toBeNull();
+    expect(document.getElementById('addSubtopic-error')).toBeNull();
+  });
+
   it('lists each topic added with its subtopics, carried in the form with Remove buttons', () => {
     renderPage({
       values: { ...empty, topicIds: [dental, cancer], subtopicIds: [bowelCancer, allCancers] },
