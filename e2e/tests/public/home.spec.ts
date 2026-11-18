@@ -57,6 +57,26 @@ test('does not show the geography, framework or programme, or recently updated c
   await expect(cards.nth(1)).toHaveAttribute('href', '/search');
 });
 
+test('puts the ways to find data side by side on desktop and one under the other on mobile', async ({
+  page,
+}) => {
+  const cards = page.getByRole('main').getByRole('listitem');
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const desktopTopic = await cards.nth(0).boundingBox();
+  const desktopAll = await cards.nth(1).boundingBox();
+  if (!desktopTopic || !desktopAll) throw new Error('both cards must be visible on desktop');
+  expect(desktopAll.x).toBeGreaterThan(desktopTopic.x + desktopTopic.width);
+  expect(desktopAll.y).toBeCloseTo(desktopTopic.y, 0);
+
+  await page.setViewportSize({ width: 375, height: 800 });
+  const mobileTopic = await cards.nth(0).boundingBox();
+  const mobileAll = await cards.nth(1).boundingBox();
+  if (!mobileTopic || !mobileAll) throw new Error('both cards must be visible on mobile');
+  expect(mobileAll.x).toBeCloseTo(mobileTopic.x, 0);
+  expect(mobileAll.y).toBeGreaterThanOrEqual(mobileTopic.y + mobileTopic.height);
+});
+
 test('searches for data from the home page', async ({ page }) => {
   await page.getByLabel('Search for data').fill('diabetes');
   await page.getByLabel('Search for data').press('Enter');

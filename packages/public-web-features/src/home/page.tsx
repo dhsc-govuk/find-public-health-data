@@ -34,7 +34,7 @@ export function PublicHomePage() {
         </form>
 
         <h2 className="govuk-visually-hidden">Ways to find data</h2>
-        <CardList items={findDataCards} />
+        <CardList columns="two" items={findDataCards} />
 
         <h2 className="govuk-heading-l">Public health data</h2>
         <p className="govuk-body">Public health data:</p>
