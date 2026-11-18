@@ -234,13 +234,13 @@ test('keeps focus on a filter control while it updates the results', async ({ pa
   const clear = page.getByRole('link', { name: 'Clear all filters' });
   await clear.click();
   await expect(page).toHaveURL('/search');
-  await expect(page.getByRole('heading', { name: '12 indicators', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^12 indicators ?, page 1 of 2$/ })).toBeVisible();
   await expect(clear).toBeFocused();
 });
 
 test('keeps the results live region while searches update its count', async ({ page }) => {
   await ready(page);
-  const heading = page.getByRole('heading', { name: '12 indicators', exact: true });
+  const heading = page.getByRole('heading', { name: /^12 indicators ?, page 1 of 2$/ });
   await expect(heading).toHaveAttribute('aria-live', 'polite');
   await expect(heading).toHaveAttribute('aria-atomic', 'true');
   const liveRegion = await heading.elementHandle();
@@ -275,7 +275,7 @@ test('topic checkboxes apply and remove filters immediately', async ({ page }, t
   await expectNoAccessibilityViolations(page, testInfo);
   await diabetes.uncheck();
   await expect(page).toHaveURL('/search');
-  await expect(results(page).getByRole('link')).toHaveCount(12);
+  await expect(results(page).getByRole('link')).toHaveCount(10);
 });
 
 test('years and last updated filters preserve the keyword and other filters', async ({ page }) => {
