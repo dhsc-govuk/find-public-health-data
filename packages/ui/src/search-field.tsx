@@ -30,6 +30,9 @@ export function SearchField({
         </Label>
         {action}
       </div>
+      {/* FIXME(FPH-XXX): The hint is not linked to the input, because NotGovUK's SearchBox
+          overwrites any aria-describedby passed to it and shows its own hint only as a
+          placeholder. Link it once SearchBox keeps an aria-describedby or offers a visible hint. */}
       {hint ? <Hint>{hint}</Hint> : null}
       <SearchBox
         autoComplete="off"
