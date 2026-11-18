@@ -43,22 +43,30 @@ function reason(answer: string) {
 }
 
 describe('UpdateFrequencyPage', () => {
-  it('links to its part of the publisher guidance', () => {
+  it('links to its part of the publisher guidance between the heading and the options', () => {
     renderPage();
+    const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
 
-    expect(screen.getByRole('link', { name: RELATED_GUIDANCE_LINK }).getAttribute('href')).toBe(
-      '/publish/guidance#update-frequency',
-    );
+    expect(link.getAttribute('href')).toBe('/publish/guidance#update-frequency');
+    expect(
+      screen.getByRole('heading', { level: 1 }).compareDocumentPosition(link) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      link.compareDocumentPosition(screen.getByRole('group', { name: QUESTION })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it('asks the question as the page heading, which also names the group of options', () => {
+  it('asks the question as the page heading, and names the group of options with it', () => {
     renderPage();
 
     const heading = screen.getByRole('heading', { level: 1, name: QUESTION });
+    const legend = screen.getByRole('group', { name: QUESTION }).querySelector('legend');
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(heading.closest('legend')).not.toBeNull();
-    expect(screen.getByRole('group', { name: QUESTION })).toBeTruthy();
+    expect(heading.closest('legend')).toBeNull();
+    expect(legend?.querySelector('.govuk-visually-hidden')?.textContent).toBe(QUESTION);
     expect(document.title).toBe(`${QUESTION} - ${serviceName} - GOV.UK`);
   });
 

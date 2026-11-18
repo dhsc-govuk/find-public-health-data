@@ -11,15 +11,12 @@ import {
   type UpdateFrequency,
 } from '@fphd/utils/update-frequency';
 
-import {
-  IndicatorSectionForm,
-  QUESTION_HEADING_SIZE,
-  type SectionPageProps,
-} from '../indicator-section-form.tsx';
+import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 
 const UPDATE_FREQUENCY_QUESTION = 'How often will this indicator be updated?';
 
-// The question is the page's h1, inside the legend.
+// The question is the page's h1, with the guidance link under it. The legend repeats the question
+// for screen readers only.
 export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>) {
   const { fieldErrors, values } = form;
 
@@ -57,15 +54,12 @@ export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>
       form={form}
       fieldIds={{ updateFrequency: firstRadioId('updateFrequency') }}
       section={updateFrequencySection}
-      questionIsHeading
       title={UPDATE_FREQUENCY_QUESTION}
     >
       <Radios
         defaultValue={values.updateFrequency}
         error={fieldErrors.updateFrequency}
-        label={UPDATE_FREQUENCY_QUESTION}
-        labelClassModifiers={QUESTION_HEADING_SIZE}
-        labelHeading="h1"
+        label={<span className="govuk-visually-hidden">{UPDATE_FREQUENCY_QUESTION}</span>}
         name="updateFrequency"
         options={options}
       />
