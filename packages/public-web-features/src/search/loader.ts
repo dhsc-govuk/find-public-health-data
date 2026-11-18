@@ -26,16 +26,29 @@ import {
 import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { topicSort } from '../topic/filters.ts';
+import { SEARCH_PAGE_SIZE, searchPageNumber } from './pagination.ts';
 import { DIMENSIONS, PERIOD_PARAMS } from './url.ts';
 
+/**
+ * The search page reads one page of results at a time. A page number that isn't one of the
+ * result pages redirects to the nearest that is: the first for anything but a whole number, and
+ * the last for one past the end.
+ */
 export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies: boolean) {
+  const url = new URL(args.request.url);
+  const params = url.searchParams;
   const [search, topicResults] = await Promise.all([
-    loadSearch(args, { publicGeographies }),
+    loadSearch(args, { publicGeographies, page: searchPageNumber(params.get('page')) }),
     args.context.get(apiContext).get('/api/topics', topicSummaryListSchema),
   ]);
+  const page = String(search.searchResult.page ?? 1);
+  if (params.has('page') && params.get('page') !== page) {
+    params.set('page', page);
+    throw redirect(`${url.pathname}?${params}`, { status: 302 });
+  }
   return {
     ...search,
-    sort: searchSort(new URL(args.request.url).searchParams.get('sort')),
+    sort: searchSort(params.get('sort')),
     geographyLookupUrl: publicGeographies ? '/geographies?scheme=public' : '/geographies',
     topicResults,
   };
@@ -100,6 +113,7 @@ export async function loadSearch(
     geographyPreviews,
     complete = false,
     publicGeographies = false,
+    page,
   }: {
     topicSlug?: string;
     path?: string;
@@ -109,6 +123,8 @@ export async function loadSearch(
     >;
     complete?: boolean;
     publicGeographies?: boolean;
+    /** The page of results to read, `SEARCH_PAGE_SIZE` at a time. Without one, the API's default. */
+    page?: number;
   } = {},
 ) {
   const url = new URL(request.url);
@@ -165,6 +181,7 @@ export async function loadSearch(
     const facets = await api.get('/api/indicators/facets', indicatorFacetsSchema);
 
     const next = new URLSearchParams(params);
+    next.delete('page');
 
     for (const dim of DIMENSIONS) {
       const addKey = `${dim.param}-add`;
@@ -205,6 +222,9 @@ export async function loadSearch(
     ? (topicSort(params.get('sort')) ?? 'subtopic-asc')
     : searchSort(params.get('sort'));
   if (sort !== 'relevance') searchQuery += `${searchQuery ? '&' : ''}sort=${sort}`;
+  if (page !== undefined) {
+    searchQuery += `${searchQuery ? '&' : ''}page=${page}&limit=${SEARCH_PAGE_SIZE}`;
+  }
 
   const [facets, firstResult, geographyOptions] = await Promise.all([
     api.get('/api/indicators/facets', indicatorFacetsSchema),

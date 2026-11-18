@@ -1,10 +1,12 @@
-import { InsetText, Select, SummaryList } from '@fphd/ui';
+import { InsetText, Pagination, Select, SummaryList } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import type { SearchSort } from '@fphd/utils/indicator-sort';
+import { useEffect, useRef } from 'react';
 import { Form, Link } from 'react-router';
 import { HiddenFilters } from './filter-fields.tsx';
 import type { IndicatorSearchResult, IndicatorSearchRow } from './loader.ts';
-import type { SearchState } from './url.ts';
+import { searchPageCount } from './pagination.ts';
+import { type SearchState, searchUrl } from './url.ts';
 
 const SEARCH_SORT_OPTIONS: { value: SearchSort; label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -64,8 +66,27 @@ export function SearchResults({
   state,
   extraParams,
 }: SearchResultsProps) {
-  const { total, limit, indicators } = searchResult;
-  const capped = total > limit;
+  const { total, limit, indicators, page = 1 } = searchResult;
+  const totalPages = searchPageCount(total, limit);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const paging = useRef(false);
+  useEffect(() => {
+    if (!paging.current) return;
+    paging.current = false;
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: 'start' });
+  }, [page]);
+  const pageParams = sort === 'relevance' ? extraParams : { ...extraParams, sort };
+  // Every page link names its page, the first included. NotGovUK marks a link as the current
+  // page when its query is part of the address, so a first page link without one would be marked
+  // current on every page.
+  const pageLink = (n: number) => ({
+    href: searchUrl(state, '/search', { ...pageParams, page: String(n) }),
+    preventScrollReset: true,
+    onClick: () => {
+      paging.current = true;
+    },
+  });
   const geography = new URLSearchParams([
     ...gaCodes.map((code) => ['as', code]),
     ...geoLevels.map((level) => ['als', level]),
@@ -79,8 +100,15 @@ export function SearchResults({
           aria-live="polite"
           className="govuk-heading-m govuk-!-margin-bottom-0"
           id="results-heading"
+          ref={heading}
+          tabIndex={-1}
         >
           {total.toLocaleString()} {total === 1 ? 'indicator' : 'indicators'}
+          {totalPages > 1 ? (
+            <span className="govuk-visually-hidden">
+              , page {page} of {totalPages}
+            </span>
+          ) : null}
         </h2>
         <Form action="/search" className="fphd-sort-inline" method="get" preventScrollReset>
           <HiddenFilters state={state} extraParams={extraParams} />
@@ -118,11 +146,12 @@ export function SearchResults({
             ))}
           </ul>
 
-          {capped ? (
-            <p className="govuk-body govuk-!-margin-top-3">
-              Showing the first {limit.toLocaleString()} of {total.toLocaleString()}. Add a filter
-              to narrow the list.
-            </p>
+          {totalPages > 1 ? (
+            <Pagination
+              currentPage={page}
+              landmarkLabel="Search results pages"
+              links={Array.from({ length: totalPages }, (_, index) => pageLink(index + 1))}
+            />
           ) : null}
         </>
       )}

@@ -87,7 +87,7 @@ describe('loadSearchPage', () => {
 
     expect(result.q).toBe(expected);
     expect(paths(client)).toContain(
-      `/api/indicators/search${expected ? `?q=${encodeURIComponent(expected)}` : ''}`,
+      `/api/indicators/search?${expected ? `q=${encodeURIComponent(expected)}&` : ''}page=1&limit=50`,
     );
   });
 
@@ -99,14 +99,68 @@ describe('loadSearchPage', () => {
     );
 
     expect(result.sort).toBe('recently-updated');
-    expect(searchPath(client)).toBe('/api/indicators/search?q=diabetes&sort=recently-updated');
+    expect(searchPath(client)).toBe(
+      '/api/indicators/search?q=diabetes&sort=recently-updated&page=1&limit=50',
+    );
   });
 
   it('sorts browse-all by recently updated without a keyword', async () => {
     const client = api();
     await loadSearchPage(loaderArgs(client, 'http://localhost/search?sort=recently-updated'), true);
 
-    expect(searchPath(client)).toBe('/api/indicators/search?sort=recently-updated');
+    expect(searchPath(client)).toBe('/api/indicators/search?sort=recently-updated&page=1&limit=50');
+  });
+
+  it('asks the API for the page in the URL, 50 results at a time, and returns it', async () => {
+    const client = api({
+      'GET /api/indicators/search': { total: 120, limit: 50, page: 2, indicators: [] },
+    });
+    const result = await loadSearchPage(
+      loaderArgs(client, 'http://localhost/search?q=diabetes&page=2'),
+      true,
+    );
+
+    expect(searchSent(client).get('page')).toBe('2');
+    expect(searchSent(client).get('limit')).toBe('50');
+    expect(result.searchResult.page).toBe(2);
+  });
+
+  it.each([
+    ['one past the last page to the last', '9', '9', 3],
+    ['page 0 to the first', '0', '1', 1],
+    ['a page that is not a number to the first', 'two', '1', 1],
+  ])('redirects %s', async (_name, page, sent, answered) => {
+    const client = api({
+      'GET /api/indicators/search': { total: 120, limit: 50, page: answered, indicators: [] },
+    });
+
+    await expect(
+      loadSearchPage(
+        loaderArgs(client, `http://localhost/search?q=rate&page=${page}&sort=recently-updated`),
+        true,
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) =>
+        response.status === 302 &&
+        response.headers.get('Location') ===
+          `/search?q=rate&page=${answered}&sort=recently-updated`,
+    );
+    expect(searchSent(client).get('page')).toBe(sent);
+  });
+
+  it('starts again from the first page when a filter is added by name', async () => {
+    const client = api({
+      'GET /api/indicators/facets': { ...EMPTY_FACETS, valueTypes: ['Proportion'] },
+    });
+
+    await expect(
+      loadSearchPage(
+        loaderArgs(client, 'http://localhost/search?q=rate&page=4&vt-add=proportion'),
+        true,
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) => response.headers.get('Location') === '/search?q=rate&vt=Proportion',
+    );
   });
 
   it.each(['', '&sort=relevance', '&sort=name-desc', '&sort=nonsense'])(
