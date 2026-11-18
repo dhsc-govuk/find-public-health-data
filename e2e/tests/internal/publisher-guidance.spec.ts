@@ -100,6 +100,18 @@ test.describe('as a publisher', () => {
     ]);
   });
 
+  test('has a guidance link in the toolbar', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    await page
+      .getByRole('navigation', { name: 'Menu' })
+      .getByRole('link', { name: 'Guidance', exact: true })
+      .click();
+
+    await expect(page).toHaveURL('/publish/guidance');
+    await expect(page.getByRole('heading', { level: 1, name: 'Publisher guidance' })).toBeVisible();
+  });
+
   test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
     await page.goto('/publish/guidance');
     await expect(page.getByRole('heading', { level: 1, name: 'Publisher guidance' })).toBeVisible();
@@ -110,6 +122,14 @@ test.describe('as a publisher', () => {
 
 test.describe('as a reviewer who does not publish', () => {
   test.use({ storageState: IMRG_REVIEWER.storageState });
+
+  test('offers the reviewer no guidance in the toolbar', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    const navigation = page.getByRole('navigation', { name: 'Menu' });
+    await expect(navigation.getByRole('link', { name: 'Account' })).toBeVisible();
+    await expect(navigation.getByRole('link', { name: 'Guidance', exact: true })).toHaveCount(0);
+  });
 
   test('turns the reviewer away from the guidance', async ({ page }) => {
     const response = await page.goto('/publish/guidance');

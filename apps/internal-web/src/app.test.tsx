@@ -10,7 +10,7 @@ import {
 import { TopicsRoute } from '@fphd/public-web-features';
 import { backLinkHandle } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createRoutesStub } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -26,9 +26,10 @@ afterEach(() => {
 
 const topics = [{ slug: 'topic-a', title: 'Topic A', description: 'All about topic A.' }];
 
-const signedOut = { canManage: false, signedIn: false };
-const publisher = { canManage: false, signedIn: true };
-const admin = { canManage: true, signedIn: true };
+const signedOut = { canEditIndicators: false, canManage: false, signedIn: false };
+const publisher = { canEditIndicators: true, canManage: false, signedIn: true };
+const admin = { canEditIndicators: false, canManage: true, signedIn: true };
+const reviewer = { canEditIndicators: false, canManage: false, signedIn: true };
 
 describe('internal application routes', () => {
   it('includes the shared public routes', async () => {
@@ -109,6 +110,49 @@ describe('internal application routes', () => {
     render(<Routes initialEntries={['/topics']} />);
 
     expect(await screen.findByRole('link', { name: 'Manage' })).toBeTruthy();
+  });
+
+  it('links publishers to the publisher guidance from the navigation', async () => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: InternalApp,
+        loader: () => publisher,
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    const navigation = await screen.findByRole('navigation', { name: 'Menu' });
+    expect(
+      within(navigation)
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['Guidance', '/publish/guidance'],
+      ['Account', '/sign-in'],
+    ]);
+  });
+
+  it.each([
+    ['admins', admin],
+    ['reviewers who do not publish', reviewer],
+    ['signed-out visitors', signedOut],
+  ])('offers no guidance link to %s', async (_case, user) => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: InternalApp,
+        loader: () => user,
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    const navigation = await screen.findByRole('navigation', { name: 'Menu' });
+    expect(within(navigation).queryByRole('link', { name: 'Guidance' })).toBeNull();
   });
 
   it('places a route-declared back link above the main content', async () => {
