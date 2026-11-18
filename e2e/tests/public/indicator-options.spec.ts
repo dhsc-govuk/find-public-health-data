@@ -319,7 +319,10 @@ test.describe('without JavaScript', () => {
     await expect(page).toHaveURL(
       (url) => url.searchParams.has('cmp-108') && url.searchParams.getAll('cmp-108').join() === '',
     );
+    // Reloading while the form's own navigation is still under way detaches the page.
+    const submitted = page.waitForEvent('load');
     await geographies.getByRole('button', { name: 'Apply geographies' }).click();
+    await submitted;
     await page.reload();
     await expect(england).not.toBeChecked();
     await expect(region).not.toBeChecked();
