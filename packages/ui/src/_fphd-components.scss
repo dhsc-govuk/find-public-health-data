@@ -132,6 +132,7 @@
 }
 
 .fphd-chart-canvas {
+  position: relative;
   min-width: 0;
   margin-bottom: govuk-spacing(3);
 
@@ -171,6 +172,28 @@
   border-radius: 3px;
   padding: 8px 12px;
   pointer-events: auto;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.fphd-chart-tooltip-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.fphd-chart-tooltip-leader {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.fphd-chart-tooltip-position {
+  position: absolute;
+  width: max-content;
+  max-width: min(280px, 100%);
 }
 
 .fphd-chart-key {
@@ -216,6 +239,10 @@
 
 .fphd-chart-axis-title {
   margin-bottom: govuk-spacing(1);
+}
+
+.fphd-line-chart .recharts-surface {
+  overflow: visible;
 }
 
 .fphd-scatter-axis-title {
