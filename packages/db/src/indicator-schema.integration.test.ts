@@ -675,6 +675,11 @@ describe('value type, unit and standard population', () => {
       'unit_detail',
     ],
     [
+      'an unknown standard population',
+      { valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate, standardPopulation: '1976' },
+      'standard_population',
+    ],
+    [
       'a standard population on a crude rate',
       { valueTypeId: VALUE_TYPE_IDS.crudeRate, standardPopulation: 'esp-2013' },
       'standard_population_value_type',

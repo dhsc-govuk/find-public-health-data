@@ -23,6 +23,7 @@ function readJson<T>(file: string): T {
 const coreValueTypes = readJson<{ id: string; name: string }[]>('value-types.json');
 const coreUnits = readJson<{ id: string; name: string }[]>('units.json');
 const coreUnitIdsByName = Object.fromEntries(coreUnits.map((u) => [u.name, u.id]));
+const coreValueTypeIdsByName = Object.fromEntries(coreValueTypes.map((v) => [v.name, v.id]));
 
 describe('valueTypeId', () => {
   it('maps each service value type name to its own id', () => {
@@ -168,6 +169,15 @@ describe('full pholio fixture coverage', () => {
     };
     for (const row of fixture.valueTypes) {
       expect(() => valueTypeId(row.name)).not.toThrow();
+    }
+  });
+
+  it('maps each pholio value type to the correct service value', () => {
+    const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
+      valueTypes: { name: string; service: string }[];
+    };
+    for (const row of fixture.valueTypes) {
+      expect(valueTypeId(row.name), row.name).toBe(coreValueTypeIdsByName[row.service]);
     }
   });
 

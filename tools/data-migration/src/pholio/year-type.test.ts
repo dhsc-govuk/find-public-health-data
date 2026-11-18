@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { PERIOD_TYPES, YEAR_TYPES as UTILS_YEAR_TYPES } from '@fphd/utils/period-type';
 import { describe, expect, it } from 'vitest';
 
@@ -73,5 +75,33 @@ describe('YEAR_TYPES values consistency', () => {
       expect(PERIOD_TYPES as readonly string[]).toContain(entry.period_type);
       expect(UTILS_YEAR_TYPES as readonly string[]).toContain(entry.year_type);
     }
+  });
+});
+
+describe('YEAR_TYPES', () => {
+  // The seed export holds the same translation in Python; reading it here stops the two drifting
+  // apart.
+  it('is the same as the seed export', () => {
+    const python = readFileSync(
+      new URL('../../../../packages/db-operations/data/seed/export/year_type.py', import.meta.url),
+      'utf8',
+    );
+    const from = python.indexOf('YEAR_TYPES = {');
+    const section = python.slice(from, python.indexOf('\n}', from));
+    const entry = /"([^"]+)": \("(\w+)", "([\w-]+)", (?:None|\((\d+), (\d+)\))\)/g;
+    const exported = Object.fromEntries(
+      [...section.matchAll(entry)].map(([, name, periodType, yearType, day, month]) => [
+        name,
+        {
+          period_type: periodType,
+          year_type: yearType,
+          year_end_day: day === undefined ? null : Number(day),
+          year_end_month: month === undefined ? null : Number(month),
+        },
+      ]),
+    );
+
+    expect(Object.keys(exported)).toHaveLength(17);
+    expect(exported).toEqual(YEAR_TYPES);
   });
 });

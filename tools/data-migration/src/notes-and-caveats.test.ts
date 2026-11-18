@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -136,5 +138,29 @@ describe('NOTES_AND_CAVEATS_COLUMNS', () => {
       'has_other_notes',
       'other_notes_detail',
     ]);
+  });
+});
+
+describe('the notes and caveats vocabulary', () => {
+  // The seed export holds the same list in Python; reading it here stops the two drifting apart.
+  it('is the same as the seed export', () => {
+    const python = readFileSync(
+      new URL(
+        '../../../packages/db-operations/data/seed/export/notes_and_caveats.py',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const from = python.indexOf('VOCABULARY = [');
+    const section = python.slice(from, python.indexOf('\n]', from));
+    const entry = /\(\s*"(\w+)",\s*"([^"]+)",\s*"([\w-]+)",?\s*\)/g;
+    const exported = [...section.matchAll(entry)].map(([, column, prose, answer]) => [
+      column,
+      prose,
+      answer,
+    ]);
+
+    expect(exported).toHaveLength(16);
+    expect(exported).toEqual(VOCABULARY);
   });
 });
