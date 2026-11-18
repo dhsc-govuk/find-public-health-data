@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { benchmarkFixture } from '../benchmark.testing.ts';
 import { trendCsv } from '../download.ts';
 import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
 import { type TrendColumns, trendTableModel } from '../trend.ts';
@@ -42,6 +43,112 @@ const areaData = [
 ];
 
 describe('TrendTable', () => {
+  it('orders all benchmark groups and per-area comparison columns for two areas, including plain goal verdicts', () => {
+    const fixture = benchmarkFixture();
+    const columns: TrendColumns = {
+      count: false,
+      numerator: false,
+      value: true,
+      confidence: [],
+      minMax: true,
+      percentiles: true,
+      chart: true,
+      goal: true,
+    };
+    const { container } = render(
+      <TrendTable {...fixture} indicator={fixture.detail} confidence="95" columns={columns} />,
+    );
+    const groups = [...container.querySelectorAll('thead tr:first-child th')];
+    expect(groups.map((group) => group.textContent)).toEqual([
+      'Manchester',
+      'Cornwall',
+      'England',
+      'North West (Statistical region)',
+      'South West (Statistical region)',
+      'Decile 1 (IMD 2019)',
+      'Decile 2 (IMD 2019)',
+      'Decile 1 (IMD 2025)',
+      'Decile 2 (IMD 2025)',
+      'Policy goal <4% is good, >6% is bad',
+      'Policy goal <4% is good, >6% is bad',
+      'Statistical neighbours (Manchester)',
+      'Statistical neighbours (Cornwall)',
+      'Combined authority (Manchester)',
+      'Combined authority (Cornwall)',
+    ]);
+    expect(
+      [...container.querySelectorAll('thead tr:nth-child(2) th')]
+        .map((heading) => heading.textContent)
+        .filter((text) => text?.startsWith('Compared with')),
+    ).toEqual([
+      'Compared with England',
+      'Compared with North West',
+      'Compared with similarly deprived areas (IMD 2019)',
+      'Compared with similarly deprived areas (IMD 2025)',
+      'Compared with England',
+      'Compared with South West',
+      'Compared with similarly deprived areas (IMD 2019)',
+      'Compared with similarly deprived areas (IMD 2025)',
+      'Compared with policy goal',
+      'Compared with policy goal',
+    ]);
+    const cells = [...container.querySelectorAll('tbody tr:first-child td')];
+    const goals = cells.filter((cell) => cell.getAttribute('headers')?.includes('benchmark-goal'));
+    expect(goals.map((cell) => cell.textContent)).toEqual(['Good', 'Bad']);
+    expect(goals.every((cell) => cell.children.length === 0)).toBe(true);
+    expect(cells.at(-1)?.textContent).toBe('-');
+    expect(
+      screen.getAllByRole('columnheader', { name: 'Policy goal <4% is good, >6% is bad' }),
+    ).toHaveLength(2);
+    expect(groups.slice(-6).map((group) => group.getAttribute('colspan'))).toEqual([
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+    ]);
+    for (const cell of cells) {
+      for (const header of (cell.getAttribute('headers') ?? '').split(' '))
+        expect(container.querySelector(`[id="${header}"]`)).toBeTruthy();
+    }
+  });
+
+  it('compares England with the goal without picked areas and can hide its verdict column', () => {
+    const fixture = benchmarkFixture();
+    const areaData = fixture.areaData.filter(({ areaCode }) => areaCode === 'E92000001');
+    const { rerender } = render(
+      <TrendTable
+        areaData={areaData}
+        benchmarks={['goal']}
+        indicator={fixture.detail}
+        confidence="none"
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'England' })).toBeTruthy();
+    expect(screen.getByRole('cell', { name: 'Neither good nor bad' })).toBeTruthy();
+    const columns: TrendColumns = {
+      count: false,
+      numerator: false,
+      value: true,
+      confidence: [],
+      minMax: false,
+      percentiles: false,
+      chart: false,
+      goal: false,
+    };
+    rerender(
+      <TrendTable
+        areaData={areaData}
+        benchmarks={['goal']}
+        indicator={fixture.detail}
+        confidence="none"
+        columns={columns}
+      />,
+    );
+    expect(screen.queryByRole('columnheader', { name: 'Compared with policy goal' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: /Policy goal/ })).toBeNull();
+  });
   it('keeps count, numerator, value and both interval column choices consistent with the CSV', () => {
     const columns: TrendColumns = {
       count: true,
@@ -173,7 +280,7 @@ const benchmarked = {
       observations: [observation('2023-04-01', '2024-03-31', 12)],
     },
   ],
-  benchmark: 'england' as const,
+  benchmarks: ['england'] as const,
   confidence: '95' as const,
   geography: { regionByCode: {}, levelByCode: { E08000003: 'Local authorities' } },
   indicator: {
@@ -183,7 +290,7 @@ const benchmarked = {
     comparatorMethod: 'Confidence intervals overlapping reference value',
   } as IndicatorDetail,
   ranges: {
-    'Local authorities': [
+    'england:upper': [
       {
         fromDate: '2023-04-01',
         toDate: '2024-03-31',
@@ -208,6 +315,99 @@ const allColumns: TrendColumns = {
 };
 
 describe('TrendTable benchmark columns', () => {
+  it.each([false, true])(
+    'orders shared England and region groups for two areas (same region: %s)',
+    (sameRegion) => {
+      const second = {
+        areaCode: 'E06000052',
+        areaName: 'Cornwall',
+        observations: [observation('2023-04-01', '2024-03-31', 18)],
+      };
+      const northWest = { code: 'E12000002', name: 'North West' };
+      const southWest = { code: 'E12000009', name: 'South West' };
+      const region = sameRegion ? northWest : southWest;
+      const columns = { ...allColumns, count: false };
+      render(
+        <TrendTable
+          {...benchmarked}
+          benchmarks={['region', 'england', 'england']}
+          areaData={[...benchmarked.areaData, second]}
+          geography={{
+            regionByCode: { E08000003: northWest, E06000052: region },
+            levelByCode: { E08000003: 'Local authorities', E06000052: 'Local authorities' },
+          }}
+          ranges={{
+            ...benchmarked.ranges,
+            'region:E12000002:upper': benchmarked.ranges['england:upper'],
+            'region:E12000009:upper': benchmarked.ranges['england:upper'],
+          }}
+          regionData={[
+            {
+              areaCode: northWest.code,
+              areaName: northWest.name,
+              observations: [observation('2023-04-01', '2024-03-31', 15)],
+            },
+            {
+              areaCode: southWest.code,
+              areaName: southWest.name,
+              observations: [observation('2023-04-01', '2024-03-31', 16)],
+            },
+          ]}
+          columns={columns}
+          visibleCaption
+        />,
+      );
+      const benchmarkHeadings = [
+        'Calculated value (%)',
+        'Lowest',
+        '25th percentile',
+        '75th percentile',
+        'Highest',
+      ];
+      const areaHeadings = (name: string) => [
+        'Calculated value (%)',
+        'Compared with England',
+        `Compared with ${name}`,
+        '95% lower confidence interval',
+        '95% upper confidence interval',
+      ];
+      expect(
+        screen.getAllByRole('columnheader').map((heading) => heading.textContent?.trim()),
+      ).toEqual([
+        'Manchester',
+        'Cornwall',
+        'England',
+        'North West (Statistical region)',
+        ...(sameRegion ? [] : ['South West (Statistical region)']),
+        'Period',
+        ...areaHeadings(northWest.name),
+        ...areaHeadings(region.name),
+        ...benchmarkHeadings,
+        ...benchmarkHeadings,
+        ...(sameRegion ? [] : benchmarkHeadings),
+      ]);
+      expect(screen.getAllByRole('columnheader', { name: 'England' })).toHaveLength(1);
+      const table = screen.getByRole('table', {
+        name: new RegExp(`table with 1 row and ${sameRegion ? 21 : 26} columns$`),
+      });
+      const row = within(table).getByRole('rowheader', { name: '2023 to 2024' }).closest('tr');
+      if (!row) throw new Error('Trend row missing');
+      const cells = within(row).getAllByRole('cell');
+      expect(cells).toHaveLength(sameRegion ? 20 : 25);
+      expect(cells[1]?.textContent).toContain('Value: 12.0%. Area: England');
+      expect(cells[2]?.textContent).toContain(
+        'Value: 15.0%. Area: North West (Statistical region)',
+      );
+      expect(cells[7]?.textContent).toContain(
+        `Value: ${sameRegion ? '15.0%' : '16.0%'}. Area: ${region.name} (Statistical region)`,
+      );
+      for (const cell of cells) {
+        for (const id of (cell.getAttribute('headers') ?? '').split(' '))
+          expect(document.getElementById(id)).toBeTruthy();
+      }
+    },
+  );
+
   it('shows the area-level spread when England has no observation for the period', () => {
     render(
       <TrendTable
@@ -234,7 +434,7 @@ describe('TrendTable benchmark columns', () => {
     (benchmark) => {
       const props = {
         ...benchmarked,
-        benchmark,
+        benchmarks: [benchmark],
         areaData: benchmarked.areaData.slice(0, 1),
         geography: {
           ...benchmarked.geography,
@@ -304,7 +504,7 @@ describe('TrendTable benchmark columns', () => {
     render(
       <TrendTable
         {...benchmarked}
-        benchmark="none"
+        benchmarks={[]}
         columns={{ ...allColumns, count: false, value: false, confidence: [] }}
       />,
     );
@@ -314,11 +514,11 @@ describe('TrendTable benchmark columns', () => {
 
   it.each([
     ['no ranges', {}],
-    ['empty ranges', { 'Local authorities': [] }],
+    ['empty ranges', { 'england:upper': [] }],
     [
       'another period',
       {
-        'Local authorities': benchmarked.ranges['Local authorities'].map((range) => ({
+        'Local authorities': benchmarked.ranges['england:upper'].map((range) => ({
           ...range,
           fromDate: '2022-04-01',
           toDate: '2023-03-31',
@@ -328,7 +528,7 @@ describe('TrendTable benchmark columns', () => {
     [
       'another segment',
       {
-        'Local authorities': benchmarked.ranges['Local authorities'].map((range) => ({
+        'Local authorities': benchmarked.ranges['england:upper'].map((range) => ({
           ...range,
           segment: 'Male',
         })),
@@ -438,7 +638,7 @@ describe('TrendTable benchmark columns', () => {
 
     expect(
       screen.getByRole('table', {
-        name: 'Table: Resident population, 2 chosen areas, All, table with 1 row and 15 columns',
+        name: 'Table: Resident population, 2 chosen areas, All, table with 1 row and 10 columns',
       }),
     ).toBeTruthy();
   });

@@ -28,7 +28,9 @@ export function areasRouter(areas: Repositories['areas']): Router {
       return;
     }
 
-    response.status(200).json(await areas.listByCodes(codes));
+    response
+      .status(200)
+      .json(await areas.listByCodes(codes, request.query.includeBenchmarks === 'true'));
   });
 
   router.get('/api/areas/search', async (request, response) => {

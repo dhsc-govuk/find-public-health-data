@@ -6,11 +6,13 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import { dimensionValue } from './dimension.ts';
 import { literals, uuidPrimaryKey } from './helpers.ts';
 
 /** The hierarchies an area type belongs to. */
@@ -96,5 +98,21 @@ export const areaNeighbour = pgTable(
   (t) => [
     check('area_neighbour_position_check', sql`${t.position} > 0`),
     uniqueIndex('idx_area_neighbour_area_scheme_position').on(t.areaId, t.scheme, t.position),
+  ],
+);
+
+export const areaCategory = pgTable(
+  'area_category',
+  {
+    areaId: uuid()
+      .notNull()
+      .references(() => area.id),
+    dimensionValueId: uuid()
+      .notNull()
+      .references(() => dimensionValue.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.areaId, t.dimensionValueId] }),
+    index('idx_area_category_dimension_value').on(t.dimensionValueId, t.areaId),
   ],
 );

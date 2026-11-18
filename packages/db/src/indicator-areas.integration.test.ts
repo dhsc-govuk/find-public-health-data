@@ -1,6 +1,12 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { afterAll, beforeAll, expect, it } from 'vitest';
-import { listAreaNeighbours, listAreasByGroup, listIndicatorAreas } from './area-repository.ts';
+import { afterAll, beforeAll, expect, it, vi } from 'vitest';
+import {
+  listAreaNeighbours,
+  listAreaParents,
+  listAreasByCodes,
+  listAreasByGroup,
+  listIndicatorAreas,
+} from './area-repository.ts';
 import type { Database } from './client.ts';
 import { resolvePublishedIndicatorId } from './indicator-repository.ts';
 import { area, areaNeighbour, areaType, observation, publishedViews } from './schema/index.ts';
@@ -149,4 +155,54 @@ it('lists an upper tier council’s 15 NHS England peer group neighbours, most s
   expect(lists[0]?.neighbours).toHaveLength(15);
   expect(lists[0]?.neighbours.slice(0, 3)).toEqual(['E06000006', 'E08000023', 'E08000011']);
   expect(await listAreaNeighbours(db, publishedViews, [])).toEqual([]);
+});
+
+it('includes benchmark memberships in one area lookup statement when requested', async () => {
+  const codes = ['E08000003', 'E06000001', 'E06000052', 'E07000223', 'E10000032', 'E92000001', 'X'];
+  const plain = await listAreasByCodes(db, publishedViews, codes);
+  const neighbours = await listAreaNeighbours(db, publishedViews, codes);
+  const parents = await listAreaParents(db, publishedViews, codes, 'Combined authorities');
+  expect(neighbours.length).toBeGreaterThan(0);
+  expect(parents.length).toBeGreaterThan(0);
+  expect(plain.every((entry) => !('benchmarks' in entry))).toBe(true);
+
+  const execute = vi.spyOn(db.$client, 'unsafe');
+  let enriched: Awaited<ReturnType<typeof listAreasByCodes>>;
+  try {
+    enriched = await listAreasByCodes(db, publishedViews, codes, true);
+    expect(execute).toHaveBeenCalledTimes(1);
+  } finally {
+    execute.mockRestore();
+  }
+  expect(enriched.map(({ benchmarks: _benchmarks, ...entry }) => entry)).toEqual(plain);
+  expect(
+    enriched.flatMap(({ benchmarks }) => benchmarks?.deprivation ?? []).length,
+  ).toBeGreaterThan(0);
+  for (const entry of enriched) {
+    const parent = parents.find(({ code }) => code === entry.code);
+    expect(entry.benchmarks?.neighbours).toEqual(
+      neighbours.find(({ code }) => code === entry.code)?.neighbours ?? [],
+    );
+    expect(entry.benchmarks?.combinedAuthority).toEqual(
+      parent ? { code: parent.parentCode, name: parent.parentName } : null,
+    );
+    expect(entry.benchmarks?.deprivation.every(({ code }) => code === entry.code)).toBe(true);
+  }
+  expect(enriched.find(({ code }) => code === 'E10000032')?.benchmarks?.deprivation).toEqual([
+    expect.objectContaining({ code: 'E10000032', scheme: 'IMD2019', tier: 'upper', decile: 9 }),
+    expect.objectContaining({ code: 'E10000032', scheme: 'IMD2025', tier: 'upper', decile: 9 }),
+  ]);
+  expect(enriched.find(({ code }) => code === 'E92000001')?.benchmarks?.deprivation).toEqual([]);
+  expect(await listAreasByCodes(db, publishedViews, [], true)).toEqual([]);
+});
+
+it('omits retired areas and neighbours from an enriched lookup', async () => {
+  await db
+    .update(area)
+    .set({ isCurrent: false })
+    .where(inArray(area.code, ['E06000006', 'E06000052']));
+  const enriched = await listAreasByCodes(db, publishedViews, ['E06000001', 'E06000052'], true);
+  expect(enriched.map(({ code }) => code)).toEqual(['E06000001']);
+  expect(enriched[0]?.benchmarks?.neighbours).not.toContain('E06000006');
+  expect(enriched[0]?.benchmarks?.neighbours.length).toBe(14);
 });

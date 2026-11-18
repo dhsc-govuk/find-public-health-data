@@ -23,6 +23,8 @@ import {
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
   getObservationRange,
+  getObservationRangeByCategory,
+  getObservationRangeByTier,
   type IndicatorAreaData,
   type IndicatorFacets,
   type IndicatorSearchFilters,
@@ -80,6 +82,15 @@ export interface IndicatorRepository {
     indicatorId: string,
     displayGroup: string,
   ): Promise<ObservationRangePeriod[]>;
+  findObservationRangeByCategory(
+    indicatorId: string,
+    dimensionValueId: string,
+  ): Promise<ObservationRangePeriod[]>;
+  findObservationRangeByTier(
+    indicatorId: string,
+    tier: 'upper' | 'lower',
+    parentCode?: string,
+  ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
 }
@@ -92,7 +103,7 @@ export interface AreaRepository {
     displayGroups: string[],
     limit?: number,
   ): Promise<{ displayGroup: string; areas: AreaSummary[] }[]>;
-  listByCodes(codes: string[]): Promise<AreaLookup[]>;
+  listByCodes(codes: string[], includeBenchmarks?: boolean): Promise<AreaLookup[]>;
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
   listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
@@ -135,7 +146,8 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
         run((db) => listAreasByGroup(db, views, displayGroup, limit)),
       listByGroups: (displayGroups, limit) =>
         run((db) => listAreasByGroups(db, views, displayGroups, limit)),
-      listByCodes: (codes) => run((db) => listAreasByCodes(db, views, codes)),
+      listByCodes: (codes, includeBenchmarks) =>
+        run((db) => listAreasByCodes(db, views, codes, includeBenchmarks)),
       search: (query, limit) => run((db) => searchAreas(db, views, query, limit)),
       listParents: (childCodes, parentTypeName) =>
         run((db) => listAreaParents(db, views, childCodes, parentTypeName)),
@@ -161,6 +173,10 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
         run((db) => getIndicatorRankingData(db, views, indicatorId, areaCodes)),
       findObservationRange: (indicatorId, displayGroup) =>
         run((db) => getObservationRange(db, views, indicatorId, displayGroup)),
+      findObservationRangeByCategory: (indicatorId, dimensionValueId) =>
+        run((db) => getObservationRangeByCategory(db, views, indicatorId, dimensionValueId)),
+      findObservationRangeByTier: (indicatorId, tier, parentCode) =>
+        run((db) => getObservationRangeByTier(db, views, indicatorId, tier, parentCode)),
       searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
       listFacets: () => run((db) => listIndicatorFacets(db, views)),
     },

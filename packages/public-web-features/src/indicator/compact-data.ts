@@ -47,6 +47,7 @@ export function compactIndicator(indicator: SelectedIndicator) {
     ...indicator,
     areaData: indicator.areaData.map(compactArea),
     regionData: indicator.regionData?.map(compactArea),
+    benchmarkData: indicator.benchmarkData?.map(compactArea),
     catalogue: { periods: periods.entries, dimensions: dimensions.entries, notes: notes.entries },
   };
 }
@@ -94,11 +95,12 @@ export function expandIndicator({
       ),
     };
   };
-  const { regionData, ...rest } = indicator;
+  const { regionData, benchmarkData, ...rest } = indicator;
   return {
     ...rest,
     areaData: indicator.areaData.map(expandArea),
     ...(regionData ? { regionData: regionData.map(expandArea) } : {}),
+    ...(benchmarkData ? { benchmarkData: benchmarkData.map(expandArea) } : {}),
   };
 }
 

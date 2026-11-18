@@ -3,7 +3,7 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
-import { englandCode } from './charts/chart-data.ts';
+import { benchmarkCheckboxOptions, isRangeBenchmark, setBenchmarkParams } from './benchmarks.ts';
 import { TrendChart } from './charts/trend-chart.tsx';
 import {
   availableConfidenceLevels,
@@ -20,10 +20,20 @@ import type {
   SelectedArea,
   SelectedIndicator,
 } from './loader.ts';
-import { PanelOptionsPanel, useOptionParamNavigation, usePanelOptions } from './options.tsx';
+import {
+  BenchmarksPanel,
+  PanelOptionsPanel,
+  useOptionParamNavigation,
+  usePanelOptions,
+} from './options.tsx';
 import { indicatorSelectionUrl } from './paths.ts';
 import { TrendTable } from './tables/trend-table.tsx';
-import { selectedTrendColumns, trendColumnsParam } from './trend.ts';
+import {
+  selectedTrendColumns,
+  trendChartAreas,
+  trendColumnsParam,
+  trendTableModel,
+} from './trend.ts';
 
 export function IndicatorTab({
   primary,
@@ -40,7 +50,7 @@ export function IndicatorTab({
   geographyOptions?: GeographyOptions | undefined;
   selection: IndicatorSelection;
 }) {
-  const { detail, areaData, regionData = [], ranges = {} } = primary;
+  const { detail, areaData, regionData = [], benchmarkData = [], ranges = {} } = primary;
   const id = detail.shortId;
   const location = useLocation();
   const links = useIndicatorLinks();
@@ -76,47 +86,73 @@ export function IndicatorTab({
   const regionAvailable = pickedAreaData.some(
     ({ areaCode }) => benchmarkGeography.regionByCode[areaCode],
   );
-  const trendAreas = hasPickedAreas
-    ? [
-        ...pickedAreaData.map(narrow),
-        ...(options.benchmark === 'england'
-          ? filtered.filter(({ areaCode }) => areaCode === englandCode)
-          : []),
-        ...(options.benchmark === 'region'
-          ? filteredRegions.filter(
-              ({ areaCode }) => !pickedAreaData.some((area) => area.areaCode === areaCode),
-            )
-          : []),
-      ]
-    : filtered;
+  const benchmarkOptions = benchmarkCheckboxOptions(regionAvailable, {
+    areas: pickedAreaData,
+    geography: benchmarkGeography,
+    englandObservations: allObservations,
+    goal: detail.goal,
+  });
+  const benchmarks = options.benchmarks.filter((choice) =>
+    hasPickedAreas
+      ? benchmarkOptions.some(({ value }) => value === choice)
+      : choice === 'goal' && detail.goal,
+  );
+  const policyGoal = benchmarks.includes('goal') ? detail.goal : null;
+  const model = trendTableModel({
+    areaData: filtered,
+    benchmarks,
+    confidence,
+    geography: benchmarkGeography,
+    ranges,
+    regionData: filteredRegions,
+    benchmarkData: benchmarkData.map(narrow),
+    goal: detail.goal,
+  });
+  const trendAreas = trendChartAreas(model);
   const geography = (
     <IndicatorGeographies
+      shortId={id}
       displayGroups={displayGroups}
       geographyOptions={geographyOptions}
       slug={detail.slug}
       selection={selection}
-    />
+    >
+      {hasPickedAreas ? (
+        <BenchmarksPanel
+          choices={options.benchmarks}
+          onChange={(benchmarks) => applyOptions({ ...options, benchmarks })}
+          region={regionAvailable}
+          availableOptions={benchmarkOptions}
+          scope={id}
+          target={{ tabParam: 'tab-indicator', tabValue: 'indicator', anchor: 'indicator-data' }}
+        />
+      ) : null}
+    </IndicatorGeographies>
   );
   const downloadParams = (withOptions: boolean) => {
     const next = new URLSearchParams();
     for (const { areaCode } of pickedAreaData) next.append('as', areaCode);
+    for (const { areaCode } of pickedAreaData) {
+      if (benchmarkGeography.tierByCode?.[areaCode] === 'lower')
+        next.set(`tier-${areaCode}`, 'lower');
+    }
     if (withOptions) {
       next.set('order', 'desc');
       next.set(`columns-${id}`, trendColumnsParam(columns));
       if (sexes.includes(options.sex) && options.sex) next.set(`sex-${id}`, options.sex);
       if (periodType !== 'all') next.set(`pt-${id}`, periodType);
       if (confidence !== 'none') next.set(`ci-${id}`, confidence);
-      if (options.benchmark !== 'none') next.set(`cmp-${id}`, options.benchmark);
+      setBenchmarkParams(next, id, benchmarks);
     }
     return [...next];
   };
   const selectionUrl = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(location, areaCodes, areaLevels);
+    indicatorSelectionUrl(location, areaCodes, areaLevels, id);
   const showing = (
     <div className="fphd-indicator-showing">
       <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
-      <FilterChips>
-        <FilterChip value="E92000001">England</FilterChip>
+      <FilterChips collapse>
+        {!hasPickedAreas ? <FilterChip value="E92000001">England</FilterChip> : null}
         {selection.areaLevels.map((level) => (
           <FilterChip
             key={level}
@@ -146,6 +182,27 @@ export function IndicatorTab({
             </FilterChip>
           );
         })}
+        {(hasPickedAreas ? benchmarkOptions : [{ value: 'goal' as const, label: 'Policy goal' }])
+          .filter(({ value }) => benchmarks.includes(value))
+          .map(({ value, label }) => {
+            const next = new URLSearchParams(location.search);
+            setBenchmarkParams(
+              next,
+              id,
+              options.benchmarks.filter((choice) => choice !== value),
+            );
+            return (
+              <FilterChip
+                key={value}
+                value={value}
+                removeLabel={label}
+                onRemove={`${location.pathname}?${next}`}
+                replace
+              >
+                {label}
+              </FilterChip>
+            );
+          })}
       </FilterChips>
     </div>
   );
@@ -174,7 +231,8 @@ export function IndicatorTab({
             onColumnsChange={(next) =>
               applyOptionParams([[`columns-${id}`, trendColumnsParam(next), 'default']])
             }
-            benchmarks={hasPickedAreas ? { region: regionAvailable } : undefined}
+            rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
+            policyGoal={!!policyGoal}
             confidenceLevels={confidenceLevels}
             measures={measures}
             label="Table columns"
@@ -197,11 +255,13 @@ export function IndicatorTab({
           <div className="fphd-indicator-chart fphd-indicator-chart--trend">
             <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
             {hasPickedAreas ||
+            detail.goal ||
             confidenceLevels.length > 0 ||
             sexes.length > 0 ||
             periodTypes.length > 1 ? (
               <PanelOptionsPanel
-                benchmarks={hasPickedAreas ? { region: regionAvailable } : undefined}
+                rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
+                goalRadios={!hasPickedAreas && !!detail.goal}
                 confidenceLevels={confidenceLevels}
                 label="Chart options"
                 onChange={applyOptions}
@@ -222,8 +282,10 @@ export function IndicatorTab({
               id="indicator-trend-chart"
               title={`${detail.name} trend chart`}
               areas={trendAreas}
+              benchmarkCodes={model.benchmarkGroups.map(({ areaCode }) => areaCode)}
               indicator={detail}
               confidence={confidence}
+              goal={policyGoal}
             />
           </div>
           <div id="indicator-table" className="govuk-!-margin-top-4">
@@ -233,11 +295,12 @@ export function IndicatorTab({
               visibleCaption
               indicator={detail}
               areaData={filtered}
-              benchmark={hasPickedAreas ? options.benchmark : 'none'}
+              benchmarks={benchmarks}
               confidence={confidence}
               geography={benchmarkGeography}
               ranges={ranges}
               regionData={filteredRegions}
+              benchmarkData={benchmarkData.map(narrow)}
             />
           </div>
           {detail.dataSource ? (

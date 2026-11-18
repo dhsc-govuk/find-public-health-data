@@ -4,9 +4,7 @@ import {
   areaParentListSchema,
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
-  indicatorRangeSchema,
   MAX_AREA_CODES_PER_REQUEST,
-  pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
 import { apiPath } from '@fphd/web-server/api-client';
@@ -15,6 +13,8 @@ import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { areaTypeLabel } from '../geography/groups.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
+import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
+import { isRangeBenchmark, selectedBenchmarks } from './benchmarks.ts';
 import {
   availableConfidenceLevels,
   availableMeasures,
@@ -27,12 +27,10 @@ import {
 import { allDataCsv, trendCsv } from './download.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
 import { indicatorPageContext } from './page-context.ts';
-import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { ENGLAND_CODE, isIndicatorSegment, redirectStatus, requestedAreaCodes } from './paths.ts';
 import { dataPlaceholder } from './placeholders.ts';
 import { selectedTrendColumns, trendTableModel } from './trend.ts';
 import { loadIndicatorViewCsv } from './view-csv.ts';
-
-const ENGLAND = 'E92000001';
 
 /**
  * Serves the indicator page's downloads server-side, so they work without scripting.
@@ -49,10 +47,8 @@ export async function loadIndicatorCsv(
   }
 
   const url = new URL(request.url);
-  const pickedCodes = pickAreaCodes(url.searchParams.getAll('as'), Number.POSITIVE_INFINITY)
-    .filter((code) => code !== ENGLAND)
-    .slice(0, MAX_SELECTED_AREAS);
-  const codesToLoad = [...pickedCodes, ENGLAND];
+  const pickedCodes = requestedAreaCodes(url.searchParams).slice(0, MAX_SELECTED_AREAS);
+  const codesToLoad = [...pickedCodes, ENGLAND_CODE];
   const api = context.get(apiContext);
   const dataFor = (codes: string[]) =>
     api.get(
@@ -125,7 +121,9 @@ export async function loadIndicatorCsv(
     const sexes = dimensionValues(areaData[0]?.observations ?? [], 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = (
-      pickedCodes.length > 0 ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND) : areaData
+      pickedCodes.length > 0
+        ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND_CODE)
+        : areaData
     ).flatMap(({ observations }) => observations);
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
     const periodType: PeriodType = isOneOf(availablePeriodTypes(shownObservations), requestedPeriod)
@@ -138,31 +136,46 @@ export async function loadIndicatorCsv(
     )
       ? requestedConfidence
       : 'none';
-    const requestedBenchmark = url.searchParams.get(`cmp-${shortId}`);
-    const benchmark =
-      pickedCodes.length > 0 &&
-      (requestedBenchmark === 'england' || requestedBenchmark === 'region')
-        ? requestedBenchmark
-        : 'none';
+    const benchmarks = selectedBenchmarks(url.searchParams, shortId).filter(
+      (choice) => pickedCodes.length || choice === 'goal',
+    );
     const columns = selectedTrendColumns(url.searchParams, shortId, [
       ...availableMeasures(shownObservations),
       ...availableConfidenceLevels(shownObservations),
     ]);
-    const showRange = benchmark !== 'none' && (columns.minMax || columns.percentiles);
+    const showRange = benchmarks.some(isRangeBenchmark) && (columns.minMax || columns.percentiles);
 
     const codeQuery = pickedCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
+    const includeBenchmarks = benchmarks.some(
+      (choice) =>
+        choice.startsWith('imd') || choice.startsWith('neighbours:') || choice.startsWith('ca:'),
+    );
     const [lookedUp, parents] = await Promise.all([
-      benchmark === 'england' && showRange
-        ? api.get(`/api/areas/lookup?${codeQuery}`, areaLookupListSchema)
+      pickedCodes.length > 0 &&
+      (includeBenchmarks ||
+        benchmarks.some((choice) => choice === 'england' || choice === 'region'))
+        ? api.get(
+            `/api/areas/lookup?${codeQuery}${includeBenchmarks ? '&includeBenchmarks=true' : ''}`,
+            areaLookupListSchema,
+          )
         : Promise.resolve([]),
-      benchmark === 'region'
+      pickedCodes.length > 0 && benchmarks.includes('region')
         ? api.get(
             `/api/areas/parents?${codeQuery}&parentType=${encodeURIComponent('Regions (statistical)')}`,
             areaParentListSchema,
           )
         : Promise.resolve([]),
     ]);
-    const geography: BenchmarkGeography = { regionByCode: {}, levelByCode: {} };
+    const geography: BenchmarkGeography = {
+      regionByCode: {},
+      levelByCode: {},
+      ...benchmarkMemberships(lookedUp),
+      tierByCode: Object.fromEntries(
+        pickedCodes
+          .filter((code) => url.searchParams.get(`tier-${code}`) === 'lower')
+          .map((code) => [code, 'lower']),
+      ),
+    };
     for (const { code, areaType, displayGroup } of lookedUp) {
       geography.levelByCode[code] = displayGroup ?? areaType;
     }
@@ -170,37 +183,29 @@ export async function loadIndicatorCsv(
       geography.regionByCode[code] = { code: parentCode, name: parentName };
     }
     const regionCodes = [...new Set(parents.map(({ parentCode }) => parentCode))];
-    const rangeLevels =
-      benchmark === 'england'
-        ? [...new Set(Object.values(geography.levelByCode))]
-        : benchmark === 'region'
-          ? ['Statistical regions']
-          : [];
-    const [regionData, rangeEntries] = await Promise.all([
-      regionCodes.length > 0 ? dataFor(regionCodes) : Promise.resolve([] as IndicatorAreaData[]),
-      showRange
-        ? Promise.all(
-            rangeLevels.map(async (level) => {
-              const range = await api.get(
-                `${apiPath`/api/indicators/${segment}/range`}?displayGroup=${encodeURIComponent(level)}`,
-                indicatorRangeSchema,
-              );
-              return [level, range.periods] as const;
-            }),
-          )
-        : Promise.resolve([]),
-    ]);
+    const regionData = regionCodes.length > 0 ? await dataFor(regionCodes) : [];
+    const additional = await loadBenchmarkData(
+      api,
+      segment,
+      benchmarks,
+      geography,
+      dataFor,
+      [...areaData, ...regionData],
+      showRange,
+    );
     const narrow = (data: IndicatorAreaData) => ({
       ...data,
       observations: filterObservations(data.observations, { sex, periodType }),
     });
     const model = trendTableModel({
       areaData: areaData.map(narrow),
-      benchmark,
+      benchmarks,
       confidence,
       geography,
-      ranges: Object.fromEntries(rangeEntries),
+      ranges: additional.ranges,
       regionData: regionData.map(narrow),
+      benchmarkData: additional.benchmarkData.map(narrow),
+      goal: detail.goal,
     });
     if (url.searchParams.get('order') === 'desc') model.periods.reverse();
     csv = trendCsv(detail, model, confidence, columns);

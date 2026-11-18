@@ -652,6 +652,27 @@
       "when": 1794917978304,
       "tag": "0092_create-preview-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794943473214,
+      "tag": "0093_area-categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794943477656,
+      "tag": "0094_publish-area-categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794943482545,
+      "tag": "0095_publish-indicator-goals",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { completeIndicatorDetail, type FoundIndicatorDetail } from './indicator-repository.ts';
 
 const found: FoundIndicatorDetail = {
+  goal: null,
   shortId: 108,
   slug: 'under-75-mortality-rate-from-all-causes',
   name: 'Under 75 mortality rate from all causes',

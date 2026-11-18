@@ -1,5 +1,5 @@
-import { type Database, schema } from '@fphd/db';
-import { and, count, countDistinct, eq, isNotNull, max, min, sql } from 'drizzle-orm';
+import { type Database, observationRangeSql, observationSegmentSql, schema } from '@fphd/db';
+import { and, countDistinct, eq, isNotNull, max, sql } from 'drizzle-orm';
 
 import { replaceObservationSeries } from './observation-series.ts';
 
@@ -85,10 +85,7 @@ async function replaceReadModelRows(
           fromDate: o.fromDate,
           toDate: o.toDate,
           value: o.value,
-          segment:
-            sql<string>`coalesce(string_agg(${dv.name}, '|' ORDER BY ${dt.name} COLLATE "C"), '')`.as(
-              'segment',
-            ),
+          segment: observationSegmentSql(dv.name, dt.name).as('segment'),
         })
         .from(o)
         .innerJoin(a, eq(a.id, o.areaId))
@@ -111,21 +108,7 @@ async function replaceReadModelRows(
             fromDate: rangeObservations.fromDate,
             toDate: rangeObservations.toDate,
             segment: rangeObservations.segment,
-            min: min(rangeObservations.value).as('min'),
-            max: max(rangeObservations.value).as('max'),
-            p25: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[1]`.as(
-              'p25',
-            ),
-            p75: sql<number>`(percentile_cont(ARRAY[0.25, 0.75]) WITHIN GROUP (ORDER BY ${rangeObservations.value}))[2]`.as(
-              'p75',
-            ),
-            // Each cutoff is the value at rank ceil(n × fifth). Tied values stay in the group
-            // of their first rank because the chart advances only past a cutoff.
-            quintileCutoffs: sql<number[] | null>`
-            CASE WHEN ${count()} >= 5 THEN
-              percentile_disc(ARRAY[0.2, 0.4, 0.6, 0.8]) WITHIN GROUP (ORDER BY ${rangeObservations.value})
-            END
-          `.as('quintile_cutoffs'),
+            ...observationRangeSql(rangeObservations.value),
           })
           .from(rangeObservations)
           .groupBy(

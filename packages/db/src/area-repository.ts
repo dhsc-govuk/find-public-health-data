@@ -197,6 +197,11 @@ export interface AreaLookup {
   name: string;
   areaType: string;
   displayGroup: string | null;
+  benchmarks?: {
+    deprivation: AreaDeprivation[];
+    neighbours: string[];
+    combinedAuthority: AreaSummary | null;
+  };
 }
 
 /** The given areas with their types, for resolving a selection without the full catalogue. */
@@ -204,8 +209,17 @@ export async function listAreasByCodes(
   db: DatabaseReader,
   views: ViewSet,
   codes: string[],
+  includeBenchmarks = false,
 ): Promise<AreaLookup[]> {
-  const { area, areaType } = views;
+  const {
+    area,
+    areaType,
+    areaCategory,
+    areaNeighbour,
+    areaRelationship,
+    dimensionType,
+    dimensionValue,
+  } = views;
   if (codes.length === 0) {
     return [];
   }
@@ -215,6 +229,47 @@ export async function listAreasByCodes(
       name: area.name,
       areaType: areaType.name,
       displayGroup: areaType.displayGroup,
+      ...(includeBenchmarks
+        ? {
+            benchmarks: sql<NonNullable<AreaLookup['benchmarks']>>`json_build_object(
+              'deprivation', coalesce((
+                select json_agg(json_build_object(
+                  'code', ${area.code},
+                  'scheme', ${dimensionType.classificationScheme},
+                  'tier', case when ${dimensionType.name} like 'County & UA %' then 'upper' else 'lower' end,
+                  'dimensionTypeId', ${dimensionType.id},
+                  'dimensionValueId', ${dimensionValue.id},
+                  'decile', ${dimensionValue.code}::int
+                ) order by ${dimensionType.name})
+                from ${areaCategory}
+                join ${dimensionValue} on ${dimensionValue.id} = ${areaCategory.dimensionValueId}
+                join ${dimensionType} on ${dimensionType.id} = ${dimensionValue.dimensionTypeId}
+                where ${areaCategory.areaId} = ${area.id}
+                  and ${inArray(dimensionType.name, deprivationTypes)}
+              ), '[]'::json),
+              'neighbours', coalesce((
+                select json_agg(neighbour.code order by ${areaNeighbour.position})
+                from ${areaNeighbour}
+                join ${area} neighbour on neighbour.id = ${areaNeighbour.neighbourAreaId}
+                where ${areaNeighbour.areaId} = ${area.id}
+                  and ${areaNeighbour.scheme} = 'NHS England peer groups (2024)'
+                  and neighbour.is_current
+              ), '[]'::json),
+              'combinedAuthority', (
+                select json_build_object('code', parent.code, 'name', parent.name)
+                from ${areaRelationship}
+                join ${area} parent on parent.id = ${areaRelationship.parentAreaId}
+                join ${areaType} parent_type on parent_type.id = parent.area_type_id
+                where ${areaRelationship.childAreaId} = ${area.id}
+                  and ${areaRelationship.validTo} is null
+                  and parent.is_current
+                  and parent_type.name = 'Combined authorities'
+                order by parent.code
+                limit 1
+              )
+            )`,
+          }
+        : {}),
     })
     .from(area)
     .innerJoin(areaType, eq(area.areaTypeId, areaType.id))
@@ -281,6 +336,22 @@ export async function listAreaNeighbours(
     .groupBy(anchor.code)
     .orderBy(asc(anchor.code));
 }
+
+interface AreaDeprivation {
+  code: string;
+  scheme: 'IMD2025' | 'IMD2019';
+  tier: 'upper' | 'lower';
+  dimensionTypeId: string;
+  dimensionValueId: string;
+  decile: number;
+}
+
+const deprivationTypes = [
+  'County & UA deprivation deciles in England (IMD2025, 4/23 geography)',
+  'County & UA deprivation deciles in England (IMD2019, 4/23 geography)',
+  'District & UA deprivation deciles in England (IMD2025, 4/23 geography)',
+  'District & UA deprivation deciles in England (IMD2019, 4/23 geography)',
+];
 
 /** Each given area's current parent of one area type, e.g. a council's statistical region. */
 export async function listAreaParents(

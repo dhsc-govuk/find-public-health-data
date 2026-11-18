@@ -21,6 +21,9 @@ it('preserves every observation field and its order through the hydration bounda
   const missing = { ...zero, value: null, count: null, dimensions: [] };
   source.areaData.push({ areaCode: 'empty', areaName: 'Empty area', observations: [] });
   source.regionData = [{ areaCode: 'region', areaName: 'Region', observations: [zero, missing] }];
+  source.benchmarkData = [
+    { areaCode: 'neighbour', areaName: 'Neighbour', observations: [missing, zero] },
+  ];
   source.ranges = { 'Local authorities': [] };
   const compact = compactIndicator(source);
   const hydrated = JSON.parse(JSON.stringify(compact));

@@ -14,10 +14,7 @@ import {
   indicatorListResponseSchema,
   indicatorRangeSchema,
   MAX_AREA_CODES_PER_REQUEST,
-  MAX_AREA_GROUPS_PER_REQUEST,
-  MAX_AREA_NAME_LENGTH,
   MAX_INDICATOR_QUERY_LENGTH,
-  pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import type { TableSeriesSelection } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
@@ -26,6 +23,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import {
   areasInGeographyGroup,
   normalizePublicLevels,
+  publicCouncilTier,
   publicGeographyLevels,
   sourceGeographyGroup,
 } from '../geography/groups.ts';
@@ -33,7 +31,10 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
 import { loadInBatches } from './batches.ts';
+import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
+import { selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
+import { ENGLAND_CODE, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
 export type {
@@ -64,6 +65,7 @@ export interface SelectedIndicator {
   tableSeries?: TableSeriesSelection[];
   /** The statistical regions the selected areas roll up to, for the region benchmark. */
   regionData?: IndicatorAreaData[];
+  benchmarkData?: IndicatorAreaData[];
   /** Distribution across all areas of each display level, per period and segment. */
   ranges?: Record<string, IndicatorRangePeriod[]>;
 }
@@ -77,6 +79,12 @@ export interface SelectedArea {
 
 /** Which benchmark each selected area can be compared against. */
 export interface BenchmarkGeography {
+  deprivation?: NonNullable<
+    (typeof areaLookupListSchema._output)[number]['benchmarks']
+  >['deprivation'];
+  neighboursByCode?: Record<string, string[]>;
+  caByCode?: Record<string, { code: string; name: string }>;
+  tierByCode?: Record<string, 'upper' | 'lower'>;
   /** Selected area code → its statistical region, where one exists. */
   regionByCode: Record<string, { code: string; name: string }>;
   /** Selected area code → its display level, for picking the England range. */
@@ -89,7 +97,6 @@ export interface IndicatorPageData {
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
 }
 
-const DEFAULT_AREA_CODE = 'E92000001';
 const singleAreaBatchSchema = indicatorAreaDataSchema.transform((one) => [one]);
 
 // Charts and tables with dozens of series are unreadable long before they are slow, so the
@@ -150,20 +157,9 @@ export async function loadIndicatorData(
   const singlePage = page !== undefined;
   const includePageData = singlePage;
 
-  // De-duplicated: a hand-edited URL repeating a code would otherwise fetch it twice and
-  // render it twice.
-  const requestedAreaCodes = pickAreaCodes(
-    url.searchParams.getAll('as'),
-    Number.POSITIVE_INFINITY,
-  ).filter((code) => code !== DEFAULT_AREA_CODE);
-  const areaCodes = requestedAreaCodes.slice(0, MAX_SELECTED_AREAS);
-  let requestedLevels = [
-    ...new Set(
-      url.searchParams
-        .getAll('als')
-        .filter((level) => level !== '' && level.length <= MAX_AREA_NAME_LENGTH),
-    ),
-  ].slice(0, MAX_AREA_GROUPS_PER_REQUEST);
+  const requestedCodes = requestedAreaCodes(url.searchParams);
+  const areaCodes = requestedCodes.slice(0, MAX_SELECTED_AREAS);
+  let requestedLevels = requestedAreaLevels(url.searchParams);
 
   if (singlePage) requestedLevels = normalizePublicLevels(requestedLevels);
 
@@ -199,15 +195,15 @@ export async function loadIndicatorData(
   }
   // England rides along last for the benchmark; the first entry stays the area the page describes.
   const pickedCodes = [...new Set([...areaCodes, ...levelCodes])]
-    .filter((code) => code !== DEFAULT_AREA_CODE)
+    .filter((code) => code !== ENGLAND_CODE)
     .slice(0, wholeAreaGroups ? Number.POSITIVE_INFINITY : MAX_SELECTED_AREAS);
-  const codesToLoad = [...pickedCodes, DEFAULT_AREA_CODE];
+  const codesToLoad = [...pickedCodes, ENGLAND_CODE];
   const areasLimited =
-    new Set([...requestedAreaCodes, ...levelCodes].filter((code) => code !== DEFAULT_AREA_CODE))
-      .size > MAX_SELECTED_AREAS && !wholeAreaGroups;
+    new Set([...requestedCodes, ...levelCodes].filter((code) => code !== ENGLAND_CODE)).size >
+      MAX_SELECTED_AREAS && !wholeAreaGroups;
 
   // Both benchmarks need each picked area's display level and statistical region up front.
-  const nonEnglandCodes = codesToLoad.filter((code) => code !== DEFAULT_AREA_CODE);
+  const nonEnglandCodes = codesToLoad.filter((code) => code !== ENGLAND_CODE);
 
   // Only the picked areas resolve to names and levels — the tree fetches its own
   // catalogue on demand, keeping thousands of areas out of the page payload.
@@ -223,7 +219,7 @@ export async function loadIndicatorData(
                 (index + 1) * MAX_AREA_CODES_PER_REQUEST,
               );
               return api.get(
-                `/api/areas/lookup?${batch.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+                `/api/areas/lookup?${batch.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}${tableDisplayGroups === undefined ? '&includeBenchmarks=true' : ''}`,
                 areaLookupListSchema,
               );
             },
@@ -269,6 +265,23 @@ export async function loadIndicatorData(
   for (const { code, parentCode, parentName } of areaParents) {
     regionByCode[code] = { code: parentCode, name: parentName };
   }
+  const benchmarkGeography: BenchmarkGeography = {
+    regionByCode,
+    levelByCode,
+    ...benchmarkMemberships(lookedUp),
+    tierByCode: Object.fromEntries(
+      selectedAreas.flatMap(({ code, level }) => {
+        const tier = publicCouncilTier(
+          code,
+          requestedLevels.includes('Lower-tier local authorities') &&
+            !requestedLevels.includes('Upper-tier local authorities')
+            ? 'Lower-tier local authorities'
+            : level,
+        );
+        return tier ? [[code, tier]] : [];
+      }),
+    ),
+  };
 
   const pickedLevels = [...new Set(Object.values(levelByCode))];
   const regionCodes = [...new Set(Object.values(regionByCode).map(({ code }) => code))];
@@ -276,25 +289,25 @@ export async function loadIndicatorData(
   // A benchmark's spread is fetched with it: its columns show by default, and switching
   // them on and off only re-renders.
   const comparisonFor = (id: number) => {
-    const choices = [
-      url.searchParams.get(`cmp-${id}`) ?? 'none',
-      url.searchParams.get('cmp-compare') ?? 'none',
-    ];
+    const choices = selectedBenchmarks(url.searchParams, id);
+    const compareChoices = selectedBenchmarks(url.searchParams, 'compare');
     const rangeLevels = new Set<string>();
     if (includePageData && url.searchParams.get(quintileParam(id)) === 'yes') {
       for (const level of pickedLevels) rangeLevels.add(level);
     }
-    for (const choice of choices) {
+    for (const choice of compareChoices) {
       if (choice === 'england') {
         for (const level of pickedLevels) {
           rangeLevels.add(level);
         }
       }
-      if (choice === 'region') {
-        rangeLevels.add('Statistical regions');
-      }
     }
-    return { region: choices.includes('region'), rangeLevels: [...rangeLevels] };
+    if (compareChoices.includes('region')) rangeLevels.add('Statistical regions');
+    return {
+      choices,
+      region: [...choices, ...compareChoices].includes('region'),
+      rangeLevels: [...rangeLevels],
+    };
   };
 
   const shortIds =
@@ -331,8 +344,8 @@ export async function loadIndicatorData(
           const dataFor = async (codes: string[]) => {
             // A stable first batch lets whole-group and individual-area tables share their England read.
             const ordered =
-              tableDisplayGroups !== undefined && codes.includes(DEFAULT_AREA_CODE)
-                ? [DEFAULT_AREA_CODE, ...codes.filter((code) => code !== DEFAULT_AREA_CODE)]
+              tableDisplayGroups !== undefined && codes.includes(ENGLAND_CODE)
+                ? [ENGLAND_CODE, ...codes.filter((code) => code !== ENGLAND_CODE)]
                 : codes;
             const loaded = (
               await loadInBatches(
@@ -371,11 +384,20 @@ export async function loadIndicatorData(
               return [level, range.periods] as const;
             }),
           ]);
+          const additional = await loadBenchmarkData(
+            api,
+            String(id),
+            comparison.choices,
+            benchmarkGeography,
+            dataFor,
+            [...areaData, ...regionData],
+          );
           return {
             detail,
             areaData,
             regionData,
-            ranges: Object.fromEntries(rangeEntries),
+            benchmarkData: additional.benchmarkData,
+            ranges: { ...Object.fromEntries(rangeEntries), ...additional.ranges },
           };
         });
 
@@ -383,7 +405,7 @@ export async function loadIndicatorData(
     selected,
     selectedAreas,
     displayGroups,
-    benchmarkGeography: { regionByCode, levelByCode } satisfies BenchmarkGeography,
+    benchmarkGeography,
     findSubject,
     findResults,
     geographyOptions,

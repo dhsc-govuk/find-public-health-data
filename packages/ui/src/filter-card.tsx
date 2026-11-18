@@ -2,12 +2,14 @@ import Hint from '@not-govuk/hint';
 import type { ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
+import { moreFiltersLabel, useChipOverflow } from './use-chip-overflow.ts';
 
 export function CollapsibleFilterCard({
   children,
   footer,
   hint,
   active,
+  defaultOpenOnDesktop = false,
   onClear,
   title,
   headingLevel = 3,
@@ -16,6 +18,7 @@ export function CollapsibleFilterCard({
   footer?: ReactNode | undefined;
   hint?: string | undefined;
   active: boolean;
+  defaultOpenOnDesktop?: boolean;
   onClear?: string | undefined;
   title: string;
   headingLevel?: 2 | 3;
@@ -23,6 +26,11 @@ export function CollapsibleFilterCard({
   const bodyId = useId();
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
   const [open, setOpen] = useState(active);
+  useEffect(() => {
+    if (defaultOpenOnDesktop && (window.matchMedia?.('(min-width: 40.0625em)').matches ?? true)) {
+      setOpen(true);
+    }
+  }, [defaultOpenOnDesktop]);
   useEffect(() => {
     if (active) setOpen(true);
   }, [active]);
@@ -115,11 +123,34 @@ export function FilterChip({
 export function FilterChips({
   children,
   className = 'govuk-!-margin-bottom-2',
+  collapse = false,
 }: {
   children: ReactNode;
   className?: string;
+  collapse?: boolean;
 }) {
+  const id = useId();
+  const overflow = useChipOverflow(children, collapse);
   return (
-    <div className={`fphd-filter-chips fphd-filter-chips--inline ${className}`}>{children}</div>
+    <div
+      className={`fphd-filter-chips fphd-filter-chips--inline${collapse ? ' fphd-filter-chips--collapsible' : ''} ${className}`}
+      id={collapse ? id : undefined}
+      ref={overflow.list}
+    >
+      {children}
+      {collapse && overflow.ready ? (
+        <button
+          aria-controls={id}
+          aria-expanded={overflow.expanded}
+          className="fphd-link-button govuk-body-s fphd-filter-chips__more"
+          hidden={overflow.hiddenCount === 0}
+          onClick={overflow.toggle}
+          ref={overflow.button}
+          type="button"
+        >
+          {overflow.expanded ? 'Show fewer filters' : moreFiltersLabel(overflow.hiddenCount)}
+        </button>
+      ) : null}
+    </div>
   );
 }

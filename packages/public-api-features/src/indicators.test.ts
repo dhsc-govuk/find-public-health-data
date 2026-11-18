@@ -2,10 +2,15 @@ import { createFakeRepositories, type FakeRepositoryOverrides } from '@fphd/db/t
 import { request } from '@fphd/express/testing';
 import express, { type Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
-import { indicatorTableDataSchema } from './contract.ts';
+import {
+  indicatorDetailSchema,
+  indicatorGoalSchema,
+  indicatorTableDataSchema,
+} from './contract.ts';
 import { indicatorsRouter } from './indicators.ts';
 
 const indicatorDetail = {
+  goal: null,
   shortId: 108,
   slug: 'under-75-mortality-rate-from-all-causes',
   name: 'Under 75 mortality rate from all causes',
@@ -515,6 +520,26 @@ describe('GET /api/indicators/:indicator/data', () => {
 });
 
 describe('GET /api/indicators/:indicator/range', () => {
+  it.each(['upper', 'lower'])(
+    'serves the England %s council range without changing display-group reads',
+    async (tier) => {
+      const findObservationRangeByTier = vi.fn().mockResolvedValue([]);
+      const findObservationRange = vi.fn().mockResolvedValue([]);
+      const app = createTestApp({
+        resolveId: async () => 'ind-1',
+        findObservationRangeByTier,
+        findObservationRange,
+      });
+      expect((await request(app).get(`/api/indicators/241/range?tier=${tier}`)).body).toEqual({
+        periods: [],
+      });
+      expect(findObservationRangeByTier).toHaveBeenCalledExactlyOnceWith('ind-1', tier, undefined);
+      expect(findObservationRange).not.toHaveBeenCalled();
+      await request(app).get('/api/indicators/241/range?displayGroup=Local+authorities');
+      expect(findObservationRange).toHaveBeenCalledExactlyOnceWith('ind-1', 'Local authorities');
+      expect(findObservationRangeByTier).toHaveBeenCalledTimes(1);
+    },
+  );
   it('serves a per-segment range for the requested display group', async () => {
     const periods = [
       { fromDate: '2023-01-01', toDate: '2023-12-31', segment: 'Male', min: 1, max: 2 },
@@ -541,6 +566,52 @@ describe('GET /api/indicators/:indicator/range', () => {
 
     expect(response.status).toBe(200);
     expect(findObservationRange).toHaveBeenCalledWith('ind-1', 'Local authorities');
+  });
+
+  it.each(['241', 'diabetes-qof-prevalence'])(
+    'serves a parent range at the requested council tier for %s',
+    async (identifier) => {
+      const periods = [
+        {
+          fromDate: '2024-04-01',
+          toDate: '2025-03-31',
+          segment: '18+ yrs',
+          min: 5,
+          p25: 6.5,
+          p75: 7.9,
+          max: 11,
+          quintileCutoffs: [6, 7, 8, 9],
+        },
+      ];
+      const findObservationRangeByTier = vi.fn().mockResolvedValue(periods);
+      const app = createTestApp({
+        resolveId: async () => 'ind-1',
+        resolveIdBySlug: async () => 'ind-1',
+        findObservationRangeByTier,
+      });
+      const response = await request(app).get(
+        `/api/indicators/${identifier}/range?tier=upper&parent=E12000008`,
+      );
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ periods });
+      expect(findObservationRangeByTier).toHaveBeenCalledExactlyOnceWith(
+        'ind-1',
+        'upper',
+        'E12000008',
+      );
+    },
+  );
+
+  it('returns no periods for an unknown parent and 404 for an unknown indicator', async () => {
+    const app = createTestApp({
+      resolveId: async (id) => (id === 241 ? 'ind-1' : undefined),
+      findObservationRangeByTier: async () => [],
+    });
+    const query = 'tier=upper&parent=UNKNOWN';
+    expect((await request(app).get(`/api/indicators/241/range?${query}`)).body).toEqual({
+      periods: [],
+    });
+    expect((await request(app).get(`/api/indicators/999999/range?${query}`)).status).toBe(404);
   });
 
   it('rejects a range request without area types or with an unusable identifier', async () => {
@@ -688,5 +759,125 @@ describe('GET /api/indicator-scatter', () => {
     ])
       expect((await request(app).get(`/api/indicator-scatter?${query}`)).status).toBe(404);
     expect(findScatterData).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('category range query', () => {
+  const category = '019de0d5-c800-700b-8000-0000001e8480';
+  it.each(['241', 'diabetes-qof-prevalence'])(
+    'serves a category range for %s',
+    async (identifier) => {
+      const periods = [
+        {
+          fromDate: '2023-01-01',
+          toDate: '2023-12-31',
+          segment: 'Male',
+          min: 1,
+          max: 2,
+          p25: 1.25,
+          p75: 1.75,
+          quintileCutoffs: null,
+        },
+      ];
+      const findObservationRangeByCategory = vi.fn().mockResolvedValue(periods);
+      const app = createTestApp({
+        resolveId: async () => 'ind-1',
+        resolveIdBySlug: async () => 'ind-1',
+        findObservationRangeByCategory,
+      });
+      const response = await request(app).get(
+        `/api/indicators/${identifier}/range?category=${category}`,
+      );
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ periods });
+      expect(findObservationRangeByCategory).toHaveBeenCalledWith('ind-1', category);
+    },
+  );
+
+  it.each([
+    'category=',
+    'category=not-a-uuid',
+    'category=%00',
+    `category=${category}&displayGroup=Local+authorities`,
+    `category=${category}&displayGroup=`,
+    `category=${category}&parent=E12000008`,
+    `category=${category}&parent=`,
+    `category=${category}&parent=E12000008&displayGroup=Local+authorities`,
+    `category=${category}&category=${category}`,
+    `category[value]=${category}`,
+    'displayGroup=Local+authorities&displayGroup=Regions',
+    'parent=E12000008',
+    'parent=E12000008&displayGroup=',
+    'parent=&displayGroup=Local+authorities',
+    'parent=%00&displayGroup=Local+authorities',
+    'parent=South+East&displayGroup=Local+authorities',
+    'parent=E12000008&parent=E12000009&displayGroup=Local+authorities',
+    'tier=',
+    'tier=middle',
+    'tier=upper&tier=lower',
+    'tier[value]=upper',
+    'tier=upper&displayGroup=Local+authorities',
+    `tier=upper&category=${category}`,
+    `tier=lower&parent=E12000008&category=${category}`,
+    'tier=upper&parent=',
+    'tier=lower&parent=South+East',
+    'tier=upper&parent=E12000008&parent=E12000009',
+  ])('rejects malformed or ambiguous selectors: %s', async (query) => {
+    const response = await request(createTestApp()).get(`/api/indicators/241/range?${query}`);
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('returns no periods for an unknown category and 404 for an unknown indicator', async () => {
+    const app = createTestApp({
+      resolveId: async (id) => (id === 241 ? 'ind-1' : undefined),
+      findObservationRangeByCategory: async () => [],
+    });
+    expect((await request(app).get(`/api/indicators/241/range?category=${category}`)).body).toEqual(
+      { periods: [] },
+    );
+    expect(
+      (await request(app).get(`/api/indicators/999999/range?category=${category}`)).status,
+    ).toBe(404);
+  });
+});
+
+describe('public policy goals', () => {
+  it.each([
+    null,
+    { lower: 95.5, upper: null, polarity: 'higher-is-better', policyDetail: 'National policy' },
+    { lower: 1, upper: 5, polarity: 'lower-is-better', policyDetail: null },
+  ])('serves and validates goal %j', async (goal) => {
+    const detail = {
+      ...indicatorDetail,
+      goal: indicatorGoalSchema.nullable().parse(goal),
+      unanswered: [],
+    };
+    const app = createTestApp({
+      resolveId: async () => 'ind-1',
+      findDetailById: async () => detail,
+    });
+    const response = await request(app).get('/api/indicators/108');
+    expect(response.status).toBe(200);
+    expect(indicatorDetailSchema.parse(response.body).goal).toEqual(goal);
+  });
+
+  it('rejects string values and unsupported polarities', () => {
+    expect(
+      indicatorGoalSchema.safeParse({
+        lower: '95',
+        upper: null,
+        polarity: 'higher-is-better',
+        policyDetail: null,
+      }).success,
+    ).toBe(false);
+    expect(
+      indicatorGoalSchema.safeParse({
+        lower: 95,
+        upper: null,
+        polarity: 'no-judgement',
+        policyDetail: null,
+      }).success,
+    ).toBe(false);
   });
 });

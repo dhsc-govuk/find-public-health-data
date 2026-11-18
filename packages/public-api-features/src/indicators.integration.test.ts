@@ -10,6 +10,7 @@ import {
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
   indicatorDetailSchema,
+  indicatorRangeSchema,
   indicatorSearchResultSchema,
   indicatorTableDataSchema,
 } from './contract.ts';
@@ -444,5 +445,59 @@ describe('control characters', () => {
 
     expect(unknown.body).toEqual([]);
     expect(refused.body).toEqual(unknown.body);
+  });
+});
+
+describe('council tier range API', () => {
+  it("uses the selected area's parent and display group through the public API role", async () => {
+    const response = await request(app).get('/api/areas/lookup?areaCode=E10000032');
+    const [westSussex] = response.body;
+    expect(westSussex.displayGroup).toBe('Local authorities');
+    const parents = await request(app).get(
+      '/api/areas/parents?areaCode=E10000032&parentType=Regions+(statistical)',
+    );
+    expect(parents.body).toEqual([
+      { code: 'E10000032', parentCode: 'E12000008', parentName: 'South East' },
+    ]);
+    const query = new URLSearchParams({
+      parent: parents.body[0].parentCode,
+      tier: 'upper',
+    });
+    const bySlug = await request(app).get(`/api/indicators/diabetes-qof-prevalence/range?${query}`);
+    const byNumber = await request(app).get(`/api/indicators/241/range?${query}`);
+    expect(bySlug.status).toBe(200);
+    expect(byNumber.status).toBe(200);
+    expect(bySlug.body).toEqual(byNumber.body);
+    const { periods } = indicatorRangeSchema.parse(bySlug.body);
+    expect(periods.length).toBeGreaterThan(0);
+    expect(periods).toContainEqual(
+      expect.objectContaining({ fromDate: '2024-04-01', toDate: '2025-03-31', segment: '17+ yrs' }),
+    );
+    const latest = periods.find(
+      ({ fromDate, toDate, segment }) =>
+        fromDate === '2024-04-01' && toDate === '2025-03-31' && segment === '17+ yrs',
+    );
+    if (!latest) throw new Error('Missing latest diabetes range');
+    expect(
+      [latest.min, latest.p25, latest.p75, latest.max].map((value) => value?.toFixed(1)),
+    ).toEqual(['5.0', '6.5', '7.9', '11.0']);
+    const upperEngland = await request(app).get('/api/indicators/241/range?tier=upper');
+    expect(upperEngland.status).toBe(200);
+    const englandLatest = indicatorRangeSchema
+      .parse(upperEngland.body)
+      .periods.find(
+        ({ fromDate, toDate, segment }) =>
+          fromDate === '2024-04-01' && toDate === '2025-03-31' && segment === '17+ yrs',
+      );
+    if (!englandLatest) throw new Error('Missing latest England range');
+    expect(
+      [englandLatest.min, englandLatest.p25, englandLatest.p75, englandLatest.max].map((value) =>
+        value?.toFixed(1),
+      ),
+    ).toEqual(['2.8', '7.1', '9.0', '11.0']);
+    const england = await request(app).get(
+      '/api/indicators/241/range?displayGroup=Local+authorities',
+    );
+    expect(bySlug.body).not.toEqual(england.body);
   });
 });

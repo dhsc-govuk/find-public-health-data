@@ -3,7 +3,7 @@ import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { INDICATOR_DATA_STATES, INDICATOR_QUESTIONS } from '@fphd/utils/indicator-page';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
-import { POLARITIES } from '@fphd/utils/polarity';
+import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { tidyName } from '@fphd/utils/tidy-name';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
@@ -162,7 +162,40 @@ export const indicatorProviderSourceSchema = z.object({
   source: z.string().min(1).nullable(),
 });
 
+export const indicatorGoalSchema = z.object({
+  lower: z.number(),
+  upper: z.number().nullable(),
+  polarity: z.enum(GOAL_POLARITIES),
+  policyDetail: z.string().nullable(),
+});
+
+export const indicatorRangeQuerySchema = z.union([
+  z.object({
+    displayGroup: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !CONTROL_CHARACTER.test(value)),
+    parent: z.undefined().optional(),
+    tier: z.undefined().optional(),
+    category: z.undefined().optional(),
+  }),
+  z.object({
+    displayGroup: z.undefined().optional(),
+    parent: z.undefined().optional(),
+    tier: z.undefined().optional(),
+    category: z.uuid(),
+  }),
+  z.object({
+    tier: z.enum(['upper', 'lower']),
+    parent: z.string().min(1).max(100).regex(AREA_CODE_RE).optional(),
+    category: z.undefined().optional(),
+    displayGroup: z.undefined().optional(),
+  }),
+]);
+
 export const indicatorDetailSchema = z.object({
+  goal: indicatorGoalSchema.nullable(),
   shortId: z.number().int(),
   slug: indicatorSlugSchema,
   name: z.string().min(1),
@@ -312,6 +345,22 @@ export const areaLookupListSchema = z.array(
     name: z.string().min(1),
     areaType: z.string().min(1),
     displayGroup: z.string().min(1).nullable(),
+    benchmarks: z
+      .object({
+        deprivation: z.array(
+          z.object({
+            code: z.string().min(1),
+            scheme: z.enum(['IMD2025', 'IMD2019']),
+            tier: z.enum(['upper', 'lower']),
+            dimensionTypeId: z.uuid(),
+            dimensionValueId: z.uuid(),
+            decile: z.number().int().min(1).max(10),
+          }),
+        ),
+        neighbours: z.array(z.string().min(1)),
+        combinedAuthority: areaSummarySchema.nullable(),
+      })
+      .optional(),
   }),
 );
 

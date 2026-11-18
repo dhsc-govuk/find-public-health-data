@@ -23,6 +23,13 @@
       "rows": 2265,
       "bytes": 41931,
       "sha256": "4881b253d9df62feaefa8598065452f96213bff1b3892f7c1b20b81b3df2641e"
+    },
+    "area_category": {
+      "file": "area_category.csv.gz",
+      "source": "Fingertips API, profile 19, area categories 170, 160, 173, 163: IMD2025 and IMD2019 deciles, upper and lower tier local authorities (April 2023 geography)",
+      "rows": 898,
+      "bytes": 3015,
+      "sha256": "31ca3cac2acb76d382606c6dfa5cd465c7af2cc1eafa21dc316c9fc582e9f5d5"
     }
   }
 }

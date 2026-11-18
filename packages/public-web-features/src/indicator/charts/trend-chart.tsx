@@ -1,7 +1,17 @@
 import { ChartSection } from '@fphd/ui';
 import { shortPeriodLabel } from '@fphd/utils/period-label';
 import { useCallback, useState } from 'react';
-import { CartesianGrid, ErrorBar, Label, Line, LineChart, Symbols, XAxis, YAxis } from 'recharts';
+import {
+  CartesianGrid,
+  ErrorBar,
+  Label,
+  Line,
+  LineChart,
+  ReferenceLine,
+  Symbols,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import {
   availablePeriodTypes,
   type ConfidenceLevel,
@@ -12,6 +22,7 @@ import {
   unitNote,
 } from '../data.ts';
 import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
+import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
 import { alignedSeries, bounds, chartPeriods, errorOffsets } from './chart-data.ts';
 import {
   axisColour,
@@ -58,14 +69,18 @@ function SeriesMark({ index, size = 78 }: { index: number; size?: number }) {
 
 function TrendPlot({
   areas,
+  benchmarkCodes,
   indicator,
   confidence,
   title,
+  goal,
 }: {
   areas: IndicatorAreaData[];
+  benchmarkCodes: readonly string[];
   indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
   title: string;
+  goal?: PolicyGoal | null;
 }) {
   const selection = useChartSelection<TrendSelection>();
   const active = selection.active?.index ?? null;
@@ -154,6 +169,17 @@ function TrendPlot({
             ? ''
             : `, ${latestValue === firstValue ? 'the same as' : Number(latestValue) > Number(firstValue) ? 'up from' : 'down from'} ${chartValue(firstValue ?? null, indicator.unit)} in ${first.label}`}
           .
+          {series
+            .filter(({ code }) => benchmarkCodes.includes(code))
+            .map(({ code, name, observations }) => {
+              const latest = [...observations.values()].findLast(({ value }) => value != null);
+              return latest ? (
+                <span key={code}>
+                  {' '}
+                  {name}: {chartValue(latest.value, indicator.unit)}.
+                </span>
+              ) : null;
+            })}
         </p>
       ) : null}
       <ChartCanvas
@@ -264,6 +290,31 @@ function TrendPlot({
                 }
               />
             </YAxis>
+            {goal
+              ? goalThresholds(goal).map(({ value, colour }) => (
+                  <ReferenceLine
+                    key={`${value}-${colour}`}
+                    y={value}
+                    stroke={colour}
+                    strokeDasharray="6 4"
+                    strokeWidth={2}
+                    ifOverflow="extendDomain"
+                    shape={({ x1, x2, y1, y2 }) => (
+                      <line
+                        x1={x1}
+                        x2={x2}
+                        y1={y1}
+                        y2={y2}
+                        stroke={colour}
+                        strokeDasharray="6 4"
+                        strokeWidth={2}
+                      >
+                        <title>Policy goal: {goalThresholdText(goal, indicator.unit)}</title>
+                      </line>
+                    )}
+                  />
+                ))
+              : null}
             {series.map(({ code, name }, index) => {
               const colour = active === null || active === index ? lineColour(index) : gridColour;
               return (
@@ -357,6 +408,11 @@ function TrendPlot({
                       {intervalText(period, index).replace(/^ \([^:]+: |\)$/g, '')}
                     </div>
                   ) : null}
+                  {goal ? (
+                    <div>
+                      <strong>Policy goal:</strong> {goalThresholdText(goal, indicator.unit)}
+                    </div>
+                  ) : null}
                 </>
               )}
             />
@@ -376,6 +432,24 @@ function TrendPlot({
               {name}
             </li>
           ))}
+        </ul>
+      ) : null}
+      {goal ? (
+        <ul className="govuk-list fphd-chart-key" aria-label="Policy goals key">
+          <li title={`Policy goal: ${goalThresholdText(goal, indicator.unit)}`}>
+            <svg width="32" height="18" aria-hidden="true">
+              {goalThresholds(goal).map(({ colour }, index) => (
+                <path
+                  key={colour}
+                  d={`M0 ${6 + index * 6}h32`}
+                  stroke={colour}
+                  strokeDasharray="6 4"
+                  strokeWidth={2}
+                />
+              ))}
+            </svg>
+            Policy goals
+          </li>
         </ul>
       ) : null}
       <ChartDataTable
@@ -398,14 +472,18 @@ export function TrendChart({
   id,
   title,
   areas,
+  benchmarkCodes = [],
   indicator,
   confidence = 'none',
+  goal,
 }: {
   id: string;
   title: string;
   areas: IndicatorAreaData[];
+  benchmarkCodes?: readonly string[];
   indicator: IndicatorPageDetail;
   confidence?: ConfidenceLevel;
+  goal?: PolicyGoal | null;
 }) {
   const types = availablePeriodTypes(areas.flatMap(({ observations }) => observations));
   const variants = types.length > 1 ? types : (['all'] as const);
@@ -423,9 +501,11 @@ export function TrendChart({
                 ...area,
                 observations: filterObservations(area.observations, { periodType: variant }),
               }))}
+              benchmarkCodes={benchmarkCodes}
               indicator={indicator}
               confidence={confidence}
               title={variantTitle}
+              goal={goal ?? null}
             />
           </div>
         );

@@ -1,29 +1,45 @@
 import { CollapsibleFilterCard } from '@fphd/ui';
-import { useLocation, useNavigate } from 'react-router';
+import type { ReactNode } from 'react';
+import { useLocation, useNavigate, useNavigation } from 'react-router';
+import { normalizePublicLevels } from '../geography/groups.ts';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
+import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSelection } from './loader.ts';
-import { indicatorSelectionUrl } from './paths.ts';
+import { indicatorSelectionUrl, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 
 export function IndicatorGeographies({
+  children,
+  shortId,
   displayGroups,
   geographyOptions,
   slug,
   selection,
 }: {
+  children?: ReactNode;
+  shortId: number;
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
   slug: string;
   selection: IndicatorSelection;
 }) {
   const location = useLocation();
+  const navigation = useNavigation();
   const navigate = useNavigate();
   const links = useIndicatorLinks();
-  const params = new URLSearchParams(location.search);
+  const currentLocation = navigation.location ?? location;
+  const params = new URLSearchParams(currentLocation.search);
   const urlFor = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(location, areaCodes, areaLevels);
-  const picked = selection.areaCodes.length > 0 || selection.areaLevels.length > 0;
+    indicatorSelectionUrl(currentLocation, areaCodes, areaLevels, shortId);
+  const currentSelection = {
+    ...selection,
+    areaCodes: requestedAreaCodes(params).slice(0, MAX_SELECTED_AREAS),
+    areaLevels: normalizePublicLevels(requestedAreaLevels(params)).filter((level) =>
+      displayGroups.includes(level),
+    ),
+  };
+  const picked = currentSelection.areaCodes.length > 0 || currentSelection.areaLevels.length > 0;
 
   return (
     <div className="fphd-indicator-geographies">
@@ -47,8 +63,11 @@ export function IndicatorGeographies({
           onApply={({ areaCodes, areaLevels }) => {
             void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
           }}
-          selection={selection}
+          selection={currentSelection}
         >
+          {!picked && !params.has(`cmp-${shortId}`) ? (
+            <input name={`cmp-${shortId}`} type="hidden" value="england" />
+          ) : null}
           {[...params]
             .filter(([name]) => name !== 'as' && name !== 'als' && name !== 'find')
             .map(([name, value], index) => (
@@ -56,6 +75,7 @@ export function IndicatorGeographies({
             ))}
         </GeographyPicker>
       </CollapsibleFilterCard>
+      {children}
     </div>
   );
 }

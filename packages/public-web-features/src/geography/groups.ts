@@ -38,6 +38,13 @@ export function areasInGeographyGroup<T extends { code: string }>(areas: T[], na
   return areas;
 }
 
+export function publicCouncilTier(code: string, level: string): 'upper' | 'lower' | undefined {
+  const upper = areasInGeographyGroup([{ code }], 'Upper-tier local authorities').length > 0;
+  const lower = areasInGeographyGroup([{ code }], 'Lower-tier local authorities').length > 0;
+  if (!upper && !lower) return undefined;
+  return lower && (level.toLowerCase().includes('lower') || !upper) ? 'lower' : 'upper';
+}
+
 export function publicGeographyGroups<T extends { code: string; name: string }>(
   groups: { name: string; areas: T[] }[],
 ) {

@@ -1,5 +1,5 @@
 import { Button, GeographyTree } from '@fphd/ui';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Form } from 'react-router';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import type { GeographyOptions } from './loader.ts';
@@ -41,8 +41,12 @@ export function GeographyPicker({
   single?: boolean;
 }) {
   const [pending, setPending] = useState(selection);
-  const { areaCodes, areaLevels } = selection;
-  useEffect(() => setPending({ areaCodes, areaLevels }), [areaCodes, areaLevels]);
+  const selectionKey = JSON.stringify([selection.areaCodes, selection.areaLevels]);
+  const [previousSelectionKey, setPreviousSelectionKey] = useState(selectionKey);
+  if (selectionKey !== previousSelectionKey) {
+    setPreviousSelectionKey(selectionKey);
+    setPending(selection);
+  }
 
   return (
     <Form action={action} method="get" replace={replace} preventScrollReset>

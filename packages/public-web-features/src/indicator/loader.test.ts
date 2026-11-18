@@ -14,6 +14,8 @@ import {
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { benchmarkFixture } from './benchmark.testing.ts';
+import { benchmarkCheckboxOptions } from './benchmarks.ts';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { publicIndicatorLinks } from './links.ts';
 import { loadIndicator } from './loader.ts';
@@ -101,6 +103,7 @@ function api(stubs: FakeApiStubs = {}) {
         displayGroup: 'Local authorities',
       })),
     'GET /api/areas/parents': [],
+    'GET /api/areas/neighbours': [],
     ...stubs,
   });
 }
@@ -124,6 +127,57 @@ function args(
 }
 
 describe('loadIndicator', () => {
+  it('keeps all benchmark choices on compare pages using the enriched area lookup', async () => {
+    const fixture = benchmarkFixture();
+    const client = api({
+      'GET /api/indicators/indicator-108': fixture.detail,
+      'GET /api/indicators/108/data': fixture.areaData,
+      'GET /api/areas/lookup': fixture.lookup,
+      'GET /api/areas/parents': Object.entries(fixture.geography.regionByCode).map(
+        ([code, parent]) => ({
+          code,
+          parentCode: parent.code,
+          parentName: parent.name,
+        }),
+      ),
+    });
+    const page = await loadPage(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?tab-indicator=compare&compareWith=indicator-241&as=E08000003&as=E06000052',
+      ),
+    );
+    const data = await page.data;
+    expect(
+      benchmarkCheckboxOptions(true, {
+        areas: fixture.areaData.slice(0, 2),
+        geography: data.benchmarkGeography,
+        englandObservations: fixture.areaData[2]?.observations ?? [],
+        goal: fixture.detail.goal,
+      }).map(({ value }) => value),
+    ).toEqual([
+      'england',
+      'region',
+      'imd2025',
+      'imd2019',
+      'goal',
+      'neighbours:E08000003',
+      'neighbours:E06000052',
+      'ca:E08000003',
+      'ca:E06000052',
+    ]);
+    const requests = paths(client);
+    expect(requests).toContain(
+      '/api/areas/lookup?areaCode=E08000003&areaCode=E06000052&includeBenchmarks=true',
+    );
+    expect(requests.filter((path) => path.startsWith('/api/areas/parents?'))).toEqual([
+      '/api/areas/parents?areaCode=E08000003&areaCode=E06000052&parentType=Regions%20(statistical)',
+    ]);
+    expect(requests.some((path) => /^\/api\/areas\/(deprivation|neighbours)\?/.test(path))).toBe(
+      false,
+    );
+  });
+
   it.each([
     ['', false],
     ['tab-indicator=areas', true],
@@ -687,11 +741,76 @@ describe('loadIndicator', () => {
     expect(result.selected[0]?.ranges).toEqual({ 'Local authorities': [] });
   });
 
-  it('loads no spread without a benchmark', async () => {
-    const client = api();
-    await loadIndicator(args(client, 'http://localhost/indicator/indicator-108?as=E00000001'));
+  it.each(['', '&cmp-108=', '&cmp-108=none'])(
+    'loads no spread without a benchmark: %s',
+    async (query) => {
+      const client = api();
+      await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108?as=E00000001${query}`),
+      );
 
-    expect(paths(client).some((path) => path.includes('/range'))).toBe(false);
+      expect(paths(client).some((path) => path.includes('/range'))).toBe(false);
+    },
+  );
+
+  it.each(['cmp-108=region&cmp-108=england&cmp-108=region', 'cmp-compare=region&cmp-108=england'])(
+    'loads both benchmark distributions once: %s',
+    async (query) => {
+      const client = api({
+        'GET /api/areas/parents': [
+          { code: 'E00000001', parentCode: 'E12000008', parentName: 'South East' },
+        ],
+      });
+      const result = await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108?as=E00000001&${query}`),
+      );
+      expect(paths(client).filter((path) => path.includes('/108/range?'))).toEqual([
+        ...(query.startsWith('cmp-compare')
+          ? [
+              '/api/indicators/108/range?displayGroup=Statistical%20regions',
+              '/api/indicators/108/range?displayGroup=Local%20authorities',
+            ]
+          : [
+              '/api/indicators/108/range?displayGroup=Local%20authorities',
+              '/api/indicators/108/range?displayGroup=Statistical%20regions',
+            ]),
+      ]);
+      expect(result.selected[0]?.regionData?.map(({ areaCode }) => areaCode)).toEqual([
+        'E12000008',
+      ]);
+    },
+  );
+
+  it('loads each region and display level once across picked areas', async () => {
+    const client = api({
+      'GET /api/areas/lookup': (call) =>
+        areaCodes(call.path).map((code) => ({
+          code,
+          name: code,
+          areaType: 'Council',
+          displayGroup:
+            code === 'E07000223' ? 'Lower-tier local authorities' : 'Upper-tier local authorities',
+        })),
+      'GET /api/areas/parents': ['E10000032', 'E10000011', 'E07000223'].map((code) => ({
+        code,
+        parentCode: 'E12000008',
+        parentName: 'South East',
+      })),
+    });
+    const result = await loadIndicator(
+      args(
+        client,
+        'http://localhost/indicator/indicator-108?as=E10000032&as=E10000011&as=E07000223&cmp-108=region',
+      ),
+    );
+    expect(paths(client).filter((path) => path.includes('/108/range?'))).toEqual([
+      '/api/indicators/108/range?tier=upper&parent=E12000008',
+      '/api/indicators/108/range?tier=lower&parent=E12000008',
+    ]);
+    expect(result.selected[0]?.ranges).toEqual({
+      'region:E12000008:upper': [],
+      'region:E12000008:lower': [],
+    });
   });
 
   it('loads every section and requests compact rankings for all comparison areas', async () => {

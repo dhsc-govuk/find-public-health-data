@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { indicatorDetailSchema, indicatorPageDetailSchema } from './contract.ts';
 
 const detail = {
+  goal: null,
   shortId: 108,
   slug: 'under-75-mortality-rate-from-all-causes',
   name: 'Under 75 mortality rate from all causes',

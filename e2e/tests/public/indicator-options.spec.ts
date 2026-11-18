@@ -7,6 +7,70 @@ function trendTable(page: import('@playwright/test').Page) {
   return page.getByRole('table', { name: /^Table:/ });
 }
 
+test('adds IMD 2025, neighbours and the combined authority for Manchester diabetes data', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, '/indicator/diabetes-qof-prevalence?as=E08000003');
+  const benchmarks = filterCard(page, 'Benchmarks');
+  const imdLabel =
+    'Areas with similar deprivation to the selected area (Index of Multiple Deprivation (IMD) 2025)';
+  await benchmarks.getByRole('checkbox', { name: imdLabel, exact: true }).check();
+  await benchmarks
+    .getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true })
+    .check();
+  await benchmarks
+    .getByRole('checkbox', { name: 'Combined authority (Manchester)', exact: true })
+    .check();
+  const table = trendTable(page);
+  for (const name of [
+    'Decile 1 (IMD 2025)',
+    'Statistical neighbours (Manchester)',
+    'Combined authority (Manchester)',
+    'Compared with similarly deprived areas (IMD 2025)',
+  ]) {
+    await expect(table.getByRole('columnheader', { name, exact: true })).toBeVisible();
+  }
+  await page.getByRole('button', { name: /^Show \d+ more filters$/ }).click();
+  await expect(
+    page.getByRole('link', { name: `Remove ${imdLabel} filter`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', {
+      name: 'Remove Statistical neighbours (Manchester) filter',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(benchmarks.getByRole('checkbox', { name: imdLabel, exact: true })).toBeChecked();
+  await expect(
+    benchmarks.getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true }),
+  ).toBeChecked();
+  await expect(
+    benchmarks.getByRole('checkbox', { name: 'Combined authority (Manchester)', exact: true }),
+  ).toBeChecked();
+  await expect(
+    page
+      .locator('#indicator-trend-chart .fphd-chart-series-label')
+      .filter({ hasText: /^Statistical neighbours \(Manchester\)$/ }),
+  ).toBeVisible();
+});
+
+test('uses upper-tier council spreads for England and South East on West Sussex diabetes data', async ({
+  page,
+}) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/diabetes-qof-prevalence?as=E10000032&cmp-241=england&cmp-241=region',
+  );
+  const table = trendTable(page);
+  const latest = table
+    .locator('tbody tr')
+    .filter({ has: page.getByRole('rowheader', { name: '2024 to 2025', exact: true }) });
+  const values = await latest.locator('td.fphd-trend-table__benchmark-cell').allTextContents();
+  expect(values.slice(1, 5)).toEqual(['2.8%', '7.1%', '9.0%', '11.0%']);
+  expect(values.slice(6, 10)).toEqual(['5.0%', '6.5%', '7.9%', '11.0%']);
+});
+
 async function selectEarlierInequalityPeriod(options: Locator) {
   const select = options.getByLabel('Time period', { exact: true });
   const previous = await select.inputValue();
@@ -64,15 +128,36 @@ test('table options update the series and keep their choices on reload', async (
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
+test('checks England for the first picked area and preserves an unchecked choice when picking again', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?geo-level=Upper-tier%20local%20authorities`);
+  const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
+    has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+  });
+  const manchester = geographies.getByRole('checkbox', { name: 'Manchester', exact: true });
+  await manchester.check();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get('as') === 'E08000003' && url.searchParams.get('cmp-108') === 'england',
+  );
+  const benchmarks = filterCard(page, 'Benchmarks');
+  const england = benchmarks.getByRole('checkbox', { name: 'England', exact: true });
+  await expect(england).toBeChecked();
+  await england.uncheck();
+  await manchester.uncheck();
+  await expect(benchmarks).toHaveCount(0);
+  await manchester.check();
+  await expect(england).not.toBeChecked();
+  await expect(page).toHaveURL((url) => url.searchParams.getAll('cmp-108').join() === '');
+});
+
 test('selected geography and benchmark options stay on the one indicator page', async ({
   page,
 }) => {
   await openIndicatorPage(page, `${MORTALITY_PATH}?as=E08000003`);
-  const options = page
-    .locator('.fphd-filter-card')
-    .filter({ has: page.getByRole('button', { name: 'Table columns', exact: true }) });
-  await options.getByRole('button', { name: 'Table columns', exact: true }).click();
-  await options.getByLabel('Select a geography or goal to compare with').selectOption('England');
+  const benchmarks = filterCard(page, 'Benchmarks');
+  await benchmarks.getByRole('checkbox', { name: 'England', exact: true }).check();
   await expect(page).toHaveURL(/cmp-108=england/);
   await expect(trendTable(page).getByRole('columnheader', { name: 'Manchester' })).toBeVisible();
   await expect(
@@ -83,6 +168,20 @@ test('selected geography and benchmark options stay on the one indicator page', 
     await expect(table.getByRole('columnheader', { name, exact: true })).toBeVisible();
   }
   await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toBeVisible();
+  await benchmarks.getByRole('checkbox', { name: 'Statistical regions' }).check();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.getAll('cmp-108').join() === 'england,region',
+  );
+  await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toHaveCount(1);
+  await expect(
+    table.getByRole('columnheader', { name: 'North West (Statistical region)' }),
+  ).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Compared with North West' })).toBeVisible();
+  await page.getByRole('link', { name: 'Remove England filter', exact: true }).click();
+  await expect(
+    benchmarks.getByRole('checkbox', { name: 'England', exact: true }),
+  ).not.toBeChecked();
+  await expect(table.getByRole('columnheader', { name: 'England', exact: true })).toHaveCount(0);
 });
 
 test('the benchmark spread and comparison chart columns toggle independently', async ({ page }) => {
@@ -166,27 +265,96 @@ test('inequality options change the breakdown period', async ({ page }) => {
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
+  test('applies IMD 2025 and neighbours together through the benchmark GET form', async ({
+    page,
+  }) => {
+    await page.goto('/indicator/diabetes-qof-prevalence?as=E08000003');
+    const benchmarks = filterCard(page, 'Benchmarks');
+    await benchmarks
+      .getByRole('checkbox', {
+        name: 'Areas with similar deprivation to the selected area (Index of Multiple Deprivation (IMD) 2025)',
+        exact: true,
+      })
+      .check();
+    await benchmarks
+      .getByRole('checkbox', { name: 'Statistical neighbours (Manchester)', exact: true })
+      .check();
+    await benchmarks.getByRole('button', { name: 'Apply options', exact: true }).click();
+    await expect(
+      trendTable(page).getByRole('columnheader', { name: 'Decile 1 (IMD 2025)', exact: true }),
+    ).toBeVisible();
+    await expect(
+      trendTable(page).getByRole('columnheader', {
+        name: 'Statistical neighbours (Manchester)',
+        exact: true,
+      }),
+    ).toBeVisible();
+  });
+
+  test('checks England for the first geography and keeps all benchmarks unticked after a GET submit', async ({
+    page,
+  }) => {
+    await page.goto(`${MORTALITY_PATH}?geo-level=Upper-tier%20local%20authorities`);
+    const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
+      has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+    });
+    await geographies.getByRole('checkbox', { name: 'Manchester', exact: true }).check();
+    await geographies.getByRole('button', { name: 'Apply geographies' }).click();
+    const benchmarks = filterCard(page, 'Benchmarks');
+    const england = benchmarks.getByRole('checkbox', { name: 'England', exact: true });
+    const region = benchmarks.getByRole('checkbox', { name: 'Statistical regions' });
+    const apply = benchmarks.getByRole('button', { name: 'Apply options' });
+    await expect(england).toBeChecked();
+    await region.check();
+    await apply.click();
+    await expect(
+      trendTable(page).getByRole('columnheader', { name: 'England', exact: true }),
+    ).toBeVisible();
+    await expect(
+      trendTable(page).getByRole('columnheader', { name: 'North West (Statistical region)' }),
+    ).toBeVisible();
+    await england.uncheck();
+    await region.uncheck();
+    await apply.click();
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.has('cmp-108') && url.searchParams.getAll('cmp-108').join() === '',
+    );
+    // Reloading while the form's own navigation is still under way detaches the page.
+    const submitted = page.waitForEvent('load');
+    await geographies.getByRole('button', { name: 'Apply geographies' }).click();
+    await submitted;
+    await page.reload();
+    await expect(england).not.toBeChecked();
+    await expect(region).not.toBeChecked();
+    await expect(
+      trendTable(page).getByRole('columnheader', { name: 'England', exact: true }),
+    ).toHaveCount(0);
+  });
+
   test('preserves default and unchecked spread choices while the benchmark is hidden', async ({
     page,
   }) => {
     await page.goto(`${MORTALITY_PATH}?as=E08000003`);
     const options = filterCard(page, 'Table columns');
-    const benchmark = options.getByLabel('Select a geography or goal to compare with');
+    const benchmarks = filterCard(page, 'Benchmarks');
+    const benchmark = benchmarks.getByRole('checkbox', { name: 'England', exact: true });
+    const applyBenchmarks = benchmarks.getByRole('button', { name: 'Apply options' });
     const apply = options.getByRole('button', { name: 'Apply options' });
     await options.getByLabel('Select sex').selectOption('Male');
     await apply.click();
-    await benchmark.selectOption('england');
-    await apply.click();
+    await benchmark.check();
+    await applyBenchmarks.click();
     for (const name of ['Minimum/Maximum values', '25th/75th percentiles', 'Comparison chart']) {
       await expect(options.getByRole('checkbox', { name, exact: true })).toBeChecked();
       await options.getByRole('checkbox', { name, exact: true }).uncheck();
     }
     await apply.click();
-    await benchmark.selectOption('none');
-    await apply.click();
+    await benchmark.uncheck();
+    await applyBenchmarks.click();
+    await expect(page).toHaveURL((url) => url.searchParams.getAll('cmp-108').join() === '');
     await expect(options.getByRole('checkbox', { name: 'Comparison chart' })).toHaveCount(0);
-    await benchmark.selectOption('england');
-    await apply.click();
+    await benchmark.check();
+    await applyBenchmarks.click();
     for (const name of ['Minimum/Maximum values', '25th/75th percentiles', 'Comparison chart']) {
       await expect(options.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
     }

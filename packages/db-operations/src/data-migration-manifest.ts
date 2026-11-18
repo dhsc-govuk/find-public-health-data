@@ -1,5 +1,5 @@
 import { z } from '@fphd/config';
-import { CORE_REFERENCE_TABLES, GEOGRAPHY_CORE_TABLES, SEED_TABLES } from './seed-tables.ts';
+import { CORE_REFERENCE_TABLES, PACKAGE_GEOGRAPHY_TABLES, SEED_TABLES } from './seed-tables.ts';
 
 export const DATA_MIGRATION_FORMAT_VERSION = 9;
 export const DATA_MIGRATION_SCHEMA = 'canonical-v9';
@@ -12,7 +12,7 @@ export const DATA_MIGRATION_REFERENCE_TABLES: readonly string[] = [
   'comparator_method',
   'numerator_denominator_source',
   ...CORE_REFERENCE_TABLES,
-  ...GEOGRAPHY_CORE_TABLES,
+  ...PACKAGE_GEOGRAPHY_TABLES,
 ];
 export const DATA_MIGRATION_NULL = '__FPHD_NULL_5f92c66de4b849b4a717c23f5cbdb8a1__';
 

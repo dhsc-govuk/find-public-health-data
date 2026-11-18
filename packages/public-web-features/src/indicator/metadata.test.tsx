@@ -9,6 +9,7 @@ import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
 afterEach(cleanup);
 
 const indicator: IndicatorDetail = {
+  goal: null,
   shortId: 108,
   slug: 'an-indicator',
   name: 'An indicator',

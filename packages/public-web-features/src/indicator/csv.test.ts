@@ -12,7 +12,7 @@ import {
 import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
-
+import { benchmarkFixture } from './benchmark.testing.ts';
 import { loadIndicatorCsv } from './csv.ts';
 import { indicatorPageContext } from './page-context.ts';
 import { indicatorDetail } from './view.testing.ts';
@@ -79,6 +79,176 @@ function paths(client: FakeApiClient) {
 }
 
 describe('loadIndicatorCsv', () => {
+  it('exports both IMD value and spread groups, neighbour means, CA values and goal verdicts in table order', async () => {
+    const fixture = benchmarkFixture();
+    const client = api([], {
+      [`GET ${DETAIL}`]: { ...fixture.detail, slug: SLUG },
+      [`GET ${DETAIL}/data`]: (call: FakeApiCall) => {
+        const data = areaCodes(call).flatMap(
+          (code) =>
+            [...fixture.areaData, ...fixture.regionData, ...fixture.benchmarkData].find(
+              ({ areaCode }) => areaCode === code,
+            ) ?? { areaCode: code, areaName: code, observations: [] },
+        );
+        return data.length === 1 ? data[0] : data;
+      },
+      'GET /api/areas/lookup': fixture.lookup,
+      'GET /api/areas/parents': Object.entries(fixture.geography.regionByCode).map(
+        ([code, parent]) => ({ code, parentCode: parent.code, parentName: parent.name }),
+      ),
+      [`GET ${DETAIL}/range`]: { periods: fixture.ranges['england:upper'] ?? [] },
+    });
+    const query = new URLSearchParams([
+      ['as', 'E08000003'],
+      ['as', 'E06000052'],
+      ['columns-108', 'value,minmax,percentiles,goal'],
+      ...fixture.benchmarks.map((choice) => ['cmp-108', choice]),
+    ]);
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/table.csv?${query}`),
+      'table',
+    );
+    const csv = await response.text();
+    const names = [
+      'England',
+      'North West (Statistical region)',
+      'South West (Statistical region)',
+      'Decile 1 (IMD 2019)',
+      'Decile 2 (IMD 2019)',
+      'Decile 1 (IMD 2025)',
+      'Decile 2 (IMD 2025)',
+    ];
+    expect(csv.split('\n')[0]).toBe(
+      [
+        'Period',
+        'Manchester calculated value (%)',
+        'Cornwall calculated value (%)',
+        ...names.flatMap((name) => [
+          `${name} calculated value (%)`,
+          `${name} lowest`,
+          `${name} 25th percentile`,
+          `${name} 75th percentile`,
+          `${name} highest`,
+        ]),
+        'Manchester compared with policy goal',
+        'Cornwall compared with policy goal',
+        'Statistical neighbours (Manchester) calculated value (%)',
+        'Statistical neighbours (Cornwall) calculated value (%)',
+        'Combined authority (Manchester) calculated value (%)',
+        'Combined authority (Cornwall) calculated value (%)',
+      ].join(','),
+    );
+    expect(csv.split('\n')[1]).toBe(
+      '2024,3,8,5,1,2,20,30,5,1,2,20,30,6,1,2,20,30,7,1,2,20,30,9,1,2,20,30,8,1,2,20,30,10,1,2,20,30,Good,Bad,15,15,9,',
+    );
+    expect(paths(client).filter((path) => path.includes('/range?category=')).length).toBe(4);
+    expect(paths(client).filter((path) => path.startsWith('/api/areas/lookup?'))).toEqual([
+      '/api/areas/lookup?areaCode=E08000003&areaCode=E06000052&includeBenchmarks=true',
+    ]);
+    expect(paths(client).filter((path) => path.startsWith('/api/areas/parents?'))).toEqual([
+      '/api/areas/parents?areaCode=E08000003&areaCode=E06000052&parentType=Regions%20(statistical)',
+    ]);
+    expect(paths(client).some((path) => path.startsWith('/api/areas/neighbours?'))).toBe(false);
+    expect(
+      paths(client).some((path) =>
+        path.includes(
+          '/data?areaCode=E08000001&areaCode=E08000002&areaCode=E47000002&areaCode=E47000001',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('exports England goal verdicts without selected areas', async () => {
+    const fixture = benchmarkFixture();
+    const client = api([fixture.areaData[2] ?? null], {
+      [`GET ${DETAIL}`]: { ...fixture.detail, slug: SLUG },
+    });
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?cmp-108=goal&columns-108=value,goal`,
+      ),
+      'table',
+    );
+    expect(await response.text()).toBe(
+      'Period,England calculated value (%),England compared with policy goal\n2024,5,Neither good nor bad\n',
+    );
+  });
+  it('exports England and a shared region once after all selected area columns', async () => {
+    const area = (areaCode: string, areaName: string, value: number) => ({
+      areaCode,
+      areaName,
+      observations: [observation({ value, lowerCi95: value - 1, upperCi95: value + 1 })],
+    });
+    const data = [
+      area('E06000052', 'Cornwall', 14),
+      area('E10000008', 'Devon', 18),
+      area('E92000001', 'England', 12),
+      area('E12000009', 'South West', 15),
+    ];
+    const client = api([], {
+      [`GET ${DETAIL}/data`]: (call: FakeApiCall) => {
+        const rows = areaCodes(call).flatMap(
+          (code) => data.find(({ areaCode }) => areaCode === code) ?? [],
+        );
+        return rows.length === 1 ? rows[0] : rows;
+      },
+      'GET /api/areas/lookup': data.slice(0, 2).map(({ areaCode, areaName }) => ({
+        code: areaCode,
+        name: areaName,
+        areaType: 'Unitary authority',
+        displayGroup: 'Local authorities',
+      })),
+      'GET /api/areas/parents': data.slice(0, 2).map(({ areaCode }) => ({
+        code: areaCode,
+        parentCode: 'E12000009',
+        parentName: 'South West',
+      })),
+      [`GET ${DETAIL}/range`]: (call: FakeApiCall) => ({
+        periods: [
+          {
+            fromDate: '2023-01-01',
+            toDate: '2023-12-31',
+            segment: '',
+            min: 5,
+            p25: 10,
+            p75: 20,
+            max: call.path.includes('parent=') ? 25 : 30,
+          },
+        ],
+      }),
+    });
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E06000052&as=E10000008&cmp-108=&cmp-108=region&cmp-108=england&cmp-108=england`,
+      ),
+      'table',
+    );
+    const [header, row] = (await response.text()).trim().split('\n');
+    expect(header).toBe(
+      [
+        'Period',
+        ...['Cornwall', 'Devon'].flatMap((name) => [
+          `${name} calculated value (per 100,000)`,
+          `${name} lower 95% CI`,
+          `${name} upper 95% CI`,
+        ]),
+        ...['England', 'South West (Statistical region)'].flatMap((name) => [
+          `${name} calculated value (per 100,000)`,
+          `${name} lowest`,
+          `${name} 25th percentile`,
+          `${name} 75th percentile`,
+          `${name} highest`,
+        ]),
+      ]
+        .map((label) => (label.includes(',') ? `"${label}"` : label))
+        .join(','),
+    );
+    expect(row).toBe('2023,14,13,15,18,17,19,12,5,10,20,30,15,5,10,20,25');
+    expect(paths(client).filter((path) => path.includes('/range?'))).toHaveLength(2);
+  });
+
   it.each(['england', 'region'])(
     'exports the default %s spread without a columns parameter',
     async (benchmark) => {
@@ -131,7 +301,7 @@ describe('loadIndicatorCsv', () => {
       expect(csv).toContain(',200,250,350,400\n');
       expect(csv).not.toContain('Cornwall count');
       expect(paths(client)).toContain(
-        `${DETAIL}/range?displayGroup=${encodeURIComponent(benchmark === 'england' ? 'Local authorities' : 'Statistical regions')}`,
+        `${DETAIL}/range?tier=upper${benchmark === 'region' ? '&parent=E12000009' : ''}`,
       );
     },
   );

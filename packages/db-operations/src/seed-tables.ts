@@ -5,7 +5,15 @@ export const CORE_REFERENCE_TABLES = [
   'note_type',
 ] as const;
 
-export const GEOGRAPHY_CORE_TABLES = ['area', 'area_relationship'] as const;
+export const GEOGRAPHY_CORE_TABLES = [
+  'area',
+  'area_relationship',
+  'area_neighbour',
+  'area_category',
+] as const;
+
+// Seed and live-data packages predate neighbour and category catalogs; those are imported separately.
+export const PACKAGE_GEOGRAPHY_TABLES = ['area', 'area_relationship'] as const;
 
 // Source CSVs in foreign-key order. Core catalog files provide source-to-core id maps.
 export const SEED_TABLES = [

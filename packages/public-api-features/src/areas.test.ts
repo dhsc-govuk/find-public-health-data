@@ -2,8 +2,8 @@ import { createFakeRepositories, type FakeRepositoryOverrides } from '@fphd/db/t
 import { request } from '@fphd/express/testing';
 import express, { type Express } from 'express';
 import { describe, expect, it, vi } from 'vitest';
-
 import { areasRouter } from './areas.ts';
+import { areaLookupListSchema } from './contract.ts';
 
 function createTestApp(overrides: FakeRepositoryOverrides['areas'] = {}): Express {
   const app = express();
@@ -28,7 +28,7 @@ describe('GET /api/areas/lookup', () => {
     expect(response.body).toEqual([
       { code: 'E06000052', name: 'Cornwall', areaType: 'UA unchanged' },
     ]);
-    expect(listByCodes).toHaveBeenCalledWith(['E06000052']);
+    expect(listByCodes).toHaveBeenCalledWith(['E06000052'], false);
   });
 
   it('rejects a lookup request without any well-formed area code', async () => {
@@ -36,6 +36,25 @@ describe('GET /api/areas/lookup', () => {
 
     expect((await request(app).get('/api/areas/lookup')).status).toBe(400);
     expect((await request(app).get('/api/areas/lookup?areaCode=..%2Fbad')).status).toBe(400);
+  });
+
+  it('opts into benchmark memberships on the same lookup', async () => {
+    const areas = [
+      {
+        code: 'E06000001',
+        name: 'Hartlepool',
+        areaType: 'UA unchanged',
+        displayGroup: 'Local authorities',
+        benchmarks: { deprivation: [], neighbours: ['E06000006'], combinedAuthority: null },
+      },
+    ];
+    const listByCodes = vi.fn().mockResolvedValue(areas);
+    const response = await request(createTestApp({ listByCodes })).get(
+      '/api/areas/lookup?areaCode=E06000001&includeBenchmarks=true',
+    );
+    expect(response.status).toBe(200);
+    expect(areaLookupListSchema.parse(response.body)).toEqual(areas);
+    expect(listByCodes).toHaveBeenCalledWith(['E06000001'], true);
   });
 });
 

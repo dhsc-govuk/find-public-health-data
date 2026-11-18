@@ -151,8 +151,17 @@ observation dimension keys and area read models.
 
 `data/geography/` contains the full Pholio area catalog as gzipped CSV files. Its manifest records
 the source backup digest, row counts, file sizes and SHA-256 digests. The import verifies these
-before writing, copies both files into temporary tables and performs set-based upserts in one
+before writing, copies the files into temporary tables and performs set-based upserts in one
 transaction. This keeps the parameter count constant for the 73,302 areas and 158,929 relationships.
+
+`area_neighbour.csv.gz` holds ranked NHS England peer groups. `area_category.csv.gz` holds IMD2025
+and IMD2019 decile memberships for both local authority tiers on April 2023 geography, keyed by area
+code and dimension value id. The import resolves each code to exactly one current area, retains
+existing area ids and replaces obsolete memberships. These catalogs are imported separately from
+seed and live-data packages. Refresh deprivation memberships with
+`python3 packages/db-operations/data/geography/export-area-categories.py`; clear this worktree's
+`node_modules/.cache/area-categories` first to fetch new responses. The exporter updates the
+geography manifest's row count, size and digest.
 
 Areas match on code and area type. Relationships match on their parent and child areas. Existing ids
 are retained when those keys match. Multiple matching area or relationship versions stop the import
