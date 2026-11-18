@@ -75,6 +75,7 @@ services:
       BETA_ACCESS_ENDS_AT: ${BETA_ACCESS_ENDS_AT:-}
       BETA_ACCESS_SECRET: ${BETA_ACCESS_SECRET:-}
       SITE_URL: ${SITE_URL:-}
+      SEARCH_PAGE_SIZE: ${SEARCH_PAGE_SIZE:-}
     ports:
       - "3000:3000"
     extra_hosts:
@@ -105,6 +106,7 @@ services:
       API_URL: http://host.docker.internal:4001
       SESSION_JWT_SECRET: ${SESSION_JWT_SECRET:?set SESSION_JWT_SECRET in .env (see .env.example)}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?set WEB_SESSION_SECRET in .env (see .env.example)}
+      SEARCH_PAGE_SIZE: ${SEARCH_PAGE_SIZE:-}
     ports:
       - "3001:3001"
     extra_hosts:

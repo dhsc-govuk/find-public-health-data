@@ -8,6 +8,7 @@ import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-contex
 import { createFlashSessionStorage, setFlashStorage } from '@fphd/web-server/flash';
 import { loggerContext } from '@fphd/web-server/logger-context';
 import { forwardedRequestIdHeaders } from '@fphd/web-server/request-id-headers';
+import { searchPageSizeContext } from '@fphd/web-server/search-page-size-context';
 
 import * as config from './config.ts';
 
@@ -38,5 +39,6 @@ export const app = createFakeAuthReactRouterApp(() => import('virtual:react-rout
     context.set(devToolsContext, config.offersDevTools);
     context.set(environmentContext, config.environmentName);
     context.set(feedbackMailboxContext, config.feedbackMailbox);
+    context.set(searchPageSizeContext, config.searchPageSize);
   },
 });

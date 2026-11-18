@@ -210,6 +210,8 @@ function webServerFields(defaults: { apiUrl: string; port: number }) {
     BASIC_AUTH_PASSWORD: z.string().optional(),
     // The address the feedback link in the phase banner emails.
     FEEDBACK_MAILBOX: z.email().optional(),
+    // How many indicators each page of search results shows.
+    SEARCH_PAGE_SIZE: z.coerce.number().int().positive().default(50),
   };
 }
 
@@ -383,6 +385,7 @@ function webServerConfig(parsed: z.output<z.ZodObject<ReturnType<typeof webServe
     apiUploadTimeoutMs: parsed.API_UPLOAD_TIMEOUT_MS,
     trustedProxyHops: parsed.TRUSTED_PROXY_HOPS,
     feedbackMailbox: parsed.FEEDBACK_MAILBOX,
+    searchPageSize: parsed.SEARCH_PAGE_SIZE,
     shutdown: resolveShutdown(parsed.APP_ENV, parsed),
     log: resolveLog(parsed.APP_ENV, parsed),
     basicAuth:

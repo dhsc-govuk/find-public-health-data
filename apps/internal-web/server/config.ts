@@ -9,6 +9,7 @@ export const {
   offersDevTools,
   port,
   revision,
+  searchPageSize,
   apiUrl,
   apiUploadTimeoutMs,
   trustedProxyHops,

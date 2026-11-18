@@ -1,5 +1,3 @@
-export const SEARCH_PAGE_SIZE = 50;
-
 /** The page a search URL asks for. Anything but a whole number from 1 up is the first page. */
 export function searchPageNumber(value: string | null): number {
   if (value === null || !/^[1-9]\d*$/.test(value)) return 1;

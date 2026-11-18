@@ -1,5 +1,6 @@
 import { MAX_INDICATOR_QUERY_LENGTH } from '@fphd/public-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
+import { searchPageSizeContext } from '@fphd/web-server/search-page-size-context';
 import {
   createFakeApiClient,
   type FakeApiCall,
@@ -70,6 +71,7 @@ function searchPath(client: FakeApiClient) {
 function loaderArgs(client: FakeApiClient, url = 'http://localhost/search'): LoaderFunctionArgs {
   const context = new RouterContextProvider();
   context.set(apiContext, client);
+  context.set(searchPageSizeContext, 50);
   return { context, params: {}, request: new Request(url) } as unknown as LoaderFunctionArgs;
 }
 
@@ -111,17 +113,16 @@ describe('loadSearchPage', () => {
     expect(searchPath(client)).toBe('/api/indicators/search?sort=recently-updated&page=1&limit=50');
   });
 
-  it('asks the API for the page in the URL, 50 results at a time, and returns it', async () => {
+  it('asks the API for the page in the URL, at the configured page size, and returns it', async () => {
     const client = api({
-      'GET /api/indicators/search': { total: 120, limit: 50, page: 2, indicators: [] },
+      'GET /api/indicators/search': { total: 120, limit: 10, page: 2, indicators: [] },
     });
-    const result = await loadSearchPage(
-      loaderArgs(client, 'http://localhost/search?q=diabetes&page=2'),
-      true,
-    );
+    const args = loaderArgs(client, 'http://localhost/search?q=diabetes&page=2');
+    args.context.set(searchPageSizeContext, 10);
+    const result = await loadSearchPage(args, true);
 
     expect(searchSent(client).get('page')).toBe('2');
-    expect(searchSent(client).get('limit')).toBe('50');
+    expect(searchSent(client).get('limit')).toBe('10');
     expect(result.searchResult.page).toBe(2);
   });
 

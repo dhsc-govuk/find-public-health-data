@@ -9,6 +9,7 @@ export const {
   host,
   port,
   revision,
+  searchPageSize,
   apiUrl,
   trustedProxyHops,
   log,
