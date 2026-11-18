@@ -13,11 +13,6 @@ function previewPath(id: string) {
   return `/dashboard/indicators/${id}/preview`;
 }
 
-/** The slug a new indicator's name gives it. */
-function slugOf(name: string) {
-  return name.toLowerCase().replaceAll(' ', '-');
-}
-
 async function openTab(page: Page, name: string) {
   await page.getByRole('tab', { name, exact: true }).click();
   return page.getByRole('tabpanel', { name });
@@ -142,10 +137,16 @@ test('the compare search in the preview finds the draft as if it were published,
 
 test('the draft never shows as a published indicator page', async ({ page }) => {
   const name = uniqueIndicatorName('preview not public');
-  await createDraft(page, name);
+  const id = await createDraft(page, name);
+  // The preview's search gives the draft's slug as the public page would have it.
+  const search = await page.request.get(
+    `${previewPath(id)}/indicators/search?q=${encodeURIComponent(name)}`,
+  );
+  const [found] = ((await search.json()) as { indicators: { slug: string }[] }).indicators;
+  expect(found?.slug).toMatch(/^e2e-preview-not-public-/);
 
   // internal-web serves the public pages too, through the same published views as public-web.
-  const response = await page.request.get(`/indicator/${slugOf(name)}`);
+  const response = await page.request.get(`/indicator/${found?.slug}`);
 
   expect(response.status()).toBe(404);
 });
