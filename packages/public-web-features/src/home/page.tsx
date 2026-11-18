@@ -24,14 +24,17 @@ export function PublicHomePage() {
         </p>
         <InsetText>This service was previously known as Fingertips.</InsetText>
 
-        <form action="/search" method="get">
-          <SearchField
-            hint="For example, diabetes or mental health"
-            id="home-search"
-            label="Search for data"
-            name="q"
-          />
-        </form>
+        {/* biome-ignore lint/a11y/noRedundantRoles: Explicit landmark supports browsers predating the search element. */}
+        <search role="search">
+          <form action="/search" method="get">
+            <SearchField
+              hint="For example, diabetes or mental health"
+              id="home-search"
+              label="Search for data"
+              name="q"
+            />
+          </form>
+        </search>
 
         <h2 className="govuk-visually-hidden">Ways to find data</h2>
         <CardList columns="two" items={findDataCards} />
