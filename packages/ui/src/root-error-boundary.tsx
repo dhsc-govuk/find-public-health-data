@@ -12,10 +12,10 @@ function isNotFound(error: unknown) {
 }
 
 /**
- * Whether DAC's App Gateway refused the request. Neither app answers 403 itself, so a 403 is the
- * gateway's. A client-side navigation's data request that it refuses reaches the page as a route
- * error with that status; a page load gets the gateway's own page instead, which the app can't
- * change.
+ * Whether DAC's App Gateway refused the request. Neither app throws a 403 to its error boundary,
+ * so a 403 here is the gateway's. A client-side navigation's data request that it refuses reaches
+ * the page as a route error with that status; a page load gets the gateway's own page instead,
+ * which the app can't change.
  */
 function isBlocked(error: unknown) {
   return isRouteErrorResponse(error) && error.status === 403;
