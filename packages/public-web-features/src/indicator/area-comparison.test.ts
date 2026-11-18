@@ -9,9 +9,12 @@ import {
   areaComparisonRows,
   comparisonRankingData,
   highlightedAreaCodes,
+  highlightedAreas,
   neighbourAnchors,
   orderAreaComparisonRows,
   statisticalNeighbourAreas,
+  withoutHighlightedArea,
+  withoutHighlightedAreas,
 } from './area-comparison.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
@@ -38,6 +41,54 @@ it('honours individual no-script unticks and changes to region boxes', () => {
   expect(
     highlightedAreaCodes(new URLSearchParams('highlight=c&highlightRegion=r&geo-q=Alpha'), areas),
   ).toEqual(['c', 'a']);
+});
+
+const regionAreas = [
+  { code: 'a', name: 'Alpha', parent: { code: 'r', name: 'Region' } },
+  { code: 'b', name: 'Beta', parent: { code: 'r', name: 'Region' } },
+  { code: 'c', name: 'Gamma', parent: { code: 's', name: 'Elsewhere' } },
+];
+
+it('names the highlighted areas in the order picked, including a ticked region’s members', () => {
+  expect(
+    highlightedAreas(new URLSearchParams('highlight=c&highlightRegion=r'), regionAreas).map(
+      ({ name }) => name,
+    ),
+  ).toEqual(['Gamma', 'Alpha', 'Beta']);
+});
+
+it('leaves out highlighted codes that are not areas of the current geography type', () => {
+  expect(
+    highlightedAreas(new URLSearchParams('highlight=E38000001&highlight=b'), regionAreas).map(
+      ({ code }) => code,
+    ),
+  ).toEqual(['b']);
+});
+
+it('removes one highlighted area without a ticked region adding it back', () => {
+  const next = withoutHighlightedArea(
+    new URLSearchParams(
+      'tab-indicator=areas&highlight=c&highlightRegion=r&neighbours=a&neighbours=c&areaSort=ascending',
+    ),
+    regionAreas,
+    'a',
+  );
+  expect(next.getAll('highlight')).toEqual(['c', 'b']);
+  expect(next.has('highlightRegion')).toBe(false);
+  expect(next.has('highlightRegionBefore')).toBe(false);
+  expect(next.getAll('neighbours')).toEqual(['c']);
+  expect(next.get('tab-indicator')).toBe('areas');
+  expect(next.get('areaSort')).toBe('ascending');
+  expect(highlightedAreaCodes(next, regionAreas)).toEqual(['c', 'b']);
+});
+
+it('clears every highlighted area and statistical neighbour but keeps the other choices', () => {
+  const next = withoutHighlightedAreas(
+    new URLSearchParams(
+      'tab-indicator=areas&highlight=c&highlightRegion=r&highlightRegionBefore=s&neighbours=c&areaType=NHS+regions',
+    ),
+  );
+  expect(next.toString()).toBe('tab-indicator=areas&areaType=NHS+regions');
 });
 
 it.each([

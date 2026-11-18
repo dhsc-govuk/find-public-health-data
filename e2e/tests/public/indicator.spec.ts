@@ -493,6 +493,70 @@ test('ticks every local authority in a statistical region and lists highlights a
   await expect(headers.first()).toHaveText('England (benchmark)');
 });
 
+test('shows the highlighted areas next to Showing and removes one from its chip', async ({
+  page,
+}, testInfo) => {
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  const chips = panel.locator('.fphd-indicator-showing .fphd-filter-chip');
+  await expect(chips).toHaveText(['Local authorities']);
+  const northEast = panel.getByRole('checkbox', {
+    name: /^North East: all \d+ upper tier local authorities$/,
+  });
+  const size = Number((await northEast.getAttribute('aria-label'))?.match(/all (\d+)/)?.[1]);
+  await northEast.check();
+  await expect(chips).toHaveCount(size + 1);
+  await expect(chips.first()).toHaveText('Local authorities');
+  await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(1);
+  await expectNoAccessibilityViolations(page, testInfo);
+  await panel.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
+  await expect(chips).toHaveCount(size);
+  await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(0);
+  await expect(panel.getByRole('checkbox', { name: 'Hartlepool', exact: true })).not.toBeChecked();
+  await expect(northEast).not.toBeChecked();
+  await expect(
+    panel
+      .getByRole('table', { name: /Table of area comparisons/ })
+      .getByRole('rowheader', { name: 'Hartlepool', exact: true }),
+  ).toBeVisible();
+});
+
+test('removes an area highlighted through its region from its chip without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(
+      `${MORTALITY_PATH}?render=complete&tab-indicator=areas#indicator-compare-areas`,
+    );
+    await withoutJs
+      .getByRole('checkbox', { name: /^North East: all \d+ upper tier local authorities$/ })
+      .check();
+    await withoutJs.getByRole('button', { name: 'Apply highlights' }).click();
+    await expect(withoutJs).toHaveURL(/highlightRegion=E12000001/);
+    const chips = withoutJs.locator(
+      '#indicator-compare-areas .fphd-indicator-showing .fphd-filter-chip',
+    );
+    await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(1);
+    const count = await chips.count();
+    await withoutJs.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
+    await expect(chips).toHaveCount(count - 1);
+    await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(0);
+    await expect(
+      withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
+    ).not.toBeChecked();
+  } finally {
+    await context.close();
+  }
+});
+
 test('adds and removes regional and individual highlights without JavaScript', async ({
   browser,
   baseURL,

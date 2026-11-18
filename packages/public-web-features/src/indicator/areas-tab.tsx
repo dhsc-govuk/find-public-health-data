@@ -5,7 +5,9 @@ import { geographyGroupLabel } from '../geography/groups.ts';
 import {
   areaColourMode,
   highlightedAreaCodes,
+  highlightedAreas,
   statisticalNeighbourAreas,
+  withoutHighlightedArea,
 } from './area-comparison.ts';
 import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
@@ -33,7 +35,8 @@ export function CompareAreasTab({
   compareAreaRanges = [],
 }: ComparisonTabProps) {
   const { detail } = primary;
-  const params = new URLSearchParams(useLocation().search);
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
   const {
     ref: detailRef,
     areas: areaOptions,
@@ -64,6 +67,9 @@ export function CompareAreasTab({
         : 'all',
     }),
   }));
+  const shownAreas = highlightedAreas(params, areaOptions);
+  const areasTabUrl = (next: URLSearchParams) =>
+    `${location.pathname}?${next}#indicator-compare-areas`;
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
     compareAreaGroup === 'Local authorities'
@@ -107,6 +113,17 @@ export function CompareAreasTab({
             <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
             <FilterChips>
               <FilterChip value={compareAreaGroup}>{compareAreaGroup}</FilterChip>
+              {shownAreas.map(({ code, name }) => (
+                <FilterChip
+                  key={code}
+                  value={code}
+                  onRemove={areasTabUrl(withoutHighlightedArea(params, areaOptions, code))}
+                  removeLabel={name}
+                  replace
+                >
+                  {name}
+                </FilterChip>
+              ))}
             </FilterChips>
           </div>
           <IndicatorViewDownload slug={detail.slug} tab="areas" />

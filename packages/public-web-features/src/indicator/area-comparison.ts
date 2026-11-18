@@ -92,6 +92,44 @@ export function highlightedAreaCodes(params: URLSearchParams, areas: AreaOption[
   return [...highlighted];
 }
 
+/** The highlighted areas of the listed options, in the order they were highlighted. */
+export function highlightedAreas<T extends AreaOption>(params: URLSearchParams, areas: T[]): T[] {
+  const byCode = new Map(areas.map((area) => [area.code, area]));
+  return highlightedAreaCodes(params, areas).flatMap((code) => {
+    const area = byCode.get(code);
+    return area ? [area] : [];
+  });
+}
+
+/**
+ * The query with one area no longer highlighted. Region ticks are folded into the highlight
+ * list first, so a ticked region does not highlight the area again.
+ */
+export function withoutHighlightedArea(
+  params: URLSearchParams,
+  areas: AreaOption[],
+  code: string,
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete('highlight');
+  next.delete('highlightRegion');
+  next.delete('highlightRegionBefore');
+  next.delete('neighbours', code);
+  for (const entry of highlightedAreaCodes(params, areas)) {
+    if (entry !== code) next.append('highlight', entry);
+  }
+  return next;
+}
+
+/** The query with no area highlighted and no statistical neighbours shown. */
+export function withoutHighlightedAreas(params: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(params);
+  for (const key of ['highlight', 'highlightRegion', 'highlightRegionBefore', 'neighbours']) {
+    next.delete(key);
+  }
+  return next;
+}
+
 /** Highlighted areas that have statistical neighbours, in the order they were highlighted. */
 export function neighbourAnchors<T extends AreaOption>(highlighted: string[], areas: T[]): T[] {
   const byCode = new Map(areas.map((area) => [area.code, area]));
