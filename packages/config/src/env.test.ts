@@ -325,7 +325,7 @@ describe('loadWebServerConfig', () => {
     });
   });
 
-  it.each(['0', '-5', '2.5', 'ten'])('rejects a search page size of %j', (size) => {
+  it.each(['0', '-5', '2.5', 'ten', '201'])('rejects a search page size of %j', (size) => {
     expect(() =>
       loadWebServerConfig({ APP_ENV: 'local', SEARCH_PAGE_SIZE: size }, defaults),
     ).toThrow(/SEARCH_PAGE_SIZE/);

@@ -210,8 +210,9 @@ function webServerFields(defaults: { apiUrl: string; port: number }) {
     BASIC_AUTH_PASSWORD: z.string().optional(),
     // The address the feedback link in the phase banner emails.
     FEEDBACK_MAILBOX: z.email().optional(),
-    // How many indicators each page of search results shows.
-    SEARCH_PAGE_SIZE: z.coerce.number().int().positive().default(50),
+    // How many indicators each page of search results shows. At most 200, the most the public
+    // API's search returns at once (MAX_INDICATOR_FILTER_RESULTS).
+    SEARCH_PAGE_SIZE: z.coerce.number().int().positive().max(200).default(50),
   };
 }
 
