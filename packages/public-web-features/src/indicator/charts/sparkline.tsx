@@ -59,7 +59,7 @@ export function Sparkline({
   const last = coordinates.findLast((point) => point !== null);
   const endpoint = (point: typeof first) =>
     point ? (
-      <span>
+      <span className="govuk-hint">
         {formatCalculatedValue(point.value)}
         {indicator.unit === '%' ? '%' : null}
         {indicator.unit && indicator.unit !== '%' ? (
@@ -100,7 +100,7 @@ export function Sparkline({
               ))}
             {last ? <circle cx={last.x} cy={last.y} r="3" fill={colour} /> : null}
           </svg>
-          <p className="govuk-hint fphd-sparkline__endpoints" aria-hidden="true">
+          <p className="fphd-sparkline__endpoints" aria-hidden="true">
             {endpoint(first)}
             {endpoint(latest)}
           </p>

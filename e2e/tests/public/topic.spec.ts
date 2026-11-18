@@ -25,6 +25,40 @@ test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
 
 topicPageTests();
 
+for (const width of [1020, 375]) {
+  test(`matches the highlighted card captions and spacing at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const topic of ['mortality-and-life-expectancy', 'diabetes']) {
+      await openTopicPage(page, `/topics/${topic}`);
+      const cards = page.locator('.fphd-topic-highlight');
+      await expect(cards.first()).toBeVisible();
+      for (const card of await cards.all()) {
+        const endpoints = card.locator('.fphd-sparkline__endpoints');
+        await expect(endpoints).toHaveCSS('margin-bottom', '5px');
+        const captions = endpoints.locator(':scope > span');
+        for (const caption of await captions.all()) {
+          await expect(caption).toHaveCSS('line-height', '22.8px');
+          await expect(caption).toHaveCSS('margin-bottom', '15px');
+        }
+        const key = card.locator('.govuk-summary-list__key').first();
+        const summary = await card.locator('.govuk-summary-list').boundingBox();
+        const label = await key.boundingBox();
+        expect(label?.width).toBeCloseTo((summary?.width ?? 0) * 0.55, 1);
+      }
+      if (topic === 'diabetes') {
+        const rate = cards.filter({ hasText: 'Mortality rate for deaths involving diabetes' });
+        await expect(rate.locator('.fphd-sparkline__endpoints > span')).toHaveText([
+          '92.3per 100,000in 2015-17',
+          '109.6per 100,000in 2022-24',
+        ]);
+        const tag = cards.first().locator('.fphd-trend-tag');
+        await expect(tag).toHaveCSS('width', '136px');
+        await expect(tag).toHaveCSS('margin-bottom', '-3px');
+      }
+    }
+  });
+}
+
 for (const javaScriptEnabled of [true, false]) {
   test.describe(`topic sorting with JavaScript ${javaScriptEnabled ? 'enabled' : 'disabled'}`, () => {
     test.use({ javaScriptEnabled });

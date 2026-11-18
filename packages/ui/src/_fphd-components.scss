@@ -200,10 +200,10 @@
 .fphd-sparkline__endpoints {
   display: flow-root;
   margin: 0 0 govuk-spacing(1);
-  line-height: 1.2;
 
   > span {
     display: block;
+    line-height: 1.2;
   }
   > span:first-child {
     float: left;
@@ -2379,11 +2379,12 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   margin-bottom: govuk-spacing(3);
 }
 
-.fphd-topic-highlight .fphd-trend-tag {
+.fphd-topic-highlight .govuk-tag.fphd-trend-tag {
   @include govuk-font-size($size: 16);
   box-sizing: border-box;
-  min-width: 0;
+  min-width: min(136px, 100%);
   max-width: 100%;
+  margin-bottom: -3px;
   white-space: normal;
 }
 
@@ -2417,7 +2418,7 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 
   .fphd-chart-section {
-    margin-bottom: govuk-spacing(1);
+    margin-bottom: 0;
   }
 
   .govuk-summary-list {
@@ -2453,6 +2454,7 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 
   .govuk-summary-list__key {
+    box-sizing: border-box;
     font-weight: bold;
     padding-right: govuk-spacing(2);
     width: 55%;
@@ -2471,7 +2473,7 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 }
 
-.fphd-topic-highlight__no-trend {
+.fphd-topic-highlight .fphd-topic-highlight__no-trend {
   display: flex;
   align-items: center;
   justify-content: center;
