@@ -2500,6 +2500,12 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   max-width: 30em;
 }
 
+// Clear search sits beside the search button, centred on it.
+.fphd-inline-search__clear {
+  align-self: center;
+  white-space: nowrap;
+}
+
 // The publisher guidance page. The row stretches the contents column to the height of the
 // guidance beside it, so the contents list can stick to the top of the window while the guidance
 // scrolls. Below tablet width the columns stack, and the list stays above the guidance.

@@ -625,6 +625,24 @@ describe('the dashboard search', () => {
     expect(hidden).toEqual([['tab', 'assigned']]);
   });
 
+  it('offers Clear search, which leads to the dashboard with no search', () => {
+    renderSearched(undefined, '/dashboard', { list: emptyList });
+
+    const clear = within(screen.getByRole('search')).getByRole('link', { name: 'Clear search' });
+    expect(clear.getAttribute('href')).toBe('/dashboard');
+    expect(clear.getAttribute('aria-current')).toBeNull();
+  });
+
+  it('keeps the open tab, and no search or page, in the Clear search link', () => {
+    renderSearched('asthma', '/dashboard?search=asthma&page=2&tab=assigned', {
+      underReview: { unassigned: [], assigned: [] },
+    });
+
+    expect(screen.getByRole('link', { name: 'Clear search' }).getAttribute('href')).toBe(
+      '/dashboard?tab=assigned',
+    );
+  });
+
   it('says no indicators match when the search matched none of the list', () => {
     renderSearched('quokka', '/dashboard?search=quokka', { list: emptyList });
 
