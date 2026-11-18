@@ -45,6 +45,7 @@ test('answers an indicator that does not exist with the not-found page', async (
     const response = await page.goto(path);
     expect(response?.status(), path).toBe(404);
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Page not found - /);
   }
 });
 

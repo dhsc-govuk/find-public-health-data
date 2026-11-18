@@ -1,12 +1,12 @@
 import { data } from 'react-router';
 
-import { NotFoundPage } from './content-page.tsx';
+import { NotFoundPage, notFoundHeading } from './content-page.tsx';
 import { createDocumentMeta } from './document-title.tsx';
 
 export function loader() {
   return data(null, { status: 404 });
 }
 
-export const meta = createDocumentMeta('Page not found');
+export const meta = createDocumentMeta(notFoundHeading);
 
 export default NotFoundPage;

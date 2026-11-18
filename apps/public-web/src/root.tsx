@@ -1,6 +1,6 @@
 import '@fphd/ui/styles.scss';
 
-import { AppDocument, AppShell, createDocumentMeta, RootErrorBoundary } from '@fphd/ui';
+import { AppDocument, AppShell, RootErrorBoundary, rootMeta } from '@fphd/ui';
 import { environmentContext } from '@fphd/web-server/environment-context';
 import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-context';
 import { href, Outlet, useRouteLoaderData } from 'react-router';
@@ -8,7 +8,7 @@ import { href, Outlet, useRouteLoaderData } from 'react-router';
 import type { Route } from './+types/root';
 
 export const Layout = AppDocument;
-export const meta = createDocumentMeta();
+export const meta = rootMeta;
 
 export function loader({ context }: Route.LoaderArgs) {
   return {

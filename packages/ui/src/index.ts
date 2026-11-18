@@ -53,7 +53,7 @@ export { GridColumn, GridRow, SectionBreak } from './layout.tsx';
 export type { MarkdownHtml, MarkdownSize } from './markdown.ts';
 export { Markdown } from './markdown-content.tsx';
 export { NonceProvider, useNonce } from './nonce.tsx';
-export { RootErrorBoundary } from './root-error-boundary.tsx';
+export { RootErrorBoundary, rootMeta } from './root-error-boundary.tsx';
 export { SearchField } from './search-field.tsx';
 export { searchPattern } from './search-pattern.ts';
 export { SelectAutocomplete } from './select-autocomplete.tsx';

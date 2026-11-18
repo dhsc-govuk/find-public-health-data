@@ -15,6 +15,7 @@ test('answers a topic that does not exist with the not-found page', async ({ pag
   const response = await page.goto('/topics/no-such-topic');
   expect(response?.status()).toBe(404);
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  await expect(page).toHaveTitle(/^Page not found - /);
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
