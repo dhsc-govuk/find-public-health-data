@@ -283,7 +283,8 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
     (await search.json()) as { indicators: { name: string; slug: string; shortId: number }[] }
   ).indicators.find(({ name }) => name === indicator.name);
   expect(found?.slug).toBeTruthy();
-  const shortId = String(found?.shortId ?? '');
+  expect(found?.shortId).toBeGreaterThan(0);
+  const shortId = String(found?.shortId);
   // The sample data covers England alone, which no area list offers, so both lists are empty.
   const lookup = await page.request.get(`${preview}/geographies?indicator=${shortId}`);
   expect(lookup.status()).toBe(200);
