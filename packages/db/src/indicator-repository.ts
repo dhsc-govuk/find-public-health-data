@@ -1,6 +1,8 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
 import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import type { Period } from '@fphd/utils/period-label';
 import {
   type PublicYearType,
   publicYearType,
@@ -70,6 +72,11 @@ export interface IndicatorSearchRow {
   name: string;
   topics: { slug: string; title: string }[];
   classifications: { dimension: string; slug: string; name: string }[];
+  /** England's latest period in the series the topic Data tab shows first; null without one. */
+  latestPeriod: Period | null;
+  /** Null for an indicator of months, which have no year type. */
+  yearType: PublicYearType | null;
+  dataUpdatedAt: string | null;
 }
 
 export interface IndicatorSearchResult {
@@ -683,6 +690,7 @@ export async function searchIndicators(
     indicatorSubtopic,
     indicatorTopic,
     observation,
+    observationSeries,
     subtopic,
     topic,
     valueType,
@@ -1001,6 +1009,10 @@ export async function searchIndicators(
         slug: indicator.slug,
         name: indicator.name,
         polarity: indicator.polarity,
+        yearType: indicator.yearType,
+        yearEndDay: indicator.yearEndDay,
+        yearEndMonth: indicator.yearEndMonth,
+        dataUpdatedAt: indicator.dataUpdatedAt,
       })
       .from(indicator);
     const selected = (
@@ -1053,7 +1065,7 @@ export async function searchIndicators(
 
   const ids = rows.map((r) => r.id);
 
-  const [topicRows, classificationRows] = await Promise.all([
+  const [topicRows, classificationRows, periodRows] = await Promise.all([
     db
       .select({
         indicatorId: indicatorTopic.indicatorId,
@@ -1075,7 +1087,27 @@ export async function searchIndicators(
       .innerJoin(classification, eq(indicatorClassification.classificationId, classification.id))
       .where(inArray(indicatorClassification.indicatorId, ids))
       .orderBy(asc(classification.dimension), asc(classification.name)),
+    // England's first series variant is the indicator's first row on the topic Data tab.
+    db
+      .select({
+        indicatorId: observationSeries.indicatorId,
+        fromDate: observation.fromDate,
+        toDate: observation.toDate,
+      })
+      .from(observationSeries)
+      .innerJoin(area, and(eq(area.id, observationSeries.areaId), eq(area.code, ENGLAND_AREA_CODE)))
+      .innerJoin(observation, eq(observation.id, observationSeries.latestObservationId))
+      .where(
+        and(
+          inArray(observationSeries.indicatorId, ids),
+          sql`${observationSeries.sex} = ${observationSeries.variants} -> 0 ->> 'sex'`,
+          sql`${observationSeries.periodType} = ${observationSeries.variants} -> 0 ->> 'periodType'`,
+        ),
+      ),
   ]);
+  const periodByIndicator = new Map(
+    periodRows.map(({ indicatorId, fromDate, toDate }) => [indicatorId, { fromDate, toDate }]),
+  );
 
   const topicsByIndicator = new Map<string, { slug: string; title: string }[]>();
   for (const { indicatorId, slug, title } of topicRows) {
@@ -1110,6 +1142,9 @@ export async function searchIndicators(
       name: r.name,
       topics: topicsByIndicator.get(r.id) ?? [],
       classifications: classificationsByIndicator.get(r.id) ?? [],
+      latestPeriod: periodByIndicator.get(r.id) ?? null,
+      yearType: r.yearType === null ? null : publicYearType(r.yearType, yearEndOf(r)),
+      dataUpdatedAt: r.dataUpdatedAt?.toISOString() ?? null,
     })),
   };
 }

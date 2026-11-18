@@ -233,7 +233,16 @@ it('moves focus from the Data controls to the indicators table without changing 
         total: 1,
         limit: 200,
         indicators: [
-          { shortId: 1, slug: 'indicator-1', name: 'Indicator', topics: [], classifications: [] },
+          {
+            shortId: 1,
+            slug: 'indicator-1',
+            name: 'Indicator',
+            topics: [],
+            classifications: [],
+            latestPeriod: null,
+            yearType: null,
+            dataUpdatedAt: null,
+          },
         ],
       },
       'GET /api/indicator-data': [

@@ -683,6 +683,35 @@ describe('searchIndicators', () => {
     expect(bySlug.indicators).toEqual([expect.objectContaining({ shortId: MORTALITY_UNDER_75 })]);
   });
 
+  it("carries England's latest period in the first series, the year type and the update date", async () => {
+    const { indicators } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: 'under 75 mortality rate from all causes' }),
+    );
+    const { indicators: diabetes } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ query: String(DIABETES_QOF_PREVALENCE) }),
+    );
+
+    // The rolling three-year series also ends in 2024, but the aggregate series comes first.
+    expect(indicators).toEqual([
+      expect.objectContaining({
+        shortId: MORTALITY_UNDER_75,
+        latestPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+        yearType: { value: 'calendar', label: 'Calendar' },
+        dataUpdatedAt: '2026-04-20T16:25:18.000Z',
+      }),
+    ]);
+    expect(diabetes).toEqual([
+      expect.objectContaining({
+        latestPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+        yearType: expect.objectContaining({ value: 'financial' }),
+      }),
+    ]);
+  });
+
   it('matches an exact short id but not the internal id', async () => {
     const byShortId = await searchIndicators(
       db,
