@@ -1000,6 +1000,30 @@ export async function searchIndicators(
                       asc(indicator.name),
                       asc(indicator.shortId),
                     ];
+  // England's first series variant is the indicator's first row on the topic Data tab. A
+  // correlated subquery keeps the lookup inside the row statement, and Postgres runs it only for
+  // the rows a page returns.
+  const englandArea = db
+    .select({ id: area.id })
+    .from(area)
+    .where(eq(area.code, ENGLAND_AREA_CODE))
+    .limit(1);
+  const latestEnglandPeriod = db
+    .select({
+      period: sql`json_build_object('fromDate', ${observation.fromDate}, 'toDate', ${observation.toDate})`,
+    })
+    .from(observationSeries)
+    .innerJoin(observation, eq(observation.id, observationSeries.latestObservationId))
+    .where(
+      and(
+        eq(observationSeries.indicatorId, indicator.id),
+        eq(observationSeries.areaId, sql`(${englandArea})`),
+        sql`${observationSeries.sex} = ${observationSeries.variants} -> 0 ->> 'sex'`,
+        sql`${observationSeries.periodType} = ${observationSeries.variants} -> 0 ->> 'periodType'`,
+      ),
+    )
+    .orderBy(desc(observation.toDate))
+    .limit(1);
   const trendSort = filters.sort?.startsWith('trend-') ?? false;
   const rowQuery = (page = 1) => {
     const query = db
@@ -1013,6 +1037,7 @@ export async function searchIndicators(
         yearEndDay: indicator.yearEndDay,
         yearEndMonth: indicator.yearEndMonth,
         dataUpdatedAt: indicator.dataUpdatedAt,
+        latestPeriod: sql<Period | null>`(${latestEnglandPeriod})`,
       })
       .from(indicator);
     const selected = (
@@ -1065,7 +1090,7 @@ export async function searchIndicators(
 
   const ids = rows.map((r) => r.id);
 
-  const [topicRows, classificationRows, periodRows] = await Promise.all([
+  const [topicRows, classificationRows] = await Promise.all([
     db
       .select({
         indicatorId: indicatorTopic.indicatorId,
@@ -1087,27 +1112,7 @@ export async function searchIndicators(
       .innerJoin(classification, eq(indicatorClassification.classificationId, classification.id))
       .where(inArray(indicatorClassification.indicatorId, ids))
       .orderBy(asc(classification.dimension), asc(classification.name)),
-    // England's first series variant is the indicator's first row on the topic Data tab.
-    db
-      .select({
-        indicatorId: observationSeries.indicatorId,
-        fromDate: observation.fromDate,
-        toDate: observation.toDate,
-      })
-      .from(observationSeries)
-      .innerJoin(area, and(eq(area.id, observationSeries.areaId), eq(area.code, ENGLAND_AREA_CODE)))
-      .innerJoin(observation, eq(observation.id, observationSeries.latestObservationId))
-      .where(
-        and(
-          inArray(observationSeries.indicatorId, ids),
-          sql`${observationSeries.sex} = ${observationSeries.variants} -> 0 ->> 'sex'`,
-          sql`${observationSeries.periodType} = ${observationSeries.variants} -> 0 ->> 'periodType'`,
-        ),
-      ),
   ]);
-  const periodByIndicator = new Map(
-    periodRows.map(({ indicatorId, fromDate, toDate }) => [indicatorId, { fromDate, toDate }]),
-  );
 
   const topicsByIndicator = new Map<string, { slug: string; title: string }[]>();
   for (const { indicatorId, slug, title } of topicRows) {
@@ -1142,7 +1147,7 @@ export async function searchIndicators(
       name: r.name,
       topics: topicsByIndicator.get(r.id) ?? [],
       classifications: classificationsByIndicator.get(r.id) ?? [],
-      latestPeriod: periodByIndicator.get(r.id) ?? null,
+      latestPeriod: r.latestPeriod,
       yearType: r.yearType === null ? null : publicYearType(r.yearType, yearEndOf(r)),
       dataUpdatedAt: r.dataUpdatedAt?.toISOString() ?? null,
     })),
