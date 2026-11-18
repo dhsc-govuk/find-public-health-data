@@ -8,13 +8,14 @@ import {
   TopicRoute,
   TopicsRoute,
 } from '@fphd/public-web-features';
+import { serviceName } from '@fphd/ui';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { createRoutesStub } from 'react-router';
+import { createRoutesStub, Meta } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { compactIndicator } from '../../../packages/public-web-features/src/indicator/compact-data.ts';
 import { indicatorComparisonModel } from '../../../packages/public-web-features/src/indicator/comparison-model.ts';
-import PublicApp, { ErrorBoundary } from './root.tsx';
+import PublicApp, { ErrorBoundary, meta } from './root.tsx';
 
 const CALENDAR_YEARS = { id: '01a0d88c-310a-7ca5-8494-19e32c307628', label: 'Calendar' };
 
@@ -535,7 +536,7 @@ describe('public application routes', () => {
     render(<Routes initialEntries={['/topics/diabetes']} />);
 
     expect(
-      await screen.findByRole('heading', { name: 'Sorry, there is a problem with this service' }),
+      await screen.findByRole('heading', { name: 'Sorry, there is a problem with the service' }),
     ).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Environment' }).textContent).toContain('Test');
   });
@@ -785,5 +786,62 @@ describe('public application routes', () => {
     render(<Routes initialEntries={['/search']} />);
 
     expect(await screen.findByText(/Showing the first 200 of 350/)).toBeTruthy();
+  });
+});
+
+describe('error page titles', () => {
+  // createRoutesStub ignores the root's Layout, which renders Meta in the app, so the root
+  // route's component and error boundary render Meta here instead.
+  function routesWithMeta(loader: () => never) {
+    return createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        meta,
+        Component: () => (
+          <>
+            <Meta />
+            <PublicApp />
+          </>
+        ),
+        ErrorBoundary: () => (
+          <>
+            <Meta />
+            <ErrorBoundary />
+          </>
+        ),
+        children: [{ path: 'topics/:slug', Component: TopicRoute, loader }],
+      },
+    ]);
+  }
+
+  async function titlesAndHeading() {
+    const heading = await screen.findByRole('heading', { level: 1 });
+    const titles = [...document.head.querySelectorAll('title')].map((title) => title.textContent);
+    return { heading: heading.textContent, titles };
+  }
+
+  it('titles the not-found page from a loader 404 after its heading', async () => {
+    const Routes = routesWithMeta(() => {
+      throw new Response('Not Found', { status: 404 });
+    });
+
+    render(<Routes initialEntries={['/topics/no-such-topic']} />);
+
+    const { heading, titles } = await titlesAndHeading();
+    expect(heading).toBe('Page not found');
+    expect(titles).toEqual([`${heading} - ${serviceName} - GOV.UK`]);
+  });
+
+  it('titles the error page after its heading when a loader fails', async () => {
+    const Routes = routesWithMeta(() => {
+      throw new Error('The API is down');
+    });
+
+    render(<Routes initialEntries={['/topics/diabetes']} />);
+
+    const { heading, titles } = await titlesAndHeading();
+    expect(heading).toBe('Sorry, there is a problem with the service');
+    expect(titles).toEqual([`${heading} - ${serviceName} - GOV.UK`]);
   });
 });

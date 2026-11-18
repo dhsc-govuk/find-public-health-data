@@ -104,6 +104,7 @@ test('answers an unknown indicator with the not-found page', async ({ page }) =>
   const response = await page.goto('/indicator/no-such-indicator');
   expect(response?.status()).toBe(404);
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  await expect(page).toHaveTitle(/^Page not found - /);
 });
 
 test('redirects a numeric indicator address to its slug and keeps the query', async ({ page }) => {

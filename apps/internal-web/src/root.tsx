@@ -1,13 +1,7 @@
 import '@fphd/ui/styles.scss';
 
 import { canEditIndicators, canManage } from '@fphd/auth/permissions';
-import {
-  AppDocument,
-  AppShell,
-  backLinkFrom,
-  createDocumentMeta,
-  RootErrorBoundary,
-} from '@fphd/ui';
+import { AppDocument, AppShell, backLinkFrom, RootErrorBoundary, rootMeta } from '@fphd/ui';
 import { environmentContext } from '@fphd/web-server/environment-context';
 import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-context';
 import { flashMiddleware } from '@fphd/web-server/flash';
@@ -18,7 +12,7 @@ import { href, Outlet, useLoaderData, useMatches, useRouteLoaderData } from 'rea
 import type { Route } from './+types/root';
 
 export const Layout = AppDocument;
-export const meta = createDocumentMeta();
+export const meta = rootMeta;
 export const middleware: Route.MiddlewareFunction[] = [sessionMiddleware, flashMiddleware];
 
 export function loader({ context }: Route.LoaderArgs) {

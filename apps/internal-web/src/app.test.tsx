@@ -8,14 +8,14 @@ import {
   SignInLandingPage,
 } from '@fphd/internal-web-features';
 import { TopicsRoute } from '@fphd/public-web-features';
-import { backLinkHandle } from '@fphd/ui';
+import { backLinkHandle, serviceName } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createRoutesStub } from 'react-router';
+import { createRoutesStub, Meta } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import InternalApp, { ErrorBoundary } from './root.tsx';
+import InternalApp, { ErrorBoundary, meta } from './root.tsx';
 import routes from './routes.ts';
 
 afterEach(() => {
@@ -587,5 +587,65 @@ describe('the edit topic page', () => {
     expect(slug.getAttribute('aria-describedby')).toContain('slug-error');
     expect(container.querySelector('#slug-error')?.textContent).toContain('Enter a slug');
     expect(screen.getByLabelText('Topic name').getAttribute('value')).toBe('A half-finished edit');
+  });
+});
+
+describe('error page titles', () => {
+  // createRoutesStub ignores the root's Layout, which renders Meta in the app, so the root
+  // route's component and error boundary render Meta here instead.
+  function routesWithMeta(loader: () => never) {
+    return createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        meta,
+        loader: () => publisher,
+        Component: () => (
+          <>
+            <Meta />
+            <InternalApp />
+          </>
+        ),
+        ErrorBoundary: () => (
+          <>
+            <Meta />
+            <ErrorBoundary />
+          </>
+        ),
+        children: [{ path: 'dashboard/indicators/:id', Component: ManageDataPage, loader }],
+      },
+    ]);
+  }
+
+  async function titlesAndHeading() {
+    const heading = await screen.findByRole('heading', { level: 1 });
+    const titles = [...document.head.querySelectorAll('title')].map((title) => title.textContent);
+    return { heading: heading.textContent, titles };
+  }
+
+  it('titles the not-found page from a loader 404 after its heading', async () => {
+    const Routes = routesWithMeta(() => {
+      throw new Response('Not Found', { status: 404 });
+    });
+
+    render(<Routes initialEntries={['/dashboard/indicators/not-an-id']} />);
+
+    const { heading, titles } = await titlesAndHeading();
+    expect(heading).toBe('Page not found');
+    expect(titles).toEqual([`${heading} - ${serviceName} - GOV.UK`]);
+  });
+
+  it('titles the error page after its heading when a loader fails', async () => {
+    const Routes = routesWithMeta(() => {
+      throw new Error('The API is down');
+    });
+
+    render(
+      <Routes initialEntries={['/dashboard/indicators/0198a2b4-0000-7000-8000-000000000000']} />,
+    );
+
+    const { heading, titles } = await titlesAndHeading();
+    expect(heading).toBe('Sorry, there is a problem with the service');
+    expect(titles).toEqual([`${heading} - ${serviceName} - GOV.UK`]);
   });
 });

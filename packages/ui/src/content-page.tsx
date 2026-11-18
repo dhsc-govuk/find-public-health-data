@@ -16,9 +16,11 @@ export function PageIntro({ children, size = 'xl', title }: PageIntroProps) {
   );
 }
 
+export const notFoundHeading = 'Page not found';
+
 export function NotFoundPage() {
   return (
-    <PageIntro title="Page not found">
+    <PageIntro title={notFoundHeading}>
       <p className="govuk-body">The page you requested does not exist.</p>
     </PageIntro>
   );
