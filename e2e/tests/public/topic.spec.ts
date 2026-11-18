@@ -174,6 +174,8 @@ test('names each geography tree on the page differently at 320px', async ({ page
   await page.setViewportSize({ width: 320, height: 800 });
   await openTopicPage(page, '/topics/diabetes?tab-topic=data');
 
-  await expect(page.locator('.fphd-geo-alt__tree')).toHaveCount(3);
+  const trees = page.locator('.fphd-geo-alt__tree');
+  await expect(trees).toHaveCount(3);
+  for (const tree of await trees.all()) await expect(tree).toBeVisible();
   await expectUniqueLandmarkNames(page);
 });
