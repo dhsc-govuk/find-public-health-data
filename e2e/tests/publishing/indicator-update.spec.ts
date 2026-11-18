@@ -270,7 +270,15 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
     expect(href.startsWith(path), `${name} links to ${href}`).toBe(true);
     expect((await page.request.get(href)).status()).toBe(200);
   }
-  const slug = new URL(publicIndicatorUrl(indicator.name)).pathname.split('/').at(-1) ?? '';
+  // The preview's search gives the indicator's slug as publication would leave it.
+  const search = await page.request.get(
+    `${preview}/indicators/search?q=${encodeURIComponent(indicator.name)}`,
+  );
+  const found = (
+    (await search.json()) as { indicators: { name: string; slug: string }[] }
+  ).indicators.find(({ name }) => name === indicator.name);
+  expect(found?.slug).toBeTruthy();
+  const slug = found?.slug ?? '';
   // The sample data covers England alone, which no area list offers, so both lists are empty.
   const lookup = await page.request.get(`${preview}/geographies?indicator=${slug}`);
   expect(lookup.status()).toBe(200);
