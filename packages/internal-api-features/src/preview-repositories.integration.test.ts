@@ -16,10 +16,12 @@ import {
 const { indicatorVersion, uploadBatch } = schema;
 
 // Seeded indicators with data at England level and read models for their published batch.
-const DIABETES_QOF_PREVALENCE = 241;
 const MORTALITY_UNDER_75 = 108;
 const DIABETES_MORTALITY = 93995;
-const PREVIEWED_NAME = 'Diabetes prevalence as the preview shows it';
+// Shares Cornwall and England with indicator 108, so a published scatter of the two has points.
+const SCATTER_PARTNER = 40501;
+const SCATTER_AREAS = ['E06000052', ENGLAND_AREA_CODE];
+const PREVIEWED_NAME = 'Mortality as the preview shows it';
 
 const testDb = await createTestDb({ template: 'seeded' });
 const internalDb = testDb.connectDb({ login: apiLogin('internal_api') });
@@ -43,17 +45,22 @@ async function previewOf(indicatorId: string): Promise<PreviewRepositories> {
   return createPreviewRepositories(internalDb, version);
 }
 
-/** What each kind of public read answers for an indicator, by its id and short id. */
-async function readsOf(repositories: Repositories, indicatorId: string, shortId: number) {
+/**
+ * What each kind of public read answers for an indicator, by its id and short id. The scatter
+ * pairs it with `partner`, another published indicator.
+ */
+async function readsOf(
+  repositories: Repositories,
+  indicatorId: string,
+  shortId: number,
+  partner: number,
+) {
   const [areas, data, ranking, table, scatter] = await Promise.all([
     repositories.indicators.listAreas(indicatorId),
     repositories.indicators.findObservationsForAreas(indicatorId, [ENGLAND_AREA_CODE]),
     repositories.indicators.findRankingData(indicatorId, [ENGLAND_AREA_CODE]),
     repositories.indicators.findTableData([shortId], [ENGLAND_AREA_CODE]),
-    repositories.indicators.findScatterData(
-      [shortId, DIABETES_QOF_PREVALENCE],
-      [ENGLAND_AREA_CODE],
-    ),
+    repositories.indicators.findScatterData([shortId, partner], SCATTER_AREAS),
   ]);
   const displayGroup = areas[0]?.displayGroup;
   const range = displayGroup
@@ -152,7 +159,7 @@ describe('an update that keeps the published batch', () => {
   let indicatorId: string;
 
   beforeAll(async () => {
-    indicatorId = await publishedId(DIABETES_QOF_PREVALENCE);
+    indicatorId = await publishedId(MORTALITY_UNDER_75);
     const opened = await createDraftFromPublished(testDb.db, indicatorId, AS_ACTOR);
     if (!opened.ok) throw new Error(`no draft: ${opened.reason}`);
     await answerUpdate(
@@ -176,23 +183,25 @@ describe('an update that keeps the published batch', () => {
       summary: 'Changed the polarity.',
     });
     expect((await publicSite.indicators.findDetailById(indicatorId))?.name).toBe(
-      'Diabetes: QOF prevalence',
+      'Under 75 mortality rate from all causes',
     );
   });
 
   it('shows the published data, ready, with the table naming the update', async () => {
     const preview = await previewOf(indicatorId);
 
-    const previewed = await readsOf(preview, indicatorId, DIABETES_QOF_PREVALENCE);
-    const published = await readsOf(publicSite, indicatorId, DIABETES_QOF_PREVALENCE);
+    const previewed = await readsOf(preview, indicatorId, MORTALITY_UNDER_75, SCATTER_PARTNER);
+    const published = await readsOf(publicSite, indicatorId, MORTALITY_UNDER_75, SCATTER_PARTNER);
 
     expect(await preview.findDataState(indicatorId)).toBe('ready');
     expect(previewed.areas.length).toBeGreaterThan(0);
     expect(previewed.data[0]?.observations.length).toBeGreaterThan(0);
     expect(previewed.data[0]?.observations[0]?.fromDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(previewed.range.length).toBeGreaterThan(0);
+    // A scatter of two different indicators, so its equality below compares real points.
+    expect(previewed.scatter?.length).toBeGreaterThan(0);
     expect(previewed.table[0]?.detail.name).toBe(PREVIEWED_NAME);
-    expect(published.table[0]?.detail.name).toBe('Diabetes: QOF prevalence');
+    expect(published.table[0]?.detail.name).toBe('Under 75 mortality rate from all causes');
     expect({ ...previewed, table: undefined }).toEqual({ ...published, table: undefined });
   });
 });
@@ -201,7 +210,7 @@ describe('an update with data of its own, which has no read models yet', () => {
   let indicatorId: string;
 
   beforeAll(async () => {
-    indicatorId = await publishedId(MORTALITY_UNDER_75);
+    indicatorId = await publishedId(SCATTER_PARTNER);
     const opened = await createDraftFromPublished(testDb.db, indicatorId, AS_ACTOR);
     if (!opened.ok) throw new Error(`no draft: ${opened.reason}`);
     const [batch] = await testDb.db
@@ -223,8 +232,8 @@ describe('an update with data of its own, which has no read models yet', () => {
   it('reads as missing its read models, and no read shows the published data', async () => {
     const preview = await previewOf(indicatorId);
 
-    const previewed = await readsOf(preview, indicatorId, MORTALITY_UNDER_75);
-    const published = await readsOf(publicSite, indicatorId, MORTALITY_UNDER_75);
+    const previewed = await readsOf(preview, indicatorId, SCATTER_PARTNER, MORTALITY_UNDER_75);
+    const published = await readsOf(publicSite, indicatorId, SCATTER_PARTNER, MORTALITY_UNDER_75);
 
     expect(await preview.findDataState(indicatorId)).toBe('read-models-missing');
     const observations = (areas: { observations: unknown[] }[]) =>
@@ -241,6 +250,7 @@ describe('an update with data of its own, which has no read models yet', () => {
       observations(published.table.flatMap(({ areaData }) => areaData)).length,
     ).toBeGreaterThan(0);
     expect(published.range.length).toBeGreaterThan(0);
+    expect(published.scatter?.length).toBeGreaterThan(0);
   });
 });
 
