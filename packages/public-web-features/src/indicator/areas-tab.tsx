@@ -112,7 +112,7 @@ export function CompareAreasTab({
         <GridColumn width="three-quarters">
           <div className="fphd-indicator-showing">
             <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
-            <FilterChips>
+            <FilterChips collapse>
               <FilterChip value={compareAreaGroup}>{compareAreaGroup}</FilterChip>
               {shownAreas.map(({ code, name }) => (
                 <FilterChip
