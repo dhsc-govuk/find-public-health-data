@@ -1222,5 +1222,13 @@
     "classificationScheme": "IMD2015",
     "granularity": "deciles",
     "isRequired": false
+  },
+  {
+    "id": "019de0d5-c800-700a-8000-0000000009c2",
+    "name": "Ethnic groups [249]",
+    "dimensionClass": "inequality",
+    "classificationScheme": "Ethnic groups",
+    "granularity": null,
+    "isRequired": false
   }
 ]

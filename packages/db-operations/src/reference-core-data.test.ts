@@ -9,8 +9,8 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     Object.fromEntries(Object.entries(records).map(([key, rows]) => [key, rows.length])),
   ).toEqual({
     areaTypes: 101,
-    dimensionTypes: 153,
-    dimensionValues: 1384,
+    dimensionTypes: 154,
+    dimensionValues: 1392,
     noteTypes: 236,
   });
 });

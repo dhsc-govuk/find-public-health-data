@@ -12321,6 +12321,78 @@
     "isAggregate": false
   },
   {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a882",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Asian or Asian British",
+    "code": "1",
+    "sortOrder": 1,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a884",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Black or Black British",
+    "code": "2",
+    "sortOrder": 2,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a886",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Mixed",
+    "code": "3",
+    "sortOrder": 3,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a888",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "White",
+    "code": "4",
+    "sortOrder": 4,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a88a",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Any other ethnic group",
+    "code": "5",
+    "sortOrder": 5,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a88c",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Not Stated",
+    "code": "6",
+    "sortOrder": 6,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a88e",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Not known",
+    "code": "7",
+    "sortOrder": 7,
+    "isAggregate": false
+  },
+  {
+    "id": "019de0d5-c800-700b-8000-0004c5c6a890",
+    "dimensionTypeId": "019de0d5-c800-700a-8000-0000000009c2",
+    "parentId": null,
+    "name": "Missing Value / Value outside reporting parameters",
+    "code": "8",
+    "sortOrder": 8,
+    "isAggregate": false
+  },
+  {
     "id": "019de0d5-c800-700b-8000-000952365c82",
     "dimensionTypeId": "019de0d5-c800-700a-8000-0000000007f2",
     "parentId": null,
