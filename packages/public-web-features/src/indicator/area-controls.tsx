@@ -169,13 +169,13 @@ function NeighbourControl({
 }
 
 export function AreaControls({
-  slug,
+  shortId,
   group,
   groups,
   areas,
   displayOptions = true,
 }: {
-  slug: string;
+  shortId: number;
   group: string;
   groups: string[];
   areas: CompareAreaOption[];
@@ -232,7 +232,7 @@ export function AreaControls({
             }
             searchLabel={`Highlight ${geographyGroupLabel(group)}`}
             searchHint="Search areas"
-            lookupUrl={`${links.geographies}?indicator=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}`}
+            lookupUrl={`${links.geographies}?indicator=${shortId}&displayGroup=${encodeURIComponent(group)}`}
             fallback={{
               query: search,
               level: '',

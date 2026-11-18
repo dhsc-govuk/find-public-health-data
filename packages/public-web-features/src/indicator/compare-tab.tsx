@@ -55,7 +55,7 @@ export function CompareIndicatorsTab({
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const areaDetail = useCompareAreaDetail({
-    slug: detail.slug,
+    shortId: detail.shortId,
     group: compareAreaGroup,
     areas: compareAreaOptions,
     params,
@@ -101,7 +101,7 @@ export function CompareIndicatorsTab({
               </p>
             ) : null}
             <AreaControls
-              slug={detail.slug}
+              shortId={detail.shortId}
               group={compareAreaGroup}
               groups={comparisonDisplayGroups}
               areas={areaDetail.areas}

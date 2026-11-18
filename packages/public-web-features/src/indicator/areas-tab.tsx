@@ -40,7 +40,7 @@ export function CompareAreasTab({
     error,
     retry,
   } = useCompareAreaDetail({
-    slug: detail.slug,
+    shortId: detail.shortId,
     group: compareAreaGroup,
     areas: compareAreaOptions,
     params,
@@ -95,7 +95,7 @@ export function CompareAreasTab({
               </p>
             ) : null}
             <AreaControls
-              slug={detail.slug}
+              shortId={detail.shortId}
               group={compareAreaGroup}
               groups={comparisonDisplayGroups}
               areas={areaOptions}

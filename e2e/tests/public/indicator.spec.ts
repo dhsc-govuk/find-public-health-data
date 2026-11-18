@@ -5,7 +5,12 @@ import {
   expectUniqueLandmarkNames,
 } from '../support/accessibility.ts';
 import { downloadFrom } from '../support/downloads.ts';
-import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
+import {
+  filterCard,
+  MORTALITY_NAME,
+  MORTALITY_PATH,
+  openIndicatorPage,
+} from '../support/indicator-page.ts';
 import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
 
 test.beforeEach(async ({ page }) => {
@@ -375,7 +380,7 @@ test('adds one comparison indicator through search and clears it', async ({ page
   await expect(comparison).toBeVisible();
   const comparisonName = (await comparison.innerText()).trim();
   await comparison.click();
-  await expect(page).toHaveURL(/compareWith=/);
+  await expect(page).toHaveURL(/compareWith=\d+(?:&|$)/);
   const table = page.getByRole('table', { name: /Table of indicator comparison/ });
   await expect(table.getByRole('rowheader', { name: 'England' })).toBeVisible();
   await expect(table.getByRole('columnheader', { name: comparisonName })).toBeVisible();
@@ -398,7 +403,7 @@ test('adds one comparison indicator through search and clears it', async ({ page
 test('opens a comparison link directly and can return to the indicator tab', async ({
   page,
 }, testInfo) => {
-  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=diabetes-qof-prevalence`);
+  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=241`);
   await expect(page.getByRole('tab', { name: 'Compare indicators' })).toHaveAttribute(
     'aria-selected',
     'true',
@@ -410,8 +415,22 @@ test('opens a comparison link directly and can return to the indicator tab', asy
     'aria-selected',
     'true',
   );
-  await expect(page).toHaveURL(/compareWith=diabetes-qof-prevalence/);
+  await expect(page).toHaveURL(/compareWith=241/);
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+// DAC's App Gateway refuses a query string holding a long hyphenated name beside other
+// parameters, so the page names the compared indicator by its number.
+test('moves a comparison link that names an indicator by its slug to its number', async ({
+  page,
+}) => {
+  await openIndicatorPage(
+    page,
+    `${MORTALITY_PATH}?tab-indicator=compare&compareWith=diabetes-qof-prevalence`,
+  );
+
+  await expect(page).toHaveURL(`${MORTALITY_PATH}?tab-indicator=compare&compareWith=241`);
+  await expect(page.getByRole('table', { name: /Table of indicator comparison/ })).toBeVisible();
 });
 
 test('shows inequalities and methodology', async ({ page }) => {
@@ -650,6 +669,46 @@ test('selects only the visible search matches in a region', async ({ page }) => 
     .toEqual(['E06000001']);
 });
 
+// DAC's App Gateway refuses a query string holding a long hyphenated name beside other
+// parameters, so the page's lookups name the indicator by its number.
+test("names an indicator with a long slug by its number in the page's lookups", async ({
+  page,
+}) => {
+  const lookups: URL[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === '/geographies' || url.pathname === '/compare-areas') lookups.push(url);
+  });
+  await openIndicatorPage(
+    page,
+    '/indicator/the-percentage-of-people-resident-in-the-area-living-in-each-national-deprivation-quintile',
+  );
+
+  await filterCard(page, 'Geographies')
+    .first()
+    .getByRole('searchbox', { name: 'Search for a geography' })
+    .fill('Leeds');
+  await expect(page.getByRole('checkbox', { name: 'Leeds', exact: true }).first()).toBeVisible();
+  await page.getByRole('tab', { name: 'Compare areas' }).click();
+  await expect(
+    page
+      .getByRole('tabpanel', { name: 'Compare areas' })
+      .getByRole('checkbox', { name: /^North East: all/ }),
+  ).toBeVisible();
+
+  expect(lookups.map(({ pathname }) => pathname)).toEqual(
+    expect.arrayContaining(['/geographies', '/compare-areas']),
+  );
+  for (const lookup of lookups) {
+    if (lookup.searchParams.has('indicator')) {
+      expect(lookup.searchParams.get('indicator')).toBe('90851');
+    }
+  }
+  expect(
+    lookups.filter(({ searchParams }) => searchParams.has('indicator')).length,
+  ).toBeGreaterThan(1);
+});
+
 test('retries unavailable comparison details when the user asks', async ({ page }) => {
   let failed = false;
   await page.route('**/compare-areas?*', async (route) => {
@@ -829,10 +888,7 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
       .first(),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
-  await openIndicatorPage(
-    page,
-    `${MORTALITY_PATH}?compareWith=under-75-mortality-rate-from-cancer`,
-  );
+  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=40501`);
   const scatter = page.getByRole('application', {
     name: /^Under 75 mortality rate from all causes, female compared with Under 75 mortality rate from cancer, female/,
   });
@@ -1026,7 +1082,7 @@ test('keeps the indicator comparison controls accessible in the stacked mobile v
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 1000 });
-  await page.goto(`${MORTALITY_PATH}?compareWith=diabetes-qof-prevalence`);
+  await page.goto(`${MORTALITY_PATH}?compareWith=241`);
   await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);
   await expect(page.getByRole('tab')).toHaveCount(0);
   await expect(
@@ -1180,7 +1236,7 @@ test('keeps scatter axes, sex, correlation and controls usable at desktop and mo
 }, testInfo) => {
   await openIndicatorPage(
     page,
-    `${MORTALITY_PATH}?tab-indicator=compare&compareWith=under-75-mortality-rate-from-cancer&highlight=E10000032`,
+    `${MORTALITY_PATH}?tab-indicator=compare&compareWith=40501&highlight=E10000032`,
   );
   const panel = page.locator('#indicator-compare-indicators');
   const chart = panel.locator('#compare-chart-section');
@@ -1219,7 +1275,7 @@ test('pairs diabetes QOF prevalence and diabetes mortality at their own latest p
 }, testInfo) => {
   await openIndicatorPage(
     page,
-    '/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=mortality-rate-for-deaths-involving-diabetes-all-ages',
+    '/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=93995',
   );
   const panel = page.locator('#indicator-compare-indicators');
   const chart = panel.locator('#compare-chart-section');
@@ -1252,7 +1308,7 @@ test('pairs diabetes QOF prevalence and diabetes mortality at their own latest p
 });
 
 test('names each geography tree on the page differently at 320px', async ({ page }) => {
-  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=diabetes-qof-prevalence`);
+  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=241`);
   await page.setViewportSize({ width: 320, height: 800 });
 
   // Below tablet width every tab panel shows, so axe scans all three trees.

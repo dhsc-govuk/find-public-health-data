@@ -18,12 +18,12 @@ type Parent = CompareAreaOption['parent'];
  * element is first on screen they are fetched: regions once, neighbours as areas are highlighted.
  */
 export function useCompareAreaDetail({
-  slug,
+  shortId,
   group,
   areas,
   params,
 }: {
-  slug: string;
+  shortId: number;
   group: string;
   areas: CompareAreaOption[];
   params: URLSearchParams;
@@ -63,7 +63,11 @@ export function useCompareAreaDetail({
     if (!shown || !needsParents || parents?.group === group) return;
     const controller = new AbortController();
     setParentsError('');
-    const query = new URLSearchParams({ indicator: slug, displayGroup: group, parents: '1' });
+    const query = new URLSearchParams({
+      indicator: String(shortId),
+      displayGroup: group,
+      parents: '1',
+    });
     void fetch(`${compareAreas}?${query}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('Could not load regions');
@@ -82,7 +86,7 @@ export function useCompareAreaDetail({
         if (!controller.signal.aborted) setParentsError(group);
       });
     return () => controller.abort();
-  }, [shown, needsParents, parents?.group, slug, group, attempt, compareAreas]);
+  }, [shown, needsParents, parents?.group, shortId, group, attempt, compareAreas]);
 
   const withParents =
     parents?.group === group

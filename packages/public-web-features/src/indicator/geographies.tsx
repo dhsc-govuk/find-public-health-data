@@ -14,14 +14,12 @@ export function IndicatorGeographies({
   shortId,
   displayGroups,
   geographyOptions,
-  slug,
   selection,
 }: {
   children?: ReactNode;
   shortId: number;
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
-  slug: string;
   selection: IndicatorSelection;
 }) {
   const location = useLocation();
@@ -51,7 +49,7 @@ export function IndicatorGeographies({
         onClear={picked ? urlFor([], []) : undefined}
       >
         <GeographyPicker
-          lookupUrl={`${links.geographies}?indicator=${encodeURIComponent(slug)}&scheme=public`}
+          lookupUrl={`${links.geographies}?indicator=${shortId}&scheme=public`}
           searchLabel="Search for a geography"
           searchHint="Search by name, for example Leeds"
           action={`${location.pathname}#indicator-data`}

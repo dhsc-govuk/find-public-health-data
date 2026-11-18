@@ -1,6 +1,6 @@
 [
   {
-    "url": "http://localhost/indicator/diabetes-qof-prevalence?compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032",
+    "url": "http://localhost/indicator/diabetes-qof-prevalence?compareWith=92443&as=E07000223&as=E07000032",
     "ids": [241, 92443],
     "group": "Local authorities",
     "scatter": {
@@ -8,7 +8,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/diabetes-qof-prevalence?compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032&areaType=Statistical%20regions",
+    "url": "http://localhost/indicator/diabetes-qof-prevalence?compareWith=92443&as=E07000223&as=E07000032&areaType=Statistical%20regions",
     "ids": [241, 92443],
     "group": "Statistical regions",
     "scatter": {
@@ -16,7 +16,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=diabetes-qof-prevalence&as=E07000223&as=E07000032",
+    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=241&as=E07000223&as=E07000032",
     "ids": [108, 241],
     "group": "Local authorities",
     "scatter": {
@@ -24,7 +24,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=diabetes-qof-prevalence&as=E07000223&as=E07000032&areaType=Statistical%20regions",
+    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=241&as=E07000223&as=E07000032&areaType=Statistical%20regions",
     "ids": [108, 241],
     "group": "Statistical regions",
     "scatter": {
@@ -32,7 +32,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=under-75-mortality-rate-from-cancer&as=E07000223&as=E07000032",
+    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=40501&as=E07000223&as=E07000032",
     "ids": [108, 40501],
     "group": "Local authorities",
     "scatter": {
@@ -1346,7 +1346,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=under-75-mortality-rate-from-cancer&as=E07000223&as=E07000032&areaType=Statistical%20regions",
+    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=40501&as=E07000223&as=E07000032&areaType=Statistical%20regions",
     "ids": [108, 40501],
     "group": "Statistical regions",
     "scatter": {
@@ -1445,7 +1445,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032",
+    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=92443&as=E07000223&as=E07000032",
     "ids": [108, 92443],
     "group": "Local authorities",
     "scatter": {
@@ -1453,7 +1453,7 @@
     }
   },
   {
-    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032&areaType=Statistical%20regions",
+    "url": "http://localhost/indicator/under-75-mortality-rate-from-all-causes?compareWith=92443&as=E07000223&as=E07000032&areaType=Statistical%20regions",
     "ids": [108, 92443],
     "group": "Statistical regions",
     "scatter": {

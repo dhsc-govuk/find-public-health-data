@@ -79,8 +79,10 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
       url.searchParams.delete('compareWith');
       throw redirect(`${pagePath}${pageSearch(url)}`, 302);
     }
-    if (comparedDetail.slug !== compareSegment) {
-      url.searchParams.set('compareWith', comparedDetail.slug);
+    // The compared indicator is named by its short id, as a slug can hold more hyphens than DAC's
+    // App Gateway lets through in a query string with others beside it.
+    if (String(comparedDetail.shortId) !== compareSegment) {
+      url.searchParams.set('compareWith', String(comparedDetail.shortId));
       throw redirect(`${pagePath}${pageSearch(url)}`, 302);
     }
   }
