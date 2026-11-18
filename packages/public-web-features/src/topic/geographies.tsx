@@ -90,6 +90,7 @@ export function TopicGeographies({
               key={selectedGroup}
               flat
               name="ga"
+              choicesLabel="Geography choices for Area summaries"
               levels={[selectedGroup]}
               selected={selectedCodes}
               selectedLevels={[]}
@@ -118,6 +119,7 @@ export function TopicGeographies({
       path={path}
       formAction={action}
       extraParams={extraParams}
+      choicesLabel={`Geography choices for ${tab === 'overview' ? 'Overview' : 'Data'}`}
       single={tab === 'overview'}
     />
   );

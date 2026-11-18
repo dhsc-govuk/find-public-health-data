@@ -17,6 +17,7 @@ export function GeographyPicker({
   levelName,
   name,
   onApply,
+  choicesLabel,
   replace = false,
   selection,
   lookupUrl,
@@ -31,6 +32,7 @@ export function GeographyPicker({
   levelName: string;
   name: string;
   onApply: (selection: GeographySelection) => void;
+  choicesLabel: string;
   replace?: boolean;
   selection: GeographySelection;
   lookupUrl?: string | undefined;
@@ -57,6 +59,7 @@ export function GeographyPicker({
         levels={displayGroups}
         maxAreaTicks={MAX_SELECTED_AREAS}
         name={name}
+        choicesLabel={choicesLabel}
         onChange={(areaCodes) => {
           const next = { ...pending, areaCodes, ...(single ? { areaLevels: [] } : {}) };
           setPending(next);

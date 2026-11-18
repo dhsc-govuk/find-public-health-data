@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import {
+  expectNoAccessibilityViolations,
+  expectUniqueLandmarkNames,
+} from '../support/accessibility.ts';
 import { downloadFrom } from '../support/downloads.ts';
 import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
 import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
@@ -1124,4 +1127,74 @@ test('lets a table that fits keep the browser’s layout without a custom scroll
     .evaluate((row) => window.scrollTo(0, row.getBoundingClientRect().top + window.scrollY));
   await expect(page.locator('.fphd-sticky-header').filter({ visible: true })).toHaveCount(0);
   await expect(page.locator('.fphd-table-scrollbar--floating')).toHaveCount(0);
+});
+
+test('names each geography tree on the page differently at 320px', async ({ page }) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=diabetes-qof-prevalence`);
+  await page.setViewportSize({ width: 320, height: 800 });
+
+  // Below tablet width every tab panel shows, so axe scans all three trees.
+  const trees = page.locator('.fphd-geo-alt__tree');
+  await expect(trees).toHaveCount(3);
+  for (const tree of await trees.all()) await expect(tree).toBeVisible();
+  await expectUniqueLandmarkNames(page);
+});
+
+test('shows the GOV.UK focus style on a geography tree reached by keyboard', async ({ page }) => {
+  const panel = page.locator('#indicator-data');
+  const tree = panel.getByRole('region', { name: 'Geography choices for Indicator' });
+  await panel.getByRole('searchbox', { name: 'Search for a geography' }).focus();
+  for (
+    let presses = 0;
+    presses < 5 && !(await tree.evaluate((el) => el === document.activeElement));
+    presses++
+  ) {
+    await page.keyboard.press('Tab');
+  }
+
+  await expect(tree).toBeFocused();
+  // govuk-focused-box draws a yellow ring inside a black one.
+  await expect(tree).toHaveCSS(
+    'box-shadow',
+    'rgb(255, 221, 0) 0px 0px 0px 4px, rgb(11, 12, 12) 0px 0px 0px 8px',
+  );
+});
+
+test('shows the caption of a wide trend table in full at 320px without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+    viewport: { width: 320, height: 800 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${MORTALITY_PATH}?as=E08000003&as=E08000007&as=E08000009&cmp-108=england`);
+    const region = page.getByRole('region', { name: `${MORTALITY_NAME} trends over time` });
+    const caption = region.locator('caption');
+    await expect(caption).toContainText(`Table: ${MORTALITY_NAME}, 3 chosen areas`);
+
+    // The caption stays inside the region and its text fits the caption, including once the
+    // table has scrolled sideways.
+    for (const scrollLeft of [0, 600]) {
+      await region.evaluate((element, left) => {
+        element.scrollLeft = left;
+      }, scrollLeft);
+      expect(await region.evaluate((element) => element.scrollLeft)).toBe(scrollLeft);
+      const regionBox = await region.boundingBox();
+      const captionBox = await caption.boundingBox();
+      if (!regionBox || !captionBox) throw new Error('The region and its caption must be shown');
+      expect(captionBox.x).toBeGreaterThanOrEqual(regionBox.x);
+      expect(captionBox.x + captionBox.width).toBeLessThanOrEqual(regionBox.x + regionBox.width);
+      expect(await caption.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+    }
+  } finally {
+    await context.close();
+  }
 });

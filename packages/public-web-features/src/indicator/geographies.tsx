@@ -41,6 +41,7 @@ export function IndicatorGeographies({
           geographyOptions={geographyOptions}
           levelName="als"
           name="as"
+          choicesLabel="Geography choices for Indicator"
           onApply={({ areaCodes, areaLevels }) => {
             void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
           }}

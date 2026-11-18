@@ -104,3 +104,13 @@ export async function expectNoAccessibilityViolations(page: Page, testInfo: Test
     'known violations no longer seen on this page: remove them from KNOWN_VIOLATIONS',
   ).toEqual([]);
 }
+
+/**
+ * Fails when two landmarks of the same kind share a name, such as two regions both called
+ * "Geography choices". axe files this rule under best practice rather than WCAG, so the WCAG
+ * scan above doesn't run it.
+ */
+export async function expectUniqueLandmarkNames(page: Page) {
+  const { violations } = await new AxeBuilder({ page }).withRules(['landmark-unique']).analyze();
+  expect(violations.map(describeViolation)).toEqual([]);
+}

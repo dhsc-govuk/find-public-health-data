@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import {
+  expectNoAccessibilityViolations,
+  expectUniqueLandmarkNames,
+} from '../support/accessibility.ts';
 import { openTopicPage, topicPageTests } from '../support/topic-page.ts';
 
 test('shows a topic', async ({ page }) => {
@@ -165,4 +168,12 @@ test('compares a chosen area with England and shows minimum and maximum values',
     table.getByRole('columnheader', { name: 'England highest', exact: true }),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('names each geography tree on the page differently at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await openTopicPage(page, '/topics/diabetes?tab-topic=data');
+
+  await expect(page.locator('.fphd-geo-alt__tree')).toHaveCount(3);
+  await expectUniqueLandmarkNames(page);
 });
