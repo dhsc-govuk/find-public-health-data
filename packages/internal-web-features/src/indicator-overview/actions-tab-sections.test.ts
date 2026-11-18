@@ -43,7 +43,7 @@ const confirmDate = {
 };
 const decideUpdate = {
   href: `/dashboard/indicators/${ID}/update-decision`,
-  label: 'Submit update decision',
+  label: 'Confirm update decision',
 };
 const changeDate = {
   href: `/dashboard/indicators/${ID}/publication-date`,

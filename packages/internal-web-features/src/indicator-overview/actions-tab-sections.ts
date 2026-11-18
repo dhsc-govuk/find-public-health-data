@@ -107,7 +107,7 @@ function actionsButton(
     };
   }
   if (indicator.actions.some((step) => UPDATE_DECISION_STEPS.includes(step))) {
-    return { href: updateDecisionPath(indicator.id), label: 'Submit update decision' };
+    return { href: updateDecisionPath(indicator.id), label: 'Confirm update decision' };
   }
   if (indicator.actions.includes('schedule')) {
     return { href: indicatorPublicationDatePath(indicator.id), label: 'Confirm publication date' };
