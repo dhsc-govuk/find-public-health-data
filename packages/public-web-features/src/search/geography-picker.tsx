@@ -9,6 +9,7 @@ export function SearchGeographyPicker({
   displayGroups,
   geographyOptions,
   onApply,
+  choicesLabel,
   single = false,
   lookupUrl,
 }: {
@@ -18,6 +19,7 @@ export function SearchGeographyPicker({
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
   onApply: (next: SearchState) => void;
+  choicesLabel: string;
   single?: boolean;
   lookupUrl?: string | undefined;
 }) {
@@ -32,6 +34,7 @@ export function SearchGeographyPicker({
       geographyOptions={geographyOptions}
       levelName="geo"
       name="ga"
+      choicesLabel={choicesLabel}
       onApply={({ areaCodes, areaLevels }) =>
         onApply({ ...state, gaCodes: areaCodes, geoLevels: areaLevels })
       }

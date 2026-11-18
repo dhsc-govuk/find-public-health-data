@@ -220,6 +220,7 @@ export function AreaControls({
             key={group}
             flat
             name="highlight"
+            choicesLabel={`Geography choices for ${displayOptions ? 'Compare areas' : 'Compare indicators'}`}
             levels={[group]}
             selected={highlighted}
             selectedLevels={[]}

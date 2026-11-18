@@ -10,6 +10,7 @@ export function SearchGeographies({
   path = '/search',
   formAction = path,
   extraParams = {},
+  choicesLabel,
   single = false,
   replace = false,
   lookupUrl = '/geographies?scheme=public',
@@ -18,6 +19,7 @@ export function SearchGeographies({
   path?: string;
   formAction?: string;
   extraParams?: Record<string, string>;
+  choicesLabel: string;
   single?: boolean;
   replace?: boolean;
   lookupUrl?: string;
@@ -39,6 +41,7 @@ export function SearchGeographies({
             lookupUrl={lookupUrl}
             single={single}
             action={formAction}
+            choicesLabel={choicesLabel}
             extraParams={extraParams}
             state={search}
             displayGroups={search.displayGroups}
