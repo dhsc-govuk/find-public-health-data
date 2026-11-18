@@ -16,6 +16,7 @@ import {
 } from '@fphd/public-api-features/contract';
 import { searchSort } from '@fphd/utils/indicator-sort';
 import { apiContext } from '@fphd/web-server/api-context';
+import { pagePath } from '@fphd/web-server/page-url';
 import type { LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 import {
@@ -44,7 +45,7 @@ export async function loadSearchPage(args: LoaderFunctionArgs, publicGeographies
   const page = String(search.searchResult.page ?? 1);
   if (params.has('page') && params.get('page') !== page) {
     params.set('page', page);
-    throw redirect(`${url.pathname}?${params}`, { status: 302 });
+    throw redirect(pagePath(url), { status: 302 });
   }
   return {
     ...search,

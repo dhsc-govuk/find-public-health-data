@@ -148,6 +148,21 @@ describe('loadSearchPage', () => {
     expect(searchSent(client).get('page')).toBe(sent);
   });
 
+  it('redirects a client-side navigation to the page rather than its data', async () => {
+    const client = api({
+      'GET /api/indicators/search': { total: 120, limit: 50, page: 3, indicators: [] },
+    });
+
+    await expect(
+      loadSearchPage(
+        loaderArgs(client, 'http://localhost/search.data?page=9&_routes=search%2Froute'),
+        true,
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) => response.headers.get('Location') === '/search?page=3',
+    );
+  });
+
   it('starts again from the first page when a filter is added by name', async () => {
     const client = api({
       'GET /api/indicators/facets': { ...EMPTY_FACETS, valueTypes: ['Proportion'] },
