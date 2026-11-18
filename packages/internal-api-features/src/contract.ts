@@ -18,6 +18,12 @@ import { shortText } from './text-contract.ts';
  * so the web app takes no Express or database dependency. Ids appear here and nowhere in the
  * public contract: a write needs a stable address, and the slug is editable.
  */
+/**
+ * Where the internal API mounts the public API again for the preview of indicator `:id`. A public
+ * API path appended to it asks the same of the indicator's draft or scheduled version.
+ */
+export const PREVIEW_API_PATH = '/api/internal/indicators/:id/preview';
+
 export const topicIdSchema = z.uuid();
 
 export const topicAdminSummarySchema = z.object({

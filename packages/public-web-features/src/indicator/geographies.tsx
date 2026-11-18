@@ -2,6 +2,7 @@ import { CollapsibleFilterCard } from '@fphd/ui';
 import { useLocation, useNavigate } from 'react-router';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
+import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSelection } from './loader.ts';
 import { indicatorSelectionUrl } from './paths.ts';
 
@@ -18,6 +19,7 @@ export function IndicatorGeographies({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const links = useIndicatorLinks();
   const params = new URLSearchParams(location.search);
   const urlFor = (areaCodes: string[], areaLevels: string[]) =>
     indicatorSelectionUrl(location, areaCodes, areaLevels);
@@ -33,7 +35,7 @@ export function IndicatorGeographies({
         onClear={picked ? urlFor([], []) : undefined}
       >
         <GeographyPicker
-          lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&scheme=public`}
+          lookupUrl={`${links.geographies}?indicator=${encodeURIComponent(slug)}&scheme=public`}
           searchLabel="Search for a geography"
           searchHint="Search by name, for example Leeds"
           action={`${location.pathname}#indicator-data`}

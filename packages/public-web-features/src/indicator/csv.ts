@@ -4,7 +4,6 @@ import {
   areaParentListSchema,
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
-  indicatorDetailSchema,
   indicatorRangeSchema,
   MAX_AREA_CODES_PER_REQUEST,
   pickAreaCodes,
@@ -27,7 +26,9 @@ import {
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
-import { indicatorCsvPath, isIndicatorSegment, redirectStatus } from './paths.ts';
+import { indicatorPageContext } from './page-context.ts';
+import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { dataPlaceholder } from './placeholders.ts';
 import { selectedTrendColumns, trendTableModel } from './trend.ts';
 import { loadIndicatorViewCsv } from './view-csv.ts';
 
@@ -64,13 +65,14 @@ export async function loadIndicatorCsv(
     );
   // The download shares the page's address, so it shares the page's one canonical form:
   // an old address is answered with the redirect before any data is asked for.
-  const detail = await api.get(apiPath`/api/indicators/${segment}`, indicatorDetailSchema);
-  if (detail.slug !== segment) {
-    throw redirect(
-      `${indicatorCsvPath(detail.slug, kind)}${pageSearch(url)}`,
-      redirectStatus(segment, detail.slug),
-    );
+  const { detailSchema, links } = context.get(indicatorPageContext);
+  const detail = await api.get(apiPath`/api/indicators/${segment}`, detailSchema);
+  const csvPath = links.csv(detail.slug, kind);
+  if (detail.slug !== segment && csvPath !== links.csv(segment, kind)) {
+    throw redirect(`${csvPath}${pageSearch(url)}`, redirectStatus(segment, detail.slug));
   }
+  // A preview's draft with no data to show has no downloads.
+  if (dataPlaceholder(detail) !== null) throw new Response('Not Found', { status: 404 });
   if (
     kind === 'table' &&
     ['areas', 'compare', 'inequalities'].includes(url.searchParams.get('tab-indicator') ?? '')

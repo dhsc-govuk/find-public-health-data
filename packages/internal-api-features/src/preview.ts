@@ -4,12 +4,10 @@ import type { FoundIndicatorDetail, Repositories } from '@fphd/db';
 import type { IndicatorDataState } from '@fphd/utils/indicator-page';
 import { Router } from 'express';
 
+import { PREVIEW_API_PATH } from './contract.ts';
 import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
 import type { PreviewRepositories, PreviewVersion } from './preview-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
-
-/** Where the preview mounts the public API again, for the indicator `:id`. */
-export const PREVIEW_API_PATH = '/api/internal/indicators/:id/preview';
 
 /**
  * The preview's detail: the detail as the preview's views hold it, with the questions the draft

@@ -15,6 +15,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
+import { publicIndicatorLinks } from './links.ts';
 import { loadIndicator } from './loader.ts';
 import { indicatorPageContext } from './page-context.ts';
 import { loadIndicatorPage } from './single-loader.ts';
@@ -932,7 +933,10 @@ describe('loadIndicatorPage with no data to show', () => {
 
   function previewArgs(client: FakeApiClient, query: string) {
     const loaderArgs = args(client, `http://localhost/indicator/indicator-108${query}`);
-    loaderArgs.context.set(indicatorPageContext, { detailSchema: indicatorPageDetailSchema });
+    loaderArgs.context.set(indicatorPageContext, {
+      detailSchema: indicatorPageDetailSchema,
+      links: publicIndicatorLinks,
+    });
     return loaderArgs;
   }
 
@@ -966,6 +970,17 @@ describe('loadIndicatorPage with no data to show', () => {
       status: 302,
       headers: expect.any(Headers),
     });
+  });
+
+  it('stays at a page shown at one address whatever the slug, as the preview is', async () => {
+    const client = api({ 'GET /api/indicators/108': draft });
+    const loaderArgs = args(client, 'http://localhost/preview', '108');
+    loaderArgs.context.set(indicatorPageContext, {
+      detailSchema: indicatorPageDetailSchema,
+      links: { ...publicIndicatorLinks, page: () => '/preview' },
+    });
+
+    expect((await loadIndicatorPage(loaderArgs)).detail.slug).toBe('indicator-108');
   });
 
   it('loads the data of the public page, whose schema drops any data state', async () => {

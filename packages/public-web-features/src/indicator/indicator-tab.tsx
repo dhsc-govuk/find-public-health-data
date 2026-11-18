@@ -13,6 +13,7 @@ import {
   filterObservations,
 } from './data.ts';
 import { IndicatorGeographies } from './geographies.tsx';
+import { useIndicatorLinks } from './links.ts';
 import type {
   BenchmarkGeography,
   IndicatorSelection,
@@ -20,7 +21,7 @@ import type {
   SelectedIndicator,
 } from './loader.ts';
 import { PanelOptionsPanel, useOptionParamNavigation, usePanelOptions } from './options.tsx';
-import { indicatorCsvPath, indicatorMetadataPath, indicatorSelectionUrl } from './paths.ts';
+import { indicatorSelectionUrl } from './paths.ts';
 import { TrendTable } from './tables/trend-table.tsx';
 import { selectedTrendColumns, trendColumnsParam } from './trend.ts';
 
@@ -42,6 +43,7 @@ export function IndicatorTab({
   const { detail, areaData, regionData = [], ranges = {} } = primary;
   const id = detail.shortId;
   const location = useLocation();
+  const links = useIndicatorLinks();
   const navigation = useNavigation();
   const params = new URLSearchParams(navigation.location?.search ?? location.search);
   const [options, applyOptions] = usePanelOptions(id);
@@ -150,9 +152,9 @@ export function IndicatorTab({
   const download = (
     <DownloadShareData
       inline
-      href={`${indicatorCsvPath(detail.slug, 'table')}?${new URLSearchParams(downloadParams(true))}`}
-      allDataHref={`${indicatorCsvPath(detail.slug, 'all-data')}?allAreas=yes`}
-      metadataHref={indicatorMetadataPath(detail.slug)}
+      href={`${links.csv(detail.slug, 'table')}?${new URLSearchParams(downloadParams(true))}`}
+      allDataHref={`${links.csv(detail.slug, 'all-data')}?allAreas=yes`}
+      metadataHref={links.metadata(detail.slug)}
     />
   );
 

@@ -5,7 +5,7 @@ import {
   UPDATE_DECISION_STEPS,
 } from '@fphd/internal-api-features/contract';
 import { indicatorPath } from '@fphd/utils/indicator-path';
-
+import { indicatorPreviewPath } from '../indicator-preview/paths.ts';
 import { reviewResponsePath } from '../indicator-review-response/paths.ts';
 import { updateDecisionPath } from '../indicator-update-decision/paths.ts';
 import {
@@ -157,11 +157,20 @@ function actionsSection(input: ActionsTabInput): ActionsTabSection {
  * Review section. The view links, the same for everyone, go first in the first section.
  */
 export function actionsTabSections(input: ActionsTabInput): ActionsTabSection[] {
-  const { publishedSlug } = input.indicator;
-  const viewLinks =
+  const { id, draftStatus, indicatorStatus, publishedSlug } = input.indicator;
+  // A draft or scheduled version has a preview; an update's names it as the updated indicator.
+  const viewLinks = [
+    draftStatus === null
+      ? undefined
+      : {
+          href: indicatorPreviewPath(id),
+          label:
+            indicatorStatus === 'live' ? 'Preview updated indicator' : 'View indicator preview',
+        },
     publishedSlug === null
-      ? []
-      : [{ href: indicatorPath(publishedSlug), label: 'View live indicator' }];
+      ? undefined
+      : { href: indicatorPath(publishedSlug), label: 'View live indicator' },
+  ].filter((link) => link !== undefined);
   const review = input.isReviewer ? reviewSection(input) : null;
   const actions = actionsSection(input);
   const offersActions = actions.button !== null || actions.links.length > 0;

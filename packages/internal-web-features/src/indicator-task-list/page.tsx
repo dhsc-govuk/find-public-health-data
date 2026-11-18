@@ -7,7 +7,7 @@ import {
   InsetText,
   TaskList,
 } from '@fphd/ui';
-
+import { indicatorPreviewPath } from '../indicator-preview/paths.ts';
 import { type TaskGroup, taskGroups } from '../indicator-tasks.ts';
 import { indicatorSampleAnswersPath, indicatorTaskListPath } from '../publish-paths.ts';
 import { IndicatorHeading } from '../status-tag/indicator-heading.tsx';
@@ -88,6 +88,9 @@ export function IndicatorTaskListPage({
         <DocumentTitle hasErrors={formError !== undefined} pageTitle="Indicator task list" />
         <ErrorSummary errors={[]} formError={formError} />
         <IndicatorHeading indicator={indicator} />
+        <Button classModifiers="secondary" href={indicatorPreviewPath(indicator.id, 'task-list')}>
+          Preview indicator
+        </Button>
         <InsetText>
           You can complete these sections in any order. If you exit at any point, any section you
           have completed will be saved.

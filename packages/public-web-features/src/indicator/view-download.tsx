@@ -1,17 +1,18 @@
 import { useLocation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
-import { indicatorCsvPath, indicatorMetadataPath } from './paths.ts';
+import { useIndicatorLinks } from './links.ts';
 
 export function IndicatorViewDownload({ slug, tab }: { slug: string; tab: string }) {
   const { search } = useLocation();
+  const links = useIndicatorLinks();
   const params = new URLSearchParams(search);
   params.set('tab-indicator', tab);
   return (
     <DownloadShareData
       inline
-      href={`${indicatorCsvPath(slug, 'table')}?${params}`}
-      allDataHref={`${indicatorCsvPath(slug, 'all-data')}?allAreas=yes`}
-      metadataHref={indicatorMetadataPath(slug)}
+      href={`${links.csv(slug, 'table')}?${params}`}
+      allDataHref={`${links.csv(slug, 'all-data')}?allAreas=yes`}
+      metadataHref={links.metadata(slug)}
     />
   );
 }

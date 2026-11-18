@@ -23,11 +23,10 @@ import { updateDecisionRouter } from './update-decision.ts';
 import { internalValueTypesAndUnitsRouter } from './value-types-and-units.ts';
 
 export { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
-export {
-  type InternalPreviewRepository,
-  PREVIEW_API_PATH,
-  type PreviewIndicatorDetail,
-  type PublicApiRoutes,
+export type {
+  InternalPreviewRepository,
+  PreviewIndicatorDetail,
+  PublicApiRoutes,
 } from './preview.ts';
 export { createInternalRepositories, type InternalRepositories } from './repositories.ts';
 
