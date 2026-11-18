@@ -17,9 +17,9 @@ import {
 
 describe('update frequency endpoint', () => {
   repositoryTest(
-    'saves and clears the optional text independently of the reason',
+    'saves the details of the chosen answer and clears those of the others',
     async ({ db }) => {
-      const { indicatorId } = await newDraft(db, 'Frequency description');
+      const { indicatorId } = await newDraft(db, 'Frequency details');
       const repositories = createFakeInternalRepositories({
         indicators: {
           ...inTestTeam,
@@ -37,32 +37,37 @@ describe('update frequency endpoint', () => {
       );
       const path = `/api/internal/indicators/${indicatorId}/update-frequency`;
       const cookie = await testSessionCookie(['publisher']);
+      const typed = {
+        updateFrequencyYears: '3',
+        updateFrequencyText: 'Academic year.\nPublished in winter.',
+        noFixedFrequencyReason: 'Published when the survey runs.',
+        noLongerUpdatedReason: 'The survey has ended.',
+      };
+      const saved = [
+        ['every-n-years', { updateFrequencyYears: 3 }],
+        ['other', { updateFrequencyText: 'Academic year.\nPublished in winter.' }],
+        ['no-fixed-frequency', { updateFrequencyReason: 'Published when the survey runs.' }],
+        ['annually', {}],
+      ] as const;
 
-      for (const updateFrequencyText of ['Academic year.\nPublished in winter.', '']) {
+      for (const [updateFrequency, kept] of saved) {
         const before = await getIndicatorDraftState(db, indicatorId);
         if (!before?.draft) throw new Error('Missing draft');
         const response = await request(app)
           .put(path)
           .set('Cookie', cookie)
           .send({
-            answers: {
-              updateFrequency: 'annually',
-              noFixedFrequencyReason: '',
-              noLongerUpdatedReason: '',
-              updateFrequencyText,
-            },
+            answers: { updateFrequency, ...typed },
             version: editVersion(updateFrequencyColumns.fromDraft(before.draft)),
           });
 
         expect(response.status).toBe(200);
-        expect(response.body.answers).toMatchObject({
-          updateFrequency: 'annually',
-          updateFrequencyText: updateFrequencyText || null,
-        });
         expect((await getIndicatorDraftState(db, indicatorId))?.draft).toMatchObject({
-          updateFrequency: 'annually',
+          updateFrequency,
+          updateFrequencyYears: null,
+          updateFrequencyText: null,
           updateFrequencyReason: null,
-          updateFrequencyText: updateFrequencyText || null,
+          ...kept,
         });
       }
     },

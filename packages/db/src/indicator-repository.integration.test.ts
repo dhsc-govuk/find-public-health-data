@@ -268,18 +268,21 @@ describe('getIndicatorDetailById', () => {
     expect(found && completeIndicatorDetail(found)).toMatchObject({ updateFrequency: null });
   });
 
-  it.each(['annually', null] as const)(
-    'returns original frequency text beside %s',
-    async (updateFrequency) => {
+  it.each([
+    ['other', 'Academic year.\nPublished in winter.', null],
+    ['every-n-years', null, 3],
+  ] as const)(
+    'returns the details of an update frequency of %s',
+    async (updateFrequency, updateFrequencyText, updateFrequencyYears) => {
       const id = await resolvedId(DIABETES_MORTALITY);
       await db.execute(
-        sql`UPDATE indicator_version SET update_frequency = ${updateFrequency}, update_frequency_reason = NULL, update_frequency_text = 'Academic year.\nPublished in winter.' WHERE indicator_id = ${id}`,
+        sql`UPDATE indicator_version SET update_frequency = ${updateFrequency}, update_frequency_reason = NULL, update_frequency_text = ${updateFrequencyText}, update_frequency_years = ${updateFrequencyYears} WHERE indicator_id = ${id}`,
       );
 
-      // The original text answers the question, with or without a frequency beside it.
       expect(await getIndicatorDetailById(db, publishedViews, id)).toMatchObject({
         updateFrequency,
-        updateFrequencyText: 'Academic year.\nPublished in winter.',
+        updateFrequencyText,
+        updateFrequencyYears,
         unanswered: [],
       });
     },

@@ -371,10 +371,11 @@ export async function exportIndicators(context: PholioExportOptions) {
       other_notes_detail: nc.other_notes_detail,
       has_risk_factor: null,
       has_framework: null,
-      update_frequency: updateFrequency,
+      update_frequency: updateFrequency.updateFrequency,
+      update_frequency_years: updateFrequency.updateFrequencyYears,
       // Fingertips holds no reason for an update frequency.
       update_frequency_reason: null,
-      update_frequency_text: plainTextFromHtml(text?.Frequency ?? '') || null,
+      update_frequency_text: updateFrequency.updateFrequencyText,
       variation: null,
       quality_assurance: null,
       source_data_issues_detail: null,

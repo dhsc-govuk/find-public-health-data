@@ -159,6 +159,7 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.update_frequency text',
   'indicator.update_frequency_reason text',
   'indicator.update_frequency_text text',
+  'indicator.update_frequency_years smallint',
   'indicator.comparator_method_id uuid',
   'indicator.has_goal_benchmark boolean',
   'indicator.goal_lower_value double precision',

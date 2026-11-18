@@ -687,6 +687,13 @@
       "when": 1795516733202,
       "tag": "0097_version-observation-series",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795520948490,
+      "tag": "0098_update-frequency-years-and-other",
+      "breakpoints": true
     }
   ]
 }

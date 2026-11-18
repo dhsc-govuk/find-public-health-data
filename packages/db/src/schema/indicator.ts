@@ -21,7 +21,12 @@ import {
 } from '@fphd/utils/sex-gender-and-ethnicity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
-import { UPDATE_FREQUENCIES, UPDATE_FREQUENCIES_WITH_REASON } from '@fphd/utils/update-frequency';
+import {
+  UPDATE_FREQUENCIES,
+  UPDATE_FREQUENCIES_WITH_REASON,
+  UPDATE_FREQUENCY_MIN_YEARS,
+  type UpdateFrequency,
+} from '@fphd/utils/update-frequency';
 import {
   INDIRECTLY_STANDARDISED_VALUE_TYPE_IDS,
   STANDARD_POPULATIONS,
@@ -277,6 +282,7 @@ export const indicatorVersion = pgTable(
     updateFrequency: text({ enum: UPDATE_FREQUENCIES }),
     updateFrequencyReason: text(),
     updateFrequencyText: text(),
+    updateFrequencyYears: smallint(),
     // Notes for reviewers, never published.
     // Variance and quality
     variation: text(),
@@ -325,6 +331,18 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_update_frequency_reason_check',
       sql`${t.updateFrequencyReason} IS NULL OR (${t.updateFrequency} IN (${literals(UPDATE_FREQUENCIES_WITH_REASON)})) IS TRUE`,
+    ),
+    check(
+      'indicator_version_update_frequency_years_check',
+      sql`${detailBesideChoice(t.updateFrequency, 'every-n-years' satisfies UpdateFrequency, t.updateFrequencyYears)} AND ${t.updateFrequencyYears} >= ${sql.raw(String(UPDATE_FREQUENCY_MIN_YEARS))}`,
+    ),
+    check(
+      'indicator_version_update_frequency_text_check',
+      detailBesideChoice(
+        t.updateFrequency,
+        'other' satisfies UpdateFrequency,
+        t.updateFrequencyText,
+      ),
     ),
     check(
       'indicator_version_standard_population_check',

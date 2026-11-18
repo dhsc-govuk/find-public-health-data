@@ -26,6 +26,7 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   updateFrequency: 'quarterly',
   updateFrequencyReason: null,
   updateFrequencyText: null,
+  updateFrequencyYears: null,
   periodType: 'years',
   yearType: 'specified-end-date',
   yearEndDay: 31,
