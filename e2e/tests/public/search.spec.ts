@@ -170,6 +170,19 @@ test('search matches an indicator number, its slug and taxonomy slugs', async ({
   await expect(results(page).locator('.fphd-search-result').first()).toContainText('Outcome');
 });
 
+test('a result shows its most recent period and when its data was last updated', async ({
+  page,
+}) => {
+  await ready(page, '/search?q=108');
+  const row = (name: string) =>
+    results(page).locator('.govuk-summary-list__row', {
+      has: page.getByRole('term').filter({ hasText: name }),
+    });
+
+  await expect(row('Most recent period').getByRole('definition')).toHaveText('2024');
+  await expect(row('Data last updated').getByRole('definition')).toHaveText('20 April 2026');
+});
+
 test('a result links directly to its indicator page', async ({ page }) => {
   await ready(page, '/search?q=108');
   await expect(results(page).getByRole('link')).toHaveAttribute('href', MORTALITY_PATH);
