@@ -1,3 +1,4 @@
+import { encodeReturnTo } from '@fphd/auth';
 import type { BetaInviteeEntry } from '@fphd/config';
 import { describe, expect, it } from 'vitest';
 
@@ -78,7 +79,7 @@ describe('createBetaAccess', () => {
       const link = linkIn(sent[0]);
       expect(link.origin).toBe('https://beta.example.com');
       expect(link.pathname).toBe('/private-beta/sign-in');
-      expect(link.searchParams.get('returnTo')).toBe('/topics?page=2');
+      expect(link.searchParams.get('returnTo')).toBe(encodeReturnTo('/topics?page=2'));
     });
 
     it('sends nothing to an address that was not invited', async () => {
@@ -161,7 +162,7 @@ describe('createBetaAccess', () => {
 
       await betaAccess.requestLink(sam.email, '//evil.example.com/');
 
-      expect(linkIn(sent[0]).searchParams.get('returnTo')).toBe('/');
+      expect(linkIn(sent[0]).searchParams.get('returnTo')).toBe(encodeReturnTo('/'));
     });
 
     it('shows the link instead when there is no email service', async () => {

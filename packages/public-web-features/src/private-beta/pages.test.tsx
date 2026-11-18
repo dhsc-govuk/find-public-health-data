@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { encodeReturnTo } from '@fphd/auth';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -27,7 +28,7 @@ describe('PrivateBetaPage', () => {
     );
     expect(screen.getByLabelText('Email address').getAttribute('autocomplete')).toBe('email');
     expect(container.querySelector('input[name="returnTo"]')?.getAttribute('value')).toBe(
-      '/topics',
+      encodeReturnTo('/topics'),
     );
     expect(screen.getByRole('button', { name: 'Send sign-in link' })).toBeTruthy();
   });
@@ -56,7 +57,7 @@ describe('PrivateBetaPage', () => {
     expect(screen.getByText('sam@example.com')).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Sign in' })).toBe(null);
     expect(screen.getByRole('link', { name: 'ask for another link' }).getAttribute('href')).toBe(
-      '/private-beta?returnTo=%2Ftopics',
+      `/private-beta?returnTo=${encodeReturnTo('/topics')}`,
     );
   });
 

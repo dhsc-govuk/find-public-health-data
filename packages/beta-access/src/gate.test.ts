@@ -1,3 +1,4 @@
+import { encodeReturnTo } from '@fphd/auth';
 import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
@@ -56,7 +57,9 @@ describe('betaAccessMiddleware', () => {
     });
 
     expect(response.status).toBe(302);
-    expect(response.headers.get('Location')).toBe('/private-beta?returnTo=%2Ftopics%3Fpage%3D2');
+    expect(response.headers.get('Location')).toBe(
+      `/private-beta?returnTo=${encodeReturnTo('/topics?page=2')}`,
+    );
   });
 
   it('gives a data request the page it was for as the return address', async () => {
@@ -64,7 +67,9 @@ describe('betaAccessMiddleware', () => {
       betaAccess: fakeBetaAccess('fphd_beta_access=valid'),
     });
 
-    expect(response.headers.get('Location')).toBe('/private-beta?returnTo=%2Ftopics');
+    expect(response.headers.get('Location')).toBe(
+      `/private-beta?returnTo=${encodeReturnTo('/topics')}`,
+    );
   });
 
   it('lets everyone through when the private beta is off', async () => {

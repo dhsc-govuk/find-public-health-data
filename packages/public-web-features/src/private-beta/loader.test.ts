@@ -1,3 +1,4 @@
+import { encodeReturnTo } from '@fphd/auth';
 import { type BetaAccess, betaAccessContext } from '@fphd/beta-access/context';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { loggerContext } from '@fphd/web-server/logger-context';
@@ -54,21 +55,30 @@ describe('loadPrivateBeta', () => {
   it('keeps where the visitor was going, and whether a link brought them back', () => {
     const { context } = setUp();
 
-    expect(loadPrivateBeta(args(context, `${page}?returnTo=%2Ftopics&link=rejected`))).toEqual({
+    const returnTo = encodeReturnTo('/search?q=smoking&t=mental-health-and-wellbeing');
+
+    expect(loadPrivateBeta(args(context, `${page}?returnTo=${returnTo}&link=rejected`))).toEqual({
       ended: false,
       linkRejected: true,
-      returnTo: '/topics',
+      returnTo: '/search?q=smoking&t=mental-health-and-wellbeing',
     });
   });
 
   it('drops a return address that leaves the site', () => {
     const { context } = setUp();
+    const returnTo = encodeReturnTo('//evil.example.com');
 
-    expect(loadPrivateBeta(args(context, `${page}?returnTo=%2F%2Fevil.example.com`))).toEqual({
+    expect(loadPrivateBeta(args(context, `${page}?returnTo=${returnTo}`))).toEqual({
       ended: false,
       linkRejected: false,
       returnTo: '/',
     });
+  });
+
+  it('drops a return address that is not hex', () => {
+    const { context } = setUp();
+
+    expect(loadPrivateBeta(args(context, `${page}?returnTo=%2Ftopics`)).returnTo).toBe('/');
   });
 
   it('says when the private beta has ended', () => {
@@ -89,7 +99,10 @@ describe('requestPrivateBetaLink', () => {
     const { context, lines, requested } = setUp();
 
     const result = await requestPrivateBetaLink(
-      args(context, page, { email: ' sam@example.com ', returnTo: '/topics' }),
+      args(context, page, {
+        email: ' sam@example.com ',
+        returnTo: encodeReturnTo('/topics'),
+      }),
     );
 
     expect(result).toEqual({ status: 'requested', email: 'sam@example.com', link: undefined });
@@ -102,7 +115,7 @@ describe('requestPrivateBetaLink', () => {
     const { context, lines } = setUp();
 
     const result = await requestPrivateBetaLink(
-      args(context, page, { email: 'someone@example.com', returnTo: '/' }),
+      args(context, page, { email: 'someone@example.com', returnTo: encodeReturnTo('/') }),
     );
 
     expect(result).toEqual({ status: 'requested', email: 'someone@example.com', link: undefined });
@@ -117,7 +130,9 @@ describe('requestPrivateBetaLink', () => {
     });
 
     await expect(
-      requestPrivateBetaLink(args(context, page, { email: sam.email, returnTo: '/' })),
+      requestPrivateBetaLink(
+        args(context, page, { email: sam.email, returnTo: encodeReturnTo('/') }),
+      ),
     ).resolves.toEqual({ status: 'requested', email: sam.email, link });
   });
 
@@ -134,7 +149,9 @@ describe('requestPrivateBetaLink', () => {
     });
 
     await expect(
-      requestPrivateBetaLink(args(context, page, { email: sam.email, returnTo: '/' })),
+      requestPrivateBetaLink(
+        args(context, page, { email: sam.email, returnTo: encodeReturnTo('/') }),
+      ),
     ).resolves.toEqual({ status: 'send_failed', email: sam.email });
     expect(lines).toMatchObject([
       {
@@ -155,7 +172,9 @@ describe('requestPrivateBetaLink', () => {
     });
 
     await expect(
-      requestPrivateBetaLink(args(context, page, { email: sam.email, returnTo: '/' })),
+      requestPrivateBetaLink(
+        args(context, page, { email: sam.email, returnTo: encodeReturnTo('/') }),
+      ),
     ).rejects.toThrow('BETA_ACCESS_SECRET is too short');
   });
 
@@ -166,7 +185,7 @@ describe('requestPrivateBetaLink', () => {
     const { context, requested } = setUp();
 
     await expect(
-      requestPrivateBetaLink(args(context, page, { email, returnTo: '/' })),
+      requestPrivateBetaLink(args(context, page, { email, returnTo: encodeReturnTo('/') })),
     ).resolves.toEqual({ status: 'invalid', email, error });
     expect(requested).toEqual([]);
   });
@@ -179,7 +198,7 @@ describe('signInToPrivateBeta', () => {
     const { context, lines } = setUp();
 
     const response = await signInToPrivateBeta(
-      args(context, `${signIn}?token=valid&returnTo=%2Ftopics`),
+      args(context, `${signIn}?token=valid&returnTo=${encodeReturnTo('/topics')}`),
     );
 
     expect(response.status).toBe(302);
@@ -192,7 +211,7 @@ describe('signInToPrivateBeta', () => {
     const { context } = setUp();
 
     const response = await signInToPrivateBeta(
-      args(context, `${signIn}?token=valid&returnTo=https%3A%2F%2Fevil.example.com`),
+      args(context, `${signIn}?token=valid&returnTo=${encodeReturnTo('https://evil.example.com')}`),
     );
 
     expect(response.headers.get('Location')).toBe('/');
@@ -202,10 +221,12 @@ describe('signInToPrivateBeta', () => {
     const { context, lines } = setUp();
 
     const response = await signInToPrivateBeta(
-      args(context, `${signIn}?token=expired&returnTo=%2Ftopics`),
+      args(context, `${signIn}?token=expired&returnTo=${encodeReturnTo('/topics')}`),
     );
 
-    expect(response.headers.get('Location')).toBe('/private-beta?link=rejected&returnTo=%2Ftopics');
+    expect(response.headers.get('Location')).toBe(
+      `/private-beta?link=rejected&returnTo=${encodeReturnTo('/topics')}`,
+    );
     expect(response.headers.get('Set-Cookie')).toBe(null);
     expect(lines).toMatchObject([{ msg: 'Private beta sign-in link rejected' }]);
   });
