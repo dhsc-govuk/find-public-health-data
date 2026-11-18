@@ -336,6 +336,13 @@ test('the sort survives tab switches, new searches and filter changes', async ({
   await expect(sortBy(page)).toHaveValue('recently-updated');
 });
 
+test('the Status filter says release status information is not yet available', async ({ page }) => {
+  await ready(page);
+  const status = card(page, 'Status');
+  await status.getByRole('button', { name: 'Status', exact: true }).click();
+  await expect(status.getByText('Release status information is not yet available.')).toBeVisible();
+});
+
 test('a complete long data source remains selected and narrows results', async ({ page }) => {
   await ready(page);
   const attributes = card(page, 'About the data');
