@@ -4,7 +4,11 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { addReviewer, assignReviewers } from '../support/assign-reviewers.ts';
 import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
-import { MORTALITY_NAME, MORTALITY_SLUG, openIndicatorPage } from '../support/indicator-page.ts';
+import {
+  MORTALITY_NAME,
+  MORTALITY_SHORT_ID,
+  openIndicatorPage,
+} from '../support/indicator-page.ts';
 import { addInviteeAccess } from '../support/private-beta.ts';
 import {
   confirmPublicationAt,
@@ -270,25 +274,26 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
     expect(href.startsWith(path), `${name} links to ${href}`).toBe(true);
     expect((await page.request.get(href)).status()).toBe(200);
   }
-  // The preview's search gives the indicator's slug as publication would leave it.
+  // The preview's search gives the indicator's slug as publication would leave it, and its short
+  // id, which the lookups name it by.
   const search = await page.request.get(
     `${preview}/indicators/search?q=${encodeURIComponent(indicator.name)}`,
   );
   const found = (
-    (await search.json()) as { indicators: { name: string; slug: string }[] }
+    (await search.json()) as { indicators: { name: string; slug: string; shortId: number }[] }
   ).indicators.find(({ name }) => name === indicator.name);
   expect(found?.slug).toBeTruthy();
-  const slug = found?.slug ?? '';
+  const shortId = String(found?.shortId ?? '');
   // The sample data covers England alone, which no area list offers, so both lists are empty.
-  const lookup = await page.request.get(`${preview}/geographies?indicator=${slug}`);
+  const lookup = await page.request.get(`${preview}/geographies?indicator=${shortId}`);
   expect(lookup.status()).toBe(200);
   expect(await lookup.json()).toEqual(
-    await (await page.request.get(`/geographies?indicator=${slug}`)).json(),
+    await (await page.request.get(`/geographies?indicator=${shortId}`)).json(),
   );
   // The Compare areas tab's region and neighbour lookups go through the preview too.
   const compareAreas = await page.request.get(
     `${preview}/compare-areas?${new URLSearchParams({
-      indicator: slug,
+      indicator: shortId,
       displayGroup: 'Local authorities',
       parents: '1',
       areaCode: 'E06000001',
@@ -316,8 +321,8 @@ test('"Preview indicator" shows an update that keeps the published data, with "S
   await expectNoAccessibilityViolations(page, testInfo);
 
   // A comparison with a published indicator stays in the preview.
-  await page.goto(`${preview}?compareWith=${MORTALITY_SLUG}`);
-  await expect(page).toHaveURL(`${preview}?compareWith=${MORTALITY_SLUG}`);
+  await page.goto(`${preview}?compareWith=${MORTALITY_SHORT_ID}`);
+  await expect(page).toHaveURL(`${preview}?compareWith=${MORTALITY_SHORT_ID}`);
   await expect(page.getByRole('tabpanel', { name: 'Compare indicators' })).toContainText(
     MORTALITY_NAME,
   );
