@@ -1,11 +1,14 @@
 import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { useMemo } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
 import {
   areaColourMode,
   highlightedAreaCodes,
+  highlightedAreas,
   statisticalNeighbourAreas,
+  withoutHighlightedArea,
+  withoutHighlightedAreas,
 } from './area-comparison.ts';
 import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
@@ -33,7 +36,8 @@ export function CompareAreasTab({
   compareAreaRanges = [],
 }: ComparisonTabProps) {
   const { detail } = primary;
-  const params = new URLSearchParams(useLocation().search);
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
   const {
     ref: detailRef,
     areas: areaOptions,
@@ -64,6 +68,9 @@ export function CompareAreasTab({
         : 'all',
     }),
   }));
+  const shownAreas = highlightedAreas(params, areaOptions);
+  const areasTabUrl = (next: URLSearchParams) =>
+    `${location.pathname}?${next}#indicator-compare-areas`;
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
     compareAreaGroup === 'Local authorities'
@@ -105,9 +112,30 @@ export function CompareAreasTab({
         <GridColumn width="three-quarters">
           <div className="fphd-indicator-showing">
             <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
-            <FilterChips>
+            <FilterChips collapse>
               <FilterChip value={compareAreaGroup}>{compareAreaGroup}</FilterChip>
+              {shownAreas.map(({ code, name }) => (
+                <FilterChip
+                  key={code}
+                  value={code}
+                  onRemove={areasTabUrl(withoutHighlightedArea(params, areaOptions, code))}
+                  removeLabel={name}
+                  replace
+                >
+                  {name}
+                </FilterChip>
+              ))}
             </FilterChips>
+            {shownAreas.length ? (
+              <Link
+                className="govuk-link govuk-body-s"
+                preventScrollReset
+                replace
+                to={areasTabUrl(withoutHighlightedAreas(params))}
+              >
+                Clear all
+              </Link>
+            ) : null}
           </div>
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <GridRow className="fphd-area-table-layout">
