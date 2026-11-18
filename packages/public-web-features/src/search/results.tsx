@@ -82,9 +82,8 @@ export function SearchResults({
     heading.current?.scrollIntoView({ block: 'start' });
   }, [location]);
   const pageParams = sort === 'relevance' ? extraParams : { ...extraParams, sort };
-  // Every page link names its page, the first included. NotGovUK marks a link as the current
-  // page when its query is part of the address, so a first page link without one would be marked
-  // current on every page.
+  // FIXME(FPH-799): NotGovUK Pagination marks the current link from the URL query, not from
+  // currentPage, so every link names its page, page 1 included. Drop page=1 once it uses currentPage.
   const pageLink = (n: number) => ({
     href: searchUrl(state, '/search', { ...pageParams, page: String(n) }),
     preventScrollReset: true,
