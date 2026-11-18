@@ -7,7 +7,12 @@ import { editVersion } from './edit-version.ts';
 import { internalApiRoutes } from './index.ts';
 import { newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { createInternalRepositories } from './repositories.ts';
-import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './testing.ts';
+import {
+  createRouterTestApp,
+  noPublicRoutes,
+  testSessionCookie,
+  testSessionVerifier,
+} from './testing.ts';
 
 describe("the publish journey's endpoints, for a publisher in another team", () => {
   repositoryTest(
@@ -19,6 +24,7 @@ describe("the publish journey's endpoints, for a publisher in another team", () 
           repositories: createInternalRepositories(db),
           session: testSessionVerifier,
           storage: createFakeBlobStorage(),
+          publicRoutes: noPublicRoutes,
         }),
       );
       const teamB = await testSessionCookie(['publisher'], [TEAM_IDS.teamB]);

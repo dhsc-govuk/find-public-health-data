@@ -8,7 +8,6 @@ import {
   type Section,
   taskRow,
 } from '../support/section-page.ts';
-import { chooseOption } from '../support/select-autocomplete.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
 import { expectQuestionStyles, QUESTION, SUB_QUESTION } from '../support/typography.ts';
 
@@ -21,11 +20,11 @@ const RISK_FACTOR_QUESTION = 'Does this indicator include a risk factor?';
 const PHOF = 'Public Health Outcomes Framework (PHOF)';
 const PHOF_NUMBER = 'Enter PHOF indicator number';
 const CHILDREN = 'Children (0 to 15 years old)';
+const MEASURE_TYPE = 'Select a measure type';
 
 /** A tag list's select, Add button and the noun its Remove buttons name, by the page's words. */
 const LISTS = {
   topic: { label: 'Select a topic', add: 'Add topic', noun: 'topic' },
-  type: { label: 'Select a measure type', add: 'Add measure type', noun: 'measure type' },
   framework: {
     label: 'Select a framework or programme',
     add: 'Add framework or programme',
@@ -45,10 +44,13 @@ function select(page: Page, label: string) {
   return page.getByLabel(label, { exact: true });
 }
 
-/** Chooses an option; `navigates` is for pages without JavaScript, which have a plain select. */
-async function choose(page: Page, label: string, option: string, navigates: boolean) {
-  if (navigates) await select(page, label).selectOption({ label: option });
-  else await chooseOption(page, label, option);
+async function choose(page: Page, label: string, option: string) {
+  await select(page, label).selectOption({ label: option });
+}
+
+/** The option chosen in the select labelled `label`. */
+function chosenOption(page: Page, label: string) {
+  return select(page, label).locator('option:checked');
 }
 
 /** Presses a button that posts the form, waiting for the page it answers without JavaScript. */
@@ -74,16 +76,19 @@ function removeButtons(page: Page, noun: string) {
 
 /** Adds a tag with its list's Add button. */
 async function addTag(page: Page, list: List, name: string, navigates = false) {
-  await choose(page, LISTS[list].label, name, navigates);
+  await choose(page, LISTS[list].label, name);
   await press(page, LISTS[list].add, navigates);
   await expect(removeButton(page, LISTS[list].noun, name)).toBeVisible();
 }
 
-/** Adds a topic that has subtopics with one of them, which the page asks for once it is chosen. */
+/**
+ * Adds a topic that has subtopics with one of them, which the page asks for once the topic is
+ * chosen; without JavaScript, once Add topic has sent the choice.
+ */
 async function addTopic(page: Page, topic: string, subtopic: string, navigates = false) {
-  await choose(page, LISTS.topic.label, topic, navigates);
-  await press(page, LISTS.topic.add, navigates);
-  await choose(page, `Select a subtopic for ${topic}`, subtopic, navigates);
+  await choose(page, LISTS.topic.label, topic);
+  if (navigates) await press(page, LISTS.topic.add, navigates);
+  await choose(page, `Select a subtopic for ${topic}`, subtopic);
   await press(page, 'Add topic and subtopic', navigates);
   await expect(removeButton(page, 'topic', `${topic}: ${subtopic}`)).toBeVisible();
 }
@@ -101,7 +106,7 @@ async function optionsOf(page: Page, name: string) {
 async function tagEverything(page: Page) {
   await addTopic(page, 'Diabetes', 'Care and treatment');
   await addTag(page, 'topic', 'Dental and oral health');
-  await addTag(page, 'type', 'Outcome');
+  await choose(page, MEASURE_TYPE, 'Outcome');
   await answer(page, FRAMEWORK_QUESTION, 'No');
   await answer(page, LIFE_STAGE_QUESTION, 'Yes');
   await addTag(page, 'lifeStage', CHILDREN);
@@ -137,7 +142,7 @@ test('asks for topic, measure type, framework, life stage and risk factor, in th
   await expect(page.getByText(INTRO)).toBeVisible();
   await expect(page.locator('main').getByRole('heading', { level: 2 })).toHaveText([
     LISTS.topic.label,
-    LISTS.type.label,
+    MEASURE_TYPE,
     FRAMEWORK_QUESTION,
     LIFE_STAGE_QUESTION,
     RISK_FACTOR_QUESTION,
@@ -157,7 +162,7 @@ test("offers the topics, measure types, frameworks, life stages and risk factors
   expect(await optionsOf(page, 'addTopic')).toContain(
     'Heart, kidney and cardiovascular-related diseases',
   );
-  expect(await optionsOf(page, 'addIndicatorType')).toEqual([
+  expect(await optionsOf(page, 'indicatorTypeIds')).toEqual([
     'Data quality',
     'Inequality summary measure',
     'Intervention or service',
@@ -208,7 +213,7 @@ test('asks the questions under Yes at the same size and weight', async ({ page }
     page,
     [
       LISTS.topic.label,
-      LISTS.type.label,
+      MEASURE_TYPE,
       FRAMEWORK_QUESTION,
       LIFE_STAGE_QUESTION,
       RISK_FACTOR_QUESTION,
@@ -238,10 +243,11 @@ test('asks "Select a subtopic for" a topic that has subtopics, and adds the two 
   page,
 }, testInfo) => {
   await openSectionPage(page, SECTION);
+  const topicButtons = page.getByRole('button', { name: /^Add topic/ });
 
-  await choose(page, LISTS.topic.label, 'Cancer', false);
-  await press(page, LISTS.topic.add, false);
+  await choose(page, LISTS.topic.label, 'Cancer');
   await expect(select(page, 'Select a subtopic for Cancer')).toBeVisible();
+  await expect(topicButtons).toHaveText(['Add topic and subtopic']);
   expect(await optionsOf(page, 'addSubtopic')).toEqual([
     'All cancers',
     'Bowel cancer',
@@ -251,7 +257,12 @@ test('asks "Select a subtopic for" a topic that has subtopics, and adds the two 
   await expect(removeButtons(page, 'topic')).toHaveCount(0);
   await expectNoAccessibilityViolations(page, testInfo);
 
-  await choose(page, 'Select a subtopic for Cancer', 'Bowel cancer', false);
+  await choose(page, LISTS.topic.label, 'Dental and oral health');
+  await expect(page.getByLabel(/^Select a subtopic for/)).toHaveCount(0);
+  await expect(topicButtons).toHaveText([LISTS.topic.add]);
+
+  await choose(page, LISTS.topic.label, 'Cancer');
+  await choose(page, 'Select a subtopic for Cancer', 'Bowel cancer');
   await press(page, 'Add topic and subtopic', false);
   await addTag(page, 'topic', 'Dental and oral health');
 
@@ -264,8 +275,7 @@ test('asks "Select a subtopic for" a topic that has subtopics, and adds the two 
 
 test('refuses a topic that has subtopics without one of them', async ({ page }) => {
   await openSectionPage(page, SECTION);
-  await choose(page, LISTS.topic.label, 'Diabetes', false);
-  await press(page, LISTS.topic.add, false);
+  await choose(page, LISTS.topic.label, 'Diabetes');
 
   await press(page, 'Add topic and subtopic', false);
 
@@ -313,11 +323,11 @@ test('asks for an optional PHOF indicator number once the Public Health Outcomes
 
 test('adds tags to each list and removes them, clearing the select', async ({ page }) => {
   await openSectionPage(page, SECTION);
+  await choose(page, MEASURE_TYPE, 'Outcome');
 
   await addTag(page, 'topic', 'Dental and oral health');
   await addTopic(page, 'Cancer', 'All cancers');
   await addTopic(page, 'Cancer', 'Breast cancer');
-  await addTag(page, 'type', 'Outcome');
 
   await expect(removeButtons(page, 'topic')).toHaveText([
     'Remove topic Dental and oral health',
@@ -330,7 +340,52 @@ test('adds tags to each list and removes them, clearing the select', async ({ pa
   await removeButton(page, 'topic', 'Cancer: All cancers').click();
 
   await expect(removeButtons(page, 'topic')).toHaveText(['Remove topic Cancer: Breast cancer']);
-  await expect(removeButtons(page, 'measure type')).toHaveText(['Remove measure type Outcome']);
+  await expect(chosenOption(page, MEASURE_TYPE)).toHaveText('Outcome');
+});
+
+test('asks for one measure type in a select with no Add or Remove button', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+
+  await choose(page, MEASURE_TYPE, 'Outcome');
+  await choose(page, MEASURE_TYPE, 'Screening or testing');
+
+  await expect(chosenOption(page, MEASURE_TYPE)).toHaveText('Screening or testing');
+  await expect(page.getByRole('button', { name: /measure type/ })).toHaveCount(0);
+});
+
+test('offers every tag in a plain select rather than a type-to-search box', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+  await answer(page, FRAMEWORK_QUESTION, 'Yes');
+  await answer(page, LIFE_STAGE_QUESTION, 'Yes');
+  await answer(page, RISK_FACTOR_QUESTION, 'Yes');
+  await choose(page, LISTS.topic.label, 'Cancer');
+
+  for (const label of [
+    LISTS.topic.label,
+    'Select a subtopic for Cancer',
+    MEASURE_TYPE,
+    LISTS.framework.label,
+    LISTS.lifeStage.label,
+    LISTS.riskFactor.label,
+  ]) {
+    await expect(select(page, label)).toBeVisible();
+    await expect(select(page, label)).toHaveJSProperty('tagName', 'SELECT');
+  }
+});
+
+test('shows the Add buttons in the colour of Continue, apart from Remove', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+  await addTag(page, 'topic', 'Dental and oral health');
+  await answer(page, FRAMEWORK_QUESTION, 'Yes');
+  const background = (name: string) =>
+    page
+      .getByRole('button', { name, exact: true })
+      .evaluate((button) => getComputedStyle(button).backgroundColor);
+  const primary = await background('Continue');
+
+  expect(await background(LISTS.topic.add)).toBe(primary);
+  expect(await background(LISTS.framework.add)).toBe(primary);
+  expect(await background('Remove topic Dental and oral health')).not.toBe(primary);
 });
 
 test('asks for a tag when Add is selected with none chosen', async ({ page }) => {
@@ -348,7 +403,7 @@ test('asks for a tag when Add is selected with none chosen', async ({ page }) =>
 test('asks for a framework, a life stage and a risk factor beside "Yes"', async ({ page }) => {
   await openSectionPage(page, SECTION);
   await addTag(page, 'topic', 'Dental and oral health');
-  await addTag(page, 'type', 'Outcome');
+  await choose(page, MEASURE_TYPE, 'Outcome');
   await answer(page, FRAMEWORK_QUESTION, 'Yes');
   await answer(page, LIFE_STAGE_QUESTION, 'Yes');
   await answer(page, RISK_FACTOR_QUESTION, 'Yes');
@@ -376,9 +431,7 @@ test('saves nothing until Continue is selected', async ({ page }) => {
 test('saves the tags on Continue and shows the task as completed', async ({ page }) => {
   const taskListPath = await openSectionPage(page, SECTION);
   await tagEverything(page);
-  await removeButton(page, 'measure type', 'Outcome').click();
-  // Chosen but not added, which Continue takes in.
-  await chooseOption(page, LISTS.type.label, 'Screening or testing');
+  await choose(page, MEASURE_TYPE, 'Screening or testing');
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -391,9 +444,7 @@ test('saves the tags on Continue and shows the task as completed', async ({ page
     'Remove topic Dental and oral health',
     'Remove topic Diabetes: Care and treatment',
   ]);
-  await expect(removeButtons(page, 'measure type')).toHaveText([
-    'Remove measure type Screening or testing',
-  ]);
+  await expect(chosenOption(page, MEASURE_TYPE)).toHaveText('Screening or testing');
   await expect(question(page, FRAMEWORK_QUESTION).getByLabel('No')).toBeChecked();
   await expect(question(page, LIFE_STAGE_QUESTION).getByLabel('Yes')).toBeChecked();
   await expect(removeButtons(page, 'life stage')).toHaveText([`Remove life stage ${CHILDREN}`]);
@@ -447,7 +498,7 @@ test.describe('without JavaScript', () => {
     await expect(select(page, LISTS.riskFactor.label)).toBeVisible();
 
     await addTopic(page, 'Diabetes', 'Prevalence and risk', true);
-    await addTag(page, 'type', 'Outcome', true);
+    await choose(page, MEASURE_TYPE, 'Outcome');
     await addTag(page, 'framework', PHOF, true);
     await expect(question(page, FRAMEWORK_QUESTION).getByLabel('Yes')).toBeChecked();
     await page.getByLabel(PHOF_NUMBER).fill('2.12');

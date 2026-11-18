@@ -2,7 +2,7 @@ import { Details, TableScrollRegion } from '@fphd/ui';
 import { geographyGroupLabel } from '../../geography/groups.ts';
 import type { IndicatorComparisonModel } from '../comparison-model.ts';
 import { formatCalculatedValue, withUnit } from '../data.ts';
-import type { IndicatorDetail } from '../loader.ts';
+import type { IndicatorPageDetail } from '../loader.ts';
 
 export function IndicatorPairTable({
   indicators,
@@ -12,7 +12,10 @@ export function IndicatorPairTable({
   correlation,
   plotted = false,
 }: {
-  indicators: [Pick<IndicatorDetail, 'name' | 'unit'>, Pick<IndicatorDetail, 'name' | 'unit'>];
+  indicators: [
+    Pick<IndicatorPageDetail, 'name' | 'unit'>,
+    Pick<IndicatorPageDetail, 'name' | 'unit'>,
+  ];
   model: NonNullable<IndicatorComparisonModel['pair']>;
   group?: string;
   highlighted?: string[];

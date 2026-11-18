@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { formatValue, unitNote } from '../data.ts';
-import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
+import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { IndicatorPairTable } from '../tables/indicator-pair-table.tsx';
 import { englandCode, pairedObservations, regression } from './chart-data.ts';
 import {
@@ -28,7 +28,7 @@ import { AxisTitle, fitColour, ScatterMark, scatterMarks } from './scatter-eleme
 import type { ScatterComparison } from './scatter-loader.ts';
 
 type ChartIndicator = {
-  detail: Pick<IndicatorDetail, 'name' | 'unit' | 'yearType' | 'dataSource'>;
+  detail: Pick<IndicatorPageDetail, 'name' | 'unit' | 'yearType' | 'dataSource'>;
   areaData?: IndicatorAreaData[];
 };
 

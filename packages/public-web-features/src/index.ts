@@ -1,5 +1,7 @@
+export { indicatorPageDetailSchema } from '@fphd/public-api-features/contract';
 export { PublicHomePage } from './home/page.tsx';
 export { HomeRoute } from './home/route.tsx';
+export { type IndicatorLinks, IndicatorLinksContext } from './indicator/links.ts';
 export type {
   AreaSummary,
   IndicatorAreaData,
@@ -9,7 +11,9 @@ export type {
   IndicatorSummary,
   SelectedIndicator,
 } from './indicator/loader.ts';
+export { indicatorPageContext } from './indicator/page-context.ts';
 export { IndicatorRoute } from './indicator/route.tsx';
+export { loadIndicatorPage } from './indicator/single-loader.ts';
 export { SingleIndicatorPage } from './indicator/single-page.tsx';
 export { createSearchRoute, SearchRoute } from './search/route.tsx';
 export { TopicsRoute } from './topic/list-route.tsx';

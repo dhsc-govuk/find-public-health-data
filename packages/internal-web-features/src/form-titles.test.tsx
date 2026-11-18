@@ -127,7 +127,6 @@ const taggingUnanswered = {
   riskFactorIds: [],
   addTopic: '',
   addSubtopic: '',
-  addIndicatorType: '',
   addFramework: '',
   addLifeStage: '',
   addRiskFactor: '',

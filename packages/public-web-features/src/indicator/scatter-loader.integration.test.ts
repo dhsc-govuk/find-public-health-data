@@ -52,6 +52,7 @@ async function load(url: string, onRead: (path: string) => void = () => {}) {
     request: new Request(url),
     params: { slug: new URL(url).pathname.split('/').at(-1) },
   } as unknown as Parameters<typeof loadIndicatorPage>[0]);
+  if (page.dataPlaceholder !== null) throw new Error('Expected the page to load its data');
   const [, comparison] = await Promise.all([page.data, page.comparison]);
   return {
     ...comparison,

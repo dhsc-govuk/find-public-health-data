@@ -9,6 +9,7 @@ import {
   highlightedAreaCodes,
   neighbourAnchors,
 } from './area-comparison.ts';
+import { useIndicatorLinks } from './links.ts';
 
 const VISIBLE_NEIGHBOUR_ANCHORS = 3;
 // How NHS England groups each upper tier council with its 15 most similar peers.
@@ -180,6 +181,7 @@ export function AreaControls({
   areas: CompareAreaOption[];
   displayOptions?: boolean;
 }) {
+  const links = useIndicatorLinks();
   const { params, action, update, hidden } = useAreaParams(
     displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators',
     areas,
@@ -217,6 +219,7 @@ export function AreaControls({
             key={group}
             flat
             name="highlight"
+            choicesLabel={`Geography choices for ${displayOptions ? 'Compare areas' : 'Compare indicators'}`}
             levels={[group]}
             selected={highlighted}
             selectedLevels={[]}
@@ -229,7 +232,7 @@ export function AreaControls({
             }
             searchLabel={`Highlight ${geographyGroupLabel(group)}`}
             searchHint="Search areas"
-            lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}`}
+            lookupUrl={`${links.geographies}?indicator=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}`}
             fallback={{
               query: search,
               level: '',

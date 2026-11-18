@@ -22,13 +22,13 @@ import {
   sql,
 } from 'drizzle-orm';
 import { alias, union } from 'drizzle-orm/pg-core';
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export async function getCachedScatterAreas(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: [string, string],
   codes: string[],
@@ -37,7 +37,7 @@ export async function getCachedScatterAreas(
 }
 
 async function getCachedScatterVariants(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: [string, string],
   codes: string[],
@@ -381,7 +381,7 @@ async function getCachedScatterVariants(
 }
 
 export async function getIndicatorScatterData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: [string, string],
   codes: string[],
@@ -409,7 +409,7 @@ export async function getIndicatorScatterData(
 }
 
 export async function getPublishedIndicatorScatterData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   shortIds: [number, number],
   codes: string[],

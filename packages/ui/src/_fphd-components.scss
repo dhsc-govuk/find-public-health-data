@@ -132,6 +132,7 @@
 }
 
 .fphd-chart-canvas {
+  position: relative;
   min-width: 0;
   margin-bottom: govuk-spacing(3);
 
@@ -171,6 +172,28 @@
   border-radius: 3px;
   padding: 8px 12px;
   pointer-events: auto;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.fphd-chart-tooltip-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.fphd-chart-tooltip-leader {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.fphd-chart-tooltip-position {
+  position: absolute;
+  width: max-content;
+  max-width: min(280px, 100%);
 }
 
 .fphd-chart-key {
@@ -200,10 +223,10 @@
 .fphd-sparkline__endpoints {
   display: flow-root;
   margin: 0 0 govuk-spacing(1);
-  line-height: 1.2;
 
   > span {
     display: block;
+    line-height: 1.2;
   }
   > span:first-child {
     float: left;
@@ -216,6 +239,10 @@
 
 .fphd-chart-axis-title {
   margin-bottom: govuk-spacing(1);
+}
+
+.fphd-line-chart .recharts-surface {
+  overflow: visible;
 }
 
 .fphd-scatter-axis-title {
@@ -966,6 +993,10 @@ body.govuk-frontend-supported .fphd-filter-card {
   border: 1px solid govuk-colour("black", $variant: "tint-80");
   padding: govuk-spacing(2);
   margin-bottom: govuk-spacing(3);
+
+  &:focus-visible {
+    @include govuk-focused-box;
+  }
 }
 
 // Shrinks the small checkboxes to compact rows so a long geography tree stays scannable.
@@ -1710,10 +1741,21 @@ thead .fphd-table__frozen {
   }
 }
 
-// 40% of the table's region: the window less the page's gutters.
-$fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
+// On phones a table's region is the window less the page's gutters.
+$fphd-table-region-width: calc(100vw - #{2 * govuk-spacing(3)});
+$fphd-frozen-cap: calc(#{$fphd-table-region-width} * 0.4);
 
 @include govuk-media-query($until: tablet) {
+  // A caption is as wide as its table, so most of a wide table's caption would sit out of view.
+  // The caption stays at the region's left edge and wraps at the region's width, so it reads in
+  // full without JavaScript. With JavaScript, attachStickyTable shows a copy above the scrollbar.
+  .fphd-table-scroll-wrapper caption {
+    position: sticky;
+    left: 0;
+    max-width: $fphd-table-region-width;
+    white-space: normal;
+  }
+
   .fphd-table__frozen:not(.fphd-table__frozen--second) {
     max-width: $fphd-frozen-cap;
     padding-right: govuk-spacing(2);
@@ -1951,8 +1993,7 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
 
 .fphd-range-slot {
   width: 100%;
-  min-width: 60px;
-  max-width: 213px;
+  max-width: 120px;
 }
 
 .fphd-range-plot {
@@ -1975,18 +2016,24 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
   max-width: 15em;
 }
 
+.fphd-range-target {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid $govuk-focus-colour;
+  }
+}
+
 .fphd-range-tooltip {
-  position: absolute;
-  z-index: 1;
-  right: 0;
-  bottom: 100%;
+  position: fixed;
+  z-index: 1000;
   padding: govuk-spacing(2);
   width: max-content;
   max-width: min(19em, 75vw);
   color: #ffffff;
   background: #0b0c0c;
   border-radius: 3px;
-  @include govuk-font-size($size: 16);
+  @include govuk-font($size: 16);
 
   strong,
   span {
@@ -1995,11 +2042,10 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
 }
 
 .fphd-range-key {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   max-width: 540px;
 
   li {
+    @include govuk-font-size($size: 16);
     display: flex;
     align-items: center;
     gap: govuk-spacing(2);
@@ -2010,6 +2056,7 @@ $fphd-frozen-cap: calc((100vw - #{2 * govuk-spacing(3)}) * 0.4);
   display: block;
   max-width: 100%;
   height: auto;
+  margin-bottom: 15px;
 }
 
 // Fit the range plot within a normal text-height row so toggling it does not resize rows.
@@ -2379,11 +2426,12 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   margin-bottom: govuk-spacing(3);
 }
 
-.fphd-topic-highlight .fphd-trend-tag {
+.fphd-topic-highlight .govuk-tag.fphd-trend-tag {
   @include govuk-font-size($size: 16);
   box-sizing: border-box;
-  min-width: 0;
+  min-width: min(136px, 100%);
   max-width: 100%;
+  margin-bottom: -3px;
   white-space: normal;
 }
 
@@ -2417,7 +2465,7 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 
   .fphd-chart-section {
-    margin-bottom: govuk-spacing(1);
+    margin-bottom: 0;
   }
 
   .govuk-summary-list {
@@ -2453,6 +2501,7 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 
   .govuk-summary-list__key {
+    box-sizing: border-box;
     font-weight: bold;
     padding-right: govuk-spacing(2);
     width: 55%;
@@ -2471,7 +2520,7 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 }
 
-.fphd-topic-highlight__no-trend {
+.fphd-topic-highlight .fphd-topic-highlight__no-trend {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2498,6 +2547,23 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
 
 .fphd-inline-search__input {
   max-width: 30em;
+}
+
+// Clear search sits beside the search button, centred on it. Below tablet width it goes on a line
+// of its own under the search box and button, so the box keeps its width.
+.fphd-inline-search__clear {
+  align-self: center;
+  white-space: nowrap;
+}
+
+@include govuk-media-query($until: tablet) {
+  .fphd-inline-search {
+    flex-wrap: wrap;
+  }
+
+  .fphd-inline-search__clear {
+    flex-basis: 100%;
+  }
 }
 
 // The publisher guidance page. The row stretches the contents column to the height of the

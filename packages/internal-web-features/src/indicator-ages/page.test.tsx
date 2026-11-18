@@ -201,6 +201,27 @@ describe('AgesPage', () => {
     ]);
   });
 
+  it('links the refusals of an empty range to its lower limit and to that limit’s period', () => {
+    renderPage({
+      values: { ...empty, ageType: 'range', ageRanges: [blank] },
+      fieldErrors: {
+        [ageRangeFieldName(0, 'lowerLimit')]: 'You must enter at least a lower or upper limit',
+        [ageRangeFieldName(0, 'lowerLimitUnit')]: 'Select the periods for the lower limit',
+      },
+    });
+
+    const links = within(screen.getByRole('alert')).getAllByRole('link');
+    const periods = field('Periods for lower limit');
+
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['You must enter at least a lower or upper limit', `#${field('Lower limit').id}`],
+      ['Select the periods for the lower limit', `#${periods.id}`],
+    ]);
+    expect(
+      document.getElementById(periods.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toContain('Select the periods for the lower limit');
+  });
+
   it('shows a refusal of the ranges as a whole at the first range', () => {
     renderPage({ fieldErrors: { ageRanges: 'You cannot add more than 20 ranges' } });
 

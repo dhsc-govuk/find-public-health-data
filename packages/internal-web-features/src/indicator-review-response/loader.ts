@@ -317,7 +317,7 @@ export async function loadUpdateApproval({ context, params, request }: LoaderFun
 
 /**
  * Approves the update from the page, with no IMRG date, or takes a No on to the revisions page as
- * feedback, carrying the kinds of feedback chosen so the back link reopens the page as it was left.
+ * feedback.
  */
 export async function chooseUpdateApproval({
   context,
@@ -331,14 +331,8 @@ export async function chooseUpdateApproval({
   const formData = await request.formData();
   const submissionNumber = postedSubmissionNumber(formData);
   const approved = formData.get('approved');
-  const values: UpdateApprovalValues = {
-    approved: typeof approved === 'string' ? approved : '',
-    reasons: formData.getAll('reasons').filter((reason) => typeof reason === 'string'),
-  };
-  const decision = updateApprovalSchema.safeParse({
-    approved: values.approved || undefined,
-    reasons: values.reasons,
-  });
+  const values: UpdateApprovalValues = { approved: typeof approved === 'string' ? approved : '' };
+  const decision = updateApprovalSchema.safeParse({ approved: values.approved || undefined });
 
   if (!decision.success) {
     return {
@@ -348,11 +342,7 @@ export async function chooseUpdateApproval({
   }
 
   if (!decision.data.approved) {
-    const journey = {
-      submissionNumber,
-      kind: 'pre_imrg_feedback' as const,
-      reasons: decision.data.reasons,
-    };
+    const journey = { submissionNumber, kind: 'pre_imrg_feedback' as const };
     return redirect(reviewResponsePath(id, 'revisions', journeySearch(journey)));
   }
 
@@ -377,14 +367,12 @@ export async function loadRevisions({ context, params, request }: LoaderFunction
   requireReviewer(context);
   const { indicatorStatus } = await waitingIndicator(context, id);
   const journey = requireJourney(request, id, isRevisionsJourney);
-  // An update's reviewer who asked to request clarification finds its box ticked and open.
-  const clarification = journey.reasons?.includes('clarification') ?? false;
 
   return {
     id,
     journey,
     isUpdate: indicatorStatus === 'live',
-    values: { ...readRevisions(new FormData()), clarification },
+    values: readRevisions(new FormData()),
   };
 }
 

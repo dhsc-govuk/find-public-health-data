@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 
@@ -76,4 +76,15 @@ it('asks for feedback by emailing us when there is no feedback mailbox', () => {
     'BetaThis is a new service. You can help us to improve it by emailing us.',
   );
   expect(screen.queryByRole('link', { name: /@/ })).toBeNull();
+});
+
+it('links the footer only to GDS, the Open Government Licence and Crown copyright', () => {
+  renderShell();
+
+  const footer = screen.getByRole('contentinfo');
+  expect(
+    within(footer)
+      .getAllByRole('link')
+      .map((link) => link.textContent),
+  ).toEqual(['Government Digital Service', 'Open Government Licence v3.0', '© Crown copyright']);
 });

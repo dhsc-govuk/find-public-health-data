@@ -73,11 +73,6 @@ export async function migrationFixture(
   options: MigrationFixtureOptions = {},
 ) {
   const relationships = {
-    approval: {
-      approvedBy: 'migration test',
-      approvedAt: '2026-09-22T10:00:00Z',
-      basis: 'integration fixture',
-    },
     indicators: [108],
     indicatorTopics: [{ topicId, fingertipsId: 108 }],
     indicatorDataUpdatedAt: {},

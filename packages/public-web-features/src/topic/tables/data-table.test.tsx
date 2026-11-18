@@ -306,7 +306,7 @@ it('puts England’s spread before its value and the chart beside each area', ()
   const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
   expect(cells.map((cell) => cell.textContent)).toEqual([
     '18.0%',
-    'North East: 18.0%. England: 28.0%. Range: 5.0% to 45.0%. 25th percentile: 12.0%. 75th percentile: 30.0%. Better than benchmark',
+    'Smoking. Period: 2023. Value: 18.0%. Area: North East. Comparison: Better than England. Value: 28.0%. Area: England. Lowest to highest: 5.0% to 45.0%. 25th to 75th percentile: 12.0% to 30.0%',
     'Better than England',
     '5.0%',
     '12.0%',
@@ -376,7 +376,7 @@ it.each([
     expect(cells[0]?.textContent).toBe('-No data');
     expect(cells[1]?.textContent).toBe('No comparison available(2022)');
   } else {
-    expect(cells[0]?.textContent).toContain(`England: ${expected}.0%`);
+    expect(cells[0]?.textContent).toContain(`Value: ${expected}.0%. Area: England`);
   }
 });
 
@@ -492,3 +492,34 @@ it.each([false, true])(
     ).toEqual(compare ? ['50', '150'] : ['680']);
   },
 );
+
+it('places one comparison key before the topic table only when the chart column is shown', () => {
+  const model: TopicDataTableModel = {
+    kind: 'data',
+    compared: true,
+    areas: [{ code: 'E12000001', name: 'North East' }],
+    rows: [
+      row(
+        'Smoking',
+        { value: 18, judgement: 'better' },
+        { value: 28, count: null, numerator: null },
+      ),
+    ],
+  };
+  const { container, rerender } = render(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Health" columns={['value', 'chart']} />
+    </MemoryRouter>,
+  );
+  expect(screen.getAllByText('Key to the comparison chart')).toHaveLength(1);
+  const key = container.querySelector('details');
+  expect(key?.compareDocumentPosition(screen.getByRole('table'))).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  rerender(
+    <MemoryRouter>
+      <TopicDataTable model={model} title="Health" columns={['value']} />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByText('Key to the comparison chart')).toBeNull();
+});

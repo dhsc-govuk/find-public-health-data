@@ -16,19 +16,28 @@ import type { FormFailure, SectionAnswers } from '../indicator-section.ts';
 import { type ListIntent, readListIntent } from '../list-form.ts';
 
 /**
+ * The lists built up by Add buttons. An indicator has one measure type, chosen in a select of
+ * its own that the form sends as it is.
+ */
+export type AddedTagList = Exclude<TagList, 'indicatorTypeIds'>;
+
+const ADDED_TAG_LISTS = TAG_LISTS.filter(
+  (list): list is AddedTagList => list !== 'indicatorTypeIds',
+);
+
+/**
  * The select that adds a tag to each list. A subtopic is added with its topic, so the subtopic
  * select is shown only once a topic with subtopics has been chosen.
  */
 export const ADD_TAG_FIELDS = {
   topicIds: 'addTopic',
   subtopicIds: 'addSubtopic',
-  indicatorTypeIds: 'addIndicatorType',
   frameworkIds: 'addFramework',
   lifeStageIds: 'addLifeStage',
   riskFactorIds: 'addRiskFactor',
-} as const satisfies Record<TagList, string>;
+} as const satisfies Record<AddedTagList, string>;
 
-type AddTagField = (typeof ADD_TAG_FIELDS)[TagList];
+type AddTagField = (typeof ADD_TAG_FIELDS)[AddedTagList];
 
 /** The page's answers, and the tag chosen in each select but not yet added. */
 export type TaggingPageValues = TaggingFormValues & Record<AddTagField, string>;
@@ -39,7 +48,7 @@ export type TaggingPageField = TaggingField | AddTagField;
 export type TaggingPageState = FormFailure<TaggingPageField, TaggingPageValues>;
 
 /** The lists a topic and its subtopic are added to together, and removed from together. */
-const TOPIC_LISTS: readonly TagList[] = ['topicIds', 'subtopicIds'];
+const TOPIC_LISTS: readonly AddedTagList[] = ['topicIds', 'subtopicIds'];
 
 /** The page with nothing chosen in the selects that add a tag. */
 export function taggingPageValues(values: TaggingFormValues): TaggingPageValues {
@@ -47,7 +56,6 @@ export function taggingPageValues(values: TaggingFormValues): TaggingPageValues 
     ...values,
     addTopic: '',
     addSubtopic: '',
-    addIndicatorType: '',
     addFramework: '',
     addLifeStage: '',
     addRiskFactor: '',
@@ -57,10 +65,11 @@ export function taggingPageValues(values: TaggingFormValues): TaggingPageValues 
 /** The form as sent, and which of its buttons sent it; a field not sent is empty. */
 export function readTaggingForm(formData: FormData): {
   values: TaggingPageValues;
-  intent: ListIntent<TagList>;
+  intent: ListIntent<AddedTagList>;
 } {
+  // The measure type select left on its prompt sends an empty id, which is no measure type.
   const ids = (list: TagList) =>
-    formData.getAll(list).filter((id): id is string => typeof id === 'string');
+    formData.getAll(list).filter((id): id is string => typeof id === 'string' && id !== '');
 
   return {
     values: {
@@ -78,7 +87,7 @@ export function readTaggingForm(formData: FormData): {
       lifeStageIds: ids('lifeStageIds'),
       riskFactorIds: ids('riskFactorIds'),
     },
-    intent: readListIntent(formData, TAG_LISTS),
+    intent: readListIntent(formData, ADDED_TAG_LISTS),
   };
 }
 
@@ -88,7 +97,7 @@ function withId(ids: readonly string[], id: string): string[] {
 }
 
 /** The values with the tag chosen for `list` added once, and its select cleared. */
-function withChosen(values: TaggingPageValues, list: TagList): TaggingPageValues {
+function withChosen(values: TaggingPageValues, list: AddedTagList): TaggingPageValues {
   const field = ADD_TAG_FIELDS[list];
 
   return { ...values, [list]: withId(values[list], values[field]), [field]: '' };
@@ -135,7 +144,7 @@ function withChosenTopic(
  */
 export function withTagAdded(
   values: TaggingPageValues,
-  list: TagList,
+  list: AddedTagList,
   options: TagOptions,
 ): TaggingPageState {
   const { article, noun, question } = TAG_LIST_DETAILS[list];
@@ -166,7 +175,7 @@ export function withTagAdded(
  */
 export function withTagRemoved(
   values: TaggingPageValues,
-  list: TagList,
+  list: AddedTagList,
   index: number,
   options: TagOptions,
 ): TaggingPageState {
@@ -186,7 +195,7 @@ export function withTagRemoved(
 
 /** The values with every tag chosen for a list other than topics taken in, except beside a "No". */
 function withOtherTagsTakenIn(sent: TaggingPageValues): TaggingPageValues {
-  return TAG_LISTS.filter((list) => !TOPIC_LISTS.includes(list)).reduce((current, list) => {
+  return ADDED_TAG_LISTS.filter((list) => !TOPIC_LISTS.includes(list)).reduce((current, list) => {
     const { question } = TAG_LIST_DETAILS[list];
     const wanted = question === null || current[question] !== 'no';
 

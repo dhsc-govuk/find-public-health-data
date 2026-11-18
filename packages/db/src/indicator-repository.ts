@@ -1,4 +1,5 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
+import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
 import {
   type PublicYearType,
@@ -29,7 +30,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import {
   type IndicatorClassification,
   listClassificationsForIndicators,
@@ -95,7 +96,7 @@ export interface PublishedIndicator {
  * any slug a published version carries, so an indicator's earlier address finds it too.
  * A slug is never digits only, so a digit run matches a short id or nothing.
  */
-function exactIdentifierMatch(db: Database, views: ViewSet, query: string) {
+function exactIdentifierMatch(db: DatabaseReader, views: ViewSet, query: string) {
   const { indicator, indicatorSlug } = views;
   if (SHORT_ID_PATTERN.test(query)) {
     return isShortId(query) ? eq(indicator.shortId, Number(query)) : sql<boolean>`false`;
@@ -119,7 +120,7 @@ function escapedSearchTerms(query: string): string[] {
 
 /** The published indicator surface, ordered by name. */
 export async function listPublishedIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
 ): Promise<PublishedIndicator[]> {
   const { indicator } = views;
@@ -131,7 +132,7 @@ export async function listPublishedIndicators(
 
 /** Case-insensitive indicator lookup by name or exact identifier. */
 export async function searchPublishedIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   query: string,
   limit: number,
@@ -220,6 +221,33 @@ export interface IndicatorDetail {
   updateSummaries: IndicatorUpdateSummary[];
 }
 
+/**
+ * An indicator's detail as the views hold it, which for a draft may leave questions unanswered.
+ * A null `unit` means no unit unless `unanswered` names it, and a null `updateFrequency` beside
+ * frequency text is an answer.
+ */
+export interface FoundIndicatorDetail extends Omit<IndicatorDetail, 'valueType' | 'polarity'> {
+  valueType: string | null;
+  polarity: Polarity | null;
+  unanswered: IndicatorQuestion[];
+}
+
+/**
+ * The detail the public page shows, or undefined when the indicator has no value type, unit or
+ * polarity. A published version always has all three. An indicator imported without an update
+ * frequency is complete, because the public page shows it without one.
+ */
+export function completeIndicatorDetail({
+  unanswered,
+  valueType,
+  polarity,
+  ...detail
+}: FoundIndicatorDetail): IndicatorDetail | undefined {
+  return valueType === null || polarity === null || unanswered.includes('unit')
+    ? undefined
+    : { ...detail, valueType, polarity };
+}
+
 export interface IndicatorUpdateSummary {
   publishedAt: string;
   summary: string;
@@ -227,7 +255,7 @@ export interface IndicatorUpdateSummary {
 
 /** The internal id behind a public short id — the one place the external id resolves. */
 export async function resolvePublishedIndicatorId(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   shortId: number,
 ): Promise<string | undefined> {
@@ -245,7 +273,7 @@ export async function resolvePublishedIndicatorId(
  * made before a rename still lands on the indicator; the caller lower-cases first.
  */
 export async function resolveIndicatorIdBySlug(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   slug: string,
 ): Promise<string | undefined> {
@@ -259,22 +287,24 @@ export async function resolveIndicatorIdBySlug(
 }
 
 /**
- * Everything the indicator page needs in one round trip. The view is the published
- * surface, so an unpublished indicator is indistinguishable from one that does not exist.
+ * Everything the indicator page needs in one round trip, as the views hold it. The published
+ * views hold only published indicators, so through them an unpublished indicator is
+ * indistinguishable from one that does not exist.
  */
-export async function getPublishedIndicatorById(
-  db: Database,
+export async function getIndicatorDetailById(
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
-): Promise<IndicatorDetail | undefined> {
-  return (await getPublishedIndicatorsByIds(db, views, [indicatorId])).get(indicatorId);
+): Promise<FoundIndicatorDetail | undefined> {
+  return (await getIndicatorDetailsByIds(db, views, [indicatorId])).get(indicatorId);
 }
 
-export async function getPublishedIndicatorsByIds(
-  db: Database,
+/** The details of the indicators the views hold, keeping those that leave questions unanswered. */
+export async function getIndicatorDetailsByIds(
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
-): Promise<Map<string, IndicatorDetail>> {
+): Promise<Map<string, FoundIndicatorDetail>> {
   const {
     availableData,
     ciMethod,
@@ -336,8 +366,8 @@ export async function getPublishedIndicatorsByIds(
       )`,
     })
     .from(indicator)
-    .innerJoin(valueType, eq(indicator.valueTypeId, valueType.id))
-    .innerJoin(unit, eq(indicator.unitId, unit.id))
+    .leftJoin(valueType, eq(indicator.valueTypeId, valueType.id))
+    .leftJoin(unit, eq(indicator.unitId, unit.id))
     .leftJoin(ciMethod, eq(indicator.ciMethodId, ciMethod.id))
     .leftJoin(comparatorMethod, eq(indicator.comparatorMethodId, comparatorMethod.id))
     .leftJoin(dataSource, eq(indicator.dataSourceId, dataSource.id))
@@ -369,61 +399,80 @@ export async function getPublishedIndicatorsByIds(
       .orderBy(asc(indicatorSource.position)),
   ]);
   return new Map(
-    rows.flatMap((row): [string, IndicatorDetail][] => {
-      if (row.polarity === null) return [];
+    rows.map((row): [string, FoundIndicatorDetail] => {
       const sourcesOf = (part: IndicatorSourcePart) =>
         sources
           .filter((entry) => entry.indicatorId === row.id && entry.part === part)
           .map(({ provider, source }) => ({ provider, source }));
 
       return [
-        [
-          row.id,
-          {
-            shortId: row.shortId,
-            slug: row.slug,
-            name: row.name,
-            valueType: row.valueType,
-            unit: unitLabel({ id: row.unitId, name: row.unitName }, row.unitDetail),
-            yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
-            updateFrequency: row.updateFrequency,
-            updateFrequencyReason: row.updateFrequencyReason,
-            updateFrequencyText: row.updateFrequencyText,
-            polarity: row.polarity,
-            ciMethod: row.ciMethod,
-            ciConfidenceLevel: row.ciConfidenceLevel,
-            comparatorMethod: row.comparatorMethod,
-            dataUpdatedAt: row.dataUpdatedAt?.toISOString() ?? null,
-            firstPublishedAt: row.firstPublishedAt.toISOString(),
-            lastPublishedAt: row.lastPublishedAt.toISOString(),
-            definition: row.definition,
-            rationale: row.rationale,
-            methodology: row.methodology,
-            numeratorDefinition: row.numeratorDefinition,
-            denominatorDefinition: row.denominatorDefinition,
-            disclosureControl: row.disclosureControl,
-            caveats: row.caveats,
-            notes: row.notes,
-            dataSource:
-              row.dataSourceName === null
-                ? null
-                : { name: row.dataSourceName, url: row.dataSourceUrl },
-            numeratorSources: sourcesOf('numerator'),
-            denominatorSources: sourcesOf('denominator'),
-            areaTypes: areaTypes
-              .filter((entry) => entry.indicatorId === row.id)
-              .map(({ indicatorId: _id, ...entry }) => entry),
-            topics: topics.get(row.id) ?? [],
-            classifications: classifications.get(row.id) ?? [],
-            updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({
-              publishedAt: new Date(publishedAt).toISOString(),
-              summary,
-            })),
-          },
-        ],
+        row.id,
+        {
+          shortId: row.shortId,
+          slug: row.slug,
+          name: row.name,
+          valueType: row.valueType,
+          unit:
+            row.unitId === null || row.unitName === null
+              ? null
+              : unitLabel({ id: row.unitId, name: row.unitName }, row.unitDetail),
+          yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
+          updateFrequency: row.updateFrequency,
+          updateFrequencyReason: row.updateFrequencyReason,
+          updateFrequencyText: row.updateFrequencyText,
+          polarity: row.polarity,
+          ciMethod: row.ciMethod,
+          ciConfidenceLevel: row.ciConfidenceLevel,
+          comparatorMethod: row.comparatorMethod,
+          dataUpdatedAt: row.dataUpdatedAt?.toISOString() ?? null,
+          firstPublishedAt: row.firstPublishedAt.toISOString(),
+          lastPublishedAt: row.lastPublishedAt.toISOString(),
+          definition: row.definition,
+          rationale: row.rationale,
+          methodology: row.methodology,
+          numeratorDefinition: row.numeratorDefinition,
+          denominatorDefinition: row.denominatorDefinition,
+          disclosureControl: row.disclosureControl,
+          caveats: row.caveats,
+          notes: row.notes,
+          dataSource:
+            row.dataSourceName === null
+              ? null
+              : { name: row.dataSourceName, url: row.dataSourceUrl },
+          numeratorSources: sourcesOf('numerator'),
+          denominatorSources: sourcesOf('denominator'),
+          areaTypes: areaTypes
+            .filter((entry) => entry.indicatorId === row.id)
+            .map(({ indicatorId: _id, ...entry }) => entry),
+          topics: topics.get(row.id) ?? [],
+          classifications: classifications.get(row.id) ?? [],
+          updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({
+            publishedAt: new Date(publishedAt).toISOString(),
+            summary,
+          })),
+          unanswered: unansweredQuestions(row),
+        },
       ];
     }),
   );
+}
+
+/** The questions a version leaves unanswered. A null unit id is unanswered, not "No unit". */
+function unansweredQuestions(row: {
+  valueType: string | null;
+  unitId: string | null;
+  polarity: Polarity | null;
+  updateFrequency: UpdateFrequency | null;
+  updateFrequencyText: string | null;
+}): IndicatorQuestion[] {
+  const answered: Record<IndicatorQuestion, boolean> = {
+    valueType: row.valueType !== null,
+    unit: row.unitId !== null,
+    polarity: row.polarity !== null,
+    // An indicator imported with only the original text describing its frequency has answered.
+    updateFrequency: row.updateFrequency !== null || row.updateFrequencyText !== null,
+  };
+  return INDICATOR_QUESTIONS.filter((question) => !answered[question]);
 }
 
 export {
@@ -450,7 +499,7 @@ export interface ObservationRangePeriod {
 
 /** The precomputed per-period range for each least-disaggregated segment at a display level. */
 export async function getObservationRange(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
   displayGroup: string,
@@ -478,7 +527,7 @@ export async function getObservationRange(
 }
 
 export async function searchIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   filters: IndicatorSearchFilters,
 ): Promise<IndicatorSearchResult> {
@@ -932,7 +981,7 @@ function yearEndOf({
 }
 
 /** The labels of the year types published indicators have, for the search filter to offer. */
-async function listPublishedYearTypeLabels(db: Database, views: ViewSet): Promise<string[]> {
+async function listPublishedYearTypeLabels(db: DatabaseReader, views: ViewSet): Promise<string[]> {
   const { indicator } = views;
   const rows = await db
     .selectDistinct({
@@ -948,7 +997,10 @@ async function listPublishedYearTypeLabels(db: Database, views: ViewSet): Promis
   return [...new Set(labels)].sort((a, b) => a.localeCompare(b));
 }
 
-export async function listIndicatorFacets(db: Database, views: ViewSet): Promise<IndicatorFacets> {
+export async function listIndicatorFacets(
+  db: DatabaseReader,
+  views: ViewSet,
+): Promise<IndicatorFacets> {
   const {
     classification,
     dataSource,

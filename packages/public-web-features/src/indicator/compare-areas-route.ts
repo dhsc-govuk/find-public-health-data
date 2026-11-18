@@ -15,7 +15,7 @@ import { isIndicatorSegment } from './paths.ts';
  * The compare areas tab's regions (`parents`) and the statistical neighbours of the given
  * `areaCode`s, which the tab fetches once it is shown so other tabs never load them.
  */
-export async function loader({ context, request }: LoaderFunctionArgs) {
+export async function loadCompareAreaDetail({ context, request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const api = context.get(apiContext);
   const indicator = url.searchParams.get('indicator') ?? '';
@@ -50,3 +50,5 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
     neighbours: neighbours.status === 'fulfilled' ? neighbours.value : null,
   });
 }
+
+export const loader = loadCompareAreaDetail;

@@ -33,7 +33,14 @@ export function createApp({
 
   app.use(publicApiRoutes(repositories));
 
-  app.use(internalApiRoutes({ repositories: internalRepositories, session, storage }));
+  app.use(
+    internalApiRoutes({
+      repositories: internalRepositories,
+      session,
+      storage,
+      publicRoutes: publicApiRoutes,
+    }),
+  );
 
   addFallbackHandlers(app);
   return app;

@@ -1,7 +1,8 @@
+import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import type { ReactNode } from 'react';
 import { SpineChart } from '../charts/spine-chart.tsx';
-import { benchmarkJudgement, formatCalculatedValue, withUnit } from '../data.ts';
-import type { IndicatorDetail, IndicatorObservation, IndicatorRangePeriod } from '../loader.ts';
+import { benchmarkJudgement } from '../data.ts';
+import type { IndicatorObservation, IndicatorPageDetail, IndicatorRangePeriod } from '../loader.ts';
 
 const BENCHMARK_HEADER = 'govuk-table__header fphd-trend-table__benchmark-cell';
 const BENCHMARK_CELL = 'govuk-table__cell fphd-trend-table__benchmark-cell';
@@ -90,7 +91,7 @@ export function BenchmarkCells({
 
 type ComparableObservation = Pick<
   IndicatorObservation,
-  'value' | 'lowerCi95' | 'upperCi95' | 'lowerCi998' | 'upperCi998'
+  'value' | 'lowerCi95' | 'upperCi95' | 'lowerCi998' | 'upperCi998' | 'fromDate' | 'toDate'
 >;
 
 /** The cell charting an area's value against its benchmark and the spread across areas. */
@@ -112,15 +113,18 @@ export function BenchmarkChartCell({
   benchmarkName: string;
   benchmarkValue: number | null;
   confidence?: '95' | '99.8';
-  indicator: Pick<IndicatorDetail, 'polarity' | 'comparatorMethod'>;
+  indicator: Pick<IndicatorPageDetail, 'name' | 'yearType' | 'polarity' | 'comparatorMethod'>;
   rangePeriod: IndicatorRangePeriod | undefined;
 }) {
-  const labelValue = (value: number) => withUnit(formatCalculatedValue(value), unit);
   const areaValue = areaObservation?.value ?? null;
   return (
     <td headers={headers} className="govuk-table__cell fphd-table__chart-cell">
-      {rangePeriod && areaValue != null && benchmarkValue != null ? (
+      {rangePeriod && areaObservation && areaValue != null && benchmarkValue != null ? (
         <SpineChart
+          indicatorName={indicator.name}
+          period={expandedPeriodLabel(areaObservation, indicator.yearType)}
+          areaName={areaName}
+          benchmarkName={benchmarkName}
           value={areaValue}
           benchmarkValue={benchmarkValue}
           min={rangePeriod.min}
@@ -129,9 +133,6 @@ export function BenchmarkChartCell({
           p75={rangePeriod.p75}
           unit={unit}
           judgement={benchmarkJudgement(areaObservation, benchmarkValue, indicator, confidence)}
-          valueLabel={`${areaName}: ${labelValue(areaValue)}`}
-          benchmarkLabel={`${benchmarkName}: ${labelValue(benchmarkValue)}`}
-          rangeLabel={`Range: ${labelValue(rangePeriod.min)} to ${labelValue(rangePeriod.max)}`}
         />
       ) : (
         '-'

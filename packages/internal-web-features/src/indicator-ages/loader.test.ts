@@ -172,6 +172,8 @@ describe('submitAges', () => {
       fieldErrors: {
         [ageRangeFieldName(1, 'lowerLimit')]:
           'You must enter at least a lower or upper limit for range 2',
+        [ageRangeFieldName(1, 'lowerLimitUnit')]:
+          'Select the periods for the lower limit of range 2',
       },
       version: SHOWN_VERSION,
     });

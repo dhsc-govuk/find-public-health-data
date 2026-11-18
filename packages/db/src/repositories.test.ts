@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import type { Database } from './client.ts';
 import {
-  getPublishedIndicatorById,
+  getIndicatorDetailById,
   resolveIndicatorIdBySlug,
   resolvePublishedIndicatorId,
 } from './indicator-repository.ts';
@@ -9,7 +9,7 @@ import { createRepositories } from './repositories.ts';
 
 vi.mock('./indicator-repository.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./indicator-repository.ts')>()),
-  getPublishedIndicatorById: vi.fn(),
+  getIndicatorDetailById: vi.fn(),
   resolveIndicatorIdBySlug: vi.fn(),
   resolvePublishedIndicatorId: vi.fn(),
 }));
@@ -35,10 +35,10 @@ it('runs every short id and slug lookup, even when they overlap', async () => {
 
 it('shares other overlapping indicator reads', async () => {
   const gate = Promise.withResolvers<undefined>();
-  vi.mocked(getPublishedIndicatorById).mockReturnValue(gate.promise);
+  vi.mocked(getIndicatorDetailById).mockReturnValue(gate.promise);
   const { indicators } = createRepositories(db);
-  const reads = [indicators.findPublishedById('ind-1'), indicators.findPublishedById('ind-1')];
+  const reads = [indicators.findDetailById('ind-1'), indicators.findDetailById('ind-1')];
   gate.resolve(undefined);
   await Promise.all(reads);
-  expect(getPublishedIndicatorById).toHaveBeenCalledOnce();
+  expect(getIndicatorDetailById).toHaveBeenCalledOnce();
 });

@@ -4,7 +4,7 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { addReviewer, assignReviewers } from '../support/assign-reviewers.ts';
 import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import { historyEntries, historyToday, openHistory } from '../support/history.ts';
-import { openIndicatorPage } from '../support/indicator-page.ts';
+import { MORTALITY_NAME, MORTALITY_SLUG, openIndicatorPage } from '../support/indicator-page.ts';
 import { addInviteeAccess } from '../support/private-beta.ts';
 import {
   confirmPublicationAt,
@@ -16,6 +16,7 @@ import {
 } from '../support/published-indicator.ts';
 import { asUser } from '../support/review-response.ts';
 import { ADMIN, IMRG_MANAGER, IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
+import { answerTo } from '../support/summary-list.ts';
 
 // Only a publication gives a publisher a live indicator of their own, so the tests share one and
 // run in order: the first starts its update, and the rest work on it. A second live indicator,
@@ -121,7 +122,7 @@ async function writeReply(page: Page, id: string, text: string) {
 /** Chooses an answer on "What should happen to this update?" from the update's overview. */
 async function decide(page: Page, id: string, decision: string) {
   await page.goto(overviewPath(id));
-  await page.getByRole('button', { name: 'Submit update decision' }).click();
+  await page.getByRole('button', { name: 'Confirm update decision' }).click();
   await page.getByLabel(decision, { exact: true }).check();
   await page.getByRole('button', { name: 'Continue' }).click();
 }
@@ -238,6 +239,88 @@ test('the update summary page asks "What is the summary of this update?", and re
 
   await expect(page).toHaveURL(taskListPath());
   await expect(taskStatus(page, 'Update summary')).toHaveText('Complete');
+});
+
+test('"Preview indicator" shows an update that keeps the published data, with "Status: Updated" and its summary under History dated as if published today', async ({
+  page,
+}, testInfo) => {
+  await page.goto(taskListPath());
+  await page.getByRole('button', { name: 'Preview indicator' }).click();
+  await expect(page).toHaveURL(`${overviewPath()}/preview?from=task-list`);
+  await expect(page.getByRole('tab', { name: 'Indicator', exact: true })).toBeVisible();
+  await expect(page.locator('.govuk-tabs')).not.toHaveClass(/fphd-tabs--ssr/);
+
+  await expect(page.getByRole('region', { name: 'Important' })).toHaveText(
+    /This is a preview of the indicator/,
+  );
+  await expect(answerTo(page, 'Status')).toHaveText('Updated');
+  await expect(answerTo(page, 'Period covered')).not.toHaveText(/^\[/);
+  await expect(page.getByRole('region', { name: `${indicator.name} trend chart` })).toBeVisible();
+  await expect(page.getByText(/\[(Not provided yet|Data isn't shown)/)).toHaveCount(0);
+
+  // The page's downloads and lookups stay inside the preview, and answer from it.
+  const preview = `${overviewPath()}/preview`;
+  const indicatorTab = page.getByRole('tabpanel', { name: 'Indicator' });
+  for (const [name, path] of [
+    ["Download data for the areas you've chosen (CSV)", `${preview}/table.csv`],
+    ['Download data for all areas (CSV)', `${preview}/all-data.csv`],
+    ['Download metadata about this indicator (TXT)', `${preview}/metadata.txt`],
+  ] as const) {
+    const href = (await indicatorTab.getByText(name, { exact: true }).getAttribute('href')) ?? '';
+    expect(href.startsWith(path), `${name} links to ${href}`).toBe(true);
+    expect((await page.request.get(href)).status()).toBe(200);
+  }
+  // The preview's search gives the indicator's slug as publication would leave it.
+  const search = await page.request.get(
+    `${preview}/indicators/search?q=${encodeURIComponent(indicator.name)}`,
+  );
+  const found = (
+    (await search.json()) as { indicators: { name: string; slug: string }[] }
+  ).indicators.find(({ name }) => name === indicator.name);
+  expect(found?.slug).toBeTruthy();
+  const slug = found?.slug ?? '';
+  // The sample data covers England alone, which no area list offers, so both lists are empty.
+  const lookup = await page.request.get(`${preview}/geographies?indicator=${slug}`);
+  expect(lookup.status()).toBe(200);
+  expect(await lookup.json()).toEqual(
+    await (await page.request.get(`/geographies?indicator=${slug}`)).json(),
+  );
+  // The Compare areas tab's region and neighbour lookups go through the preview too.
+  const compareAreas = await page.request.get(
+    `${preview}/compare-areas?${new URLSearchParams({
+      indicator: slug,
+      displayGroup: 'Local authorities',
+      parents: '1',
+      areaCode: 'E06000001',
+    })}`,
+  );
+  expect(compareAreas.status()).toBe(200);
+  expect(await compareAreas.json()).toEqual({
+    parents: expect.any(Array),
+    neighbours: expect.any(Array),
+  });
+
+  await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
+  const about = page.getByRole('tabpanel', { name: 'About this indicator' });
+  await expect(answerTo(page, 'Polarity')).toHaveText('Higher is better');
+  // History is a section of the About tab, as on the public page.
+  await expect(about.getByRole('heading', { level: 2, name: 'History' })).toBeVisible();
+  await expect(
+    about
+      .locator('.govuk-summary-list__row')
+      .filter({
+        has: page.getByRole('term').filter({ hasText: new RegExp(`^${historyToday()}$`) }),
+      })
+      .locator('dd'),
+  ).toHaveText('Polarity corrected to higher is better.');
+  await expectNoAccessibilityViolations(page, testInfo);
+
+  // A comparison with a published indicator stays in the preview.
+  await page.goto(`${preview}?compareWith=${MORTALITY_SLUG}`);
+  await expect(page).toHaveURL(`${preview}?compareWith=${MORTALITY_SLUG}`);
+  await expect(page.getByRole('tabpanel', { name: 'Compare indicators' })).toContainText(
+    MORTALITY_NAME,
+  );
 });
 
 test('on an update the publishing date page asks "When should this update be published?" and whether the update needs to be fast-tracked, and reads "Complete" once saved', async ({
@@ -388,12 +471,12 @@ test.describe('the core team', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  test('the overview of an "Update pending decision" update gives the core team "Submit update decision"', async ({
+  test('the overview of an "Update pending decision" update gives the core team "Confirm update decision"', async ({
     page,
   }, testInfo) => {
     await page.goto(overviewPath());
 
-    await expect(page.getByRole('button', { name: 'Submit update decision' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Confirm update decision' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'View live indicator' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -402,7 +485,7 @@ test.describe('the core team', () => {
     page,
   }, testInfo) => {
     await page.goto(overviewPath());
-    await page.getByRole('button', { name: 'Submit update decision' }).click();
+    await page.getByRole('button', { name: 'Confirm update decision' }).click();
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'What should happen to this update?' }),
@@ -663,7 +746,7 @@ test.describe('IMRG review of an update', () => {
     );
   });
 
-  test('"Submit review response" on an update goes to "Can this update be published?", which errors "Select whether you approve this update for publishing" and "Select at least one kind of feedback"', async ({
+  test('"Submit review response" on an update goes to "Can this update be published?", which errors "Select whether you approve this update for publishing"', async ({
     browser,
   }, testInfo) => {
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
@@ -683,25 +766,17 @@ test.describe('IMRG review of an update', () => {
       await expect(reviewer.getByRole('alert')).toContainText(
         'Select whether you approve this update for publishing',
       );
-
-      await reviewer.getByLabel('No', { exact: true }).check();
-      await expect(reviewer.getByRole('group', { name: 'Select reasons' })).toBeVisible();
-      await reviewer.getByRole('button', { name: 'Continue' }).click();
-      await expectErrorSummaryReady(reviewer);
-      await expect(reviewer.getByRole('alert')).toContainText(
-        'Select at least one kind of feedback',
-      );
       await expectNoAccessibilityViolations(reviewer, testInfo);
     });
   });
 
-  test('"No" with "Request for clarification" goes to "What needs to be revised or clarified?" with the Update summary task, and sends the update back as "Revisions or clarifications needed" with its banner', async ({
+  test('"No" asks nothing more and goes to "What needs to be revised or clarified?" with the Update summary task, and sends the update back as "Revisions or clarifications needed" with its banner', async ({
     browser,
   }, testInfo) => {
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
       await reviewer.goto(`${overviewPath(reviewed.id)}/review/update-approval`);
       await reviewer.getByLabel('No', { exact: true }).check();
-      await reviewer.getByLabel('Request for clarification').check();
+      await expect(reviewer.getByRole('checkbox')).toHaveCount(0);
       await reviewer.getByRole('button', { name: 'Continue' }).click();
 
       await expect(
@@ -712,6 +787,7 @@ test.describe('IMRG review of an update', () => {
           .getByRole('group', { name: 'Publishing' })
           .getByLabel('Update summary', { exact: true }),
       ).toBeVisible();
+      await expect(reviewer.getByLabel('High-level clarification request')).not.toBeChecked();
       await reviewer.getByLabel('High-level clarification request').check();
       await reviewer
         .getByLabel('What are you requesting clarification about?')

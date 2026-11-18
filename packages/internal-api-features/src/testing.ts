@@ -6,13 +6,14 @@ import type { Actor } from '@fphd/db/audit-log';
 import { nullColumns, withThrowingDefaults } from '@fphd/db/testing';
 import { REQUEST_ID_HEADER } from '@fphd/express';
 import { createLogger, type Logger } from '@fphd/logger';
-import type { Express, Router } from 'express';
+import { type Express, Router } from 'express';
 
 import { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
 import { indicatorSectionFieldErrors } from './contract.ts';
 import type { IndicatorAccessReader } from './indicator-access.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
 import type { IndicatorSection } from './indicator-section-contract.ts';
+import type { PublicApiRoutes } from './preview.ts';
 import type { InternalRepositories } from './repositories.ts';
 
 /** Per-method stubs; anything unstubbed throws, as with `createFakeRepositories` in `@fphd/db`. */
@@ -28,6 +29,7 @@ export function createFakeInternalRepositories(
     dataProviders: withThrowingDefaults('dataProviders', overrides.dataProviders),
     dataUploads: withThrowingDefaults('dataUploads', overrides.dataUploads),
     indicators: withThrowingDefaults('indicators', overrides.indicators),
+    preview: withThrowingDefaults('preview', overrides.preview),
     reviewerNotes: withThrowingDefaults('reviewerNotes', overrides.reviewerNotes),
     reviewers: withThrowingDefaults('reviewers', overrides.reviewers),
     tags: withThrowingDefaults('tags', overrides.tags),
@@ -35,6 +37,9 @@ export function createFakeInternalRepositories(
     valueTypesAndUnits: withThrowingDefaults('valueTypesAndUnits', overrides.valueTypesAndUnits),
   };
 }
+
+/** Public routes for a test of other routes, so the preview's mount answers nothing. */
+export const noPublicRoutes: PublicApiRoutes = () => Router();
 
 const testSession = createJwtSessionService({
   audience: 'fphd-internal',

@@ -313,17 +313,74 @@ describe('GET /api/indicators/:indicator/areas', () => {
   });
 });
 
+const foundDetail = { ...indicatorDetail, unanswered: [] };
+
 describe('GET /api/indicators/:indicator', () => {
   it('finds an indicator by its short id', async () => {
     const app = createTestApp({
       resolveId: async () => 'ind-1',
-      findPublishedById: async () => indicatorDetail,
+      findDetailById: async () => foundDetail,
     });
 
     const response = await request(app).get('/api/indicators/108');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(indicatorDetail);
+  });
+
+  it.each([
+    ['value type', { valueType: null, unanswered: ['valueType' as const] }],
+    ['unit', { unit: null, unanswered: ['unit' as const] }],
+    ['polarity', { polarity: null, unanswered: ['polarity' as const] }],
+  ])('returns not-found for an indicator with no %s', async (_question, missing) => {
+    const app = createTestApp({
+      resolveId: async () => 'ind-1',
+      findDetailById: async () => ({ ...foundDetail, ...missing }),
+    });
+
+    const response = await request(app).get('/api/indicators/108');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('answers with the detail body a mount gives, or not found when it gives none', async () => {
+    const detailBody = vi.fn(async (detail: object, indicatorId: string) =>
+      indicatorId === 'ind-1' ? { ...detail, dataState: 'ready' } : undefined,
+    );
+    const app = express().use(
+      indicatorsRouter(
+        createFakeRepositories({
+          indicators: {
+            resolveId: async (shortId) => (shortId === 108 ? 'ind-1' : 'ind-2'),
+            findDetailById: async () => ({ ...foundDetail, polarity: null }),
+          },
+        }).indicators,
+        { detailBody },
+      ),
+    );
+
+    const found = await request(app).get('/api/indicators/108');
+    const refused = await request(app).get('/api/indicators/241');
+
+    expect(found.body).toEqual({ ...foundDetail, polarity: null, dataState: 'ready' });
+    expect(refused.status).toBe(404);
+  });
+
+  it('serves an indicator imported without an update frequency, with no unanswered list', async () => {
+    const app = createTestApp({
+      resolveId: async () => 'ind-1',
+      findDetailById: async () => ({
+        ...foundDetail,
+        updateFrequency: null,
+        unanswered: ['updateFrequency' as const],
+      }),
+    });
+
+    const response = await request(app).get('/api/indicators/108');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ...indicatorDetail, updateFrequency: null });
   });
 
   it('returns the standard not-found body for an unknown short id', async () => {
@@ -337,7 +394,7 @@ describe('GET /api/indicators/:indicator', () => {
 
   it('finds an indicator by its slug, case-folded, and answers 200 rather than redirecting', async () => {
     const resolveIdBySlug = vi.fn().mockResolvedValue('ind-1');
-    const app = createTestApp({ resolveIdBySlug, findPublishedById: async () => indicatorDetail });
+    const app = createTestApp({ resolveIdBySlug, findDetailById: async () => foundDetail });
 
     const response = await request(app).get(
       '/api/indicators/Under-75-Mortality-Rate-From-All-Causes',

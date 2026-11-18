@@ -1,4 +1,9 @@
-import type { IndicatorSearchFilters, Repositories } from '@fphd/db';
+import {
+  completeIndicatorDetail,
+  type FoundIndicatorDetail,
+  type IndicatorSearchFilters,
+  type Repositories,
+} from '@fphd/db';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { indicatorSort } from '@fphd/utils/indicator-sort';
 import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
@@ -67,7 +72,33 @@ function pickStrings(value: unknown, maxLength = MAX_FILTER_VALUE_LENGTH): strin
   ].slice(0, MAX_FILTER_VALUES);
 }
 
-export function indicatorsRouter(indicators: Repositories['indicators']): Router {
+/**
+ * The body of an indicator's detail, from its detail as the views hold it, or undefined for a
+ * 404. The public detail answers only for an indicator the public page can show.
+ */
+export type IndicatorDetailBody = (
+  found: FoundIndicatorDetail,
+  indicatorId: string,
+) => Promise<object | undefined>;
+
+// The annotation binds the repository's shape to the wire contract at compile time.
+const publicDetailBody: IndicatorDetailBody = async (found) => {
+  const detail: IndicatorDetail | undefined = completeIndicatorDetail(found);
+  return detail;
+};
+
+export interface IndicatorsRouterOptions {
+  /**
+   * Answers the detail endpoint in place of the public detail. Only the internal API's preview
+   * passes one, so any other mount answers as the public API does.
+   */
+  detailBody?: IndicatorDetailBody;
+}
+
+export function indicatorsRouter(
+  indicators: Repositories['indicators'],
+  { detailBody = publicDetailBody }: IndicatorsRouterOptions = {},
+): Router {
   const router = Router();
 
   router.get('/api/indicator-scatter', async (request, response) => {
@@ -293,8 +324,9 @@ export function indicatorsRouter(indicators: Repositories['indicators']): Router
       return;
     }
 
-    // The annotation binds the repository's shape to the wire contract at compile time.
-    const detail: IndicatorDetail | undefined = await indicators.findPublishedById(indicatorId);
+    const found = await indicators.findDetailById(indicatorId);
+    // A draft can leave questions unanswered, but the public page never shows one that does.
+    const detail = found && (await detailBody(found, indicatorId));
 
     if (!detail) {
       response.status(404).json({ error: 'not_found' });

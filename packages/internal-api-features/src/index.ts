@@ -12,6 +12,7 @@ import { indicatorSubmissionsRouter } from './indicator-submissions.ts';
 import { internalIndicatorsRouter } from './indicators.ts';
 import { internalIndicatorsUnderReviewRouter } from './indicators-under-review.ts';
 import { internalNotesForReviewersRouter } from './notes-for-reviewers.ts';
+import { indicatorPreviewRouter, type PublicApiRoutes } from './preview.ts';
 import type { InternalRepositories } from './repositories.ts';
 import { reviewerNotesRouter } from './reviewer-notes.ts';
 import { internalReviewersRouter } from './reviewers.ts';
@@ -22,12 +23,19 @@ import { updateDecisionRouter } from './update-decision.ts';
 import { internalValueTypesAndUnitsRouter } from './value-types-and-units.ts';
 
 export { INTERNAL_API_BODY_LIMITS } from './body-limits.ts';
+export type {
+  InternalPreviewRepository,
+  PreviewIndicatorDetail,
+  PublicApiRoutes,
+} from './preview.ts';
 export { createInternalRepositories, type InternalRepositories } from './repositories.ts';
 
 export interface InternalApiDependencies {
   repositories: InternalRepositories;
   session: JwtSessionVerifier;
   storage: BlobStorage;
+  /** The public API's routes, which the preview mounts again on its own views. */
+  publicRoutes: PublicApiRoutes;
 }
 
 /**
@@ -38,10 +46,14 @@ export function internalApiRoutes({
   repositories,
   session,
   storage,
+  publicRoutes,
 }: InternalApiDependencies): Router {
   const router = Router();
 
   router.use(internalIndicatorsRouter(repositories.indicators, session));
+  router.use(
+    indicatorPreviewRouter(repositories.preview, repositories.indicators, session, publicRoutes),
+  );
   router.use(internalIndicatorsUnderReviewRouter(repositories.indicators, session));
   router.use(indicatorSectionsRouter(repositories, session));
   router.use(indicatorSubmissionsRouter(repositories.indicators, session));

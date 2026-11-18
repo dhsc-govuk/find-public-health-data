@@ -1,0 +1,60 @@
+import { indicatorPageDetailSchema } from '@fphd/public-api-features/contract';
+import { apiContext } from '@fphd/web-server/api-context';
+import { createFakeApiClient, type FakeApiClient } from '@fphd/web-server/testing';
+import { type LoaderFunctionArgs, RouterContextProvider } from 'react-router';
+import { expect, it } from 'vitest';
+
+import { publicIndicatorLinks } from './links.ts';
+import { loadIndicatorMetadata as loader } from './metadata-route.ts';
+import { indicatorPageContext } from './page-context.ts';
+import { indicatorDetail } from './view.testing.ts';
+
+const unanswered = {
+  ...indicatorDetail(108),
+  valueType: null,
+  unit: null,
+  updateFrequency: null,
+  unanswered: ['valueType', 'unit', 'updateFrequency'],
+  dataState: 'no-upload',
+};
+
+function args(api: FakeApiClient, preview: boolean): LoaderFunctionArgs {
+  const context = new RouterContextProvider();
+  context.set(apiContext, api);
+  if (preview) {
+    context.set(indicatorPageContext, {
+      detailSchema: indicatorPageDetailSchema,
+      links: { ...publicIndicatorLinks, metadata: () => '/preview/metadata.txt' },
+    });
+  }
+  return {
+    context,
+    params: { slug: 'indicator-108' },
+    request: new Request('http://localhost/indicator/indicator-108/metadata.txt'),
+  } as unknown as LoaderFunctionArgs;
+}
+
+it("gives a preview's unanswered questions as [Not entered yet]", async () => {
+  const api = createFakeApiClient({ 'GET /api/indicators/indicator-108': unanswered });
+
+  const text = await (await loader(args(api, true))).text();
+
+  expect(text).toContain('Value type: [Not entered yet]');
+  expect(text).toContain('Unit: [Not entered yet]');
+  expect(text).toContain('Update frequency: [Not entered yet]');
+});
+
+it('never gives a placeholder on the public side, whose schema drops the unanswered list', async () => {
+  const api = createFakeApiClient({
+    'GET /api/indicators/indicator-108': {
+      ...indicatorDetail(108),
+      unit: null,
+      unanswered: ['unit'],
+    },
+  });
+
+  const text = await (await loader(args(api, false))).text();
+
+  expect(text).not.toContain('[Not entered yet]');
+  expect(text).not.toContain('Unit:');
+});

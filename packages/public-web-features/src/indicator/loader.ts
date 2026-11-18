@@ -6,7 +6,7 @@ import {
   DEFAULT_INDICATOR_SEARCH_RESULTS,
   displayGroupListSchema,
   type IndicatorAreaData,
-  type IndicatorDetail,
+  type IndicatorPageDetail,
   type IndicatorRangePeriod,
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
@@ -42,10 +42,12 @@ export type {
   IndicatorAreaData,
   IndicatorDetail,
   IndicatorObservation,
+  IndicatorPageDetail,
   IndicatorProviderSource,
   IndicatorRangePeriod,
   IndicatorSummary,
 } from '@fphd/public-api-features/contract';
+export type { IndicatorQuestion } from '@fphd/utils/indicator-page';
 
 export interface IndicatorSelection {
   areaCodes: string[];
@@ -57,7 +59,7 @@ export interface IndicatorSelection {
 
 /** One selected indicator with the area data backing its charts. */
 export interface SelectedIndicator {
-  detail: IndicatorDetail;
+  detail: IndicatorPageDetail;
   areaData: IndicatorAreaData[];
   tableSeries?: TableSeriesSelection[];
   /** The statistical regions the selected areas roll up to, for the region benchmark. */
@@ -82,8 +84,8 @@ export interface BenchmarkGeography {
 }
 
 export interface IndicatorPageData {
-  detail: IndicatorDetail;
-  compared: IndicatorDetail | undefined;
+  detail: IndicatorPageDetail;
+  compared: IndicatorPageDetail | undefined;
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
 }
 

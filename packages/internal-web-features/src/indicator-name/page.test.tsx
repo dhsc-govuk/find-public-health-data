@@ -18,27 +18,33 @@ function renderPage(props: Parameters<typeof IndicatorNamePage>[0] = {}) {
   );
 }
 
+const QUESTION = 'What is the name of the indicator?';
+
 function nameField() {
-  return screen.getByLabelText('What is the name of the indicator?') as HTMLInputElement;
+  return screen.getByLabelText(QUESTION) as HTMLInputElement;
 }
 
 describe('IndicatorNamePage', () => {
-  it('asks the question as the heading and as the label of the field', () => {
-    renderPage();
+  it('asks the question as the heading, and labels the field with it', () => {
+    const { container } = renderPage();
+    const heading = screen.getByRole('heading', { level: 1, name: QUESTION });
 
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'What is the name of the indicator?' }),
-    ).toBeTruthy();
+    expect(heading.closest('label')).toBeNull();
+    expect(container.querySelector('label .govuk-visually-hidden')?.textContent).toBe(QUESTION);
     expect(nameField().getAttribute('name')).toBe('name');
   });
 
-  it('links to the guidance on names after the field, and gives no hint', () => {
+  it('links to the guidance on names between the heading and the field, and gives no hint', () => {
     const { container } = renderPage();
     const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
 
     expect(link.getAttribute('href')).toBe('/publish/guidance#name');
     expect(
-      nameField().compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+      screen.getByRole('heading', { level: 1 }).compareDocumentPosition(link) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      link.compareDocumentPosition(nameField()) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(nameField().getAttribute('aria-describedby')).toBeNull();
     expect(container.querySelector('.govuk-hint')).toBeNull();

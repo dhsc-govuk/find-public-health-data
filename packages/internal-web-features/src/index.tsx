@@ -5,6 +5,15 @@ export { DashboardRoute } from './dashboard/route.tsx';
 export { devToolsContext } from './dev-tools.ts';
 export { IndicatorOverviewPage } from './indicator-overview/page.tsx';
 export { indicatorOverviewPath } from './indicator-overview/paths.ts';
+export { indicatorPreviewHandle } from './indicator-preview/back-link.ts';
+export type { PreviewLinks } from './indicator-preview/links.ts';
+export { previewLinks } from './indicator-preview/links.ts';
+export {
+  type IndicatorPreview,
+  type SetPreviewPage,
+  startIndicatorPreview,
+} from './indicator-preview/loader.ts';
+export { IndicatorPreviewPage } from './indicator-preview/page.tsx';
 export { ManageDataPage } from './manage-data/page.tsx';
 export { fakeUserAccess, SignInPage } from './sign-in/fake-sign-in-page.tsx';
 export { createSignInRoute } from './sign-in/fake-sign-in-route.tsx';

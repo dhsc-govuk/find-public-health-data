@@ -1,6 +1,6 @@
 import { ChartSection } from '@fphd/ui';
 import { formatCalculatedValue } from '../data.ts';
-import type { IndicatorDetail } from '../loader.ts';
+import type { IndicatorPageDetail } from '../loader.ts';
 import type { sparklineModel } from './chart-data.ts';
 import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
 
@@ -35,7 +35,7 @@ export function Sparkline({
 }: {
   id: string;
   title: string;
-  indicator: Pick<IndicatorDetail, 'name' | 'unit'>;
+  indicator: Pick<IndicatorPageDetail, 'name' | 'unit'>;
 } & ReturnType<typeof sparklineModel>) {
   const first = points.find(({ value }) => value !== null);
   const latest = points.findLast(({ value }) => value !== null);
@@ -59,7 +59,7 @@ export function Sparkline({
   const last = coordinates.findLast((point) => point !== null);
   const endpoint = (point: typeof first) =>
     point ? (
-      <span>
+      <span className="govuk-hint">
         {formatCalculatedValue(point.value)}
         {indicator.unit === '%' ? '%' : null}
         {indicator.unit && indicator.unit !== '%' ? (
@@ -100,7 +100,7 @@ export function Sparkline({
               ))}
             {last ? <circle cx={last.x} cy={last.y} r="3" fill={colour} /> : null}
           </svg>
-          <p className="govuk-hint fphd-sparkline__endpoints" aria-hidden="true">
+          <p className="fphd-sparkline__endpoints" aria-hidden="true">
             {endpoint(first)}
             {endpoint(latest)}
           </p>

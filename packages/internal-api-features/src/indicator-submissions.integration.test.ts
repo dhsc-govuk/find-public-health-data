@@ -6,7 +6,12 @@ import { internalApiRoutes } from './index.ts';
 import { newDraft, repositoryTest } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
 import { createInternalRepositories } from './repositories.ts';
-import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './testing.ts';
+import {
+  createRouterTestApp,
+  noPublicRoutes,
+  testSessionCookie,
+  testSessionVerifier,
+} from './testing.ts';
 
 describe('submitting and withdrawing through the API', () => {
   repositoryTest(
@@ -19,6 +24,7 @@ describe('submitting and withdrawing through the API', () => {
           repositories: createInternalRepositories(db),
           session: testSessionVerifier,
           storage: createFakeBlobStorage(),
+          publicRoutes: noPublicRoutes,
         }),
       );
       const cookie = await testSessionCookie(['publisher']);
@@ -70,6 +76,7 @@ describe('submitting and withdrawing through the API', () => {
         repositories: createInternalRepositories(db),
         session: testSessionVerifier,
         storage: createFakeBlobStorage(),
+        publicRoutes: noPublicRoutes,
       }),
     );
     const cookie = await testSessionCookie(['publisher']);

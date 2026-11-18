@@ -7,7 +7,7 @@ import { type ConfidenceLevel, formatCalculatedValue, formatValue, segmentLabel 
 import type {
   BenchmarkGeography,
   IndicatorAreaData,
-  IndicatorDetail,
+  IndicatorPageDetail,
   IndicatorRangePeriod,
 } from '../loader.ts';
 import { type TrendColumns, trendTableModel } from '../trend.ts';
@@ -47,7 +47,7 @@ export function TrendTable({
   benchmark?: BenchmarkChoice;
   confidence: ConfidenceLevel;
   geography?: BenchmarkGeography;
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   ranges?: Record<string, IndicatorRangePeriod[]>;
   regionData?: IndicatorAreaData[];
   newestFirst?: boolean;

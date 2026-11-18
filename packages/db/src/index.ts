@@ -6,6 +6,7 @@ export {
   createDbFromTransaction,
   createPostgresClient,
   type Database,
+  type DatabaseReader,
   type DbConnection,
   pingDb,
   type Schema,
@@ -22,8 +23,10 @@ export {
   resolveDbTls,
 } from './env.ts';
 export {
+  completeIndicatorDetail,
+  type FoundIndicatorDetail,
+  getIndicatorDetailById,
   getIndicatorObservations,
-  getPublishedIndicatorById,
   type IndicatorAreaData,
   type IndicatorDetail,
   type IndicatorFacets,
@@ -50,8 +53,10 @@ export { escapeLike } from './like-pattern.ts';
 export {
   type AreaRepository,
   createRepositories,
+  createRepositoriesOn,
   type IndicatorRepository,
   type Repositories,
+  type RunRead,
   type TopicRepository,
 } from './repositories.ts';
 export { createVersionedViews, publishedViews, type ViewSet } from './schema/published.ts';

@@ -8,14 +8,14 @@ import {
   SignInLandingPage,
 } from '@fphd/internal-web-features';
 import { TopicsRoute } from '@fphd/public-web-features';
-import { backLinkHandle } from '@fphd/ui';
+import { backLinkHandle, serviceName } from '@fphd/ui';
 import type { RouteConfigEntry } from '@react-router/dev/routes';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createRoutesStub } from 'react-router';
+import { createRoutesStub, Meta } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import InternalApp, { ErrorBoundary } from './root.tsx';
+import InternalApp, { ErrorBoundary, meta } from './root.tsx';
 import routes from './routes.ts';
 
 afterEach(() => {
@@ -26,9 +26,10 @@ afterEach(() => {
 
 const topics = [{ slug: 'topic-a', title: 'Topic A', description: 'All about topic A.' }];
 
-const signedOut = { canManage: false, signedIn: false };
-const publisher = { canManage: false, signedIn: true };
-const admin = { canManage: true, signedIn: true };
+const signedOut = { canEditIndicators: false, canManage: false, signedIn: false };
+const publisher = { canEditIndicators: true, canManage: false, signedIn: true };
+const admin = { canEditIndicators: false, canManage: true, signedIn: true };
+const reviewer = { canEditIndicators: false, canManage: false, signedIn: true };
 
 describe('internal application routes', () => {
   it('includes the shared public routes', async () => {
@@ -109,6 +110,49 @@ describe('internal application routes', () => {
     render(<Routes initialEntries={['/topics']} />);
 
     expect(await screen.findByRole('link', { name: 'Manage' })).toBeTruthy();
+  });
+
+  it('links publishers to the publisher guidance from the navigation', async () => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: InternalApp,
+        loader: () => publisher,
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    const navigation = await screen.findByRole('navigation', { name: 'Menu' });
+    expect(
+      within(navigation)
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['Guidance', '/publish/guidance'],
+      ['Account', '/sign-in'],
+    ]);
+  });
+
+  it.each([
+    ['admins', admin],
+    ['reviewers who do not publish', reviewer],
+    ['signed-out visitors', signedOut],
+  ])('offers no guidance link to %s', async (_case, user) => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: InternalApp,
+        loader: () => user,
+        children: [{ path: 'topics', Component: TopicsRoute, loader: () => topics }],
+      },
+    ]);
+
+    render(<Routes initialEntries={['/topics']} />);
+
+    const navigation = await screen.findByRole('navigation', { name: 'Menu' });
+    expect(within(navigation).queryByRole('link', { name: 'Guidance' })).toBeNull();
   });
 
   it('places a route-declared back link above the main content', async () => {
@@ -259,6 +303,17 @@ describe('the role-gated route tables', () => {
     expect(gated).toContain('dashboard/indicators/:id/assign-reviewers');
     expect(gated).toContain('dashboard/indicators/:id/publication-date');
     expect(gated).toContain('dashboard/indicators/:id/review/revisions');
+    for (const path of [
+      'preview',
+      'preview/table.csv',
+      'preview/all-data.csv',
+      'preview/metadata.txt',
+      'preview/geographies',
+      'preview/compare-areas',
+      'preview/indicators/search',
+    ]) {
+      expect(gated).toContain(`dashboard/indicators/:id/${path}`);
+    }
   });
 
   it('keeps every publishing route under the publisher layout', () => {
@@ -532,5 +587,65 @@ describe('the edit topic page', () => {
     expect(slug.getAttribute('aria-describedby')).toContain('slug-error');
     expect(container.querySelector('#slug-error')?.textContent).toContain('Enter a slug');
     expect(screen.getByLabelText('Topic name').getAttribute('value')).toBe('A half-finished edit');
+  });
+});
+
+describe('error page titles', () => {
+  // createRoutesStub ignores the root's Layout, which renders Meta in the app, so the root
+  // route's component and error boundary render Meta here instead.
+  function routesWithMeta(loader: () => never) {
+    return createRoutesStub([
+      {
+        id: 'root',
+        path: '/',
+        meta,
+        loader: () => publisher,
+        Component: () => (
+          <>
+            <Meta />
+            <InternalApp />
+          </>
+        ),
+        ErrorBoundary: () => (
+          <>
+            <Meta />
+            <ErrorBoundary />
+          </>
+        ),
+        children: [{ path: 'dashboard/indicators/:id', Component: ManageDataPage, loader }],
+      },
+    ]);
+  }
+
+  async function titlesAndHeading() {
+    const heading = await screen.findByRole('heading', { level: 1 });
+    const titles = [...document.head.querySelectorAll('title')].map((title) => title.textContent);
+    return { heading: heading.textContent, titles };
+  }
+
+  it('titles the not-found page from a loader 404 after its heading', async () => {
+    const Routes = routesWithMeta(() => {
+      throw new Response('Not Found', { status: 404 });
+    });
+
+    render(<Routes initialEntries={['/dashboard/indicators/not-an-id']} />);
+
+    const { heading, titles } = await titlesAndHeading();
+    expect(heading).toBe('Page not found');
+    expect(titles).toEqual([`${heading} - ${serviceName} - GOV.UK`]);
+  });
+
+  it('titles the error page after its heading when a loader fails', async () => {
+    const Routes = routesWithMeta(() => {
+      throw new Error('The API is down');
+    });
+
+    render(
+      <Routes initialEntries={['/dashboard/indicators/0198a2b4-0000-7000-8000-000000000000']} />,
+    );
+
+    const { heading, titles } = await titlesAndHeading();
+    expect(heading).toBe('Sorry, there is a problem with the service');
+    expect(titles).toEqual([`${heading} - ${serviceName} - GOV.UK`]);
   });
 });

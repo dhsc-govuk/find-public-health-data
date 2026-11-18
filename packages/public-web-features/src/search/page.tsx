@@ -67,6 +67,7 @@ export function SearchPage(data: SearchData) {
                     search={data}
                     lookupUrl={data.geographyLookupUrl}
                     extraParams={extraParams}
+                    choicesLabel="Geography choices"
                     replace
                   />
                   <SearchFilterPane

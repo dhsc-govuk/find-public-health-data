@@ -368,7 +368,7 @@ describe('TrendTable benchmark columns', () => {
     ).toEqual([
       '14.0%',
       '40',
-      'Manchester: 14.0%. England: 12.0%. Range: 5.0% to 30.0%. 25th percentile: 10.0%. 75th percentile: 20.0%. Better than benchmark',
+      'Resident population. Period: 2023 to 2024. Value: 14.0%. Area: Manchester. Comparison: Better than England. Value: 12.0%. Area: England. Lowest to highest: 5.0% to 30.0%. 25th to 75th percentile: 10.0% to 20.0%',
       '13.0%',
       '15.0%',
       '12.0%',

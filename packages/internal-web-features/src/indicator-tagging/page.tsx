@@ -5,25 +5,24 @@ import {
   type TagOption,
   type TagOptions,
 } from '@fphd/internal-api-features/contract';
-import {
-  Button,
-  fieldInputId,
-  firstRadioId,
-  Radios,
-  SelectAutocomplete,
-  TextInput,
-} from '@fphd/ui';
+import { Button, fieldInputId, firstRadioId, Radios, Select, TextInput } from '@fphd/ui';
 import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
 import type { ElementType, ReactNode } from 'react';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 import { addIntent, removeIntent } from '../list-form.ts';
-import { ADD_TAG_FIELDS, type TaggingPageField, type TaggingPageValues } from './form.ts';
+import { useSelectedValue } from '../selected-value.ts';
+import {
+  ADD_TAG_FIELDS,
+  type AddedTagList,
+  type TaggingPageField,
+  type TaggingPageValues,
+} from './form.ts';
 
 type FieldErrors = Partial<Record<TaggingPageField, string>>;
 
 /** The lists with a picker of their own; topics and subtopics share the topic picker. */
-type PickerList = Exclude<TagList, 'topicIds' | 'subtopicIds'>;
+type PickerList = Exclude<AddedTagList, 'topicIds' | 'subtopicIds'>;
 
 const FRAMEWORK_QUESTION = 'Is this indicator part of a framework or programme?';
 const LIFE_STAGE_QUESTION = 'Do you need to include the life stage the indicator relates to?';
@@ -36,7 +35,6 @@ const FIELDS: readonly TaggingPageField[] = [
   'subtopicIds',
   'addSubtopic',
   'indicatorTypeIds',
-  'addIndicatorType',
   'hasFramework',
   'frameworkIds',
   'addFramework',
@@ -119,8 +117,10 @@ function addedTopics(
 }
 
 /**
- * The topic question: a select and its Add button, then, once a topic with subtopics is chosen,
- * a select of that topic's subtopics, which adds the two together.
+ * The topic question: a select and its Add button. Choosing a topic with subtopics asks for one
+ * of them instead, in a select whose button adds the two together. In the browser the subtopic
+ * select follows the topic as it is chosen. Without JavaScript, Add topic sends the form back
+ * to ask for the subtopic, so it stays beside the topic select.
  */
 function TopicPicker({
   options,
@@ -131,7 +131,8 @@ function TopicPicker({
   values: TaggingPageValues;
   fieldErrors: FieldErrors;
 }) {
-  const chosen = options.topics.find(({ id }) => id === values.addTopic);
+  const selected = useSelectedValue<TaggingPageField>('addTopic', values.addTopic);
+  const chosen = options.topics.find(({ id }) => id === selected.value);
   const subtopics = chosen === undefined ? [] : subtopicsOf(options, chosen.id);
   const offered = (list: 'topicIds' | 'subtopicIds') =>
     values[list].filter((id) => options[TAG_LIST_DETAILS[list].options].some((o) => o.id === id));
@@ -141,30 +142,36 @@ function TopicPicker({
   return (
     <div className="govuk-!-margin-bottom-6">
       <div className="fphd-field-row fphd-field-row--with-button">
-        <SelectAutocomplete
+        <Select
           defaultValue={values.addTopic}
           // A topic without the subtopic it needs is refused on the topic question.
           error={fieldErrors.addTopic ?? fieldErrors.topicIds ?? fieldErrors.subtopicIds}
           label="Select a topic"
           labelHeading="h2"
           name="addTopic"
+          onChange={selected.onChange}
           options={selectOptions(options.topics)}
         />
-        <Button classModifiers="secondary" name="intent" value={addIntent('topicIds')}>
-          Add topic
-        </Button>
+        {selected.hides(subtopics.length === 0) ? null : (
+          <Button name="intent" value={addIntent('topicIds')}>
+            Add topic
+          </Button>
+        )}
       </div>
       {chosen === undefined || subtopics.length === 0 ? null : (
         <div className="fphd-field-row fphd-field-row--with-button govuk-!-margin-top-3">
-          <SelectAutocomplete
-            defaultValue={values.addSubtopic}
-            error={fieldErrors.addSubtopic}
+          <Select
+            defaultValue={chosen.id === values.addTopic ? values.addSubtopic : ''}
+            // The refusal was for the topic sent, not one chosen since.
+            error={chosen.id === values.addTopic ? fieldErrors.addSubtopic : undefined}
+            // Remounted for each topic, so the choice starts again with its subtopics.
+            key={chosen.id}
             label={`Select a subtopic for ${chosen.name}`}
             labelHeading="h3"
             name="addSubtopic"
             options={selectOptions(subtopics)}
           />
-          <Button classModifiers="secondary" name="intent" value={addIntent('subtopicIds')}>
+          <Button name="intent" value={addIntent('subtopicIds')}>
             Add topic and subtopic
           </Button>
         </div>
@@ -201,7 +208,7 @@ function TagPicker({
     <div className="govuk-!-margin-bottom-6">
       {/* The select and its Add button side by side, as one control. */}
       <div className="fphd-field-row fphd-field-row--with-button">
-        <SelectAutocomplete
+        <Select
           // A list refused as a whole is shown on the select that adds to it.
           defaultValue={values[field]}
           error={fieldErrors[field] ?? fieldErrors[list]}
@@ -210,7 +217,7 @@ function TagPicker({
           name={field}
           options={selectOptions(options)}
         />
-        <Button classModifiers="secondary" name="intent" value={addIntent(list)}>
+        <Button name="intent" value={addIntent(list)}>
           Add {noun}
         </Button>
       </div>
@@ -260,7 +267,6 @@ export function TaggingPage({ options, ...form }: TaggingPageProps) {
       fieldIds={{
         topicIds: fieldInputId('addTopic'),
         subtopicIds: fieldInputId('addTopic'),
-        indicatorTypeIds: fieldInputId('addIndicatorType'),
         hasFramework: firstRadioId('hasFramework'),
         frameworkIds: fieldInputId('addFramework'),
         hasLifeStage: firstRadioId('hasLifeStage'),
@@ -276,7 +282,14 @@ export function TaggingPage({ options, ...form }: TaggingPageProps) {
       title="Add tags for this indicator"
     >
       <TopicPicker fieldErrors={fieldErrors} options={options} values={values} />
-      {picker('indicatorTypeIds', 'h2')}
+      <Select
+        defaultValue={values.indicatorTypeIds[0] ?? ''}
+        error={fieldErrors.indicatorTypeIds}
+        label="Select a measure type"
+        labelHeading="h2"
+        name="indicatorTypeIds"
+        options={selectOptions(options.indicatorTypes)}
+      />
       {yesNo(
         'hasFramework',
         FRAMEWORK_QUESTION,

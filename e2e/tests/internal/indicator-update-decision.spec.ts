@@ -25,7 +25,7 @@ test.describe('as an admin', () => {
         page.getByText('This update is no longer waiting for a decision.'),
       ).toBeVisible();
     }
-    await expect(page.getByRole('button', { name: 'Submit update decision' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Confirm update decision' })).toHaveCount(0);
     await expectNoAccessibilityViolations(page, testInfo);
   });
 });

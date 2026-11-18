@@ -1,3 +1,4 @@
+import { indicatorPageDetailSchema } from '@fphd/public-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
 import {
   createFakeApiClient,
@@ -13,6 +14,7 @@ import { RouterContextProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { loadIndicatorCsv } from './csv.ts';
+import { indicatorPageContext } from './page-context.ts';
 import { indicatorDetail } from './view.testing.ts';
 
 const SLUG = 'mortality-all-causes';
@@ -491,4 +493,54 @@ it('propagates an initial all-areas API failure before returning an attachment',
       'all-data',
     ),
   ).rejects.toBe(failure);
+});
+
+describe('a route that shows the page at one address, as the preview does', () => {
+  function previewArgs(api: FakeApiClient, url: string, segment: string) {
+    const loaderArgs = args(api, url, segment);
+    loaderArgs.context.set(indicatorPageContext, {
+      detailSchema: indicatorPageDetailSchema,
+      links: {
+        page: () => '/preview',
+        csv: (_slug, kind) => `/preview/${kind}.csv`,
+        metadata: () => '/preview/metadata.txt',
+        geographies: '/preview/geographies',
+        indicatorSearch: '/preview/indicators/search',
+        compareAreas: '/preview/compare-areas',
+      },
+    });
+    return loaderArgs;
+  }
+
+  it('answers not found for a draft with no data to show, asking for nothing more', async () => {
+    const api = createFakeApiClient({
+      'GET /api/indicators/108': { ...detail, dataState: 'no-upload', unanswered: [] },
+    });
+
+    const answer = loadIndicatorCsv(
+      previewArgs(api, 'http://localhost/preview/table.csv', '108'),
+      'table',
+    );
+
+    await expect(answer).rejects.toMatchObject({ status: 404 });
+    expect(api.calls.map(({ path }) => path)).toEqual(['/api/indicators/108']);
+  });
+
+  it('serves the download at its own address, not redirecting to the slug', async () => {
+    const api = createFakeApiClient({
+      'GET /api/indicators/108': { ...detail, dataState: 'ready', unanswered: [] },
+      'GET /api/indicators/108/data': {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [],
+      },
+    });
+
+    const response = await loadIndicatorCsv(
+      previewArgs(api, 'http://localhost/preview/table.csv', '108'),
+      'table',
+    );
+
+    expect(response.status).toBe(200);
+  });
 });

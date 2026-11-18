@@ -41,6 +41,9 @@ describe('computeCiPair', () => {
     expect(() => computeCiPair(5.0, 6.0, 4.0)).toThrow('inverted confidence limits');
     expect(() => computeCiPair(90.85, 89.89, 0)).toThrow('source correction required');
   });
+  it('keeps inverted limits the source publishes as they are', () => {
+    expect(computeCiPair(5.0, 6.0, 4.0, '95%', true)).toEqual({ lower: 6.0, upper: 4.0 });
+  });
   it('discards limits for a null estimate', () => {
     expect(computeCiPair(null, 4, 6)).toEqual({ lower: null, upper: null });
   });

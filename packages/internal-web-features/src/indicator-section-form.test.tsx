@@ -13,16 +13,14 @@ afterEach(cleanup);
 
 type Field = 'answer' | 'choice';
 
-interface FormProps {
+type FormProps = {
   fieldErrors?: Partial<Record<Field, string>>;
   formError?: string;
-  questionIsHeading?: boolean;
   continueOnEnter?: boolean;
-  guidance?: GuidanceAnchor;
   intro?: ReactNode;
   submitLabel?: string;
   version?: string;
-}
+} & ({ guidance?: GuidanceAnchor; questionIsHeading?: false } | { questionIsHeading: true });
 
 // Radios as well as a textarea, because GOV.UK links a radios error to its first option.
 function renderForm({ fieldErrors = {}, formError, version, ...props }: FormProps = {}) {
@@ -85,14 +83,14 @@ describe('IndicatorSectionForm', () => {
     expect(link.getAttribute('rel')).toBe('noreferrer noopener');
   });
 
-  it('puts the guidance link after the question when the question is the heading', () => {
-    const { container } = renderForm({ guidance: 'caveats', questionIsHeading: true });
+  it('puts the guidance link before the form', () => {
+    const { container } = renderForm({ guidance: 'caveats' });
     const link = screen.getByRole('link', { name: RELATED_GUIDANCE_LINK });
-    const lastQuestion = screen.getByLabelText('Two');
 
-    expect(container.querySelector('form')?.contains(link)).toBe(true);
+    expect(container.querySelector('form')?.contains(link)).toBe(false);
     expect(
-      lastQuestion.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+      link.compareDocumentPosition(screen.getByLabelText('An answer')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

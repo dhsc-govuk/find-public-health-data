@@ -28,8 +28,6 @@ export interface SectionPageProps<Field extends string, Values = FormValues<Fiel
 type IndicatorSectionFormProps<Field extends string> = {
   /** The page's h1 and its document title. */
   title: string;
-  /** Set when the page asks one question whose label or legend is the h1, so none is added. */
-  questionIsHeading?: boolean;
   /**
    * The errors for the error summary, and the version of the answers shown. If given, the
    * version goes in a hidden field so the save sends it back.
@@ -41,13 +39,6 @@ type IndicatorSectionFormProps<Field extends string> = {
   fieldIds?: Partial<Record<Field, string>>;
   /** Set when the form has buttons of its own before Continue, which Enter would otherwise press. */
   continueOnEnter?: boolean;
-  /**
-   * The part of the publisher guidance the page links to, under the h1. On a page whose question
-   * is the heading, the link follows the question instead. There the heading sits in the
-   * question's label or legend, and the only place between it and the control is the hint, which
-   * GOV.UK says must not hold a link.
-   */
-  guidance?: GuidanceAnchor;
   /** Shown under the h1, before the form, such as who the answers are for. */
   intro?: ReactNode;
   /** The submit button's wording, where the page does not continue to another. */
@@ -55,16 +46,32 @@ type IndicatorSectionFormProps<Field extends string> = {
   children: ReactNode;
 } & (
   | {
-      /** The section the page answers, whose fields it asks in their order. */
-      section: { fields: { options: readonly Field[] } };
-      fields?: never;
+      /** The part of the publisher guidance the page links to, under the h1. */
+      guidance?: GuidanceAnchor;
+      questionIsHeading?: false;
     }
   | {
-      /** Every field, in the order the page asks them, where they are not its section's alone. */
-      fields: readonly Field[];
-      section?: never;
+      /**
+       * Set when the page asks one question whose label or legend is the h1, so none is added.
+       * Such a page links to no guidance. The only place between its heading and the control is
+       * the hint, which GOV.UK says must not hold a link.
+       */
+      questionIsHeading: true;
+      guidance?: never;
     }
-);
+) &
+  (
+    | {
+        /** The section the page answers, whose fields it asks in their order. */
+        section: { fields: { options: readonly Field[] } };
+        fields?: never;
+      }
+    | {
+        /** Every field, in the order the page asks them, where they are not its section's alone. */
+        fields: readonly Field[];
+        section?: never;
+      }
+  );
 
 /** The frame of a section page: title, error summary, and a form that continues to the task list. */
 export function IndicatorSectionForm<Field extends string>(
@@ -121,7 +128,6 @@ export function IndicatorSectionForm<Field extends string>(
               </button>
             ) : null}
             {children}
-            {questionIsHeading ? guidanceLink : null}
             <Button preventDoubleClick type="submit">
               {submitLabel}
             </Button>
