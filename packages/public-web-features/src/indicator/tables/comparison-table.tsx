@@ -163,6 +163,8 @@ export function ComparisonTable({
                                     benchmarkValue={benchmarkCell?.value ?? null}
                                     indicator={
                                       benchmarkCell?.detail ?? {
+                                        name: row.name,
+                                        yearType: null,
                                         polarity: 'no-comparison-possible',
                                         comparatorMethod: null,
                                       }
