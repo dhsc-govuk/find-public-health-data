@@ -113,9 +113,9 @@ moves to this service. The operations image applies the packages with `db migrat
 
 ## Refresh upload reference data
 
-Restore the reviewed Pholio backup as a SQL Server database and point
-`PHOLIO_CONNECTION_STRING` at it. Compute the SHA-256 of that backup. From the repository root, run
-the export with the restore's name, the backup digest and a new output directory.
+Restore the reviewed Pholio backup as a SQL Server database and point `PHOLIO_CONNECTION_STRING` at
+it. Compute the SHA-256 of that backup. From the repository root, run the export with the restore's
+name, the backup digest and a new output directory.
 
 ```sh
 pnpm --filter @fphd/data-migration data-migration export-core-reference-data \
@@ -124,11 +124,10 @@ pnpm --filter @fphd/data-migration data-migration export-core-reference-data \
   --out-dir /path/to/core-reference-refresh
 ```
 
-The command checks the database name. It uses the same lookup and geography
-exporters, name tidying and UUID mapping as the baseline workflow. The output contains four lookup
-JSON files and a `geography/` directory with two gzipped CSVs and a manifest. The supplied digest
-records which backup was restored, and the manifest records the row counts, sizes and SHA-256
-digests of the CSVs.
+The command checks the database name. It uses the same lookup and geography exporters, name tidying
+and UUID mapping as the baseline workflow. The output contains four lookup JSON files and a
+`geography/` directory with two gzipped CSVs and a manifest. The supplied digest records which
+backup was restored, and the manifest records the row counts, sizes and SHA-256 digests of the CSVs.
 
 Review the lookup changes and geography counts, then copy the four JSON files and the three
 geography files into the corresponding paths under `packages/db-operations/data/`. Review any lookup
