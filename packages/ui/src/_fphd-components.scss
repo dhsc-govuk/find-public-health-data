@@ -57,10 +57,17 @@
 }
 
 // A single column reads as one continuous list, so a rule above the first card would look like
-// a stray line under the heading. Three columns keep every rule, because the cards align into
-// rows and the top row's rules read as the head of the grid.
+// a stray line under the heading. Two and three columns keep every rule, because the cards align
+// into rows and the top row's rules read as the head of the grid.
 .fphd-card-list--one-column .fphd-card-list__item:first-child {
   border-top: 0;
+}
+
+.fphd-card-list--two-column {
+  @include govuk-media-query($from: desktop) {
+    grid-auto-rows: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .fphd-card-list--three-column {
@@ -68,7 +75,10 @@
     grid-auto-rows: 1fr;
     grid-template-columns: repeat(3, 1fr);
   }
+}
 
+.fphd-card-list--two-column,
+.fphd-card-list--three-column {
   // Equal-height rows stretch short cards, so a chevron at 50% would float mid-card instead of
   // sitting beside the heading it belongs to.
   .fphd-card-list__link::before {

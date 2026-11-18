@@ -42,6 +42,18 @@ describe('CardList', () => {
     expect(screen.getAllByRole('paragraph')).toHaveLength(1);
   });
 
+  it('lays the cards out in one column unless the page asks for more', () => {
+    renderCards();
+
+    expect(screen.getByRole('list').className).toBe('fphd-card-list fphd-card-list--one-column');
+  });
+
+  it('lays the cards out in two columns when the page asks for two', () => {
+    renderCards({ columns: 'two' });
+
+    expect(screen.getByRole('list').className).toBe('fphd-card-list fphd-card-list--two-column');
+  });
+
   it('renders card titles at the heading level the page asks for', () => {
     renderCards({ headingLevel: 2 });
 
