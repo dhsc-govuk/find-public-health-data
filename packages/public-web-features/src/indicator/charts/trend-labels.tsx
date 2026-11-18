@@ -19,21 +19,22 @@ export function declutterLabels<T extends { pointY: number }>(
       end++;
     const cluster = sorted.slice(start, end);
     const average = cluster.reduce((sum, label) => sum + label.pointY, 0) / cluster.length;
-    const first = average - ((cluster.length - 1) / 2) * gap;
-    const last = first + (cluster.length - 1) * gap;
-    // A cluster spread past the plot's top or bottom edge moves back inside it. When it is
-    // taller than the plot, its first label stays at the top.
-    const offset = !bounds
-      ? 0
-      : first < bounds[0]
-        ? bounds[0] - first
-        : last > bounds[1]
-          ? Math.max(bounds[1] - last, bounds[0] - first)
-          : 0;
     cluster.forEach((label, index) => {
-      label.y = first + offset + index * gap;
+      label.y = average + (index - (cluster.length - 1) / 2) * gap;
     });
     start = end;
+  }
+  // A spread cluster can reach the next one or pass the plot's edge. Walking down and then back
+  // up keeps every label at least a gap from its neighbours and inside the plot where it fits.
+  const [top, bottom] = bounds ?? [-Infinity, Infinity];
+  sorted.forEach((label, index) => {
+    const previous = sorted[index - 1];
+    label.y = Math.max(label.y, previous ? previous.y + gap : top);
+  });
+  for (let index = sorted.length - 1; index >= 0; index--) {
+    const label = sorted[index];
+    const next = sorted[index + 1];
+    if (label) label.y = Math.min(label.y, next ? next.y - gap : bottom);
   }
   return sorted;
 }
