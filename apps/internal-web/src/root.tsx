@@ -1,6 +1,6 @@
 import '@fphd/ui/styles.scss';
 
-import { canManage } from '@fphd/auth/permissions';
+import { canEditIndicators, canManage } from '@fphd/auth/permissions';
 import {
   AppDocument,
   AppShell,
@@ -25,6 +25,7 @@ export function loader({ context }: Route.LoaderArgs) {
   const session = getSession(context);
 
   return {
+    canEditIndicators: session !== undefined && canEditIndicators(session),
     canManage: session !== undefined && canManage(session),
     environmentName: context.get(environmentContext),
     feedbackMailbox: context.get(feedbackMailboxContext),
@@ -32,9 +33,18 @@ export function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-function navigationFor({ canManage, signedIn }: { canManage: boolean; signedIn: boolean }) {
+function navigationFor({
+  canEditIndicators,
+  canManage,
+  signedIn,
+}: {
+  canEditIndicators: boolean;
+  canManage: boolean;
+  signedIn: boolean;
+}) {
   return [
     ...(canManage ? [{ href: href('/manage'), text: 'Manage' }] : []),
+    ...(canEditIndicators ? [{ href: href('/publish/guidance'), text: 'Guidance' }] : []),
     { href: href('/sign-in'), text: signedIn ? 'Account' : 'Sign in' },
   ];
 }
@@ -59,7 +69,8 @@ function useReloadWhenRestored() {
 }
 
 export default function InternalApp() {
-  const { canManage, environmentName, feedbackMailbox, signedIn } = useLoaderData<typeof loader>();
+  const { canEditIndicators, canManage, environmentName, feedbackMailbox, signedIn } =
+    useLoaderData<typeof loader>();
   const backLink = backLinkFrom(useMatches());
   useReloadWhenRestored();
 
@@ -70,7 +81,7 @@ export default function InternalApp() {
       feedbackMailbox={feedbackMailbox}
       backHref={backLink?.href}
       backText={backLink?.text}
-      navigation={navigationFor({ canManage, signedIn })}
+      navigation={navigationFor({ canEditIndicators, canManage, signedIn })}
       serviceHref={href('/dashboard')}
     >
       <Outlet />
@@ -89,7 +100,7 @@ export function ErrorBoundary() {
       audience="Internal"
       environmentName={data?.environmentName}
       feedbackMailbox={data?.feedbackMailbox}
-      navigation={navigationFor({ canManage: false, signedIn: false })}
+      navigation={navigationFor({ canEditIndicators: false, canManage: false, signedIn: false })}
       serviceHref={href('/dashboard')}
     />
   );

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { expectHydrated } from '../support/govuk-frontend.ts';
@@ -6,6 +6,19 @@ import { openSectionPage } from '../support/section-page.ts';
 import { IMRG_REVIEWER, PUBLISHER } from '../support/sign-in.ts';
 
 const GUIDANCE_LINK = 'Related guidance for this section (opens in new tab)';
+
+/** Expects each element to start lower down the page than the one before it. */
+async function expectInOrder(elements: Locator[]) {
+  const tops: number[] = [];
+  for (const element of elements) {
+    await expect(element).toBeVisible();
+    const box = await element.boundingBox();
+    if (box === null) throw new Error('An element has no box on the page');
+    tops.push(box.y);
+  }
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
+  expect(new Set(tops).size).toBe(tops.length);
+}
 
 test.describe('as a publisher', () => {
   test.use({ storageState: PUBLISHER.storageState });
@@ -62,6 +75,43 @@ test.describe('as a publisher', () => {
     );
   });
 
+  test('puts the Related guidance link on How often will this indicator be updated? above the radios', async ({
+    page,
+  }) => {
+    await openSectionPage(page, { key: 'update-frequency', taskName: 'Update frequency' });
+
+    const heading = page.getByRole('heading', {
+      level: 1,
+      name: 'How often will this indicator be updated?',
+    });
+    const link = page.getByRole('link', { name: GUIDANCE_LINK });
+    const firstRadio = page.getByRole('radio').first();
+    await expect(link).toHaveAttribute('href', '/publish/guidance#update-frequency');
+    await expectInOrder([heading, link, firstRadio]);
+  });
+
+  test('puts the Related guidance link on the Name page above the field', async ({ page }) => {
+    await page.goto('/publish/indicators/new');
+
+    await expectInOrder([
+      page.getByRole('heading', { level: 1, name: 'What is the name of the indicator?' }),
+      page.getByRole('link', { name: GUIDANCE_LINK }),
+      page.getByLabel('What is the name of the indicator?'),
+    ]);
+  });
+
+  test('has a guidance link in the toolbar', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    await page
+      .getByRole('navigation', { name: 'Menu' })
+      .getByRole('link', { name: 'Guidance', exact: true })
+      .click();
+
+    await expect(page).toHaveURL('/publish/guidance');
+    await expect(page.getByRole('heading', { level: 1, name: 'Publisher guidance' })).toBeVisible();
+  });
+
   test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
     await page.goto('/publish/guidance');
     await expect(page.getByRole('heading', { level: 1, name: 'Publisher guidance' })).toBeVisible();
@@ -72,6 +122,14 @@ test.describe('as a publisher', () => {
 
 test.describe('as a reviewer who does not publish', () => {
   test.use({ storageState: IMRG_REVIEWER.storageState });
+
+  test('offers the reviewer no guidance in the toolbar', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    const navigation = page.getByRole('navigation', { name: 'Menu' });
+    await expect(navigation.getByRole('link', { name: 'Account' })).toBeVisible();
+    await expect(navigation.getByRole('link', { name: 'Guidance', exact: true })).toHaveCount(0);
+  });
 
   test('turns the reviewer away from the guidance', async ({ page }) => {
     const response = await page.goto('/publish/guidance');
