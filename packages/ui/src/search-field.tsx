@@ -1,3 +1,4 @@
+import Hint from '@not-govuk/hint';
 import Label from '@not-govuk/label';
 import SearchBox from '@not-govuk/search-box';
 import type { ReactNode } from 'react';
@@ -6,6 +7,7 @@ import type { ReactNode } from 'react';
 export function SearchField({
   action,
   defaultValue,
+  hint,
   id,
   label,
   labelSize = 'm',
@@ -13,6 +15,7 @@ export function SearchField({
 }: {
   action?: ReactNode;
   defaultValue?: string;
+  hint?: string;
   id: string;
   label: string;
   labelSize?: 's' | 'm' | 'l';
@@ -27,6 +30,7 @@ export function SearchField({
         </Label>
         {action}
       </div>
+      {hint ? <Hint>{hint}</Hint> : null}
       <SearchBox
         autoComplete="off"
         className="fphd-search-bar"
