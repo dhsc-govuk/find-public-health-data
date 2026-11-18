@@ -72,7 +72,7 @@ export function SearchFilterPane({
   );
   const fwDims = DIMENSIONS.filter((dim) => dim.param === 'fw');
   const popDims = DIMENSIONS.filter((dim) => ['pg', 'eq'].includes(dim.param));
-  const dataDims = DIMENSIONS.filter((dim) => ['src', 'vt', 'per'].includes(dim.param));
+  const dataDims = DIMENSIONS.filter((dim) => ['source', 'vt', 'per'].includes(dim.param));
   const choices = (dim: (typeof DIMENSIONS)[number]) => (
     <FilterDimensionChoices
       key={dim.param}

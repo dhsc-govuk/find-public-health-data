@@ -21,6 +21,7 @@ export const PERIOD_PARAMS = ['fromYear', 'toYear', 'updatedWithin'] as const;
 
 export interface DimensionConfig {
   param: string;
+  apiParam?: string;
   stateKey: keyof SearchState;
   label: string;
   classificationDimension?: string;
@@ -66,7 +67,8 @@ export const DIMENSIONS: DimensionConfig[] = [
     classificationDimension: 'inequality',
   },
   {
-    param: 'src',
+    param: 'source',
+    apiParam: 'src',
     stateKey: 'sources',
     label: 'Data sources',
     valueIsLabel: true,

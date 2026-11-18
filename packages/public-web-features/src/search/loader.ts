@@ -48,7 +48,7 @@ export type {
 } from '@fphd/public-api-features/contract';
 
 function pickStrings(params: URLSearchParams, key: string): string[] {
-  const maxLength = key === 'src' ? MAX_FILTER_LABEL_LENGTH : MAX_FILTER_VALUE_LENGTH;
+  const maxLength = key === 'source' ? MAX_FILTER_LABEL_LENGTH : MAX_FILTER_VALUE_LENGTH;
   return [...new Set(params.getAll(key).filter((v) => v !== '' && v.length <= maxLength))].slice(
     0,
     MAX_FILTER_VALUES,
@@ -72,7 +72,7 @@ function buildSearchQuery(
 
   for (const dim of DIMENSIONS) {
     for (const val of pickStrings(params, dim.param)) {
-      parts.push(`${dim.param}=${encodeURIComponent(val)}`);
+      parts.push(`${dim.apiParam ?? dim.param}=${encodeURIComponent(val)}`);
     }
   }
 
@@ -246,7 +246,7 @@ export async function loadSearch(
     frameworks: pickStrings(params, 'fw'),
     populations: pickStrings(params, 'pg'),
     inequalities: pickStrings(params, 'eq'),
-    sources: pickStrings(params, 'src'),
+    sources: pickStrings(params, 'source'),
     valueTypes: pickStrings(params, 'vt'),
     yearTypes: pickStrings(params, 'per'),
     geoLevels: validatedGeo,

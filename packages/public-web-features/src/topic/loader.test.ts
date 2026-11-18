@@ -246,7 +246,7 @@ describe('loadTopic', () => {
     'keeps the active %s tab when normalising filter inputs',
     async (tab) => {
       const result = await loadTopicPage(
-        loaderArgs(topicApi(), { slug: 'topic-a' }, `?tab-topic=${tab}&src-add=`),
+        loaderArgs(topicApi(), { slug: 'topic-a' }, `?tab-topic=${tab}&source-add=`),
       ).catch((error: unknown) => error);
       if (!(result instanceof Response)) throw new Error('Expected a filter redirect');
       expect(result.status).toBe(302);
@@ -264,7 +264,7 @@ describe('loadTopic', () => {
       'GET /api/areas/display-groups': ['Local authorities', 'NHS regions'],
     });
     const result = await loadTopicPage(
-      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas&geo=Local+authorities&src-add='),
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas&geo=Local+authorities&source-add='),
     ).catch((error: unknown) => error);
     if (!(result instanceof Response)) throw new Error('Expected a filter redirect');
     expect(

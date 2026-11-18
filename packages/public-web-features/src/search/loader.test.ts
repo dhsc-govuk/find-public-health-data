@@ -167,7 +167,7 @@ describe('loadSearch', () => {
     const client = api();
     const source = 'A data source with a full attribution '.repeat(6);
     const result = await loadSearch(
-      loaderArgs(client, `http://localhost/search?${new URLSearchParams({ src: source })}`),
+      loaderArgs(client, `http://localhost/search?${new URLSearchParams({ source })}`),
     );
     expect(result.sources).toEqual([source]);
     expect(searchSent(client).getAll('src')).toEqual([source]);
@@ -179,7 +179,7 @@ describe('loadSearch', () => {
     const result = await loadSearch(
       loaderArgs(
         client,
-        `http://localhost/search?${new URLSearchParams({ q: query, src: 's'.repeat(501) })}`,
+        `http://localhost/search?${new URLSearchParams({ q: query, source: 's'.repeat(501) })}`,
       ),
     );
 
