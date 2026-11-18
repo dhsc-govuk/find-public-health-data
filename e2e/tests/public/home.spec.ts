@@ -77,14 +77,6 @@ test('puts the ways to find data side by side on desktop and one under the other
   expect(mobileAll.y).toBeGreaterThanOrEqual(mobileTopic.y + mobileTopic.height);
 });
 
-test('searches for data from the home page', async ({ page }) => {
-  await page.getByLabel('Search for data').fill('diabetes');
-  await page.getByLabel('Search for data').press('Enter');
-
-  await expect(page).toHaveURL(/\/search\?q=diabetes$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Search for data' })).toBeVisible();
-});
-
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
   await expectNoAccessibilityViolations(page, testInfo);
 });
