@@ -17,7 +17,7 @@ export const spineColours = {
 
 const comparisons = {
   better: 'Better than',
-  similar: 'No different to',
+  similar: 'Similar to',
   worse: 'Worse than',
   lower: 'Lower than',
   higher: 'Higher than',
@@ -74,13 +74,16 @@ export function SpineChart({
     `Comparison: ${comparison}`,
   ];
   const benchmarkLines = [`Value: ${chartValue(benchmarkValue, unit)}`, `Area: ${benchmarkName}`];
+  // The range and the percentile band are drawn but have no tooltip of their own, so screen
+  // readers get them from the area mark's label and from the text fallback.
+  const rangeLines = [
+    `Lowest to highest: ${chartValue(min, unit)} to ${chartValue(max, unit)}`,
+    ...(p25 == null || p75 == null
+      ? []
+      : [`25th to 75th percentile: ${chartValue(p25, unit)} to ${chartValue(p75, unit)}`]),
+  ];
   const context = `${indicatorName}. Period: ${period}`;
-  const label = [
-    context,
-    ...areaLines,
-    ...benchmarkLines,
-    `Range: ${chartValue(min, unit)} to ${chartValue(max, unit)}`,
-  ].join('. ');
+  const label = [context, ...areaLines, ...benchmarkLines, ...rangeLines].join('. ');
   const low = Math.min(min, benchmarkValue, value);
   const high = Math.max(max, benchmarkValue, value);
   const scale = (position: number) =>
@@ -153,7 +156,10 @@ export function SpineChart({
                 width={mark === 'area' ? 16 : 12}
                 height={24}
                 fill="transparent"
-                aria-label={[context, ...(mark === 'area' ? areaLines : benchmarkLines)].join('. ')}
+                aria-label={[
+                  context,
+                  ...(mark === 'area' ? [...areaLines, ...rangeLines] : benchmarkLines),
+                ].join('. ')}
                 aria-describedby={active.includes(mark) ? `${id}-${mark}` : undefined}
                 onFocus={() => {
                   setFocused(mark);

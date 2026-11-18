@@ -4,6 +4,9 @@ const colours = [
   ['#8ed973', 'Better'],
   ['#ffc000', 'Similar'],
   ['#c00000', 'Worse'],
+  ['#bed2ff', 'Lower (no better or worse)'],
+  ['#5555e6', 'Higher (no better or worse)'],
+  ['#6f7276', 'No comparison available'],
 ] as const;
 
 export function SpineChartKey() {

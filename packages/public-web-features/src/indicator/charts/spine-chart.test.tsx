@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { SpineChart, SpineChartKey } from './spine-chart.tsx';
+import { SpineChart, SpineChartKey, spineColours } from './spine-chart.tsx';
 
 const props = {
   indicatorName: 'Life expectancy',
@@ -56,6 +56,14 @@ it('exposes distinct tick and dot tooltips with indicator, period, values and na
   expect(screen.queryByRole('tooltip')).toBeNull();
 });
 
+it('gives the dot the range and percentile band in its accessible name', () => {
+  const { container } = render(<SpineChart {...props} />);
+  const dot = container.querySelectorAll('.fphd-range-target')[1];
+  expect(dot?.getAttribute('aria-label')).toBe(
+    'Life expectancy. Period: 2025. Value: 90.0 years. Area: West Sussex. Comparison: Better than England. Lowest to highest: 10.0 years to 110.0 years. 25th to 75th percentile: 30.0 years to 80.0 years',
+  );
+});
+
 it('shows two tooltips when marks overlap on focus and hover', () => {
   const { container } = render(<SpineChart {...props} value={50} judgement="similar" />);
   const target = container.querySelector('.fphd-range-target');
@@ -63,7 +71,7 @@ it('shows two tooltips when marks overlap on focus and hover', () => {
   if (!target || !plot) throw new Error('Missing chart marks');
   fireEvent.focus(target);
   expect(screen.getAllByRole('tooltip')).toHaveLength(2);
-  expect(screen.getByText('Comparison: No different to England')).toBeTruthy();
+  expect(screen.getByText('Comparison: Similar to England')).toBeTruthy();
   fireEvent.blur(target);
   fireEvent.pointerEnter(plot, { clientX: 49.6 });
   expect(screen.getAllByRole('tooltip')).toHaveLength(2);
@@ -92,18 +100,30 @@ it.each([
 it('keeps a complete text fallback without ResizeObserver', () => {
   vi.stubGlobal('ResizeObserver', undefined);
   render(<SpineChart {...props} />);
-  expect(screen.getByText(/Life expectancy\. Period: 2025/).textContent).toContain(
-    'Comparison: Better than England',
-  );
+  const fallback = screen.getByText(/Life expectancy\. Period: 2025/).textContent;
+  expect(fallback).toContain('Comparison: Better than England');
+  expect(fallback).toContain('Lowest to highest: 10.0 years to 110.0 years');
+  expect(fallback).toContain('25th to 75th percentile: 30.0 years to 80.0 years');
 });
 
-it('uses the prototype dot legend in Better, Similar, Worse order', () => {
+it('keys every dot colour the chart draws, Better, Similar and Worse first', () => {
   render(<SpineChartKey />);
   expect(screen.getByText('Dot colour')).toBeTruthy();
-  expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+  const items = screen.getAllByRole('listitem');
+  expect(items.map((item) => item.textContent)).toEqual([
     'Better',
     'Similar',
     'Worse',
+    'Lower (no better or worse)',
+    'Higher (no better or worse)',
+    'No comparison available',
   ]);
-  expect(screen.getAllByRole('listitem').every((item) => item.querySelector('circle'))).toBe(true);
+  expect(items.map((item) => item.querySelector('circle')?.getAttribute('fill'))).toEqual([
+    spineColours.better,
+    spineColours.similar,
+    spineColours.worse,
+    spineColours.lower,
+    spineColours.higher,
+    spineColours.none,
+  ]);
 });

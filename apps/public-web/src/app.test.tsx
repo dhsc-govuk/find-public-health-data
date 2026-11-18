@@ -426,7 +426,7 @@ describe('public application routes', () => {
     expect(screen.getByRole('cell', { name: '500.9' })).toBeTruthy();
     expect(
       screen.getByText(
-        /Value: 395.6.*Area: Cornwall.*Value: 410.3.*Area: England.*Range: 300.1.*500.9/,
+        /Value: 395.6.*Area: Cornwall.*Value: 410.3.*Area: England.*Lowest to highest: 300.1.*500.9/,
       ),
     ).toBeTruthy();
 

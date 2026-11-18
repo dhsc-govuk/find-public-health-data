@@ -306,7 +306,7 @@ it('puts England’s spread before its value and the chart beside each area', ()
   const cells = within(screen.getByRole('row', { name: /Smoking/ })).getAllByRole('cell');
   expect(cells.map((cell) => cell.textContent)).toEqual([
     '18.0%',
-    'Smoking. Period: 2023. Value: 18.0%. Area: North East. Comparison: Better than England. Value: 28.0%. Area: England. Range: 5.0% to 45.0%',
+    'Smoking. Period: 2023. Value: 18.0%. Area: North East. Comparison: Better than England. Value: 28.0%. Area: England. Lowest to highest: 5.0% to 45.0%. 25th to 75th percentile: 12.0% to 30.0%',
     'Better than England',
     '5.0%',
     '12.0%',

@@ -78,7 +78,14 @@ for (const width of [1020, 375]) {
     await key.locator('summary').click();
     await expect(key).toHaveAttribute('open', '');
     await expect(key.getByText('Dot colour', { exact: true })).toBeVisible();
-    await expect(key.getByRole('listitem')).toHaveText(['Better', 'Similar', 'Worse']);
+    await expect(key.getByRole('listitem')).toHaveText([
+      'Better',
+      'Similar',
+      'Worse',
+      'Lower (no better or worse)',
+      'Higher (no better or worse)',
+      'No comparison available',
+    ]);
     await expectNoAccessibilityViolations(page, testInfo);
     await key.locator('summary').click();
     await expect(key).not.toHaveAttribute('open', '');
