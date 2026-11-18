@@ -82,11 +82,23 @@ export function CompareIndicatorsChart({
     yLabel = `${yName}${unitNote(y.detail.unit).replaceAll('per ', 'per\u00a0')}`;
   const locals = points.filter(({ code }) => code !== englandCode);
   const highlighted = points.filter(({ code }) => category(code) === 'selected');
-  const title = `${yName} compared with ${xName}${xPeriod ? `, ${xPeriod}` : ''}`;
+  // When the two indicators' latest periods differ, each name carries its own period.
+  const title =
+    xPeriod === yPeriod
+      ? `${yName} compared with ${xName}${xPeriod ? `, ${xPeriod}` : ''}`
+      : `${yName}${yPeriod ? `, ${yPeriod}` : ''} compared with ${xName}${xPeriod ? `, ${xPeriod}` : ''}`;
   const fit = showRegression ? regression(locals) : null;
   const min = Math.min(...locals.map(({ x }) => x)),
     max = Math.max(...locals.map(({ x }) => x));
-  const cell = ({ code, name, x, y }: (typeof points)[number]) => ({ code, name, values: [x, y] });
+  const cell = ({ code, name, ...point }: (typeof points)[number]) => ({
+    code,
+    name,
+    values: [point.x, point.y],
+    periods: [
+      periodLabel(point.xPeriod, x.detail.yearType),
+      periodLabel(point.yPeriod, y.detail.yearType),
+    ],
+  });
   const england = points.find(({ code }) => code === englandCode);
   const model = {
     periods: [xPeriod, yPeriod],
@@ -102,7 +114,7 @@ export function CompareIndicatorsChart({
   return (
     <ChartSection id="compare-chart-section" title="Indicator comparison scatter chart">
       {points.length === 0 ? (
-        <NoChartData>No values for these indicators match by area and period.</NoChartData>
+        <NoChartData>No areas have values for both indicators.</NoChartData>
       ) : (
         <>
           <h3 className="govuk-heading-s govuk-!-margin-bottom-2">

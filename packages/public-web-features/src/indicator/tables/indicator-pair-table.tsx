@@ -30,16 +30,21 @@ export function IndicatorPairTable({
     ...(england ? [england] : []),
     ...areas.filter(({ code }) => highlighted.includes(code)),
   ];
-  const row = (cell: (typeof areas)[number]) => (
+  // A value from a different period to its column's heading says which period it is for.
+  const row = (cell: (typeof areas)[number] & { periods?: string[] }) => (
     <tr className="govuk-table__row" key={cell.code}>
       <th className="govuk-table__header" scope="row">
         {cell.name}
       </th>
-      {cell.values.map((value, index) => (
-        <td className="govuk-table__cell" key={index}>
-          {displayValue(value, index)}
-        </td>
-      ))}
+      {cell.values.map((value, index) => {
+        const period = cell.periods?.[index];
+        return (
+          <td className="govuk-table__cell" key={index}>
+            {displayValue(value, index)}
+            {value !== null && period && period !== periods[index] ? ` (${period})` : null}
+          </td>
+        );
+      })}
     </tr>
   );
   return (
@@ -100,10 +105,10 @@ export function IndicatorPairTable({
                     Area
                   </th>
                   <th scope="col" className="govuk-table__header">
-                    {first.name}
+                    {first.name} ({periods[0] || 'latest period'})
                   </th>
                   <th scope="col" className="govuk-table__header">
-                    {second.name}
+                    {second.name} ({periods[1] || 'latest period'})
                   </th>
                 </tr>
               </thead>

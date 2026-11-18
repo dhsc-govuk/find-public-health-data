@@ -245,3 +245,47 @@ it('keeps financial and three-year periods with their axes and table columns whe
   expect(labels()).toEqual(['Mortality (per 100,000)2022 to 2024', 'Prevalence (%)2024/25']);
   expect(headers()).toEqual(['Area', 'Prevalence (2024/25)', 'Mortality (2022 to 2024)']);
 });
+
+it('names both periods in the chart title and gives a lagging value its own period', () => {
+  const periods = {
+    xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+    yPeriod: { fromDate: '2022-01-01', toDate: '2024-12-31' },
+  };
+  const { container } = render(
+    <CompareIndicatorsChart
+      selected={indicators}
+      selectedAreaCodes={['A']}
+      scatter={{
+        points: [
+          { ...point('E92000001', 12, 22), ...periods },
+          {
+            ...point('A', 10, 20),
+            ...periods,
+            xPeriod: { fromDate: '2023-04-01', toDate: '2024-03-31' },
+          },
+          { ...point('B', 11, 21), ...periods },
+        ],
+      }}
+    />,
+  );
+  expect(container.querySelector('[aria-label*="compared with"]')?.getAttribute('aria-label')).toBe(
+    'Prevalence, 2024/25 compared with Mortality, 2022 to 2024',
+  );
+  const row = (name: string) =>
+    within(table().getByRole('rowheader', { name }).closest('tr') as HTMLElement)
+      .getAllByRole('cell')
+      .map((node) => node.textContent);
+  expect(row('England')).toEqual(['22.0 per 100,000', '12.0%']);
+  expect(row('Area A')).toEqual(['20.0 per 100,000', '10.0% (2023/24)']);
+  const all = within(screen.getByRole('region', { name: 'All areas in the indicator comparison' }));
+  expect(all.getAllByRole('columnheader').map((node) => node.textContent)).toEqual([
+    'Area',
+    'Mortality (2022 to 2024)',
+    'Prevalence (2024/25)',
+  ]);
+});
+
+it('says when no area has values for both indicators', () => {
+  render(<CompareIndicatorsChart selected={indicators} scatter={{ points: [] }} />);
+  expect(screen.getByText('No areas have values for both indicators.')).toBeTruthy();
+});

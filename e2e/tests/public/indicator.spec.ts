@@ -1219,9 +1219,7 @@ test('pairs diabetes QOF prevalence and diabetes mortality at their own latest p
   const panel = page.locator('#indicator-compare-indicators');
   const chart = panel.locator('#compare-chart-section');
   await expect(chart.locator('.recharts-scatter-symbol').first()).toBeVisible();
-  await expect(
-    chart.getByText('No values for these indicators match by area and period.'),
-  ).toHaveCount(0);
+  await expect(chart.getByText('No areas have values for both indicators.')).toHaveCount(0);
   await expect(chart.locator('.fphd-chart-axis-title').first()).toContainText(
     'Diabetes: QOF prevalence',
   );

@@ -8,7 +8,7 @@ import {
   Radios,
 } from '@fphd/ui';
 import { Form, useLocation } from 'react-router';
-import { neighbourAnchors, statisticalNeighbourAreas } from './area-comparison.ts';
+import { neighbourAnchors } from './area-comparison.ts';
 import { AreaControls } from './area-controls.tsx';
 import { scatterPair } from './charts/chart-data.ts';
 import { CompareIndicatorsChart } from './charts/scatter-chart.tsx';
@@ -60,10 +60,14 @@ export function CompareIndicatorsTab({
     areas: compareAreaOptions,
     params,
   });
-  const only = statisticalNeighbourAreas(params, areaDetail.areas);
+  // This tab's area choices are the highlight ticks alone, so the neighbours filter, its label and
+  // its checkboxes all start from them. Region ticks belong to the Compare areas tab.
   const anchors = neighbourAnchors(params.getAll('highlight'), areaDetail.areas).filter(
     ({ code }) => params.getAll('neighbours').includes(code),
   );
+  const only = anchors.length
+    ? new Set(anchors.flatMap(({ code, neighbours = [] }) => [code, ...neighbours]))
+    : null;
   const groupLabel = only
     ? `${anchors.map(({ name }) => name).join(' and ')} and ${anchors.length > 1 ? 'their' : 'its'} statistical neighbours`
     : compareAreaGroup;
