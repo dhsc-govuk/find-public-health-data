@@ -9,6 +9,8 @@ export function IndicatorPairTable({
   model,
   group = 'Local authorities',
   highlighted = [],
+  correlation,
+  plotted = false,
 }: {
   indicators: [
     Pick<IndicatorPageDetail, 'name' | 'unit'>,
@@ -17,8 +19,11 @@ export function IndicatorPairTable({
   model: NonNullable<IndicatorComparisonModel['pair']>;
   group?: string;
   highlighted?: string[];
+  correlation?: number | undefined;
+  plotted?: boolean;
 }) {
   const [first, second] = indicators;
+  const allAreas = plotted ? `areas plotted (${group})` : geographyGroupLabel(group);
   const displayValue = (value: number | null, index: number) =>
     value === null
       ? 'No data'
@@ -28,16 +33,21 @@ export function IndicatorPairTable({
     ...(england ? [england] : []),
     ...areas.filter(({ code }) => highlighted.includes(code)),
   ];
-  const row = (cell: (typeof areas)[number]) => (
+  // A value from a different period to its column's heading says which period it is for.
+  const row = (cell: (typeof areas)[number] & { periods?: string[] }) => (
     <tr className="govuk-table__row" key={cell.code}>
       <th className="govuk-table__header" scope="row">
         {cell.name}
       </th>
-      {cell.values.map((value, index) => (
-        <td className="govuk-table__cell" key={index}>
-          {displayValue(value, index)}
-        </td>
-      ))}
+      {cell.values.map((value, index) => {
+        const period = cell.periods?.[index];
+        return (
+          <td className="govuk-table__cell" key={index}>
+            {displayValue(value, index)}
+            {value !== null && period && period !== periods[index] ? ` (${period})` : null}
+          </td>
+        );
+      })}
     </tr>
   );
   return (
@@ -74,26 +84,34 @@ export function IndicatorPairTable({
                 ))}
               </tr>
             ) : null}
+            {correlation !== undefined ? (
+              <tr className="govuk-table__row">
+                <th className="govuk-table__header" scope="row">
+                  Correlation (r, estimated)
+                </th>
+                <td className="govuk-table__cell" colSpan={2}>
+                  {correlation.toFixed(2)}
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </TableScrollRegion>
       {areas.length ? (
-        <Details summary={`Show data for all ${areas.length} ${geographyGroupLabel(group)}`}>
+        <Details summary={`Show data for all ${areas.length} ${allAreas}`}>
           <TableScrollRegion label="All areas in the indicator comparison">
             <table className="govuk-table">
-              <caption className="govuk-visually-hidden">
-                All {geographyGroupLabel(group)} in the comparison
-              </caption>
+              <caption className="govuk-visually-hidden">All {allAreas} in the comparison</caption>
               <thead className="govuk-table__head">
                 <tr>
                   <th scope="col" className="govuk-table__header">
                     Area
                   </th>
                   <th scope="col" className="govuk-table__header">
-                    {first.name}
+                    {first.name} ({periods[0] || 'latest period'})
                   </th>
                   <th scope="col" className="govuk-table__header">
-                    {second.name}
+                    {second.name} ({periods[1] || 'latest period'})
                   </th>
                 </tr>
               </thead>

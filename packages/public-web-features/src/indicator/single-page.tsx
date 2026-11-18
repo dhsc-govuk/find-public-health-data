@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
-import { expandIndicator } from './compact-data.ts';
+import { expandIndicator, expandScatterComparison } from './compact-data.ts';
 import { CompareIndicatorsTab } from './compare-tab.tsx';
 import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
@@ -16,6 +16,13 @@ type IndicatorPageProps = Awaited<ReturnType<typeof loadIndicatorPage>>;
 type LoadedPageProps = Extract<IndicatorPageProps, { dataPlaceholder: null }>;
 type CompactData = Awaited<LoadedPageProps['data']>;
 type ExpandedData = Omit<CompactData, 'selected'> & { selected: SelectedIndicator[] };
+
+function expandComparison(comparison: Awaited<LoadedPageProps['comparison']>) {
+  return {
+    ...comparison,
+    scatter: comparison.scatter ? expandScatterComparison(comparison.scatter) : undefined,
+  };
+}
 
 function IndicatorDataSection({
   cache,
@@ -225,14 +232,16 @@ function LoadedIndicatorPage({
         ),
         areas: (
           <DataSection label="area comparisons" resolve={comparison}>
-            {(comparison) => <CompareAreasTab primary={{ detail }} {...comparison} />}
+            {(comparison) => (
+              <CompareAreasTab primary={{ detail }} {...expandComparison(comparison)} />
+            )}
           </DataSection>
         ),
         compare: (
           <DataSection label="indicator comparisons" resolve={comparison}>
             {(comparison) => (
               <CompareIndicatorsTab
-                {...comparison}
+                {...expandComparison(comparison)}
                 primary={{ detail }}
                 compared={comparedDetail}
                 findSubject={findSubject}

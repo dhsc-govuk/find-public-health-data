@@ -110,6 +110,10 @@ it('offers individual area highlights without region controls on Compare indicat
   mount(false);
   expect(screen.queryByRole('checkbox', { name: /North East/ })).toBeNull();
   expect(screen.getByRole('checkbox', { name: 'Area 1' })).toBeTruthy();
+  expect(screen.getByRole('checkbox', { name: 'Statistical neighbours for Area 1' })).toBeTruthy();
+  expect(screen.getByRole('checkbox', { name: 'Statistical neighbours for Area 1' }).id).toBe(
+    'pair-neighbours-E06000001',
+  );
 });
 
 it.each(['Area 1', 'e06000001'])(

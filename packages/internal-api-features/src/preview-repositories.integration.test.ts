@@ -199,7 +199,7 @@ describe('an update that keeps the published batch', () => {
     expect(previewed.data[0]?.observations[0]?.fromDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(previewed.range.length).toBeGreaterThan(0);
     // A scatter of two different indicators, so its equality below compares real points.
-    expect(previewed.scatter?.length).toBeGreaterThan(0);
+    expect(previewed.scatter?.points.length).toBeGreaterThan(0);
     expect(previewed.table[0]?.detail.name).toBe(PREVIEWED_NAME);
     expect(published.table[0]?.detail.name).toBe('Under 75 mortality rate from all causes');
     expect({ ...previewed, table: undefined }).toEqual({ ...published, table: undefined });
@@ -242,7 +242,7 @@ describe('an update with data of its own, which has no read models yet', () => {
     expect(observations(previewed.data)).toEqual([]);
     expect(observations(previewed.ranking)).toEqual([]);
     expect(observations(previewed.table.flatMap(({ areaData }) => areaData))).toEqual([]);
-    expect(previewed.scatter?.length ?? 0).toBe(0);
+    expect(previewed.scatter?.points.length ?? 0).toBe(0);
     expect(published.areas.length).toBeGreaterThan(0);
     expect(observations(published.data).length).toBeGreaterThan(0);
     expect(observations(published.ranking).length).toBeGreaterThan(0);
@@ -250,7 +250,7 @@ describe('an update with data of its own, which has no read models yet', () => {
       observations(published.table.flatMap(({ areaData }) => areaData)).length,
     ).toBeGreaterThan(0);
     expect(published.range.length).toBeGreaterThan(0);
-    expect(published.scatter?.length).toBeGreaterThan(0);
+    expect(published.scatter?.points.length).toBeGreaterThan(0);
   });
 });
 

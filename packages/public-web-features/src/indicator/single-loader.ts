@@ -29,8 +29,12 @@ import {
   withNeighbours,
 } from './area-comparison.ts';
 import { englandCode, quintileParam, scatterPair } from './charts/chart-data.ts';
-import { loadRankingScatterComparison, loadScatterComparison } from './charts/scatter-loader.ts';
-import { compactIndicator } from './compact-data.ts';
+import {
+  loadRankingScatterComparison,
+  loadScatterComparison,
+  type ScatterComparison,
+} from './charts/scatter-loader.ts';
+import { compactIndicator, compactScatterComparison } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
 import { indicatorPageContext } from './page-context.ts';
@@ -140,7 +144,7 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
         areaData: tableSummary(selected[0]?.areaData ?? [], 'latest').areaData,
       }),
       compareAreaRanges,
-      scatter,
+      scatter: scatter ? compactScatterComparison(scatter) : undefined,
     };
   });
   // Wait for the final models so document HTML includes compact data, comparisons and search results.
@@ -200,7 +204,7 @@ async function loadIndicatorComparison(
     : comparisonDisplayGroups.includes('Local authorities')
       ? 'Local authorities'
       : (comparisonDisplayGroups[0] ?? '');
-  let compactScatter: ReturnType<typeof loadScatterComparison>;
+  let compactScatter: ScatterComparison | undefined;
   let compareAreasData: IndicatorAreaData[] = [];
   let chartIndicators: SelectedIndicator[] = [];
   let comparedAreasData: IndicatorAreaData[] = [];
@@ -230,7 +234,7 @@ async function loadIndicatorComparison(
       compareAreaGroup,
     );
     const anchors =
-      detailed && AREA_NEIGHBOUR_GROUPS.has(compareAreaGroup)
+      (detailed || Boolean(comparedDetail)) && AREA_NEIGHBOUR_GROUPS.has(compareAreaGroup)
         ? highlightedAreaCodes(url.searchParams, compareAreaOptions)
         : [];
     for (let offset = 0; offset < anchors.length; offset += MAX_NEIGHBOUR_AREAS_PER_REQUEST) {
@@ -259,27 +263,33 @@ async function loadIndicatorComparison(
         url.searchParams,
       );
       if (!x || !y) throw new Error('Expected a comparison pair');
-      const [primary, secondary] = await Promise.all([
-        loadRanking(routeDetail),
-        loadRanking(comparedDetail),
-      ]);
+      let rankings: [IndicatorAreaData[], IndicatorAreaData[]] | undefined;
+      try {
+        const {
+          rankings: loadedRankings,
+          variants,
+          ...scatter
+        } = await api.get(
+          `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
+          indicatorScatterSchema,
+        );
+        rankings = loadedRankings;
+        compactScatter = { ...scatter, ...(variants ? { variants } : {}) };
+      } catch (error) {
+        if (!(error instanceof Response) || error.status !== 404) throw error;
+      }
+      const [primary, secondary] = rankings
+        ? x.detail.shortId === routeDetail.shortId
+          ? rankings
+          : [rankings[1], rankings[0]]
+        : await Promise.all([loadRanking(routeDetail), loadRanking(comparedDetail)]);
       compareAreasData = primary;
       comparedAreasData = secondary;
       chartIndicators = [
         { detail: routeDetail, areaData: primary },
         { detail: comparedDetail, areaData: secondary },
       ];
-      compactScatter = loadRankingScatterComparison(chartIndicators, url.searchParams);
-      if (!compactScatter) {
-        try {
-          compactScatter = await api.get(
-            `/api/indicator-scatter?indicator=${x.detail.shortId}&indicator=${y.detail.shortId}&${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,
-            indicatorScatterSchema,
-          );
-        } catch (error) {
-          if (!(error instanceof Response) || error.status !== 404) throw error;
-        }
-      }
+      compactScatter ??= loadRankingScatterComparison(chartIndicators, url.searchParams);
     } else {
       compareAreasData = await loadRanking(routeDetail);
       chartIndicators = [{ detail: routeDetail, areaData: compareAreasData }];
@@ -304,7 +314,7 @@ async function loadIndicatorComparison(
           )
         ).periods
       : [];
-  const scatter = comparedDetail
+  const scatter: ScatterComparison | undefined = comparedDetail
     ? (compactScatter ?? loadScatterComparison(chartIndicators, url.searchParams))
     : undefined;
   return {

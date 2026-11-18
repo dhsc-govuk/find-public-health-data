@@ -1,7 +1,11 @@
 import { rankingAreaSeries, tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
 import { expect, it } from 'vitest';
 import { observation, selected, sex } from '../view.testing.ts';
-import { loadRankingScatterComparison, loadScatterComparison } from './scatter-loader.ts';
+import {
+  loadRankingScatterComparison,
+  loadScatterComparison,
+  scatterSexComparisons,
+} from './scatter-loader.ts';
 
 function pair(xYear = 2024, yYear = 2024) {
   return [selected(108), selected(241)].map((entry, index) => ({
@@ -24,11 +28,27 @@ function pair(xYear = 2024, yYear = 2024) {
 it('pairs matching ranking periods and preserves zeroes and saved axes', () => {
   const params = new URLSearchParams('scatter-x=241&scatter-y=108');
   expect(loadRankingScatterComparison(pair(), params)?.points).toMatchObject([
-    { code: 'A', x: 20, y: 0, period: '2024-01-01|2024-12-31' },
+    {
+      code: 'A',
+      x: 20,
+      y: 0,
+      xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+      yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+    },
   ]);
 });
-it('requests a common-period read when ranking periods differ', () => {
-  expect(loadRankingScatterComparison(pair(2024, 2023), new URLSearchParams())).toBeUndefined();
+it('pairs different latest ranking periods without requesting history', () => {
+  expect(
+    loadRankingScatterComparison(pair(2024, 2023), new URLSearchParams())?.points,
+  ).toMatchObject([
+    {
+      code: 'A',
+      x: 0,
+      y: 20,
+      xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+      yPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
+    },
+  ]);
 });
 it('does not treat disjoint latest areas as an empty history', () => {
   const indicators = pair();
@@ -68,7 +88,13 @@ it.each(['Age', 'Ethnicity'])(
     }));
     const params = new URLSearchParams();
     expect(loadScatterComparison(indicators, params)?.points).toMatchObject([
-      { code: 'A', x: 0, y: 20, period: '2023-01-01|2023-12-31' },
+      {
+        code: 'A',
+        x: 0,
+        y: 21,
+        xPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
+        yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+      },
     ]);
     const ranking = indicators.map((entry) => ({
       ...entry,
@@ -85,7 +111,7 @@ it.each(['Age', 'Ethnicity'])(
   },
 );
 
-it('skips history only when the canonical population candidates cannot overlap', () => {
+it('reads canonical headlines when ranking populations differ', () => {
   const indicators = pair();
   indicators.forEach((entry, index) => {
     entry.areaData = entry.areaData.map((area) => ({
@@ -99,8 +125,10 @@ it('skips history only when the canonical population candidates cannot overlap',
       })),
     }));
   });
-  expect(loadScatterComparison(indicators, new URLSearchParams())).toEqual({ points: [] });
-  expect(loadRankingScatterComparison(indicators, new URLSearchParams())).toEqual({ points: [] });
+  expect(loadScatterComparison(indicators, new URLSearchParams())?.points).toMatchObject([
+    { code: 'A', x: 0, y: 20 },
+  ]);
+  expect(loadRankingScatterComparison(indicators, new URLSearchParams())).toBeUndefined();
 });
 
 it('keeps the history fallback when population metadata is missing for any area', () => {
@@ -145,7 +173,13 @@ it('keeps the fallback when bounded annual and rolling histories can elect a com
     areaData: tableSummary(tableAreaSeries(entry.areaData)).areaData,
   }));
   expect(loadScatterComparison(canonical, new URLSearchParams())?.points).toMatchObject([
-    { code: 'A', x: 0, y: 20, period: '2014-01-01|2016-12-31' },
+    {
+      code: 'A',
+      x: 0,
+      y: 21,
+      xPeriod: { fromDate: '2014-01-01', toDate: '2016-12-31' },
+      yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+    },
   ]);
   const rankings = indicators.map((entry) => ({
     ...entry,
@@ -155,4 +189,35 @@ it('keeps the fallback when bounded annual and rolling histories can elect a com
     })),
   }));
   expect(loadRankingScatterComparison(rankings, new URLSearchParams())).toBeUndefined();
+});
+
+it('pairs a selected sex with an unsexed indicator and retains axis qualifiers', () => {
+  const indicators = pair();
+  const first = indicators[0];
+  if (!first) throw new Error('Expected indicator');
+  const firstArea = first.areaData[0];
+  if (!firstArea) throw new Error('Expected area');
+  firstArea.observations = [observation(8, [sex('Female')]), observation(9, [sex('Male')])];
+  const result = scatterSexComparisons(indicators, new URLSearchParams());
+  expect(result.variants).toMatchObject([
+    { sex: 'Female', axisSexes: ['Female', ''], points: [{ x: 8, y: 20 }] },
+    { sex: 'Male', axisSexes: ['Male', ''], points: [{ x: 9, y: 20 }] },
+  ]);
+});
+
+it('pairs each indicator’s own age population when choosing a common sex', () => {
+  const indicators = pair();
+  indicators.forEach((entry, index) => {
+    const area = entry.areaData[0];
+    if (!area) throw new Error('Expected area');
+    area.observations = [
+      observation(10, [
+        sex('Female'),
+        { type: 'Age', value: index ? '65+' : '18+', dimensionClass: 'core', sortOrder: 1 },
+      ]),
+    ];
+  });
+  expect(scatterSexComparisons(indicators, new URLSearchParams()).variants).toMatchObject([
+    { sex: 'Female', points: [{ code: 'A', x: 10, y: 10 }] },
+  ]);
 });

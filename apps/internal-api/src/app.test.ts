@@ -718,7 +718,7 @@ describe('the indicator preview', () => {
       findObservationRange: async () => [],
       findRankingData: async () => areaData,
       findTableData: async () => [{ detail: { name: 'A draft' }, areaData }] as never,
-      findScatterData: async () => [],
+      findScatterData: async () => ({ points: [], variants: [], rankings: [] }),
       search: async () => [{ shortId: 108, slug: 'a-draft', name: 'A draft' }],
       searchWithFilters: async () => ({ total: 0, limit: 10, indicators: [] }),
     },

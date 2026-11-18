@@ -12,7 +12,10 @@ import type {
 } from './indicator-observation-repository.ts';
 import type { ViewSet } from './schema/index.ts';
 
-type Result = Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>;
+type Result = Map<
+  string,
+  { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[]; sexes?: string[] }
+>;
 
 async function readPoints(
   db: DatabaseReader,
@@ -190,6 +193,7 @@ export async function getIndicatorSeriesData(
           (a, b) => b.toDate.localeCompare(a.toDate) || b.fromDate.localeCompare(a.fromDate),
         )[0];
       result.set(indicatorId, {
+        sexes: [...new Set(selected.map(({ sex }) => sex).filter(Boolean))],
         areaData: ordered.map((a) => {
           const pointId = chosen.find((row) => row.areaId === a.id)?.rankingObservationId;
           const point =
@@ -210,7 +214,10 @@ export async function getIndicatorSeriesData(
             areaCode: a.code,
             areaName: a.name,
             ...(includePopulationKeys
-              ? { populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))] }
+              ? {
+                  // Sorted, since the rows come back in no fixed order and equal reads should match.
+                  populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))].sort(),
+                }
               : {}),
             observations:
               point && point.fromDate === latest?.fromDate && point.toDate === latest?.toDate

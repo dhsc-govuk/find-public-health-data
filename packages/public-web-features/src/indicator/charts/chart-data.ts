@@ -101,6 +101,7 @@ export function regression(points: { x: number; y: number }[]) {
   const slope = xy / xx;
   const rSquared = xy ** 2 / (xx * yy);
   return {
+    r: xy / Math.sqrt(xx * yy),
     rSquared,
     adjustedRSquared: 1 - ((1 - rSquared) * (points.length - 1)) / (points.length - 2),
     at: (x: number) => meanY + slope * (x - meanX),

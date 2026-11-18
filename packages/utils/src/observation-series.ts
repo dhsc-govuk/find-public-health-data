@@ -255,6 +255,7 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
 
 export interface ScatterObservation extends SeriesObservation {
   value: number | null;
+  dimensions: { type: string; value: string; sortOrder?: number }[];
 }
 
 export interface ScatterArea {
@@ -287,29 +288,68 @@ export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
       ),
     }));
   };
-  const ySeries = new Map(aligned(yAreas).map((area) => [area.code, area.observations]));
-  const matches = aligned(xAreas).flatMap(({ code, name, observations }) => {
+  const latest = (observations: Map<string, ScatterObservation>) =>
+    [...observations.values()]
+      .filter(({ value }) => value !== null)
+      .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
+      .at(-1);
+  const ySeries = new Map(aligned(yAreas).map((area) => [area.code, latest(area.observations)]));
+  return aligned(xAreas).flatMap(({ code, name, observations }) => {
+    const x = latest(observations);
     const y = ySeries.get(code);
-    return [...observations].flatMap(([period, x]) => {
-      const other = y?.get(period);
-      return x.value == null || other?.value == null || !samePopulation(x, other)
-        ? []
-        : [
-            {
-              code,
-              name,
-              period,
-              fromDate: x.fromDate,
-              toDate: x.toDate,
-              x: x.value,
-              y: other.value,
-            },
-          ];
-    });
+    return x?.value == null || y?.value == null
+      ? []
+      : [
+          {
+            code,
+            name,
+            xPeriod: { fromDate: x.fromDate, toDate: x.toDate },
+            yPeriod: { fromDate: y.fromDate, toDate: y.toDate },
+            x: x.value,
+            y: y.value,
+          },
+        ];
   });
-  const local = matches.filter(({ code }) => code !== ENGLAND_AREA_CODE);
-  const latest = (local.length ? local : matches)
-    .toSorted((a, b) => a.toDate.localeCompare(b.toDate) || a.fromDate.localeCompare(b.fromDate))
-    .at(-1)?.period;
-  return matches.filter(({ period }) => period === latest);
+}
+
+export function pairedAreaSexValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
+  const pair = [xAreas, yAreas];
+  const sexesByIndicator = pair.map((areas) => {
+    const sexes = new Map<string, number>();
+    for (const { observations } of areas)
+      for (const { dimensions } of observations)
+        for (const dimension of dimensions)
+          if (dimension.type === SEX_DIMENSION_NAME)
+            sexes.set(dimension.value, dimension.sortOrder ?? 0);
+    return [...sexes].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([sex]) => sex);
+  });
+  const sexes = (sexesByIndicator.find((values) => values.length) ?? []).filter((sex) =>
+    sexesByIndicator.every((values) => !values.length || values.includes(sex)),
+  );
+  sexes.sort((a, b) => (a === 'Female' ? -1 : b === 'Female' ? 1 : 0));
+  const variants = sexes.map((sex) => {
+    const areas = pair.map((areas, index) =>
+      areas.map((area) => ({
+        ...area,
+        observations: area.observations
+          .filter(
+            ({ dimensions }) =>
+              !sexesByIndicator[index]?.length ||
+              dimensions.some(
+                (dimension) => dimension.type === SEX_DIMENSION_NAME && dimension.value === sex,
+              ),
+          )
+          .map((point) => ({
+            ...point,
+            dimensions: point.dimensions.filter(({ type }) => type !== SEX_DIMENSION_NAME),
+          })),
+      })),
+    );
+    return {
+      sex,
+      axisSexes: sexesByIndicator.map((values) => (values.length ? sex : '')),
+      points: pairedAreaValues(areas[0] ?? [], areas[1] ?? []),
+    };
+  });
+  return { points: pairedAreaValues(xAreas, yAreas), variants };
 }

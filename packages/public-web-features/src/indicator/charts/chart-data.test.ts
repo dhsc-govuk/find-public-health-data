@@ -42,28 +42,27 @@ describe('chart series', () => {
     expect(series[1]?.observations.size).toBe(0);
   });
 
-  it('never pairs values from different population segments across indicators', () => {
-    expect(
-      pairedObservations(
-        [area('local-1', point(2024, 4, 'Male'))],
-        [area('local-1', point(2024, 8, 'Female'))],
-      ),
-    ).toEqual([]);
-    expect(
-      pairedObservations(
-        [area('local-1', point(2024, 4))],
-        [area('local-1', point(2024, 8, 'Female'))],
-      ),
-    ).toEqual([]);
-    expect(
-      pairedObservations(
-        [area('local-1', point(2024, 4, 'Female'))],
-        [area('local-1', point(2024, 8, 'Female'))],
-      ),
-    ).toMatchObject([{ code: 'local-1', x: 4, y: 8 }]);
+  it('pairs each indicator’s headline population independently', () => {
+    const qof = {
+      ...point(2024, 4),
+      fromDate: '2024-04-01',
+      toDate: '2025-03-31',
+      dimensions: [{ type: 'Age', value: '17+ yrs', dimensionClass: 'core', sortOrder: 17 }],
+    };
+    const mortality = { ...point(2024, 8), fromDate: '2022-01-01' };
+    expect(pairedObservations([area('local-1', qof)], [area('local-1', mortality)])).toEqual([
+      {
+        code: 'local-1',
+        name: 'local-1',
+        x: 4,
+        y: 8,
+        xPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+        yPeriod: { fromDate: '2022-01-01', toDate: '2024-12-31' },
+      },
+    ]);
   });
 
-  it('uses the latest period with paired local data and preserves zero values', () => {
+  it('pairs each area at each indicator’s latest non-null period and preserves zeroes', () => {
     const points = pairedObservations(
       [
         area(englandCode, point(2024, 4), point(2023, 3)),
@@ -77,8 +76,27 @@ describe('chart series', () => {
       ],
     );
     expect(points).toMatchObject([
-      { code: englandCode, fromDate: '2023-01-01', x: 3, y: 4 },
-      { code: 'local-1', fromDate: '2023-01-01', x: 0, y: 1 },
+      {
+        code: englandCode,
+        xPeriod: { fromDate: '2024-01-01' },
+        yPeriod: { fromDate: '2024-01-01' },
+        x: 4,
+        y: 5,
+      },
+      {
+        code: 'local-1',
+        xPeriod: { fromDate: '2023-01-01' },
+        yPeriod: { fromDate: '2024-01-01' },
+        x: 0,
+        y: 3,
+      },
+      {
+        code: 'local-2',
+        xPeriod: { fromDate: '2024-01-01' },
+        yPeriod: { fromDate: '2023-01-01' },
+        x: 7,
+        y: 5,
+      },
     ]);
   });
 });

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
-import { compactIndicator } from './compact-data.ts';
+import { compactIndicator, compactScatterComparison } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
@@ -82,6 +82,7 @@ function page(
 ) {
   const primary = entries[0];
   if (!primary) throw new Error('Indicator fixture missing');
+  const scatter = loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams);
   const Routes = createRoutesStub([
     {
       path: 'indicator/:slug',
@@ -115,7 +116,7 @@ function page(
               areaData: [...areas, ...(entries[0]?.areaData ?? [])],
             }),
             compareAreaRanges: [],
-            scatter: loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams),
+            scatter: scatter ? compactScatterComparison(scatter) : undefined,
             ...indicatorComparisonModel(entries, {
               compareAreasData: areas,
               comparedAreasData: [],
@@ -246,11 +247,9 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
     within(screen.getByRole('tabpanel', { name: 'Compare indicators' })).getByRole('region', {
       name: 'Indicator comparison scatter chart',
     }).textContent,
-  ).toContain('View chart data as a table');
-  expect(
-    screen.getByRole('heading', { name: /^Diabetes mortality compared with Diabetes prevalence/ }),
-  ).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Swap axes' })).toBeTruthy();
+  ).toContain('Table of indicator comparison');
+  expect(screen.getByRole('heading', { name: 'Chart of indicator comparison' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Swap axis' })).toBeTruthy();
   expect(
     within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
       'rowheader',
@@ -271,7 +270,7 @@ it('labels cached scatter axes in the order requested by a saved comparison link
   const table = within(chart.getByRole('table', { hidden: true }));
   expect(
     table.getAllByRole('columnheader', { hidden: true }).map((cell) => cell.textContent),
-  ).toEqual(['Area', 'Diabetes mortality (%)', 'Diabetes prevalence (%)']);
+  ).toEqual(['Area', 'Diabetes mortality (2024/25)', 'Diabetes prevalence (2024/25)']);
   expect(table.getAllByRole('cell', { hidden: true }).map((cell) => cell.textContent)).toEqual([
     '109.6%',
     '7.9%',
