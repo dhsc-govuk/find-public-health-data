@@ -5,6 +5,7 @@ import { normalizePublicLevels } from '../geography/groups.ts';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
+import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSelection } from './loader.ts';
 import { indicatorSelectionUrl, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 
@@ -26,6 +27,7 @@ export function IndicatorGeographies({
   const location = useLocation();
   const navigation = useNavigation();
   const navigate = useNavigate();
+  const links = useIndicatorLinks();
   const currentLocation = navigation.location ?? location;
   const params = new URLSearchParams(currentLocation.search);
   const urlFor = (areaCodes: string[], areaLevels: string[]) =>
@@ -49,7 +51,7 @@ export function IndicatorGeographies({
         onClear={picked ? urlFor([], []) : undefined}
       >
         <GeographyPicker
-          lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&scheme=public`}
+          lookupUrl={`${links.geographies}?indicator=${encodeURIComponent(slug)}&scheme=public`}
           searchLabel="Search for a geography"
           searchHint="Search by name, for example Leeds"
           action={`${location.pathname}#indicator-data`}
@@ -57,6 +59,7 @@ export function IndicatorGeographies({
           geographyOptions={geographyOptions}
           levelName="als"
           name="as"
+          choicesLabel="Geography choices for Indicator"
           onApply={({ areaCodes, areaLevels }) => {
             void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
           }}

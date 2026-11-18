@@ -63,17 +63,12 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
     const raw = join(staged, 'source');
     await mkdir(raw);
     const pool = await connectToPholio(options.connectionString);
-    const source = { name: options.expectedDatabase, access: 'READ_ONLY' };
+    const source = { name: options.expectedDatabase };
     const rowCounts = new Map<string, number>();
     try {
-      const [identity] = await queryPholio<{ name: string; access: string }>(
-        pool,
-        "SELECT DB_NAME() AS name, DATABASEPROPERTYEX(DB_NAME(), 'Updateability') AS access",
-      );
-      if (identity?.name !== source.name || identity.access !== source.access)
-        throw new Error(
-          `Connected to ${identity?.name} (${identity?.access}); expected ${source.name} (READ_ONLY)`,
-        );
+      const [identity] = await queryPholio<{ name: string }>(pool, 'SELECT DB_NAME() AS name');
+      if (identity?.name !== source.name)
+        throw new Error(`Connected to ${identity?.name}; expected ${source.name}`);
 
       const context = { pool, outDir: raw };
       const geography = await exportGeography(context);

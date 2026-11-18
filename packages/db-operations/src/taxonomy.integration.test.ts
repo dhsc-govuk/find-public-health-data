@@ -66,13 +66,13 @@ describe('the V2 taxonomy import', () => {
       sql`INSERT INTO indicator_version_subtopic (indicator_version_id, topic_id, subtopic_id) VALUES (${version?.id ?? ''}, ${version?.topic_id ?? ''}, ${child?.id ?? ''})`,
     ).rejects.toThrow(/indicator_version_subtopic_subtopic_fk/);
   });
-  it('imports only the 19 topics and their 86 subtopics', async () => {
+  it('imports only the 19 topics and their 87 subtopics', async () => {
     expect((await sql`SELECT id FROM published.topic`).length).toBe(19);
     expect((await sql`SELECT id FROM topic`).length).toBe(19);
-    expect((await sql`SELECT id FROM published.subtopic`).length).toBe(86);
+    expect((await sql`SELECT id FROM published.subtopic`).length).toBe(87);
     const imported = await importCoreData(sql);
     expect(imported.subtopics).toEqual({
-      summary: { inserted: 0, updated: 0, unchanged: 86 },
+      summary: { inserted: 0, updated: 0, unchanged: 87 },
       orphaned: [],
     });
     expect(imported.topics.summary).toEqual({ inserted: 0, updated: 0, unchanged: 19 });

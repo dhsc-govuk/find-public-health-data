@@ -30,7 +30,7 @@ const KNOWN_VIOLATIONS: KnownViolation[] = [
     rule: 'aria-allowed-attr',
     selector: 'input.govuk-radios__input[aria-controls]',
     expectedOn:
-      /^\/(publish\/indicators\/[0-9a-f-]{36}\/(calculation|confidence-intervals|other-notes-and-caveats|justifications|other-comments|benchmarking|ages|tagging|period-type|value-type-and-units|update-frequency)|dashboard\/indicators\/[0-9a-f-]{36}\/review\/(approval|update-approval))$/,
+      /^\/(publish\/indicators\/[0-9a-f-]{36}\/(calculation|confidence-intervals|other-notes-and-caveats|justifications|other-comments|benchmarking|ages|tagging|period-type|value-type-and-units|update-frequency)|dashboard\/indicators\/[0-9a-f-]{36}\/review\/approval)$/,
   },
 ];
 
@@ -103,4 +103,14 @@ export async function expectNoAccessibilityViolations(page: Page, testInfo: Test
     fixed.map((known) => known.ticket),
     'known violations no longer seen on this page: remove them from KNOWN_VIOLATIONS',
   ).toEqual([]);
+}
+
+/**
+ * Fails when two landmarks of the same kind share a name, such as two regions both called
+ * "Geography choices". axe files this rule under best practice rather than WCAG, so the WCAG
+ * scan above doesn't run it.
+ */
+export async function expectUniqueLandmarkNames(page: Page) {
+  const { violations } = await new AxeBuilder({ page }).withRules(['landmark-unique']).analyze();
+  expect(violations.map(describeViolation)).toEqual([]);
 }

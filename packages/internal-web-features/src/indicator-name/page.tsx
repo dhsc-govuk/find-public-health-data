@@ -1,6 +1,6 @@
 import { TextInput } from '@fphd/ui';
 
-import { IndicatorSectionForm, QUESTION_HEADING_SIZE } from '../indicator-section-form.tsx';
+import { IndicatorSectionForm } from '../indicator-section-form.tsx';
 import type { IndicatorNameFailure } from './loader.ts';
 import { NEW_INDICATOR_ID_FIELD } from './new-indicator-id.ts';
 
@@ -18,7 +18,8 @@ interface IndicatorNamePageProps {
   version?: string | undefined;
 }
 
-// The heading is the field's label, as GOV.UK asks of a page with a single question.
+// The question is the page's h1, with the guidance link under it. The field's label repeats the
+// question for screen readers only.
 export function IndicatorNamePage({
   fieldErrors = {},
   formError,
@@ -31,7 +32,6 @@ export function IndicatorNamePage({
       guidance="name"
       fields={[NAME_FIELD]}
       form={{ fieldErrors, formError, version }}
-      questionIsHeading
       title={INDICATOR_NAME_HEADING}
     >
       {newIndicatorId === undefined ? null : (
@@ -46,9 +46,7 @@ export function IndicatorNamePage({
       <TextInput
         defaultValue={name}
         error={fieldErrors[NAME_FIELD]}
-        label={INDICATOR_NAME_HEADING}
-        labelClassModifiers={QUESTION_HEADING_SIZE}
-        labelHeading="h1"
+        label={<span className="govuk-visually-hidden">{INDICATOR_NAME_HEADING}</span>}
         name={NAME_FIELD}
       />
     </IndicatorSectionForm>

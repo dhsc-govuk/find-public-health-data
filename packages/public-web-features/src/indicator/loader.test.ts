@@ -1,4 +1,7 @@
-import { MAX_NEIGHBOUR_AREAS_PER_REQUEST } from '@fphd/public-api-features/contract';
+import {
+  indicatorPageDetailSchema,
+  MAX_NEIGHBOUR_AREAS_PER_REQUEST,
+} from '@fphd/public-api-features/contract';
 import { rankingAreaSeries } from '@fphd/utils/observation-series';
 import { apiContext } from '@fphd/web-server/api-context';
 import {
@@ -14,9 +17,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { benchmarkCheckboxOptions } from './benchmarks.ts';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
+import { publicIndicatorLinks } from './links.ts';
 import { loadIndicator } from './loader.ts';
+import { indicatorPageContext } from './page-context.ts';
 import { loadIndicatorPage } from './single-loader.ts';
+
 import { indicatorDetail, observation, sex } from './view.testing.ts';
+
+/** The page with its data, for an indicator whose data the page shows. */
+async function loadPage(...args: Parameters<typeof loadIndicatorPage>) {
+  const page = await loadIndicatorPage(...args);
+  if (page.dataPlaceholder !== null) throw new Error('Expected the page to load its data');
+  return page;
+}
 
 const localAuthorities = [
   {
@@ -128,7 +141,7 @@ describe('loadIndicator', () => {
         }),
       ),
     });
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(
         client,
         'http://localhost/indicator/indicator-108?tab-indicator=compare&compareWith=indicator-241&as=E08000003&as=E06000052',
@@ -184,7 +197,7 @@ describe('loadIndicator', () => {
         ],
         'GET /api/areas/neighbours': [{ code: 'E06000001', neighbours: ['E06000006'] }],
       });
-      const page = await loadIndicatorPage(
+      const page = await loadPage(
         args(client, `http://localhost/indicator/indicator-108?highlight=E06000001&${query}`),
       );
       const comparison = await page.comparison;
@@ -257,9 +270,7 @@ describe('loadIndicator', () => {
         return client.get(path, schema);
       },
     };
-    const page = await loadIndicatorPage(
-      args(delayed, 'http://localhost/indicator/indicator-108.data'),
-    );
+    const page = await loadPage(args(delayed, 'http://localhost/indicator/indicator-108.data'));
     try {
       expect(page.detail.shortId).toBe(108);
       expect(page.data).toBeInstanceOf(Promise);
@@ -284,7 +295,7 @@ describe('loadIndicator', () => {
         return client.get(path, schema);
       },
     };
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(
         delayed,
         'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
@@ -311,7 +322,7 @@ describe('loadIndicator', () => {
     const client = api({
       'GET /api/indicators/108/data': fails(new Response('Bad Gateway', { status: 502 })),
     });
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
     );
     const failedData = expect(page.data).rejects.toMatchObject({ status: 502 });
@@ -326,7 +337,7 @@ describe('loadIndicator', () => {
     const client = api({
       'GET /api/indicators': fails(new Response('Bad Gateway', { status: 502 })),
     });
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(
         client,
         'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
@@ -353,7 +364,7 @@ describe('loadIndicator', () => {
         return client.get(path, schema);
       },
     };
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(
         delayed,
         'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
@@ -394,7 +405,7 @@ describe('loadIndicator', () => {
         },
       ],
     });
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
     );
     const comparison = await page.comparison;
@@ -427,7 +438,7 @@ describe('loadIndicator', () => {
         },
       ],
     });
-    const page = await loadIndicatorPage(args(client));
+    const page = await loadPage(args(client));
     const comparison = await page.comparison;
     expect(comparison.areas.rows).toMatchObject([{ areaCode: 'E92000001', value: null }]);
     expect(comparison.areas.period).toBe('2025');
@@ -455,7 +466,7 @@ describe('loadIndicator', () => {
           observations: [benchmark],
         },
       });
-      const page = await loadIndicatorPage(args(client));
+      const page = await loadPage(args(client));
       const comparison = await page.comparison;
       expect(comparison.areas.rows).toMatchObject([
         { areaCode: 'E92000001', value: null, label: '' },
@@ -468,7 +479,7 @@ describe('loadIndicator', () => {
 
   it('settles every section for a document request without a rendering parameter', async () => {
     const client = api();
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(client, 'http://localhost/indicator/indicator-108?find=diabetes'),
     );
     expect(page.data).not.toBeInstanceOf(Promise);
@@ -478,7 +489,7 @@ describe('loadIndicator', () => {
 
   it('keeps the comparison history and raw rankings out of page hydration', async () => {
     const client = api();
-    const page = await loadIndicatorPage(
+    const page = await loadPage(
       args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
     );
     const [data, comparison] = await Promise.all([page.data, page.comparison]);
@@ -513,13 +524,13 @@ describe('loadIndicator', () => {
         },
       };
       const ready = vi.fn();
-      const pending = loadIndicatorPage(
+      const pending = loadPage(
         args(delayed, 'http://localhost/indicator/indicator-108?find=diabetes'),
       ).then(ready);
       try {
         await started.promise;
         expect(ready).not.toHaveBeenCalled();
-        const navigation = await loadIndicatorPage(
+        const navigation = await loadPage(
           args(delayed, 'http://localhost/indicator/indicator-108.data?find=diabetes'),
         );
         expect(navigation.findResults).toBeInstanceOf(Promise);
@@ -547,7 +558,7 @@ describe('loadIndicator', () => {
     };
     const ready = vi.fn();
     try {
-      const pending = loadIndicatorPage(args(delayed)).then(ready);
+      const pending = loadPage(args(delayed)).then(ready);
       await vi.advanceTimersByTimeAsync(6_000);
       expect(ready).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1_000);
@@ -852,12 +863,14 @@ describe('loadIndicator', () => {
         points: rankings(call).map((area) => ({
           code: area.areaCode,
           name: area.areaName,
-          period: '2024-01-01|2024-12-31',
-          fromDate: '2024-01-01',
-          toDate: '2024-12-31',
+          xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+          yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
           x: 10,
           y: 20,
         })),
+        rankings: [10, 20].map((value) =>
+          rankings(call).map((area) => ({ ...area, observations: [observation(value)] })),
+        ),
       }),
       'GET /api/indicators/108/data': (call) => areaData(call, [observation(10)]),
       'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
@@ -874,10 +887,10 @@ describe('loadIndicator', () => {
       y: 20,
     });
     expect(result.scatter?.points.some(({ code }) => code === 'E06000052')).toBe(false);
-    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(2);
+    expect(paths(client).filter((path) => path.includes('/ranking?'))).toHaveLength(0);
     const scatterPaths = paths(client).filter((path) => path.includes('/indicator-scatter?'));
-    expect(scatterPaths).toHaveLength(0);
-    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toHaveLength(0);
+    expect(scatterPaths).toHaveLength(1);
+    expect(paths(client).filter((path) => path.startsWith('/api/indicator-data?'))).toEqual([]);
     expect(result.compareAreasData).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations).toHaveLength(1);
   });
@@ -902,7 +915,7 @@ describe('loadIndicator', () => {
     ]);
   });
 
-  it('keeps the server-selected common period separate from each latest ranking and honours saved axes', async () => {
+  it('pairs each latest ranking period and honours saved axes', async () => {
     const point = (year: number, value: number) => ({
       ...observation(value),
       fromDate: `${year}-01-01`,
@@ -917,12 +930,15 @@ describe('loadIndicator', () => {
         points: rankings(call).map((area) => ({
           code: area.areaCode,
           name: area.areaName,
-          period: '2023-01-01|2023-12-31',
-          fromDate: '2023-01-01',
-          toDate: '2023-12-31',
+          xPeriod: { fromDate: '2023-01-01', toDate: '2023-12-31' },
+          yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
           x: 20,
-          y: 10,
+          y: 11,
         })),
+        rankings: [
+          rankings(call).map((area) => ({ ...area, observations: [point(2023, 20)] })),
+          rankings(call).map((area) => ({ ...area, observations: [point(2024, 11)] })),
+        ],
       }),
     });
     const result = await loadIndicator(
@@ -934,12 +950,14 @@ describe('loadIndicator', () => {
     expect(result.scatter?.points).toHaveLength(26);
     expect(result.compareAreasData[0]?.observations[0]?.fromDate).toBe('2024-01-01');
     expect(result.comparedAreasData[0]?.observations[0]?.fromDate).toBe('2023-01-01');
-    expect(paths(client).find((path) => path.includes('/indicator-scatter?'))).toContain(
-      '/indicator-scatter?indicator=241&indicator=108&',
-    );
+    expect(paths(client).filter((path) => path.includes('/indicator-scatter?'))).toHaveLength(1);
     expect(
       result.scatter?.points.every(
-        ({ fromDate, x, y }) => fromDate === '2023-01-01' && x === 20 && y === 10,
+        ({ xPeriod, yPeriod, x, y }) =>
+          xPeriod.fromDate === '2023-01-01' &&
+          yPeriod.fromDate === '2024-01-01' &&
+          x === 20 &&
+          y === 11,
       ),
     ).toBe(true);
   });
@@ -1000,7 +1018,13 @@ describe('loadIndicator', () => {
       const expected = loadScatterComparison(selected, params);
       if (!expected) throw new Error('Expected a comparison pair');
       expect(expected.points).toMatchObject([
-        { code: 'E00000000', x: 20, y: 0, fromDate: '2023-01-01' },
+        {
+          code: 'E00000000',
+          x: 21,
+          y: 0,
+          xPeriod: { fromDate: '2024-01-01' },
+          yPeriod: { fromDate: '2023-01-01' },
+        },
       ]);
       const client = api({
         ...Object.fromEntries(
@@ -1033,5 +1057,71 @@ describe('loadIndicator', () => {
         args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
       ),
     ).rejects.toMatchObject({ status: 502 });
+  });
+});
+
+describe('loadIndicatorPage with no data to show', () => {
+  const draft = { ...indicatorDetail(108), dataState: 'no-upload' as const, unanswered: [] };
+
+  function previewArgs(client: FakeApiClient, query: string) {
+    const loaderArgs = args(client, `http://localhost/indicator/indicator-108${query}`);
+    loaderArgs.context.set(indicatorPageContext, {
+      detailSchema: indicatorPageDetailSchema,
+      links: publicIndicatorLinks,
+    });
+    return loaderArgs;
+  }
+
+  it('checks the address of a draft whose page reads a placeholder, then asks for no data', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108': draft });
+
+    const page = await loadIndicatorPage(previewArgs(client, '?compareWith=indicator-241'));
+
+    expect(page).toEqual({ detail: draft, dataPlaceholder: '[Not provided yet]' });
+    expect(paths(client)).toEqual([
+      '/api/indicators/indicator-108',
+      '/api/indicators/indicator-241',
+    ]);
+  });
+
+  it('answers a malformed comparison on a placeholder page as not found, as with data', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108': draft });
+
+    await expect(
+      loadIndicatorPage(previewArgs(client, '?compareWith=not%20an%20indicator')),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('redirects a comparison with itself on a placeholder page, as with data', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108': draft,
+      'GET /api/indicators/108': draft,
+    });
+
+    await expect(loadIndicatorPage(previewArgs(client, '?compareWith=108'))).rejects.toMatchObject({
+      status: 302,
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('stays at a page shown at one address whatever the slug, as the preview is', async () => {
+    const client = api({ 'GET /api/indicators/108': draft });
+    const loaderArgs = args(client, 'http://localhost/preview', '108');
+    loaderArgs.context.set(indicatorPageContext, {
+      detailSchema: indicatorPageDetailSchema,
+      links: { ...publicIndicatorLinks, page: () => '/preview' },
+    });
+
+    expect((await loadIndicatorPage(loaderArgs)).detail.slug).toBe('indicator-108');
+  });
+
+  it('loads the data of the public page, whose schema drops any data state', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108': draft });
+
+    const page = await loadIndicatorPage(args(client));
+
+    expect(page.dataPlaceholder).toBeNull();
+    expect(page.detail).not.toHaveProperty('dataState');
+    expect(paths(client).length).toBeGreaterThan(1);
   });
 });

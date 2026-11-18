@@ -1,7 +1,7 @@
 import type {
   IndicatorAreaData,
-  IndicatorDetail,
   IndicatorObservation,
+  IndicatorPageDetail,
 } from '@fphd/public-api-features/contract';
 import {
   comparisonVariants,
@@ -71,7 +71,7 @@ export function benchmarkJudgement(
     | Pick<IndicatorObservation, 'value' | 'lowerCi95' | 'upperCi95' | 'lowerCi998' | 'upperCi998'>
     | undefined,
   benchmarkValue: number | null,
-  indicator: Pick<IndicatorDetail, 'polarity' | 'comparatorMethod'>,
+  indicator: Pick<IndicatorPageDetail, 'polarity' | 'comparatorMethod'>,
   confidence: '95' | '99.8' = '95',
 ): BenchmarkJudgement {
   if (observation?.value == null || benchmarkValue == null) {
@@ -237,7 +237,7 @@ const PERIOD_TYPE_SUFFIX: Record<Exclude<PeriodType, 'all'>, string> = {
  */
 export function comparisonRows(
   selected: {
-    detail: IndicatorDetail;
+    detail: IndicatorPageDetail;
     areaData: IndicatorAreaData[];
     tableSeries?: TableSeriesSelection[];
   }[],

@@ -1,5 +1,6 @@
 import { ChartSection } from '@fphd/ui';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { shortPeriodLabel } from '@fphd/utils/period-label';
+import { useCallback, useState } from 'react';
 import {
   CartesianGrid,
   ErrorBar,
@@ -8,10 +9,6 @@ import {
   LineChart,
   ReferenceLine,
   Symbols,
-  Tooltip,
-  usePlotArea,
-  useXAxisScale,
-  useYAxisScale,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -24,7 +21,7 @@ import {
   segmentLabel,
   unitNote,
 } from '../data.ts';
-import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
+import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
 import { alignedSeries, bounds, chartPeriods, errorOffsets } from './chart-data.ts';
 import {
@@ -32,20 +29,27 @@ import {
   ChartCanvas,
   ChartDataTable,
   ChartSources,
-  ChartTooltip,
   chartValue,
   gridColour,
   NoChartData,
-  seriesColours,
-  seriesDashes,
-  useChartTooltip,
+  useChartSelection,
 } from './chart-elements.tsx';
+
+import { EndLabels, lineColour } from './trend-labels.tsx';
+import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
 
-const labelColours = ['#12436d', '#17665f', '#801650', '#9b3714', '#3d3d3d', '#69479e'];
-
-const lineColour = (index: number) => seriesColours[index % seriesColours.length] ?? axisColour;
+export function trendTitleLines(title: string, width: number) {
+  const characters = Math.max(20, Math.floor((width - 16) / 7.4));
+  return title.split(' ').reduce<string[]>((lines, word) => {
+    const last = lines.at(-1);
+    if (last && last.length + word.length + 1 <= characters)
+      lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+    return lines;
+  }, []);
+}
 
 function SeriesMark({ index, size = 78 }: { index: number; size?: number }) {
   return (
@@ -63,102 +67,6 @@ function SeriesMark({ index, size = 78 }: { index: number; size?: number }) {
   );
 }
 
-interface SeriesLabel {
-  index: number;
-  name: string;
-  period: string;
-  value: number;
-}
-
-function EndLabels({
-  series,
-  active,
-  onActive,
-  labelWidth,
-  onWidth,
-}: {
-  series: SeriesLabel[];
-  active: number | null;
-  onActive: (index: number | null) => void;
-  labelWidth: number;
-  onWidth: (width: number) => void;
-}) {
-  const labelsRef = useRef<SVGGElement>(null);
-  useLayoutEffect(() => {
-    const measured = Math.max(
-      0,
-      ...[...(labelsRef.current?.querySelectorAll('text') ?? [])].map(
-        (label) => label.getComputedTextLength?.() ?? 0,
-      ),
-    );
-    if (measured > 0) onWidth(measured);
-  }, [series, onWidth]);
-  const x = useXAxisScale();
-  const y = useYAxisScale();
-  const plot = usePlotArea();
-  if (!x || !y || !plot) return null;
-  const gap = 19;
-  const labels = series
-    .flatMap((series) => {
-      const pointX = x(series.period);
-      const pointY = y(series.value);
-      return pointX == null || pointY == null ? [] : [{ ...series, pointX, pointY, y: pointY }];
-    })
-    .sort((a, b) => a.pointY - b.pointY);
-
-  for (let start = 0; start < labels.length; ) {
-    let end = start + 1;
-    while (end < labels.length && (labels[end]?.pointY ?? 0) - (labels[end - 1]?.pointY ?? 0) < gap)
-      end++;
-    const cluster = labels.slice(start, end);
-    const average = cluster.reduce((sum, label) => sum + label.pointY, 0) / cluster.length;
-    cluster.forEach((label, index) => {
-      label.y = average + (index - (cluster.length - 1) / 2) * gap;
-    });
-    start = end;
-  }
-  let top = plot.y;
-  for (const label of labels) {
-    label.y = Math.max(top, label.y);
-    top = label.y + gap;
-  }
-  let bottom = plot.y + plot.height;
-  for (const label of labels.toReversed()) {
-    label.y = Math.min(bottom, label.y);
-    bottom = label.y - gap;
-  }
-  const labelX = plot.x + plot.width + 9;
-  return (
-    <g ref={labelsRef}>
-      {labels.map(({ index, name, pointX, pointY, y }) => (
-        // biome-ignore lint/a11y/noStaticElementInteractions: this highlight duplicates the non-colour series labels and data table.
-        <g key={index} onMouseEnter={() => onActive(index)} onMouseLeave={() => onActive(null)}>
-          <title>{name}</title>
-          {Math.abs(y - pointY) > 1 || labelX - pointX > 16 ? (
-            <line
-              x1={pointX + 5}
-              y1={pointY}
-              x2={labelX - 3}
-              y2={y}
-              stroke={active === null || active === index ? lineColour(index) : gridColour}
-            />
-          ) : null}
-          <rect x={labelX - 3} y={y - 10} width={labelWidth} height={20} fill="transparent" />
-          <text
-            className="fphd-chart-series-label"
-            fill={labelColours[index % labelColours.length] ?? axisColour}
-            x={labelX}
-            y={y}
-            dominantBaseline="central"
-          >
-            {name}
-          </text>
-        </g>
-      ))}
-    </g>
-  );
-}
-
 function TrendPlot({
   areas,
   benchmarkCodes,
@@ -169,15 +77,26 @@ function TrendPlot({
 }: {
   areas: IndicatorAreaData[];
   benchmarkCodes: readonly string[];
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
   title: string;
   goal?: PolicyGoal | null;
 }) {
-  const [active, setActive] = useState<number | null>(null);
+  const selection = useChartSelection<TrendSelection>();
+  const active = selection.active?.index ?? null;
   const [width, setWidth] = useState(640);
-  const [measuredLabelWidth, setMeasuredLabelWidth] = useState(0);
-  const tooltip = useChartTooltip();
+  const [spaceBefore, setSpaceBefore] = useState(0);
+  const [titleWidth, setTitleWidth] = useState(0);
+  const titleRef = useCallback((element: SVGTextElement | null) => {
+    if (!element?.getBBox) return;
+    const measure = () => setTitleWidth(element.getBBox().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const yTitle = `${indicator.name}${unitNote(indicator.unit)}`;
+  const yTitleLines = trendTitleLines(yTitle, width);
   const series = alignedSeries(areas).filter(({ observations }) =>
     [...observations.values()].some(({ value }) => value !== null),
   );
@@ -207,17 +126,27 @@ function TrendPlot({
   const first = periods.find(({ key }) => primary.observations.get(key)?.value != null);
   const latest = periods.findLast(({ key }) => primary.observations.get(key)?.value != null);
   const chartTitle = `${title}${segment ? `, ${segmentLabel(segment)}` : ''}`;
+  const narrow = width < 480;
   const longest = Math.max(...series.map(({ name }) => name.length));
-  const labelWidth = Math.max(measuredLabelWidth, longest * 8.4);
-  const narrow = width < 480 || width < labelWidth + 200;
-  const lastTickLength = periods.at(-1)?.label.length ?? 0;
+  const ticks = new Map(
+    periods.map(({ key }) => {
+      const [fromDate = '', toDate = ''] = key.split('|');
+      return [key, shortPeriodLabel({ fromDate, toDate }, indicator.yearType)];
+    }),
+  );
+  const lastTickLength = ticks.get(periods.at(-1)?.key ?? '')?.length ?? 0;
   const tickInset = Math.max(26, 8 + lastTickLength * 4.5);
-  const right = narrow ? tickInset : Math.max(tickInset, 24 + labelWidth);
-  const periodAxis =
-    indicator.yearType?.value === 'financial'
+  const right = narrow
+    ? tickInset
+    : Math.max(126, tickInset, Math.min(width * 0.4, 24 + longest * 8.4));
+  const titleHeight = yTitleLines.length * 18 + 24;
+  const left = Math.max(8, titleWidth / 2 - spaceBefore - 56);
+  const periodAxis = periods.some(({ label }) => !/^\d{4}(\/\d{2})?$/.test(label))
+    ? 'Period'
+    : indicator.yearType?.value === 'financial'
       ? 'Financial year'
       : indicator.yearType?.value === 'calendar'
-        ? 'Calendar year'
+        ? 'Year'
         : 'Period';
   const latestValue = latest && primary.observations.get(latest.key)?.value;
   const firstValue = first && primary.observations.get(first.key)?.value;
@@ -253,42 +182,69 @@ function TrendPlot({
             })}
         </p>
       ) : null}
-      <p className="govuk-body-s fphd-chart-axis-title">
-        {indicator.name}
-        {unitNote(indicator.unit)}
-      </p>
       <ChartCanvas
-        chartRef={tooltip.ref}
-        height={Math.max(300, Math.round(width * 0.5), series.length * 23 + 60)}
-        onResize={setWidth}
+        chartRef={selection.ref}
+        height={
+          Math.max(
+            300,
+            Math.round(width * 0.5),
+            narrow ? 300 : series.length * (series.length > 8 ? 90 : 60) + 100,
+          ) + Math.max(0, titleHeight - 50)
+        }
+        onResize={(width) => {
+          setWidth(width);
+          setSpaceBefore(
+            Math.max(0, (selection.ref.current?.getBoundingClientRect().left ?? 0) - 15),
+          );
+        }}
         instruction={
           series.length > 1
             ? 'Use the left and right arrow keys to move between periods, and the up and down arrow keys to move between series.'
             : 'Use the left and right arrow keys to move between periods.'
         }
         onKeyDown={(event) => {
-          if (series.length < 2 || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+          if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(event.key))
+            return;
           event.preventDefault();
-          const step = event.key === 'ArrowDown' ? 1 : -1;
-          setActive((index) =>
-            index === null
-              ? step > 0
-                ? 0
-                : series.length - 1
-              : (index + step + series.length) % series.length,
-          );
+          const current = selection.active ?? { index: 0, period: periods[0]?.key ?? null };
+          if (event.key === 'Enter') {
+            selection.pin(current);
+            return;
+          }
+          const periodIndex = periods.findIndex(({ key }) => key === current.period);
+          const index =
+            event.key === 'ArrowDown'
+              ? (current.index + 1) % series.length
+              : event.key === 'ArrowUp'
+                ? (current.index + series.length - 1) % series.length
+                : current.index;
+          const nextPeriod =
+            event.key === 'ArrowRight'
+              ? Math.min(periods.length - 1, periodIndex + 1)
+              : event.key === 'ArrowLeft'
+                ? Math.max(0, periodIndex - 1)
+                : Math.max(0, periodIndex);
+          selection.move({ index, period: periods[nextPeriod]?.key ?? null });
         }}
       >
         {(descriptionId) => (
           <LineChart
+            className="fphd-line-chart"
             accessibilityLayer
             aria-label={chartTitle}
             aria-describedby={descriptionId}
             data={points}
-            margin={{ top: 12, right, left: 8, bottom: 8 }}
-            onClick={(state) => {
-              if (state.isTooltipActive) tooltip.toggle();
+            margin={{ top: titleHeight, right, left, bottom: 8 }}
+            onMouseLeave={selection.leave}
+            onMouseMove={(_, event) => {
+              if (
+                selection.active?.period &&
+                event.target instanceof Element &&
+                !event.target.closest('.fphd-chart-point, .fphd-chart-tooltip')
+              )
+                selection.select(null);
             }}
+            onClick={selection.clear}
           >
             <CartesianGrid vertical={false} stroke={gridColour} strokeDasharray="3 3" />
             <XAxis
@@ -298,7 +254,7 @@ function TrendPlot({
               height={50}
               interval="preserveStartEnd"
               minTickGap={24}
-              tickFormatter={(period: string) => labels.get(period) ?? period}
+              tickFormatter={(period: string) => ticks.get(period) ?? period}
             >
               <Label value={periodAxis} position="insideBottom" />
             </XAxis>
@@ -309,39 +265,31 @@ function TrendPlot({
               axisLine={{ stroke: axisColour }}
               tickLine={{ stroke: axisColour }}
               tickFormatter={formatValue}
-            />
-            <Tooltip
-              trigger={tooltip.trigger}
-              isAnimationActive={false}
-              offset={16}
-              content={({ active: open, label, payload }) => {
-                const period = String(label);
-                const selected = payload.filter(
-                  (entry) => active === null || entry.dataKey === `v${active}`,
-                );
-                const visible = selected.length > 0 ? selected : payload;
-                return open && visible.length > 0 ? (
-                  <ChartTooltip
-                    title={labels.get(period) ?? period}
-                    colour={
-                      visible.length === 1
-                        ? lineColour(Number(String(visible[0]?.dataKey).slice(1)))
-                        : axisColour
-                    }
-                  >
-                    {visible.map((entry) => (
-                      <div key={String(entry.dataKey)}>
-                        {entry.name}: {chartValue(Number(entry.value), indicator.unit)}
-                        {intervalText(period, Number(String(entry.dataKey).slice(1)))}
-                      </div>
-                    ))}
-                    {goal ? (
-                      <div>Policy goal: {goalThresholdText(goal, indicator.unit)}</div>
-                    ) : null}
-                  </ChartTooltip>
-                ) : null;
-              }}
-            />
+            >
+              <Label
+                content={({ viewBox }) =>
+                  viewBox && 'x' in viewBox && 'width' in viewBox && 'y' in viewBox ? (
+                    <text
+                      ref={titleRef}
+                      className="recharts-text fphd-line-axis-title"
+                      x={Number(viewBox.x) + Number(viewBox.width)}
+                      y={Number(viewBox.y) - 20 - (yTitleLines.length - 1) * 18}
+                      textAnchor="middle"
+                    >
+                      {yTitleLines.map((line, index) => (
+                        <tspan
+                          key={line + index}
+                          x={Number(viewBox.x) + Number(viewBox.width)}
+                          dy={index === 0 ? 0 : 18}
+                        >
+                          {line}
+                        </tspan>
+                      ))}
+                    </text>
+                  ) : null
+                }
+              />
+            </YAxis>
             {goal
               ? goalThresholds(goal).map(({ value, colour }) => (
                   <ReferenceLine
@@ -376,16 +324,27 @@ function TrendPlot({
                   dataKey={`v${index}`}
                   stroke={colour}
                   strokeWidth={2}
-                  strokeDasharray={seriesDashes[index % seriesDashes.length] ?? ''}
                   isAnimationActive={false}
                   zIndex={active === index ? 401 : 400}
-                  dot={({ cx, cy }) =>
+                  dot={({ cx, cy, payload }) =>
                     cx == null || cy == null ? null : (
                       // biome-ignore lint/a11y/noStaticElementInteractions: the chart's arrow keys and tooltip expose the same point.
                       <g
+                        className="fphd-chart-point"
+                        data-series={index}
+                        data-period={String(payload.period)}
                         transform={`translate(${cx}, ${cy})${index % shapes.length === 4 ? ' rotate(180)' : ''}`}
-                        onMouseEnter={() => setActive(index)}
-                        onMouseLeave={() => setActive(null)}
+                        onMouseEnter={() => {
+                          if (
+                            selection.active?.index !== index ||
+                            selection.active?.period !== String(payload.period)
+                          )
+                            selection.select({ index, period: String(payload.period) });
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          selection.pin({ index, period: String(payload.period) });
+                        }}
                       >
                         <circle r={9} fill="transparent" />
                         <Symbols
@@ -400,7 +359,7 @@ function TrendPlot({
                       </g>
                     )
                   }
-                  activeDot={{ r: 6, stroke: '#ffdd00', strokeWidth: 3 }}
+                  activeDot={false}
                 >
                   {confidence !== 'none' ? (
                     <ErrorBar
@@ -417,11 +376,46 @@ function TrendPlot({
               <EndLabels
                 series={endLabels}
                 active={active}
-                onActive={setActive}
-                labelWidth={labelWidth}
-                onWidth={setMeasuredLabelWidth}
+                onActive={(index) =>
+                  selection.select(index === null ? null : { index, period: null })
+                }
+                labelLength={Math.max(6, Math.floor((right - 16) / 8))}
               />
             )}
+            <TrendPoints
+              active={selection.active}
+              points={points}
+              container={selection.ref.current}
+              content={(index, period) => (
+                <>
+                  <div>
+                    <strong>Value:</strong>{' '}
+                    {chartValue(
+                      series[index]?.observations.get(period)?.value ?? null,
+                      indicator.unit,
+                    )}
+                  </div>
+                  <div>
+                    <strong>Period:</strong> {labels.get(period) ?? period}
+                  </div>
+                  <div>
+                    <strong>Area:</strong> {series[index]?.name}
+                  </div>
+                  {confidence !== 'none' &&
+                  bounds(series[index]?.observations.get(period), confidence) ? (
+                    <div>
+                      <strong>{confidence}% confidence interval:</strong>{' '}
+                      {intervalText(period, index).replace(/^ \([^:]+: |\)$/g, '')}
+                    </div>
+                  ) : null}
+                  {goal ? (
+                    <div>
+                      <strong>Policy goal:</strong> {goalThresholdText(goal, indicator.unit)}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            />
           </LineChart>
         )}
       </ChartCanvas>
@@ -430,15 +424,7 @@ function TrendPlot({
           {series.map(({ code, name }, index) => (
             <li key={code}>
               <svg width="32" height="18" aria-hidden="true">
-                <line
-                  x1="0"
-                  y1="9"
-                  x2="32"
-                  y2="9"
-                  stroke={lineColour(index)}
-                  strokeWidth={2}
-                  strokeDasharray={seriesDashes[index % seriesDashes.length]}
-                />
+                <line x1="0" y1="9" x2="32" y2="9" stroke={lineColour(index)} strokeWidth={2} />
                 <g transform="translate(16, 9)">
                   <SeriesMark index={index} />
                 </g>
@@ -495,7 +481,7 @@ export function TrendChart({
   title: string;
   areas: IndicatorAreaData[];
   benchmarkCodes?: readonly string[];
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   confidence?: ConfidenceLevel;
   goal?: PolicyGoal | null;
 }) {

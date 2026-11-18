@@ -12,7 +12,12 @@ import { AS_ACTOR, newDraft } from './indicator-repository.testing.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
 import { createInternalRepositories } from './repositories.ts';
-import { createRouterTestApp, testSessionCookie, testSessionVerifier } from './testing.ts';
+import {
+  createRouterTestApp,
+  noPublicRoutes,
+  testSessionCookie,
+  testSessionVerifier,
+} from './testing.ts';
 
 const { indicatorVersion } = schema;
 
@@ -25,6 +30,7 @@ const app = createRouterTestApp(
     repositories: createInternalRepositories(db),
     session: testSessionVerifier,
     storage,
+    publicRoutes: noPublicRoutes,
   }),
 );
 

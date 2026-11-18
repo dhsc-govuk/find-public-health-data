@@ -30,6 +30,26 @@ test.describe('without access', () => {
     await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toHaveCount(0);
   });
 
+  // The link loads the page's data with a request that lists its routes' ids in _routes. DAC's App
+  // Gateway refuses a query value containing ../, the word src, or 12 or more characters such as -,
+  // and such a request never reaches the app there.
+  test('offers another link from the check your email page', async ({ page }) => {
+    await page.goto('/private-beta?returnTo=%2Ftopics');
+    await requestLink(page, INVITEE_EMAIL);
+    const dataRequest = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === '/private-beta.data',
+    );
+
+    await page.getByRole('link', { name: 'ask for another link' }).click();
+
+    const routes = new URL((await dataRequest).url()).searchParams.get('_routes') ?? '';
+    expect(routes).not.toMatch(/\.\.\/|\bsrc\b|-/);
+    await expect(page).toHaveURL('/private-beta?returnTo=%2Ftopics');
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Sign in to the private beta' }),
+    ).toBeVisible();
+  });
+
   test('asks for an address in the correct format', async ({ page }) => {
     await page.goto('/private-beta');
     await page.getByLabel('Email address').fill('developer');

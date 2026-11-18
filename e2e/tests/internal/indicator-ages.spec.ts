@@ -179,12 +179,40 @@ test('refuses each range on the field at fault, naming the range from the second
   await expect(summary.getByRole('link')).toHaveText([
     'Select the periods for the lower limit',
     'You must enter at least a lower or upper limit for range 2',
+    'Select the periods for the lower limit of range 2',
     'Upper limit of range 3 must not be lower than the lower limit of range 3',
   ]);
 
   await expectErrorSummaryReady(page);
-  await summary.getByRole('link', { name: /range 2$/ }).click();
+  await summary
+    .getByRole('link', { name: 'You must enter at least a lower or upper limit for range 2' })
+    .click();
   await expect(label(page, 'Lower limit of range 2')).toBeFocused();
+});
+
+test('asks for a limit and the lower limit’s period when a range is left empty', async ({
+  page,
+}) => {
+  await openSectionPage(page, SECTION);
+  await ageType(page, 'Age range').check();
+
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  const summary = page.getByRole('alert');
+  await expect(summary.getByRole('link')).toHaveText([
+    'You must enter at least a lower or upper limit',
+    'Select the periods for the lower limit',
+  ]);
+  await expect(label(page, 'Periods for lower limit')).toHaveAccessibleDescription(
+    /Select the periods for the lower limit/,
+  );
+  await expect(label(page, 'Periods for upper limit')).not.toHaveAccessibleDescription(
+    /Select the periods/,
+  );
+
+  await expectErrorSummaryReady(page);
+  await summary.getByRole('link', { name: 'Select the periods for the lower limit' }).click();
+  await expect(label(page, 'Periods for lower limit')).toBeFocused();
 });
 
 test('asks for the specific age and its period, and for other ages', async ({ page }) => {

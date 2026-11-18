@@ -392,6 +392,12 @@ describe('benchmarkJudgement', () => {
     ).toBe('similar');
   });
 
+  it.each([85, 95])('treats a benchmark on confidence boundary %s as similar', (benchmark) => {
+    expect(
+      benchmarkJudgement(obs({ value: 90, lowerCi95: 85, upperCi95: 95 }), benchmark, ciIndicator),
+    ).toBe('similar');
+  });
+
   it('uses the 99.8 interval when that level is selected', () => {
     const wide = obs({ value: 90, lowerCi95: 85, upperCi95: 95, lowerCi998: 80, upperCi998: 105 });
     expect(benchmarkJudgement(wide, 100, ciIndicator, '99.8')).toBe('similar');

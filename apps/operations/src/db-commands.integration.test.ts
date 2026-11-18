@@ -165,7 +165,7 @@ describe('db seed-dummy-data (integration)', () => {
 });
 
 describe('db reset (integration)', () => {
-  it('refuses outside dev-class environments', async () => {
+  it('refuses in production', async () => {
     await expect(reset(testContext(emptySql, emptyDb.name, 'production'))).rejects.toThrow(
       /Refusing to reset/,
     );

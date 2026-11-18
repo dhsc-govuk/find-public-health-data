@@ -2,6 +2,7 @@ import { Autocomplete, Button } from '@fphd/ui';
 import { useCallback } from 'react';
 import { Form, Link, useLocation, useNavigate } from 'react-router';
 import { DataSection } from '../data-section.tsx';
+import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSummary } from './loader.ts';
 
 export function ComparePicker({
@@ -19,6 +20,7 @@ export function ComparePicker({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { indicatorSearch } = useIndicatorLinks();
   const urlFor = (slug: string | null, hash = '') => {
     const params = new URLSearchParams(location.search);
     params.delete('find');
@@ -29,14 +31,14 @@ export function ComparePicker({
   };
   const searchIndicators = useCallback(
     async (query: string, signal: AbortSignal) => {
-      const response = await fetch(`/indicators/search?q=${encodeURIComponent(query)}`, { signal });
+      const response = await fetch(`${indicatorSearch}?q=${encodeURIComponent(query)}`, { signal });
       if (!response.ok) throw new Error(`Indicator search failed: ${response.status}`);
       const { indicators } = (await response.json()) as { indicators: IndicatorSummary[] };
       return indicators
         .filter((indicator) => indicator.slug !== slug)
         .map(({ name, slug }) => ({ value: slug, label: name }));
     },
-    [slug],
+    [slug, indicatorSearch],
   );
 
   return (

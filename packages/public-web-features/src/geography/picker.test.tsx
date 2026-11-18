@@ -31,6 +31,7 @@ it('preserves a click across an unchanged selection refresh and accepts a change
               }}
               levelName="als"
               name="as"
+              choicesLabel="Geography choices for Indicator"
               onApply={(next) => {
                 apply(next);
                 setSelection(structuredClone(selection));

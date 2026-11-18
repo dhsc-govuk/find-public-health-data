@@ -90,7 +90,7 @@ test.describe('as a publisher', () => {
   test('hides the manage link', async ({ page }) => {
     const navigation = page.getByRole('navigation', { name: 'Menu' });
 
-    await expect(navigation.getByRole('link')).toHaveText(['Account']);
+    await expect(navigation.getByRole('link')).toHaveText(['Guidance', 'Account']);
   });
 });
 

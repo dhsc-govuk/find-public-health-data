@@ -20,6 +20,7 @@ export const PAGE_SPECS: Readonly<Record<string, string>> = {
   '/private-beta': 'private-beta.spec.ts',
   '/dashboard': 'dashboard.spec.ts',
   '/dashboard/indicators/:id': 'indicator-overview.spec.ts',
+  '/dashboard/indicators/:id/preview': 'indicator-preview.spec.ts',
   '/dashboard/indicators/:id/assign-reviewers': 'indicator-reviewer-assignment.spec.ts',
   '/dashboard/indicators/:id/publication-date': 'indicator-publication-date.spec.ts',
   '/dashboard/indicators/:id/update-decision': 'indicator-update-decision.spec.ts',

@@ -2,7 +2,7 @@ import { periodLabel } from '@fphd/utils/period-label';
 import { stringify } from 'csv-stringify/sync';
 
 import { type ConfidenceLevel, segmentLabel, unitNote } from './data.ts';
-import type { IndicatorAreaData, IndicatorDetail } from './loader.ts';
+import type { IndicatorAreaData, IndicatorPageDetail } from './loader.ts';
 import { goalVerdict } from './policy-goal.ts';
 import type { TrendColumns, trendTableModel } from './trend.ts';
 
@@ -24,7 +24,7 @@ export function tableCsv(
 
 /** The trend table as displayed, including its selected intervals and benchmarks. */
 export function trendCsv(
-  indicator: IndicatorDetail,
+  indicator: IndicatorPageDetail,
   model: ReturnType<typeof trendTableModel>,
   confidence: ConfidenceLevel,
   columns?: TrendColumns,
@@ -111,7 +111,7 @@ export function trendCsv(
 
 /** Every observation for the selected areas, segments and notes included. */
 export function allDataCsv(
-  indicator: IndicatorDetail,
+  indicator: IndicatorPageDetail,
   areaData: IndicatorAreaData[],
   areaType: (areaCode: string) => string | null,
   includeHeader = true,

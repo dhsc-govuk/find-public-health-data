@@ -4,16 +4,25 @@ import { Link } from 'react-router';
 import { DataSection, useDataReady } from '../data-section.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
-import { expandIndicator } from './compact-data.ts';
+import { expandIndicator, expandScatterComparison } from './compact-data.ts';
 import { CompareIndicatorsTab } from './compare-tab.tsx';
 import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
-import type { SelectedIndicator } from './loader.ts';
+import type { IndicatorPageDetail, SelectedIndicator } from './loader.ts';
 import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
 import type { loadIndicatorPage } from './single-loader.ts';
 
-type CompactData = Awaited<Awaited<ReturnType<typeof loadIndicatorPage>>['data']>;
+type IndicatorPageProps = Awaited<ReturnType<typeof loadIndicatorPage>>;
+type LoadedPageProps = Extract<IndicatorPageProps, { dataPlaceholder: null }>;
+type CompactData = Awaited<LoadedPageProps['data']>;
 type ExpandedData = Omit<CompactData, 'selected'> & { selected: SelectedIndicator[] };
+
+function expandComparison(comparison: Awaited<LoadedPageProps['comparison']>) {
+  return {
+    ...comparison,
+    scatter: comparison.scatter ? expandScatterComparison(comparison.scatter) : undefined,
+  };
+}
 
 function IndicatorDataSection({
   cache,
@@ -73,17 +82,28 @@ function observations(primary: SelectedIndicator) {
   );
 }
 
-export function SingleIndicatorPage({
+interface IndicatorTabContents {
+  indicator: ReactNode;
+  areas: ReactNode;
+  compare: ReactNode;
+  inequalities: ReactNode;
+  about: ReactNode;
+}
+
+/** The indicator page: its heading, summary and tabs, around whatever content each one has. */
+function IndicatorPageLayout({
   detail,
-  comparedDetail,
-  data,
-  comparison,
-  findSubject,
-  findResults,
-}: Awaited<ReturnType<typeof loadIndicatorPage>>) {
-  // Resolve before expanding so Suspense retries reuse the loader promise during navigation.
-  const cache = useMemo(() => new WeakMap<CompactData, ExpandedData>(), []);
-  const contentReady = useDataReady([data, comparison, findResults]);
+  summary,
+  tabs,
+  contentReady,
+  compareFirst,
+}: {
+  detail: IndicatorPageDetail;
+  summary: ReactNode;
+  tabs: IndicatorTabContents;
+  contentReady: boolean;
+  compareFirst: boolean;
+}) {
   return (
     <div className="fphd-wide-layout fphd-single-indicator-page">
       <nav aria-label="Breadcrumb" className="govuk-breadcrumbs">
@@ -108,100 +128,32 @@ export function SingleIndicatorPage({
         </ol>
       </nav>
       <h1 className="govuk-heading-l govuk-!-margin-bottom-3">{detail.name}</h1>
-      <IndicatorDataSection
-        key={detail.shortId}
-        cache={cache}
-        label="indicator summary"
-        resolve={data}
-      >
-        {({ selected, areasLimited }) => (
-          <>
-            <IndicatorSummary
-              indicator={detail}
-              observations={observations(primaryIndicator(selected))}
-            />
-            {areasLimited ? (
-              <InsetText>
-                Showing the first {MAX_SELECTED_AREAS + 1} selected areas. Select fewer areas to
-                change which ones are shown.
-              </InsetText>
-            ) : null}
-          </>
-        )}
-      </IndicatorDataSection>
+      {summary}
       <Tabs
         contentReady={contentReady}
         history="push"
-        defaultParam={comparedDetail ? 'compare' : undefined}
+        defaultParam={compareFirst ? 'compare' : undefined}
         paramKey="tab-indicator"
         title={`${detail.name} contents`}
         items={[
-          {
-            id: 'indicator-data',
-            param: 'indicator',
-            label: 'Indicator',
-            content: (
-              <IndicatorDataSection
-                key={detail.shortId}
-                cache={cache}
-                label="indicator data"
-                resolve={data}
-              >
-                {(data) => (
-                  <IndicatorTab
-                    primary={primaryIndicator(data.selected)}
-                    selectedAreas={data.selectedAreas}
-                    benchmarkGeography={data.benchmarkGeography}
-                    displayGroups={data.displayGroups}
-                    geographyOptions={data.geographyOptions}
-                    selection={data.selection}
-                  />
-                )}
-              </IndicatorDataSection>
-            ),
-          },
+          { id: 'indicator-data', param: 'indicator', label: 'Indicator', content: tabs.indicator },
           {
             id: 'indicator-compare-areas',
             param: 'areas',
             label: 'Compare areas',
-            content: (
-              <DataSection label="area comparisons" resolve={comparison}>
-                {(comparison) => <CompareAreasTab primary={{ detail }} {...comparison} />}
-              </DataSection>
-            ),
+            content: tabs.areas,
           },
           {
             id: 'indicator-compare-indicators',
             param: 'compare',
             label: 'Compare indicators',
-            content: (
-              <DataSection label="indicator comparisons" resolve={comparison}>
-                {(comparison) => (
-                  <CompareIndicatorsTab
-                    {...comparison}
-                    primary={{ detail }}
-                    compared={comparedDetail}
-                    findSubject={findSubject}
-                    findResults={findResults}
-                  />
-                )}
-              </DataSection>
-            ),
+            content: tabs.compare,
           },
           {
             id: 'indicator-inequalities',
             param: 'inequalities',
             label: 'Inequalities',
-            content: (
-              <IndicatorDataSection
-                key={detail.shortId}
-                cache={cache}
-                label="inequalities"
-                resolve={data}
-              >
-                {({ selected }) => <InequalitiesTab primary={primaryIndicator(selected)} />}
-              </IndicatorDataSection>
-            ),
+            content: tabs.inequalities,
           },
           {
             id: 'indicator-about',
@@ -210,24 +162,150 @@ export function SingleIndicatorPage({
             content: (
               <>
                 <h2 className="govuk-heading-l">About this indicator</h2>
-                <IndicatorDataSection
-                  key={detail.shortId}
-                  cache={cache}
-                  label="background information"
-                  resolve={data}
-                >
-                  {({ selected }) => (
-                    <BackgroundInformation
-                      indicator={detail}
-                      observations={observations(primaryIndicator(selected))}
-                    />
-                  )}
-                </IndicatorDataSection>
+                {tabs.about}
               </>
             ),
           },
         ]}
       />
     </div>
+  );
+}
+
+/** The page of a preview's draft that has no data to show: each data section reads `text`. */
+function IndicatorPlaceholderPage({ detail, text }: { detail: IndicatorPageDetail; text: string }) {
+  const placeholder = <p className="govuk-body">{text}</p>;
+  return (
+    <IndicatorPageLayout
+      detail={detail}
+      contentReady
+      compareFirst={false}
+      summary={<IndicatorSummary indicator={detail} observations={[]} />}
+      tabs={{
+        indicator: placeholder,
+        areas: placeholder,
+        compare: placeholder,
+        inequalities: placeholder,
+        about: <BackgroundInformation indicator={detail} />,
+      }}
+    />
+  );
+}
+
+export function SingleIndicatorPage(props: IndicatorPageProps) {
+  // Only a placeholder the loader gave replaces the data, so the public page always shows it.
+  return typeof props.dataPlaceholder === 'string' ? (
+    <IndicatorPlaceholderPage detail={props.detail} text={props.dataPlaceholder} />
+  ) : (
+    <LoadedIndicatorPage {...props} />
+  );
+}
+
+function LoadedIndicatorPage({
+  detail,
+  comparedDetail,
+  data,
+  comparison,
+  findSubject,
+  findResults,
+}: LoadedPageProps) {
+  // Resolve before expanding so Suspense retries reuse the loader promise during navigation.
+  const cache = useMemo(() => new WeakMap<CompactData, ExpandedData>(), []);
+  const contentReady = useDataReady([data, comparison, findResults]);
+  return (
+    <IndicatorPageLayout
+      detail={detail}
+      contentReady={contentReady}
+      compareFirst={comparedDetail !== undefined}
+      summary={
+        <IndicatorDataSection
+          key={detail.shortId}
+          cache={cache}
+          label="indicator summary"
+          resolve={data}
+        >
+          {({ selected, areasLimited }) => (
+            <>
+              <IndicatorSummary
+                indicator={detail}
+                observations={observations(primaryIndicator(selected))}
+              />
+              {areasLimited ? (
+                <InsetText>
+                  Showing the first {MAX_SELECTED_AREAS + 1} selected areas. Select fewer areas to
+                  change which ones are shown.
+                </InsetText>
+              ) : null}
+            </>
+          )}
+        </IndicatorDataSection>
+      }
+      tabs={{
+        indicator: (
+          <IndicatorDataSection
+            key={detail.shortId}
+            cache={cache}
+            label="indicator data"
+            resolve={data}
+          >
+            {(data) => (
+              <IndicatorTab
+                primary={primaryIndicator(data.selected)}
+                selectedAreas={data.selectedAreas}
+                benchmarkGeography={data.benchmarkGeography}
+                displayGroups={data.displayGroups}
+                geographyOptions={data.geographyOptions}
+                selection={data.selection}
+              />
+            )}
+          </IndicatorDataSection>
+        ),
+        areas: (
+          <DataSection label="area comparisons" resolve={comparison}>
+            {(comparison) => (
+              <CompareAreasTab primary={{ detail }} {...expandComparison(comparison)} />
+            )}
+          </DataSection>
+        ),
+        compare: (
+          <DataSection label="indicator comparisons" resolve={comparison}>
+            {(comparison) => (
+              <CompareIndicatorsTab
+                {...expandComparison(comparison)}
+                primary={{ detail }}
+                compared={comparedDetail}
+                findSubject={findSubject}
+                findResults={findResults}
+              />
+            )}
+          </DataSection>
+        ),
+        inequalities: (
+          <IndicatorDataSection
+            key={detail.shortId}
+            cache={cache}
+            label="inequalities"
+            resolve={data}
+          >
+            {({ selected }) => <InequalitiesTab primary={primaryIndicator(selected)} />}
+          </IndicatorDataSection>
+        ),
+        about: (
+          <IndicatorDataSection
+            key={detail.shortId}
+            cache={cache}
+            label="background information"
+            resolve={data}
+          >
+            {({ selected }) => (
+              <BackgroundInformation
+                indicator={detail}
+                observations={observations(primaryIndicator(selected))}
+              />
+            )}
+          </IndicatorDataSection>
+        ),
+      }}
+    />
   );
 }

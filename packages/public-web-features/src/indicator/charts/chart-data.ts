@@ -1,7 +1,7 @@
 import { pairedAreaValues } from '@fphd/utils/observation-series';
 import { expandedPeriodLabel, periodLabel, shortPeriodLabel } from '@fphd/utils/period-label';
 import { type ConfidenceLevel, sameSegment, trendSeries } from '../data.ts';
-import type { IndicatorAreaData, IndicatorDetail, IndicatorObservation } from '../loader.ts';
+import type { IndicatorAreaData, IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
 
 export const englandCode = 'E92000001';
 export const quintileColours = ['#c5eee9', '#84cac2', '#27a096', '#027068', '#004842'] as const;
@@ -52,7 +52,10 @@ export function alignedSeries(areas: IndicatorAreaData[]) {
   }));
 }
 
-export function sparklineModel(areas: IndicatorAreaData[], yearType: IndicatorDetail['yearType']) {
+export function sparklineModel(
+  areas: IndicatorAreaData[],
+  yearType: IndicatorPageDetail['yearType'],
+) {
   const primary = alignedSeries(areas).find(({ observations }) => observations.size > 0);
   return {
     areaName: primary?.name ?? areas[0]?.areaName ?? 'England',
@@ -69,7 +72,7 @@ export function sparklineModel(areas: IndicatorAreaData[], yearType: IndicatorDe
 
 export function chartPeriods(
   series: ReturnType<typeof alignedSeries>,
-  yearType: IndicatorDetail['yearType'],
+  yearType: IndicatorPageDetail['yearType'],
 ) {
   const observations = new Map(series.flatMap(({ observations }) => [...observations]));
   return [...observations]
@@ -98,6 +101,7 @@ export function regression(points: { x: number; y: number }[]) {
   const slope = xy / xx;
   const rSquared = xy ** 2 / (xx * yy);
   return {
+    r: xy / Math.sqrt(xx * yy),
     rSquared,
     adjustedRSquared: 1 - ((1 - rSquared) * (points.length - 1)) / (points.length - 2),
     at: (x: number) => meanY + slope * (x - meanX),

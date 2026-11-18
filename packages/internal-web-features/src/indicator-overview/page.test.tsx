@@ -134,6 +134,7 @@ describe('IndicatorOverviewPage', () => {
     renderPage({ draftStatus: 'draft' });
 
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Preview updated indicator',
       'View live indicator',
       'Continue updating indicator',
     ]);
@@ -142,12 +143,16 @@ describe('IndicatorOverviewPage', () => {
     ).toBe(`/publish/indicators/${indicator.id}/task-list`);
   });
 
-  it('offers only the published page to someone who may not edit the indicator', () => {
+  it('offers only the preview and the published page to someone who may not edit it', () => {
     renderPage({ draftStatus: 'draft' }, false);
 
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Preview updated indicator',
       'View live indicator',
     ]);
+    expect(
+      screen.getByRole('link', { name: 'Preview updated indicator' }).getAttribute('href'),
+    ).toBe(`/dashboard/indicators/${indicator.id}/preview`);
   });
 
   it('offers to update a published indicator with a button that posts, as it has no draft', () => {
@@ -325,7 +330,9 @@ describe('IndicatorOverviewPage', () => {
     renderPage({ ...submitted, actions: [] }, false);
 
     expect(screen.queryByRole('button', { name: 'Assign reviewers to indicator' })).toBeNull();
-    expect(screen.getByText('There are no actions available for this indicator yet.')).toBeTruthy();
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'View indicator preview',
+    ]);
   });
 
   it('offers an assigned reviewer the response under a Review heading', () => {
@@ -351,7 +358,7 @@ describe('IndicatorOverviewPage', () => {
     ).toBe(`/dashboard/indicators/${indicator.id}/review/response-type`);
   });
 
-  it('tells a responded reviewer whose notes could not be read that nothing is left to do', () => {
+  it('leaves a responded reviewer whose notes could not be read only the preview', () => {
     render(
       <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
         <IndicatorOverviewPage
@@ -363,7 +370,7 @@ describe('IndicatorOverviewPage', () => {
     );
 
     const review = screen.getByRole('heading', { level: 2, name: 'Review' }).parentElement;
-    expect(review?.textContent).toContain('There are no actions available for this indicator yet.');
+    expect(review?.textContent).toBe('ReviewView indicator preview');
     expect(screen.queryByRole('button', { name: 'Submit review response' })).toBeNull();
   });
 

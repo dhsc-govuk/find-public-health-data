@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import {
+  expectNoAccessibilityViolations,
+  expectUniqueLandmarkNames,
+} from '../support/accessibility.ts';
 import { openTopicPage, topicPageTests } from '../support/topic-page.ts';
 
 test('shows a topic', async ({ page }) => {
@@ -15,6 +18,7 @@ test('answers a topic that does not exist with the not-found page', async ({ pag
   const response = await page.goto('/topics/no-such-topic');
   expect(response?.status()).toBe(404);
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  await expect(page).toHaveTitle(/^Page not found - /);
 });
 
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
@@ -24,6 +28,40 @@ test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
 });
 
 topicPageTests();
+
+for (const width of [1020, 375]) {
+  test(`matches the highlighted card captions and spacing at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const topic of ['mortality-and-life-expectancy', 'diabetes']) {
+      await openTopicPage(page, `/topics/${topic}`);
+      const cards = page.locator('.fphd-topic-highlight');
+      await expect(cards.first()).toBeVisible();
+      for (const card of await cards.all()) {
+        const endpoints = card.locator('.fphd-sparkline__endpoints');
+        await expect(endpoints).toHaveCSS('margin-bottom', '5px');
+        const captions = endpoints.locator(':scope > span');
+        for (const caption of await captions.all()) {
+          await expect(caption).toHaveCSS('line-height', '22.8px');
+          await expect(caption).toHaveCSS('margin-bottom', '15px');
+        }
+        const key = card.locator('.govuk-summary-list__key').first();
+        const summary = await card.locator('.govuk-summary-list').boundingBox();
+        const label = await key.boundingBox();
+        expect(label?.width).toBeCloseTo((summary?.width ?? 0) * 0.55, 1);
+      }
+      if (topic === 'diabetes') {
+        const rate = cards.filter({ hasText: 'Mortality rate for deaths involving diabetes' });
+        await expect(rate.locator('.fphd-sparkline__endpoints > span')).toHaveText([
+          '92.3per 100,000in 2015-17',
+          '109.6per 100,000in 2022-24',
+        ]);
+        const tag = cards.first().locator('.fphd-trend-tag');
+        await expect(tag).toHaveCSS('width', '136px');
+        await expect(tag).toHaveCSS('margin-bottom', '-3px');
+      }
+    }
+  });
+}
 
 for (const javaScriptEnabled of [true, false]) {
   test.describe(`topic sorting with JavaScript ${javaScriptEnabled ? 'enabled' : 'disabled'}`, () => {
@@ -131,4 +169,14 @@ test('compares a chosen area with England and shows minimum and maximum values',
     table.getByRole('columnheader', { name: 'England highest', exact: true }),
   ).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('names each geography tree on the page differently at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await openTopicPage(page, '/topics/diabetes?tab-topic=data');
+
+  const trees = page.locator('.fphd-geo-alt__tree');
+  await expect(trees).toHaveCount(3);
+  for (const tree of await trees.all()) await expect(tree).toBeVisible();
+  await expectUniqueLandmarkNames(page);
 });

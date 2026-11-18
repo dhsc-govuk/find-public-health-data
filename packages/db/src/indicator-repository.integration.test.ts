@@ -13,11 +13,12 @@ import {
 } from './area-repository.ts';
 import type { Database } from './client.ts';
 import {
+  completeIndicatorDetail,
+  getIndicatorDetailById,
   getIndicatorObservations,
   getObservationRange,
   getObservationRangeByCategory,
   getObservationRangeByTier,
-  getPublishedIndicatorById,
   type IndicatorSearchFilters,
   listIndicatorFacets,
   listPublishedIndicators,
@@ -161,15 +162,15 @@ describe('resolveIndicatorIdBySlug', () => {
 
     expect(await resolveIndicatorIdBySlug(db, publishedViews, 'an-earlier-name')).toBe(mortalityId);
     // The canonical slug is still the latest publication's.
-    expect((await getPublishedIndicatorById(db, publishedViews, mortalityId))?.slug).toBe(
+    expect((await getIndicatorDetailById(db, publishedViews, mortalityId))?.slug).toBe(
       MORTALITY_SLUG,
     );
   });
 });
 
-describe('getPublishedIndicatorById', () => {
+describe('getIndicatorDetailById', () => {
   it('resolves the lookups, metadata and available area types in one result', async () => {
-    const indicator = await getPublishedIndicatorById(db, publishedViews, mortalityId);
+    const indicator = await getIndicatorDetailById(db, publishedViews, mortalityId);
 
     expect(indicator).toMatchObject({
       shortId: MORTALITY_UNDER_75,
@@ -192,15 +193,31 @@ describe('getPublishedIndicatorById', () => {
     expect(areaTypeNames).toEqual([...areaTypeNames].sort((a, b) => a.localeCompare(b)));
   });
 
-  it('gives no unit to values that have none', async () => {
+  it('gives no unit to values that have none, which answers the unit question', async () => {
     const id = await resolvedId(RESIDENT_POPULATION);
 
-    expect((await getPublishedIndicatorById(db, publishedViews, id))?.unit).toBeNull();
+    expect(await getIndicatorDetailById(db, publishedViews, id)).toMatchObject({
+      unit: null,
+      unanswered: [],
+    });
+  });
+
+  it('names the unit unanswered when the version has no unit at all', async () => {
+    const id = await resolvedId(GASTROENTERITIS_ADMISSIONS);
+    await db.execute(
+      sql`UPDATE indicator_version SET unit_id = NULL, unit_detail = NULL WHERE indicator_id = ${id}`,
+    );
+
+    const found = await getIndicatorDetailById(db, publishedViews, id);
+
+    expect(found?.unit).toBeNull();
+    expect(found?.unanswered).toContain('unit');
+    expect(found && completeIndicatorDetail(found)).toBeUndefined();
   });
 
   it('dates the first and the latest publication', async () => {
     const id = await resolvedId(RESIDENT_POPULATION);
-    const imported = await getPublishedIndicatorById(db, publishedViews, id);
+    const imported = await getIndicatorDetailById(db, publishedViews, id);
 
     // An imported indicator has one published version.
     expect(imported?.firstPublishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -215,7 +232,7 @@ describe('getPublishedIndicatorById', () => {
     );
     await owner.$client.end();
 
-    const withEarlier = await getPublishedIndicatorById(db, publishedViews, id);
+    const withEarlier = await getIndicatorDetailById(db, publishedViews, id);
 
     expect(withEarlier?.firstPublishedAt).toBe('2000-01-01T00:00:00.000Z');
     expect(withEarlier?.lastPublishedAt).toBe(imported?.lastPublishedAt);
@@ -228,22 +245,27 @@ describe('getPublishedIndicatorById', () => {
           WHERE indicator_id = ${id}`,
     );
 
-    expect((await getPublishedIndicatorById(db, publishedViews, id))?.unit).toBe(
+    expect((await getIndicatorDetailById(db, publishedViews, id))?.unit).toBe(
       'per 1,000 live births',
     );
   });
 
-  it('serves an indicator imported without an update frequency', async () => {
+  it('serves an indicator imported without an update frequency, naming the question unanswered', async () => {
     const id = await resolvedId(DIABETES_MORTALITY);
     await db.execute(
-      sql`UPDATE indicator_version SET update_frequency = NULL, update_frequency_reason = NULL
+      sql`UPDATE indicator_version SET update_frequency = NULL, update_frequency_reason = NULL,
+            update_frequency_text = NULL
           WHERE indicator_id = ${id}`,
     );
 
-    expect(await getPublishedIndicatorById(db, publishedViews, id)).toMatchObject({
+    const found = await getIndicatorDetailById(db, publishedViews, id);
+
+    expect(found).toMatchObject({
       shortId: DIABETES_MORTALITY,
       updateFrequency: null,
+      unanswered: ['updateFrequency'],
     });
+    expect(found && completeIndicatorDetail(found)).toMatchObject({ updateFrequency: null });
   });
 
   it.each(['annually', null] as const)(
@@ -254,19 +276,21 @@ describe('getPublishedIndicatorById', () => {
         sql`UPDATE indicator_version SET update_frequency = ${updateFrequency}, update_frequency_reason = NULL, update_frequency_text = 'Academic year.\nPublished in winter.' WHERE indicator_id = ${id}`,
       );
 
-      expect(await getPublishedIndicatorById(db, publishedViews, id)).toMatchObject({
+      // The original text answers the question, with or without a frequency beside it.
+      expect(await getIndicatorDetailById(db, publishedViews, id)).toMatchObject({
         updateFrequency,
         updateFrequencyText: 'Academic year.\nPublished in winter.',
+        unanswered: [],
       });
     },
   );
 
   it('returns undefined for an id no indicator carries', async () => {
-    expect(await getPublishedIndicatorById(db, publishedViews, UNSEEDED_ID)).toBeUndefined();
+    expect(await getIndicatorDetailById(db, publishedViews, UNSEEDED_ID)).toBeUndefined();
   });
 
   it('includes the prototype diabetes indicator with its high-fidelity geography coverage', async () => {
-    const indicator = await getPublishedIndicatorById(db, publishedViews, diabetesId);
+    const indicator = await getIndicatorDetailById(db, publishedViews, diabetesId);
 
     expect(indicator).toMatchObject({
       shortId: DIABETES_QOF_PREVALENCE,
@@ -301,7 +325,7 @@ describe('getPublishedIndicatorById', () => {
           LEFT JOIN data_provider_source s ON s.provider_id = p.id AND s.name = entry.source`,
     );
 
-    const indicator = await getPublishedIndicatorById(db, publishedViews, diabetesId);
+    const indicator = await getIndicatorDetailById(db, publishedViews, diabetesId);
 
     expect(indicator?.numeratorSources).toEqual([
       { provider: 'NHS England (NHSE)', source: 'Hospital Episode Statistics (HES)' },
@@ -1174,23 +1198,21 @@ describe('published policy goals', () => {
             goal_upper_value = ${upper}, goal_polarity = 'higher-is-better', goal_policy_detail = 'Policy target'
           WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
         `;
-        expect(
-          (await getPublishedIndicatorById(publicDb, publishedViews, indicatorId))?.goal,
-        ).toEqual({
-          lower: 90.25,
-          upper,
-          polarity: 'higher-is-better',
-          policyDetail: 'Policy target',
-        });
+        expect((await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal).toEqual(
+          {
+            lower: 90.25,
+            upper,
+            polarity: 'higher-is-better',
+            policyDetail: 'Policy target',
+          },
+        );
       }
       await testDb.sql`
         UPDATE indicator_version SET has_goal_benchmark = true, goal_lower_value = 10,
           goal_upper_value = null, goal_polarity = 'lower-is-better', goal_policy_detail = null
         WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
       `;
-      expect(
-        (await getPublishedIndicatorById(publicDb, publishedViews, indicatorId))?.goal,
-      ).toEqual({
+      expect((await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal).toEqual({
         lower: 10,
         upper: null,
         polarity: 'lower-is-better',
@@ -1203,9 +1225,7 @@ describe('published policy goals', () => {
         WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
       `;
     }
-    expect(
-      (await getPublishedIndicatorById(publicDb, publishedViews, indicatorId))?.goal,
-    ).toBeNull();
+    expect((await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal).toBeNull();
   });
 });
 

@@ -6,8 +6,8 @@ moves to this service. The operations image applies the packages with `db migrat
 ## Prerequisites
 
 - Install the repository's Node and pnpm versions and run `pnpm install`.
-- Use a read-only `PHOLIO_CONNECTION_STRING` (SQL Server connection string) pointing at an immutable
-  restored Pholio backup. Set `--expected-database` to the restored database's name.
+- Use a `PHOLIO_CONNECTION_STRING` (SQL Server connection string) pointing at a restored Pholio
+  backup that nothing else writes to. Set `--expected-database` to the restored database's name.
 - Keep source exports, prepared snapshots and archives in private storage outside the repository.
   The archive command also requires `tar` on the host.
 
@@ -113,9 +113,9 @@ moves to this service. The operations image applies the packages with `db migrat
 
 ## Refresh upload reference data
 
-Restore the reviewed Pholio backup as a read-only SQL Server database and point
-`PHOLIO_CONNECTION_STRING` at it. Compute the SHA-256 of that backup. From the repository root, run
-the export with the restore's name, the backup digest and a new output directory.
+Restore the reviewed Pholio backup as a SQL Server database and point `PHOLIO_CONNECTION_STRING` at
+it. Compute the SHA-256 of that backup. From the repository root, run the export with the restore's
+name, the backup digest and a new output directory.
 
 ```sh
 pnpm --filter @fphd/data-migration data-migration export-core-reference-data \
@@ -124,29 +124,23 @@ pnpm --filter @fphd/data-migration data-migration export-core-reference-data \
   --out-dir /path/to/core-reference-refresh
 ```
 
-The command checks the database name and read-only status. It uses the same lookup and geography
-exporters, name tidying and UUID mapping as the baseline workflow. The output contains four lookup
-JSON files and a `geography/` directory with two gzipped CSVs and a manifest. The supplied digest
-records which backup was restored, and the manifest records the row counts, sizes and SHA-256
-digests of the CSVs.
+The command checks the database name. It uses the same lookup and geography exporters, name tidying
+and UUID mapping as the baseline workflow. The output contains four lookup JSON files and a
+`geography/` directory with two gzipped CSVs and a manifest. The supplied digest records which
+backup was restored, and the manifest records the row counts, sizes and SHA-256 digests of the CSVs.
 
 Review the lookup changes and geography counts, then copy the four JSON files and the three
 geography files into the corresponding paths under `packages/db-operations/data/`. Review any lookup
 rename against existing database references and upload labels before deploying the refreshed
 catalog.
 
-## Reviewed relationship file
+## Relationship file
 
-The prepare step requires JSON accepted by the existing indicator relationship schema, plus these
-fields:
+The prepare step requires JSON accepted by the existing indicator relationship schema, plus the
+package's indicator list:
 
 ```json
 {
-  "approval": {
-    "approvedBy": "person or governance group",
-    "approvedAt": "2026-09-22T12:00:00Z",
-    "basis": "Reference to the reviewed mapping"
-  },
   "indicators": [108, 241],
   "indicatorTopics": [],
   "indicatorDataUpdatedAt": {},

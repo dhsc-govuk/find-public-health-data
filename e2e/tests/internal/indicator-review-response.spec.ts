@@ -436,7 +436,7 @@ test.describe("the overview's Actions tab", () => {
   test.describe('for an admin', () => {
     test.use({ storageState: ADMIN.storageState });
 
-    test("shows the Actions section with the no-actions text, then each reviewer's notes, on a new indicator", async ({
+    test("shows the Actions section with the indicator preview, then each reviewer's notes, on a new indicator", async ({
       browser,
       page,
     }) => {
@@ -449,9 +449,13 @@ test.describe("the overview's Actions tab", () => {
       await expect(actions.getByRole('heading', { level: 3 })).toHaveText([
         `${IMRG_REVIEWER.name}'s notes`,
       ]);
+      await expect(actions.getByRole('link', { name: 'View indicator preview' })).toHaveAttribute(
+        'href',
+        `${overviewPath(id)}/preview`,
+      );
       await expect(
         page.getByText('There are no actions available for this indicator yet.'),
-      ).toBeVisible();
+      ).toHaveCount(0);
     });
   });
 });

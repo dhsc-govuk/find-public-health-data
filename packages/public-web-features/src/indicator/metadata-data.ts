@@ -1,5 +1,5 @@
 import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
-import type { IndicatorDetail, IndicatorProviderSource } from './loader.ts';
+import type { IndicatorPageDetail, IndicatorProviderSource } from './loader.ts';
 
 export function providerSourceText(entries: IndicatorProviderSource[]): string {
   return entries
@@ -11,7 +11,7 @@ export function updateFrequencyLine({
   updateFrequency,
   updateFrequencyReason,
   updateFrequencyText,
-}: Pick<IndicatorDetail, 'updateFrequency' | 'updateFrequencyReason' | 'updateFrequencyText'>):
+}: Pick<IndicatorPageDetail, 'updateFrequency' | 'updateFrequencyReason' | 'updateFrequencyText'>):
   | string
   | null {
   const fixed = updateFrequency && publicUpdateFrequency(updateFrequency, updateFrequencyReason);

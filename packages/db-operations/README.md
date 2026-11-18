@@ -68,7 +68,7 @@ do.
 ## Core data import
 
 The topics, subtopics and tags follow the publisher design's tagging page, which DHSC has still to
-agree. `topics.json` contains its 19 topics and `subtopics.json` its 86 subtopics. Dental and oral
+agree. `topics.json` contains its 19 topics and `subtopics.json` its 87 subtopics. Dental and oral
 health, Muscles, bones and joints, and Sight and hearing have no subtopics. `classifications.json`
 holds its measure types (`indicator_type`), frameworks and programmes (`framework`), life stages
 (`life_stage`) and risk factors (`risk_factor`), each dimension in the order the page lists it. The

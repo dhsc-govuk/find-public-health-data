@@ -33,8 +33,8 @@ export function isDeployedEnv(appEnv: AppEnv): boolean {
   return appEnv !== 'local' && appEnv !== 'test';
 }
 
-// 'dev' is deployed but is populated by running the seed against it, while 'preview' and
-// 'production' hold data no command may erase. 'test' is listed for the integration harness and
+// 'dev' is deployed but is populated by running the seed against it. 'preview' holds imported data
+// that only a reset may erase, and 'production' data that no command may erase. 'test' is listed for the integration harness and
 // e2e, which run under it: e2e completes its drafts with the sample answers.
 export const DEV_CLASS_APP_ENVS: readonly AppEnv[] = ['local', 'test', 'dev'];
 

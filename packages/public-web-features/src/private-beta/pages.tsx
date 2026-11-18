@@ -65,11 +65,13 @@ export function RequestLinkPage({
   error,
   linkRejected,
   returnTo,
+  sendFailed = false,
 }: {
   email?: string | undefined;
   error?: string | undefined;
   linkRejected: boolean;
   returnTo: string;
+  sendFailed?: boolean;
 }) {
   return (
     <>
@@ -78,6 +80,12 @@ export function RequestLinkPage({
       {linkRejected ? (
         <NotificationBanner disableAutoFocus>
           That sign-in link has expired or is not valid. Enter your email address to get a new one.
+        </NotificationBanner>
+      ) : null}
+      {sendFailed ? (
+        // An alert, so screen readers announce it and focus moves to it after the form is sent.
+        <NotificationBanner role="alert">
+          We could not send your sign-in link. Try again in a few minutes.
         </NotificationBanner>
       ) : null}
       <PageIntro title="Sign in to the private beta">
@@ -121,9 +129,10 @@ export function PrivateBetaPage({
   return (
     <RequestLinkPage
       email={request?.email}
-      error={request?.error}
+      error={request?.status === 'invalid' ? request.error : undefined}
       linkRejected={data.linkRejected && request === undefined}
       returnTo={data.returnTo}
+      sendFailed={request?.status === 'send_failed'}
     />
   );
 }

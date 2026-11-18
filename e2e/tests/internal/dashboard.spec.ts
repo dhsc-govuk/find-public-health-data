@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { assignReviewers } from '../support/assign-reviewers.ts';
@@ -279,6 +279,13 @@ test.describe('searching the dashboard', () => {
     await expect(page).toHaveURL(/[?&]search=/);
   }
 
+  async function boxOf(locator: Locator) {
+    await expect(locator).toBeVisible();
+    const box = await locator.boundingBox();
+    if (box === null) throw new Error('The element has no box on the page');
+    return box;
+  }
+
   function rowNames(page: Page) {
     return page.getByRole('table').locator('tbody tr').getByRole('rowheader');
   }
@@ -315,6 +322,52 @@ test.describe('searching the dashboard', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('Clear search returns the list to all indicators', async ({ page }) => {
+    const name = uniqueIndicatorName('search clear');
+    await createDraft(page, name);
+    await page.goto('/dashboard');
+    await search(page, uniqueIndicatorName('search clear nothing'));
+    await expect(page.getByText('No indicators match your search.')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Clear search' }).click();
+
+    await expect(page).not.toHaveURL(/[?&]search=/);
+    await expect(page.getByRole('searchbox', { name: SEARCH_LABEL })).toHaveValue('');
+    await expect(page.getByText('No indicators match your search.')).toHaveCount(0);
+    await expect(rowNames(page).filter({ hasText: name })).toHaveCount(1);
+  });
+
+  test('Clear search empties a search that was typed but not sent', async ({ page }) => {
+    const searchbox = page.getByRole('searchbox', { name: SEARCH_LABEL });
+    await searchbox.fill(uniqueIndicatorName('search clear unsent'));
+
+    await page.getByRole('link', { name: 'Clear search' }).click();
+
+    await expect(searchbox).toHaveValue('');
+  });
+
+  test('puts Clear search beside the Search button on a wide screen', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const button = await boxOf(page.getByRole('button', { name: 'Search' }));
+    const clear = await boxOf(page.getByRole('link', { name: 'Clear search' }));
+
+    expect(clear.x).toBeGreaterThanOrEqual(button.x + button.width);
+    expect(clear.y).toBeGreaterThanOrEqual(button.y);
+    expect(clear.y + clear.height).toBeLessThanOrEqual(button.y + button.height);
+  });
+
+  test('puts Clear search on its own line under the search on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    const form = await boxOf(page.getByRole('search').locator('form'));
+    const searchbox = await boxOf(page.getByRole('searchbox', { name: SEARCH_LABEL }));
+    const button = await boxOf(page.getByRole('button', { name: 'Search' }));
+    const clear = await boxOf(page.getByRole('link', { name: 'Clear search' }));
+
+    expect(searchbox.width).toBe(form.width);
+    expect(clear.y).toBeGreaterThanOrEqual(searchbox.y + searchbox.height);
+    expect(clear.y).toBeGreaterThanOrEqual(button.y + button.height);
+  });
+
   test.describe('without JavaScript', () => {
     test.use({ javaScriptEnabled: false });
 
@@ -326,6 +379,19 @@ test.describe('searching the dashboard', () => {
       await search(page, wanted);
 
       await expect(rowNames(page)).toHaveText([wanted]);
+    });
+
+    test('Clear search returns the list to all indicators', async ({ page }) => {
+      const name = uniqueIndicatorName('search clear no js');
+      await createDraft(page, name);
+      await page.goto('/dashboard');
+      await search(page, uniqueIndicatorName('search clear no js nothing'));
+
+      await page.getByRole('link', { name: 'Clear search' }).click();
+
+      await expect(page).not.toHaveURL(/[?&]search=/);
+      await expect(page.getByRole('searchbox', { name: SEARCH_LABEL })).toHaveValue('');
+      await expect(rowNames(page).filter({ hasText: name })).toHaveCount(1);
     });
   });
 
@@ -348,6 +414,20 @@ test.describe('searching the dashboard', () => {
           .getByRole('tabpanel', { name: 'Create and edit' })
           .getByText('No indicators match your search.'),
       ).toBeVisible();
+    });
+
+    test('keeps the open tab after Clear search', async ({ page }) => {
+      await page.getByRole('tab', { name: 'Create and edit' }).click();
+      await search(page, uniqueIndicatorName('search clear tab'));
+
+      await page.getByRole('link', { name: 'Clear search' }).click();
+
+      await expect(page).not.toHaveURL(/[?&]search=/);
+      await expect(page).toHaveURL(/[?&]tab=create-and-edit/);
+      await expect(page.getByRole('tab', { name: 'Create and edit' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
     });
   });
 });

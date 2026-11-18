@@ -1,6 +1,8 @@
 import { index, layout, type RouteConfig, route } from '@react-router/dev/routes';
 
-export default [
+import { withRouteIds } from '../../route-ids.ts';
+
+export default withRouteIds([
   index('./home.tsx'),
   route('sign-in', './sign-in.tsx'),
   route('access-denied', './access-denied.tsx'),
@@ -20,15 +22,15 @@ export default [
     route(
       'indicator/:slug/table.csv',
       '../../../packages/public-web-features/src/indicator/table-csv-route.ts',
-      { id: 'single-indicator-table-csv' },
+      { id: 'single_indicator_table_csv' },
     ),
     route(
       'indicator/:slug/all-data.csv',
       '../../../packages/public-web-features/src/indicator/all-data-csv-route.ts',
-      { id: 'single-indicator-all-data-csv' },
+      { id: 'single_indicator_all_data_csv' },
     ),
     route('indicator/:slug', '../../../packages/public-web-features/src/indicator/route.tsx', {
-      id: 'indicator-detail',
+      id: 'indicator_detail',
     }),
     route(
       'indicator/:slug/metadata.txt',
@@ -40,6 +42,16 @@ export default [
         'dashboard/indicators/:id',
         '../../../packages/internal-web-features/src/indicator-overview/route.tsx',
       ),
+      route('dashboard/indicators/:id/preview', './indicator-preview.tsx'),
+      route('dashboard/indicators/:id/preview/table.csv', './indicator-preview-table-csv.ts'),
+      route('dashboard/indicators/:id/preview/all-data.csv', './indicator-preview-all-data-csv.ts'),
+      route('dashboard/indicators/:id/preview/metadata.txt', './indicator-preview-metadata.ts'),
+      route('dashboard/indicators/:id/preview/geographies', './indicator-preview-geographies.ts'),
+      route(
+        'dashboard/indicators/:id/preview/compare-areas',
+        './indicator-preview-compare-areas.ts',
+      ),
+      route('dashboard/indicators/:id/preview/indicators/search', './indicator-preview-search.ts'),
       route(
         'dashboard/indicators/:id/assign-reviewers',
         '../../../packages/internal-web-features/src/indicator-reviewer-assignment/route.tsx',
@@ -228,4 +240,4 @@ export default [
     ]),
   ]),
   route('*', '../../../packages/ui/src/not-found-route.tsx'),
-] satisfies RouteConfig;
+]) satisfies RouteConfig;

@@ -1,6 +1,7 @@
 import { z } from '@fphd/config/zod';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
+import { INDICATOR_DATA_STATES, INDICATOR_QUESTIONS } from '@fphd/utils/indicator-page';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -250,6 +251,19 @@ export const indicatorDetailSchema = z.object({
   updateSummaries: z.array(z.object({ publishedAt: z.iso.datetime(), summary: z.string().min(1) })),
 });
 
+/**
+ * The detail as the indicator page reads it, which a preview of a draft may leave incomplete.
+ * The public detail is one of these with neither `unanswered` nor `dataState`, so the page shows
+ * a placeholder only where a preview names one.
+ */
+export const indicatorPageDetailSchema = indicatorDetailSchema.extend({
+  valueType: z.string().min(1).nullable(),
+  polarity: z.enum(POLARITIES).nullable(),
+  /** The questions the draft hasn't answered. A null `unit` is "No unit" unless this names it. */
+  unanswered: z.array(z.enum(INDICATOR_QUESTIONS)).optional(),
+  dataState: z.enum(INDICATOR_DATA_STATES).optional(),
+});
+
 export const indicatorObservationSchema = z.object({
   fromDate: z.string().min(1),
   toDate: z.string().min(1),
@@ -376,6 +390,7 @@ export type TopicDetail = z.infer<typeof topicDetailSchema>;
 export type TopicTrendSummary = z.infer<typeof topicTrendSummarySchema>;
 export type IndicatorSummary = z.infer<typeof indicatorSummarySchema>;
 export type IndicatorDetail = z.infer<typeof indicatorDetailSchema>;
+export type IndicatorPageDetail = z.infer<typeof indicatorPageDetailSchema>;
 export type IndicatorSource = z.infer<typeof indicatorSourceSchema>;
 export type IndicatorProviderSource = z.infer<typeof indicatorProviderSourceSchema>;
 export type IndicatorObservation = z.infer<typeof indicatorObservationSchema>;
@@ -420,16 +435,23 @@ export type IndicatorSearchRow = z.infer<typeof indicatorSearchRowSchema>;
 export type IndicatorSearchResult = z.infer<typeof indicatorSearchResultSchema>;
 export type IndicatorFacets = z.infer<typeof indicatorFacetsSchema>;
 
+const scatterPointsSchema = z.array(
+  z.object({
+    code: z.string(),
+    name: z.string(),
+    xPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
+    yPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
+    x: z.number(),
+    y: z.number(),
+  }),
+);
+
 export const indicatorScatterSchema = z.object({
-  points: z.array(
-    z.object({
-      code: z.string(),
-      name: z.string(),
-      period: z.string(),
-      fromDate: z.iso.date(),
-      toDate: z.iso.date(),
-      x: z.number(),
-      y: z.number(),
-    }),
-  ),
+  points: scatterPointsSchema,
+  variants: z
+    .array(
+      z.object({ sex: z.string(), axisSexes: z.array(z.string()), points: scatterPointsSchema }),
+    )
+    .optional(),
+  rankings: z.tuple([indicatorAreaDataListSchema, indicatorAreaDataListSchema]).optional(),
 });

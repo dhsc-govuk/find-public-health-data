@@ -14,6 +14,7 @@ import { ageDimensionValueId, areaId, observationId, sexDimensionValueId } from 
 import { exportIndicators } from './indicators.ts';
 import { exportLookups } from './lookups.ts';
 import { exportObservations, observationDimensions } from './observations.ts';
+import publishedInvertedIntervals from './published-inverted-intervals.ts';
 import { queryPholio, streamPholio } from './source.ts';
 import verifiedIntervals from './vaccination-interval-corrections.ts';
 
@@ -1130,4 +1131,46 @@ it('rejects an unreviewed disclosure note masking policy', async () => {
   await expect(exportLookups(options)).rejects.toThrow(
     'Source note 999 requires review of its numeric masking policy',
   );
+});
+
+const invertedIntervalSamples = [
+  ...new Map(publishedInvertedIntervals.map((entry) => [entry.IndicatorID, entry])).values(),
+];
+it.each(invertedIntervalSamples)(
+  'exports the published inverted interval for indicator $IndicatorID as the source has it',
+  async (entry) => {
+    const source = observation({ ...entry });
+    const groupings = [{ ...source, BaselineQuarter: -1, BaselineMonth: -1 }];
+    sourceObservations([source], groupings);
+    const input = observationOptions();
+    input.indicatorSelection = { kind: 'approved', indicators: [entry.IndicatorID] };
+    input.indicatorIds = new Set([entry.IndicatorID]);
+    input.indicatorEnteredAt = new Map([[entry.IndicatorID, '2020-01-01T00:00:00.000Z']]);
+    input.areaIdByPholioCode = new Map([[entry.AreaCode, areaId(entry.AreaCode)]]);
+    input.dimensionValueIds = new Set([
+      sexDimensionValueId(entry.SexID),
+      ageDimensionValueId(entry.AgeID),
+    ]);
+    const result = await exportObservations(input);
+    expect((await rows('observation'))[0]).toMatchObject({
+      value: String(entry.Value),
+      lower_ci_95: String(entry.LowerCI95),
+      upper_ci_95: String(entry.UpperCI95),
+    });
+    expect(result.observationCorrections).toEqual([]);
+  },
+);
+it('refuses a published inverted interval when the source limits change', async () => {
+  const entry = publishedInvertedIntervals[0];
+  const source = observation({ ...entry, UpperCI95: entry.UpperCI95 - 0.5 });
+  sourceObservations([source], [{ ...source, BaselineQuarter: -1, BaselineMonth: -1 }]);
+  const input = observationOptions();
+  input.indicatorSelection = { kind: 'approved', indicators: [entry.IndicatorID] };
+  input.indicatorIds = new Set([entry.IndicatorID]);
+  input.indicatorEnteredAt = new Map([[entry.IndicatorID, '2020-01-01T00:00:00.000Z']]);
+  input.areaIdByPholioCode = new Map([[entry.AreaCode, areaId(entry.AreaCode)]]);
+  await expect(exportObservations(input)).rejects.toThrow(
+    'published inverted interval does not match source UpperCI95',
+  );
+  expect(await readdir(directory)).toEqual([]);
 });

@@ -31,10 +31,10 @@ describe('the V2 workbook assignments', () => {
   it('reproduces the committed relationships without inferring memberships', () => {
     const file = build();
     expect(file).toEqual(data('published-indicator-topics'));
-    expect(file.indicators).toHaveLength(881);
+    expect(file.indicators).toHaveLength(898);
     expect(file.areaContextIndicators).toHaveLength(15);
     expect(topics).toHaveLength(19);
-    expect(subtopics).toHaveLength(86);
+    expect(subtopics).toHaveLength(87);
     expect(classifications).toHaveLength(24);
   });
 

@@ -121,6 +121,44 @@ describe('requestPrivateBetaLink', () => {
     ).resolves.toEqual({ status: 'requested', email: sam.email, link });
   });
 
+  it('asks the visitor to try again when the email service fails, logging the invitee by label only', async () => {
+    const { context, lines } = setUp({
+      requestLink: async () => ({
+        outcome: 'send_failed',
+        invitee: sam,
+        error: Object.assign(new Error(`Recipient ${sam.email} was refused`), {
+          code: 'Denied',
+          statusCode: 401,
+        }),
+      }),
+    });
+
+    await expect(
+      requestPrivateBetaLink(args(context, page, { email: sam.email, returnTo: '/' })),
+    ).resolves.toEqual({ status: 'send_failed', email: sam.email });
+    expect(lines).toMatchObject([
+      {
+        level: 50,
+        invitee: 'Research round 1',
+        err: { message: 'Recipient [invitee] was refused', code: 'Denied', statusCode: 401 },
+        msg: 'Private beta link not sent: the email service failed',
+      },
+    ]);
+    expect(JSON.stringify(lines)).not.toContain(sam.email);
+  });
+
+  it('leaves any other failure to the request error handler', async () => {
+    const { context } = setUp({
+      requestLink: async () => {
+        throw new Error('BETA_ACCESS_SECRET is too short');
+      },
+    });
+
+    await expect(
+      requestPrivateBetaLink(args(context, page, { email: sam.email, returnTo: '/' })),
+    ).rejects.toThrow('BETA_ACCESS_SECRET is too short');
+  });
+
   it.each([
     ['', 'Enter your email address'],
     ['not-an-address', 'Enter an email address in the correct format, like name@example.com'],

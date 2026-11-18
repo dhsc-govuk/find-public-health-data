@@ -65,11 +65,6 @@ async function sourceExport(): Promise<{ directory: string; relationships: strin
   await writeFile(
     relationships,
     JSON.stringify({
-      approval: {
-        approvedBy: 'migration test',
-        approvedAt: '2026-09-22T10:00:00Z',
-        basis: 'integration fixture',
-      },
       indicators: [1],
       indicatorTopics: [{ fingertipsId: 1, topicId: '019de0d5-c800-7001-8000-000000000001' }],
       indicatorDataUpdatedAt: {},

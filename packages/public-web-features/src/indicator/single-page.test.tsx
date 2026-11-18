@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createRoutesStub, useLocation, useNavigate, useNavigation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
-import { compactIndicator } from './compact-data.ts';
+import { compactIndicator, compactScatterComparison } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
@@ -84,12 +84,14 @@ function page(
 ) {
   const primary = entries[0];
   if (!primary) throw new Error('Indicator fixture missing');
+  const scatter = loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams);
   const Routes = createRoutesStub([
     {
       path: 'indicator/:slug',
       Component: () => (
         <SingleIndicatorPage
           detail={entries[0]?.detail as IndicatorDetail}
+          dataPlaceholder={null}
           comparedDetail={entries[1]?.detail}
           findSubject={search ? 'mortality' : ''}
           findResults={search ?? []}
@@ -116,7 +118,7 @@ function page(
               areaData: [...areas, ...(entries[0]?.areaData ?? [])],
             }),
             compareAreaRanges: [],
-            scatter: loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams),
+            scatter: scatter ? compactScatterComparison(scatter) : undefined,
             ...indicatorComparisonModel(entries, {
               compareAreasData: areas,
               comparedAreasData: [],
@@ -149,6 +151,37 @@ it('opens one indicator with the five prototype tabs and no selection controls',
       name: 'Diabetes prevalence trend chart',
     }).textContent,
   ).toContain('View chart data as a table');
+});
+
+it("reads a placeholder in each data section of a preview's draft with no data to show", async () => {
+  const { detail } = selected(241, 'Diabetes prevalence', 7.9);
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      Component: () => (
+        <SingleIndicatorPage
+          detail={{ ...detail, dataState: 'no-upload', unanswered: [] }}
+          dataPlaceholder="[Not provided yet]"
+        />
+      ),
+    },
+  ]);
+  render(<Routes initialEntries={['/indicator/indicator-241']} />);
+
+  expect(
+    (await screen.findByRole('heading', { level: 1, name: 'Diabetes prevalence' })).textContent,
+  ).toBe('Diabetes prevalence');
+  for (const name of ['Indicator', 'Compare areas', 'Compare indicators', 'Inequalities']) {
+    expect(screen.getByRole('tabpanel', { name, hidden: true }).textContent).toBe(
+      '[Not provided yet]',
+    );
+  }
+  expect(
+    within(screen.getByRole('tabpanel', { name: 'About this indicator', hidden: true })).getByRole(
+      'heading',
+      { name: 'Data attributes' },
+    ),
+  ).toBeTruthy();
 });
 
 it('offers the table columns for the raw numbers the indicator has', () => {
@@ -216,11 +249,9 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
     within(screen.getByRole('tabpanel', { name: 'Compare indicators' })).getByRole('region', {
       name: 'Indicator comparison scatter chart',
     }).textContent,
-  ).toContain('View chart data as a table');
-  expect(
-    screen.getByRole('heading', { name: /^Diabetes mortality compared with Diabetes prevalence/ }),
-  ).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Swap axes' })).toBeTruthy();
+  ).toContain('Table of indicator comparison');
+  expect(screen.getByRole('heading', { name: 'Chart of indicator comparison' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Swap axis' })).toBeTruthy();
   expect(
     within(screen.getByRole('table', { name: /Table of indicator comparison/ })).getByRole(
       'rowheader',
@@ -241,7 +272,7 @@ it('labels cached scatter axes in the order requested by a saved comparison link
   const table = within(chart.getByRole('table', { hidden: true }));
   expect(
     table.getAllByRole('columnheader', { hidden: true }).map((cell) => cell.textContent),
-  ).toEqual(['Area', 'Diabetes mortality (%)', 'Diabetes prevalence (%)']);
+  ).toEqual(['Area', 'Diabetes mortality (2024/25)', 'Diabetes prevalence (2024/25)']);
   expect(table.getAllByRole('cell', { hidden: true }).map((cell) => cell.textContent)).toEqual([
     '109.6%',
     '7.9%',
@@ -291,6 +322,7 @@ it('replaces deferred comparison models after changing geography', async () => {
         ];
         return {
           detail: primary.detail,
+          dataPlaceholder: null,
           comparedDetail: undefined,
           complete: false,
           findSubject: '',
@@ -373,6 +405,7 @@ it('keeps benchmark controls interactive while replacement indicator data is def
             </button>
             <SingleIndicatorPage
               detail={primary.detail}
+              dataPlaceholder={null}
               comparedDetail={undefined}
               data={resolve}
               findSubject=""

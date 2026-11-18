@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { IndicatorDetail } from './loader.ts';
+import type { IndicatorDetail, IndicatorPageDetail } from './loader.ts';
 import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
 
 afterEach(cleanup);
@@ -46,7 +46,7 @@ const indicator: IndicatorDetail = {
   updateSummaries: [],
 };
 
-function renderBackground(detail: IndicatorDetail) {
+function renderBackground(detail: IndicatorPageDetail) {
   render(
     <MemoryRouter>
       <BackgroundInformation indicator={detail} />
@@ -83,7 +83,7 @@ it('links each subtopic to the filtered topic data page', () => {
 });
 
 describe('IndicatorSummary', () => {
-  function renderSummary(detail: IndicatorDetail) {
+  function renderSummary(detail: IndicatorPageDetail) {
     render(
       <MemoryRouter>
         <IndicatorSummary indicator={detail} observations={[]} />
@@ -291,5 +291,82 @@ describe.each(['summary', 'background'] as const)('%s update frequency text', (s
     expect(
       [...(row?.querySelectorAll('.fphd-metadata-text') ?? [])].map((part) => part.textContent),
     ).toEqual([updateFrequencyText, 'The survey has ended.']);
+  });
+});
+
+describe('placeholders', () => {
+  function row(name: string) {
+    const term = screen.getAllByRole('term').find((entry) => entry.textContent === name);
+
+    return term?.nextElementSibling?.textContent;
+  }
+
+  function renderSummary(detail: IndicatorPageDetail) {
+    render(
+      <MemoryRouter>
+        <IndicatorSummary indicator={detail} observations={[]} />
+      </MemoryRouter>,
+    );
+  }
+
+  const unanswered: IndicatorPageDetail = {
+    ...indicator,
+    valueType: null,
+    unit: null,
+    polarity: null,
+    updateFrequency: null,
+    unanswered: ['valueType', 'unit', 'polarity', 'updateFrequency'],
+    dataState: 'ready',
+  };
+
+  it("reads [Not entered yet] for each data attribute a preview's draft hasn't answered", () => {
+    renderBackground(unanswered);
+
+    for (const name of ['Value type', 'Unit', 'Frequency', 'Polarity']) {
+      expect(row(name)).toBe('[Not entered yet]');
+    }
+  });
+
+  it("reads [Not entered yet] for an update frequency a preview's draft hasn't answered", () => {
+    renderSummary(unanswered);
+
+    expect(row('Update frequency')).toBe('[Not entered yet]');
+  });
+
+  it('shows answers the unanswered list does not name as the public page would', () => {
+    renderBackground({ ...indicator, unit: null, unanswered: ['valueType'], dataState: 'ready' });
+
+    expect(attributeNames()).not.toContain('Unit');
+    expect(row('Value type')).toBe('[Not entered yet]');
+    expect(row('Polarity')).toBe('Lower is better');
+  });
+
+  it.each([
+    ['no-upload', '[Not provided yet]'],
+    ['read-models-missing', "[Data isn't shown in the preview yet]"],
+  ] as const)('reads %s data as %s where the page needs data', (dataState, text) => {
+    renderSummary({ ...indicator, dataState });
+
+    expect(row('Period covered')).toBe(text);
+    expect(row('Trend (last 5 periods)')).toBe(text);
+
+    cleanup();
+    renderBackground({ ...indicator, dataState });
+
+    expect(row('Ages')).toBe(text);
+    expect(row('Sex')).toBe(text);
+  });
+
+  it('never shows a placeholder for the public detail, even with no data', () => {
+    renderSummary(indicator);
+
+    expect(row('Period covered')).toBe('No data');
+    expect(screen.queryByText(/\[Not/)).toBeNull();
+
+    cleanup();
+    renderBackground({ ...indicator, unit: null, updateFrequency: null });
+
+    expect(screen.queryByText(/\[Not/)).toBeNull();
+    expect(attributeNames()).not.toContain('Ages');
   });
 });

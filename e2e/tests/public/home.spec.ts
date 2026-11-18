@@ -37,3 +37,13 @@ test('keeps the homepage and header at the prototype content width', async ({ pa
   await expect(page.locator('.govuk-template__container')).toHaveCSS('width', '1020px');
   await expect(page.locator('.govuk-header .govuk-width-container')).toHaveCSS('width', '1020px');
 });
+
+test('links the footer only to GDS, the Open Government Licence and Crown copyright', async ({
+  page,
+}) => {
+  await expect(page.getByRole('contentinfo').getByRole('link')).toHaveText([
+    'Government Digital Service',
+    'Open Government Licence v3.0',
+    '© Crown copyright',
+  ]);
+});

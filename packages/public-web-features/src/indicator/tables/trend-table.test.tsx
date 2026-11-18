@@ -394,10 +394,12 @@ describe('TrendTable benchmark columns', () => {
       if (!row) throw new Error('Trend row missing');
       const cells = within(row).getAllByRole('cell');
       expect(cells).toHaveLength(sameRegion ? 20 : 25);
-      expect(cells[1]?.textContent).toContain('England: 12.0%');
-      expect(cells[2]?.textContent).toContain('North West (Statistical region): 15.0%');
+      expect(cells[1]?.textContent).toContain('Value: 12.0%. Area: England');
+      expect(cells[2]?.textContent).toContain(
+        'Value: 15.0%. Area: North West (Statistical region)',
+      );
       expect(cells[7]?.textContent).toContain(
-        `${region.name} (Statistical region): ${sameRegion ? '15.0%' : '16.0%'}`,
+        `Value: ${sameRegion ? '15.0%' : '16.0%'}. Area: ${region.name} (Statistical region)`,
       );
       for (const cell of cells) {
         for (const id of (cell.getAttribute('headers') ?? '').split(' '))
@@ -566,7 +568,7 @@ describe('TrendTable benchmark columns', () => {
     ).toEqual([
       '14.0%',
       '40',
-      'Manchester: 14.0%. England: 12.0%. Range: 5.0% to 30.0%. 25th percentile: 10.0%. 75th percentile: 20.0%. Better than benchmark',
+      'Resident population. Period: 2023 to 2024. Value: 14.0%. Area: Manchester. Comparison: Better than England. Value: 12.0%. Area: England. Lowest to highest: 5.0% to 30.0%. 25th to 75th percentile: 10.0% to 20.0%',
       '13.0%',
       '15.0%',
       '12.0%',

@@ -24,7 +24,9 @@ export interface PrivateBetaData {
 export type PrivateBetaRequest =
   | { status: 'invalid'; email: string; error: string }
   // `link` only where there is no email service to send it, in local and test.
-  | { status: 'requested'; email: string; link: string | undefined };
+  | { status: 'requested'; email: string; link: string | undefined }
+  // The email service refused or failed to take the link, so the visitor can try again.
+  | { status: 'send_failed'; email: string };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -48,6 +50,18 @@ function formText(form: FormData, name: string): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * The parts of a failed send's error worth logging, with the invitee's address taken out of its
+ * message: the email service's errors can name the recipient, and invitees are logged by label
+ * only.
+ */
+function sendFailure(error: unknown, email: string) {
+  const redact = (text: string) => text.replaceAll(email, '[invitee]');
+  if (!(error instanceof Error)) return { message: redact(String(error)) };
+  const { code, statusCode } = error as { code?: unknown; statusCode?: unknown };
+  return { type: error.name, message: redact(error.message), code, statusCode };
+}
+
 function logLinkRequest(logger: Logger, request: LinkRequest): void {
   switch (request.outcome) {
     case 'sent':
@@ -63,6 +77,12 @@ function logLinkRequest(logger: Logger, request: LinkRequest): void {
       logger.warn(
         { invitee: request.invitee.label },
         'Private beta link not sent: its domain has had its links for the hour',
+      );
+      return;
+    case 'send_failed':
+      logger.error(
+        { invitee: request.invitee.label, err: sendFailure(request.error, request.invitee.email) },
+        'Private beta link not sent: the email service failed',
       );
       return;
     case 'not_invited':
@@ -93,6 +113,7 @@ export async function requestPrivateBetaLink({
 
   const result = await betaAccess.requestLink(email, formText(form, 'returnTo'));
   logLinkRequest(context.get(loggerContext), result);
+  if (result.outcome === 'send_failed') return { status: 'send_failed', email };
 
   return { status: 'requested', email, link: result.outcome === 'shown' ? result.link : undefined };
 }

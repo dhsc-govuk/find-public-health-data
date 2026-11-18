@@ -134,24 +134,14 @@ describe('reviewApprovalSchema', () => {
 
 describe('updateApprovalSchema', () => {
   it('asks whether the update is approved', () => {
-    expect(issues(updateApprovalSchema.safeParse({ reasons: [] }))).toEqual({
+    expect(issues(updateApprovalSchema.safeParse({}))).toEqual({
       approved: 'Select whether you approve this update for publishing',
     });
   });
 
-  it('asks for a kind of feedback when it is not', () => {
-    expect(issues(updateApprovalSchema.safeParse({ approved: 'no', reasons: [] }))).toEqual({
-      reasons: 'Select at least one kind of feedback',
-    });
-  });
-
   it.each([
-    [{ approved: 'yes', reasons: [] }, { approved: true }],
-    [{ approved: 'yes', reasons: ['revisions'] }, { approved: true }],
-    [
-      { approved: 'no', reasons: ['revisions', 'clarification'] },
-      { approved: false, reasons: ['revisions', 'clarification'] },
-    ],
+    [{ approved: 'yes' }, { approved: true }],
+    [{ approved: 'no' }, { approved: false }],
   ])('answers %j as %j', (answers, decided) => {
     expect(updateApprovalSchema.parse(answers)).toEqual(decided);
   });

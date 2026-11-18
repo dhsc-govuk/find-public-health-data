@@ -7,7 +7,7 @@ import { type ConfidenceLevel, formatCalculatedValue, formatValue, segmentLabel 
 import type {
   BenchmarkGeography,
   IndicatorAreaData,
-  IndicatorDetail,
+  IndicatorPageDetail,
   IndicatorRangePeriod,
 } from '../loader.ts';
 import { goalThresholdText, goalVerdict } from '../policy-goal.ts';
@@ -49,7 +49,7 @@ export function TrendTable({
   benchmarks?: readonly BenchmarkChoice[];
   confidence: ConfidenceLevel;
   geography?: BenchmarkGeography;
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   ranges?: Record<string, IndicatorRangePeriod[]>;
   regionData?: IndicatorAreaData[];
   benchmarkData?: IndicatorAreaData[];

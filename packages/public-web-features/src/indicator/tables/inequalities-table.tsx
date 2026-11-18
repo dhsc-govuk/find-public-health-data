@@ -14,7 +14,7 @@ import {
   segmentLabel,
   unitNote,
 } from '../data.ts';
-import type { IndicatorDetail, IndicatorObservation } from '../loader.ts';
+import type { IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
 import { NoteFootnotes, noteMarker } from './note-markers.tsx';
 
 export function InequalitiesTable({
@@ -26,7 +26,7 @@ export function InequalitiesTable({
   areaName = 'England',
 }: {
   confidence: ConfidenceLevel;
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   observations: IndicatorObservation[];
   benchmark?: number | null;
   benchmarkMeasures?: Record<Measure, number | null>;

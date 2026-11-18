@@ -9,6 +9,7 @@ import {
   highlightedAreaCodes,
   neighbourAnchors,
 } from './area-comparison.ts';
+import { useIndicatorLinks } from './links.ts';
 
 const VISIBLE_NEIGHBOUR_ANCHORS = 3;
 // How NHS England groups each upper tier council with its 15 most similar peers.
@@ -87,12 +88,14 @@ export function AreaSortControl({ areas }: { areas: CompareAreaOption[] }) {
 
 function NeighbourControl({
   anchors,
+  idPrefix,
   params,
   action,
   update,
   hidden,
 }: {
   anchors: CompareAreaOption[];
+  idPrefix: string;
 } & Pick<ReturnType<typeof useAreaParams>, 'params' | 'action' | 'update' | 'hidden'>) {
   const ticked = new Set(params.getAll('neighbours'));
   const extra = anchors.slice(VISIBLE_NEIGHBOUR_ANCHORS);
@@ -104,7 +107,7 @@ function NeighbourControl({
     <div className="govuk-checkboxes__item" key={code}>
       <input
         className="govuk-checkboxes__input"
-        id={`compare-neighbours-${code}`}
+        id={`${idPrefix}-${code}`}
         name="neighbours"
         type="checkbox"
         value={code}
@@ -118,7 +121,7 @@ function NeighbourControl({
           )
         }
       />
-      <label className="govuk-label govuk-checkboxes__label" htmlFor={`compare-neighbours-${code}`}>
+      <label className="govuk-label govuk-checkboxes__label" htmlFor={`${idPrefix}-${code}`}>
         Statistical neighbours for {name}
       </label>
     </div>
@@ -126,14 +129,11 @@ function NeighbourControl({
   return (
     <Form method="get" action={action} className="fphd-compare-neighbours">
       {hidden(['neighbours'])}
-      <fieldset className="govuk-fieldset" aria-describedby="compare-neighbours-hint">
+      <fieldset className="govuk-fieldset" aria-describedby={`${idPrefix}-hint`}>
         <legend className="govuk-fieldset__legend govuk-fieldset__legend--s">
           Show statistical neighbours
         </legend>
-        <div
-          className="govuk-hint govuk-body-s govuk-!-margin-bottom-1"
-          id="compare-neighbours-hint"
-        >
+        <div className="govuk-hint govuk-body-s govuk-!-margin-bottom-1" id={`${idPrefix}-hint`}>
           Show the 15 most{' '}
           <a className="govuk-link" href={NEIGHBOUR_METHOD_URL}>
             statistically similar areas
@@ -142,7 +142,7 @@ function NeighbourControl({
         <div className="govuk-checkboxes govuk-checkboxes--small">
           {anchors.slice(0, VISIBLE_NEIGHBOUR_ANCHORS).map(item)}
           {extra.length ? (
-            <div id="compare-neighbours-more" hidden={!showExtra}>
+            <div id={`${idPrefix}-more`} hidden={!showExtra}>
               {extra.map(item)}
             </div>
           ) : null}
@@ -152,7 +152,7 @@ function NeighbourControl({
             type="button"
             className="fphd-link-button govuk-body-s govuk-!-margin-top-1"
             aria-expanded={showExtra}
-            aria-controls="compare-neighbours-more"
+            aria-controls={`${idPrefix}-more`}
             onClick={() => setOpen(!showExtra)}
           >
             {showExtra
@@ -181,6 +181,7 @@ export function AreaControls({
   areas: CompareAreaOption[];
   displayOptions?: boolean;
 }) {
+  const links = useIndicatorLinks();
   const { params, action, update, hidden } = useAreaParams(
     displayOptions ? 'indicator-compare-areas' : 'indicator-compare-indicators',
     areas,
@@ -189,7 +190,7 @@ export function AreaControls({
     ? highlightedAreaCodes(params, areas)
     : params.getAll('highlight');
   const regions = displayOptions ? areaComparisonRegions(areas) : [];
-  const anchors = displayOptions ? neighbourAnchors(highlighted, areas) : [];
+  const anchors = neighbourAnchors(highlighted, areas);
   const search = params.get('geo-q')?.trim() ?? '';
   const matches = search
     ? areas.filter(({ name }) => name.toLowerCase().includes(search.toLowerCase()))
@@ -218,6 +219,7 @@ export function AreaControls({
             key={group}
             flat
             name="highlight"
+            choicesLabel={`Geography choices for ${displayOptions ? 'Compare areas' : 'Compare indicators'}`}
             levels={[group]}
             selected={highlighted}
             selectedLevels={[]}
@@ -230,7 +232,7 @@ export function AreaControls({
             }
             searchLabel={`Highlight ${geographyGroupLabel(group)}`}
             searchHint="Search areas"
-            lookupUrl={`/geographies?indicator=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}`}
+            lookupUrl={`${links.geographies}?indicator=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}`}
             fallback={{
               query: search,
               level: '',
@@ -248,6 +250,7 @@ export function AreaControls({
         {anchors.length ? (
           <NeighbourControl
             anchors={anchors}
+            idPrefix={displayOptions ? 'compare-neighbours' : 'pair-neighbours'}
             params={params}
             action={action}
             update={update}

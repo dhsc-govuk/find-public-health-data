@@ -15,6 +15,7 @@ describe('GeographyTree', () => {
     vi.stubGlobal('fetch', fetch);
     render(
       <GeographyTree
+        choicesLabel="Geography choices"
         levels={['Statistical regions']}
         name="areas"
         onChange={() => undefined}
@@ -45,6 +46,7 @@ describe('GeographyTree', () => {
     vi.stubGlobal('fetch', () => new Promise(() => undefined));
     const { container } = render(
       <GeographyTree
+        choicesLabel="Geography choices"
         levels={['Local authorities']}
         name="areas"
         onChange={() => undefined}
@@ -66,6 +68,7 @@ describe('GeographyTree', () => {
     vi.stubGlobal('fetch', () => new Promise(() => undefined));
     render(
       <GeographyTree
+        choicesLabel="Geography choices"
         levels={['Local authorities']}
         name="areas"
         onChange={() => undefined}
@@ -95,9 +98,12 @@ it('searches a flat catalogue supplied after the tab loader finishes', () => {
     onLevelsChange: () => undefined,
   };
   const fallback = { query: '', level: '', groups: [], previews: [], error: false };
-  const { rerender } = render(<GeographyTree {...props} fallback={fallback} />);
+  const { rerender } = render(
+    <GeographyTree choicesLabel="Geography choices" {...props} fallback={fallback} />,
+  );
   rerender(
     <GeographyTree
+      choicesLabel="Geography choices"
       {...props}
       fallback={{
         ...fallback,
@@ -114,6 +120,32 @@ it('searches a flat catalogue supplied after the tab loader finishes', () => {
   );
 });
 
+it('names each scrolling region with the label its tree is given', () => {
+  const tree = (choicesLabel: string) => (
+    <GeographyTree
+      choicesLabel={choicesLabel}
+      flat
+      levels={['Local authorities']}
+      name="areas"
+      selected={[]}
+      selectedLevels={[]}
+      onChange={() => undefined}
+      onLevelsChange={() => undefined}
+    />
+  );
+  render(
+    <>
+      {tree('Geography choices for Data')}
+      {tree('Geography choices for Area summaries')}
+    </>,
+  );
+
+  expect(screen.getAllByRole('region').map((region) => region.getAttribute('aria-label'))).toEqual([
+    'Geography choices for Data',
+    'Geography choices for Area summaries',
+  ]);
+});
+
 describe('GeographyTree regions', () => {
   const areas = [
     { code: 'E06000001', name: 'Hartlepool' },
@@ -127,6 +159,7 @@ describe('GeographyTree regions', () => {
   ];
   const tree = (selected: string[], onChange = vi.fn(), maxAreaTicks?: number) => (
     <GeographyTree
+      choicesLabel="Geography choices"
       flat
       levels={['Local authorities']}
       name="highlight"

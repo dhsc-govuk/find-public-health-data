@@ -39,6 +39,11 @@ interface GeographyTreeProps {
   levels: string[];
   /** Field name for each area checkbox, so the tree works inside a plain form. */
   name: string;
+  /**
+   * The name of the tree's scrolling region. A page can show several trees, so each needs its
+   * own name for screen reader users to tell the regions apart.
+   */
+  choicesLabel: string;
   /** Field name for each level checkbox. Defaults to 'als'. */
   levelName?: string;
   /** Maximum number of area ticks allowed. Stops accepting new ticks at the cap. */
@@ -72,6 +77,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 export function GeographyTree({
   levels,
   name,
+  choicesLabel,
   levelName = 'als',
   maxAreaTicks,
   onChange,
@@ -345,7 +351,7 @@ export function GeographyTree({
         <section
           className="fphd-geo-alt__tree"
           ref={resultsRef}
-          aria-label="Geography choices"
+          aria-label={choicesLabel}
           // biome-ignore lint/a11y/noNoninteractiveTabindex: the choices must remain keyboard-scrollable when empty.
           tabIndex={0}
         >

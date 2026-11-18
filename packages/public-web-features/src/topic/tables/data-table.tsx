@@ -2,7 +2,7 @@ import { formatDate, TableScrollRegion, TableSize } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { memo, type ReactNode, useId } from 'react';
 import { Link } from 'react-router';
-import { SpineChart } from '../../indicator/charts/spine-chart.tsx';
+import { SpineChart, SpineChartKey } from '../../indicator/charts/spine-chart.tsx';
 import { formatCalculatedValue, formatValue, recentTrend, withUnit } from '../../indicator/data.ts';
 import { TrendTag } from '../../indicator/trend-tag.tsx';
 import {
@@ -111,9 +111,12 @@ function ComparisonChart({ areaName, cell, row }: { areaName: string; cell: Cell
   const benchmarkValue = cell.benchmark?.value ?? (cell.period ? null : row.england?.value) ?? null;
   const { range } = cell;
   if (cell.value == null || benchmarkValue == null || !range) return <NoData />;
-  const label = (value: number) => withUnit(formatCalculatedValue(value), row.unit);
   return (
     <SpineChart
+      indicatorName={row.name}
+      period={cell.period ?? row.period}
+      areaName={areaName}
+      benchmarkName="England"
       value={cell.value}
       benchmarkValue={benchmarkValue}
       min={range.min}
@@ -122,9 +125,6 @@ function ComparisonChart({ areaName, cell, row }: { areaName: string; cell: Cell
       p75={range.p75}
       unit={row.unit}
       judgement={cell.judgement ?? 'none'}
-      valueLabel={`${areaName}: ${label(cell.value)}`}
-      benchmarkLabel={`England: ${label(benchmarkValue)}`}
-      rangeLabel={`Range: ${label(range.min)} to ${label(range.max)}`}
     />
   );
 }
@@ -203,191 +203,194 @@ export const TopicDataTable = memo(function TopicDataTable({
   const groupId = (code: string) => `${prefix}-${code}`;
   const columnId = (code: string, key: string) => `${prefix}-${code}-${key}`;
   return (
-    <TableScrollRegion label={`${title} indicators comparison table`}>
-      <table
-        id={id ?? `${prefix}-table`}
-        tabIndex={-1}
-        className="govuk-table fphd-compare-table fphd-topic-data-table"
-      >
-        <caption className="govuk-table__caption govuk-table__caption--s">
-          {compared
-            ? `${title} indicators: ${areaList} compared with England`
-            : `${title} indicators for England`}
-          <TableSize rows={rows.length} columns={columnCount} />
-          {model.mixedGeographyLevels &&
-          (columns.includes('minmax') || columns.includes('percentiles')) ? (
-            <span className="fphd-table-note">
-              {' '}
-              England spread values are unavailable when chosen areas have different geography
-              types.
-            </span>
-          ) : null}
-        </caption>
-        <colgroup>
-          {/* Width attributes, not styles: the content security policy blocks inline styles. */}
-          <col className="fphd-topic-data-table__indicator-column" width={indicatorWidth} />
-          {widths.map((width, index) => (
-            <col key={index} width={width} />
-          ))}
-        </colgroup>
-        <thead className="govuk-table__head">
-          {grouped ? (
-            <tr className="govuk-table__row">
-              {leading.map(({ key, className }) => (
-                <td key={key} aria-hidden="true" className={`govuk-table__cell ${className}`} />
-              ))}
-              {areaColumns.length
-                ? areas.map((area) => (
-                    <th
-                      id={groupId(area.code)}
-                      key={area.code}
-                      scope="colgroup"
-                      colSpan={areaColumns.length}
-                      className="govuk-table__header"
-                    >
-                      {area.name}
-                    </th>
-                  ))
-                : null}
-              {englandMeasures.length ? (
-                <th
-                  id={groupId('england')}
-                  scope="colgroup"
-                  colSpan={englandMeasures.length}
-                  className="govuk-table__header fphd-trend-table__benchmark-group"
-                >
-                  England
-                </th>
-              ) : null}
-            </tr>
-          ) : null}
-          <tr className="govuk-table__row">
-            {leading.map(({ key, label, className }) => (
-              <th
-                id={`${prefix}-${key}`}
-                key={key}
-                scope="col"
-                className={`govuk-table__header ${className}`}
-              >
-                {label}
-              </th>
+    <>
+      {areaColumns.includes('chart') ? <SpineChartKey /> : null}
+      <TableScrollRegion label={`${title} indicators comparison table`}>
+        <table
+          id={id ?? `${prefix}-table`}
+          tabIndex={-1}
+          className="govuk-table fphd-compare-table fphd-topic-data-table"
+        >
+          <caption className="govuk-table__caption govuk-table__caption--s">
+            {compared
+              ? `${title} indicators: ${areaList} compared with England`
+              : `${title} indicators for England`}
+            <TableSize rows={rows.length} columns={columnCount} />
+            {model.mixedGeographyLevels &&
+            (columns.includes('minmax') || columns.includes('percentiles')) ? (
+              <span className="fphd-table-note">
+                {' '}
+                England spread values are unavailable when chosen areas have different geography
+                types.
+              </span>
+            ) : null}
+          </caption>
+          <colgroup>
+            {/* Width attributes, not styles: the content security policy blocks inline styles. */}
+            <col className="fphd-topic-data-table__indicator-column" width={indicatorWidth} />
+            {widths.map((width, index) => (
+              <col key={index} width={width} />
             ))}
-            {areas.flatMap((area) =>
-              areaColumns.map((key) => (
-                <th
-                  id={columnId(area.code, key)}
-                  key={`${area.code}-${key}`}
-                  scope="col"
-                  className="govuk-table__header"
-                >
-                  {HEADINGS[key]}
-                </th>
-              )),
-            )}
-            {englandMeasures.map((measure) => (
-              <th
-                id={columnId('england', measure)}
-                key={`england-${measure}`}
-                scope="col"
-                className="govuk-table__header fphd-trend-table__benchmark-cell"
-              >
-                {HEADINGS[measure]}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="govuk-table__body">
-          {rows.map((row, index) => {
-            const rowId = `${prefix}-row-${index}`;
-            return (
-              <tr className="govuk-table__row" key={row.key}>
-                <th id={rowId} scope="row" className="govuk-table__header fphd-table__frozen">
-                  <Link className="govuk-link" to={indicatorPath(row.slug)}>
-                    {row.name}
-                  </Link>
-                  {row.suffix ? ` ${row.suffix}` : ''}
-                  {row.subtopics.map((subtopic) => (
-                    <span
-                      className="govuk-hint govuk-body-s govuk-!-margin-top-1 govuk-!-margin-bottom-0 fphd-topic-subtopic"
-                      key={subtopic}
-                    >
-                      {subtopic}
-                    </span>
-                  ))}
-                </th>
-                {columns.includes('period') ? (
-                  <td
-                    headers={`${rowId} ${prefix}-period`}
-                    className="govuk-table__cell fphd-table__frozen fphd-table__frozen--second"
+          </colgroup>
+          <thead className="govuk-table__head">
+            {grouped ? (
+              <tr className="govuk-table__row">
+                {leading.map(({ key, className }) => (
+                  <td key={key} aria-hidden="true" className={`govuk-table__cell ${className}`} />
+                ))}
+                {areaColumns.length
+                  ? areas.map((area) => (
+                      <th
+                        id={groupId(area.code)}
+                        key={area.code}
+                        scope="colgroup"
+                        colSpan={areaColumns.length}
+                        className="govuk-table__header"
+                      >
+                        {area.name}
+                      </th>
+                    ))
+                  : null}
+                {englandMeasures.length ? (
+                  <th
+                    id={groupId('england')}
+                    scope="colgroup"
+                    colSpan={englandMeasures.length}
+                    className="govuk-table__header fphd-trend-table__benchmark-group"
                   >
-                    {row.period && row.period !== 'No data' ? row.period : <NoData />}
-                  </td>
+                    England
+                  </th>
                 ) : null}
-                {columns.includes('updated') ? (
-                  <td headers={`${rowId} ${prefix}-updated`} className="govuk-table__cell">
-                    {row.updatedAt ? formatDate(row.updatedAt, 'short') : 'Not known'}
-                  </td>
-                ) : null}
-                {areas.flatMap((area) => {
-                  const cell = row.cells.find(({ areaCode }) => areaCode === area.code);
-                  // An area whose latest data is older than the row's says which period it shows.
-                  const period = cell?.period ? (
-                    <span className="govuk-hint govuk-body-s govuk-!-margin-bottom-0 fphd-topic-subtopic">
-                      ({cell.period})
-                    </span>
-                  ) : null;
-                  return areaColumns.map((key) => (
+              </tr>
+            ) : null}
+            <tr className="govuk-table__row">
+              {leading.map(({ key, label, className }) => (
+                <th
+                  id={`${prefix}-${key}`}
+                  key={key}
+                  scope="col"
+                  className={`govuk-table__header ${className}`}
+                >
+                  {label}
+                </th>
+              ))}
+              {areas.flatMap((area) =>
+                areaColumns.map((key) => (
+                  <th
+                    id={columnId(area.code, key)}
+                    key={`${area.code}-${key}`}
+                    scope="col"
+                    className="govuk-table__header"
+                  >
+                    {HEADINGS[key]}
+                  </th>
+                )),
+              )}
+              {englandMeasures.map((measure) => (
+                <th
+                  id={columnId('england', measure)}
+                  key={`england-${measure}`}
+                  scope="col"
+                  className="govuk-table__header fphd-trend-table__benchmark-cell"
+                >
+                  {HEADINGS[measure]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="govuk-table__body">
+            {rows.map((row, index) => {
+              const rowId = `${prefix}-row-${index}`;
+              return (
+                <tr className="govuk-table__row" key={row.key}>
+                  <th id={rowId} scope="row" className="govuk-table__header fphd-table__frozen">
+                    <Link className="govuk-link" to={indicatorPath(row.slug)}>
+                      {row.name}
+                    </Link>
+                    {row.suffix ? ` ${row.suffix}` : ''}
+                    {row.subtopics.map((subtopic) => (
+                      <span
+                        className="govuk-hint govuk-body-s govuk-!-margin-top-1 govuk-!-margin-bottom-0 fphd-topic-subtopic"
+                        key={subtopic}
+                      >
+                        {subtopic}
+                      </span>
+                    ))}
+                  </th>
+                  {columns.includes('period') ? (
                     <td
-                      key={`${area.code}-${key}`}
-                      headers={`${rowId} ${groupId(area.code)} ${columnId(area.code, key)}`}
-                      className={`govuk-table__cell${key === 'chart' ? ' fphd-table__chart-cell' : ''}`}
+                      headers={`${rowId} ${prefix}-period`}
+                      className="govuk-table__cell fphd-table__frozen fphd-table__frozen--second"
                     >
-                      {key === 'chart' ? (
-                        cell ? (
-                          <ComparisonChart areaName={area.name} cell={cell} row={row} />
-                        ) : (
-                          <NoData />
-                        )
-                      ) : key === 'summary' ? (
-                        cell?.value == null ? (
-                          <NoData />
+                      {row.period && row.period !== 'No data' ? row.period : <NoData />}
+                    </td>
+                  ) : null}
+                  {columns.includes('updated') ? (
+                    <td headers={`${rowId} ${prefix}-updated`} className="govuk-table__cell">
+                      {row.updatedAt ? formatDate(row.updatedAt, 'short') : 'Not known'}
+                    </td>
+                  ) : null}
+                  {areas.flatMap((area) => {
+                    const cell = row.cells.find(({ areaCode }) => areaCode === area.code);
+                    // An area whose latest data is older than the row's says which period it shows.
+                    const period = cell?.period ? (
+                      <span className="govuk-hint govuk-body-s govuk-!-margin-bottom-0 fphd-topic-subtopic">
+                        ({cell.period})
+                      </span>
+                    ) : null;
+                    return areaColumns.map((key) => (
+                      <td
+                        key={`${area.code}-${key}`}
+                        headers={`${rowId} ${groupId(area.code)} ${columnId(area.code, key)}`}
+                        className={`govuk-table__cell${key === 'chart' ? ' fphd-table__chart-cell' : ''}`}
+                      >
+                        {key === 'chart' ? (
+                          cell ? (
+                            <ComparisonChart areaName={area.name} cell={cell} row={row} />
+                          ) : (
+                            <NoData />
+                          )
+                        ) : key === 'summary' ? (
+                          cell?.value == null ? (
+                            <NoData />
+                          ) : (
+                            <>
+                              {comparisonSummary(cell.judgement, cell.benchmark, row.unit)}
+                              {measures.includes('value') ? null : period}
+                            </>
+                          )
                         ) : (
                           <>
-                            {comparisonSummary(cell.judgement, cell.benchmark, row.unit)}
-                            {measures.includes('value') ? null : period}
+                            {measureValue(key, cell, row.unit)}
+                            {key === 'trend' ? null : period}
                           </>
-                        )
-                      ) : (
-                        <>
-                          {measureValue(key, cell, row.unit)}
-                          {key === 'trend' ? null : period}
-                        </>
-                      )}
+                        )}
+                      </td>
+                    ));
+                  })}
+                  {englandMeasures.map((measure) => (
+                    <td
+                      key={`england-${measure}`}
+                      headers={`${rowId} ${groupId('england')} ${columnId('england', measure)}`}
+                      className="govuk-table__cell fphd-trend-table__benchmark-cell"
+                    >
+                      {measureValue(measure, row.england, row.unit)}
+                      {!columns.includes('period') &&
+                      (measure === 'count' || measure === 'numerator' || measure === 'value') &&
+                      row.england?.[measure] != null &&
+                      row.period ? (
+                        <span className="govuk-hint govuk-body-s govuk-!-margin-bottom-0 fphd-topic-subtopic">
+                          {row.period}
+                        </span>
+                      ) : null}
                     </td>
-                  ));
-                })}
-                {englandMeasures.map((measure) => (
-                  <td
-                    key={`england-${measure}`}
-                    headers={`${rowId} ${groupId('england')} ${columnId('england', measure)}`}
-                    className="govuk-table__cell fphd-trend-table__benchmark-cell"
-                  >
-                    {measureValue(measure, row.england, row.unit)}
-                    {!columns.includes('period') &&
-                    (measure === 'count' || measure === 'numerator' || measure === 'value') &&
-                    row.england?.[measure] != null &&
-                    row.period ? (
-                      <span className="govuk-hint govuk-body-s govuk-!-margin-bottom-0 fphd-topic-subtopic">
-                        {row.period}
-                      </span>
-                    ) : null}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </TableScrollRegion>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TableScrollRegion>
+    </>
   );
 });

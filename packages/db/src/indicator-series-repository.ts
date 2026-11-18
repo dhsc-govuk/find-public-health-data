@@ -5,17 +5,20 @@ import {
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import type {
   IndicatorAreaData,
   IndicatorObservation,
 } from './indicator-observation-repository.ts';
 import type { ViewSet } from './schema/index.ts';
 
-type Result = Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>;
+type Result = Map<
+  string,
+  { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[]; sexes?: string[] }
+>;
 
 async function readPoints(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   benchmarkIds: string[],
@@ -67,7 +70,7 @@ async function readPoints(
 }
 
 export async function getIndicatorSeriesData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
   codes: string[],
@@ -190,6 +193,7 @@ export async function getIndicatorSeriesData(
           (a, b) => b.toDate.localeCompare(a.toDate) || b.fromDate.localeCompare(a.fromDate),
         )[0];
       result.set(indicatorId, {
+        sexes: [...new Set(selected.map(({ sex }) => sex).filter(Boolean))],
         areaData: ordered.map((a) => {
           const pointId = chosen.find((row) => row.areaId === a.id)?.rankingObservationId;
           const point =
@@ -210,7 +214,10 @@ export async function getIndicatorSeriesData(
             areaCode: a.code,
             areaName: a.name,
             ...(includePopulationKeys
-              ? { populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))] }
+              ? {
+                  // Sorted, since the rows come back in no fixed order and equal reads should match.
+                  populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))].sort(),
+                }
               : {}),
             observations:
               point && point.fromDate === latest?.fromDate && point.toDate === latest?.toDate

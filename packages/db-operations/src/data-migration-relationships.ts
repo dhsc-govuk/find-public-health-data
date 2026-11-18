@@ -6,11 +6,6 @@ import {
 } from './indicator-topic-file.ts';
 
 export const dataMigrationRelationshipsSchema = indicatorTopicFileSchema.extend({
-  approval: z.object({
-    approvedBy: z.string().min(1),
-    approvedAt: z.iso.datetime({ offset: true }),
-    basis: z.string().min(1),
-  }),
   indicators: z.array(z.number().int().positive()),
 });
 

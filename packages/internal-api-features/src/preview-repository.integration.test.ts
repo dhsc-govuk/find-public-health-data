@@ -1,6 +1,6 @@
 import {
   createDbFromTransaction,
-  getPublishedIndicatorById,
+  getIndicatorDetailById,
   listPublishedIndicators,
   publishedViews,
   resolveIndicatorIdBySlug,
@@ -93,7 +93,7 @@ it('shows the version the setting names through the public repository functions'
 it('reads draft policy goals through the preview while keeping the published goal', async () => {
   const update = await openedUpdate(testDb.db, 'Policy goals in preview');
   const publishedGoal = (
-    await getPublishedIndicatorById(internalDb, publishedViews, update.indicatorId)
+    await getIndicatorDetailById(internalDb, publishedViews, update.indicatorId)
   )?.goal;
   await testDb.db
     .update(indicatorVersion)
@@ -110,8 +110,8 @@ it('reads draft policy goals through the preview while keeping the published goa
     await tx`SELECT set_config(${PREVIEW_VERSION_SETTING}, ${update.versionId}, true)`;
     const db = createDbFromTransaction(tx);
     return {
-      draft: (await getPublishedIndicatorById(db, previewViews, update.indicatorId))?.goal,
-      published: (await getPublishedIndicatorById(db, publishedViews, update.indicatorId))?.goal,
+      draft: (await getIndicatorDetailById(db, previewViews, update.indicatorId))?.goal,
+      published: (await getIndicatorDetailById(db, publishedViews, update.indicatorId))?.goal,
     };
   });
 

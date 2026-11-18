@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import {
+  expectNoAccessibilityViolations,
+  expectUniqueLandmarkNames,
+} from '../support/accessibility.ts';
 import { downloadFrom } from '../support/downloads.ts';
 import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
 import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
@@ -104,6 +107,7 @@ test('answers an unknown indicator with the not-found page', async ({ page }) =>
   const response = await page.goto('/indicator/no-such-indicator');
   expect(response?.status()).toBe(404);
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  await expect(page).toHaveTitle(/^Page not found - /);
 });
 
 test('redirects a numeric indicator address to its slug and keeps the query', async ({ page }) => {
@@ -830,17 +834,16 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
     `${MORTALITY_PATH}?compareWith=under-75-mortality-rate-from-cancer`,
   );
   const scatter = page.getByRole('application', {
-    name: /^Under 75 mortality rate from cancer compared with Under 75 mortality rate from all causes/,
+    name: /^Under 75 mortality rate from all causes, female compared with Under 75 mortality rate from cancer, female/,
   });
   await expect(scatter.locator('.recharts-scatter-symbol').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Swap axes' }).click();
+  await page.getByRole('button', { name: 'Swap axis' }).click();
   await expect(
     page.getByRole('application', {
-      name: /^Under 75 mortality rate from all causes compared with Under 75 mortality rate from cancer/,
+      name: /^Under 75 mortality rate from cancer, female compared with Under 75 mortality rate from all causes, female/,
     }),
   ).toBeVisible();
   const comparisonChart = page.locator('#compare-chart-section');
-  await comparisonChart.getByText('View chart data as a table', { exact: true }).click();
   await expect(
     comparisonChart.getByRole('rowheader', { name: 'England', exact: true }),
   ).toBeVisible();
@@ -1125,4 +1128,195 @@ test('lets a table that fits keep the browser’s layout without a custom scroll
     .evaluate((row) => window.scrollTo(0, row.getBoundingClientRect().top + window.scrollY));
   await expect(page.locator('.fphd-sticky-header').filter({ visible: true })).toHaveCount(0);
   await expect(page.locator('.fphd-table-scrollbar--floating')).toHaveCount(0);
+});
+
+test('switches the scatter between all local authorities and statistical neighbours for the selected LA', async ({
+  page,
+}, testInfo) => {
+  await page.getByRole('tab', { name: 'Compare indicators', exact: true }).click();
+  await page
+    .getByRole('combobox', { name: 'Search for an indicator' })
+    .fill('mortality rate from cancer');
+  await page
+    .getByRole('option', { name: 'Under 75 mortality rate from cancer', exact: true })
+    .click();
+  const panel = page.locator('#indicator-compare-indicators');
+  const chart = panel.locator('#compare-chart-section');
+  const marks = chart.locator('.recharts-scatter-symbol');
+  await expect(marks.first()).toBeVisible();
+  const all = await marks.count();
+  await panel.getByRole('searchbox', { name: 'Highlight local authorities' }).fill('West Sussex');
+  await panel.getByRole('checkbox', { name: 'West Sussex', exact: true }).check();
+  await expect(panel.getByRole('link', { name: 'Remove West Sussex filter' })).toBeVisible();
+  const neighbour = panel.getByRole('checkbox', { name: 'Statistical neighbours for West Sussex' });
+  await neighbour.check();
+  await expect(marks).toHaveCount(17);
+  await expect(chart.getByRole('list', { name: 'Chart key' })).toContainText(
+    'West Sussex and its statistical neighbours (16)',
+  );
+  await expect(
+    chart.getByText(
+      'Show data for all 16 areas plotted (West Sussex and its statistical neighbours)',
+    ),
+  ).toBeVisible();
+  await expect(chart.locator('circle[fill="#12436d"][stroke="#fff"]')).toHaveCount(1);
+  await expect(chart.locator('.recharts-scatter-symbol polygon[fill="#801650"]')).toHaveCount(1);
+  await chart.getByRole('checkbox', { name: 'Show line of best fit and correlation (r)' }).check();
+  await expect(chart.locator('.recharts-reference-line line')).toHaveAttribute('stroke', '#ca3535');
+  await expect(chart.getByRole('rowheader', { name: 'Correlation (r, estimated)' })).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
+  await neighbour.uncheck();
+  await expect(marks).toHaveCount(all);
+  await panel.getByRole('link', { name: 'Remove West Sussex filter' }).click();
+  await expect(chart.locator('.recharts-scatter-symbol polygon')).toHaveCount(0);
+  await expect(
+    panel.getByRole('checkbox', { name: 'Statistical neighbours for West Sussex' }),
+  ).toHaveCount(0);
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('keeps scatter axes, sex, correlation and controls usable at desktop and mobile widths', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(
+    page,
+    `${MORTALITY_PATH}?tab-indicator=compare&compareWith=under-75-mortality-rate-from-cancer&highlight=E10000032`,
+  );
+  const panel = page.locator('#indicator-compare-indicators');
+  const chart = panel.locator('#compare-chart-section');
+  const plot = chart.locator('.recharts-surface');
+  for (const width of [1020, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(plot).toBeVisible();
+    const box = await plot.boundingBox();
+    expect(box).not.toBeNull();
+    expect((box?.width ?? 0) / (box?.height ?? 1)).toBeCloseTo(780 / 560, 2);
+    const button = chart.getByRole('button', { name: 'Swap axis' });
+    const canvas = await chart.locator('.fphd-scatter-canvas').boundingBox();
+    expect(canvas?.height ?? 0).toBeCloseTo(box?.height ?? 0, 1);
+    const controls = await button.boundingBox();
+    expect(controls?.y).toBeGreaterThan((box?.y ?? 0) + (box?.height ?? 0));
+    await expect(panel.getByRole('radio', { name: 'Female', exact: true })).toBeChecked();
+    await expect(plot).toContainText('female');
+    await expect(plot).toContainText('2024');
+    await panel.getByRole('radio', { name: 'Male', exact: true }).check();
+    await expect(panel.getByRole('radio', { name: 'Male', exact: true })).toBeChecked();
+    await expect(plot).toContainText('male');
+    await button.click();
+    await expect(chart.getByRole('application')).toHaveAttribute(
+      'aria-label',
+      /^Under 75 mortality rate from cancer, male compared with/,
+    );
+    await button.click();
+    await panel.getByRole('radio', { name: 'Female', exact: true }).check();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    await expectNoAccessibilityViolations(page, testInfo);
+  }
+});
+
+test('pairs diabetes QOF prevalence and diabetes mortality at their own latest periods', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=mortality-rate-for-deaths-involving-diabetes-all-ages',
+  );
+  const panel = page.locator('#indicator-compare-indicators');
+  const chart = panel.locator('#compare-chart-section');
+  await expect(chart.locator('.recharts-scatter-symbol').first()).toBeVisible();
+  await expect(chart.getByText('No areas have values for both indicators.')).toHaveCount(0);
+  await expect(chart.locator('.fphd-chart-axis-title').first()).toContainText(
+    'Diabetes: QOF prevalence',
+  );
+  await expect(chart.locator('.fphd-chart-axis-title').first()).toContainText('2024/25');
+  const mortalityAxis = (
+    await chart.locator('.fphd-chart-axis-title').nth(1).locator('tspan').allTextContents()
+  ).join(' ');
+  expect(mortalityAxis).toContain('Mortality rate for deaths involving diabetes, all ages');
+  expect(mortalityAxis).toMatch(/2022 to 2024|2024/);
+  const headers = await chart.getByRole('columnheader').allTextContents();
+  await chart.getByRole('button', { name: 'Swap axis' }).click();
+  await expect
+    .poll(async () =>
+      (
+        await chart.locator('.fphd-chart-axis-title').first().locator('tspan').allTextContents()
+      ).join(' '),
+    )
+    .toBe(mortalityAxis);
+  expect(await chart.getByRole('columnheader').allTextContents()).toEqual([
+    headers[0],
+    headers[2],
+    headers[1],
+  ]);
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('names each geography tree on the page differently at 320px', async ({ page }) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?compareWith=diabetes-qof-prevalence`);
+  await page.setViewportSize({ width: 320, height: 800 });
+
+  // Below tablet width every tab panel shows, so axe scans all three trees.
+  const trees = page.locator('.fphd-geo-alt__tree');
+  await expect(trees).toHaveCount(3);
+  for (const tree of await trees.all()) await expect(tree).toBeVisible();
+  await expectUniqueLandmarkNames(page);
+});
+
+test('shows the GOV.UK focus style on a geography tree reached by keyboard', async ({ page }) => {
+  const panel = page.locator('#indicator-data');
+  const tree = panel.getByRole('region', { name: 'Geography choices for Indicator' });
+  await panel.getByRole('searchbox', { name: 'Search for a geography' }).focus();
+  for (
+    let presses = 0;
+    presses < 5 && !(await tree.evaluate((el) => el === document.activeElement));
+    presses++
+  ) {
+    await page.keyboard.press('Tab');
+  }
+
+  await expect(tree).toBeFocused();
+  // govuk-focused-box draws a yellow ring inside a black one.
+  await expect(tree).toHaveCSS(
+    'box-shadow',
+    'rgb(255, 221, 0) 0px 0px 0px 4px, rgb(11, 12, 12) 0px 0px 0px 8px',
+  );
+});
+
+test('shows the caption of a wide trend table in full at 320px without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+    viewport: { width: 320, height: 800 },
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${MORTALITY_PATH}?as=E08000003&as=E08000007&as=E08000009&cmp-108=england`);
+    const region = page.getByRole('region', { name: `${MORTALITY_NAME} trends over time` });
+    const caption = region.locator('caption');
+    await expect(caption).toContainText(`Table: ${MORTALITY_NAME}, 3 chosen areas`);
+
+    // The caption stays inside the region and its text fits the caption, including once the
+    // table has scrolled sideways.
+    for (const scrollLeft of [0, 600]) {
+      await region.evaluate((element, left) => {
+        element.scrollLeft = left;
+      }, scrollLeft);
+      expect(await region.evaluate((element) => element.scrollLeft)).toBe(scrollLeft);
+      const regionBox = await region.boundingBox();
+      const captionBox = await caption.boundingBox();
+      if (!regionBox || !captionBox) throw new Error('The region and its caption must be shown');
+      expect(captionBox.x).toBeGreaterThanOrEqual(regionBox.x);
+      expect(captionBox.x + captionBox.width).toBeLessThanOrEqual(regionBox.x + regionBox.width);
+      expect(await caption.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+    }
+  } finally {
+    await context.close();
+  }
 });

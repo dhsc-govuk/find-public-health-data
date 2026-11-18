@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Database } from './client.ts';
 import {
-  getPublishedIndicatorById,
+  getIndicatorDetailById,
   type IndicatorSearchFilters,
   listIndicatorFacets,
   resolvePublishedIndicatorId,
@@ -92,7 +92,7 @@ describe('the public year type', () => {
   it('names the months of a year ending on the last day of one', async () => {
     const id = await resolvePublishedIndicatorId(db, publishedViews, WINTER_YEARS);
 
-    expect((await getPublishedIndicatorById(db, publishedViews, id ?? ''))?.yearType).toEqual({
+    expect((await getIndicatorDetailById(db, publishedViews, id ?? ''))?.yearType).toEqual({
       value: 'specified-end-date',
       label: 'August to July',
     });
@@ -101,7 +101,7 @@ describe('the public year type', () => {
   it('names the date of a year ending within a month', async () => {
     const id = await resolvePublishedIndicatorId(db, publishedViews, SURVEY_YEARS);
 
-    expect((await getPublishedIndicatorById(db, publishedViews, id ?? ''))?.yearType?.label).toBe(
+    expect((await getIndicatorDetailById(db, publishedViews, id ?? ''))?.yearType?.label).toBe(
       'Year ending 15 November',
     );
   });
@@ -115,7 +115,7 @@ describe('the public year type', () => {
     async (shortId, value, label) => {
       const id = await resolvePublishedIndicatorId(db, publishedViews, shortId);
 
-      expect((await getPublishedIndicatorById(db, publishedViews, id ?? ''))?.yearType).toEqual({
+      expect((await getIndicatorDetailById(db, publishedViews, id ?? ''))?.yearType).toEqual({
         value,
         label,
       });
@@ -124,7 +124,7 @@ describe('the public year type', () => {
 
   it('is null for an indicator of months, which is still published', async () => {
     const id = await resolvePublishedIndicatorId(db, publishedViews, MONTHLY);
-    const indicator = await getPublishedIndicatorById(db, publishedViews, id ?? '');
+    const indicator = await getIndicatorDetailById(db, publishedViews, id ?? '');
 
     expect(indicator?.shortId).toBe(MONTHLY);
     expect(indicator?.yearType).toBeNull();
