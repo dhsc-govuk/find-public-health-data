@@ -141,12 +141,14 @@ function inDays(value: string, unit: AgeUnit): number {
 function ageRangeProblems(range: AgeRange, index: number): Partial<Record<AgeRangePart, string>> {
   const { lowerLimit, lowerLimitUnit, upperLimit, upperLimitUnit } = range;
 
+  // An empty range asks for the lower limit's period too, as a specific age asks for its own.
   if (lowerLimit === '' && lowerLimitUnit === '' && upperLimit === '' && upperLimitUnit === '') {
     return {
       lowerLimit:
         index === 0
           ? 'You must enter at least a lower or upper limit'
           : `You must enter at least a lower or upper limit for range ${index + 1}`,
+      lowerLimitUnit: selectLimitUnit('lower', index),
     };
   }
 
