@@ -22,8 +22,10 @@ export {
   resolveDbTls,
 } from './env.ts';
 export {
+  completeIndicatorDetail,
+  type FoundIndicatorDetail,
+  getIndicatorDetailById,
   getIndicatorObservations,
-  getPublishedIndicatorById,
   type IndicatorAreaData,
   type IndicatorDetail,
   type IndicatorFacets,

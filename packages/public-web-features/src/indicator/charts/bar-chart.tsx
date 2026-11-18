@@ -27,8 +27,8 @@ import {
 } from '../data.ts';
 import type {
   IndicatorAreaData,
-  IndicatorDetail,
   IndicatorObservation,
+  IndicatorPageDetail,
   SelectedIndicator,
 } from '../loader.ts';
 import {
@@ -91,7 +91,7 @@ function ObservationBars({
 }: {
   rows: BarRow[];
   confidence: ConfidenceLevel;
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   title: string;
   group: string;
   benchmark?: { name: string; value: number };
@@ -309,7 +309,7 @@ export function InequalitiesChart({
 }: {
   id: string;
   observations: IndicatorObservation[];
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
   comparisonConfidence: ConfidenceLevel;
   areaName: string;
@@ -379,7 +379,7 @@ export function CompareAreasChart({
 }: {
   areas: IndicatorAreaData[];
   confidence: ConfidenceLevel;
-  indicator: IndicatorDetail;
+  indicator: IndicatorPageDetail;
   colourByQuintile: boolean;
   levelByCode: Record<string, string>;
   ranges: NonNullable<SelectedIndicator['ranges']>;

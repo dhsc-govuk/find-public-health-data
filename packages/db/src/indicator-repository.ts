@@ -1,4 +1,5 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
+import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
 import {
   type PublicYearType,
@@ -220,6 +221,33 @@ export interface IndicatorDetail {
   updateSummaries: IndicatorUpdateSummary[];
 }
 
+/**
+ * An indicator's detail as the views hold it, which for a draft may leave questions unanswered.
+ * A null `unit` means no unit unless `unanswered` names it, and a null `updateFrequency` beside
+ * frequency text is an answer.
+ */
+export interface FoundIndicatorDetail extends Omit<IndicatorDetail, 'valueType' | 'polarity'> {
+  valueType: string | null;
+  polarity: Polarity | null;
+  unanswered: IndicatorQuestion[];
+}
+
+/**
+ * The detail the public page shows, or undefined when the indicator has no value type, unit or
+ * polarity. A published version always has all three. An indicator imported without an update
+ * frequency is complete, because the public page shows it without one.
+ */
+export function completeIndicatorDetail({
+  unanswered,
+  valueType,
+  polarity,
+  ...detail
+}: FoundIndicatorDetail): IndicatorDetail | undefined {
+  return valueType === null || polarity === null || unanswered.includes('unit')
+    ? undefined
+    : { ...detail, valueType, polarity };
+}
+
 export interface IndicatorUpdateSummary {
   publishedAt: string;
   summary: string;
@@ -259,22 +287,24 @@ export async function resolveIndicatorIdBySlug(
 }
 
 /**
- * Everything the indicator page needs in one round trip. The view is the published
- * surface, so an unpublished indicator is indistinguishable from one that does not exist.
+ * Everything the indicator page needs in one round trip, as the views hold it. The published
+ * views hold only published indicators, so through them an unpublished indicator is
+ * indistinguishable from one that does not exist.
  */
-export async function getPublishedIndicatorById(
+export async function getIndicatorDetailById(
   db: Database,
   views: ViewSet,
   indicatorId: string,
-): Promise<IndicatorDetail | undefined> {
-  return (await getPublishedIndicatorsByIds(db, views, [indicatorId])).get(indicatorId);
+): Promise<FoundIndicatorDetail | undefined> {
+  return (await getIndicatorDetailsByIds(db, views, [indicatorId])).get(indicatorId);
 }
 
-export async function getPublishedIndicatorsByIds(
+/** The details of the indicators the views hold, keeping those that leave questions unanswered. */
+export async function getIndicatorDetailsByIds(
   db: Database,
   views: ViewSet,
   indicatorIds: string[],
-): Promise<Map<string, IndicatorDetail>> {
+): Promise<Map<string, FoundIndicatorDetail>> {
   const {
     availableData,
     ciMethod,
@@ -336,8 +366,8 @@ export async function getPublishedIndicatorsByIds(
       )`,
     })
     .from(indicator)
-    .innerJoin(valueType, eq(indicator.valueTypeId, valueType.id))
-    .innerJoin(unit, eq(indicator.unitId, unit.id))
+    .leftJoin(valueType, eq(indicator.valueTypeId, valueType.id))
+    .leftJoin(unit, eq(indicator.unitId, unit.id))
     .leftJoin(ciMethod, eq(indicator.ciMethodId, ciMethod.id))
     .leftJoin(comparatorMethod, eq(indicator.comparatorMethodId, comparatorMethod.id))
     .leftJoin(dataSource, eq(indicator.dataSourceId, dataSource.id))
@@ -369,61 +399,80 @@ export async function getPublishedIndicatorsByIds(
       .orderBy(asc(indicatorSource.position)),
   ]);
   return new Map(
-    rows.flatMap((row): [string, IndicatorDetail][] => {
-      if (row.polarity === null) return [];
+    rows.map((row): [string, FoundIndicatorDetail] => {
       const sourcesOf = (part: IndicatorSourcePart) =>
         sources
           .filter((entry) => entry.indicatorId === row.id && entry.part === part)
           .map(({ provider, source }) => ({ provider, source }));
 
       return [
-        [
-          row.id,
-          {
-            shortId: row.shortId,
-            slug: row.slug,
-            name: row.name,
-            valueType: row.valueType,
-            unit: unitLabel({ id: row.unitId, name: row.unitName }, row.unitDetail),
-            yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
-            updateFrequency: row.updateFrequency,
-            updateFrequencyReason: row.updateFrequencyReason,
-            updateFrequencyText: row.updateFrequencyText,
-            polarity: row.polarity,
-            ciMethod: row.ciMethod,
-            ciConfidenceLevel: row.ciConfidenceLevel,
-            comparatorMethod: row.comparatorMethod,
-            dataUpdatedAt: row.dataUpdatedAt?.toISOString() ?? null,
-            firstPublishedAt: row.firstPublishedAt.toISOString(),
-            lastPublishedAt: row.lastPublishedAt.toISOString(),
-            definition: row.definition,
-            rationale: row.rationale,
-            methodology: row.methodology,
-            numeratorDefinition: row.numeratorDefinition,
-            denominatorDefinition: row.denominatorDefinition,
-            disclosureControl: row.disclosureControl,
-            caveats: row.caveats,
-            notes: row.notes,
-            dataSource:
-              row.dataSourceName === null
-                ? null
-                : { name: row.dataSourceName, url: row.dataSourceUrl },
-            numeratorSources: sourcesOf('numerator'),
-            denominatorSources: sourcesOf('denominator'),
-            areaTypes: areaTypes
-              .filter((entry) => entry.indicatorId === row.id)
-              .map(({ indicatorId: _id, ...entry }) => entry),
-            topics: topics.get(row.id) ?? [],
-            classifications: classifications.get(row.id) ?? [],
-            updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({
-              publishedAt: new Date(publishedAt).toISOString(),
-              summary,
-            })),
-          },
-        ],
+        row.id,
+        {
+          shortId: row.shortId,
+          slug: row.slug,
+          name: row.name,
+          valueType: row.valueType,
+          unit:
+            row.unitId === null || row.unitName === null
+              ? null
+              : unitLabel({ id: row.unitId, name: row.unitName }, row.unitDetail),
+          yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
+          updateFrequency: row.updateFrequency,
+          updateFrequencyReason: row.updateFrequencyReason,
+          updateFrequencyText: row.updateFrequencyText,
+          polarity: row.polarity,
+          ciMethod: row.ciMethod,
+          ciConfidenceLevel: row.ciConfidenceLevel,
+          comparatorMethod: row.comparatorMethod,
+          dataUpdatedAt: row.dataUpdatedAt?.toISOString() ?? null,
+          firstPublishedAt: row.firstPublishedAt.toISOString(),
+          lastPublishedAt: row.lastPublishedAt.toISOString(),
+          definition: row.definition,
+          rationale: row.rationale,
+          methodology: row.methodology,
+          numeratorDefinition: row.numeratorDefinition,
+          denominatorDefinition: row.denominatorDefinition,
+          disclosureControl: row.disclosureControl,
+          caveats: row.caveats,
+          notes: row.notes,
+          dataSource:
+            row.dataSourceName === null
+              ? null
+              : { name: row.dataSourceName, url: row.dataSourceUrl },
+          numeratorSources: sourcesOf('numerator'),
+          denominatorSources: sourcesOf('denominator'),
+          areaTypes: areaTypes
+            .filter((entry) => entry.indicatorId === row.id)
+            .map(({ indicatorId: _id, ...entry }) => entry),
+          topics: topics.get(row.id) ?? [],
+          classifications: classifications.get(row.id) ?? [],
+          updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({
+            publishedAt: new Date(publishedAt).toISOString(),
+            summary,
+          })),
+          unanswered: unansweredQuestions(row),
+        },
       ];
     }),
   );
+}
+
+/** The questions a version leaves unanswered. A null unit id is unanswered, not "No unit". */
+function unansweredQuestions(row: {
+  valueType: string | null;
+  unitId: string | null;
+  polarity: Polarity | null;
+  updateFrequency: UpdateFrequency | null;
+  updateFrequencyText: string | null;
+}): IndicatorQuestion[] {
+  const answered: Record<IndicatorQuestion, boolean> = {
+    valueType: row.valueType !== null,
+    unit: row.unitId !== null,
+    polarity: row.polarity !== null,
+    // An indicator imported with only the original text describing its frequency has answered.
+    updateFrequency: row.updateFrequency !== null || row.updateFrequencyText !== null,
+  };
+  return INDICATOR_QUESTIONS.filter((question) => !answered[question]);
 }
 
 export {

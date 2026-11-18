@@ -159,9 +159,7 @@ describe('publishing a scheduled update', () => {
       indicatorStatus: 'live',
       draftStatus: null,
     });
-    expect((await publicSite.indicators.findPublishedById(indicatorId))?.polarity).toBe(
-      'no-polarity',
-    );
+    expect((await publicSite.indicators.findDetailById(indicatorId))?.polarity).toBe('no-polarity');
   });
 
   it('records the publication as Scheduled publication, and History shows "Indicator published"', async () => {
@@ -266,7 +264,7 @@ describe('publishing a renamed update', () => {
     await publishNext();
 
     expect(await slugOf(versionId)).toBe('named-by-the-update');
-    expect(await publicSite.indicators.findPublishedById(indicatorId)).toMatchObject({
+    expect(await publicSite.indicators.findDetailById(indicatorId)).toMatchObject({
       name: 'Named by the update',
       slug: 'named-by-the-update',
     });
@@ -293,7 +291,7 @@ describe('publishing a renamed update', () => {
 
     expect(await versionOf(db, versionId)).toMatchObject({ status: 'published' });
     expect(await slugOf(versionId)).toBe('waiting-for-its-new-name');
-    expect(await publicSite.indicators.findPublishedById(indicatorId)).toMatchObject({
+    expect(await publicSite.indicators.findDetailById(indicatorId)).toMatchObject({
       name: 'Taken while waiting',
       slug: 'waiting-for-its-new-name',
     });
@@ -346,7 +344,7 @@ describe('publishing an update that does not rename the indicator', () => {
     await publishNext();
 
     expect(await slugOf(versionId)).toBe('an-imported-slug');
-    expect(await publicSite.indicators.findPublishedById(indicatorId)).toMatchObject({
+    expect(await publicSite.indicators.findDetailById(indicatorId)).toMatchObject({
       name: 'Named unlike its slug',
       slug: 'an-imported-slug',
     });
@@ -356,7 +354,7 @@ describe('publishing an update that does not rename the indicator', () => {
 
 describe("the public indicator's update summaries", () => {
   async function summariesOf({ indicatorId }: OpenedUpdate) {
-    return (await publicSite.indicators.findPublishedById(indicatorId))?.updateSummaries;
+    return (await publicSite.indicators.findDetailById(indicatorId))?.updateSummaries;
   }
 
   it('lists the summaries of updates published with visibility in history, newest first', async () => {

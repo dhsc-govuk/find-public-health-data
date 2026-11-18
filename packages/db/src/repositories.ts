@@ -18,12 +18,12 @@ import {
 import type { Database } from './client.ts';
 import { coalescedReads } from './coalesced-reads.ts';
 import {
+  type FoundIndicatorDetail,
+  getIndicatorDetailById,
   getIndicatorObservations,
   getIndicatorObservationsForAreas,
   getObservationRange,
-  getPublishedIndicatorById,
   type IndicatorAreaData,
-  type IndicatorDetail,
   type IndicatorFacets,
   type IndicatorSearchFilters,
   type IndicatorSearchResult,
@@ -68,7 +68,11 @@ export interface IndicatorRepository {
   resolveId(shortId: number): Promise<string | undefined>;
   /** The same for a slug, current or superseded; the caller lower-cases it first. */
   resolveIdBySlug(slug: string): Promise<string | undefined>;
-  findPublishedById(indicatorId: string): Promise<IndicatorDetail | undefined>;
+  /**
+   * The detail as the views hold it. The public page shows it only once
+   * `completeIndicatorDetail` finds it complete.
+   */
+  findDetailById(indicatorId: string): Promise<FoundIndicatorDetail | undefined>;
   findObservations(indicatorId: string, areaCode: string): Promise<IndicatorAreaData | undefined>;
   findObservationsForAreas(indicatorId: string, areaCodes: string[]): Promise<IndicatorAreaData[]>;
   findRankingData(indicatorId: string, areaCodes: string[]): Promise<IndicatorAreaData[]>;
@@ -134,7 +138,7 @@ export function createRepositories(db: Database): Repositories {
       search: (query, limit) => searchPublishedIndicators(db, views, query, limit),
       resolveId: (shortId) => resolvePublishedIndicatorId(db, views, shortId),
       resolveIdBySlug: (slug) => resolveIndicatorIdBySlug(db, views, slug),
-      findPublishedById: (indicatorId) => getPublishedIndicatorById(db, views, indicatorId),
+      findDetailById: (indicatorId) => getIndicatorDetailById(db, views, indicatorId),
       findObservations: (indicatorId, areaCode) =>
         getIndicatorObservations(db, views, indicatorId, areaCode),
       findObservationsForAreas: (indicatorId, areaCodes) =>

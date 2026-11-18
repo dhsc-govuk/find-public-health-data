@@ -3,9 +3,8 @@ import {
   areaNeighbourListSchema,
   DEFAULT_INDICATOR_SEARCH_RESULTS,
   type IndicatorAreaData,
-  type IndicatorDetail,
+  type IndicatorPageDetail,
   indicatorAreaDataListSchema,
-  indicatorDetailSchema,
   indicatorListResponseSchema,
   indicatorRangeSchema,
   indicatorScatterSchema,
@@ -35,7 +34,9 @@ import { loadRankingScatterComparison, loadScatterComparison } from './charts/sc
 import { compactIndicator } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { loadIndicatorData, type SelectedIndicator } from './loader.ts';
+import { indicatorPageContext } from './page-context.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
+import { dataPlaceholder } from './placeholders.ts';
 import { createSharedGetsClient } from './shared-gets.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
@@ -48,7 +49,8 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   // The comparison tab and the geography picker both ask for the indicator's local authorities.
   const api = createSharedGetsClient(context.get(apiContext));
   context.set(apiContext, api);
-  const routeDetail = await api.get(apiPath`/api/indicators/${slug}`, indicatorDetailSchema);
+  const { detailSchema } = context.get(indicatorPageContext);
+  const routeDetail = await api.get(apiPath`/api/indicators/${slug}`, detailSchema);
   if (routeDetail.slug !== slug)
     throw redirect(
       `${indicatorPath(routeDetail.slug)}${pageSearch(url)}`,
@@ -59,13 +61,10 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   if (compareSegment && !isIndicatorSegment(compareSegment)) {
     throw new Response('Not Found', { status: 404 });
   }
-  let comparedDetail: IndicatorDetail | undefined;
+  let comparedDetail: IndicatorPageDetail | undefined;
   if (compareSegment) {
     try {
-      comparedDetail = await api.get(
-        apiPath`/api/indicators/${compareSegment}`,
-        indicatorDetailSchema,
-      );
+      comparedDetail = await api.get(apiPath`/api/indicators/${compareSegment}`, detailSchema);
     } catch (error) {
       if (!(error instanceof Response) || error.status !== 404) throw error;
       url.searchParams.delete('compareWith');
@@ -83,6 +82,11 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
     }
   }
 
+  // A preview of a draft with no data to show asks for no data, and shows a placeholder instead.
+  // Its address is checked first, as any page's is.
+  const placeholder = dataPlaceholder(routeDetail);
+  if (placeholder !== null) return { detail: routeDetail, dataPlaceholder: placeholder };
+
   const groups = api.get(
     `${apiPath`/api/indicators/${routeDetail.slug}/areas`}?limit=${MAX_AREA_PREVIEW}`,
     areaDisplayGroupListSchema,
@@ -97,11 +101,12 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
   const comparison = groups.then((groups) =>
     loadIndicatorComparison(api, url, routeDetail, comparedDetail, groups, data),
   );
-  return { detail: routeDetail, comparedDetail, data, comparison };
+  return { detail: routeDetail, dataPlaceholder: null, comparedDetail, data, comparison };
 }
 
 export async function loadIndicatorPage(args: LoaderFunctionArgs) {
   const page = await loadIndicatorPageData(args, true);
+  if (page.dataPlaceholder !== null) return page;
   const data = Promise.resolve(page.data).then((data) => ({
     ...data,
     // The second indicator only appears in the precomputed pair; its history has no client controls.
@@ -164,6 +169,7 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
 
 export async function loadIndicator(args: LoaderFunctionArgs) {
   const page = await loadIndicatorPageData(args);
+  if (page.dataPlaceholder !== null) throw new Response('Not Found', { status: 404 });
   const [data, comparison] = await Promise.all([page.data, page.comparison]);
   return { ...data, ...comparison };
 }
@@ -171,8 +177,8 @@ export async function loadIndicator(args: LoaderFunctionArgs) {
 async function loadIndicatorComparison(
   api: ApiClient,
   url: URL,
-  routeDetail: IndicatorDetail,
-  comparedDetail: IndicatorDetail | undefined,
+  routeDetail: IndicatorPageDetail,
+  comparedDetail: IndicatorPageDetail | undefined,
   indicatorGroups: { displayGroup: string }[],
   data: ReturnType<typeof loadIndicatorData>,
 ) {
@@ -241,7 +247,7 @@ async function loadIndicatorComparison(
       );
     }
     const codes = [...compareAreaOptions.map(({ code }) => code), 'E92000001'];
-    const loadRanking = (detail: IndicatorDetail): Promise<IndicatorAreaData[]> =>
+    const loadRanking = (detail: IndicatorPageDetail): Promise<IndicatorAreaData[]> =>
       codes.length
         ? api.get(
             `${apiPath`/api/indicators/${String(detail.shortId)}/ranking`}?${codes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&')}`,

@@ -47,6 +47,12 @@
       "types": "./src/disclosure-control.ts",
       "default": "./dist/disclosure-control.js"
     },
+    "./indicator-page": {
+      "browser": "./src/indicator-page.ts",
+      "development": "./src/indicator-page.ts",
+      "types": "./src/indicator-page.ts",
+      "default": "./dist/indicator-page.js"
+    },
     "./indicator-path": {
       "browser": "./src/indicator-path.ts",
       "development": "./src/indicator-path.ts",

@@ -88,6 +88,7 @@ function page(
       Component: () => (
         <SingleIndicatorPage
           detail={entries[0]?.detail as IndicatorDetail}
+          dataPlaceholder={null}
           comparedDetail={entries[1]?.detail}
           findSubject={search ? 'mortality' : ''}
           findResults={search ?? []}
@@ -147,6 +148,37 @@ it('opens one indicator with the five prototype tabs and no selection controls',
       name: 'Diabetes prevalence trend chart',
     }).textContent,
   ).toContain('View chart data as a table');
+});
+
+it("reads a placeholder in each data section of a preview's draft with no data to show", async () => {
+  const { detail } = selected(241, 'Diabetes prevalence', 7.9);
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      Component: () => (
+        <SingleIndicatorPage
+          detail={{ ...detail, dataState: 'no-upload', unanswered: [] }}
+          dataPlaceholder="[Not provided yet]"
+        />
+      ),
+    },
+  ]);
+  render(<Routes initialEntries={['/indicator/indicator-241']} />);
+
+  expect(
+    (await screen.findByRole('heading', { level: 1, name: 'Diabetes prevalence' })).textContent,
+  ).toBe('Diabetes prevalence');
+  for (const name of ['Indicator', 'Compare areas', 'Compare indicators', 'Inequalities']) {
+    expect(screen.getByRole('tabpanel', { name, hidden: true }).textContent).toBe(
+      '[Not provided yet]',
+    );
+  }
+  expect(
+    within(screen.getByRole('tabpanel', { name: 'About this indicator', hidden: true })).getByRole(
+      'heading',
+      { name: 'Data attributes' },
+    ),
+  ).toBeTruthy();
 });
 
 it('offers the table columns for the raw numbers the indicator has', () => {
@@ -289,6 +321,7 @@ it('replaces deferred comparison models after changing geography', async () => {
         ];
         return {
           detail: primary.detail,
+          dataPlaceholder: null,
           comparedDetail: undefined,
           complete: false,
           findSubject: '',
