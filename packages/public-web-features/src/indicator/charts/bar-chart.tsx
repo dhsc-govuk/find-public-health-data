@@ -58,7 +58,7 @@ export function InequalitiesChart({
         title={title}
         group="Segment"
         showTable={false}
-        averageEntity="England"
+        averageEntity={areaName}
         colourMode={indicator.polarity === 'higher-is-better' ? 'rag' : 'magnitude'}
         comparisonConfidence={comparisonConfidence}
       />

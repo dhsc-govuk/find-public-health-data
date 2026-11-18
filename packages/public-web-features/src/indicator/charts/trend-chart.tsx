@@ -198,7 +198,7 @@ function TrendPlot({
               : event.key === 'ArrowLeft'
                 ? Math.max(0, periodIndex - 1)
                 : Math.max(0, periodIndex);
-          selection.select({ index, period: periods[nextPeriod]?.key ?? null });
+          selection.move({ index, period: periods[nextPeriod]?.key ?? null });
         }}
       >
         {(descriptionId) => (

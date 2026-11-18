@@ -1,3 +1,4 @@
+import { periodLabel } from '@fphd/utils/period-label';
 import { type ReactNode, useState } from 'react';
 import {
   Bar,
@@ -230,7 +231,7 @@ export function ObservationBars({
           const row = rows[index];
           if (row) {
             if (event.key === 'Enter') selection.pin(row.key);
-            else selection.select(row.key);
+            else selection.move(row.key);
           }
         }}
       >
@@ -368,6 +369,11 @@ export function ObservationBars({
                     <strong>Value:</strong>{' '}
                     {chartValue(row.observation?.value ?? null, indicator.unit)}
                   </div>
+                  {row.observation ? (
+                    <div>
+                      <strong>Period:</strong> {periodLabel(row.observation, indicator.yearType)}
+                    </div>
+                  ) : null}
                   {benchmark ? (
                     <>
                       <div>

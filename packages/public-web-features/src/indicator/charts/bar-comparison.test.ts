@@ -39,6 +39,14 @@ it('prefers the category confidence interval, including both boundaries', () => 
   expect(barComparison({ ...point, value: null }, 10)).toBeNull();
 });
 
+it('calls a bar within half a point similar even when its interval excludes the mean', () => {
+  const point = { ...observation(10.4), lowerCi95: 10.2, upperCi95: 10.6 };
+  expect(barComparison(point, 10)).toBe('similar');
+  expect(barComparison({ ...point, value: 10.8, lowerCi95: 10.6, upperCi95: 11 }, 10)).toBe(
+    'higher',
+  );
+});
+
 it('uses the specified palettes and comparison wording in both modes', () => {
   expect(barPalettes.magnitude).toEqual({
     higher: '#f46a25',

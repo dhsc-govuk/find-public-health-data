@@ -153,6 +153,8 @@ export function useChartSelection<T>() {
     select: (value: T | null) => {
       if (!pinned) setActive(value);
     },
+    // Arrow keys move the selection even while it is pinned, and a pinned one stays pinned.
+    move: (value: T) => setActive(value),
     pin: (value: T) => {
       setActive(value);
       setPinned(true);

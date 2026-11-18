@@ -5,8 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorComparisonModel } from '../comparison-model.ts';
 import type { IndicatorAreaData, IndicatorRangePeriod, SelectedIndicator } from '../loader.ts';
 import { AreaComparisonTable } from '../tables/area-comparison-table.tsx';
-import { indicatorDetail, observation } from '../view.testing.ts';
-import { CompareAreasChart } from './bar-chart.tsx';
+import { deprivation, indicatorDetail, observation } from '../view.testing.ts';
+import { CompareAreasChart, InequalitiesChart } from './bar-chart.tsx';
 
 vi.mock('./chart-elements.tsx', async (original) => ({
   ...(await original<typeof import('./chart-elements.tsx')>()),
@@ -249,3 +249,21 @@ it.each([
     expect(screen.queryByRole('list', { name: 'Comparison key' })).toBeNull();
   },
 );
+
+it('names the chosen area for the average of its inequality bars', () => {
+  const { container } = render(
+    <InequalitiesChart
+      id="inequalities"
+      observations={[8, 12].map((value) =>
+        observation(value, [{ ...deprivation, value: `Decile ${value}` }]),
+      )}
+      indicator={indicatorDetail(108, { unit: '%' })}
+      confidence="none"
+      comparisonConfidence="95"
+      areaName="Cornwall"
+      englandObservations={[]}
+    />,
+  );
+  expect(container.textContent).toContain('Cornwall average 10.0%');
+  expect(container.textContent).not.toContain('England average');
+});

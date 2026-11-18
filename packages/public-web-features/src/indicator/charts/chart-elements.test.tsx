@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, within } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
@@ -7,6 +7,7 @@ import {
   ChartDataTable,
   ChartTooltip,
   PositionedChartTooltip,
+  useChartSelection,
 } from './chart-elements.tsx';
 
 afterEach(() => {
@@ -121,4 +122,14 @@ it('measures the current tooltip content before choosing above or below with a 4
   unmount();
   container.remove();
   vi.unstubAllGlobals();
+});
+
+it('lets the arrow keys move a pinned selection while hover cannot', () => {
+  const { result } = renderHook(() => useChartSelection<string>());
+  act(() => result.current.pin('a'));
+  act(() => result.current.select('b'));
+  expect(result.current.active).toBe('a');
+  act(() => result.current.move('c'));
+  expect(result.current.active).toBe('c');
+  expect(result.current.pinned).toBe(true);
 });

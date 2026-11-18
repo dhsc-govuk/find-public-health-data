@@ -23,3 +23,13 @@ it('separates identical endpoints and preserves their input order', () => {
     ['third', 120],
   ]);
 });
+
+it('keeps spread clusters inside the plot', () => {
+  expect(
+    declutterLabels(
+      [0, 2, 4, 96, 98].map((pointY) => ({ pointY })),
+      20,
+      [0, 100],
+    ).map(({ y }) => y),
+  ).toEqual([0, 20, 40, 80, 100]);
+});

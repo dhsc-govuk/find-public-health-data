@@ -125,6 +125,7 @@ test('average bars are sorted highest to lowest and retain muting while pinned',
   await bars.first().hover();
   const tooltip = chart.getByRole('status');
   await expect(tooltip).toContainText('England average:');
+  await expect(tooltip).toContainText('Period:');
   await expect(tooltip).toContainText('Comparison: Higher than average');
   await expect(tooltip).toHaveCSS('background-color', 'rgb(244, 106, 37)');
   const firstPosition = await tooltip.boundingBox();

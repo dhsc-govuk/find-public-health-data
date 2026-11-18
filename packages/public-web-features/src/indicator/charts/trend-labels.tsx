@@ -5,7 +5,11 @@ export const lineColour = (index: number) =>
   seriesColours[index % seriesColours.length] ?? axisColour;
 export const labelColours = ['#12436d', '#17665f', '#801650', '#9b3714', '#3d3d3d', '#69479e'];
 
-export function declutterLabels<T extends { pointY: number }>(labels: T[], gap = 20) {
+export function declutterLabels<T extends { pointY: number }>(
+  labels: T[],
+  gap = 20,
+  bounds?: [top: number, bottom: number],
+) {
   const sorted = labels
     .map((label) => ({ ...label, y: label.pointY }))
     .sort((a, b) => a.pointY - b.pointY);
@@ -15,8 +19,19 @@ export function declutterLabels<T extends { pointY: number }>(labels: T[], gap =
       end++;
     const cluster = sorted.slice(start, end);
     const average = cluster.reduce((sum, label) => sum + label.pointY, 0) / cluster.length;
+    const first = average - ((cluster.length - 1) / 2) * gap;
+    const last = first + (cluster.length - 1) * gap;
+    // A cluster spread past the plot's top or bottom edge moves back inside it. When it is
+    // taller than the plot, its first label stays at the top.
+    const offset = !bounds
+      ? 0
+      : first < bounds[0]
+        ? bounds[0] - first
+        : last > bounds[1]
+          ? Math.max(bounds[1] - last, bounds[0] - first)
+          : 0;
     cluster.forEach((label, index) => {
-      label.y = average + (index - (cluster.length - 1) / 2) * gap;
+      label.y = first + offset + index * gap;
     });
     start = end;
   }
@@ -51,6 +66,8 @@ export function EndLabels({
       const pointY = y(series.value);
       return pointX == null || pointY == null ? [] : [{ ...series, pointX, pointY }];
     }),
+    20,
+    [plot.y, plot.y + plot.height],
   );
   const labelX = plot.x + plot.width + 10;
   return (

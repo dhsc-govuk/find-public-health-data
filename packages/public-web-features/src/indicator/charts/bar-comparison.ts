@@ -20,12 +20,13 @@ export function barComparison(
   confidence: '95' | '99.8' = '95',
 ): BarComparison | null {
   if (observation?.value == null) return null;
+  const difference = observation.value - average;
+  if (Math.abs(difference) <= 0.5) return 'similar';
   const interval =
     bounds(observation, confidence) ?? bounds(observation, confidence === '95' ? '99.8' : '95');
   if (interval)
     return average < interval[0] ? 'higher' : average > interval[1] ? 'lower' : 'similar';
-  const difference = observation.value - average;
-  return Math.abs(difference) <= 0.5 ? 'similar' : difference > 0 ? 'higher' : 'lower';
+  return difference > 0 ? 'higher' : 'lower';
 }
 
 export function barComparisonText(comparison: BarComparison | null, mode: BarColourMode) {
