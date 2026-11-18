@@ -98,14 +98,16 @@ export function SearchResults({
     <>
       <div className="fphd-results-sort fphd-search-sort govuk-!-margin-top-4 govuk-!-margin-bottom-3">
         <h2
-          aria-atomic="true"
-          aria-live="polite"
           className="govuk-heading-m govuk-!-margin-bottom-0"
           id="results-heading"
           ref={heading}
           tabIndex={-1}
         >
-          {total.toLocaleString()} {total === 1 ? 'indicator' : 'indicators'}
+          {/* Only the count is live. A page link moves focus to the heading, which reads the
+              page number out, so a new page is not announced a second time. */}
+          <span aria-atomic="true" aria-live="polite">
+            {total.toLocaleString()} {total === 1 ? 'indicator' : 'indicators'}
+          </span>
           {totalPages > 1 ? (
             <span className="govuk-visually-hidden">
               , page {page} of {totalPages}

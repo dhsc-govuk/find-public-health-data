@@ -118,6 +118,13 @@ const pageHref = (page: number) =>
   `/search?tab-search=indicators&sort=recently-updated&page=${page}&q=rate&t=mortality`;
 
 describe('SearchResults pages', () => {
+  // jsdom has no scrollIntoView, which the focus tests stub, so it is put back as it was after each.
+  const scrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+  afterEach(() => {
+    if (scrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', scrollIntoView);
+    else Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+  });
+
   it('shows no pages when every result fits on one', () => {
     renderPages('/search?q=rate&t=mortality', 50);
 
@@ -197,6 +204,13 @@ describe('SearchResults pages', () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(heading));
     expect(scrolled).toHaveBeenCalled();
+  });
+
+  it('keeps the page number out of the live count, so a new page announces only by focus', () => {
+    renderPages(pageHref(2));
+
+    const live = screen.getByRole('heading', { level: 2 }).querySelectorAll('[aria-live]');
+    expect([...live].map((region) => region.textContent)).toEqual(['785 indicators']);
   });
 
   it('leaves focus alone when the search changes some other way', async () => {

@@ -241,9 +241,11 @@ test('keeps focus on a filter control while it updates the results', async ({ pa
 test('keeps the results live region while searches update its count', async ({ page }) => {
   await ready(page);
   const heading = page.getByRole('heading', { name: /^12 indicators ?, page 1 of 2$/ });
-  await expect(heading).toHaveAttribute('aria-live', 'polite');
-  await expect(heading).toHaveAttribute('aria-atomic', 'true');
-  const liveRegion = await heading.elementHandle();
+  const count = heading.locator('[aria-live]');
+  await expect(count).toHaveText('12 indicators');
+  await expect(count).toHaveAttribute('aria-live', 'polite');
+  await expect(count).toHaveAttribute('aria-atomic', 'true');
+  const liveRegion = await count.elementHandle();
   if (!liveRegion) throw new Error('The results live region must exist before searching');
 
   const input = page.getByRole('searchbox', { name: 'Search by keywords' });
