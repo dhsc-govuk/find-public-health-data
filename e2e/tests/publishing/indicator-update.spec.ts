@@ -121,7 +121,7 @@ async function writeReply(page: Page, id: string, text: string) {
 /** Chooses an answer on "What should happen to this update?" from the update's overview. */
 async function decide(page: Page, id: string, decision: string) {
   await page.goto(overviewPath(id));
-  await page.getByRole('button', { name: 'Submit update decision' }).click();
+  await page.getByRole('button', { name: 'Confirm update decision' }).click();
   await page.getByLabel(decision, { exact: true }).check();
   await page.getByRole('button', { name: 'Continue' }).click();
 }
@@ -388,12 +388,12 @@ test.describe('the core team', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
-  test('the overview of an "Update pending decision" update gives the core team "Submit update decision"', async ({
+  test('the overview of an "Update pending decision" update gives the core team "Confirm update decision"', async ({
     page,
   }, testInfo) => {
     await page.goto(overviewPath());
 
-    await expect(page.getByRole('button', { name: 'Submit update decision' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Confirm update decision' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'View live indicator' })).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
@@ -402,7 +402,7 @@ test.describe('the core team', () => {
     page,
   }, testInfo) => {
     await page.goto(overviewPath());
-    await page.getByRole('button', { name: 'Submit update decision' }).click();
+    await page.getByRole('button', { name: 'Confirm update decision' }).click();
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'What should happen to this update?' }),
