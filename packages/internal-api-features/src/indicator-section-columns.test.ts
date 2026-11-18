@@ -65,30 +65,49 @@ describe('dataQualityColumns', () => {
 });
 
 describe('updateFrequencyColumns', () => {
-  it('clears an optional frequency description without changing its frequency', () => {
-    expect(
-      updateFrequencyColumns.toAttributes({
-        updateFrequency: 'annually',
-        noFixedFrequencyReason: '',
-        noLongerUpdatedReason: '',
-        updateFrequencyText: '',
-      }),
-    ).toEqual({
-      updateFrequency: 'annually',
-      updateFrequencyReason: null,
+  const typed = {
+    updateFrequencyYears: '3',
+    updateFrequencyText: 'Annual measurements, published in winter.',
+    noFixedFrequencyReason: 'Published when the survey runs.',
+    noLongerUpdatedReason: 'The survey has ended.',
+  };
+
+  it.each([
+    ['annually', {}],
+    ['every-n-years', { updateFrequencyYears: 3 }],
+    ['other', { updateFrequencyText: 'Annual measurements, published in winter.' }],
+    ['no-fixed-frequency', { updateFrequencyReason: 'Published when the survey runs.' }],
+    ['no-longer-updated', { updateFrequencyReason: 'The survey has ended.' }],
+  ] as const)('keeps the details typed under %s alone', (updateFrequency, kept) => {
+    expect(updateFrequencyColumns.toAttributes({ updateFrequency, ...typed })).toEqual({
+      updateFrequency,
+      updateFrequencyYears: null,
       updateFrequencyText: null,
+      updateFrequencyReason: null,
+      ...kept,
     });
   });
 
-  it('reads a frequency that has no reason, leaving both reasons empty', () => {
+  it('reads a frequency that has no details, leaving them all empty', () => {
     expect(
       updateFrequencyColumns.fromDraft({ ...unansweredDraft, updateFrequency: 'annually' }),
     ).toEqual({
       updateFrequency: 'annually',
+      updateFrequencyYears: null,
       updateFrequencyText: null,
       noFixedFrequencyReason: null,
       noLongerUpdatedReason: null,
     });
+  });
+
+  it('reads the number of years as the form gives it', () => {
+    expect(
+      updateFrequencyColumns.fromDraft({
+        ...unansweredDraft,
+        updateFrequency: 'every-n-years',
+        updateFrequencyYears: 3,
+      }),
+    ).toMatchObject({ updateFrequency: 'every-n-years', updateFrequencyYears: '3' });
   });
 
   it.each([
@@ -105,31 +124,13 @@ describe('updateFrequencyColumns', () => {
         }),
       ).toEqual({
         updateFrequency,
+        updateFrequencyYears: null,
         updateFrequencyText: null,
         [shown]: 'The survey has ended.',
         [empty]: null,
       });
     },
   );
-
-  it.each([
-    ['no-fixed-frequency', 'Published when the survey runs.'],
-    ['no-longer-updated', 'The survey has ended.'],
-    ['annually', null],
-  ] as const)('keeps the reason typed under %s alone', (updateFrequency, updateFrequencyReason) => {
-    expect(
-      updateFrequencyColumns.toAttributes({
-        updateFrequency,
-        updateFrequencyText: 'Annual measurements, published in winter.',
-        noFixedFrequencyReason: 'Published when the survey runs.',
-        noLongerUpdatedReason: 'The survey has ended.',
-      }),
-    ).toEqual({
-      updateFrequency,
-      updateFrequencyReason,
-      updateFrequencyText: 'Annual measurements, published in winter.',
-    });
-  });
 });
 
 describe('periodTypeColumns', () => {

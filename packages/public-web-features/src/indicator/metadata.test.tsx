@@ -19,6 +19,7 @@ const indicator: IndicatorDetail = {
   updateFrequency: 'annually',
   updateFrequencyReason: null,
   updateFrequencyText: null,
+  updateFrequencyYears: null,
   polarity: 'lower-is-better',
   ciMethod: null,
   ciConfidenceLevel: null,
@@ -277,7 +278,7 @@ describe('BackgroundInformation', () => {
   });
 });
 
-describe.each(['summary', 'background'] as const)('%s update frequency text', (surface) => {
+describe.each(['summary', 'background'] as const)('%s update frequency', (surface) => {
   const updateFrequencyText = 'Annual measurements during the academic year.\nPublished in winter.';
 
   function frequencyRow(detail: IndicatorDetail) {
@@ -296,35 +297,36 @@ describe.each(['summary', 'background'] as const)('%s update frequency text', (s
       ?.nextElementSibling;
   }
 
-  it.each(['annually', 'no-fixed-frequency', null] as const)(
-    'shows the original text in place of %s when there is no reason',
-    (updateFrequency) => {
-      const row = frequencyRow({
-        ...indicator,
-        updateFrequency,
-        updateFrequencyReason: null,
-        updateFrequencyText,
-      });
+  it('shows the description of an other frequency with its line breaks', () => {
+    const row = frequencyRow({ ...indicator, updateFrequency: 'other', updateFrequencyText });
 
-      expect(row?.textContent).toBe(updateFrequencyText);
-      expect(row?.querySelector('.fphd-metadata-text')?.textContent).toBe(updateFrequencyText);
-    },
-  );
+    expect(row?.textContent).toBe(updateFrequencyText);
+    expect(row?.querySelector('.fphd-metadata-text')?.textContent).toBe(updateFrequencyText);
+  });
 
-  it('keeps the reason the publisher gave after the original text', () => {
+  it('shows the number of years of a frequency of more than 1 year', () => {
+    const row = frequencyRow({
+      ...indicator,
+      updateFrequency: 'every-n-years',
+      updateFrequencyYears: 3,
+    });
+
+    expect(row?.textContent).toBe('Every 3 years');
+  });
+
+  it('shows the reason the publisher gave below its introduction', () => {
     const row = frequencyRow({
       ...indicator,
       updateFrequency: 'no-longer-updated',
       updateFrequencyReason: 'The survey has ended.',
-      updateFrequencyText,
     });
 
     expect(row?.textContent).toBe(
-      `${updateFrequencyText}This indicator will no longer be updated for the following reason:The survey has ended.`,
+      'This indicator will no longer be updated for the following reason:The survey has ended.',
     );
     expect(
       [...(row?.querySelectorAll('.fphd-metadata-text') ?? [])].map((part) => part.textContent),
-    ).toEqual([updateFrequencyText, 'The survey has ended.']);
+    ).toEqual(['The survey has ended.']);
   });
 });
 

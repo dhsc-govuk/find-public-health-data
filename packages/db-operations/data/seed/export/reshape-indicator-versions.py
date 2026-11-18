@@ -68,7 +68,7 @@ VERSION_COLUMNS = [
 WITHOUT_UPDATE_FREQUENCY = {"94194"}
 
 # Neither export carries Pholio's frequency prose, so the e2e suite's indicator with its own
-# wording takes it from Fingertips here.
+# wording takes it from Fingertips here, as the description of an "Other" frequency.
 UPDATE_FREQUENCY_TEXTS = {
     "92026": "Annual measurements during academic year. Data published in the final quarter of the calendar year.",
 }
@@ -154,6 +154,8 @@ def main(seed_dir):
             else ""
         )
         version["update_frequency_text"] = UPDATE_FREQUENCY_TEXTS.get(row["short_id"], "")
+        if version["update_frequency_text"]:
+            version["update_frequency"] = "other"
         if row["year_type_id"]:
             version.update(
                 {

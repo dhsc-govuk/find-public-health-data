@@ -59,21 +59,33 @@ export const definitionAndRationaleColumns = sameNamedColumns(definitionAndRatio
 
 export const polarityColumns = sameNamedColumns(polaritySection.fields);
 
-// The draft keeps one reason, which the form shows under the answer it was given for. A reason
-// typed under another answer is dropped, whatever the form sent.
+function numberText(value: number | null): string | null {
+  return value === null ? null : String(value);
+}
+
+// The draft keeps the details of the chosen answer only: its number of years, its description or
+// its reason. Details typed under another answer are dropped, whatever the form sent.
 export const updateFrequencyColumns: IndicatorSectionColumns<
   UpdateFrequencyField,
   IndicatorUpdateFrequency
 > = {
-  fromDraft: ({ updateFrequency, updateFrequencyReason, updateFrequencyText }) => ({
+  fromDraft: ({
     updateFrequency,
+    updateFrequencyYears,
+    updateFrequencyText,
+    updateFrequencyReason,
+  }) => ({
+    updateFrequency,
+    updateFrequencyYears: numberText(updateFrequencyYears),
     updateFrequencyText,
     noFixedFrequencyReason: updateFrequency === 'no-fixed-frequency' ? updateFrequencyReason : null,
     noLongerUpdatedReason: updateFrequency === 'no-longer-updated' ? updateFrequencyReason : null,
   }),
   toAttributes: (answers) => ({
     updateFrequency: answers.updateFrequency,
-    updateFrequencyText: answers.updateFrequencyText || null,
+    updateFrequencyYears:
+      answers.updateFrequency === 'every-n-years' ? Number(answers.updateFrequencyYears) : null,
+    updateFrequencyText: answers.updateFrequency === 'other' ? answers.updateFrequencyText : null,
     updateFrequencyReason: hasUpdateFrequencyReason(answers.updateFrequency)
       ? answers[UPDATE_FREQUENCY_REASON_FIELDS[answers.updateFrequency]]
       : null,
@@ -167,10 +179,6 @@ export const dataQualityColumns: IndicatorSectionColumns<DataQualityField, Indic
     hasDataQualityIssues: hasDataQualityIssues === 'yes',
   }),
 };
-
-function numberText(value: number | null): string | null {
-  return value === null ? null : String(value);
-}
 
 export const periodTypeColumns: IndicatorSectionColumns<PeriodTypeField, PeriodType> = {
   fromDraft: (draft) => ({

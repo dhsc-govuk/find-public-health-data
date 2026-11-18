@@ -12,6 +12,7 @@ const detail = {
   updateFrequency: 'annually',
   updateFrequencyReason: null,
   updateFrequencyText: null,
+  updateFrequencyYears: null,
   polarity: 'lower-is-better',
   ciMethod: null,
   ciConfidenceLevel: null,

@@ -25,6 +25,7 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
     updateFrequency: 'annually',
     updateFrequencyReason: null,
     updateFrequencyText: null,
+    updateFrequencyYears: null,
     polarity: 'no-comparison-possible',
     ciMethod: null,
     ciConfidenceLevel: null,

@@ -6,7 +6,7 @@ import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { tidyName } from '@fphd/utils/tidy-name';
-import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
+import { UPDATE_FREQUENCIES, UPDATE_FREQUENCY_MIN_YEARS } from '@fphd/utils/update-frequency';
 
 // One selection contains up to 19 picked areas and England for comparison.
 export const MAX_SELECTED_AREAS = 19;
@@ -212,7 +212,10 @@ export const indicatorDetailSchema = z.object({
    * frequency, and beside those two for an indicator imported without one.
    */
   updateFrequencyReason: z.string().nullable(),
+  /** The publisher's own description of how often it is updated, beside "other" only. */
   updateFrequencyText: z.string().nullable(),
+  /** The number of years between updates, beside "every-n-years" only. */
+  updateFrequencyYears: z.number().int().min(UPDATE_FREQUENCY_MIN_YEARS).nullable(),
   polarity: z.enum(POLARITIES),
   ciMethod: z.string().nullable(),
   ciConfidenceLevel: z.enum(CI_CONFIDENCE_LEVELS).nullable(),
