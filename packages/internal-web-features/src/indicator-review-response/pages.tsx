@@ -192,8 +192,8 @@ export function ApprovalPage({
 const UPDATE_APPROVAL_QUESTION = 'Can this update be published?';
 
 /**
- * A reviewer's answer on an update: Yes approves it, and No goes on to the revisions page once a
- * kind of feedback is ticked. It is sent with the submission the reviewer was shown.
+ * A reviewer's answer on an update: Yes approves it, and No goes on to the revisions page. It is
+ * sent with the submission the reviewer was shown.
  */
 export function UpdateApprovalPage({
   recap,
@@ -207,8 +207,8 @@ export function UpdateApprovalPage({
 
   return (
     <IndicatorSectionForm
-      fieldIds={{ approved: firstRadioId('approved'), reasons: firstCheckboxId('reasons') }}
-      fields={['approved', 'reasons']}
+      fieldIds={{ approved: firstRadioId('approved') }}
+      fields={['approved']}
       form={form}
       questionIsHeading
       title={UPDATE_APPROVAL_QUESTION}
@@ -224,25 +224,7 @@ export function UpdateApprovalPage({
         name="approved"
         options={[
           { value: 'yes', label: 'Yes' },
-          {
-            value: 'no',
-            label: 'No',
-            // Shown without JavaScript; with it, only while No is chosen.
-            conditional: (
-              <Checkboxes
-                classModifiers="small"
-                defaultValue={values.reasons}
-                error={fieldErrors.reasons}
-                label="Select reasons"
-                labelClassModifiers="s"
-                name="reasons"
-                options={[
-                  { value: 'revisions', label: 'Revisions needed' },
-                  { value: 'clarification', label: 'Request for clarification' },
-                ]}
-              />
-            ),
-          },
+          { value: 'no', label: 'No' },
         ]}
       />
     </IndicatorSectionForm>

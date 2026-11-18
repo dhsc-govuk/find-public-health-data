@@ -738,7 +738,7 @@ test.describe('IMRG review of an update', () => {
     );
   });
 
-  test('"Submit review response" on an update goes to "Can this update be published?", which errors "Select whether you approve this update for publishing" and "Select at least one kind of feedback"', async ({
+  test('"Submit review response" on an update goes to "Can this update be published?", which errors "Select whether you approve this update for publishing"', async ({
     browser,
   }, testInfo) => {
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
@@ -758,25 +758,17 @@ test.describe('IMRG review of an update', () => {
       await expect(reviewer.getByRole('alert')).toContainText(
         'Select whether you approve this update for publishing',
       );
-
-      await reviewer.getByLabel('No', { exact: true }).check();
-      await expect(reviewer.getByRole('group', { name: 'Select reasons' })).toBeVisible();
-      await reviewer.getByRole('button', { name: 'Continue' }).click();
-      await expectErrorSummaryReady(reviewer);
-      await expect(reviewer.getByRole('alert')).toContainText(
-        'Select at least one kind of feedback',
-      );
       await expectNoAccessibilityViolations(reviewer, testInfo);
     });
   });
 
-  test('"No" with "Request for clarification" goes to "What needs to be revised or clarified?" with the Update summary task, and sends the update back as "Revisions or clarifications needed" with its banner', async ({
+  test('"No" asks nothing more and goes to "What needs to be revised or clarified?" with the Update summary task, and sends the update back as "Revisions or clarifications needed" with its banner', async ({
     browser,
   }, testInfo) => {
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
       await reviewer.goto(`${overviewPath(reviewed.id)}/review/update-approval`);
       await reviewer.getByLabel('No', { exact: true }).check();
-      await reviewer.getByLabel('Request for clarification').check();
+      await expect(reviewer.getByRole('checkbox')).toHaveCount(0);
       await reviewer.getByRole('button', { name: 'Continue' }).click();
 
       await expect(
@@ -787,6 +779,7 @@ test.describe('IMRG review of an update', () => {
           .getByRole('group', { name: 'Publishing' })
           .getByLabel('Update summary', { exact: true }),
       ).toBeVisible();
+      await expect(reviewer.getByLabel('High-level clarification request')).not.toBeChecked();
       await reviewer.getByLabel('High-level clarification request').check();
       await reviewer
         .getByLabel('What are you requesting clarification about?')
