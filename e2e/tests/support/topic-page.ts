@@ -5,6 +5,8 @@ import { downloadFrom } from './downloads.ts';
 import { MORTALITY_NAME, MORTALITY_PATH } from './indicator-page.ts';
 
 const TOPIC_PATH = '/topics/mortality-and-life-expectancy';
+const OHID_STATISTICS_LINK =
+  'Research and statistics from the Office for Health Improvement and Disparities';
 
 export async function openTopicPage(page: Page, path: string) {
   await page.goto(path);
@@ -806,6 +808,24 @@ export function topicPageTests() {
       'https://www.gov.uk/government/statistics/diabetes-profile-update-april-2026',
     );
     await expect(panel.getByRole('link', { name: 'Diabetes on GOV.UK' })).toBeVisible();
+    await expect(panel.getByRole('link', { name: OHID_STATISTICS_LINK })).toHaveCount(0);
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test('links a topic without curated content to OHID statistics on GOV.UK', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, `${TOPIC_PATH}?tab-topic=publications`);
+    const panel = page.getByRole('tabpanel', { name: 'More information' });
+    await expect(
+      panel.getByText(
+        'Find official statistics releases and statistical commentaries about public health data published on GOV.UK.',
+      ),
+    ).toBeVisible();
+    await expect(panel.getByRole('link', { name: OHID_STATISTICS_LINK })).toHaveAttribute(
+      'href',
+      'https://www.gov.uk/search/research-and-statistics?content_store_document_type=statistics_published&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest',
+    );
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
