@@ -284,6 +284,10 @@ export function trendTableModel({
           existing
             ? {
                 ...existing,
+                // Areas of different tiers share this group but not a spread. Showing the first
+                // area's spread for both would be wrong, so the group shows none; each area's own
+                // comparison chart still uses its tier's spread.
+                ...(existing.rangePeriods === benchmark.rangePeriods ? {} : { rangePeriods: [] }),
                 series: [
                   ...new Map(
                     [...existing.series, ...benchmark.series].map((observation) => [

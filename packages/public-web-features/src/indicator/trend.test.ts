@@ -27,6 +27,17 @@ describe('trendTableModel', () => {
     expect(regionFor('E06000052')?.rangePeriods).toBe(lower);
     expect(regionFor('E08000003')?.series[0]?.value).toBe(5);
     expect(regionFor('E06000052')?.series[0]?.value).toBe(5);
+    const shared = model.benchmarkGroups.find(({ key }) => key === 'region:E12000002');
+    expect(shared?.rangePeriods).toEqual([]);
+    expect(shared?.series[0]?.value).toBe(5);
+  });
+
+  it('keeps a shared spread when every area in the group has the same tier', () => {
+    const fixture = benchmarkFixture();
+    fixture.geography.regionByCode.E06000052 = { code: 'E12000002', name: 'North West' };
+    const model = trendTableModel({ ...fixture, confidence: 'none' });
+    const shared = model.benchmarkGroups.find(({ key }) => key === 'region:E12000002');
+    expect(shared?.rangePeriods).toBe(fixture.ranges['region:E12000002:upper']);
   });
 
   it('aligns each IMD decile by period and exact remaining segment and uses its category range', () => {
