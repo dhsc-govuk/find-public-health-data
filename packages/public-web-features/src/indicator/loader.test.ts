@@ -930,15 +930,42 @@ describe('loadIndicator', () => {
 describe('loadIndicatorPage with no data to show', () => {
   const draft = { ...indicatorDetail(108), dataState: 'no-upload' as const, unanswered: [] };
 
-  it('asks only for the detail of a draft whose page reads a placeholder for its data', async () => {
-    const client = api({ 'GET /api/indicators/indicator-108': draft });
-    const loaderArgs = args(client, 'http://localhost/indicator/indicator-108?compareWith=241');
+  function previewArgs(client: FakeApiClient, query: string) {
+    const loaderArgs = args(client, `http://localhost/indicator/indicator-108${query}`);
     loaderArgs.context.set(indicatorPageContext, { detailSchema: indicatorPageDetailSchema });
+    return loaderArgs;
+  }
 
-    const page = await loadIndicatorPage(loaderArgs);
+  it('checks the address of a draft whose page reads a placeholder, then asks for no data', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108': draft });
+
+    const page = await loadIndicatorPage(previewArgs(client, '?compareWith=indicator-241'));
 
     expect(page).toEqual({ detail: draft, dataPlaceholder: '[Not provided yet]' });
-    expect(paths(client)).toEqual(['/api/indicators/indicator-108']);
+    expect(paths(client)).toEqual([
+      '/api/indicators/indicator-108',
+      '/api/indicators/indicator-241',
+    ]);
+  });
+
+  it('answers a malformed comparison on a placeholder page as not found, as with data', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108': draft });
+
+    await expect(
+      loadIndicatorPage(previewArgs(client, '?compareWith=not%20an%20indicator')),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('redirects a comparison with itself on a placeholder page, as with data', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108': draft,
+      'GET /api/indicators/108': draft,
+    });
+
+    await expect(loadIndicatorPage(previewArgs(client, '?compareWith=108'))).rejects.toMatchObject({
+      status: 302,
+      headers: expect.any(Headers),
+    });
   });
 
   it('loads the data of the public page, whose schema drops any data state', async () => {

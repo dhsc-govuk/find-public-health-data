@@ -57,10 +57,6 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
       redirectStatus(slug, routeDetail.slug),
     );
 
-  // A preview of a draft with no data to show asks for none, and shows a placeholder instead.
-  const placeholder = dataPlaceholder(routeDetail);
-  if (placeholder !== null) return { detail: routeDetail, dataPlaceholder: placeholder };
-
   const compareSegment = url.searchParams.get('compareWith');
   if (compareSegment && !isIndicatorSegment(compareSegment)) {
     throw new Response('Not Found', { status: 404 });
@@ -85,6 +81,11 @@ async function loadIndicatorPageData(args: LoaderFunctionArgs, compactPage = fal
       throw redirect(`${indicatorPath(routeDetail.slug)}${pageSearch(url)}`, 302);
     }
   }
+
+  // A preview of a draft with no data to show asks for no data, and shows a placeholder instead.
+  // Its address is checked first, as any page's is.
+  const placeholder = dataPlaceholder(routeDetail);
+  if (placeholder !== null) return { detail: routeDetail, dataPlaceholder: placeholder };
 
   const groups = api.get(
     `${apiPath`/api/indicators/${routeDetail.slug}/areas`}?limit=${MAX_AREA_PREVIEW}`,
