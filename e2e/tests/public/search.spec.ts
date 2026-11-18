@@ -55,6 +55,33 @@ test('loads the search page with h1', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Search for data' })).toBeVisible();
 });
 
+// DAC's App Gateway answers some searches, such as one for a<b, with its own 403 page, which
+// never comes from the app. Nothing like it runs locally, so the test answers for it.
+test('says a search was blocked when the gateway refuses it', async ({ page }, testInfo) => {
+  await ready(page);
+  await page.route('**/search.data?*', (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: 'text/html',
+      body: '<html><head><title>403 Forbidden</title></head><body><center><h1>403 Forbidden</h1></center><hr><center>Microsoft-Azure-Application-Gateway/v2</center></body></html>',
+    }),
+  );
+
+  await page.getByRole('searchbox', { name: 'Search by keywords' }).fill('a<b');
+  await page.getByRole('searchbox', { name: 'Search by keywords' }).press('Enter');
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Sorry, this request was blocked' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      'Our security checks blocked this request. This can happen when a search includes characters such as <, > or two hyphens together (--). Remove them and try again.',
+    ),
+  ).toBeVisible();
+  await expect(page).toHaveTitle(/^Sorry, this request was blocked - /);
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
 test('keeps direct indicator matches ahead of taxonomy-only matches', async ({
   page,
 }, testInfo) => {
