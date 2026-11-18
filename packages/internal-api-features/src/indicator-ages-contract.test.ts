@@ -127,7 +127,13 @@ describe('agesSection', () => {
   });
 
   it.each([
-    [[blankRange], { lowerLimit: 'You must enter at least a lower or upper limit' }],
+    [
+      [blankRange],
+      {
+        lowerLimit: 'You must enter at least a lower or upper limit',
+        lowerLimitUnit: 'Select the periods for the lower limit',
+      },
+    ],
     [[{ lowerLimit: '5' }], { lowerLimitUnit: 'Select the periods for the lower limit' }],
     [
       [{ lowerLimit: '5', lowerLimitUnit: 'decades' }],
@@ -181,6 +187,7 @@ describe('agesSection', () => {
     ).toEqual({
       [ageRangeFieldName(1, 'lowerLimit')]:
         'You must enter at least a lower or upper limit for range 2',
+      [ageRangeFieldName(1, 'lowerLimitUnit')]: 'Select the periods for the lower limit of range 2',
       [ageRangeFieldName(2, 'lowerLimitUnit')]: 'Select the periods for the lower limit of range 3',
       [ageRangeFieldName(2, 'upperLimit')]: 'Enter the upper limit of range 3',
       [ageRangeFieldName(3, 'upperLimit')]:
