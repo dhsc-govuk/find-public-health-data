@@ -2,7 +2,7 @@
 import type { TagOptions } from '@fphd/internal-api-features/contract';
 import { serviceName } from '@fphd/ui';
 import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -56,7 +56,6 @@ const empty: TaggingPageValues = {
   riskFactorIds: [],
   addTopic: '',
   addSubtopic: '',
-  addIndicatorType: '',
   addFramework: '',
   addLifeStage: '',
   addRiskFactor: '',
@@ -81,6 +80,13 @@ function hidden(name: string) {
 
 function removeButton(name: string) {
   return screen.getByRole('button', { name }) as HTMLButtonElement;
+}
+
+/** Each Add button's words and value, in page order. */
+function addButtons() {
+  return screen
+    .getAllByRole('button', { name: /^Add / })
+    .map((button) => [button.textContent, (button as HTMLButtonElement).value]);
 }
 
 describe('TaggingPage', () => {
@@ -119,7 +125,7 @@ describe('TaggingPage', () => {
     expect(screen.queryByText(/age metadata/)).toBeNull();
   });
 
-  it('offers every tag of each list in a select with its own Add button', () => {
+  it('offers every tag of each list in a plain select, the lists built up with Add buttons', () => {
     renderPage();
 
     expect([...select('Select a topic').options].map((option) => option.text)).toEqual([
@@ -127,39 +133,75 @@ describe('TaggingPage', () => {
       'Cancer',
       'Dental and oral health',
     ]);
-    expect(select('Select a measure type').name).toBe('addIndicatorType');
     expect(select('Select a framework or programme').name).toBe('addFramework');
     expect(select('Select a life stage').name).toBe('addLifeStage');
     expect(select('Select a risk factor').name).toBe('addRiskFactor');
-    expect(
-      screen
-        .getAllByRole('button', { name: /^Add / })
-        .map((button) => [button.textContent, (button as HTMLButtonElement).value]),
-    ).toEqual([
+    expect(document.querySelector('.fphd-autocomplete')).toBeNull();
+    expect(addButtons()).toEqual([
       ['Add topic', addIntent('topicIds')],
-      ['Add measure type', addIntent('indicatorTypeIds')],
       ['Add framework or programme', addIntent('frameworkIds')],
       ['Add life stage', addIntent('lifeStageIds')],
       ['Add risk factor', addIntent('riskFactorIds')],
     ]);
   });
 
-  it('asks for a subtopic of a chosen topic that has them, to add with it', () => {
-    renderPage({ values: { ...empty, addTopic: cancer } });
+  it('shows the Add buttons as primary buttons and the Remove buttons as secondary', () => {
+    renderPage({ values: { ...empty, topicIds: [dental], addTopic: cancer } });
+
+    for (const name of ['Add topic and subtopic', 'Add framework or programme']) {
+      expect(screen.getByRole('button', { name }).className).not.toContain('secondary');
+    }
+    expect(removeButton('Remove topic Dental and oral health').className).toContain(
+      'govuk-button--secondary',
+    );
+  });
+
+  it('asks for one measure type in a select of its own, with no Add or Remove button', () => {
+    renderPage({ values: { ...empty, indicatorTypeIds: [outcome] } });
+
+    expect(select('Select a measure type').name).toBe('indicatorTypeIds');
+    expect(select('Select a measure type').value).toBe(outcome);
+    expect([...select('Select a measure type').options].map((option) => option.text)).toEqual([
+      'Select',
+      'Outcome',
+    ]);
+    expect(hidden('indicatorTypeIds')).toEqual([]);
+    expect(screen.queryByRole('button', { name: /measure type/ })).toBeNull();
+  });
+
+  it('asks for a subtopic of a chosen topic that has them, with one button to add both', () => {
+    renderPage({ values: { ...empty, addTopic: cancer, addSubtopic: bowelCancer } });
 
     expect(select('Select a topic').value).toBe(cancer);
     expect(
       [...select('Select a subtopic for Cancer').options].map((option) => option.text),
     ).toEqual(['Select', 'All cancers', 'Bowel cancer']);
-    expect(
-      (screen.getByRole('button', { name: 'Add topic and subtopic' }) as HTMLButtonElement).value,
-    ).toBe(addIntent('subtopicIds'));
+    expect(select('Select a subtopic for Cancer').value).toBe(bowelCancer);
+    expect(addButtons()[0]).toEqual(['Add topic and subtopic', addIntent('subtopicIds')]);
+    expect(screen.queryByRole('button', { name: 'Add topic' })).toBeNull();
   });
 
   it('asks for no subtopic of a chosen topic that has none', () => {
     renderPage({ values: { ...empty, addTopic: dental } });
 
     expect(screen.queryByLabelText(/Select a subtopic/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add topic' })).toBeTruthy();
+  });
+
+  it('asks for a subtopic as soon as a topic that has them is chosen', () => {
+    renderPage();
+
+    fireEvent.change(select('Select a topic'), { target: { value: cancer } });
+
+    expect(select('Select a subtopic for Cancer').value).toBe('');
+    expect(screen.getByRole('button', { name: 'Add topic and subtopic' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add topic' })).toBeNull();
+
+    fireEvent.change(select('Select a topic'), { target: { value: dental } });
+
+    expect(screen.queryByLabelText(/Select a subtopic/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add topic and subtopic' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add topic' })).toBeTruthy();
   });
 
   it('lists each topic added with its subtopics, carried in the form with Remove buttons', () => {

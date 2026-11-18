@@ -38,7 +38,6 @@ const options: TagOptions = {
 const nothingChosen = {
   addTopic: '',
   addSubtopic: '',
-  addIndicatorType: '',
   addFramework: '',
   addLifeStage: '',
   addRiskFactor: '',
@@ -235,12 +234,22 @@ describe('submitTagging', () => {
   });
 
   it('asks for a tag when Add is pressed with none chosen', async () => {
-    await expect(submit([['intent', addIntent('indicatorTypeIds')]])).resolves.toMatchObject({
-      fieldErrors: { addIndicatorType: 'Select a measure type' },
+    await expect(submit([['intent', addIntent('frameworkIds')]])).resolves.toMatchObject({
+      fieldErrors: { addFramework: 'Select a framework or programme' },
     });
     await expect(submit([['intent', addIntent('topicIds')]])).resolves.toMatchObject({
       fieldErrors: { addTopic: 'Select a topic' },
     });
+  });
+
+  it('keeps the measure type chosen when a tag is added', async () => {
+    const outcome = await submit([
+      ['indicatorTypeIds', type],
+      ['addTopic', dental],
+      ['intent', addIntent('topicIds')],
+    ]);
+
+    expect(outcome).toMatchObject({ values: { indicatorTypeIds: [type], topicIds: [dental] } });
   });
 
   it('removes a tag without saving anything', async () => {
@@ -337,6 +346,21 @@ describe('submitTagging', () => {
       },
     });
     expect(outcome).not.toHaveProperty('fieldErrors.topicIds');
+  });
+
+  it('asks for a measure type when its select is left on the prompt', async () => {
+    const api = apiWith();
+
+    const outcome = await submit(
+      [...answered.filter(([name]) => name !== 'indicatorTypeIds'), ['indicatorTypeIds', '']],
+      api,
+    );
+
+    expect(outcome).toMatchObject({
+      values: { indicatorTypeIds: [] },
+      fieldErrors: { indicatorTypeIds: 'Select a measure type' },
+    });
+    expect(savedNothing(api)).toBe(true);
   });
 
   it('leaves out a risk factor chosen beside "No"', async () => {
