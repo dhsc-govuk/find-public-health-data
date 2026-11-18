@@ -214,7 +214,10 @@ export async function getIndicatorSeriesData(
             areaCode: a.code,
             areaName: a.name,
             ...(includePopulationKeys
-              ? { populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))] }
+              ? {
+                  // Sorted, since the rows come back in no fixed order and equal reads should match.
+                  populationKeys: [...new Set(forArea(a.id).map((row) => row.dimensionKey))].sort(),
+                }
               : {}),
             observations:
               point && point.fromDate === latest?.fromDate && point.toDate === latest?.toDate
