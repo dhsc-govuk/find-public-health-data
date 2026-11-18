@@ -2,11 +2,14 @@ import { InsetText, Pagination, Select, SummaryList } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import type { SearchSort } from '@fphd/utils/indicator-sort';
 import { useEffect, useRef } from 'react';
-import { Form, Link } from 'react-router';
+import { Form, Link, useLocation } from 'react-router';
 import { HiddenFilters } from './filter-fields.tsx';
 import type { IndicatorSearchResult, IndicatorSearchRow } from './loader.ts';
 import { searchPageCount } from './pagination.ts';
 import { type SearchState, searchUrl } from './url.ts';
+
+/** The navigation state of a page link, which moves focus to the results heading once it loads. */
+const FOCUS_RESULTS = 'focusResults';
 
 const SEARCH_SORT_OPTIONS: { value: SearchSort; label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -69,13 +72,15 @@ export function SearchResults({
   const { total, limit, indicators, page = 1 } = searchResult;
   const totalPages = searchPageCount(total, limit);
   const heading = useRef<HTMLHeadingElement>(null);
-  const paging = useRef(false);
+  const location = useLocation();
+  const shownLocation = useRef(location.key);
   useEffect(() => {
-    if (!paging.current) return;
-    paging.current = false;
+    if (location.key === shownLocation.current) return;
+    shownLocation.current = location.key;
+    if (location.state?.[FOCUS_RESULTS] !== true) return;
     heading.current?.focus({ preventScroll: true });
     heading.current?.scrollIntoView({ block: 'start' });
-  }, [page]);
+  }, [location]);
   const pageParams = sort === 'relevance' ? extraParams : { ...extraParams, sort };
   // Every page link names its page, the first included. NotGovUK marks a link as the current
   // page when its query is part of the address, so a first page link without one would be marked
@@ -83,9 +88,7 @@ export function SearchResults({
   const pageLink = (n: number) => ({
     href: searchUrl(state, '/search', { ...pageParams, page: String(n) }),
     preventScrollReset: true,
-    onClick: () => {
-      paging.current = true;
-    },
+    state: { [FOCUS_RESULTS]: true },
   });
   const geography = new URLSearchParams([
     ...gaCodes.map((code) => ['as', code]),

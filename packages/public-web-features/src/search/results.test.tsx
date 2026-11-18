@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -146,6 +146,14 @@ describe('SearchResults pages', () => {
     expect(within(navigation).getAllByText('⋯')).toHaveLength(2);
   });
 
+  it('returns to the first page when the sort changes', () => {
+    renderPages(pageHref(3));
+
+    const form = screen.getByLabelText<HTMLSelectElement>('Sort by').form;
+    if (!form) throw new Error('The sort select is outside a form');
+    expect(new FormData(form).has('page')).toBe(false);
+  });
+
   it('says which page is showing in the results heading', () => {
     renderPages(pageHref(2));
 
@@ -189,5 +197,23 @@ describe('SearchResults pages', () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(heading));
     expect(scrolled).toHaveBeenCalled();
+  });
+
+  it('leaves focus alone when the search changes some other way', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const router = createMemoryRouter(
+      [{ path: '/search', element: <PagedResults total={785} /> }],
+      { initialEntries: [pageHref(3)] },
+    );
+    render(<RouterProvider router={router} />);
+    const navigation = pagesNavigation();
+    if (!navigation) throw new Error('The pages navigation is missing');
+
+    fireEvent.click(within(navigation).getByRole('link', { name: '3' }), { metaKey: true });
+    await act(() => router.navigate('/search?q=rate&t=mortality&sort=recently-updated'));
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: '785 indicators, page 1 of 16' }),
+    ).not.toBe(document.activeElement);
   });
 });
