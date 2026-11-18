@@ -103,7 +103,9 @@ export function highlightedAreas<T extends AreaOption>(params: URLSearchParams, 
 
 /**
  * The query with one area no longer highlighted. Region ticks are folded into the highlight
- * list first, so a ticked region does not highlight the area again.
+ * list first, so a ticked region does not highlight the area again. Until the areas' regions
+ * have loaded, a region tick can't be expanded into its areas, so the region ticks stay and
+ * only the area's own highlight is removed.
  */
 export function withoutHighlightedArea(
   params: URLSearchParams,
@@ -111,10 +113,17 @@ export function withoutHighlightedArea(
   code: string,
 ): URLSearchParams {
   const next = new URLSearchParams(params);
+  next.delete('neighbours', code);
+  if (
+    (params.has('highlightRegion') || params.has('highlightRegionBefore')) &&
+    areas.some(({ parent }) => parent === undefined)
+  ) {
+    next.delete('highlight', code);
+    return next;
+  }
   next.delete('highlight');
   next.delete('highlightRegion');
   next.delete('highlightRegionBefore');
-  next.delete('neighbours', code);
   for (const entry of highlightedAreaCodes(params, areas)) {
     if (entry !== code) next.append('highlight', entry);
   }

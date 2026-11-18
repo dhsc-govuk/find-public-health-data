@@ -82,6 +82,18 @@ it('removes one highlighted area without a ticked region adding it back', () => 
   expect(highlightedAreaCodes(next, regionAreas)).toEqual(['c', 'b']);
 });
 
+it('keeps the region ticks when an area is removed before the regions have loaded', () => {
+  const next = withoutHighlightedArea(
+    new URLSearchParams(
+      'tab-indicator=areas&highlight=c&highlight=b&highlightRegion=r&neighbours=c',
+    ),
+    regionAreas.map(({ code, name }) => ({ code, name })),
+    'c',
+  );
+  expect(next.toString()).toBe('tab-indicator=areas&highlight=b&highlightRegion=r');
+  expect(highlightedAreaCodes(next, regionAreas)).toEqual(['b', 'a']);
+});
+
 it('clears every highlighted area and statistical neighbour but keeps the other choices', () => {
   const next = withoutHighlightedAreas(
     new URLSearchParams(
