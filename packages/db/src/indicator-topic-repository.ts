@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export interface TopicSummaryForIndicator {
@@ -17,7 +17,7 @@ export interface IndicatorClassification {
 
 /** The topics a published indicator belongs to, ordered by title. */
 export async function listTopicsForIndicator(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
 ): Promise<TopicSummaryForIndicator[]> {
@@ -25,7 +25,7 @@ export async function listTopicsForIndicator(
 }
 
 export async function listTopicsForIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
 ): Promise<Map<string, TopicSummaryForIndicator[]>> {
@@ -75,7 +75,7 @@ export async function listTopicsForIndicators(
 
 /** A published indicator's classifications, grouped ready for the summary table. */
 export async function listClassificationsForIndicator(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
 ): Promise<IndicatorClassification[]> {
@@ -83,7 +83,7 @@ export async function listClassificationsForIndicator(
 }
 
 export async function listClassificationsForIndicators(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
 ): Promise<Map<string, IndicatorClassification[]>> {

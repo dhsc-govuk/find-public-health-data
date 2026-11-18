@@ -344,6 +344,29 @@ describe('GET /api/indicators/:indicator', () => {
     expect(response.body).toEqual({ error: 'not_found' });
   });
 
+  it('answers with the detail body a mount gives, or not found when it gives none', async () => {
+    const detailBody = vi.fn(async (detail: object, indicatorId: string) =>
+      indicatorId === 'ind-1' ? { ...detail, dataState: 'ready' } : undefined,
+    );
+    const app = express().use(
+      indicatorsRouter(
+        createFakeRepositories({
+          indicators: {
+            resolveId: async (shortId) => (shortId === 108 ? 'ind-1' : 'ind-2'),
+            findDetailById: async () => ({ ...foundDetail, polarity: null }),
+          },
+        }).indicators,
+        { detailBody },
+      ),
+    );
+
+    const found = await request(app).get('/api/indicators/108');
+    const refused = await request(app).get('/api/indicators/241');
+
+    expect(found.body).toEqual({ ...foundDetail, polarity: null, dataState: 'ready' });
+    expect(refused.status).toBe(404);
+  });
+
   it('serves an indicator imported without an update frequency, with no unanswered list', async () => {
     const app = createTestApp({
       resolveId: async () => 'ind-1',

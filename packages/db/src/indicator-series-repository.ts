@@ -5,7 +5,7 @@ import {
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import type {
   IndicatorAreaData,
   IndicatorObservation,
@@ -15,7 +15,7 @@ import type { ViewSet } from './schema/index.ts';
 type Result = Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>;
 
 async function readPoints(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   benchmarkIds: string[],
@@ -67,7 +67,7 @@ async function readPoints(
 }
 
 export async function getIndicatorSeriesData(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorIds: string[],
   codes: string[],

@@ -662,6 +662,7 @@ describe('the indicator routes', () => {
     ['a section write', 'put', `/api/internal/indicators/${id}/polarity`],
     ['a workflow step', 'post', `/api/internal/indicators/${id}/submit`],
     ['the detail route', 'get', `/api/internal/indicators/${id}`],
+    ['the preview', 'get', `/api/internal/indicators/${id}/preview/api/indicators/108`],
   ] as const;
 
   function createTeamBApp() {
@@ -699,5 +700,73 @@ describe('the indicator routes', () => {
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'invalid_id' });
+  });
+});
+
+// One probe per kind of public router: the preview's own behaviour is tested in
+// `@fphd/internal-api-features`, so these only pin that each is mounted again on its repositories.
+describe('the indicator preview', () => {
+  const id = '00000000-0000-7000-8000-000000000001';
+  const prefix = `/api/internal/indicators/${id}/preview`;
+  const areaData = [{ areaCode: 'E92000001', areaName: 'England', observations: [] }];
+  const previewed = createFakeRepositories({
+    indicators: {
+      resolveId: async () => 'previewed-id',
+      findDetailById: async () => ({ name: 'A draft', unanswered: ['polarity'] }) as never,
+      listAreas: async () => [{ displayGroup: 'England', areas: [] }],
+      findObservationsForAreas: async () => areaData,
+      findObservationRange: async () => [],
+      findRankingData: async () => areaData,
+      findTableData: async () => [{ detail: { name: 'A draft' }, areaData }] as never,
+      findScatterData: async () => [],
+      search: async () => [{ shortId: 108, slug: 'a-draft', name: 'A draft' }],
+      searchWithFilters: async () => ({ total: 0, limit: 10, indicators: [] }),
+    },
+    areas: { listByCodes: async () => [] },
+  });
+  const app = createTestApp(
+    createFakeRepositories(),
+    createFakeInternalRepositories({
+      indicators: { findAccess: async () => stepRow },
+      preview: {
+        findVersion: async () => ({ id: 'version-id', slug: 'a-draft' }),
+        repositoriesFor: () => ({ ...previewed, findDataState: async () => 'no-upload' }),
+      },
+    }),
+  );
+
+  it('answers the detail as found, with its data state', async () => {
+    const response = await request(app)
+      .get(`${prefix}/api/indicators/108`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      name: 'A draft',
+      unanswered: ['polarity'],
+      dataState: 'no-upload',
+    });
+  });
+
+  it.each([
+    '/api/indicators/108/areas',
+    '/api/indicators/108/data',
+    '/api/indicators/108/range?displayGroup=England',
+    '/api/indicators/108/ranking?areaCode=E92000001',
+    '/api/indicator-data?indicator=108',
+    '/api/indicator-scatter?indicator=108&indicator=241&areaCode=E92000001',
+    '/api/indicators?q=draft',
+    '/api/indicators/search?q=draft',
+    '/api/areas/lookup?areaCode=E92000001',
+  ])('mounts %s on the preview repositories', async (path) => {
+    const response = await request(app)
+      .get(`${prefix}${path}`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(200);
+  });
+
+  it('requires a session', async () => {
+    expect((await request(app).get(`${prefix}/api/indicators/108`)).status).toBe(401);
   });
 });

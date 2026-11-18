@@ -15,7 +15,7 @@ import {
   listIndicatorAreas,
   searchAreas,
 } from './area-repository.ts';
-import type { Database } from './client.ts';
+import type { Database, DatabaseReader } from './client.ts';
 import { coalescedReads } from './coalesced-reads.ts';
 import {
   type FoundIndicatorDetail,
@@ -38,7 +38,7 @@ import {
 } from './indicator-repository.ts';
 import { getPublishedIndicatorScatterData } from './indicator-scatter-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
-import { publishedViews } from './schema/index.ts';
+import { publishedViews, type ViewSet } from './schema/index.ts';
 import {
   getTopicBySlug,
   getTopicTrendSummary,
@@ -116,49 +116,65 @@ export interface Repositories {
   topics: TopicRepository;
 }
 
-export function createRepositories(db: Database): Repositories {
-  const views = publishedViews;
-  const repositories: Repositories = {
+/**
+ * Runs one read. The public apps run each on the database itself, and the preview runs each in a
+ * transaction of its own that first chooses the version its views show.
+ */
+export type RunRead = <T>(read: (db: DatabaseReader) => Promise<T>) => Promise<T>;
+
+/**
+ * The repositories over `views`, each method running its reads through `run`. They share no
+ * reads, so a caller whose reads depend on more than their arguments can use them as they are.
+ */
+export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories {
+  return {
     areas: {
-      listByType: (areaTypeName) => listAreasByType(db, views, areaTypeName),
-      listDisplayGroups: () => listDisplayGroups(db, views),
-      listByGroup: (displayGroup, limit) => listAreasByGroup(db, views, displayGroup, limit),
-      listByGroups: (displayGroups, limit) => listAreasByGroups(db, views, displayGroups, limit),
-      listByCodes: (codes) => listAreasByCodes(db, views, codes),
-      search: (query, limit) => searchAreas(db, views, query, limit),
+      listByType: (areaTypeName) => run((db) => listAreasByType(db, views, areaTypeName)),
+      listDisplayGroups: () => run((db) => listDisplayGroups(db, views)),
+      listByGroup: (displayGroup, limit) =>
+        run((db) => listAreasByGroup(db, views, displayGroup, limit)),
+      listByGroups: (displayGroups, limit) =>
+        run((db) => listAreasByGroups(db, views, displayGroups, limit)),
+      listByCodes: (codes) => run((db) => listAreasByCodes(db, views, codes)),
+      search: (query, limit) => run((db) => searchAreas(db, views, query, limit)),
       listParents: (childCodes, parentTypeName) =>
-        listAreaParents(db, views, childCodes, parentTypeName),
-      listNeighbours: (codes) => listAreaNeighbours(db, views, codes),
+        run((db) => listAreaParents(db, views, childCodes, parentTypeName)),
+      listNeighbours: (codes) => run((db) => listAreaNeighbours(db, views, codes)),
     },
     indicators: {
       findTableData: (shortIds, areaCodes, points) =>
-        getIndicatorTableData(db, views, shortIds, areaCodes, points),
-      listAreas: (indicatorId, filters) => listIndicatorAreas(db, views, indicatorId, filters),
-      listPublished: () => listPublishedIndicators(db, views),
-      search: (query, limit) => searchPublishedIndicators(db, views, query, limit),
-      resolveId: (shortId) => resolvePublishedIndicatorId(db, views, shortId),
-      resolveIdBySlug: (slug) => resolveIndicatorIdBySlug(db, views, slug),
-      findDetailById: (indicatorId) => getIndicatorDetailById(db, views, indicatorId),
+        run((db) => getIndicatorTableData(db, views, shortIds, areaCodes, points)),
+      listAreas: (indicatorId, filters) =>
+        run((db) => listIndicatorAreas(db, views, indicatorId, filters)),
+      listPublished: () => run((db) => listPublishedIndicators(db, views)),
+      search: (query, limit) => run((db) => searchPublishedIndicators(db, views, query, limit)),
+      resolveId: (shortId) => run((db) => resolvePublishedIndicatorId(db, views, shortId)),
+      resolveIdBySlug: (slug) => run((db) => resolveIndicatorIdBySlug(db, views, slug)),
+      findDetailById: (indicatorId) => run((db) => getIndicatorDetailById(db, views, indicatorId)),
       findObservations: (indicatorId, areaCode) =>
-        getIndicatorObservations(db, views, indicatorId, areaCode),
+        run((db) => getIndicatorObservations(db, views, indicatorId, areaCode)),
       findObservationsForAreas: (indicatorId, areaCodes) =>
-        getIndicatorObservationsForAreas(db, views, indicatorId, areaCodes),
+        run((db) => getIndicatorObservationsForAreas(db, views, indicatorId, areaCodes)),
       findScatterData: (shortIds, areaCodes) =>
-        getPublishedIndicatorScatterData(db, views, shortIds, areaCodes),
+        run((db) => getPublishedIndicatorScatterData(db, views, shortIds, areaCodes)),
       findRankingData: (indicatorId, areaCodes) =>
-        getIndicatorRankingData(db, views, indicatorId, areaCodes),
+        run((db) => getIndicatorRankingData(db, views, indicatorId, areaCodes)),
       findObservationRange: (indicatorId, displayGroup) =>
-        getObservationRange(db, views, indicatorId, displayGroup),
-      searchWithFilters: (filters) => searchIndicators(db, views, filters),
-      listFacets: () => listIndicatorFacets(db, views),
+        run((db) => getObservationRange(db, views, indicatorId, displayGroup)),
+      searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
+      listFacets: () => run((db) => listIndicatorFacets(db, views)),
     },
     topics: {
-      list: () => listTopics(db, views),
-      findBySlug: (slug) => getTopicBySlug(db, views, slug),
-      trendSummary: (slug) => getTopicTrendSummary(db, views, slug),
-      listSubtopics: (slug) => listTopicSubtopics(db, views, slug),
+      list: () => run((db) => listTopics(db, views)),
+      findBySlug: (slug) => run((db) => getTopicBySlug(db, views, slug)),
+      trendSummary: (slug) => run((db) => getTopicTrendSummary(db, views, slug)),
+      listSubtopics: (slug) => run((db) => listTopicSubtopics(db, views, slug)),
     },
   };
+}
+
+export function createRepositories(db: Database): Repositories {
+  const repositories = createRepositoriesOn((read) => read(db), publishedViews);
   // Resolving a short id or slug is a one-row index lookup, so it is never shared between
   // requests. Sharing it would make the number of statements a page costs depend on whether
   // its API requests happen to overlap.

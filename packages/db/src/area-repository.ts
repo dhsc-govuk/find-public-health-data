@@ -1,6 +1,6 @@
 import { and, asc, eq, exists, ilike, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 
-import type { Database } from './client.ts';
+import type { DatabaseReader } from './client.ts';
 import { escapeLike } from './like-pattern.ts';
 import type { ViewSet } from './schema/index.ts';
 
@@ -29,7 +29,7 @@ export interface IndicatorAreaFilters {
 }
 
 export async function listIndicatorAreas(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   indicatorId: string,
   { displayGroup, query, limit, scope, parentType }: IndicatorAreaFilters = {},
@@ -110,7 +110,7 @@ export async function listIndicatorAreas(
 }
 
 /** The user-facing geography levels in display order, straight from area_type. */
-export async function listDisplayGroups(db: Database, views: ViewSet): Promise<string[]> {
+export async function listDisplayGroups(db: DatabaseReader, views: ViewSet): Promise<string[]> {
   const { areaType } = views;
   const rows = await db
     .selectDistinct({ name: areaType.displayGroup, order: areaType.displayOrder })
@@ -122,7 +122,7 @@ export async function listDisplayGroups(db: Database, views: ViewSet): Promise<s
 
 /** Current areas across every type of one display group, ordered by name and code. */
 export async function listAreasByGroup(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   displayGroup: string,
   limit?: number,
@@ -139,7 +139,7 @@ export async function listAreasByGroup(
 
 /** Bounded previews for several display groups in one repository query. */
 export async function listAreasByGroups(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   displayGroups: string[],
   limit?: number,
@@ -179,7 +179,7 @@ export interface AreaParent {
 
 /** Current areas of one area type, ordered by name. */
 export async function listAreasByType(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   areaTypeName: string,
 ): Promise<AreaSummary[]> {
@@ -201,7 +201,7 @@ export interface AreaLookup {
 
 /** The given areas with their types, for resolving a selection without the full catalogue. */
 export async function listAreasByCodes(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   codes: string[],
 ): Promise<AreaLookup[]> {
@@ -224,7 +224,7 @@ export async function listAreasByCodes(
 
 /** Case-insensitive search over current areas of displayed types, matching name or code. */
 export async function searchAreas(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   query: string,
   limit: number,
@@ -252,7 +252,7 @@ export async function searchAreas(
 
 /** The statistical neighbours of each given current area that has any, most similar first. */
 export async function listAreaNeighbours(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   codes: string[],
 ): Promise<AreaNeighbours[]> {
@@ -284,7 +284,7 @@ export async function listAreaNeighbours(
 
 /** Each given area's current parent of one area type, e.g. a council's statistical region. */
 export async function listAreaParents(
-  db: Database,
+  db: DatabaseReader,
   views: ViewSet,
   childCodes: string[],
   parentTypeName: string,
