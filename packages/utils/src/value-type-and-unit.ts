@@ -20,8 +20,8 @@ export const UNIT_IDS = {
 
 /**
  * The value types calculated from a numerator and a denominator, whose Fingertips count is the
- * numerator. Migration 0052 applied this list to existing rows, so a change to it needs a data
- * migration of its own.
+ * numerator. Rows already loaded were split by this list, so a change to it needs a data migration
+ * of its own.
  */
 export const NUMERATOR_VALUE_TYPE_IDS: readonly string[] = [
   VALUE_TYPE_IDS.crudeRate,
@@ -35,8 +35,8 @@ export const NUMERATOR_VALUE_TYPE_IDS: readonly string[] = [
 /**
  * Fingertips indicators whose count is an estimated number of people, such as a survey's
  * prevalence applied to the population, rather than the numerator its value is calculated from.
- * Their count stays a count whatever their value type. Migration 0052 applied this list to
- * existing rows, so an indicator added here needs a data migration moving its numerator back.
+ * Their count stays a count whatever their value type. Rows already loaded were split by this list,
+ * so an indicator added here needs a data migration moving its numerator back.
  */
 export const ESTIMATED_COUNT_INDICATOR_IDS: readonly number[] = [
   92443, // Smoking prevalence in adults, from the Annual Population Survey

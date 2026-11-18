@@ -59,11 +59,15 @@ drizzle-kit check for migrations that collide, then drizzle-kit generate against
 with the migration SQL, so it cannot catch a hand-edited migration that the snapshot does not match.
 It builds the two packages the schema imports first.
 
+The migrations start from one baseline, `0000_baseline`, which builds the whole schema and inserts
+the system users and the Fingertips team. It keeps the timestamp of the migration it replaced, so a
+database migrated before the baseline reports it as tampered and `db migrate` refuses that database
+until it is reset.
+
 A migration never edits an applied one. Until an environment holds publisher data the seed cannot
 restore, a migration may drop data that a reset and reseed of the shared environments restores,
 where that is cleaner than translating it; from then on every migration translates. Either way, one
-that meets an answer it cannot translate stops with an error rather than drop it, as 0034 and 0036
-do.
+that meets an answer it cannot translate stops with an error rather than drop it.
 
 ## Core data import
 
@@ -101,6 +105,10 @@ Every existing development database must reset before loading it, because core-d
 rows and do not remove topics, subtopics or classifications the files no longer hold. There is no
 in-place taxonomy upgrade command. Migration packages must be regenerated before import.
 
+The import also upserts the teams and the fake people from `@fphd/auth`, matched on their fixed ids.
+The internal apps sign the fake people in by those ids until sign-in goes through Entra, so every
+environment needs them.
+
 ```sh
 pnpm db:import-core-data         # imports topics, classifications and the publisher's lists
 ```
@@ -113,17 +121,14 @@ records nothing in the audit log, which is for changes made through the service.
 
 Lookups a publisher chooses from are core data under the service's own names, with fixed ids, so
 every environment holds the same rows and the seed's relationship files can name them by id: the CI
-methods, data providers, value types, units and comparator methods. No new migration inserts a row
-of any of them. The value type and unit rows migration 0035 inserted carry the ids the files hold,
-and 0037 re-keys each comparator method a database already held to the id `comparator-methods.json`
-gives its name, deleting those the file lacks and stopping if a version names one of them.
-`value-types.json` and `units.json` list their rows in the order the publisher's form shows them,
-which the import stores as each row's `position`; code that behaves differently for a row keys it on
-the row's fixed id, kept as a constant in `@fphd/utils/value-type-and-unit`. The seed and the
-published snapshot still carry Pholio's `ci_method.csv.gz` and `comparator_method.csv.gz`, but
-neither loads them: `seeding.ts` reads them only to point each version at the core row of the same
-name, through a short map of the CI method names Pholio spells differently, and stops at a row with
-no core counterpart.
+methods, data providers, value types, units and comparator methods. No migration inserts a row of
+any of them. `value-types.json` and `units.json` list their rows in the order the publisher's form
+shows them, which the import stores as each row's `position`; code that behaves differently for a
+row keys it on the row's fixed id, kept as a constant in `@fphd/utils/value-type-and-unit`. The seed
+and the published snapshot still carry Pholio's `ci_method.csv.gz` and `comparator_method.csv.gz`,
+but neither loads them: `seeding.ts` reads them only to point each version at the core row of the
+same name, through a short map of the CI method names Pholio spells differently, and stops at a row
+with no core counterpart.
 
 `data-providers.json` holds the providers a numerator's or denominator's data comes from, each with
 its named sources; a publisher may also choose a provider with no specific source. It is the
@@ -146,8 +151,7 @@ command.
 `data/area-types.json`, `dimension-types.json`, `dimension-values.json` and `note-types.json`
 contain the fixed lookup ids. They use the exporter's deterministic UUIDv7 mapping of Pholio keys.
 The import validates ids, names and dimension parents, then upserts each list using one JSON
-parameter. Migration 0062 moves existing names to those ids and updates their foreign keys,
-observation dimension keys and area read models.
+parameter.
 
 `data/geography/` contains the full Pholio area catalog as gzipped CSV files. Its manifest records
 the source backup digest, row counts, file sizes and SHA-256 digests. The import verifies these
@@ -181,8 +185,8 @@ Deploy the operations image and run `db import-core-data` before applying a pack
 new rows. The export and receiver share format version 9, which carries the reference catalogs in
 full in incremental packages.
 
-The observation-series migrations create empty read models. For an existing environment, run
-`db rebuild-read-models` after `db migrate` and before rolling the apps to populate them for every
+A migration that adds a read model creates it empty. For an existing environment, run
+`db rebuild-read-models` after `db migrate` and before rolling the apps to populate it for every
 published indicator. The public API uses full-history fallbacks until the rebuild completes.
 `db import-core-data` only imports reference data; the dummy seed, published-snapshot import and
 live-data import rebuild read models themselves. Scheduled publication refreshes the published

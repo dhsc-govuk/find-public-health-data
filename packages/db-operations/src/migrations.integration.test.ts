@@ -57,12 +57,14 @@ describe('migrateToLatest', () => {
   });
 
   // Drizzle's migrator applies anything newer than the single newest recorded row, so an
-  // unrecorded older migration is passed over on every run without an error. Dropping all but
-  // the newest row reproduces that shape against the real migrations folder.
+  // unrecorded older migration is passed over on every run without an error. Recording a newer
+  // migration in place of every real one reproduces that shape against the real folder.
   it('refuses a migration that would be silently passed over', async () => {
     await sql`
-      DELETE FROM drizzle.__drizzle_migrations
-      WHERE created_at < (SELECT max(created_at) FROM drizzle.__drizzle_migrations)
+      WITH newest AS (SELECT max(created_at) AS created_at FROM drizzle.__drizzle_migrations),
+        removed AS (DELETE FROM drizzle.__drizzle_migrations)
+      INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+      SELECT 'from-a-newer-image', created_at + 1 FROM newest
     `;
 
     await expect(migrateToLatest(sql)).rejects.toThrow(/skipped/);

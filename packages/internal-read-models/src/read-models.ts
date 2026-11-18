@@ -75,8 +75,6 @@ async function replaceReadModelRows(
   started = performance.now();
   await tx.delete(observationRange).where(eq(observationRange.indicatorId, indicatorId));
   if (uploadBatchId) {
-    // Keep aligned with the newest migration inserting into observation_range, which reads the
-    // tables; a test runs both against a seed whose data is all published.
     const rangeObservations = tx.$with('range_observations').as(
       tx
         .select({

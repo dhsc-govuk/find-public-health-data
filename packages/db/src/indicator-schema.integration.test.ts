@@ -1,4 +1,5 @@
 import { SLUG_MAX_LENGTH } from '@fphd/utils/slug';
+import { UNIT_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -14,6 +15,8 @@ import {
   indicatorVersionTopic,
   SYSTEM_USER_IDS,
   topic,
+  unit,
+  valueType,
 } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
@@ -631,6 +634,97 @@ describe('indicator_version', () => {
             VALUES (${indicatorId}, 'no slug', ${ACTOR}, ${ACTOR})`,
       ),
     ).rejects.toMatchObject({ cause: { code: NOT_NULL_VIOLATION } });
+  });
+});
+
+describe('value type, unit and standard population', () => {
+  // The schema template holds no core data, so the rows the checks name are added here.
+  beforeAll(async () => {
+    await db
+      .insert(valueType)
+      .values([
+        { id: VALUE_TYPE_IDS.crudeRate, name: 'Crude rate', position: 0 },
+        {
+          id: VALUE_TYPE_IDS.directlyStandardisedRate,
+          name: 'Directly standardised rate',
+          position: 0,
+        },
+        {
+          id: VALUE_TYPE_IDS.indirectlyStandardisedRatio,
+          name: 'Indirectly standardised ratio',
+          position: 0,
+        },
+        { id: VALUE_TYPE_IDS.proportion, name: 'Proportion', position: 0 },
+      ])
+      .onConflictDoNothing();
+    await db
+      .insert(unit)
+      .values([
+        { id: UNIT_IDS.noUnit, name: 'No unit', position: 0 },
+        { id: UNIT_IDS.other, name: 'Other', position: 0 },
+      ])
+      .onConflictDoNothing();
+  });
+
+  // Each case names the check that refuses it.
+  it.each([
+    ['an other unit with no name', { unitId: UNIT_IDS.other }, 'unit_detail'],
+    [
+      'a named unit beside one in the list',
+      { unitId: UNIT_IDS.noUnit, unitDetail: 'people' },
+      'unit_detail',
+    ],
+    [
+      'a standard population on a crude rate',
+      { valueTypeId: VALUE_TYPE_IDS.crudeRate, standardPopulation: 'esp-2013' },
+      'standard_population_value_type',
+    ],
+    [
+      'an other standard population with no detail',
+      { valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate, standardPopulation: 'other' },
+      'standard_population_other',
+    ],
+    [
+      'a detail beside the 2013 European Standard Population',
+      {
+        valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate,
+        standardPopulation: 'esp-2013',
+        standardPopulationDetail: 'England 2021',
+      },
+      'standard_population_detail',
+    ],
+    [
+      'a population detail on a proportion',
+      { valueTypeId: VALUE_TYPE_IDS.proportion, standardPopulationDetail: 'England 2021' },
+      'standard_population_detail',
+    ],
+  ] as const)('refuses %s', async (_, values, check) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', values as never),
+    ).rejects.toMatchObject({
+      cause: { code: CHECK_VIOLATION, constraint_name: `indicator_version_${check}_check` },
+    });
+  });
+
+  it.each([
+    ['an other unit with its name', { unitId: UNIT_IDS.other, unitDetail: 'people' }],
+    [
+      'a directly standardised rate with an other population',
+      {
+        valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate,
+        standardPopulation: 'other',
+        standardPopulationDetail: 'England 2021',
+      },
+    ],
+    [
+      'an indirectly standardised ratio with its reference population',
+      {
+        valueTypeId: VALUE_TYPE_IDS.indirectlyStandardisedRatio,
+        standardPopulationDetail: 'England 2021',
+      },
+    ],
+  ] as const)('holds %s', async (_, values) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', values)).resolves.toHaveLength(1);
   });
 });
 

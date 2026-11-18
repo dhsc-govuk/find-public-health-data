@@ -163,11 +163,21 @@ export function assertSeedingAllowed(appEnv: string | undefined, action = 'seed 
   assertDevClassEnv(action, appEnv);
 }
 
+export interface ResetOptions {
+  /** Set only by `db reset --allow-production`, which an operator chooses deliberately. */
+  allowProduction?: boolean;
+}
+
 // A reset erases the whole application schema. Test (preview) may also be reset, so it can take a
 // fresh Pholio baseline: deploy (which migrates), db bootstrap, db import-core-data, then
-// db migrate-live-data, none of which is gated. It is still never seeded, and production never reset.
-export function assertResetAllowed(appEnv: string | undefined): void {
+// db migrate-live-data, none of which is gated. It is still never seeded. Production is reset only
+// when the operator asks for it by name, as `db reset --allow-production` does.
+export function assertResetAllowed(
+  appEnv: string | undefined,
+  { allowProduction = false }: ResetOptions = {},
+): void {
   if (appEnv === 'preview') return;
+  if (appEnv === 'production' && allowProduction) return;
   assertDevClassEnv('reset', appEnv);
 }
 
