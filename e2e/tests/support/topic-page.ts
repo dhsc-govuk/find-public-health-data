@@ -293,6 +293,72 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('counts trends and shows figures for the area chosen on the overview', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, '/topics/diabetes?tab-topic=data&ga=E12000007&ga=E06000052');
+    const panel = page.getByRole('tabpanel', { name: 'Overview', exact: true });
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+    await expect(
+      panel.getByRole('heading', { name: 'Diabetes has 2 indicators in London', exact: true }),
+    ).toBeVisible();
+    await panel
+      .getByRole('searchbox', { name: 'Search for a geography', exact: true })
+      .fill('West Sussex');
+    await panel.getByRole('radio', { name: 'West Sussex', exact: true }).check();
+    await expect(page).toHaveURL(/ga=E10000032/);
+    expect(new URL(page.url()).searchParams.getAll('ga')).toEqual(['E10000032']);
+    await expect(
+      panel.getByRole('heading', { name: 'Diabetes has 2 indicators in West Sussex', exact: true }),
+    ).toBeVisible();
+    await expect(
+      panel.getByText('In West Sussex, the trend over the last 5 data points is:', { exact: true }),
+    ).toBeVisible();
+    await expect(panel.locator('.fphd-trend-tag')).toHaveText([
+      '0 are getting better',
+      '1 is getting worse',
+      '0 show no significant change',
+      '1 is going up (higher is neither better nor worse)',
+      '0 are going down (higher is neither better nor worse)',
+      '0 cannot have a trend calculated',
+      'Increasing',
+    ]);
+    await expect(panel.locator('.fphd-topic-highlight h3 .govuk-hint')).toHaveText([
+      'in West Sussex',
+      'in West Sussex',
+    ]);
+    await expectNoAccessibilityViolations(page, testInfo);
+    await page.getByRole('tab', { name: 'Data', exact: true }).click();
+    await expect(
+      page
+        .getByRole('tabpanel', { name: 'Data', exact: true })
+        .getByRole('table', { name: /West Sussex compared with England/ }),
+    ).toBeVisible();
+  });
+
+  test('shows England with a note when the chosen area has no data for the topic', async ({
+    page,
+  }) => {
+    await openTopicPage(page, '/topics/diabetes?ga=E02004518');
+    const panel = page.getByRole('tabpanel', { name: 'Overview', exact: true });
+    await expect(
+      panel.getByText('Figures for Abbey Field are not available. Showing England.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole('heading', { name: 'Diabetes has 2 indicators in total', exact: true }),
+    ).toBeVisible();
+    await expect(
+      panel.getByText('In England, the trend over the last 5 data points is:', { exact: true }),
+    ).toBeVisible();
+    await expect(panel.locator('.fphd-trend-tag').first()).toHaveText('1 is getting better');
+    await expect(
+      panel.getByRole('region', { name: 'Diabetes: QOF prevalence, England: trend chart' }),
+    ).toBeVisible();
+    await expect(panel.locator('.fphd-topic-highlight h3 .govuk-hint')).toHaveCount(0);
+  });
+
   test('lists indicators with the prototype data columns and detail links', async ({
     page,
   }, testInfo) => {

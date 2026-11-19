@@ -26,7 +26,7 @@ const selected: SelectedIndicator = {
 };
 
 it('returns only the displayed headline and sparkline points without raw data or metadata', () => {
-  const [highlight] = topicOverviewModel([selected]);
+  const [highlight] = topicOverviewModel([selected], area.areaCode);
   expect(highlight).toEqual({
     shortId: 1,
     name: 'Indicator',
@@ -61,12 +61,15 @@ it('sorts and bounds the sparkline to eight periods while taking the headline fr
     toDate: `${2013 + index}-12-31`,
     count: index === 9 ? 1234 : null,
   }));
-  const [highlight] = topicOverviewModel([
-    {
-      ...selected,
-      areaData: [{ ...area, observations: [...observations].reverse() }],
-    },
-  ]);
+  const [highlight] = topicOverviewModel(
+    [
+      {
+        ...selected,
+        areaData: [{ ...area, observations: [...observations].reverse() }],
+      },
+    ],
+    area.areaCode,
+  );
   expect(highlight).toMatchObject({ period: '2022', count: 1234, value: 0, hasTrend: true });
   expect(highlight?.points).toEqual(
     observations.slice(-8).map(({ fromDate, value }) => ({
@@ -77,7 +80,7 @@ it('sorts and bounds the sparkline to eight periods while taking the headline fr
   );
 });
 
-it('prefers three-year periods and the first selected area over England', () => {
+it('prefers three-year periods and shows the chosen area rather than England', () => {
   const annual = [10, 20, 30].map((value, index) => ({
     ...observation(value),
     fromDate: `${2022 + index}-01-01`,
@@ -89,15 +92,18 @@ it('prefers three-year periods and the first selected area over England', () => 
     value: 100 - index,
     count: 186_922,
   }));
-  const [highlight] = topicOverviewModel([
-    {
-      ...selected,
-      areaData: [
-        { areaCode: 'E92000001', areaName: 'England', observations: annual },
-        { ...area, observations: [...annual, ...rolling].reverse() },
-      ],
-    },
-  ]);
+  const [highlight] = topicOverviewModel(
+    [
+      {
+        ...selected,
+        areaData: [
+          { areaCode: 'E92000001', areaName: 'England', observations: annual },
+          { ...area, observations: [...annual, ...rolling].reverse() },
+        ],
+      },
+    ],
+    area.areaCode,
+  );
   expect(highlight).toMatchObject({
     areaName: 'North East',
     period: '2022 to 2024',
@@ -133,12 +139,15 @@ it('expands financial years in the headline and chart while keeping endpoint lab
 });
 
 it.each([0, 1234, null])('shows count %s in the single Count row', (count) => {
-  const [highlight] = topicOverviewModel([
-    {
-      ...selected,
-      areaData: [{ ...area, observations: [{ ...observation(), count }] }],
-    },
-  ]);
+  const [highlight] = topicOverviewModel(
+    [
+      {
+        ...selected,
+        areaData: [{ ...area, observations: [{ ...observation(), count }] }],
+      },
+    ],
+    area.areaCode,
+  );
   expect(highlight?.count).toBe(count);
 });
 
@@ -149,35 +158,38 @@ it.each([
 ] as const)(
   'uses the selected period trend only for the matching segment %s and direction %s',
   (segment, direction, expected) => {
-    const [highlight] = topicOverviewModel([
-      {
-        ...selected,
-        areaData: [
-          {
-            ...area,
-            observations: [5, 4, 3, 2, 1].map((value, index) => ({
-              ...observation(value),
-              fromDate: `${2020 + index}-01-01`,
-              toDate: `${2020 + index}-12-31`,
-            })),
-          },
-        ],
-        tableSeries: [
-          {
-            sex: '',
-            periodType: 'all',
-            segments: { E12000001: '' },
-            trends: { E12000001: 'down' },
-          },
-          {
-            sex: '',
-            periodType: '1-year',
-            segments: { E12000001: segment },
-            trends: { E12000001: direction },
-          },
-        ],
-      },
-    ]);
+    const [highlight] = topicOverviewModel(
+      [
+        {
+          ...selected,
+          areaData: [
+            {
+              ...area,
+              observations: [5, 4, 3, 2, 1].map((value, index) => ({
+                ...observation(value),
+                fromDate: `${2020 + index}-01-01`,
+                toDate: `${2020 + index}-12-31`,
+              })),
+            },
+          ],
+          tableSeries: [
+            {
+              sex: '',
+              periodType: 'all',
+              segments: { E12000001: '' },
+              trends: { E12000001: 'down' },
+            },
+            {
+              sex: '',
+              periodType: '1-year',
+              segments: { E12000001: segment },
+              trends: { E12000001: direction },
+            },
+          ],
+        },
+      ],
+      area.areaCode,
+    );
     expect(highlight?.trend.direction).toBe(expected);
   },
 );
@@ -203,3 +215,13 @@ it.each([{ observations: [] }, { observations: [{ ...observation(), value: null 
     });
   },
 );
+
+it("shows England's figures when no area is chosen, even with data for another area", () => {
+  const england = {
+    areaCode: 'E92000001',
+    areaName: 'England',
+    observations: area.observations.map((point) => ({ ...point, value: 50, count: 5000 })),
+  };
+  const [highlight] = topicOverviewModel([{ ...selected, areaData: [area, england] }]);
+  expect(highlight).toMatchObject({ areaName: 'England', value: 50, count: 5000 });
+});

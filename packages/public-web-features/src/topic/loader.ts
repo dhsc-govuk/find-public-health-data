@@ -67,7 +67,9 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
       ? {
           search: overview.search,
           trends: overview.trends,
-          highlights: topicOverviewModel(overview.selected),
+          area: overview.area,
+          unavailableArea: overview.unavailableArea,
+          highlights: topicOverviewModel(overview.selected, overview.area?.code),
         }
       : null,
   );
@@ -152,13 +154,32 @@ export async function loadTopic(
   const url = new URL(request.url);
   const path = `/topics/${encodeURIComponent(slug)}`;
   if (tab === null || tab === 'overview') {
+    const loadedSearch = await loadSearch(args, { topicSlug: slug, path });
+    // The overview shows the first area picked, which is the first known area in the URL.
+    const requested = url.searchParams.getAll('ga');
+    const chosen = loadedSearch.gaCodes.toSorted(
+      (a, b) => requested.indexOf(a) - requested.indexOf(b),
+    )[0];
+    const search = {
+      ...loadedSearch,
+      gaCodes: chosen ? [chosen] : [],
+      geoLevels: [] as string[],
+    };
+    const trendsPath = apiPath`/api/topics/${slug}/trends`;
+    const trendsFor = (areaCode?: string) =>
+      context
+        .get(apiContext)
+        .get(
+          areaCode ? `${trendsPath}?areaCode=${encodeURIComponent(areaCode)}` : trendsPath,
+          topicTrendSummarySchema,
+        );
+    // An area with no data for any of the topic's indicators shows England's figures instead.
+    const areaTrends = async () => {
+      const trends = await trendsFor(chosen);
+      if (!chosen || trends.total > 0) return { trends, unavailable: false };
+      return { trends: await trendsFor(), unavailable: true };
+    };
     const highlighted = async () => {
-      const loadedSearch = await loadSearch(args, { topicSlug: slug, path });
-      const search = {
-        ...loadedSearch,
-        gaCodes: loadedSearch.gaCodes.slice(0, 1),
-        geoLevels: [] as string[],
-      };
       const preferred = topic.content?.highlightedIndicatorIds ?? [];
       const searchIds = search.searchResult.indicators.map(({ shortId }) => shortId);
       const availablePreferred = (
@@ -196,11 +217,18 @@ export async function loadTopic(
         : null;
       return { search, selected: data ? topicTableSelection(data.selected, 5, 8) : [] };
     };
-    const [overview, trends] = await Promise.all([
-      highlighted(),
-      context.get(apiContext).get(apiPath`/api/topics/${slug}/trends`, topicTrendSummarySchema),
-    ]);
-    return { topic, content: null, overview: { ...overview, trends } };
+    const [overview, { trends, unavailable }] = await Promise.all([highlighted(), areaTrends()]);
+    const name = chosen ? (search.gaAreaNames[chosen] ?? chosen) : undefined;
+    return {
+      topic,
+      content: null,
+      overview: {
+        ...overview,
+        trends,
+        area: chosen && name && !unavailable ? { code: chosen, name } : undefined,
+        unavailableArea: unavailable ? name : undefined,
+      },
+    };
   }
   if (tab !== 'data' && tab !== 'areas') return { topic, content: null, overview: null };
   const requestedGroup = url.searchParams.get('geo') ?? '';

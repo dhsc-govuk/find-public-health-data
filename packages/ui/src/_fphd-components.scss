@@ -2559,6 +2559,13 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   }
 }
 
+.fphd-topic-highlight__area {
+  display: block;
+  margin-top: govuk-spacing(1);
+  margin-bottom: 0;
+  font-weight: $govuk-font-weight-regular;
+}
+
 .fphd-topic-highlight .fphd-topic-highlight__no-trend {
   display: flex;
   align-items: center;
