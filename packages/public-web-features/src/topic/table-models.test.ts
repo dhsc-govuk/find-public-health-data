@@ -1,5 +1,5 @@
 import { tableAreaSeries, tableSummary } from '@fphd/utils/observation-series';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { recentTrend } from '../indicator/data.ts';
 import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
 import { sortTopicAreaTable, topicAreaTableModel, topicDataTableModel } from './table-models.ts';
@@ -607,3 +607,131 @@ it.each([false, true])(
     });
   },
 );
+
+describe('trend sorts', () => {
+  const years = (values: number[]) =>
+    values.map((value, index) => observation(2018 + index, value));
+  const rolling = (point: IndicatorObservation) => ({
+    ...point,
+    fromDate: `${Number(point.fromDate.slice(0, 4)) - 2}-01-01`,
+  });
+  const bySex =
+    (value: string, sortOrder: number) =>
+    (point: IndicatorObservation): IndicatorObservation => ({
+      ...point,
+      dimensions: [{ type: 'Sex', value, dimensionClass: 'core', sortOrder }],
+    });
+  const indicator = (
+    shortId: number,
+    name: string,
+    england: IndicatorObservation[],
+    polarity = 'lower-is-better',
+  ) =>
+    ({
+      detail: { ...entry.detail, shortId, name, slug: `indicator-${shortId}`, polarity },
+      areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: england }],
+    }) as SelectedIndicator;
+  const withAreas = (
+    selected: SelectedIndicator,
+    areas: Record<string, IndicatorObservation[]>,
+  ): SelectedIndicator => ({
+    ...selected,
+    areaData: [
+      ...Object.entries(areas).map(([areaName, observations]) => ({
+        areaCode: areaName === 'London' ? 'E12000007' : 'E12000001',
+        areaName,
+        observations,
+      })),
+      ...selected.areaData,
+    ],
+  });
+  const rising = [20, 21, 22, 23, 24, 25];
+  const multiYear = indicator(1, 'Multi-year periods', years(rising).map(rolling));
+  const gettingWorse = indicator(2, 'Getting worse', years(rising));
+  const others = [
+    indicator(3, 'Too few points', years([20, 21, 22])),
+    indicator(4, 'No polarity', years(rising), 'no-polarity'),
+    indicator(5, 'No significant change', years([20, 20, 20, 20, 20, 20])),
+  ];
+  // In the order the search listed them.
+  const selected = [multiYear, gettingWorse, ...others];
+  const names = (model: ReturnType<typeof topicDataTableModel>) =>
+    model.rows.map(({ name, suffix }) => (suffix ? `${name} ${suffix}` : name));
+
+  it.each(['trend-desc', 'trend-asc', 'trend-better', 'trend-worse'] as const)(
+    'puts rows whose England trend is unavailable last under %s when no area is picked, keeping each group’s order',
+    (sort) => {
+      const model = topicDataTableModel(selected, 'diabetes', undefined, sort);
+      expect(names(model)).toEqual([
+        'Getting worse',
+        'No polarity',
+        'No significant change',
+        'Multi-year periods',
+        'Too few points',
+      ]);
+      expect(model.rows.map(({ cells }) => cells[0]?.trend.label)).toEqual([
+        'Increasing and getting worse',
+        'Increasing',
+        'No significant change',
+        'Trend unavailable',
+        'Trend unavailable',
+      ]);
+    },
+  );
+
+  it.each(['subtopic-asc', 'name-asc', 'period-desc', undefined] as const)(
+    'keeps the listed order under %s',
+    (sort) => {
+      expect(names(topicDataTableModel(selected, 'diabetes', undefined, sort))).toEqual([
+        'Multi-year periods',
+        'Getting worse',
+        'Too few points',
+        'No polarity',
+        'No significant change',
+      ]);
+    },
+  );
+
+  it('puts rows whose picked area’s trend is unavailable last, whatever England’s trend', () => {
+    const compared = [
+      withAreas(multiYear, { 'North East': years(rising) }),
+      withAreas(gettingWorse, { 'North East': years([20, 21]) }),
+      ...others.map((each) => withAreas(each, { 'North East': years(rising) })),
+    ];
+    const model = topicDataTableModel(compared, 'diabetes', undefined, 'trend-worse');
+    expect(model.areas).toEqual([{ code: 'E12000001', name: 'North East' }]);
+    expect(names(model)).toEqual([
+      'Multi-year periods',
+      'Too few points',
+      'No polarity',
+      'No significant change',
+      'Getting worse',
+    ]);
+    expect(model.rows.map(({ cells }) => cells[0]?.trend.direction ?? null)).toEqual([
+      'up',
+      'up',
+      'up',
+      'up',
+      null,
+    ]);
+  });
+
+  it('reads the first area column the table shows, not the first area picked', () => {
+    const compared = [
+      withAreas(multiYear, { 'North East': years(rising), London: years([20, 21]) }),
+      withAreas(gettingWorse, { 'North East': years([20, 21]), London: years(rising) }),
+    ];
+    const model = topicDataTableModel(compared, 'diabetes', undefined, 'trend-desc');
+    expect(model.areas.map(({ name }) => name)).toEqual(['London', 'North East']);
+    expect(names(model)).toEqual(['Getting worse', 'Multi-year periods']);
+  });
+
+  it('moves only the row of an indicator whose England trend is unavailable', () => {
+    const sexed = indicator(6, 'By sex', [
+      ...years(rising).map(bySex('Female', 1)),
+      ...years([20, 21]).map(bySex('Male', 2)),
+    ]);
+    const model = topicDataTableModel([sexed, gettingWorse], 'diabetes', undefined, 'trend-desc');
+    expect(names(model)).toEqual(['By sex (Female)', 'Getting worse', 'By sex (Male)']);
+  });
+});

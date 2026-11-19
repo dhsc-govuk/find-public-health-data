@@ -14,11 +14,13 @@ import {
   topicJudgement,
   topicSubtopics,
 } from './data.ts';
+import type { TopicSort } from './filters.ts';
 
 export function topicDataTableModel(
   selected: SelectedIndicator[],
   topicSlug: string,
   geography: BenchmarkGeography = { regionByCode: {}, levelByCode: {} },
+  sort?: TopicSort,
 ) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   const rows = comparisonRows(selected);
@@ -37,7 +39,7 @@ export function topicDataTableModel(
   const levels = new Set(
     areas.map(({ code }) => geography.levelByCode[code]).filter((level) => level !== undefined),
   );
-  return {
+  const model = {
     kind: 'data' as const,
     compared,
     ...(levels.size > 1 ? { mixedGeographyLevels: true } : {}),
@@ -124,6 +126,16 @@ export function topicDataTableModel(
         },
       ];
     }),
+  };
+  if (!sort?.startsWith('trend-')) return model;
+  // Under a trend sort, a row goes last when its Trend cell for the table's first area column
+  // shows the trend is unavailable. Each group keeps the listed order.
+  const firstArea = model.areas[0]?.code;
+  const hasTrend = (row: (typeof model.rows)[number]) =>
+    row.cells.some(({ areaCode, trend }) => areaCode === firstArea && trend.direction !== null);
+  return {
+    ...model,
+    rows: [...model.rows.filter(hasTrend), ...model.rows.filter((row) => !hasTrend(row))],
   };
 }
 

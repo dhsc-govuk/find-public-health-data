@@ -60,6 +60,8 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
       })),
     };
   }, [sourceTable, areaKey, sameGroup]);
+  // Rows without a trend for the table's first area column go last, as the table model orders them.
+  const trendArea = table.kind === 'data' && table.compared ? table.areas[0]?.name : undefined;
   const total = search.searchResult.total;
   const hasRows = table.rows.length > 0;
   const sortParam = areas ? 'areaRowSort' : 'sort';
@@ -158,8 +160,8 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
       ) : null}
       {!areas && listing.sort.startsWith('trend-') ? (
         <p className="govuk-body-s">
-          Trend sorting uses England's headline series. Indicators without a calculated trend appear
-          last.
+          Trend sorting uses England's headline series. Indicators without a calculated trend
+          {trendArea ? ` for ${trendArea}` : ''} appear last.
         </p>
       ) : null}
       {!hasRows ? (

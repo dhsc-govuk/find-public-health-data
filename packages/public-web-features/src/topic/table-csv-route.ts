@@ -10,6 +10,7 @@ import {
   topicColumns,
   topicEnglandMeasures,
 } from './data.ts';
+import { topicSort } from './filters.ts';
 import { loadTopic } from './loader.ts';
 import {
   sortTopicAreaTable,
@@ -64,7 +65,12 @@ export async function loader(args: LoaderFunctionArgs) {
         ),
       )
     : dataCsv(
-        topicDataTableModel(data.selected, topic.slug, data.benchmarkGeography),
+        topicDataTableModel(
+          data.selected,
+          topic.slug,
+          data.benchmarkGeography,
+          topicSort(url.searchParams.get('sort')),
+        ),
         url.searchParams,
       );
   return new Response(csv, {

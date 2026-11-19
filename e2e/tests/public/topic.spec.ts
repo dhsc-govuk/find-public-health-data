@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { parse } from 'csv-parse/sync';
 import {
   expectNoAccessibilityViolations,
   expectUniqueLandmarkNames,
 } from '../support/accessibility.ts';
+import { downloadFrom } from '../support/downloads.ts';
 import { openTopicPage, topicPageTests } from '../support/topic-page.ts';
 
 test('shows a topic', async ({ page }) => {
@@ -88,6 +90,54 @@ for (const javaScriptEnabled of [true, false]) {
         await expect(select).toHaveValue('name-desc');
       });
     }
+  });
+}
+
+for (const { title, query, area, note } of [
+  {
+    title: 'shows indicators without a trend at the bottom of the list under every trend sort',
+    query: '',
+    area: 'England',
+    note: 'Indicators without a calculated trend appear last.',
+  },
+  {
+    title:
+      'shows indicators without a trend for the chosen area at the bottom of the list under every trend sort',
+    query: '&ga=E12000007',
+    area: 'London',
+    note: 'Indicators without a calculated trend for London appear last.',
+  },
+]) {
+  test(title, async ({ page }, testInfo) => {
+    const expectTrendUnavailableLast = (trends: string[]) => {
+      const unavailable = trends.map((trend) => trend.includes('Trend unavailable'));
+      expect(unavailable).toContain(true);
+      expect(unavailable).toContain(false);
+      expect(unavailable).toEqual(unavailable.toSorted((a, b) => Number(a) - Number(b)));
+    };
+    for (const sort of ['trend-desc', 'trend-asc', 'trend-better', 'trend-worse']) {
+      await openTopicPage(page, `/topics/diabetes?tab-topic=data&sort=${sort}${query}`);
+      const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+      await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
+      await expect(panel.getByText(/^Trend sorting uses/)).toHaveText(
+        `Trend sorting uses England's headline series. ${note}`,
+      );
+      const table = panel.getByRole('table');
+      await expect(table.getByRole('columnheader', { name: area, exact: true })).toBeVisible();
+      expectTrendUnavailableLast(await table.locator('tbody tr').allInnerTexts());
+      await panel.getByText('Download or share data', { exact: true }).click();
+      const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
+      const column = `${area} trend (last 5 periods)`;
+      const rows = parse(text, { columns: true }) as Record<string, string | undefined>[];
+      expectTrendUnavailableLast(
+        rows.map((row) => {
+          const trend = row[column];
+          if (trend === undefined) throw new Error(`Expected a "${column}" column in the CSV`);
+          return trend;
+        }),
+      );
+    }
+    await expectNoAccessibilityViolations(page, testInfo);
   });
 }
 

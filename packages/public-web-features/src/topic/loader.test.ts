@@ -599,3 +599,42 @@ it('carries the loaded range through the streamed compact table payload', async 
   });
   expect(paths(api).filter((path) => path.includes('/range?'))).toHaveLength(2);
 });
+
+it.each([
+  ['trend-desc', ['Indicator 2', 'Indicator 1']],
+  ['name-asc', ['Indicator 1', 'Indicator 2']],
+])('builds the data table in the order shown under %s', async (sort, expected) => {
+  const years = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      ...observation(20 + index),
+      fromDate: `${2020 + index}-01-01`,
+      toDate: `${2020 + index}-12-31`,
+    }));
+  const api = createFakeApiClient({
+    ...topicStubs(
+      [1, 2].map((shortId) => ({
+        shortId,
+        name: `Indicator ${shortId}`,
+        slug: `indicator-${shortId}`,
+      })),
+    ),
+    'GET /api/indicator-data': (call) =>
+      query(call)
+        .getAll('indicator')
+        .map((id) => ({
+          detail: indicatorDetail(Number(id)),
+          areaData: [
+            {
+              areaCode: 'E92000001',
+              areaName: 'England',
+              observations: years(id === '1' ? 1 : 5),
+            },
+          ],
+        })),
+  });
+  const page = await loadTopicPage(
+    loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=data&sort=${sort}`),
+  );
+  const [content] = await Promise.all([page.content, page.overview, page.areas]);
+  expect(content?.table.rows.map(({ name }) => name)).toEqual(expected);
+});
