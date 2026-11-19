@@ -336,6 +336,37 @@ export function topicPageTests() {
     ).toBeVisible();
   });
 
+  test.describe('without JavaScript', () => {
+    test.use({ javaScriptEnabled: false });
+
+    test('counts trends for the area chosen on the overview', async ({ page }) => {
+      await page.goto('/topics/diabetes');
+      const panel = page.locator('#topic-overview');
+      await panel
+        .getByRole('searchbox', { name: 'Search for a geography', exact: true })
+        .fill('West Sussex');
+      await panel.getByRole('button', { name: 'Find geographies', exact: true }).click();
+      await page
+        .locator('#topic-overview')
+        .getByRole('radio', { name: 'West Sussex', exact: true })
+        .check();
+      await page
+        .locator('#topic-overview')
+        .getByRole('button', { name: 'Apply geographies', exact: true })
+        .click();
+      await expect(page).toHaveURL(/tab-topic=overview.*ga=E10000032/);
+      await expect(
+        page.locator('#topic-overview').getByRole('heading', {
+          name: 'Diabetes has 2 indicators in West Sussex',
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.locator('#topic-overview .fphd-trend-tag').nth(1)).toHaveText(
+        '1 is getting worse',
+      );
+    });
+  });
+
   test('shows England with a note when the chosen area has no data for the topic', async ({
     page,
   }) => {
