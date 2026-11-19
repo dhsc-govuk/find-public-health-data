@@ -9,7 +9,6 @@ const observation = (year: number, value: number): IndicatorObservation => ({
   toDate: `${year}-12-31`,
   value,
   count: value * 10,
-  numerator: value * 5,
   denominator: null,
   dimensions: [],
   notes: [],
@@ -118,7 +117,6 @@ it('serialises calculated table cells and trends without observation histories',
   expect(cell).toMatchObject({
     value: 18,
     count: 180,
-    numerator: 90,
     trend: recentTrend(entry.areaData[1]?.observations ?? [], 'lower-is-better'),
   });
   expect(model.rows[0]).toMatchObject({ slug: 'indicator', subtopics: ['Care and treatment'] });
@@ -164,7 +162,7 @@ it('keeps England beside picked areas and judges each area against it', () => {
   const model = topicDataTableModel([entry], 'diabetes');
   expect(model.areas).toEqual([{ code: 'E12000001', name: 'North East' }]);
   expect(model.compared).toBe(true);
-  expect(model.rows[0]?.england).toEqual({ value: 28, count: 280, numerator: 140 });
+  expect(model.rows[0]?.england).toEqual({ value: 28, count: 280 });
   expect(model.rows[0]?.cells[0]?.judgement).toBe('better');
 });
 
@@ -594,7 +592,7 @@ it.each([false, true])(
       levelByCode: { E12000001: 'Statistical regions', E08000003: 'Local authorities' },
     });
     const row = model.rows[0];
-    expect(row?.england).toEqual({ value: 28, count: 280, numerator: 140 });
+    expect(row?.england).toEqual({ value: 28, count: 280 });
     expect(row?.cells.find(({ areaCode }) => areaCode === 'E12000001')?.range).toEqual({
       min: 10,
       p25: 15,

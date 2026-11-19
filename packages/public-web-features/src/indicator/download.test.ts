@@ -46,7 +46,6 @@ it('escapes a trend cell that starts with a formula character, keeping negative 
             lowerCi998: null,
             upperCi998: null,
             count: null,
-            numerator: null,
             denominator: null,
             notes: [],
             dimensions: [],

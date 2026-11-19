@@ -23,8 +23,8 @@ export interface IndicatorObservation {
   upperCi95: number | null;
   lowerCi998: number | null;
   upperCi998: number | null;
+  /** The observation's count, or its numerator where it holds no count. */
   count: number | null;
-  numerator: number | null;
   denominator: number | null;
   dimensions: ObservationDimensionValue[];
   /** Note texts attached to the value, with their category ("quality", "disclosure"…). */
@@ -76,8 +76,9 @@ export async function getIndicatorObservationData(
     upperCi95: observation.upperCi95,
     lowerCi998: observation.lowerCi998,
     upperCi998: observation.upperCi998,
-    count: observation.count,
-    numerator: observation.numerator,
+    count: sql<number | null>`coalesce(${observation.count}, ${observation.numerator})`.mapWith(
+      observation.count,
+    ),
     denominator: observation.denominator,
     areaCode: area.code,
     areaName: area.name,

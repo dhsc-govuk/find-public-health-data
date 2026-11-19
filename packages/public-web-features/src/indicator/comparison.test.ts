@@ -12,7 +12,6 @@ function point(value: number, type: string, population: string): IndicatorObserv
     lowerCi998: null,
     upperCi998: null,
     count: null,
-    numerator: null,
     denominator: null,
     notes: [],
     dimensions: [{ type, value: population, sortOrder: 1, dimensionClass: 'core' }],

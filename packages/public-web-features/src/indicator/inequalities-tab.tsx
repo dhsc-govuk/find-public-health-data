@@ -132,10 +132,7 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
               </div>
               <InequalitiesTable
                 benchmark={inequalityBenchmark}
-                benchmarkMeasures={{
-                  count: inequalityBenchmarkObservation?.count ?? null,
-                  numerator: inequalityBenchmarkObservation?.numerator ?? null,
-                }}
+                benchmarkMeasures={{ count: inequalityBenchmarkObservation?.count ?? null }}
                 indicator={detail}
                 confidence={inequalityConfidence}
                 observations={inequalityRows}

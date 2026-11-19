@@ -28,7 +28,6 @@ it.each(['', 'ga=E92000001'])(
       'updated',
       'trend',
       'count',
-      'numerator',
       'value',
     ]);
     expect(new FormData(form).getAll('columns-topic')).toEqual([

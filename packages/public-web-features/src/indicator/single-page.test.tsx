@@ -64,7 +64,6 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
             lowerCi998: null,
             upperCi998: null,
             count: 100,
-            numerator: null,
             denominator: 1000,
             notes: [],
             dimensions: [],
@@ -184,23 +183,24 @@ it("reads a placeholder in each data section of a preview's draft with no data t
   ).toBeTruthy();
 });
 
-it('offers the table columns for the raw numbers the indicator has', () => {
+it.each([
+  [79, true],
+  [null, false],
+])('offers a Count column for count %s only where the data has one', (count, offered) => {
   const rate = selected(241, 'Diabetes prevalence', 7.9);
   rate.areaData = rate.areaData.map((area) => ({
     ...area,
-    observations: area.observations.map((observation) => ({
-      ...observation,
-      count: null,
-      numerator: 79,
-    })),
+    observations: area.observations.map((observation) => ({ ...observation, count })),
   }));
   page([rate], '/indicator/indicator-241');
 
   const columns = within(screen.getByRole('tabpanel', { name: 'Indicator' }));
 
   // The columns sit in the collapsed display options.
-  expect(columns.getByRole('checkbox', { name: 'Numerator', hidden: true })).toBeTruthy();
-  expect(columns.queryByRole('checkbox', { name: 'Count', hidden: true })).toBeNull();
+  expect(columns.queryAllByRole('checkbox', { name: 'Count', hidden: true })).toHaveLength(
+    offered ? 1 : 0,
+  );
+  expect(columns.queryByRole('checkbox', { name: 'Numerator', hidden: true })).toBeNull();
 });
 
 it('keeps England as the benchmark when comparing local areas', () => {

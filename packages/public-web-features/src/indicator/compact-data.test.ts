@@ -12,7 +12,6 @@ it('preserves every observation field and its order through the hydration bounda
   const zero = {
     ...observation(0, [sex('Female')]),
     count: 0,
-    numerator: 0,
     denominator: 123,
     lowerCi95: null,
     upperCi998: 0,

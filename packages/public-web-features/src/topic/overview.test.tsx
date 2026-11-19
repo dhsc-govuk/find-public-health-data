@@ -70,15 +70,13 @@ it('uses rolling mortality figures and chart with the multi-year unavailable tre
     ...observation(value),
     fromDate: `${2015 + index}-01-01`,
     toDate: `${2017 + index}-12-31`,
-    count: null,
-    numerator: 186_922,
+    count: 186_922,
   }));
   const annual = [140, 130, 120, 110, 105].map((value, index) => ({
     ...observation(value),
     fromDate: `${2020 + index}-01-01`,
     toDate: `${2020 + index}-12-31`,
-    count: null,
-    numerator: 60_825,
+    count: 60_825,
   }));
   const doc = card([...annual, ...rolling].reverse(), {
     unit: 'per 100,000',
@@ -102,14 +100,13 @@ it('uses rolling mortality figures and chart with the multi-year unavailable tre
   );
 });
 
-it('labels the prevalence numerator as Count and expands summary and accessible financial years', () => {
+it('shows the prevalence count and expands summary and accessible financial years', () => {
   const doc = card(
     [6.8, 6.9, 7, 7.1, 7.2, 7.4, 7.6, 7.9].map((value, index) => ({
       ...observation(value),
       fromDate: `${2017 + index}-04-01`,
       toDate: `${2018 + index}-03-31`,
-      count: null,
-      numerator: 4_109_134,
+      count: 4_109_134,
     })),
     { polarity: 'no-polarity', yearType: publicYearType('financial', null) },
   );
@@ -136,8 +133,7 @@ it.each(['per 1,000', 'per 1,000 live births'])(
         ...observation(value),
         fromDate: `${2021 + index}-01-01`,
         toDate: `${2023 + index}-12-31`,
-        count: null,
-        numerator: 7117,
+        count: 7117,
       })),
       { name: 'Infant mortality rate', unit },
     );
@@ -214,22 +210,18 @@ it('keeps the trend on the displayed period type for indicators with sex and per
 });
 
 it.each([
-  [1234, 5678, '1,234'],
-  [0, 5678, '0'],
-  [null, 5678, '5,678'],
-  [null, null, 'No data'],
-])(
-  'shows Count for count %s and numerator %s without adding another measure row',
-  (count, numerator, expected) => {
-    const doc = card([{ ...observation(), count, numerator }], {});
-    expect(summary(doc)).toHaveLength(4);
-    expect(summary(doc)[1]).toEqual(['Count', expected]);
-    expect(doc.querySelector('svg')).toBeNull();
-    expect(doc.querySelector('.fphd-topic-highlight__no-trend')?.textContent).toContain(
-      'No trend available',
-    );
-  },
-);
+  [1234, '1,234'],
+  [0, '0'],
+  [null, 'No data'],
+])('shows Count for count %s without adding another measure row', (count, expected) => {
+  const doc = card([{ ...observation(), count }], {});
+  expect(summary(doc)).toHaveLength(4);
+  expect(summary(doc)[1]).toEqual(['Count', expected]);
+  expect(doc.querySelector('svg')).toBeNull();
+  expect(doc.querySelector('.fphd-topic-highlight__no-trend')?.textContent).toContain(
+    'No trend available',
+  );
+});
 
 it('keeps all four summary labels when there are no observations', () => {
   const doc = card([], {});

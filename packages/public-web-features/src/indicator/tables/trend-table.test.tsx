@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { benchmarkFixture } from '../benchmark.testing.ts';
 import { trendCsv } from '../download.ts';
-import type { IndicatorAreaData, IndicatorDetail } from '../loader.ts';
+import type { IndicatorDetail } from '../loader.ts';
 import { type TrendColumns, trendTableModel } from '../trend.ts';
 import { TrendTable } from './trend-table.tsx';
 
@@ -33,7 +33,6 @@ const areaData = [
         lowerCi998: null,
         upperCi998: null,
         count: null,
-        numerator: null,
         denominator: null,
         notes: [],
         dimensions: [],
@@ -47,7 +46,6 @@ describe('TrendTable', () => {
     const fixture = benchmarkFixture();
     const columns: TrendColumns = {
       count: false,
-      numerator: false,
       value: true,
       confidence: [],
       minMax: true,
@@ -129,7 +127,6 @@ describe('TrendTable', () => {
     expect(screen.getByRole('cell', { name: 'Neither good nor bad' })).toBeTruthy();
     const columns: TrendColumns = {
       count: false,
-      numerator: false,
       value: true,
       confidence: [],
       minMax: false,
@@ -149,10 +146,9 @@ describe('TrendTable', () => {
     expect(screen.queryByRole('columnheader', { name: 'Compared with policy goal' })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: /Policy goal/ })).toBeNull();
   });
-  it('keeps count, numerator, value and both interval column choices consistent with the CSV', () => {
+  it('keeps count, value and both interval column choices consistent with the CSV', () => {
     const columns: TrendColumns = {
       count: true,
-      numerator: true,
       value: false,
       confidence: ['95', '99.8'],
       minMax: false,
@@ -164,7 +160,6 @@ describe('TrendTable', () => {
       observations: area.observations.map((row) => ({
         ...row,
         count: 1024,
-        numerator: 512,
         lowerCi95: 11,
         upperCi95: 13,
         lowerCi998: 10,
@@ -175,7 +170,7 @@ describe('TrendTable', () => {
       <TrendTable areaData={data} confidence="none" columns={columns} indicator={indicator('%')} />,
     );
     expect(screen.getByRole('columnheader', { name: 'Count' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Numerator' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: /Numerator/ })).toBeNull();
     expect(screen.queryByRole('columnheader', { name: /Calculated value/ })).toBeNull();
     expect(
       screen.getByRole('columnheader', { name: '95% lower confidence interval' }),
@@ -190,42 +185,25 @@ describe('TrendTable', () => {
       columns,
     );
     expect(csv).toContain(
-      'England count,England numerator,England lower 95% CI,England upper 95% CI,England lower 99.8% CI,England upper 99.8% CI',
+      'England count,England lower 95% CI,England upper 95% CI,England lower 99.8% CI,England upper 99.8% CI',
     );
-    expect(csv).toContain('2023,1024,512,11,13,10,14');
+    expect(csv).toContain('2023,1024,11,13,10,14');
+    expect(csv).not.toContain('numerator');
     expect(csv).not.toContain('calculated value');
   });
-  it('shows a numerator column without a picker only when the data has numerators', () => {
-    const withNumerators = areaData.map((area) => ({
+  it('shows a count column without a picker only when the data has counts', () => {
+    const withCounts = areaData.map((area) => ({
       ...area,
-      observations: area.observations.map((row) => ({ ...row, numerator: 512 })),
+      observations: area.observations.map((row) => ({ ...row, count: 4 })),
     }));
     const { rerender } = render(
       <TrendTable areaData={areaData} confidence="none" indicator={indicator(null)} />,
     );
-    expect(screen.queryByRole('columnheader', { name: /^Numerator/ })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: /^Count/ })).toBeNull();
 
-    rerender(
-      <TrendTable areaData={withNumerators} confidence="none" indicator={indicator(null)} />,
-    );
-
-    expect(screen.getByRole('columnheader', { name: 'Numerator (Raw number)' })).toBeTruthy();
-  });
-  it('shows no numerator column when an older API sends none', () => {
-    const older = areaData.map((area) => ({
-      ...area,
-      observations: area.observations.map(({ numerator: _, ...row }) => ({ ...row, count: 4 })),
-    }));
-    render(
-      <TrendTable
-        areaData={older as unknown as IndicatorAreaData[]}
-        confidence="none"
-        indicator={indicator(null)}
-      />,
-    );
+    rerender(<TrendTable areaData={withCounts} confidence="none" indicator={indicator(null)} />);
 
     expect(screen.getByRole('columnheader', { name: 'Count (Raw number)' })).toBeTruthy();
-    expect(screen.queryByRole('columnheader', { name: /^Numerator/ })).toBeNull();
   });
 
   it.each([
@@ -261,7 +239,6 @@ const observation = (fromDate: string, toDate: string, value: number) => ({
   lowerCi998: null,
   upperCi998: null,
   count: 40,
-  numerator: null,
   denominator: null,
   notes: [],
   dimensions: [],
@@ -306,7 +283,6 @@ const benchmarked = {
 
 const allColumns: TrendColumns = {
   count: true,
-  numerator: false,
   value: true,
   confidence: ['95'],
   minMax: true,
@@ -480,7 +456,6 @@ describe('TrendTable benchmark columns', () => {
           {...benchmarked}
           columns={{
             count: false,
-            numerator: false,
             value: false,
             confidence: [],
             minMax: false,

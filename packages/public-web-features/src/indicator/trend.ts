@@ -35,7 +35,6 @@ export interface AreaBenchmark {
 
 export interface TrendColumns {
   count: boolean;
-  numerator: boolean;
   value: boolean;
   confidence: ('95' | '99.8')[];
   /** The lowest and highest values across the benchmark's areas. */
@@ -73,7 +72,6 @@ export function selectedTrendColumns(
       ];
   return {
     count: available.includes('count') && values.includes('count'),
-    numerator: available.includes('numerator') && values.includes('numerator'),
     value: values.includes('value'),
     confidence: (['95', '99.8'] as const).filter(
       (level) => available.includes(level) && values.includes(level),
@@ -90,7 +88,6 @@ export function trendColumnsParam(columns: TrendColumns): string {
   return (
     [
       columns.count ? 'count' : '',
-      columns.numerator ? 'numerator' : '',
       columns.value ? 'value' : '',
       ...columns.confidence,
       columns.minMax ? 'minmax' : '',
@@ -228,7 +225,6 @@ export function trendTableModel({
               ? values.reduce((sum, value) => sum + value, 0) / values.length
               : null,
             count: null,
-            numerator: null,
             denominator: null,
             lowerCi95: null,
             upperCi95: null,
@@ -342,9 +338,6 @@ export function trendTableModel({
     (period: (typeof periods)[number]) => (row: { fromDate: string; toDate: string }) =>
       row.fromDate === period.fromDate && row.toDate === period.toDate;
   const hasCounts = seriesByArea.some(({ series }) => series.some(({ count }) => count != null));
-  const hasNumerators = seriesByArea.some(({ series }) =>
-    series.some(({ numerator }) => numerator != null),
-  );
   const lowerOf = (observation: IndicatorObservation) =>
     confidence === '99.8' ? observation.lowerCi998 : observation.lowerCi95;
   const upperOf = (observation: IndicatorObservation) =>
@@ -355,7 +348,6 @@ export function trendTableModel({
     benchmarksByArea,
     firstObservation: seriesByArea[0]?.series[0],
     hasCounts,
-    hasNumerators,
     inPeriod,
     lowerOf,
     periods,

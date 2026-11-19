@@ -90,7 +90,6 @@ export function topicDataTableModel(
             ? {
                 value: england?.value ?? null,
                 count: england?.count ?? null,
-                numerator: england?.numerator ?? null,
                 ...(englandRange ?? {}),
               }
             : null,
@@ -105,7 +104,6 @@ export function topicDataTableModel(
               areaCode: cell.areaCode,
               value: latest?.value ?? null,
               count: latest?.count ?? null,
-              numerator: latest?.numerator ?? null,
               trend: recentTrend(cell.series, entry.detail.polarity, cell.trendDirection),
               ...(compared && rangeFor(cell) ? { range: rangeFor(cell) } : {}),
               judgement:

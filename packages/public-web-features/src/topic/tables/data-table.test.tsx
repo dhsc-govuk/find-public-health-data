@@ -28,7 +28,6 @@ const row = (
       areaCode: england ? 'E12000001' : 'E92000001',
       value: area.value,
       count: null,
-      numerator: null,
       trend: recentTrend([], null),
       judgement: area.judgement,
     },
@@ -44,17 +43,9 @@ it('follows a picked area with its comparison summary and puts England last', ()
     compared: true,
     areas: [{ code: 'E12000001', name: 'North East' }],
     rows: [
-      row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: 280, numerator: 140 }),
-      row(
-        'Obesity',
-        { value: null, judgement: 'none' },
-        { value: 31, count: null, numerator: null },
-      ),
-      row(
-        'Care home deaths',
-        { value: 29, judgement: 'none' },
-        { value: 41, count: null, numerator: null },
-      ),
+      row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: 280 }),
+      row('Obesity', { value: null, judgement: 'none' }, { value: 31, count: null }),
+      row('Care home deaths', { value: 29, judgement: 'none' }, { value: 41, count: null }),
     ],
   };
   render(
@@ -118,11 +109,7 @@ it('shows England alone, with its trend, when no area is picked', () => {
 });
 
 it('shows the period of an area value that lags the row', () => {
-  const lagging = row(
-    'Smoking',
-    { value: 18, judgement: 'better' },
-    { value: 28, count: null, numerator: null },
-  );
+  const lagging = row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: null });
   const cell = lagging.cells[0];
   if (!cell) throw new Error('Cell fixture missing');
   lagging.cells = [{ ...cell, period: '2022' }];
@@ -152,9 +139,7 @@ it('shows no comparison available when the same-period England value is missing'
     kind: 'data',
     compared: true,
     areas: [{ code: 'E12000001', name: 'North East' }],
-    rows: [
-      row('Smoking', { value: 18, judgement: null }, { value: null, count: null, numerator: null }),
-    ],
+    rows: [row('Smoking', { value: 18, judgement: null }, { value: null, count: null })],
   };
   render(
     <MemoryRouter>
@@ -169,15 +154,12 @@ it.each<{ columns: TopicColumn[] }>([
   { columns: [] },
   { columns: ['trend'] },
   { columns: ['count'] },
-  { columns: ['numerator'] },
 ])('keeps England calculated value when the selected columns are $columns', ({ columns }) => {
   const model: TopicDataTableModel = {
     kind: 'data',
     compared: true,
     areas: [{ code: 'E12000001', name: 'North East' }],
-    rows: [
-      row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: 280, numerator: 140 }),
-    ],
+    rows: [row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: 280 })],
   };
   render(
     <MemoryRouter>
@@ -189,19 +171,14 @@ it.each<{ columns: TopicColumn[] }>([
   expect(screen.getByRole('cell', { name: '28.0%2023' })).toBeTruthy();
 });
 
-it('labels lagging counts and numerators and identifies the England benchmark used', () => {
-  const lagging = row(
-    'Smoking',
-    { value: 26, judgement: 'better' },
-    { value: 28, count: null, numerator: null },
-  );
+it('labels lagging counts and identifies the England benchmark used', () => {
+  const lagging = row('Smoking', { value: 26, judgement: 'better' }, { value: 28, count: null });
   const cell = lagging.cells[0];
   if (!cell) throw new Error('Cell fixture missing');
   lagging.cells = [
     {
       ...cell,
       count: 260,
-      numerator: 130,
       period: '2022',
       benchmark: { value: 30, period: '2022' },
     },
@@ -214,35 +191,25 @@ it('labels lagging counts and numerators and identifies the England benchmark us
   };
   const { rerender } = render(
     <MemoryRouter>
-      <TopicDataTable model={model} title="Diabetes" columns={['count', 'numerator', 'summary']} />
+      <TopicDataTable model={model} title="Diabetes" columns={['count', 'summary']} />
     </MemoryRouter>,
   );
   expect(screen.getByRole('cell', { name: '260(2022)' })).toBeTruthy();
-  expect(screen.getByRole('cell', { name: '130(2022)' })).toBeTruthy();
   expect(
     screen.getByRole('cell', { name: /Better than England \(England: 30.0%, 2022\)/ }),
   ).toBeTruthy();
   expect(screen.getByRole('cell', { name: '28.0%2023' })).toBeTruthy();
   rerender(
     <MemoryRouter>
-      <TopicDataTable
-        model={model}
-        title="Diabetes"
-        columns={['count', 'numerator', 'value', 'summary']}
-      />
+      <TopicDataTable model={model} title="Diabetes" columns={['count', 'value', 'summary']} />
     </MemoryRouter>,
   );
   expect(screen.getByRole('cell', { name: '260(2022)' })).toBeTruthy();
-  expect(screen.getByRole('cell', { name: '130(2022)' })).toBeTruthy();
   expect(screen.getByRole('cell', { name: '26.0%(2022)' })).toBeTruthy();
 });
 
 it('renders an empty area comparison once when calculated value is hidden', () => {
-  const empty = row(
-    'Smoking',
-    { value: null, judgement: null },
-    { value: null, count: null, numerator: null },
-  );
+  const empty = row('Smoking', { value: null, judgement: null }, { value: null, count: null });
   empty.period = '';
   const model: TopicDataTableModel = {
     kind: 'data',
@@ -272,7 +239,7 @@ const spread = () => {
   const smoking = row(
     'Smoking',
     { value: 18, judgement: 'better' },
-    { value: 28, count: null, numerator: null, min: 5, p25: 12, p75: 30, max: 45 },
+    { value: 28, count: null, min: 5, p25: 12, p75: 30, max: 45 },
   );
   const cell = smoking.cells[0];
   if (!cell) throw new Error('Cell fixture missing');
@@ -498,13 +465,7 @@ it('places one comparison key before the topic table only when the chart column 
     kind: 'data',
     compared: true,
     areas: [{ code: 'E12000001', name: 'North East' }],
-    rows: [
-      row(
-        'Smoking',
-        { value: 18, judgement: 'better' },
-        { value: 28, count: null, numerator: null },
-      ),
-    ],
+    rows: [row('Smoking', { value: 18, judgement: 'better' }, { value: 28, count: null })],
   };
   const { container, rerender } = render(
     <MemoryRouter>

@@ -8,7 +8,6 @@ function point(year: number, value: number | null, sex?: string): IndicatorObser
     toDate: `${year}-12-31`,
     value,
     count: null,
-    numerator: null,
     denominator: null,
     lowerCi95: null,
     upperCi95: null,

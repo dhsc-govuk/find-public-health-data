@@ -320,7 +320,6 @@ export function PanelOptionsPanel({
               const { value, checked } = event.currentTarget;
               const toggles = {
                 count: 'count',
-                numerator: 'numerator',
                 value: 'value',
                 minmax: 'minMax',
                 percentiles: 'percentiles',

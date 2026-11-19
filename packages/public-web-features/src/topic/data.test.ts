@@ -21,7 +21,6 @@ function observation(year: number, value: number | null): IndicatorObservation {
     dimensions: [],
     notes: [],
     count: null,
-    numerator: null,
     denominator: null,
     lowerCi95: null,
     upperCi95: null,

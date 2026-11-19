@@ -72,7 +72,6 @@ export function TrendTable({
     benchmarksByArea,
     firstObservation,
     hasCounts: availableCounts,
-    hasNumerators: availableNumerators,
     inPeriod,
     periods,
     referenceSegment,
@@ -80,7 +79,6 @@ export function TrendTable({
     policyGoal,
   } = model;
   const hasCounts = columns ? columns.count : availableCounts;
-  const hasNumerators = columns ? columns.numerator : availableNumerators;
   const showValues = columns?.value ?? true;
   const intervals = columns?.confidence ?? (confidence === 'none' ? [] : [confidence]);
   const spread = { minMax: columns?.minMax ?? false, percentiles: columns?.percentiles ?? false };
@@ -100,8 +98,7 @@ export function TrendTable({
       : [];
   const cell = (areaSeries: (typeof seriesByArea)[number], period: (typeof periods)[number]) =>
     areaSeries.series.find(inPeriod(period));
-  const columnsPerArea =
-    Number(hasCounts) + Number(hasNumerators) + Number(showValues) + intervals.length * 2;
+  const columnsPerArea = Number(hasCounts) + Number(showValues) + intervals.length * 2;
   const areaColumns = (areaCode: string) => columnsPerArea + chartBenchmarks(areaCode).length;
   const columnCount =
     1 +
@@ -239,16 +236,6 @@ export function TrendTable({
                           </>,
                         )
                       : null}
-                    {hasNumerators
-                      ? heading(
-                          area,
-                          'numerator',
-                          <>
-                            Numerator{' '}
-                            {columns ? null : <span className="fphd-table-note">(Raw number)</span>}
-                          </>,
-                        )
-                      : null}
                     {chartBenchmarks(data.areaCode).map((benchmark) => (
                       <Fragment key={benchmark.key}>
                         {heading(
@@ -318,13 +305,6 @@ export function TrendTable({
                       {hasCounts ? (
                         <td headers={at('count')} className="govuk-table__cell">
                           {observation?.count == null ? '-' : formatValue(observation.count)}
-                        </td>
-                      ) : null}
-                      {hasNumerators ? (
-                        <td headers={at('numerator')} className="govuk-table__cell">
-                          {observation?.numerator == null
-                            ? '-'
-                            : formatValue(observation.numerator)}
                         </td>
                       ) : null}
                       {chartBenchmarks(areaSeries.data.areaCode).map((benchmark) => (

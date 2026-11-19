@@ -37,7 +37,6 @@ function obs(overrides = {}) {
     lowerCi998: 92,
     upperCi998: 108,
     count: 1000,
-    numerator: null,
     denominator: null,
     dimensions: [],
     notes: [],
@@ -301,19 +300,10 @@ describe('availablePeriodTypes', () => {
 });
 
 describe('availableMeasures', () => {
-  it('offers only the raw numbers the observations carry', () => {
-    const rate = obs({ count: null, numerator: 40 });
-
+  it('offers a count only where the observations carry one', () => {
     expect(availableMeasures([obs()])).toEqual(['count']);
-    expect(availableMeasures([rate])).toEqual(['numerator']);
-    expect(availableMeasures([obs(), rate])).toEqual(['count', 'numerator']);
+    expect(availableMeasures([obs({ count: null }), obs()])).toEqual(['count']);
     expect(availableMeasures([obs({ count: null })])).toEqual([]);
-  });
-
-  it('offers no numerator when an older API sends none', () => {
-    const { numerator: _, ...older } = obs();
-
-    expect(availableMeasures([older as ReturnType<typeof obs>])).toEqual(['count']);
   });
 });
 

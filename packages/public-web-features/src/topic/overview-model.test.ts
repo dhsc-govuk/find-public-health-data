@@ -11,8 +11,7 @@ const area = {
     ...observation(index === 0 ? 10 : 0),
     fromDate: `${year}-01-01`,
     toDate: `${year}-12-31`,
-    count: null,
-    numerator: index === 0 ? 100 : null,
+    count: index === 0 ? 100 : null,
   })),
 };
 
@@ -88,8 +87,7 @@ it('prefers three-year periods and the first selected area over England', () => 
     ...point,
     fromDate: `${2020 + index}-01-01`,
     value: 100 - index,
-    count: null,
-    numerator: 186_922,
+    count: 186_922,
   }));
   const [highlight] = topicOverviewModel([
     {
@@ -134,19 +132,14 @@ it('expands financial years in the headline and chart while keeping endpoint lab
   });
 });
 
-it.each([
-  [0, 5678, 0],
-  [1234, 5678, 1234],
-  [null, 5678, 5678],
-  [null, null, null],
-])('uses count %s before numerator %s for the single Count row', (count, numerator, expected) => {
+it.each([0, 1234, null])('shows count %s in the single Count row', (count) => {
   const [highlight] = topicOverviewModel([
     {
       ...selected,
-      areaData: [{ ...area, observations: [{ ...observation(), count, numerator }] }],
+      areaData: [{ ...area, observations: [{ ...observation(), count }] }],
     },
   ]);
-  expect(highlight?.count).toBe(expected);
+  expect(highlight?.count).toBe(count);
 });
 
 it.each([

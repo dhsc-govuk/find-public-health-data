@@ -350,14 +350,12 @@ export function topicPageTests() {
     expect(initialCsv.ok()).toBe(true);
     expect((await initialCsv.text()).split('\n')[0]?.split(',')).toContain('Last updated');
     await panel.getByRole('checkbox', { name: 'Count', exact: true }).check();
-    await panel.getByRole('checkbox', { name: 'Numerator', exact: true }).check();
     await panel.getByRole('checkbox', { name: 'Data last updated', exact: true }).uncheck();
     await expect(panel.getByRole('checkbox', { name: 'Count', exact: true })).toBeChecked();
     await expect(
       panel.getByRole('checkbox', { name: 'Data last updated', exact: true }),
     ).not.toBeChecked();
     await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
-    await expect(table.getByRole('columnheader', { name: 'Numerator', exact: true })).toBeVisible();
     await expect(
       table.getByRole('columnheader', { name: 'Data last updated', exact: true }),
     ).toHaveCount(0);
@@ -370,7 +368,6 @@ export function topicPageTests() {
     await panel.getByText('Download or share data', { exact: true }).click();
     const csv = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
     expect(csv.text.split('\n')[0]).toContain('England count');
-    expect(csv.text.split('\n')[0]).toContain('England numerator');
     expect(csv.text.split('\n')[0]?.split(',')).not.toContain('Last updated');
     await expectNoAccessibilityViolations(page, testInfo);
   });
