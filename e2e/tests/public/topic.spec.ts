@@ -127,8 +127,15 @@ for (const { title, query, area, note } of [
       expectTrendUnavailableLast(await table.locator('tbody tr').allInnerTexts());
       await panel.getByText('Download or share data', { exact: true }).click();
       const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
-      const rows = parse(text, { columns: true }) as Record<string, string>[];
-      expectTrendUnavailableLast(rows.map((row) => row[`${area} trend (last 5 periods)`] ?? ''));
+      const column = `${area} trend (last 5 periods)`;
+      const rows = parse(text, { columns: true }) as Record<string, string | undefined>[];
+      expectTrendUnavailableLast(
+        rows.map((row) => {
+          const trend = row[column];
+          if (trend === undefined) throw new Error(`Expected a "${column}" column in the CSV`);
+          return trend;
+        }),
+      );
     }
     await expectNoAccessibilityViolations(page, testInfo);
   });
