@@ -1,4 +1,3 @@
-import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { comparisonTable } from '../indicator/comparison.ts';
 import {
@@ -128,40 +127,15 @@ export function topicDataTableModel(
       ];
     }),
   };
-  return sort?.startsWith('trend-')
-    ? { ...model, rows: withTrendUnavailableLast(model.rows, selected) }
-    : model;
-}
-
-/**
- * Trend sorts rank indicators on England's series, so a row goes last when England's trend for
- * it is unavailable, as its Trend cell shows when no area is picked. Each group keeps its order.
- */
-function withTrendUnavailableLast<Row extends { key: string }>(
-  rows: Row[],
-  selected: SelectedIndicator[],
-): Row[] {
-  const polarities = new Map(selected.map(({ detail }) => [detail.shortId, detail.polarity]));
-  const englandRows = comparisonRows(
-    selected.map((entry) => ({
-      ...entry,
-      areaData: entry.areaData.filter(({ areaCode }) => areaCode === ENGLAND_AREA_CODE),
-    })),
-  );
-  const withTrend = new Set(
-    englandRows
-      .filter(({ shortId, cells: [england] }) =>
-        england
-          ? recentTrend(england.series, polarities.get(shortId) ?? null, england.trendDirection)
-              .direction !== null
-          : false,
-      )
-      .map(({ key }) => key),
-  );
-  return [
-    ...rows.filter(({ key }) => withTrend.has(key)),
-    ...rows.filter(({ key }) => !withTrend.has(key)),
-  ];
+  if (compared || !sort?.startsWith('trend-')) return model;
+  // Trend sorts rank indicators on England's series. With England the only area shown, a row
+  // whose England Trend cell is unavailable goes last, and each group keeps the listed order.
+  const hasTrend = (row: (typeof model.rows)[number]) =>
+    row.cells.some(({ trend }) => trend.direction !== null);
+  return {
+    ...model,
+    rows: [...model.rows.filter(hasTrend), ...model.rows.filter((row) => !hasTrend(row))],
+  };
 }
 
 export function topicAreaTableModel(

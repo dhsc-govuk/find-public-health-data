@@ -685,7 +685,7 @@ describe('trend sorts', () => {
     },
   );
 
-  it('places rows by England’s trend when an area is picked, not by the area’s', () => {
+  it('keeps the listed order when an area is picked', () => {
     const compared = [
       withArea(multiYear, years(rising)),
       withArea(gettingWorse, years([20, 21])),
@@ -693,11 +693,7 @@ describe('trend sorts', () => {
     ];
     const model = topicDataTableModel(compared, 'diabetes', undefined, 'trend-worse');
     expect(model.compared).toBe(true);
-    expect(names(model)).toEqual(
-      names(topicDataTableModel(selected, 'diabetes', undefined, 'trend-worse')),
-    );
-    expect(model.rows.at(0)?.cells[0]?.trend.label).toBe('Trend unavailable');
-    expect(model.rows.at(-2)?.cells[0]?.trend.label).toBe('Increasing and getting worse');
+    expect(names(model)).toEqual(names(topicDataTableModel(selected, 'diabetes')));
   });
 
   it('moves only the row of an indicator whose England trend is unavailable', () => {
