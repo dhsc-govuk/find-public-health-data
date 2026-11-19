@@ -37,7 +37,6 @@ function observation(overrides = {}) {
     lowerCi998: null,
     upperCi998: null,
     count: 130000,
-    numerator: null,
     denominator: null,
     notes: [],
     dimensions: [],

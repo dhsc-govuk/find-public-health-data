@@ -592,7 +592,6 @@ it('carries the loaded range through the streamed compact table payload', async 
   expect(content?.table.rows[0]?.england).toEqual({
     value: 20,
     count: 2000,
-    numerator: null,
     min: 2,
     max: 50,
     p25: 10,

@@ -14,18 +14,17 @@ import {
 } from '../data.ts';
 import type { TopicDataTableModel } from '../table-models.ts';
 
-type Measure = Extract<TopicColumn, 'trend' | 'count' | 'numerator' | 'value'>;
+type Measure = Extract<TopicColumn, 'trend' | 'count' | 'value'>;
 type AreaColumn = Measure | 'chart' | 'summary';
 type Row = TopicDataTableModel['rows'][number];
 type Cell = Row['cells'][number];
 
-const MEASURES: Measure[] = ['trend', 'count', 'numerator', 'value'];
+const MEASURES: Measure[] = ['trend', 'count', 'value'];
 
 // The prototype's column widths, in pixels.
 const AREA_WIDTHS: Record<AreaColumn, number> = {
   trend: 150,
   count: 100,
-  numerator: 100,
   value: 150,
   chart: 243,
   summary: 110,
@@ -33,7 +32,6 @@ const AREA_WIDTHS: Record<AreaColumn, number> = {
 const ENGLAND_ONLY_WIDTHS: Record<Measure, number> = {
   trend: 150,
   count: 120,
-  numerator: 120,
   value: 150,
 };
 const ENGLAND_WIDTHS: Record<TopicEnglandMeasure, number> = {
@@ -42,7 +40,6 @@ const ENGLAND_WIDTHS: Record<TopicEnglandMeasure, number> = {
   p75: 110,
   max: 90,
   count: 100,
-  numerator: 100,
   value: 150,
 };
 
@@ -55,7 +52,6 @@ const HEADINGS: Record<AreaColumn | TopicEnglandMeasure, ReactNode> = {
     </>
   ),
   count: 'Count',
-  numerator: 'Numerator',
   value: (
     <>
       Calculated
@@ -102,9 +98,7 @@ function measureValue(
   }
   const value = (cell as Record<string, number | null | undefined> | null | undefined)?.[measure];
   if (value == null) return <NoData />;
-  return measure === 'count' || measure === 'numerator'
-    ? formatValue(value)
-    : withUnit(formatCalculatedValue(value), unit);
+  return measure === 'count' ? formatValue(value) : withUnit(formatCalculatedValue(value), unit);
 }
 
 function ComparisonChart({ areaName, cell, row }: { areaName: string; cell: Cell; row: Row }) {
@@ -376,7 +370,7 @@ export const TopicDataTable = memo(function TopicDataTable({
                     >
                       {measureValue(measure, row.england, row.unit)}
                       {!columns.includes('period') &&
-                      (measure === 'count' || measure === 'numerator' || measure === 'value') &&
+                      (measure === 'count' || measure === 'value') &&
                       row.england?.[measure] != null &&
                       row.period ? (
                         <span className="govuk-hint govuk-body-s govuk-!-margin-bottom-0 fphd-topic-subtopic">

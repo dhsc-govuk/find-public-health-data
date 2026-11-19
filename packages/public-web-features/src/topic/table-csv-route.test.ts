@@ -15,7 +15,6 @@ function annualObservation(year: number, value: number | null): IndicatorObserva
     toDate: `${year}-12-31`,
     value,
     count: value == null ? null : value * 10,
-    numerator: value == null ? null : value * 5,
     denominator: null,
     dimensions: [],
     notes: [],
@@ -64,7 +63,6 @@ const observation = (value: number) => ({
   toDate: '2024-12-31',
   value,
   count: null,
-  numerator: null,
   denominator: null,
   dimensions: [],
   notes: [],
@@ -93,10 +91,10 @@ it.each([1234.5678, null])(
       'count,numerator,value',
     );
     const fields = lines[1]?.split(',') ?? [];
-    const expected =
-      value == null ? ['', '', ''] : [String(value * 10), String(value * 5), String(value)];
-    expect(fields.slice(3, 6)).toEqual(expected);
-    expect(fields.slice(-3)).toEqual(expected);
+    const expected = value == null ? ['', ''] : [String(value * 10), String(value)];
+    expect(lines[0]).not.toContain('numerator');
+    expect(fields.slice(3, 5)).toEqual(expected);
+    expect(fields.slice(-2)).toEqual(expected);
   },
 );
 
@@ -320,7 +318,6 @@ it.each([
       toDate: '2024-12-31',
       value,
       count: value * 10,
-      numerator: null,
       denominator: null,
       dimensions: [],
       notes: [],
@@ -375,7 +372,6 @@ it('adds the England and comparison columns when only a later indicator has data
     toDate: '2024-12-31',
     value,
     count: null,
-    numerator: null,
     denominator: null,
     dimensions: [],
     notes: [],
@@ -439,7 +435,7 @@ it('exports no comparison available when England has no same-period value', asyn
   expect(lines[1]).toBe('Example indicator,,%,18,2023,No comparison available,');
 });
 
-it.each(['', 'trend', 'count', 'numerator'])(
+it.each(['', 'trend', 'count'])(
   'keeps the England value in CSV with columns %s',
   async (columns) => {
     const lines = await dataDownload(

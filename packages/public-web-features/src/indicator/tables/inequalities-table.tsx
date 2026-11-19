@@ -22,7 +22,7 @@ export function InequalitiesTable({
   indicator,
   observations,
   benchmark,
-  benchmarkMeasures = { count: null, numerator: null },
+  benchmarkMeasures = { count: null },
   areaName = 'England',
 }: {
   confidence: ConfidenceLevel;

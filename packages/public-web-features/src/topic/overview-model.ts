@@ -36,7 +36,7 @@ export function topicOverviewModel(selected: SelectedIndicator[]) {
       unit: detail.unit,
       ...sparklineModel(area ? [{ ...area, observations: series }] : [], detail.yearType),
       period: latest ? expandedPeriodLabel(latest, detail.yearType) : 'No data',
-      count: latest?.count ?? latest?.numerator ?? null,
+      count: latest?.count ?? null,
       value: latest?.value ?? null,
       hasTrend: !!area && series.filter(({ value }) => value !== null).length >= 2,
       trend: recentTrend(series, detail.polarity, direction),

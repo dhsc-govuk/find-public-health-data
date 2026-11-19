@@ -90,7 +90,6 @@ describe('trendTableModel', () => {
         lowerCi998: null,
         upperCi998: null,
         count: null,
-        numerator: null,
         denominator: null,
       });
       expect(benchmark?.rangePeriods).toBeUndefined();
@@ -196,9 +195,8 @@ describe('selectedTrendColumns', () => {
   it('keeps only the chosen measures the data has', () => {
     const params = new URLSearchParams('columns-7=count,numerator,value');
 
-    expect(selectedTrendColumns(params, 7, ['numerator', '95'])).toEqual({
-      count: false,
-      numerator: true,
+    expect(selectedTrendColumns(params, 7, ['count', '95'])).toEqual({
+      count: true,
       value: true,
       confidence: [],
       minMax: false,
@@ -211,7 +209,6 @@ describe('selectedTrendColumns', () => {
   it('shows the value, the first available interval and the benchmark spread when nothing is chosen', () => {
     expect(selectedTrendColumns(new URLSearchParams(), 7, ['count', '99.8'])).toEqual({
       count: false,
-      numerator: false,
       value: true,
       confidence: ['99.8'],
       minMax: true,
@@ -236,21 +233,19 @@ describe('trendColumnsParam', () => {
     expect(
       trendColumnsParam({
         count: true,
-        numerator: true,
         value: true,
         confidence: ['95'],
         minMax: true,
         percentiles: false,
         chart: true,
       }),
-    ).toBe('count,numerator,value,95,minmax,chart');
+    ).toBe('count,value,95,minmax,chart');
   });
 
   it('says none when no column is chosen', () => {
     expect(
       trendColumnsParam({
         count: false,
-        numerator: false,
         value: false,
         confidence: [],
         minMax: false,

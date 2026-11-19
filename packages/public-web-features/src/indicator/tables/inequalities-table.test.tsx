@@ -21,7 +21,6 @@ const observations = [
     lowerCi998: null,
     upperCi998: null,
     count: null,
-    numerator: null,
     denominator: null,
     notes: [],
     dimensions: [{ type: 'Sex', value: 'Female', dimensionClass: 'inequality', sortOrder: 0 }],
@@ -47,14 +46,14 @@ describe('InequalitiesTable', () => {
     expect(within(row as HTMLElement).getByRole('cell').textContent).toBe('12.3');
   });
 
-  it("compares with England under the raw number the indicator has, a rate's numerator", () => {
+  it('compares with England under Count, with no Numerator column', () => {
     render(
       <InequalitiesTable
         benchmark={10}
-        benchmarkMeasures={{ count: null, numerator: 900 }}
+        benchmarkMeasures={{ count: 900 }}
         confidence="none"
         indicator={indicator(null)}
-        observations={observations.map((observation) => ({ ...observation, numerator: 41 }))}
+        observations={observations.map((observation) => ({ ...observation, count: 41 }))}
       />,
     );
 
@@ -62,8 +61,8 @@ describe('InequalitiesTable', () => {
     const female = screen.getByRole('rowheader', { name: 'Female' }).closest('tr');
     const england = screen.getByRole('rowheader', { name: 'England' }).closest('tr');
 
-    expect(headers).toContain('Numerator');
-    expect(headers).not.toContain('Count');
+    expect(headers).toContain('Count');
+    expect(headers).not.toContain('Numerator');
     expect(within(female as HTMLElement).getAllByRole('cell')[0]?.textContent).toBe('41');
     expect(within(england as HTMLElement).getAllByRole('cell')[0]?.textContent).toBe('900');
   });

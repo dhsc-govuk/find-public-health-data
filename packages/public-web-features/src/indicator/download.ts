@@ -31,7 +31,6 @@ export function trendCsv(
 ): string {
   const {
     hasCounts: availableCounts,
-    hasNumerators: availableNumerators,
     inPeriod,
     periods,
     referenceSegment,
@@ -39,7 +38,6 @@ export function trendCsv(
     policyGoal,
   } = model;
   const hasCounts = columns ? columns.count : availableCounts;
-  const hasNumerators = columns ? columns.numerator : availableNumerators;
   const showValues = columns?.value ?? true;
   const showGoal = !!policyGoal && (columns?.goal ?? true);
   const benchmarkGroups = model.benchmarkGroups.filter((benchmark) => !benchmark.goal || showGoal);
@@ -61,7 +59,6 @@ export function trendCsv(
       return [
         ...(showValues ? [`${data.areaName} calculated value${unitNote(indicator.unit)}`] : []),
         ...(hasCounts ? [`${data.areaName} count`] : []),
-        ...(hasNumerators ? [`${data.areaName} numerator`] : []),
         ...intervals.flatMap((level) => [
           `${data.areaName} lower ${level}% CI`,
           `${data.areaName} upper ${level}% CI`,
@@ -86,7 +83,6 @@ export function trendCsv(
       return [
         ...(showValues ? [observation?.value ?? null] : []),
         ...(hasCounts ? [observation?.count ?? null] : []),
-        ...(hasNumerators ? [observation?.numerator ?? null] : []),
         ...intervals.flatMap((level) =>
           level === '95'
             ? [observation?.lowerCi95 ?? null, observation?.upperCi95 ?? null]
@@ -124,7 +120,6 @@ export function allDataCsv(
       'Period',
       'Segment',
       'Count',
-      'Numerator',
       'Denominator',
       `Calculated value${unitNote(indicator.unit)}`,
       'Lower 95% CI',
@@ -143,7 +138,6 @@ export function allDataCsv(
         periodLabel(observation, indicator.yearType),
         segmentLabel(observation),
         observation.count,
-        observation.numerator,
         observation.denominator,
         observation.value,
         observation.lowerCi95,

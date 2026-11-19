@@ -207,15 +207,16 @@ describe('public routers against the seeded database', () => {
     expect(singleDimension[0].dimensions[0]).toMatchObject({ type: 'Age', value: '<75 yrs' });
   });
 
-  it("serves a rate's raw numbers as numerators and a survey estimate's as counts", async () => {
+  it("serves a rate's numerators and a survey estimate's counts as counts", async () => {
     const rate = await request(app).get('/api/indicators/108/data');
     const survey = await request(app).get('/api/indicators/92443/data');
-    type Raw = { count: number | null; numerator: number | null };
+    type Raw = { count: number | null };
 
-    expect(rate.body.observations.some(({ numerator }: Raw) => numerator !== null)).toBe(true);
-    expect(rate.body.observations.every(({ count }: Raw) => count === null)).toBe(true);
+    expect(rate.body.observations.some(({ count }: Raw) => count !== null)).toBe(true);
     expect(survey.body.observations.some(({ count }: Raw) => count !== null)).toBe(true);
-    expect(survey.body.observations.every(({ numerator }: Raw) => numerator === null)).toBe(true);
+    for (const { body } of [rate, survey]) {
+      expect(body.observations.every((point: object) => !('numerator' in point))).toBe(true);
+    }
   });
 
   it('serves the prototype diabetes indicator across GP, NHS and local geographies', async () => {

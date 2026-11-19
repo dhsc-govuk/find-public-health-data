@@ -5,7 +5,6 @@ type DataCell = [
   areaCode: string,
   value: number | null,
   count: number | null,
-  numerator: number | null,
   trend: number,
   judgement: TopicDataTableModel['rows'][number]['cells'][number]['judgement'],
   period: string | null,
@@ -29,7 +28,6 @@ export function compactTopicDataTable(model: TopicDataTableModel) {
         cell.areaCode,
         cell.value,
         cell.count,
-        cell.numerator,
         trends.index(cell.trend),
         cell.judgement,
         cell.period ?? null,
@@ -68,11 +66,10 @@ export function expandTopicTable(
       rows: table.rows.map((row) => ({
         ...row,
         cells: row.cells.map(
-          ([areaCode, value, count, numerator, trend, judgement, period, benchmark, range]) => ({
+          ([areaCode, value, count, trend, judgement, period, benchmark, range]) => ({
             areaCode,
             value,
             count,
-            numerator,
             trend: dictionaryEntry(trends, trend),
             judgement,
             ...(range != null ? { range } : {}),

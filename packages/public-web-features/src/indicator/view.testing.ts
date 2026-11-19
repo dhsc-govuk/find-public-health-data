@@ -54,7 +54,6 @@ export function observation(
     toDate: '2024-12-31',
     value,
     count: value * 100,
-    numerator: null,
     denominator: null,
     lowerCi95: value - 1,
     upperCi95: value + 1,

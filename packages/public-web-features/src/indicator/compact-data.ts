@@ -12,7 +12,6 @@ type ObservationRow = [
   lowerCi998: number | null,
   upperCi998: number | null,
   count: number | null,
-  numerator: number | null,
   denominator: number | null,
 ];
 
@@ -37,7 +36,6 @@ export function compactIndicator(indicator: SelectedIndicator) {
           point.lowerCi998,
           point.upperCi998,
           point.count,
-          point.numerator,
           point.denominator,
         ],
       ),
@@ -71,7 +69,6 @@ export function expandIndicator({
           lowerCi998,
           upperCi998,
           count,
-          numerator,
           denominator,
         ]): IndicatorObservation => {
           const period = dictionaryEntry(catalogue.periods, periodId);
@@ -88,7 +85,6 @@ export function expandIndicator({
             lowerCi998,
             upperCi998,
             count,
-            numerator,
             denominator,
           };
         },

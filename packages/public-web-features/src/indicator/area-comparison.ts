@@ -229,7 +229,6 @@ export function areaComparisonRows(
           ...benchmarkCell,
           value: benchmarkPoint?.value ?? null,
           count: benchmarkPoint?.count ?? null,
-          numerator: benchmarkPoint?.numerator ?? null,
           series: benchmarkPoint ? [benchmarkPoint] : [],
           notes: benchmarkPoint?.notes.map((note) => note.text) ?? [],
         }

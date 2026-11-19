@@ -449,7 +449,6 @@ describe('GET /api/indicators/:indicator/data', () => {
           lowerCi998: null,
           upperCi998: null,
           count: 130000,
-          numerator: null,
           denominator: null,
           dimensions: [{ type: 'Age', value: '<75 yrs', dimensionClass: 'core', sortOrder: 1 }],
         },

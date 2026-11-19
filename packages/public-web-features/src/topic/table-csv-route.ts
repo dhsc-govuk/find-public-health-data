@@ -78,9 +78,7 @@ export async function loader(args: LoaderFunctionArgs) {
 // Built from the same model as the on-screen table, so the download has the same columns.
 function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
   const columns = topicColumns(params);
-  const measures = columns.filter((column) =>
-    ['trend', 'count', 'numerator', 'value'].includes(column),
-  );
+  const measures = columns.filter((column) => ['trend', 'count', 'value'].includes(column));
   const englandMeasures = topicEnglandMeasures(columns, table.compared);
   const spreadLabels = {
     min: 'lowest',
@@ -91,7 +89,7 @@ function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
   const measureLabel = (measure: TopicColumn | TopicEnglandMeasure) =>
     measure === 'trend'
       ? 'trend (last 5 periods)'
-      : measure === 'count' || measure === 'numerator'
+      : measure === 'count'
         ? measure
         : measure in spreadLabels
           ? spreadLabels[measure as keyof typeof spreadLabels]
@@ -102,8 +100,8 @@ function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
   ) =>
     measure === 'trend'
       ? (cell?.trend ?? recentTrend([], null)).label
-      : measure === 'count' || measure === 'numerator'
-        ? (cell?.[measure] ?? null)
+      : measure === 'count'
+        ? (cell?.count ?? null)
         : (cell?.value ?? null);
   return tableCsv([
     [

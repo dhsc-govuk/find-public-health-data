@@ -55,7 +55,6 @@ export const TOPIC_COLUMNS = [
   { value: 'updated', label: 'Data last updated' },
   { value: 'trend', label: 'Trend (last 5 periods)' },
   { value: 'count', label: 'Count' },
-  { value: 'numerator', label: 'Numerator' },
   { value: 'value', label: 'Calculated value' },
   { value: 'chart', label: 'Compared with England' },
   { value: 'summary', label: 'Comparison summary' },
@@ -79,7 +78,6 @@ const ENGLAND_MEASURES = [
   { measure: 'p75', option: 'percentiles' },
   { measure: 'max', option: 'minmax' },
   { measure: 'count', option: 'count' },
-  { measure: 'numerator', option: 'numerator' },
   { measure: 'value', option: 'value' },
 ] as const;
 export type TopicEnglandMeasure = (typeof ENGLAND_MEASURES)[number]['measure'];

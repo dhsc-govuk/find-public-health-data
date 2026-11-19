@@ -60,7 +60,7 @@ async function readPoints(
     )
     select o.id, o.indicator_id as "indicatorId", o.area_id as "areaId", jsonb_build_object(
       'fromDate', o.from_date, 'toDate', o.to_date, 'value', o.value,
-      'count', o.count, 'numerator', o.numerator, 'denominator', o.denominator,
+      'count', coalesce(o.count, o.numerator), 'denominator', o.denominator,
       'lowerCi95', o.lower_ci_95, 'upperCi95', o.upper_ci_95,
       'lowerCi998', o.lower_ci_998, 'upperCi998', o.upper_ci_998,
       'dimensions', d.data, 'notes', coalesce(n.data, '[]'::jsonb)
