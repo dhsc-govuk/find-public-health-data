@@ -34,7 +34,7 @@ import { loadInBatches } from './batches.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
-import { noEnglandLevel } from './no-england.ts';
+import { choosesNothing, noEnglandLevel } from './no-england.ts';
 import { ENGLAND_CODE, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
@@ -168,10 +168,7 @@ export async function loadIndicatorData(
   // In the usual case England has a value, and its request is the one the data load makes.
   const indicatorLevels = indicatorGroups?.map(({ displayGroup }) => displayGroup) ?? [];
   const defaultAreaLevel =
-    singlePage &&
-    routeDetail &&
-    areaCodes.length === 0 &&
-    !publicGeographyLevels(indicatorLevels).some((level) => requestedLevels.includes(level))
+    singlePage && routeDetail && choosesNothing(url.searchParams, indicatorLevels)
       ? noEnglandLevel(
           (
             await api.get(

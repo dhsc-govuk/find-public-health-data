@@ -26,7 +26,12 @@ import {
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
-import { englandObservations, noEnglandLevel } from './no-england.ts';
+import {
+  choosesNothing,
+  englandObservations,
+  noEnglandLevel,
+  sexObservations,
+} from './no-england.ts';
 import { indicatorPageContext } from './page-context.ts';
 import { ENGLAND_CODE, isIndicatorSegment, redirectStatus, requestedAreaCodes } from './paths.ts';
 import { dataPlaceholder } from './placeholders.ts';
@@ -112,8 +117,8 @@ export async function loadIndicatorCsv(
   }
   let areaData = await dataFor(codesToLoad);
   // With nothing chosen, an indicator with no England value has the page's default level.
-  if (kind === 'table' && pickedCodes.length === 0 && !url.searchParams.has('als')) {
-    const defaultCodes = await noEnglandAreaCodes(api, segment, areaData);
+  if (kind === 'table' && pickedCodes.length === 0) {
+    const defaultCodes = await noEnglandAreaCodes(api, segment, areaData, url.searchParams);
     if (defaultCodes.length > 0) {
       pickedCodes = defaultCodes;
       areaData = await dataFor([...defaultCodes, ENGLAND_CODE]);
@@ -127,7 +132,12 @@ export async function loadIndicatorCsv(
     // These validations exactly mirror the controls on the rendered page. A stale or
     // hand-edited URL therefore downloads the table the user can actually see.
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
-    const sexes = dimensionValues(areaData[0]?.observations ?? [], 'Sex');
+    const hasEngland = englandObservations(areaData).length > 0;
+    // With no England value, the page reads its Sex options from every area shown.
+    const sexes = dimensionValues(
+      hasEngland ? (areaData[0]?.observations ?? []) : sexObservations(areaData),
+      'Sex',
+    );
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = (
       pickedCodes.length > 0
@@ -145,7 +155,6 @@ export async function loadIndicatorCsv(
     )
       ? requestedConfidence
       : 'none';
-    const hasEngland = englandObservations(areaData).length > 0;
     const benchmarks = selectedBenchmarks(url.searchParams, shortId).filter(
       (choice) => (pickedCodes.length || choice === 'goal') && (choice !== 'england' || hasEngland),
     );
@@ -250,17 +259,17 @@ async function noEnglandAreaCodes(
   api: ApiClient,
   segment: string,
   areaData: IndicatorAreaData[],
+  params: URLSearchParams,
 ): Promise<string[]> {
   const england = areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE);
   if (england && england.observations.length > 0) return [];
-  const levels = await api.get(
-    `${apiPath`/api/indicators/${segment}/areas`}?limit=1`,
-    areaDisplayGroupListSchema,
-  );
-  const level = noEnglandLevel(
-    england,
-    levels.map(({ displayGroup }) => displayGroup),
-  );
+  const levels = (
+    await api.get(
+      `${apiPath`/api/indicators/${segment}/areas`}?limit=1`,
+      areaDisplayGroupListSchema,
+    )
+  ).map(({ displayGroup }) => displayGroup);
+  const level = choosesNothing(params, levels) ? noEnglandLevel(england, levels) : undefined;
   if (!level) return [];
   const groups = await api.get(
     `${apiPath`/api/indicators/${segment}/areas`}?displayGroup=${encodeURIComponent(level)}`,

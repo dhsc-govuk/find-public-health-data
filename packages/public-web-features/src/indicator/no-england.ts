@@ -1,5 +1,6 @@
 import type { IndicatorAreaData, IndicatorObservation } from '@fphd/public-api-features/contract';
-import { ENGLAND_CODE } from './paths.ts';
+import { normalizePublicLevels, publicGeographyLevels } from '../geography/groups.ts';
+import { ENGLAND_CODE, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 
 /**
  * The geography levels an indicator page opens on, in order of preference, when the indicator has
@@ -19,6 +20,29 @@ export function englandObservations(
   areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[],
 ): IndicatorObservation[] {
   return areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE)?.observations ?? [];
+}
+
+/**
+ * Whether a page address chooses nothing the indicator has: no area, and no level among
+ * `indicatorLevels`, the indicator's display groups. Only then can the default level apply.
+ */
+export function choosesNothing(params: URLSearchParams, indicatorLevels: string[]): boolean {
+  const levels = normalizePublicLevels(requestedAreaLevels(params));
+  return (
+    requestedAreaCodes(params).length === 0 &&
+    !publicGeographyLevels(indicatorLevels).some((level) => levels.includes(level))
+  );
+}
+
+/**
+ * The observations the Sex options are read from: England's, or with no England value those of
+ * every area shown.
+ */
+export function sexObservations(
+  areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[],
+): IndicatorObservation[] {
+  const england = englandObservations(areaData);
+  return england.length > 0 ? england : areaData.flatMap(({ observations }) => observations);
 }
 
 /**

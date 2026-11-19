@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { loadIndicatorCsv } from './csv.ts';
 import { indicatorPageContext } from './page-context.ts';
-import { indicatorDetail } from './view.testing.ts';
+import { indicatorDetail, sex } from './view.testing.ts';
 
 const SLUG = 'mortality-all-causes';
 const DETAIL = `/api/indicators/${SLUG}` as const;
@@ -705,6 +705,53 @@ describe('the table download of an indicator with no England value', () => {
     expect(header).toContain('North East');
     expect(header).toContain('North West');
     expect(row).toContain('10');
+  });
+
+  it.each(['als=Foo', 'als='])(
+    "holds the page's default regions when %s chooses no level the indicator has",
+    async (query) => {
+      const client = api(data, {
+        [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
+      });
+
+      const response = await loadIndicatorCsv(
+        args(client, `http://localhost/indicator/${SLUG}/table.csv?${query}`),
+        'table',
+      );
+
+      expect((await response.text()).split('\n')[0]).toContain('North East');
+    },
+  );
+
+  it('takes the Sex choices from every area shown', async () => {
+    const client = api((call: FakeApiCall) => {
+      const answers = areaCodes(call).map((code) =>
+        code === 'E92000001'
+          ? { areaCode: code, areaName: 'England', observations: [] }
+          : {
+              areaCode: code,
+              areaName: code === 'E12000001' ? 'North East' : 'North West',
+              observations:
+                code === 'E12000001'
+                  ? [observation({ value: 10, dimensions: [sex('Female')] })]
+                  : [
+                      observation({ value: 20, dimensions: [sex('Female')] }),
+                      observation({ value: 30, dimensions: [sex('Male')] }),
+                    ],
+            },
+      );
+      return answers.length === 1 ? answers[0] : answers;
+    });
+
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E12000001&as=E12000002&sex-108=Male`,
+      ),
+      'table',
+    );
+
+    expect((await response.text()).split('\n')[1]).toBe('2023,30,339,343.2');
   });
 
   it('holds only its header when the indicator has data for neither kind of region', async () => {

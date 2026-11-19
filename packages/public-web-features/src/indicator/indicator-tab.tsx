@@ -20,7 +20,7 @@ import type {
   SelectedArea,
   SelectedIndicator,
 } from './loader.ts';
-import { englandObservations, NO_ENGLAND_MESSAGE } from './no-england.ts';
+import { englandObservations, NO_ENGLAND_MESSAGE, sexObservations } from './no-england.ts';
 import {
   BenchmarksPanel,
   PanelOptionsPanel,
@@ -68,7 +68,7 @@ export function IndicatorTab({
   const shownObservations = (pickedAreaData.length ? pickedAreaData : areaData).flatMap(
     ({ observations }) => observations,
   );
-  const sexes = dimensionValues(hasEngland ? england : shownObservations, 'Sex');
+  const sexes = dimensionValues(sexObservations(areaData), 'Sex');
   const periodTypes = availablePeriodTypes(shownObservations);
   const confidenceLevels = availableConfidenceLevels(shownObservations);
   const measures = availableMeasures(shownObservations);

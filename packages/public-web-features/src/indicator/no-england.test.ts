@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { englandObservations, noEnglandLevel, summaryObservations } from './no-england.ts';
-import { observation } from './view.testing.ts';
+import {
+  choosesNothing,
+  englandObservations,
+  noEnglandLevel,
+  sexObservations,
+  summaryObservations,
+} from './no-england.ts';
+import { observation, sex } from './view.testing.ts';
 
 const england = (observations = [observation(10)]) => ({ areaCode: 'E92000001', observations });
 const area = (areaCode: string, value: number, fromDate: string) => ({
@@ -55,5 +61,46 @@ describe('summaryObservations', () => {
     const { period, trend } = summaryObservations([...regions, england([])]);
     expect(period.map(({ fromDate }) => fromDate)).toEqual(['2019-01-01', '2023-01-01']);
     expect(trend).toBeNull();
+  });
+});
+
+describe('choosesNothing', () => {
+  const levels = ['Local authorities', 'Statistical regions'];
+
+  it.each([
+    ['', true],
+    ['as=E92000001', true],
+    ['als=', true],
+    ['als=Foo', true],
+    ['als=NHS%20regions', true],
+    ['as=E08000003', false],
+    ['als=Statistical%20regions', false],
+    ['als=Upper-tier%20local%20authorities', false],
+  ])('reads %s as choosing nothing: %s', (query, expected) => {
+    expect(choosesNothing(new URLSearchParams(query), levels)).toBe(expected);
+  });
+});
+
+describe('sexObservations', () => {
+  const female = observation(5, [sex('Female')]);
+  const male = observation(6, [sex('Male')]);
+
+  it("reads England's observations when England has some", () => {
+    expect(
+      sexObservations([
+        { areaCode: 'E12000001', observations: [male] },
+        { areaCode: 'E92000001', observations: [female] },
+      ]),
+    ).toEqual([female]);
+  });
+
+  it('reads every area shown when England has no value', () => {
+    expect(
+      sexObservations([
+        { areaCode: 'E12000001', observations: [female] },
+        { areaCode: 'E12000002', observations: [male] },
+        { areaCode: 'E92000001', observations: [] },
+      ]),
+    ).toEqual([female, male]);
   });
 });
