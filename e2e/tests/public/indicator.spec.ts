@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { parse } from 'csv-parse/sync';
 
 import {
   expectNoAccessibilityViolations,
@@ -444,25 +445,43 @@ test('shows inequalities and methodology', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Calculation' })).toBeVisible();
 });
 
-test("shows a rate's numerator, not a count, on the indicator page and in its download", async ({
+test("offers a rate's numerator as its Count, never a Numerator, on the page and in its download", async ({
   page,
 }) => {
   const options = page
     .locator('.fphd-filter-card')
     .filter({ has: page.getByRole('button', { name: 'Table columns', exact: true }) });
   await options.getByRole('button', { name: 'Table columns', exact: true }).click();
-  await expect(options.getByRole('checkbox', { name: 'Numerator', exact: true })).toBeVisible();
-  await expect(options.getByRole('checkbox', { name: 'Count', exact: true })).toHaveCount(0);
+  const count = options.getByRole('checkbox', { name: 'Count', exact: true });
+  await expect(count).not.toBeChecked();
+  await expect(options.getByRole('checkbox', { name: 'Numerator', exact: true })).toHaveCount(0);
+  await expect(
+    options.getByRole('checkbox', { name: '99.8% confidence intervals', exact: true }),
+  ).not.toBeChecked();
+  const table = page.getByRole('table', { name: /^Table:/ });
+  await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toHaveCount(0);
+  await count.check();
+  await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
+  await expect(table.locator('tbody tr').first().getByRole('cell').nth(1)).toHaveText(
+    /^\d{1,3}(,\d{3})*$/,
+  );
   await page
     .getByRole('tabpanel', { name: 'Indicator', exact: true })
     .getByText('Download or share data', { exact: true })
     .click();
   const all = await downloadFrom(page, 'Download data for all areas (CSV)', 'link');
-  expect(all.text.split('\n')[0]).toContain('Count,Numerator,Denominator');
+  const [header = [], ...rows] = parse(all.text) as string[][];
+  expect(header.slice(4, 7)).toEqual(['Segment', 'Count', 'Denominator']);
+  expect(header).not.toContain('Numerator');
+  expect(rows.some((row) => /^\d+(\.\d+)?$/.test(row[5] ?? ''))).toBe(true);
   await page.getByRole('tab', { name: 'Inequalities' }).click();
-  const table = page.getByRole('table', { name: /Table of inequalities/ });
-  await expect(table.getByRole('columnheader', { name: 'Numerator', exact: true })).toBeVisible();
-  await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toHaveCount(0);
+  const inequalities = page.getByRole('table', { name: /Table of inequalities/ });
+  await expect(
+    inequalities.getByRole('columnheader', { name: 'Count', exact: true }),
+  ).toBeVisible();
+  await expect(
+    inequalities.getByRole('columnheader', { name: 'Numerator', exact: true }),
+  ).toHaveCount(0);
 });
 
 test('downloads the indicator table and complete data', async ({ page }) => {

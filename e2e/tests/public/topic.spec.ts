@@ -115,6 +115,23 @@ test('keeps unchecked comparison columns off after removing and re-adding an are
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
+test("shows a rate's numerator as its Count on the Data tab, with no Numerator column", async ({
+  page,
+}) => {
+  await openTopicPage(page, '/topics/diabetes?tab-topic=data');
+  const panel = page.locator('#topic-data');
+  await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+  await expect(panel.getByRole('checkbox', { name: 'Numerator', exact: true })).toHaveCount(0);
+  await panel.getByRole('checkbox', { name: 'Count', exact: true }).check();
+  const table = page.getByRole('tabpanel', { name: 'Data', exact: true }).getByRole('table');
+  await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Numerator', exact: true })).toHaveCount(0);
+  const prevalence = table.getByRole('row').filter({
+    has: page.getByRole('link', { name: 'Diabetes: QOF prevalence', exact: true }),
+  });
+  await expect(prevalence.getByRole('cell', { name: /^\d{1,3}(,\d{3})+$/ })).toHaveCount(1);
+});
+
 test('does not give England an arbitrary spread when chosen areas have different geography types', async ({
   page,
 }) => {
