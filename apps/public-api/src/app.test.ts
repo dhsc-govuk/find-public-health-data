@@ -326,7 +326,7 @@ describe('public API', () => {
 
     const long = 'a'.repeat(101);
     await request(app).get(
-      `/api/indicators/search?t=&t=${long}&t=valid&areaCode=not-valid&areaCode=E07000223`,
+      `/api/indicators/search?t=&t=${long}&t=valid&areaCode=not/valid&areaCode=E07000223`,
     );
 
     expect(searchWithFilters).toHaveBeenCalledWith(
