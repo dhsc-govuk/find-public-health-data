@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Drop England's observations from the indicators the seed publishes without an England value.
 
-Run locally after split-count-and-numerator.py:
+Run from the seed directory, last, after anything that writes observation.csv.gz (the base export
+or the prototype showcase import), or 93861's England values come back:
 
-    python3 drop-england-values.py ..
+    python3 export/drop-england-values.py .
 
 Some live indicators have values for areas but none for England. The seed gives air pollution
 (93861) that shape, so the e2e suite covers an indicator page with no England value. Each dropped

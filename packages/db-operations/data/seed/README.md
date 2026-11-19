@@ -160,6 +160,10 @@ python3 export/reshape-indicator-versions.py .
 python3 export/split-count-and-numerator.py .
 ```
 
+This and the prototype showcase refresh below both rewrite `observation.csv.gz`. Run
+`python3 export/drop-england-values.py .` from this directory last, after either, or air pollution's
+(93861) England values come back.
+
 `strip-metadata-html.py` converts the metadata prose from Pholio's HTML to the plain text the pages
 store and render; `enrich-area-display.py` stamps each area type's display group, copies explicit
 current status and validity dates from the verified core geography snapshot, and strips the level
