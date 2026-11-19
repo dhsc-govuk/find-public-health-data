@@ -8,6 +8,7 @@ import {
   AREA_SUMMARY_SORTS,
   DEFAULT_TOPIC_AREA_GROUP,
   TOPIC_SORTS,
+  topicAllDataSearch,
   topicAreaRowSort,
   topicColumns,
 } from './data.ts';
@@ -119,7 +120,7 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
           <DownloadShareData
             inline
             href={`${path}/table.csv?${params}`}
-            allDataHref={`${path}/table.csv?tab-topic=data`}
+            allDataHref={`${path}/table.csv?${topicAllDataSearch()}`}
             downloadLabel="Download filtered data (CSV)"
             allDataLabel="Download all data (CSV)"
           />

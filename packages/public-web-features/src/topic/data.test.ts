@@ -8,6 +8,7 @@ import {
   englandObservation,
   JUDGEMENT_LABELS,
   TOPIC_COLUMNS,
+  topicAllDataSearch,
   topicColumns,
   topicJudgement,
   topicTableSelection,
@@ -206,6 +207,12 @@ it.each(TOPIC_COLUMNS)('selects $value independently of every other column', ({ 
   expect(topicColumns(params)).toEqual(
     TOPIC_COLUMNS.filter((option) => option.value !== value).map((option) => option.value),
   );
+});
+
+it('asks the all-data download for every column offered without picked areas', () => {
+  const params = new URLSearchParams(topicAllDataSearch());
+  expect(params.get('tab-topic')).toBe('data');
+  expect(topicColumns(params)).toEqual(['period', 'updated', 'trend', 'count', 'value']);
 });
 
 it('orders repeated and comma-separated column choices by the table schema', () => {

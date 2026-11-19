@@ -4,6 +4,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { expect, it, vi } from 'vitest';
 import type { IndicatorObservation, SelectedIndicator } from '../indicator/loader.ts';
 import { indicatorDetail } from '../indicator/view.testing.ts';
+import { topicAllDataSearch } from './data.ts';
 import { loadTopic } from './loader.ts';
 import { loader } from './table-csv-route.ts';
 
@@ -97,6 +98,17 @@ it.each([1234.5678, null])(
     expect(fields.slice(-2)).toEqual(expected);
   },
 );
+
+it('exports every England column in the all-data download', async () => {
+  const lines = await dataDownload(
+    [{ areaCode: 'E92000001', areaName: 'England', observations: [annualObservation(2023, 12)] }],
+    new URLSearchParams(topicAllDataSearch()).get('columns-topic') ?? '',
+  );
+  expect(lines[0]).toBe(
+    'Indicator,Subtopic,Unit,Most recent period,Last updated,England trend (last 5 periods),England count,England calculated value',
+  );
+  expect(lines[1]?.split(',').slice(-2)).toEqual(['120', '12']);
+});
 
 it('exports No data as the latest period for indicators without observations', async () => {
   vi.mocked(loadTopic).mockResolvedValue({
