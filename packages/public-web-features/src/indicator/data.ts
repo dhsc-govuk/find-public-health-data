@@ -692,7 +692,7 @@ export type RecentTrend =
       reason: 'multi-year periods' | 'not enough data points' | 'no England figure';
     };
 
-/** The summary's trend for an indicator with no England value when no area is chosen. */
+/** The summary's trend for an indicator with no England value. */
 export const NO_ENGLAND_TREND: RecentTrend = {
   direction: null,
   label: 'Trend unavailable',

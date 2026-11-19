@@ -9,7 +9,7 @@ import { apiLogin, createTestDb, type TestDb } from './testing.ts';
 // Emergency admissions for gastroenteritis: given England series for each sex and none for all
 // persons, with the female series a year behind the male one.
 const SEXED_ONLY = 94194;
-// Air pollution: given no England series at all.
+// Air pollution: seeded with no England values, so it has no England series.
 const NO_ENGLAND = 93861;
 
 let testDb: TestDb;
@@ -69,12 +69,6 @@ beforeAll(async () => {
     FROM indicator i, area a
     WHERE s.indicator_id = i.id AND i.short_id = ${SEXED_ONLY}
       AND s.area_id = a.id AND a.code = 'E92000001' AND s.sex = 'Female'
-  `;
-  await owner`
-    DELETE FROM observation_series s
-    USING indicator i, area a
-    WHERE s.indicator_id = i.id AND i.short_id = ${NO_ENGLAND}
-      AND s.area_id = a.id AND a.code = 'E92000001'
   `;
 });
 

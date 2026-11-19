@@ -35,18 +35,18 @@ export function noEnglandLevel(
 
 /**
  * The observations the page summary describes. "Period covered" spans England's values, or with
- * no England value those of every area shown. The trend is England's, or with no England value the
- * first chosen area's; it is null when there is neither, as the indicator has no England figure.
+ * no England value those of every area shown. The trend is England's; it is null with no England
+ * value, whatever areas are shown, as each area's own trend is in the table.
  */
 export function summaryObservations(
   areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[],
-  chosen: boolean,
 ): { period: IndicatorObservation[]; trend: IndicatorObservation[] | null } {
   const england = englandObservations(areaData);
   if (england.length > 0) return { period: england, trend: england };
-  const areas = areaData.filter(({ areaCode }) => areaCode !== ENGLAND_CODE);
   return {
-    period: areas.flatMap(({ observations }) => observations),
-    trend: chosen ? (areas[0]?.observations ?? []) : null,
+    period: areaData
+      .filter(({ areaCode }) => areaCode !== ENGLAND_CODE)
+      .flatMap(({ observations }) => observations),
+    trend: null,
   };
 }

@@ -949,6 +949,9 @@ test('shows a picked area of an indicator with no England value without ticking 
   const table = page.locator('#indicator-table').getByRole('table', { name: /^Table:/ });
   await expect(table.getByRole('columnheader', { name: 'Manchester', exact: true })).toBeVisible();
   await expect(answerTo(page, 'Period covered')).toHaveText('2018 to 2024');
+  await expect(answerTo(page, 'Trend (last 5 periods)')).toHaveText(
+    /^Trend unavailable\s*\(no England figure\)$/,
+  );
 });
 
 test('opens an indicator with no England value on its statistical regions without JavaScript', async ({

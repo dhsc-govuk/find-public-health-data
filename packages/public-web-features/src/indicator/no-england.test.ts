@@ -45,20 +45,15 @@ describe('summaryObservations', () => {
 
   it("describes England's values when England has some", () => {
     const shown = [...regions, england()];
-    expect(summaryObservations(shown, true)).toEqual({
+    expect(summaryObservations(shown)).toEqual({
       period: [observation(10)],
       trend: [observation(10)],
     });
   });
 
-  it('spans every area shown, with no trend, when England has no value and nothing is chosen', () => {
-    const { period, trend } = summaryObservations([...regions, england([])], false);
+  it('spans every area shown, with no trend, when England has no value', () => {
+    const { period, trend } = summaryObservations([...regions, england([])]);
     expect(period.map(({ fromDate }) => fromDate)).toEqual(['2019-01-01', '2023-01-01']);
     expect(trend).toBeNull();
-  });
-
-  it("takes the first chosen area's trend when England has no value", () => {
-    const { trend } = summaryObservations([...regions, england([])], true);
-    expect(trend).toEqual(regions[0]?.observations);
   });
 });

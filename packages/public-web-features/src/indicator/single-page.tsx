@@ -217,11 +217,8 @@ function LoadedIndicatorPage({
           label="indicator summary"
           resolve={data}
         >
-          {({ selected, selection, areasLimited }) => {
-            const { period, trend } = summaryObservations(
-              primaryIndicator(selected).areaData,
-              selection.areaCodes.length > 0 || selection.areaLevels.length > 0,
-            );
+          {({ selected, areasLimited }) => {
+            const { period, trend } = summaryObservations(primaryIndicator(selected).areaData);
             return (
               <>
                 <IndicatorSummary
@@ -301,7 +298,7 @@ function LoadedIndicatorPage({
             {({ selected }) => (
               <BackgroundInformation
                 indicator={detail}
-                observations={summaryObservations(primaryIndicator(selected).areaData, true).period}
+                observations={summaryObservations(primaryIndicator(selected).areaData).period}
               />
             )}
           </IndicatorDataSection>

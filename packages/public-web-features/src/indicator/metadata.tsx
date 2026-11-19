@@ -75,7 +75,7 @@ export function IndicatorSummary({
 }: {
   indicator: IndicatorPageDetail;
   observations: IndicatorObservation[];
-  /** The observations the trend describes, or null when the indicator has no England figure. */
+  /** England's observations for the trend, or null when the indicator has no England figure. */
   trendObservations?: IndicatorObservation[] | null;
 }) {
   const ofDimension = (dimension: string) =>
