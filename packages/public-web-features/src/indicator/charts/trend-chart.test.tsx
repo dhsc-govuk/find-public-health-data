@@ -99,6 +99,38 @@ it('wraps the y-axis title only when it exceeds the chart width', () => {
   expect(lines.every((line) => line.length <= Math.floor((345 - 16) / 7.4))).toBe(true);
 });
 
+it('keeps a long y-axis title inside the chart', () => {
+  const name = 'Mortality for people referred to secondary mental health services (aged 18 to 74)';
+  const { container } = render(
+    <TrendChart
+      id="trend"
+      title="Trend"
+      indicator={indicatorDetail(108, { name, unit: 'per 100,000' })}
+      areas={[{ areaCode: 'E92000001', areaName: 'England', observations: [observation()] }]}
+    />,
+  );
+  const lines = [...container.querySelectorAll('.fphd-line-axis-title tspan')];
+  const longest = Math.max(...lines.map((line) => line.textContent?.length ?? 0));
+  for (const line of lines) {
+    expect(Number(line.getAttribute('x')) - (longest * 7.4) / 2).toBeGreaterThanOrEqual(0);
+  }
+});
+
+it('centres a short y-axis title over the axis', () => {
+  const { container } = render(
+    <TrendChart
+      id="trend"
+      title="Trend"
+      indicator={indicatorDetail(108, { name: 'Rate', unit: '%' })}
+      areas={[{ areaCode: 'E92000001', areaName: 'England', observations: [observation()] }]}
+    />,
+  );
+  const axis = container.querySelector('.recharts-yAxis .recharts-cartesian-axis-line');
+  expect(container.querySelector('.fphd-line-axis-title tspan')?.getAttribute('x')).toBe(
+    axis?.getAttribute('x1'),
+  );
+});
+
 it.each([
   ['calendar', '2024-01-01', '2024-12-31', 'Year'],
   ['financial', '2024-04-01', '2025-03-31', 'Financial year'],
