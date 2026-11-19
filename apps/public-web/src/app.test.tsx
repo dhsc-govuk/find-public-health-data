@@ -63,8 +63,8 @@ describe('public application routes', () => {
     expect(await screen.findByRole('heading', { name: 'Find public health data' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Public health data' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Using this service' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Find data' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Browse by topics' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('heading', { name: 'Ways to find data' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Browse by topic' }).getAttribute('href')).toBe(
       '/topics',
     );
     expect(screen.getByRole('link', { name: 'Topics' })).toBeTruthy();
@@ -557,7 +557,7 @@ describe('public application routes', () => {
     expect(screen.getByRole('link', { name: 'Search' }).getAttribute('href')).toBe('/search');
   });
 
-  it('home page renders search form and See all data card', async () => {
+  it('home page renders search form and Browse all data card', async () => {
     const Routes = createRoutesStub([
       {
         path: '/',
@@ -570,7 +570,10 @@ describe('public application routes', () => {
 
     await screen.findByRole('heading', { name: 'Find public health data' });
     expect(screen.getByLabelText('Search for data')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'See all data' }).getAttribute('href')).toBe('/search');
+    expect(screen.getByText('For example, diabetes or mental health')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Browse all data' }).getAttribute('href')).toBe(
+      '/search',
+    );
   });
 
   const searchLoaderData = {

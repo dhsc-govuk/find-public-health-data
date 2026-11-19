@@ -9,7 +9,7 @@ export interface CardListItem {
 }
 
 interface CardListProps {
-  columns?: 'one' | 'three';
+  columns?: 'one' | 'two' | 'three';
   /** The card titles' heading level, so a page can keep its outline sequential. Appearance is
    * fixed by `govuk-heading-s` and does not follow the level. */
   headingLevel?: 2 | 3;

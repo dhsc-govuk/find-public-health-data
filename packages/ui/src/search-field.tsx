@@ -1,3 +1,4 @@
+import Hint from '@not-govuk/hint';
 import Label from '@not-govuk/label';
 import SearchBox from '@not-govuk/search-box';
 import type { ReactNode } from 'react';
@@ -6,6 +7,7 @@ import type { ReactNode } from 'react';
 export function SearchField({
   action,
   defaultValue,
+  hint,
   id,
   label,
   labelSize = 'm',
@@ -13,6 +15,7 @@ export function SearchField({
 }: {
   action?: ReactNode;
   defaultValue?: string;
+  hint?: string;
   id: string;
   label: string;
   labelSize?: 's' | 'm' | 'l';
@@ -27,6 +30,11 @@ export function SearchField({
         </Label>
         {action}
       </div>
+      {/* FIXME(FPH-798): The hint is not linked to the input, because NotGovUK's SearchBox
+          overwrites any aria-describedby passed to it and shows its own hint only visually
+          hidden and as placeholder text. Link it once SearchBox keeps an aria-describedby or
+          offers a visible hint without a placeholder. */}
+      {hint ? <Hint>{hint}</Hint> : null}
       <SearchBox
         autoComplete="off"
         className="fphd-search-bar"
