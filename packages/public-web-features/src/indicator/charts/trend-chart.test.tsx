@@ -3,7 +3,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { cloneElement, type ReactElement, type Ref } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorDetail, observation } from '../view.testing.ts';
-import { TrendChart, trendAxisFormat, trendTitleLines } from './trend-chart.tsx';
+import { alignedSeries } from './chart-data.ts';
+import { TrendChart, trendAxisFormat, trendAxisTicks, trendTitleLines } from './trend-chart.tsx';
 
 vi.mock('./chart-elements.tsx', async (original) => ({
   ...(await original<typeof import('./chart-elements.tsx')>()),
@@ -132,13 +133,41 @@ it('centres a short y-axis title over the axis', () => {
   );
 });
 
-it('shortens y-axis numbers only on an axis whose numbers would not fit', () => {
-  expect(trendAxisFormat([5.4, 7.9])(7.5)).toBe('7.5');
-  expect(trendAxisFormat([26_835.6, 34_400])(36_000)).toBe('36,000');
-  const large = trendAxisFormat([56_536_419, 57_690_323]);
+it('shortens y-axis numbers only on an axis with a tick that would not fit', () => {
+  expect(trendAxisFormat([5, 6, 7, 8])(7.5)).toBe('7.5');
+  expect(trendAxisFormat([26_000, 30_000, 36_000])(36_000)).toBe('36,000');
+  const large = trendAxisFormat([56_500_000, 57_500_000, 57_750_000]);
   expect([57_750_000, 57_500_000, 56_500_000].map(large)).toEqual(['57.75m', '57.5m', '56.5m']);
-  expect(trendAxisFormat([0, 95_000])(120_000)).toBe('120k');
-  expect(trendAxisFormat([-1_500_000, 10])(-1_500_000)).toBe('-1.5m');
+  expect(trendAxisFormat([0, 50_000, 100_000])(120_000)).toBe('120k');
+  expect(trendAxisFormat([-1_500_000, 0])(-1_500_000)).toBe('-1.5m');
+});
+
+it("takes the axis's ticks from the values, intervals and policy goal it shows", () => {
+  const series = (values: number[]) =>
+    alignedSeries([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: values.map((value, index) => ({
+          ...observation(value),
+          fromDate: `${2020 + index}-01-01`,
+          toDate: `${2020 + index}-12-31`,
+        })),
+      },
+    ]);
+  // The data stops at 83,000, but the round ticks reach 100,000, which needs seven characters.
+  expect(trendAxisTicks(series([0, 83_000]), 'none', null).at(-1)).toBe(100_000);
+  expect(
+    trendAxisTicks(series([87_000, 88_000]), 'none', null).every((tick) => tick < 100_000),
+  ).toBe(true);
+  const goal = {
+    lower: 150_000,
+    upper: null,
+    polarity: 'higher-is-better' as const,
+    policyDetail: null,
+  };
+  expect(Math.max(...trendAxisTicks(series([1, 6]), 'none', goal))).toBeGreaterThanOrEqual(150_000);
+  expect(Math.max(...trendAxisTicks(series([10]), '95', null))).toBeGreaterThanOrEqual(11);
 });
 
 it('shows long y-axis numbers shortened on the chart', () => {

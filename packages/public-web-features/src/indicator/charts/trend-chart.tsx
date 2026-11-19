@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import {
   CartesianGrid,
   ErrorBar,
+  getNiceTickValues,
   Label,
   Line,
   LineChart,
@@ -46,16 +47,27 @@ const compactFormat = new Intl.NumberFormat('en-GB', {
 });
 
 /**
- * The y-axis's number format. The axis is 56 pixels wide, which fits six characters, so an axis
- * whose numbers would need more shows them shortened ('57.75m', '120k'). The axis rounds its ticks
- * a little beyond the data, so the check allows for 20% more.
+ * The y-axis's ticks: the round numbers Recharts would choose for the plotted values, any interval
+ * drawn and any policy goal, worked out here so the number format can depend on them.
  */
-export function trendAxisFormat([lowest, highest]: [number, number]) {
-  const characters = Math.max(
-    formatValue(Math.round(lowest * 1.2)).length,
-    formatValue(Math.round(highest * 1.2)).length,
-  );
-  return characters > 6 ? (value: number) => compactFormat.format(value) : formatValue;
+export function trendAxisTicks(
+  series: ReturnType<typeof alignedSeries>,
+  confidence: ConfidenceLevel,
+  goal: PolicyGoal | null | undefined,
+) {
+  const [lowest, highest] = valueExtent(series, confidence);
+  const goals = goal ? goalThresholds(goal).map(({ value }) => value) : [];
+  return getNiceTickValues([Math.min(lowest, ...goals), Math.max(highest, ...goals)], 6);
+}
+
+/**
+ * The y-axis's number format. The axis is 56 pixels wide, which fits six characters, so an axis
+ * with a tick that needs more shows all its numbers shortened ('57.75m', '120k').
+ */
+export function trendAxisFormat(ticks: number[]) {
+  return ticks.some((tick) => formatValue(tick).length > 6)
+    ? (value: number) => compactFormat.format(value)
+    : formatValue;
 }
 
 /** Lines of at most half the chart's width, so a long title still reads as the axis's. */
@@ -147,6 +159,7 @@ function TrendPlot({
   const latest = periods.findLast(({ key }) => primary.observations.get(key)?.value != null);
   const chartTitle = `${title}${segment ? `, ${segmentLabel(segment)}` : ''}`;
   const narrow = width < 480;
+  const yTicks = trendAxisTicks(series, confidence, goal);
   const longest = Math.max(...series.map(({ name }) => name.length));
   const ticks = new Map(
     periods.map(({ key }) => {
@@ -273,12 +286,12 @@ function TrendPlot({
               <Label value={periodAxis} position="insideBottom" />
             </XAxis>
             <YAxis
-              domain={['auto', 'auto']}
-              tickCount={6}
+              domain={[yTicks[0] ?? 0, yTicks.at(-1) ?? 0]}
+              ticks={yTicks}
               width={56}
               axisLine={{ stroke: axisColour }}
               tickLine={{ stroke: axisColour }}
-              tickFormatter={trendAxisFormat(valueExtent(series, confidence))}
+              tickFormatter={trendAxisFormat(yTicks)}
             >
               <Label
                 content={({ viewBox }) => {
