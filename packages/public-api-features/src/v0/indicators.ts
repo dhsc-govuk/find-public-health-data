@@ -87,6 +87,7 @@ export function toIndicatorDetail(entry: CatalogueEntry) {
     denominatorDefinition: detail.denominatorDefinition,
     caveats: detail.caveats,
     notes: detail.notes,
+    updateFrequencyText: detail.updateFrequencyText,
     disclosureControl: detail.disclosureControl,
     dataSource: detail.dataSource,
     numeratorSources: detail.numeratorSources,

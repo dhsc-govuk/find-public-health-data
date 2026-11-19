@@ -1480,9 +1480,20 @@ components:
             Which way the values are better, which decides how `comparedToBenchmark` reads. The
             values are the service's own.
         updateFrequency:
-          type: string
-          enum: [monthly, quarterly, annually, every-2-years, no-fixed-frequency, no-longer-updated]
-          description: How often the data is updated. The values are the service's own.
+          type: [string, "null"]
+          enum:
+            [
+              monthly,
+              quarterly,
+              annually,
+              every-2-years,
+              no-fixed-frequency,
+              no-longer-updated,
+              null,
+            ]
+          description: |
+            How often the data is updated. The values are the service's own. Empty where the
+            indicator describes it in words instead, in `updateFrequencyText`.
         dataUpdatedAt:
           type: [string, "null"]
           format: date-time
@@ -1532,6 +1543,10 @@ components:
             notes:
               type: [string, "null"]
               description: Other notes about the indicator.
+            updateFrequencyText:
+              type: [string, "null"]
+              description: How often the data is updated, in words, where the indicator gives them.
+              example: Annually, in the spring
             disclosureControl:
               type: [string, "null"]
             dataSource:
