@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { cloneElement, type ReactElement, type Ref } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorDetail, observation } from '../view.testing.ts';
-import { TrendChart, trendTitleLines } from './trend-chart.tsx';
+import { TrendChart, trendAxisFormat, trendTitleLines } from './trend-chart.tsx';
 
 vi.mock('./chart-elements.tsx', async (original) => ({
   ...(await original<typeof import('./chart-elements.tsx')>()),
@@ -130,6 +130,33 @@ it('centres a short y-axis title over the axis', () => {
   expect(container.querySelector('.fphd-line-axis-title tspan')?.getAttribute('x')).toBe(
     axis?.getAttribute('x1'),
   );
+});
+
+it('shortens y-axis numbers only on an axis whose numbers would not fit', () => {
+  expect(trendAxisFormat([5.4, 7.9])(7.5)).toBe('7.5');
+  expect(trendAxisFormat([26_835.6, 34_400])(36_000)).toBe('36,000');
+  const large = trendAxisFormat([56_536_419, 57_690_323]);
+  expect([57_750_000, 57_500_000, 56_500_000].map(large)).toEqual(['57.75m', '57.5m', '56.5m']);
+  expect(trendAxisFormat([0, 95_000])(120_000)).toBe('120k');
+  expect(trendAxisFormat([-1_500_000, 10])(-1_500_000)).toBe('-1.5m');
+});
+
+it('shows long y-axis numbers shortened on the chart', () => {
+  const { container } = render(
+    <TrendChart
+      id="trend"
+      title="Trend"
+      indicator={indicatorDetail(108, { name: 'Resident population', unit: null })}
+      areas={[
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation(57_690_323)] },
+      ]}
+    />,
+  );
+  const ticks = [...container.querySelectorAll('.recharts-cartesian-axis-tick-value')].map(
+    (tick) => tick.textContent ?? '',
+  );
+  expect(ticks.some((tick) => /^\d+(\.\d+)?m$/.test(tick))).toBe(true);
+  expect(ticks.every((tick) => tick.length <= 6 || !/^[\d,.]+$/.test(tick))).toBe(true);
 });
 
 it.each([

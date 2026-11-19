@@ -23,7 +23,7 @@ import {
 } from '../data.ts';
 import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
-import { alignedSeries, bounds, chartPeriods, errorOffsets } from './chart-data.ts';
+import { alignedSeries, bounds, chartPeriods, errorOffsets, valueExtent } from './chart-data.ts';
 import {
   axisColour,
   ChartCanvas,
@@ -39,6 +39,24 @@ import { EndLabels, lineColour } from './trend-labels.tsx';
 import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
+
+const compactFormat = new Intl.NumberFormat('en-GB', {
+  notation: 'compact',
+  maximumFractionDigits: 2,
+});
+
+/**
+ * The y-axis's number format. The axis is 56 pixels wide, which fits six characters, so an axis
+ * whose numbers would need more shows them shortened ('57.75m', '120k'). The axis rounds its ticks
+ * a little beyond the data, so the check allows for 20% more.
+ */
+export function trendAxisFormat([lowest, highest]: [number, number]) {
+  const characters = Math.max(
+    formatValue(Math.round(lowest * 1.2)).length,
+    formatValue(Math.round(highest * 1.2)).length,
+  );
+  return characters > 6 ? (value: number) => compactFormat.format(value) : formatValue;
+}
 
 /** Lines of at most half the chart's width, so a long title still reads as the axis's. */
 export function trendTitleLines(title: string, width: number) {
@@ -260,7 +278,7 @@ function TrendPlot({
               width={56}
               axisLine={{ stroke: axisColour }}
               tickLine={{ stroke: axisColour }}
-              tickFormatter={formatValue}
+              tickFormatter={trendAxisFormat(valueExtent(series, confidence))}
             >
               <Label
                 content={({ viewBox }) => {
