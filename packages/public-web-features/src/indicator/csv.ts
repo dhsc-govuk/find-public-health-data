@@ -2,10 +2,7 @@ import {
   areaDisplayGroupListSchema,
   areaLookupListSchema,
   areaParentListSchema,
-  indicatorAreaDataListSchema,
-  indicatorAreaDataSchema,
   MAX_AREA_CODES_PER_REQUEST,
-  pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
 import { apiPath } from '@fphd/web-server/api-client';
@@ -14,6 +11,7 @@ import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import { areaTypeLabel } from '../geography/groups.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
+import { loadAreaData } from './area-data.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { isRangeBenchmark, selectedBenchmarks } from './benchmarks.ts';
 import {
@@ -51,15 +49,7 @@ export async function loadIndicatorCsv(
   const pickedCodes = requestedAreaCodes(url.searchParams).slice(0, MAX_SELECTED_AREAS);
   const codesToLoad = [...pickedCodes, ENGLAND_CODE];
   const api = context.get(apiContext);
-  const dataFor = (codes: string[]) =>
-    api.get(
-      `${apiPath`/api/indicators/${segment}/data`}?${codes
-        .map((code) => `areaCode=${encodeURIComponent(code)}`)
-        .join('&')}`,
-      codes.length === 1
-        ? indicatorAreaDataSchema.transform((one) => [one])
-        : indicatorAreaDataListSchema,
-    );
+  const dataFor = (codes: string[]) => loadAreaData(api, segment, codes);
   // The download shares the page's address, so it shares the page's one canonical form:
   // an old address is answered with the redirect before any data is asked for.
   const { detailSchema, links } = context.get(indicatorPageContext);
@@ -82,11 +72,7 @@ export async function loadIndicatorCsv(
       areaDisplayGroupListSchema,
     );
     const areaType = areaTypeLookup(groups);
-    // A code the API ignores would shrink a batch below the list shape the reader expects.
-    const codes = pickAreaCodes(
-      groups.flatMap(({ areas }) => areas.map(({ code }) => code)),
-      Number.POSITIVE_INFINITY,
-    );
+    const codes = [...new Set(groups.flatMap(({ areas }) => areas.map(({ code }) => code)))];
     const firstBatch = codes.slice(0, MAX_AREA_CODES_PER_REQUEST);
     const firstData = firstBatch.length ? await dataFor(firstBatch) : [];
     const encoder = new TextEncoder();
