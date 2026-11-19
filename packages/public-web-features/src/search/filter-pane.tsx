@@ -72,7 +72,7 @@ export function SearchFilterPane({
   );
   const fwDims = DIMENSIONS.filter((dim) => dim.param === 'fw');
   const popDims = DIMENSIONS.filter((dim) => ['pg', 'eq'].includes(dim.param));
-  const dataDims = DIMENSIONS.filter((dim) => ['src', 'vt', 'per'].includes(dim.param));
+  const dataDims = DIMENSIONS.filter((dim) => ['source', 'vt', 'per'].includes(dim.param));
   const choices = (dim: (typeof DIMENSIONS)[number]) => (
     <FilterDimensionChoices
       key={dim.param}
@@ -143,9 +143,7 @@ export function SearchFilterPane({
           {includeDataPeriod ? (
             <>
               <CollapsibleFilterCard active={false} title="Status">
-                <p className="govuk-body-s">
-                  Release status information is not available for this dataset.
-                </p>
+                <p className="govuk-body-s">Release status information is not yet available.</p>
               </CollapsibleFilterCard>
               <SearchPeriodFilter
                 key={JSON.stringify([state.fromYear, state.toYear, state.updatedWithin])}

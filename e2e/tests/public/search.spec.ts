@@ -336,6 +336,13 @@ test('the sort survives tab switches, new searches and filter changes', async ({
   await expect(sortBy(page)).toHaveValue('recently-updated');
 });
 
+test('the Status filter says release status information is not yet available', async ({ page }) => {
+  await ready(page);
+  const status = card(page, 'Status');
+  await status.getByRole('button', { name: 'Status', exact: true }).click();
+  await expect(status.getByText('Release status information is not yet available.')).toBeVisible();
+});
+
 test('a complete long data source remains selected and narrows results', async ({ page }) => {
   await ready(page);
   const attributes = card(page, 'About the data');
@@ -344,8 +351,11 @@ test('a complete long data source remains selected and narrows results', async (
   const source = await option.inputValue();
   expect(source.length).toBeGreaterThan(100);
   await option.check();
-  await expect(page).toHaveURL(/src=/);
-  expect(new URL(page.url()).searchParams.get('src')).toBe(source);
+  await expect(page).toHaveURL(/source=/);
+  const params = new URL(page.url()).searchParams;
+  expect(params.get('source')).toBe(source);
+  // DAC's App Gateway refuses a query string containing the word src.
+  expect([...params.keys()].filter((key) => /src/i.test(key))).toEqual([]);
   await expect(option).toBeChecked();
   await expect(results(page).getByRole('link')).toHaveCount(2);
   await page.reload();
