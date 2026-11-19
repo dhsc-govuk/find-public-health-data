@@ -38,14 +38,16 @@ for (const width of [1020, 375]) {
       await openTopicPage(page, `/topics/${topic}`);
       const cards = page.locator('.fphd-topic-highlight');
       await expect(cards.first()).toBeVisible();
-      for (const card of await cards.all()) {
-        const endpoints = card.locator('.fphd-sparkline__endpoints');
+      // A card for an indicator with no England value, such as air pollution, has no sparkline.
+      for (const endpoints of await cards.locator('.fphd-sparkline__endpoints').all()) {
         await expect(endpoints).toHaveCSS('margin-bottom', '5px');
         const captions = endpoints.locator(':scope > span');
         for (const caption of await captions.all()) {
           await expect(caption).toHaveCSS('line-height', '22.8px');
           await expect(caption).toHaveCSS('margin-bottom', '15px');
         }
+      }
+      for (const card of await cards.all()) {
         const key = card.locator('.govuk-summary-list__key').first();
         const summary = await card.locator('.govuk-summary-list').boundingBox();
         const label = await key.boundingBox();

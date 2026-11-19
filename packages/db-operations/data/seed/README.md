@@ -25,7 +25,7 @@ onto them by name. Areas, observations and bridge rows contain:
   | 92443 | Smoking prevalence in adults (current)              | Proportion; 15+ dimension types incl. socioeconomic, tenure, religion, sexuality |
   | 92708 | Resident population                                 | Count; sex × age-band population pyramids                                        |
   | 93622 | Community mental health contacts                    | Deprivation quintile within area (IMD2019)                                       |
-  | 93861 | Mortality attributable to particulate air pollution | Prototype showcase; England, regional, NHS and local-authority trends            |
+  | 93861 | Mortality attributable to particulate air pollution | Prototype showcase; regional, NHS and local-authority trends, no England value   |
   | 93995 | Mortality rate for deaths involving diabetes        | Prototype showcase; annual and rolling trends from 2001                          |
   | 94194 | Emergency admissions for gastroenteritis (0–4)      | Crude rate; deprivation deciles                                                  |
 
@@ -34,7 +34,7 @@ onto them by name. Areas, observations and bridge rows contain:
 - The nine Pholio indicators retain their existing focused date window. The prototype additions
   include their full published trend for the geographies above.
 
-That yields 433,678 observations, 657,869 bridge rows and 67,978 observation notes.
+That yields 433,531 observations, 657,582 bridge rows and 67,978 observation notes.
 
 ## Semantics worth knowing
 
@@ -196,6 +196,8 @@ python3 export/import-prototype-indicators.py \
   --out-dir /tmp/fphd-seed-expanded
 ```
 
-Validate the staging output before copying its nine `.csv.gz` files into this directory. Then run
+Validate the staging output before copying its nine `.csv.gz` files into this directory, then run
+`python3 export/drop-england-values.py .`: air pollution (93861) is seeded without its England
+values, so the e2e suite covers an indicator page with no England value. Then run
 `pnpm db:seed-dummy-data` — it imports the indicator relationships and rebuilds the read models in
 the same command — to prove the committed files reproduce the local database.
