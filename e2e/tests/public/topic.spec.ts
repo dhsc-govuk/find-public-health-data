@@ -39,7 +39,12 @@ for (const width of [1020, 375]) {
       const cards = page.locator('.fphd-topic-highlight');
       await expect(cards.first()).toBeVisible();
       // Air pollution has no England value, so its card has no England sparkline.
-      const withEngland = cards.filter({ hasNotText: 'Air pollution' });
+      const withEngland = cards.filter({
+        hasNot: page.getByRole('link', {
+          name: 'Air pollution: estimated fraction of mortality attributable to particulate air pollution',
+          exact: true,
+        }),
+      });
       for (const card of await withEngland.all()) {
         const endpoints = card.locator('.fphd-sparkline__endpoints');
         await expect(endpoints).toHaveCSS('margin-bottom', '5px');
