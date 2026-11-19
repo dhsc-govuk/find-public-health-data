@@ -176,10 +176,13 @@ export async function loadSearch(
     if (displayGroups.includes(geographyGroup)) params.set('geo', geographyGroup);
   }
 
-  const resolved = lookedUp.filter(
-    (a): a is AreaLookup & { displayGroup: string } =>
-      Boolean(a.displayGroup) && (!geographyGroup || a.displayGroup === geographyGroup),
-  );
+  // Areas keep the order they were picked in, which is their order in the URL.
+  const resolved = lookedUp
+    .filter(
+      (a): a is AreaLookup & { displayGroup: string } =>
+        Boolean(a.displayGroup) && (!geographyGroup || a.displayGroup === geographyGroup),
+    )
+    .toSorted((a, b) => rawGa.indexOf(a.code) - rawGa.indexOf(b.code));
   const gaCodes = resolved.map((a) => a.code);
   const gaAreaNames: Record<string, string> = Object.fromEntries(
     resolved.map((a) => [a.code, a.name]),

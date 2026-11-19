@@ -358,6 +358,19 @@ describe('loadSearch', () => {
     expect(searchPath(client)).not.toContain('displayGroup=Local');
   });
 
+  it('keeps the areas in the order the URL picked them, not the lookup order', async () => {
+    const client = api({
+      'GET /api/areas/lookup': (call) =>
+        lookup(call).toSorted((a, b) => a.code.localeCompare(b.code)),
+    });
+
+    const result = await loadSearch(
+      loaderArgs(client, 'http://localhost/search?ga=E12000007&ga=E06000052&ga=E08000025'),
+    );
+
+    expect(result.gaCodes).toEqual(['E12000007', 'E06000052', 'E08000025']);
+  });
+
   it('drops ga codes that do not resolve (unknown areas)', async () => {
     // The lookup finds nothing for an unknown code.
     const client = api({ 'GET /api/areas/lookup': [] });

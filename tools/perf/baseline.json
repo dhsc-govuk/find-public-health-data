@@ -173,6 +173,12 @@
     "rows": 1407,
     "bytes": 149131
   },
+  "public-web /topics/diabetes?ga=E10000032": {
+    "statements": 58,
+    "buffers": 5171,
+    "rows": 1543,
+    "bytes": 156986
+  },
   "public-web /topics/mortality-and-life-expectancy/table.csv?tab-topic=areas": {
     "statements": 24,
     "buffers": 9536,

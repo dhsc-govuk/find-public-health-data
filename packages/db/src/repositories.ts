@@ -112,7 +112,7 @@ export interface AreaRepository {
 export interface TopicRepository {
   list(): Promise<Topic[]>;
   findBySlug(slug: string): Promise<Topic | undefined>;
-  trendSummary(slug: string): Promise<TopicTrendSummary>;
+  trendSummary(slug: string, areaCode?: string): Promise<TopicTrendSummary>;
   listSubtopics(slug: string): Promise<{ slug: string; title: string }[]>;
 }
 
@@ -183,7 +183,8 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
     topics: {
       list: () => run((db) => listTopics(db, views)),
       findBySlug: (slug) => run((db) => getTopicBySlug(db, views, slug)),
-      trendSummary: (slug) => run((db) => getTopicTrendSummary(db, views, slug)),
+      trendSummary: (slug, areaCode) =>
+        run((db) => getTopicTrendSummary(db, views, slug, areaCode)),
       listSubtopics: (slug) => run((db) => listTopicSubtopics(db, views, slug)),
     },
   };

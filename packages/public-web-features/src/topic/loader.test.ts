@@ -564,6 +564,82 @@ it.each([
   expect(paths(api).filter((path) => path.includes('/range'))).toEqual([]);
 });
 
+describe('the overview for a chosen area', () => {
+  function trendsApi(totals: Record<string, number>) {
+    return rangeApi({
+      'GET /api/topics/topic-a/trends': (call) => {
+        const total = totals[query(call).get('areaCode') ?? 'E92000001'] ?? 0;
+        return {
+          total,
+          better: total,
+          worse: 0,
+          unchanged: 0,
+          increasing: 0,
+          decreasing: 0,
+          unavailable: 0,
+        };
+      },
+    });
+  }
+
+  it('counts trends for the first area picked and shows its figures', async () => {
+    const api = trendsApi({ E92000001: 5, E06000052: 2 });
+    const page = await loadTopicPage(
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E06000052&ga=E12000001'),
+    );
+    const overview = await page.overview;
+    expect(overview?.trends.total).toBe(2);
+    expect(overview?.area).toEqual({ code: 'E06000052', name: 'Cornwall' });
+    expect(overview?.search.gaCodes).toEqual(['E06000052']);
+    expect(overview?.unavailableArea).toBeUndefined();
+    expect(overview?.highlights.map(({ areaName }) => areaName)).toEqual(['Cornwall', 'Cornwall']);
+    expect(paths(api).filter((path) => path.includes('/trends'))).toEqual([
+      '/api/topics/topic-a/trends?areaCode=E06000052',
+    ]);
+  });
+
+  it('shows England with a note when the chosen area has no data for the topic', async () => {
+    const api = trendsApi({ E92000001: 5 });
+    const page = await loadTopicPage(
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E12000001'),
+    );
+    const overview = await page.overview;
+    expect(overview?.trends.total).toBe(5);
+    expect(overview?.area).toBeUndefined();
+    expect(overview?.unavailableArea).toBe('North East');
+    expect(overview?.highlights.map(({ areaName }) => areaName)).toEqual(['England', 'England']);
+    expect(paths(api).filter((path) => path.includes('/trends'))).toEqual([
+      '/api/topics/topic-a/trends?areaCode=E12000001',
+      '/api/topics/topic-a/trends',
+    ]);
+  });
+
+  it('keeps the chosen area without a note when the topic has no indicators', async () => {
+    const api = trendsApi({});
+    const page = await loadTopicPage(
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E12000001'),
+    );
+    const overview = await page.overview;
+    expect(overview?.trends.total).toBe(0);
+    expect(overview?.area).toEqual({ code: 'E12000001', name: 'North East' });
+    expect(overview?.unavailableArea).toBeUndefined();
+  });
+
+  it('counts England when no known area is chosen', async () => {
+    const api = trendsApi({ E92000001: 5 });
+    const page = await loadTopicPage(
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E99999999'),
+    );
+    const overview = await page.overview;
+    expect(overview?.trends.total).toBe(5);
+    expect(overview?.area).toBeUndefined();
+    expect(overview?.unavailableArea).toBeUndefined();
+    expect(paths(api).filter((path) => path.includes('/trends'))).toEqual([
+      '/api/topics/topic-a/trends',
+    ]);
+  });
+});
+
 it('treats an indicator the range endpoint does not know as having no range', async () => {
   const api = rangeApi({
     'GET /api/indicators/1/range': fails(new Response('Not Found', { status: 404 })),

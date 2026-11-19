@@ -18,7 +18,7 @@ export function TopicOverview({
   topic: TopicData['topic'];
   overview: Overview;
 }) {
-  const { search, trends, highlights } = overview;
+  const { search, trends, area, unavailableArea, highlights } = overview;
   return (
     <GridRow className="fphd-topic-overview">
       <GridColumn width="one-quarter">
@@ -26,10 +26,18 @@ export function TopicOverview({
       </GridColumn>
       <GridColumn width="three-quarters">
         <p className="govuk-body">{topic.content?.overviewIntro ?? topic.description}</p>
+        {unavailableArea ? (
+          <div className="govuk-inset-text govuk-!-margin-top-0">
+            Figures for {unavailableArea} are not available. Showing England.
+          </div>
+        ) : null}
         <h2 className="govuk-heading-m">
-          {topic.title} has {trends.total} indicators in total
+          {topic.title} has {trends.total} {trends.total === 1 ? 'indicator' : 'indicators'}{' '}
+          {area ? `in ${area.name}` : 'in total'}
         </h2>
-        <p className="govuk-body">In England, the trend over the last 5 data points is:</p>
+        <p className="govuk-body">
+          In {area?.name ?? 'England'}, the trend over the last 5 data points is:
+        </p>
         <GridRow className="fphd-topic-trend-counts">
           <GridColumn width="one-half">
             <ul className="govuk-list">
@@ -99,6 +107,9 @@ export function TopicOverview({
                 <Link className="govuk-link" to={indicatorPath(highlight.slug)}>
                   {highlight.name}
                 </Link>
+                {area ? (
+                  <span className="govuk-hint fphd-topic-highlight__area">in {area.name}</span>
+                ) : null}
               </h3>
               {highlight.hasTrend ? (
                 <Sparkline

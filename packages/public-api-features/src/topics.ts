@@ -1,8 +1,9 @@
 import type { Repositories, Topic } from '@fphd/db';
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { Router } from 'express';
 
-import type { TopicSummary } from './contract.ts';
+import { pickAreaCodes, type TopicSummary } from './contract.ts';
 import { contentForTopic } from './topic-content.ts';
 
 function toSummary({ slug, title, description, createdAt, updatedAt }: Topic): TopicSummary {
@@ -49,12 +50,13 @@ export function topicsRouter(topics: Repositories['topics']): Router {
   });
 
   router.get('/api/topics/:slug/trends', async (request, response) => {
-    const topic = await findTopic(topics, request.params.slug);
-    if (!topic) {
+    const [areaCode] = pickAreaCodes(request.query.areaCode ?? ENGLAND_AREA_CODE, 1);
+    const topic = areaCode ? await findTopic(topics, request.params.slug) : undefined;
+    if (!areaCode || !topic) {
       response.status(404).json({ error: 'not_found' });
       return;
     }
-    response.status(200).json(await topics.trendSummary(topic.slug));
+    response.status(200).json(await topics.trendSummary(topic.slug, areaCode));
   });
 
   return router;

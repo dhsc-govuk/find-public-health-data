@@ -16,7 +16,21 @@ vi.mock('./geographies.tsx', () => ({ TopicGeographies: () => null }));
 
 type Props = ComponentProps<typeof TopicOverview>;
 
-function card(observations: IndicatorObservation[], detail: Partial<SelectedIndicator['detail']>) {
+const TRENDS = {
+  total: 1,
+  better: 0,
+  worse: 0,
+  unchanged: 0,
+  increasing: 0,
+  decreasing: 0,
+  unavailable: 1,
+};
+
+function card(
+  observations: IndicatorObservation[],
+  detail: Partial<SelectedIndicator['detail']>,
+  overview: Partial<Props['overview']> = {},
+) {
   const entry = selected();
   const html = renderToStaticMarkup(
     <MemoryRouter>
@@ -26,15 +40,10 @@ function card(observations: IndicatorObservation[], detail: Partial<SelectedIndi
         }
         overview={{
           search: EMPTY_SEARCH_STATE as Props['overview']['search'],
-          trends: {
-            total: 1,
-            better: 0,
-            worse: 0,
-            unchanged: 0,
-            increasing: 0,
-            decreasing: 0,
-            unavailable: 1,
-          },
+          trends: TRENDS,
+          area: undefined,
+          unavailableArea: undefined,
+          ...overview,
           highlights: topicOverviewModel(
             topicTableSelection(
               [
@@ -235,4 +244,42 @@ it('keeps all four summary labels when there are no observations', () => {
     '<span class="govuk-hint govuk-!-margin-bottom-0">Trend unavailable <br>(<span class="fphd-trend-reason">not enough data points</span>)</span>',
   );
   expect(doc.querySelector('svg')).toBeNull();
+});
+
+function overviewText(doc: Document) {
+  return {
+    heading: doc.querySelector('h2.govuk-heading-m')?.textContent,
+    intro: doc.querySelector('h2.govuk-heading-m + .govuk-body')?.textContent,
+    note: doc.querySelector('.govuk-inset-text')?.textContent ?? null,
+    cardArea: doc.querySelector('.fphd-topic-highlight h3 .govuk-hint')?.textContent ?? null,
+  };
+}
+
+it('names England and the topic total when no area is chosen', () => {
+  expect(overviewText(card([], {}, { trends: { ...TRENDS, total: 3 } }))).toEqual({
+    heading: 'Diabetes has 3 indicators in total',
+    intro: 'In England, the trend over the last 5 data points is:',
+    note: null,
+    cardArea: null,
+  });
+});
+
+it('names the chosen area in the heading, intro and each highlighted card', () => {
+  const doc = card([], {}, { area: { code: 'E10000032', name: 'West Sussex' } });
+  expect(overviewText(doc)).toEqual({
+    heading: 'Diabetes has 1 indicator in West Sussex',
+    intro: 'In West Sussex, the trend over the last 5 data points is:',
+    note: null,
+    cardArea: 'in West Sussex',
+  });
+});
+
+it('notes that England is shown when the chosen area has no data', () => {
+  const doc = card([], {}, { unavailableArea: 'Westminster', trends: { ...TRENDS, total: 2 } });
+  expect(overviewText(doc)).toEqual({
+    heading: 'Diabetes has 2 indicators in total',
+    intro: 'In England, the trend over the last 5 data points is:',
+    note: 'Figures for Westminster are not available. Showing England.',
+    cardArea: null,
+  });
 });

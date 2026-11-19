@@ -46,6 +46,7 @@ export const ROUTES: Route[] = [
   { app: 'public-web', path: '/search?q=mortality', limitMs: 500 },
   { app: 'public-web', path: '/topics', limitMs: 500 },
   { app: 'public-web', path: '/topics/diabetes', limitMs: 500 },
+  { app: 'public-web', path: '/topics/diabetes?ga=E10000032', limitMs: 500 },
   { app: 'public-web', path: '/topics/mortality-and-life-expectancy?tab-topic=data', limitMs: 500 },
   {
     app: 'public-web',

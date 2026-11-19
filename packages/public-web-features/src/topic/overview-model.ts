@@ -1,4 +1,4 @@
-import { observationSegmentKey } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, observationSegmentKey } from '@fphd/utils/observation-series';
 import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { sparklineModel } from '../indicator/charts/chart-data.ts';
 import {
@@ -9,11 +9,19 @@ import {
 } from '../indicator/data.ts';
 import type { SelectedIndicator } from '../indicator/loader.ts';
 
-export function topicOverviewModel(selected: SelectedIndicator[]) {
-  const rows = comparisonRows(selected);
-  return selected.map(({ detail, areaData, tableSeries }) => {
+export function topicOverviewModel(selected: SelectedIndicator[], areaCode = ENGLAND_AREA_CODE) {
+  // The comparison rows give England a cell only when no other area is loaded beside it.
+  const shown =
+    areaCode === ENGLAND_AREA_CODE
+      ? selected.map((entry) => ({
+          ...entry,
+          areaData: entry.areaData.filter((data) => data.areaCode === ENGLAND_AREA_CODE),
+        }))
+      : selected;
+  const rows = comparisonRows(shown);
+  return shown.map(({ detail, areaData, tableSeries }) => {
     const row = rows.find(({ shortId }) => shortId === detail.shortId);
-    const area = areaData.find(({ areaCode }) => areaCode !== 'E92000001') ?? areaData[0];
+    const area = areaData.find((entry) => entry.areaCode === areaCode) ?? areaData[0];
     const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
     const periodType = availablePeriodTypes(cell?.series ?? []).includes('3-year')
       ? '3-year'
