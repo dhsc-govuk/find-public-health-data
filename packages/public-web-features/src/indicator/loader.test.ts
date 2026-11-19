@@ -144,7 +144,7 @@ describe('loadIndicator', () => {
     const page = await loadPage(
       args(
         client,
-        'http://localhost/indicator/indicator-108?tab-indicator=compare&compareWith=indicator-241&as=E08000003&as=E06000052',
+        'http://localhost/indicator/indicator-108?tab-indicator=compare&compareWith=241&as=E08000003&as=E06000052',
       ),
     );
     const data = await page.data;
@@ -296,10 +296,7 @@ describe('loadIndicator', () => {
       },
     };
     const page = await loadPage(
-      args(
-        delayed,
-        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
-      ),
+      args(delayed, 'http://localhost/indicator/indicator-108.data?compareWith=241&find=diabetes'),
     );
     const data = Promise.resolve(page.data).then((data) => {
       dataReady = true;
@@ -323,7 +320,7 @@ describe('loadIndicator', () => {
       'GET /api/indicators/108/data': fails(new Response('Bad Gateway', { status: 502 })),
     });
     const page = await loadPage(
-      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=241'),
     );
     const failedData = expect(page.data).rejects.toMatchObject({ status: 502 });
     await expect(Promise.resolve(page.comparison)).resolves.toMatchObject({
@@ -338,10 +335,7 @@ describe('loadIndicator', () => {
       'GET /api/indicators': fails(new Response('Bad Gateway', { status: 502 })),
     });
     const page = await loadPage(
-      args(
-        client,
-        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
-      ),
+      args(client, 'http://localhost/indicator/indicator-108.data?compareWith=241&find=diabetes'),
     );
     await Promise.all([
       expect(page.findResults).rejects.toMatchObject({ status: 502 }),
@@ -365,10 +359,7 @@ describe('loadIndicator', () => {
       },
     };
     const page = await loadPage(
-      args(
-        delayed,
-        'http://localhost/indicator/indicator-108.data?compareWith=indicator-241&find=diabetes',
-      ),
+      args(delayed, 'http://localhost/indicator/indicator-108.data?compareWith=241&find=diabetes'),
     );
     const results = Promise.resolve(page.findResults).then(() => {
       searchReady = true;
@@ -406,7 +397,7 @@ describe('loadIndicator', () => {
       ],
     });
     const page = await loadPage(
-      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=241'),
     );
     const comparison = await page.comparison;
     expect(comparison.areas.rows).toMatchObject([{ areaCode: 'E92000001', value: 10 }]);
@@ -490,7 +481,7 @@ describe('loadIndicator', () => {
   it('keeps the comparison history and raw rankings out of page hydration', async () => {
     const client = api();
     const page = await loadPage(
-      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=241'),
     );
     const [data, comparison] = await Promise.all([page.data, page.comparison]);
     expect(data.selected.map(({ detail }) => detail.shortId)).toEqual([108]);
@@ -597,9 +588,27 @@ describe('loadIndicator', () => {
   it('compares the route indicator with exactly one other indicator', async () => {
     const client = api();
     const result = await loadIndicator(
-      args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241&is=90366'),
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=241&is=90366'),
     );
     expect(result.selected.map(({ detail }) => detail.shortId)).toEqual([108, 241]);
+  });
+
+  it('redirects a comparison named by its slug to its short id', async () => {
+    const client = api();
+
+    await expect(
+      loadIndicator(
+        args(
+          client,
+          'http://localhost/indicator/indicator-108?tab-indicator=compare&compareWith=indicator-241',
+        ),
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) =>
+        response.status === 302 &&
+        response.headers.get('Location') ===
+          '/indicator/indicator-108?tab-indicator=compare&compareWith=241',
+    );
   });
 
   it('removes a comparison with the same indicator', async () => {
@@ -608,7 +617,7 @@ describe('loadIndicator', () => {
       await loadIndicator(
         args(
           client,
-          'http://localhost/indicator/indicator-108?compareWith=indicator-108&tab-indicator=compare',
+          'http://localhost/indicator/indicator-108?compareWith=108&tab-indicator=compare',
         ),
       );
       throw new Error('Expected redirect');
@@ -659,13 +668,11 @@ describe('loadIndicator', () => {
   it('propagates primary not-found and comparison API failures', async () => {
     for (const [path, status] of [
       ['/api/indicators/indicator-108', 404],
-      ['/api/indicators/indicator-241', 502],
+      ['/api/indicators/241', 502],
     ] as const) {
       const client = api({ [`GET ${path}`]: fails(new Response(null, { status })) });
       await expect(
-        loadIndicator(
-          args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
-        ),
+        loadIndicator(args(client, 'http://localhost/indicator/indicator-108?compareWith=241')),
       ).rejects.toMatchObject({ status });
     }
   });
@@ -876,10 +883,7 @@ describe('loadIndicator', () => {
       'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
     });
     const result = await loadIndicator(
-      args(
-        client,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&as=E06000052',
-      ),
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=241&as=E06000052'),
     );
     expect(result.scatter?.points).toHaveLength(26);
     expect(result.scatter?.points.find(({ code }) => code === 'E92000001')).toMatchObject({
@@ -903,10 +907,7 @@ describe('loadIndicator', () => {
       'GET /api/indicators/241/data': (call) => areaData(call, [observation(20)]),
     });
     const result = await loadIndicator(
-      args(
-        client,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&as=E06000052',
-      ),
+      args(client, 'http://localhost/indicator/indicator-108?compareWith=241&as=E06000052'),
     );
     expect(result.compareAreaGroup).toBe('');
     expect(result.scatter?.points).toMatchObject([
@@ -944,7 +945,7 @@ describe('loadIndicator', () => {
     const result = await loadIndicator(
       args(
         client,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&scatter-x=241&scatter-y=108',
+        'http://localhost/indicator/indicator-108?compareWith=241&scatter-x=241&scatter-y=108',
       ),
     );
     expect(result.scatter?.points).toHaveLength(26);
@@ -975,7 +976,7 @@ describe('loadIndicator', () => {
     const result = await loadIndicator(
       args(
         client,
-        'http://localhost/indicator/indicator-108?compareWith=indicator-241&scatter-x=241&scatter-y=108',
+        'http://localhost/indicator/indicator-108?compareWith=241&scatter-x=241&scatter-y=108',
       ),
     );
     const expected = loadScatterComparison(
@@ -1036,10 +1037,7 @@ describe('loadIndicator', () => {
         'GET /api/indicator-scatter': expected,
       });
       const result = await loadIndicator(
-        args(
-          client,
-          `http://localhost/indicator/indicator-108?compareWith=indicator-241&${params}`,
-        ),
+        args(client, `http://localhost/indicator/indicator-108?compareWith=241&${params}`),
       );
       expect(result.scatter).toEqual(expected);
       expect(
@@ -1053,9 +1051,7 @@ describe('loadIndicator', () => {
       'GET /api/indicator-scatter': () => fails(new Response(null, { status: 502 })),
     });
     await expect(
-      loadIndicator(
-        args(client, 'http://localhost/indicator/indicator-108?compareWith=indicator-241'),
-      ),
+      loadIndicator(args(client, 'http://localhost/indicator/indicator-108?compareWith=241')),
     ).rejects.toMatchObject({ status: 502 });
   });
 });
@@ -1075,13 +1071,10 @@ describe('loadIndicatorPage with no data to show', () => {
   it('checks the address of a draft whose page reads a placeholder, then asks for no data', async () => {
     const client = api({ 'GET /api/indicators/indicator-108': draft });
 
-    const page = await loadIndicatorPage(previewArgs(client, '?compareWith=indicator-241'));
+    const page = await loadIndicatorPage(previewArgs(client, '?compareWith=241'));
 
     expect(page).toEqual({ detail: draft, dataPlaceholder: '[Not provided yet]' });
-    expect(paths(client)).toEqual([
-      '/api/indicators/indicator-108',
-      '/api/indicators/indicator-241',
-    ]);
+    expect(paths(client)).toEqual(['/api/indicators/indicator-108', '/api/indicators/241']);
   });
 
   it('answers a malformed comparison on a placeholder page as not found, as with data', async () => {

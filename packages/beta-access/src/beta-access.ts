@@ -1,4 +1,4 @@
-import { normalizeReturnTo } from '@fphd/auth';
+import { encodeReturnTo, normalizeReturnTo } from '@fphd/auth';
 import { readCookie } from '@fphd/auth/cookies';
 import type { BetaAccessConfig, BetaInvitee, BetaInviteeEntry } from '@fphd/config';
 
@@ -125,7 +125,7 @@ export function createBetaAccess({
       const expiresAt = new Date(issuedAt.getTime() + LINK_LIFETIME_MINUTES * 60 * 1_000);
       const link = new URL(PRIVATE_BETA_SIGN_IN_PATH, siteUrl);
       link.searchParams.set('token', await signer.sign('link', invitee.email, issuedAt, expiresAt));
-      link.searchParams.set('returnTo', normalizeReturnTo(returnTo));
+      link.searchParams.set('returnTo', encodeReturnTo(normalizeReturnTo(returnTo)));
 
       if (sendEmail === undefined) return { outcome: 'shown', invitee, link: link.href };
 

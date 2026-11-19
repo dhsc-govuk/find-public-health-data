@@ -137,7 +137,7 @@
     "rows": 1387,
     "bytes": 573
   },
-  "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032": {
+  "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=92443&as=E07000223&as=E07000032": {
     "statements": 31,
     "buffers": 61070,
     "rows": 5243,

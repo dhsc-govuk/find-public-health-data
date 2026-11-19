@@ -114,7 +114,6 @@ export function IndicatorTab({
       shortId={id}
       displayGroups={displayGroups}
       geographyOptions={geographyOptions}
-      slug={detail.slug}
       selection={selection}
     >
       {hasPickedAreas ? (

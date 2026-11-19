@@ -21,10 +21,10 @@ export function ComparePicker({
   const location = useLocation();
   const navigate = useNavigate();
   const { indicatorSearch } = useIndicatorLinks();
-  const urlFor = (slug: string | null, hash = '') => {
+  const urlFor = (shortId: string | null, hash = '') => {
     const params = new URLSearchParams(location.search);
     params.delete('find');
-    if (slug) params.set('compareWith', slug);
+    if (shortId) params.set('compareWith', shortId);
     else params.delete('compareWith');
     params.set('tab-indicator', 'compare');
     return `${location.pathname}?${params}${hash}`;
@@ -36,7 +36,7 @@ export function ComparePicker({
       const { indicators } = (await response.json()) as { indicators: IndicatorSummary[] };
       return indicators
         .filter((indicator) => indicator.slug !== slug)
-        .map(({ name, slug }) => ({ value: slug, label: name }));
+        .map(({ name, shortId }) => ({ value: String(shortId), label: name }));
     },
     [slug, indicatorSearch],
   );
@@ -90,7 +90,7 @@ export function ComparePicker({
                   <li key={result.slug}>
                     <Link
                       className="govuk-link"
-                      to={urlFor(result.slug, '#indicator-compare-indicators')}
+                      to={urlFor(String(result.shortId), '#indicator-compare-indicators')}
                       preventScrollReset
                     >
                       {result.name}

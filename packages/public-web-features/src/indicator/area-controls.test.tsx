@@ -24,7 +24,7 @@ function mount(displayOptions = true, query = initialQuery) {
       Component: () => (
         <>
           <AreaControls
-            slug="indicator-108"
+            shortId={108}
             group="Local authorities"
             groups={['Local authorities']}
             areas={areas}
@@ -126,7 +126,7 @@ it.each(['Area 1', 'e06000001'])(
           path: '/',
           element: (
             <AreaControls
-              slug="indicator-108"
+              shortId={108}
               group="Local authorities"
               groups={['Local authorities']}
               areas={areas}

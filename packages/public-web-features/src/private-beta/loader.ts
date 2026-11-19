@@ -1,4 +1,4 @@
-import { normalizeReturnTo } from '@fphd/auth';
+import { decodeReturnTo, encodeReturnTo } from '@fphd/auth';
 import {
   type BetaAccess,
   betaAccessContext,
@@ -18,6 +18,7 @@ export interface PrivateBetaData {
   ended: boolean;
   /** Set when a sign-in link brought them back here because it had expired or was not valid. */
   linkRejected: boolean;
+  /** The page they wanted, read from the hex `returnTo` in the address. */
   returnTo: string;
 }
 
@@ -97,7 +98,7 @@ export function loadPrivateBeta({ context, request }: LoaderFunctionArgs): Priva
   return {
     ended: betaAccess.hasEnded(),
     linkRejected: searchParams.get('link') === 'rejected',
-    returnTo: normalizeReturnTo(searchParams.get('returnTo')),
+    returnTo: decodeReturnTo(searchParams.get('returnTo')),
   };
 }
 
@@ -111,7 +112,7 @@ export async function requestPrivateBetaLink({
   const error = emailError(email);
   if (error !== undefined) return { status: 'invalid', email, error };
 
-  const result = await betaAccess.requestLink(email, formText(form, 'returnTo'));
+  const result = await betaAccess.requestLink(email, decodeReturnTo(formText(form, 'returnTo')));
   logLinkRequest(context.get(loggerContext), result);
   if (result.outcome === 'send_failed') return { status: 'send_failed', email };
 
@@ -125,7 +126,7 @@ export async function signInToPrivateBeta({
   const betaAccess = requireBetaAccess(context);
   const logger = context.get(loggerContext);
   const { searchParams } = new URL(request.url);
-  const returnTo = normalizeReturnTo(searchParams.get('returnTo'));
+  const returnTo = decodeReturnTo(searchParams.get('returnTo'));
   const result = await betaAccess.signIn(searchParams.get('token') ?? '');
 
   if (result.outcome === 'signed_in') {
@@ -134,6 +135,6 @@ export async function signInToPrivateBeta({
   }
 
   logger.info('Private beta sign-in link rejected');
-  const again = new URLSearchParams({ link: 'rejected', returnTo });
+  const again = new URLSearchParams({ link: 'rejected', returnTo: encodeReturnTo(returnTo) });
   return redirect(`${PRIVATE_BETA_PATH}?${again}`);
 }

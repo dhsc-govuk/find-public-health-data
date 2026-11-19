@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 const options = {
-  slug: 'indicator-108',
+  shortId: 108,
   group: 'Local authorities',
   areas: [{ code: 'E06000001', name: 'Hartlepool' }] as CompareAreaOption[],
   params: new URLSearchParams('highlight=E06000001'),
@@ -60,6 +60,22 @@ it("asks the public lookup for regions and neighbours, or the one the page's lin
     '/preview/compare-areas',
     '/preview/compare-areas',
   ]);
+});
+
+it('names the indicator by its short id when it asks for regions', async () => {
+  vi.stubGlobal('IntersectionObserver', undefined);
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ parents: [], neighbours: [] }));
+  vi.stubGlobal('fetch', fetcher);
+
+  mount();
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+
+  const queries = fetcher.mock.calls.map(([url]) => new URL(String(url), 'http://localhost'));
+  expect(
+    queries
+      .find(({ searchParams }) => searchParams.get('parents') === '1')
+      ?.searchParams.get('indicator'),
+  ).toBe('108');
 });
 
 it('loads details without IntersectionObserver and retries failed regions and neighbours', async () => {

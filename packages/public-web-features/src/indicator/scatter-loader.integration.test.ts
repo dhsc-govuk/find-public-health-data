@@ -65,7 +65,7 @@ it('keeps the seeded diabetes and smoking comparison within its statement budget
   const paths: string[] = [];
   try {
     const comparison = await load(
-      'http://localhost/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032',
+      'http://localhost/indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=92443&as=E07000223&as=E07000032',
       (path) => paths.push(path),
     );
     expect(comparison.scatter?.points.length).toBeGreaterThan(1);
@@ -161,7 +161,7 @@ it.each(before.filter(({ scatter }) => scatter.points.length === 0))(
 
 it('loads the seeded diabetes comparison with separate financial and calendar periods', async () => {
   const comparison = await load(
-    'http://localhost/indicator/diabetes-qof-prevalence?compareWith=mortality-rate-for-deaths-involving-diabetes-all-ages',
+    'http://localhost/indicator/diabetes-qof-prevalence?compareWith=93995',
   );
   const variants = comparison.scatter?.variants;
   expect(variants?.length).toBeGreaterThan(0);

@@ -1,3 +1,4 @@
+import { encodeReturnTo } from '@fphd/auth';
 import { PRIVATE_BETA_PATH } from '@fphd/beta-access/context';
 import {
   A,
@@ -13,7 +14,7 @@ import {
 import type { PrivateBetaData, PrivateBetaRequest } from './loader.ts';
 
 function anotherLinkPath(returnTo: string): string {
-  return `${PRIVATE_BETA_PATH}?${new URLSearchParams({ returnTo })}`;
+  return `${PRIVATE_BETA_PATH}?${new URLSearchParams({ returnTo: encodeReturnTo(returnTo) })}`;
 }
 
 export function PrivateBetaEndedPage() {
@@ -96,7 +97,7 @@ export function RequestLinkPage({
           Enter the email address you were invited with and we will send you a link to sign in.
         </p>
         <form method="post" noValidate>
-          <input name="returnTo" type="hidden" value={returnTo} />
+          <input name="returnTo" type="hidden" value={encodeReturnTo(returnTo)} />
           <TextInput
             autoComplete="email"
             defaultValue={email}

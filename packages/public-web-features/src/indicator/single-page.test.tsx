@@ -239,7 +239,7 @@ it('keeps England as the benchmark when comparing local areas', () => {
 it('shows one compared indicator in an area-aligned comparison table', () => {
   page(
     [selected(241, 'Diabetes prevalence', 7.9), selected(93995, 'Diabetes mortality', 109.6)],
-    '/indicator/indicator-241?compareWith=indicator-93995',
+    '/indicator/indicator-241?compareWith=93995',
   );
   expect(
     screen.getByRole('tab', { name: 'Compare indicators' }).getAttribute('aria-selected'),
@@ -266,7 +266,7 @@ it('shows one compared indicator in an area-aligned comparison table', () => {
 it('labels cached scatter axes in the order requested by a saved comparison link', () => {
   page(
     [selected(241, 'Diabetes prevalence', 7.9), selected(93995, 'Diabetes mortality', 109.6)],
-    '/indicator/indicator-241?compareWith=indicator-93995&scatter-x=93995&scatter-y=241',
+    '/indicator/indicator-241?compareWith=93995&scatter-x=93995&scatter-y=241',
   );
   const chart = within(screen.getByRole('region', { name: 'Indicator comparison scatter chart' }));
   const table = within(chart.getByRole('table', { hidden: true }));
@@ -560,7 +560,7 @@ it('keeps comparison tables and the search form available while search loads or 
   const search = Promise.withResolvers<never>();
   page(
     [selected(241, 'Diabetes prevalence', 7.9), selected(108, 'Mortality', 109.6)],
-    '/indicator/indicator-241?compareWith=indicator-108&find=mortality',
+    '/indicator/indicator-241?compareWith=108&find=mortality',
     [],
     undefined,
     search.promise,
@@ -581,7 +581,7 @@ it('renders area and indicator comparisons when primary history fails', async ()
   const history = Promise.withResolvers<never>();
   page(
     [selected(241, 'Diabetes prevalence', 7.9), selected(108, 'Mortality', 109.6)],
-    '/indicator/indicator-241?compareWith=indicator-108',
+    '/indicator/indicator-241?compareWith=108',
     [],
     history.promise,
   );

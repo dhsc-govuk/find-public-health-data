@@ -4,6 +4,8 @@ import { expect, type Page } from '@playwright/test';
 export const MORTALITY_SLUG = 'under-75-mortality-rate-from-all-causes';
 export const MORTALITY_PATH = `/indicator/${MORTALITY_SLUG}`;
 export const MORTALITY_NAME = 'Under 75 mortality rate from all causes';
+/** The seeded indicator's short id, which names it in a query such as `compareWith`. */
+export const MORTALITY_SHORT_ID = 108;
 /** The seed fixes indicator ids, so the publisher's pages for it have a stable address. */
 export const MORTALITY_ID = '019fa38f-1346-7094-b773-79dcd43ae4b4';
 

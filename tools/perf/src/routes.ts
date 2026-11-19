@@ -75,7 +75,7 @@ export const ROUTES: Route[] = [
   { app: 'public-web', path: `/indicator/${DIABETES_SLUG}`, limitMs: 500 },
   {
     app: 'public-web',
-    path: `/indicator/${DIABETES_SLUG}?tab-indicator=compare&compareWith=smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps&as=E07000223&as=E07000032`,
+    path: `/indicator/${DIABETES_SLUG}?tab-indicator=compare&compareWith=92443&as=E07000223&as=E07000032`,
     limitMs: 1000,
   },
   { app: 'public-web', path: `/indicator/${DIABETES_SLUG}/table.csv`, limitMs: 1000 },

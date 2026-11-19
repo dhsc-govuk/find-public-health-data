@@ -19,7 +19,6 @@ it.each([
       Component: () => (
         <IndicatorGeographies
           shortId={108}
-          slug="example"
           displayGroups={[]}
           selection={{ areaCodes: [...codes], areaLevels: [], shortIds: [108] }}
         />
@@ -51,7 +50,6 @@ it('preserves a pending unchecked benchmark when clearing geographies', async ()
             </button>
             <IndicatorGeographies
               shortId={108}
-              slug="example"
               displayGroups={[]}
               selection={{ areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] }}
             />
