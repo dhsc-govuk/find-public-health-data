@@ -77,11 +77,7 @@ export const commands: Record<string, Command> = {
   'db reset': {
     description:
       'Reset the database to its freshly created state so `db migrate` rebuilds from empty',
-    run: (context) => reset(context),
-  },
-  'db reset --allow-production': {
-    description: 'Reset the database as `db reset` does, in production too',
-    run: (context) => reset(context, { allowProduction: true }),
+    run: reset,
   },
 };
 

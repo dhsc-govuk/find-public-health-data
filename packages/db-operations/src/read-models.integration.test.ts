@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { READ_MODEL_TABLES } from '@fphd/internal-read-models';
@@ -171,6 +173,39 @@ describe('bridge/registry schema', () => {
       const rows = await sql.unsafe(`SELECT count(*)::int AS count FROM "${table}"`);
       expect(Number(rows[0]?.count), table).toBeGreaterThan(0);
     }
+  });
+
+  it('produces the same observation ranges as the migration query', async () => {
+    await rebuildReadModels(sql);
+    const journal = JSON.parse(
+      readFileSync(new URL('../drizzle/meta/_journal.json', import.meta.url), 'utf8'),
+    ) as { entries: { tag: string }[] };
+    const insert = journal.entries
+      .slice()
+      .reverse()
+      .flatMap(({ tag }) =>
+        readFileSync(new URL(`../drizzle/${tag}.sql`, import.meta.url), 'utf8').split(
+          '--> statement-breakpoint',
+        ),
+      )
+      .find((statement) => /INSERT INTO ["']?observation_range["']?\s/i.test(statement));
+    if (!insert) throw new Error('No observation-range migration insert found');
+
+    await sql.begin(async (tx) => {
+      await tx`CREATE TEMP TABLE migration_observation_range (LIKE observation_range INCLUDING ALL) ON COMMIT DROP`;
+      await tx.unsafe(
+        insert.replace(
+          /INSERT INTO ["']?observation_range["']?/i,
+          'INSERT INTO migration_observation_range',
+        ),
+      );
+      const differences = await tx`
+        (SELECT * FROM observation_range EXCEPT ALL SELECT * FROM migration_observation_range)
+        UNION ALL
+        (SELECT * FROM migration_observation_range EXCEPT ALL SELECT * FROM observation_range)
+      `;
+      expect(differences).toHaveLength(0);
+    });
   });
 });
 

@@ -33,13 +33,12 @@
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "db:generate": "scripts/generate-migration.sh",
+    "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fphd/auth": "workspace:*",
     "@fphd/config": "workspace:*",
     "@fphd/db": "workspace:*",
     "@fphd/internal-read-models": "workspace:*",
@@ -48,6 +47,7 @@
     "postgres": "catalog:"
   },
   "devDependencies": {
+    "@fphd/auth": "workspace:*",
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",
     "typescript": "catalog:",

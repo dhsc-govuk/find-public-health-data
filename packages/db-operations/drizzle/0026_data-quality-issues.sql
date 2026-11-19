@@ -1,0 +1,1 @@
+ALTER TABLE "indicator_version" ADD COLUMN "data_quality_issues" boolean;

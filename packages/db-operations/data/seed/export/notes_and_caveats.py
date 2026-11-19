@@ -10,8 +10,8 @@ has no field for, stays unanswered too.
 
 import re
 
-# Prose that is an answer in itself, matched whole once normalised. The data migration tool's
-# notes-and-caveats.ts holds the same list, so a change here is made there too.
+# Prose that is an answer in itself, matched whole once normalised; the same list as the
+# vocabulary in migration 0022, so a change here is made there too.
 VOCABULARY = [
     ("disclosure_control", "none applied", "no"),
     ("disclosure_control", "not applied", "no"),

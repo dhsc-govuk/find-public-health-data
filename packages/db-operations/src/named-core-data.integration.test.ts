@@ -117,7 +117,8 @@ describe('upsertOrderedNames', () => {
     const again = await upsertOrderedNames(db, valueType, VALUE_TYPES);
     const swapped = await upsertOrderedNames(db, valueType, [second, first, ...rest]);
 
-    expect(initial.summary).toEqual({ inserted: VALUE_TYPES.length, updated: 0, unchanged: 0 });
+    // The migration's rows all sit at the first position, where the first of them belongs.
+    expect(initial.summary).toEqual({ inserted: 0, updated: VALUE_TYPES.length - 1, unchanged: 1 });
     expect(again.summary).toEqual({ inserted: 0, updated: 0, unchanged: VALUE_TYPES.length });
     expect(swapped.summary).toEqual({
       inserted: 0,

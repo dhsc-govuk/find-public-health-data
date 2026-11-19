@@ -109,7 +109,7 @@ def unit_values(name):
     name = UNIT_PLACEHOLDERS.get(name, name)
     if name in UNITS:
         return {"unit_id": UNIT_IDS[UNITS[name]], "unit_detail": None}
-    # Spaces only, as Postgres's btrim in unit_select trims.
+    # Spaces only, as Postgres's btrim in unit_select and migration 0035 trims.
     other = name.strip(" ")
     if not other or other.startswith(UNKNOWN_UNIT_PREFIX) or len(other) > UNIT_DETAIL_MAX_LENGTH:
         raise ValueError(f"No unit for the Fingertips unit {name!r}")

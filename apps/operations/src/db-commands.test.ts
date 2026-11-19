@@ -306,7 +306,6 @@ describe('importCoreData', () => {
       valueTypes: { summary, orphaned: [{ id: 'value-type-id', name: 'A value type' }] },
       units: { summary, orphaned: [{ id: 'unit-id', name: 'A unit' }] },
       comparatorMethods: { summary, orphaned: [{ id: 'comparator-id', name: 'A comparator' }] },
-      fakeUsers: { teams: summary, users: summary },
       geography: { area: { summary, orphaned: 0 }, area_relationship: { summary, orphaned: 0 } },
       references: Object.fromEntries(
         ['areaTypes', 'dimensionTypes', 'dimensionValues', 'noteTypes'].map((key) => [
