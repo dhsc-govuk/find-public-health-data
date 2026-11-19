@@ -13,6 +13,7 @@ import { englandCode } from './charts/chart-data.ts';
 import { inequalityTableModel } from './inequalities.ts';
 import type { SelectedIndicator } from './loader.ts';
 import { providerSourceText } from './metadata-data.ts';
+import { NO_ENGLAND_MESSAGE } from './no-england.ts';
 import { InequalityOptions, useOptionParamNavigation, usePanelOptions } from './options.tsx';
 import { InequalitiesTable } from './tables/inequalities-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
@@ -109,7 +110,9 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
               </FilterChip>
             </FilterChips>
           </div>
-          {categories.length === 0 ? (
+          {inequalityAreas.length === 0 ? (
+            <p className="govuk-body">{NO_ENGLAND_MESSAGE}</p>
+          ) : categories.length === 0 ? (
             <p className="govuk-body">
               This indicator has no inequality breakdowns for the selected areas.
             </p>

@@ -10,6 +10,7 @@ import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
 import type { IndicatorPageDetail, SelectedIndicator } from './loader.ts';
 import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
+import { summaryObservations } from './no-england.ts';
 import type { loadIndicatorPage } from './single-loader.ts';
 
 type IndicatorPageProps = Awaited<ReturnType<typeof loadIndicatorPage>>;
@@ -72,14 +73,6 @@ function primaryIndicator(selected: SelectedIndicator[]) {
   const primary = selected[0];
   if (!primary) throw new Error('The indicator page needs one indicator');
   return primary;
-}
-
-function observations(primary: SelectedIndicator) {
-  return (
-    primary.areaData.find(({ areaCode }) => areaCode === 'E92000001')?.observations ??
-    primary.areaData[0]?.observations ??
-    []
-  );
 }
 
 interface IndicatorTabContents {
@@ -224,20 +217,27 @@ function LoadedIndicatorPage({
           label="indicator summary"
           resolve={data}
         >
-          {({ selected, areasLimited }) => (
-            <>
-              <IndicatorSummary
-                indicator={detail}
-                observations={observations(primaryIndicator(selected))}
-              />
-              {areasLimited ? (
-                <InsetText>
-                  Showing the first {MAX_SELECTED_AREAS + 1} selected areas. Select fewer areas to
-                  change which ones are shown.
-                </InsetText>
-              ) : null}
-            </>
-          )}
+          {({ selected, selection, areasLimited }) => {
+            const { period, trend } = summaryObservations(
+              primaryIndicator(selected).areaData,
+              selection.areaCodes.length > 0 || selection.areaLevels.length > 0,
+            );
+            return (
+              <>
+                <IndicatorSummary
+                  indicator={detail}
+                  observations={period}
+                  trendObservations={trend}
+                />
+                {areasLimited ? (
+                  <InsetText>
+                    Showing the first {MAX_SELECTED_AREAS + 1} selected areas. Select fewer areas to
+                    change which ones are shown.
+                  </InsetText>
+                ) : null}
+              </>
+            );
+          }}
         </IndicatorDataSection>
       }
       tabs={{
@@ -256,6 +256,7 @@ function LoadedIndicatorPage({
                 displayGroups={data.displayGroups}
                 geographyOptions={data.geographyOptions}
                 selection={data.selection}
+                defaultAreaLevel={data.defaultAreaLevel}
               />
             )}
           </IndicatorDataSection>
@@ -300,7 +301,7 @@ function LoadedIndicatorPage({
             {({ selected }) => (
               <BackgroundInformation
                 indicator={detail}
-                observations={observations(primaryIndicator(selected))}
+                observations={summaryObservations(primaryIndicator(selected).areaData, true).period}
               />
             )}
           </IndicatorDataSection>

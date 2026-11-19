@@ -62,3 +62,19 @@ it.each([
   const table = screen.getByRole('table');
   expect(within(table).getByText(label)).toBeTruthy();
 });
+
+it('says the indicator has no England-level figure when nothing else is shown', () => {
+  const primary = selected();
+  primary.areaData = [{ areaCode: 'E92000001', areaName: 'England', observations: [] }];
+  const Routes = createRoutesStub([
+    { path: '/', Component: () => <InequalitiesTab primary={primary} /> },
+  ]);
+  render(<Routes initialEntries={['/']} />);
+
+  expect(
+    screen.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+  ).toBeTruthy();
+  expect(
+    screen.queryByText('This indicator has no inequality breakdowns for the selected areas.'),
+  ).toBeNull();
+});

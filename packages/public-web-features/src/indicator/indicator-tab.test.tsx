@@ -4,7 +4,7 @@ import { createRoutesStub, useLocation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { IndicatorTab } from './indicator-tab.tsx';
-import { indicatorDetail, observation } from './view.testing.ts';
+import { indicatorDetail, observation, sex } from './view.testing.ts';
 
 afterEach(cleanup);
 
@@ -176,4 +176,79 @@ it('shows area chips before removable benchmark chips and keeps the other choice
   fireEvent.click(screen.getByRole('link', { name: 'Remove Statistical regions filter' }));
   await waitFor(() => expect(params().getAll('cmp-108')).toEqual(['']));
   expect(screen.queryByRole('link', { name: 'Remove England filter' })).toBeNull();
+});
+
+function noEnglandRoutes(props: Partial<Parameters<typeof IndicatorTab>[0]>) {
+  const fixture = benchmarkFixture();
+  return createRoutesStub([
+    {
+      path: '/',
+      Component: () => (
+        <IndicatorTab
+          primary={{
+            detail: fixture.detail,
+            areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: [] }],
+          }}
+          selectedAreas={[]}
+          benchmarkGeography={{ regionByCode: {}, levelByCode: {} }}
+          displayGroups={[]}
+          selection={{ areaCodes: [], areaLevels: [], shortIds: [108] }}
+          {...props}
+        />
+      ),
+    },
+  ]);
+}
+
+it('says the indicator has no England-level figure, without the chosen-areas download, when nothing is shown', () => {
+  const Routes = noEnglandRoutes({});
+  const { container } = render(<Routes initialEntries={['/']} />);
+
+  expect(
+    screen.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+  ).toBeTruthy();
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(
+    screen.queryByRole('link', { name: "Download data for the areas you've chosen (CSV)" }),
+  ).toBeNull();
+  expect(screen.getByRole('link', { name: 'Download data for all areas (CSV)' })).toBeTruthy();
+  expect(container.querySelector('input[type="hidden"][name="cmp-108"]')).toBeNull();
+});
+
+it('shows the default level of an indicator with no England value, without an England benchmark', () => {
+  const fixture = benchmarkFixture();
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        fixture.area('E12000001', 'North East', 4),
+        {
+          areaCode: 'E12000002',
+          areaName: 'North West',
+          observations: [observation(5, [sex('Male')])],
+        },
+        { areaCode: 'E92000001', areaName: 'England', observations: [] },
+      ],
+    },
+    defaultAreaLevel: 'Statistical regions',
+  });
+  render(<Routes initialEntries={['/']} />);
+
+  const showing = screen.getByText('Showing:').parentElement;
+  expect(showing?.textContent).toContain('Statistical regions');
+  expect(showing?.textContent).not.toContain('England');
+  expect(screen.queryByRole('link', { name: /Remove Statistical regions/ })).toBeNull();
+  expect(screen.getAllByRole('columnheader', { name: 'North East' })).toBeTruthy();
+  expect(screen.queryByRole('checkbox', { name: 'England' })).toBeNull();
+  expect(
+    [...(screen.getAllByLabelText('Select sex')[0] as HTMLSelectElement).options].map(
+      ({ value }) => value,
+    ),
+  ).toEqual(['', 'Female', 'Male']);
+  const download = screen.getByRole('link', {
+    name: "Download data for the areas you've chosen (CSV)",
+  });
+  expect(
+    new URL(download.getAttribute('href') ?? '', 'http://localhost').searchParams.getAll('as'),
+  ).toEqual(['E12000001', 'E12000002']);
 });

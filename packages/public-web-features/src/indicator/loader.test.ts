@@ -1118,3 +1118,69 @@ describe('loadIndicatorPage with no data to show', () => {
     expect(paths(client).length).toBeGreaterThan(1);
   });
 });
+
+describe('loadIndicator for an indicator with no England value', () => {
+  const regions = {
+    displayGroup: 'Statistical regions',
+    areas: [
+      { code: 'E12000001', name: 'North East' },
+      { code: 'E12000002', name: 'North West' },
+    ],
+  };
+  const areasWithRegions = (call: FakeApiCall) =>
+    new URL(call.path, 'http://api').searchParams.get('displayGroup') === 'Statistical regions'
+      ? [regions]
+      : [...localAuthorities, regions];
+
+  it('opens on the statistical regions when nothing is chosen', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108/areas': areasWithRegions });
+
+    const result = await loadIndicator(args(client));
+
+    expect(result.defaultAreaLevel).toBe('Statistical regions');
+    expect(result.selection).toMatchObject({ areaCodes: [], areaLevels: [] });
+    expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual([
+      'E12000001',
+      'E12000002',
+      'E92000001',
+    ]);
+  });
+
+  it('keeps England when the indicator has no region data', async () => {
+    const client = api();
+
+    const result = await loadIndicator(args(client));
+
+    expect(result.defaultAreaLevel).toBeUndefined();
+    expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual(['E92000001']);
+  });
+
+  it('shows the chosen areas rather than the regions', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108/areas': areasWithRegions });
+
+    const result = await loadIndicator(
+      args(client, 'http://localhost/indicator/indicator-108?as=E00000001'),
+    );
+
+    expect(result.defaultAreaLevel).toBeUndefined();
+    expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual([
+      'E00000001',
+      'E92000001',
+    ]);
+  });
+
+  it('opens on England, asking for its data once, when England has a value', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': areasWithRegions,
+      'GET /api/indicators/108/data': (call: FakeApiCall) => areaData(call, [observation()]),
+    });
+
+    const result = await loadIndicator(args(client));
+
+    expect(result.defaultAreaLevel).toBeUndefined();
+    expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual(['E92000001']);
+    expect(
+      paths(client).filter((path) => path === '/api/indicators/108/data?areaCode=E92000001'),
+    ).toHaveLength(1);
+  });
+});

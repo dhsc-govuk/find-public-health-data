@@ -21,6 +21,16 @@ describe('inequality table model', () => {
     expect(model.confidence).toBe('none');
     expect(model.comparisonConfidence).toBe('none');
   });
+  it('shows the first area rather than an England with no value', () => {
+    const indicator = selected();
+    indicator.areaData = [
+      { areaCode: 'E12000001', areaName: 'North East', observations: [] },
+      { areaCode: 'E92000001', areaName: 'England', observations: [] },
+    ];
+    const model = inequalityTableModel(indicator, new URLSearchParams());
+    expect(model.area?.areaName).toBe('North East');
+    expect(model.areas.map(({ areaName }) => areaName)).toEqual(['North East']);
+  });
   it('does not compare with another sex when England lacks the matching segment', () => {
     const indicator = selected();
     const england = indicator.areaData[0];

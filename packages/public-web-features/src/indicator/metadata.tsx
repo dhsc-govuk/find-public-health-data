@@ -2,7 +2,7 @@ import { A, formatDate, GridColumn, GridRow, SectionBreak, SummaryList } from '@
 import { CI_CONFIDENCE_LEVEL_LABELS } from '@fphd/utils/ci-confidence-level';
 import { POLARITY_LABELS } from '@fphd/utils/polarity';
 import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
-import { dimensionValues, periodCovered, recentTrend } from './data.ts';
+import { dimensionValues, NO_ENGLAND_TREND, periodCovered, recentTrend } from './data.ts';
 import type {
   IndicatorObservation,
   IndicatorPageDetail,
@@ -71,13 +71,19 @@ function updateFrequencyRow(name: string, indicator: IndicatorPageDetail) {
 export function IndicatorSummary({
   indicator,
   observations,
+  trendObservations = observations,
 }: {
   indicator: IndicatorPageDetail;
   observations: IndicatorObservation[];
+  /** The observations the trend describes, or null when the indicator has no England figure. */
+  trendObservations?: IndicatorObservation[] | null;
 }) {
   const ofDimension = (dimension: string) =>
     indicator.classifications.filter((entry) => entry.dimension === dimension);
-  const trend = recentTrend(observations, indicator.polarity);
+  const trend =
+    trendObservations === null
+      ? NO_ENGLAND_TREND
+      : recentTrend(trendObservations, indicator.polarity);
   const placeholder = dataPlaceholder(indicator);
   const indicatorTypes = ofDimension('indicator_type');
   const lifeStages = ofDimension('life_stage');

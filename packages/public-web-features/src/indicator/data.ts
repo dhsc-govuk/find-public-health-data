@@ -689,8 +689,16 @@ export type RecentTrend =
       direction: null;
       label: string;
       tone: 'grey';
-      reason: 'multi-year periods' | 'not enough data points';
+      reason: 'multi-year periods' | 'not enough data points' | 'no England figure';
     };
+
+/** The summary's trend for an indicator with no England value when no area is chosen. */
+export const NO_ENGLAND_TREND: RecentTrend = {
+  direction: null,
+  label: 'Trend unavailable',
+  tone: 'grey',
+  reason: 'no England figure',
+};
 
 /**
  * Direction of the latest five aggregate values, read with the indicator's polarity so
