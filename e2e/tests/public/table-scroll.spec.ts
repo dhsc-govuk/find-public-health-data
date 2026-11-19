@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { MORTALITY_NAME, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
 import { openTopicPage } from '../support/topic-page.ts';
 
 const topicPath = '/topics/mortality-and-life-expectancy?tab-topic=data&ga=E12000007';
@@ -87,40 +86,3 @@ for (const javaScriptEnabled of [false, true]) {
     }
   });
 }
-
-test('pins only one header when an open chart table and the trend table are both visible', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 768, height: 1000 });
-  const areas = Array.from(
-    { length: 10 },
-    (_, index) => `as=E080000${String(index + 1).padStart(2, '0')}`,
-  ).join('&');
-  await openIndicatorPage(page, `${MORTALITY_PATH}?${areas}&cmp-108=england`);
-  await page
-    .locator('#indicator-data')
-    .getByText('View chart data as a table', { exact: true })
-    .last()
-    .click();
-  const chart = page.getByRole('region', { name: /^Chart data table:/ }).filter({ visible: true });
-  const trend = page.getByRole('region', { name: `${MORTALITY_NAME} trends over time` });
-  await expect(chart).toBeVisible();
-  await expect(trend).toBeVisible();
-  await chart.evaluate((element) =>
-    window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY - 300),
-  );
-  await expect(chart).toBeInViewport();
-  await expect(trend).toBeInViewport();
-  const header = page.locator('.fphd-sticky-header').filter({ visible: true });
-  await expect(header).toHaveCount(1);
-  await expect(header).toContainText('Period');
-  for (const table of [chart, trend]) {
-    expect(await table.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-    await table
-      .locator('tbody tr')
-      .nth(2)
-      .evaluate((row) => window.scrollTo(0, row.getBoundingClientRect().top + window.scrollY));
-    await expect(header).toHaveCount(1);
-    await expect(page.locator('.fphd-table-scrollbar--floating')).toHaveCount(1);
-  }
-});

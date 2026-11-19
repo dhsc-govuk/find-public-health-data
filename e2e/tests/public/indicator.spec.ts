@@ -1018,8 +1018,10 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await openIndicatorPage(page, '/indicator/diabetes-qof-prevalence');
   const trend = page.getByRole('region', { name: 'Diabetes: QOF prevalence trend chart' });
   await expect(trend.getByRole('application').locator('.recharts-line-curve')).toBeVisible();
-  await trend.getByText('View chart data as a table', { exact: true }).click();
-  await expect(trend.getByRole('table')).toContainText('7.9%');
+  await expect(trend.getByText('View chart data as a table', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('region', { name: 'Diabetes: QOF prevalence trends over time' }),
+  ).toContainText('7.9%');
   await page.getByRole('tab', { name: 'Compare areas', exact: true }).click();
   const table = page.getByRole('table', { name: /Table of area comparisons/ });
   const slough = table

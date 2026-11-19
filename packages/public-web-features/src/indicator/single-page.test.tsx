@@ -150,7 +150,7 @@ it('opens one indicator with the five prototype tabs and no selection controls',
     within(screen.getByRole('tabpanel', { name: 'Indicator' })).getByRole('region', {
       name: 'Diabetes prevalence trend chart',
     }).textContent,
-  ).toContain('View chart data as a table');
+  ).not.toContain('View chart data as a table');
 });
 
 it("reads a placeholder in each data section of a preview's draft with no data to show", async () => {
