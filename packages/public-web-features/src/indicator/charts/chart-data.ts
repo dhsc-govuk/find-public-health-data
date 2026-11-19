@@ -38,6 +38,20 @@ export function errorOffsets(value: number | null, interval: ReturnType<typeof b
   return [Math.max(0, value - interval[0]), Math.max(0, interval[1] - value)] as [number, number];
 }
 
+/** The lowest and highest values the y-axis shows: every plotted value and any interval drawn. */
+export function valueExtent(
+  series: ReturnType<typeof alignedSeries>,
+  confidence: ConfidenceLevel,
+): [number, number] {
+  const values = series.flatMap(({ observations }) =>
+    [...observations.values()].flatMap((observation) => [
+      ...(observation.value === null ? [] : [observation.value]),
+      ...(bounds(observation, confidence) ?? []),
+    ]),
+  );
+  return values.length ? [Math.min(...values), Math.max(...values)] : [0, 0];
+}
+
 export function alignedSeries(areas: IndicatorAreaData[]) {
   const first = areas.find(({ observations }) => observations.some(({ value }) => value !== null));
   const reference = first && trendSeries(first.observations)[0];

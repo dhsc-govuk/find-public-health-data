@@ -78,6 +78,21 @@ for (const count of [1, 2, 8, 12]) {
   }
 }
 
+test('keeps eight-digit y-axis numbers inside the chart', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await openIndicatorPage(page, '/indicator/resident-population');
+  const chart = page
+    .getByRole('region', { name: /trend chart$/ })
+    .first()
+    .locator('.fphd-chart-canvas')
+    .first();
+  const ticks = chart.locator('.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value');
+  await expect(ticks.first()).toBeVisible();
+  const chartBox = await chart.locator('svg.recharts-surface').first().boundingBox();
+  const tickBoxes = await Promise.all((await ticks.all()).map((tick) => tick.boundingBox()));
+  expect(tickBoxes.every((box) => box && chartBox && box.x >= chartBox.x)).toBe(true);
+});
+
 test('hovering a point or end label mutes other series and clicking pins the tooltip', async ({
   page,
 }, testInfo) => {

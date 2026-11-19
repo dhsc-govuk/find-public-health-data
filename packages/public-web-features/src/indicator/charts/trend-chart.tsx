@@ -23,7 +23,7 @@ import {
 } from '../data.ts';
 import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
-import { alignedSeries, bounds, chartPeriods, errorOffsets } from './chart-data.ts';
+import { alignedSeries, bounds, chartPeriods, errorOffsets, valueExtent } from './chart-data.ts';
 import {
   axisColour,
   ChartCanvas,
@@ -39,6 +39,18 @@ import { EndLabels, lineColour } from './trend-labels.tsx';
 import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
+
+/**
+ * The y-axis's width in pixels: 56, or more when its widest number needs it. The axis rounds its
+ * ticks to round numbers a little beyond the data, so the estimate allows for 20% more.
+ */
+export function trendYAxisWidth([lowest, highest]: [number, number]) {
+  const characters = Math.max(
+    formatValue(Math.round(lowest * 1.2)).length,
+    formatValue(Math.round(highest * 1.2)).length,
+  );
+  return Math.max(56, characters * 9);
+}
 
 /** Lines of at most half the chart's width, so a long title still reads as the axis's. */
 export function trendTitleLines(title: string, width: number) {
@@ -142,6 +154,7 @@ function TrendPlot({
     ? tickInset
     : Math.max(126, tickInset, Math.min(width * 0.4, 24 + longest * 8.4));
   const titleHeight = yTitleLines.length * 18 + 24;
+  const yAxisWidth = trendYAxisWidth(valueExtent(series, confidence));
   const periodAxis = periods.some(({ label }) => !/^\d{4}(\/\d{2})?$/.test(label))
     ? 'Period'
     : indicator.yearType?.value === 'financial'
@@ -257,7 +270,7 @@ function TrendPlot({
             <YAxis
               domain={['auto', 'auto']}
               tickCount={6}
-              width={56}
+              width={yAxisWidth}
               axisLine={{ stroke: axisColour }}
               tickLine={{ stroke: axisColour }}
               tickFormatter={formatValue}

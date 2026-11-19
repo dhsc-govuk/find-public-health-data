@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { cloneElement, type ReactElement, type Ref } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorDetail, observation } from '../view.testing.ts';
-import { TrendChart, trendTitleLines } from './trend-chart.tsx';
+import { TrendChart, trendTitleLines, trendYAxisWidth } from './trend-chart.tsx';
 
 vi.mock('./chart-elements.tsx', async (original) => ({
   ...(await original<typeof import('./chart-elements.tsx')>()),
@@ -130,6 +130,33 @@ it('centres a short y-axis title over the axis', () => {
   expect(container.querySelector('.fphd-line-axis-title tspan')?.getAttribute('x')).toBe(
     axis?.getAttribute('x1'),
   );
+});
+
+it('keeps the y-axis at 56 pixels while its numbers fit, and widens it when they do not', () => {
+  expect(trendYAxisWidth([5.4, 7.9])).toBe(56);
+  expect(trendYAxisWidth([26_835.6, 34_400])).toBe(56);
+  expect(trendYAxisWidth([56_536_419, 57_690_323])).toBeGreaterThanOrEqual(10 * 8);
+  expect(trendYAxisWidth([-1_500_000, 10])).toBeGreaterThan(trendYAxisWidth([0, 1_500_000]));
+});
+
+it('moves the plot right to make room for long y-axis numbers', () => {
+  const axisX = (value: number) => {
+    const { container } = render(
+      <TrendChart
+        id="trend"
+        title="Trend"
+        indicator={indicatorDetail(108, { name: 'Resident population', unit: null })}
+        areas={[{ areaCode: 'E92000001', areaName: 'England', observations: [observation(value)] }]}
+      />,
+    );
+    const x = container
+      .querySelector('.recharts-yAxis .recharts-cartesian-axis-line')
+      ?.getAttribute('x1');
+    cleanup();
+    return Number(x);
+  };
+  expect(axisX(7.9)).toBe(8 + 56);
+  expect(axisX(57_690_323)).toBe(8 + trendYAxisWidth([57_690_323, 57_690_323]));
 });
 
 it.each([
