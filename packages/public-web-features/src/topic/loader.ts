@@ -82,7 +82,12 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
             areasLimited: content.data.areasLimited,
           },
           table: compactTopicDataTable(
-            topicDataTableModel(content.data.selected, topic.slug, content.data.benchmarkGeography),
+            topicDataTableModel(
+              content.data.selected,
+              topic.slug,
+              content.data.benchmarkGeography,
+              content.listing.sort,
+            ),
           ),
         }
       : null,

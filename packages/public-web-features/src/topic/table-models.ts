@@ -1,3 +1,4 @@
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { comparisonTable } from '../indicator/comparison.ts';
 import {
@@ -14,11 +15,13 @@ import {
   topicJudgement,
   topicSubtopics,
 } from './data.ts';
+import type { TopicSort } from './filters.ts';
 
 export function topicDataTableModel(
   selected: SelectedIndicator[],
   topicSlug: string,
   geography: BenchmarkGeography = { regionByCode: {}, levelByCode: {} },
+  sort?: TopicSort,
 ) {
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
   const rows = comparisonRows(selected);
@@ -37,7 +40,7 @@ export function topicDataTableModel(
   const levels = new Set(
     areas.map(({ code }) => geography.levelByCode[code]).filter((level) => level !== undefined),
   );
-  return {
+  const model = {
     kind: 'data' as const,
     compared,
     ...(levels.size > 1 ? { mixedGeographyLevels: true } : {}),
@@ -125,6 +128,40 @@ export function topicDataTableModel(
       ];
     }),
   };
+  return sort?.startsWith('trend-')
+    ? { ...model, rows: withTrendUnavailableLast(model.rows, selected) }
+    : model;
+}
+
+/**
+ * Trend sorts rank indicators on England's series, so a row goes last when England's trend for
+ * it is unavailable, as its Trend cell shows when no area is picked. Each group keeps its order.
+ */
+function withTrendUnavailableLast<Row extends { key: string }>(
+  rows: Row[],
+  selected: SelectedIndicator[],
+): Row[] {
+  const polarities = new Map(selected.map(({ detail }) => [detail.shortId, detail.polarity]));
+  const englandRows = comparisonRows(
+    selected.map((entry) => ({
+      ...entry,
+      areaData: entry.areaData.filter(({ areaCode }) => areaCode === ENGLAND_AREA_CODE),
+    })),
+  );
+  const withTrend = new Set(
+    englandRows
+      .filter(({ shortId, cells: [england] }) =>
+        england
+          ? recentTrend(england.series, polarities.get(shortId) ?? null, england.trendDirection)
+              .direction !== null
+          : false,
+      )
+      .map(({ key }) => key),
+  );
+  return [
+    ...rows.filter(({ key }) => withTrend.has(key)),
+    ...rows.filter(({ key }) => !withTrend.has(key)),
+  ];
 }
 
 export function topicAreaTableModel(

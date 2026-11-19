@@ -559,3 +559,36 @@ it.each(['matching', 'older', 'absent', 'null'])(
     );
   },
 );
+
+it.each([
+  ['trend-desc', ['With a trend', 'Without a trend']],
+  ['name-asc', ['Without a trend', 'With a trend']],
+])('exports the data tab rows in the on-screen order under %s', async (sort, expected) => {
+  const englandOnly = (shortId: number, name: string, observations: IndicatorObservation[]) => ({
+    detail: indicatorDetail(shortId, { name }),
+    areaData: [{ areaCode: 'E92000001', areaName: 'England', observations }],
+  });
+  vi.mocked(loadTopic).mockResolvedValue({
+    topic: { slug: 'example', title: 'Example' },
+    content: {
+      data: {
+        selected: [
+          englandOnly(1, 'Without a trend', [annualObservation(2024, 20)]),
+          englandOnly(
+            2,
+            'With a trend',
+            [20, 21, 22, 23, 24].map((value, index) => annualObservation(2020 + index, value)),
+          ),
+        ],
+        benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+      },
+    },
+  } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+  const response = await loader({
+    request: new Request(
+      `http://local/topics/example/table.csv?tab-topic=data&columns-topic=trend&sort=${sort}`,
+    ),
+  } as LoaderFunctionArgs);
+  const lines = (await response.text()).trim().split(/\r?\n/);
+  expect(lines.slice(1).map((line) => line.split(',')[0])).toEqual(expected);
+});
