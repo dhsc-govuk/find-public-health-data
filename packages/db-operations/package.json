@@ -33,7 +33,7 @@
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "scripts/generate-migration.sh",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit"

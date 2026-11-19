@@ -16,6 +16,14 @@ fi
 
 pnpm exec drizzle-kit check --dialect postgresql --out ./drizzle
 
+# pnpm db:generate keeps the newest two snapshots; a migration made with drizzle-kit alone keeps all.
+shopt -s nullglob
+snapshots=(drizzle/meta/*_snapshot.json)
+if [ "${#snapshots[@]}" -gt 2 ]; then
+  echo "drizzle/meta holds ${#snapshots[@]} snapshots: keep the newest two and delete the rest." >&2
+  exit 1
+fi
+
 # Inside the package, because drizzle-kit takes --out as a path relative to it.
 copy=$(mktemp -d "${PWD}/.migration-drift.XXXXXX")
 trap 'rm -rf "${copy}"' EXIT

@@ -59,6 +59,12 @@ drizzle-kit check for migrations that collide, then drizzle-kit generate against
 with the migration SQL, so it cannot catch a hand-edited migration that the snapshot does not match.
 It builds the two packages the schema imports first.
 
+`drizzle/meta` keeps only the newest two snapshots. Each is a full copy of the schema, and
+drizzle-kit generate diffs against the newest only. The one before lets `drizzle-kit drop` undo the
+newest migration. `pnpm db:generate` deletes the older ones after generating, and
+`pnpm check:migrations` fails when there are more than two. The migrator reads only the SQL files
+and `_journal.json`.
+
 The migrations start from one baseline, `0000_baseline`, which builds the whole schema and inserts
 the system users and the Fingertips team. It keeps the timestamp of the migration it replaced, so a
 database migrated before the baseline reports it as tampered and `db migrate` refuses that database
