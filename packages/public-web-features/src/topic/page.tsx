@@ -6,6 +6,7 @@ import { topicDisplayParams } from './filters.ts';
 import { TopicGeographies } from './geographies.tsx';
 import { TopicListing } from './listing.tsx';
 import type { loadTopicPage } from './loader.ts';
+import { TopicMoreInformation } from './more-information.tsx';
 import { TopicKeywordSearch, TopicTableColumns } from './options.tsx';
 import { TopicOverview } from './overview.tsx';
 import { TopicSubtopicFilter } from './subtopic-filter.tsx';
@@ -149,28 +150,7 @@ export function TopicPage(data: TopicData) {
             id: 'topic-publications',
             param: 'publications',
             label: 'More information',
-            content: topic.content ? (
-              <div className="fphd-topic-more-information">
-                <p className="govuk-body">{topic.content.moreInformation.intro}</p>
-                {topic.content.moreInformation.sections.map((section) => (
-                  <section key={section.heading}>
-                    <h2 className="govuk-heading-m">{section.heading}</h2>
-                    <ul className="govuk-list govuk-list--bullet">
-                      {section.links.map(({ label, url, note }) => (
-                        <li key={url}>
-                          <a className="govuk-link" href={url}>
-                            {label}
-                          </a>
-                          {note ? ` (${note})` : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <p className="govuk-body">No further information is available for this topic.</p>
-            ),
+            content: <TopicMoreInformation content={topic.content} />,
           },
         ]}
       />
