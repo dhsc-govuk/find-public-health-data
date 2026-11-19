@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { parse } from 'csv-parse/sync';
 import {
   expectNoAccessibilityViolations,
   expectUniqueLandmarkNames,
 } from '../support/accessibility.ts';
+import { downloadFrom } from '../support/downloads.ts';
 import { openTopicPage, topicPageTests } from '../support/topic-page.ts';
 
 test('shows a topic', async ({ page }) => {
@@ -90,6 +92,28 @@ for (const javaScriptEnabled of [true, false]) {
     }
   });
 }
+
+test('shows indicators without a trend at the bottom of the list under every trend sort', async ({
+  page,
+}, testInfo) => {
+  const expectTrendUnavailableLast = (trends: string[]) => {
+    const unavailable = trends.map((trend) => trend.includes('Trend unavailable'));
+    expect(unavailable).toContain(true);
+    expect(unavailable).toContain(false);
+    expect(unavailable).toEqual(unavailable.toSorted((a, b) => Number(a) - Number(b)));
+  };
+  for (const sort of ['trend-desc', 'trend-asc', 'trend-better', 'trend-worse']) {
+    await openTopicPage(page, `/topics/diabetes?tab-topic=data&sort=${sort}`);
+    const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+    await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
+    expectTrendUnavailableLast(await panel.getByRole('table').locator('tbody tr').allInnerTexts());
+    await panel.getByText('Download or share data', { exact: true }).click();
+    const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
+    const rows = parse(text, { columns: true }) as Record<string, string>[];
+    expectTrendUnavailableLast(rows.map((row) => row['England trend (last 5 periods)'] ?? ''));
+  }
+  await expectNoAccessibilityViolations(page, testInfo);
+});
 
 test('keeps unchecked comparison columns off after removing and re-adding an area', async ({
   page,
