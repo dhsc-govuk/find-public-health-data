@@ -44,32 +44,36 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
       <h2 className="govuk-heading-l">Inequalities</h2>
       <GridRow>
         <GridColumn width="one-quarter">
-          <h2 className="govuk-heading-m">Geographies</h2>
-          <CollapsibleFilterCard active headingLevel={3} title="Geographies">
-            <Form method="get" action={`${location.pathname}#indicator-inequalities`}>
-              {[...params]
-                .filter(([name]) => name !== `ig-${id}`)
-                .map(([name, value], index) => (
-                  <input key={`${name}-${index}`} type="hidden" name={name} value={value} />
-                ))}
-              <Select
-                id={`inequality-area-${id}`}
-                name={`ig-${id}`}
-                label="Geography"
-                value={inequalityArea?.areaCode ?? 'E92000001'}
-                options={inequalityAreas.map(({ areaCode, areaName }) => ({
-                  value: areaCode,
-                  label: areaName,
-                }))}
-                onChange={(event) =>
-                  applyOptionParams([[`ig-${id}`, event.currentTarget.value, 'E92000001']])
-                }
-              />
-              <noscript>
-                <Button type="submit">Apply geography</Button>
-              </noscript>
-            </Form>
-          </CollapsibleFilterCard>
+          {inequalityAreas.length > 0 ? (
+            <>
+              <h2 className="govuk-heading-m">Geographies</h2>
+              <CollapsibleFilterCard active headingLevel={3} title="Geographies">
+                <Form method="get" action={`${location.pathname}#indicator-inequalities`}>
+                  {[...params]
+                    .filter(([name]) => name !== `ig-${id}`)
+                    .map(([name, value], index) => (
+                      <input key={`${name}-${index}`} type="hidden" name={name} value={value} />
+                    ))}
+                  <Select
+                    id={`inequality-area-${id}`}
+                    name={`ig-${id}`}
+                    label="Geography"
+                    value={inequalityArea?.areaCode ?? 'E92000001'}
+                    options={inequalityAreas.map(({ areaCode, areaName }) => ({
+                      value: areaCode,
+                      label: areaName,
+                    }))}
+                    onChange={(event) =>
+                      applyOptionParams([[`ig-${id}`, event.currentTarget.value, 'E92000001']])
+                    }
+                  />
+                  <noscript>
+                    <Button type="submit">Apply geography</Button>
+                  </noscript>
+                </Form>
+              </CollapsibleFilterCard>
+            </>
+          ) : null}
           {categories.length > 0 ? (
             <>
               <h2 className="govuk-heading-m">Display options</h2>

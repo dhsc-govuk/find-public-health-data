@@ -77,4 +77,6 @@ it('says the indicator has no England-level figure when nothing else is shown', 
   expect(
     screen.queryByText('This indicator has no inequality breakdowns for the selected areas.'),
   ).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Geography' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Apply geography' })).toBeNull();
 });
