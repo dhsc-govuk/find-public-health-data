@@ -1,3 +1,4 @@
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { asc, eq } from 'drizzle-orm';
 
 import type { DatabaseReader } from './client.ts';
@@ -44,11 +45,15 @@ export interface TopicTrendSummary {
   unavailable: number;
 }
 
-/** Trend counts across the topic's published indicators for the England headline series. */
+/**
+ * Trend counts for one area across the topic's published indicators. England counts every
+ * indicator, and another area counts only the indicators with data for that area.
+ */
 export async function getTopicTrendSummary(
   db: DatabaseReader,
   views: ViewSet,
   slug: string,
+  areaCode = ENGLAND_AREA_CODE,
 ): Promise<TopicTrendSummary> {
   const {
     indicator: publishedIndicator,
@@ -65,9 +70,12 @@ export async function getTopicTrendSummary(
     db,
     views,
     entries.map(({ id }) => id),
+    areaCode,
   );
+  const counted =
+    areaCode === ENGLAND_AREA_CODE ? entries : entries.filter(({ id }) => directions.has(id));
   const summary: TopicTrendSummary = {
-    total: entries.length,
+    total: counted.length,
     better: 0,
     worse: 0,
     unchanged: 0,
@@ -75,7 +83,7 @@ export async function getTopicTrendSummary(
     decreasing: 0,
     unavailable: 0,
   };
-  for (const { id, polarity } of entries) {
+  for (const { id, polarity } of counted) {
     const direction = directions.get(id);
     if (!direction) summary.unavailable++;
     else if (direction === 'right') summary.unchanged++;

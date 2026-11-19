@@ -119,6 +119,16 @@ describe('GET /api/topics/:slug', () => {
   });
 });
 
+const EMPTY_SUMMARY = {
+  total: 0,
+  better: 0,
+  worse: 0,
+  unchanged: 0,
+  increasing: 0,
+  decreasing: 0,
+  unavailable: 0,
+};
+
 describe('GET /api/topics/:slug/trends', () => {
   it('serves the repository trend summary for a published topic', async () => {
     const summary = {
@@ -130,14 +140,45 @@ describe('GET /api/topics/:slug/trends', () => {
       decreasing: 0,
       unavailable: 34,
     };
+    const areas: string[] = [];
     const app = createTestApp({
       findBySlug: async () => topicA,
-      trendSummary: async () => summary,
+      trendSummary: async (_slug, areaCode) => {
+        areas.push(areaCode ?? '');
+        return summary;
+      },
     });
     const response = await request(app).get('/api/topics/topic-a/trends');
     expect(response.status).toBe(200);
     expect(response.body).toEqual(summary);
+    expect(areas).toEqual(['E92000001']);
   });
+
+  it('counts the trends for the area named by areaCode', async () => {
+    const areas: string[] = [];
+    const app = createTestApp({
+      findBySlug: async () => topicA,
+      trendSummary: async (_slug, areaCode) => {
+        areas.push(areaCode ?? '');
+        return { ...EMPTY_SUMMARY, total: 1, better: 1 };
+      },
+    });
+    const response = await request(app).get('/api/topics/topic-a/trends?areaCode=E10000032');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ...EMPTY_SUMMARY, total: 1, better: 1 });
+    expect(areas).toEqual(['E10000032']);
+  });
+
+  it.each(['E10000032%3B', 'E10000032-'])(
+    'answers areaCode=%s with not-found without touching the repository',
+    async (code) => {
+      const response = await request(createTestApp()).get(
+        `/api/topics/topic-a/trends?areaCode=${code}`,
+      );
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ error: 'not_found' });
+    },
+  );
 });
 
 describe('a segment that is not a slug', () => {
