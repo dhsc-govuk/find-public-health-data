@@ -169,13 +169,11 @@ it("works out the trend of the same series choice for another area, ignoring Eng
   const fixture = await publishedIndicator('Area trend fixture');
   await addSeries(fixture, englandId, [1, 2, 3, 4, 5]);
   // England's cached values run newest first, so these make a falling England trend.
-  await database.db
-    .insert(observationSeriesBatch)
-    .values({
-      uploadBatchId: fixture.batchId,
-      indicatorId: fixture.id,
-      trendValues: [1, 2, 3, 4, 5],
-    });
+  await database.db.insert(observationSeriesBatch).values({
+    uploadBatchId: fixture.batchId,
+    indicatorId: fixture.id,
+    trendValues: [1, 2, 3, 4, 5],
+  });
   await addSeries(fixture, westSussexId, [1, 2, 3, 4, 5]);
   await addSeries(fixture, westSussexId, [9, 8, 7, 6, 5, 4, 3], dimensions);
   const other = await publishedIndicator('England only trend fixture');
