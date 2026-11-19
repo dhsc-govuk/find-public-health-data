@@ -199,11 +199,21 @@ describe('TopicsPage', () => {
   });
 });
 
-it('moves focus from the Data controls to the indicators table without changing the URL hash', async () => {
+/** Renders the Data tab of a topic with one indicator, at `query` after `?tab-topic=data`. */
+async function renderDataListing(query = '') {
   const context = new RouterContextProvider();
   context.set(
     apiContext,
     createFakeApiClient({
+      'GET /api/areas/lookup': [
+        {
+          code: 'E12000007',
+          name: 'London',
+          areaType: 'Regions (statistical)',
+          displayGroup: 'Statistical regions',
+        },
+      ],
+      'GET /api/indicators/1/range': { periods: [] },
       'GET /api/topics/example': {
         slug: 'example',
         title: 'Example',
@@ -248,17 +258,20 @@ it('moves focus from the Data controls to the indicators table without changing 
       'GET /api/indicator-data': [
         {
           detail: indicatorDetail(1),
-          areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: [observation()] }],
+          areaData: [
+            { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
+            { areaCode: 'E12000007', areaName: 'London', observations: [observation()] },
+          ],
         },
       ],
     }),
   );
   const data = await loadTopicPage({
-    url: new URL('http://local/topics/example?tab-topic=data&render=complete'),
+    url: new URL(`http://local/topics/example?tab-topic=data&render=complete${query}`),
     pattern: '/topics/:slug',
     context,
     params: { slug: 'example' },
-    request: new Request('http://local/topics/example?tab-topic=data&render=complete'),
+    request: new Request(`http://local/topics/example?tab-topic=data&render=complete${query}`),
   });
   const content = await data.content;
   if (!content) throw new Error('Expected topic table data');
@@ -269,9 +282,14 @@ it('moves focus from the Data controls to the indicators table without changing 
         element: <TopicListing data={{ topic: data.topic, ...content }} />,
       },
     ],
-    { initialEntries: ['/topics/example?tab-topic=data#topic-data'] },
+    { initialEntries: [`/topics/example?tab-topic=data${query}#topic-data`] },
   );
   render(<RouterProvider router={router} />);
+  return router;
+}
+
+it('moves focus from the Data controls to the indicators table without changing the URL hash', async () => {
+  const router = await renderDataListing();
   const skip = screen.getByRole('link', { name: 'Skip to indicators table' });
   const table = screen.getByRole('table');
   expect(skip.getAttribute('href')).toBe(`#${table.id}`);
@@ -284,3 +302,20 @@ it('moves focus from the Data controls to the indicators table without changing 
   expect(router.state.location.hash).toBe('#topic-data');
   expect(router.state.location.search).toBe('?tab-topic=data');
 });
+
+it.each([
+  ['no area picked', '', 'Indicators without a calculated trend appear last.'],
+  [
+    'London picked',
+    '&ga=E12000007',
+    'Indicators without a calculated trend for London appear last.',
+  ],
+])(
+  'names the area whose trend decides which rows go last under a trend sort, with %s',
+  async (_, query, note) => {
+    await renderDataListing(`&sort=trend-desc${query}`);
+    expect(screen.getByText(/^Trend sorting uses/).textContent).toBe(
+      `Trend sorting uses England's headline series. ${note}`,
+    );
+  },
+);

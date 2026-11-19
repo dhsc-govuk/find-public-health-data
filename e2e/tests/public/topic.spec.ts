@@ -93,17 +93,19 @@ for (const javaScriptEnabled of [true, false]) {
   });
 }
 
-for (const { title, query, area } of [
+for (const { title, query, area, note } of [
   {
     title: 'shows indicators without a trend at the bottom of the list under every trend sort',
     query: '',
     area: 'England',
+    note: 'Indicators without a calculated trend appear last.',
   },
   {
     title:
       'shows indicators without a trend for the chosen area at the bottom of the list under every trend sort',
     query: '&ga=E12000007',
     area: 'London',
+    note: 'Indicators without a calculated trend for London appear last.',
   },
 ]) {
   test(title, async ({ page }, testInfo) => {
@@ -117,6 +119,9 @@ for (const { title, query, area } of [
       await openTopicPage(page, `/topics/diabetes?tab-topic=data&sort=${sort}${query}`);
       const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
       await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
+      await expect(panel.getByText(/^Trend sorting uses/)).toHaveText(
+        `Trend sorting uses England's headline series. ${note}`,
+      );
       const table = panel.getByRole('table');
       await expect(table.getByRole('columnheader', { name: area, exact: true })).toBeVisible();
       expectTrendUnavailableLast(await table.locator('tbody tr').allInnerTexts());

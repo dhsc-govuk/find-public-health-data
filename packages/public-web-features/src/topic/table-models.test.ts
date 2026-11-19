@@ -718,12 +718,12 @@ describe('trend sorts', () => {
 
   it('reads the first area column the table shows, not the first area picked', () => {
     const compared = [
-      withAreas(multiYear, { 'North East': years([20, 21]), London: years(rising) }),
-      withAreas(gettingWorse, { 'North East': years(rising), London: years([20, 21]) }),
+      withAreas(multiYear, { 'North East': years(rising), London: years([20, 21]) }),
+      withAreas(gettingWorse, { 'North East': years([20, 21]), London: years(rising) }),
     ];
     const model = topicDataTableModel(compared, 'diabetes', undefined, 'trend-desc');
     expect(model.areas.map(({ name }) => name)).toEqual(['London', 'North East']);
-    expect(names(model)).toEqual(['Multi-year periods', 'Getting worse']);
+    expect(names(model)).toEqual(['Getting worse', 'Multi-year periods']);
   });
 
   it('moves only the row of an indicator whose England trend is unavailable', () => {
