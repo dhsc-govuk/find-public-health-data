@@ -157,9 +157,9 @@
   },
   "public-web /search?q=mortality": {
     "statements": 13,
-    "buffers": 266,
-    "rows": 649,
-    "bytes": 84715
+    "buffers": 293,
+    "rows": 647,
+    "bytes": 95038
   },
   "public-web /topics": {
     "statements": 1,
@@ -169,9 +169,9 @@
   },
   "public-web /topics/diabetes": {
     "statements": 53,
-    "buffers": 3624,
-    "rows": 1372,
-    "bytes": 162514
+    "buffers": 4411,
+    "rows": 1407,
+    "bytes": 149131
   },
   "public-web /topics/mortality-and-life-expectancy/table.csv?tab-topic=areas": {
     "statements": 24,

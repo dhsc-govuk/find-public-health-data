@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { IndicatorSearchRow } from './loader.ts';
 import { SearchResults } from './results.tsx';
 import { EMPTY_SEARCH_STATE } from './url.ts';
 
@@ -87,6 +88,9 @@ function indicatorRow(shortId: number) {
     name: `Indicator ${shortId}`,
     topics: [],
     classifications: [],
+    latestPeriod: null,
+    yearType: null,
+    dataUpdatedAt: null,
   };
 }
 
@@ -229,5 +233,89 @@ describe('SearchResults pages', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: '785 indicators, page 1 of 16' }),
     ).not.toBe(document.activeElement);
+  });
+});
+
+const ROW: IndicatorSearchRow = {
+  shortId: 241,
+  slug: 'diabetes-qof-prevalence',
+  name: 'Diabetes: QOF prevalence',
+  topics: [{ slug: 'diabetes', title: 'Diabetes' }],
+  classifications: [{ dimension: 'indicator_type', slug: 'outcome', name: 'Outcome' }],
+  latestPeriod: { fromDate: '2024-04-01', toDate: '2025-03-31' },
+  yearType: { value: 'financial', label: 'Financial' },
+  dataUpdatedAt: '2026-04-29T12:05:00.000Z',
+};
+
+function renderResult(indicator: IndicatorSearchRow) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/search',
+        element: (
+          <SearchResults
+            extraParams={{}}
+            gaCodes={[]}
+            geoLevels={[]}
+            searchResult={{ total: 1, limit: 50, page: 1, indicators: [indicator] }}
+            sort="relevance"
+            state={EMPTY_SEARCH_STATE}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ['/search'] },
+  );
+  const { container } = render(<RouterProvider router={router} />);
+  return [...container.querySelectorAll<HTMLElement>('.fphd-search-result dl')];
+}
+
+const summaryRows = (lists: HTMLElement[]) =>
+  lists.map((list) =>
+    [...list.querySelectorAll('.govuk-summary-list__row')].map((row) => [
+      row.querySelector('dt')?.textContent,
+      row.querySelector('dd')?.textContent,
+    ]),
+  );
+
+describe('SearchResults summary', () => {
+  it('lists the most recent period and the data update date beside the topics and types', () => {
+    const lists = renderResult(ROW);
+
+    expect(summaryRows(lists)).toEqual([
+      [
+        ['Topics', 'Diabetes'],
+        ['Measure type', 'Outcome'],
+      ],
+      [
+        ['Most recent period', '2024 to 2025'],
+        ['Data last updated', '29 April 2026'],
+      ],
+    ]);
+    expect(screen.getByText('29 April 2026').getAttribute('datetime')).toBe(
+      '2026-04-29T12:05:00.000Z',
+    );
+  });
+
+  it('shows the dates for an indicator with no topics or types', () => {
+    const lists = renderResult({ ...ROW, topics: [], classifications: [] });
+
+    expect(summaryRows(lists)).toEqual([
+      [
+        ['Most recent period', '2024 to 2025'],
+        ['Data last updated', '29 April 2026'],
+      ],
+    ]);
+  });
+
+  it('leaves out the period and update rows when the indicator has neither', () => {
+    const lists = renderResult({ ...ROW, latestPeriod: null, dataUpdatedAt: null });
+
+    expect(summaryRows(lists)).toEqual([
+      [
+        ['Topics', 'Diabetes'],
+        ['Measure type', 'Outcome'],
+      ],
+    ]);
   });
 });

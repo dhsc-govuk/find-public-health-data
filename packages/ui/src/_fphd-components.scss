@@ -2221,6 +2221,20 @@ $fphd-frozen-cap: calc(#{$fphd-table-region-width} * 0.4);
   }
 }
 
+// A result's topic and type rows sit beside its period and update rows from desktop width up.
+.fphd-search-result__summary {
+  @include govuk-media-query($from: desktop) {
+    display: flex;
+    align-items: flex-start;
+    gap: govuk-spacing(4);
+
+    > .govuk-summary-list {
+      flex: 1 1 50%;
+      min-width: 0;
+    }
+  }
+}
+
 .fphd-search-result__title {
   @include govuk-font($size: 19, $weight: bold);
   font-size: 1.1875rem;

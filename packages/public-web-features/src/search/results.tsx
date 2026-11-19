@@ -1,6 +1,7 @@
-import { InsetText, Pagination, Select, SummaryList } from '@fphd/ui';
+import { formatDate, InsetText, Pagination, Select, SummaryList } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import type { SearchSort } from '@fphd/utils/indicator-sort';
+import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { useEffect, useRef } from 'react';
 import { Form, Link, useLocation } from 'react-router';
 import { HiddenFilters } from './filter-fields.tsx';
@@ -42,22 +43,49 @@ function ResultMeta({ indicator }: { indicator: IndicatorSearchRow }) {
     indicator.classifications
       .filter((c) => c.dimension === dimension)
       .map((c) => ({ key: `${c.dimension}:${c.slug}`, label: c.name }));
-  const rows = [
+  const tagRows = [
     { key: 'Topics', items: indicator.topics.map((t) => ({ key: t.slug, label: t.title })) },
     { key: 'Measure type', items: classified('indicator_type') },
     { key: 'Life stage', items: classified('life_stage') },
-  ].filter((row) => row.items.length > 0);
+  ]
+    .filter((row) => row.items.length > 0)
+    .map((row) => ({ name: row.key, children: <Tags items={row.items} /> }));
+  const dataRows = [
+    ...(indicator.latestPeriod
+      ? [
+          {
+            name: 'Most recent period',
+            children: expandedPeriodLabel(indicator.latestPeriod, indicator.yearType),
+          },
+        ]
+      : []),
+    ...(indicator.dataUpdatedAt
+      ? [
+          {
+            name: 'Data last updated',
+            children: (
+              <time dateTime={indicator.dataUpdatedAt}>
+                {formatDate(indicator.dataUpdatedAt, 'long')}
+              </time>
+            ),
+          },
+        ]
+      : []),
+  ];
+  const lists = [tagRows, dataRows].filter((rows) => rows.length > 0);
 
-  if (rows.length === 0) return null;
+  if (lists.length === 0) return null;
 
   return (
-    <SummaryList
-      className="govuk-!-margin-bottom-0 govuk-!-margin-top-1"
-      items={rows.map((row) => ({
-        children: <Tags items={row.items} />,
-        name: row.key,
-      }))}
-    />
+    <div className="fphd-search-result__summary">
+      {lists.map((rows) => (
+        <SummaryList
+          className="govuk-!-margin-bottom-0 govuk-!-margin-top-1"
+          items={rows}
+          key={rows[0]?.name}
+        />
+      ))}
+    </div>
   );
 }
 

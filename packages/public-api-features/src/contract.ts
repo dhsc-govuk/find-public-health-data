@@ -411,6 +411,10 @@ export const indicatorSearchRowSchema = z.object({
   classifications: z.array(
     z.object({ dimension: z.string().min(1), slug: z.string().min(1), name: z.string().min(1) }),
   ),
+  /** England's latest period in the series the topic Data tab shows first; null without one. */
+  latestPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }).nullable(),
+  yearType: indicatorDetailSchema.shape.yearType,
+  dataUpdatedAt: indicatorDetailSchema.shape.dataUpdatedAt,
 });
 
 export const indicatorSearchResultSchema = z.object({

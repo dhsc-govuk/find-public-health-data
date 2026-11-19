@@ -135,9 +135,14 @@ function topicStubs(
         total: indicators.length,
         limit,
         ...(params.has('page') ? { page } : {}),
-        indicators: indicators
-          .slice((page - 1) * limit, page * limit)
-          .map((indicator) => ({ ...indicator, topics: [], classifications: [] })),
+        indicators: indicators.slice((page - 1) * limit, page * limit).map((indicator) => ({
+          ...indicator,
+          topics: [],
+          classifications: [],
+          latestPeriod: null,
+          yearType: null,
+          dataUpdatedAt: null,
+        })),
       };
     },
     ...highlighted,

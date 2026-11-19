@@ -1,6 +1,8 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
 import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
+import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import type { Period } from '@fphd/utils/period-label';
 import {
   type PublicYearType,
   publicYearType,
@@ -70,6 +72,11 @@ export interface IndicatorSearchRow {
   name: string;
   topics: { slug: string; title: string }[];
   classifications: { dimension: string; slug: string; name: string }[];
+  /** England's latest period in the series the topic Data tab shows first; null without one. */
+  latestPeriod: Period | null;
+  /** Null for an indicator of months, which have no year type. */
+  yearType: PublicYearType | null;
+  dataUpdatedAt: string | null;
 }
 
 export interface IndicatorSearchResult {
@@ -683,6 +690,7 @@ export async function searchIndicators(
     indicatorSubtopic,
     indicatorTopic,
     observation,
+    observationSeries,
     subtopic,
     topic,
     valueType,
@@ -992,6 +1000,31 @@ export async function searchIndicators(
                       asc(indicator.name),
                       asc(indicator.shortId),
                     ];
+  // England's first series variant is the indicator's first row on the topic Data tab. Its
+  // observation_series row already holds the headline segment the tab shows, and the published
+  // batch has one row per area, sex and period type. A correlated subquery keeps the lookup inside
+  // the row statement, and Postgres runs it only for the rows a page returns.
+  const englandArea = db
+    .select({ id: area.id })
+    .from(area)
+    .where(eq(area.code, ENGLAND_AREA_CODE))
+    .limit(1);
+  const latestEnglandPeriod = db
+    .select({
+      period: sql`json_build_object('fromDate', ${observation.fromDate}, 'toDate', ${observation.toDate})`,
+    })
+    .from(observationSeries)
+    .innerJoin(observation, eq(observation.id, observationSeries.latestObservationId))
+    .where(
+      and(
+        eq(observationSeries.indicatorId, indicator.id),
+        eq(observationSeries.areaId, sql`(${englandArea})`),
+        sql`${observationSeries.sex} = ${observationSeries.variants} -> 0 ->> 'sex'`,
+        sql`${observationSeries.periodType} = ${observationSeries.variants} -> 0 ->> 'periodType'`,
+      ),
+    )
+    .orderBy(desc(observation.toDate), asc(observation.id))
+    .limit(1);
   const trendSort = filters.sort?.startsWith('trend-') ?? false;
   const rowQuery = (page = 1) => {
     const query = db
@@ -1001,6 +1034,11 @@ export async function searchIndicators(
         slug: indicator.slug,
         name: indicator.name,
         polarity: indicator.polarity,
+        yearType: indicator.yearType,
+        yearEndDay: indicator.yearEndDay,
+        yearEndMonth: indicator.yearEndMonth,
+        dataUpdatedAt: indicator.dataUpdatedAt,
+        latestPeriod: sql<Period | null>`(${latestEnglandPeriod})`,
       })
       .from(indicator);
     const selected = (
@@ -1110,6 +1148,9 @@ export async function searchIndicators(
       name: r.name,
       topics: topicsByIndicator.get(r.id) ?? [],
       classifications: classificationsByIndicator.get(r.id) ?? [],
+      latestPeriod: r.latestPeriod,
+      yearType: r.yearType === null ? null : publicYearType(r.yearType, yearEndOf(r)),
+      dataUpdatedAt: r.dataUpdatedAt?.toISOString() ?? null,
     })),
   };
 }
