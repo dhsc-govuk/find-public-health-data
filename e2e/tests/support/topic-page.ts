@@ -293,6 +293,66 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('lists overview geography search results under their geography types', async ({
+    page,
+  }, testInfo) => {
+    await openTopicPage(page, '/topics/diabetes');
+    const panel = page.getByRole('tabpanel', { name: 'Overview', exact: true });
+    const search = panel.getByRole('searchbox', { name: 'Search for a geography', exact: true });
+    const choices = panel.getByRole('region', { name: 'Geography choices for Overview' });
+    const tier = (name: string) => choices.getByRole('button', { name, exact: true });
+    const areasIn = (name: string) =>
+      choices.getByRole('group', { name: `Areas in ${name}`, exact: true });
+    await search.fill('cornwa');
+    await expect(choices.getByRole('button', { expanded: true })).toHaveText([
+      'Integrated care boards (ICBs)',
+      'Upper-tier local authorities',
+      'Lower-tier local authorities',
+    ]);
+    await expect(
+      areasIn('Integrated care boards (ICBs)').getByRole('radio', {
+        name: 'Cornwall and the Isles of Scilly',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expectNoAccessibilityViolations(page, testInfo);
+
+    await areasIn('Lower-tier local authorities')
+      .getByRole('radio', { name: 'Cornwall', exact: true })
+      .check();
+    await expect(page).toHaveURL(/ga=E06000052/);
+    await expect(
+      panel.getByRole('heading', { name: 'Diabetes has 2 indicators in Cornwall', exact: true }),
+    ).toBeVisible();
+    await expect(
+      areasIn('Lower-tier local authorities').getByRole('radio', { name: 'Cornwall' }),
+    ).toBeChecked();
+    await expect(
+      areasIn('Upper-tier local authorities').getByRole('radio', { name: 'Cornwall' }),
+    ).not.toBeChecked();
+
+    await areasIn('Upper-tier local authorities')
+      .getByRole('radio', { name: 'Cornwall', exact: true })
+      .check();
+    await expect(
+      areasIn('Upper-tier local authorities').getByRole('radio', { name: 'Cornwall' }),
+    ).toBeChecked();
+    await expect(
+      areasIn('Lower-tier local authorities').getByRole('radio', { name: 'Cornwall' }),
+    ).not.toBeChecked();
+
+    await tier('Lower-tier local authorities').click();
+    await expect(tier('Lower-tier local authorities')).toHaveAttribute('aria-expanded', 'false');
+    await expect(areasIn('Lower-tier local authorities')).toHaveCount(0);
+
+    await search.fill('kent');
+    await expect(tier('Upper-tier local authorities')).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+      areasIn('Upper-tier local authorities').getByRole('radio', { name: 'Kent', exact: true }),
+    ).toBeVisible();
+    await expect(tier('Lower-tier local authorities')).toHaveCount(0);
+  });
+
   test('counts trends and shows figures for the area chosen on the overview', async ({
     page,
   }, testInfo) => {
@@ -391,6 +451,37 @@ export function topicPageTests() {
 
   test.describe('without JavaScript', () => {
     test.use({ javaScriptEnabled: false });
+
+    test('checks the upper tier for an overview area listed under both council tiers', async ({
+      page,
+    }) => {
+      await page.goto('/topics/diabetes?tab-topic=overview&ga=E06000052&geo-q=cornwa');
+      const choices = page.locator('#topic-overview');
+      await expect(
+        choices
+          .getByRole('group', { name: 'Areas in Upper-tier local authorities', exact: true })
+          .getByRole('radio', { name: 'Cornwall', exact: true }),
+      ).toBeChecked();
+      await expect(
+        choices
+          .getByRole('group', { name: 'Areas in Lower-tier local authorities', exact: true })
+          .getByRole('radio', { name: 'Cornwall', exact: true }),
+      ).not.toBeChecked();
+    });
+
+    test('replaces the overview area with one chosen from a search that does not list it', async ({
+      page,
+    }) => {
+      await page.goto('/topics/diabetes?tab-topic=overview&ga=E06000052&geo-q=kent');
+      const panel = page.locator('#topic-overview');
+      await panel.getByRole('radio', { name: 'Kent', exact: true }).check();
+      await panel.getByRole('button', { name: 'Apply geographies', exact: true }).click();
+      await expect(page).toHaveURL(/ga=E10000016/);
+      expect(new URL(page.url()).searchParams.getAll('ga')).toEqual(['E10000016']);
+      await expect(
+        panel.getByRole('heading', { name: 'Diabetes has 2 indicators in Kent', exact: true }),
+      ).toBeVisible();
+    });
 
     test('counts trends for the area chosen on the overview', async ({ page }) => {
       await page.goto('/topics/diabetes');

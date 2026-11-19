@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GeographyTree } from './geography-tree.tsx';
@@ -144,6 +144,142 @@ it('names each scrolling region with the label its tree is given', () => {
     'Geography choices for Data',
     'Geography choices for Area summaries',
   ]);
+});
+
+describe('GeographyTree single-choice search results', () => {
+  const cornwallResults = [
+    {
+      name: 'Integrated care boards (ICBs)',
+      areas: [{ code: 'E54000036', name: 'Cornwall and the Isles of Scilly' }],
+    },
+    { name: 'Upper-tier local authorities', areas: [{ code: 'E06000052', name: 'Cornwall' }] },
+    { name: 'Lower-tier local authorities', areas: [{ code: 'E06000052', name: 'Cornwall' }] },
+    { name: 'NHS regions', areas: [] },
+  ];
+  const renderSearch = (
+    selected: string[],
+    onChange = vi.fn(),
+    search = { query: 'cornwa', groups: cornwallResults },
+  ) => {
+    vi.stubGlobal('fetch', () => new Promise(() => undefined));
+    const tree = (codes: string[]) => (
+      <form aria-label="Geographies">
+        <GeographyTree
+          choicesLabel="Geography choices"
+          single
+          levels={cornwallResults.map(({ name }) => name)}
+          name="ga"
+          searchLabel="Search for a geography"
+          onChange={onChange}
+          onLevelsChange={() => undefined}
+          selected={codes}
+          selectedLevels={[]}
+          fallback={{ ...search, level: '', error: false }}
+        />
+      </form>
+    );
+    const { rerender } = render(tree(selected));
+    return { rerender: (codes: string[]) => rerender(tree(codes)) };
+  };
+  const radioIn = (group: string) =>
+    within(screen.getByRole('group', { name: `Areas in ${group}` })).getByRole('radio');
+  const submittedAreas = () =>
+    new FormData(screen.getByRole('form', { name: 'Geographies' }) as HTMLFormElement).getAll('ga');
+
+  it('lists the matches under an open heading for each type that has one', () => {
+    renderSearch([]);
+
+    const headings = screen.getAllByRole('button', { expanded: true });
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      'Integrated care boards (ICBs)',
+      'Upper-tier local authorities',
+      'Lower-tier local authorities',
+    ]);
+    expect(screen.queryByRole('button', { name: 'NHS regions' })).toBeNull();
+    expect(radioIn('Upper-tier local authorities').getAttribute('value')).toBe('E06000052');
+  });
+
+  it('collapses a type until the search changes', () => {
+    renderSearch([]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upper-tier local authorities' }));
+    expect(
+      screen
+        .getByRole('button', { name: 'Upper-tier local authorities' })
+        .getAttribute('aria-expanded'),
+    ).toBe('false');
+    expect(
+      screen.queryByRole('group', { name: 'Areas in Upper-tier local authorities' }),
+    ).toBeNull();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search for a geography' }), {
+      target: { value: 'cornwal' },
+    });
+    expect(
+      screen
+        .getByRole('button', { name: 'Upper-tier local authorities' })
+        .getAttribute('aria-expanded'),
+    ).toBe('true');
+  });
+
+  it('checks the chosen area under the first type that lists it', () => {
+    renderSearch(['E06000052']);
+
+    expect((radioIn('Upper-tier local authorities') as HTMLInputElement).checked).toBe(true);
+    expect((radioIn('Lower-tier local authorities') as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('keeps the radio the user clicked checked when another type lists the same area', () => {
+    const onChange = vi.fn();
+    const { rerender } = renderSearch([], onChange);
+
+    fireEvent.click(radioIn('Lower-tier local authorities'));
+    expect(onChange).toHaveBeenCalledWith(['E06000052']);
+    rerender(['E06000052']);
+
+    expect((radioIn('Upper-tier local authorities') as HTMLInputElement).checked).toBe(false);
+    expect((radioIn('Lower-tier local authorities') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('still submits the chosen area when every type listing it is collapsed', () => {
+    renderSearch(['E06000052']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upper-tier local authorities' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lower-tier local authorities' }));
+
+    expect(screen.queryAllByRole('radio', { name: 'Cornwall' })).toEqual([]);
+    expect(submittedAreas()).toEqual(['E06000052']);
+  });
+
+  it('still submits the chosen area when the search does not match it', () => {
+    renderSearch(['E06000052'], vi.fn(), {
+      query: 'kent',
+      groups: [
+        { name: 'Upper-tier local authorities', areas: [{ code: 'E10000016', name: 'Kent' }] },
+      ],
+    });
+
+    expect(submittedAreas()).toEqual(['E06000052']);
+  });
+
+  it('submits only the shown radio when it lists the chosen area', () => {
+    renderSearch(['E06000052']);
+
+    expect(submittedAreas()).toEqual(['E06000052']);
+    expect(document.querySelectorAll('input[name="ga"][hidden]')).toHaveLength(0);
+  });
+
+  it('checks the first type again once the area is chosen somewhere else', () => {
+    const { rerender } = renderSearch([]);
+
+    fireEvent.click(radioIn('Lower-tier local authorities'));
+    rerender(['E06000052']);
+    rerender([]);
+    rerender(['E06000052']);
+
+    expect((radioIn('Upper-tier local authorities') as HTMLInputElement).checked).toBe(true);
+    expect((radioIn('Lower-tier local authorities') as HTMLInputElement).checked).toBe(false);
+  });
 });
 
 describe('GeographyTree regions', () => {
