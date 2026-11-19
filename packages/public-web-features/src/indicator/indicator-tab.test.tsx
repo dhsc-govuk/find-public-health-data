@@ -252,3 +252,28 @@ it('shows the default level of an indicator with no England value, without an En
     new URL(download.getAttribute('href') ?? '', 'http://localhost').searchParams.getAll('as'),
   ).toEqual(['E12000001', 'E12000002']);
 });
+
+it("offers England's sexes when England has a value, whatever the picked area has", () => {
+  const fixture = benchmarkFixture();
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        { areaCode: 'E06000052', areaName: 'Cornwall', observations: [observation(9)] },
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [observation(5, [sex('Male')])],
+        },
+      ],
+    },
+    selection: { areaCodes: ['E06000052'], areaLevels: [], shortIds: [108] },
+  });
+  render(<Routes initialEntries={['/']} />);
+
+  expect(
+    [...(screen.getAllByLabelText('Select sex')[0] as HTMLSelectElement).options].map(
+      ({ value }) => value,
+    ),
+  ).toEqual(['', 'Male']);
+});

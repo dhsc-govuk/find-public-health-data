@@ -549,7 +549,7 @@ describe('loadIndicatorCsv', () => {
     expect(await response.text()).toContain('2023,7,339,343.2');
   });
 
-  it('offers only the first area sexes, exactly as the page does', async () => {
+  it("checks the Sex choice against England's sexes, exactly as the page does", async () => {
     const client = api([
       { areaCode: 'E06000052', areaName: 'Cornwall', observations: [observation({ value: 9 })] },
       {
@@ -572,8 +572,8 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
 
-    // Male exists only in England's series, so the filter is ignored, not applied.
-    expect(await response.text()).toContain('2023,9,339,343.2');
+    // Male is one of England's sexes, so the filter applies, and Cornwall has no Male values.
+    expect(await response.text()).toBe('Period\n');
   });
 
   it('404s a segment shaped like neither identifier without calling the api', async () => {

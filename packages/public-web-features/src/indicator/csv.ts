@@ -133,11 +133,7 @@ export async function loadIndicatorCsv(
     // hand-edited URL therefore downloads the table the user can actually see.
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
     const hasEngland = englandObservations(areaData).length > 0;
-    // With no England value, the page reads its Sex options from every area shown.
-    const sexes = dimensionValues(
-      hasEngland ? (areaData[0]?.observations ?? []) : sexObservations(areaData),
-      'Sex',
-    );
+    const sexes = dimensionValues(sexObservations(areaData), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = (
       pickedCodes.length > 0
