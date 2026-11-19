@@ -19,7 +19,8 @@ export const MAX_AREA_NAME_LENGTH = 100;
 export const MAX_AREA_PREVIEW = 101;
 export const DEFAULT_AREA_SEARCH_RESULTS = 50;
 export const MAX_AREA_SEARCH_RESULTS = 100;
-export const AREA_CODE_RE = /^[A-Z0-9]+$/i;
+/** Fingertips codes for some area types join letters and digits with _ . or - ('Cl_L3_1a1', 'M-NMW'). */
+export const AREA_CODE_RE = /^[A-Z0-9]+(?:[_.-][A-Z0-9]+)*$/i;
 export const MAX_INDICATOR_QUERY_LENGTH = 200;
 export const DEFAULT_INDICATOR_SEARCH_RESULTS = 20;
 export const MAX_INDICATOR_SEARCH_RESULTS = 100;
