@@ -99,7 +99,7 @@ it('wraps the y-axis title at half the chart width', () => {
   expect(lines.every((line) => line.length <= Math.floor(700 / 2 / 7.4))).toBe(true);
 });
 
-it('keeps a long y-axis title inside the chart', () => {
+it("left-aligns a long y-axis title at the chart's left edge", () => {
   const name = 'Mortality for people referred to secondary mental health services (aged 18 to 74)';
   const { container } = render(
     <TrendChart
@@ -109,12 +109,11 @@ it('keeps a long y-axis title inside the chart', () => {
       areas={[{ areaCode: 'E92000001', areaName: 'England', observations: [observation()] }]}
     />,
   );
+  const title = container.querySelector('.fphd-line-axis-title');
   const lines = [...container.querySelectorAll('.fphd-line-axis-title tspan')];
   expect(lines.length).toBeGreaterThan(1);
-  const longest = Math.max(...lines.map((line) => line.textContent?.length ?? 0));
-  for (const line of lines) {
-    expect(Number(line.getAttribute('x')) - (longest * 7.4) / 2).toBeGreaterThanOrEqual(0);
-  }
+  expect(title?.getAttribute('text-anchor')).toBe('start');
+  expect(lines.map((line) => line.getAttribute('x'))).toEqual(lines.map(() => '0'));
 });
 
 it('centres a short y-axis title over the axis', () => {

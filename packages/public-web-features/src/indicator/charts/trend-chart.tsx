@@ -266,16 +266,18 @@ function TrendPlot({
                 content={({ viewBox }) => {
                   if (!viewBox || !('x' in viewBox) || !('width' in viewBox) || !('y' in viewBox))
                     return null;
-                  // The title is centred over the axis. A title too wide for that starts at the
-                  // chart's left edge instead, so it never covers the page beside the chart.
-                  const x = Math.max(Number(viewBox.x) + Number(viewBox.width), yTitleHalfWidth);
+                  // The title is centred over the axis. A title too wide for that is left-aligned
+                  // at the chart's left edge instead, so it never covers the page beside the chart.
+                  const axisX = Number(viewBox.x) + Number(viewBox.width);
+                  const centred = yTitleHalfWidth <= axisX;
+                  const x = centred ? axisX : 0;
                   return (
                     <text
                       ref={titleRef}
                       className="recharts-text fphd-line-axis-title"
                       x={x}
                       y={Number(viewBox.y) - 20 - (yTitleLines.length - 1) * 18}
-                      textAnchor="middle"
+                      textAnchor={centred ? 'middle' : 'start'}
                     >
                       {yTitleLines.map((line, index) => (
                         <tspan key={line + index} x={x} dy={index === 0 ? 0 : 18}>
