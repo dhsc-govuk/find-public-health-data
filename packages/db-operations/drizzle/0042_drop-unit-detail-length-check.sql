@@ -1,1 +1,0 @@
-ALTER TABLE "indicator_version" DROP CONSTRAINT "indicator_version_unit_detail_length_check";

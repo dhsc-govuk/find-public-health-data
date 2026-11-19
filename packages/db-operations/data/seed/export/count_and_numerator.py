@@ -3,8 +3,8 @@
 Fingertips holds one Count. For a value calculated from a numerator and a denominator it is the
 numerator, and the service stores it there; for any other value type it stays the count. A survey
 indicator whose count is an estimated number of people stays the count whatever its value type.
-countIsNumerator in @fphd/utils/value-type-and-unit holds the same lists. Migration 0052 applied
-them to existing rows, so a change to them needs a data migration of its own.
+countIsNumerator in @fphd/utils/value-type-and-unit holds the same lists. Rows already loaded were
+split by them, so a change to them needs a data migration of its own.
 """
 
 from value_type_and_unit import VALUE_TYPE_IDS

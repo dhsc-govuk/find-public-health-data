@@ -1,7 +1,6 @@
 import { plainTextFromHtml } from './plain-text.ts';
 
 // Each entry: [question column, normalised prose, answer].
-// Must stay in sync with the vocabulary in migration 0022_other-notes-and-caveats.sql.
 export const VOCABULARY: readonly [string, string, string][] = [
   ['disclosure_control', 'none applied', 'no'],
   ['disclosure_control', 'not applied', 'no'],

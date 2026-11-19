@@ -108,7 +108,9 @@ async function insertDraftOnlyIndicator(): Promise<void> {
   draftObservationId = await insertObservation(draftIndicatorId, batch?.id ?? '', '2024-01-01');
   await owner`INSERT INTO observation_series_batch (upload_batch_id, indicator_id)
     VALUES (${batch?.id ?? ''}, ${draftIndicatorId})`;
-  await owner`INSERT INTO observation_series
+  await owner`INSERT INTO observation_series (upload_batch_id, indicator_id, area_id, dimension_key,
+      sex, period_type, variants, latest_observation_id, ranking_observation_id,
+      recent_observation_ids, recent_values)
     SELECT ${batch?.id ?? ''}, ${draftIndicatorId}, area_id, dimension_key, sex, period_type,
            variants, latest_observation_id, ranking_observation_id, recent_observation_ids, recent_values
     FROM observation_series LIMIT 1`;
@@ -517,7 +519,9 @@ describe('an indicator published again with new data', () => {
     expect(await viewsShowing(first)).toEqual(everyView);
     await owner`INSERT INTO observation_series_batch (upload_batch_id, indicator_id)
       SELECT upload_batch_id, indicator_id FROM observation WHERE id = ${first}`;
-    await owner`INSERT INTO observation_series
+    await owner`INSERT INTO observation_series (upload_batch_id, indicator_id, area_id,
+        dimension_key, sex, period_type, variants, latest_observation_id, ranking_observation_id,
+        recent_observation_ids, recent_values)
       SELECT o.upload_batch_id, o.indicator_id, s.area_id, s.dimension_key, s.sex, s.period_type,
              s.variants, s.latest_observation_id, s.ranking_observation_id, s.recent_observation_ids, s.recent_values
       FROM observation o CROSS JOIN (SELECT * FROM observation_series LIMIT 1) s WHERE o.id = ${first}`;

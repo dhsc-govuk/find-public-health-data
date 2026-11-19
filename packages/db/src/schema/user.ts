@@ -40,8 +40,8 @@ export const appUser = pgTable(
 );
 
 /**
- * The system users that imports and scheduled publication act as. Migrations insert these users
- * with these fixed ids.
+ * The system users that imports and scheduled publication act as. The baseline migration inserts
+ * these users with these fixed ids.
  */
 export const SYSTEM_USER_IDS = Object.freeze({
   pholioMigration: '01a13c69-96ab-7598-9ce0-f0c3bd77bded',

@@ -79,8 +79,7 @@ That yields 433,678 observations, 657,869 bridge rows and 67,978 observation not
   `@fphd/utils/period-type`, and a year ending on a specified date holds its day and month in
   `year_end_day` and `year_end_month`. `export/year_type.py` translates each of Pholio's 17 year
   types to them, and a name it has no translation for stops the export. Neither export carries a
-  `year_type` table; migrations 0034 and 0036 hold the same translation for databases that already
-  had Pholio's rows.
+  `year_type` table.
 - `indicator_version.value_type_id` and `unit_id` point at the service's own rows, which are core
   data in `../value-types.json` and `../units.json`, so neither export carries a `value_type` or
   `unit` table. `export/value_type_and_unit.py` reads the ids from those files and translates
@@ -90,7 +89,7 @@ That yields 433,678 observations, 657,869 bridge rows and 67,978 observation not
   multiplier. `../../src/pholio-value-types-and-units.json` lists every Pholio value type and unit
   with what it becomes, and a test checks that each is a name the core data files hold. Any other
   value type, or a unit named with another placeholder, blank or over 100 characters, stops the
-  export; a version with no unit keeps none. Migration 0035 holds the same translation.
+  export; a version with no unit keeps none.
 - `observation.count` and `observation.numerator` split Pholio's one Count: it is the numerator for
   an indicator whose value type is calculated from a numerator and a denominator (crude rate,
   directly standardised rate, indirectly standardised proportion and ratio, proportion and ratio),
@@ -98,15 +97,14 @@ That yields 433,678 observations, 657,869 bridge rows and 67,978 observation not
   smoking prevalence (92443), keeps it as the count whatever its value type.
   `export/split-count-and-numerator.py` moves each count that is a numerator, by the lists in
   `export/count_and_numerator.py`. `countIsNumerator` in `@fphd/utils/value-type-and-unit` holds the
-  same lists, and a test checks the committed seed against them. Migration 0052 applied them to
-  existing databases, so a change to them needs a data migration of its own.
+  same lists, and a test checks the committed seed against them. Rows already loaded were split by
+  them, so a change to them needs a data migration of its own.
 - Pholio's disclosure control, caveats and notes prose becomes the service's answers:
   `export/notes_and_caveats.py` turns prose that is an answer in itself, such as "None applied" or
   "Not applicable", into that answer and drops it, matching the whole text against its `VOCABULARY`.
   Any other prose is kept as the detail of a yes (`disclosure_control`, `has_caveats`,
   `has_other_notes`), and blank prose leaves the question unanswered. Rounding has no Pholio field
-  and stays unanswered. Migration 0022 holds the same vocabulary for databases that already had the
-  prose.
+  and stays unanswered.
 - Dimension type, dimension value and note type names are stored with their whitespace tidied
   (trimmed, each run of whitespace one space), the form uploaded data is matched in, and no two
   match once tidied. `export/tidy-reference-names.py` tidies them and merges rows that differ only

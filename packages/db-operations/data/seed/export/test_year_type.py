@@ -1,6 +1,5 @@
 """Checks for the year type translation the exports apply."""
 
-import re
 import runpy
 import unittest
 from pathlib import Path
@@ -15,9 +14,6 @@ from year_type import (
 
 transform = runpy.run_path(str(Path(__file__).with_name("transform-uuids.py")))
 reshape = runpy.run_path(str(Path(__file__).with_name("reshape-indicator-versions.py")))
-MIGRATIONS = Path(__file__).parents[3] / "drizzle"
-MIGRATION = MIGRATIONS / "0034_period-type.sql"
-VALUES_MIGRATION = MIGRATIONS / "0036_period-and-year-type-values.sql"
 UTILS = Path(__file__).parents[4] / "utils" / "src" / "period-type.ts"
 
 
@@ -80,36 +76,11 @@ class YearTypeValuesTest(unittest.TestCase):
         self.assertIn("WHEN 'August-July' THEN 31", select)
 
 
-def values_by_id():
-    """The value migration 0036 gives each period and year type row migration 0034 inserted."""
-    return dict(re.findall(r"WHEN '([0-9a-f-]{36})' THEN '([a-z-]+)'", VALUES_MIGRATION.read_text()))
-
-
 class SameTranslationTest(unittest.TestCase):
     def test_uses_the_values_the_app_knows(self):
         source = UTILS.read_text()
         for value in [*PERIOD_TYPE_VALUES, *YEAR_TYPE_VALUES]:
             self.assertIn(f"'{value}'", source)
-
-    def test_translates_as_the_migrations_do(self):
-        values = values_by_id()
-        rows = re.findall(
-            r"\('([^']+)', '([0-9a-f-]{36})'(?:::uuid)?, '([0-9a-f-]{36})'(?:::uuid)?, "
-            r"(NULL|\d+)(?:::smallint)?, (NULL|\d+)(?:::smallint)?\)",
-            MIGRATION.read_text(),
-        )
-        self.assertEqual(len(rows), len(YEAR_TYPES))
-        for name, period_type_id, year_type_id, day, month in rows:
-            self.assertEqual(
-                {
-                    "period_type": values[period_type_id],
-                    "year_type": values[year_type_id],
-                    "year_end_day": None if day == "NULL" else int(day),
-                    "year_end_month": None if month == "NULL" else int(month),
-                },
-                year_type_values(name),
-                name,
-            )
 
 
 class ExportsTest(unittest.TestCase):

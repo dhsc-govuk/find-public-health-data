@@ -60,6 +60,7 @@ export { resetDatabase } from './reset.ts';
 export {
   assertResetAllowed,
   assertSeedingAllowed,
+  type ResetOptions,
   readCsvHeader,
   SEED_TABLES,
   SEEDED_TABLES,

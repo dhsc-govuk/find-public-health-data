@@ -1,14 +1,10 @@
-import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { assertCoreDataPresent, importCoreData } from './core-data.ts';
-import { migrateToLatest } from './migrations.ts';
 import { importReferenceCoreData, readReferenceData } from './reference-core-data.ts';
-import { migrateBefore, migrateThrough } from './testing.ts';
 
 const records = readReferenceData();
-const migration = '0062_core-upload-reference-data';
 
 describe('fresh core-data setup', () => {
   let database: TestDb;
@@ -81,114 +77,6 @@ it('reports extra reference rows and records nothing in the audit log for a chan
       { id: extra.id, name: 'An additional publisher note' },
     ]);
     await expect(database.sql`SELECT 1 FROM audit_log`).resolves.toHaveLength(0);
-  } finally {
-    await database.drop();
-  }
-});
-
-it('rekeys existing references, publisher bridges, parent values, dimension keys and area caches', async () => {
-  const database = await createTestDb({ template: 'unmigrated' });
-  const sql = database.sql;
-  try {
-    await migrateBefore(sql, migration);
-    const areaType = records.areaTypes.find(({ name }) => name === 'England');
-    const sex = records.dimensionTypes.find(({ name }) => name === 'Sex');
-    const female = records.dimensionValues.find(
-      ({ dimensionTypeId, name }) => dimensionTypeId === sex?.id && name === 'Female',
-    );
-    const note = records.noteTypes[0];
-    if (!areaType || !sex || !female || !note) throw new Error('Missing reference fixture');
-    const old = {
-      areaType: '019de000-0000-7000-8000-000000000001',
-      sex: '019de000-0000-7000-8000-000000000002',
-      female: '019de000-0000-7000-8000-000000000003',
-      note: '019de000-0000-7000-8000-000000000004',
-    };
-    await sql`INSERT INTO area_type (id, name, hierarchy_type, level) VALUES (${old.areaType}, ${areaType.name}, 'Administrative', 1)`;
-    await sql`INSERT INTO dimension_type (id, name, dimension_class) VALUES (${old.sex}, 'Sex', 'core')`;
-    await sql`INSERT INTO dimension_value (id, dimension_type_id, name) VALUES (${old.female}, ${old.sex}, 'Female')`;
-    const [child] = await sql<
-      { id: string }[]
-    >`INSERT INTO dimension_value (dimension_type_id, parent_id, name) VALUES (${old.sex}, ${old.female}, 'An existing publisher value') RETURNING id`;
-    await sql`INSERT INTO note_type (id, text, category) VALUES (${old.note}, ${note.text}, ${note.category})`;
-    const [area] = await sql<
-      { id: string }[]
-    >`INSERT INTO area (code, name, area_type_id, valid_from) VALUES ('E92000001', 'England', ${old.areaType}, '2000-01-01') RETURNING id`;
-    const [indicator] = await sql<
-      { id: string }[]
-    >`INSERT INTO indicator DEFAULT VALUES RETURNING id`;
-    if (!area || !indicator || !child) throw new Error('Missing observation fixture');
-    const [version] = await sql<{ id: string }[]>`
-      INSERT INTO indicator_version (indicator_id, name, slug, created_by, updated_by)
-      VALUES (${indicator.id}, 'A publisher draft', 'a-publisher-draft', ${schema.SYSTEM_USER_IDS.testSeed}, ${schema.SYSTEM_USER_IDS.testSeed}) RETURNING id
-    `;
-    if (!version) throw new Error('Missing draft');
-    const [batch] = await sql<
-      { id: string }[]
-    >`INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by, status) VALUES (${indicator.id}, ${version.id}, 'publisher.csv', ${schema.SYSTEM_USER_IDS.testSeed}, 'processed') RETURNING id`;
-    if (!batch) throw new Error('Missing batch');
-    const [observation] = await sql<
-      { id: string }[]
-    >`INSERT INTO observation (indicator_id, area_id, upload_batch_id, from_date, to_date, value, dimension_key) VALUES (${indicator.id}, ${area.id}, ${batch.id}, '2025-01-01', '2025-12-31', 12.5, ${old.female}) RETURNING id`;
-    if (!observation) throw new Error('Missing observation');
-    await sql`INSERT INTO observation_dimension (observation_id, dimension_type_id, dimension_value_id) VALUES (${observation.id}, ${old.sex}, ${old.female})`;
-    await sql`INSERT INTO observation_note (observation_id, note_type_id) VALUES (${observation.id}, ${old.note})`;
-    await sql`INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count) VALUES (${indicator.id}, ${old.areaType}, 'England', 1)`;
-    await migrateThrough(sql, migration);
-    expect(await sql`SELECT area_type_id FROM area`).toEqual([{ area_type_id: areaType.id }]);
-    expect(
-      await sql`SELECT dimension_type_id, dimension_value_id FROM observation_dimension`,
-    ).toEqual([{ dimension_type_id: sex.id, dimension_value_id: female.id }]);
-    expect(
-      await sql`SELECT parent_id, dimension_type_id FROM dimension_value WHERE id = ${child.id}`,
-    ).toEqual([{ parent_id: female.id, dimension_type_id: sex.id }]);
-    expect(await sql`SELECT value, dimension_key, upload_batch_id FROM observation`).toEqual([
-      { value: 12.5, dimension_key: female.id, upload_batch_id: batch.id },
-    ]);
-    expect(await sql`SELECT note_type_id FROM observation_note`).toEqual([
-      { note_type_id: note.id },
-    ]);
-    expect(await sql`SELECT area_type_id FROM available_data`).toEqual([
-      { area_type_id: areaType.id },
-    ]);
-    // The core data import writes the columns the schema has now. A later migration requires
-    // every indicator to have a team, so the draft joins Fingertips before migrating the rest.
-    await sql`UPDATE indicator SET team_id = ${schema.IMPORTED_INDICATOR_TEAM_ID}`;
-    await migrateToLatest(sql);
-    await importCoreData(sql);
-    expect(await sql`SELECT id FROM observation`).toEqual([{ id: observation.id }]);
-  } finally {
-    await database.drop();
-  }
-});
-
-it('rekeys a core value and its core parent together', async () => {
-  const database = await createTestDb({ template: 'unmigrated' });
-  const sql = database.sql;
-  try {
-    await migrateBefore(sql, migration);
-    const age = records.dimensionTypes.find(({ name }) => name === 'Age');
-    const value = (name: string) =>
-      records.dimensionValues.find(
-        (candidate) => candidate.dimensionTypeId === age?.id && candidate.name === name,
-      );
-    const parent = value('<2 yrs');
-    const child = value('<1 yr');
-    if (!age || !parent || !child || child.parentId !== parent.id)
-      throw new Error('Missing reference fixture');
-    const old = {
-      age: '019de000-0000-7000-8000-000000000011',
-      parent: '019de000-0000-7000-8000-000000000012',
-      child: '019de000-0000-7000-8000-000000000013',
-    };
-    await sql`INSERT INTO dimension_type (id, name, dimension_class) VALUES (${old.age}, 'Age', 'core')`;
-    await sql`INSERT INTO dimension_value (id, dimension_type_id, name) VALUES (${old.parent}, ${old.age}, ${parent.name})`;
-    await sql`INSERT INTO dimension_value (id, dimension_type_id, parent_id, name) VALUES (${old.child}, ${old.age}, ${old.parent}, ${child.name})`;
-    await migrateThrough(sql, migration);
-    expect(await sql`SELECT id, parent_id FROM dimension_value ORDER BY name`).toEqual([
-      { id: child.id, parent_id: parent.id },
-      { id: parent.id, parent_id: null },
-    ]);
   } finally {
     await database.drop();
   }

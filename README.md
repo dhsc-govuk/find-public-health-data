@@ -462,7 +462,8 @@ pnpm --filter @fphd/operations cli db seed-dummy-data       # replace all dummy 
 pnpm --filter @fphd/operations cli db import-published-snapshot # dev only: load a verified published benchmark archive
 pnpm --filter @fphd/operations cli db migrate-live-data       # apply a live baseline or increment
 pnpm --filter @fphd/operations cli db rebuild-read-models
-pnpm --filter @fphd/operations cli db reset                 # dev-class only: drop all schema objects
+pnpm --filter @fphd/operations cli db reset                 # dev-class and preview only: drop all schema objects
+pnpm --filter @fphd/operations cli db reset --allow-production # the same, in production too
 ```
 
 The `pnpm db:*` root scripts for these are thin wrappers over the same commands, so local and
@@ -523,7 +524,8 @@ These commands are worth noting:
 - `db reset` returns the database to its freshly created state (recreating the `public` schema and
   dropping the migration watermark) so `db migrate` rebuilds from empty — recreate rather than
   truncate, so it also recovers from a broken migration state. It refuses outside
-  `local`/`test`/`dev` and never touches database roles.
+  `local`/`test`/`dev`/`preview`, and runs in production only as `db reset --allow-production`. It
+  never touches database roles.
 
 `db bootstrap` needs `PUBLIC_API_PASSWORD` and `INTERNAL_API_PASSWORD`; the other commands do not,
 and fail naming them rather than requiring every job to hold role passwords. Under `DB_AUTH=entra`
@@ -550,6 +552,7 @@ db import-published-snapshot # dev only; requires the two PUBLISHED_SNAPSHOT_* v
 db migrate-live-data       # requires DATA_MIGRATION_URL and DATA_MIGRATION_SHA256
 db rebuild-read-models
 db reset
+db reset --allow-production
 ```
 
 Required environment, for every command:

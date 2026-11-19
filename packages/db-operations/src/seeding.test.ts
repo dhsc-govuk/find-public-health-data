@@ -125,6 +125,14 @@ describe('assertResetAllowed', () => {
   it.each(['production', undefined])('refuses a reset in %s', (appEnv) => {
     expect(() => assertResetAllowed(appEnv)).toThrow('Refusing to reset');
   });
+  it('allows a reset in production when production is allowed', () => {
+    expect(() => assertResetAllowed('production', { allowProduction: true })).not.toThrow();
+  });
+  it('still refuses an unset APP_ENV when production is allowed', () => {
+    expect(() => assertResetAllowed(undefined, { allowProduction: true })).toThrow(
+      'Refusing to reset',
+    );
+  });
   it('still refuses to seed preview', () => {
     expect(() => assertSeedingAllowed('preview')).toThrow('Refusing to seed dummy data');
   });

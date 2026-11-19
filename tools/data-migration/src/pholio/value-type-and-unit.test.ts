@@ -2,23 +2,6 @@ import { readFileSync } from 'node:fs';
 import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 
-function extractBetween(sql: string, startAnchor: string, endAnchor: string): string {
-  const start = sql.indexOf(startAnchor);
-  if (start === -1) throw new Error(`Start anchor not found: ${JSON.stringify(startAnchor)}`);
-  const after = sql.slice(start + startAnchor.length);
-  const end = after.indexOf(endAnchor);
-  if (end === -1) throw new Error(`End anchor not found: ${JSON.stringify(endAnchor)}`);
-  return after.slice(0, end);
-}
-
-function sqlStringPairs(block: string): [string, string][] {
-  const re = /\(\s*'((?:[^']|'')*)'\s*,\s*'((?:[^']|'')*)'/g;
-  return Array.from(block.matchAll(re), (m) => [
-    m[1]?.replace(/''/g, "'") ?? '',
-    m[2]?.replace(/''/g, "'") ?? '',
-  ]);
-}
-
 import {
   UNIT_NAMES_BY_LABEL,
   UNIT_PLACEHOLDERS,
@@ -40,6 +23,7 @@ function readJson<T>(file: string): T {
 const coreValueTypes = readJson<{ id: string; name: string }[]>('value-types.json');
 const coreUnits = readJson<{ id: string; name: string }[]>('units.json');
 const coreUnitIdsByName = Object.fromEntries(coreUnits.map((u) => [u.name, u.id]));
+const coreValueTypeIdsByName = Object.fromEntries(coreValueTypes.map((v) => [v.name, v.id]));
 
 describe('valueTypeId', () => {
   it('maps each service value type name to its own id', () => {
@@ -188,6 +172,15 @@ describe('full pholio fixture coverage', () => {
     }
   });
 
+  it('maps each pholio value type to the correct service value', () => {
+    const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
+      valueTypes: { name: string; service: string }[];
+    };
+    for (const row of fixture.valueTypes) {
+      expect(valueTypeId(row.name), row.name).toBe(coreValueTypeIdsByName[row.service]);
+    }
+  });
+
   it('maps every pholio unit without throwing', () => {
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
       valueTypes: { name: string; service: string }[];
@@ -208,121 +201,6 @@ describe('full pholio fixture coverage', () => {
         unit_id: coreUnitIdsByName[row.service],
         unit_detail: row.other,
       });
-    }
-  });
-});
-
-describe('migration drift — 0035_value-type-and-units.sql', () => {
-  const migrationDir = new URL('../../../../packages/db-operations/drizzle/', import.meta.url);
-  const sql = readFileSync(new URL('0035_value-type-and-units.sql', migrationDir), 'utf8');
-
-  it('VALUE_TYPES covers every Pholio name in the SQL translation table', () => {
-    const block = extractBetween(
-      sql,
-      '-- export/value_type_and_unit.py holds the same translation.',
-      ') AS m(name, value_type_id)',
-    );
-    const pairs = sqlStringPairs(block);
-    expect(pairs.length).toBeGreaterThan(0);
-    for (const [pholioName] of pairs) {
-      expect(VALUE_TYPES, `VALUE_TYPES missing key ${JSON.stringify(pholioName)}`).toHaveProperty(
-        pholioName,
-      );
-    }
-  });
-
-  it('VALUE_TYPES maps to the same service name as the SQL does', () => {
-    const serviceNameById = Object.fromEntries(coreValueTypes.map((r) => [r.id, r.name]));
-    const block = extractBetween(
-      sql,
-      '-- export/value_type_and_unit.py holds the same translation.',
-      ') AS m(name, value_type_id)',
-    );
-    const pairs = sqlStringPairs(block);
-    for (const [pholioName, sqlId] of pairs) {
-      const sqlServiceName = serviceNameById[sqlId];
-      expect(sqlServiceName, `No service name for id ${sqlId}`).toBeDefined();
-      const tsServiceName = VALUE_TYPES[pholioName];
-      expect(tsServiceName, `VALUE_TYPES[${JSON.stringify(pholioName)}] missing`).toBeDefined();
-      expect(tsServiceName).toBe(sqlServiceName);
-    }
-  });
-
-  it('every VALUE_TYPES key appears in the SQL translation table', () => {
-    const block = extractBetween(
-      sql,
-      '-- export/value_type_and_unit.py holds the same translation.',
-      ') AS m(name, value_type_id)',
-    );
-    const sqlPholioNames = new Set(sqlStringPairs(block).map(([name]) => name));
-    for (const name of Object.keys(VALUE_TYPES)) {
-      if (coreValueTypes.some((r) => r.name === name)) continue;
-      expect(sqlPholioNames, `VALUE_TYPES key ${JSON.stringify(name)} missing from SQL`).toContain(
-        name,
-      );
-    }
-  });
-
-  it('UNITS covers every Pholio name in the SQL unit translation table', () => {
-    const block = extractBetween(
-      sql,
-      'UPDATE "indicator_version" v\nSET "unit_id" = m.unit_id',
-      ') AS m(name, unit_id)',
-    );
-    const pairs = sqlStringPairs(block);
-    expect(pairs.length).toBeGreaterThan(0);
-    for (const [pholioName] of pairs) {
-      expect(UNITS, `UNITS missing key ${JSON.stringify(pholioName)}`).toHaveProperty(pholioName);
-    }
-  });
-
-  it('UNITS maps to the same service name as the SQL does', () => {
-    const unitNameById = Object.fromEntries(coreUnits.map((r) => [r.id, r.name]));
-    const block = extractBetween(
-      sql,
-      'UPDATE "indicator_version" v\nSET "unit_id" = m.unit_id',
-      ') AS m(name, unit_id)',
-    );
-    const pairs = sqlStringPairs(block);
-    for (const [pholioName, sqlId] of pairs) {
-      const sqlServiceName = unitNameById[sqlId];
-      expect(sqlServiceName, `No unit name for id ${sqlId}`).toBeDefined();
-      const tsServiceName = UNITS[pholioName];
-      expect(tsServiceName, `UNITS[${JSON.stringify(pholioName)}] missing`).toBeDefined();
-      expect(tsServiceName).toBe(sqlServiceName);
-    }
-  });
-
-  it('UNIT_PLACEHOLDERS covers every Unknown unit in the SQL placeholder rename', () => {
-    const block = extractBetween(
-      sql,
-      "-- Pholio's placeholders for units the Fingertips API names take the name of Pholio's unit with",
-      ') AS m(placeholder, name)',
-    );
-    const pairs = sqlStringPairs(block);
-    expect(pairs.length).toBeGreaterThan(0);
-    for (const [placeholder, resolvedName] of pairs) {
-      expect(
-        UNIT_PLACEHOLDERS,
-        `UNIT_PLACEHOLDERS missing key ${JSON.stringify(placeholder)}`,
-      ).toHaveProperty(placeholder);
-      expect(UNIT_PLACEHOLDERS[placeholder]).toBe(resolvedName);
-    }
-  });
-
-  it('every UNIT_PLACEHOLDERS key appears in the SQL placeholder rename', () => {
-    const block = extractBetween(
-      sql,
-      "-- Pholio's placeholders for units the Fingertips API names take the name of Pholio's unit with",
-      ') AS m(placeholder, name)',
-    );
-    const sqlPlaceholders = new Map(sqlStringPairs(block));
-    for (const [placeholder, resolvedName] of Object.entries(UNIT_PLACEHOLDERS)) {
-      expect(
-        sqlPlaceholders.has(placeholder),
-        `UNIT_PLACEHOLDERS key ${JSON.stringify(placeholder)} missing from SQL`,
-      ).toBe(true);
-      expect(sqlPlaceholders.get(placeholder)).toBe(resolvedName);
     }
   });
 });

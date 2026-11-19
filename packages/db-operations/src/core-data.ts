@@ -19,6 +19,7 @@ import {
   parseDataProvidersFile,
   upsertDataProviders,
 } from './data-provider-core-data.ts';
+import { type FakeUserUpsertResult, upsertFakeUsers } from './fake-users-core-data.ts';
 import {
   type GeographyCoreDataImport,
   importGeographyCoreData,
@@ -66,6 +67,7 @@ export interface CoreDataImport {
   valueTypes: NamedUpsertResult;
   units: NamedUpsertResult;
   comparatorMethods: NamedUpsertResult;
+  fakeUsers: FakeUserUpsertResult;
 }
 
 function readJson(file: string): unknown {
@@ -108,6 +110,7 @@ export async function importCoreData(sql: postgres.Sql): Promise<CoreDataImport>
     valueTypes: await upsertOrderedNames(db, valueType, valueTypeRecords),
     units: await upsertOrderedNames(db, unit, unitRecords),
     comparatorMethods: await upsertComparatorMethods(db, comparatorMethodRecords),
+    fakeUsers: await upsertFakeUsers(db),
   };
 }
 

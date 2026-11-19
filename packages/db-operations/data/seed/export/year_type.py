@@ -2,8 +2,8 @@
 
 The service holds them as the values in @fphd/utils/period-type, with a day and month for a
 year ending on a specified date; the exports translate Pholio's year type rows to them.
-Migrations 0034 and 0036 hold the same translation for databases that already had the
-Fingertips rows.
+tools/data-migration/src/pholio/year-type.ts holds the same translation, and its test checks
+the two agree.
 """
 
 PERIOD_TYPE_VALUES = ["years", "quarters", "months"]
