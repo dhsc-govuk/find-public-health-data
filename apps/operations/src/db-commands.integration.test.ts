@@ -4,7 +4,7 @@ import { assertCoreDataPresent } from '@fphd/db-operations';
 import { createLogger } from '@fphd/logger';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { commands, resolveCommand } from './commands.ts';
+import { resolveCommand } from './commands.ts';
 import { importCoreData, reset, seedDummyData } from './db-commands.ts';
 import { type Config, loadConfig } from './load-config.ts';
 
@@ -169,20 +169,6 @@ describe('db reset (integration)', () => {
     await expect(reset(testContext(emptySql, emptyDb.name, 'production'))).rejects.toThrow(
       /Refusing to reset/,
     );
-  });
-
-  it('resets production when the command allows it', async () => {
-    const migrated = await createTestDb();
-    try {
-      const context = testContext(migrated.sql, migrated.name, 'production');
-
-      await commands['db reset --allow-production']?.run(context);
-      expect(
-        await migrated.sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
-      ).toHaveLength(0);
-    } finally {
-      await migrated.drop();
-    }
   });
 
   it('empties the database so that db migrate rebuilds it', async () => {

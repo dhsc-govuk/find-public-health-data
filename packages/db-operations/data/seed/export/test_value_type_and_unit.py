@@ -1,6 +1,7 @@
 """Checks for the value type and unit translation the exports apply."""
 
 import json
+import re
 import runpy
 import sqlite3
 import unittest
@@ -25,6 +26,7 @@ from value_type_and_unit import (
 
 transform = runpy.run_path(str(Path(__file__).with_name("transform-uuids.py")))
 reshape = runpy.run_path(str(Path(__file__).with_name("reshape-indicator-versions.py")))
+(migration,) = Path(__file__).parents[3].glob("drizzle/*_value-type-and-units.sql")
 # Every value type and unit row in Pholio, each with the service value it translates to.
 PHOLIO = json.loads(
     Path(__file__).parents[3].joinpath("src/pholio-value-types-and-units.json").read_text()
@@ -124,7 +126,7 @@ class UnitPlaceholdersTest(unittest.TestCase):
 
 
 class UnitNameForLabelTest(unittest.TestCase):
-    def test_gives_the_name_the_exports_translate(self):
+    def test_gives_the_name_the_migration_and_exports_translate(self):
         self.assertEqual(unit_name_for_label("%"), "Percent")
         self.assertEqual(unit_name_for_label("min"), "Minutes")
         self.assertEqual(unit_name_for_label("per 100,000"), "per 100,000")
@@ -185,6 +187,46 @@ class UnitSelectTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     unit_values(name)
                 self.assertEqual(unknown_units([name]), [name])
+
+
+def migration_statement(marker):
+    """The one statement in the migration containing this text."""
+    (statement,) = [
+        statement
+        for statement in migration.read_text().split("--> statement-breakpoint")
+        if marker in statement
+    ]
+    return statement
+
+
+def migration_translation(column):
+    """The Fingertips names and ids in the migration's translation of this column."""
+    statement = migration_statement(f'SET "{column}" = m.{column}')
+    return dict(re.findall(r"\('((?:[^']|'')*)', '([0-9a-f-]{36})'", statement))
+
+
+def migration_unit_placeholders():
+    """The placeholder unit names and the names the migration gives them."""
+    statement = migration_statement("AS m(placeholder, name)")
+    pairs = re.findall(r"\('((?:[^']|'')*)', '((?:[^']|'')*)'\)", statement)
+    return {placeholder.replace("''", "'"): name.replace("''", "'") for placeholder, name in pairs}
+
+
+class MigrationTest(unittest.TestCase):
+    def test_holds_the_same_value_type_translation(self):
+        self.assertEqual(
+            migration_translation("value_type_id"),
+            {name: value_type_id(name) for name in VALUE_TYPES},
+        )
+
+    def test_holds_the_same_unit_translation(self):
+        self.assertEqual(
+            migration_translation("unit_id"),
+            {name: unit_values(name)["unit_id"] for name in UNITS},
+        )
+
+    def test_holds_the_same_placeholder_units(self):
+        self.assertEqual(migration_unit_placeholders(), UNIT_PLACEHOLDERS)
 
 
 class ReshapeTest(unittest.TestCase):

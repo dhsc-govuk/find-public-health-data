@@ -9,7 +9,7 @@ let testDb: TestDb;
 let db: Database;
 
 beforeAll(async () => {
-  testDb = await createTestDb({ template: 'core' });
+  testDb = await createTestDb();
   db = testDb.db;
   // Each list in reverse order of id, which no order by name or id would give.
   for (const table of ['value_type', 'unit']) {

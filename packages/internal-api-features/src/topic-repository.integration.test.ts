@@ -41,7 +41,7 @@ async function givenTopic() {
 }
 
 beforeAll(async () => {
-  testDb = await createTestDb({ template: 'core' });
+  testDb = await createTestDb();
   db = testDb.db;
 });
 

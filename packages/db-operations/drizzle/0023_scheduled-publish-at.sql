@@ -1,0 +1,1 @@
+ALTER TABLE "indicator_version" ADD COLUMN "scheduled_publish_at" timestamp with time zone;

@@ -7,13 +7,6 @@ describe('resolveCommand', () => {
     expect(resolveCommand(['db', 'migrate'])).toBe(commands['db migrate']);
   });
 
-  it('resolves the production reset only with its flag', () => {
-    expect(resolveCommand(['db', 'reset', '--allow-production'])).toBe(
-      commands['db reset --allow-production'],
-    );
-    expect(resolveCommand(['db', 'reset'])).toBe(commands['db reset']);
-  });
-
   it('rejects an unknown command by name', () => {
     expect(() => resolveCommand(['db', 'drop'])).toThrow(UsageError);
     expect(() => resolveCommand(['db', 'drop'])).toThrow(/db drop/);
@@ -40,7 +33,6 @@ describe('commands', () => {
       'db migrate-live-data',
       'db rebuild-read-models',
       'db reset',
-      'db reset --allow-production',
     ]);
   });
 });

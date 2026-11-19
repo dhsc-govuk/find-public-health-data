@@ -15,7 +15,6 @@ import {
   type EntraPrincipal,
   importCoreData as importCoreDataFromFiles,
   READ_MODEL_TABLES,
-  type ResetOptions,
   readAppliedMigrations,
   readLocalMigrations,
   rebuildReadModels as rebuildReadModelsFromCanonical,
@@ -144,7 +143,6 @@ export async function importCoreData({ sql, logger }: CommandContext): Promise<v
     comparatorMethods,
     references,
     geography,
-    fakeUsers,
   } = await importCoreDataFromFiles(sql);
   for (const [table, { summary, orphaned }] of Object.entries(geography)) {
     logger.info({ table, ...summary }, 'Geography core data imported');
@@ -200,8 +198,6 @@ export async function importCoreData({ sql, logger }: CommandContext): Promise<v
       'Data provider or source in the database but absent from the file; left in place',
     );
   }
-  logger.info({ ...fakeUsers.teams }, 'Teams imported');
-  logger.info({ ...fakeUsers.users }, 'Fake users imported');
   const lists = [
     ['Value types', 'Value type', valueTypes],
     ['Units', 'Unit', units],
@@ -379,14 +375,10 @@ export async function rebuildReadModels({ sql, logger }: CommandContext): Promis
 
 /**
  * The gate is the only guard: a deployed job has no interactive confirmation, so refusing
- * outside dev-class environments is what stands between this and a production database. Only
- * `db reset --allow-production` passes `allowProduction`.
+ * outside dev-class environments is what stands between this and a production database.
  */
-export async function reset(
-  { sql, config }: CommandContext,
-  options: ResetOptions = {},
-): Promise<void> {
-  assertResetAllowed(config.appEnv, options);
+export async function reset({ sql, config }: CommandContext): Promise<void> {
+  assertResetAllowed(config.appEnv);
   await resetDatabase(sql);
 }
 
