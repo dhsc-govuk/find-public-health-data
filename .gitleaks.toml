@@ -6,3 +6,8 @@ useDefault = true
 description = "Azurite's development account key, published in Microsoft's documentation"
 regexTarget = "line"
 regexes = ['''AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==''']
+
+[[allowlists]]
+description = "A unit's UUID beside \"£ per capita\": generic-api-key matches the \"api\" in \"capita\""
+regexTarget = "line"
+regexes = ['''\('£ per capita', '01a0d8a5-3ca2-7315-bfca-96e3aae4dc98'\)''']
