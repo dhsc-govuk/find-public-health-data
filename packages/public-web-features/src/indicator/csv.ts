@@ -5,6 +5,7 @@ import {
   indicatorAreaDataListSchema,
   indicatorAreaDataSchema,
   MAX_AREA_CODES_PER_REQUEST,
+  pickAreaCodes,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
 import { apiPath } from '@fphd/web-server/api-client';
@@ -81,7 +82,11 @@ export async function loadIndicatorCsv(
       areaDisplayGroupListSchema,
     );
     const areaType = areaTypeLookup(groups);
-    const codes = [...new Set(groups.flatMap(({ areas }) => areas.map(({ code }) => code)))];
+    // A code the API ignores would shrink a batch below the list shape the reader expects.
+    const codes = pickAreaCodes(
+      groups.flatMap(({ areas }) => areas.map(({ code }) => code)),
+      Number.POSITIVE_INFINITY,
+    );
     const firstBatch = codes.slice(0, MAX_AREA_CODES_PER_REQUEST);
     const firstData = firstBatch.length ? await dataFor(firstBatch) : [];
     const encoder = new TextEncoder();

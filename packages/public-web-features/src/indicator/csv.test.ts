@@ -434,6 +434,39 @@ describe('loadIndicatorCsv', () => {
     expect(sizes).toEqual([20, 3]);
   });
 
+  it('leaves out of the all-areas batches a code the API would ignore', async () => {
+    const areas = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        code: `E${String(index).padStart(8, '0')}`,
+        name: `Area ${index}`,
+      })),
+      { code: 'U43072\r\n', name: 'A PCN' },
+      { code: 'Cl_L3_1a1', name: 'A cluster' },
+    ];
+    const client = api(
+      (call) => {
+        const data = areaCodes(call).map((code) => ({
+          areaCode: code,
+          areaName: areas.find((area) => area.code === code)?.name ?? '',
+          observations: [observation()],
+        }));
+        // The API answers a single area with the bare object.
+        return data.length === 1 ? data[0] : data;
+      },
+      { [`GET ${DETAIL}/areas`]: [{ displayGroup: 'Statistical regions', areas }] },
+    );
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/all-data.csv?allAreas=yes`),
+      'all-data',
+    );
+    expect(await response.text()).toContain('A cluster');
+    const batches = client.calls
+      .filter(({ path }) => path.includes('/data?'))
+      .map((call) => areaCodes(call));
+    expect(batches.map((codes) => codes.length)).toEqual([20, 1]);
+    expect(batches.flat()).not.toContain('U43072\r\n');
+  });
+
   it("names each area's type beside it in the all-areas download", async () => {
     const groups = [
       { displayGroup: 'England', areas: [{ code: 'E92000001', name: 'England' }] },
