@@ -155,16 +155,12 @@ export async function loadTopic(
   const path = `/topics/${encodeURIComponent(slug)}`;
   if (tab === null || tab === 'overview') {
     const loadedSearch = await loadSearch(args, { topicSlug: slug, path });
-    // The overview shows the first area picked, which is the first known area in the URL.
-    const requested = url.searchParams.getAll('ga');
-    const chosen = loadedSearch.gaCodes.toSorted(
-      (a, b) => requested.indexOf(a) - requested.indexOf(b),
-    )[0];
     const search = {
       ...loadedSearch,
-      gaCodes: chosen ? [chosen] : [],
+      gaCodes: loadedSearch.gaCodes.slice(0, 1),
       geoLevels: [] as string[],
     };
+    const chosen = search.gaCodes[0];
     const trendsPath = apiPath`/api/topics/${slug}/trends`;
     const trendsFor = (areaCode?: string) =>
       context

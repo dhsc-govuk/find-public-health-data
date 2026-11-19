@@ -336,6 +336,37 @@ export function topicPageTests() {
     ).toBeVisible();
   });
 
+  test('keeps areas in the order they were picked and shows the first on the overview', async ({
+    page,
+  }) => {
+    await openTopicPage(page, '/topics/diabetes?tab-topic=data');
+    const data = page.getByRole('tabpanel', { name: 'Data', exact: true });
+    for (const [name, code] of [
+      ['London', 'E12000007'],
+      ['Cornwall', 'E06000052'],
+      ['Birmingham', 'E08000025'],
+    ] as const) {
+      await data.getByRole('searchbox', { name: 'Search for a geography', exact: true }).fill(name);
+      await data
+        .getByRole('group', { name: /^Areas in / })
+        .locator(`input[value="${code}"]`)
+        .first()
+        .check();
+      await expect(page).toHaveURL(new RegExp(`ga=${code}`));
+    }
+    expect(new URL(page.url()).searchParams.getAll('ga')).toEqual([
+      'E12000007',
+      'E06000052',
+      'E08000025',
+    ]);
+    await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+    await expect(
+      page
+        .getByRole('tabpanel', { name: 'Overview', exact: true })
+        .getByRole('heading', { name: 'Diabetes has 2 indicators in London', exact: true }),
+    ).toBeVisible();
+  });
+
   test('shows England with a note when every value for the chosen area is suppressed', async ({
     page,
   }) => {
