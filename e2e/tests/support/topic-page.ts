@@ -336,6 +336,28 @@ export function topicPageTests() {
     ).toBeVisible();
   });
 
+  test('shows England with a note when every value for the chosen area is suppressed', async ({
+    page,
+  }) => {
+    await openTopicPage(page, '/topics/cancer?ga=E06000053');
+    const panel = page.getByRole('tabpanel', { name: 'Overview', exact: true });
+    await expect(
+      panel.getByText('Figures for Isles of Scilly are not available. Showing England.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole('heading', { name: 'Cancer has 1 indicator in total', exact: true }),
+    ).toBeVisible();
+    await openTopicPage(page, '/topics/mortality-and-life-expectancy?ga=E06000053');
+    await expect(
+      page.getByRole('tabpanel', { name: 'Overview', exact: true }).getByRole('heading', {
+        name: 'Mortality and life expectancy has 1 indicator in Isles of Scilly',
+        exact: true,
+      }),
+    ).toBeVisible();
+  });
+
   test.describe('without JavaScript', () => {
     test.use({ javaScriptEnabled: false });
 

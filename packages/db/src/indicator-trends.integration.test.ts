@@ -15,6 +15,7 @@ import {
   indicatorVersionTopic,
   observation,
   observationDimension,
+  observationSeriesBatch,
   publishedViews,
   SYSTEM_USER_IDS,
   topic,
@@ -24,11 +25,13 @@ import { apiLogin, createTestDb, type TestDb } from './testing.ts';
 import { getTopicTrendSummary } from './topic-repository.ts';
 
 const WEST_SUSSEX = 'E10000032';
+const CORNWALL = 'E06000052';
 
 let database: TestDb;
 let publicDb: Database;
 let englandId: string;
 let westSussexId: string;
+let cornwallId: string;
 let dimensions: (typeof dimensionValue.$inferSelect)[];
 
 beforeAll(async () => {
@@ -51,6 +54,12 @@ beforeAll(async () => {
     .returning();
   if (!westSussex) throw new Error('West Sussex fixture missing');
   westSussexId = westSussex.id;
+  const [cornwall] = await database.db
+    .insert(area)
+    .values({ code: CORNWALL, name: 'Cornwall', areaTypeId: type.id })
+    .returning();
+  if (!cornwall) throw new Error('Cornwall fixture missing');
+  cornwallId = cornwall.id;
   const types = await database.db
     .insert(dimensionType)
     .values([
@@ -156,21 +165,42 @@ it.each([0, 1])(
   },
 );
 
-it('works out the trend of the same series choice for another area', async () => {
+it("works out the trend of the same series choice for another area, ignoring England's cache", async () => {
   const fixture = await publishedIndicator('Area trend fixture');
   await addSeries(fixture, englandId, [1, 2, 3, 4, 5]);
-  await addSeries(fixture, westSussexId, [9, 8, 7, 6, 5]);
-  await addSeries(fixture, westSussexId, [1, 2, 3, 4, 5, 6, 7], dimensions);
+  // England's cached values run newest first, so these make a falling England trend.
+  await database.db
+    .insert(observationSeriesBatch)
+    .values({
+      uploadBatchId: fixture.batchId,
+      indicatorId: fixture.id,
+      trendValues: [1, 2, 3, 4, 5],
+    });
+  await addSeries(fixture, westSussexId, [1, 2, 3, 4, 5]);
+  await addSeries(fixture, westSussexId, [9, 8, 7, 6, 5, 4, 3], dimensions);
   const other = await publishedIndicator('England only trend fixture');
   await addSeries(other, englandId, [1, 2, 3, 4, 5]);
+  const suppressed = await publishedIndicator('Suppressed area trend fixture');
+  await addSeries(suppressed, englandId, [1, 2, 3, 4, 5]);
+  await addSeries(suppressed, westSussexId, [null, null, null, null, null]);
+  const plainSuppressed = await publishedIndicator('Plain suppressed area trend fixture');
+  await addSeries(plainSuppressed, westSussexId, [null, null, null, null, null]);
+  await addSeries(plainSuppressed, westSussexId, [1, 2, 3, 4, 5], dimensions);
+  const ids = [fixture.id, other.id, suppressed.id, plainSuppressed.id];
 
-  expect(
-    await indicatorTrendDirections(publicDb, publishedViews, [fixture.id, other.id], WEST_SUSSEX),
-  ).toEqual(new Map([[fixture.id, 'down']]));
+  expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
+    new Map([[fixture.id, 'down']]),
+  );
+  expect(await indicatorTrendDirections(publicDb, publishedViews, ids, WEST_SUSSEX)).toEqual(
+    new Map([
+      [fixture.id, 'up'],
+      [plainSuppressed.id, null],
+    ]),
+  );
 });
 
 describe('getTopicTrendSummary', () => {
-  it('counts only the indicators with data for a chosen area, and every indicator for England', async () => {
+  it('counts only the indicators with a value for a chosen area, and every indicator for England', async () => {
     const [record] = await database.db
       .insert(topic)
       .values({
@@ -191,8 +221,12 @@ describe('getTopicTrendSummary', () => {
     const englandOnly = await publishedIndicator('Summary England only');
     await addSeries(englandOnly, englandId, [1, 2, 3, 4, 5]);
     const noData = await publishedIndicator('Summary no data');
+    const suppressed = await publishedIndicator('Summary suppressed');
+    await addSeries(suppressed, englandId, [1, 2, 3, 4, 5]);
+    await addSeries(suppressed, westSussexId, [null, null, null, null, null]);
+    await addSeries(suppressed, cornwallId, [null, null, null, null, null]);
     await database.db.insert(indicatorVersionTopic).values(
-      [improving, short, englandOnly, noData].map(({ versionId }) => ({
+      [improving, short, englandOnly, noData, suppressed].map(({ versionId }) => ({
         topicId: record.id,
         indicatorVersionId: versionId,
       })),
@@ -201,15 +235,15 @@ describe('getTopicTrendSummary', () => {
 
     expect(await getTopicTrendSummary(publicDb, publishedViews, 'trend-summary-topic')).toEqual({
       ...empty,
-      total: 4,
-      better: 3,
+      total: 5,
+      better: 4,
       unavailable: 1,
     });
     expect(
       await getTopicTrendSummary(publicDb, publishedViews, 'trend-summary-topic', WEST_SUSSEX),
     ).toEqual({ ...empty, total: 2, worse: 1, unavailable: 1 });
     expect(
-      await getTopicTrendSummary(publicDb, publishedViews, 'trend-summary-topic', 'E06000052'),
+      await getTopicTrendSummary(publicDb, publishedViews, 'trend-summary-topic', CORNWALL),
     ).toEqual({ ...empty, total: 0, unavailable: 0 });
   });
 });

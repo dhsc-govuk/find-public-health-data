@@ -47,7 +47,7 @@ export interface TopicTrendSummary {
 
 /**
  * Trend counts for one area across the topic's published indicators. England counts every
- * indicator, and another area counts only the indicators with data for that area.
+ * indicator, and another area counts only the indicators with at least one value for that area.
  */
 export async function getTopicTrendSummary(
   db: DatabaseReader,
