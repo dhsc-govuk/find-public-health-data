@@ -3,7 +3,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { cloneElement, type ReactElement, type Ref } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorDetail, observation } from '../view.testing.ts';
-import { TrendChart, trendTitleLines, trendYAxisWidth } from './trend-chart.tsx';
+import { alignedSeries } from './chart-data.ts';
+import { TrendChart, trendAxisTicks, trendTitleLines, trendYAxisWidth } from './trend-chart.tsx';
 
 vi.mock('./chart-elements.tsx', async (original) => ({
   ...(await original<typeof import('./chart-elements.tsx')>()),
@@ -132,11 +133,36 @@ it('centres a short y-axis title over the axis', () => {
   );
 });
 
-it('keeps the y-axis at 56 pixels while its numbers fit, and widens it when they do not', () => {
-  expect(trendYAxisWidth([5.4, 7.9])).toBe(56);
-  expect(trendYAxisWidth([26_835.6, 34_400])).toBe(56);
-  expect(trendYAxisWidth([56_536_419, 57_690_323])).toBeGreaterThanOrEqual(10 * 8);
-  expect(trendYAxisWidth([-1_500_000, 10])).toBeGreaterThan(trendYAxisWidth([0, 1_500_000]));
+it('keeps the y-axis at 56 pixels while its ticks fit, and widens it when they do not', () => {
+  expect(trendYAxisWidth([5, 6, 7, 8])).toBe(56);
+  expect(trendYAxisWidth([26_000, 30_000, 36_000])).toBe(56);
+  expect(trendYAxisWidth([56_500_000, 57_750_000])).toBe(10 * 9);
+  expect(trendYAxisWidth([-1_500_000, 0])).toBe(10 * 9);
+});
+
+it("takes the axis's ticks from the values, intervals and policy goal it shows", () => {
+  const series = (values: number[]) =>
+    alignedSeries([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: values.map((value, index) => ({
+          ...observation(value),
+          fromDate: `${2020 + index}-01-01`,
+          toDate: `${2020 + index}-12-31`,
+        })),
+      },
+    ]);
+  // The data stops at 83,000, but the round ticks reach 100,000, which needs seven characters.
+  expect(trendAxisTicks(series([0, 83_000]), 'none', null).at(-1)).toBe(100_000);
+  const goal = {
+    lower: 150_000,
+    upper: null,
+    polarity: 'higher-is-better' as const,
+    policyDetail: null,
+  };
+  expect(Math.max(...trendAxisTicks(series([1, 6]), 'none', goal))).toBeGreaterThanOrEqual(150_000);
+  expect(Math.max(...trendAxisTicks(series([10]), '95', null))).toBeGreaterThanOrEqual(11);
 });
 
 it('moves the plot right to make room for long y-axis numbers', () => {
@@ -156,7 +182,7 @@ it('moves the plot right to make room for long y-axis numbers', () => {
     return Number(x);
   };
   expect(axisX(7.9)).toBe(8 + 56);
-  expect(axisX(57_690_323)).toBe(8 + trendYAxisWidth([57_690_323, 57_690_323]));
+  expect(axisX(57_690_323)).toBeGreaterThanOrEqual(8 + 10 * 9);
 });
 
 it.each([

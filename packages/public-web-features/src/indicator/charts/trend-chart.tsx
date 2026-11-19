@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import {
   CartesianGrid,
   ErrorBar,
+  getNiceTickValues,
   Label,
   Line,
   LineChart,
@@ -41,15 +42,22 @@ import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
 
 /**
- * The y-axis's width in pixels: 56, or more when its widest number needs it. The axis rounds its
- * ticks to round numbers a little beyond the data, so the estimate allows for 20% more.
+ * The y-axis's ticks: the round numbers Recharts would choose for the plotted values, any interval
+ * drawn and any policy goal, worked out here so the axis's width can depend on them.
  */
-export function trendYAxisWidth([lowest, highest]: [number, number]) {
-  const characters = Math.max(
-    formatValue(Math.round(lowest * 1.2)).length,
-    formatValue(Math.round(highest * 1.2)).length,
-  );
-  return Math.max(56, characters * 9);
+export function trendAxisTicks(
+  series: ReturnType<typeof alignedSeries>,
+  confidence: ConfidenceLevel,
+  goal: PolicyGoal | null | undefined,
+) {
+  const [lowest, highest] = valueExtent(series, confidence);
+  const goals = goal ? goalThresholds(goal).map(({ value }) => value) : [];
+  return getNiceTickValues([Math.min(lowest, ...goals), Math.max(highest, ...goals)], 6);
+}
+
+/** The y-axis's width in pixels: 56, or about 9 pixels a character when its widest tick needs more. */
+export function trendYAxisWidth(ticks: number[]) {
+  return Math.max(56, ...ticks.map((tick) => formatValue(tick).length * 9));
 }
 
 /** Lines of at most half the chart's width, so a long title still reads as the axis's. */
@@ -154,7 +162,8 @@ function TrendPlot({
     ? tickInset
     : Math.max(126, tickInset, Math.min(width * 0.4, 24 + longest * 8.4));
   const titleHeight = yTitleLines.length * 18 + 24;
-  const yAxisWidth = trendYAxisWidth(valueExtent(series, confidence));
+  const yTicks = trendAxisTicks(series, confidence, goal);
+  const yAxisWidth = trendYAxisWidth(yTicks);
   const periodAxis = periods.some(({ label }) => !/^\d{4}(\/\d{2})?$/.test(label))
     ? 'Period'
     : indicator.yearType?.value === 'financial'
@@ -268,8 +277,8 @@ function TrendPlot({
               <Label value={periodAxis} position="insideBottom" />
             </XAxis>
             <YAxis
-              domain={['auto', 'auto']}
-              tickCount={6}
+              domain={[yTicks[0] ?? 0, yTicks.at(-1) ?? 0]}
+              ticks={yTicks}
               width={yAxisWidth}
               axisLine={{ stroke: axisColour }}
               tickLine={{ stroke: axisColour }}
