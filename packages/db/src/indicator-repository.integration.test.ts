@@ -1058,6 +1058,23 @@ describe('searchIndicators', () => {
     },
   );
 
+  it.each(['', 'rate'])(
+    'pages through every result once, in the unpaged order, for query %j',
+    async (query) => {
+      const all = await searchIndicators(db, publishedViews, noFilters({ query }));
+      const pages = await Promise.all(
+        Array.from({ length: Math.ceil(all.total / 2) }, (_, index) =>
+          searchIndicators(db, publishedViews, noFilters({ query, page: index + 1, limit: 2 })),
+        ),
+      );
+
+      expect(all.total).toBeGreaterThan(2);
+      expect(pages.flatMap(({ indicators }) => indicators.map((i) => i.shortId))).toEqual(
+        all.indicators.map((i) => i.shortId),
+      );
+    },
+  );
+
   it('indicators with a unique first-topic are sub-ordered by name', async () => {
     // These indicators share one topic, so the sub-order is by name.
     const { indicators } = await searchIndicators(

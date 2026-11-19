@@ -985,8 +985,13 @@ export async function searchIndicators(
                       relevance,
                       sql`position(lower(${query}) in lower(${indicator.name}))`,
                       asc(indicator.name),
+                      asc(indicator.shortId),
                     ]
-                  : [sql`(${firstTopicTitle}) nulls last`, asc(indicator.name)];
+                  : [
+                      sql`(${firstTopicTitle}) nulls last`,
+                      asc(indicator.name),
+                      asc(indicator.shortId),
+                    ];
   const trendSort = filters.sort?.startsWith('trend-') ?? false;
   const rowQuery = (page = 1) => {
     const query = db

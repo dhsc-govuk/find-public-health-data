@@ -275,6 +275,7 @@ describe('loadWebServerConfig', () => {
       apiUrl: 'http://localhost:4000',
       apiUploadTimeoutMs: undefined,
       trustedProxyHops: 2,
+      searchPageSize: 50,
       log: { level: 'debug', pretty: true, requestDetails: false },
       shutdown: { drainDelayMs: 0, gracePeriodMs: 25_000 },
     });
@@ -302,6 +303,7 @@ describe('loadWebServerConfig', () => {
           API_URL: 'http://api.internal:9000',
           API_UPLOAD_TIMEOUT_MS: '45000',
           TRUSTED_PROXY_HOPS: '1',
+          SEARCH_PAGE_SIZE: '10',
           LOG_LEVEL: 'debug',
           LOG_PRETTY: '1',
         },
@@ -317,9 +319,16 @@ describe('loadWebServerConfig', () => {
       apiUrl: 'http://api.internal:9000',
       apiUploadTimeoutMs: 45_000,
       trustedProxyHops: 1,
+      searchPageSize: 10,
       log: { level: 'debug', pretty: false, requestDetails: false },
       shutdown: { drainDelayMs: 5_000, gracePeriodMs: 25_000 },
     });
+  });
+
+  it.each(['0', '-5', '2.5', 'ten', '201'])('rejects a search page size of %j', (size) => {
+    expect(() =>
+      loadWebServerConfig({ APP_ENV: 'local', SEARCH_PAGE_SIZE: size }, defaults),
+    ).toThrow(/SEARCH_PAGE_SIZE/);
   });
 
   it('reads the feedback mailbox, which is optional', () => {

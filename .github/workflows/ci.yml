@@ -222,6 +222,9 @@ jobs:
           BETA_ACCESS_ENDS_AT: 2099-12-31T23:59:59Z
           BETA_ACCESS_SECRET: ci-only-beta-access-secret-at-least-32-bytes
           SITE_URL: http://127.0.0.1:3000
+          # The seeded data fills less than one page of 50 search results, so the specs page
+          # through it 10 at a time, as .env.example sets for local runs.
+          SEARCH_PAGE_SIZE: 10
         run: |
           docker compose -f compose.yaml -f compose.e2e.yaml up --detach --wait db
           pnpm db:bootstrap

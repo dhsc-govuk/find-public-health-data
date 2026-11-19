@@ -757,13 +757,15 @@ describe('public application routes', () => {
     expect(selectedTopic.closest('.fphd-collapsible-body')?.hasAttribute('hidden')).toBe(false);
   });
 
-  it('shows cap message when total exceeds 200', async () => {
-    const cappedData = {
+  it('links to the other pages of results when they fill more than one', async () => {
+    const pagedData = {
       ...searchLoaderData,
+      sort: 'relevance',
       searchResult: {
         total: 350,
-        limit: 200,
-        indicators: Array.from({ length: 200 }, (_, i) => ({
+        limit: 50,
+        page: 1,
+        indicators: Array.from({ length: 50 }, (_, i) => ({
           shortId: 100 + i,
           slug: `indicator-${100 + i}`,
           name: `Indicator ${i}`,
@@ -781,7 +783,7 @@ describe('public application routes', () => {
           {
             path: 'search',
             Component: SearchRoute,
-            loader: () => cappedData,
+            loader: () => pagedData,
           },
         ],
       },
@@ -789,7 +791,11 @@ describe('public application routes', () => {
 
     render(<Routes initialEntries={['/search']} />);
 
-    expect(await screen.findByText(/Showing the first 200 of 350/)).toBeTruthy();
+    const pages = await screen.findByRole('navigation', { name: 'Search results pages' });
+    expect(within(pages).getByRole('link', { name: '7' }).getAttribute('href')).toBe(
+      '/search?page=7',
+    );
+    expect(screen.queryByText(/Showing the first/)).toBeNull();
   });
 });
 

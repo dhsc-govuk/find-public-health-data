@@ -1,5 +1,6 @@
 import { MAX_INDICATOR_QUERY_LENGTH } from '@fphd/public-api-features/contract';
 import { apiContext } from '@fphd/web-server/api-context';
+import { searchPageSizeContext } from '@fphd/web-server/search-page-size-context';
 import {
   createFakeApiClient,
   type FakeApiCall,
@@ -70,6 +71,7 @@ function searchPath(client: FakeApiClient) {
 function loaderArgs(client: FakeApiClient, url = 'http://localhost/search'): LoaderFunctionArgs {
   const context = new RouterContextProvider();
   context.set(apiContext, client);
+  context.set(searchPageSizeContext, 50);
   return { context, params: {}, request: new Request(url) } as unknown as LoaderFunctionArgs;
 }
 
@@ -87,7 +89,7 @@ describe('loadSearchPage', () => {
 
     expect(result.q).toBe(expected);
     expect(paths(client)).toContain(
-      `/api/indicators/search${expected ? `?q=${encodeURIComponent(expected)}` : ''}`,
+      `/api/indicators/search?${expected ? `q=${encodeURIComponent(expected)}&` : ''}page=1&limit=50`,
     );
   });
 
@@ -99,14 +101,82 @@ describe('loadSearchPage', () => {
     );
 
     expect(result.sort).toBe('recently-updated');
-    expect(searchPath(client)).toBe('/api/indicators/search?q=diabetes&sort=recently-updated');
+    expect(searchPath(client)).toBe(
+      '/api/indicators/search?q=diabetes&sort=recently-updated&page=1&limit=50',
+    );
   });
 
   it('sorts browse-all by recently updated without a keyword', async () => {
     const client = api();
     await loadSearchPage(loaderArgs(client, 'http://localhost/search?sort=recently-updated'), true);
 
-    expect(searchPath(client)).toBe('/api/indicators/search?sort=recently-updated');
+    expect(searchPath(client)).toBe('/api/indicators/search?sort=recently-updated&page=1&limit=50');
+  });
+
+  it('asks the API for the page in the URL, at the configured page size, and returns it', async () => {
+    const client = api({
+      'GET /api/indicators/search': { total: 120, limit: 10, page: 2, indicators: [] },
+    });
+    const args = loaderArgs(client, 'http://localhost/search?q=diabetes&page=2');
+    args.context.set(searchPageSizeContext, 10);
+    const result = await loadSearchPage(args, true);
+
+    expect(searchSent(client).get('page')).toBe('2');
+    expect(searchSent(client).get('limit')).toBe('10');
+    expect(result.searchResult.page).toBe(2);
+  });
+
+  it.each([
+    ['one past the last page to the last', '9', '9', 3],
+    ['page 0 to the first', '0', '1', 1],
+    ['a page that is not a number to the first', 'two', '1', 1],
+  ])('redirects %s', async (_name, page, sent, answered) => {
+    const client = api({
+      'GET /api/indicators/search': { total: 120, limit: 50, page: answered, indicators: [] },
+    });
+
+    await expect(
+      loadSearchPage(
+        loaderArgs(client, `http://localhost/search?q=rate&page=${page}&sort=recently-updated`),
+        true,
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) =>
+        response.status === 302 &&
+        response.headers.get('Location') ===
+          `/search?q=rate&page=${answered}&sort=recently-updated`,
+    );
+    expect(searchSent(client).get('page')).toBe(sent);
+  });
+
+  it('redirects a client-side navigation to the page rather than its data', async () => {
+    const client = api({
+      'GET /api/indicators/search': { total: 120, limit: 50, page: 3, indicators: [] },
+    });
+
+    await expect(
+      loadSearchPage(
+        loaderArgs(client, 'http://localhost/search.data?page=9&_routes=search%2Froute'),
+        true,
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) => response.headers.get('Location') === '/search?page=3',
+    );
+  });
+
+  it('starts again from the first page when a filter is added by name', async () => {
+    const client = api({
+      'GET /api/indicators/facets': { ...EMPTY_FACETS, valueTypes: ['Proportion'] },
+    });
+
+    await expect(
+      loadSearchPage(
+        loaderArgs(client, 'http://localhost/search?q=rate&page=4&vt-add=proportion'),
+        true,
+      ),
+    ).rejects.toSatisfy(
+      (response: Response) => response.headers.get('Location') === '/search?q=rate&vt=Proportion',
+    );
   });
 
   it.each(['', '&sort=relevance', '&sort=name-desc', '&sort=nonsense'])(

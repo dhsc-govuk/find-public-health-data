@@ -1,10 +1,15 @@
-import { InsetText, Select, SummaryList } from '@fphd/ui';
+import { InsetText, Pagination, Select, SummaryList } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import type { SearchSort } from '@fphd/utils/indicator-sort';
-import { Form, Link } from 'react-router';
+import { useEffect, useRef } from 'react';
+import { Form, Link, useLocation } from 'react-router';
 import { HiddenFilters } from './filter-fields.tsx';
 import type { IndicatorSearchResult, IndicatorSearchRow } from './loader.ts';
-import type { SearchState } from './url.ts';
+import { searchPageCount } from './pagination.ts';
+import { type SearchState, searchUrl } from './url.ts';
+
+/** The navigation state of a page link, which moves focus to the results heading once it loads. */
+const FOCUS_RESULTS = 'focusResults';
 
 const SEARCH_SORT_OPTIONS: { value: SearchSort; label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -64,8 +69,26 @@ export function SearchResults({
   state,
   extraParams,
 }: SearchResultsProps) {
-  const { total, limit, indicators } = searchResult;
-  const capped = total > limit;
+  const { total, limit, indicators, page = 1 } = searchResult;
+  const totalPages = searchPageCount(total, limit);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const location = useLocation();
+  const shownLocation = useRef(location.key);
+  useEffect(() => {
+    if (location.key === shownLocation.current) return;
+    shownLocation.current = location.key;
+    if (location.state?.[FOCUS_RESULTS] !== true) return;
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({ block: 'start' });
+  }, [location]);
+  const pageParams = sort === 'relevance' ? extraParams : { ...extraParams, sort };
+  // FIXME(FPH-799): NotGovUK Pagination marks the current link from the URL query, not from
+  // currentPage, so every link names its page, page 1 included. Drop page=1 once it uses currentPage.
+  const pageLink = (n: number) => ({
+    href: searchUrl(state, '/search', { ...pageParams, page: String(n) }),
+    preventScrollReset: true,
+    state: { [FOCUS_RESULTS]: true },
+  });
   const geography = new URLSearchParams([
     ...gaCodes.map((code) => ['as', code]),
     ...geoLevels.map((level) => ['als', level]),
@@ -75,12 +98,21 @@ export function SearchResults({
     <>
       <div className="fphd-results-sort fphd-search-sort govuk-!-margin-top-4 govuk-!-margin-bottom-3">
         <h2
-          aria-atomic="true"
-          aria-live="polite"
           className="govuk-heading-m govuk-!-margin-bottom-0"
           id="results-heading"
+          ref={heading}
+          tabIndex={-1}
         >
-          {total.toLocaleString()} {total === 1 ? 'indicator' : 'indicators'}
+          {/* Only the count is live. A page link moves focus to the heading, which reads the
+              page number out, so a new page is not announced a second time. */}
+          <span aria-atomic="true" aria-live="polite">
+            {total.toLocaleString()} {total === 1 ? 'indicator' : 'indicators'}
+          </span>
+          {totalPages > 1 ? (
+            <span className="govuk-visually-hidden">
+              , page {page} of {totalPages}
+            </span>
+          ) : null}
         </h2>
         <Form action="/search" className="fphd-sort-inline" method="get" preventScrollReset>
           <HiddenFilters state={state} extraParams={extraParams} />
@@ -118,11 +150,12 @@ export function SearchResults({
             ))}
           </ul>
 
-          {capped ? (
-            <p className="govuk-body govuk-!-margin-top-3">
-              Showing the first {limit.toLocaleString()} of {total.toLocaleString()}. Add a filter
-              to narrow the list.
-            </p>
+          {totalPages > 1 ? (
+            <Pagination
+              currentPage={page}
+              landmarkLabel="Search results pages"
+              links={Array.from({ length: totalPages }, (_, index) => pageLink(index + 1))}
+            />
           ) : null}
         </>
       )}

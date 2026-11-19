@@ -7,6 +7,7 @@ import { feedbackMailboxContext } from '@fphd/web-server/feedback-mailbox-contex
 import { loggerContext } from '@fphd/web-server/logger-context';
 import { createReactRouterApp } from '@fphd/web-server/react-router';
 import { forwardedRequestIdHeaders } from '@fphd/web-server/request-id-headers';
+import { searchPageSizeContext } from '@fphd/web-server/search-page-size-context';
 
 import * as config from './config.ts';
 
@@ -29,6 +30,7 @@ export const app = createReactRouterApp(() => import('virtual:react-router/serve
     context.set(betaAccessContext, betaAccess);
     context.set(environmentContext, config.environmentName);
     context.set(feedbackMailboxContext, config.feedbackMailbox);
+    context.set(searchPageSizeContext, config.searchPageSize);
     context.set(
       apiContext,
       createApiClient({

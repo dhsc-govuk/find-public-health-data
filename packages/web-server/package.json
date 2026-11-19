@@ -70,6 +70,11 @@
       "types": "./src/request-id-headers.ts",
       "default": "./dist/request-id-headers.js"
     },
+    "./search-page-size-context": {
+      "development": "./src/search-page-size-context.ts",
+      "types": "./src/search-page-size-context.ts",
+      "default": "./dist/search-page-size-context.js"
+    },
     "./session": {
       "development": "./src/session.ts",
       "types": "./src/session.ts",
