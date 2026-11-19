@@ -614,6 +614,17 @@ describe('the overview for a chosen area', () => {
     ]);
   });
 
+  it('keeps the chosen area without a note when the topic has no indicators', async () => {
+    const api = trendsApi({});
+    const page = await loadTopicPage(
+      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E12000001'),
+    );
+    const overview = await page.overview;
+    expect(overview?.trends.total).toBe(0);
+    expect(overview?.area).toEqual({ code: 'E12000001', name: 'North East' });
+    expect(overview?.unavailableArea).toBeUndefined();
+  });
+
   it('counts England when no known area is chosen', async () => {
     const api = trendsApi({ E92000001: 5 });
     const page = await loadTopicPage(

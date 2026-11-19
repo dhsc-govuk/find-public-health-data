@@ -170,10 +170,14 @@ export async function loadTopic(
           topicTrendSummarySchema,
         );
     // An area with no data for any of the topic's indicators shows England's figures instead.
+    // A topic with no indicators at all keeps the chosen area, as England has nothing to show.
     const areaTrends = async () => {
       const trends = await trendsFor(chosen);
       if (!chosen || trends.total > 0) return { trends, unavailable: false };
-      return { trends: await trendsFor(), unavailable: true };
+      const england = await trendsFor();
+      return england.total > 0
+        ? { trends: england, unavailable: true }
+        : { trends, unavailable: false };
     };
     const highlighted = async () => {
       const preferred = topic.content?.highlightedIndicatorIds ?? [];
