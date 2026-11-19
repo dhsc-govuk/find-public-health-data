@@ -219,6 +219,20 @@ describe('public routers against the seeded database', () => {
     }
   });
 
+  it("serves a rate's numerators as counts in table batches", async () => {
+    const response = await request(app).get('/api/indicator-data?indicator=108');
+    const observations = indicatorTableDataSchema
+      .parse(response.body)
+      .flatMap(({ areaData }) => areaData.flatMap((area) => area.observations));
+
+    expect(observations.length).toBeGreaterThan(0);
+    expect(observations.every(({ count }) => count !== null)).toBe(true);
+    const raw = response.body.flatMap((entry: { areaData: { observations: object[] }[] }) =>
+      entry.areaData.flatMap((area) => area.observations),
+    );
+    expect(raw.every((point: object) => !('numerator' in point))).toBe(true);
+  });
+
   it('serves the prototype diabetes indicator across GP, NHS and local geographies', async () => {
     const detail = await request(app).get('/api/indicators/241');
 
