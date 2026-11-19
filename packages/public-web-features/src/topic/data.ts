@@ -98,6 +98,19 @@ export function topicColumns(params: URLSearchParams): TopicColumn[] {
   return TOPIC_COLUMNS.map(({ value }) => value).filter((value) => selected.includes(value));
 }
 
+/**
+ * The query for the "Download all data" CSV: every topic indicator for England, with every
+ * column the Display options offer, whichever columns the table is showing.
+ */
+export function topicAllDataSearch(): string {
+  return new URLSearchParams({
+    'tab-topic': 'data',
+    'columns-topic': TOPIC_COLUMNS.map(({ value }) => value)
+      .filter((value) => !TOPIC_AREA_COLUMNS.includes(value))
+      .join(','),
+  }).toString();
+}
+
 export function topicSubtopics(entry: SelectedIndicator, topicSlug: string): string[] {
   return (
     entry.detail.topics

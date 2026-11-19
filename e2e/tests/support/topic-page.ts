@@ -522,6 +522,30 @@ export function topicPageTests() {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('downloads every column in all data whichever columns the table shows', async ({ page }) => {
+    await openTopicPage(page, '/topics/diabetes?tab-topic=data');
+    const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+    const table = panel.getByRole('table');
+    await panel.getByRole('button', { name: 'Table columns', exact: true }).click();
+    await panel.getByRole('checkbox', { name: 'Most recent period', exact: true }).uncheck();
+    await expect(
+      table.getByRole('columnheader', { name: 'Most recent period', exact: true }),
+    ).toHaveCount(0);
+    await panel.getByText('Download or share data', { exact: true }).click();
+    const csv = await downloadFrom(page, 'Download all data (CSV)', 'link');
+    const [header] = parse(csv.text, { to_line: 1 }) as string[][];
+    expect(header).toEqual([
+      'Indicator',
+      'Subtopic',
+      'Unit',
+      'Most recent period',
+      'Last updated',
+      'England trend (last 5 periods)',
+      'England count',
+      'England calculated value',
+    ]);
+  });
+
   test('keeps topic data columns readable and scrollable at every width', async ({
     page,
   }, testInfo) => {
