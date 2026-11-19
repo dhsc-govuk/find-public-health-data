@@ -30,7 +30,7 @@
 # The runtime stage runs `apk upgrade` so security fixes apply at build time rather than waiting
 # for the base image to be rebuilt with them — a red scan means a fix apk could not deliver,
 # not upstream rebuild lag. The builder stage skips it; nothing in it ships.
-FROM node:26-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS base
+FROM node:26-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 # Node stopped shipping corepack in version 25, so it comes from npm at the version the catalog
 # pins. Corepack then fetches the pnpm that package.json's packageManager names and checks it
@@ -69,7 +69,7 @@ RUN test -n "${APP}" && test -d "apps/${APP}" \
 # not use.
 RUN pnpm deploy --filter "@fphd/${APP}" --prod --legacy /out
 
-FROM node:26-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS runtime
+FROM node:26-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS runtime
 ENV NODE_ENV=production
 # Container Apps stops a revision with SIGTERM, and the kernel discards a default-action
 # signal sent to PID 1 unless that process installed a handler — which Node does not do for
