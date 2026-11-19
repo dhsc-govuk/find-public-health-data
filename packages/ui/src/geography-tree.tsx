@@ -63,6 +63,23 @@ interface GeographyTreeProps {
   regionAreasNoun?: string;
 }
 
+/**
+ * Single-choice mode lists an area under every type it belongs to, such as a unitary authority
+ * under both council tiers, and a browser checks only one radio with that value. The checked one
+ * is the radio the user clicked, or else the area under the first type that lists it.
+ */
+function checkedRadioGroup(
+  code: string | undefined,
+  groups: { name: string; areas: GeographyArea[] }[],
+  clicked: { group: string; code: string } | undefined,
+): string | undefined {
+  if (code === undefined) return undefined;
+  const listing = groups
+    .filter(({ areas }) => areas.some((area) => area.code === code))
+    .map(({ name }) => name);
+  return clicked?.code === code && listing.includes(clicked.group) ? clicked.group : listing[0];
+}
+
 // The page preloads one extra row to tell us whether a level exceeds the rendered cap;
 // search reaches everything server-side regardless.
 const CHILD_CAP = 100;
@@ -125,6 +142,8 @@ export function GeographyTree({
   );
   const [retry, setRetry] = useState(0);
   const [closedRegions, setClosedRegions] = useState<string[]>([]);
+  const [searchCollapsed, setSearchCollapsed] = useState<string[]>([]);
+  const [clickedRadio, setClickedRadio] = useState<{ group: string; code: string }>();
   const [regionAnnouncement, setRegionAnnouncement] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const levelRequests = useRef(new Map<string, AbortController>());
@@ -256,6 +275,10 @@ export function GeographyTree({
     (flat ||
       (completedQuery !== null &&
         (searchGroups.length > 0 || (completedQuery === query.trim() && searchStatus === 'idle'))));
+  // Single-choice search results show each type as a heading, so a type with no match is left out.
+  const searchResultGroups = single
+    ? searchGroups.filter(({ areas }) => areas.length > 0)
+    : searchGroups;
   const groups =
     flat && searching
       ? browseGroups.map((group) => ({
@@ -267,8 +290,13 @@ export function GeographyTree({
           ),
         }))
       : showingSearchResults
-        ? searchGroups
+        ? searchResultGroups
         : browseGroups;
+  const isOpenGroup = (groupName: string) =>
+    flat ||
+    (showingSearchResults
+      ? !(single && searchCollapsed.includes(groupName))
+      : expanded.includes(groupName));
   const shownFor = (group: { name: string; areas: GeographyArea[] }) =>
     // Ticked areas stay rendered past the cap, so their state remains visible.
     group.areas
@@ -303,11 +331,18 @@ export function GeographyTree({
           ...regionView.ungrouped,
         ].map(({ code }) => code)
       : groups
-          .filter(
-            ({ name: groupName }) => flat || showingSearchResults || expanded.includes(groupName),
-          )
+          .filter(({ name: groupName }) => isOpenGroup(groupName))
           .flatMap((group) => shownFor(group).map(({ code }) => code)),
   );
+  const checkedGroup = single
+    ? checkedRadioGroup(
+        selected[0],
+        groups
+          .filter(({ name: groupName }) => isOpenGroup(groupName))
+          .map((group) => ({ name: group.name, areas: shownFor(group) })),
+        clickedRadio,
+      )
+    : undefined;
 
   return (
     <div>
@@ -330,7 +365,10 @@ export function GeographyTree({
           id={`${idPrefix}-search`}
           name="geo-q"
           maxLength={100}
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+            setSearchCollapsed([]);
+          }}
           placeholder={searchHint ? undefined : 'Type to find geographies'}
           type="search"
           value={query}
@@ -481,7 +519,7 @@ export function GeographyTree({
           ) : null}
           {(regionView ? [] : groups).map((group) => {
             const AreaChoices = single ? Radios : Checkboxes;
-            const isOpen = flat || showingSearchResults || expanded.includes(group.name);
+            const isOpen = isOpenGroup(group.name);
             const isLoading = !showingSearchResults && loaded[group.name] === 'loading';
             const groupId = `${idPrefix}-grp-${group.name.toLowerCase().replace(/\W+/g, '-')}`;
             const shown = shownFor(group);
@@ -507,11 +545,19 @@ export function GeographyTree({
                   <div
                     className={`fphd-geo-alt__group${single ? ' fphd-geo-alt__group--single' : ''}`}
                   >
-                    {showingSearchResults ? null : (
+                    {showingSearchResults && !single ? null : (
                       <button
                         aria-expanded={isOpen}
                         className={`fphd-geo-alt__toggle${isOpen ? ' fphd-geo-alt__toggle--open' : ''}`}
-                        onClick={() => toggleExpanded(group.name)}
+                        onClick={() =>
+                          showingSearchResults
+                            ? setSearchCollapsed((current) =>
+                                current.includes(group.name)
+                                  ? current.filter((value) => value !== group.name)
+                                  : [...current, group.name],
+                              )
+                            : toggleExpanded(group.name)
+                        }
                         type="button"
                       >
                         <span className="fphd-geo-alt__chevron" aria-hidden="true" />
@@ -570,15 +616,20 @@ export function GeographyTree({
                             <span className="govuk-visually-hidden">Areas in {group.name}</span>
                           }
                           name={name}
-                          onChange={(event) =>
-                            single
-                              ? onChange([event.target.value])
-                              : toggleArea(event.target.value, event.target.checked)
-                          }
+                          onChange={(event) => {
+                            if (!single) {
+                              toggleArea(event.target.value, event.target.checked);
+                              return;
+                            }
+                            setClickedRadio({ group: group.name, code: event.target.value });
+                            onChange([event.target.value]);
+                          }}
                           classModifiers="small"
                           options={shown.map((area) => ({
                             label: area.name,
-                            checked: selected.includes(area.code),
+                            checked: single
+                              ? group.name === checkedGroup && area.code === selected[0]
+                              : selected.includes(area.code),
                             value: area.code,
                             disabled: !single && !selected.includes(area.code) && atCap,
                           }))}
