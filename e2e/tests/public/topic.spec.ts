@@ -93,27 +93,41 @@ for (const javaScriptEnabled of [true, false]) {
   });
 }
 
-test('shows indicators without a trend at the bottom of the list under every trend sort', async ({
-  page,
-}, testInfo) => {
-  const expectTrendUnavailableLast = (trends: string[]) => {
-    const unavailable = trends.map((trend) => trend.includes('Trend unavailable'));
-    expect(unavailable).toContain(true);
-    expect(unavailable).toContain(false);
-    expect(unavailable).toEqual(unavailable.toSorted((a, b) => Number(a) - Number(b)));
-  };
-  for (const sort of ['trend-desc', 'trend-asc', 'trend-better', 'trend-worse']) {
-    await openTopicPage(page, `/topics/diabetes?tab-topic=data&sort=${sort}`);
-    const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
-    await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
-    expectTrendUnavailableLast(await panel.getByRole('table').locator('tbody tr').allInnerTexts());
-    await panel.getByText('Download or share data', { exact: true }).click();
-    const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
-    const rows = parse(text, { columns: true }) as Record<string, string>[];
-    expectTrendUnavailableLast(rows.map((row) => row['England trend (last 5 periods)'] ?? ''));
-  }
-  await expectNoAccessibilityViolations(page, testInfo);
-});
+for (const { title, query, area } of [
+  {
+    title: 'shows indicators without a trend at the bottom of the list under every trend sort',
+    query: '',
+    area: 'England',
+  },
+  {
+    title:
+      'shows indicators without a trend for the chosen area at the bottom of the list under every trend sort',
+    query: '&ga=E12000007',
+    area: 'London',
+  },
+]) {
+  test(title, async ({ page }, testInfo) => {
+    const expectTrendUnavailableLast = (trends: string[]) => {
+      const unavailable = trends.map((trend) => trend.includes('Trend unavailable'));
+      expect(unavailable).toContain(true);
+      expect(unavailable).toContain(false);
+      expect(unavailable).toEqual(unavailable.toSorted((a, b) => Number(a) - Number(b)));
+    };
+    for (const sort of ['trend-desc', 'trend-asc', 'trend-better', 'trend-worse']) {
+      await openTopicPage(page, `/topics/diabetes?tab-topic=data&sort=${sort}${query}`);
+      const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+      await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
+      const table = panel.getByRole('table');
+      await expect(table.getByRole('columnheader', { name: area, exact: true })).toBeVisible();
+      expectTrendUnavailableLast(await table.locator('tbody tr').allInnerTexts());
+      await panel.getByText('Download or share data', { exact: true }).click();
+      const { text } = await downloadFrom(page, 'Download filtered data (CSV)', 'link');
+      const rows = parse(text, { columns: true }) as Record<string, string>[];
+      expectTrendUnavailableLast(rows.map((row) => row[`${area} trend (last 5 periods)`] ?? ''));
+    }
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+}
 
 test('keeps unchecked comparison columns off after removing and re-adding an area', async ({
   page,

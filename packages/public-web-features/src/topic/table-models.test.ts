@@ -631,11 +631,18 @@ describe('trend sorts', () => {
       detail: { ...entry.detail, shortId, name, slug: `indicator-${shortId}`, polarity },
       areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: england }],
     }) as SelectedIndicator;
-  const withArea = (selected: SelectedIndicator, observations: IndicatorObservation[]) => ({
+  const withAreas = (
+    selected: SelectedIndicator,
+    areas: Record<string, IndicatorObservation[]>,
+  ): SelectedIndicator => ({
     ...selected,
     areaData: [
+      ...Object.entries(areas).map(([areaName, observations]) => ({
+        areaCode: areaName === 'London' ? 'E12000007' : 'E12000001',
+        areaName,
+        observations,
+      })),
       ...selected.areaData,
-      { areaCode: 'E12000001', areaName: 'North East', observations },
     ],
   });
   const rising = [20, 21, 22, 23, 24, 25];
@@ -652,7 +659,7 @@ describe('trend sorts', () => {
     model.rows.map(({ name, suffix }) => (suffix ? `${name} ${suffix}` : name));
 
   it.each(['trend-desc', 'trend-asc', 'trend-better', 'trend-worse'] as const)(
-    'puts rows whose England trend is unavailable last under %s, keeping each group’s order',
+    'puts rows whose England trend is unavailable last under %s when no area is picked, keeping each group’s order',
     (sort) => {
       const model = topicDataTableModel(selected, 'diabetes', undefined, sort);
       expect(names(model)).toEqual([
@@ -685,15 +692,38 @@ describe('trend sorts', () => {
     },
   );
 
-  it('keeps the listed order when an area is picked', () => {
+  it('puts rows whose picked area’s trend is unavailable last, whatever England’s trend', () => {
     const compared = [
-      withArea(multiYear, years(rising)),
-      withArea(gettingWorse, years([20, 21])),
-      ...others.map((each) => withArea(each, years(rising))),
+      withAreas(multiYear, { 'North East': years(rising) }),
+      withAreas(gettingWorse, { 'North East': years([20, 21]) }),
+      ...others.map((each) => withAreas(each, { 'North East': years(rising) })),
     ];
     const model = topicDataTableModel(compared, 'diabetes', undefined, 'trend-worse');
-    expect(model.compared).toBe(true);
-    expect(names(model)).toEqual(names(topicDataTableModel(selected, 'diabetes')));
+    expect(model.areas).toEqual([{ code: 'E12000001', name: 'North East' }]);
+    expect(names(model)).toEqual([
+      'Multi-year periods',
+      'Too few points',
+      'No polarity',
+      'No significant change',
+      'Getting worse',
+    ]);
+    expect(model.rows.map(({ cells }) => cells[0]?.trend.direction ?? null)).toEqual([
+      'up',
+      'up',
+      'up',
+      'up',
+      null,
+    ]);
+  });
+
+  it('reads the first area column the table shows, not the first area picked', () => {
+    const compared = [
+      withAreas(multiYear, { 'North East': years([20, 21]), London: years(rising) }),
+      withAreas(gettingWorse, { 'North East': years(rising), London: years([20, 21]) }),
+    ];
+    const model = topicDataTableModel(compared, 'diabetes', undefined, 'trend-desc');
+    expect(model.areas.map(({ name }) => name)).toEqual(['London', 'North East']);
+    expect(names(model)).toEqual(['Multi-year periods', 'Getting worse']);
   });
 
   it('moves only the row of an indicator whose England trend is unavailable', () => {
