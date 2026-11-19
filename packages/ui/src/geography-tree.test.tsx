@@ -232,6 +232,18 @@ describe('GeographyTree single-choice search results', () => {
     expect((radioIn('Upper-tier local authorities') as HTMLInputElement).checked).toBe(false);
     expect((radioIn('Lower-tier local authorities') as HTMLInputElement).checked).toBe(true);
   });
+
+  it('checks the first type again once the area is chosen somewhere else', () => {
+    const { rerender } = renderSearch([]);
+
+    fireEvent.click(radioIn('Lower-tier local authorities'));
+    rerender(['E06000052']);
+    rerender([]);
+    rerender(['E06000052']);
+
+    expect((radioIn('Upper-tier local authorities') as HTMLInputElement).checked).toBe(true);
+    expect((radioIn('Lower-tier local authorities') as HTMLInputElement).checked).toBe(false);
+  });
 });
 
 describe('GeographyTree regions', () => {

@@ -144,6 +144,12 @@ export function GeographyTree({
   const [closedRegions, setClosedRegions] = useState<string[]>([]);
   const [searchCollapsed, setSearchCollapsed] = useState<string[]>([]);
   const [clickedRadio, setClickedRadio] = useState<{ group: string; code: string }>();
+  const [previousChoice, setPreviousChoice] = useState(selected[0]);
+  // An area chosen or cleared elsewhere, such as on another tab, forgets the radio clicked here.
+  if (selected[0] !== previousChoice) {
+    setPreviousChoice(selected[0]);
+    if (clickedRadio && clickedRadio.code !== selected[0]) setClickedRadio(undefined);
+  }
   const [regionAnnouncement, setRegionAnnouncement] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const levelRequests = useRef(new Map<string, AbortController>());
