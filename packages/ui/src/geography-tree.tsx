@@ -670,6 +670,11 @@ export function GeographyTree({
         .map((code) => (
           <input key={code} name={name} type="hidden" value={code} />
         ))}
+      {single && selected[0] !== undefined && checkedGroup === undefined ? (
+        // A radio rather than a hidden field, so that choosing another area's radio without
+        // JavaScript unchecks it and the form submits only the new area.
+        <input checked hidden name={name} readOnly type="radio" value={selected[0]} />
+      ) : null}
     </div>
   );
 }
