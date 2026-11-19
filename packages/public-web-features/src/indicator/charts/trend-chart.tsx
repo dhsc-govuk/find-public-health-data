@@ -40,8 +40,9 @@ import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
 
+/** Lines of at most half the chart's width, so a long title still reads as the axis's. */
 export function trendTitleLines(title: string, width: number) {
-  const characters = Math.max(20, Math.floor((width - 16) / 7.4));
+  const characters = Math.max(20, Math.floor(width / 2 / 7.4));
   return title.split(' ').reduce<string[]>((lines, word) => {
     const last = lines.at(-1);
     if (last && last.length + word.length + 1 <= characters)

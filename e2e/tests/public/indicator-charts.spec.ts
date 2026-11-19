@@ -35,20 +35,25 @@ for (const count of [1, 2, 8, 12]) {
         region.locator('.fphd-chart-canvas').nth(1).locator('.recharts-label'),
       ).toHaveText('Period');
       const title = chart.locator('.fphd-line-axis-title');
-      const axis = chart.locator('.recharts-yAxis .recharts-cartesian-axis-line');
+      const surface = chart.locator('svg.recharts-surface').first();
       await expect(title).toBeVisible();
-      if (width === 1020) await expect(title.locator('tspan')).toHaveCount(1);
       // The title is measured after the chart first draws, so its position settles a frame later.
+      // Lines wrap at half the chart's width by a character estimate, so the check allows a little over.
       await expect
         .poll(async () => {
-          const [titleBox, axisBox] = await Promise.all([title.boundingBox(), axis.boundingBox()]);
-          if (!titleBox || !axisBox) return null;
+          const [titleBox, chartBox] = await Promise.all([
+            title.boundingBox(),
+            surface.boundingBox(),
+          ]);
+          if (!titleBox || !chartBox) return null;
           return {
-            insidePage: titleBox.x >= 0 && titleBox.x + titleBox.width <= width,
-            centred: Math.abs(titleBox.x + titleBox.width / 2 - axisBox.x) < 1,
+            insideChart:
+              titleBox.x >= chartBox.x &&
+              titleBox.x + titleBox.width <= chartBox.x + chartBox.width,
+            atMostHalfTheChart: titleBox.width <= chartBox.width * 0.55,
           };
         })
-        .toEqual({ insidePage: true, centred: true });
+        .toEqual({ insideChart: true, atMostHalfTheChart: true });
       await expect(chart.locator('.fphd-chart-series-label')).toHaveCount(
         width === 375 ? 0 : count,
       );

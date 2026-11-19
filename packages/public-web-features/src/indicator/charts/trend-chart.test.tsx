@@ -90,13 +90,13 @@ it('does not describe a direction for an entirely null series', () => {
   expect(container.textContent).not.toMatch(/up from|down from|the same as/);
 });
 
-it('wraps the y-axis title only when it exceeds the chart width', () => {
+it('wraps the y-axis title at half the chart width', () => {
   const title = 'Under 75 mortality rate from all causes (per 100,000)';
-  expect(trendTitleLines(title, 700)).toEqual([title]);
-  const lines = trendTitleLines(title, 345);
+  expect(trendTitleLines(title, 1400)).toEqual([title]);
+  const lines = trendTitleLines(title, 700);
   expect(lines.length).toBeGreaterThan(1);
   expect(lines.join(' ')).toBe(title);
-  expect(lines.every((line) => line.length <= Math.floor((345 - 16) / 7.4))).toBe(true);
+  expect(lines.every((line) => line.length <= Math.floor(700 / 2 / 7.4))).toBe(true);
 });
 
 it('keeps a long y-axis title inside the chart', () => {
@@ -110,6 +110,7 @@ it('keeps a long y-axis title inside the chart', () => {
     />,
   );
   const lines = [...container.querySelectorAll('.fphd-line-axis-title tspan')];
+  expect(lines.length).toBeGreaterThan(1);
   const longest = Math.max(...lines.map((line) => line.textContent?.length ?? 0));
   for (const line of lines) {
     expect(Number(line.getAttribute('x')) - (longest * 7.4) / 2).toBeGreaterThanOrEqual(0);
@@ -126,6 +127,7 @@ it('centres a short y-axis title over the axis', () => {
     />,
   );
   const axis = container.querySelector('.recharts-yAxis .recharts-cartesian-axis-line');
+  expect(axis).not.toBeNull();
   expect(container.querySelector('.fphd-line-axis-title tspan')?.getAttribute('x')).toBe(
     axis?.getAttribute('x1'),
   );
