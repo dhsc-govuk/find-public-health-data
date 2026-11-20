@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { IndicatorDetail, IndicatorPageDetail } from './loader.ts';
-import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
+import { BackgroundInformation, IndicatorDefinition, IndicatorSummary } from './metadata.tsx';
 
 afterEach(cleanup);
 
@@ -154,6 +154,30 @@ describe('IndicatorSummary', () => {
     renderSummary({ ...indicator, updateFrequency: 'no-fixed-frequency' });
 
     expect(summaryRow('Update frequency')).toBe('No fixed frequency');
+  });
+
+  it('leaves the definition out of the summary', () => {
+    renderSummary({ ...indicator, definition: 'Deaths under 75 per 100,000 people.' });
+
+    expect(summaryRow('Definition')).toBeUndefined();
+    expect(screen.queryByText('Deaths under 75 per 100,000 people.')).toBeNull();
+  });
+});
+
+describe('IndicatorDefinition', () => {
+  it('shows the definition in a two-thirds column, keeping its line breaks', () => {
+    render(<IndicatorDefinition text={'Deaths under 75.\n\nPer 100,000 people.'} />);
+
+    const definition = screen.getByText(/^Deaths under 75\./);
+    expect(definition.tagName).toBe('P');
+    expect(definition.className).toContain('fphd-metadata-text');
+    expect(definition.parentElement?.className).toBe('govuk-grid-column-two-thirds');
+  });
+
+  it('shows nothing for an indicator with no definition', () => {
+    const { container } = render(<IndicatorDefinition text={null} />);
+
+    expect(container.innerHTML).toBe('');
   });
 });
 

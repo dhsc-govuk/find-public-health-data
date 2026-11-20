@@ -681,6 +681,11 @@ body:has(.fphd-single-indicator-page, .fphd-topic-page, .fphd-topics-page)
       min-width: 0;
       float: none;
     }
+
+    // The definition's column stands alone in its row, so it keeps its two-thirds width.
+    .fphd-indicator-definition > .govuk-grid-column-two-thirds {
+      flex-grow: 0;
+    }
   }
 }
 

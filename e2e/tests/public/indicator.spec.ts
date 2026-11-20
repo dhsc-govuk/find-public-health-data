@@ -94,7 +94,6 @@ test('shows one indicator with its summary and five sections', async ({ page }, 
       .filter({ has: page.getByRole('term').filter({ hasText: name }) });
   await expect(summaryRow('Period covered')).toContainText('2015 to 2024');
   await expect(summaryRow('Update frequency')).toContainText('Annually');
-  await expect(summaryRow('Definition')).toContainText('Directly age-standardised mortality rate');
   await expect(page.getByRole('tab')).toHaveText([
     'Indicator',
     'Compare areas',
@@ -108,6 +107,31 @@ test('shows one indicator with its summary and five sections', async ({ page }, 
   );
   await expect(page.getByRole('table', { name: /^Table:/ })).toBeVisible();
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('shows the definition on its own between the heading and the summary', async ({ page }) => {
+  const heading = page.getByRole('heading', { level: 1, name: MORTALITY_NAME });
+  const definition = page.getByText(/^Directly age-standardised mortality rate/);
+  const summary = page.locator('.fphd-indicator-summary');
+  await expect(definition).toBeVisible();
+  await expect(summary.getByRole('term').filter({ hasText: /^Definition$/ })).toHaveCount(0);
+  await expect(summary).not.toContainText('Directly age-standardised mortality rate');
+
+  const boxes = async () => {
+    const [headingBox, definitionBox, summaryBox] = await Promise.all(
+      [heading, definition, summary].map((locator) => locator.boundingBox()),
+    );
+    if (!headingBox || !definitionBox || !summaryBox) throw new Error('A part is not on screen');
+    expect(definitionBox.y).toBeGreaterThan(headingBox.y + headingBox.height);
+    expect(summaryBox.y).toBeGreaterThan(definitionBox.y + definitionBox.height);
+    return { headingWidth: headingBox.width, definitionWidth: definitionBox.width };
+  };
+
+  const desktop = await boxes();
+  expect(desktop.definitionWidth).toBeLessThan(desktop.headingWidth * 0.7);
+  await page.setViewportSize({ width: 375, height: 812 });
+  const mobile = await boxes();
+  expect(mobile.definitionWidth).toBeCloseTo(mobile.headingWidth, 0);
 });
 
 test('answers an unknown indicator with the not-found page', async ({ page }) => {

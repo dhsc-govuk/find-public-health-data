@@ -153,6 +153,19 @@ it('opens one indicator with the five prototype tabs and no selection controls',
   ).not.toContain('View chart data as a table');
 });
 
+it('shows the definition below the heading, before the summary and with no label', () => {
+  page([selected(241, 'Diabetes prevalence', 7.9)], '/indicator/indicator-241');
+
+  const heading = screen.getByRole('heading', { level: 1, name: 'Diabetes prevalence' });
+  const definition = screen.getByText('Diabetes prevalence definition');
+  expect(heading.className).toContain('govuk-!-margin-bottom-5');
+  expect(heading.nextElementSibling?.contains(definition)).toBe(true);
+  expect(heading.nextElementSibling?.nextElementSibling?.className).toContain(
+    'fphd-indicator-summary',
+  );
+  expect(screen.getAllByRole('term').map((term) => term.textContent)).not.toContain('Definition');
+});
+
 it("reads a placeholder in each data section of a preview's draft with no data to show", async () => {
   const { detail } = selected(241, 'Diabetes prevalence', 7.9);
   const Routes = createRoutesStub([
@@ -171,6 +184,7 @@ it("reads a placeholder in each data section of a preview's draft with no data t
   expect(
     (await screen.findByRole('heading', { level: 1, name: 'Diabetes prevalence' })).textContent,
   ).toBe('Diabetes prevalence');
+  expect(screen.getByText('Diabetes prevalence definition')).toBeTruthy();
   for (const name of ['Indicator', 'Compare areas', 'Compare indicators', 'Inequalities']) {
     expect(screen.getByRole('tabpanel', { name, hidden: true }).textContent).toBe(
       '[Not provided yet]',
