@@ -38,12 +38,12 @@ export interface InternalPreviewRepository {
 }
 
 /**
- * Whether `path` asks for the indicator's detail, which is all of the preview a user who doesn't
- * work on it may read. The public search shares the detail's shape of address.
+ * The one path a user who doesn't work on the indicator may ask its preview for: the detail, by
+ * the short id the preview page asks with. Only digits follow the prefix, so no other public
+ * route, such as the search or the facets, can match it in any case, encoding or with a trailing
+ * slash.
  */
-function isDetailPath(path: string): boolean {
-  return /^\/api\/indicators\/[^/]+$/.test(path) && path !== '/api/indicators/search';
-}
+const METADATA_ONLY_PATH = /^\/api\/indicators\/\d+$/;
 
 /**
  * The public API again, under `PREVIEW_API_PATH`, showing the indicator's draft or scheduled
@@ -66,7 +66,7 @@ export function indicatorPreviewRouter(
     const { id, access } = guardedIndicator(response);
     const metadataOnly = !canWorkOnIndicator(requireApiSession(response), access);
 
-    if (metadataOnly && !isDetailPath(request.path)) {
+    if (metadataOnly && !METADATA_ONLY_PATH.test(request.path)) {
       response.status(404).json({ error: 'not_found' });
       return;
     }

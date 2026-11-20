@@ -784,37 +784,59 @@ describe('the indicator preview', () => {
     expect(response.status).toBe(200);
   });
 
+  const teamB = createTestApp(
+    createFakeRepositories(),
+    createFakeInternalRepositories({
+      indicators: { findAccess: async () => ({ ...stepRow, teamId: TEAM_IDS.teamB }) },
+      preview: {
+        findVersion: async () => ({ id: 'version-id', slug: 'a-draft' }),
+        repositoriesFor: () => ({ ...previewed, findDataState: async () => 'ready' }),
+      },
+    }),
+  );
+
   it('answers a publisher in another team the detail alone, as metadata only', async () => {
-    const teamB = createTestApp(
-      createFakeRepositories(),
-      createFakeInternalRepositories({
-        indicators: { findAccess: async () => ({ ...stepRow, teamId: TEAM_IDS.teamB }) },
-        preview: {
-          findVersion: async () => ({ id: 'version-id', slug: 'a-draft' }),
-          repositoriesFor: () => ({ ...previewed, findDataState: async () => 'ready' }),
-        },
-      }),
-    );
-    const cookie = await createCookie(['publisher']);
+    const response = await request(teamB)
+      .get(`${prefix}/api/indicators/108`)
+      .set('Cookie', await createCookie(['publisher']));
 
-    const detail = await request(teamB).get(`${prefix}/api/indicators/108`).set('Cookie', cookie);
-    const data = await request(teamB)
-      .get(`${prefix}/api/indicators/108/data`)
-      .set('Cookie', cookie);
-    const search = await request(teamB)
-      .get(`${prefix}/api/indicators/search?q=draft`)
-      .set('Cookie', cookie);
-
-    expect(detail.status).toBe(200);
-    expect(detail.body).toEqual({
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
       name: 'A draft',
       unanswered: ['polarity'],
       dataState: 'metadata-only',
     });
-    expect(data.status).toBe(404);
-    expect(data.body).toEqual({ error: 'not_found' });
-    expect(search.status).toBe(404);
-    expect(search.body).toEqual({ error: 'not_found' });
+  });
+
+  it.each([
+    '/api/indicators/108/',
+    '/api/indicators/a-draft',
+    '/api/indicators/108/data',
+    '/api/indicators/108/areas',
+    '/api/indicators/search?q=draft',
+    '/api/indicators/Search?q=draft',
+    '/api/indicators/SEARCH?q=draft',
+    '/api/indicators/facets',
+    '/api/indicators/%73earch?q=draft',
+    '/api/indicators?q=draft',
+    '/api/indicator-data?indicator=108',
+    '/api/areas/lookup?areaCode=E92000001',
+    '/api/topics',
+  ])('answers a publisher in another team not found for %s', async (path) => {
+    const response = await request(teamB)
+      .get(`${prefix}${path}`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('serves the search in any case to a user who works on the indicator', async () => {
+    const response = await request(app)
+      .get(`${prefix}/api/indicators/Search?q=draft`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(200);
   });
 
   it('requires a session', async () => {
