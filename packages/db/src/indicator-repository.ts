@@ -127,7 +127,7 @@ function escapedSearchTerms(query: string): string[] {
   return query.trim().split(/\s+/).map(escapeLike);
 }
 
-/** The published indicator surface, ordered by name. */
+/** The published indicator surface, ordered by name and then short id. */
 export async function listPublishedIndicators(
   db: DatabaseReader,
   views: ViewSet,
@@ -136,7 +136,7 @@ export async function listPublishedIndicators(
   return db
     .select({ shortId: indicator.shortId, slug: indicator.slug, name: indicator.name })
     .from(indicator)
-    .orderBy(asc(indicator.name));
+    .orderBy(asc(indicator.name), asc(indicator.shortId));
 }
 
 /** Case-insensitive indicator lookup by name or exact identifier. */
@@ -157,6 +157,7 @@ export async function searchPublishedIndicators(
       sql`case when ${identifierMatch} then 0 when lower(${indicator.name}) = lower(${query}) then 1 when ${indicator.name} ilike ${`${escapeLike(query)}%`} then 2 else 3 end`,
       sql`position(lower(${query}) in lower(${indicator.name}))`,
       asc(indicator.name),
+      asc(indicator.shortId),
     )
     .limit(limit);
 }
