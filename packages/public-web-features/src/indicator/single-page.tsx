@@ -9,7 +9,7 @@ import { CompareIndicatorsTab } from './compare-tab.tsx';
 import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
 import type { IndicatorPageDetail, SelectedIndicator } from './loader.ts';
-import { BackgroundInformation, IndicatorSummary } from './metadata.tsx';
+import { BackgroundInformation, IndicatorDefinition, IndicatorSummary } from './metadata.tsx';
 import { summaryObservations } from './no-england.ts';
 import type { loadIndicatorPage } from './single-loader.ts';
 
@@ -120,7 +120,8 @@ function IndicatorPageLayout({
           ) : null}
         </ol>
       </nav>
-      <h1 className="govuk-heading-l govuk-!-margin-bottom-3">{detail.name}</h1>
+      <h1 className="govuk-heading-l govuk-!-margin-bottom-5">{detail.name}</h1>
+      <IndicatorDefinition text={detail.definition} />
       {summary}
       <Tabs
         contentReady={contentReady}

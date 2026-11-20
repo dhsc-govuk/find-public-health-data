@@ -25,6 +25,21 @@ export function DefinitionBlock({ title, text }: { title: string; text: string |
   );
 }
 
+/** The indicator's definition, in its own column below the page heading. */
+export function IndicatorDefinition({ text }: { text: string | null }) {
+  if (!text) {
+    return null;
+  }
+
+  return (
+    <GridRow className="fphd-indicator-definition">
+      <GridColumn width="two-thirds">
+        <p className="govuk-body govuk-!-font-size-16 fphd-metadata-text">{text}</p>
+      </GridColumn>
+    </GridRow>
+  );
+}
+
 export function sourceLink(source: IndicatorPageDetail['dataSource']) {
   if (!source) {
     return null;
@@ -200,14 +215,6 @@ export function IndicatorSummary({
                         ))}
                       </ul>
                     ),
-                  },
-                ]
-              : []),
-            ...(indicator.definition
-              ? [
-                  {
-                    name: 'Definition',
-                    children: <span className="fphd-metadata-text">{indicator.definition}</span>,
                   },
                 ]
               : []),
