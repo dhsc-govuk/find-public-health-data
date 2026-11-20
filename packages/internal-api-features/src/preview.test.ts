@@ -114,6 +114,7 @@ describe('the indicator preview API', () => {
     '/api/indicators/108/areas',
     '/api/indicator-data?indicator=108',
     '/api/indicators?q=draft',
+    '/api/indicators/search?q=draft',
     '/api/areas/lookup?areaCode=E92000001',
   ])(
     'answers a publisher in another team not found for %s, before reading the version',

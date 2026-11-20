@@ -37,8 +37,13 @@ export interface InternalPreviewRepository {
   repositoriesFor(version: PreviewVersion): PreviewRepositories;
 }
 
-// The indicator's detail, which is all of the preview a user who doesn't work on it may read.
-const DETAIL_PATH = /^\/api\/indicators\/[^/]+$/;
+/**
+ * Whether `path` asks for the indicator's detail, which is all of the preview a user who doesn't
+ * work on it may read. The public search shares the detail's shape of address.
+ */
+function isDetailPath(path: string): boolean {
+  return /^\/api\/indicators\/[^/]+$/.test(path) && path !== '/api/indicators/search';
+}
 
 /**
  * The public API again, under `PREVIEW_API_PATH`, showing the indicator's draft or scheduled
@@ -61,7 +66,7 @@ export function indicatorPreviewRouter(
     const { id, access } = guardedIndicator(response);
     const metadataOnly = !canWorkOnIndicator(requireApiSession(response), access);
 
-    if (metadataOnly && !DETAIL_PATH.test(request.path)) {
+    if (metadataOnly && !isDetailPath(request.path)) {
       response.status(404).json({ error: 'not_found' });
       return;
     }

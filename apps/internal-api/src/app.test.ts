@@ -670,6 +670,9 @@ describe('the indicator routes', () => {
     ['the revision response', 'get', `/api/internal/indicators/${id}/revision-response`],
     ['the notes for reviewers', 'get', `/api/internal/indicators/${id}/notes-for-reviewers`],
     ['the history', 'get', `/api/internal/indicators/${id}/history`],
+    ['the reviewer notes', 'get', `/api/internal/indicators/${id}/reviewer-notes`],
+    ['a reviewer note', 'post', `/api/internal/indicators/${id}/reviewer-notes`],
+    ['a withdrawal', 'post', `/api/internal/indicators/${id}/withdraw`],
     ['the preview data', 'get', `${preview}/api/indicators/108/data`],
   ] as const;
   const detailRoutes = [
@@ -798,6 +801,9 @@ describe('the indicator preview', () => {
     const data = await request(teamB)
       .get(`${prefix}/api/indicators/108/data`)
       .set('Cookie', cookie);
+    const search = await request(teamB)
+      .get(`${prefix}/api/indicators/search?q=draft`)
+      .set('Cookie', cookie);
 
     expect(detail.status).toBe(200);
     expect(detail.body).toEqual({
@@ -807,6 +813,8 @@ describe('the indicator preview', () => {
     });
     expect(data.status).toBe(404);
     expect(data.body).toEqual({ error: 'not_found' });
+    expect(search.status).toBe(404);
+    expect(search.body).toEqual({ error: 'not_found' });
   });
 
   it('requires a session', async () => {
