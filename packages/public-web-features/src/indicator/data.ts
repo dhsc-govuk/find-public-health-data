@@ -437,20 +437,24 @@ const NOTICE_PHRASES: Record<Exclude<PeriodType, 'all'>, { showing: string; miss
 };
 
 /**
- * The period type the Indicator tab shows. Picked areas decide it, or England when none are
- * picked. The page offers the types every one of those areas publishes, or every type any of them
- * publishes when they have none in common. The requested type, 1 year by default, is shown when
- * offered. Otherwise the first offered type is shown and the notice names the areas that lack the
- * requested one.
+ * The period type the Indicator tab shows. Picked areas with data decide it, or England when none
+ * has data. The page offers the types every one of those areas publishes, or every type any of
+ * them publishes when they have none in common. The requested type, 1 year by default, is shown
+ * when offered. Otherwise the first offered type is shown and the notice says which areas lack the
+ * requested one. `defaultAreas` marks areas the page chose itself because the indicator has no
+ * England value, which the notice doesn't call the user's.
  */
 export function periodTypeChoice(
   areaData: IndicatorAreaData[],
   requested: PeriodType,
+  { defaultAreas = false }: { defaultAreas?: boolean } = {},
 ): PeriodTypeChoice {
-  const picked = areaData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
-  const typesByArea = (picked.length ? picked : areaData)
-    .filter(({ observations }) => observations.length > 0)
-    .map((data) => ({ data, types: availablePeriodTypes(data.observations) }));
+  const withData = areaData.filter(({ observations }) => observations.length > 0);
+  const picked = withData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
+  const typesByArea = (picked.length ? picked : withData).map((data) => ({
+    data,
+    types: availablePeriodTypes(data.observations),
+  }));
   const anyType = availablePeriodTypes(typesByArea.flatMap(({ data }) => data.observations));
   const common = anyType.filter((type) => typesByArea.every(({ types }) => types.includes(type)));
   const options = common.length ? common : anyType;
@@ -464,7 +468,11 @@ export function periodTypeChoice(
   const notice =
     offered && periodType !== wanted && periodType !== 'all' && lacking.length > 0
       ? `Showing ${NOTICE_PHRASES[periodType].showing} because ${
-          lacking.length === 1 ? `${lacking[0]} has` : "some of the areas you've chosen have"
+          defaultAreas
+            ? 'some of the areas shown have'
+            : lacking.length === 1
+              ? `${lacking[0]} has`
+              : "some of the areas you've chosen have"
         } no ${NOTICE_PHRASES[wanted].missing}.`
       : null;
   return { offered, options, periodType, notice };

@@ -385,6 +385,30 @@ describe('periodTypeChoice', () => {
     });
   });
 
+  it('decides with England when no picked area has data', () => {
+    const empty = (areaCode: string) => area(areaCode, areaCode, []);
+    expect(periodTypeChoice([england, empty('E07000009')], '3-year')).toEqual(
+      periodTypeChoice([england], '3-year'),
+    );
+    expect(periodTypeChoice([england, empty('E07000009'), empty('E07000010')], 'all')).toEqual({
+      offered: true,
+      options: ['1-year', '3-year'],
+      periodType: '1-year',
+      notice: null,
+    });
+  });
+
+  it("calls the page's own default areas the areas shown", () => {
+    const options = { defaultAreas: true };
+    const noEngland = area('E92000001', 'England', []);
+    expect(periodTypeChoice([noEngland, northEast, oxford], '1-year', options).notice).toBe(
+      'Showing 3 year rolling averages because some of the areas shown have no 1 year data.',
+    );
+    expect(periodTypeChoice([england, oxford], '1-year', options).notice).toBe(
+      'Showing 3 year rolling averages because some of the areas shown have no 1 year data.',
+    );
+  });
+
   it('leaves out picked areas with no data at all', () => {
     expect(periodTypeChoice([england, oxford, area('E07000009', 'Ely', [])], '3-year')).toEqual(
       periodTypeChoice([england, oxford], '3-year'),
