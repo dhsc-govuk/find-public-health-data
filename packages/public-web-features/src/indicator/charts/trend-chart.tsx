@@ -40,8 +40,9 @@ import { TrendPoints, type TrendSelection } from './trend-points.tsx';
 
 const shapes = ['circle', 'triangle', 'square', 'diamond', 'triangle'] as const;
 
+/** Lines of at most half the chart's width, so a long title still reads as the axis's. */
 export function trendTitleLines(title: string, width: number) {
-  const characters = Math.max(20, Math.floor((width - 16) / 7.4));
+  const characters = Math.max(20, Math.floor(width / 2 / 7.4));
   return title.split(' ').reduce<string[]>((lines, word) => {
     const last = lines.at(-1);
     if (last && last.length + word.length + 1 <= characters)
@@ -85,7 +86,6 @@ function TrendPlot({
   const selection = useChartSelection<TrendSelection>();
   const active = selection.active?.index ?? null;
   const [width, setWidth] = useState(640);
-  const [spaceBefore, setSpaceBefore] = useState(0);
   const [titleWidth, setTitleWidth] = useState(0);
   const titleRef = useCallback((element: SVGTextElement | null) => {
     if (!element?.getBBox) return;
@@ -97,6 +97,8 @@ function TrendPlot({
   }, []);
   const yTitle = `${indicator.name}${unitNote(indicator.unit)}`;
   const yTitleLines = trendTitleLines(yTitle, width);
+  const yTitleHalfWidth =
+    (titleWidth || Math.max(...yTitleLines.map((line) => line.length)) * 7.4) / 2;
   const series = alignedSeries(areas).filter(({ observations }) =>
     [...observations.values()].some(({ value }) => value !== null),
   );
@@ -140,7 +142,6 @@ function TrendPlot({
     ? tickInset
     : Math.max(126, tickInset, Math.min(width * 0.4, 24 + longest * 8.4));
   const titleHeight = yTitleLines.length * 18 + 24;
-  const left = Math.max(8, titleWidth / 2 - spaceBefore - 56);
   const periodAxis = periods.some(({ label }) => !/^\d{4}(\/\d{2})?$/.test(label))
     ? 'Period'
     : indicator.yearType?.value === 'financial'
@@ -191,12 +192,7 @@ function TrendPlot({
             narrow ? 300 : series.length * (series.length > 8 ? 90 : 60) + 100,
           ) + Math.max(0, titleHeight - 50)
         }
-        onResize={(width) => {
-          setWidth(width);
-          setSpaceBefore(
-            Math.max(0, (selection.ref.current?.getBoundingClientRect().left ?? 0) - 15),
-          );
-        }}
+        onResize={setWidth}
         instruction={
           series.length > 1
             ? 'Use the left and right arrow keys to move between periods, and the up and down arrow keys to move between series.'
@@ -234,7 +230,7 @@ function TrendPlot({
             aria-label={chartTitle}
             aria-describedby={descriptionId}
             data={points}
-            margin={{ top: titleHeight, right, left, bottom: 8 }}
+            margin={{ top: titleHeight, right, left: 8, bottom: 8 }}
             onMouseLeave={selection.leave}
             onMouseMove={(_, event) => {
               if (
@@ -267,27 +263,30 @@ function TrendPlot({
               tickFormatter={formatValue}
             >
               <Label
-                content={({ viewBox }) =>
-                  viewBox && 'x' in viewBox && 'width' in viewBox && 'y' in viewBox ? (
+                content={({ viewBox }) => {
+                  if (!viewBox || !('x' in viewBox) || !('width' in viewBox) || !('y' in viewBox))
+                    return null;
+                  // The title is centred over the axis. A title too wide for that is left-aligned
+                  // at the chart's left edge instead, so it never covers the page beside the chart.
+                  const axisX = Number(viewBox.x) + Number(viewBox.width);
+                  const centred = yTitleHalfWidth <= axisX;
+                  const x = centred ? axisX : 0;
+                  return (
                     <text
                       ref={titleRef}
                       className="recharts-text fphd-line-axis-title"
-                      x={Number(viewBox.x) + Number(viewBox.width)}
+                      x={x}
                       y={Number(viewBox.y) - 20 - (yTitleLines.length - 1) * 18}
-                      textAnchor="middle"
+                      textAnchor={centred ? 'middle' : 'start'}
                     >
                       {yTitleLines.map((line, index) => (
-                        <tspan
-                          key={line + index}
-                          x={Number(viewBox.x) + Number(viewBox.width)}
-                          dy={index === 0 ? 0 : 18}
-                        >
+                        <tspan key={line + index} x={x} dy={index === 0 ? 0 : 18}>
                           {line}
                         </tspan>
                       ))}
                     </text>
-                  ) : null
-                }
+                  );
+                }}
               />
             </YAxis>
             {goal
