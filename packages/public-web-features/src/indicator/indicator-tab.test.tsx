@@ -329,3 +329,34 @@ it('offers only the sexes of the period type shown', () => {
     within(screen.getByRole('table', { name: /^Table:/ })).getByRole('rowheader', { name: '2024' }),
   ).toBeTruthy();
 });
+
+it("says the areas shown lack a period type when they are the page's default level", () => {
+  const fixture = benchmarkFixture();
+  const rolling = (value: number) => ({ ...observation(value), fromDate: '2022-01-01' });
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        {
+          areaCode: 'E12000001',
+          areaName: 'North East',
+          observations: [observation(4), rolling(5)],
+        },
+        { areaCode: 'E12000002', areaName: 'North West', observations: [rolling(6)] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [] },
+      ],
+    },
+    defaultAreaLevel: 'Statistical regions',
+  });
+  render(<Routes initialEntries={['/']} />);
+
+  expect(
+    screen
+      .getAllByRole('status')
+      .some(
+        ({ textContent }) =>
+          textContent ===
+          'Showing 3 year rolling averages because some of the areas shown have no 1 year data.',
+      ),
+  ).toBe(true);
+});

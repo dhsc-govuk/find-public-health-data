@@ -110,4 +110,21 @@ describe('sexObservations', () => {
     expect(sexObservations(data, '1-year')).toEqual([observation(5)]);
     expect(sexObservations(data, '3-year')).toEqual([rollingMale]);
   });
+
+  it('reads every area shown when England has none of the period type shown', () => {
+    const rolling = (value: number, dimensions = [sex('Male')]) => ({
+      ...observation(value, dimensions),
+      fromDate: '2022-01-01',
+    });
+    const oxford = [rolling(3, []), rolling(4)];
+    expect(
+      sexObservations(
+        [
+          { areaCode: 'E07000178', observations: oxford },
+          { areaCode: 'E92000001', observations: [observation(5), male] },
+        ],
+        '3-year',
+      ),
+    ).toEqual(oxford);
+  });
 });

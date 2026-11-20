@@ -36,19 +36,21 @@ export function choosesNothing(params: URLSearchParams, indicatorLevels: string[
 }
 
 /**
- * The observations the Sex options are read from: England's, or with no England value those of
- * every area shown. Only those of the period type shown count, so a sex published only in the
- * other period type is not offered.
+ * The observations the Sex options are read from, within the period type shown: England's, or
+ * those of every area shown when England has none of that type. A sex published only in the other
+ * period type is not offered.
  */
 export function sexObservations(
   areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[],
   periodType: PeriodType = 'all',
 ): IndicatorObservation[] {
-  const england = englandObservations(areaData);
-  return filterObservations(
-    england.length > 0 ? england : areaData.flatMap(({ observations }) => observations),
-    { periodType },
-  );
+  const england = filterObservations(englandObservations(areaData), { periodType });
+  return england.length > 0
+    ? england
+    : filterObservations(
+        areaData.flatMap(({ observations }) => observations),
+        { periodType },
+      );
 }
 
 /**
