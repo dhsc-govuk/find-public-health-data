@@ -247,7 +247,7 @@ it('keeps England as the benchmark when comparing local areas', () => {
       name: /^Compare areas: Diabetes prevalence/,
     },
   );
-  expect(chart.textContent).toContain('View chart data as a table');
+  expect(chart.textContent).not.toContain('View chart data as a table');
   expect(screen.getByLabelText('Colour areas by')).toBeTruthy();
 });
 
