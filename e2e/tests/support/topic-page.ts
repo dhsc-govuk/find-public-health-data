@@ -427,18 +427,16 @@ export function topicPageTests() {
     ).toBeVisible();
   });
 
-  test('shows England with a note when every value for the chosen area is suppressed', async ({
+  test('says the chosen area has no indicators when every value for it is suppressed', async ({
     page,
   }) => {
     await openTopicPage(page, '/topics/cancer?ga=E06000053');
     const panel = page.getByRole('tabpanel', { name: 'Overview', exact: true });
     await expect(
-      panel.getByText('Figures for Isles of Scilly are not available. Showing England.', {
+      panel.getByRole('heading', {
+        name: 'Cancer has 0 indicators in Isles of Scilly',
         exact: true,
       }),
-    ).toBeVisible();
-    await expect(
-      panel.getByRole('heading', { name: 'Cancer has 1 indicator in total', exact: true }),
     ).toBeVisible();
     await openTopicPage(page, '/topics/mortality-and-life-expectancy?ga=E06000053');
     await expect(
@@ -511,27 +509,18 @@ export function topicPageTests() {
     });
   });
 
-  test('shows England with a note when the chosen area has no data for the topic', async ({
+  test('says the chosen area has no indicators, and shows nothing else, when it has no data', async ({
     page,
   }) => {
     await openTopicPage(page, '/topics/diabetes?ga=E02004518');
     const panel = page.getByRole('tabpanel', { name: 'Overview', exact: true });
     await expect(
-      panel.getByText('Figures for Abbey Field are not available. Showing England.', {
-        exact: true,
-      }),
+      panel.getByRole('heading', { name: 'Diabetes has 0 indicators in Abbey Field', exact: true }),
     ).toBeVisible();
-    await expect(
-      panel.getByRole('heading', { name: 'Diabetes has 2 indicators in total', exact: true }),
-    ).toBeVisible();
-    await expect(
-      panel.getByText('In England, the trend over the last 5 data points is:', { exact: true }),
-    ).toBeVisible();
-    await expect(panel.locator('.fphd-trend-tag').first()).toHaveText('1 is getting better');
-    await expect(
-      panel.getByRole('region', { name: 'Diabetes: QOF prevalence, England: trend chart' }),
-    ).toBeVisible();
-    await expect(panel.locator('.fphd-topic-highlight h3 .govuk-hint')).toHaveCount(0);
+    await expect(panel.locator('.fphd-trend-tag')).toHaveCount(0);
+    await expect(panel.getByRole('link', { name: 'View all diabetes indicators' })).toHaveCount(0);
+    await expect(panel.getByRole('heading', { name: 'Highlighted indicators' })).toHaveCount(0);
+    await expect(panel.locator('.fphd-topic-highlight')).toHaveCount(0);
   });
 
   test('lists indicators with the prototype data columns and detail links', async ({

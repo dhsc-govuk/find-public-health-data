@@ -274,12 +274,15 @@ it('names the chosen area in the heading, intro and each highlighted card', () =
   });
 });
 
-it('notes that England is shown when the chosen area has no data', () => {
+it('says the chosen area has no indicators, and shows nothing else, when it has no data', () => {
   const doc = card([], {}, { unavailableArea: 'Westminster', trends: { ...TRENDS, total: 2 } });
   expect(overviewText(doc)).toEqual({
-    heading: 'Diabetes has 2 indicators in total',
-    intro: 'In England, the trend over the last 5 data points is:',
-    note: 'Figures for Westminster are not available. Showing England.',
+    heading: 'Diabetes has 0 indicators in Westminster',
+    intro: undefined,
+    note: null,
     cardArea: null,
   });
+  expect(doc.querySelector('.fphd-topic-trend-counts')).toBeNull();
+  expect(doc.body.textContent).not.toMatch(/View all diabetes indicators|Highlighted indicators/);
+  expect(doc.querySelector('.fphd-topic-highlight')).toBeNull();
 });
