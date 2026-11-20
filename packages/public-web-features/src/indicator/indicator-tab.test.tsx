@@ -163,8 +163,10 @@ it('shows area chips before removable benchmark chips and keeps the other choice
   ).toEqual(['West Sussex', 'England', 'Statistical regions']);
   const geography = container.querySelector('.fphd-indicator-geographies');
   expect(
-    [...(geography?.querySelectorAll('h3') ?? [])].map((heading) => heading.textContent),
-  ).toEqual(['GeographiesGeographies', 'BenchmarksBenchmarks']);
+    [...(geography?.querySelectorAll('.fphd-filter-card__toggle') ?? [])].map((toggle) =>
+      toggle.getAttribute('aria-label'),
+    ),
+  ).toEqual(['Geographies', 'Benchmarks']);
   const params = () => new URLSearchParams(screen.getByTestId('location').textContent ?? '');
   fireEvent.click(screen.getByRole('link', { name: 'Remove England filter' }));
   await waitFor(() => expect(params().getAll('cmp-108')).toEqual(['region']));

@@ -134,7 +134,7 @@ test('checks England for the first picked area and preserves an unchecked choice
 }) => {
   await openIndicatorPage(page, `${MORTALITY_PATH}?geo-level=Upper-tier%20local%20authorities`);
   const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
-    has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+    has: page.getByRole('button', { name: 'Geographies', exact: true, includeHidden: true }),
   });
   const manchester = geographies.getByRole('checkbox', { name: 'Manchester', exact: true });
   await manchester.check();
@@ -297,7 +297,7 @@ test.describe('without JavaScript', () => {
   }) => {
     await page.goto(`${MORTALITY_PATH}?geo-level=Upper-tier%20local%20authorities`);
     const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
-      has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+      has: page.getByRole('button', { name: 'Geographies', exact: true, includeHidden: true }),
     });
     await geographies.getByRole('checkbox', { name: 'Manchester', exact: true }).check();
     await geographies.getByRole('button', { name: 'Apply geographies' }).click();

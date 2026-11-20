@@ -231,10 +231,19 @@ export function IndicatorTab({
     />
   );
 
+  const skipTarget = nothingShown ? 'indicator-table' : 'indicator-chart-heading';
+
   return (
     <>
       <h2 className="govuk-heading-l">Indicator</h2>
-      <a className="govuk-link govuk-visually-hidden-focusable" href="#indicator-table">
+      <a
+        className="govuk-link govuk-visually-hidden-focusable"
+        href={`#${skipTarget}`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.currentTarget.ownerDocument.getElementById(skipTarget)?.focus();
+        }}
+      >
         Skip to indicator chart and table
       </a>
       <GridRow>
@@ -269,13 +278,15 @@ export function IndicatorTab({
           {showing}
           {download}
           {nothingShown ? (
-            <p id="indicator-table" className="govuk-body">
+            <p id="indicator-table" className="govuk-body" tabIndex={-1}>
               {NO_ENGLAND_MESSAGE}
             </p>
           ) : (
             <>
               <div className="fphd-indicator-chart fphd-indicator-chart--trend">
-                <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
+                <h2 className="govuk-heading-s" id="indicator-chart-heading" tabIndex={-1}>
+                  Chart: {detail.name}
+                </h2>
                 {hasPickedAreas ||
                 detail.goal ||
                 confidenceLevels.length > 0 ||

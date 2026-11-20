@@ -6,7 +6,7 @@ import { MORTALITY_PATH, MORTALITY_SLUG } from '../support/indicator-page.ts';
 const card = (page: Page, title: string) =>
   page
     .locator('.fphd-filter-card')
-    .filter({ has: page.getByRole('heading', { name: title, exact: true }) });
+    .filter({ has: page.getByRole('button', { name: title, exact: true, includeHidden: true }) });
 const results = (page: Page) => page.locator('.fphd-search-results');
 
 async function ready(page: Page, path = '/search') {
