@@ -134,12 +134,12 @@ unambiguous artifacts.
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs lint, typecheck, unit tests, integration tests, e2e tests, the route
-budgets, `pnpm audit`, a gitleaks secret scan of the full git history, build, the image builds and
-scans, the public artifact boundary check, the migration drift check and the e2e coverage checks as
-parallel jobs, except that the e2e tests, the route budgets and the image scans wait for the image
-build. A final `All checks pass` job aggregates them and is the single required status check for
-merging, so the required-check list does not need editing whenever a job is added — but a new job
-must be added to that job's `needs` list, or it gates nothing.
+budgets, `pnpm audit`, a gitleaks scan of the full git history for secrets and real email addresses,
+build, the image builds and scans, the public artifact boundary check, the migration drift check and
+the e2e coverage checks as parallel jobs, except that the e2e tests, the route budgets and the image
+scans wait for the image build. A final `All checks pass` job aggregates them and is the single
+required status check for merging, so the required-check list does not need editing whenever a job
+is added — but a new job must be added to that job's `needs` list, or it gates nothing.
 
 Runs are triggered on every pull request (on open, on every push to the branch, on reopening, and
 when a draft is marked ready for review) and on every push to `main`. A draft pull request skips the
