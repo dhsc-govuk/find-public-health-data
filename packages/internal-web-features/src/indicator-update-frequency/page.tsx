@@ -3,7 +3,7 @@ import {
   type UpdateFrequencyField,
   updateFrequencySection,
 } from '@fphd/internal-api-features/contract';
-import { firstRadioId, Radios, Textarea } from '@fphd/ui';
+import { firstRadioId, Radios, Textarea, TextInput } from '@fphd/ui';
 import {
   hasUpdateFrequencyReason,
   UPDATE_FREQUENCIES,
@@ -20,25 +20,55 @@ const UPDATE_FREQUENCY_QUESTION = 'How often will this indicator be updated?';
 export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>) {
   const { fieldErrors, values } = form;
 
-  // "No fixed frequency" and "This indicator will no longer be updated" each reveal a box for
-  // the reason. It is shown without JavaScript; with it, only while its answer is chosen.
-  function option(value: UpdateFrequency) {
-    if (!hasUpdateFrequencyReason(value)) return { label: UPDATE_FREQUENCY_LABELS[value], value };
-    const reason = UPDATE_FREQUENCY_REASON_FIELDS[value];
-
-    return {
-      label: UPDATE_FREQUENCY_LABELS[value],
-      value,
-      conditional: (
+  // The details each answer reveals: the number of years under "Frequency of more than 1 year",
+  // a description under "Other", and a reason under "No fixed frequency" and "This indicator will
+  // no longer be updated". They are shown without JavaScript; with it, only while their answer
+  // is chosen.
+  function details(value: UpdateFrequency) {
+    if (value === 'every-n-years') {
+      return (
+        <TextInput
+          autoComplete="off"
+          className="govuk-input--width-3"
+          defaultValue={values.updateFrequencyYears}
+          error={fieldErrors.updateFrequencyYears}
+          inputMode="numeric"
+          label="Enter number of years"
+          name="updateFrequencyYears"
+          spellCheck={false}
+        />
+      );
+    }
+    if (value === 'other') {
+      return (
         <Textarea
-          defaultValue={values[reason]}
-          error={fieldErrors[reason]}
-          label="Enter reason"
-          name={reason}
+          defaultValue={values.updateFrequencyText}
+          error={fieldErrors.updateFrequencyText}
+          label="Enter frequency"
+          name="updateFrequencyText"
           rows={3}
         />
-      ),
-    };
+      );
+    }
+    if (!hasUpdateFrequencyReason(value)) return undefined;
+    const reason = UPDATE_FREQUENCY_REASON_FIELDS[value];
+
+    return (
+      <Textarea
+        defaultValue={values[reason]}
+        error={fieldErrors[reason]}
+        label="Enter reason"
+        name={reason}
+        rows={3}
+      />
+    );
+  }
+
+  function option(value: UpdateFrequency) {
+    const conditional = details(value);
+    return conditional
+      ? { label: UPDATE_FREQUENCY_LABELS[value], value, conditional }
+      : { label: UPDATE_FREQUENCY_LABELS[value], value };
   }
 
   // "No longer updated" is not a frequency, so it follows the others after an "or" divider.
@@ -62,15 +92,6 @@ export function UpdateFrequencyPage(form: SectionPageProps<UpdateFrequencyField>
         label={<span className="govuk-visually-hidden">{UPDATE_FREQUENCY_QUESTION}</span>}
         name="updateFrequency"
         options={options}
-      />
-      <Textarea
-        defaultValue={values.updateFrequencyText}
-        error={fieldErrors.updateFrequencyText}
-        hint="Shown on the indicator page in place of the frequency above. If you chose no fixed frequency or no longer updated, that answer and your reason are still shown after it. For example 'Annual measurements during the academic year, published in the final quarter of the calendar year.'"
-        label="Describe how often it is updated (optional)"
-        labelHeading="h2"
-        name="updateFrequencyText"
-        rows={5}
       />
     </IndicatorSectionForm>
   );

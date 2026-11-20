@@ -848,51 +848,53 @@ it('writes the indicator frequency from source prose', async () => {
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.update_frequency).toBe('quarterly');
 });
-it('exports the structured frequency when the source prose is unrecognised', async () => {
+it('exports unrecognised source prose as an other frequency, whatever the lookup', async () => {
   indicatorQueries('No unit', undefined, [], {
     frequency: 'Annual',
     frequencyProse: 'The data will normally be updated annually.',
   });
   await exportIndicators(options);
-  expect((await rows('indicator_version'))[0]?.update_frequency).toBe('annually');
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    update_frequency: 'other',
+    update_frequency_text: 'The data will normally be updated annually.',
+    update_frequency_years: DATA_MIGRATION_NULL,
+  });
+});
+it('writes the number of years from source prose', async () => {
+  indicatorQueries('No unit', undefined, [], { frequencyProse: 'Every 3 years' });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    update_frequency: 'every-n-years',
+    update_frequency_years: '3',
+    update_frequency_text: DATA_MIGRATION_NULL,
+  });
 });
 it.each([
   [
     'Annual measurements during the academic year.',
     'Annual measurements during the academic year.',
-    DATA_MIGRATION_NULL,
+    'other',
   ],
-  ['<p>Quarterly</p>', 'Quarterly', 'quarterly'],
+  ['<p>Quarterly</p>', DATA_MIGRATION_NULL, 'quarterly'],
   [
     '<p>Academic year &amp; term time</p><p>Published in winter.</p>',
     'Academic year & term time\nPublished in winter.',
-    DATA_MIGRATION_NULL,
+    'other',
   ],
   ['', DATA_MIGRATION_NULL, DATA_MIGRATION_NULL],
   ['  \n\t ', DATA_MIGRATION_NULL, DATA_MIGRATION_NULL],
   ['<p>&nbsp;</p>', DATA_MIGRATION_NULL, DATA_MIGRATION_NULL],
-])('keeps original frequency prose %j as plain text', async (frequencyProse, text, frequency) => {
-  indicatorQueries('No unit', undefined, [], { frequencyProse });
-  await exportIndicators(options);
-  expect((await rows('indicator_version'))[0]).toMatchObject({
-    update_frequency_text: text,
-    update_frequency: frequency,
-  });
-});
-it.each([
-  ['Updated annually.', 'annually'],
-  ['Academic year, published in winter.', 'annually'],
-])('keeps prose %j alongside a structured frequency', async (frequencyProse, updateFrequency) => {
-  indicatorQueries('No unit', undefined, [], {
-    frequency: 'Annual',
-    frequencyProse,
-  });
-  await exportIndicators(options);
-  expect((await rows('indicator_version'))[0]).toMatchObject({
-    update_frequency_text: frequencyProse,
-    update_frequency: updateFrequency,
-  });
-});
+])(
+  'writes frequency prose %j as the description of an other frequency alone',
+  async (frequencyProse, text, frequency) => {
+    indicatorQueries('No unit', undefined, [], { frequencyProse });
+    await exportIndicators(options);
+    expect((await rows('indicator_version'))[0]).toMatchObject({
+      update_frequency_text: text,
+      update_frequency: frequency,
+    });
+  },
+);
 it('leaves missing indicator frequency unanswered', async () => {
   indicatorQueries();
   await exportIndicators(options);
@@ -903,7 +905,7 @@ it('leaves missing indicator frequency unanswered', async () => {
 });
 it.each([
   ['Quarterly', 'quarterly'],
-  ['The data will normally be updated annually.', DATA_MIGRATION_NULL],
+  ['The data will normally be updated annually.', 'other'],
   [undefined, DATA_MIGRATION_NULL],
 ])('allows a null structured frequency with prose %s', async (frequencyProse, expected) => {
   indicatorQueries('No unit', undefined, [], {
@@ -1023,8 +1025,11 @@ it('preserves profile references and raw frequency text in source provenance', a
       structured_frequency: 'Annual',
     },
   ]);
-  expect((await rows('indicator_version'))[0]?.name).toBe('Indicator 108');
-  expect((await rows('indicator_version'))[0]?.update_frequency).toBe('annually');
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    name: 'Indicator 108',
+    update_frequency: 'every-n-years',
+    update_frequency_years: '3',
+  });
 });
 it.each(['approved', 'development-snapshot'] as const)(
   'exports the source upload date independently of creation time for %s',

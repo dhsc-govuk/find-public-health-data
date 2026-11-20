@@ -35,16 +35,20 @@ describe('updateChangeRows', () => {
     ]);
   });
 
-  it('labels a change to the frequency description', () => {
+  it('labels a change to the details of the update frequency', () => {
     const [row] = updateChangeRows([
       {
         task: 'update-frequency',
-        parts: [{ kind: 'text', field: 'updateFrequencyText', before: 'Old.', after: 'New.' }],
+        parts: [
+          { kind: 'value', field: 'updateFrequencyYears', value: '3' },
+          { kind: 'text', field: 'updateFrequencyText', before: 'Old.', after: 'New.' },
+        ],
       },
     ]);
     expect(row?.lines).toEqual([
+      { label: 'Number of years', change: { kind: 'text', text: '3' } },
       {
-        label: 'Description of update frequency',
+        label: 'Other frequency',
         change: { kind: 'diff', runs: wordDiff('Old.', 'New.') },
       },
     ]);

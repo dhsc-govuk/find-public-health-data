@@ -1,4 +1,5 @@
 import { SLUG_MAX_LENGTH } from '@fphd/utils/slug';
+import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -225,21 +226,63 @@ describe('indicator_version', () => {
     ).resolves.toHaveLength(1);
   });
 
-  it.each([
-    'monthly',
-    'quarterly',
-    'annually',
-    'every-2-years',
-    'no-fixed-frequency',
-    'no-longer-updated',
-    null,
-  ] as const)('holds frequency text independently beside %s', async (updateFrequency) => {
+  it.each([2, 3, 99])('holds a frequency of every %i years', async (updateFrequencyYears) => {
     await expect(
       addVersion(await newIndicatorId(), 'draft', {
-        updateFrequency,
+        updateFrequency: 'every-n-years',
+        updateFrequencyYears,
+      }),
+    ).resolves.toHaveLength(1);
+  });
+
+  it.each([
+    ['without its number of years', { updateFrequency: 'every-n-years' }],
+    ['of 1 year', { updateFrequency: 'every-n-years', updateFrequencyYears: 1 }],
+    ['of 100 years', { updateFrequency: 'every-n-years', updateFrequencyYears: 100 }],
+    ['beside annually', { updateFrequency: 'annually', updateFrequencyYears: 2 }],
+    ['beside an unanswered frequency', { updateFrequencyYears: 2 }],
+  ] as const)('refuses a frequency of years %s', async (_, values) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', values)).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_update_frequency_years_check',
+      },
+    });
+  });
+
+  it('holds an other frequency with its description', async () => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        updateFrequency: 'other',
         updateFrequencyText: 'Academic year, published in winter.',
       }),
     ).resolves.toHaveLength(1);
+  });
+
+  it.each([
+    ['other without its description', { updateFrequency: 'other' }],
+    ...UPDATE_FREQUENCIES.filter((frequency) => frequency !== 'other').map(
+      (updateFrequency) =>
+        [
+          `a description beside ${updateFrequency}`,
+          {
+            updateFrequency,
+            updateFrequencyYears: updateFrequency === 'every-n-years' ? 2 : null,
+            updateFrequencyText: 'Academic year, published in winter.',
+          },
+        ] as const,
+    ),
+    [
+      'a description beside an unanswered frequency',
+      { updateFrequencyText: 'Academic year, published in winter.' },
+    ],
+  ] as const)('refuses %s', async (_, values) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', values)).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_update_frequency_text_check',
+      },
+    });
   });
 
   it.each([
@@ -247,7 +290,8 @@ describe('indicator_version', () => {
     ['monthly', { updateFrequency: 'monthly' }],
     ['quarterly', { updateFrequency: 'quarterly' }],
     ['annually', { updateFrequency: 'annually' }],
-    ['every-2-years', { updateFrequency: 'every-2-years' }],
+    ['every-n-years', { updateFrequency: 'every-n-years', updateFrequencyYears: 2 }],
+    ['other', { updateFrequency: 'other', updateFrequencyText: 'Academic year.' }],
   ] as const)('refuses a reason for the update frequency beside %s', async (_, values) => {
     await expect(
       addVersion(await newIndicatorId(), 'draft', {

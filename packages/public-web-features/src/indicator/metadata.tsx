@@ -1,7 +1,7 @@
 import { A, formatDate, GridColumn, GridRow, SectionBreak, SummaryList } from '@fphd/ui';
 import { CI_CONFIDENCE_LEVEL_LABELS } from '@fphd/utils/ci-confidence-level';
 import { POLARITY_LABELS } from '@fphd/utils/polarity';
-import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
+import { type PublicUpdateFrequency, publicUpdateFrequency } from '@fphd/utils/update-frequency';
 import { dimensionValues, NO_ENGLAND_TREND, periodCovered, recentTrend } from './data.ts';
 import type {
   IndicatorObservation,
@@ -48,39 +48,42 @@ export function sourceLink(source: IndicatorPageDetail['dataSource']) {
   return source.url ? <A href={source.url}>{source.name}</A> : source.name;
 }
 
-// The original text stands in for the fixed label only: a reason the publisher had to give
-// still follows it.
-function UpdateFrequency({ indicator }: { indicator: IndicatorPageDetail }) {
-  const description = indicator.updateFrequencyText;
-  const fixed =
-    indicator.updateFrequency &&
-    publicUpdateFrequency(indicator.updateFrequency, indicator.updateFrequencyReason);
-  if (description && !fixed?.reason) return <div className="fphd-metadata-text">{description}</div>;
-  if (!fixed) return null;
+// The publisher's own description under "Other" keeps its line breaks, as a reason does.
+function UpdateFrequency({
+  frequency,
+  isOther,
+}: {
+  frequency: PublicUpdateFrequency;
+  isOther: boolean;
+}) {
+  if (isOther) return <div className="fphd-metadata-text">{frequency.text}</div>;
+  if (!frequency.reason) return frequency.text;
 
   return (
     <>
-      {description ? (
-        <div className="fphd-metadata-text govuk-!-margin-bottom-2">{description}</div>
-      ) : null}
-      {fixed.text}
-      {fixed.reason ? (
-        <div className="fphd-metadata-text govuk-!-margin-top-2">{fixed.reason}</div>
-      ) : null}
+      {frequency.text}
+      <div className="fphd-metadata-text govuk-!-margin-top-2">{frequency.reason}</div>
     </>
   );
 }
 
 function updateFrequencyRow(name: string, indicator: IndicatorPageDetail) {
   if (isUnanswered(indicator, 'updateFrequency')) return [{ name, children: NOT_ENTERED_YET }];
-  return indicator.updateFrequencyText || indicator.updateFrequency
-    ? [
-        {
-          name,
-          children: <UpdateFrequency indicator={indicator} />,
-        },
-      ]
-    : [];
+  const { updateFrequency, updateFrequencyYears, updateFrequencyText, updateFrequencyReason } =
+    indicator;
+  if (updateFrequency === null) return [];
+  const frequency = publicUpdateFrequency({
+    updateFrequency,
+    updateFrequencyYears,
+    updateFrequencyText,
+    updateFrequencyReason,
+  });
+  return [
+    {
+      name,
+      children: <UpdateFrequency frequency={frequency} isOther={updateFrequency === 'other'} />,
+    },
+  ];
 }
 
 export function IndicatorSummary({

@@ -9,14 +9,12 @@ export function providerSourceText(entries: IndicatorProviderSource[]): string {
 
 export function updateFrequencyLine({
   updateFrequency,
-  updateFrequencyReason,
-  updateFrequencyText,
-}: Pick<IndicatorPageDetail, 'updateFrequency' | 'updateFrequencyReason' | 'updateFrequencyText'>):
-  | string
-  | null {
-  const fixed = updateFrequency && publicUpdateFrequency(updateFrequency, updateFrequencyReason);
-  if (fixed?.reason) {
-    return [updateFrequencyText, fixed.text, fixed.reason].filter(Boolean).join('\n');
-  }
-  return updateFrequencyText || fixed?.text || null;
+  ...details
+}: Pick<
+  IndicatorPageDetail,
+  'updateFrequency' | 'updateFrequencyYears' | 'updateFrequencyText' | 'updateFrequencyReason'
+>): string | null {
+  if (updateFrequency === null) return null;
+  const { text, reason } = publicUpdateFrequency({ updateFrequency, ...details });
+  return reason ? `${text}\n${reason}` : text;
 }

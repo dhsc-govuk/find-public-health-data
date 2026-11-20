@@ -46,18 +46,19 @@ describe('updateChanges', () => {
     });
   });
 
-  it('includes the frequency description when it is added or cleared', () => {
+  it('includes the description of an other frequency when it is given or cleared', () => {
     const updateFrequencyText = 'Academic year, published in winter.';
-    const [added] = changesTo({ updateFrequencyText });
+    const [added] = changesTo({ updateFrequency: 'other', updateFrequencyText });
     expect(added).toEqual({
       task: 'update-frequency',
       parts: [
+        { kind: 'value', field: 'updateFrequency', value: 'Other' },
         { kind: 'text', field: 'updateFrequencyText', before: '', after: updateFrequencyText },
       ],
     });
 
     const [cleared] = updateChanges({
-      published: { ...published, updateFrequencyText },
+      published: { ...published, updateFrequency: 'other', updateFrequencyText },
       submitted: published,
       names,
       replacedValues: 0,
@@ -65,8 +66,27 @@ describe('updateChanges', () => {
     expect(cleared).toEqual({
       task: 'update-frequency',
       parts: [
+        { kind: 'value', field: 'updateFrequency', value: 'Quarterly' },
         { kind: 'text', field: 'updateFrequencyText', before: updateFrequencyText, after: '' },
       ],
+    });
+  });
+
+  it('gives the number of years between updates as it was entered', () => {
+    const [change] = updateChanges({
+      published: { ...published, updateFrequency: 'every-n-years', updateFrequencyYears: 2 },
+      submitted: {
+        ...published,
+        updateFrequency: 'every-n-years',
+        updateFrequencyYears: 3,
+        updateSummary: 'Revised.',
+      },
+      names,
+      replacedValues: 0,
+    });
+    expect(change).toEqual({
+      task: 'update-frequency',
+      parts: [{ kind: 'value', field: 'updateFrequencyYears', value: '3' }],
     });
   });
 

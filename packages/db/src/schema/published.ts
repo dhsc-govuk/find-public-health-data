@@ -219,6 +219,7 @@ export function createVersionedViews(schema: PgSchema<string>) {
         updateFrequency: text('update_frequency', { enum: UPDATE_FREQUENCIES }),
         updateFrequencyReason: text('update_frequency_reason'),
         updateFrequencyText: text('update_frequency_text'),
+        updateFrequencyYears: smallint('update_frequency_years'),
         comparatorMethodId: uuid('comparator_method_id'),
         hasGoalBenchmark: boolean('has_goal_benchmark'),
         goalLowerValue: doublePrecision('goal_lower_value'),

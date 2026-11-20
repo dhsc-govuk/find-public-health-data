@@ -673,6 +673,13 @@
       "when": 1794943482545,
       "tag": "0095_publish-indicator-goals",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795196743857,
+      "tag": "0096_update-frequency-years-and-other",
+      "breakpoints": true
     }
   ]
 }

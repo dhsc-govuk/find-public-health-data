@@ -205,7 +205,10 @@ export interface IndicatorDetail {
    * frequency, and beside those two for an indicator imported without one.
    */
   updateFrequencyReason: string | null;
+  /** The publisher's own description, beside "Other" only. */
   updateFrequencyText: string | null;
+  /** The number of years between updates, beside "Frequency of more than 1 year" only. */
+  updateFrequencyYears: number | null;
   polarity: Polarity;
   ciMethod: string | null;
   ciConfidenceLevel: CiConfidenceLevel | null;
@@ -238,8 +241,7 @@ export interface IndicatorDetail {
 
 /**
  * An indicator's detail as the views hold it, which for a draft may leave questions unanswered.
- * A null `unit` means no unit unless `unanswered` names it, and a null `updateFrequency` beside
- * frequency text is an answer.
+ * A null `unit` means no unit unless `unanswered` names it.
  */
 export interface FoundIndicatorDetail extends Omit<IndicatorDetail, 'valueType' | 'polarity'> {
   valueType: string | null;
@@ -350,6 +352,7 @@ export async function getIndicatorDetailsByIds(
       updateFrequency: indicator.updateFrequency,
       updateFrequencyReason: indicator.updateFrequencyReason,
       updateFrequencyText: indicator.updateFrequencyText,
+      updateFrequencyYears: indicator.updateFrequencyYears,
       polarity: indicator.polarity,
       hasGoalBenchmark: indicator.hasGoalBenchmark,
       goalLowerValue: indicator.goalLowerValue,
@@ -451,6 +454,7 @@ export async function getIndicatorDetailsByIds(
           updateFrequency: row.updateFrequency,
           updateFrequencyReason: row.updateFrequencyReason,
           updateFrequencyText: row.updateFrequencyText,
+          updateFrequencyYears: row.updateFrequencyYears,
           polarity: row.polarity,
           ciMethod: row.ciMethod,
           ciConfidenceLevel: row.ciConfidenceLevel,
@@ -494,14 +498,12 @@ function unansweredQuestions(row: {
   unitId: string | null;
   polarity: Polarity | null;
   updateFrequency: UpdateFrequency | null;
-  updateFrequencyText: string | null;
 }): IndicatorQuestion[] {
   const answered: Record<IndicatorQuestion, boolean> = {
     valueType: row.valueType !== null,
     unit: row.unitId !== null,
     polarity: row.polarity !== null,
-    // An indicator imported with only the original text describing its frequency has answered.
-    updateFrequency: row.updateFrequency !== null || row.updateFrequencyText !== null,
+    updateFrequency: row.updateFrequency !== null,
   };
   return INDICATOR_QUESTIONS.filter((question) => !answered[question]);
 }

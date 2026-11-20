@@ -16,16 +16,32 @@ const NO_FIXED = 'No fixed frequency';
 const NO_LONGER_UPDATED = 'This indicator will no longer be updated';
 const NO_FIXED_ERROR = 'Enter the reason this indicator has no fixed update frequency';
 const NO_LONGER_UPDATED_ERROR = 'Enter the reason this indicator will no longer be updated';
-const DESCRIPTION = 'Describe how often it is updated (optional)';
+const MORE_THAN_1_YEAR = 'Frequency of more than 1 year';
+const YEARS_REQUIRED = 'Enter the number of years between updates';
+const YEARS_INVALID = 'Number of years must be a whole number of 2 or more';
+const OTHER_REQUIRED = 'Enter how often this indicator will be updated';
 
 function answer(page: Page, label: string): Locator {
   return page.getByLabel(label, { exact: true });
 }
 
-/** The "Enter reason" box inside the reveal that the named answer controls. */
-async function reasonFor(page: Page, label: string): Promise<Locator> {
+/** The box labelled `field` inside the reveal that the named answer controls. */
+async function revealedBy(page: Page, label: string, field: string): Promise<Locator> {
   const reveal = await answer(page, label).getAttribute('aria-controls');
-  return page.locator(`#${reveal}`).getByLabel('Enter reason', { exact: true });
+  return page.locator(`#${reveal}`).getByLabel(field, { exact: true });
+}
+
+/** The "Enter reason" box inside the reveal that the named answer controls. */
+function reasonFor(page: Page, label: string): Promise<Locator> {
+  return revealedBy(page, label, 'Enter reason');
+}
+
+function yearsBox(page: Page): Promise<Locator> {
+  return revealedBy(page, MORE_THAN_1_YEAR, 'Enter number of years');
+}
+
+function otherBox(page: Page): Promise<Locator> {
+  return revealedBy(page, 'Other', 'Enter frequency');
 }
 
 test.use({ storageState: PUBLISHER.storageState });
@@ -34,7 +50,7 @@ describeSectionPage(SECTION, {
   expectUnanswered: async (page) => {
     await expect(page.getByRole('heading', { level: 1, name: QUESTION })).toBeVisible();
     const options = page.getByRole('group', { name: QUESTION }).getByRole('radio');
-    await expect(options).toHaveCount(6);
+    await expect(options).toHaveCount(7);
     for (const option of await options.all()) {
       await expect(option).not.toBeChecked();
     }
@@ -46,15 +62,26 @@ describeSectionPage(SECTION, {
   },
 });
 
-test('reveals a reason under each answer that asks for one, only while it is chosen', async ({
+test('reveals the details under each answer that asks for them, only while it is chosen', async ({
   page,
 }) => {
   await openSectionPage(page, SECTION);
+  const years = await yearsBox(page);
+  const other = await otherBox(page);
   const noFixedReason = await reasonFor(page, NO_FIXED);
   const noLongerUpdatedReason = await reasonFor(page, NO_LONGER_UPDATED);
 
+  await expect(years).toBeHidden();
+  await expect(other).toBeHidden();
   await expect(noFixedReason).toBeHidden();
   await expect(noLongerUpdatedReason).toBeHidden();
+
+  await answer(page, MORE_THAN_1_YEAR).check();
+  await expect(years).toBeVisible();
+
+  await answer(page, 'Other').check();
+  await expect(years).toBeHidden();
+  await expect(other).toBeVisible();
 
   await answer(page, NO_FIXED).check();
   await expect(noFixedReason).toBeVisible();
@@ -68,24 +95,30 @@ test('reveals a reason under each answer that asks for one, only while it is cho
   await expect(noLongerUpdatedReason).toBeHidden();
 });
 
-test.describe('asks for the reason when its answer is chosen without one', () => {
-  for (const [label, message] of [
-    [NO_FIXED, NO_FIXED_ERROR],
-    [NO_LONGER_UPDATED, NO_LONGER_UPDATED_ERROR],
+test.describe('asks for the details when their answer is chosen without them', () => {
+  for (const [label, field, typed, message] of [
+    [MORE_THAN_1_YEAR, 'Enter number of years', '', YEARS_REQUIRED],
+    [MORE_THAN_1_YEAR, 'Enter number of years', '1', YEARS_INVALID],
+    [MORE_THAN_1_YEAR, 'Enter number of years', '2.5', YEARS_INVALID],
+    ['Other', 'Enter frequency', '', OTHER_REQUIRED],
+    [NO_FIXED, 'Enter reason', '', NO_FIXED_ERROR],
+    [NO_LONGER_UPDATED, 'Enter reason', '', NO_LONGER_UPDATED_ERROR],
   ] as const) {
-    test(label, async ({ page }) => {
+    test(`${label} given ${JSON.stringify(typed)}`, async ({ page }) => {
       await openSectionPage(page, SECTION);
 
       await answer(page, label).check();
+      await (await revealedBy(page, label, field)).fill(typed);
       await page.getByRole('button', { name: 'Continue' }).click();
 
       const summary = page.getByRole('alert');
       await expect(summary.getByRole('link')).toHaveText([message]);
       await expect(answer(page, label)).toBeChecked();
+      await expect(await revealedBy(page, label, field)).toHaveValue(typed);
 
       await expectErrorSummaryReady(page);
       await summary.getByRole('link', { name: message }).click();
-      await expect(await reasonFor(page, label)).toBeFocused();
+      await expect(await revealedBy(page, label, field)).toBeFocused();
     });
   }
 });
@@ -107,29 +140,32 @@ test('saves the update frequency and its reason on Continue and shows the task a
   await expect(await reasonFor(page, NO_LONGER_UPDATED)).toHaveValue('The survey has ended.');
 });
 
-test('saves the description of how often it is updated beside any answer, and clears it', async ({
-  page,
-}) => {
+test('saves the number of years between updates', async ({ page }) => {
   const taskListPath = await openSectionPage(page, SECTION);
-  const pagePath = new URL(page.url()).pathname;
-  const description = page.getByLabel(DESCRIPTION, { exact: true });
 
-  await answer(page, 'Annually').check();
-  await description.fill('  Annual measurements during the academic year.  ');
+  await answer(page, MORE_THAN_1_YEAR).check();
+  await (await yearsBox(page)).fill(' 3 ');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page).toHaveURL(taskListPath);
   await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
 
-  await page.goto(pagePath);
-  await expect(answer(page, 'Annually')).toBeChecked();
-  await expect(description).toHaveValue('Annual measurements during the academic year.');
+  await taskRow(page, SECTION.taskName).getByRole('link').click();
+  await expect(answer(page, MORE_THAN_1_YEAR)).toBeChecked();
+  await expect(await yearsBox(page)).toHaveValue('3');
+});
 
-  await description.fill('');
+test('saves the description of an other frequency', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+
+  await answer(page, 'Other').check();
+  await (await otherBox(page)).fill('  Annual measurements during the academic year.  ');
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page).toHaveURL(taskListPath);
+  await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
 
-  await page.goto(pagePath);
-  await expect(description).toBeEmpty();
+  await taskRow(page, SECTION.taskName).getByRole('link').click();
+  await expect(answer(page, 'Other')).toBeChecked();
+  await expect(await otherBox(page)).toHaveValue('Annual measurements during the academic year.');
 });
 
 test('forgets the reason once another answer is chosen', async ({ page }) => {
@@ -141,12 +177,12 @@ test('forgets the reason once another answer is chosen', async ({ page }) => {
   await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
 
   await page.goto(pagePath);
-  await answer(page, 'Every 2 years').check();
+  await answer(page, 'Annually').check();
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
 
   await page.goto(pagePath);
-  await expect(answer(page, 'Every 2 years')).toBeChecked();
+  await expect(answer(page, 'Annually')).toBeChecked();
   await answer(page, NO_FIXED).check();
   await expect(await reasonFor(page, NO_FIXED)).toBeEmpty();
 });
@@ -198,14 +234,20 @@ test.describe('without JavaScript', () => {
     await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
   });
 
-  test('shows both reasons, and keeps only the one under the chosen answer', async ({ page }) => {
+  test('shows every detail box, and keeps only the one under the chosen answer', async ({
+    page,
+  }) => {
     await openSectionPage(page, SECTION);
     const pagePath = new URL(page.url()).pathname;
 
+    await expect(await yearsBox(page)).toBeVisible();
+    await expect(await otherBox(page)).toBeVisible();
     await expect(await reasonFor(page, NO_FIXED)).toBeVisible();
     await expect(await reasonFor(page, NO_LONGER_UPDATED)).toBeVisible();
 
     await answer(page, NO_FIXED).check();
+    await (await yearsBox(page)).fill('3');
+    await (await otherBox(page)).fill('Academic year.');
     await (await reasonFor(page, NO_FIXED)).fill('Published when the survey runs.');
     await (await reasonFor(page, NO_LONGER_UPDATED)).fill('The survey has ended.');
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -214,6 +256,8 @@ test.describe('without JavaScript', () => {
     await page.goto(pagePath);
     await expect(answer(page, NO_FIXED)).toBeChecked();
     await expect(await reasonFor(page, NO_FIXED)).toHaveValue('Published when the survey runs.');
+    await expect(await yearsBox(page)).toBeEmpty();
+    await expect(await otherBox(page)).toBeEmpty();
     await expect(await reasonFor(page, NO_LONGER_UPDATED)).toBeEmpty();
   });
 });

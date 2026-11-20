@@ -131,7 +131,7 @@ describe('createDraftFromPublished', () => {
       const publishedId = await publishedVersionId(db, target);
       await db
         .update(indicatorVersion)
-        .set({ updateFrequencyText: 'Academic year.\nPublished in winter.' })
+        .set({ updateFrequency: 'every-n-years', updateFrequencyYears: 3 })
         .where(eq(indicatorVersion.id, publishedId));
       const publishedTopics = await storedTopicIdsOf(db, publishedId);
       expect(publishedTopics.length).toBeGreaterThan(0);
@@ -157,7 +157,8 @@ describe('createDraftFromPublished', () => {
         name: published?.name,
         slug: published?.slug,
         definition: published?.definition,
-        updateFrequencyText: 'Academic year.\nPublished in winter.',
+        updateFrequency: 'every-n-years',
+        updateFrequencyYears: 3,
         valueTypeId: published?.valueTypeId,
         createdBy: ACTOR,
       });
