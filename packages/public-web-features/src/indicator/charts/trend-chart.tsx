@@ -28,7 +28,6 @@ import { alignedSeries, bounds, chartPeriods, errorOffsets, valueExtent } from '
 import {
   axisColour,
   ChartCanvas,
-  ChartDataTable,
   ChartSources,
   chartValue,
   gridColour,
@@ -482,18 +481,6 @@ function TrendPlot({
           </li>
         </ul>
       ) : null}
-      <ChartDataTable
-        title={chartTitle}
-        columns={['Period', ...series.map(({ name }) => name)]}
-        rows={periods.map(({ key, label }) => ({
-          key,
-          label,
-          values: series.map(
-            ({ observations }, index) =>
-              `${chartValue(observations.get(key)?.value ?? null, indicator.unit)}${intervalText(key, index)}`,
-          ),
-        }))}
-      />
     </>
   );
 }
