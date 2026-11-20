@@ -678,3 +678,15 @@ it.each([
     expect(new Set(outline.map((heading) => heading.slice(3))).size).toBe(outline.length);
   },
 );
+
+it('moves focus from the skip link to the chart heading without changing the URL hash', () => {
+  page([selected(241, 'Diabetes prevalence', 7.9)], '/indicator/indicator-241');
+  const panel = within(screen.getByRole('tabpanel', { name: 'Indicator' }));
+
+  fireEvent.click(panel.getByRole('link', { name: 'Skip to indicator chart and table' }));
+
+  expect(document.activeElement).toBe(
+    panel.getByRole('heading', { level: 2, name: 'Chart: Diabetes prevalence' }),
+  );
+  expect(window.location.hash).toBe('');
+});

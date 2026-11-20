@@ -142,6 +142,17 @@ test('heads the Indicator tab chart once', async ({ page }) => {
   ).toBeVisible();
 });
 
+test('moves focus to the chart heading from the skip link', async ({ page }) => {
+  const panel = page.locator('#indicator-data');
+  const url = page.url();
+  await panel.getByRole('link', { name: 'Skip to indicator chart and table' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    panel.getByRole('heading', { level: 2, name: `Chart: ${MORTALITY_NAME}` }),
+  ).toBeFocused();
+  expect(page.url()).toBe(url);
+});
+
 test('answers an unknown indicator with the not-found page', async ({ page }) => {
   const response = await page.goto('/indicator/no-such-indicator');
   expect(response?.status()).toBe(404);
