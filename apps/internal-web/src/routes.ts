@@ -20,6 +20,10 @@ export default withRouteIds([
     ),
     route('geographies', '../../../packages/public-web-features/src/indicator/geography-route.ts'),
     route(
+      'compare-areas',
+      '../../../packages/public-web-features/src/indicator/compare-areas-route.ts',
+    ),
+    route(
       'indicator/:slug/table.csv',
       '../../../packages/public-web-features/src/indicator/table-csv-route.ts',
       { id: 'single_indicator_table_csv' },
