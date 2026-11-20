@@ -112,9 +112,10 @@ test('table options update the series and keep their choices on reload', async (
   await expect(table).toHaveAccessibleName(
     /<75 yrs, Male\s*, table with \d+ rows and \d+ columns$/,
   );
-  await options.getByLabel('Select time period type').selectOption('1 year');
-  await expect(page).toHaveURL(/pt-108=1-year/);
-  await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(0);
+  await options.getByLabel('Type of time period').selectOption('3 year rolling average');
+  await expect(page).toHaveURL(/pt-108=3-year/);
+  await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toBeVisible();
+  await expect(table.getByRole('rowheader', { name: '2024', exact: true })).toHaveCount(0);
   await options.getByRole('checkbox', { name: '95% confidence intervals', exact: true }).check();
   await options.getByRole('checkbox', { name: 'Count', exact: true }).check();
   await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
@@ -367,21 +368,20 @@ test.describe('without JavaScript', () => {
     await expect(page.getByRole('status').filter({ hasText: /^Loading / })).toHaveCount(0);
     const tableOptions = filterCard(page, 'Table columns');
     await tableOptions.getByLabel('Select sex').selectOption('Male');
-    await tableOptions.getByLabel('Select time period type').selectOption('1 year');
+    await tableOptions.getByLabel('Type of time period').selectOption('3 year rolling average');
     await tableOptions.getByRole('checkbox', { name: 'Count', exact: true }).check();
     await tableOptions.getByRole('button', { name: 'Apply options' }).click();
 
     await expect(page).toHaveURL(/sex-108=Male/);
     await expect(page).not.toHaveURL(/cr-/);
-    await expect(page).toHaveURL(/pt-108=1-year/);
+    await expect(page).toHaveURL(/pt-108=3-year/);
     await expect(page).toHaveURL(/#indicator-data$/);
     const table = trendTable(page);
     await expect(table).toHaveAccessibleName(
       /<75 yrs, Male\s*, table with \d+ rows and \d+ columns$/,
     );
-    await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toHaveCount(
-      0,
-    );
+    await expect(table.getByRole('rowheader', { name: '2015 to 2017', exact: true })).toBeVisible();
+    await expect(table.getByRole('rowheader', { name: '2024', exact: true })).toHaveCount(0);
     await expect(table.getByRole('columnheader', { name: 'Count', exact: true })).toBeVisible();
 
     const inequalityOptions = filterCard(page, 'Chart options');

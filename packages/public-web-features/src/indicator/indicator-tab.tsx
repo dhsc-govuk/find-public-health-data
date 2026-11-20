@@ -8,9 +8,9 @@ import { TrendChart } from './charts/trend-chart.tsx';
 import {
   availableConfidenceLevels,
   availableMeasures,
-  availablePeriodTypes,
   dimensionValues,
   filterObservations,
+  periodTypeChoice,
 } from './data.ts';
 import { IndicatorGeographies } from './geographies.tsx';
 import { useIndicatorLinks } from './links.ts';
@@ -69,12 +69,15 @@ export function IndicatorTab({
     ({ observations }) => observations,
   );
   const sexes = dimensionValues(sexObservations(areaData), 'Sex');
-  const periodTypes = availablePeriodTypes(shownObservations);
+  const periodChoice = periodTypeChoice(areaData, options.periodType);
+  const { periodType } = periodChoice;
+  const period = periodChoice.offered
+    ? { options: periodChoice.options, value: periodType, notice: periodChoice.notice }
+    : undefined;
   const confidenceLevels = availableConfidenceLevels(shownObservations);
   const measures = availableMeasures(shownObservations);
   const columns = selectedTrendColumns(params, id, [...measures, ...confidenceLevels]);
   const confidence = isOneOf(confidenceLevels, options.confidence) ? options.confidence : 'none';
-  const periodType = isOneOf(periodTypes, options.periodType) ? options.periodType : 'all';
   const narrow = (data: (typeof areaData)[number]) => ({
     ...data,
     observations: filterObservations(data.observations, {
@@ -142,7 +145,7 @@ export function IndicatorTab({
       next.set('order', 'desc');
       next.set(`columns-${id}`, trendColumnsParam(columns));
       if (sexes.includes(options.sex) && options.sex) next.set(`sex-${id}`, options.sex);
-      if (periodType !== 'all') next.set(`pt-${id}`, periodType);
+      if (periodChoice.offered) next.set(`pt-${id}`, periodType);
       if (confidence !== 'none') next.set(`ci-${id}`, confidence);
       setBenchmarkParams(next, id, benchmarks);
     }
@@ -248,7 +251,7 @@ export function IndicatorTab({
             label="Table columns"
             onChange={applyOptions}
             options={options}
-            periodTypes={periodTypes}
+            period={period}
             scope={id}
             target={{
               tabParam: 'tab-indicator',
@@ -274,7 +277,7 @@ export function IndicatorTab({
                 detail.goal ||
                 confidenceLevels.length > 0 ||
                 sexes.length > 0 ||
-                periodTypes.length > 1 ? (
+                period ? (
                   <PanelOptionsPanel
                     rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
                     goalRadios={!hasPickedAreas && !!detail.goal}
@@ -283,7 +286,7 @@ export function IndicatorTab({
                     onChange={applyOptions}
                     options={options}
                     panel="chart"
-                    periodTypes={periodTypes}
+                    period={period}
                     scope={id}
                     sexes={sexes}
                     showConfidence

@@ -17,11 +17,10 @@ import { isRangeBenchmark, selectedBenchmarks } from './benchmarks.ts';
 import {
   availableConfidenceLevels,
   availableMeasures,
-  availablePeriodTypes,
   type ConfidenceLevel,
   dimensionValues,
   filterObservations,
-  type PeriodType,
+  periodTypeChoice,
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
@@ -132,9 +131,10 @@ export async function loadIndicatorCsv(
         : areaData
     ).flatMap(({ observations }) => observations);
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
-    const periodType: PeriodType = isOneOf(availablePeriodTypes(shownObservations), requestedPeriod)
-      ? requestedPeriod
-      : 'all';
+    const { periodType } = periodTypeChoice(
+      areaData,
+      isOneOf(['1-year', '3-year'] as const, requestedPeriod) ? requestedPeriod : 'all',
+    );
     const requestedConfidence = url.searchParams.get(`ci-${shortId}`);
     const confidence: ConfidenceLevel = isOneOf(
       availableConfidenceLevels(shownObservations),

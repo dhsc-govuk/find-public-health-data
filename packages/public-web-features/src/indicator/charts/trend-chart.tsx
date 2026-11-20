@@ -13,15 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import {
-  availablePeriodTypes,
-  type ConfidenceLevel,
-  filterObservations,
-  formatValue,
-  periodTypeLabel,
-  segmentLabel,
-  unitNote,
-} from '../data.ts';
+import { type ConfidenceLevel, formatValue, segmentLabel, unitNote } from '../data.ts';
 import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
 import { alignedSeries, bounds, chartPeriods, errorOffsets, valueExtent } from './chart-data.ts';
@@ -502,31 +494,16 @@ export function TrendChart({
   confidence?: ConfidenceLevel;
   goal?: PolicyGoal | null;
 }) {
-  const types = availablePeriodTypes(areas.flatMap(({ observations }) => observations));
-  const variants = types.length > 1 ? types : (['all'] as const);
   return (
     <ChartSection id={id} title={title}>
-      {variants.map((variant) => {
-        const variantTitle = variants.length > 1 ? `${title}, ${periodTypeLabel(variant)}` : title;
-        return (
-          <div key={variant}>
-            {variants.length > 1 ? (
-              <h3 className="govuk-heading-s">{periodTypeLabel(variant)}</h3>
-            ) : null}
-            <TrendPlot
-              areas={areas.map((area) => ({
-                ...area,
-                observations: filterObservations(area.observations, { periodType: variant }),
-              }))}
-              benchmarkCodes={benchmarkCodes}
-              indicator={indicator}
-              confidence={confidence}
-              title={variantTitle}
-              goal={goal ?? null}
-            />
-          </div>
-        );
-      })}
+      <TrendPlot
+        areas={areas}
+        benchmarkCodes={benchmarkCodes}
+        indicator={indicator}
+        confidence={confidence}
+        title={title}
+        goal={goal ?? null}
+      />
       <ChartSources indicators={[indicator]} />
     </ChartSection>
   );

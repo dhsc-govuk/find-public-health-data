@@ -72,6 +72,12 @@ export interface PanelOptions {
 
 type OptionScope = number | 'compare';
 
+export interface PeriodSelect {
+  options: PeriodType[];
+  value: PeriodType;
+  notice?: string | null;
+}
+
 function panelOptionNames(scope: OptionScope) {
   return {
     benchmark: `cmp-${scope}`,
@@ -214,7 +220,7 @@ export function PanelOptionsPanel({
   options,
   panel = 'table',
   colourByQuintile = false,
-  periodTypes,
+  period,
   scope,
   sexes,
   showConfidence,
@@ -234,7 +240,8 @@ export function PanelOptionsPanel({
   options: PanelOptions;
   panel?: 'table' | 'chart' | 'compare-areas';
   colourByQuintile?: boolean;
-  periodTypes: PeriodType[];
+  /** The period type select: its options, the value shown and why that value was chosen. */
+  period?: PeriodSelect | undefined;
   scope: OptionScope;
   sexes: string[];
   showConfidence: boolean;
@@ -286,7 +293,7 @@ export function PanelOptionsPanel({
           (name) =>
             name !== names.benchmark &&
             (name !== names.sex || sexes.length > (accordion ? 1 : 0)) &&
-            (name !== names.periodType || periodTypes.length > 1) &&
+            (name !== names.periodType || period) &&
             (name !== names.confidence ||
               (!columns && showConfidence && confidenceLevels.length > 0)),
         ),
@@ -399,20 +406,32 @@ export function PanelOptionsPanel({
           />
         ) : null}
 
-        {periodTypes.length > 1 ? (
-          <Select
-            id={ids.period}
-            label="Select time period type"
-            name={names.periodType}
-            onChange={(event) =>
-              onChange({ ...options, periodType: event.currentTarget.value as PeriodType })
-            }
-            options={['all' as const, ...periodTypes].map((value) => ({
-              label: periodTypeLabel(value),
-              value,
-            }))}
-            value={options.periodType}
-          />
+        {period ? (
+          <>
+            <Select
+              id={ids.period}
+              label="Type of time period"
+              name={names.periodType}
+              onChange={(event) =>
+                onChange({ ...options, periodType: event.currentTarget.value as PeriodType })
+              }
+              options={period.options.map((value) => ({
+                label: periodTypeLabel(value),
+                value,
+              }))}
+              value={period.value}
+            />
+            {/* Only the chart's copy announces a change, so a screen reader hears it once. */}
+            {accordion ? (
+              period.notice ? (
+                <p className="govuk-hint">{period.notice}</p>
+              ) : null
+            ) : (
+              <p className={period.notice ? 'govuk-hint' : undefined} role="status">
+                {period.notice}
+              </p>
+            )}
+          </>
         ) : null}
 
         {!columns && showConfidence && confidenceLevels.length > 0 ? (

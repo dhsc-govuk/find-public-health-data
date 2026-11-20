@@ -173,7 +173,11 @@ export function CompareAreasTab({
               onChange={applyOptions}
               options={options}
               panel="compare-areas"
-              periodTypes={periodTypes}
+              period={
+                periodTypes.length > 1
+                  ? { options: ['all', ...periodTypes], value: options.periodType }
+                  : undefined
+              }
               scope={detail.shortId}
               sexes={sexes}
               showConfidence

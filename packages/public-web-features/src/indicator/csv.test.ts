@@ -609,6 +609,56 @@ describe('loadIndicatorCsv', () => {
     expect(await response.text()).toBe('Period\n');
   });
 
+  it('serves the 1 year rows by default when England publishes both period types', async () => {
+    const client = api([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          observation({ value: 7 }),
+          observation({ fromDate: '2021-01-01', value: 8 }),
+        ],
+      },
+    ]);
+
+    const response = await loadIndicatorCsv(
+      args(client, 'http://localhost/indicator/mortality-all-causes/table.csv'),
+      'table',
+    );
+
+    expect((await response.text()).trim().split('\n').slice(1)).toEqual(['2023,7,339,343.2']);
+  });
+
+  it('serves the period type a picked area publishes, as the page shows it', async () => {
+    const client = api([
+      {
+        areaCode: 'E07000178',
+        areaName: 'Oxford',
+        observations: [observation({ fromDate: '2021-01-01', value: 3 })],
+      },
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          observation({ value: 7 }),
+          observation({ fromDate: '2021-01-01', value: 8 }),
+        ],
+      },
+    ]);
+
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        'http://localhost/indicator/mortality-all-causes/table.csv?as=E07000178&pt-108=1-year',
+      ),
+      'table',
+    );
+
+    expect((await response.text()).trim().split('\n').slice(1)).toEqual([
+      '2021 to 2023,3,339,343.2',
+    ]);
+  });
+
   it('404s a segment shaped like neither identifier without calling the api', async () => {
     const client = createFakeApiClient();
 
