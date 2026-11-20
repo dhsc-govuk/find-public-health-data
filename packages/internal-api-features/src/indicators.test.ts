@@ -206,6 +206,28 @@ describe('GET /api/internal/indicators', () => {
     );
   });
 
+  it("lists other teams' indicators without their reviewers, and the user's own teams' with them", async () => {
+    const reviewers = [{ id: OTHER_REVIEWER_ID, name: 'Jamie Evans' }];
+    const ownRow = { ...row, teamName: 'Team A', createdBy: null, lastEditedBy: null };
+    const listPage = vi.fn().mockResolvedValue({
+      indicators: [
+        { ...ownRow, draftReviewers: reviewers },
+        { ...ownRow, teamId: OTHER_TEAM_ID, teamName: 'Team B', draftReviewers: reviewers },
+      ],
+      total: 2,
+    });
+
+    const response = await request(createTestApp({ listPage }))
+      .get('/api/internal/indicators')
+      .set('Cookie', await publisherCookie());
+
+    expect(
+      response.body.indicators.map(
+        ({ draftReviewers }: { draftReviewers: unknown }) => draftReviewers,
+      ),
+    ).toEqual([reviewers, []]);
+  });
+
   it("lists no other teams' indicators for an IMRG reviewer who doesn't publish", async () => {
     const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
 
@@ -444,6 +466,49 @@ describe('GET /api/internal/indicators/:id', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ id: row.id, teamId: OTHER_TEAM_ID, actions: [] });
+  });
+
+  it("leaves the review out of another team's indicator for a publisher, keeping its statuses", async () => {
+    const reviewed: IndicatorAdminDetailRow = {
+      ...detailRow,
+      teamId: OTHER_TEAM_ID,
+      indicatorStatus: 'new',
+      draftStatus: 'draft',
+      draftSubmissionStatus: 'changes_requested',
+      draftResponseKind: 'minor_revisions',
+      draftSubmissionNumber: 2,
+      draftFirstSubmittedAt: new Date('2026-10-20T09:00:00.000Z'),
+      draftResponse: { kind: 'minor_revisions', flaggedTaskCount: 3 },
+      draftReviewers: [{ id: OTHER_REVIEWER_ID, name: 'Jamie Evans' }],
+    };
+    const findById = vi.fn().mockResolvedValue(reviewed);
+
+    const response = await request(createTestApp({ findAccess: findById, findById }))
+      .get(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await publisherCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      draftSubmissionStatus: 'changes_requested',
+      draftResponseKind: 'minor_revisions',
+      draftReviewers: [],
+      draftResponse: null,
+      draftSubmissionNumber: null,
+      draftFirstSubmittedAt: null,
+    });
+  });
+
+  it("keeps the review in another team's indicator for its assigned reviewer", async () => {
+    const findById = vi.fn().mockResolvedValue(assignedToTestUser);
+
+    const response = await request(createTestApp({ findAccess: findById, findById }))
+      .get(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await reviewerCookie());
+
+    expect(response.body).toMatchObject({
+      draftReviewers: [{ id: TEST_USER_ID, name: 'Sam Taylor' }],
+      draftSubmissionNumber: 1,
+    });
   });
 
   it.each([

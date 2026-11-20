@@ -5,6 +5,7 @@ import {
   canCreateIndicatorInTeam,
   canEditIndicator,
   canListIndicators,
+  canWorkOnIndicator,
   type IndicatorListScope,
   indicatorListScope,
   otherTeamsListScope,
@@ -21,6 +22,7 @@ import {
   type IndicatorAdminSummary,
   type IndicatorStartUpdateError,
   type IndicatorTaskList,
+  indicatorAccess,
   indicatorCreateIdSchema,
   indicatorFieldSchema,
   indicatorListTeamsQuerySchema,
@@ -104,6 +106,31 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
   };
 }
 
+/**
+ * A list row as `user` may read it. A user who doesn't work on the indicator, such as a publisher
+ * in another team, reads its statuses but not who reviews it.
+ */
+function listItemFor(user: SessionUser, item: IndicatorAdminListItem): IndicatorAdminListItem {
+  return canWorkOnIndicator(user, indicatorAccess(item)) ? item : { ...item, draftReviewers: [] };
+}
+
+/**
+ * The detail as `user` may read it. A user who doesn't work on the indicator reads its statuses
+ * and publication date, but not its reviewers, its latest response or its submission's number
+ * and date.
+ */
+function detailFor(user: SessionUser, detail: IndicatorAdminDetail): IndicatorAdminDetail {
+  return canWorkOnIndicator(user, indicatorAccess(detail))
+    ? detail
+    : {
+        ...detail,
+        draftReviewers: [],
+        draftResponse: null,
+        draftSubmissionNumber: null,
+        draftFirstSubmittedAt: null,
+      };
+}
+
 /** The indicators a list asks for: the user's own teams', other teams', or every one they see. */
 function listScope(teams: 'own' | 'other' | undefined, user: SessionUser): IndicatorListScope {
   if (teams === 'own') return ownTeamsListScope(user);
@@ -149,10 +176,11 @@ export function internalIndicatorsRouter(
     }
 
     const { page } = query.data;
-    const scope = listScope(filter.data.teams, requireApiSession(response));
+    const user = requireApiSession(response);
+    const scope = listScope(filter.data.teams, user);
     const rows = await indicators.listPage(page, INDICATORS_PAGE_SIZE, scope, search.data.search);
     const body: IndicatorAdminPage = {
-      indicators: rows.indicators.map(toListItem),
+      indicators: rows.indicators.map((row) => listItemFor(user, toListItem(row))),
       page,
       pageSize: INDICATORS_PAGE_SIZE,
       total: rows.total,
@@ -368,7 +396,8 @@ export function internalIndicatorsRouter(
       return;
     }
 
-    response.status(200).json(toDetail(row, requireApiSession(response)));
+    const user = requireApiSession(response);
+    response.status(200).json(detailFor(user, toDetail(row, user)));
   });
 
   return router;
