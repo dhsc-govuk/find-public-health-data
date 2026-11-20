@@ -24,6 +24,7 @@ import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
 import {
   UPDATE_FREQUENCIES,
   UPDATE_FREQUENCIES_WITH_REASON,
+  UPDATE_FREQUENCY_MAX_YEARS,
   UPDATE_FREQUENCY_MIN_YEARS,
   type UpdateFrequency,
 } from '@fphd/utils/update-frequency';
@@ -334,7 +335,7 @@ export const indicatorVersion = pgTable(
     ),
     check(
       'indicator_version_update_frequency_years_check',
-      sql`${detailBesideChoice(t.updateFrequency, 'every-n-years' satisfies UpdateFrequency, t.updateFrequencyYears)} AND ${t.updateFrequencyYears} >= ${sql.raw(String(UPDATE_FREQUENCY_MIN_YEARS))}`,
+      sql`${detailBesideChoice(t.updateFrequency, 'every-n-years' satisfies UpdateFrequency, t.updateFrequencyYears)} AND ${t.updateFrequencyYears} BETWEEN ${sql.raw(String(UPDATE_FREQUENCY_MIN_YEARS))} AND ${sql.raw(String(UPDATE_FREQUENCY_MAX_YEARS))}`,
     ),
     check(
       'indicator_version_update_frequency_text_check',

@@ -9,7 +9,7 @@ UPDATE "indicator_version" SET "update_frequency" = 'other'
 WHERE "update_frequency_text" IS NOT NULL;--> statement-breakpoint
 UPDATE "indicator_version" SET "update_frequency" = 'every-n-years', "update_frequency_years" = 2
 WHERE "update_frequency" = 'every-2-years';--> statement-breakpoint
-ALTER TABLE "indicator_version" ADD CONSTRAINT "indicator_version_update_frequency_years_check" CHECK (("indicator_version"."update_frequency" IS NOT DISTINCT FROM 'every-n-years') = ("indicator_version"."update_frequency_years" IS NOT NULL) AND "indicator_version"."update_frequency_years" >= 2);--> statement-breakpoint
+ALTER TABLE "indicator_version" ADD CONSTRAINT "indicator_version_update_frequency_years_check" CHECK (("indicator_version"."update_frequency" IS NOT DISTINCT FROM 'every-n-years') = ("indicator_version"."update_frequency_years" IS NOT NULL) AND "indicator_version"."update_frequency_years" BETWEEN 2 AND 99);--> statement-breakpoint
 ALTER TABLE "indicator_version" ADD CONSTRAINT "indicator_version_update_frequency_text_check" CHECK (("indicator_version"."update_frequency" IS NOT DISTINCT FROM 'other') = ("indicator_version"."update_frequency_text" IS NOT NULL));--> statement-breakpoint
 ALTER TABLE "indicator_version" ADD CONSTRAINT "indicator_version_update_frequency_check" CHECK ("indicator_version"."update_frequency" IN ('monthly', 'quarterly', 'annually', 'every-n-years', 'other', 'no-fixed-frequency', 'no-longer-updated'));--> statement-breakpoint
 -- A view cannot take a column in the middle of its list, so it is recreated with its grant.
