@@ -997,6 +997,19 @@ test('shows a picked area of an indicator with no England value without ticking 
   );
 });
 
+test('moves focus to the no-data message from the skip link when there is nothing to chart', async ({
+  page,
+}) => {
+  // An area code the service doesn't know, as in an old shared link, leaves nothing to chart.
+  await openIndicatorPage(page, `${NO_ENGLAND_PATH}?as=E06999999`);
+  const panel = page.locator('#indicator-data');
+  await panel.getByRole('link', { name: 'Skip to indicator chart and table' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    panel.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+  ).toBeFocused();
+});
+
 test('opens an indicator with no England value on its statistical regions without JavaScript', async ({
   browser,
   baseURL,

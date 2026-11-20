@@ -690,3 +690,15 @@ it('moves focus from the skip link to the chart heading without changing the URL
   );
   expect(window.location.hash).toBe('');
 });
+
+it('moves focus from the skip link to the no-data message when there is nothing to chart', () => {
+  const primary = selected(241, 'Diabetes prevalence', 7.9);
+  page([{ ...primary, areaData: [] }], '/indicator/indicator-241');
+  const panel = within(screen.getByRole('tabpanel', { name: 'Indicator' }));
+
+  fireEvent.click(panel.getByRole('link', { name: 'Skip to indicator chart and table' }));
+
+  expect(document.activeElement).toBe(
+    panel.getByText(/^This indicator has no England-level figure/),
+  );
+});
