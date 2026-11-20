@@ -304,7 +304,7 @@ describe('DashboardPage', () => {
 
       const panel = screen.getByRole('tabpanel', { name: 'All other indicators' });
       const table = within(panel).getByRole('table', {
-        name: 'Indicators, most recently edited first',
+        name: 'All other indicators, most recently edited first',
       });
 
       expect(
@@ -355,6 +355,39 @@ describe('DashboardPage', () => {
       expect(screen.getByRole('link', { name: '3' }).getAttribute('href')).toBe(
         '/dashboard?page=3&tab=your-teams',
       );
+    });
+
+    it("keeps the other list's page in each list's page links", () => {
+      renderPage({ page: 2, totalPages: 3 }, '/dashboard?page=2&otherPage=4', null, null, {
+        ...otherTeams,
+        page: 4,
+        totalPages: 5,
+      });
+
+      const yours = screen.getByRole('navigation', { name: "Your teams' indicators pagination" });
+      const others = screen.getByRole('navigation', { name: 'All other indicators pagination' });
+
+      expect(within(yours).getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+        '/dashboard?page=3&otherPage=4&tab=your-teams',
+      );
+      expect(within(others).getByRole('link', { name: '5' }).getAttribute('href')).toBe(
+        '/dashboard?page=2&otherPage=5&tab=all-other',
+      );
+    });
+
+    it('names each table and pagination by its tab, so they differ without JavaScript', () => {
+      renderPage({ totalPages: 2 }, '/dashboard', null, null, { ...otherTeams, totalPages: 2 });
+
+      for (const name of ["Your teams' indicators", 'All other indicators']) {
+        expect(
+          screen.getByRole('table', { name: `${name}, most recently edited first`, hidden: true }),
+          name,
+        ).toBeTruthy();
+        expect(
+          screen.getByRole('navigation', { name: `${name} pagination`, hidden: true }),
+          name,
+        ).toBeTruthy();
+      }
     });
   });
 

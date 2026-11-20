@@ -8,6 +8,7 @@ import {
   ALL_OTHER_TAB,
   CREATE_AND_EDIT_TAB,
   type DashboardPageKey,
+  type DashboardPages,
   dashboardPath,
   YOUR_TEAMS_TAB,
 } from './paths.ts';
@@ -34,9 +35,15 @@ interface IndicatorListSectionProps extends IndicatorList {
   search?: string | undefined;
   /** The query parameter its page links set. */
   pageKey?: DashboardPageKey;
+  /** The page every list on the dashboard is on, which its page links keep for the others. */
+  pages?: DashboardPages;
+  /** The list's name, beside another list, which its table and pagination are named by. */
+  name?: string | undefined;
 }
 
 const NO_MATCHES = 'No indicators match your search.';
+
+const OTHER_LABEL = 'All other indicators';
 
 /** A list's table, or with a search that matched none of its indicators, a message saying so. */
 function tableOrNoMatches(search: string | undefined, indicators: unknown[], table: ReactNode) {
@@ -55,10 +62,12 @@ function IndicatorListSection({
   tab,
   search,
   pageKey = 'page',
+  pages = {},
+  name,
 }: IndicatorListSectionProps) {
   // Plain anchors: the router-aware link would also mark every link to the bare path as current.
   const pageLink = (number: number) => ({
-    href: dashboardPath(number, tab, search, pageKey),
+    href: dashboardPath({ ...pages, [pageKey]: number }, tab, search),
     forceExternal: true,
     ...(number === page ? { 'aria-current': 'page' as const } : {}),
   });
@@ -72,7 +81,7 @@ function IndicatorListSection({
         </p>
       ) : (
         <Table
-          aria-label="Indicators, most recently edited first"
+          aria-label={`${name ?? 'Indicators'}, most recently edited first`}
           headings={INDICATOR_HEADINGS}
           keys={INDICATOR_KEYS}
           data={indicators.map(indicatorCells)}
@@ -81,7 +90,7 @@ function IndicatorListSection({
       {totalPages > 1 ? (
         <Pagination
           currentPage={page}
-          landmarkLabel="Pagination"
+          landmarkLabel={name === undefined ? 'Pagination' : `${name} pagination`}
           links={Array.from({ length: totalPages }, (_, index) => pageLink(index + 1))}
         />
       ) : null}
@@ -140,23 +149,36 @@ function listSections(
   search: string | undefined,
 ) {
   const tab = listTab(list, otherList !== null);
+  const pages: DashboardPages =
+    otherList === null ? { page: list.page } : { page: list.page, otherPage: otherList.page };
+  const name = (label: string) => (otherList === null ? undefined : label);
   return [
     {
       ...tab,
-      content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} search={search} />,
+      content: (
+        <IndicatorListSection
+          {...list}
+          tab={tabbed ? tab.id : undefined}
+          search={search}
+          pages={pages}
+          name={name(tab.label)}
+        />
+      ),
     },
     ...(otherList === null
       ? []
       : [
           {
             id: ALL_OTHER_TAB,
-            label: 'All other indicators',
+            label: OTHER_LABEL,
             content: (
               <IndicatorListSection
                 {...otherList}
                 tab={ALL_OTHER_TAB}
                 search={search}
                 pageKey="otherPage"
+                pages={pages}
+                name={OTHER_LABEL}
               />
             ),
           },
