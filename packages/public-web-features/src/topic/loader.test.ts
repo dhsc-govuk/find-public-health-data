@@ -598,31 +598,29 @@ describe('the overview for a chosen area', () => {
     ]);
   });
 
-  it('shows England with a note when the chosen area has no data for the topic', async () => {
+  it('marks the chosen area as having no data without asking for England', async () => {
     const api = trendsApi({ E92000001: 5 });
     const page = await loadTopicPage(
       loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E12000001'),
     );
     const overview = await page.overview;
-    expect(overview?.trends.total).toBe(5);
+    expect(overview?.trends.total).toBe(0);
     expect(overview?.area).toBeUndefined();
     expect(overview?.unavailableArea).toBe('North East');
-    expect(overview?.highlights.map(({ areaName }) => areaName)).toEqual(['England', 'England']);
     expect(paths(api).filter((path) => path.includes('/trends'))).toEqual([
       '/api/topics/topic-a/trends?areaCode=E12000001',
-      '/api/topics/topic-a/trends',
     ]);
   });
 
-  it('keeps the chosen area without a note when the topic has no indicators', async () => {
+  it('marks the chosen area as having no data when the topic has no indicators', async () => {
     const api = trendsApi({});
     const page = await loadTopicPage(
       loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=overview&ga=E12000001'),
     );
     const overview = await page.overview;
     expect(overview?.trends.total).toBe(0);
-    expect(overview?.area).toEqual({ code: 'E12000001', name: 'North East' });
-    expect(overview?.unavailableArea).toBeUndefined();
+    expect(overview?.area).toBeUndefined();
+    expect(overview?.unavailableArea).toBe('North East');
   });
 
   it('counts England when no known area is chosen', async () => {

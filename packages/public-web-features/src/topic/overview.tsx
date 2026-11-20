@@ -19,18 +19,30 @@ export function TopicOverview({
   overview: Overview;
 }) {
   const { search, trends, area, unavailableArea, highlights } = overview;
+  const geographies = (
+    <GridColumn width="one-quarter">
+      <TopicGeographies search={search} path={`/topics/${topic.slug}`} tab="overview" />
+    </GridColumn>
+  );
+  const intro = <p className="govuk-body">{topic.content?.overviewIntro ?? topic.description}</p>;
+  // An area with no data for any of the topic's indicators has no figures to show.
+  if (unavailableArea)
+    return (
+      <GridRow className="fphd-topic-overview">
+        {geographies}
+        <GridColumn width="three-quarters">
+          {intro}
+          <h2 className="govuk-heading-m">
+            {topic.title} has 0 indicators in {unavailableArea}
+          </h2>
+        </GridColumn>
+      </GridRow>
+    );
   return (
     <GridRow className="fphd-topic-overview">
-      <GridColumn width="one-quarter">
-        <TopicGeographies search={search} path={`/topics/${topic.slug}`} tab="overview" />
-      </GridColumn>
+      {geographies}
       <GridColumn width="three-quarters">
-        <p className="govuk-body">{topic.content?.overviewIntro ?? topic.description}</p>
-        {unavailableArea ? (
-          <div className="govuk-inset-text govuk-!-margin-top-0">
-            Figures for {unavailableArea} are not available. Showing England.
-          </div>
-        ) : null}
+        {intro}
         <h2 className="govuk-heading-m">
           {topic.title} has {trends.total} {trends.total === 1 ? 'indicator' : 'indicators'}{' '}
           {area ? `in ${area.name}` : 'in total'}

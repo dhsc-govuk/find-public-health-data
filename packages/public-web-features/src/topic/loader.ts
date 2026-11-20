@@ -169,15 +169,10 @@ export async function loadTopic(
           areaCode ? `${trendsPath}?areaCode=${encodeURIComponent(areaCode)}` : trendsPath,
           topicTrendSummarySchema,
         );
-    // An area with no data for any of the topic's indicators shows England's figures instead.
-    // A topic with no indicators at all keeps the chosen area, as England has nothing to show.
+    // A chosen area with no data for any of the topic's indicators has no figures to show.
     const areaTrends = async () => {
       const trends = await trendsFor(chosen);
-      if (!chosen || trends.total > 0) return { trends, unavailable: false };
-      const england = await trendsFor();
-      return england.total > 0
-        ? { trends: england, unavailable: true }
-        : { trends, unavailable: false };
+      return { trends, unavailable: chosen !== undefined && trends.total === 0 };
     };
     const highlighted = async () => {
       const preferred = topic.content?.highlightedIndicatorIds ?? [];
