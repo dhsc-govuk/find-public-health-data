@@ -21,10 +21,14 @@ export function CollapsibleFilterCard({
   defaultOpenOnDesktop?: boolean;
   onClear?: string | undefined;
   title: string;
-  headingLevel?: 2 | 3;
+  /**
+   * The level of the heading the title is. `null` makes the title plain text, for a card whose
+   * group heading just above already has the same name, so the name isn't a heading twice.
+   */
+  headingLevel?: 2 | 3 | null;
 }) {
   const bodyId = useId();
-  const Heading = headingLevel === 3 ? 'h3' : 'h2';
+  const Header = headingLevel === null ? 'div' : headingLevel === 3 ? 'h3' : 'h2';
   const [open, setOpen] = useState(active);
   useEffect(() => {
     if (defaultOpenOnDesktop && (window.matchMedia?.('(min-width: 40.0625em)').matches ?? true)) {
@@ -37,8 +41,8 @@ export function CollapsibleFilterCard({
 
   return (
     <div className="fphd-filter-card">
-      <Heading
-        aria-label={title}
+      <Header
+        aria-label={headingLevel === null ? undefined : title}
         className="fphd-filter-card__header govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0"
       >
         <span>{title}</span>
@@ -60,7 +64,7 @@ export function CollapsibleFilterCard({
           </svg>
           {title}
         </button>
-      </Heading>
+      </Header>
       {/* Always in the HTML: CSS reveals it without JavaScript, JS toggles hidden. */}
       <div className="fphd-filter-card__body fphd-collapsible-body" hidden={!open} id={bodyId}>
         {hint ? <Hint className="govuk-body-s govuk-!-margin-bottom-3">{hint}</Hint> : null}

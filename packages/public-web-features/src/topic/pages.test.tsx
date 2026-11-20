@@ -13,6 +13,8 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { indicatorDetail, observation } from '../indicator/view.testing.ts';
+import { SearchGeographies } from '../search/geographies.tsx';
+import { TopicGeographies } from './geographies.tsx';
 import { TopicListing } from './listing.tsx';
 import { loadTopicPage } from './loader.ts';
 import { TopicsPage } from './pages.tsx';
@@ -199,8 +201,8 @@ describe('TopicsPage', () => {
   });
 });
 
-/** Renders the Data tab of a topic with one indicator, at `query` after `?tab-topic=data`. */
-async function renderDataListing(query = '') {
+/** Loads the Data tab of a topic with one indicator, at `query` after `?tab-topic=data`. */
+async function loadDataTab(query = '') {
   const context = new RouterContextProvider();
   context.set(
     apiContext,
@@ -275,11 +277,17 @@ async function renderDataListing(query = '') {
   });
   const content = await data.content;
   if (!content) throw new Error('Expected topic table data');
+  return { topic: data.topic, content };
+}
+
+/** Renders the Data tab of a topic with one indicator, at `query` after `?tab-topic=data`. */
+async function renderDataListing(query = '') {
+  const { topic, content } = await loadDataTab(query);
   const router = createMemoryRouter(
     [
       {
         path: '/topics/example',
-        element: <TopicListing data={{ topic: data.topic, ...content }} />,
+        element: <TopicListing data={{ topic, ...content }} />,
       },
     ],
     { initialEntries: [`/topics/example?tab-topic=data${query}#topic-data`] },
@@ -319,3 +327,32 @@ it.each([
     );
   },
 );
+
+it.each([
+  ['the search page', 'search', ['h2 Geographies']],
+  ['the Overview tab', 'overview', ['h2 Geographies']],
+  ['the Data tab', 'data', ['h2 Geographies']],
+  ['the Area summaries tab', 'areas', ['h2 Geographies', 'h3 Type of geography']],
+] as const)('names the Geographies sidebar once on %s', async (_, place, headings) => {
+  const { content } = await loadDataTab();
+  const router = createMemoryRouter([
+    {
+      path: '/',
+      element:
+        place === 'search' ? (
+          <SearchGeographies search={content.search} choicesLabel="Geography choices" />
+        ) : (
+          <TopicGeographies search={content.search} path="/topics/example" tab={place} />
+        ),
+    },
+  ]);
+  render(<RouterProvider router={router} />);
+  expect(
+    screen
+      .getAllByRole('heading')
+      .map(
+        (heading) =>
+          `h${heading.tagName.slice(1)} ${heading.getAttribute('aria-label') ?? heading.textContent}`,
+      ),
+  ).toEqual(headings);
+});

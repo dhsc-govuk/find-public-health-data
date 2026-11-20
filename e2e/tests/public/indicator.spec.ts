@@ -965,7 +965,7 @@ test('shows a picked area of an indicator with no England value without ticking 
 }) => {
   await openIndicatorPage(page, `${NO_ENGLAND_PATH}?geo-level=Upper-tier%20local%20authorities`);
   const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
-    has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+    has: page.getByRole('button', { name: 'Geographies', exact: true, includeHidden: true }),
   });
   await geographies.getByRole('checkbox', { name: 'Manchester', exact: true }).check();
   await expect(page).toHaveURL((url) => url.searchParams.get('as') === 'E08000003');

@@ -43,21 +43,21 @@ export function mobileFilterTests(scan: (page: Page, testInfo: TestInfo) => Prom
       ['Years the data covers', 'textbox', 'From'],
       ['Last updated', 'combobox', 'Last updated'],
     ] as const) {
-      const heading = page
-        .getByRole('heading', { name: title, exact: true })
-        .filter({ has: page.getByRole('button') });
-      const toggle = heading.getByRole('button');
+      const header = page
+        .locator('.fphd-filter-card__header')
+        .filter({ has: page.getByRole('button', { name: title, exact: true }) });
+      const toggle = header.getByRole('button');
       const control = page.getByRole(role, { name, exact: true });
       if (title === 'Geographies') {
         await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        await heading.tap({ position: { x: 20, y: 20 } });
+        await header.tap({ position: { x: 20, y: 20 } });
       }
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-      await heading.tap({ position: { x: 20, y: 20 } });
+      await header.tap({ position: { x: 20, y: 20 } });
       await expect(toggle).toHaveAttribute('aria-expanded', 'true');
       await expect(control).toBeVisible();
       await scan(page, testInfo);
-      await heading.tap({ position: { x: 20, y: 20 } });
+      await header.tap({ position: { x: 20, y: 20 } });
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
       await expect(control).toBeHidden();
     }
