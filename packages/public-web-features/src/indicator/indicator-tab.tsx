@@ -65,13 +65,14 @@ export function IndicatorTab({
   const england = englandObservations(areaData);
   const hasEngland = england.length > 0;
   const pickedAreaData = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
-  const shownObservations = (pickedAreaData.length ? pickedAreaData : areaData).flatMap(
-    ({ observations }) => observations,
-  );
   const periodChoice = periodTypeChoice(areaData, options.periodType, {
     defaultAreas: !!defaultAreaLevel,
   });
   const { periodType } = periodChoice;
+  const shownObservations = filterObservations(
+    (pickedAreaData.length ? pickedAreaData : areaData).flatMap(({ observations }) => observations),
+    { periodType },
+  );
   const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
   const period = periodChoice.offered
     ? { options: periodChoice.options, value: periodType, notice: periodChoice.notice }

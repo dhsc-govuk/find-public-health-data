@@ -360,3 +360,35 @@ it("says the areas shown lack a period type when they are the page's default lev
       ),
   ).toBe(true);
 });
+
+it('offers only the table columns and intervals the period type shown publishes', () => {
+  const fixture = benchmarkFixture();
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [
+            {
+              ...observation(5),
+              count: null,
+              lowerCi95: null,
+              upperCi95: null,
+              lowerCi998: null,
+              upperCi998: null,
+            },
+            { ...observation(6), fromDate: '2022-01-01' },
+          ],
+        },
+      ],
+    },
+  });
+  const { container } = render(<Routes initialEntries={['/?columns-108=count,value,95']} />);
+
+  expect(container.querySelector('input[name="columns-108"][value="count"]')).toBeNull();
+  expect(container.querySelector('input[name="columns-108"][value="95"]')).toBeNull();
+  expect(screen.queryByLabelText('Select confidence intervals')).toBeNull();
+  expect(screen.queryByRole('columnheader', { name: /Count/ })).toBeNull();
+});

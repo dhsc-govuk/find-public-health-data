@@ -130,11 +130,13 @@ export async function loadIndicatorCsv(
     const hasEngland = englandObservations(areaData).length > 0;
     const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
-    const shownObservations = (
-      pickedCodes.length > 0
+    const shownObservations = filterObservations(
+      (pickedCodes.length > 0
         ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND_CODE)
         : areaData
-    ).flatMap(({ observations }) => observations);
+      ).flatMap(({ observations }) => observations),
+      { periodType },
+    );
     const requestedConfidence = url.searchParams.get(`ci-${shortId}`);
     const confidence: ConfidenceLevel = isOneOf(
       availableConfidenceLevels(shownObservations),

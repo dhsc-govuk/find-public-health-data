@@ -683,6 +683,32 @@ describe('loadIndicatorCsv', () => {
     expect((await response.text()).trim().split('\n').slice(1)).toEqual(['2023,7,339,343.2']);
   });
 
+  it('offers only the columns the period type shown publishes', async () => {
+    const client = api([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          observation({ value: 7, lowerCi95: null, upperCi95: null, count: null }),
+          observation({ fromDate: '2021-01-01', value: 8 }),
+        ],
+      },
+    ]);
+
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        'http://localhost/indicator/mortality-all-causes/table.csv?columns-108=count,value,95',
+      ),
+      'table',
+    );
+
+    expect((await response.text()).trim().split('\n')).toEqual([
+      'Period,"England calculated value (per 100,000)"',
+      '2023,7',
+    ]);
+  });
+
   it('404s a segment shaped like neither identifier without calling the api', async () => {
     const client = createFakeApiClient();
 
