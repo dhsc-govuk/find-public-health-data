@@ -1,4 +1,5 @@
-# The default rules, plus allowlists for values that are published rather than secret.
+# The default rules, a rule for email addresses, and allowlists for values that are published rather
+# than secret.
 [extend]
 useDefault = true
 
@@ -11,3 +12,22 @@ regexes = ['''AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVEr
 description = "A unit's UUID beside \"£ per capita\": generic-api-key matches the \"api\" in \"capita\""
 regexTarget = "line"
 regexes = ['''\('£ per capita', '01a0d8a5-3ca2-7315-bfca-96e3aae4dc98'\)''']
+
+# Personal data has no place in a public repo, so any email address fails the scan unless it is
+# invented. Tests, fixtures and examples use example.com, example.org or example.net.
+[[rules]]
+id = "email-address"
+description = "A real email address. Use an invented one at example.com, example.org or example.net."
+regex = '''[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}'''
+keywords = ["@"]
+
+[[rules.allowlists]]
+description = "Domains reserved for examples and testing, and their subdomains"
+regexes = [
+  '''(?i)@(?:[a-z0-9-]+\.)*example\.(?:com|org|net)$''',
+  '''(?i)\.(?:example|test|invalid|localhost)$''',
+]
+
+[[rules.allowlists]]
+description = "A package@version file name, such as postgres@3.4.9.patch"
+regexes = ['''@\d+\.\d+\.\d+\.''']
