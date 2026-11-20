@@ -26,6 +26,8 @@ const height = 32;
 const middle = height / 2;
 /** The space either side of the chart, so a dot at the far end of the range stays whole. */
 const edge = 14;
+/** Narrower than this leaves under 10 pixels to plot either side of the benchmark. */
+const minimumWidth = 2 * (edge + 10);
 const grey = '#6f7276';
 
 export function SpineChart({
@@ -125,7 +127,7 @@ export function SpineChart({
   };
   return (
     <div className="fphd-range-slot" ref={slot}>
-      {width > 20 ? (
+      {width >= minimumWidth ? (
         <div
           className="fphd-range-plot"
           ref={plot}

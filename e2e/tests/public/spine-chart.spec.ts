@@ -23,6 +23,7 @@ test("lines up England's benchmark down each column of comparison charts", async
     }),
   );
   expect(lines.length).toBeGreaterThan(1);
+  expect(lines.every(({ column }) => column >= 0)).toBe(true);
   for (const { x, middle } of lines) expect(Math.abs((x ?? 0) - middle)).toBeLessThanOrEqual(1);
   for (const column of new Set(lines.map(({ column }) => column))) {
     const xs = new Set(lines.filter((line) => line.column === column).map(({ x }) => x));

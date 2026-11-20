@@ -118,6 +118,15 @@ it.each([
   expect(container.querySelector('circle')?.getAttribute('fill')).toBe(fill);
 });
 
+it('shows the text fallback when the chart is too narrow to plot either side of England', () => {
+  const { container } = render(<SpineChart {...props} />);
+  act(() => resize([{ contentRect: { width: 40 } }]));
+  expect(container.querySelector('svg')).toBeNull();
+  expect(screen.getByText(/Life expectancy\. Period: 2025/).textContent).toContain(
+    'Comparison: Better than England',
+  );
+});
+
 it('keeps a complete text fallback without ResizeObserver', () => {
   vi.stubGlobal('ResizeObserver', undefined);
   render(<SpineChart {...props} />);
