@@ -5,8 +5,9 @@ import {
   canCreateIndicatorInTeam,
   canEditIndicator,
   canListIndicators,
-  canSeeIndicator,
+  type IndicatorListScope,
   indicatorListScope,
+  otherTeamsListScope,
   ownTeamsListScope,
   type SessionUser,
 } from '@fphd/auth/permissions';
@@ -30,7 +31,11 @@ import {
   toFieldErrors,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
-import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
+import {
+  guardedIndicator,
+  requireIndicatorAccess,
+  requireIndicatorViewer,
+} from './indicator-access.ts';
 import type {
   IndicatorAdminDetailRow,
   IndicatorAdminListRow,
@@ -99,6 +104,13 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
   };
 }
 
+/** The indicators a list asks for: the user's own teams', other teams', or every one they see. */
+function listScope(teams: 'own' | 'other' | undefined, user: SessionUser): IndicatorListScope {
+  if (teams === 'own') return ownTeamsListScope(user);
+  if (teams === 'other') return otherTeamsListScope(user);
+  return indicatorListScope(user);
+}
+
 /**
  * The internal view of indicators, including the unpublished ones the public API never serves,
  * each user seeing those their roles allow. Mounted only by `internal-api`; `public-api` must
@@ -112,7 +124,7 @@ export function internalIndicatorsRouter(
   const requireCreator = requireJwtSession(session, canCreateIndicator);
   const requireLister = requireJwtSession(session, canListIndicators);
   const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
-  const requireViewer = requireIndicatorAccess(session, indicators, canSeeIndicator);
+  const requireViewer = requireIndicatorViewer(session, indicators);
 
   router.get('/api/internal/indicators', requireLister, async (request, response) => {
     const query = indicatorPageQuerySchema.safeParse(request.query);
@@ -137,9 +149,7 @@ export function internalIndicatorsRouter(
     }
 
     const { page } = query.data;
-    const session = requireApiSession(response);
-    const scope =
-      filter.data.teams === 'own' ? ownTeamsListScope(session) : indicatorListScope(session);
+    const scope = listScope(filter.data.teams, requireApiSession(response));
     const rows = await indicators.listPage(page, INDICATORS_PAGE_SIZE, scope, search.data.search);
     const body: IndicatorAdminPage = {
       indicators: rows.indicators.map(toListItem),

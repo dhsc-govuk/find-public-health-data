@@ -120,12 +120,7 @@ describe('GET /api/internal/indicators', () => {
       .set('Cookie', await publisherCookie());
 
     expect(response.status).toBe(200);
-    expect(listPage).toHaveBeenCalledWith(
-      1,
-      INDICATORS_PAGE_SIZE,
-      { all: false, teamIds: [TEAM_ID] },
-      undefined,
-    );
+    expect(listPage).toHaveBeenCalledWith(1, INDICATORS_PAGE_SIZE, { all: true }, undefined);
     expect(response.body).toEqual({
       indicators: [
         {
@@ -166,6 +161,7 @@ describe('GET /api/internal/indicators', () => {
   it.each([
     ['an admin', ['admin'], { all: true }],
     ['an IMRG manager', ['imrg-manager'], { all: true }],
+    ['a publisher', ['publisher'], { all: true }],
     ['an IMRG reviewer', ['imrg-reviewer'], { all: false, teamIds: [] }],
   ])('lists for %s the indicators their roles let them see', async (_who, roles, scope) => {
     const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
@@ -190,6 +186,38 @@ describe('GET /api/internal/indicators', () => {
       1,
       INDICATORS_PAGE_SIZE,
       { all: false, teamIds: [TEAM_ID] },
+      undefined,
+    );
+  });
+
+  it("lists only other teams' indicators for a publisher when asked", async () => {
+    const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
+
+    const response = await request(createTestApp({ listPage }))
+      .get('/api/internal/indicators?teams=other')
+      .set('Cookie', await publisherCookie());
+
+    expect(response.status).toBe(200);
+    expect(listPage).toHaveBeenCalledWith(
+      1,
+      INDICATORS_PAGE_SIZE,
+      { all: true, exceptTeamIds: [TEAM_ID] },
+      undefined,
+    );
+  });
+
+  it("lists no other teams' indicators for an IMRG reviewer who doesn't publish", async () => {
+    const listPage = vi.fn().mockResolvedValue({ indicators: [], total: 0 });
+
+    const response = await request(createTestApp({ listPage }))
+      .get('/api/internal/indicators?teams=other')
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));
+
+    expect(response.status).toBe(200);
+    expect(listPage).toHaveBeenCalledWith(
+      1,
+      INDICATORS_PAGE_SIZE,
+      { all: false, teamIds: [] },
       undefined,
     );
   });
@@ -232,7 +260,7 @@ describe('GET /api/internal/indicators', () => {
     expect(response.body).toEqual({ error: 'invalid_search' });
   });
 
-  it('rejects a teams filter other than own as a bad request', async () => {
+  it('rejects a teams filter other than own or other as a bad request', async () => {
     const response = await request(createTestApp())
       .get('/api/internal/indicators?teams=all')
       .set('Cookie', await publisherCookie());
@@ -402,15 +430,20 @@ describe('GET /api/internal/indicators/:id', () => {
     expect(response.body.actions).toEqual([]);
   });
 
-  it("answers 404 for another team's indicator, as for one that does not exist", async () => {
-    const findById = vi.fn().mockResolvedValue({ ...detailRow, teamId: OTHER_TEAM_ID });
+  it("serves a publisher another team's indicator, offering no step", async () => {
+    const findById = vi.fn().mockResolvedValue({
+      ...detailRow,
+      teamId: OTHER_TEAM_ID,
+      indicatorStatus: 'new',
+      draftStatus: 'draft',
+    });
 
     const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
       .set('Cookie', await publisherCookie());
 
-    expect(response.status).toBe(404);
-    expect(response.body).toEqual({ error: 'not_found' });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ id: row.id, teamId: OTHER_TEAM_ID, actions: [] });
   });
 
   it.each([
@@ -445,7 +478,7 @@ describe('GET /api/internal/indicators/:id', () => {
 
     const response = await request(createTestApp({ findAccess: findById, findById }))
       .get(`/api/internal/indicators/${row.id}`)
-      .set('Cookie', await reviewerCookie());
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });

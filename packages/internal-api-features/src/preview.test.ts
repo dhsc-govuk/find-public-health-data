@@ -87,12 +87,47 @@ describe('the indicator preview API', () => {
     const findVersion = vi.fn();
     const response = await request(createTestApp({ findVersion }).app)
       .get(PATH)
-      .set('Cookie', await testSessionCookie(['publisher'], [TEAM_IDS.teamB]));
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
     expect(findVersion).not.toHaveBeenCalled();
   });
+
+  it('answers a publisher in another team the detail as metadata only, without its data state', async () => {
+    const findDataState = vi.fn();
+    const { app } = createTestApp({
+      repositoriesFor: () => ({ ...previewRepositories(), findDataState }),
+    });
+
+    const response = await request(app)
+      .get(PATH)
+      .set('Cookie', await testSessionCookie(['publisher'], [TEAM_IDS.teamB]));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ...found, dataState: 'metadata-only' });
+    expect(findDataState).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    '/api/indicators/108/data',
+    '/api/indicators/108/areas',
+    '/api/indicator-data?indicator=108',
+    '/api/indicators?q=draft',
+    '/api/areas/lookup?areaCode=E92000001',
+  ])(
+    'answers a publisher in another team not found for %s, before reading the version',
+    async (path) => {
+      const findVersion = vi.fn();
+      const response = await request(createTestApp({ findVersion }).app)
+        .get(`/api/internal/indicators/${INDICATOR_ID}/preview${path}`)
+        .set('Cookie', await testSessionCookie(['publisher'], [TEAM_IDS.teamB]));
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ error: 'not_found' });
+      expect(findVersion).not.toHaveBeenCalled();
+    },
+  );
 
   it('refuses a request with no session', async () => {
     const response = await request(createTestApp().app).get(PATH);

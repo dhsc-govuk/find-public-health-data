@@ -1,11 +1,12 @@
+import { requireApiSession } from '@fphd/api-server';
 import type { JwtSessionVerifier } from '@fphd/auth/jwt-session';
-import { canSeeIndicator } from '@fphd/auth/permissions';
+import { canWorkOnIndicator } from '@fphd/auth/permissions';
 import type { FoundIndicatorDetail, Repositories } from '@fphd/db';
 import type { IndicatorDataState } from '@fphd/utils/indicator-page';
 import { Router } from 'express';
 
 import { PREVIEW_API_PATH } from './contract.ts';
-import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
+import { guardedIndicator, requireIndicatorViewer } from './indicator-access.ts';
 import type { PreviewRepositories, PreviewVersion } from './preview-repository.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
@@ -36,11 +37,16 @@ export interface InternalPreviewRepository {
   repositoriesFor(version: PreviewVersion): PreviewRepositories;
 }
 
+// The indicator's detail, which is all of the preview a user who doesn't work on it may read.
+const DETAIL_PATH = /^\/api\/indicators\/[^/]+$/;
+
 /**
  * The public API again, under `PREVIEW_API_PATH`, showing the indicator's draft or scheduled
  * version as if it alone had been published. Anyone who can see the indicator's overview can
- * preview it. The server chooses the version, so the address never names one. Each request
- * gets repositories of its own, because what they read depends on the version.
+ * preview it, but a user who doesn't work on it, such as a publisher in another team, sees only
+ * its metadata: its detail says so, and every other path is not found. The server chooses the
+ * version, so the address never names one. Each request gets repositories of its own, because
+ * what they read depends on the version.
  */
 export function indicatorPreviewRouter(
   preview: InternalPreviewRepository,
@@ -49,10 +55,17 @@ export function indicatorPreviewRouter(
   publicRoutes: PublicApiRoutes,
 ): Router {
   const router = Router();
-  const requireViewer = requireIndicatorAccess(session, indicators, canSeeIndicator);
+  const requireViewer = requireIndicatorViewer(session, indicators);
 
   router.use(PREVIEW_API_PATH, requireViewer, async (request, response, next) => {
-    const { id } = guardedIndicator(response);
+    const { id, access } = guardedIndicator(response);
+    const metadataOnly = !canWorkOnIndicator(requireApiSession(response), access);
+
+    if (metadataOnly && !DETAIL_PATH.test(request.path)) {
+      response.status(404).json({ error: 'not_found' });
+      return;
+    }
+
     const version = await preview.findVersion(id);
 
     if (version === undefined) {
@@ -63,8 +76,13 @@ export function indicatorPreviewRouter(
     const repositories = preview.repositoriesFor(version);
     // The preview's detail endpoint answers with the detail as found, which the public one
     // never does, so the preview page can show what the draft leaves unanswered.
-    const detailBody = async (found: FoundIndicatorDetail, indicatorId: string) => {
-      const dataState = await repositories.findDataState(indicatorId);
+    const detailBody = async (
+      found: FoundIndicatorDetail,
+      indicatorId: string,
+    ): Promise<PreviewIndicatorDetail | undefined> => {
+      const dataState = metadataOnly
+        ? 'metadata-only'
+        : await repositories.findDataState(indicatorId);
       return dataState === undefined ? undefined : { ...found, dataState };
     };
 

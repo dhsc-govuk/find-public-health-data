@@ -657,12 +657,24 @@ describe('internal API', () => {
 
 describe('the indicator routes', () => {
   const id = '00000000-0000-7000-8000-000000000001';
+  const preview = `/api/internal/indicators/${id}/preview`;
   const routes = [
     ['a section read', 'get', `/api/internal/indicators/${id}/polarity`],
     ['a section write', 'put', `/api/internal/indicators/${id}/polarity`],
+    ['a rename', 'patch', `/api/internal/indicators/${id}`],
     ['a workflow step', 'post', `/api/internal/indicators/${id}/submit`],
+    ['the task list', 'get', `/api/internal/indicators/${id}/task-list`],
+    ['the start of an update', 'post', `/api/internal/indicators/${id}/draft`],
+    ['a data upload', 'post', `/api/internal/indicators/${id}/data-uploads`],
+    ['the data table check', 'get', `/api/internal/indicators/${id}/data-table`],
+    ['the revision response', 'get', `/api/internal/indicators/${id}/revision-response`],
+    ['the notes for reviewers', 'get', `/api/internal/indicators/${id}/notes-for-reviewers`],
+    ['the history', 'get', `/api/internal/indicators/${id}/history`],
+    ['the preview data', 'get', `${preview}/api/indicators/108/data`],
+  ] as const;
+  const detailRoutes = [
     ['the detail route', 'get', `/api/internal/indicators/${id}`],
-    ['the preview', 'get', `/api/internal/indicators/${id}/preview/api/indicators/108`],
+    ['the preview detail', 'get', `${preview}/api/indicators/108`],
   ] as const;
 
   function createTeamBApp() {
@@ -681,7 +693,7 @@ describe('the indicator routes', () => {
     expect(response.body).toEqual({ error: 'not_found' });
   });
 
-  it.each(routes.slice(0, 3))(
+  it.each(routes.slice(0, 4))(
     'answer an admin, who may see the indicator but not edit it, 403 on %s',
     async (_, method, path) => {
       const response = await request(createTeamBApp())
@@ -693,14 +705,17 @@ describe('the indicator routes', () => {
     },
   );
 
-  it.each(routes)('answer 400 for an id that is not one on %s', async (_, method, path) => {
-    const response = await request(createTeamBApp())
-      [method](path.replace(id, 'not-an-id'))
-      .set('Cookie', await createCookie(['publisher']));
+  it.each([...routes, ...detailRoutes])(
+    'answer 400 for an id that is not one on %s',
+    async (_, method, path) => {
+      const response = await request(createTeamBApp())
+        [method](path.replace(id, 'not-an-id'))
+        .set('Cookie', await createCookie(['publisher']));
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'invalid_id' });
-  });
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: 'invalid_id' });
+    },
+  );
 });
 
 // One probe per kind of public router: the preview's own behaviour is tested in
@@ -764,6 +779,34 @@ describe('the indicator preview', () => {
       .set('Cookie', await createCookie(['publisher']));
 
     expect(response.status).toBe(200);
+  });
+
+  it('answers a publisher in another team the detail alone, as metadata only', async () => {
+    const teamB = createTestApp(
+      createFakeRepositories(),
+      createFakeInternalRepositories({
+        indicators: { findAccess: async () => ({ ...stepRow, teamId: TEAM_IDS.teamB }) },
+        preview: {
+          findVersion: async () => ({ id: 'version-id', slug: 'a-draft' }),
+          repositoriesFor: () => ({ ...previewed, findDataState: async () => 'ready' }),
+        },
+      }),
+    );
+    const cookie = await createCookie(['publisher']);
+
+    const detail = await request(teamB).get(`${prefix}/api/indicators/108`).set('Cookie', cookie);
+    const data = await request(teamB)
+      .get(`${prefix}/api/indicators/108/data`)
+      .set('Cookie', cookie);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body).toEqual({
+      name: 'A draft',
+      unanswered: ['polarity'],
+      dataState: 'metadata-only',
+    });
+    expect(data.status).toBe(404);
+    expect(data.body).toEqual({ error: 'not_found' });
   });
 
   it('requires a session', async () => {

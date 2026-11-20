@@ -189,8 +189,13 @@ export const indicatorSearchQuerySchema = z.object({
     .transform((search) => (search === '' ? undefined : search)),
 });
 
-/** The API list's filter: `teams=own` keeps to the teams the user publishes for. */
-export const indicatorListTeamsQuerySchema = z.object({ teams: z.literal('own').optional() });
+/**
+ * The API list's filter: `teams=own` keeps to the teams the user publishes for, and `teams=other`
+ * to every indicator they may see outside them.
+ */
+export const indicatorListTeamsQuerySchema = z.object({
+  teams: z.enum(['own', 'other']).optional(),
+});
 
 /** A dashboard row, which names the team and the people for the publisher to read. */
 export const indicatorAdminListItemSchema = indicatorAdminSummarySchema.extend({
