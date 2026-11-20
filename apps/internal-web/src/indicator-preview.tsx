@@ -30,7 +30,7 @@ export default function IndicatorPreviewRoute() {
   const { preview, ...page } = useLoaderData<typeof loader>();
   const links = useMemo(() => previewLinks(preview.id), [preview.id]);
   return (
-    <IndicatorPreviewPage>
+    <IndicatorPreviewPage metadataOnly={page.detail.dataState === 'metadata-only'}>
       <IndicatorLinksContext.Provider value={links}>
         <SingleIndicatorPage {...page} />
       </IndicatorLinksContext.Provider>

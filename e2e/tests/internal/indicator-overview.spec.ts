@@ -121,20 +121,41 @@ test.describe('as an admin, who sees the seeded indicators in Fingertips', () =>
 test.describe('as a publisher in another team', () => {
   test.use({ storageState: TEAM_B_PUBLISHER.storageState });
 
-  test("answers another team's indicator with the not-found page", async ({ browser, page }) => {
+  test("shows another team's indicator read only, offering its metadata-only preview", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const name = uniqueIndicatorName('overview other team');
     const publisher = await browser.newContext({ storageState: PUBLISHER.storageState });
-    const id = await createDraft(await publisher.newPage(), uniqueIndicatorName('overview'));
+    const id = await createDraft(await publisher.newPage(), name);
     await publisher.close();
 
     const response = await page.goto(`/dashboard/indicators/${id}`);
 
-    expect(response?.status()).toBe(404);
-    await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await expect(page.getByRole('main').locator('h1 ~ p .govuk-tag')).toHaveText([
+      'Indicator status: New indicator',
+      'Publishing status: Incomplete',
+    ]);
+    await expect(page.getByRole('tab')).toHaveText(['Actions']);
+    await expect(
+      page.getByRole('link', { name: 'View indicator preview (metadata only)' }),
+    ).toHaveAttribute('href', `/dashboard/indicators/${id}/preview`);
+    await expect(page.getByRole('link', { name: /^Continue/ })).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('button')).toHaveCount(0);
+    await expectNoAccessibilityViolations(page, testInfo);
   });
-});
 
-test('hides an indicator in Fingertips from a publisher', async ({ page }) => {
-  const response = await page.goto(PUBLISHED_OVERVIEW_PATH);
+  test('shows a published indicator in Fingertips, offering only its live page', async ({
+    page,
+  }) => {
+    await page.goto(PUBLISHED_OVERVIEW_PATH);
 
-  expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { level: 1, name: MORTALITY_NAME })).toBeVisible();
+    await expect(page.getByRole('tabpanel', { name: 'Actions' }).getByRole('link')).toHaveText([
+      'View live indicator',
+    ]);
+    await expect(page.getByRole('button', { name: 'Update indicator' })).toHaveCount(0);
+  });
 });

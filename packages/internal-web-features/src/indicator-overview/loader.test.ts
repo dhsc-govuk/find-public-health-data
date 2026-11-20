@@ -92,6 +92,7 @@ describe('loadIndicatorOverview', () => {
     ]);
     expect(outcome).toEqual({
       canEdit: true,
+      metadataOnly: false,
       isReviewer: false,
       indicator,
       notesForReviewers: notes,
@@ -109,6 +110,30 @@ describe('loadIndicatorOverview', () => {
     const outcome = await load(indicator.id, apiGet(indicator), roles, teams);
 
     expect(outcome.canEdit).toBe(false);
+  });
+
+  it("shows a publisher another team's indicator read only: no notes, no history, a metadata-only preview", async () => {
+    const api = apiGet(indicator);
+
+    const outcome = await load(indicator.id, api, ['publisher'], [TEAM_IDS.teamB]);
+
+    expect(paths(api)).toEqual([`/api/internal/indicators/${indicator.id}`]);
+    expect(outcome).toMatchObject({
+      canEdit: false,
+      metadataOnly: true,
+      notesForReviewers: null,
+      history: null,
+    });
+  });
+
+  it.each([
+    ['a publisher in its team', ['publisher'], [TEAM_IDS.teamA]],
+    ['an admin', ['admin'], []],
+    ['an IMRG manager', ['imrg-manager'], []],
+  ])('offers %s the whole preview', async (_who, roles, teams) => {
+    const outcome = await load(indicator.id, apiGet(indicator), roles, teams);
+
+    expect(outcome.metadataOnly).toBe(false);
   });
 
   it.each([
