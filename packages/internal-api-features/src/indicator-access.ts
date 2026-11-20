@@ -53,14 +53,15 @@ export function requireIndicatorViewer(
   session: JwtSessionVerifier,
   indicators: IndicatorAccessReader,
 ): RequestHandler {
-  return guardIndicator(session, indicators, canSeeIndicator, canSeeIndicator);
+  return guardIndicator(session, indicators, canSeeIndicator);
 }
 
+/** Both guards: 404 for an indicator `shows` refuses, then 403 when `allows`, if any, refuses. */
 function guardIndicator(
   session: JwtSessionVerifier,
   indicators: IndicatorAccessReader,
   shows: IndicatorCheck,
-  allows: IndicatorCheck,
+  allows?: IndicatorCheck,
 ): RequestHandler {
   const requireSession = requireJwtSession(session, canUseInternalService);
 
@@ -81,7 +82,7 @@ function guardIndicator(
       return;
     }
 
-    if (!allows(user, access)) {
+    if (allows !== undefined && !allows(user, access)) {
       response.status(403).json({ error: 'forbidden' });
       return;
     }
