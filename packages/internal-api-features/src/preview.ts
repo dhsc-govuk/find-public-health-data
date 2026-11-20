@@ -81,13 +81,15 @@ export function indicatorPreviewRouter(
     const repositories = preview.repositoriesFor(version);
     // The preview's detail endpoint answers with the detail as found, which the public one
     // never does, so the preview page can show what the draft leaves unanswered.
+    // A user who doesn't work on the indicator gets its own detail alone, so a short id that
+    // names any other indicator is not found.
     const detailBody = async (
       found: FoundIndicatorDetail,
       indicatorId: string,
     ): Promise<PreviewIndicatorDetail | undefined> => {
-      const dataState = metadataOnly
-        ? 'metadata-only'
-        : await repositories.findDataState(indicatorId);
+      if (metadataOnly)
+        return indicatorId === id ? { ...found, dataState: 'metadata-only' } : undefined;
+      const dataState = await repositories.findDataState(indicatorId);
       return dataState === undefined ? undefined : { ...found, dataState };
     };
 

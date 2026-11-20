@@ -790,10 +790,27 @@ describe('the indicator preview', () => {
       indicators: { findAccess: async () => ({ ...stepRow, teamId: TEAM_IDS.teamB }) },
       preview: {
         findVersion: async () => ({ id: 'version-id', slug: 'a-draft' }),
-        repositoriesFor: () => ({ ...previewed, findDataState: async () => 'ready' }),
+        // Short id 108 is the previewed indicator, and 555 another one.
+        repositoriesFor: () => ({
+          ...previewed,
+          indicators: {
+            ...previewed.indicators,
+            resolveId: async (shortId: number) => (shortId === 108 ? id : 'another-id'),
+          },
+          findDataState: async () => 'ready',
+        }),
       },
     }),
   );
+
+  it("answers a publisher in another team another indicator's detail as not found", async () => {
+    const response = await request(teamB)
+      .get(`${prefix}/api/indicators/555`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
 
   it('answers a publisher in another team the detail alone, as metadata only', async () => {
     const response = await request(teamB)
