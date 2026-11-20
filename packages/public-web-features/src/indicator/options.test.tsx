@@ -108,7 +108,6 @@ it.each(['', 'columns-108=value,minmax', 'columns-108=none'])(
             rangeBenchmarks={false}
             measures={['count']}
             confidenceLevels={['95']}
-            periodTypes={['1-year']}
             sexes={[]}
             showConfidence
             options={{ benchmarks: [], confidence: 'none', periodType: 'all', sex: '' }}
@@ -142,7 +141,6 @@ it.each(['chart', 'compare-areas', 'table'] as const)(
             label="Options"
             scope={108}
             confidenceLevels={[]}
-            periodTypes={['1-year']}
             sexes={[]}
             showConfidence={false}
             options={{
@@ -251,7 +249,7 @@ it('submits visible controls once without hidden copies of their previous values
           label="Options"
           scope={108}
           confidenceLevels={['95']}
-          periodTypes={['1-year', '3-year']}
+          period={{ options: ['1-year', '3-year'], value: '3-year' }}
           sexes={['Female', 'Male']}
           showConfidence
           options={{
@@ -273,4 +271,52 @@ it('submits visible controls once without hidden copies of their previous values
   expect(submitted.getAll('ci-108')).toEqual(['95']);
   expect(submitted.getAll('sex-108')).toEqual(['Female']);
   expect(submitted.getAll('pt-108')).toEqual(['3-year']);
+});
+
+function periodPanel(accordion: boolean, notice: string | null) {
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => (
+        <PanelOptionsPanel
+          accordion={accordion}
+          label="Options"
+          scope={108}
+          confidenceLevels={[]}
+          period={{ options: ['3-year'], value: '3-year', notice }}
+          sexes={[]}
+          showConfidence={false}
+          options={{ benchmarks: [], confidence: 'none', periodType: '1-year', sex: '' }}
+          onChange={() => {}}
+          target={{ tabParam: 'tab-indicator', tabValue: 'indicator', anchor: 'indicator-data' }}
+        />
+      ),
+    },
+  ]);
+  render(<Routes initialEntries={['/?pt-108=1-year']} />);
+}
+
+it('offers the period types it is given and shows the period type in use', () => {
+  periodPanel(false, null);
+  const select = screen.getByLabelText<HTMLSelectElement>('Type of time period');
+  expect([...select.options].map(({ text }) => text)).toEqual(['3 year rolling average']);
+  expect(select.value).toBe('3-year');
+});
+
+it('announces why the chart shows another period type than the one chosen', () => {
+  const notice = 'Showing 3 year rolling averages because Oxford has no 1 year data.';
+  periodPanel(false, notice);
+  expect(screen.getByRole('status').textContent).toBe(notice);
+});
+
+it('keeps an empty status for the period notice so a later notice is announced', () => {
+  periodPanel(false, null);
+  expect(screen.getByRole('status').textContent).toBe('');
+});
+
+it('shows the period notice in the table options without announcing it a second time', () => {
+  const notice = 'Showing 3 year rolling averages because Oxford has no 1 year data.';
+  periodPanel(true, notice);
+  expect(screen.getByText(notice)).toBeTruthy();
+  expect(screen.queryByRole('status')).toBeNull();
 });

@@ -31,9 +31,7 @@ for (const count of [1, 2, 8, 12]) {
       const region = page.getByRole('region', { name: /trend chart$/ }).first();
       const chart = region.locator('.fphd-chart-canvas').first();
       await expect(chart.locator('.recharts-label')).toHaveText('Year');
-      await expect(
-        region.locator('.fphd-chart-canvas').nth(1).locator('.recharts-label'),
-      ).toHaveText('Period');
+      await expect(region.locator('.fphd-chart-canvas')).toHaveCount(1);
       const title = chart.locator('.fphd-line-axis-title');
       const surface = chart.locator('svg.recharts-surface').first();
       await expect(title).toBeVisible();

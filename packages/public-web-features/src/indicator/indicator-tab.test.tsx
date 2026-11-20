@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createRoutesStub, useLocation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
@@ -276,4 +276,119 @@ it("offers England's sexes when England has a value, whatever the picked area ha
       ({ value }) => value,
     ),
   ).toEqual(['', 'Male']);
+});
+
+it('offers no empty period select when the picked area has no data', () => {
+  const fixture = benchmarkFixture();
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        { areaCode: 'E06000052', areaName: 'Cornwall', observations: [] },
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [observation(5), { ...observation(6), fromDate: '2022-01-01' }],
+        },
+      ],
+    },
+    selection: { areaCodes: ['E06000052'], areaLevels: [], shortIds: [108] },
+  });
+  render(<Routes initialEntries={['/']} />);
+
+  for (const select of screen.getAllByLabelText<HTMLSelectElement>('Type of time period')) {
+    expect([...select.options].map(({ text }) => text)).toEqual([
+      '1 year',
+      '3 year rolling average',
+    ]);
+    expect(select.value).toBe('1-year');
+  }
+});
+
+it('offers only the sexes of the period type shown', () => {
+  const fixture = benchmarkFixture();
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [
+            observation(5),
+            { ...observation(6, [sex('Male')]), fromDate: '2022-01-01' },
+          ],
+        },
+      ],
+    },
+  });
+  render(<Routes initialEntries={['/?sex-108=Male']} />);
+
+  expect(screen.queryByLabelText('Select sex')).toBeNull();
+  expect(
+    within(screen.getByRole('table', { name: /^Table:/ })).getByRole('rowheader', { name: '2024' }),
+  ).toBeTruthy();
+});
+
+it("says the areas shown lack a period type when they are the page's default level", () => {
+  const fixture = benchmarkFixture();
+  const rolling = (value: number) => ({ ...observation(value), fromDate: '2022-01-01' });
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        {
+          areaCode: 'E12000001',
+          areaName: 'North East',
+          observations: [observation(4), rolling(5)],
+        },
+        { areaCode: 'E12000002', areaName: 'North West', observations: [rolling(6)] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [] },
+      ],
+    },
+    defaultAreaLevel: 'Statistical regions',
+  });
+  render(<Routes initialEntries={['/']} />);
+
+  expect(
+    screen
+      .getAllByRole('status')
+      .some(
+        ({ textContent }) =>
+          textContent ===
+          'Showing 3 year rolling averages because some of the areas shown have no 1 year data.',
+      ),
+  ).toBe(true);
+});
+
+it('offers only the table columns and intervals the period type shown publishes', () => {
+  const fixture = benchmarkFixture();
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: fixture.detail,
+      areaData: [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [
+            {
+              ...observation(5),
+              count: null,
+              lowerCi95: null,
+              upperCi95: null,
+              lowerCi998: null,
+              upperCi998: null,
+            },
+            { ...observation(6), fromDate: '2022-01-01' },
+          ],
+        },
+      ],
+    },
+  });
+  const { container } = render(<Routes initialEntries={['/?columns-108=count,value,95']} />);
+
+  expect(container.querySelector('input[name="columns-108"][value="count"]')).toBeNull();
+  expect(container.querySelector('input[name="columns-108"][value="95"]')).toBeNull();
+  expect(screen.queryByLabelText('Select confidence intervals')).toBeNull();
+  expect(screen.queryByRole('columnheader', { name: /Count/ })).toBeNull();
 });

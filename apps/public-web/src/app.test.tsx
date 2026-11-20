@@ -222,8 +222,8 @@ describe('public application routes', () => {
                         {
                           areaCode: 'E92000001',
                           areaName: 'England',
-                          // England publishes both shapes, but must not put a period
-                          // choice on a page whose picked area cannot honour it.
+                          // England publishes both shapes, so the page offers the choice,
+                          // but only the shape the picked area publishes.
                           observations: [
                             observation('2021-01-01', '2023-12-31', 11.4),
                             observation('2023-01-01', '2023-12-31', 11.9),
@@ -244,7 +244,7 @@ describe('public application routes', () => {
       },
     ]);
 
-    // A stale pt param in the URL must fall back to All, not blank the table.
+    // A period type the picked area lacks gives way to the one it has, and the page says why.
     render(
       <Routes
         initialEntries={[
@@ -258,7 +258,18 @@ describe('public application routes', () => {
         name: 'Mortality rate for deaths involving diabetes, all ages',
       }),
     ).toBeTruthy();
-    expect(screen.queryByLabelText('Select time period type')).toBeNull();
+    const [select] = screen.getAllByLabelText<HTMLSelectElement>('Type of time period');
+    expect([...(select?.options ?? [])].map(({ text }) => text)).toEqual([
+      '3 year rolling average',
+    ]);
+    expect(
+      screen
+        .getAllByRole('status')
+        .some(
+          ({ textContent }) =>
+            textContent === 'Showing 3 year rolling averages because Cornwall has no 1 year data.',
+        ),
+    ).toBe(true);
     expect(
       within(screen.getByRole('table', { name: /^Table:/ })).getByRole('rowheader', {
         name: '2021 to 2023',
