@@ -219,8 +219,11 @@ it('uses one zero-based bar scale with confidence-interval headroom and prototyp
   const { rows } = areaComparisonRows(indicator, indicator.areaData, 'descending');
   expect(areaComparisonBarMaximum(rows)).toBe(15);
   expect(areaComparisonBarColour('', 'england', true)).toBe('#b1b4b6');
-  expect(areaComparisonBarColour('Higher', 'england', false, true)).toBe('#254BA4');
-  expect(areaComparisonBarColour('Similar', 'england', false, true)).toBe('#FFFFFF');
+  expect(areaComparisonBarColour('Higher', 'england', false, true)).toBe('#0E3F69');
+  expect(areaComparisonBarColour('Similar', 'england', false, true)).toBe('#698AAB');
+  expect(areaComparisonBarColour('Lower', 'england', false, true)).toBe('#CEE0F3');
+  expect(areaComparisonBarColour('Better', 'england', false)).toBe('#8ED973');
+  expect(areaComparisonBarColour('Similar', 'england', false)).toBe('#FFC000');
   expect(areaComparisonBarColour('Worse', 'england', false)).toBe('#C00000');
   expect(areaComparisonBarColour('Quintile 1 (lowest)', 'quintiles', false)).toBe('#C5EEE9');
   expect(areaComparisonBarColour('Quintile 5 (highest)', 'quintiles', false)).toBe('#004842');

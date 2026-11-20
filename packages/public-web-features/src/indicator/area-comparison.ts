@@ -380,13 +380,10 @@ export function areaComparisonBarColour(
       '#b1b4b6'
     );
   }
-  const colours: Record<string, string> = {
-    Better: '#8ED973',
-    Similar: neutral ? '#FFFFFF' : '#FFC000',
-    Worse: '#C00000',
-    Higher: '#254BA4',
-    Lower: '#A7B6DA',
-  };
+  // Indicators with no polarity use tonal steps of dark blue, darkest for higher than England.
+  const colours: Record<string, string> = neutral
+    ? { Higher: '#0E3F69', Similar: '#698AAB', Lower: '#CEE0F3' }
+    : { Better: '#8ED973', Similar: '#FFC000', Worse: '#C00000' };
   return colours[label] ?? '#b1b4b6';
 }
 

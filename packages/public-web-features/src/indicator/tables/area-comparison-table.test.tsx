@@ -118,3 +118,37 @@ it('keeps CI columns when only the filtered-out areas have confidence intervals'
   expect(screen.getByRole('columnheader', { name: '95% lower confidence interval' })).toBeTruthy();
   expect(screen.getByRole('columnheader', { name: '95% upper confidence interval' })).toBeTruthy();
 });
+
+it('draws no polarity bars in blues with a dark border and leaves England unbordered', () => {
+  const primary = selected();
+  primary.detail.polarity = 'no-polarity';
+  const model = indicatorComparisonModel([primary], {
+    compareAreasData: primary.areaData,
+    comparedAreasData: [],
+    compareAreaOptions: [],
+    compareAreaGroup: 'Local authorities',
+    comparisonDisplayGroups: [],
+  }).areas;
+  const row = model.rows[0];
+  if (!row) throw new Error('Missing row fixture');
+  model.rows = [
+    { ...row, areaCode: 'E92000001', areaName: 'England', value: 10 },
+    { ...row, areaCode: 'h', areaName: 'Higher area', value: 12, label: 'Higher' },
+    { ...row, areaCode: 's', areaName: 'Similar area', value: 10, label: 'Similar' },
+    { ...row, areaCode: 'l', areaName: 'Lower area', value: 8, label: 'Lower' },
+  ];
+  render(
+    <AreaComparisonTable indicator={primary} model={model} sort="descending" highlighted={[]} />,
+  );
+  const bar = (name: string) => {
+    const rect = screen
+      .getByRole('rowheader', { name })
+      .closest('tr')
+      ?.querySelector('svg svg rect');
+    return { fill: rect?.getAttribute('fill'), stroke: rect?.getAttribute('stroke') };
+  };
+  expect(bar('Higher area')).toEqual({ fill: '#0E3F69', stroke: '#0b0c0c' });
+  expect(bar('Similar area')).toEqual({ fill: '#698AAB', stroke: '#0b0c0c' });
+  expect(bar('Lower area')).toEqual({ fill: '#CEE0F3', stroke: '#0b0c0c' });
+  expect(bar('England (benchmark)')).toEqual({ fill: '#b1b4b6', stroke: null });
+});
