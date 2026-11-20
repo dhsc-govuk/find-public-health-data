@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { parse } from 'csv-parse/sync';
 
 import {
@@ -1093,6 +1093,55 @@ test('keeps the comparison table usable beside the geography controls on tablets
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   }
   await expectNoAccessibilityViolations(page, testInfo);
+});
+
+async function comparisonBars(page: Page, path: string) {
+  await openIndicatorPage(page, `${path}?tab-indicator=areas`);
+  const table = page.getByRole('table', { name: /Table of area comparisons/ });
+  await expect(table).toBeVisible();
+  return (comparison: string) =>
+    table
+      .getByRole('row')
+      .filter({ has: page.getByRole('cell', { name: comparison, exact: true }) })
+      .first()
+      .locator('.fphd-comparison-bar rect')
+      .nth(1);
+}
+
+test('colours Compare areas bars by comparison with England for an indicator with no polarity', async ({
+  page,
+}) => {
+  const bar = await comparisonBars(
+    page,
+    '/indicator/attended-contacts-with-community-and-outpatient-mental-health-services-per-100000',
+  );
+  await expect(bar('Higher')).toHaveAttribute('fill', '#0E3F69');
+  await expect(bar('Higher')).toHaveAttribute('stroke', '#0b0c0c');
+  await expect(bar('Lower')).toHaveAttribute('fill', '#CEE0F3');
+  const england = page
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: 'England (benchmark)' }) })
+    .locator('.fphd-comparison-bar rect')
+    .nth(1);
+  await expect(england).toHaveAttribute('fill', '#b1b4b6');
+  await expect(england).not.toHaveAttribute('stroke', /./);
+});
+
+test('gives each area bar a 1px dark border and keeps the colours of indicators with polarity', async ({
+  page,
+}) => {
+  const bar = await comparisonBars(
+    page,
+    '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages',
+  );
+  for (const [comparison, fill] of [
+    ['Better', '#8ED973'],
+    ['Similar', '#FFC000'],
+    ['Worse', '#C00000'],
+  ] as const) {
+    await expect(bar(comparison)).toHaveAttribute('fill', fill);
+    await expect(bar(comparison)).toHaveAttribute('stroke', '#0b0c0c');
+  }
 });
 
 test('keeps a pending geography choice when sorting the area table', async ({ page }, testInfo) => {
