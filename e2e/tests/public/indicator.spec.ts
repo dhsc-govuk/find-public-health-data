@@ -1059,6 +1059,7 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await expect(
     chart.getByRole('application').locator('.recharts-bar-rectangle').first(),
   ).toBeVisible();
+  await expect(chart.getByText('View chart data as a table', { exact: true })).toHaveCount(0);
   const map = page.getByRole('region', { name: 'Diabetes: QOF prevalence map' });
   await expect(map).toBeVisible();
   const mapBox = await map.boundingBox();

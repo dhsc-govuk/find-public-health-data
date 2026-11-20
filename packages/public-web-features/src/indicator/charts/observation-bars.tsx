@@ -29,7 +29,6 @@ import { bounds, errorOffsets, quintileColours, quintileLabel } from './chart-da
 import {
   axisColour,
   ChartCanvas,
-  ChartDataTable,
   chartValue,
   gridColour,
   NoChartData,
@@ -125,7 +124,6 @@ export function ObservationBars({
   colourMode = 'magnitude',
   comparisonConfidence = '95',
   colourByQuintile = false,
-  showTable = true,
 }: {
   rows: BarRow[];
   confidence: ConfidenceLevel;
@@ -137,7 +135,6 @@ export function ObservationBars({
   colourMode?: BarColourMode;
   comparisonConfidence?: ConfidenceLevel;
   colourByQuintile?: boolean;
-  showTable?: boolean;
 }) {
   const selection = useChartSelection<string>();
   const active = selection.active;
@@ -423,26 +420,6 @@ export function ObservationBars({
             </li>
           ))}
         </ul>
-      ) : null}
-      {showTable ? (
-        <ChartDataTable
-          title={title}
-          columns={[
-            group,
-            `Calculated value${unitNote(indicator.unit)}`,
-            ...(confidence === 'none' ? [] : [`${confidence}% confidence interval`]),
-            ...(colourByQuintile ? ['Quintile'] : benchmark ? ['Comparison'] : []),
-          ]}
-          rows={rows.map((row) => ({
-            key: row.key,
-            label: row.name,
-            values: [
-              chartValue(row.observation?.value ?? null, indicator.unit),
-              ...(confidence === 'none' ? [] : [interval(row)]),
-              ...(benchmark || colourByQuintile ? [comparisonLabel(row)] : []),
-            ],
-          }))}
-        />
       ) : null}
     </>
   );
