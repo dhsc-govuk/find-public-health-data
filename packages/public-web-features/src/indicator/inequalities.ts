@@ -16,7 +16,12 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
   const published = areaData.filter(
     ({ observations }) => inequalityCategories(observations).length > 0,
   );
-  const areas = published.length ? published : areaData;
+  // England is left out when the indicator has no England value.
+  const areas = published.length
+    ? published
+    : areaData.filter(
+        ({ areaCode, observations }) => areaCode !== 'E92000001' || observations.length > 0,
+      );
   const area =
     areas.find(({ areaCode }) => areaCode === params.get(`ig-${id}`)) ??
     areas.find(({ areaCode }) => areaCode === 'E92000001') ??

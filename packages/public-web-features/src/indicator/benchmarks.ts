@@ -99,7 +99,10 @@ export function benchmarkCheckboxOptions(
   },
 ): BenchmarkOption[] {
   return [
-    { value: 'england' as const, label: 'England' },
+    // England is no benchmark for an indicator without an England value.
+    ...(context && context.englandObservations.length === 0
+      ? []
+      : [{ value: 'england' as const, label: 'England' }]),
     ...(region ? [{ value: 'region' as const, label: 'Statistical regions' }] : []),
     ...(['imd2025', 'imd2019'] as const).flatMap((value) =>
       context?.areas.some(({ areaCode }) => {

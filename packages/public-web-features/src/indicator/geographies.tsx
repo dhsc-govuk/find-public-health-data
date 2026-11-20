@@ -15,12 +15,15 @@ export function IndicatorGeographies({
   displayGroups,
   geographyOptions,
   selection,
+  englandBenchmark = true,
 }: {
   children?: ReactNode;
   shortId: number;
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
   selection: IndicatorSelection;
+  /** Whether choosing a first area also ticks the England benchmark, which needs an England value. */
+  englandBenchmark?: boolean;
 }) {
   const location = useLocation();
   const navigation = useNavigation();
@@ -29,7 +32,12 @@ export function IndicatorGeographies({
   const currentLocation = navigation.location ?? location;
   const params = new URLSearchParams(currentLocation.search);
   const urlFor = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(currentLocation, areaCodes, areaLevels, shortId);
+    indicatorSelectionUrl(
+      currentLocation,
+      areaCodes,
+      areaLevels,
+      englandBenchmark ? shortId : undefined,
+    );
   const currentSelection = {
     ...selection,
     areaCodes: requestedAreaCodes(params).slice(0, MAX_SELECTED_AREAS),
@@ -63,7 +71,7 @@ export function IndicatorGeographies({
           }}
           selection={currentSelection}
         >
-          {!picked && !params.has(`cmp-${shortId}`) ? (
+          {englandBenchmark && !picked && !params.has(`cmp-${shortId}`) ? (
             <input name={`cmp-${shortId}`} type="hidden" value="england" />
           ) : null}
           {[...params]

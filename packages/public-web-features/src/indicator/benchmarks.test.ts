@@ -168,14 +168,26 @@ describe('benchmark options', () => {
   );
 
   it('omits neighbours, CA and goal without their memberships and metadata', () => {
-    const { areaData } = benchmarkFixture();
+    const { area, areaData } = benchmarkFixture();
     expect(
       benchmarkCheckboxOptions(false, {
         areas: areaData.slice(0, 2),
         geography: { regionByCode: {}, levelByCode: {}, neighboursByCode: { E08000003: [] } },
-        englandObservations: [],
+        englandObservations: area('E92000001', 'England', 5).observations,
         goal: null,
       }),
     ).toEqual([{ value: 'england', label: 'England' }]);
+  });
+
+  it('leaves England out for an indicator without an England value', () => {
+    const { areaData, geography } = benchmarkFixture();
+    expect(
+      benchmarkCheckboxOptions(true, {
+        areas: areaData.slice(0, 2),
+        geography,
+        englandObservations: [],
+        goal: null,
+      }).map(({ value }) => value),
+    ).not.toContain('england');
   });
 });

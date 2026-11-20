@@ -10,7 +10,8 @@ export function DownloadShareData({
   downloadLabel,
   allDataLabel,
 }: {
-  href: string;
+  /** The download of the data shown, left out when nothing is shown. */
+  href?: string | undefined;
   allDataHref?: string | undefined;
   metadataHref?: string | undefined;
   inline?: boolean;
@@ -56,13 +57,15 @@ export function DownloadShareData({
           </div>
         </div>
       ) : null}
-      <p className="govuk-body-s">
-        <a className="govuk-link" href={href}>
-          {downloadLabel ??
-            (inline ? "Download data for the areas you've chosen (CSV)" : 'Download this table')}
-        </a>
-        {inline ? null : ' as CSV.'}
-      </p>
+      {href ? (
+        <p className="govuk-body-s">
+          <a className="govuk-link" href={href}>
+            {downloadLabel ??
+              (inline ? "Download data for the areas you've chosen (CSV)" : 'Download this table')}
+          </a>
+          {inline ? null : ' as CSV.'}
+        </p>
+      ) : null}
       {allDataHref ? (
         <p className="govuk-body-s">
           <a className="govuk-link" href={allDataHref}>

@@ -31,6 +31,26 @@ it.each([
   expect(new FormData(form).getAll('cmp-108')).toEqual(expected);
 });
 
+it('ticks no England benchmark for an indicator without an England value', () => {
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => (
+        <IndicatorGeographies
+          shortId={108}
+          displayGroups={[]}
+          selection={{ areaCodes: [], areaLevels: [], shortIds: [108] }}
+          englandBenchmark={false}
+        />
+      ),
+    },
+  ]);
+  const { container } = render(<Routes initialEntries={['/']} />);
+  const form = container.querySelector('form');
+  if (!form) throw new Error('Geography form missing');
+  expect(new FormData(form).getAll('cmp-108')).toEqual([]);
+});
+
 it('preserves a pending unchecked benchmark when clearing geographies', async () => {
   const pending = Promise.withResolvers<null>();
   const Routes = createRoutesStub([

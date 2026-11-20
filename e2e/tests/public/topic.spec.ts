@@ -38,7 +38,14 @@ for (const width of [1020, 375]) {
       await openTopicPage(page, `/topics/${topic}`);
       const cards = page.locator('.fphd-topic-highlight');
       await expect(cards.first()).toBeVisible();
-      for (const card of await cards.all()) {
+      // Air pollution has no England value, so its card has no England sparkline.
+      const withEngland = cards.filter({
+        hasNot: page.getByRole('link', {
+          name: 'Air pollution: estimated fraction of mortality attributable to particulate air pollution',
+          exact: true,
+        }),
+      });
+      for (const card of await withEngland.all()) {
         const endpoints = card.locator('.fphd-sparkline__endpoints');
         await expect(endpoints).toHaveCSS('margin-bottom', '5px');
         const captions = endpoints.locator(':scope > span');
@@ -46,6 +53,8 @@ for (const width of [1020, 375]) {
           await expect(caption).toHaveCSS('line-height', '22.8px');
           await expect(caption).toHaveCSS('margin-bottom', '15px');
         }
+      }
+      for (const card of await cards.all()) {
         const key = card.locator('.govuk-summary-list__key').first();
         const summary = await card.locator('.govuk-summary-list').boundingBox();
         const label = await key.boundingBox();

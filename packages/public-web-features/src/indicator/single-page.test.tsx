@@ -104,6 +104,7 @@ function page(
               findResults: [],
               geographyOptions: undefined,
               areasLimited: false,
+              defaultAreaLevel: undefined,
               selection: {
                 areaCodes: [],
                 areaLevels: [],
@@ -336,6 +337,7 @@ it('replaces deferred comparison models after changing geography', async () => {
             findResults: [],
             geographyOptions: undefined,
             areasLimited: false,
+            defaultAreaLevel: undefined,
             selection: { areaCodes: [], areaLevels: [], shortIds: [241] },
           }),
           comparison: Promise.resolve({
@@ -388,6 +390,7 @@ it('keeps benchmark controls interactive while replacement indicator data is def
     findResults: [],
     geographyOptions: undefined,
     areasLimited: false,
+    defaultAreaLevel: undefined,
     selection: { areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] },
   };
   const pending = Promise.withResolvers<typeof data>();
@@ -487,6 +490,7 @@ it('keeps a geography unchecked when earlier benchmark data resolves during navi
       error: false,
     },
     areasLimited: false,
+    defaultAreaLevel: undefined,
     selection: { areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] },
   };
   const benchmark = Promise.withResolvers<typeof data>();

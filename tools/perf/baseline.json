@@ -54,16 +54,16 @@
     "bytes": 38824
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
-    "statements": 51,
-    "buffers": 10411,
-    "rows": 1957,
-    "bytes": 165818
+    "statements": 52,
+    "buffers": 10480,
+    "rows": 1939,
+    "bytes": 164544
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=data": {
-    "statements": 51,
-    "buffers": 10411,
-    "rows": 1957,
-    "bytes": 165814
+    "statements": 52,
+    "buffers": 10480,
+    "rows": 1939,
+    "bytes": 164541
   },
   "public-api /api/areas/search?q=leeds": {
     "statements": 1,
@@ -102,10 +102,10 @@
     "bytes": 2051
   },
   "public-api /api/indicators/search?t=mortality-and-life-expectancy&page=1&sort=trend-desc": {
-    "statements": 5,
-    "buffers": 67582,
-    "rows": 26,
-    "bytes": 2165
+    "statements": 6,
+    "buffers": 147,
+    "rows": 22,
+    "bytes": 2374
   },
   "public-api /api/indicators?q=mortality": {
     "statements": 1,
@@ -186,27 +186,27 @@
     "bytes": 2676
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
-    "statements": 51,
-    "buffers": 10411,
-    "rows": 1957,
-    "bytes": 163585
+    "statements": 52,
+    "buffers": 10480,
+    "rows": 1939,
+    "bytes": 162890
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data": {
-    "statements": 51,
-    "buffers": 10411,
-    "rows": 1957,
-    "bytes": 163581
+    "statements": 52,
+    "buffers": 10480,
+    "rows": 1939,
+    "bytes": 162887
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=period-desc": {
-    "statements": 51,
-    "buffers": 24977,
-    "rows": 1957,
-    "bytes": 163916
+    "statements": 52,
+    "buffers": 25784,
+    "rows": 1939,
+    "bytes": 163338
   },
   "public-web /topics/mortality-and-life-expectancy?tab-topic=data&sort=trend-desc": {
-    "statements": 53,
-    "buffers": 10408,
-    "rows": 1965,
-    "bytes": 164144
+    "statements": 56,
+    "buffers": 10491,
+    "rows": 1947,
+    "bytes": 163437
   }
 }

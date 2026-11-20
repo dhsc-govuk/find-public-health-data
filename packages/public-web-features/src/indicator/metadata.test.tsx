@@ -97,6 +97,16 @@ describe('IndicatorSummary', () => {
     return term?.nextElementSibling?.textContent;
   }
 
+  it('reads Trend unavailable for an indicator with no England figure', () => {
+    render(
+      <MemoryRouter>
+        <IndicatorSummary indicator={indicator} observations={[]} trendObservations={null} />
+      </MemoryRouter>,
+    );
+
+    expect(summaryRow('Trend (last 5 periods)')).toBe('Trend unavailable (no England figure)');
+  });
+
   it('reads Updated once a later version has been published', () => {
     renderSummary({ ...indicator, lastPublishedAt: '2026-09-01T09:00:00.000Z' });
 

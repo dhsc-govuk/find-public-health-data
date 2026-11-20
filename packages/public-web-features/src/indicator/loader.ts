@@ -33,6 +33,7 @@ import { loadInBatches } from './batches.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
+import { choosesNothing, noEnglandLevel } from './no-england.ts';
 import { ENGLAND_CODE, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
 
@@ -160,11 +161,28 @@ export async function loadIndicatorData(
 
   if (singlePage) requestedLevels = normalizePublicLevels(requestedLevels);
 
+  // With nothing chosen, an indicator with no England value opens on a level it has data for.
+  // In the usual case England has a value, and its request is the one the data load makes.
+  const indicatorLevels = indicatorGroups?.map(({ displayGroup }) => displayGroup) ?? [];
+  const defaultAreaLevel =
+    singlePage && routeDetail && choosesNothing(url.searchParams, indicatorLevels)
+      ? noEnglandLevel(
+          (
+            await api.get(
+              `${apiPath`/api/indicators/${String(routeDetail.shortId)}/data`}?areaCode=${ENGLAND_CODE}`,
+              singleAreaBatchSchema,
+            )
+          )[0],
+          indicatorLevels,
+        )
+      : undefined;
+  const levelsToLoad = defaultAreaLevel ? [defaultAreaLevel] : requestedLevels;
+
   // A whole-level selection ("Local authorities") rides in the URL as its name; its
   // areas are resolved here, subject to the same cap as hand-picked codes.
   let levelCodes: string[] = [];
-  if (requestedLevels.length > 0) {
-    const sources = [...new Set(requestedLevels.map(sourceGeographyGroup))];
+  if (levelsToLoad.length > 0) {
+    const sources = [...new Set(levelsToLoad.map(sourceGeographyGroup))];
     const levelGroups =
       indicatorGroups && routeDetail
         ? (
@@ -179,7 +197,7 @@ export async function loadIndicatorData(
             `/api/areas?${sources.map((source) => `displayGroup=${encodeURIComponent(source)}`).join('&')}`,
             areaDisplayGroupListSchema,
           );
-    levelCodes = requestedLevels.flatMap((level) =>
+    levelCodes = levelsToLoad.flatMap((level) =>
       levelGroups
         .filter((group) => group.displayGroup === sourceGeographyGroup(level))
         .flatMap(({ displayGroup, areas }) =>
@@ -401,6 +419,7 @@ export async function loadIndicatorData(
     findResults,
     geographyOptions,
     areasLimited,
+    defaultAreaLevel,
     selection: { areaCodes, areaLevels, shortIds } satisfies IndicatorSelection,
   };
 }

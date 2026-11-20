@@ -13,6 +13,7 @@ import {
   openIndicatorPage,
 } from '../support/indicator-page.ts';
 import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
+import { answerTo } from '../support/summary-list.ts';
 
 test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
@@ -898,6 +899,85 @@ test('serves an indicator without an update frequency on its page and in downloa
   await expect(page.getByRole('heading', { name: 'Data attributes', exact: true })).toBeVisible();
   await expect(page.getByRole('term').filter({ hasText: /^Frequency$/ })).toHaveCount(0);
   await expect(page.getByRole('term').filter({ hasText: /^Polarity$/ })).toBeVisible();
+});
+
+// Air pollution is seeded with values for areas but none for England.
+const NO_ENGLAND_PATH =
+  '/indicator/air-pollution-estimated-fraction-of-mortality-attributable-to-particulate-air-pollution';
+
+test('opens an indicator with no England value on its statistical regions, with data and a download that has rows', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(page, NO_ENGLAND_PATH);
+  const panel = page.getByRole('tabpanel', { name: 'Indicator', exact: true });
+  const showing = panel.locator('.fphd-indicator-showing');
+  await expect(showing).toContainText('Statistical regions');
+  await expect(showing).not.toContainText('England');
+  await expect(showing.getByRole('link')).toHaveCount(0);
+  await expect(panel.getByText('No data matches the selected options.')).toHaveCount(0);
+  await expect(panel.getByRole('table', { name: /^Table:/ })).toContainText('North East');
+  await expect(panel.getByRole('checkbox', { name: 'England', exact: true })).toHaveCount(0);
+
+  await expect(answerTo(page, 'Period covered')).toHaveText('2018 to 2024');
+  await expect(answerTo(page, 'Trend (last 5 periods)')).toHaveText(
+    /^Trend unavailable\s*\(no England figure\)$/,
+  );
+
+  await panel.getByText('Download or share data', { exact: true }).click();
+  const table = await downloadFrom(page, "Download data for the areas you've chosen (CSV)", 'link');
+  const rows = parse(table.text) as string[][];
+  expect(rows[0]).toContain('North East calculated value (%)');
+  expect(rows.length).toBeGreaterThan(1);
+
+  await page.getByRole('tab', { name: 'Inequalities' }).click();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Inequalities' }).locator('.fphd-indicator-showing'),
+  ).not.toContainText('England');
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('shows a picked area of an indicator with no England value without ticking England', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, `${NO_ENGLAND_PATH}?geo-level=Upper-tier%20local%20authorities`);
+  const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
+    has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+  });
+  await geographies.getByRole('checkbox', { name: 'Manchester', exact: true }).check();
+  await expect(page).toHaveURL((url) => url.searchParams.get('as') === 'E08000003');
+  expect(new URL(page.url()).searchParams.getAll('cmp-93861')).toEqual([]);
+  const table = page.locator('#indicator-table').getByRole('table', { name: /^Table:/ });
+  await expect(table.getByRole('columnheader', { name: 'Manchester', exact: true })).toBeVisible();
+  await expect(answerTo(page, 'Period covered')).toHaveText('2018 to 2024');
+  await expect(answerTo(page, 'Trend (last 5 periods)')).toHaveText(
+    /^Trend unavailable\s*\(no England figure\)$/,
+  );
+});
+
+test('opens an indicator with no England value on its statistical regions without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(NO_ENGLAND_PATH);
+    await expect(
+      withoutJs.locator('#indicator-table').getByRole('table', { name: /^Table:/ }),
+    ).toContainText('North East');
+    const csv = await withoutJs.request.get(`${NO_ENGLAND_PATH}/table.csv`);
+    expect(csv.ok()).toBe(true);
+    const rows = parse(await csv.text()) as string[][];
+    expect(rows[0]).toContain('North East calculated value (%)');
+    expect(rows.length).toBeGreaterThan(1);
+  } finally {
+    await context.close();
+  }
 });
 
 test("shows Pholio's own wording of the update frequency on its page and in downloads", async ({

@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { loadIndicatorCsv } from './csv.ts';
 import { indicatorPageContext } from './page-context.ts';
-import { indicatorDetail } from './view.testing.ts';
+import { indicatorDetail, sex } from './view.testing.ts';
 
 const SLUG = 'mortality-all-causes';
 const DETAIL = `/api/indicators/${SLUG}` as const;
@@ -582,7 +582,7 @@ describe('loadIndicatorCsv', () => {
     expect(await response.text()).toContain('2023,7,339,343.2');
   });
 
-  it('offers only the first area sexes, exactly as the page does', async () => {
+  it("checks the Sex choice against England's sexes, exactly as the page does", async () => {
     const client = api([
       { areaCode: 'E06000052', areaName: 'Cornwall', observations: [observation({ value: 9 })] },
       {
@@ -605,8 +605,8 @@ describe('loadIndicatorCsv', () => {
       'table',
     );
 
-    // Male exists only in England's series, so the filter is ignored, not applied.
-    expect(await response.text()).toContain('2023,9,339,343.2');
+    // Male is one of England's sexes, so the filter applies, and Cornwall has no Male values.
+    expect(await response.text()).toBe('Period\n');
   });
 
   it('404s a segment shaped like neither identifier without calling the api', async () => {
@@ -697,6 +697,118 @@ it('propagates an initial all-areas API failure before returning an attachment',
   ).rejects.toBe(failure);
 });
 
+describe('the table download of an indicator with no England value', () => {
+  const regionData = (code: string, value: number) => ({
+    areaCode: code,
+    areaName: code === 'E12000001' ? 'North East' : 'North West',
+    observations: [observation({ value })],
+  });
+  const data = (call: FakeApiCall) => {
+    const answers = areaCodes(call).map((code) =>
+      code === 'E92000001'
+        ? { areaCode: code, areaName: 'England', observations: [] }
+        : regionData(code, code === 'E12000001' ? 10 : 20),
+    );
+    return answers.length === 1 ? answers[0] : answers;
+  };
+  const areas = (levels: string[]) => (call: FakeApiCall) => {
+    const group = new URL(call.path, 'http://api').searchParams.get('displayGroup');
+    const regions = {
+      displayGroup: 'Statistical regions',
+      areas: [
+        { code: 'E12000001', name: 'North East' },
+        { code: 'E12000002', name: 'North West' },
+      ],
+    };
+    if (group) return group === 'Statistical regions' ? [regions] : [];
+    return levels.map((displayGroup) => ({ displayGroup, areas: [] }));
+  };
+
+  it("holds the page's default regions when nothing is chosen", async () => {
+    const client = api(data, {
+      [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
+    });
+
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/table.csv`),
+      'table',
+    );
+
+    const [header, row] = (await response.text()).split('\n');
+    expect(header).toContain('North East');
+    expect(header).toContain('North West');
+    expect(row).toContain('10');
+  });
+
+  it.each(['als=Foo', 'als='])(
+    "holds the page's default regions when %s chooses no level the indicator has",
+    async (query) => {
+      const client = api(data, {
+        [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
+      });
+
+      const response = await loadIndicatorCsv(
+        args(client, `http://localhost/indicator/${SLUG}/table.csv?${query}`),
+        'table',
+      );
+
+      expect((await response.text()).split('\n')[0]).toContain('North East');
+    },
+  );
+
+  it('takes the Sex choices from every area shown', async () => {
+    const client = api((call: FakeApiCall) => {
+      const answers = areaCodes(call).map((code) =>
+        code === 'E92000001'
+          ? { areaCode: code, areaName: 'England', observations: [] }
+          : {
+              areaCode: code,
+              areaName: code === 'E12000001' ? 'North East' : 'North West',
+              observations:
+                code === 'E12000001'
+                  ? [observation({ value: 10, dimensions: [sex('Female')] })]
+                  : [
+                      observation({ value: 20, dimensions: [sex('Female')] }),
+                      observation({ value: 30, dimensions: [sex('Male')] }),
+                    ],
+            },
+      );
+      return answers.length === 1 ? answers[0] : answers;
+    });
+
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E12000001&as=E12000002&sex-108=Male`,
+      ),
+      'table',
+    );
+
+    expect((await response.text()).split('\n')[1]).toBe('2023,30,339,343.2');
+  });
+
+  it('holds only its header when the indicator has data for neither kind of region', async () => {
+    const client = api(data, { [`GET ${DETAIL}/areas`]: areas(['Local authorities']) });
+
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/table.csv`),
+      'table',
+    );
+
+    expect((await response.text()).trim().split('\n')).toEqual(['Period']);
+  });
+
+  it('asks for no default level when England has a value', async () => {
+    const client = api([
+      { areaCode: 'E92000001', areaName: 'England', observations: [observation()] },
+    ]);
+
+    await loadIndicatorCsv(args(client, `http://localhost/indicator/${SLUG}/table.csv`), 'table');
+
+    expect(paths(client).some((path) => path.includes('/areas'))).toBe(false);
+  });
+});
+
 describe('a route that shows the page at one address, as the preview does', () => {
   function previewArgs(api: FakeApiClient, url: string, segment: string) {
     const loaderArgs = args(api, url, segment);
@@ -736,6 +848,7 @@ describe('a route that shows the page at one address, as the preview does', () =
         areaName: 'England',
         observations: [],
       },
+      'GET /api/indicators/108/areas': [],
     });
 
     const response = await loadIndicatorCsv(

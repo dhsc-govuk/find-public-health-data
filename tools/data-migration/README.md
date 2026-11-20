@@ -318,7 +318,9 @@ Run `pnpm vitest run --project @fphd/data-migration` and
   developer imports (see below).
 - `taxonomy.ts` translates explicit workbook placements and tags without profile or name heuristics.
   `legacy-seed.ts` and `prototype-seed.ts` retain the historical maintenance workflows; production
-  package construction does not call them.
+  package construction does not call them. After either writes seed CSVs, run
+  `packages/db-operations/data/seed/export/drop-england-values.py` as the seed README describes, so
+  air pollution (93861) stays without England values.
 
 ## Build a dev snapshot from Pholio
 

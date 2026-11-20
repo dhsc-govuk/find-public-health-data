@@ -20,6 +20,7 @@ import type {
   SelectedArea,
   SelectedIndicator,
 } from './loader.ts';
+import { englandObservations, NO_ENGLAND_MESSAGE, sexObservations } from './no-england.ts';
 import {
   BenchmarksPanel,
   PanelOptionsPanel,
@@ -42,6 +43,7 @@ export function IndicatorTab({
   displayGroups,
   geographyOptions,
   selection,
+  defaultAreaLevel,
 }: {
   primary: SelectedIndicator;
   selectedAreas: SelectedArea[];
@@ -49,6 +51,8 @@ export function IndicatorTab({
   displayGroups: string[];
   geographyOptions?: GeographyOptions | undefined;
   selection: IndicatorSelection;
+  /** The level shown when nothing is chosen and the indicator has no England value. */
+  defaultAreaLevel?: string | undefined;
 }) {
   const { detail, areaData, regionData = [], benchmarkData = [], ranges = {} } = primary;
   const id = detail.shortId;
@@ -58,15 +62,13 @@ export function IndicatorTab({
   const params = new URLSearchParams(navigation.location?.search ?? location.search);
   const [options, applyOptions] = usePanelOptions(id);
   const applyOptionParams = useOptionParamNavigation();
-  const allObservations =
-    areaData.find(({ areaCode }) => areaCode === 'E92000001')?.observations ??
-    areaData[0]?.observations ??
-    [];
+  const england = englandObservations(areaData);
+  const hasEngland = england.length > 0;
   const pickedAreaData = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const shownObservations = (pickedAreaData.length ? pickedAreaData : areaData).flatMap(
     ({ observations }) => observations,
   );
-  const sexes = dimensionValues(allObservations, 'Sex');
+  const sexes = dimensionValues(sexObservations(areaData), 'Sex');
   const periodTypes = availablePeriodTypes(shownObservations);
   const confidenceLevels = availableConfidenceLevels(shownObservations);
   const measures = availableMeasures(shownObservations);
@@ -89,7 +91,7 @@ export function IndicatorTab({
   const benchmarkOptions = benchmarkCheckboxOptions(regionAvailable, {
     areas: pickedAreaData,
     geography: benchmarkGeography,
-    englandObservations: allObservations,
+    englandObservations: england,
     goal: detail.goal,
   });
   const benchmarks = options.benchmarks.filter((choice) =>
@@ -115,8 +117,9 @@ export function IndicatorTab({
       displayGroups={displayGroups}
       geographyOptions={geographyOptions}
       selection={selection}
+      englandBenchmark={hasEngland}
     >
-      {hasPickedAreas ? (
+      {hasPickedAreas && benchmarkOptions.length > 0 ? (
         <BenchmarksPanel
           choices={options.benchmarks}
           onChange={(benchmarks) => applyOptions({ ...options, benchmarks })}
@@ -152,6 +155,9 @@ export function IndicatorTab({
       <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
       <FilterChips collapse>
         {!hasPickedAreas ? <FilterChip value="E92000001">England</FilterChip> : null}
+        {defaultAreaLevel ? (
+          <FilterChip value={defaultAreaLevel}>{defaultAreaLevel}</FilterChip>
+        ) : null}
         {selection.areaLevels.map((level) => (
           <FilterChip
             key={level}
@@ -205,10 +211,15 @@ export function IndicatorTab({
       </FilterChips>
     </div>
   );
+  const nothingShown = !hasEngland && !hasPickedAreas;
   const download = (
     <DownloadShareData
       inline
-      href={`${links.csv(detail.slug, 'table')}?${new URLSearchParams(downloadParams(true))}`}
+      href={
+        nothingShown
+          ? undefined
+          : `${links.csv(detail.slug, 'table')}?${new URLSearchParams(downloadParams(true))}`
+      }
       allDataHref={`${links.csv(detail.slug, 'all-data')}?allAreas=yes`}
       metadataHref={links.metadata(detail.slug)}
     />
@@ -251,57 +262,65 @@ export function IndicatorTab({
         <GridColumn width="three-quarters">
           {showing}
           {download}
-          <div className="fphd-indicator-chart fphd-indicator-chart--trend">
-            <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
-            {hasPickedAreas ||
-            detail.goal ||
-            confidenceLevels.length > 0 ||
-            sexes.length > 0 ||
-            periodTypes.length > 1 ? (
-              <PanelOptionsPanel
-                rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
-                goalRadios={!hasPickedAreas && !!detail.goal}
-                confidenceLevels={confidenceLevels}
-                label="Chart options"
-                onChange={applyOptions}
-                options={options}
-                panel="chart"
-                periodTypes={periodTypes}
-                scope={id}
-                sexes={sexes}
-                showConfidence
-                target={{
-                  tabParam: 'tab-indicator',
-                  tabValue: 'indicator',
-                  anchor: 'indicator-data',
-                }}
-              />
-            ) : null}
-            <TrendChart
-              id="indicator-trend-chart"
-              title={`${detail.name} trend chart`}
-              areas={trendAreas}
-              benchmarkCodes={model.benchmarkGroups.map(({ areaCode }) => areaCode)}
-              indicator={detail}
-              confidence={confidence}
-              goal={policyGoal}
-            />
-          </div>
-          <div id="indicator-table" className="govuk-!-margin-top-4">
-            <TrendTable
-              newestFirst
-              columns={columns}
-              visibleCaption
-              indicator={detail}
-              areaData={filtered}
-              benchmarks={benchmarks}
-              confidence={confidence}
-              geography={benchmarkGeography}
-              ranges={ranges}
-              regionData={filteredRegions}
-              benchmarkData={benchmarkData.map(narrow)}
-            />
-          </div>
+          {nothingShown ? (
+            <p id="indicator-table" className="govuk-body">
+              {NO_ENGLAND_MESSAGE}
+            </p>
+          ) : (
+            <>
+              <div className="fphd-indicator-chart fphd-indicator-chart--trend">
+                <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
+                {hasPickedAreas ||
+                detail.goal ||
+                confidenceLevels.length > 0 ||
+                sexes.length > 0 ||
+                periodTypes.length > 1 ? (
+                  <PanelOptionsPanel
+                    rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
+                    goalRadios={!hasPickedAreas && !!detail.goal}
+                    confidenceLevels={confidenceLevels}
+                    label="Chart options"
+                    onChange={applyOptions}
+                    options={options}
+                    panel="chart"
+                    periodTypes={periodTypes}
+                    scope={id}
+                    sexes={sexes}
+                    showConfidence
+                    target={{
+                      tabParam: 'tab-indicator',
+                      tabValue: 'indicator',
+                      anchor: 'indicator-data',
+                    }}
+                  />
+                ) : null}
+                <TrendChart
+                  id="indicator-trend-chart"
+                  title={`${detail.name} trend chart`}
+                  areas={trendAreas}
+                  benchmarkCodes={model.benchmarkGroups.map(({ areaCode }) => areaCode)}
+                  indicator={detail}
+                  confidence={confidence}
+                  goal={policyGoal}
+                />
+              </div>
+              <div id="indicator-table" className="govuk-!-margin-top-4">
+                <TrendTable
+                  newestFirst
+                  columns={columns}
+                  visibleCaption
+                  indicator={detail}
+                  areaData={filtered}
+                  benchmarks={benchmarks}
+                  confidence={confidence}
+                  geography={benchmarkGeography}
+                  ranges={ranges}
+                  regionData={filteredRegions}
+                  benchmarkData={benchmarkData.map(narrow)}
+                />
+              </div>
+            </>
+          )}
           {detail.dataSource ? (
             <p className="govuk-body-s">
               Source:{' '}

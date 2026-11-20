@@ -5,7 +5,7 @@ import {
   MAX_AREA_CODES_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
-import { apiPath } from '@fphd/web-server/api-client';
+import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
@@ -25,6 +25,12 @@ import {
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
 import type { BenchmarkGeography, IndicatorAreaData } from './loader.ts';
+import {
+  choosesNothing,
+  englandObservations,
+  noEnglandLevel,
+  sexObservations,
+} from './no-england.ts';
 import { indicatorPageContext } from './page-context.ts';
 import { ENGLAND_CODE, isIndicatorSegment, redirectStatus, requestedAreaCodes } from './paths.ts';
 import { dataPlaceholder } from './placeholders.ts';
@@ -46,7 +52,7 @@ export async function loadIndicatorCsv(
   }
 
   const url = new URL(request.url);
-  const pickedCodes = requestedAreaCodes(url.searchParams).slice(0, MAX_SELECTED_AREAS);
+  let pickedCodes = requestedAreaCodes(url.searchParams).slice(0, MAX_SELECTED_AREAS);
   const codesToLoad = [...pickedCodes, ENGLAND_CODE];
   const api = context.get(apiContext);
   const dataFor = (codes: string[]) => loadAreaData(api, segment, codes);
@@ -100,7 +106,15 @@ export async function loadIndicatorCsv(
       },
     });
   }
-  const areaData = await dataFor(codesToLoad);
+  let areaData = await dataFor(codesToLoad);
+  // With nothing chosen, an indicator with no England value has the page's default level.
+  if (kind === 'table' && pickedCodes.length === 0) {
+    const defaultCodes = await noEnglandAreaCodes(api, segment, areaData, url.searchParams);
+    if (defaultCodes.length > 0) {
+      pickedCodes = defaultCodes;
+      areaData = await dataFor([...defaultCodes, ENGLAND_CODE]);
+    }
+  }
 
   const { shortId } = detail;
 
@@ -109,7 +123,8 @@ export async function loadIndicatorCsv(
     // These validations exactly mirror the controls on the rendered page. A stale or
     // hand-edited URL therefore downloads the table the user can actually see.
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
-    const sexes = dimensionValues(areaData[0]?.observations ?? [], 'Sex');
+    const hasEngland = englandObservations(areaData).length > 0;
+    const sexes = dimensionValues(sexObservations(areaData), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = (
       pickedCodes.length > 0
@@ -128,7 +143,7 @@ export async function loadIndicatorCsv(
       ? requestedConfidence
       : 'none';
     const benchmarks = selectedBenchmarks(url.searchParams, shortId).filter(
-      (choice) => pickedCodes.length || choice === 'goal',
+      (choice) => (pickedCodes.length || choice === 'goal') && (choice !== 'england' || hasEngland),
     );
     const columns = selectedTrendColumns(url.searchParams, shortId, [
       ...availableMeasures(shownObservations),
@@ -224,6 +239,30 @@ export async function loadIndicatorCsv(
       'Content-Disposition': `attachment; filename="${shortId}-${kind}.csv"`,
     },
   });
+}
+
+/** The areas of the level the page opens on when the indicator has no England value, if any. */
+async function noEnglandAreaCodes(
+  api: ApiClient,
+  segment: string,
+  areaData: IndicatorAreaData[],
+  params: URLSearchParams,
+): Promise<string[]> {
+  const england = areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE);
+  if (england && england.observations.length > 0) return [];
+  const levels = (
+    await api.get(
+      `${apiPath`/api/indicators/${segment}/areas`}?limit=1`,
+      areaDisplayGroupListSchema,
+    )
+  ).map(({ displayGroup }) => displayGroup);
+  const level = choosesNothing(params, levels) ? noEnglandLevel(england, levels) : undefined;
+  if (!level) return [];
+  const groups = await api.get(
+    `${apiPath`/api/indicators/${segment}/areas`}?displayGroup=${encodeURIComponent(level)}`,
+    areaDisplayGroupListSchema,
+  );
+  return groups.flatMap(({ areas }) => areas.map(({ code }) => code)).slice(0, MAX_SELECTED_AREAS);
 }
 
 function areaTypeLookup(groups: { displayGroup: string; areas: { code: string }[] }[]) {
