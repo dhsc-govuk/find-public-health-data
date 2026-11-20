@@ -2619,20 +2619,42 @@ body:not(.govuk-frontend-supported) .fphd-share-link {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
+  // The contents list sizes itself from where this row sits in the window.
+  view-timeline: --fphd-guidance block;
 }
 
 // The list can be taller than a laptop's window, so it scrolls on its own to keep its last
-// links in reach.
+// links in reach, with the same gap below it as above once it has stuck.
 .fphd-guidance-contents {
   position: sticky;
   top: govuk-spacing(4);
-  max-height: calc(100vh - #{govuk-spacing(4)});
+  max-height: calc(100vh - #{govuk-spacing(4) * 2});
   overflow-y: auto;
+
+  // Before the list sticks it starts part-way down the window. Where the browser supports
+  // scroll-driven animations, the cap is the space left below the list: each pixel the row moves
+  // up the window adds a pixel to the cap, from 200px until the list sticks.
+  @supports (animation-timeline: view()) {
+    animation: fphd-guidance-contents-fit auto linear both;
+    animation-timeline: --fphd-guidance;
+    animation-range: entry 220px entry calc(100% - #{govuk-spacing(4)});
+  }
 
   @include govuk-media-query($until: tablet) {
     position: static;
     max-height: none;
     overflow-y: visible;
+    animation: none;
+  }
+}
+
+@keyframes fphd-guidance-contents-fit {
+  from {
+    max-height: 200px;
+  }
+
+  to {
+    max-height: calc(100vh - #{govuk-spacing(4) * 2});
   }
 }
 

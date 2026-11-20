@@ -1,16 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { PublisherGuidancePage } from './page.tsx';
 import { GUIDANCE_ANCHORS } from './paths.ts';
 
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
+afterEach(cleanup);
 
 function renderPage() {
   return render(
@@ -115,50 +111,5 @@ describe('PublisherGuidancePage', () => {
     renderPage();
 
     expect(screen.queryByText(/Read our technical guidance/)).toBeNull();
-  });
-});
-
-describe('PublisherGuidancePage contents list height', () => {
-  function stubWindow({ matches, top }: { matches: boolean; top: number }) {
-    vi.stubGlobal('matchMedia', () => ({ matches }));
-    vi.stubGlobal('innerHeight', 800);
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      top,
-    } as DOMRect);
-  }
-
-  it('is capped to the space left below it in the window', () => {
-    stubWindow({ matches: true, top: 400 });
-    renderPage();
-
-    expect(screen.getByRole('navigation', { name: 'Contents' }).style.maxHeight).toBe('380px');
-  });
-
-  it('leaves a gap at the bottom of the window once it has stuck to the top', () => {
-    stubWindow({ matches: true, top: 20 });
-    renderPage();
-
-    expect(screen.getByRole('navigation', { name: 'Contents' }).style.maxHeight).toBe('760px');
-  });
-
-  it('is never taller than the stuck list, which the window can scroll past', () => {
-    stubWindow({ matches: true, top: -300 });
-    renderPage();
-
-    expect(screen.getByRole('navigation', { name: 'Contents' }).style.maxHeight).toBe('780px');
-  });
-
-  it('keeps a usable height when almost none of the window is left below it', () => {
-    stubWindow({ matches: true, top: 790 });
-    renderPage();
-
-    expect(screen.getByRole('navigation', { name: 'Contents' }).style.maxHeight).toBe('200px');
-  });
-
-  it('is left to the stylesheet below tablet width, where it shows in full', () => {
-    stubWindow({ matches: false, top: 400 });
-    renderPage();
-
-    expect(screen.getByRole('navigation', { name: 'Contents' }).style.maxHeight).toBe('');
   });
 });
