@@ -73,19 +73,40 @@ it('shows two tooltips when marks overlap on focus and hover', () => {
   expect(screen.getAllByRole('tooltip')).toHaveLength(2);
   expect(screen.getByText('Comparison: Similar to England')).toBeTruthy();
   fireEvent.blur(target);
-  fireEvent.pointerEnter(plot, { clientX: 49.6 });
+  fireEvent.pointerEnter(plot, { clientX: 60 });
   expect(screen.getAllByRole('tooltip')).toHaveLength(2);
 });
 
-it('fills non-zero ranges at wide and narrow widths and keeps constant ranges finite', () => {
+it("centres England's line and plots both sides on one scale, at wide and narrow widths", () => {
   const { container, rerender } = render(<SpineChart {...props} />);
-  expect(container.querySelector('circle')?.getAttribute('cx')).toBe('91.2');
-  expect(container.querySelector('circle')?.getAttribute('r')).toBe('5');
+  const benchmark = () => container.querySelector('.fphd-range-benchmark')?.getAttribute('x1');
+  // England 50, lowest 10, highest 110: highest is further from England, so it reaches the edge.
+  expect(benchmark()).toBe('60');
+  expect(Number(container.querySelector('circle')?.getAttribute('cx'))).toBeCloseTo(
+    60 + (40 / 60) * 46,
+  );
+  const range = container.querySelector('.fphd-range-span');
+  expect(Number(range?.getAttribute('x'))).toBeCloseTo(60 - (40 / 60) * 46);
+  expect(Number(range?.getAttribute('width'))).toBeCloseTo((100 / 60) * 46);
   act(() => resize([{ contentRect: { width: 60 } }]));
   expect(container.querySelector('svg')?.getAttribute('width')).toBe('60');
-  expect(Number(container.querySelector('circle')?.getAttribute('cx'))).toBeCloseTo(43.2);
+  expect(benchmark()).toBe('30');
+  rerender(<SpineChart {...props} min={45} max={200} />);
+  expect(benchmark()).toBe('30');
   rerender(<SpineChart {...props} min={50} max={50} value={50} />);
   expect(container.querySelector('circle')?.getAttribute('cx')).toBe('30');
+});
+
+it('draws the range as a dashed box and the middle half as a shaded band with edges', () => {
+  const { container } = render(<SpineChart {...props} />);
+  const range = container.querySelector('.fphd-range-span');
+  expect(range?.getAttribute('fill')).toBe('none');
+  expect(range?.getAttribute('stroke-dasharray')).toBe('3 3');
+  const band = container.querySelector('.fphd-range-band');
+  expect(band?.getAttribute('fill-opacity')).toBe('0.1');
+  expect(container.querySelectorAll('.fphd-range-band-edge')).toHaveLength(2);
+  expect(container.querySelector('circle')?.getAttribute('r')).toBe('10');
+  expect(container.querySelector('svg')?.getAttribute('height')).toBe('32');
 });
 
 it.each([

@@ -22,7 +22,11 @@ const comparisons = {
   lower: 'Lower than',
   higher: 'Higher than',
 } as const;
-const height = 24;
+const height = 32;
+const middle = height / 2;
+/** The space either side of the chart, so a dot at the far end of the range stays whole. */
+const edge = 14;
+const grey = '#6f7276';
 
 export function SpineChart({
   indicatorName,
@@ -84,13 +88,18 @@ export function SpineChart({
   ];
   const context = `${indicatorName}. Period: ${period}`;
   const label = [context, ...areaLines, ...benchmarkLines, ...rangeLines].join('. ');
-  const low = Math.min(min, benchmarkValue, value);
-  const high = Math.max(max, benchmarkValue, value);
+  // The benchmark sits in the middle of every chart, so a column's charts line up on it. Both
+  // sides share one scale, so whichever end is further from the benchmark reaches the edge.
+  const centre = width / 2;
+  const reach = Math.max(
+    benchmarkValue - Math.min(min, value),
+    Math.max(max, value) - benchmarkValue,
+  );
   const scale = (position: number) =>
-    high === low ? width / 2 : 8 + ((position - low) / (high - low)) * (width - 16);
+    reach === 0 ? centre : centre + ((position - benchmarkValue) / reach) * (centre - edge);
   const dot = scale(value);
   const tick = scale(benchmarkValue);
-  const overlap = Math.abs(dot - tick) <= 6;
+  const overlap = Math.abs(dot - tick) <= 10;
   const active = dismissed
     ? []
     : [...new Set([...hovered, ...(focused ? (overlap ? ['area', 'benchmark'] : [focused]) : [])])];
@@ -105,7 +114,7 @@ export function SpineChart({
   }, [open]);
   const hover = (event: PointerEvent<HTMLDivElement>) => {
     const x = event.clientX - event.currentTarget.getBoundingClientRect().left;
-    const area = Math.abs(x - dot) <= 8;
+    const area = Math.abs(x - dot) <= 10;
     const benchmark = Math.abs(x - tick) <= 6;
     setHovered(
       overlap && (area || benchmark)
@@ -125,25 +134,59 @@ export function SpineChart({
           onPointerLeave={() => setHovered([])}
         >
           <Surface width={width} height={height}>
-            {p25 == null || p75 == null ? null : (
-              <rect
-                x={scale(p25)}
-                y={3}
-                width={Math.max(0, scale(p75) - scale(p25))}
-                height={18}
-                fill="#6f7276"
-                fillOpacity={0.16}
-              />
-            )}
-            <path
-              d={`M${scale(min)} 6v12 M${scale(min)} 12H${scale(max)} M${scale(max)} 6v12`}
+            <rect
+              className="fphd-range-span"
+              x={scale(min)}
+              y={4}
+              width={Math.max(0, scale(max) - scale(min))}
+              height={height - 8}
               fill="none"
-              stroke="#b1b4b6"
-              strokeWidth={1.5}
+              stroke={grey}
+              strokeWidth={2}
+              strokeDasharray="3 3"
             />
-            <circle cx={dot} cy={12} r={5} fill={spineColours[judgement]} />
-            <path d={`M${tick} 1v22`} stroke="#ffffff" strokeWidth={5} />
-            <path d={`M${tick} 1v22`} stroke="#0b0c0c" strokeWidth={2} />
+            {p25 == null || p75 == null ? null : (
+              <>
+                <rect
+                  className="fphd-range-band"
+                  x={scale(p25)}
+                  y={4}
+                  width={Math.max(0, scale(p75) - scale(p25))}
+                  height={height - 8}
+                  fill={grey}
+                  fillOpacity={0.1}
+                />
+                <line
+                  className="fphd-range-band-edge"
+                  x1={scale(p25)}
+                  x2={scale(p25)}
+                  y1={4}
+                  y2={height - 4}
+                  stroke={grey}
+                  strokeWidth={1.5}
+                />
+                <line
+                  className="fphd-range-band-edge"
+                  x1={scale(p75)}
+                  x2={scale(p75)}
+                  y1={4}
+                  y2={height - 4}
+                  stroke={grey}
+                  strokeWidth={1.5}
+                />
+              </>
+            )}
+            <circle cx={dot} cy={middle} r={10} fill={spineColours[judgement]} />
+            <line x1={tick} x2={tick} y1={2} y2={height - 2} stroke="#ffffff" strokeWidth={5.5} />
+            <line
+              className="fphd-range-benchmark"
+              x1={tick}
+              x2={tick}
+              y1={2}
+              y2={height - 2}
+              stroke="#0b0c0c"
+              strokeWidth={2.5}
+            />
             {(['benchmark', 'area'] as const).map((mark) => (
               // biome-ignore lint/a11y/noInteractiveElementToNoninteractiveRole: SVG marks are focusable images with descriptive tooltips.
               <rect
@@ -151,10 +194,10 @@ export function SpineChart({
                 key={mark}
                 tabIndex={0}
                 className="fphd-range-target"
-                x={(mark === 'area' ? dot : tick) - (mark === 'area' ? 8 : 6)}
+                x={(mark === 'area' ? dot : tick) - (mark === 'area' ? 10 : 6)}
                 y={0}
-                width={mark === 'area' ? 16 : 12}
-                height={24}
+                width={mark === 'area' ? 20 : 12}
+                height={height}
                 fill="transparent"
                 aria-label={[
                   context,

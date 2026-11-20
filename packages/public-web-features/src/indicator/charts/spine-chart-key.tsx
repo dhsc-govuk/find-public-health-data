@@ -19,10 +19,20 @@ export function SpineChartKey() {
         viewBox="0 0 480 140"
         className="fphd-range-key-example"
         role="img"
-        aria-label="Example comparison chart. The grey line runs from the lowest to the highest value. The shaded band runs from the 25th to the 75th percentile. The black line marks the benchmark and the dot shows the area value."
+        aria-label="Example comparison chart. The dashed box runs from the lowest to the highest value. The shaded band runs from the 25th to the 75th percentile. The black line in the middle marks the benchmark and the dot shows the area value."
       >
-        <rect x="150" y="44" width="180" height="36" fill="#6f7276" fillOpacity="0.16" />
-        <path d="M40 44v36 M40 62H440 M440 44v36" fill="none" stroke="#b1b4b6" strokeWidth="2" />
+        <rect
+          x="40"
+          y="44"
+          width="400"
+          height="36"
+          fill="none"
+          stroke="#6f7276"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+        />
+        <rect x="150" y="44" width="180" height="36" fill="#6f7276" fillOpacity="0.1" />
+        <path d="M150 44v36 M330 44v36" stroke="#6f7276" strokeWidth="1.5" />
         <circle cx="290" cy="62" r="12" fill="#6f7276" />
         <path d="M240 40v44" stroke="#ffffff" strokeWidth="6" />
         <path d="M240 40v44" stroke="#0b0c0c" strokeWidth="3" />
