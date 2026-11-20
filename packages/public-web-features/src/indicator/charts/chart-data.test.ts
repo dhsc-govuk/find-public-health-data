@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { IndicatorAreaData, IndicatorObservation } from '../loader.ts';
-import { alignedSeries, areaQuintile, englandCode, pairedObservations } from './chart-data.ts';
+import { observation } from '../view.testing.ts';
+import {
+  alignedSeries,
+  areaQuintile,
+  englandCode,
+  pairedObservations,
+  valueExtent,
+} from './chart-data.ts';
 
 function point(year: number, value: number | null, sex?: string): IndicatorObservation {
   return {
@@ -98,4 +105,19 @@ describe('chart series', () => {
       },
     ]);
   });
+});
+
+it("takes the axis's extent from the values and their error bars as drawn", () => {
+  const series = (value: number, lowerCi95: number, upperCi95: number) =>
+    alignedSeries([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [{ ...observation(value), lowerCi95, upperCi95 }],
+      },
+    ]);
+  expect(valueExtent(series(1, -1, 3), '95')).toEqual([-1, 3]);
+  expect(valueExtent(series(1, -1, 3), 'none')).toEqual([1, 1]);
+  // An interval that contradicts its value draws no bar on either side, so it adds nothing.
+  expect(valueExtent(series(10, 12, 8), '95')).toEqual([10, 10]);
 });
