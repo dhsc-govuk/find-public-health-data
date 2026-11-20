@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canAssignReviewers,
   canBrowseAllIndicators,
+  canBrowseOtherTeamsIndicators,
   canCreateIndicator,
   canCreateIndicatorInTeam,
   canDecideUpdates,
@@ -23,9 +24,11 @@ import {
   canSubmitIndicator,
   canUseInternalService,
   canWithdrawSubmission,
+  canWorkOnIndicator,
   canWriteReviewerNotes,
   type IndicatorAccess,
   indicatorListScope,
+  otherTeamsListScope,
   ownTeamsListScope,
   type SessionUser,
   teamsForNewIndicator,
@@ -51,18 +54,47 @@ const inTeamA: IndicatorAccess = { teamId: teamA, reviewerIds: [] };
 const inTeamB: IndicatorAccess = { teamId: teamB, reviewerIds: [] };
 const assigned: IndicatorAccess = { teamId: teamA, reviewerIds: ['reviewer'] };
 
+describe('canWorkOnIndicator', () => {
+  it.each([
+    ['a publisher in its team', publisherA, inTeamA, true],
+    ['a publisher in another team', publisherA, inTeamB, false],
+    ['a publisher in two teams', publisherAB, inTeamB, true],
+    ['a publisher with no team', teamless, inTeamA, false],
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+    ['a publisher who reviews, in their team', publisherReviewer, inTeamB, true],
+    ['a publisher who reviews, unassigned in another team', publisherReviewer, inTeamA, false],
+    ['an IMRG manager', manager, inTeamA, true],
+    ['an admin', admin, inTeamB, true],
+  ])('answers whether %s works on an indicator', (_who, asking, indicator, expected) => {
+    expect(canWorkOnIndicator(asking, indicator)).toBe(expected);
+  });
+});
+
 describe('canSeeIndicator', () => {
   it.each([
-    ['a publisher', publisherA, inTeamA, true],
-    ['a publisher', publisherA, inTeamB, false],
-    ['a publisher in two teams', publisherAB, inTeamB, true],
-    ['an IMRG reviewer', reviewer, assigned, true],
-    ['an IMRG reviewer', reviewer, inTeamA, false],
-    ['a publisher who reviews', publisherReviewer, inTeamB, true],
+    ['a publisher in its team', publisherA, inTeamA, true],
+    ['a publisher in another team', publisherA, inTeamB, true],
+    ['a publisher with no team', teamless, inTeamA, true],
+    ['an assigned reviewer', reviewer, assigned, true],
+    ['an unassigned reviewer', reviewer, inTeamA, false],
+    ['a publisher who reviews, unassigned in another team', publisherReviewer, inTeamA, true],
     ['an IMRG manager', manager, inTeamA, true],
     ['an admin', admin, inTeamB, true],
   ])('answers whether %s sees an indicator', (_who, asking, indicator, expected) => {
     expect(canSeeIndicator(asking, indicator)).toBe(expected);
+  });
+
+  it('admits everyone canWorkOnIndicator does', () => {
+    const users = [publisherA, publisherAB, reviewer, publisherReviewer, manager, admin, teamless];
+
+    for (const asking of users) {
+      for (const indicator of [inTeamA, inTeamB, assigned]) {
+        if (canWorkOnIndicator(asking, indicator)) {
+          expect(canSeeIndicator(asking, indicator), asking.sub).toBe(true);
+        }
+      }
+    }
   });
 });
 
@@ -241,7 +273,7 @@ describe('canSeeIndicatorHistory', () => {
     expect(canSeeIndicatorHistory(asking, indicator)).toBe(expected);
   });
 
-  it('admits whoever canSeeIndicator does', () => {
+  it("admits whoever canWorkOnIndicator does, so another team's publisher is refused", () => {
     const users = [
       publisherA,
       publisherAB,
@@ -257,7 +289,7 @@ describe('canSeeIndicatorHistory', () => {
     for (const asking of users) {
       for (const indicator of indicators) {
         expect(canSeeIndicatorHistory(asking, indicator), asking.sub).toBe(
-          canSeeIndicator(asking, indicator),
+          canWorkOnIndicator(asking, indicator),
         );
       }
     }
@@ -281,6 +313,19 @@ describe('the role-wide checks', () => {
     expect(canManage(admin)).toBe(true);
     for (const asking of [publisherAB, manager, reviewer]) {
       expect(canManage(asking), asking.sub).toBe(false);
+    }
+  });
+
+  it("lets a publisher who is not an admin browse other teams' indicators apart", () => {
+    expect(canBrowseOtherTeamsIndicators(publisherA)).toBe(true);
+    expect(canBrowseOtherTeamsIndicators(publisherReviewer)).toBe(true);
+    expect(canBrowseOtherTeamsIndicators(publisherManager)).toBe(true);
+    expect(canBrowseOtherTeamsIndicators(teamless)).toBe(true);
+    for (const asking of [user('admin-publisher', ['admin', 'publisher'], [teamA]), admin]) {
+      expect(canBrowseOtherTeamsIndicators(asking), asking.sub).toBe(false);
+    }
+    for (const asking of [manager, reviewer]) {
+      expect(canBrowseOtherTeamsIndicators(asking), asking.sub).toBe(false);
     }
   });
 
@@ -318,8 +363,9 @@ describe('indicatorListScope', () => {
   it.each([
     ['an admin', admin, { all: true }],
     ['an IMRG manager', manager, { all: true }],
-    ['a publisher', publisherAB, { all: false, teamIds: [teamA, teamB] }],
-    ['a publisher who reviews', publisherReviewer, { all: false, teamIds: [teamB] }],
+    ['a publisher', publisherAB, { all: true }],
+    ['a publisher who reviews', publisherReviewer, { all: true }],
+    ['a publisher with no team', teamless, { all: true }],
     ['an IMRG reviewer', reviewer, { all: false, teamIds: [] }],
   ])('scopes the list %s sees', (_who, asking, expected) => {
     expect(indicatorListScope(asking)).toEqual(expected);
@@ -346,5 +392,17 @@ describe('ownTeamsListScope', () => {
     ['an admin', admin, []],
   ])("scopes the list to %s's own teams", (_who, asking, teamIds) => {
     expect(ownTeamsListScope(asking)).toEqual({ all: false, teamIds });
+  });
+});
+
+describe('otherTeamsListScope', () => {
+  it.each([
+    ['a publisher', publisherAB, { all: true, exceptTeamIds: [teamA, teamB] }],
+    ['a publisher who reviews', publisherReviewer, { all: true, exceptTeamIds: [teamB] }],
+    ['a publisher with no team', teamless, { all: true, exceptTeamIds: [] }],
+    ['an IMRG manager', manager, { all: true, exceptTeamIds: [] }],
+    ['an IMRG reviewer', reviewer, { all: false, teamIds: [] }],
+  ])("scopes the list to the indicators outside %s's own teams", (_who, asking, expected) => {
+    expect(otherTeamsListScope(asking)).toEqual(expected);
   });
 });

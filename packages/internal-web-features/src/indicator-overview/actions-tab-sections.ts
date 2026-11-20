@@ -37,6 +37,8 @@ export interface ActionsTabInput {
   isReviewer: boolean;
   /** Whether the user may edit the indicator, which the task list is for. */
   canEdit: boolean;
+  /** Whether the preview shows the user only the metadata, as they don't work on the indicator. */
+  metadataOnly?: boolean;
   indicator: Pick<
     IndicatorAdminDetail,
     | 'id'
@@ -151,21 +153,28 @@ function actionsSection(input: ActionsTabInput): ActionsTabSection {
   return { heading: 'Actions', button: actionsButton(input, { assignFirst, responds }), links };
 }
 
+/** The preview link's words, which name a metadata-only preview and an update's preview. */
+function previewLabel({ metadataOnly = false, indicator }: ActionsTabInput): string {
+  if (metadataOnly) return 'View indicator preview (metadata only)';
+  return indicator.indicatorStatus === 'live'
+    ? 'Preview updated indicator'
+    : 'View indicator preview';
+}
+
 /**
  * The Actions tab's sections, decided by what the user is to the indicator: Review for an
  * assigned reviewer, then Actions while it offers them something, or always when there is no
  * Review section. The view links, the same for everyone, go first in the first section.
  */
 export function actionsTabSections(input: ActionsTabInput): ActionsTabSection[] {
-  const { id, draftStatus, indicatorStatus, publishedSlug } = input.indicator;
+  const { id, draftStatus, publishedSlug } = input.indicator;
   // A draft or scheduled version has a preview; an update's names it as the updated indicator.
   const viewLinks = [
     draftStatus === null
       ? undefined
       : {
           href: indicatorPreviewPath(id),
-          label:
-            indicatorStatus === 'live' ? 'Preview updated indicator' : 'View indicator preview',
+          label: previewLabel(input),
         },
     publishedSlug === null
       ? undefined

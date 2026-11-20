@@ -5,8 +5,10 @@ import {
   canCreateIndicatorInTeam,
   canEditIndicator,
   canListIndicators,
-  canSeeIndicator,
+  canWorkOnIndicator,
+  type IndicatorListScope,
   indicatorListScope,
+  otherTeamsListScope,
   ownTeamsListScope,
   type SessionUser,
 } from '@fphd/auth/permissions';
@@ -20,6 +22,7 @@ import {
   type IndicatorAdminSummary,
   type IndicatorStartUpdateError,
   type IndicatorTaskList,
+  indicatorAccess,
   indicatorCreateIdSchema,
   indicatorFieldSchema,
   indicatorListTeamsQuerySchema,
@@ -30,7 +33,11 @@ import {
   toFieldErrors,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
-import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
+import {
+  guardedIndicator,
+  requireIndicatorAccess,
+  requireIndicatorViewer,
+} from './indicator-access.ts';
 import type {
   IndicatorAdminDetailRow,
   IndicatorAdminListRow,
@@ -100,6 +107,38 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
 }
 
 /**
+ * A list row as `user` may read it. A user who doesn't work on the indicator, such as a publisher
+ * in another team, reads its statuses but not who reviews it.
+ */
+function listItemFor(user: SessionUser, item: IndicatorAdminListItem): IndicatorAdminListItem {
+  return canWorkOnIndicator(user, indicatorAccess(item)) ? item : { ...item, draftReviewers: [] };
+}
+
+/**
+ * The detail as `user` may read it. A user who doesn't work on the indicator reads its statuses
+ * and publication date, but not its reviewers, its latest response or its submission's number
+ * and date.
+ */
+function detailFor(user: SessionUser, detail: IndicatorAdminDetail): IndicatorAdminDetail {
+  return canWorkOnIndicator(user, indicatorAccess(detail))
+    ? detail
+    : {
+        ...detail,
+        draftReviewers: [],
+        draftResponse: null,
+        draftSubmissionNumber: null,
+        draftFirstSubmittedAt: null,
+      };
+}
+
+/** The indicators a list asks for: the user's own teams', other teams', or every one they see. */
+function listScope(teams: 'own' | 'other' | undefined, user: SessionUser): IndicatorListScope {
+  if (teams === 'own') return ownTeamsListScope(user);
+  if (teams === 'other') return otherTeamsListScope(user);
+  return indicatorListScope(user);
+}
+
+/**
  * The internal view of indicators, including the unpublished ones the public API never serves,
  * each user seeing those their roles allow. Mounted only by `internal-api`; `public-api` must
  * 404 every path.
@@ -112,7 +151,7 @@ export function internalIndicatorsRouter(
   const requireCreator = requireJwtSession(session, canCreateIndicator);
   const requireLister = requireJwtSession(session, canListIndicators);
   const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
-  const requireViewer = requireIndicatorAccess(session, indicators, canSeeIndicator);
+  const requireViewer = requireIndicatorViewer(session, indicators);
 
   router.get('/api/internal/indicators', requireLister, async (request, response) => {
     const query = indicatorPageQuerySchema.safeParse(request.query);
@@ -137,12 +176,11 @@ export function internalIndicatorsRouter(
     }
 
     const { page } = query.data;
-    const session = requireApiSession(response);
-    const scope =
-      filter.data.teams === 'own' ? ownTeamsListScope(session) : indicatorListScope(session);
+    const user = requireApiSession(response);
+    const scope = listScope(filter.data.teams, user);
     const rows = await indicators.listPage(page, INDICATORS_PAGE_SIZE, scope, search.data.search);
     const body: IndicatorAdminPage = {
-      indicators: rows.indicators.map(toListItem),
+      indicators: rows.indicators.map((row) => listItemFor(user, toListItem(row))),
       page,
       pageSize: INDICATORS_PAGE_SIZE,
       total: rows.total,
@@ -358,7 +396,8 @@ export function internalIndicatorsRouter(
       return;
     }
 
-    response.status(200).json(toDetail(row, requireApiSession(response)));
+    const user = requireApiSession(response);
+    response.status(200).json(detailFor(user, toDetail(row, user)));
   });
 
   return router;

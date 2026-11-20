@@ -13,6 +13,8 @@ export function dataPlaceholder({ dataState }: IndicatorPageDetail): string | nu
       return '[Not provided yet]';
     case 'read-models-missing':
       return "[Data isn't shown in the preview yet]";
+    case 'metadata-only':
+      return '[Not shown in this preview]';
     default:
       return null;
   }

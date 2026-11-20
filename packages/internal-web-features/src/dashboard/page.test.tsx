@@ -29,12 +29,29 @@ const indicator: IndicatorAdminListItem = {
   draftReviewers: [],
 };
 
+const otherIndicator: IndicatorAdminListItem = {
+  ...indicator,
+  id: '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a6b',
+  name: 'Hospital admissions for asthma',
+  teamId: TEAM_IDS.teamB,
+  teamName: 'Team B',
+};
+
+/** A publisher's page of other teams' indicators. */
+const otherTeams: IndicatorList = {
+  canCreate: false,
+  indicators: [otherIndicator],
+  page: 1,
+  totalPages: 1,
+};
+
 // The pagination links read router state, so the page renders inside a router at its own address.
 function renderPage(
   list: Partial<IndicatorList> = {},
   url = '/dashboard',
   underReview: IndicatorsUnderReview | null = null,
   toReview: IndicatorAdminListItem[] | null = null,
+  otherList: IndicatorList | null = null,
 ) {
   return render(
     <MemoryRouter initialEntries={[url]}>
@@ -44,6 +61,7 @@ function renderPage(
         scheduled={null}
         awaitingDecision={null}
         list={{ canCreate: true, indicators: [indicator], page: 1, totalPages: 1, ...list }}
+        otherList={otherList}
       />
     </MemoryRouter>,
   );
@@ -257,44 +275,164 @@ describe('DashboardPage', () => {
     });
   });
 
+  describe('for a publisher', () => {
+    it("offers Your teams' indicators, then All other indicators", () => {
+      renderPage({}, '/dashboard', null, null, otherTeams);
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        "Your teams' indicators",
+        'All other indicators',
+      ]);
+      expect(
+        screen.getByRole('tab', { name: "Your teams' indicators" }).getAttribute('aria-selected'),
+      ).toBe('true');
+    });
+
+    it("puts the create action and their teams' indicators under Your teams' indicators", () => {
+      renderPage({}, '/dashboard', null, null, otherTeams);
+
+      const panel = screen.getByRole('tabpanel', { name: "Your teams' indicators" });
+
+      expect(within(panel).getByRole('button', { name: 'Create new indicator' })).toBeTruthy();
+      expect(within(panel).getByRole('link', { name: 'Life expectancy at birth' })).toBeTruthy();
+      expect(within(panel).queryByText('Hospital admissions for asthma')).toBeNull();
+    });
+
+    it("lists other teams' indicators in the same columns, each linked to its overview, with no create action", () => {
+      renderPage({}, '/dashboard?tab=all-other', null, null, otherTeams);
+
+      const panel = screen.getByRole('tabpanel', { name: 'All other indicators' });
+      const table = within(panel).getByRole('table', {
+        name: 'All other indicators, most recently edited first',
+      });
+
+      expect(
+        within(table)
+          .getAllByRole('columnheader')
+          .map((cell) => cell.textContent),
+      ).toEqual([
+        'Indicator name',
+        'Team',
+        'Created by',
+        'Last edited',
+        'Last edited by',
+        'Indicator status',
+        'Publishing status',
+      ]);
+      expect(
+        within(panel)
+          .getByRole('link', { name: 'Hospital admissions for asthma' })
+          .getAttribute('href'),
+      ).toBe(`/dashboard/indicators/${otherIndicator.id}`);
+      expect(within(panel).getByText('Team B')).toBeTruthy();
+      expect(within(panel).queryByRole('button', { name: 'Create new indicator' })).toBeNull();
+    });
+
+    it("pages other teams' indicators with their own page number, keeping their tab open", () => {
+      renderPage({}, '/dashboard?otherPage=2&tab=all-other', null, null, {
+        ...otherTeams,
+        page: 2,
+        totalPages: 3,
+      });
+
+      const panel = screen.getByRole('tabpanel', { name: 'All other indicators' });
+
+      expect(within(panel).getByRole('link', { name: '1' }).getAttribute('href')).toBe(
+        '/dashboard?tab=all-other',
+      );
+      expect(within(panel).getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+        '/dashboard?otherPage=3&tab=all-other',
+      );
+      expect(within(panel).getByRole('link', { name: '2' }).getAttribute('aria-current')).toBe(
+        'page',
+      );
+    });
+
+    it("keeps Your teams' indicators open in its own page links", () => {
+      renderPage({ page: 2, totalPages: 3 }, '/dashboard?page=2', null, null, otherTeams);
+
+      expect(screen.getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+        '/dashboard?page=3&tab=your-teams',
+      );
+    });
+
+    it("keeps the other list's page in each list's page links", () => {
+      renderPage({ page: 2, totalPages: 3 }, '/dashboard?page=2&otherPage=4', null, null, {
+        ...otherTeams,
+        page: 4,
+        totalPages: 5,
+      });
+
+      const yours = screen.getByRole('navigation', { name: "Your teams' indicators pagination" });
+      const others = screen.getByRole('navigation', { name: 'All other indicators pagination' });
+
+      expect(within(yours).getByRole('link', { name: '3' }).getAttribute('href')).toBe(
+        '/dashboard?page=3&otherPage=4&tab=your-teams',
+      );
+      expect(within(others).getByRole('link', { name: '5' }).getAttribute('href')).toBe(
+        '/dashboard?page=2&otherPage=5&tab=all-other',
+      );
+    });
+
+    it('names each table and pagination by its tab, so they differ without JavaScript', () => {
+      renderPage({ totalPages: 2 }, '/dashboard', null, null, { ...otherTeams, totalPages: 2 });
+
+      for (const name of ["Your teams' indicators", 'All other indicators']) {
+        expect(
+          screen.getByRole('table', { name: `${name}, most recently edited first`, hidden: true }),
+          name,
+        ).toBeTruthy();
+        expect(
+          screen.getByRole('navigation', { name: `${name} pagination`, hidden: true }),
+          name,
+        ).toBeTruthy();
+      }
+    });
+  });
+
   describe('for an IMRG manager who also publishes', () => {
-    it('offers the two review tabs, then Create and edit', () => {
-      renderPage({}, '/dashboard', { unassigned: [submitted], assigned: [] });
+    it("offers the two review tabs, then Your teams' indicators and All other indicators", () => {
+      renderPage({}, '/dashboard', { unassigned: [submitted], assigned: [] }, null, otherTeams);
 
       expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'Unassigned indicators',
         'Assigned indicators',
-        'Create and edit',
+        "Your teams' indicators",
+        'All other indicators',
       ]);
       expect(screen.getByRole('tabpanel', { name: 'Unassigned indicators' }).textContent).toContain(
         'Smoking prevalence',
       );
     });
 
-    it('puts the create action and their indicators under Create and edit', () => {
-      renderPage({}, '/dashboard', { unassigned: [], assigned: [] });
+    it("puts the create action and their indicators under Your teams' indicators", () => {
+      renderPage({}, '/dashboard', { unassigned: [], assigned: [] }, null, otherTeams);
 
-      const panel = screen.getByRole('tabpanel', { name: 'Create and edit' });
+      const panel = screen.getByRole('tabpanel', { name: "Your teams' indicators" });
 
       expect(within(panel).getByRole('button', { name: 'Create new indicator' })).toBeTruthy();
       expect(within(panel).getByRole('link', { name: 'Life expectancy at birth' })).toBeTruthy();
     });
 
-    it('keeps Create and edit open in the page links', () => {
-      renderPage({ page: 2, totalPages: 3 }, '/dashboard?page=2&tab=create-and-edit', {
-        unassigned: [],
-        assigned: [],
-      });
+    it("keeps Your teams' indicators open in the page links", () => {
+      renderPage(
+        { page: 2, totalPages: 3 },
+        '/dashboard?page=2&tab=your-teams',
+        { unassigned: [], assigned: [] },
+        null,
+        otherTeams,
+      );
 
       expect(
-        screen.getByRole('tab', { name: 'Create and edit' }).getAttribute('aria-selected'),
+        screen.getByRole('tab', { name: "Your teams' indicators" }).getAttribute('aria-selected'),
       ).toBe('true');
       expect(screen.getByRole('link', { name: '1' }).getAttribute('href')).toBe(
-        '/dashboard?tab=create-and-edit',
+        '/dashboard?tab=your-teams',
       );
       expect(screen.getByRole('link', { name: '3' }).getAttribute('href')).toBe(
-        '/dashboard?page=3&tab=create-and-edit',
+        '/dashboard?page=3&tab=your-teams',
       );
     });
   });
@@ -311,13 +449,14 @@ describe('DashboardPage', () => {
   });
 
   describe('for an IMRG reviewer who also publishes', () => {
-    it('offers a Review tab, counting the indicators to review, then Create and edit', () => {
-      renderPage({}, '/dashboard', null, [inReview]);
+    it("offers a Review tab, counting the indicators to review, then Your teams' indicators and All other indicators", () => {
+      renderPage({}, '/dashboard', null, [inReview], otherTeams);
 
       expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
       expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
         'Review (1)',
-        'Create and edit',
+        "Your teams' indicators",
+        'All other indicators',
       ]);
       expect(screen.getByRole('tabpanel', { name: 'Review (1)' }).textContent).toContain(
         'Smoking prevalence',
@@ -335,7 +474,7 @@ describe('DashboardPage', () => {
         draftUpdateDecision: null,
       };
 
-      renderPage({}, '/dashboard', null, [inReview, sentBack]);
+      renderPage({}, '/dashboard', null, [inReview, sentBack], otherTeams);
 
       const panel = screen.getByRole('tabpanel', { name: 'Review (1)' });
       expect(within(panel).getByRole('link', { name: 'Hip fractures' })).toBeTruthy();
@@ -343,7 +482,7 @@ describe('DashboardPage', () => {
     });
 
     it('leaves the count off the Review tab when nothing is assigned', () => {
-      renderPage({}, '/dashboard', null, []);
+      renderPage({}, '/dashboard', null, [], otherTeams);
 
       expect(screen.getByRole('tab', { name: 'Review' })).toBeTruthy();
       expect(screen.getByRole('tabpanel', { name: 'Review' }).textContent).toContain(
@@ -351,10 +490,10 @@ describe('DashboardPage', () => {
       );
     });
 
-    it('puts the create action and their indicators under Create and edit', () => {
-      renderPage({}, '/dashboard', null, []);
+    it("puts the create action and their indicators under Your teams' indicators", () => {
+      renderPage({}, '/dashboard', null, [], otherTeams);
 
-      const panel = screen.getByRole('tabpanel', { name: 'Create and edit' });
+      const panel = screen.getByRole('tabpanel', { name: "Your teams' indicators" });
 
       expect(within(panel).getByRole('button', { name: 'Create new indicator' })).toBeTruthy();
       expect(within(panel).getByRole('link', { name: 'Life expectancy at birth' })).toBeTruthy();
@@ -383,20 +522,28 @@ describe('DashboardPage', () => {
   });
 
   it('offers an IMRG manager who reviews and publishes a tab for each role, in order', () => {
-    renderPage({}, '/dashboard', { unassigned: [], assigned: [] }, []);
+    renderPage({}, '/dashboard', { unassigned: [], assigned: [] }, [], otherTeams);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Indicators' })).toBeTruthy();
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
       'Unassigned indicators',
       'Assigned indicators',
       'Review',
-      'Create and edit',
+      "Your teams' indicators",
+      'All other indicators',
     ]);
     expect(
-      within(screen.getByRole('tabpanel', { name: 'Create and edit' })).getByRole('button', {
+      within(screen.getByRole('tabpanel', { name: "Your teams' indicators" })).getByRole('button', {
         name: 'Create new indicator',
       }),
     ).toBeTruthy();
+  });
+
+  it('offers an admin who publishes every indicator under Create and edit, alone', () => {
+    renderPage();
+
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Create new indicator' })).toBeTruthy();
   });
 
   it('offers an admin who reviews a Review tab then an All indicators tab, headed Indicators', () => {
@@ -670,6 +817,33 @@ describe('the dashboard search', () => {
     expect(noMatches('Scheduled indicators')).toBeTruthy();
     expect(noMatches('Update decision needed')).toBeTruthy();
     expect(noMatches('Create and edit')).toBeTruthy();
+  });
+
+  it("says no indicators match on each of a publisher's tabs the search left empty", () => {
+    renderSearched('quokka', '/dashboard?search=quokka', {
+      list: emptyList,
+      otherList: { ...emptyList, canCreate: false },
+    });
+
+    for (const tab of ["Your teams' indicators", 'All other indicators']) {
+      expect(
+        within(screen.getByRole('tabpanel', { name: tab })).getByText(
+          'No indicators match your search.',
+        ),
+        tab,
+      ).toBeTruthy();
+    }
+  });
+
+  it("keeps the search in the page links of other teams' indicators", () => {
+    renderSearched('asthma', '/dashboard?search=asthma&tab=all-other', {
+      list: emptyList,
+      otherList: { ...otherTeams, page: 1, totalPages: 2 },
+    });
+
+    expect(screen.getByRole('link', { name: '2' }).getAttribute('href')).toBe(
+      '/dashboard?search=asthma&otherPage=2&tab=all-other',
+    );
   });
 
   it('keeps the search in the page links', () => {

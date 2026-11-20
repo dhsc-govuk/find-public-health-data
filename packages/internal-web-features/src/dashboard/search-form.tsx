@@ -43,7 +43,7 @@ export function DashboardSearch({ search }: { search: string | undefined }) {
           className="govuk-link govuk-body-s govuk-!-margin-bottom-0 fphd-inline-search__clear"
           onClick={() => setReset((value) => value + 1)}
           preventScrollReset
-          to={dashboardPath(1, tab ?? undefined)}
+          to={dashboardPath({}, tab ?? undefined)}
         >
           Clear search
         </Link>

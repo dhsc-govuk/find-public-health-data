@@ -30,6 +30,8 @@ const OVERVIEW_TITLE = 'Indicator overview';
 interface OverviewProps {
   /** Whether the user may edit it, which the task list is for. */
   canEdit: boolean;
+  /** Whether its preview shows the user only the metadata, as they don't work on it. */
+  metadataOnly?: boolean;
   /** Whether the user is an assigned reviewer of the draft's latest submission. */
   isReviewer?: boolean;
   indicator: IndicatorAdminDetail;
@@ -74,6 +76,7 @@ function PublicationDate({ at, scheduled, fastTrackReason }: PublicationDateProp
 
 export function IndicatorOverviewPage({
   canEdit,
+  metadataOnly = false,
   isReviewer = false,
   indicator,
   notesForReviewers = null,
@@ -88,7 +91,7 @@ export function IndicatorOverviewPage({
       label: 'Actions',
       content: (
         <ActionsTab
-          sections={actionsTabSections({ canEdit, indicator, isReviewer })}
+          sections={actionsTabSections({ canEdit, metadataOnly, indicator, isReviewer })}
           reviewerNotes={
             reviewerNotes === null ? null : (
               <ReviewerNotes indicatorId={indicator.id} {...reviewerNotes} />

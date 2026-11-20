@@ -16,6 +16,7 @@ export const handle = backLinkHandle(DASHBOARD_PATH, 'Back to indicators');
 export function IndicatorOverviewRoute() {
   const {
     canEdit,
+    metadataOnly,
     isReviewer,
     indicator,
     notesForReviewers,
@@ -29,6 +30,7 @@ export function IndicatorOverviewRoute() {
   return (
     <IndicatorOverviewPage
       canEdit={canEdit}
+      metadataOnly={metadataOnly}
       isReviewer={isReviewer}
       indicator={indicator}
       notesForReviewers={notesForReviewers}

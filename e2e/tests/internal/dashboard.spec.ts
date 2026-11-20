@@ -21,12 +21,20 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/dashboard');
 });
 
+const YOUR_TEAMS = "Your teams' indicators";
+const ALL_OTHER = 'All other indicators';
+
+/** A publisher's tab of the indicators in their teams. */
+function yourTeams(page: Page) {
+  return page.getByRole('tabpanel', { name: YOUR_TEAMS });
+}
+
 test('tags a new indicator as new with an incomplete draft', async ({ page }) => {
   const name = uniqueIndicatorName('dashboard');
   await createDraft(page, name);
   await page.goto('/dashboard');
 
-  const row = page.getByRole('table').getByRole('row').filter({ hasText: name });
+  const row = yourTeams(page).getByRole('table').getByRole('row').filter({ hasText: name });
 
   // The column headers name the two statuses, so the tags carry no hidden prefix here.
   await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Incomplete']);
@@ -37,7 +45,7 @@ test('names the team, the creator and the last editor of a new indicator', async
   await createDraft(page, name);
   await page.goto('/dashboard');
 
-  const row = page.getByRole('table').getByRole('row').filter({ hasText: name });
+  const row = yourTeams(page).getByRole('table').getByRole('row').filter({ hasText: name });
 
   await expect(row.getByRole('cell').nth(0)).toHaveText('Team A');
   await expect(row.getByRole('cell').nth(1)).toHaveText(PUBLISHER.name);
@@ -51,9 +59,65 @@ test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
 test.describe('as a publisher whose team holds no indicators', () => {
   test.use({ storageState: TEAM_B_PUBLISHER.storageState });
 
-  test("shows a publisher only their own teams' indicators", async ({ page }) => {
-    await expect(page.getByText('There are no indicators for you to see yet.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Create new indicator' })).toBeVisible();
+  test("offers Your teams' indicators, open, then All other indicators", async ({ page }) => {
+    await expect(page.getByRole('tab')).toHaveText([YOUR_TEAMS, ALL_OTHER]);
+    await expect(page.getByRole('tab', { name: YOUR_TEAMS })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test("shows a publisher only their own teams' indicators under Your teams' indicators", async ({
+    page,
+  }) => {
+    await expect(
+      yourTeams(page).getByText('There are no indicators for you to see yet.'),
+    ).toBeVisible();
+    await expect(
+      yourTeams(page).getByRole('button', { name: 'Create new indicator' }),
+    ).toBeVisible();
+  });
+
+  test("lists another team's indicator under All other indicators, linked to its overview", async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const teamA = await browser.newContext({ storageState: PUBLISHER.storageState });
+    const name = uniqueIndicatorName('all other');
+    const id = await createDraft(await teamA.newPage(), name);
+    await teamA.close();
+
+    await page.goto('/dashboard');
+    await page.getByRole('tab', { name: ALL_OTHER }).click();
+    await expect(page).toHaveURL(/[?&]tab=all-other/);
+
+    const panel = page.getByRole('tabpanel', { name: ALL_OTHER });
+    const row = panel.getByRole('table').getByRole('row').filter({ hasText: name });
+
+    await expect(panel.getByRole('button', { name: 'Create new indicator' })).toHaveCount(0);
+    await expect(row.getByRole('cell').nth(0)).toHaveText('Team A');
+    await expect(row.getByRole('cell').nth(1)).toHaveText(PUBLISHER.name);
+    await expect(row.locator('.govuk-tag')).toHaveText(['New', 'Incomplete']);
+    await expectNoAccessibilityViolations(page, testInfo);
+
+    await row.getByRole('link', { name }).click();
+
+    await expect(page).toHaveURL(`/dashboard/indicators/${id}`);
+  });
+
+  // The seed holds more indicators than one page, none of them in Team B.
+  test("pages through other teams' indicators on their own tab", async ({ page }) => {
+    await page.getByRole('tab', { name: ALL_OTHER }).click();
+    const panel = page.getByRole('tabpanel', { name: ALL_OTHER });
+
+    await panel.getByRole('link', { name: 'Next page' }).click();
+
+    await expect(page).toHaveURL('/dashboard?otherPage=2&tab=all-other');
+    await expect(page.getByRole('tab', { name: ALL_OTHER })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(panel.getByRole('table').getByRole('row').nth(1)).toBeVisible();
   });
 });
 
@@ -255,17 +319,17 @@ test.describe('as an IMRG reviewer', () => {
 test.describe('as an IMRG reviewer who publishes', () => {
   test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
 
-  test('offers a Review tab and a Create and edit tab', async ({ page }) => {
+  test("offers a Review tab, then Your teams' indicators and All other indicators", async ({
+    page,
+  }) => {
     await expect(page.getByRole('heading', { level: 1, name: 'Indicators' })).toBeVisible();
     // Other specs also assign indicators to this reviewer, so the count varies (none at zero).
-    await expect(page.getByRole('tab')).toHaveText([/^Review( \(\d+\))?$/, 'Create and edit']);
+    await expect(page.getByRole('tab')).toHaveText([/^Review( \(\d+\))?$/, YOUR_TEAMS, ALL_OTHER]);
 
-    await page.getByRole('tab', { name: 'Create and edit' }).click();
+    await page.getByRole('tab', { name: YOUR_TEAMS }).click();
 
     await expect(
-      page
-        .getByRole('tabpanel', { name: 'Create and edit' })
-        .getByRole('button', { name: 'Create new indicator' }),
+      yourTeams(page).getByRole('button', { name: 'Create new indicator' }),
     ).toBeVisible();
   });
 });
@@ -311,14 +375,20 @@ test.describe('searching the dashboard', () => {
     await expect(rowNames(page)).toHaveText([name]);
 
     await search(page, `${name} ${SECOND_TEAM_A_PUBLISHER.name}`);
-    await expect(page.getByText('No indicators match your search.')).toBeVisible();
+    await expect(yourTeams(page).getByText('No indicators match your search.')).toBeVisible();
   });
 
-  test('says no indicators match a search that finds none', async ({ page }, testInfo) => {
+  test('says no indicators match a search that finds none, on both tabs', async ({
+    page,
+  }, testInfo) => {
     await search(page, uniqueIndicatorName('search nothing'));
 
-    await expect(page.getByText('No indicators match your search.')).toBeVisible();
+    await expect(yourTeams(page).getByText('No indicators match your search.')).toBeVisible();
     await expect(page.getByRole('table')).toHaveCount(0);
+    await page.getByRole('tab', { name: ALL_OTHER }).click();
+    await expect(
+      page.getByRole('tabpanel', { name: ALL_OTHER }).getByText('No indicators match your search.'),
+    ).toBeVisible();
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
@@ -327,7 +397,7 @@ test.describe('searching the dashboard', () => {
     await createDraft(page, name);
     await page.goto('/dashboard');
     await search(page, uniqueIndicatorName('search clear nothing'));
-    await expect(page.getByText('No indicators match your search.')).toBeVisible();
+    await expect(yourTeams(page).getByText('No indicators match your search.')).toBeVisible();
 
     await page.getByRole('link', { name: 'Clear search' }).click();
 
@@ -399,32 +469,28 @@ test.describe('searching the dashboard', () => {
     test.use({ storageState: PUBLISHER_AND_REVIEWER.storageState });
 
     test('keeps the open tab after a search', async ({ page }) => {
-      await page.getByRole('tab', { name: 'Create and edit' }).click();
-      await expect(page).toHaveURL(/[?&]tab=create-and-edit/);
+      await page.getByRole('tab', { name: YOUR_TEAMS }).click();
+      await expect(page).toHaveURL(/[?&]tab=your-teams/);
 
       await search(page, uniqueIndicatorName('search tab'));
 
-      await expect(page).toHaveURL(/[?&]tab=create-and-edit/);
-      await expect(page.getByRole('tab', { name: 'Create and edit' })).toHaveAttribute(
+      await expect(page).toHaveURL(/[?&]tab=your-teams/);
+      await expect(page.getByRole('tab', { name: YOUR_TEAMS })).toHaveAttribute(
         'aria-selected',
         'true',
       );
-      await expect(
-        page
-          .getByRole('tabpanel', { name: 'Create and edit' })
-          .getByText('No indicators match your search.'),
-      ).toBeVisible();
+      await expect(yourTeams(page).getByText('No indicators match your search.')).toBeVisible();
     });
 
     test('keeps the open tab after Clear search', async ({ page }) => {
-      await page.getByRole('tab', { name: 'Create and edit' }).click();
+      await page.getByRole('tab', { name: ALL_OTHER }).click();
       await search(page, uniqueIndicatorName('search clear tab'));
 
       await page.getByRole('link', { name: 'Clear search' }).click();
 
       await expect(page).not.toHaveURL(/[?&]search=/);
-      await expect(page).toHaveURL(/[?&]tab=create-and-edit/);
-      await expect(page.getByRole('tab', { name: 'Create and edit' })).toHaveAttribute(
+      await expect(page).toHaveURL(/[?&]tab=all-other/);
+      await expect(page.getByRole('tab', { name: ALL_OTHER })).toHaveAttribute(
         'aria-selected',
         'true',
       );

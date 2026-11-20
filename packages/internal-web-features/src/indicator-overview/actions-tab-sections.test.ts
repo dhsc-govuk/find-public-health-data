@@ -87,8 +87,11 @@ const updateInReview: State = {
 };
 const updateSentBack: State = { ...sentBack, indicatorStatus: 'live', actions: ['resubmit'] };
 
-function sections(indicator: State, { isReviewer = false, canEdit = false } = {}) {
-  return actionsTabSections({ indicator, isReviewer, canEdit });
+function sections(
+  indicator: State,
+  { isReviewer = false, canEdit = false, metadataOnly = false } = {},
+) {
+  return actionsTabSections({ indicator, isReviewer, canEdit, metadataOnly });
 }
 
 describe('actionsTabSections', () => {
@@ -326,6 +329,30 @@ describe('actionsTabSections', () => {
     it('offers the withdrawal of a submission waiting for reviewers', () => {
       expect(sections({ ...submitted, actions: ['withdraw'] }, { canEdit: true })).toEqual([
         { heading: 'Actions', button: null, links: [preview, withdraw] },
+      ]);
+    });
+  });
+
+  describe('for a publisher in another team', () => {
+    const metadataPreview = { ...preview, label: 'View indicator preview (metadata only)' };
+
+    it('offers the metadata-only preview alone, whatever stage the draft is at', () => {
+      const liveWithDraft: State = { ...live, draftStatus: 'draft' };
+      for (const indicator of [newDraft, inReview, sentBack, liveWithDraft]) {
+        expect(sections(indicator, { metadataOnly: true }), indicator.indicatorStatus).toEqual([
+          {
+            heading: 'Actions',
+            button: null,
+            links:
+              indicator.publishedSlug === null ? [metadataPreview] : [metadataPreview, viewLive],
+          },
+        ]);
+      }
+    });
+
+    it('offers only the live page of a live indicator with no draft to preview', () => {
+      expect(sections(live, { metadataOnly: true })).toEqual([
+        { heading: 'Actions', button: null, links: [viewLive] },
       ]);
     });
   });

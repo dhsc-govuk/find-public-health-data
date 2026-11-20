@@ -166,6 +166,21 @@ describe('the response pages', () => {
     },
   );
 
+  it('sends a reviewer who publishes in another team, not assigned to the indicator, to its overview', async () => {
+    const { response } = await run(
+      loadResponseType,
+      reading({ ...inReview, draftReviewers: [], actions: [] }),
+      new Request(`https://internal.test${REVIEW}/response-type`),
+      ['publisher', 'imrg-reviewer'],
+    );
+
+    expect(await redirectWithFlash(response)).toEqual({
+      status: 302,
+      location: OVERVIEW,
+      flash: 'review-not-waiting',
+    });
+  });
+
   it.each([
     ['date', loadReviewDate, '/date'],
     ['approval', loadApproval, '/approval?submission=2'],
