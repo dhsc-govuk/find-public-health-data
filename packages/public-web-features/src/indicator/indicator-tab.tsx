@@ -275,7 +275,7 @@ export function IndicatorTab({
           ) : (
             <>
               <div className="fphd-indicator-chart fphd-indicator-chart--trend">
-                <h3 className="govuk-heading-s">Chart: {detail.name}</h3>
+                <h2 className="govuk-heading-s">Chart: {detail.name}</h2>
                 {hasPickedAreas ||
                 detail.goal ||
                 confidenceLevels.length > 0 ||

@@ -181,7 +181,6 @@ function TrendPlot({
   };
   return (
     <>
-      <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Chart: {indicator.name}</h3>
       {first && latest ? (
         <p className="govuk-body-s">
           {primary.name}:{' '}

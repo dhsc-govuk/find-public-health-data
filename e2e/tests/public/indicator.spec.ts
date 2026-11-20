@@ -134,6 +134,14 @@ test('shows the definition on its own between the heading and the summary', asyn
   expect(mobile.definitionWidth).toBeCloseTo(mobile.headingWidth, 0);
 });
 
+test('heads the Indicator tab chart once', async ({ page }) => {
+  const panel = page.locator('#indicator-data');
+  await expect(panel.getByRole('heading', { name: /^Chart:/ })).toHaveCount(1);
+  await expect(
+    panel.getByRole('heading', { level: 2, name: `Chart: ${MORTALITY_NAME}` }),
+  ).toBeVisible();
+});
+
 test('answers an unknown indicator with the not-found page', async ({ page }) => {
   const response = await page.goto('/indicator/no-such-indicator');
   expect(response?.status()).toBe(404);

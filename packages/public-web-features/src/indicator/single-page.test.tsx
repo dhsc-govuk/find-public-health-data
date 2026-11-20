@@ -10,6 +10,7 @@ import { indicatorPair } from './indicator-pair.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
 import { IndicatorRoute } from './route.tsx';
 import { SingleIndicatorPage } from './single-page.tsx';
+import { deprivation } from './view.testing.ts';
 
 afterEach(cleanup);
 
@@ -619,3 +620,61 @@ it('renders area and indicator comparisons when primary history fails', async ()
   fireEvent.click(screen.getByRole('tab', { name: 'Compare areas' }));
   expect(await screen.findByRole('rowheader', { name: 'England (benchmark)' })).toBeTruthy();
 });
+
+/** Each heading in a tab panel as its level and accessible name, in page order. */
+function headingOutline(panel: HTMLElement) {
+  return within(panel)
+    .getAllByRole('heading')
+    .map(
+      (heading) =>
+        `h${heading.tagName.slice(1)} ${heading.getAttribute('aria-label') ?? heading.textContent}`,
+    );
+}
+
+it.each([
+  [
+    'Indicator',
+    'tab-indicator=indicator',
+    ['h2 Indicator', 'h2 Geographies', 'h2 Display options', 'h3 Table columns'],
+    ['h2 Chart: Diabetes prevalence'],
+  ],
+  [
+    'Compare areas',
+    'tab-indicator=areas',
+    ['h2 Compare areas', 'h2 Geographies', 'h2 Display options', 'h3 Table and map options'],
+    ['h2 Map view', 'h2 Chart of area comparison', 'h3 2024/25'],
+  ],
+  [
+    'Compare indicators',
+    'compareWith=93995',
+    ['h2 Compare indicators', 'h2 Geographies'],
+    ['h2 Chart of indicator comparison'],
+  ],
+  [
+    'Inequalities',
+    'tab-indicator=inequalities',
+    ['h2 Inequalities', 'h2 Geographies', 'h2 Display options', 'h3 Chart options'],
+    ['h2 Chart of inequalities: Diabetes prevalence, England'],
+  ],
+])(
+  'names each heading once on the %s tab, with its charts beside the options, not under them',
+  (name, query, sidebar, charts) => {
+    const primary = selected(241, 'Diabetes prevalence', 7.9);
+    const england = primary.areaData[0];
+    const latest = england?.observations[0];
+    if (!england || !latest) throw new Error('England fixture missing');
+    england.observations.push(
+      { ...latest, value: 9.1, dimensions: [deprivation] },
+      { ...latest, value: 6.2, dimensions: [{ ...deprivation, value: 'Least deprived' }] },
+    );
+    page(
+      [primary, selected(93995, 'Diabetes mortality', 109.6)],
+      `/indicator/indicator-241?${query}`,
+      [{ ...england, areaCode: 'E06000039', areaName: 'Slough' }],
+    );
+
+    const outline = headingOutline(screen.getByRole('tabpanel', { name }));
+    expect(outline).toEqual([...sidebar, ...charts]);
+    expect(new Set(outline.map((heading) => heading.slice(3))).size).toBe(outline.length);
+  },
+);
