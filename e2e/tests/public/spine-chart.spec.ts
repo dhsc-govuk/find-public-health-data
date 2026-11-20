@@ -6,6 +6,31 @@ import { openTopicPage } from '../support/topic-page.ts';
 const indicator =
   '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages?as=E10000032&as=E08000025&as=E10000011&cmp-93995=england&cr-93995=yes';
 
+test("lines up England's benchmark down each column of comparison charts", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openIndicatorPage(page, indicator);
+  const plots = page.locator('#indicator-data .fphd-range-plot');
+  await expect(plots.first()).toBeVisible();
+  const lines = await plots.evaluateAll((elements) =>
+    elements.map((plot) => {
+      const line = plot.querySelector('.fphd-range-benchmark')?.getBoundingClientRect();
+      const box = plot.getBoundingClientRect();
+      return {
+        column: plot.closest('td')?.cellIndex ?? -1,
+        x: line ? Math.round(line.left + line.width / 2) : null,
+        middle: Math.round(box.left + box.width / 2),
+      };
+    }),
+  );
+  expect(lines.length).toBeGreaterThan(1);
+  expect(lines.every(({ column }) => column >= 0)).toBe(true);
+  for (const { x, middle } of lines) expect(Math.abs((x ?? 0) - middle)).toBeLessThanOrEqual(1);
+  for (const column of new Set(lines.map(({ column }) => column))) {
+    const xs = new Set(lines.filter((line) => line.column === column).map(({ x }) => x));
+    expect(xs.size).toBe(1);
+  }
+});
+
 for (const width of [1020, 375]) {
   test(`tick and dot are independently hoverable with distinct contextual tooltips at ${width}px`, async ({
     page,
