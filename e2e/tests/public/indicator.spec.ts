@@ -1119,6 +1119,7 @@ test('colours Compare areas bars by comparison with England for an indicator wit
   await expect(bar('Higher')).toHaveAttribute('stroke', '#0b0c0c');
   await expect(bar('Lower')).toHaveAttribute('fill', '#CEE0F3');
   const england = page
+    .getByRole('table', { name: /Table of area comparisons/ })
     .getByRole('row')
     .filter({ has: page.getByRole('rowheader', { name: 'England (benchmark)' }) })
     .locator('.fphd-comparison-bar rect')
