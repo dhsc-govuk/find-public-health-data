@@ -659,6 +659,30 @@ describe('loadIndicatorCsv', () => {
     ]);
   });
 
+  it('ignores a sex published only in the other period type, as the page does', async () => {
+    const client = api([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          observation({ value: 7 }),
+          observation({
+            fromDate: '2021-01-01',
+            value: 8,
+            dimensions: [{ type: 'Sex', value: 'Male', dimensionClass: 'core', sortOrder: 1 }],
+          }),
+        ],
+      },
+    ]);
+
+    const response = await loadIndicatorCsv(
+      args(client, 'http://localhost/indicator/mortality-all-causes/table.csv?sex-108=Male'),
+      'table',
+    );
+
+    expect((await response.text()).trim().split('\n').slice(1)).toEqual(['2023,7,339,343.2']);
+  });
+
   it('404s a segment shaped like neither identifier without calling the api', async () => {
     const client = createFakeApiClient();
 

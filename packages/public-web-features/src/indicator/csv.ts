@@ -121,20 +121,20 @@ export async function loadIndicatorCsv(
   if (kind === 'table') {
     // These validations exactly mirror the controls on the rendered page. A stale or
     // hand-edited URL therefore downloads the table the user can actually see.
+    const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
+    const { periodType } = periodTypeChoice(
+      areaData,
+      isOneOf(['1-year', '3-year'] as const, requestedPeriod) ? requestedPeriod : 'all',
+    );
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
     const hasEngland = englandObservations(areaData).length > 0;
-    const sexes = dimensionValues(sexObservations(areaData), 'Sex');
+    const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = (
       pickedCodes.length > 0
         ? areaData.filter(({ areaCode }) => areaCode !== ENGLAND_CODE)
         : areaData
     ).flatMap(({ observations }) => observations);
-    const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
-    const { periodType } = periodTypeChoice(
-      areaData,
-      isOneOf(['1-year', '3-year'] as const, requestedPeriod) ? requestedPeriod : 'all',
-    );
     const requestedConfidence = url.searchParams.get(`ci-${shortId}`);
     const confidence: ConfidenceLevel = isOneOf(
       availableConfidenceLevels(shownObservations),

@@ -103,4 +103,11 @@ describe('sexObservations', () => {
       ]),
     ).toEqual([female, male]);
   });
+
+  it('reads only the observations of the period type shown', () => {
+    const rollingMale = { ...male, fromDate: '2022-01-01' };
+    const data = [{ areaCode: 'E92000001', observations: [observation(5), rollingMale] }];
+    expect(sexObservations(data, '1-year')).toEqual([observation(5)]);
+    expect(sexObservations(data, '3-year')).toEqual([rollingMale]);
+  });
 });

@@ -68,9 +68,11 @@ export function IndicatorTab({
   const shownObservations = (pickedAreaData.length ? pickedAreaData : areaData).flatMap(
     ({ observations }) => observations,
   );
-  const sexes = dimensionValues(sexObservations(areaData), 'Sex');
-  const periodChoice = periodTypeChoice(areaData, options.periodType);
+  const periodChoice = periodTypeChoice(areaData, options.periodType, {
+    defaultAreas: !!defaultAreaLevel,
+  });
   const { periodType } = periodChoice;
+  const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
   const period = periodChoice.offered
     ? { options: periodChoice.options, value: periodType, notice: periodChoice.notice }
     : undefined;

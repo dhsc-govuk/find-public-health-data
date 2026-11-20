@@ -1,5 +1,6 @@
 import type { IndicatorAreaData, IndicatorObservation } from '@fphd/public-api-features/contract';
 import { normalizePublicLevels, publicGeographyLevels } from '../geography/groups.ts';
+import { filterObservations, type PeriodType } from './data.ts';
 import { ENGLAND_CODE, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 
 /**
@@ -36,13 +37,18 @@ export function choosesNothing(params: URLSearchParams, indicatorLevels: string[
 
 /**
  * The observations the Sex options are read from: England's, or with no England value those of
- * every area shown.
+ * every area shown. Only those of the period type shown count, so a sex published only in the
+ * other period type is not offered.
  */
 export function sexObservations(
   areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[],
+  periodType: PeriodType = 'all',
 ): IndicatorObservation[] {
   const england = englandObservations(areaData);
-  return england.length > 0 ? england : areaData.flatMap(({ observations }) => observations);
+  return filterObservations(
+    england.length > 0 ? england : areaData.flatMap(({ observations }) => observations),
+    { periodType },
+  );
 }
 
 /**
