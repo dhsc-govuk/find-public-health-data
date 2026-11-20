@@ -364,6 +364,13 @@ export function areaComparisonBarMaximum(rows: ReturnType<typeof areaComparisonR
   return Math.ceil((top * 1.05) / step) * step;
 }
 
+// Indicators with no polarity use tonal steps of dark blue, darkest for higher than England.
+export const noPolarityComparisonColours = {
+  higher: '#0E3F69',
+  similar: '#698AAB',
+  lower: '#CEE0F3',
+} as const;
+
 export function areaComparisonBarColour(
   label: string,
   mode: AreaColourMode,
@@ -380,13 +387,13 @@ export function areaComparisonBarColour(
       '#b1b4b6'
     );
   }
-  const colours: Record<string, string> = {
-    Better: '#8ED973',
-    Similar: neutral ? '#FFFFFF' : '#FFC000',
-    Worse: '#C00000',
-    Higher: '#254BA4',
-    Lower: '#A7B6DA',
-  };
+  const colours: Record<string, string> = neutral
+    ? {
+        Higher: noPolarityComparisonColours.higher,
+        Similar: noPolarityComparisonColours.similar,
+        Lower: noPolarityComparisonColours.lower,
+      }
+    : { Better: '#8ED973', Similar: '#FFC000', Worse: '#C00000' };
   return colours[label] ?? '#b1b4b6';
 }
 

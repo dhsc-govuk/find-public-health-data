@@ -238,8 +238,8 @@ it('keeps England as the benchmark when comparing local areas', () => {
   expect(table.getByRole('cell', { name: '11.0' })).toBeTruthy();
   expect(table.getByRole('cell', { name: 'Higher' })).toBeTruthy();
   const slough = table.getByRole('rowheader', { name: 'Slough' }).closest('tr');
-  const bar = slough?.querySelector('svg rect:nth-of-type(2)');
-  expect(bar?.getAttribute('fill')).toBe('#254BA4');
+  const bar = slough?.querySelector('svg svg rect');
+  expect(bar?.getAttribute('fill')).toBe('#0E3F69');
   expect(Number(bar?.getAttribute('width'))).toBeCloseTo((11 / 15) * 100);
   const chart = within(screen.getByRole('tabpanel', { name: 'Compare areas' })).getByRole(
     'region',

@@ -15,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { noPolarityComparisonColours } from '../area-comparison.ts';
 import { type BenchmarkJudgement, type ConfidenceLevel, formatValue, unitNote } from '../data.ts';
 import type { IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
 import {
@@ -93,10 +94,16 @@ const comparisonColours = {
   better: '#8ed973',
   worse: '#c00000',
   similar: '#ffc000',
-  higher: '#5555e6',
-  lower: '#bed2ff',
+  higher: noPolarityComparisonColours.higher,
+  lower: noPolarityComparisonColours.lower,
   none: axisColour,
 } satisfies Record<BenchmarkJudgement, string>;
+
+function judgementColour(judgement: BenchmarkJudgement, noPolarity: boolean) {
+  return noPolarity && judgement === 'similar'
+    ? noPolarityComparisonColours.similar
+    : comparisonColours[judgement];
+}
 
 const comparisonText = {
   better: 'Better than England',
@@ -155,7 +162,8 @@ export function ObservationBars({
   const [width, setWidth] = useState(640);
   const colour = (row: BarRow) => {
     if (colourByQuintile) return quintileColours[(row.quintile ?? 0) - 1] ?? axisColour;
-    if (suppliedBenchmark) return comparisonColours[row.comparison ?? 'none'];
+    if (suppliedBenchmark)
+      return judgementColour(row.comparison ?? 'none', indicator.polarity === 'no-polarity');
     const status = comparison(row);
     return benchmark && status ? barPalettes[mode][status] : seriesColours[0];
   };

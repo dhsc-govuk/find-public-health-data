@@ -171,10 +171,10 @@ it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-po
     }).areas;
     const colours: Record<string, string> = {
       Better: '#8ed973',
-      Similar: '#ffc000',
+      Similar: polarity === 'no-polarity' ? '#698AAB' : '#ffc000',
       Worse: '#c00000',
-      Higher: '#5555e6',
-      Lower: '#bed2ff',
+      Higher: '#0E3F69',
+      Lower: '#CEE0F3',
       '': '#505a5f',
     };
     for (const confidence of ['none', '95', '99.8'] as const) {
@@ -215,6 +215,14 @@ it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-po
           bar.getAttribute('fill'),
         ),
       ).toEqual(judgements.map((label) => colours[label]));
+      const key = [...(chart?.querySelectorAll('.fphd-chart-key li') ?? [])];
+      expect(key.length).toBeGreaterThan(0);
+      for (const item of key) {
+        const label = item.textContent?.startsWith('Not compared')
+          ? ''
+          : (item.textContent?.split(' ')[0] ?? '');
+        expect(item.querySelector('rect')?.getAttribute('fill')).toBe(colours[label]);
+      }
       expect(chart?.textContent).toContain('England 10.2%');
       expect(chart?.textContent).not.toContain('average');
       expect(

@@ -67,6 +67,7 @@ export function AreaComparisonTable({
           {shown.map((cell) => {
             const benchmark = cell.areaCode === 'E92000001';
             const isPicked = !benchmark && picked.has(cell.areaCode);
+            const barWidth = Math.max(0, ((cell.value ?? 0) / barMaximum) * 100);
             const compare = benchmark
               ? ''
               : cell.value === null
@@ -102,19 +103,23 @@ export function AreaComparisonTable({
                     >
                       <title>{`${cell.areaName}: ${formatCalculatedValue(cell.value)} ${indicator.detail.unit ?? ''}${compare ? `, ${compare}` : ''}`}</title>
                       <rect width="100" height="20" fill="#f3f2f1" />
-                      <rect
-                        width={Math.max(0, (cell.value / barMaximum) * 100)}
-                        height="20"
-                        fill={areaComparisonBarColour(
-                          compare,
-                          colour,
-                          benchmark,
-                          indicator.detail.polarity === 'no-polarity',
-                        )}
-                        stroke={colour === 'quintiles' && !benchmark ? '#0b0c0c' : undefined}
-                        strokeWidth="0.5"
-                        vectorEffect="non-scaling-stroke"
-                      />
+                      {/* The inner svg clips the outer half of the 2px stroke, leaving a 1px
+                          border inside each area's bar. */}
+                      <svg width={barWidth} height="20" aria-hidden="true">
+                        <rect
+                          width={barWidth}
+                          height="20"
+                          fill={areaComparisonBarColour(
+                            compare,
+                            colour,
+                            benchmark,
+                            indicator.detail.polarity === 'no-polarity',
+                          )}
+                          stroke={benchmark ? undefined : '#0b0c0c'}
+                          strokeWidth="2"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
                     </svg>
                   )}
                 </td>
