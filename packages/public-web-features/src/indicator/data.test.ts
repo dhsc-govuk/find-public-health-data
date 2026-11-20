@@ -20,6 +20,7 @@ import {
   inequalitySegments,
   inequalityValueLabel,
   periodCovered,
+  periodTypeChoice,
   recentTrend,
   segmentLabel,
   trendSeries,
@@ -296,6 +297,107 @@ describe('availablePeriodTypes', () => {
     expect(availablePeriodTypes([rolling])).toEqual(['3-year']);
     expect(availablePeriodTypes([single, rolling])).toEqual(['1-year', '3-year']);
     expect(availablePeriodTypes([])).toEqual([]);
+  });
+});
+
+describe('periodTypeChoice', () => {
+  const single = obs();
+  const rolling = obs({ fromDate: '2021-01-01', toDate: '2023-12-31' });
+  const area = (areaCode: string, areaName: string, observations = [single, rolling]) => ({
+    areaCode,
+    areaName,
+    observations,
+  });
+  const england = area('E92000001', 'England');
+  const oxford = area('E07000178', 'Oxford', [rolling]);
+  const cambridge = area('E07000008', 'Cambridge', [rolling]);
+  const northEast = area('E12000001', 'North East');
+  const singleOnly = area('E06000001', 'Hartlepool', [single]);
+
+  it('shows 1 year by default when England publishes both period types', () => {
+    expect(periodTypeChoice([england], 'all')).toEqual({
+      offered: true,
+      options: ['1-year', '3-year'],
+      periodType: '1-year',
+      notice: null,
+    });
+  });
+
+  it('shows the requested period type when the shown areas publish it', () => {
+    expect(periodTypeChoice([england, northEast], '3-year').periodType).toBe('3-year');
+  });
+
+  it('switches to the period type a picked area publishes and says why', () => {
+    expect(periodTypeChoice([england, oxford], '1-year')).toEqual({
+      offered: true,
+      options: ['3-year'],
+      periodType: '3-year',
+      notice: 'Showing 3 year rolling averages because Oxford has no 1 year data.',
+    });
+  });
+
+  it('switches from the default as it does from a requested period type', () => {
+    expect(periodTypeChoice([england, oxford], 'all').notice).toBe(
+      'Showing 3 year rolling averages because Oxford has no 1 year data.',
+    );
+  });
+
+  it('offers only the period types every picked area publishes', () => {
+    const choice = periodTypeChoice([england, northEast, oxford], '1-year');
+    expect(choice.options).toEqual(['3-year']);
+    expect(choice.periodType).toBe('3-year');
+    expect(choice.notice).toBe(
+      'Showing 3 year rolling averages because Oxford has no 1 year data.',
+    );
+  });
+
+  it('names no area when several picked areas lack the requested period type', () => {
+    expect(periodTypeChoice([england, oxford, cambridge], '1-year').notice).toBe(
+      "Showing 3 year rolling averages because some of the areas you've chosen have no 1 year data.",
+    );
+  });
+
+  it('says why it shows 1 year data when a picked area has no rolling averages', () => {
+    expect(periodTypeChoice([england, singleOnly], '3-year')).toEqual({
+      offered: true,
+      options: ['1-year'],
+      periodType: '1-year',
+      notice: 'Showing 1 year data because Hartlepool has no 3 year rolling average data.',
+    });
+  });
+
+  it('offers both period types when the picked areas have none in common', () => {
+    expect(periodTypeChoice([england, oxford, singleOnly], '1-year')).toEqual({
+      offered: true,
+      options: ['1-year', '3-year'],
+      periodType: '1-year',
+      notice: null,
+    });
+    expect(periodTypeChoice([england, oxford, singleOnly], '3-year').periodType).toBe('3-year');
+  });
+
+  it('decides with England alone when no areas are picked', () => {
+    expect(periodTypeChoice([area('E92000001', 'England', [rolling])], '1-year')).toEqual({
+      offered: false,
+      options: ['3-year'],
+      periodType: '3-year',
+      notice: null,
+    });
+  });
+
+  it('leaves out picked areas with no data at all', () => {
+    expect(periodTypeChoice([england, oxford, area('E07000009', 'Ely', [])], '3-year')).toEqual(
+      periodTypeChoice([england, oxford], '3-year'),
+    );
+  });
+
+  it('offers no choice and filters nothing when there is no data', () => {
+    expect(periodTypeChoice([area('E92000001', 'England', [])], '1-year')).toEqual({
+      offered: false,
+      options: [],
+      periodType: 'all',
+      notice: null,
+    });
   });
 });
 

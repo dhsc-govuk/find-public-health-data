@@ -395,7 +395,11 @@ function isRolling({ fromDate, toDate }: IndicatorObservation): boolean {
 }
 
 export function periodTypeLabel(periodType: PeriodType): string {
-  return periodType === '1-year' ? '1 year' : periodType === '3-year' ? '3 year rolling' : 'All';
+  return periodType === '1-year'
+    ? '1 year'
+    : periodType === '3-year'
+      ? '3 year rolling average'
+      : 'All';
 }
 
 /**
@@ -403,8 +407,10 @@ export function periodTypeLabel(periodType: PeriodType): string {
  * only (QOF prevalence) or rolling only (life expectancy), so the period filter must
  * offer just the shapes present or a choice can never match anything.
  */
-export function availablePeriodTypes(observations: IndicatorObservation[]): PeriodType[] {
-  const types: PeriodType[] = [];
+export function availablePeriodTypes(
+  observations: IndicatorObservation[],
+): Exclude<PeriodType, 'all'>[] {
+  const types: Exclude<PeriodType, 'all'>[] = [];
   if (observations.some((observation) => !isRolling(observation))) {
     types.push('1-year');
   }
@@ -412,6 +418,56 @@ export function availablePeriodTypes(observations: IndicatorObservation[]): Peri
     types.push('3-year');
   }
   return types;
+}
+
+export interface PeriodTypeChoice {
+  /** Whether the indicator publishes both period types, which is when the page offers the choice. */
+  offered: boolean;
+  /** The period types the chosen areas allow. */
+  options: Exclude<PeriodType, 'all'>[];
+  /** The period type the chart, table and download show. It is 'all' only when there is no data. */
+  periodType: PeriodType;
+  /** Why the page shows another period type than the one asked for, when the chosen areas decide it. */
+  notice: string | null;
+}
+
+const NOTICE_PHRASES: Record<Exclude<PeriodType, 'all'>, { showing: string; missing: string }> = {
+  '1-year': { showing: '1 year data', missing: '1 year data' },
+  '3-year': { showing: '3 year rolling averages', missing: '3 year rolling average data' },
+};
+
+/**
+ * The period type the Indicator tab shows. Picked areas decide it, or England when none are
+ * picked. The page offers the types every one of those areas publishes, or every type any of them
+ * publishes when they have none in common. The requested type, 1 year by default, is shown when
+ * offered. Otherwise the first offered type is shown and the notice names the areas that lack the
+ * requested one.
+ */
+export function periodTypeChoice(
+  areaData: IndicatorAreaData[],
+  requested: PeriodType,
+): PeriodTypeChoice {
+  const picked = areaData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
+  const typesByArea = (picked.length ? picked : areaData)
+    .filter(({ observations }) => observations.length > 0)
+    .map((data) => ({ data, types: availablePeriodTypes(data.observations) }));
+  const anyType = availablePeriodTypes(typesByArea.flatMap(({ data }) => data.observations));
+  const common = anyType.filter((type) => typesByArea.every(({ types }) => types.includes(type)));
+  const options = common.length ? common : anyType;
+  const wanted = requested === 'all' ? '1-year' : requested;
+  const periodType = options.includes(wanted) ? wanted : (options[0] ?? 'all');
+  const offered =
+    availablePeriodTypes(areaData.flatMap(({ observations }) => observations)).length > 1;
+  const lacking = typesByArea
+    .filter(({ types }) => !types.includes(wanted))
+    .map(({ data }) => data.areaName);
+  const notice =
+    offered && periodType !== wanted && periodType !== 'all' && lacking.length > 0
+      ? `Showing ${NOTICE_PHRASES[periodType].showing} because ${
+          lacking.length === 1 ? `${lacking[0]} has` : "some of the areas you've chosen have"
+        } no ${NOTICE_PHRASES[wanted].missing}.`
+      : null;
+  return { offered, options, periodType, notice };
 }
 
 /** The distinct values of one dimension across an indicator's observations, in sort order. */
