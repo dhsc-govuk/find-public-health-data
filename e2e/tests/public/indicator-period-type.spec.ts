@@ -73,6 +73,21 @@ test('switches to the 3 year rolling average chart with England when Oxford has 
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
+test('returns to 1 year data when the area without it is removed', async ({ page }, testInfo) => {
+  await openIndicatorPage(page, `${PATH}?pt-93995=1-year&cmp-93995=england&as=E07000178`);
+  const options = chartOptions(page);
+  const select = options.getByLabel('Type of time period', { exact: true });
+  await expect(select).toHaveValue('3-year');
+  await expect(options.getByRole('status')).toHaveText(OXFORD_NOTICE);
+
+  await page.getByRole('link', { name: 'Remove Oxford filter', exact: true }).click();
+  await expect(page).not.toHaveURL(/as=E07000178/);
+  await expect(select).toHaveValue('1-year');
+  await expect(options.getByRole('status')).toHaveText('');
+  await expect(trendChart(page).locator('.recharts-label')).toHaveText('Year');
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
