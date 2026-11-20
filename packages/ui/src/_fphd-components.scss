@@ -1609,6 +1609,13 @@ $fphd-sticky-gap: 6px;
   @include govuk-visually-hidden;
 }
 
+// A caption wraps within its table instead of widening it. attachStickyTable moves the caption
+// out of an overflowing table, so a caption that set the table's width would end the overflow
+// once moved, come back, and switch the table between two layouts on every frame.
+.fphd-table-scroll-wrapper caption {
+  white-space: normal;
+}
+
 .fphd-single-indicator-page .fphd-table-caption-copy,
 .fphd-topic-data .fphd-table-caption-copy {
   @include govuk-font($size: 16, $weight: bold);
@@ -1783,7 +1790,6 @@ $fphd-frozen-cap: calc(#{$fphd-table-region-width} * 0.4);
     position: sticky;
     left: 0;
     max-width: $fphd-table-region-width;
-    white-space: normal;
   }
 
   .fphd-table__frozen:not(.fphd-table__frozen--second) {
