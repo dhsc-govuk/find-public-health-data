@@ -29,5 +29,9 @@ regexes = [
 ]
 
 [[rules.allowlists]]
-description = "A package@version file name, such as postgres@3.4.9.patch"
-regexes = ['''@\d+\.\d+\.\d+\.''']
+description = "A pnpm patch file name, package@version.patch, such as postgres@3.4.9.patch"
+regexes = ['''@\d+\.\d+\.\d+[0-9A-Za-z.+-]*\.patch$''']
+
+[[rules.allowlists]]
+description = "GitHub's SSH user, as in a git@github.com clone URL"
+regexes = ['''^git@github\.com$''']
