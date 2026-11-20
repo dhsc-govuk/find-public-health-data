@@ -167,12 +167,7 @@ export async function loadIndicatorData(
   const defaultAreaLevel =
     singlePage && routeDetail && choosesNothing(url.searchParams, indicatorLevels)
       ? noEnglandLevel(
-          (
-            await api.get(
-              `${apiPath`/api/indicators/${String(routeDetail.shortId)}/data`}?areaCode=${ENGLAND_CODE}`,
-              singleAreaBatchSchema,
-            )
-          )[0],
+          (await loadAreaData(api, String(routeDetail.shortId), [ENGLAND_CODE]))[0],
           indicatorLevels,
         )
       : undefined;
