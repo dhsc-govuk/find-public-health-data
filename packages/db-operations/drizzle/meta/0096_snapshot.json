@@ -1,5 +1,5 @@
 {
-  "id": "2bc92925-529c-4bae-ac2a-f3bef141b081",
+  "id": "1948515f-a4cc-44ff-ae7d-48fdd2375670",
   "prevId": "91a3b7e0-0ff3-4e19-abc9-54c3b9db7b72",
   "version": "7",
   "dialect": "postgresql",
@@ -2176,7 +2176,7 @@
         },
         "indicator_version_update_frequency_years_check": {
           "name": "indicator_version_update_frequency_years_check",
-          "value": "(\"indicator_version\".\"update_frequency\" IS NOT DISTINCT FROM 'every-n-years') = (\"indicator_version\".\"update_frequency_years\" IS NOT NULL) AND \"indicator_version\".\"update_frequency_years\" >= 2"
+          "value": "(\"indicator_version\".\"update_frequency\" IS NOT DISTINCT FROM 'every-n-years') = (\"indicator_version\".\"update_frequency_years\" IS NOT NULL) AND \"indicator_version\".\"update_frequency_years\" BETWEEN 2 AND 99"
         },
         "indicator_version_update_frequency_text_check": {
           "name": "indicator_version_update_frequency_text_check",

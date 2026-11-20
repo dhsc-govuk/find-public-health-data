@@ -238,6 +238,7 @@ describe('indicator_version', () => {
   it.each([
     ['without its number of years', { updateFrequency: 'every-n-years' }],
     ['of 1 year', { updateFrequency: 'every-n-years', updateFrequencyYears: 1 }],
+    ['of 100 years', { updateFrequency: 'every-n-years', updateFrequencyYears: 100 }],
     ['beside annually', { updateFrequency: 'annually', updateFrequencyYears: 2 }],
     ['beside an unanswered frequency', { updateFrequencyYears: 2 }],
   ] as const)('refuses a frequency of years %s', async (_, values) => {
