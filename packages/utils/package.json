@@ -143,6 +143,12 @@
       "types": "./src/standard-methods.ts",
       "default": "./dist/standard-methods.js"
     },
+    "./standard-dimension": {
+      "browser": "./src/standard-dimension.ts",
+      "development": "./src/standard-dimension.ts",
+      "types": "./src/standard-dimension.ts",
+      "default": "./dist/standard-dimension.js"
+    },
     "./tidy-name": {
       "browser": "./src/tidy-name.ts",
       "development": "./src/tidy-name.ts",

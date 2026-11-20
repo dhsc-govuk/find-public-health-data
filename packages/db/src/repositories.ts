@@ -1,4 +1,13 @@
 import {
+  type AreaFilters,
+  type AreaLevelRow,
+  type AreaParentRow,
+  type AreaRow,
+  findAreas,
+  listAreaAncestors,
+  listAreaLevels,
+} from './area-level-repository.ts';
+import {
   type AreaLookup,
   type AreaNeighbours,
   type AreaParent,
@@ -15,8 +24,19 @@ import {
   listIndicatorAreas,
   searchAreas,
 } from './area-repository.ts';
+import {
+  type CatalogueEntry,
+  type CatalogueSelection,
+  listCatalogue,
+} from './catalogue-repository.ts';
 import type { Database, DatabaseReader } from './client.ts';
 import { coalescedReads } from './coalesced-reads.ts';
+import { type DataQuery, type DataRowRecord, streamData } from './data-repository.ts';
+import {
+  listPublicDimensions,
+  type PublicDimensionTypeRow,
+  type PublicDimensionValueRow,
+} from './dimension-repository.ts';
 import {
   type FoundIndicatorDetail,
   getIndicatorDetailById,
@@ -40,6 +60,7 @@ import {
 } from './indicator-repository.ts';
 import { getPublishedIndicatorScatterData } from './indicator-scatter-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
+import { getDataVersion, listTags, type TagRow } from './reference-repository.ts';
 import { publishedViews, type ViewSet } from './schema/index.ts';
 import {
   getTopicBySlug,
@@ -93,6 +114,8 @@ export interface IndicatorRepository {
   ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
   listFacets(): Promise<IndicatorFacets>;
+  /** Published indicators with everything the public API's catalogue gives them. */
+  listCatalogue(selection?: CatalogueSelection): Promise<CatalogueEntry[]>;
 }
 
 export interface AreaRepository {
@@ -107,6 +130,25 @@ export interface AreaRepository {
   search(query: string, limit: number): Promise<AreaLookup[]>;
   listParents(childCodes: string[], parentTypeName: string): Promise<AreaParent[]>;
   listNeighbours(codes: string[]): Promise<AreaNeighbours[]>;
+  /** The area levels published data covers, for the public API. */
+  listLevels(): Promise<AreaLevelRow[]>;
+  find(filters: AreaFilters): Promise<AreaRow[]>;
+  /** Every area above an area, nearest first, with England last. */
+  listAncestors(code: string): Promise<AreaParentRow[]>;
+}
+
+/** What the public API's v0 routes read besides indicators and areas. */
+export interface ReferenceRepository {
+  listTags(): Promise<TagRow[]>;
+  /** The dimension types published data uses, with their public names and values. */
+  listDimensions(): Promise<{ types: PublicDimensionTypeRow[]; values: PublicDimensionValueRow[] }>;
+  /** Changes whenever anything the public API serves changes, for its ETags. */
+  dataVersion(): Promise<string>;
+}
+
+/** The rows of `/v0/data`. */
+export interface DataRepository {
+  stream(query: DataQuery): AsyncIterable<DataRowRecord[]>;
 }
 
 export interface TopicRepository {
@@ -123,7 +165,9 @@ export interface TopicRepository {
  */
 export interface Repositories {
   areas: AreaRepository;
+  data: DataRepository;
   indicators: IndicatorRepository;
+  reference: ReferenceRepository;
   topics: TopicRepository;
 }
 
@@ -137,7 +181,11 @@ export type RunRead = <T>(read: (db: DatabaseReader) => Promise<T>) => Promise<T
  * The repositories over `views`, each method running its reads through `run`. They share no
  * reads, so a caller whose reads depend on more than their arguments can use them as they are.
  */
-export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories {
+export function createRepositoriesOn(
+  run: RunRead,
+  views: ViewSet,
+  streamFrom?: Database,
+): Repositories {
   return {
     areas: {
       listByType: (areaTypeName) => run((db) => listAreasByType(db, views, areaTypeName)),
@@ -152,6 +200,9 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
       listParents: (childCodes, parentTypeName) =>
         run((db) => listAreaParents(db, views, childCodes, parentTypeName)),
       listNeighbours: (codes) => run((db) => listAreaNeighbours(db, views, codes)),
+      listLevels: () => run((db) => listAreaLevels(db)),
+      find: (filters) => run((db) => findAreas(db, filters)),
+      listAncestors: (code) => run((db) => listAreaAncestors(db, code)),
     },
     indicators: {
       findTableData: (shortIds, areaCodes, points) =>
@@ -179,6 +230,20 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
         run((db) => getObservationRangeByTier(db, views, indicatorId, tier, parentCode)),
       searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
       listFacets: () => run((db) => listIndicatorFacets(db, views)),
+      listCatalogue: (selection) => run((db) => listCatalogue(db, selection)),
+    },
+    data: {
+      // A stream reads through a cursor that outlives any one read, so it needs the database
+      // itself rather than `run`. The preview, which reads in short transactions, has none.
+      stream: (query) => {
+        if (!streamFrom) throw new Error('These repositories cannot stream data');
+        return streamData(streamFrom, query);
+      },
+    },
+    reference: {
+      listTags: () => run((db) => listTags(db)),
+      listDimensions: () => run((db) => listPublicDimensions(db)),
+      dataVersion: () => run((db) => getDataVersion(db)),
     },
     topics: {
       list: () => run((db) => listTopics(db, views)),
@@ -191,7 +256,7 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
 }
 
 export function createRepositories(db: Database): Repositories {
-  const repositories = createRepositoriesOn((read) => read(db), publishedViews);
+  const repositories = createRepositoriesOn((read) => read(db), publishedViews, db);
   // Resolving a short id or slug is a one-row index lookup, so it is never shared between
   // requests. Sharing it would make the number of statements a page costs depend on whether
   // its API requests happen to overlap.
@@ -199,6 +264,8 @@ export function createRepositories(db: Database): Repositories {
   return {
     areas: coalescedReads(repositories.areas),
     indicators: { ...coalescedReads(repositories.indicators), resolveId, resolveIdBySlug },
+    data: repositories.data,
+    reference: coalescedReads(repositories.reference),
     topics: coalescedReads(repositories.topics),
   };
 }

@@ -4,12 +4,15 @@
     "access": "READ_ONLY",
     "backupSha256": "559a193b3dce6c05c97f3e7460bbcfbfe5cb41063890e841210d8190cd434de1"
   },
+  "codeHistory": {
+    "sha256": "2a2691422ff2e95b4e0247d5c9e071b4f096e257e9311956d75c5d990fae59aa"
+  },
   "files": {
     "area": {
       "file": "area.csv.gz",
       "rows": 73302,
-      "bytes": 1857279,
-      "sha256": "b5199f16d945970961554c156a9149d7e6d1b70a96327d0ed3b1ba6f3b64ee50"
+      "bytes": 1955712,
+      "sha256": "7b2ad6b4a87f18ae7c819eba57188ce0297222fdf31df45b4e624975f9270ba9"
     },
     "area_relationship": {
       "file": "area_relationship.csv.gz",
