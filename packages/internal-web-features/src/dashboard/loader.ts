@@ -2,6 +2,7 @@
 import {
   canAssignReviewers,
   canBrowseAllIndicators,
+  canBrowseOtherTeamsIndicators,
   canCreateIndicator,
   canDecideUpdates,
   canReviewIndicators,
@@ -47,15 +48,11 @@ function listPath(path: string, query: Record<string, string | undefined>): stri
 async function loadIndicatorList(
   api: ApiClient,
   page: number,
-  ownTeams: boolean,
+  teams: 'own' | 'other' | undefined,
   search: string | undefined,
 ) {
   const { indicators, pageSize, total } = await api.get(
-    listPath('/api/internal/indicators', {
-      page: String(page),
-      teams: ownTeams ? 'own' : undefined,
-      search,
-    }),
+    listPath('/api/internal/indicators', { page: String(page), teams, search }),
     indicatorAdminPageSchema,
   );
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -67,18 +64,19 @@ async function loadIndicatorList(
 
 /**
  * An IMRG manager sees the indicators under review, an IMRG reviewer the indicators assigned to
- * them, an admin the approved indicators waiting to be published and the submitted updates
- * waiting for their decision, and an admin or anyone else a page of the indicators they work on.
- * A user with several of these roles, or one who also publishes, sees each. A search narrows
- * every list to its matches. An invalid page number or search, or a page past the first for
- * someone with no list, is a 404.
+ * them, an admin the approved indicators waiting to be published, the submitted updates waiting
+ * for their decision and a page of every indicator. A publisher sees a page of their teams'
+ * indicators and, under `otherPage`, a page of every other team's. A user with several of these
+ * roles sees each. A search narrows every list to its matches. An invalid page number or search,
+ * or a page past the first of a list the user doesn't have, is a 404.
  */
 export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
   const params = queryObject(new URL(request.url).searchParams);
   const query = indicatorPageQuerySchema.safeParse(params);
+  const otherQuery = indicatorPageQuerySchema.safeParse({ page: params.otherPage });
   const searchQuery = indicatorSearchQuerySchema.safeParse(params);
 
-  if (!query.success || !searchQuery.success) throw notFound();
+  if (!query.success || !otherQuery.success || !searchQuery.success) throw notFound();
 
   const session = getSession(context);
   const managing = session !== undefined && canAssignReviewers(session);
@@ -87,14 +85,16 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
   const browsing = session !== undefined && canBrowseAllIndicators(session);
   const scheduling = session !== undefined && canSchedulePublication(session);
   const deciding = session !== undefined && canDecideUpdates(session);
-  const listing = (!managing && !reviewing) || canCreate || browsing;
+  const splitting = session !== undefined && canBrowseOtherTeamsIndicators(session);
+  const listing = browsing || splitting;
   const { page } = query.data;
+  const otherPage = otherQuery.data.page;
   const { search } = searchQuery.data;
 
-  if (!listing && page > 1) throw notFound();
+  if ((!listing && page > 1) || (!splitting && otherPage > 1)) throw notFound();
 
   const api = context.get(apiContext);
-  const [underReview, toReview, scheduled, awaitingDecision, list] = await Promise.all([
+  const [underReview, toReview, scheduled, awaitingDecision, list, otherList] = await Promise.all([
     managing
       ? api.get(
           listPath('/api/internal/indicators-under-review', { search }),
@@ -122,7 +122,8 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
           )
           .then(({ indicators }) => indicators)
       : null,
-    listing ? loadIndicatorList(api, page, (managing || reviewing) && !browsing, search) : null,
+    listing ? loadIndicatorList(api, page, splitting ? 'own' : undefined, search) : null,
+    splitting ? loadIndicatorList(api, otherPage, 'other', search) : null,
   ]);
 
   return {
@@ -132,6 +133,7 @@ export async function loadDashboard({ context, request }: LoaderFunctionArgs) {
     scheduled,
     awaitingDecision,
     list: list === null ? null : { canCreate, ...list },
+    otherList: otherList === null ? null : { canCreate: false, ...otherList },
     // Taken after the fetches, so a failed page load does not consume the message it would show.
     notification: dashboardNotification(takeFlash(context)),
   };

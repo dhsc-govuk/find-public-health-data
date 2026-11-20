@@ -3,7 +3,14 @@ import type { ReactNode } from 'react';
 import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
-import { ALL_INDICATORS_TAB, CREATE_AND_EDIT_TAB, dashboardPath } from './paths.ts';
+import {
+  ALL_INDICATORS_TAB,
+  ALL_OTHER_TAB,
+  CREATE_AND_EDIT_TAB,
+  type DashboardPageKey,
+  dashboardPath,
+  YOUR_TEAMS_TAB,
+} from './paths.ts';
 import { DashboardSearch } from './search-form.tsx';
 import {
   AssignedTable,
@@ -25,6 +32,8 @@ interface IndicatorListSectionProps extends IndicatorList {
   tab?: string | undefined;
   /** The search the list matches, which its page links keep. */
   search?: string | undefined;
+  /** The query parameter its page links set. */
+  pageKey?: DashboardPageKey;
 }
 
 const NO_MATCHES = 'No indicators match your search.';
@@ -45,10 +54,11 @@ function IndicatorListSection({
   totalPages,
   tab,
   search,
+  pageKey = 'page',
 }: IndicatorListSectionProps) {
   // Plain anchors: the router-aware link would also mark every link to the bare path as current.
   const pageLink = (number: number) => ({
-    href: dashboardPath(number, tab, search),
+    href: dashboardPath(number, tab, search, pageKey),
     forceExternal: true,
     ...(number === page ? { 'aria-current': 'page' as const } : {}),
   });
@@ -93,6 +103,8 @@ interface DashboardPageProps {
   /** The submitted updates waiting for an admin's decision; null for anyone else. */
   awaitingDecision: IndicatorAdminListItem[] | null;
   list: IndicatorList | null;
+  /** Every other team's indicators, for a publisher whose list holds only their teams'. */
+  otherList?: IndicatorList | null;
   /** Something the page the user came from left to tell them. */
   notification?: string | undefined;
 }
@@ -109,15 +121,47 @@ export function dashboardHeading(data?: DashboardPageProps): string {
     : 'Indicators';
 }
 
-/** The list's section: Create and edit for someone who may create, otherwise every indicator. */
-function listSection(list: IndicatorList, tabbed: boolean, search: string | undefined) {
-  const tab = list.canCreate
+/**
+ * The list's tab: Your teams' indicators beside other teams' for a publisher, otherwise Create and
+ * edit for someone who may create, or every indicator.
+ */
+function listTab(list: IndicatorList, beside: boolean) {
+  if (beside) return { id: YOUR_TEAMS_TAB, label: "Your teams' indicators" };
+  return list.canCreate
     ? { id: CREATE_AND_EDIT_TAB, label: 'Create and edit' }
     : { id: ALL_INDICATORS_TAB, label: 'All indicators' };
-  return {
-    ...tab,
-    content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} search={search} />,
-  };
+}
+
+/** The list's section, and for a publisher the section of every other team's indicators. */
+function listSections(
+  list: IndicatorList,
+  otherList: IndicatorList | null,
+  tabbed: boolean,
+  search: string | undefined,
+) {
+  const tab = listTab(list, otherList !== null);
+  return [
+    {
+      ...tab,
+      content: <IndicatorListSection {...list} tab={tabbed ? tab.id : undefined} search={search} />,
+    },
+    ...(otherList === null
+      ? []
+      : [
+          {
+            id: ALL_OTHER_TAB,
+            label: 'All other indicators',
+            content: (
+              <IndicatorListSection
+                {...otherList}
+                tab={ALL_OTHER_TAB}
+                search={search}
+                pageKey="otherPage"
+              />
+            ),
+          },
+        ]),
+  ];
 }
 
 /** An IMRG manager's two sections: the submissions waiting for reviewers, then those in review. */
@@ -151,6 +195,7 @@ function dashboardSections({
   scheduled,
   awaitingDecision,
   list,
+  otherList = null,
 }: DashboardPageProps) {
   const sectionsBeforeList = [
     ...(underReview === null ? [] : underReviewSections(underReview, search)),
@@ -186,18 +231,26 @@ function dashboardSections({
         },
   ].filter((section) => section !== null);
 
-  // The list comes last, so it is on a tab, and its page links keep that tab open, only when
-  // other sections come before it.
+  // The lists come last, so a list is on a tab, and its page links keep that tab open, only when
+  // other sections come before it or beside it.
   return list === null
     ? sectionsBeforeList
-    : [...sectionsBeforeList, listSection(list, sectionsBeforeList.length > 0, search)];
+    : [
+        ...sectionsBeforeList,
+        ...listSections(
+          list,
+          otherList,
+          sectionsBeforeList.length > 0 || otherList !== null,
+          search,
+        ),
+      ];
 }
 
 /**
  * Shows an IMRG manager the indicators under review, an IMRG reviewer the indicators assigned to
- * them, an admin the indicators waiting to be published, and anyone else a page of their
- * indicators. Each table gets a tab of its own whenever there is more than one. The search above
- * them narrows every table.
+ * them, an admin the indicators waiting to be published and every indicator, and a publisher a
+ * page of their teams' indicators and a page of every other team's. Each table gets a tab of its
+ * own whenever there is more than one. The search above them narrows every table.
  */
 export function DashboardPage(props: DashboardPageProps) {
   const sections = dashboardSections(props);

@@ -57,10 +57,23 @@ function listPage(page: number, total: number, indicators = [indicator]) {
   return { indicators, page, pageSize: 10, total };
 }
 
-/** An API that answers one page of the whole list. */
-function apiPage(page: number, total: number, indicators = [indicator]) {
+const OWN = '/api/internal/indicators?page=1&teams=own';
+const OTHER = '/api/internal/indicators?page=1&teams=other';
+
+const otherIndicator: IndicatorAdminListItem = {
+  ...indicator,
+  id: '00000000-0000-7000-8000-000000000002',
+  teamId: TEAM_IDS.teamB,
+  teamName: 'Team B',
+};
+
+/** An API that answers a publisher's two lists: a page of their teams', then of other teams'. */
+function apiPage(page: number, total: number, indicators = [indicator], otherPage = 1) {
   return createFakeApiClient({
-    [`GET /api/internal/indicators?page=${page}`]: listPage(page, total, indicators),
+    [`GET /api/internal/indicators?page=${page}&teams=own`]: listPage(page, total, indicators),
+    [`GET /api/internal/indicators?page=${otherPage}&teams=other`]: listPage(otherPage, 31, [
+      otherIndicator,
+    ]),
   });
 }
 
@@ -74,13 +87,14 @@ describe('loadDashboard', () => {
 
     const outcome = await load('https://internal.test/dashboard', api);
 
-    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=1']);
+    expect(pathsAsked(api)).toEqual([OTHER, OWN]);
     expect(outcome).toEqual({
       underReview: null,
       toReview: null,
       scheduled: null,
       awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 1, totalPages: 3 },
+      otherList: { canCreate: false, indicators: [otherIndicator], page: 1, totalPages: 4 },
       notification: undefined,
     });
   });
@@ -90,16 +104,27 @@ describe('loadDashboard', () => {
 
     const outcome = await load('https://internal.test/dashboard?page=3', api);
 
-    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=3']);
+    expect(pathsAsked(api)).toEqual([OTHER, '/api/internal/indicators?page=3&teams=own']);
     expect(outcome.list).toMatchObject({ page: 3, totalPages: 3 });
+    expect(outcome.otherList).toMatchObject({ page: 1 });
+  });
+
+  it("asks for the page of other teams' indicators the address names, apart", async () => {
+    const api = apiPage(1, 23, [indicator], 4);
+
+    const outcome = await load('https://internal.test/dashboard?otherPage=4', api);
+
+    expect(pathsAsked(api)).toEqual([OWN, '/api/internal/indicators?page=4&teams=other']);
+    expect(outcome.list).toMatchObject({ page: 1 });
+    expect(outcome.otherList).toMatchObject({ page: 4, totalPages: 4 });
   });
 
   it('pages alike whichever tab the address keeps open', async () => {
     const api = apiPage(3, 23);
 
-    await load('https://internal.test/dashboard?page=3&tab=create-and-edit', api);
+    await load('https://internal.test/dashboard?page=3&tab=all-other', api);
 
-    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=3']);
+    expect(pathsAsked(api)).toEqual([OTHER, '/api/internal/indicators?page=3&teams=own']);
   });
 
   it('renders the first page when there are no indicators at all', async () => {
@@ -151,17 +176,34 @@ describe('loadDashboard', () => {
     ).rejects.toSatisfy((error: unknown) => error instanceof Response && error.status === 404);
   });
 
-  it.each(['0', 'two', '1.5'])(
-    'responds 404 to a page of %s without asking the API',
-    async (page) => {
-      const api = createFakeApiClient();
+  it("responds 404 to a page of other teams' indicators past the last one", async () => {
+    await expect(
+      load('https://internal.test/dashboard?otherPage=5', apiPage(1, 23, [indicator], 5)),
+    ).rejects.toSatisfy((error: unknown) => error instanceof Response && error.status === 404);
+  });
 
-      await expect(load(`https://internal.test/dashboard?page=${page}`, api)).rejects.toSatisfy(
-        (error: unknown) => error instanceof Response && error.status === 404,
-      );
-      expect(api.calls).toEqual([]);
+  it.each(['page', 'otherPage'])(
+    'responds 404 to a %s of 0, two or 1.5 without asking the API',
+    async (key) => {
+      for (const page of ['0', 'two', '1.5']) {
+        const api = createFakeApiClient();
+
+        await expect(load(`https://internal.test/dashboard?${key}=${page}`, api)).rejects.toSatisfy(
+          (error: unknown) => error instanceof Response && error.status === 404,
+        );
+        expect(api.calls).toEqual([]);
+      }
     },
   );
+
+  it("responds 404 to a page of other teams' indicators for an admin, who has no such list", async () => {
+    const api = createFakeApiClient();
+
+    await expect(
+      load('https://internal.test/dashboard?otherPage=2', api, ['admin'], []),
+    ).rejects.toSatisfy((error: unknown) => error instanceof Response && error.status === 404);
+    expect(api.calls).toEqual([]);
+  });
 
   it('responds 404 when the address names a page twice, as the API would refuse it', async () => {
     const api = createFakeApiClient();
@@ -185,6 +227,7 @@ describe('loadDashboard', () => {
       scheduled: null,
       awaitingDecision: null,
       list: null,
+      otherList: null,
       notification: undefined,
     });
   });
@@ -198,11 +241,12 @@ describe('loadDashboard', () => {
     expect(api.calls).toEqual([]);
   });
 
-  it("shows an IMRG manager who publishes both, with a page of their own teams' indicators", async () => {
+  it("shows an IMRG manager who publishes both, with pages of their own and other teams' indicators", async () => {
     const underReview = { unassigned: [], assigned: [indicator] };
     const api = createFakeApiClient({
       [`GET ${UNDER_REVIEW}`]: underReview,
       'GET /api/internal/indicators?page=2&teams=own': listPage(2, 23),
+      [`GET ${OTHER}`]: listPage(1, 1, [otherIndicator]),
     });
 
     const outcome = await load('https://internal.test/dashboard?page=2', api, [
@@ -210,13 +254,18 @@ describe('loadDashboard', () => {
       'imrg-manager',
     ]);
 
-    expect(pathsAsked(api)).toEqual([UNDER_REVIEW, '/api/internal/indicators?page=2&teams=own']);
+    expect(pathsAsked(api)).toEqual([
+      UNDER_REVIEW,
+      OTHER,
+      '/api/internal/indicators?page=2&teams=own',
+    ]);
     expect(outcome).toEqual({
       underReview,
       toReview: null,
       scheduled: null,
       awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
+      otherList: { canCreate: false, indicators: [otherIndicator], page: 1, totalPages: 1 },
       notification: undefined,
     });
   });
@@ -233,6 +282,7 @@ describe('loadDashboard', () => {
       scheduled: null,
       awaitingDecision: null,
       list: null,
+      otherList: null,
       notification: undefined,
     });
   });
@@ -258,12 +308,13 @@ describe('loadDashboard', () => {
       scheduled: null,
       awaitingDecision: null,
       list: null,
+      otherList: null,
       notification: undefined,
     });
   });
 
   it.each([
-    ['a publisher', ['publisher'], ['/api/internal/indicators?page=1']],
+    ['a publisher', ['publisher'], [OTHER, OWN]],
     [
       'an admin',
       ['admin'],
@@ -288,10 +339,15 @@ describe('loadDashboard', () => {
     [
       'an IMRG manager and reviewer who publishes',
       ['publisher', 'imrg-manager', 'imrg-reviewer'],
+      ['/api/internal/indicators-to-review', '/api/internal/indicators-under-review', OTHER, OWN],
+    ],
+    [
+      'an admin who publishes',
+      ['admin', 'publisher'],
       [
-        '/api/internal/indicators-to-review',
-        '/api/internal/indicators-under-review',
-        '/api/internal/indicators?page=1&teams=own',
+        '/api/internal/indicators-scheduled',
+        '/api/internal/indicators?page=1',
+        '/api/internal/updates-awaiting-decision',
       ],
     ],
   ])('fetches for %s the lists their roles allow', async (_who, roles, paths) => {
@@ -301,7 +357,8 @@ describe('loadDashboard', () => {
       [`GET ${SCHEDULED}`]: { indicators: [] },
       [`GET ${AWAITING_DECISION}`]: { indicators: [] },
       'GET /api/internal/indicators?page=1': listPage(1, 0, []),
-      'GET /api/internal/indicators?page=1&teams=own': listPage(1, 0, []),
+      [`GET ${OWN}`]: listPage(1, 0, []),
+      [`GET ${OTHER}`]: listPage(1, 0, []),
     });
 
     await load('https://internal.test/dashboard', api, roles);
@@ -318,10 +375,11 @@ describe('loadDashboard', () => {
     expect(api.calls).toEqual([]);
   });
 
-  it("shows an IMRG reviewer who publishes both, with a page of their own teams' indicators", async () => {
+  it("shows an IMRG reviewer who publishes both, with pages of their own and other teams' indicators", async () => {
     const api = createFakeApiClient({
       [`GET ${TO_REVIEW}`]: { indicators: [indicator] },
       'GET /api/internal/indicators?page=2&teams=own': listPage(2, 23),
+      [`GET ${OTHER}`]: listPage(1, 1, [otherIndicator]),
     });
 
     const outcome = await load(
@@ -331,13 +389,18 @@ describe('loadDashboard', () => {
       [TEAM_IDS.teamC],
     );
 
-    expect(pathsAsked(api)).toEqual([TO_REVIEW, '/api/internal/indicators?page=2&teams=own']);
+    expect(pathsAsked(api)).toEqual([
+      TO_REVIEW,
+      OTHER,
+      '/api/internal/indicators?page=2&teams=own',
+    ]);
     expect(outcome).toEqual({
       underReview: null,
       toReview: [indicator],
       scheduled: null,
       awaitingDecision: null,
       list: { canCreate: true, indicators: [indicator], page: 2, totalPages: 3 },
+      otherList: { canCreate: false, indicators: [otherIndicator], page: 1, totalPages: 1 },
       notification: undefined,
     });
   });
@@ -376,13 +439,14 @@ describe('loadDashboard with a search', () => {
     expect(outcome.search).toBe('life expectancy');
   });
 
-  it('keeps the search with the page and the own-teams filter', async () => {
+  it('keeps the search with the pages and the teams filters', async () => {
     const api = createFakeApiClient({
       [`GET ${UNDER_REVIEW}?search=asthma`]: { unassigned: [], assigned: [] },
       'GET /api/internal/indicators?page=2&teams=own&search=asthma': listPage(2, 11),
+      'GET /api/internal/indicators?page=3&teams=other&search=asthma': listPage(3, 21),
     });
 
-    await load('https://internal.test/dashboard?search=asthma&page=2', api, [
+    await load('https://internal.test/dashboard?search=asthma&page=2&otherPage=3', api, [
       'publisher',
       'imrg-manager',
     ]);
@@ -390,6 +454,7 @@ describe('loadDashboard with a search', () => {
     expect(pathsAsked(api)).toEqual([
       `${UNDER_REVIEW}?search=asthma`,
       '/api/internal/indicators?page=2&teams=own&search=asthma',
+      '/api/internal/indicators?page=3&teams=other&search=asthma',
     ]);
   });
 
@@ -398,7 +463,7 @@ describe('loadDashboard with a search', () => {
 
     const outcome = await load('https://internal.test/dashboard?search=%20%20', api);
 
-    expect(pathsAsked(api)).toEqual(['/api/internal/indicators?page=1']);
+    expect(pathsAsked(api)).toEqual([OTHER, OWN]);
     expect(outcome.search).toBeUndefined();
   });
 
