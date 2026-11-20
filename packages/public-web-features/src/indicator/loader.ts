@@ -8,8 +8,6 @@ import {
   type IndicatorAreaData,
   type IndicatorPageDetail,
   type IndicatorRangePeriod,
-  indicatorAreaDataListSchema,
-  indicatorAreaDataSchema,
   indicatorDetailSchema,
   indicatorListResponseSchema,
   indicatorRangeSchema,
@@ -30,6 +28,7 @@ import {
 import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
+import { loadAreaData } from './area-data.ts';
 import { loadInBatches } from './batches.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
@@ -96,8 +95,6 @@ export interface IndicatorPageData {
   compared: IndicatorPageDetail | undefined;
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
 }
-
-const singleAreaBatchSchema = indicatorAreaDataSchema.transform((one) => [one]);
 
 // Charts and tables with dozens of series are unreadable long before they are slow, so the
 // selection is capped rather than the URL trusted.
@@ -334,13 +331,7 @@ export async function loadIndicatorData(
     tableDisplayGroups !== undefined
       ? await loadIndicatorTableEntries(api, shortIds, codesToLoad, observationHistory)
       : await loadInBatches(shortIds, async (id) => {
-          const dataBatch = (codes: string[]) =>
-            api.get(
-              `${apiPath`/api/indicators/${String(id)}/data`}?${codes
-                .map((code) => `areaCode=${encodeURIComponent(code)}`)
-                .join('&')}`,
-              codes.length === 1 ? singleAreaBatchSchema : indicatorAreaDataListSchema,
-            );
+          const dataBatch = (codes: string[]) => loadAreaData(api, String(id), codes);
           const dataFor = async (codes: string[]) => {
             // A stable first batch lets whole-group and individual-area tables share their England read.
             const ordered =

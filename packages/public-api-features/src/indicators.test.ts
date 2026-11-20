@@ -497,6 +497,21 @@ describe('GET /api/indicators/:indicator/data', () => {
     ]);
   });
 
+  it('reads areas whose Fingertips codes hold underscores, dots and hyphens', async () => {
+    const codes = ['Cl_L3_1a1', 'ONS_1.01.01', 'M-NMW'];
+    const findObservationsForAreas = vi
+      .fn()
+      .mockImplementation(async (_id: string, codes: string[]) =>
+        codes.map((areaCode) => ({ areaCode, areaName: areaCode, observations: [] })),
+      );
+    const app = createTestApp({ resolveId: async () => 'ind-1', findObservationsForAreas });
+    const response = await request(app).get(
+      `/api/indicators/108/data?${codes.map((code) => `areaCode=${code}`).join('&')}`,
+    );
+    expect(response.status).toBe(200);
+    expect(findObservationsForAreas).toHaveBeenCalledExactlyOnceWith('ind-1', codes);
+  });
+
   it('rejects a malformed area code without touching the repository', async () => {
     const response = await request(createTestApp()).get(
       '/api/indicators/108/data?areaCode=../nope',
