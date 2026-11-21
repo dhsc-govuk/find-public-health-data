@@ -125,11 +125,12 @@ pnpm --filter @fphd/data-migration data-migration export-core-reference-data \
 ```
 
 The command checks the database name. It uses the same lookup and geography exporters, name tidying
-and UUID mapping as the baseline workflow. The output contains four lookup JSON files and a
-`geography/` directory with two gzipped CSVs and a manifest. The supplied digest records which
-backup was restored, and the manifest records the row counts, sizes and SHA-256 digests of the CSVs.
+and UUID mapping as the baseline workflow. The output contains seven lookup JSON files, including
+the public API's names for dimensions, and a `geography/` directory with two gzipped CSVs and a
+manifest. The supplied digest records which backup was restored, and the manifest records the row
+counts, sizes and SHA-256 digests of the CSVs.
 
-Review the lookup changes and geography counts, then copy the four JSON files and the three
+Review the lookup changes and geography counts, then copy the seven JSON files and the three
 geography files into the corresponding paths under `packages/db-operations/data/`. Review any lookup
 rename against existing database references and upload labels before deploying the refreshed
 catalog.
