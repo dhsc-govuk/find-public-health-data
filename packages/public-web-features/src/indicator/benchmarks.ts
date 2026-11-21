@@ -100,7 +100,7 @@ export function benchmarkCheckboxOptions(
 ): BenchmarkOption[] {
   return [
     // England is no benchmark for an indicator without an England value.
-    ...(context && context.englandObservations.length === 0
+    ...(context && !context.englandObservations.some(({ value }) => value !== null)
       ? []
       : [{ value: 'england' as const, label: 'England' }]),
     ...(region ? [{ value: 'region' as const, label: 'Statistical regions' }] : []),

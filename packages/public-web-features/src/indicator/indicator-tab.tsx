@@ -63,7 +63,7 @@ export function IndicatorTab({
   const [options, applyOptions] = usePanelOptions(id);
   const applyOptionParams = useOptionParamNavigation();
   const england = englandObservations(areaData);
-  const hasEngland = england.length > 0;
+  const hasEngland = england.some(({ value }) => value !== null);
   const pickedAreaData = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const periodChoice = periodTypeChoice(areaData, options.periodType, {
     defaultAreas: !!defaultAreaLevel,

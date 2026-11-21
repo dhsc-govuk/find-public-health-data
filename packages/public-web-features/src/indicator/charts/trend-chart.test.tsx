@@ -87,7 +87,7 @@ it('does not describe a direction for an entirely null series', () => {
       ]}
     />,
   );
-  expect(screen.getByText('No data matches the selected options.')).toBeTruthy();
+  expect(screen.getByText('Figures are not available.')).toBeTruthy();
   expect(container.textContent).not.toMatch(/up from|down from|the same as/);
 });
 
@@ -209,4 +209,42 @@ it.each([
     />,
   );
   expect(container.querySelector('.recharts-label')?.textContent).toBe(title);
+});
+
+it.each([
+  { areas: [] },
+  { areas: [{ areaCode: 'E92000001', areaName: 'England', observations: [] }] },
+])('keeps the options message for empty filter results in %j', ({ areas }) => {
+  render(<TrendChart id="trend" title="Trend" indicator={indicatorDetail()} areas={areas} />);
+  expect(screen.getByText('No data matches the selected options.')).toBeTruthy();
+});
+
+it('explains unavailable figures with distinct value notes from every shown area', () => {
+  const notes = [
+    { text: 'Value suppressed for disclosure control due to small count', category: 'Value note' },
+    { text: 'Data not available', category: 'Value note' },
+  ];
+  render(
+    <TrendChart
+      id="trend"
+      title="Trend"
+      indicator={indicatorDetail()}
+      areas={[
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [{ ...observation(), value: null, notes: notes.slice(0, 1) }],
+        },
+        {
+          areaCode: 'E12000001',
+          areaName: 'North East',
+          observations: [{ ...observation(), value: null, notes }],
+        },
+      ]}
+    />,
+  );
+  expect(
+    screen.getByText(`Figures are not available. ${notes.map(({ text }) => text).join(' ')}`),
+  ).toBeTruthy();
+  expect(screen.queryByText('No data matches the selected options.')).toBeNull();
 });

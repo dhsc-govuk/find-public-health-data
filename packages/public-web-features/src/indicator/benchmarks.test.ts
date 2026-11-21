@@ -191,3 +191,16 @@ describe('benchmark options', () => {
     ).not.toContain('england');
   });
 });
+
+it('offers no England benchmark when all England values are null', () => {
+  const fixture = benchmarkFixture();
+  const options = benchmarkCheckboxOptions(false, {
+    areas: fixture.areaData,
+    geography: fixture.geography,
+    englandObservations: fixture.areaData
+      .flatMap(({ observations }) => observations)
+      .map((point) => ({ ...point, value: null })),
+    goal: null,
+  });
+  expect(options.map(({ value }) => value)).not.toContain('england');
+});

@@ -127,7 +127,7 @@ export async function loadIndicatorCsv(
       isOneOf(['1-year', '3-year'] as const, requestedPeriod) ? requestedPeriod : 'all',
     );
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
-    const hasEngland = englandObservations(areaData).length > 0;
+    const hasEngland = englandObservations(areaData).some(({ value }) => value !== null);
     const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = filterObservations(
@@ -251,7 +251,7 @@ async function noEnglandAreaCodes(
   params: URLSearchParams,
 ): Promise<string[]> {
   const england = areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE);
-  if (england && england.observations.length > 0) return [];
+  if (england?.observations.some(({ value }) => value !== null)) return [];
   const levels = (
     await api.get(
       `${apiPath`/api/indicators/${segment}/areas`}?limit=1`,

@@ -1132,19 +1132,25 @@ describe('loadIndicator for an indicator with no England value', () => {
       ? [regions]
       : [...localAuthorities, regions];
 
-  it('opens on the statistical regions when nothing is chosen', async () => {
-    const client = api({ 'GET /api/indicators/indicator-108/areas': areasWithRegions });
+  it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
+    'opens on statistical regions when England has no values in %j and nothing is chosen',
+    async ({ observations }) => {
+      const client = api({
+        'GET /api/indicators/indicator-108/areas': areasWithRegions,
+        'GET /api/indicators/108/data': (call: FakeApiCall) => areaData(call, observations),
+      });
 
-    const result = await loadIndicator(args(client));
+      const result = await loadIndicator(args(client));
 
-    expect(result.defaultAreaLevel).toBe('Statistical regions');
-    expect(result.selection).toMatchObject({ areaCodes: [], areaLevels: [] });
-    expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual([
-      'E12000001',
-      'E12000002',
-      'E92000001',
-    ]);
-  });
+      expect(result.defaultAreaLevel).toBe('Statistical regions');
+      expect(result.selection).toMatchObject({ areaCodes: [], areaLevels: [] });
+      expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual([
+        'E12000001',
+        'E12000002',
+        'E92000001',
+      ]);
+    },
+  );
 
   it('keeps England when the indicator has no region data', async () => {
     const client = api();

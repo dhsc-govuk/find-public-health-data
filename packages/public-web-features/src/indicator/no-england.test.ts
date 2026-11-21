@@ -32,10 +32,17 @@ describe('noEnglandLevel', () => {
 
   it('opens on no other level when England has a value', () => {
     expect(noEnglandLevel(england(), levels)).toBeUndefined();
+    expect(noEnglandLevel(england([observation(0)]), levels)).toBeUndefined();
   });
 
   it('opens on the statistical regions, then the NHS regions, when England has no value', () => {
     expect(noEnglandLevel(england([]), levels)).toBe('Statistical regions');
+    expect(noEnglandLevel(england([{ ...observation(), value: null }]), levels)).toBe(
+      'Statistical regions',
+    );
+    expect(noEnglandLevel(england([{ ...observation(), value: null }]), ['NHS regions'])).toBe(
+      'NHS regions',
+    );
     expect(noEnglandLevel(undefined, ['Local authorities', 'NHS regions'])).toBe('NHS regions');
   });
 
@@ -57,11 +64,14 @@ describe('summaryObservations', () => {
     });
   });
 
-  it('spans every area shown, with no trend, when England has no value', () => {
-    const { period, trend } = summaryObservations([...regions, england([])]);
-    expect(period.map(({ fromDate }) => fromDate)).toEqual(['2019-01-01', '2023-01-01']);
-    expect(trend).toBeNull();
-  });
+  it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
+    'spans every area shown, with no trend, when England has no value in %j',
+    ({ observations }) => {
+      const { period, trend } = summaryObservations([...regions, england(observations)]);
+      expect(period.map(({ fromDate }) => fromDate)).toEqual(['2019-01-01', '2023-01-01']);
+      expect(trend).toBeNull();
+    },
+  );
 });
 
 describe('choosesNothing', () => {
@@ -94,15 +104,18 @@ describe('sexObservations', () => {
     ).toEqual([female]);
   });
 
-  it('reads every area shown when England has no value', () => {
-    expect(
-      sexObservations([
-        { areaCode: 'E12000001', observations: [female] },
-        { areaCode: 'E12000002', observations: [male] },
-        { areaCode: 'E92000001', observations: [] },
-      ]),
-    ).toEqual([female, male]);
-  });
+  it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
+    'reads other areas when England has no value in %j',
+    ({ observations }) => {
+      expect(
+        sexObservations([
+          { areaCode: 'E12000001', observations: [female] },
+          { areaCode: 'E12000002', observations: [male] },
+          { areaCode: 'E92000001', observations },
+        ]),
+      ).toEqual([female, male]);
+    },
+  );
 
   it('reads only the observations of the period type shown', () => {
     const rollingMale = { ...male, fromDate: '2022-01-01' };

@@ -45,10 +45,12 @@ export function sexObservations(
   periodType: PeriodType = 'all',
 ): IndicatorObservation[] {
   const england = filterObservations(englandObservations(areaData), { periodType });
-  return england.length > 0
+  return england.some(({ value }) => value !== null)
     ? england
     : filterObservations(
-        areaData.flatMap(({ observations }) => observations),
+        areaData
+          .filter(({ areaCode }) => areaCode !== ENGLAND_CODE)
+          .flatMap(({ observations }) => observations),
         { periodType },
       );
 }
@@ -61,7 +63,7 @@ export function noEnglandLevel(
   england: Pick<IndicatorAreaData, 'observations'> | undefined,
   levels: string[],
 ): string | undefined {
-  if (england && england.observations.length > 0) return undefined;
+  if (england?.observations.some(({ value }) => value !== null)) return undefined;
   return NO_ENGLAND_LEVELS.find((level) => levels.includes(level));
 }
 
@@ -74,7 +76,7 @@ export function summaryObservations(
   areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[],
 ): { period: IndicatorObservation[]; trend: IndicatorObservation[] | null } {
   const england = englandObservations(areaData);
-  if (england.length > 0) return { period: england, trend: england };
+  if (england.some(({ value }) => value !== null)) return { period: england, trend: england };
   return {
     period: areaData
       .filter(({ areaCode }) => areaCode !== ENGLAND_CODE)

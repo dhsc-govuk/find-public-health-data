@@ -824,21 +824,33 @@ describe('the table download of an indicator with no England value', () => {
     return levels.map((displayGroup) => ({ displayGroup, areas: [] }));
   };
 
-  it("holds the page's default regions when nothing is chosen", async () => {
-    const client = api(data, {
-      [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
-    });
-
-    const response = await loadIndicatorCsv(
-      args(client, `http://localhost/indicator/${SLUG}/table.csv`),
-      'table',
-    );
-
-    const [header, row] = (await response.text()).split('\n');
-    expect(header).toContain('North East');
-    expect(header).toContain('North West');
-    expect(row).toContain('10');
-  });
+  it.each([{ observations: [] }, { observations: [observation({ value: null })] }])(
+    "holds the page's default regions when England has no values in %j",
+    async ({ observations }) => {
+      const client = api(
+        (call: FakeApiCall) => {
+          const answers = areaCodes(call).map((code) =>
+            code === 'E92000001'
+              ? { areaCode: code, areaName: 'England', observations }
+              : regionData(code, code === 'E12000001' ? 10 : 20),
+          );
+          return answers.length === 1 ? answers[0] : answers;
+        },
+        {
+          [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
+        },
+      );
+      const response = await loadIndicatorCsv(
+        args(client, `http://localhost/indicator/${SLUG}/table.csv`),
+        'table',
+      );
+      const [header, row] = (await response.text()).split('\n');
+      expect(header).toContain('North East');
+      expect(header).toContain('North West');
+      expect(header).not.toContain('England');
+      expect(row).toContain('10');
+    },
+  );
 
   it.each(['als=Foo', 'als='])(
     "holds the page's default regions when %s chooses no level the indicator has",

@@ -125,7 +125,16 @@ function TrendPlot({
   );
   const periods = chartPeriods(series, indicator.yearType);
   const primary = series[0];
-  if (!primary) return <NoChartData />;
+  if (!primary) {
+    const observations = areas.flatMap(({ observations }) => observations);
+    if (!observations.length) return <NoChartData />;
+    const notes = [...new Set(observations.flatMap(({ notes }) => notes.map(({ text }) => text)))];
+    return (
+      <NoChartData>
+        Figures are not available.{notes.length ? ` ${notes.join(' ')}` : null}
+      </NoChartData>
+    );
+  }
   const labels = new Map(periods.map(({ key, label }) => [key, label]));
   const points = periods.map(({ key: period }) => ({
     period,
