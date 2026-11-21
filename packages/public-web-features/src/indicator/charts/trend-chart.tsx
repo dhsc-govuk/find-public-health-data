@@ -131,7 +131,8 @@ function TrendPlot({
     const notes = [...new Set(observations.flatMap(({ notes }) => notes.map(({ text }) => text)))];
     return (
       <NoChartData>
-        Figures are not available.{notes.length ? ` ${notes.join(' ')}` : null}
+        Figures are not available.
+        {notes.map((note) => ` ${note.endsWith('.') ? note : `${note}.`}`)}
       </NoChartData>
     );
   }

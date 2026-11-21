@@ -244,7 +244,7 @@ it('explains unavailable figures with distinct value notes from every shown area
     />,
   );
   expect(
-    screen.getByText(`Figures are not available. ${notes.map(({ text }) => text).join(' ')}`),
+    screen.getByText(`Figures are not available. ${notes.map(({ text }) => `${text}.`).join(' ')}`),
   ).toBeTruthy();
   expect(screen.queryByText('No data matches the selected options.')).toBeNull();
 });
