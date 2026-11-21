@@ -1,20 +1,19 @@
 import type { TopicDetail } from '@fphd/public-api-features/contract';
 
 const OHID_STATISTICS_URL =
-  'https://www.gov.uk/search/research-and-statistics?content_store_document_type=statistics_published&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest';
+  'https://www.gov.uk/search/research-and-statistics?content_store_document_type=upcoming_statistics&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest';
 
 export function TopicMoreInformation({ content }: { content: TopicDetail['content'] }) {
   if (!content) {
     return (
       <div className="fphd-topic-more-information">
         <p className="govuk-body">
-          Find official statistics releases and statistical commentaries about public health data
-          published on GOV.UK.
+          Find upcoming official statistics releases about public health data on GOV.UK.
         </p>
         <ul className="govuk-list govuk-list--bullet">
           <li>
             <a className="govuk-link" href={OHID_STATISTICS_URL}>
-              Research and statistics from the Office for Health Improvement and Disparities
+              Release calendar for the Office for Health Improvement and Disparities
             </a>
           </li>
         </ul>
