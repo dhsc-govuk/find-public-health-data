@@ -1,4 +1,4 @@
-import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, observationPeriodType } from '@fphd/utils/observation-series';
 import {
   type ComparisonCell,
   comparisonAreas,
@@ -71,7 +71,11 @@ export function comparisonTable(
           filterObservations(source.observations, {
             sex: row.sex,
             periodType: row.periodType,
-          }).filter((observation) => sameSegment(observation, latest)),
+          }).filter(
+            (observation) =>
+              sameSegment(observation, latest) &&
+              observationPeriodType(observation) === observationPeriodType(latest),
+          ),
         )
       : [];
     const samePeriod = ({ fromDate, toDate }: { fromDate: string; toDate: string }) =>

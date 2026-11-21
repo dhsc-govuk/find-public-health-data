@@ -1,4 +1,4 @@
-import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, observationPeriodType } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
   availablePeriodTypes,
@@ -127,7 +127,10 @@ export function englandObservation(
   const period = row.series.at(-1);
   const series = trendSeries(
     filterObservations(england?.observations ?? [], row).filter(
-      (observation) => !period || sameSegment(observation, period),
+      (observation) =>
+        !period ||
+        (sameSegment(observation, period) &&
+          observationPeriodType(observation) === observationPeriodType(period)),
     ),
   );
   return period
