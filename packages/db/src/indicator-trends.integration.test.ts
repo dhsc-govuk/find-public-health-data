@@ -9,6 +9,7 @@ import {
   areaType,
   dimensionType,
   dimensionValue,
+  dimensionValuePublic,
   IMPORTED_INDICATOR_TEAM_ID,
   indicator,
   indicatorVersion,
@@ -120,6 +121,7 @@ async function publishedIndicator(
   return { id: identity.id, versionId: version.id, batchId: batch.id };
 }
 
+/** Adds a series of yearly values ending in 2019, so series of any length end together. */
 async function addSeries(
   fixture: { id: string; batchId: string },
   areaId: string,
@@ -132,8 +134,8 @@ async function addSeries(
       values.map((value, index) => ({
         indicatorId: fixture.id,
         areaId,
-        fromDate: `${2010 + index}-01-01`,
-        toDate: `${2010 + index}-12-31`,
+        fromDate: `${2020 - values.length + index}-01-01`,
+        toDate: `${2020 - values.length + index}-12-31`,
         value,
         dimensionKey: dimensionKey(seriesDimensions.map(({ id }) => id)),
         uploadBatchId: fixture.batchId,
@@ -165,6 +167,44 @@ it.each([0, 1])(
   },
 );
 
+it('prefers the widest age over a band in it with more points', async () => {
+  const age = dimensions.find(({ name }) => name === 'Age');
+  if (!age) throw new Error('Age fixture missing');
+  const bands = await database.db
+    .insert(dimensionValue)
+    .values([
+      { dimensionTypeId: age.dimensionTypeId, name: '18-74 yrs' },
+      { dimensionTypeId: age.dimensionTypeId, name: '70-74 yrs' },
+    ])
+    .returning();
+  const [whole, band] = bands;
+  if (!whole || !band) throw new Error('Age band fixtures missing');
+  await database.db.insert(dimensionValuePublic).values([
+    {
+      id: whole.id,
+      slug: '18-74',
+      ageFromValue: 18,
+      ageFromUnit: 'year',
+      ageUnderValue: 75,
+      ageUnderUnit: 'year',
+    },
+    {
+      id: band.id,
+      slug: '70-74',
+      ageFromValue: 70,
+      ageFromUnit: 'year',
+      ageUnderValue: 75,
+      ageUnderUnit: 'year',
+    },
+  ]);
+  const fixture = await publishedIndicator('Age trend fixture');
+  await addSeries(fixture, englandId, [1, 2, 3, 4, 5], [whole]);
+  await addSeries(fixture, englandId, [7, 6, 5, 4, 3, 2, 1], [band]);
+  expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
+    new Map([[fixture.id, 'up']]),
+  );
+});
+
 it("works out the trend of the same series choice for another area, ignoring England's cache", async () => {
   const fixture = await publishedIndicator('Area trend fixture');
   await addSeries(fixture, englandId, [1, 2, 3, 4, 5]);
@@ -192,7 +232,8 @@ it("works out the trend of the same series choice for another area, ignoring Eng
   expect(await indicatorTrendDirections(publicDb, publishedViews, ids, WEST_SUSSEX)).toEqual(
     new Map([
       [fixture.id, 'up'],
-      [plainSuppressed.id, null],
+      // Its plain series is all suppressed, so the breakdown with values is the headline.
+      [plainSuppressed.id, 'up'],
     ]),
   );
 });

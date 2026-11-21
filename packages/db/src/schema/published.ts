@@ -426,6 +426,7 @@ export const publishedViews = {
   dataSource: publishedDataSource,
   dimensionType: publishedDimensionType,
   dimensionValue: publishedDimensionValue,
+  dimensionValuePublic: publishedDimensionValuePublic,
   noteType: publishedNoteType,
   subtopic: publishedSubtopic,
   topic: publishedTopic,

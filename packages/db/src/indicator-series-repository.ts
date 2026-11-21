@@ -5,6 +5,7 @@ import {
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { isoDurationSql } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
 import type {
   IndicatorAreaData,
@@ -24,7 +25,14 @@ async function readPoints(
   benchmarkIds: string[],
   englandId?: string,
 ) {
-  const { dimensionType, dimensionValue, noteType, observation, observationNote } = views;
+  const {
+    dimensionType,
+    dimensionValue,
+    dimensionValuePublic: ages,
+    noteType,
+    observation,
+    observationNote,
+  } = views;
   if (!ids.length && !benchmarkIds.length) return [];
   return db.execute<{
     id: string;
@@ -45,11 +53,15 @@ async function readPoints(
     ), dimensions as materialized (
       select k.dimension_key, coalesce(jsonb_agg(jsonb_build_object(
         'type', dt.name, 'value', dv.name, 'dimensionClass', dt.dimension_class,
-        'sortOrder', dv.sort_order) order by dt.name) filter (where dv.id is not null), '[]'::jsonb) as data
+        'sortOrder', dv.sort_order) || jsonb_strip_nulls(jsonb_build_object(
+        'ageFrom', ${isoDurationSql(sql`age.age_from_value`, sql`age.age_from_unit`)},
+        'ageUnder', ${isoDurationSql(sql`age.age_under_value`, sql`age.age_under_unit`)}))
+        order by dt.name) filter (where dv.id is not null), '[]'::jsonb) as data
       from (select distinct dimension_key from points) k
       left join lateral unnest(string_to_array(k.dimension_key, ',')::uuid[]) key(id) on true
       left join ${dimensionValue} dv on dv.id = key.id
       left join ${dimensionType} dt on dt.id = dv.dimension_type_id
+      left join ${ages} age on age.id = dv.id
       group by k.dimension_key
     ), notes as materialized (
       select n.observation_id, jsonb_agg(jsonb_build_object('text', nt.text,

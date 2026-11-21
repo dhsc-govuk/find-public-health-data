@@ -265,6 +265,9 @@ export const indicatorPageDetailSchema = indicatorDetailSchema.extend({
   dataState: z.enum(INDICATOR_DATA_STATES).optional(),
 });
 
+/** An age range end, such as `P5Y` or `P28D`. */
+const isoAgeDuration = z.string().regex(/^P\d+[YMWD]$/);
+
 export const indicatorObservationSchema = z.object({
   fromDate: z.string().min(1),
   toDate: z.string().min(1),
@@ -283,6 +286,10 @@ export const indicatorObservationSchema = z.object({
       value: z.string().min(1),
       dimensionClass: z.string().min(1),
       sortOrder: z.number().int(),
+      /** An age value's range, from `ageFrom` to under `ageUnder`, as ISO 8601 durations. */
+      ageFrom: isoAgeDuration.optional(),
+      /** Absent for an age with no upper limit, such as 85+. */
+      ageUnder: isoAgeDuration.optional(),
     }),
   ),
 });

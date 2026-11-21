@@ -175,9 +175,9 @@ it('keeps the fallback when bounded annual and rolling histories can elect a com
   expect(loadScatterComparison(canonical, new URLSearchParams())?.points).toMatchObject([
     {
       code: 'A',
-      x: 0,
+      x: 10,
       y: 21,
-      xPeriod: { fromDate: '2014-01-01', toDate: '2016-12-31' },
+      xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
       yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
     },
   ]);

@@ -1,4 +1,4 @@
-import { type Database, schema } from '@fphd/db';
+import { type Database, schema, widestAgeFirst } from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   ROLLING_PERIOD_THRESHOLD_DAYS,
@@ -13,6 +13,7 @@ const {
   area,
   dimensionType,
   dimensionValue,
+  dimensionValuePublic,
   observationSeries,
   observationSeriesBatch,
   observation,
@@ -40,7 +41,8 @@ function fewestDimensions(dimensionKey: SQLWrapper) {
 
 /**
  * Inserts the series a table or ranking shows for each area, sex and period type of one
- * indicator's published data: the segment with the fewest dimensions, then the most points.
+ * indicator's published data: the segment with the newest value, then the one with the fewest
+ * dimensions, then the widest age, then the one with the most points.
  */
 async function insertSeries(
   tx: Executor,
@@ -109,6 +111,8 @@ async function insertSeries(
           ''
         )`.as('sex'),
         length: count().as('length'),
+        latestValue: sql<string | null>`max(${points.toDate})
+          FILTER (WHERE ${points.value} IS NOT NULL)`.as('latest_value'),
         firstPoint: sql<string>`min(${points.fromDate}::text || ':' || ${points.toDate}::text)`.as(
           'first_point',
         ),
@@ -197,6 +201,7 @@ async function insertSeries(
     dimensionKey: segments.dimensionKey,
     periodType: segments.periodType,
     length: segments.length,
+    latestValue: segments.latestValue,
     firstPoint: segments.firstPoint,
     latestId: segments.latestId,
     rankingId: segments.rankingId,
@@ -226,7 +231,9 @@ async function insertSeries(
           candidates.areaId,
           candidates.sex,
           candidates.periodType,
+          sql`${candidates.latestValue} DESC NULLS LAST`,
           fewestDimensions(candidates.dimensionKey),
+          widestAgeFirst(candidates.dimensionKey, dimensionValuePublic),
           desc(candidates.length),
           sql`${candidates.firstPoint} COLLATE "C"`,
           sql`${candidates.dimensionKey} COLLATE "C"`,
@@ -279,7 +286,9 @@ async function englandTrend(
     )
     .groupBy(observation.areaId, observation.dimensionKey)
     .orderBy(
+      sql`max(${observation.toDate}) FILTER (WHERE ${observation.value} IS NOT NULL) DESC NULLS LAST`,
       fewestDimensions(observation.dimensionKey),
+      widestAgeFirst(observation.dimensionKey, dimensionValuePublic),
       desc(count(observation.value)),
       observation.dimensionKey,
     )

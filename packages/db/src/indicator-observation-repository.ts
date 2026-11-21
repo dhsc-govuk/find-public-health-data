@@ -5,6 +5,8 @@ import {
   tableSummary,
 } from '@fphd/utils/observation-series';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+
+import { isoDurationSql } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
 import type { ViewSet } from './schema/index.ts';
 
@@ -13,6 +15,10 @@ export interface ObservationDimensionValue {
   value: string;
   dimensionClass: string;
   sortOrder: number;
+  /** An age value's range, from `ageFrom` to under `ageUnder`, as ISO 8601 durations. */
+  ageFrom?: string;
+  /** Absent for an age with no upper limit, such as 85+. */
+  ageUnder?: string;
 }
 
 export interface IndicatorObservation {
@@ -62,7 +68,15 @@ export async function getIndicatorObservationData(
   areaCodes: string[],
   projection?: 'table' | 'summary' | 'ranking' | 'sparkline',
 ): Promise<Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>> {
-  const { area, dimensionType, dimensionValue, noteType, observation, observationNote } = views;
+  const {
+    area,
+    dimensionType,
+    dimensionValue,
+    dimensionValuePublic: ages,
+    noteType,
+    observation,
+    observationNote,
+  } = views;
   if (indicatorIds.length === 0 || areaCodes.length === 0) return new Map();
   const fields = {
     obsId: observation.id,
@@ -114,12 +128,23 @@ export async function getIndicatorObservationData(
           value: dimensionValue.name,
           dimensionClass: dimensionType.dimensionClass,
           sortOrder: dimensionValue.sortOrder,
+          ageFrom: isoDurationSql(ages.ageFromValue, ages.ageFromUnit),
+          ageUnder: isoDurationSql(ages.ageUnderValue, ages.ageUnderUnit),
         })
         .from(dimensionValue)
         .innerJoin(dimensionType, eq(dimensionValue.dimensionTypeId, dimensionType.id))
+        .leftJoin(ages, eq(ages.id, dimensionValue.id))
         .where(inArray(dimensionValue.id, valueIds))
     : [];
-  const dimensionsById = new Map(dimensionRows.map(({ id, ...dimension }) => [id, dimension]));
+  const dimensionsById = new Map(
+    dimensionRows.map(({ id, ageFrom, ageUnder, ...dimension }) => [
+      id,
+      {
+        ...dimension,
+        ...(ageFrom === null ? {} : { ageFrom, ...(ageUnder === null ? {} : { ageUnder }) }),
+      },
+    ]),
+  );
 
   type Point = IndicatorObservation & { obsId: string };
   const byIndicator = new Map<string, Map<string, Point[]>>();

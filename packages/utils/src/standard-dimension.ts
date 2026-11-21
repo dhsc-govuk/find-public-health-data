@@ -32,7 +32,7 @@ export const AGE_UNITS = ['year', 'month', 'week', 'day'] as const;
 
 export type AgeUnit = (typeof AGE_UNITS)[number];
 
-const DESIGNATORS: Readonly<Record<AgeUnit, string>> = {
+export const AGE_UNIT_DESIGNATORS: Readonly<Record<AgeUnit, string>> = {
   year: 'Y',
   month: 'M',
   week: 'W',
@@ -41,7 +41,7 @@ const DESIGNATORS: Readonly<Record<AgeUnit, string>> = {
 
 /** An age band's end as an ISO 8601 duration, such as `P5Y` or `P28D`. */
 export function isoDuration(value: number, unit: AgeUnit): string {
-  return `P${value}${DESIGNATORS[unit]}`;
+  return `P${value}${AGE_UNIT_DESIGNATORS[unit]}`;
 }
 
 /** Lengths in days, for comparing ends written in different units. */
@@ -55,4 +55,11 @@ const DAYS: Readonly<Record<AgeUnit, number>> = {
 /** An end's length in days, so that `P6W` sorts below `P1Y`. */
 export function durationDays(value: number, unit: AgeUnit): number {
   return value * DAYS[unit];
+}
+
+/** The length in days of a duration `isoDuration` writes, or undefined for any other string. */
+export function isoDurationDays(duration: string): number | undefined {
+  const [, value, designator] = /^P(\d+)([YMWD])$/.exec(duration) ?? [];
+  const unit = AGE_UNITS.find((unit) => AGE_UNIT_DESIGNATORS[unit] === designator);
+  return unit === undefined ? undefined : durationDays(Number(value), unit);
 }

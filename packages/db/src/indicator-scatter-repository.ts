@@ -22,6 +22,7 @@ import {
   sql,
 } from 'drizzle-orm';
 import { alias, union } from 'drizzle-orm/pg-core';
+import { widestAgeFirst } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
@@ -49,6 +50,7 @@ async function getCachedScatterVariants(
     observationSeriesBatch: batches,
     dimensionType,
     dimensionValue,
+    dimensionValuePublic,
     observation,
     observationSeries: series,
   } = views;
@@ -220,6 +222,8 @@ async function getCachedScatterVariants(
           'dimension_count',
         ),
         length: count().as('segment_length'),
+        latestValue: sql<string | null>`max(${points.toDate})
+          FILTER (WHERE ${points.value} IS NOT NULL)`.as('segment_latest_value'),
         firstPoint: min(sql<string>`${points.fromDate}::text || ':' || ${points.toDate}::text`).as(
           'first_point',
         ),
@@ -251,7 +255,9 @@ async function getCachedScatterVariants(
       .orderBy(
         segments.indicatorId,
         segments.sex,
+        sql`${segments.latestValue} DESC NULLS LAST`,
         segments.dimensions,
+        widestAgeFirst(segments.dimensionKey, dimensionValuePublic),
         desc(segments.length),
         segments.firstPoint,
         segments.labelKey,
