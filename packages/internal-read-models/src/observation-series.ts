@@ -143,22 +143,23 @@ async function insertSeries(
       .groupBy(segments.areaId),
   );
 
-  const areaPeriods = tx
-    .$with('area_periods')
-    .as(
-      tx
-        .selectDistinct({ areaId: segments.areaId, periodType: segments.periodType })
-        .from(segments),
-    );
+  const areaPeriods = tx.$with('area_periods').as(
+    tx
+      .selectDistinct({
+        areaId: segments.areaId,
+        areaPeriodType: sql<string>`${segments.periodType}`.as('area_period_type'),
+      })
+      .from(segments),
+  );
   const sexChoices = tx
     .select({
       areaId: areas.areaId,
       sex: sexValues.name,
       periodType: sql<PeriodType>`CASE
-        WHEN ${areas.periodCount} > 1 THEN ${areaPeriods.periodType} ELSE 'all'
+        WHEN ${areas.periodCount} > 1 THEN ${areaPeriods.areaPeriodType} ELSE 'all'
       END`,
       sexOrder: sexValues.sortOrder,
-      periodOrder: sql<number>`split_part(${areaPeriods.periodType}, '-', 1)::integer`,
+      periodOrder: sql<number>`split_part(${areaPeriods.areaPeriodType}, '-', 1)::integer`,
     })
     .from(segments)
     .innerJoin(areas, eq(areas.areaId, segments.areaId))
