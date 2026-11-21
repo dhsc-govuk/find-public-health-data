@@ -11,17 +11,14 @@ import type { SelectedIndicator } from '../indicator/loader.ts';
 
 export function topicOverviewModel(selected: SelectedIndicator[], areaCode = ENGLAND_AREA_CODE) {
   // The comparison rows give England a cell only when no other area is loaded beside it.
-  const shown =
-    areaCode === ENGLAND_AREA_CODE
-      ? selected.map((entry) => ({
-          ...entry,
-          areaData: entry.areaData.filter((data) => data.areaCode === ENGLAND_AREA_CODE),
-        }))
-      : selected;
+  const shown = selected.map((entry) => ({
+    ...entry,
+    areaData: entry.areaData.filter((data) => data.areaCode === areaCode),
+  }));
   const rows = comparisonRows(shown);
   return shown.map(({ detail, areaData, tableSeries }) => {
     const row = rows.find(({ shortId }) => shortId === detail.shortId);
-    const area = areaData.find((entry) => entry.areaCode === areaCode) ?? areaData[0];
+    const area = areaData[0];
     const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
     const periodType = availablePeriodTypes(cell?.series ?? []).includes('3-year')
       ? '3-year'
@@ -43,6 +40,7 @@ export function topicOverviewModel(selected: SelectedIndicator[], areaCode = ENG
       name: detail.name,
       unit: detail.unit,
       ...sparklineModel(area ? [{ ...area, observations: series }] : [], detail.yearType),
+      areaName: area?.areaName ?? (areaCode === ENGLAND_AREA_CODE ? 'England' : areaCode),
       period: latest ? expandedPeriodLabel(latest, detail.yearType) : 'No data',
       count: latest?.count ?? null,
       value: latest?.value ?? null,

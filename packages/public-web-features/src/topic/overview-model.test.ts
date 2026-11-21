@@ -225,3 +225,20 @@ it("shows England's figures when no area is chosen, even with data for another a
   const [highlight] = topicOverviewModel([{ ...selected, areaData: [area, england] }]);
   expect(highlight).toMatchObject({ areaName: 'England', value: 50, count: 5000 });
 });
+
+it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
+  'never substitutes England when the chosen area has no values in %j',
+  ({ observations }) => {
+    const england = { areaCode: 'E92000001', areaName: 'England', observations: [observation(50)] };
+    for (const areaData of [[england], [england, { ...area, observations }]]) {
+      const [highlight] = topicOverviewModel([{ ...selected, areaData }], area.areaCode);
+      expect(highlight).toMatchObject({
+        period: 'No data',
+        value: null,
+        count: null,
+        hasTrend: false,
+      });
+      expect(highlight?.areaName).not.toBe('England');
+    }
+  },
+);
