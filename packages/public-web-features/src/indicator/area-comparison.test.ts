@@ -239,7 +239,9 @@ it('projects shared histories to the latest non-null comparison period using sto
     { areaCode: 'b', areaName: 'B', observations: [older, newer] },
     { areaCode: 'c', areaName: 'C', observations: [older] },
   ];
-  indicator.tableSeries = [{ sex: '', periodType: 'all', segments: { a: '', b: '', c: '' } }];
+  indicator.tableSeries = [
+    { sex: '', periodType: 'all', segments: { a: '|1-year', b: '|1-year', c: '|1-year' } },
+  ];
   expect(comparisonRankingData(indicator).map(({ observations }) => observations)).toEqual([
     [],
     [newer],
@@ -336,3 +338,15 @@ it('offers neighbours for highlighted areas that have them and lists only ticked
     ),
   ).toEqual(['A', 'E92000001', 'B']);
 });
+
+it.each([1, 3, 5, 7])(
+  'identifies %i year comparison periods for the single/multi-year description',
+  (years) => {
+    const fromDate = `${2025 - years}-09-01`;
+    const toDate = '2025-08-31';
+    const indicator = series([point(fromDate, toDate, 10)], [point(fromDate, toDate, 20)]);
+    expect(areaComparisonRows(indicator, indicator.areaData.slice(1), 'descending').multiYear).toBe(
+      years > 1,
+    );
+  },
+);

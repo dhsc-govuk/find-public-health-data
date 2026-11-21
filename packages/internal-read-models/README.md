@@ -28,6 +28,13 @@ the batch directly rather than scanning the published view's complete batch list
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.`   | `READ_MODEL_TABLES`; `refreshIndicatorReadModels`, one indicator's refresh, and `rebuildReadModelTables`, the whole rebuild, each inside the caller's transaction |
 
+Period types use the inclusive date span rounded to whole years: `1-year`, `3-year`, `5-year`,
+`7-year`, and other published lengths. Each length has its own history; an `all` choice elects one
+of those histories rather than combining lengths. After deploying this period classification,
+rebuild existing cached rows with `pnpm db:rebuild-read-models`. Publication refreshes the changed
+indicator's rows automatically. The cache period column remains PostgreSQL `text`; widening its
+TypeScript type needs no migration.
+
 ## Tests
 
 The tests are in the integration tier, against a copy of the seeded template database, so they need

@@ -2,6 +2,7 @@ import { publicYearType } from '@fphd/utils/period-type';
 import { expect, it } from 'vitest';
 import type { SelectedIndicator } from '../indicator/loader.ts';
 import { indicatorDetail, observation } from '../indicator/view.testing.ts';
+import { topicTableSelection } from './data.ts';
 import { topicOverviewModel } from './overview-model.ts';
 
 const area = {
@@ -176,13 +177,13 @@ it.each([
             {
               sex: '',
               periodType: 'all',
-              segments: { E12000001: '' },
+              segments: { E12000001: '|1-year' },
               trends: { E12000001: 'down' },
             },
             {
               sex: '',
               periodType: '1-year',
-              segments: { E12000001: segment },
+              segments: { E12000001: `${segment}|1-year` },
               trends: { E12000001: direction },
             },
           ],
@@ -240,5 +241,30 @@ it.each([{ observations: [] }, { observations: [{ ...observation(), value: null 
       });
       expect(highlight?.areaName).not.toBe('England');
     }
+  },
+);
+
+it.each([5, 7])(
+  'keeps a %i year highlight separate from shorter periods after history compaction',
+  (years) => {
+    const points = (length: number) =>
+      Array.from({ length: 10 }, (_, index) => ({
+        ...observation(length * 100 + index),
+        fromDate: `${2000 + index}-09-01`,
+        toDate: `${2000 + index + length}-08-31`,
+      }));
+    const entry = {
+      ...selected,
+      areaData: [{ ...area, observations: [...points(3), ...points(years)] }],
+    };
+    const compact = topicTableSelection([entry], 5, 8);
+    const [highlight] = topicOverviewModel(compact, area.areaCode);
+    expect(highlight?.value).toBe(years * 100 + 9);
+    expect(highlight?.trend).toMatchObject({ reason: 'multi-year periods' });
+    expect(highlight?.points.map(({ value }) => value)).toEqual(
+      points(years)
+        .slice(-8)
+        .map(({ value }) => value),
+    );
   },
 );

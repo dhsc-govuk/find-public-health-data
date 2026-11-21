@@ -5,6 +5,7 @@ import {
   MAX_AREA_CODES_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
+import { isObservationPeriodType } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
@@ -124,7 +125,7 @@ export async function loadIndicatorCsv(
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
     const { periodType } = periodTypeChoice(
       areaData,
-      isOneOf(['1-year', '3-year'] as const, requestedPeriod) ? requestedPeriod : 'all',
+      isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
     );
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
     const hasEngland = englandObservations(areaData).some(({ value }) => value !== null);

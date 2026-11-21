@@ -1,4 +1,4 @@
-import { pairedAreaValues } from '@fphd/utils/observation-series';
+import { observationPeriodType, pairedAreaValues } from '@fphd/utils/observation-series';
 import { expandedPeriodLabel, periodLabel, shortPeriodLabel } from '@fphd/utils/period-label';
 import { type ConfidenceLevel, sameSegment, trendSeries } from '../data.ts';
 import type { IndicatorAreaData, IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
@@ -63,7 +63,12 @@ export function alignedSeries(areas: IndicatorAreaData[]) {
     name: areaName,
     observations: new Map(
       observations
-        .filter((observation) => reference && sameSegment(observation, reference))
+        .filter(
+          (observation) =>
+            reference &&
+            sameSegment(observation, reference) &&
+            observationPeriodType(observation) === observationPeriodType(reference),
+        )
         .map((observation) => [periodKey(observation), observation]),
     ),
   }));

@@ -47,20 +47,22 @@ async function areaTrendDirections(
     with points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
         ${observation.toDate} as to_date, ${observation.value} as value,
-        ${observation.dimensionKey} as segment
+        ${observation.dimensionKey} as segment,
+        greatest(1, round((${observation.toDate} - ${observation.fromDate} + 1) / 365.25)) as period_years
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${areaCode}
       where ${inArray(observation.indicatorId, ids)}
     ), series as (
-      select distinct on (indicator_id) indicator_id, segment,
+      select distinct on (indicator_id) indicator_id, segment, period_years,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
-      from points group by indicator_id, segment
+      from points group by indicator_id, segment, period_years
       order by indicator_id, cardinality(string_to_array(segment, ',')), count(value) desc, segment
     )
     select s.indicator_id,
       coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)
         filter (where p.value is not null))[1:5], '{}') as values
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
+        and p.period_years = s.period_years
     where s.has_value
     group by s.indicator_id
 

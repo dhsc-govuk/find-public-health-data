@@ -1,6 +1,7 @@
 import {
   ENGLAND_AREA_CODE,
   observationSegmentKey,
+  observationSeriesKey,
   type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
@@ -259,7 +260,7 @@ export async function getIndicatorSeriesData(
         const latest = byId.get(row.latestObservationId);
         if (!latest) continue;
         const entry = choice(row.sex, row.periodType);
-        entry.segments[a.code] = observationSegmentKey(latest);
+        entry.segments[a.code] = observationSeriesKey(latest);
         if (entry.trends)
           entry.trends[a.code] = recentTrendDirection([...row.recentValues].reverse());
         add(a.id, latest);

@@ -971,3 +971,27 @@ describe('a route that shows the page at one address, as the preview does', () =
     expect(response.status).toBe(200);
   });
 });
+
+it.each([3, 5, 7])(
+  'downloads only the requested %i year series from mixed periods',
+  async (years) => {
+    const client = api([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [3, 5, 7].map((length) =>
+          observation({ fromDate: `${2025 - length}-09-01`, toDate: '2025-08-31', value: length }),
+        ),
+      },
+    ]);
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/table.csv?pt-108=${years}-year`),
+      'table',
+    );
+    const rows = (await response.text()).trim().split('\n').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toBe(
+      `${2025 - years}/${String(2026 - years).slice(-2)} to 2024/25,${years},339,343.2`,
+    );
+  },
+);

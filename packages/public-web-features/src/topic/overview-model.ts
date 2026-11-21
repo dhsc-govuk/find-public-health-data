@@ -1,4 +1,8 @@
-import { ENGLAND_AREA_CODE, observationSegmentKey } from '@fphd/utils/observation-series';
+import {
+  comparisonVariants,
+  ENGLAND_AREA_CODE,
+  observationSeriesKey,
+} from '@fphd/utils/observation-series';
 import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { sparklineModel } from '../indicator/charts/chart-data.ts';
 import {
@@ -11,18 +15,28 @@ import type { SelectedIndicator } from '../indicator/loader.ts';
 
 export function topicOverviewModel(selected: SelectedIndicator[], areaCode = ENGLAND_AREA_CODE) {
   // The comparison rows give England a cell only when no other area is loaded beside it.
-  const shown = selected.map((entry) => ({
-    ...entry,
-    areaData: entry.areaData.filter((data) => data.areaCode === areaCode),
-  }));
-  const rows = comparisonRows(shown);
+  const shown = selected.map((entry) => {
+    const areaData = entry.areaData.filter((data) => data.areaCode === areaCode);
+    const observations = areaData.flatMap(({ observations }) => observations);
+    const firstVariant = comparisonVariants(observations)[0];
+    const periodType =
+      firstVariant && firstVariant.periodType !== 'all'
+        ? firstVariant.periodType
+        : (availablePeriodTypes(observations).at(-1) ?? '1-year');
+    return {
+      ...entry,
+      areaData: areaData.map((data) => ({
+        ...data,
+        observations: filterObservations(data.observations, { periodType }),
+      })),
+    };
+  });
+  const rows = comparisonRows(shown.map(({ detail, areaData }) => ({ detail, areaData })));
   return shown.map(({ detail, areaData, tableSeries }) => {
     const row = rows.find(({ shortId }) => shortId === detail.shortId);
     const area = areaData[0];
     const cell = row?.cells.find(({ areaCode }) => areaCode === area?.areaCode);
-    const periodType = availablePeriodTypes(cell?.series ?? []).includes('3-year')
-      ? '3-year'
-      : '1-year';
+    const periodType = availablePeriodTypes(cell?.series ?? []).at(-1) ?? '1-year';
     const series = filterObservations(cell?.series ?? [], { periodType }).sort(
       (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
     );
@@ -31,7 +45,7 @@ export function topicOverviewModel(selected: SelectedIndicator[], areaCode = ENG
       (selection) => selection.sex === row?.sex && selection.periodType === periodType,
     );
     const direction =
-      area && latest && selection?.segments[area.areaCode] === observationSegmentKey(latest)
+      area && latest && selection?.segments[area.areaCode] === observationSeriesKey(latest)
         ? selection.trends?.[area.areaCode]
         : undefined;
     return {

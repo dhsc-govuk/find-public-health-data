@@ -1,10 +1,16 @@
 import { type Database, schema } from '@fphd/db';
+import { ENGLAND_AREA_CODE, SEX_DIMENSION_NAME } from '@fphd/utils/observation-series';
 import {
-  ENGLAND_AREA_CODE,
-  ROLLING_PERIOD_THRESHOLD_DAYS,
-  SEX_DIMENSION_NAME,
-} from '@fphd/utils/observation-series';
-import { and, count, desc, eq, not, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
+  and,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  not,
+  type SQL,
+  type SQLWrapper,
+  sql,
+} from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { Transaction } from './read-models.ts';
@@ -75,12 +81,9 @@ async function insertSeries(
       ),
   );
 
-  // A lateral projection reads each point once without materializing the entire batch for
-  // two UNION ALL scans, which otherwise spills millions of observations to temporary files.
-  const periods = sql`(VALUES ('all'), (CASE
-    WHEN ${source.toDate} - ${source.fromDate} <= ${ROLLING_PERIOD_THRESHOLD_DAYS} THEN '1-year'
-    ELSE '3-year'
-  END)) AS periods(period_type)`;
+  const periods = sql`(VALUES (
+    greatest(1, round((${source.toDate} - ${source.fromDate} + 1) / 365.25))::integer::text || '-year'
+  )) AS periods(period_type)`;
   // Dimension keys contain UUIDs, so locale comparisons add cost without changing equality.
   const points = tx.$with('points').as(
     tx
@@ -134,35 +137,34 @@ async function insertSeries(
       .select({
         areaId: segments.areaId,
         aggregate: sql<boolean>`bool_or(${segments.sex} = '')`.as('aggregate'),
-        single: sql<boolean>`bool_or(${segments.periodType} = '1-year')`.as('single'),
-        rolling: sql<boolean>`bool_or(${segments.periodType} = '3-year')`.as('rolling'),
+        periodCount: countDistinct(segments.periodType).as('period_count'),
       })
       .from(segments)
       .groupBy(segments.areaId),
   );
 
-  // An area with aggregate data offers only that; otherwise one choice per sex and, where the
-  // area has both, per period type.
-  const sexChoice = (periodType: Exclude<PeriodType, 'all'>, periodOrder: number) =>
-    tx
-      .select({
-        areaId: areas.areaId,
-        sex: sexValues.name,
-        periodType: sql<PeriodType>`CASE
-          WHEN ${areas.single} AND ${areas.rolling} THEN ${periodType} ELSE 'all'
-        END`,
-        sexOrder: sexValues.sortOrder,
-        periodOrder: sql<number>`${periodOrder}::integer`,
-      })
-      .from(segments)
-      .innerJoin(areas, eq(areas.areaId, segments.areaId))
-      .innerJoin(sexValues, eq(sexValues.id, segments.sex))
-      .where(
-        and(
-          not(sql`${areas.aggregate}`),
-          sql`${periodType === '1-year' ? areas.single : areas.rolling}`,
-        ),
-      );
+  const areaPeriods = tx
+    .$with('area_periods')
+    .as(
+      tx
+        .selectDistinct({ areaId: segments.areaId, periodType: segments.periodType })
+        .from(segments),
+    );
+  const sexChoices = tx
+    .select({
+      areaId: areas.areaId,
+      sex: sexValues.name,
+      periodType: sql<PeriodType>`CASE
+        WHEN ${areas.periodCount} > 1 THEN ${areaPeriods.periodType} ELSE 'all'
+      END`,
+      sexOrder: sexValues.sortOrder,
+      periodOrder: sql<number>`split_part(${areaPeriods.periodType}, '-', 1)::integer`,
+    })
+    .from(segments)
+    .innerJoin(areas, eq(areas.areaId, segments.areaId))
+    .innerJoin(areaPeriods, eq(areaPeriods.areaId, segments.areaId))
+    .innerJoin(sexValues, eq(sexValues.id, segments.sex))
+    .where(not(sql`${areas.aggregate}`));
   const choices = tx.$with('choices').as(
     tx
       .select({
@@ -174,8 +176,7 @@ async function insertSeries(
       })
       .from(areas)
       .where(sql`${areas.aggregate}`)
-      .union(sexChoice('1-year', 0))
-      .union(sexChoice('3-year', 1)),
+      .union(sexChoices),
   );
 
   const variants = tx.$with('variants').as(
@@ -191,7 +192,7 @@ async function insertSeries(
       .groupBy(choices.areaId),
   );
 
-  // Each segment is a candidate for all sexes together and for its own sex.
+  // An all-period choice elects one complete series, so different lengths never share a history.
   const candidateColumns = {
     areaId: segments.areaId,
     dimensionKey: segments.dimensionKey,
@@ -210,7 +211,18 @@ async function insertSeries(
       .from(segments)
       .unionAll(
         tx
+          .select({ ...candidateColumns, periodType: sql<PeriodType>`'all'`, sex: sql<string>`''` })
+          .from(segments),
+      )
+      .unionAll(
+        tx
           .select({ ...candidateColumns, sex: sexValues.name })
+          .from(segments)
+          .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
+      )
+      .unionAll(
+        tx
+          .select({ ...candidateColumns, periodType: sql<PeriodType>`'all'`, sex: sexValues.name })
           .from(segments)
           .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
       ),
@@ -234,7 +246,18 @@ async function insertSeries(
     );
 
   await tx
-    .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
+    .with(
+      sexValues,
+      source,
+      points,
+      segments,
+      areas,
+      areaPeriods,
+      choices,
+      variants,
+      candidates,
+      winners,
+    )
     .insert(observationSeries)
     .select(
       tx
@@ -277,7 +300,11 @@ async function englandTrend(
         eq(area.code, ENGLAND_AREA_CODE),
       ),
     )
-    .groupBy(observation.areaId, observation.dimensionKey)
+    .groupBy(
+      observation.areaId,
+      observation.dimensionKey,
+      sql`greatest(1, round((${observation.toDate} - ${observation.fromDate} + 1) / 365.25))`,
+    )
     .orderBy(
       fewestDimensions(observation.dimensionKey),
       desc(count(observation.value)),

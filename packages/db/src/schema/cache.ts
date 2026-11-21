@@ -1,3 +1,4 @@
+import type { SeriesPeriodType } from '@fphd/utils/observation-series';
 import {
   date,
   doublePrecision,
@@ -15,7 +16,7 @@ import {
 
 export interface ObservationSeriesVariant {
   sex: string;
-  periodType: 'all' | '1-year' | '3-year';
+  periodType: SeriesPeriodType;
 }
 
 export const observationSeriesBatch = pgTable('observation_series_batch', {
@@ -32,7 +33,7 @@ export const observationSeries = pgTable(
     areaId: uuid().notNull(),
     dimensionKey: text().notNull(),
     sex: text().notNull(),
-    periodType: text({ enum: ['all', '1-year', '3-year'] }).notNull(),
+    periodType: text().$type<SeriesPeriodType>().notNull(),
     variants: jsonb().$type<ObservationSeriesVariant[]>().notNull(),
     latestObservationId: uuid().notNull(),
     rankingObservationId: uuid(),

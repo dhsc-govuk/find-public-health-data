@@ -10,6 +10,9 @@ import {
   headlineSeries,
   isRollingPeriod,
   observationSegmentKey,
+  observationSeriesKey,
+  type SeriesPeriodType,
+  seriesPeriodTypes,
   type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
@@ -222,11 +225,6 @@ export function comparisonAreas(areaData: IndicatorAreaData[]): IndicatorAreaDat
   return nonEngland.length > 0 ? nonEngland : areaData;
 }
 
-const PERIOD_TYPE_SUFFIX: Record<Exclude<PeriodType, 'all'>, string> = {
-  '1-year': '1 year',
-  '3-year': '3 year rolling average',
-};
-
 /**
  * The comparison table's rows: normally one per indicator (its least-disaggregated
  * series), but an indicator that is always sexed has no such aggregate, so it breaks out
@@ -260,7 +258,7 @@ export function comparisonRows(
         ? ''
         : periodType === 'all'
           ? `(${sex})`
-          : `(${sex}, ${PERIOD_TYPE_SUFFIX[periodType]})`,
+          : `(${sex}, ${periodTypeLabel(periodType)})`,
     }));
 
     const areas = comparisonAreas(areaData);
@@ -274,7 +272,7 @@ export function comparisonRows(
       );
       const series = selection
         ? points.filter(
-            (point) => observationSegmentKey(point) === selection.segments[data.areaCode],
+            (point) => observationSeriesKey(point) === selection.segments[data.areaCode],
           )
         : trendSeries(points);
       const latest = series.at(-1);
@@ -387,41 +385,19 @@ export function inequalitySegments(observations: IndicatorObservation[]): Indica
     );
 }
 
-export type PeriodType = 'all' | '1-year' | '3-year';
-
-/** A period spanning appreciably more than a year is a rolling average. */
-function isRolling({ fromDate, toDate }: IndicatorObservation): boolean {
-  return isRollingPeriod({ fromDate, toDate });
-}
+export type PeriodType = SeriesPeriodType;
 
 export function periodTypeLabel(periodType: PeriodType): string {
-  return periodType === '1-year'
-    ? '1 year'
-    : periodType === '3-year'
-      ? '3 year rolling average'
-      : 'All';
+  if (periodType === 'all') return 'All';
+  const years = Number.parseInt(periodType, 10);
+  return years === 1 ? '1 year' : `${years} year rolling average`;
 }
 
-/**
- * The period shapes an indicator actually publishes. Many indicators are single-year
- * only (QOF prevalence) or rolling only (life expectancy), so the period filter must
- * offer just the shapes present or a choice can never match anything.
- */
-export function availablePeriodTypes(
-  observations: IndicatorObservation[],
-): Exclude<PeriodType, 'all'>[] {
-  const types: Exclude<PeriodType, 'all'>[] = [];
-  if (observations.some((observation) => !isRolling(observation))) {
-    types.push('1-year');
-  }
-  if (observations.some(isRolling)) {
-    types.push('3-year');
-  }
-  return types;
-}
+/** Offer only published period lengths so every option can match data. */
+export const availablePeriodTypes = seriesPeriodTypes;
 
 export interface PeriodTypeChoice {
-  /** Whether the indicator publishes both period types, which is when the page offers the choice. */
+  /** Whether more than one period length is published, so the page offers a choice. */
   offered: boolean;
   /** The period types the chosen areas allow. */
   options: Exclude<PeriodType, 'all'>[];
@@ -431,10 +407,14 @@ export interface PeriodTypeChoice {
   notice: string | null;
 }
 
-const NOTICE_PHRASES: Record<Exclude<PeriodType, 'all'>, { showing: string; missing: string }> = {
-  '1-year': { showing: '1 year data', missing: '1 year data' },
-  '3-year': { showing: '3 year rolling averages', missing: '3 year rolling average data' },
-};
+function periodNoticePhrases(periodType: Exclude<PeriodType, 'all'>) {
+  return periodType === '1-year'
+    ? { showing: '1 year data', missing: '1 year data' }
+    : {
+        showing: `${periodTypeLabel(periodType)}s`,
+        missing: `${periodTypeLabel(periodType)} data`,
+      };
+}
 
 /**
  * The period type the Indicator tab shows. Picked areas with data decide it, or England when none
@@ -467,13 +447,13 @@ export function periodTypeChoice(
     .map(({ data }) => data.areaName);
   const notice =
     offered && periodType !== wanted && periodType !== 'all' && lacking.length > 0
-      ? `Showing ${NOTICE_PHRASES[periodType].showing} because ${
+      ? `Showing ${periodNoticePhrases(periodType).showing} because ${
           defaultAreas
             ? 'some of the areas shown have'
             : lacking.length === 1
               ? `${lacking[0]} has`
               : "some of the areas you've chosen have"
-        } no ${NOTICE_PHRASES[wanted].missing}.`
+        } no ${periodNoticePhrases(wanted).missing}.`
       : null;
   return { offered, options, periodType, notice };
 }

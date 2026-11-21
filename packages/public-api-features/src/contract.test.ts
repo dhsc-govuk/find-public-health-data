@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { indicatorDetailSchema, indicatorPageDetailSchema } from './contract.ts';
+import {
+  indicatorDetailSchema,
+  indicatorPageDetailSchema,
+  indicatorTableDataSchema,
+} from './contract.ts';
 
 const detail = {
   goal: null,
@@ -72,3 +76,25 @@ describe('indicatorPageDetailSchema', () => {
     expect(indicatorPageDetailSchema.parse(draft)).toEqual(draft);
   });
 });
+
+it.each(['all', '1-year', '3-year', '5-year', '7-year', '12-year'])(
+  'accepts table series period type %s',
+  (periodType) => {
+    expect(
+      indicatorTableDataSchema.safeParse([
+        { detail, areaData: [], tableSeries: [{ sex: '', periodType, segments: {} }] },
+      ]).success,
+    ).toBe(true);
+  },
+);
+
+it.each(['0-year', '05-year', '5.5-year', '-5-year', 'invalid'])(
+  'rejects invalid table series period type %s',
+  (periodType) => {
+    expect(
+      indicatorTableDataSchema.safeParse([
+        { detail, areaData: [], tableSeries: [{ sex: '', periodType, segments: {} }] },
+      ]).success,
+    ).toBe(false);
+  },
+);

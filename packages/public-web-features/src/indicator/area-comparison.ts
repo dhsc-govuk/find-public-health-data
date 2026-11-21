@@ -1,3 +1,4 @@
+import { isRollingPeriod } from '@fphd/utils/observation-series';
 import { areasInGeographyGroup } from '../geography/groups.ts';
 import {
   alignedTrendSeries,
@@ -240,9 +241,7 @@ export function areaComparisonRows(
     england,
     rows: england ? [england, ...areas] : areas,
     period: row?.period || englandRow?.period || '',
-    multiYear: reference
-      ? Date.parse(reference.toDate) - Date.parse(reference.fromDate) > 400 * 86400000
-      : false,
+    multiYear: reference ? isRollingPeriod(reference) : false,
   };
 }
 

@@ -63,9 +63,10 @@ export function CompareAreasTab({
     ...area,
     observations: filterObservations(area.observations, {
       sex: sexes.includes(options.sex) ? options.sex : '',
-      periodType: periodTypes.includes(options.periodType as '1-year' | '3-year')
-        ? options.periodType
-        : 'all',
+      periodType:
+        options.periodType !== 'all' && periodTypes.includes(options.periodType)
+          ? options.periodType
+          : 'all',
     }),
   }));
   const shownAreas = highlightedAreas(params, areaOptions);

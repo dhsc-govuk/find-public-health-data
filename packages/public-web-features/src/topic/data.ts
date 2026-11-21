@@ -155,7 +155,7 @@ export function topicTableSelection(
     const keep = new Set<SelectedIndicator['areaData'][number]['observations'][number]>();
     const keepSparkline = (series: IndicatorObservation[]) => {
       if (!sparklinePeriods) return;
-      const periodType = availablePeriodTypes(series).length > 1 ? '3-year' : 'all';
+      const periodType = availablePeriodTypes(series).at(-1) ?? 'all';
       for (const point of filterObservations(series, { periodType }).slice(-sparklinePeriods))
         keep.add(point);
     };
@@ -179,6 +179,18 @@ export function topicTableSelection(
         if (latest) keep.add(latest);
         const england = englandObservation(entry, { ...row, series: cell.series });
         if (england) keep.add(england);
+      }
+    }
+    if (sparklinePeriods) {
+      for (const area of entry.areaData) {
+        for (const periodType of availablePeriodTypes(area.observations)) {
+          const series = trendSeries(filterObservations(area.observations, { periodType }));
+          for (const point of series.slice(-sparklinePeriods)) keep.add(point);
+          for (const point of trendPoints
+            ? series.filter(({ value }) => value !== null).slice(-trendPoints)
+            : [])
+            keep.add(point);
+        }
       }
     }
     return {

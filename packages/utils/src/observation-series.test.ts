@@ -1,6 +1,18 @@
 import { expect, it } from 'vitest';
 
-import { rankingAreaSeries, tableAreaSeries, tableSummary } from './observation-series.ts';
+import {
+  comparisonVariants,
+  filterSeries,
+  headlineSeries,
+  isObservationPeriodType,
+  isRollingPeriod,
+  observationPeriodType,
+  periodYears,
+  rankingAreaSeries,
+  seriesPeriodTypes,
+  tableAreaSeries,
+  tableSummary,
+} from './observation-series.ts';
 
 function series(age: string, years: number[]) {
   return years.map((year) => ({
@@ -115,4 +127,81 @@ it('keeps England at the local ranking period and population rather than its new
       { ...england, observations: [point(2024, 20)] },
     ])[1]?.observations,
   ).toEqual([]);
+});
+
+it.each([
+  ['2024-01-01', '2024-12-31', 1],
+  ['2024-04-01', '2025-03-31', 1],
+  ['2024-01-01', '2024-03-31', 1],
+  ['2024-01-01', '2024-01-01', 1],
+  ['2021-01-01', '2023-12-31', 3],
+  ['2015-09-01', '2020-08-31', 5],
+  ['2013-09-01', '2020-08-31', 7],
+  ['2020-01-01', '2021-06-30', 1],
+  ['2020-01-01', '2021-07-01', 2],
+])('derives inclusive whole years from %s to %s as %i', (fromDate, toDate, years) => {
+  const point = { fromDate, toDate };
+  expect(periodYears(point)).toBe(years);
+  expect(observationPeriodType(point)).toBe(`${years}-year`);
+  expect(isRollingPeriod(point)).toBe(years > 1);
+});
+
+it.each(['1-year', '2-year', '3-year', '5-year', '7-year', '12-year'])(
+  'accepts period type %s',
+  (type) => {
+    expect(isObservationPeriodType(type)).toBe(true);
+  },
+);
+
+it.each([
+  null,
+  undefined,
+  '',
+  'all',
+  '0-year',
+  '-3-year',
+  '3.5-year',
+  '03-year',
+  '3-years',
+  '1e3-year',
+  '9007199254740992-year',
+])('rejects invalid period type %s', (type) => {
+  expect(isObservationPeriodType(type)).toBe(false);
+});
+
+it('keeps mixed three, five and seven year histories and cache selections separate', () => {
+  const history = (years: number) =>
+    Array.from({ length: 10 }, (_, index) => ({
+      fromDate: `${2000 + index}-09-01`,
+      toDate: `${2000 + index + years}-08-31`,
+      value: years * 100 + index,
+      dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
+    }));
+  const three = history(3);
+  const five = history(5);
+  const seven = history(7);
+  const observations = [...three, ...five, ...seven];
+  expect(seriesPeriodTypes([...observations].reverse())).toEqual(['3-year', '5-year', '7-year']);
+  expect(comparisonVariants(observations)).toEqual([
+    { sex: 'Female', periodType: '3-year' },
+    { sex: 'Female', periodType: '5-year' },
+    { sex: 'Female', periodType: '7-year' },
+  ]);
+  const complete = tableAreaSeries([{ areaCode: 'local', observations }]);
+  expect(complete[0]?.observations).toEqual(observations);
+  const summary = tableSummary(complete, 'sparkline');
+  for (const [points, type] of [
+    [three, '3-year'],
+    [five, '5-year'],
+    [seven, '7-year'],
+  ] as const) {
+    expect(filterSeries(observations, { periodType: type })).toEqual(points);
+    expect(summary.areaData[0]?.observations).toEqual(expect.arrayContaining(points.slice(-8)));
+    expect(
+      summary.tableSeries.find(
+        (selection) => selection.sex === 'Female' && selection.periodType === type,
+      )?.segments.local,
+    ).toBe(`Sex:Female|${type}`);
+  }
+  expect(new Set(headlineSeries(observations).map(observationPeriodType)).size).toBe(1);
 });

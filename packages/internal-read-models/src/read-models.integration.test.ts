@@ -1,6 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -308,4 +308,111 @@ describe('observation_range distributions', () => {
         if (!(error instanceof RolledBack)) throw error;
       });
   });
+});
+
+it.each([92026, 92033])(
+  'caches seed indicator %i as five-year academic periods',
+  async (shortId) => {
+    const rows = await db
+      .select({ periodType: schema.observationSeries.periodType })
+      .from(schema.observationSeries)
+      .innerJoin(schema.indicator, eq(schema.indicator.id, schema.observationSeries.indicatorId))
+      .where(eq(schema.indicator.shortId, shortId));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(new Set(rows.map(({ periodType }) => periodType))).toEqual(new Set(['all', '5-year']));
+  },
+);
+
+it('refreshes distinct three, five and seven year histories and variants', async () => {
+  await expect(
+    db.transaction(async (tx) => {
+      const [published] = await tx
+        .select({
+          indicatorId: schema.currentPublishedVersion.indicatorId,
+          uploadBatchId: schema.indicatorVersion.uploadBatchId,
+        })
+        .from(schema.currentPublishedVersion)
+        .innerJoin(
+          schema.indicatorVersion,
+          eq(schema.indicatorVersion.id, schema.currentPublishedVersion.id),
+        )
+        .where(sql`${schema.indicatorVersion.uploadBatchId} is not null`)
+        .limit(1);
+      const [england] = await tx
+        .select({ id: schema.area.id })
+        .from(schema.area)
+        .where(eq(schema.area.code, 'E92000001'));
+      const [female] = await tx
+        .select({ id: schema.dimensionValue.id, typeId: schema.dimensionValue.dimensionTypeId })
+        .from(schema.dimensionValue)
+        .innerJoin(
+          schema.dimensionType,
+          eq(schema.dimensionType.id, schema.dimensionValue.dimensionTypeId),
+        )
+        .where(and(eq(schema.dimensionType.name, 'Sex'), eq(schema.dimensionValue.name, 'Female')));
+      if (!published?.uploadBatchId || !england || !female)
+        throw new Error('Missing seeded series fixtures');
+      const { indicatorId, uploadBatchId } = published;
+      await tx
+        .delete(schema.observation)
+        .where(eq(schema.observation.uploadBatchId, uploadBatchId));
+      const rows = await tx
+        .insert(schema.observation)
+        .values(
+          [3, 5, 7].flatMap((years) =>
+            Array.from({ length: 6 }, (_, index) => ({
+              indicatorId,
+              uploadBatchId,
+              areaId: england.id,
+              dimensionKey: female.id,
+              fromDate: `${2050 + index}-09-01`,
+              toDate: `${2050 + index + years}-08-31`,
+              value: years * 100 + index,
+            })),
+          ),
+        )
+        .returning({ id: schema.observation.id });
+      await tx.insert(schema.observationDimension).values(
+        rows.map(({ id }) => ({
+          observationId: id,
+          dimensionTypeId: female.typeId,
+          dimensionValueId: female.id,
+        })),
+      );
+      await refreshIndicatorReadModels(tx, indicatorId);
+      const cached = await tx
+        .select()
+        .from(schema.observationSeries)
+        .where(
+          and(
+            eq(schema.observationSeries.indicatorId, indicatorId),
+            eq(schema.observationSeries.sex, 'Female'),
+          ),
+        );
+      expect(cached.map(({ periodType }) => periodType).sort()).toEqual([
+        '3-year',
+        '5-year',
+        '7-year',
+        'all',
+      ]);
+      for (const years of [3, 5, 7]) {
+        const row = cached.find(({ periodType }) => periodType === `${years}-year`);
+        expect(row?.recentValues).toEqual([5, 4, 3, 2, 1].map((index) => years * 100 + index));
+        expect(row?.variants).toEqual(
+          [3, 5, 7].map((length) => ({ sex: 'Female', periodType: `${length}-year` })),
+        );
+        const points = await tx
+          .select({ fromDate: schema.observation.fromDate, toDate: schema.observation.toDate })
+          .from(schema.observation)
+          .where(inArray(schema.observation.id, row?.recentObservationIds ?? []));
+        expect(points).toHaveLength(5);
+        for (const point of points)
+          expect(Number(point.toDate.slice(0, 4)) - Number(point.fromDate.slice(0, 4))).toBe(years);
+      }
+      expect(cached.find(({ periodType }) => periodType === 'all')?.recentValues).toEqual([
+        305, 304, 303, 302, 301,
+      ]);
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
 });

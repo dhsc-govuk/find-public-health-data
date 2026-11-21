@@ -1,8 +1,9 @@
 import {
+  filterSeries,
   headlineSeries,
-  isRollingPeriod,
   observationSegmentKey,
   rankingAreaSeries,
+  seriesPeriodTypes,
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
@@ -132,26 +133,24 @@ it('includes all elected population keys without changing ranking values or SQL 
   expect([...(populations[0] ?? [])].some((key) => populations[1]?.has(key))).toBe(false);
 });
 
-it('retains eight periods of both shapes when the all-period series mixes annual and rolling data', async () => {
+it('retains eight periods of each length without merging annual and rolling histories', async () => {
   const codes = ['E92000001'];
   const full = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const mixed = [...full].find(([, entry]) => {
-    const history = headlineSeries(entry.areaData[0]?.observations ?? []);
+    const observations = entry.areaData[0]?.observations ?? [];
     return (
-      history.filter(isRollingPeriod).length >= 8 &&
-      history.filter((point) => !isRollingPeriod(point)).length >= 8
+      seriesPeriodTypes(observations).filter(
+        (periodType) => headlineSeries(filterSeries(observations, { periodType })).length >= 8,
+      ).length > 1
     );
   });
-  if (!mixed) throw new Error('Expected seeded annual and rolling histories in one segment');
+  if (!mixed) throw new Error('Expected seeded annual and rolling histories');
   const [id, entry] = mixed;
-  const history = headlineSeries(entry.areaData[0]?.observations ?? []);
+  const observations = entry.areaData[0]?.observations ?? [];
   const cached = await getIndicatorSeriesData(db, publishedViews, [id], codes, 'sparkline');
   const points = cached?.get(id)?.areaData[0]?.observations;
-  for (const series of [
-    history,
-    history.filter(isRollingPeriod),
-    history.filter((point) => !isRollingPeriod(point)),
-  ]) {
+  for (const periodType of seriesPeriodTypes(observations)) {
+    const series = headlineSeries(filterSeries(observations, { periodType }));
     expect(points).toEqual(expect.arrayContaining(series.slice(-8)));
   }
 });
