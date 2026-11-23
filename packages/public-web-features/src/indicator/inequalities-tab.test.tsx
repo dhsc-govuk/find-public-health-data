@@ -29,7 +29,7 @@ it('renders the inequalities values on the server without the interactive canvas
 it.each([
   ['', 'Similar to England'],
   ['?ci-108=95', 'Better than England'],
-])('compares chart values with their mean and table values with England %s', (search, label) => {
+])('uses the same England judgement in the chart and table %s', (search, label) => {
   const primary = selected();
   primary.detail.numeratorSources = [];
   primary.areaData = primary.areaData.map((area) =>
@@ -57,8 +57,8 @@ it.each([
   render(<Routes initialEntries={[`/${search}`]} />);
   const chart = screen.getByRole('region', { name: /^Inequalities:/ });
   const key = within(chart).getByRole('list', { name: 'Comparison key' });
-  expect(within(key).getByText('Similar to average')).toBeTruthy();
-  expect(key.querySelector('rect')?.getAttribute('fill')).toBe('#ffc000');
+  expect(within(key).getByText(label)).toBeTruthy();
+  expect(key.querySelector('rect')?.getAttribute('fill')).toBe(search ? '#8ed973' : '#ffc000');
   const table = screen.getByRole('table');
   expect(within(table).getByText(label)).toBeTruthy();
 });

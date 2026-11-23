@@ -1,6 +1,6 @@
 import { TableScrollRegion } from '@fphd/ui';
 import { periodLabel } from '@fphd/utils/period-label';
-import { observationComparisonLabel } from '../area-comparison.ts';
+import { benchmarkJudgementLabel } from '../area-comparison.ts';
 import {
   availableMeasures,
   type ConfidenceLevel,
@@ -14,7 +14,8 @@ import {
   segmentLabel,
   unitNote,
 } from '../data.ts';
-import type { IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
+import type { InequalityRow } from '../inequalities.ts';
+import type { IndicatorPageDetail } from '../loader.ts';
 import { NoteFootnotes, noteMarker } from './note-markers.tsx';
 
 export function InequalitiesTable({
@@ -27,7 +28,7 @@ export function InequalitiesTable({
 }: {
   confidence: ConfidenceLevel;
   indicator: IndicatorPageDetail;
-  observations: IndicatorObservation[];
+  observations: InequalityRow[];
   benchmark?: number | null;
   benchmarkMeasures?: Record<Measure, number | null>;
   areaName?: string;
@@ -129,12 +130,7 @@ export function InequalitiesTable({
                 </td>
                 {compare ? (
                   <td className="govuk-table__cell">
-                    {observationComparisonLabel(
-                      observation,
-                      benchmark ?? null,
-                      indicator,
-                      confidence === '99.8' ? '99.8' : '95',
-                    )}
+                    {benchmarkJudgementLabel(observation.comparison)}
                   </td>
                 ) : confidence === 'none' ? null : (
                   <td className="govuk-table__cell govuk-table__cell--numeric">

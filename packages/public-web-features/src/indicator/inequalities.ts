@@ -2,13 +2,17 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import {
   alignedTrendSeries,
   availableConfidenceLevels,
+  type BenchmarkJudgement,
+  benchmarkJudgement,
   type ConfidenceLevel,
   inequalityBreakdown,
   inequalityCategories,
   inequalityPeriods,
   sameSegment,
 } from './data.ts';
-import type { SelectedIndicator } from './loader.ts';
+import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
+
+export type InequalityRow = IndicatorObservation & { comparison: BenchmarkJudgement };
 
 export function inequalityTableModel(indicator: SelectedIndicator, params: URLSearchParams) {
   const { areaData, detail } = indicator;
@@ -43,13 +47,17 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
   const confidence: ConfidenceLevel = isOneOf(confidenceLevels, requestedConfidence)
     ? requestedConfidence
     : 'none';
+  const defaultConfidence: ConfidenceLevel = confidenceLevels.includes('99.8')
+    ? '99.8'
+    : confidenceLevels.includes('95')
+      ? '95'
+      : 'none';
   const comparisonConfidence: ConfidenceLevel = params.has(`ci-${id}`)
     ? confidence
-    : confidenceLevels.includes('99.8')
-      ? '99.8'
-      : confidenceLevels.includes('95')
-        ? '95'
-        : 'none';
+    : defaultConfidence;
+  // Hiding the intervals changes what is displayed, not how rows compare with England.
+  const judgementConfidence =
+    comparisonConfidence === 'none' ? defaultConfidence : comparisonConfidence;
   const first = rows[0];
   const reference = first
     ? {
@@ -75,7 +83,17 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
     category,
     periods,
     period,
-    rows,
+    rows: rows.map(
+      (row): InequalityRow => ({
+        ...row,
+        comparison: benchmarkJudgement(
+          row,
+          benchmark?.value ?? null,
+          detail,
+          judgementConfidence === '99.8' ? '99.8' : '95',
+        ),
+      }),
+    ),
     confidenceLevels,
     confidence,
     comparisonConfidence,

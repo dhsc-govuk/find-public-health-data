@@ -4,9 +4,9 @@ import {
   areaComparisonGroups,
   areaComparisonLabel,
   areaComparisonRows,
+  benchmarkJudgementLabel,
   highlightedAreaCodes,
   highlightedAreaRows,
-  observationComparisonLabel,
   orderAreaComparisonRows,
   statisticalNeighbourAreas,
 } from './area-comparison.ts';
@@ -113,11 +113,10 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         : []),
     ];
   } else {
-    const {
-      rows: breakdown,
-      benchmark: benchmarkObservation,
-      comparisonConfidence,
-    } = inequalityTableModel(primary, params);
+    const { rows: breakdown, benchmark: benchmarkObservation } = inequalityTableModel(
+      primary,
+      params,
+    );
     const benchmark = benchmarkObservation?.value ?? null;
     const available = availableMeasures([
       ...breakdown,
@@ -141,12 +140,7 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         inequalityValueLabel(observation),
         ...measures.map(({ key }) => observation[key]),
         observation.value,
-        observationComparisonLabel(
-          observation,
-          benchmark,
-          primary.detail,
-          comparisonConfidence === '99.8' ? '99.8' : '95',
-        ),
+        benchmarkJudgementLabel(observation.comparison),
       ]),
     ];
   }

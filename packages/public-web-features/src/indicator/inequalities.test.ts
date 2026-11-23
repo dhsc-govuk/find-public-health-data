@@ -31,6 +31,22 @@ describe('inequality table model', () => {
     expect(model.area?.areaName).toBe('North East');
     expect(model.areas.map(({ areaName }) => areaName)).toEqual(['North East']);
   });
+  it('keeps judging at the best available level when intervals are hidden', () => {
+    const indicator = selected();
+    for (const { observations } of indicator.areaData) {
+      for (const row of observations) {
+        row.lowerCi95 = null;
+        row.upperCi95 = null;
+      }
+    }
+    const shown = inequalityTableModel(indicator, new URLSearchParams()).rows.map(
+      ({ comparison }) => comparison,
+    );
+    const hidden = inequalityTableModel(indicator, new URLSearchParams('ci-108=none'));
+    expect(shown).not.toContain('none');
+    expect(hidden.confidence).toBe('none');
+    expect(hidden.rows.map(({ comparison }) => comparison)).toEqual(shown);
+  });
   it('does not compare with another sex when England lacks the matching segment', () => {
     const indicator = selected();
     const england = indicator.areaData[0];

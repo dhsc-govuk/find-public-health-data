@@ -7,12 +7,8 @@ import {
   segmentLabel,
   segmentValuesKey,
 } from '../data.ts';
-import type {
-  IndicatorAreaData,
-  IndicatorObservation,
-  IndicatorPageDetail,
-  SelectedIndicator,
-} from '../loader.ts';
+import type { InequalityRow } from '../inequalities.ts';
+import type { IndicatorAreaData, IndicatorPageDetail, SelectedIndicator } from '../loader.ts';
 import { alignedSeries, areaQuintile, englandCode } from './chart-data.ts';
 import { ChartSources, NoChartData } from './chart-elements.tsx';
 import { ObservationBars } from './observation-bars.tsx';
@@ -22,16 +18,15 @@ export function InequalitiesChart({
   observations,
   indicator,
   confidence,
-  comparisonConfidence,
+  benchmark,
   areaName,
 }: {
   id: string;
-  observations: IndicatorObservation[];
+  observations: InequalityRow[];
   indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
-  comparisonConfidence: ConfidenceLevel;
+  benchmark: number | null;
   areaName: string;
-  englandObservations: IndicatorObservation[];
 }) {
   const first = observations[0];
   const dimension = first?.dimensions.find(({ dimensionClass }) => dimensionClass === 'inequality');
@@ -52,15 +47,19 @@ export function InequalitiesChart({
             observation.dimensions.find(({ type }) => type === dimension?.type)?.value ??
             segmentLabel(observation),
           observation,
+          comparison: observation.comparison,
         }))}
         confidence={confidence}
         indicator={indicator}
         title={title}
         group="Segment"
-        averageEntity={areaName}
-        colourMode={indicator.polarity === 'higher-is-better' ? 'rag' : 'magnitude'}
-        comparisonConfidence={comparisonConfidence}
+        {...(benchmark === null
+          ? {}
+          : { benchmark: { name: 'England average', value: benchmark } })}
       />
+      {benchmark === null ? (
+        <p className="govuk-body-s">No England benchmark is available for this selection.</p>
+      ) : null}
       <ChartSources indicators={[indicator]} />
     </ChartSection>
   );

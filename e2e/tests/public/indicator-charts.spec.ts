@@ -127,7 +127,7 @@ test('hovering a point or end label mutes other series and clicking pins the too
   await expect(chart.getByRole('status')).toHaveCount(0);
 });
 
-test('average bars are sorted highest to lowest and retain muting while pinned', async ({
+test('inequalities bars match the England table benchmark and judgements while sorted and pinned', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1020, height: 1000 });
@@ -142,10 +142,26 @@ test('average bars are sorted highest to lowest and retain muting while pinned',
   await expect(chart.locator('.fphd-bar-axis-title')).toHaveText('Segment');
   await bars.first().hover();
   const tooltip = chart.getByRole('status');
-  await expect(tooltip).toContainText('England average:');
+  const table = page.locator('.fphd-inequalities-table');
+  const england = table.getByRole('row', { name: /^England / });
+  const englandValue = await england.locator('td:nth-last-child(2)').innerText();
+  expect(englandValue).toBe('329.4');
+  await expect(
+    chart.locator('text').filter({ hasText: `England average ${englandValue} per 100,000` }),
+  ).toHaveText(`England average ${englandValue} per 100,000`);
+  await expect(tooltip).toContainText(`England average: ${englandValue} per 100,000`);
   await expect(tooltip).toContainText('Period:');
-  await expect(tooltip).toContainText('Comparison: Higher than average');
-  await expect(tooltip).toHaveCSS('background-color', 'rgb(244, 106, 37)');
+  const segment = table.getByRole('row', {
+    name: /^Decile 1 \(most deprived, IMD 2019\)/,
+  });
+  await expect(segment.locator('td:nth-last-child(2)')).toHaveText('448.4');
+  // This seed's comparator method is No comparison, even though its rows have CIs.
+  await expect(segment.locator('td').last()).toBeEmpty();
+  await expect(tooltip).toContainText('Segment: Most deprived decile (IMD2019)');
+  await expect(tooltip).toContainText('Value: 448.4 per 100,000');
+  await expect(tooltip).toContainText('Comparison: Not compared with England');
+  await expect(bars.first().locator('path')).toHaveAttribute('fill', '#505a5f');
+  await expect(tooltip).toHaveCSS('background-color', 'rgb(80, 90, 95)');
   const firstPosition = await tooltip.boundingBox();
   await bars.first().hover({ position: { x: 3, y: 5 } });
   expect((await tooltip.boundingBox())?.x).toBe(firstPosition?.x);
