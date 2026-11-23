@@ -1,3 +1,8 @@
+import {
+  ENGLAND_AREA_CODE,
+  headlineSeries,
+  SEX_DIMENSION_NAME,
+} from '@fphd/utils/observation-series';
 import { describe, expect, it } from 'vitest';
 import { sexedInequalities } from './inequalities.testing.ts';
 import { inequalityTableModel } from './inequalities.ts';
@@ -147,7 +152,7 @@ describe('inequality table model', () => {
   });
 
   it.each([false, true])(
-    'keeps the longest headline and first tie without Persons: longer Male %s',
+    'defaults to the shared headline series without Persons: longer Male %s',
     (longerMale) => {
       const indicator = sexedInequalities();
       for (const area of indicator.areaData) {
@@ -162,8 +167,13 @@ describe('inequality table model', () => {
           });
       }
       const model = inequalityTableModel(indicator, new URLSearchParams('ic-90632=Ethnic+groups'));
-      expect(model.rows.map(({ value }) => value)).toEqual(longerMale ? [42, 44] : [22, 24]);
-      expect(model.benchmark?.value).toBe(longerMale ? 40 : 20);
+      const england = indicator.areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE);
+      const headlineSex = headlineSeries(england?.observations ?? [])[0]?.dimensions.find(
+        ({ type }) => type === SEX_DIMENSION_NAME,
+      )?.value;
+      expect(headlineSex).toBe('Male');
+      expect(model.rows.map(({ value }) => value)).toEqual([42, 44]);
+      expect(model.benchmark?.value).toBe(40);
     },
   );
 
