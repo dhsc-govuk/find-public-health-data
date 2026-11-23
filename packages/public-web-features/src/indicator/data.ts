@@ -390,6 +390,7 @@ export type PeriodType = SeriesPeriodType;
 export function periodTypeLabel(periodType: PeriodType): string {
   if (periodType === 'all') return 'All';
   const years = Number.parseInt(periodType, 10);
+  if (periodType.endsWith('-day')) return `${years} ${years === 1 ? 'day' : 'days'}`;
   return years === 1 ? '1 year' : `${years} year rolling average`;
 }
 
@@ -408,6 +409,11 @@ export interface PeriodTypeChoice {
 }
 
 function periodNoticePhrases(periodType: Exclude<PeriodType, 'all'>) {
+  if (periodType.endsWith('-day'))
+    return {
+      showing: `${periodTypeLabel(periodType)} data`,
+      missing: `${periodTypeLabel(periodType)} data`,
+    };
   return periodType === '1-year'
     ? { showing: '1 year data', missing: '1 year data' }
     : {

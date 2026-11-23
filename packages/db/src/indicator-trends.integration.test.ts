@@ -1,10 +1,11 @@
 import { OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
+import { observationPeriodSql } from './observation-series-sql.ts';
 import {
   area,
   areaType,
@@ -259,4 +260,17 @@ it('breaks equal non-null history counts by period length for England and local 
     expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
       new Map([[fixture.id, 'down']]),
     );
+});
+
+it.each([365, 500, 550, 730])('classifies a %i day span consistently in SQL', async (days) => {
+  const [row] = await database.db
+    .select({
+      type: observationPeriodSql(
+        sql`date '2021-01-01'`,
+        sql`date '2021-01-01' + ${days - 1}::integer`,
+      ),
+    })
+    .from(area)
+    .limit(1);
+  expect(row?.type).toBe(days === 365 ? '1-year' : days === 730 ? '2-year' : `${days}-day`);
 });

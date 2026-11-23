@@ -3,14 +3,14 @@ import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 export const OBSERVATION_SERIES_VERSION = 1;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
-export type ObservationPeriodType = `${number}-year`;
+export type ObservationPeriodType = `${number}-year` | `${number}-day`;
 export type SeriesPeriodType = 'all' | ObservationPeriodType;
 
 export function isObservationPeriodType(value: unknown): value is ObservationPeriodType {
   return (
     typeof value === 'string' &&
-    /^[1-9]\d*-year$/.test(value) &&
-    Number.isSafeInteger(Number(value.slice(0, -5)))
+    /^[1-9]\d*-(year|day)$/.test(value) &&
+    Number.isSafeInteger(Number.parseInt(value, 10))
   );
 }
 
@@ -28,29 +28,43 @@ export function observationSegmentKey(observation: SeriesObservation): string {
     .join('|');
 }
 
-export function periodYears(observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>): number {
-  const days = (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 + 1;
-  return Math.max(1, Math.round(days / 365.25));
+export function periodYears(
+  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
+): number | null {
+  const start = new Date(observation.fromDate);
+  const end = new Date(Date.parse(observation.toDate) + 86_400_000);
+  const years = end.getUTCFullYear() - start.getUTCFullYear();
+  return years > 0 &&
+    start.getUTCMonth() === end.getUTCMonth() &&
+    start.getUTCDate() === end.getUTCDate()
+    ? years
+    : null;
 }
 
 export function observationPeriodType(
   observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
 ): ObservationPeriodType {
-  return `${periodYears(observation)}-year`;
+  const years = periodYears(observation);
+  const days = (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 + 1;
+  return years === null ? `${days}-day` : `${years}-year`;
+}
+
+export function periodTypeLength(periodType: ObservationPeriodType): number {
+  return Number.parseInt(periodType, 10) * (periodType.endsWith('-year') ? 365.25 : 1);
 }
 
 export function seriesPeriodTypes(
   observations: Pick<SeriesObservation, 'fromDate' | 'toDate'>[],
 ): ObservationPeriodType[] {
   return [...new Set(observations.map(observationPeriodType))].sort(
-    (a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10),
+    (a, b) => periodTypeLength(a) - periodTypeLength(b),
   );
 }
 
 export function isRollingPeriod(
   observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
 ): boolean {
-  return periodYears(observation) > 1;
+  return periodTypeLength(observationPeriodType(observation)) > 365.25;
 }
 
 export function observationSeriesKey(observation: SeriesObservation): string {
@@ -83,7 +97,8 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
     return (
       first.dimensions.length - second.dimensions.length ||
       b.values - a.values ||
-      periodYears(second) - periodYears(first) ||
+      periodTypeLength(observationPeriodType(second)) -
+        periodTypeLength(observationPeriodType(first)) ||
       compareKeys(`${first.fromDate}:${first.toDate}`, `${second.fromDate}:${second.toDate}`) ||
       compareKeys(observationSegmentKey(first), observationSegmentKey(second))
     );

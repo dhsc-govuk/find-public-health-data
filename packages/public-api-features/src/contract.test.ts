@@ -77,7 +77,7 @@ describe('indicatorPageDetailSchema', () => {
   });
 });
 
-it.each(['all', '1-year', '3-year', '5-year', '7-year', '12-year'])(
+it.each(['all', '1-year', '3-year', '5-year', '7-year', '12-year', '500-day'])(
   'accepts table series period type %s',
   (periodType) => {
     expect(

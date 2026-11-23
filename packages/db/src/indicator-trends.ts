@@ -2,7 +2,11 @@ import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/obser
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
-import { headlineSeriesOrder } from './observation-series-sql.ts';
+import {
+  headlineSeriesOrder,
+  observationPeriodSql,
+  periodLengthSql,
+} from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 /**
@@ -48,7 +52,7 @@ async function areaTrendDirections(
     {
       dimensionKey: sql`segment`,
       valueCount: sql`count(value)`,
-      periodLength: sql`period_years`,
+      periodLength: periodLengthSql(sql`period_type`),
       firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
     },
     views,
@@ -58,21 +62,21 @@ async function areaTrendDirections(
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
         ${observation.toDate} as to_date, ${observation.value} as value,
         ${observation.dimensionKey} as segment,
-        greatest(1, round((${observation.toDate} - ${observation.fromDate} + 1) / 365.25)) as period_years
+        ${observationPeriodSql(observation.fromDate, observation.toDate)} as period_type
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${areaCode}
       where ${inArray(observation.indicatorId, ids)}
     ), series as (
-      select distinct on (indicator_id) indicator_id, segment, period_years,
+      select distinct on (indicator_id) indicator_id, segment, period_type,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
-      from points group by indicator_id, segment, period_years
+      from points group by indicator_id, segment, period_type
       order by indicator_id, ${sql.join(order, sql`, `)}
     )
     select s.indicator_id,
       coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)
         filter (where p.value is not null))[1:5], '{}') as values
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
-        and p.period_years = s.period_years
+        and p.period_type = s.period_type
     where s.has_value
     group by s.indicator_id
 

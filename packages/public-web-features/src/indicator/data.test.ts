@@ -70,13 +70,16 @@ describe('recentTrend', () => {
   );
 
   it.each([
-    ['2021-06-30', 'Increasing and getting better'],
+    ['2021-06-30', 'Trend unavailable'],
     ['2021-07-01', 'Trend unavailable'],
-  ])('uses inclusive rounded year lengths for periods ending %s', (toDate, label) => {
-    expect(
-      recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
-    ).toBe(label);
-  });
+  ])(
+    'keeps partial multi-year spans out of annual trends for periods ending %s',
+    (toDate, label) => {
+      expect(
+        recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
+      ).toBe(label);
+    },
+  );
 
   it('explains when there are too few valid annual observations', () => {
     expect(recentTrend([obs(), obs({ value: null })], null)).toEqual({
@@ -790,4 +793,9 @@ it('labels separate comparison rows for sexed three and five year periods', () =
     { periodType: '3-year', suffix: '(Female, 3 year rolling average)', values: [3] },
     { periodType: '5-year', suffix: '(Female, 5 year rolling average)', values: [5] },
   ]);
+});
+
+it('labels partial-year period lengths in days', () => {
+  expect(periodTypeLabel('1-day')).toBe('1 day');
+  expect(periodTypeLabel('500-day')).toBe('500 days');
 });

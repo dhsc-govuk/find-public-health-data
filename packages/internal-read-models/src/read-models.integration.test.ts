@@ -362,8 +362,8 @@ it.each([false, true])(
           .where(eq(schema.observation.uploadBatchId, uploadBatchId));
         const rows = await tx
           .insert(schema.observation)
-          .values(
-            [3, 5, 7].flatMap((years) =>
+          .values([
+            ...[3, 5, 7].flatMap((years) =>
               Array.from({ length: 10 }, (_, index) => ({
                 indicatorId,
                 uploadBatchId,
@@ -374,7 +374,20 @@ it.each([false, true])(
                 value: years * 100 + index,
               })),
             ),
-          )
+            ...[500, 550].flatMap((days) =>
+              Array.from({ length: 10 }, (_, index) => ({
+                indicatorId,
+                uploadBatchId,
+                areaId: england.id,
+                dimensionKey: sexed ? female.id : '',
+                fromDate: `${2050 + index}-09-01`,
+                toDate: new Date(Date.parse(`${2050 + index}-09-01`) + (days - 1) * 86_400_000)
+                  .toISOString()
+                  .slice(0, 10),
+                value: days * 100 + index,
+              })),
+            ),
+          ])
           .returning({ id: schema.observation.id });
         if (sexed)
           await tx.insert(schema.observationDimension).values(
@@ -416,7 +429,7 @@ it.each([false, true])(
             ),
           );
         expect(cached.map(({ periodType }) => periodType).sort()).toEqual(
-          sexed ? ['3-year', '5-year', '7-year'] : ['all'],
+          sexed ? ['3-year', '5-year', '500-day', '550-day', '7-year'] : ['all'],
         );
         for (const years of sexed ? [3, 5, 7] : []) {
           const row = cached.find(({ periodType }) => periodType === `${years}-year`);
@@ -425,10 +438,11 @@ it.each([false, true])(
           expect(row?.variants.map(({ sex, periodType }) => ({ sex, periodType }))).toEqual(
             expect.arrayContaining([
               ...[3, 5, 7].map((length) => ({ sex: 'Female', periodType: `${length}-year` })),
+              ...[500, 550].map((days) => ({ sex: 'Female', periodType: `${days}-day` })),
               { sex: 'Male', periodType: '1-year' },
             ]),
           );
-          expect(row?.variants).toHaveLength(4);
+          expect(row?.variants).toHaveLength(6);
           const points = await tx
             .select({ fromDate: schema.observation.fromDate, toDate: schema.observation.toDate })
             .from(schema.observation)
@@ -437,6 +451,19 @@ it.each([false, true])(
           for (const point of points)
             expect(Number(point.toDate.slice(0, 4)) - Number(point.fromDate.slice(0, 4))).toBe(
               years,
+            );
+        }
+        for (const days of sexed ? [500, 550] : []) {
+          const row = cached.find(({ periodType }) => periodType === `${days}-day`);
+          expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => days * 100 + index));
+          const points = await tx
+            .select()
+            .from(schema.observation)
+            .where(inArray(schema.observation.id, row?.recentObservationIds ?? []));
+          expect(points).toHaveLength(5);
+          for (const point of points)
+            expect((Date.parse(point.toDate) - Date.parse(point.fromDate)) / 86_400_000 + 1).toBe(
+              days,
             );
         }
         const allRows = await tx

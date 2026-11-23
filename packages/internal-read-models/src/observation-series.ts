@@ -1,4 +1,10 @@
-import { type Database, headlineSeriesOrder, schema } from '@fphd/db';
+import {
+  type Database,
+  headlineSeriesOrder,
+  observationPeriodSql,
+  periodLengthSql,
+  schema,
+} from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   OBSERVATION_SERIES_VERSION,
@@ -67,7 +73,7 @@ async function insertSeries(
   );
 
   const periods = sql`(VALUES (
-    greatest(1, round((${source.toDate} - ${source.fromDate} + 1) / 365.25))::integer::text || '-year'
+    ${observationPeriodSql(source.fromDate, source.toDate)}
   )) AS periods(period_type)`;
   // Dimension keys contain UUIDs, so locale comparisons add cost without changing equality.
   const points = tx.$with('points').as(
@@ -136,7 +142,7 @@ async function insertSeries(
         WHEN ${areas.periodCount} > 1 THEN ${segments.periodType} ELSE 'all'
       END`,
       sexOrder: sexValues.sortOrder,
-      periodOrder: sql<number>`split_part(${segments.periodType}, '-', 1)::integer`,
+      periodOrder: periodLengthSql(segments.periodType),
     })
     .from(segments)
     .innerJoin(areas, eq(areas.areaId, segments.areaId))
@@ -163,9 +169,7 @@ async function insertSeries(
     periodType: segments.periodType,
     length: segments.length,
     firstPoint: segments.firstPoint,
-    periodLength: sql<number>`split_part(${segments.periodType}, '-', 1)::integer`.as(
-      'period_length',
-    ),
+    periodLength: periodLengthSql(segments.periodType).as('period_length'),
     latestId: segments.latestId,
     rankingId: segments.rankingId,
     recentIds: segments.recentIds,
@@ -312,14 +316,16 @@ async function englandTrend(
     .groupBy(
       observation.areaId,
       observation.dimensionKey,
-      sql`greatest(1, round((${observation.toDate} - ${observation.fromDate} + 1) / 365.25))`,
+      observationPeriodSql(observation.fromDate, observation.toDate),
     )
     .orderBy(
       ...headlineSeriesOrder(
         {
           dimensionKey: observation.dimensionKey,
           valueCount: count(observation.value),
-          periodLength: sql`greatest(1, round((${observation.toDate} - ${observation.fromDate} + 1) / 365.25))`,
+          periodLength: periodLengthSql(
+            observationPeriodSql(observation.fromDate, observation.toDate),
+          ),
           firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
         },
         { dimensionValue, dimensionType },

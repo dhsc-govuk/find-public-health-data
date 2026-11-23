@@ -132,13 +132,9 @@ it('keeps England at the local ranking period and population rather than its new
 it.each([
   ['2024-01-01', '2024-12-31', 1],
   ['2024-04-01', '2025-03-31', 1],
-  ['2024-01-01', '2024-03-31', 1],
-  ['2024-01-01', '2024-01-01', 1],
   ['2021-01-01', '2023-12-31', 3],
   ['2015-09-01', '2020-08-31', 5],
   ['2013-09-01', '2020-08-31', 7],
-  ['2020-01-01', '2021-06-30', 1],
-  ['2020-01-01', '2021-07-01', 2],
 ])('derives inclusive whole years from %s to %s as %i', (fromDate, toDate, years) => {
   const point = { fromDate, toDate };
   expect(periodYears(point)).toBe(years);
@@ -146,12 +142,19 @@ it.each([
   expect(isRollingPeriod(point)).toBe(years > 1);
 });
 
-it.each(['1-year', '2-year', '3-year', '5-year', '7-year', '12-year'])(
-  'accepts period type %s',
-  (type) => {
-    expect(isObservationPeriodType(type)).toBe(true);
-  },
-);
+it.each([
+  '1-year',
+  '2-year',
+  '3-year',
+  '5-year',
+  '7-year',
+  '12-year',
+  '1-day',
+  '500-day',
+  '550-day',
+])('accepts period type %s', (type) => {
+  expect(isObservationPeriodType(type)).toBe(true);
+});
 
 it.each([
   null,
@@ -165,6 +168,9 @@ it.each([
   '3-years',
   '1e3-year',
   '9007199254740992-year',
+  '0-day',
+  '05-day',
+  '1.5-day',
 ])('rejects invalid period type %s', (type) => {
   expect(isObservationPeriodType(type)).toBe(false);
 });
@@ -261,4 +267,30 @@ it('offers only the periods each sex publishes and caches only offered variants'
       ({ segments }) => segments.local,
     ),
   ).toHaveLength(3);
+});
+
+it.each([
+  ['2024-01-01', '2024-03-31', '91-day'],
+  ['2024-01-01', '2024-01-01', '1-day'],
+  ['2020-01-01', '2021-06-30', '547-day'],
+  ['2020-01-01', '2021-07-01', '548-day'],
+  ['2020-02-29', '2021-02-28', '366-day'],
+])('keeps a partial-year span %s to %s as %s', (fromDate, toDate, type) => {
+  expect(periodYears({ fromDate, toDate })).toBeNull();
+  expect(observationPeriodType({ fromDate, toDate })).toBe(type);
+});
+
+it('keeps 500 and 550 day histories separate from annual and biennial histories', () => {
+  const observations = [365, 500, 550, 730].map((days) => ({
+    fromDate: '2021-01-01',
+    toDate: new Date(Date.parse('2021-01-01') + (days - 1) * 86_400_000).toISOString().slice(0, 10),
+    value: days,
+    dimensions: [],
+  }));
+  expect(seriesPeriodTypes(observations)).toEqual(['1-year', '500-day', '550-day', '2-year']);
+  for (const point of observations)
+    expect(filterSeries(observations, { periodType: observationPeriodType(point) })).toEqual([
+      point,
+    ]);
+  expect(headlineSeries(observations)[0]?.value).toBe(730);
 });
