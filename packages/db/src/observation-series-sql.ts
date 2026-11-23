@@ -14,10 +14,12 @@ export function headlineSeriesOrder(
   },
 ) {
   const key = sql`(select coalesce(string_agg(dt.name || ':' || dv.name, '|'
-    order by dt.name COLLATE "C"), '')
-    from ${dimensions.dimensionValue} dv
+    order by dt.name COLLATE "C", key.position), '')
+    from unnest(string_to_array(${series.dimensionKey}, ',')::uuid[])
+      with ordinality as key(id, position)
+    join ${dimensions.dimensionValue} dv on dv.id = key.id
     join ${dimensions.dimensionType} dt on dt.id = dv.dimension_type_id
-    where dv.id = any(string_to_array(${series.dimensionKey}, ',')::uuid[]))`;
+    )`;
   return [
     sql`cardinality(string_to_array(${series.dimensionKey}, ','))`,
     desc(series.valueCount),
