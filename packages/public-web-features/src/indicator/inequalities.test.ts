@@ -182,6 +182,7 @@ describe('inequality table model', () => {
     indicator.detail = sexedInequalities().detail;
     const model = inequalityTableModel(indicator, new URLSearchParams('sex-90632=Male'));
     expect(model.sex).toBe('Male');
+    expect(model.areas.map(({ areaName }) => areaName)).toEqual(['England']);
     expect(model.rows).toEqual([]);
     expect(model.categories).toEqual([]);
     expect(model.periods).toEqual([]);

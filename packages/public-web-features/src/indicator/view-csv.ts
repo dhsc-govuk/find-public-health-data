@@ -123,7 +123,7 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
-      filename = `${primary.detail.shortId}-${tab}-${sexSlug}.csv`;
+      filename = `${primary.detail.shortId}-inequalities-${sexSlug}.csv`;
     }
     const benchmark = benchmarkObservation?.value ?? null;
     const available = availableMeasures([

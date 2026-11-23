@@ -29,12 +29,14 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
   const published = areaData.filter(
     ({ observations }) => inequalityCategories(observationsForSex(observations)).length > 0,
   );
-  // England is left out when the indicator has no England value.
+  // England is left out when the indicator has no England value, and with a sex selected so is
+  // any area with no data for it.
   const areas = published.length
     ? published
-    : areaData.filter(
-        ({ areaCode, observations }) => areaCode !== 'E92000001' || observations.length > 0,
-      );
+    : areaData.filter(({ areaCode, observations }) => {
+        const needsData = areaCode === 'E92000001' || sex !== '';
+        return !needsData || observationsForSex(observations).length > 0;
+      });
   const area =
     areas.find(({ areaCode }) => areaCode === params.get(`ig-${id}`)) ??
     areas.find(({ areaCode }) => areaCode === 'E92000001') ??
