@@ -9,7 +9,7 @@ export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 interface SeriesObservation {
   fromDate: string;
   toDate: string;
-  /** A null value, such as a suppressed one, doesn't make its period the segment's newest. */
+  /** Only a numeric value makes its period the segment's newest, as in `headlineOrder`. */
   value?: number | null;
   dimensions: {
     type: string;
@@ -79,7 +79,9 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       first: `${point.fromDate}:${point.toDate}`,
     };
     segment.points.push(point);
-    if (point.value !== null && point.toDate > segment.latest) segment.latest = point.toDate;
+    if (typeof point.value === 'number' && point.toDate > segment.latest) {
+      segment.latest = point.toDate;
+    }
     const first = `${point.fromDate}:${point.toDate}`;
     if (first < segment.first) segment.first = first;
     segments.set(key, segment);
