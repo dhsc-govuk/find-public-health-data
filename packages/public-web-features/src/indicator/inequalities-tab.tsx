@@ -117,7 +117,8 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
             <p className="govuk-body">{NO_ENGLAND_MESSAGE}</p>
           ) : categories.length === 0 ? (
             <p className="govuk-body">
-              This indicator has no inequality breakdowns for the selected areas.
+              This indicator has no inequality breakdowns for the selected areas
+              {options.sex ? ' and sex' : ''}.
             </p>
           ) : (
             <>
