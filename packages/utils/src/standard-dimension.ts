@@ -24,7 +24,7 @@ export const STANDARD_DIMENSION_LABELS: Readonly<Record<StandardDimension, strin
   sexuality: 'Sexuality',
 };
 
-/** The standard dimensions whose rows name a scheme in a column of their own. */
+/** The standard dimensions with no classification scheme. */
 export const SCHEMELESS_DIMENSIONS: readonly StandardDimension[] = ['sex', 'age'];
 
 /** The units an age band's ends are written in, as ISO 8601 duration designators. */
@@ -57,9 +57,12 @@ export function durationDays(value: number, unit: AgeUnit): number {
   return value * DAYS[unit];
 }
 
+/** A duration `isoDuration` writes, capturing its value and designator. */
+export const ISO_AGE_DURATION = /^P(\d+)([YMWD])$/;
+
 /** The length in days of a duration `isoDuration` writes, or undefined for any other string. */
 export function isoDurationDays(duration: string): number | undefined {
-  const [, value, designator] = /^P(\d+)([YMWD])$/.exec(duration) ?? [];
+  const [, value, designator] = ISO_AGE_DURATION.exec(duration) ?? [];
   const unit = AGE_UNITS.find((unit) => AGE_UNIT_DESIGNATORS[unit] === designator);
   return unit === undefined ? undefined : durationDays(Number(value), unit);
 }

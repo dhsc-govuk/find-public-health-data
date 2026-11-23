@@ -5,6 +5,7 @@ import { INDICATOR_DATA_STATES, INDICATOR_QUESTIONS } from '@fphd/utils/indicato
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
+import { ISO_AGE_DURATION } from '@fphd/utils/standard-dimension';
 import { tidyName } from '@fphd/utils/tidy-name';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 
@@ -266,7 +267,7 @@ export const indicatorPageDetailSchema = indicatorDetailSchema.extend({
 });
 
 /** An age range end, such as `P5Y` or `P28D`. */
-const isoAgeDuration = z.string().regex(/^P\d+[YMWD]$/);
+const isoAgeDuration = z.string().regex(ISO_AGE_DURATION);
 
 export const indicatorObservationSchema = z.object({
   fromDate: z.string().min(1),
