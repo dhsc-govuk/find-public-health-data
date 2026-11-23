@@ -319,105 +319,146 @@ it.each([92026, 92033])(
       .innerJoin(schema.indicator, eq(schema.indicator.id, schema.observationSeries.indicatorId))
       .where(eq(schema.indicator.shortId, shortId));
     expect(rows.length).toBeGreaterThan(0);
-    expect(new Set(rows.map(({ periodType }) => periodType))).toEqual(new Set(['all', '5-year']));
+    expect(new Set(rows.map(({ periodType }) => periodType))).toEqual(new Set(['all']));
   },
 );
 
-it('refreshes distinct three, five and seven year histories and variants', async () => {
-  await expect(
-    db.transaction(async (tx) => {
-      const [published] = await tx
-        .select({
-          indicatorId: schema.currentPublishedVersion.indicatorId,
-          uploadBatchId: schema.indicatorVersion.uploadBatchId,
-        })
-        .from(schema.currentPublishedVersion)
-        .innerJoin(
-          schema.indicatorVersion,
-          eq(schema.indicatorVersion.id, schema.currentPublishedVersion.id),
-        )
-        .where(sql`${schema.indicatorVersion.uploadBatchId} is not null`)
-        .limit(1);
-      const [england] = await tx
-        .select({ id: schema.area.id })
-        .from(schema.area)
-        .where(eq(schema.area.code, 'E92000001'));
-      const [female] = await tx
-        .select({ id: schema.dimensionValue.id, typeId: schema.dimensionValue.dimensionTypeId })
-        .from(schema.dimensionValue)
-        .innerJoin(
-          schema.dimensionType,
-          eq(schema.dimensionType.id, schema.dimensionValue.dimensionTypeId),
-        )
-        .where(and(eq(schema.dimensionType.name, 'Sex'), eq(schema.dimensionValue.name, 'Female')));
-      if (!published?.uploadBatchId || !england || !female)
-        throw new Error('Missing seeded series fixtures');
-      const { indicatorId, uploadBatchId } = published;
-      await tx
-        .delete(schema.observation)
-        .where(eq(schema.observation.uploadBatchId, uploadBatchId));
-      const rows = await tx
-        .insert(schema.observation)
-        .values(
-          [3, 5, 7].flatMap((years) =>
-            Array.from({ length: 6 }, (_, index) => ({
-              indicatorId,
-              uploadBatchId,
-              areaId: england.id,
-              dimensionKey: female.id,
-              fromDate: `${2050 + index}-09-01`,
-              toDate: `${2050 + index + years}-08-31`,
-              value: years * 100 + index,
+it.each([false, true])(
+  'refreshes distinct three, five and seven year histories with sexed=%s',
+  async (sexed) => {
+    await expect(
+      db.transaction(async (tx) => {
+        const [published] = await tx
+          .select({
+            indicatorId: schema.currentPublishedVersion.indicatorId,
+            uploadBatchId: schema.indicatorVersion.uploadBatchId,
+          })
+          .from(schema.currentPublishedVersion)
+          .innerJoin(
+            schema.indicatorVersion,
+            eq(schema.indicatorVersion.id, schema.currentPublishedVersion.id),
+          )
+          .where(sql`${schema.indicatorVersion.uploadBatchId} is not null`)
+          .limit(1);
+        const [england] = await tx
+          .select({ id: schema.area.id })
+          .from(schema.area)
+          .where(eq(schema.area.code, 'E92000001'));
+        const [female] = await tx
+          .select({ id: schema.dimensionValue.id, typeId: schema.dimensionValue.dimensionTypeId })
+          .from(schema.dimensionValue)
+          .innerJoin(
+            schema.dimensionType,
+            eq(schema.dimensionType.id, schema.dimensionValue.dimensionTypeId),
+          )
+          .where(
+            and(eq(schema.dimensionType.name, 'Sex'), eq(schema.dimensionValue.name, 'Female')),
+          );
+        if (!published?.uploadBatchId || !england || !female)
+          throw new Error('Missing seeded series fixtures');
+        const { indicatorId, uploadBatchId } = published;
+        await tx
+          .delete(schema.observation)
+          .where(eq(schema.observation.uploadBatchId, uploadBatchId));
+        const rows = await tx
+          .insert(schema.observation)
+          .values(
+            [3, 5, 7].flatMap((years) =>
+              Array.from({ length: 6 }, (_, index) => ({
+                indicatorId,
+                uploadBatchId,
+                areaId: england.id,
+                dimensionKey: sexed ? female.id : '',
+                fromDate: `${2050 + index}-09-01`,
+                toDate: `${2050 + index + years}-08-31`,
+                value: years * 100 + index,
+              })),
+            ),
+          )
+          .returning({ id: schema.observation.id });
+        if (sexed)
+          await tx.insert(schema.observationDimension).values(
+            rows.map(({ id }) => ({
+              observationId: id,
+              dimensionTypeId: female.typeId,
+              dimensionValueId: female.id,
             })),
-          ),
-        )
-        .returning({ id: schema.observation.id });
-      await tx.insert(schema.observationDimension).values(
-        rows.map(({ id }) => ({
-          observationId: id,
-          dimensionTypeId: female.typeId,
-          dimensionValueId: female.id,
-        })),
-      );
-      await refreshIndicatorReadModels(tx, indicatorId);
-      const cached = await tx
-        .select()
-        .from(schema.observationSeries)
-        .where(
-          and(
-            eq(schema.observationSeries.indicatorId, indicatorId),
-            eq(schema.observationSeries.sex, 'Female'),
-          ),
+          );
+        if (sexed) {
+          const [male] = await tx
+            .select()
+            .from(schema.dimensionValue)
+            .where(
+              and(
+                eq(schema.dimensionValue.dimensionTypeId, female.typeId),
+                eq(schema.dimensionValue.name, 'Male'),
+              ),
+            );
+          if (!male) throw new Error('Missing male fixture');
+          await tx.insert(schema.observation).values({
+            indicatorId,
+            uploadBatchId,
+            areaId: england.id,
+            dimensionKey: male.id,
+            fromDate: '2050-01-01',
+            toDate: '2050-12-31',
+            value: 1,
+          });
+        }
+        await refreshIndicatorReadModels(tx, indicatorId);
+        const cached = await tx
+          .select()
+          .from(schema.observationSeries)
+          .where(
+            and(
+              eq(schema.observationSeries.indicatorId, indicatorId),
+              eq(schema.observationSeries.sex, sexed ? 'Female' : ''),
+            ),
+          );
+        expect(cached.map(({ periodType }) => periodType).sort()).toEqual(
+          sexed ? ['3-year', '5-year', '7-year'] : ['all'],
         );
-      expect(cached.map(({ periodType }) => periodType).sort()).toEqual([
-        '3-year',
-        '5-year',
-        '7-year',
-        'all',
-      ]);
-      for (const years of [3, 5, 7]) {
-        const row = cached.find(({ periodType }) => periodType === `${years}-year`);
-        expect(row?.recentValues).toEqual([5, 4, 3, 2, 1].map((index) => years * 100 + index));
-        expect(row?.variants).toEqual(
-          [3, 5, 7].map((length) => ({ sex: 'Female', periodType: `${length}-year` })),
-        );
-        const points = await tx
-          .select({ fromDate: schema.observation.fromDate, toDate: schema.observation.toDate })
-          .from(schema.observation)
-          .where(inArray(schema.observation.id, row?.recentObservationIds ?? []));
-        expect(points).toHaveLength(5);
-        for (const point of points)
-          expect(Number(point.toDate.slice(0, 4)) - Number(point.fromDate.slice(0, 4))).toBe(years);
-      }
-      const [batch] = await tx
-        .select()
-        .from(schema.observationSeriesBatch)
-        .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId));
-      expect(batch?.trendValues).toEqual([705, 704, 703, 702, 701]);
-      expect(cached.find(({ periodType }) => periodType === 'all')?.recentValues).toEqual([
-        705, 704, 703, 702, 701,
-      ]);
-      throw new RolledBack();
-    }),
-  ).rejects.toBeInstanceOf(RolledBack);
-});
+        for (const years of sexed ? [3, 5, 7] : []) {
+          const row = cached.find(({ periodType }) => periodType === `${years}-year`);
+          expect(row?.recentValues).toEqual([5, 4, 3, 2, 1].map((index) => years * 100 + index));
+          expect(row?.variants).toEqual(
+            expect.arrayContaining([
+              ...[3, 5, 7].map((length) => ({ sex: 'Female', periodType: `${length}-year` })),
+              { sex: 'Male', periodType: '1-year' },
+            ]),
+          );
+          expect(row?.variants).toHaveLength(4);
+          const points = await tx
+            .select({ fromDate: schema.observation.fromDate, toDate: schema.observation.toDate })
+            .from(schema.observation)
+            .where(inArray(schema.observation.id, row?.recentObservationIds ?? []));
+          expect(points).toHaveLength(5);
+          for (const point of points)
+            expect(Number(point.toDate.slice(0, 4)) - Number(point.fromDate.slice(0, 4))).toBe(
+              years,
+            );
+        }
+        const allRows = await tx
+          .select()
+          .from(schema.observationSeries)
+          .where(eq(schema.observationSeries.indicatorId, indicatorId));
+        for (const row of allRows)
+          expect(row.variants).toContainEqual({ sex: row.sex, periodType: row.periodType });
+        if (sexed)
+          expect(
+            allRows.filter(({ sex }) => sex === 'Male').map(({ periodType }) => periodType),
+          ).toEqual(['1-year']);
+        const [batch] = await tx
+          .select()
+          .from(schema.observationSeriesBatch)
+          .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId));
+        expect(batch?.trendValues).toEqual([705, 704, 703, 702, 701]);
+        if (!sexed)
+          expect(cached.find(({ periodType }) => periodType === 'all')?.recentValues).toEqual([
+            705, 704, 703, 702, 701,
+          ]);
+        throw new RolledBack();
+      }),
+    ).rejects.toBeInstanceOf(RolledBack);
+  },
+);

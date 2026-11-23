@@ -143,7 +143,7 @@ it('keeps the history fallback when population metadata is missing for any area'
   expect(loadRankingScatterComparison(indicators, new URLSearchParams())).toBeUndefined();
 });
 
-it('keeps the fallback when bounded annual and rolling histories can elect a common population', () => {
+it('keeps the history fallback when the elected populations differ', () => {
   const point = (year: number, value: number, population: string, rolling = false) => ({
     ...observation(value, [
       { type: 'Age', value: population, dimensionClass: 'core', sortOrder: 1 },
@@ -175,10 +175,10 @@ it('keeps the fallback when bounded annual and rolling histories can elect a com
   expect(loadScatterComparison(canonical, new URLSearchParams())?.points).toMatchObject([
     {
       code: 'A',
-      x: 0,
-      y: 21,
-      xPeriod: { fromDate: '2014-01-01', toDate: '2016-12-31' },
-      yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+      x: 10,
+      y: 20,
+      xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
+      yPeriod: { fromDate: '2014-01-01', toDate: '2016-12-31' },
     },
   ]);
   const rankings = indicators.map((entry) => ({

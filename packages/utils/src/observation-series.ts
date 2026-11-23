@@ -159,7 +159,8 @@ export function tableSummary<
             .get(area.areaCode)
             ?.findIndex((variant) => variant.sex === sex && variant.periodType === periodType) ??
           -1;
-        if (order >= 0) rowOrder[area.areaCode] = order;
+        if (order < 0) continue;
+        rowOrder[area.areaCode] = order;
         const series = headlineSeries(filterSeries(area.observations, selection));
         const latest = series.at(-1);
         if (!latest) continue;
@@ -204,7 +205,10 @@ export function comparisonVariants(observations: SortedSeriesObservation[]) {
   return [...sexes]
     .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
     .flatMap(([sex]) =>
-      (periods.length > 1 ? periods : (['all'] as const)).map((periodType) => ({
+      (periods.length > 1
+        ? seriesPeriodTypes(filterSeries(observations, { sex }))
+        : (['all'] as const)
+      ).map((periodType) => ({
         sex,
         periodType,
       })),

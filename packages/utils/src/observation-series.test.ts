@@ -229,3 +229,36 @@ it('elects the same headline regardless of input order', () => {
   expect(headlineSeries([...winner, ...tied])).toEqual(tied);
   expect(headlineSeries([...tied, ...winner])).toEqual(tied);
 });
+
+it('offers only the periods each sex publishes and caches only offered variants', () => {
+  const observations = [
+    {
+      fromDate: '2024-01-01',
+      toDate: '2024-12-31',
+      value: 1,
+      dimensions: [{ type: 'Sex', value: 'Male', sortOrder: 2 }],
+    },
+    ...[3, 5].map((years) => ({
+      fromDate: '2020-01-01',
+      toDate: `${2020 + years - 1}-12-31`,
+      value: 2,
+      dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
+    })),
+  ];
+  const variants = comparisonVariants(observations);
+  expect(variants).toEqual([
+    { sex: 'Female', periodType: '3-year' },
+    { sex: 'Female', periodType: '5-year' },
+    { sex: 'Male', periodType: '1-year' },
+  ]);
+  expect(
+    tableSummary([{ areaCode: 'local', observations }])
+      .tableSeries.filter(({ segments }) => segments.local)
+      .map(({ sex, periodType }) => ({ sex, periodType })),
+  ).toEqual(expect.arrayContaining(variants));
+  expect(
+    tableSummary([{ areaCode: 'local', observations }]).tableSeries.filter(
+      ({ segments }) => segments.local,
+    ),
+  ).toHaveLength(3);
+});

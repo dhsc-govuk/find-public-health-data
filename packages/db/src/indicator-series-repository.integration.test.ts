@@ -1,9 +1,9 @@
 import {
+  comparisonVariants,
   filterSeries,
   headlineSeries,
   observationSegmentKey,
   rankingAreaSeries,
-  seriesPeriodTypes,
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
@@ -139,8 +139,10 @@ it('retains eight periods of each length without merging annual and rolling hist
   const mixed = [...full].find(([, entry]) => {
     const observations = entry.areaData[0]?.observations ?? [];
     return (
-      seriesPeriodTypes(observations).filter(
-        (periodType) => headlineSeries(filterSeries(observations, { periodType })).length >= 8,
+      comparisonVariants(observations).filter(
+        (variant) =>
+          variant.periodType !== 'all' &&
+          headlineSeries(filterSeries(observations, variant)).length >= 8,
       ).length > 1
     );
   });
@@ -149,8 +151,8 @@ it('retains eight periods of each length without merging annual and rolling hist
   const observations = entry.areaData[0]?.observations ?? [];
   const cached = await getIndicatorSeriesData(db, publishedViews, [id], codes, 'sparkline');
   const points = cached?.get(id)?.areaData[0]?.observations;
-  for (const periodType of seriesPeriodTypes(observations)) {
-    const series = headlineSeries(filterSeries(observations, { periodType }));
+  for (const variant of comparisonVariants(observations)) {
+    const series = headlineSeries(filterSeries(observations, variant));
     expect(points).toEqual(expect.arrayContaining(series.slice(-8)));
   }
 });

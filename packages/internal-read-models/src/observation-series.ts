@@ -1,6 +1,6 @@
 import { type Database, headlineSeriesOrder, schema } from '@fphd/db';
 import { ENGLAND_AREA_CODE, SEX_DIMENSION_NAME } from '@fphd/utils/observation-series';
-import { and, count, countDistinct, eq, not, type SQL, sql } from 'drizzle-orm';
+import { and, count, countDistinct, eq, not, or, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { Transaction } from './read-models.ts';
@@ -124,35 +124,26 @@ async function insertSeries(
       .groupBy(segments.areaId),
   );
 
-  const areaPeriods = tx.$with('area_periods').as(
-    tx
-      .selectDistinct({
-        areaId: segments.areaId,
-        areaPeriodType: sql<string>`${segments.periodType}`.as('area_period_type'),
-      })
-      .from(segments),
-  );
   const sexChoices = tx
     .select({
       areaId: areas.areaId,
       sex: sexValues.name,
       periodType: sql<PeriodType>`CASE
-        WHEN ${areas.periodCount} > 1 THEN ${areaPeriods.areaPeriodType} ELSE 'all'
+        WHEN ${areas.periodCount} > 1 THEN ${segments.periodType} ELSE 'all'
       END`,
       sexOrder: sexValues.sortOrder,
-      periodOrder: sql<number>`split_part(${areaPeriods.areaPeriodType}, '-', 1)::integer`,
+      periodOrder: sql<number>`split_part(${segments.periodType}, '-', 1)::integer`,
     })
     .from(segments)
     .innerJoin(areas, eq(areas.areaId, segments.areaId))
-    .innerJoin(areaPeriods, eq(areaPeriods.areaId, segments.areaId))
     .innerJoin(sexValues, eq(sexValues.id, segments.sex))
     .where(not(sql`${areas.aggregate}`));
   const choices = tx.$with('choices').as(
     tx
       .select({
         areaId: areas.areaId,
-        sex: sql<string>`''`.as('sex'),
-        periodType: sql<PeriodType>`'all'`.as('period_type'),
+        sex: sql<string>`''`.as('choice_sex'),
+        periodType: sql<PeriodType>`'all'`.as('choice_period_type'),
         sexOrder: sql<number>`0`.as('sex_order'),
         periodOrder: sql<number>`0`.as('period_order'),
       })
@@ -192,24 +183,24 @@ async function insertSeries(
   };
   const candidates = tx.$with('candidates').as(
     tx
-      .select({ ...candidateColumns, sex: sql<string>`''`.as('sex') })
+      .select({
+        ...candidateColumns,
+        sex: sql<string>`${choices.sex}`.as('sex'),
+        periodType: sql<PeriodType>`${choices.periodType}`.as('period_type'),
+      })
       .from(segments)
-      .unionAll(
-        tx
-          .select({ ...candidateColumns, periodType: sql<PeriodType>`'all'`, sex: sql<string>`''` })
-          .from(segments),
-      )
-      .unionAll(
-        tx
-          .select({ ...candidateColumns, sex: sexValues.name })
-          .from(segments)
-          .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
-      )
-      .unionAll(
-        tx
-          .select({ ...candidateColumns, periodType: sql<PeriodType>`'all'`, sex: sexValues.name })
-          .from(segments)
-          .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
+      .innerJoin(
+        choices,
+        and(
+          eq(choices.areaId, segments.areaId),
+          or(eq(choices.periodType, 'all'), eq(choices.periodType, segments.periodType)),
+          or(
+            eq(choices.sex, ''),
+            sql`${choices.sex} = (
+          select ${sexValues.name} from ${sexValues} where ${sexValues.id} = ${segments.sex}
+        )`,
+          ),
+        ),
       ),
   );
 
@@ -234,18 +225,7 @@ async function insertSeries(
   );
 
   await tx
-    .with(
-      sexValues,
-      source,
-      points,
-      segments,
-      areas,
-      areaPeriods,
-      choices,
-      variants,
-      candidates,
-      winners,
-    )
+    .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
     .insert(observationSeries)
     .select(
       tx
