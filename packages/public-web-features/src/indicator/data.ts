@@ -111,11 +111,7 @@ export function benchmarkJudgement(
   return 'similar';
 }
 
-/**
- * The least-disaggregated segment's observations in period order — the closest thing the
- * data has to a headline series. Where several segments tie on dimension count, the one
- * with the most observations wins, as the longest series is the most useful trend.
- */
+/** The headline segment's observations in period order, as `headlineSeries` chooses it. */
 export function trendSeries(observations: IndicatorObservation[]): IndicatorObservation[] {
   return headlineSeries(observations);
 }
