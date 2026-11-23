@@ -50,9 +50,8 @@ export const TOPIC_AREA_GROUPS = [
   DEFAULT_TOPIC_AREA_GROUP,
 ];
 
-/** The geography types Area summaries opens on, best first, when the link names none. */
-export const TOPIC_AREA_GROUP_ORDER = [
-  DEFAULT_TOPIC_AREA_GROUP,
+/** The types Area summaries tries in turn when a topic has no data for the default type. */
+export const TOPIC_AREA_FALLBACK_GROUPS = [
   'NHS regions',
   'Integrated care boards',
   'Local authorities',

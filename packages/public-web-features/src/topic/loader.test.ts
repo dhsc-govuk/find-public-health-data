@@ -716,10 +716,20 @@ it.each([
 describe('the geography type Area summaries opens on', () => {
   const indicator = { shortId: 1, name: 'Indicator', slug: 'indicator' };
 
-  /** A client for a topic whose one indicator has data only for the `withData` types. */
-  function apiWithDataFor(withData: string[]) {
+  /**
+   * A client for a topic whose one indicator has data for the `withData` types and matches no
+   * search term. With `published` false the topic has no indicators at all.
+   */
+  function apiWithDataFor(withData: string[], published = true) {
     return createFakeApiClient({
       ...topicStubs(),
+      'GET /api/indicators/facets': {
+        topics: published ? [{ slug: 'topic-a', title: 'Topic A' }] : [],
+        classifications: [],
+        sources: [],
+        valueTypes: [],
+        yearTypes: [],
+      },
       'GET /api/areas/display-groups': [
         'Integrated care boards',
         'Local authorities',
@@ -728,7 +738,10 @@ describe('the geography type Area summaries opens on', () => {
       ],
       'GET /api/indicators/search': (call) => {
         const params = query(call);
-        const found = withData.includes(params.get('displayGroup') ?? '') ? [indicator] : [];
+        const found =
+          !params.has('q') && withData.includes(params.get('displayGroup') ?? '')
+            ? [indicator]
+            : [];
         return {
           total: found.length,
           limit: params.has('page') ? Number(params.get('limit')) : 200,
@@ -746,40 +759,85 @@ describe('the geography type Area summaries opens on', () => {
     });
   }
 
-  function typeCounts(api: FakeApiClient) {
-    return paths(api).filter((path) => path.includes('limit=1'));
+  /** The types counted by the extra searches, which are the only ones asking for one result. */
+  function countedTypes(api: FakeApiClient) {
+    return api.calls
+      .filter(({ path }) => path.startsWith('/api/indicators/search?'))
+      .map(query)
+      .filter((params) => params.get('limit') === '1')
+      .map((params) => params.get('displayGroup'));
   }
 
-  it('opens on statistical regions without counting other types when the topic has data for them', async () => {
-    const api = apiWithDataFor(['Statistical regions', 'NHS regions']);
-    const { content } = await loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas'));
-    expect(content?.search.geoLevels).toEqual(['Statistical regions']);
-    expect(content?.search.searchResult.total).toBe(1);
-    expect(typeCounts(api)).toEqual([]);
-  });
+  const OTHER_TYPES = ['NHS regions', 'Integrated care boards', 'Local authorities'];
 
-  it('opens on the first type with data when the topic has none for statistical regions', async () => {
-    const api = apiWithDataFor(['Integrated care boards', 'Local authorities']);
-    const { content } = await loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas'));
-    expect(content?.search.geoLevels).toEqual(['Integrated care boards']);
-    expect(content?.search.searchResult.total).toBe(1);
-    expect(typeCounts(api)).toHaveLength(4);
-  });
-
-  it('keeps the type the link names even when the topic has no data for it', async () => {
-    const api = apiWithDataFor(['Statistical regions']);
+  it.each([
+    {
+      name: 'opens on statistical regions without counting when the topic has data for them',
+      withData: ['Statistical regions', 'NHS regions'],
+      search: '',
+      opens: 'Statistical regions',
+      total: 1,
+      counted: [],
+    },
+    {
+      name: 'opens on the first type with data, counting only the other three',
+      withData: ['Integrated care boards', 'Local authorities'],
+      search: '',
+      opens: 'Integrated care boards',
+      total: 1,
+      counted: OTHER_TYPES,
+    },
+    {
+      name: 'stays on statistical regions when the topic has data for no type',
+      withData: [],
+      search: '',
+      opens: 'Statistical regions',
+      total: 0,
+      counted: OTHER_TYPES,
+    },
+    {
+      name: 'counts only statistical regions when filters hide the data the topic has for them',
+      withData: ['Statistical regions', 'NHS regions'],
+      search: '&q=nothing',
+      opens: 'Statistical regions',
+      total: 0,
+      counted: ['Statistical regions'],
+    },
+    {
+      name: 'counts the other three for a filtered topic with no statistical regions data',
+      withData: ['NHS regions'],
+      search: '&q=nothing',
+      opens: 'NHS regions',
+      total: 0,
+      counted: ['Statistical regions', ...OTHER_TYPES],
+    },
+    {
+      name: 'keeps the type the link names without counting',
+      withData: ['Statistical regions'],
+      search: '&geo=NHS+regions',
+      opens: 'NHS regions',
+      total: 0,
+      counted: [],
+    },
+  ])('$name', async ({ withData, search, opens, total, counted }) => {
+    const api = apiWithDataFor(withData);
     const { content } = await loadTopic(
-      loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas&geo=NHS+regions'),
+      loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=areas${search}`),
     );
-    expect(content?.search.geoLevels).toEqual(['NHS regions']);
-    expect(content?.search.searchResult.total).toBe(0);
-    expect(typeCounts(api)).toEqual([]);
+    expect(content?.search.geoLevels).toEqual([opens]);
+    expect(content?.search.searchResult.total).toBe(total);
+    expect(countedTypes(api)).toEqual(counted);
   });
 
-  it('stays on statistical regions when the topic has data for no type', async () => {
-    const api = apiWithDataFor([]);
-    const { content } = await loadTopic(loaderArgs(api, { slug: 'topic-a' }, '?tab-topic=areas'));
-    expect(content?.search.geoLevels).toEqual(['Statistical regions']);
-    expect(content?.search.searchResult.total).toBe(0);
-  });
+  it.each(['', '&q=nothing'])(
+    'counts no type for a topic with no indicators (%j)',
+    async (search) => {
+      const api = apiWithDataFor([], false);
+      const { content } = await loadTopic(
+        loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=areas${search}`),
+      );
+      expect(content?.search.geoLevels).toEqual(['Statistical regions']);
+      expect(countedTypes(api)).toEqual([]);
+    },
+  );
 });
