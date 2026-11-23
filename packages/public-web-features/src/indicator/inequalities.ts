@@ -5,6 +5,7 @@ import {
   type BenchmarkJudgement,
   benchmarkJudgement,
   type ConfidenceLevel,
+  dimensionValues,
   filterObservations,
   inequalityBreakdown,
   inequalityCategories,
@@ -12,13 +13,16 @@ import {
   sameSegment,
 } from './data.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
+import { sexObservations } from './no-england.ts';
 
 export type InequalityRow = IndicatorObservation & { comparison: BenchmarkJudgement };
 
 export function inequalityTableModel(indicator: SelectedIndicator, params: URLSearchParams) {
   const { areaData, detail } = indicator;
   const id = detail.shortId;
-  const sex = params.get(`sex-${id}`) ?? '';
+  const requestedSex = params.get(`sex-${id}`) ?? '';
+  const sexes = dimensionValues(sexObservations(areaData), 'Sex');
+  const sex = sexes.includes(requestedSex) ? requestedSex : '';
   // The category helpers infer a baseline, so they must only see the requested sex.
   const observationsForSex = (observations: IndicatorObservation[]) =>
     filterObservations(observations, { sex });
@@ -84,6 +88,7 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
       )
     : undefined;
   return {
+    sex,
     areas,
     area,
     categories,

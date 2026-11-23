@@ -325,4 +325,18 @@ describe('indicator view CSV', () => {
       'England,,Benchmark',
     ]);
   });
+
+  it('exports the default Persons breakdown for an invalid or stale sex', async () => {
+    const data = await loadIndicator(args(''));
+    vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
+    const response = await loadIndicatorViewCsv(
+      args('tab-indicator=inequalities&sex-90632=Unpublished&ic-90632=Ethnic+groups'),
+    );
+    expect((await response.text()).trim().split('\n')).toEqual([
+      'Segment,Count,Value (%),Compared with England',
+      'England,5000,50,Benchmark',
+      'White,5200,52,Similar to England',
+      'Asian,5400,54,Better than England',
+    ]);
+  });
 });

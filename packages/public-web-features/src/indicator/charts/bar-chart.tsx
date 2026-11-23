@@ -20,6 +20,7 @@ export function InequalitiesChart({
   confidence,
   benchmark,
   areaName,
+  sex = '',
 }: {
   id: string;
   observations: InequalityRow[];
@@ -27,10 +28,12 @@ export function InequalitiesChart({
   confidence: ConfidenceLevel;
   benchmark: number | null;
   areaName: string;
+  sex?: string;
 }) {
   const first = observations[0];
   const dimension = first?.dimensions.find(({ dimensionClass }) => dimensionClass === 'inequality');
-  const title = `Inequalities: ${indicator.name}, ${areaName}${
+  const selection = `${areaName}${sex ? `, ${sex}` : ''}`;
+  const title = `Inequalities: ${indicator.name}, ${selection}${
     first && dimension
       ? `, ${inequalityCategoryLabel(dimension.type)}, ${periodLabel(first, indicator.yearType)}`
       : ''
@@ -38,7 +41,7 @@ export function InequalitiesChart({
   return (
     <ChartSection id={id} title={title}>
       <h2 className="govuk-heading-s govuk-!-margin-bottom-2">
-        Chart of inequalities: {indicator.name}, {areaName}
+        Chart of inequalities: {indicator.name}, {selection}
       </h2>
       <ObservationBars
         rows={observations.map((observation) => ({

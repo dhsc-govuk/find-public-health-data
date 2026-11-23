@@ -343,8 +343,9 @@ function renderInequalities(primary: SelectedIndicator, search = '') {
 it.each([
   ['Female', 20],
   ['Male', 40],
+  ['Unpublished', 50],
 ] as const)(
-  'draws the %s England benchmark line from the shared sex selection',
+  'draws the %s England benchmark line from the validated sex selection',
   (sexValue, benchmark) => {
     renderInequalities(sexedInequalities(), `?sex-90632=${sexValue}&ic-90632=Ethnic+groups`);
     const chart = screen.getByRole('region', { name: /^Inequalities:/ });

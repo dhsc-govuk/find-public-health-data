@@ -111,6 +111,9 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
               <FilterChip value={inequalityArea?.areaCode ?? 'E92000001'}>
                 {inequalityArea?.areaName ?? 'England'}
               </FilterChip>
+              {inequality.sex ? (
+                <FilterChip value={inequality.sex}>{inequality.sex}</FilterChip>
+              ) : null}
             </FilterChips>
           </div>
           {inequalityAreas.length === 0 ? (
@@ -118,7 +121,7 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
           ) : categories.length === 0 ? (
             <p className="govuk-body">
               This indicator has no inequality breakdowns for the selected areas
-              {options.sex ? ' and sex' : ''}.
+              {inequality.sex ? ' and sex' : ''}.
             </p>
           ) : (
             <>
@@ -131,6 +134,7 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                   benchmark={inequalityBenchmark}
                   observations={inequalityRows}
                   areaName={inequalityArea?.areaName ?? 'England'}
+                  sex={inequality.sex}
                 />
               </div>
               <InequalitiesTable
@@ -140,6 +144,7 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                 confidence={inequalityConfidence}
                 observations={inequalityRows}
                 areaName={inequalityArea?.areaName ?? 'England'}
+                sex={inequality.sex}
               />
               {detail.dataSource || detail.numeratorSources.length ? (
                 <p className="govuk-body-s">

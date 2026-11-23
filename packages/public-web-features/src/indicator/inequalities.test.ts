@@ -167,16 +167,28 @@ describe('inequality table model', () => {
     },
   );
 
-  it.each(['Male', 'Unpublished'])(
-    'does not substitute another sex when %s has no breakdown',
-    (sexValue) => {
-      const indicator = selected(90632);
-      indicator.detail = sexedInequalities().detail;
-      const model = inequalityTableModel(indicator, new URLSearchParams(`sex-90632=${sexValue}`));
-      expect(model.rows).toEqual([]);
-      expect(model.categories).toEqual([]);
-      expect(model.periods).toEqual([]);
-      expect(model.benchmark).toBeUndefined();
-    },
-  );
+  it('does not substitute another sex when a valid Male selection has no breakdown', () => {
+    const indicator = selected(90632);
+    indicator.detail = sexedInequalities().detail;
+    const model = inequalityTableModel(indicator, new URLSearchParams('sex-90632=Male'));
+    expect(model.sex).toBe('Male');
+    expect(model.rows).toEqual([]);
+    expect(model.categories).toEqual([]);
+    expect(model.periods).toEqual([]);
+    expect(model.benchmark).toBeUndefined();
+  });
+
+  it('falls back to the default Persons view for an invalid or stale sex', () => {
+    const indicator = sexedInequalities();
+    const model = inequalityTableModel(
+      indicator,
+      new URLSearchParams('sex-90632=Unpublished&ic-90632=Ethnic+groups'),
+    );
+    expect(model.sex).toBe('');
+    expect(model.rows.map(({ value }) => value)).toEqual([52, 54]);
+    expect(model.benchmark?.value).toBe(50);
+    expect(model).toEqual(
+      inequalityTableModel(indicator, new URLSearchParams('ic-90632=Ethnic+groups')),
+    );
+  });
 });

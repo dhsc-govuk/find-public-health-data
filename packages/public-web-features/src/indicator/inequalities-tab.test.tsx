@@ -93,6 +93,9 @@ it.each([
     ]);
     render(<Routes initialEntries={[`/?sex-90632=${sexValue}&ic-90632=Ethnic+groups`]} />);
     const table = screen.getByRole('table');
+    expect(table.querySelector('caption')?.textContent).toContain(`Indicator 90632, ${sexValue}`);
+    const chart = screen.getByRole('region', { name: /^Inequalities:/ });
+    expect(within(chart).getByRole('heading').textContent).toContain(`England, ${sexValue}`);
     const englandRow = within(table).getByRole('rowheader', { name: 'England' }).closest('tr');
     expect(englandRow?.children[1]?.textContent).toBe((benchmark * 100).toLocaleString('en-GB'));
     expect(englandRow?.children[2]?.textContent).toBe(`${benchmark}.0%`);
@@ -120,25 +123,42 @@ it.each([
   },
 );
 
-it.each(['Male', 'Unpublished'])(
-  'uses the empty inequality state when %s has no breakdown',
-  (sexValue) => {
-    const primary = selected();
-    primary.detail.numeratorSources = [];
-    const Routes = createRoutesStub([
-      { path: '/', Component: () => <InequalitiesTab primary={primary} /> },
-    ]);
-    render(<Routes initialEntries={[`/?sex-108=${sexValue}`]} />);
-    expect(
-      screen.getByText(
-        'This indicator has no inequality breakdowns for the selected areas and sex.',
-      ),
-    ).toBeTruthy();
-    expect(screen.queryByRole('table')).toBeNull();
-    expect(screen.queryByRole('region', { name: /^Inequalities:/ })).toBeNull();
-    expect(
-      screen.queryByRole('link', { name: "Download data for the areas you've chosen (CSV)" }),
-    ).toBeNull();
-    expect(screen.queryByRole('combobox', { name: 'Time period' })).toBeNull();
-  },
-);
+it('uses the empty inequality state when a valid Male selection has no breakdown', () => {
+  const primary = selected();
+  primary.detail.numeratorSources = [];
+  const Routes = createRoutesStub([
+    { path: '/', Component: () => <InequalitiesTab primary={primary} /> },
+  ]);
+  render(<Routes initialEntries={['/?sex-108=Male']} />);
+  expect(
+    screen.getByText('This indicator has no inequality breakdowns for the selected areas and sex.'),
+  ).toBeTruthy();
+  expect(screen.queryByRole('table')).toBeNull();
+  expect(screen.queryByRole('region', { name: /^Inequalities:/ })).toBeNull();
+  expect(
+    screen.queryByRole('link', { name: "Download data for the areas you've chosen (CSV)" }),
+  ).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Time period' })).toBeNull();
+});
+
+it('shows the default Persons view without a stale sex label or empty state', () => {
+  const Routes = createRoutesStub([
+    { path: '/', Component: () => <InequalitiesTab primary={sexedInequalities()} /> },
+  ]);
+  render(<Routes initialEntries={['/?sex-90632=Unpublished&ic-90632=Ethnic+groups']} />);
+  const table = screen.getByRole('table');
+  expect(table.querySelector('caption')?.textContent).toBe(
+    'Table of inequalities: Indicator 90632, Ethnic groups, England, 2024',
+  );
+  const white = within(table).getByRole('rowheader', { name: 'White' }).closest('tr');
+  expect(white?.textContent).toContain('52.0%');
+  expect(
+    within(table).getByRole('rowheader', { name: 'England' }).closest('tr')?.textContent,
+  ).toContain('50.0%');
+  const chart = screen.getByRole('region', { name: /^Inequalities:/ });
+  expect(within(chart).getByRole('heading').textContent).toBe(
+    'Chart of inequalities: Indicator 90632, England',
+  );
+  expect(screen.queryByText(/no inequality breakdowns/)).toBeNull();
+  expect(screen.queryByText(/Unpublished/)).toBeNull();
+});
