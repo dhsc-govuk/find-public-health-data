@@ -1,12 +1,12 @@
 import {
   ENGLAND_AREA_CODE,
+  OBSERVATION_SERIES_VERSION,
   observationSegmentKey,
   pairedAreaSexValues,
   pairedAreaValues,
   rankingAreaSeries,
   type ScatterArea,
   tableAreaSeries,
-  tableSummary,
 } from '@fphd/utils/observation-series';
 import {
   and,
@@ -77,6 +77,12 @@ async function getCachedScatterVariants(
     db
       .select({
         indicatorId: series.indicatorId,
+        areaId: series.areaId,
+        dimensionKey: series.dimensionKey,
+        headline: sql<boolean>`${series.variants} @> jsonb_build_array(jsonb_build_object(
+          'sex', ${series.sex}, 'periodType', ${series.periodType}, 'headline', true))`.as(
+          'is_headline',
+        ),
         latestId: series.latestObservationId,
         recentIds: series.recentObservationIds,
       })
@@ -226,6 +232,15 @@ async function getCachedScatterVariants(
         labelKey: min(dimensions.labelKey).as('segment_key'),
       })
       .from(points)
+      .innerJoin(
+        selected,
+        and(
+          eq(selected.indicatorId, points.indicatorId),
+          eq(selected.areaId, points.areaId),
+          eq(selected.dimensionKey, points.dimensionKey),
+          sql`${selected.headline}`,
+        ),
+      )
       .leftJoin(dimensions, eq(dimensions.dimensionKey, points.dimensionKey))
       .innerJoin(
         firstAreas,
@@ -311,6 +326,10 @@ async function getCachedScatterVariants(
       areaId: areas.id,
       areaCode: areas.code,
       areaName: areas.name,
+      sexed: sql<boolean>`exists (select 1 from ${series} sexed_series
+        join ${areas} sexed_area on sexed_area.id = sexed_series.area_id
+        where sexed_series.indicator_id = ${batches.indicatorId}
+          and coalesce(jsonb_array_length(sexed_series.variants -> 0 -> 'sexes'), 0) > 0)`,
       complete: eq(
         db.select({ value: count() }).from(wanted),
         db.select({ value: count() }).from(candidates),
@@ -333,7 +352,12 @@ async function getCachedScatterVariants(
       ),
     )
     .leftJoin(dimensions, eq(dimensions.dimensionKey, chosen.dimensionKey))
-    .where(inArray(batches.indicatorId, indicatorIds));
+    .where(
+      and(
+        inArray(batches.indicatorId, indicatorIds),
+        eq(batches.version, OBSERVATION_SERIES_VERSION),
+      ),
+    );
   // Historical area codes and incomplete rebuilds need canonical series election.
   const identities = new Map<string, Set<string>>();
   for (const row of loaded) {
@@ -343,7 +367,7 @@ async function getCachedScatterVariants(
   }
   if (
     new Set(loaded.map((row) => row.indicatorId)).size !== indicatorIds.length ||
-    loaded.some((row) => !row.complete) ||
+    loaded.some((row) => !row.complete || (row.sexed && sexes.some(Boolean))) ||
     [...identities.values()].some((ids) => ids.size > 1)
   )
     return undefined;
@@ -390,7 +414,7 @@ export async function getIndicatorScatterData(
   const data =
     cached ??
     new Map(
-      [...(await getIndicatorObservationData(db, views, indicatorIds, codes, 'table'))].map(
+      [...(await getIndicatorObservationData(db, views, indicatorIds, codes))].map(
         ([id, entry]) => [
           id,
           entry.areaData.map((area) => ({
@@ -466,7 +490,7 @@ export async function getPublishedIndicatorScatterData(
   }
   const data = await getIndicatorObservationData(db, views, indicatorIds, codes);
   const areas = indicatorIds.map((id) => data.get(id)?.areaData ?? []);
-  const [x, y] = areas.map((areaData) => tableSummary(tableAreaSeries(areaData)).areaData);
+  const [x, y] = areas.map((areaData) => tableAreaSeries(areaData));
   return {
     ...pairedAreaSexValues(x ?? [], y ?? []),
     rankings: areas.map(rankingAreaSeries),

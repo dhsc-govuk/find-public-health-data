@@ -129,6 +129,9 @@ async function insertSeries(
         areaId: segments.areaId,
         aggregate: sql<boolean>`bool_or(${segments.sex} = '')`.as('aggregate'),
         periodCount: countDistinct(segments.periodType).as('period_count'),
+        sexIds: sql<string[]>`array_remove(array_agg(distinct ${segments.sex}), '')`.as(
+          'area_sex_ids',
+        ),
       })
       .from(segments)
       .groupBy(segments.areaId),
@@ -241,12 +244,15 @@ async function insertSeries(
       .select({
         areaId: choices.areaId,
         variants: sql<schema.ObservationSeriesVariant[]>`jsonb_agg(
-        jsonb_build_object('sex', ${choices.sex}, 'periodType', ${choices.periodType}) ||
+        jsonb_build_object('sex', ${choices.sex}, 'periodType', ${choices.periodType},
+          'sexes', coalesce((select jsonb_agg(${sexValues.name} order by ${sexValues.sortOrder}, ${sexValues.name})
+            from ${sexValues} where ${sexValues.id} = any(${areas.sexIds})), '[]'::jsonb)) ||
         case when ${headlines.areaId} is not null then '{"headline":true}'::jsonb else '{}'::jsonb end
         order by ${choices.sexOrder}, ${choices.sex}, ${choices.periodOrder}
       )`.as('variants'),
       })
       .from(choices)
+      .innerJoin(areas, eq(areas.areaId, choices.areaId))
       .leftJoin(
         headlines,
         and(

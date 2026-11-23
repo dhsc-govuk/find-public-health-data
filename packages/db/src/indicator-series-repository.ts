@@ -197,7 +197,13 @@ export async function getIndicatorSeriesData(
           (a, b) => b.toDate.localeCompare(a.toDate) || b.fromDate.localeCompare(a.fromDate),
         )[0];
       result.set(indicatorId, {
-        sexes: [...new Set(selected.map(({ sex }) => sex).filter(Boolean))],
+        sexes: [
+          ...new Set(
+            selected.flatMap(({ variants }) =>
+              variants.flatMap(({ sexes, sex }) => sexes ?? (sex ? [sex] : [])),
+            ),
+          ),
+        ],
         areaData: ordered.map((a) => {
           const pointId = chosen.find((row) => row.areaId === a.id)?.rankingObservationId;
           const point =

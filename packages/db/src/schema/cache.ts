@@ -16,6 +16,7 @@ import {
 
 export interface ObservationSeriesVariant {
   headline?: boolean;
+  sexes?: string[];
   sex: string;
   periodType: SeriesPeriodType;
 }

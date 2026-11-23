@@ -67,7 +67,7 @@ it('reads bounded cached candidates, markers and benchmarks in one statement', a
   }
 });
 
-it('loads both published axes, rankings and sex variants in five statements', async () => {
+it('keeps sex variants when comparison caches offer only aggregate rows', async () => {
   const expected = (await canonical()).map((point) => ({
     ...point,
     x: point.y,
@@ -75,7 +75,7 @@ it('loads both published axes, rankings and sex variants in five statements', as
     xPeriod: point.yPeriod,
     yPeriod: point.xPeriod,
   }));
-  const recent = await getIndicatorSeriesData(db, publishedViews, ids, codes, 'recent');
+  const recent = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const ranking = await getIndicatorSeriesData(db, publishedViews, ids, codes, 'ranking', true);
   const variants = pairedAreaSexValues(
     recent?.get(ids[1])?.areaData ?? [],
@@ -91,11 +91,11 @@ it('loads both published axes, rankings and sex variants in five statements', as
     );
     expect(comparison?.points).toEqual(expected);
     expect(comparison?.variants).toEqual(variants);
+    expect(comparison?.variants.map(({ sex }) => sex)).toEqual(['Female', 'Male']);
     expect(comparison?.rankings).toEqual([
-      ranking?.get(ids[1])?.areaData,
-      ranking?.get(ids[0])?.areaData,
+      ranking?.get(ids[1])?.areaData.map(({ populationKeys: _, ...area }) => area),
+      ranking?.get(ids[0])?.areaData.map(({ populationKeys: _, ...area }) => area),
     ]);
-    expect(query).toHaveBeenCalledTimes(5);
   } finally {
     query.mockRestore();
   }
@@ -371,4 +371,17 @@ it('pairs the latest financial and three-year values independently for each area
     .where(eq(observationSeriesBatch.indicatorId, ids[1]));
   expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
   expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toMatchObject(expected);
+});
+
+it('keeps sex variants while older cache versions use canonical histories', async () => {
+  const expected = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);
+  await database.db
+    .update(observationSeriesBatch)
+    .set({ version: 0 })
+    .where(inArray(observationSeriesBatch.indicatorId, ids));
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  const actual = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);
+  expect(actual?.points).toEqual(expected?.points);
+  expect(actual?.variants).toEqual(expected?.variants);
+  expect(actual?.variants.map(({ sex }) => sex)).toEqual(['Female', 'Male']);
 });
