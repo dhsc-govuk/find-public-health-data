@@ -3,6 +3,7 @@ import { isoDurationDays } from './standard-dimension.ts';
 
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
+export const AGE_DIMENSION_NAME = 'Age';
 export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 
 interface SeriesObservation {
@@ -48,34 +49,50 @@ export function ageRank({ dimensions }: SeriesObservation): [number, number] {
 }
 
 /**
- * The series a page shows for a set of observations: the segment with the newest value, then
- * the one with the fewest dimensions, then the widest age (see `ageRank`), then the one with
- * the most points.
+ * The series a page shows for a set of observations: the segment with the fewest dimensions other
+ * than age, then the newest value, then the fewest dimensions, then the widest age (see
+ * `ageRank`), then the most points, then the earliest first point. `headlineOrder` in `@fphd/db`
+ * is the same rule in SQL. A tie after that keeps the input order. The SQL breaks it by dimension
+ * key, so the two agree when observations come in period and then dimension key order, as the
+ * observation loaders return them.
  */
 export function headlineSeries<T extends SeriesObservation>(observations: T[]): T[] {
   const segments = new Map<
     string,
-    { points: T[]; latest: string; dimensions: number; age: [number, number] }
+    {
+      points: T[];
+      others: number;
+      latest: string;
+      dimensions: number;
+      age: [number, number];
+      first: string;
+    }
   >();
   for (const point of observations) {
     const key = observationSegmentKey(point);
     const segment = segments.get(key) ?? {
       points: [],
+      others: point.dimensions.filter(({ type }) => type !== AGE_DIMENSION_NAME).length,
       latest: '',
       dimensions: point.dimensions.length,
       age: ageRank(point),
+      first: `${point.fromDate}:${point.toDate}`,
     };
     segment.points.push(point);
     if (point.value !== null && point.toDate > segment.latest) segment.latest = point.toDate;
+    const first = `${point.fromDate}:${point.toDate}`;
+    if (first < segment.first) segment.first = first;
     segments.set(key, segment);
   }
   const [winner] = [...segments.values()].sort(
     (a, b) =>
+      a.others - b.others ||
       b.latest.localeCompare(a.latest) ||
       a.dimensions - b.dimensions ||
       b.age[0] - a.age[0] ||
       b.age[1] - a.age[1] ||
-      b.points.length - a.points.length,
+      b.points.length - a.points.length ||
+      a.first.localeCompare(b.first),
   );
   return (winner?.points ?? []).sort(
     (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),

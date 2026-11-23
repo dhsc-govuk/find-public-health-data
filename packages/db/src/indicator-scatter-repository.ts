@@ -22,8 +22,8 @@ import {
   sql,
 } from 'drizzle-orm';
 import { alias, union } from 'drizzle-orm/pg-core';
-import { widestAgeFirst } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
+import { headlineOrder } from './headline-order.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import type { ViewSet } from './schema/index.ts';
@@ -50,7 +50,6 @@ async function getCachedScatterVariants(
     observationSeriesBatch: batches,
     dimensionType,
     dimensionValue,
-    dimensionValuePublic,
     observation,
     observationSeries: series,
   } = views;
@@ -218,9 +217,6 @@ async function getCachedScatterVariants(
         indicatorId: points.indicatorId,
         sex: sql<string>`${points.sex}`.as('segment_sex'),
         dimensionKey: points.dimensionKey,
-        dimensions: sql<number>`cardinality(string_to_array(${points.dimensionKey}, ','))`.as(
-          'dimension_count',
-        ),
         length: count().as('segment_length'),
         latestValue: sql<string | null>`max(${points.toDate})
           FILTER (WHERE ${points.value} IS NOT NULL)`.as('segment_latest_value'),
@@ -247,7 +243,6 @@ async function getCachedScatterVariants(
         indicatorId: segments.indicatorId,
         sex: sql<string>`${segments.sex}`.as('reference_sex'),
         dimensionKey: segments.dimensionKey,
-        dimensions: sql<number>`${segments.dimensions}`.as('reference_dimension_count'),
         length: sql<number>`${segments.length}`.as('reference_length'),
         firstPoint: sql<string>`${segments.firstPoint}`.as('reference_first_point'),
       })
@@ -255,11 +250,7 @@ async function getCachedScatterVariants(
       .orderBy(
         segments.indicatorId,
         segments.sex,
-        sql`${segments.latestValue} DESC NULLS LAST`,
-        segments.dimensions,
-        widestAgeFirst(segments.dimensionKey, dimensionValuePublic),
-        desc(segments.length),
-        segments.firstPoint,
+        ...headlineOrder(segments, views),
         segments.labelKey,
         segments.dimensionKey,
       ),

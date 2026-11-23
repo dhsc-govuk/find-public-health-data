@@ -1,4 +1,5 @@
 import { headlineSeries } from '@fphd/utils/observation-series';
+import { ISO_AGE_DURATION } from '@fphd/utils/standard-dimension';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 
@@ -42,7 +43,7 @@ const cases: [string, Age, Age][] = [
 const UNITS = { Y: 'year', M: 'month', W: 'week', D: 'day' } as const;
 
 function parse(duration: string) {
-  const [, value, designator] = /^P(\d+)([YMWD])$/.exec(duration) ?? [];
+  const [, value, designator] = ISO_AGE_DURATION.exec(duration) ?? [];
   return { value: Number(value), unit: UNITS[designator as keyof typeof UNITS] };
 }
 
@@ -131,4 +132,24 @@ it('chooses the series with the newest value, even with more dimensions', () => 
   expect(headlineSeries([...older, ...newer])).toEqual(newer);
   const suppressed = newer.map((point) => ({ ...point, value: null }));
   expect(headlineSeries([...older, ...suppressed])).toEqual(older);
+});
+
+it('keeps the total over a newer breakdown by a dimension other than age', () => {
+  const total = observations(age('All ages'), 2).map((point) => ({ ...point, dimensions: [] }));
+  const breakdown = Array.from({ length: 2 }, (_, index) => ({
+    fromDate: `${2024 + index}-01-01`,
+    toDate: `${2024 + index}-12-31`,
+    dimensions: [{ type: 'Deprivation', value: 'Most deprived decile' }],
+  }));
+  expect(headlineSeries([...breakdown, ...total])).toEqual(total);
+});
+
+it('breaks a full tie by the earliest first point, whatever the input order', () => {
+  const earlier = observations(age('0-4 yrs', 'P0Y', 'P5Y'), 2).map((point, index) => ({
+    ...point,
+    fromDate: index === 0 ? '2022-06-01' : point.fromDate,
+  }));
+  const later = observations(age('5-9 yrs', 'P5Y', 'P10Y'), 2);
+  expect(headlineSeries([...later, ...earlier])).toEqual(earlier);
+  expect(headlineSeries([...earlier, ...later])).toEqual(earlier);
 });

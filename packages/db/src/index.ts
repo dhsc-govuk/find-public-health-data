@@ -28,6 +28,11 @@ export {
   resolveDbTls,
 } from './env.ts';
 export {
+  type HeadlineDimensions,
+  type HeadlineSegment,
+  headlineOrder,
+} from './headline-order.ts';
+export {
   completeIndicatorDetail,
   type FoundIndicatorDetail,
   getIndicatorDetailById,

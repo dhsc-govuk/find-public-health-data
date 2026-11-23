@@ -232,8 +232,7 @@ it("works out the trend of the same series choice for another area, ignoring Eng
   expect(await indicatorTrendDirections(publicDb, publishedViews, ids, WEST_SUSSEX)).toEqual(
     new Map([
       [fixture.id, 'up'],
-      // Its plain series is all suppressed, so the breakdown with values is the headline.
-      [plainSuppressed.id, 'up'],
+      [plainSuppressed.id, null],
     ]),
   );
 });
