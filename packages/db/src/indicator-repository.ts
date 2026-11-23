@@ -1169,7 +1169,11 @@ function yearEndOf({
 }
 
 /** The labels of the year types published indicators have, for the search filter to offer. */
-async function listPublishedYearTypeLabels(db: DatabaseReader, views: ViewSet): Promise<string[]> {
+async function listPublishedYearTypeLabels(
+  db: DatabaseReader,
+  views: ViewSet,
+  inTopics?: SQL,
+): Promise<string[]> {
   const { indicator } = views;
   const rows = await db
     .selectDistinct({
@@ -1177,7 +1181,8 @@ async function listPublishedYearTypeLabels(db: DatabaseReader, views: ViewSet): 
       yearEndDay: indicator.yearEndDay,
       yearEndMonth: indicator.yearEndMonth,
     })
-    .from(indicator);
+    .from(indicator)
+    .where(inTopics);
 
   const labels = rows.flatMap(({ yearType, ...yearEnd }) =>
     yearType === null ? [] : [publicYearType(yearType, yearEndOf(yearEnd)).label],
@@ -1185,9 +1190,14 @@ async function listPublishedYearTypeLabels(db: DatabaseReader, views: ViewSet): 
   return [...new Set(labels)].sort((a, b) => a.localeCompare(b));
 }
 
+/**
+ * The filter values published indicators carry. Given topic slugs, only the indicators in those
+ * topics count, so a topic page offers just the values its own indicators have.
+ */
 export async function listIndicatorFacets(
   db: DatabaseReader,
   views: ViewSet,
+  topicSlugs: string[] = [],
 ): Promise<IndicatorFacets> {
   const {
     classification,
@@ -1198,7 +1208,19 @@ export async function listIndicatorFacets(
     topic,
     valueType,
   } = views;
-  const publishedIds = db.select({ id: indicator.id }).from(indicator);
+  const inTopics = topicSlugs.length
+    ? exists(
+        db
+          .select({ one: sql`1` })
+          .from(indicatorTopic)
+          .innerJoin(
+            topic,
+            and(eq(indicatorTopic.topicId, topic.id), inArray(topic.slug, topicSlugs)),
+          )
+          .where(eq(indicatorTopic.indicatorId, indicator.id)),
+      )
+    : undefined;
+  const publishedIds = db.select({ id: indicator.id }).from(indicator).where(inTopics);
 
   const [topics, classifications, sources, valueTypes, yearTypes] = await Promise.all([
     db
@@ -1224,13 +1246,15 @@ export async function listIndicatorFacets(
       .selectDistinct({ name: dataSource.name })
       .from(dataSource)
       .innerJoin(indicator, eq(indicator.dataSourceId, dataSource.id))
+      .where(inTopics)
       .orderBy(asc(dataSource.name)),
     db
       .selectDistinct({ name: valueType.name })
       .from(valueType)
       .innerJoin(indicator, eq(indicator.valueTypeId, valueType.id))
+      .where(inTopics)
       .orderBy(asc(valueType.name)),
-    listPublishedYearTypeLabels(db, views),
+    listPublishedYearTypeLabels(db, views, inTopics),
   ]);
 
   return {

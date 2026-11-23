@@ -271,7 +271,26 @@ describe('public API', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual(facets);
-    expect(listFacets).toHaveBeenCalledOnce();
+    expect(listFacets).toHaveBeenCalledExactlyOnceWith([]);
+  });
+
+  it('passes the t topic slugs to listFacets', async () => {
+    const listFacets = vi.fn().mockResolvedValue({
+      topics: [],
+      classifications: [],
+      sources: [],
+      valueTypes: [],
+      yearTypes: [],
+    });
+    const app = createApp({
+      logger,
+      repositories: createFakeRepositories({ indicators: { listFacets } }),
+    });
+
+    const response = await request(app).get('/api/indicators/facets?t=cancer');
+
+    expect(response.status).toBe(200);
+    expect(listFacets).toHaveBeenCalledExactlyOnceWith(['cancer']);
   });
 
   it('passes q and every dimension param to searchWithFilters with limit 200', async () => {

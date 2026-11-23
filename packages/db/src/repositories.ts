@@ -92,7 +92,7 @@ export interface IndicatorRepository {
     parentCode?: string,
   ): Promise<ObservationRangePeriod[]>;
   searchWithFilters(filters: IndicatorSearchFilters): Promise<IndicatorSearchResult>;
-  listFacets(): Promise<IndicatorFacets>;
+  listFacets(topicSlugs?: string[]): Promise<IndicatorFacets>;
 }
 
 export interface AreaRepository {
@@ -178,7 +178,7 @@ export function createRepositoriesOn(run: RunRead, views: ViewSet): Repositories
       findObservationRangeByTier: (indicatorId, tier, parentCode) =>
         run((db) => getObservationRangeByTier(db, views, indicatorId, tier, parentCode)),
       searchWithFilters: (filters) => run((db) => searchIndicators(db, views, filters)),
-      listFacets: () => run((db) => listIndicatorFacets(db, views)),
+      listFacets: (topicSlugs) => run((db) => listIndicatorFacets(db, views, topicSlugs)),
     },
     topics: {
       list: () => run((db) => listTopics(db, views)),

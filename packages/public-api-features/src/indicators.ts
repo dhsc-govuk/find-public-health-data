@@ -165,8 +165,8 @@ export function indicatorsRouter(
     response.status(200).json(entries);
   });
 
-  router.get('/api/indicators/facets', async (_request, response) => {
-    const facets: IndicatorFacets = await indicators.listFacets();
+  router.get('/api/indicators/facets', async (request, response) => {
+    const facets: IndicatorFacets = await indicators.listFacets(pickStrings(request.query.t));
     response.status(200).json(facets);
   });
 
