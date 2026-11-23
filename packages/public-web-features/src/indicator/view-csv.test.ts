@@ -329,14 +329,18 @@ describe('indicator view CSV', () => {
     ]);
   });
 
-  it('names a sexed download by the inequalities tab even without a tab parameter', async () => {
-    const data = await loadIndicator(args(''));
-    vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
-    const response = await loadIndicatorViewCsv(args('sex-90632=Male&ic-90632=Ethnic+groups'));
-    expect(response.headers.get('Content-Disposition')).toBe(
-      'attachment; filename="90632-inequalities-male.csv"',
-    );
-  });
+  it.each([
+    ['sex-90632=Male&ic-90632=Ethnic+groups', '90632-inequalities-male.csv'],
+    ['ic-90632=Ethnic+groups', '90632-inequalities.csv'],
+  ])(
+    'names the download by the inequalities tab without a tab parameter: %s',
+    async (search, name) => {
+      const data = await loadIndicator(args(''));
+      vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
+      const response = await loadIndicatorViewCsv(args(search));
+      expect(response.headers.get('Content-Disposition')).toBe(`attachment; filename="${name}"`);
+    },
+  );
 
   it('exports the default Persons breakdown for an invalid or stale sex', async () => {
     const data = await loadIndicator(args(''));
