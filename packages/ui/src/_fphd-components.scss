@@ -2031,13 +2031,13 @@ $fphd-frozen-cap: calc(#{$fphd-table-region-width} * 0.4);
 
 .fphd-range-slot {
   width: 100%;
-  max-width: 120px;
+  max-width: 213px;
 }
 
 .fphd-range-plot {
   display: block;
   position: relative;
-  height: 24px;
+  height: 32px;
 
   svg {
     display: block;
