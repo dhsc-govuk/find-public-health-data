@@ -51,6 +51,7 @@ export {
 } from './indicator-topic-repository.ts';
 export { escapeLike } from './like-pattern.ts';
 export { observationRangeSql, observationSegmentSql } from './observation-range-sql.ts';
+export { headlineSeriesOrder } from './observation-series-sql.ts';
 export {
   type AreaRepository,
   createRepositories,

@@ -2,6 +2,7 @@ import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
+import { headlineSeriesOrder } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 /**
@@ -43,6 +44,15 @@ async function areaTrendDirections(
   areaCode: string,
 ): Promise<Map<string, TrendDirection>> {
   const { area, observation } = views;
+  const order = headlineSeriesOrder(
+    {
+      dimensionKey: sql`segment`,
+      valueCount: sql`count(value)`,
+      periodLength: sql`period_years`,
+      firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
+    },
+    views,
+  );
   const rows = await db.execute<{ indicator_id: string; values: number[] }>(sql`
     with points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
@@ -56,7 +66,7 @@ async function areaTrendDirections(
       select distinct on (indicator_id) indicator_id, segment, period_years,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
       from points group by indicator_id, segment, period_years
-      order by indicator_id, cardinality(string_to_array(segment, ',')), count(value) desc, segment
+      order by indicator_id, ${sql.join(order, sql`, `)}
     )
     select s.indicator_id,
       coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)

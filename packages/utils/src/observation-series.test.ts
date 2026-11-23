@@ -205,3 +205,27 @@ it('keeps mixed three, five and seven year histories and cache selections separa
   }
   expect(new Set(headlineSeries(observations).map(observationPeriodType)).size).toBe(1);
 });
+
+it('elects the same headline regardless of input order', () => {
+  const history = (age: string, years: number, values: (number | null)[], start = 2020) =>
+    values.map((value, index) => ({
+      fromDate: `${start + index}-01-01`,
+      toDate: `${start + index + years - 1}-12-31`,
+      value,
+      dimensions: [{ type: 'Age', value: age }],
+    }));
+  const winner = history('Z', 7, [1, 2]);
+  const candidates = [
+    ...history('A', 1, [1, 2, null]),
+    ...history('A', 3, [1, 2]),
+    ...history('Z', 9, [1, null]),
+    ...winner,
+  ];
+  expect(headlineSeries(candidates)).toEqual(winner);
+  expect(headlineSeries([...candidates].reverse())).toEqual(winner);
+  const earlier = history('ZZ', 7, [1, 2], 2010);
+  expect(headlineSeries([...winner, ...earlier])).toEqual(earlier);
+  const tied = history('A', 7, [1, 2]);
+  expect(headlineSeries([...winner, ...tied])).toEqual(tied);
+  expect(headlineSeries([...tied, ...winner])).toEqual(tied);
+});

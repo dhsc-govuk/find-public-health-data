@@ -125,6 +125,7 @@ async function addSeries(
   areaId: string,
   values: (number | null)[],
   seriesDimensions: (typeof dimensionValue.$inferSelect)[] = [],
+  years = 1,
 ) {
   const rows = await database.db
     .insert(observation)
@@ -133,7 +134,7 @@ async function addSeries(
         indicatorId: fixture.id,
         areaId,
         fromDate: `${2010 + index}-01-01`,
-        toDate: `${2010 + index}-12-31`,
+        toDate: `${2010 + index + years - 1}-12-31`,
         value,
         dimensionKey: dimensionKey(seriesDimensions.map(({ id }) => id)),
         uploadBatchId: fixture.batchId,
@@ -244,4 +245,16 @@ describe('getTopicTrendSummary', () => {
       await getTopicTrendSummary(publicDb, publishedViews, 'trend-summary-topic', CORNWALL),
     ).toEqual({ ...empty, total: 0, unavailable: 0 });
   });
+});
+
+it('breaks equal non-null history counts by period length for England and local trends', async () => {
+  const fixture = await publishedIndicator('Period length trend tie');
+  for (const areaId of [englandId, westSussexId]) {
+    await addSeries(fixture, areaId, [1, 2, 3, 4, 5, null]);
+    await addSeries(fixture, areaId, [5, 4, 3, 2, 1], [], 7);
+  }
+  for (const code of ['E92000001', WEST_SUSSEX])
+    expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
+      new Map([[fixture.id, 'down']]),
+    );
 });

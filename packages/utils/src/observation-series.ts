@@ -17,10 +17,14 @@ interface SeriesObservation {
   fromDate: string;
   toDate: string;
   dimensions: { type: string; value: string }[];
+  value?: number | null;
 }
 
 export function observationSegmentKey(observation: SeriesObservation): string {
-  return observation.dimensions.map(({ type, value }) => `${type}:${value}`).join('|');
+  return [...observation.dimensions]
+    .sort((a, b) => compareKeys(a.type, b.type))
+    .map(({ type, value }) => `${type}:${value}`)
+    .join('|');
 }
 
 export function periodYears(observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>): number {
@@ -52,19 +56,38 @@ export function observationSeriesKey(observation: SeriesObservation): string {
   return `${observationSegmentKey(observation)}|${observationPeriodType(observation)}`;
 }
 
+function compareKeys(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 export function headlineSeries<T extends SeriesObservation>(observations: T[]): T[] {
   if (!observations.length) return [];
-  const minimum = Math.min(...observations.map(({ dimensions }) => dimensions.length));
-  const candidates = observations.filter(({ dimensions }) => dimensions.length === minimum);
-  const sizes = new Map<string, number>();
-  for (const point of candidates) {
+  const groups = new Map<string, T[]>();
+  for (const point of observations) {
     const key = observationSeriesKey(point);
-    sizes.set(key, (sizes.get(key) ?? 0) + 1);
+    const group = groups.get(key) ?? [];
+    group.push(point);
+    groups.set(key, group);
   }
-  const winner = [...sizes].sort((a, b) => b[1] - a[1])[0]?.[0];
-  return candidates
-    .filter((point) => observationSeriesKey(point) === winner)
-    .sort((a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate));
+  const ordered = [...groups.values()].map((points) => ({
+    points: points.sort(
+      (a, b) => compareKeys(a.fromDate, b.fromDate) || compareKeys(a.toDate, b.toDate),
+    ),
+    values: points.filter(({ value }) => value != null).length,
+  }));
+  ordered.sort((a, b) => {
+    const first = a.points[0];
+    const second = b.points[0];
+    if (!first || !second) return 0;
+    return (
+      first.dimensions.length - second.dimensions.length ||
+      b.values - a.values ||
+      periodYears(second) - periodYears(first) ||
+      compareKeys(`${first.fromDate}:${first.toDate}`, `${second.fromDate}:${second.toDate}`) ||
+      compareKeys(observationSegmentKey(first), observationSegmentKey(second))
+    );
+  });
+  return ordered[0]?.points ?? [];
 }
 
 export interface SeriesFilter {

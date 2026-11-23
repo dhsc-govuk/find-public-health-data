@@ -409,8 +409,13 @@ it('refreshes distinct three, five and seven year histories and variants', async
         for (const point of points)
           expect(Number(point.toDate.slice(0, 4)) - Number(point.fromDate.slice(0, 4))).toBe(years);
       }
+      const [batch] = await tx
+        .select()
+        .from(schema.observationSeriesBatch)
+        .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId));
+      expect(batch?.trendValues).toEqual([705, 704, 703, 702, 701]);
       expect(cached.find(({ periodType }) => periodType === 'all')?.recentValues).toEqual([
-        305, 304, 303, 302, 301,
+        705, 704, 703, 702, 701,
       ]);
       throw new RolledBack();
     }),
