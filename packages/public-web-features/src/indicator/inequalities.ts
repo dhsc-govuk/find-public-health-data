@@ -2,6 +2,7 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import {
   alignedTrendSeries,
   availableConfidenceLevels,
+  type BenchmarkJudgement,
   benchmarkJudgement,
   type ConfidenceLevel,
   inequalityBreakdown,
@@ -9,7 +10,9 @@ import {
   inequalityPeriods,
   sameSegment,
 } from './data.ts';
-import type { SelectedIndicator } from './loader.ts';
+import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
+
+export type InequalityRow = IndicatorObservation & { comparison: BenchmarkJudgement };
 
 export function inequalityTableModel(indicator: SelectedIndicator, params: URLSearchParams) {
   const { areaData, detail } = indicator;
@@ -76,18 +79,20 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
     category,
     periods,
     period,
-    rows,
+    rows: rows.map(
+      (row): InequalityRow => ({
+        ...row,
+        comparison: benchmarkJudgement(
+          row,
+          benchmark?.value ?? null,
+          detail,
+          comparisonConfidence === '99.8' ? '99.8' : '95',
+        ),
+      }),
+    ),
     confidenceLevels,
     confidence,
     comparisonConfidence,
     benchmark,
-    comparisons: rows.map((row) =>
-      benchmarkJudgement(
-        row,
-        benchmark?.value ?? null,
-        detail,
-        comparisonConfidence === '99.8' ? '99.8' : '95',
-      ),
-    ),
   };
 }

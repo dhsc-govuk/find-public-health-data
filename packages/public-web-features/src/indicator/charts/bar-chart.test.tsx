@@ -274,12 +274,12 @@ it('omits the line and comparisons when no England benchmark exists', () => {
   const { container } = render(
     <InequalitiesChart
       id="inequalities"
-      observations={[8, 12].map((value) =>
-        observation(value, [{ ...deprivation, value: `Decile ${value}` }]),
-      )}
+      observations={[8, 12].map((value) => ({
+        ...observation(value, [{ ...deprivation, value: `Decile ${value}` }]),
+        comparison: 'none',
+      }))}
       indicator={indicatorDetail(108, { unit: '%' })}
       confidence="none"
-      comparisons={['none', 'none']}
       benchmark={null}
       areaName="Cornwall"
     />,
@@ -400,7 +400,7 @@ it('uses the 90632 England observation instead of the unweighted ethnic group me
   );
   const model = expectMatchingInequalityJudgements(primary, '');
   expect(model.comparisonConfidence).toBe('99.8');
-  expect(model.comparisons).toEqual([
+  expect(model.rows.map(({ comparison }) => comparison)).toEqual([
     'better',
     'better',
     'similar',
@@ -417,7 +417,7 @@ it.each(['', '?ci-90632=95', '?ci-90632=99.8', '?ci-90632=none'])(
     const primary = ethnicGroupsIndicator();
     renderInequalities(primary, search);
     const model = expectMatchingInequalityJudgements(primary, search);
-    expect(model.comparisons[2]).toBe(
+    expect(model.rows[2]?.comparison).toBe(
       search === '' || search.includes('99.8') ? 'similar' : 'worse',
     );
   },
@@ -429,6 +429,7 @@ it.each([
   ['no-comparison-possible', 'Confidence intervals overlapping reference value'],
   [null, 'Confidence intervals overlapping reference value'],
   ['higher-is-better', 'Unsupported method'],
+  ['lower-is-better', 'No comparison'],
   ['higher-is-better', null],
   ['no-polarity', null],
 ] as const)('matches polarity %s and comparator %s', (polarity, comparatorMethod) => {
@@ -453,7 +454,7 @@ it.each(['95', '99.8'] as const)(
     }
     const search = `?ci-90632=${level}`;
     renderInequalities(primary, search);
-    expect(expectMatchingInequalityJudgements(primary, search).comparisons[0]).toBe('none');
+    expect(expectMatchingInequalityJudgements(primary, search).rows[0]?.comparison).toBe('none');
   },
 );
 
@@ -463,7 +464,7 @@ it('does not apply a similar band when the selected interval excludes England by
   if (!chinese) throw new Error('Missing Chinese test observation');
   Object.assign(chinese, { value: 56.7, lowerCi998: 56.6, upperCi998: 56.8 });
   renderInequalities(primary);
-  expect(expectMatchingInequalityJudgements(primary, '').comparisons[0]).toBe('better');
+  expect(expectMatchingInequalityJudgements(primary, '').rows[0]?.comparison).toBe('better');
 });
 
 it.each(['missing', 'period', 'segment', 'null-value'])(

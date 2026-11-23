@@ -16,6 +16,7 @@ const observations = [
     fromDate: '2023-01-01',
     toDate: '2023-12-31',
     value: 12.3,
+    comparison: 'worse' as const,
     lowerCi95: null,
     upperCi95: null,
     lowerCi998: null,
@@ -61,6 +62,7 @@ describe('InequalitiesTable', () => {
     const female = screen.getByRole('rowheader', { name: 'Female' }).closest('tr');
     const england = screen.getByRole('rowheader', { name: 'England' }).closest('tr');
 
+    expect(within(female as HTMLElement).getByText('Worse than England')).toBeTruthy();
     expect(headers).toContain('Count');
     expect(headers).not.toContain('Numerator');
     expect(within(female as HTMLElement).getAllByRole('cell')[0]?.textContent).toBe('41');

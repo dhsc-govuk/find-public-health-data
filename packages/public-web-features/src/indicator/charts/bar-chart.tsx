@@ -1,19 +1,14 @@
 import { ChartSection } from '@fphd/ui';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
-  type BenchmarkJudgement,
   benchmarkJudgement,
   type ConfidenceLevel,
   inequalityCategoryLabel,
   segmentLabel,
   segmentValuesKey,
 } from '../data.ts';
-import type {
-  IndicatorAreaData,
-  IndicatorObservation,
-  IndicatorPageDetail,
-  SelectedIndicator,
-} from '../loader.ts';
+import type { InequalityRow } from '../inequalities.ts';
+import type { IndicatorAreaData, IndicatorPageDetail, SelectedIndicator } from '../loader.ts';
 import { alignedSeries, areaQuintile, englandCode } from './chart-data.ts';
 import { ChartSources, NoChartData } from './chart-elements.tsx';
 import { ObservationBars } from './observation-bars.tsx';
@@ -23,15 +18,13 @@ export function InequalitiesChart({
   observations,
   indicator,
   confidence,
-  comparisons,
   benchmark,
   areaName,
 }: {
   id: string;
-  observations: IndicatorObservation[];
+  observations: InequalityRow[];
   indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
-  comparisons: BenchmarkJudgement[];
   benchmark: number | null;
   areaName: string;
 }) {
@@ -48,13 +41,13 @@ export function InequalitiesChart({
         Chart of inequalities: {indicator.name}, {areaName}
       </h2>
       <ObservationBars
-        rows={observations.map((observation, index) => ({
+        rows={observations.map((observation) => ({
           key: segmentLabel(observation),
           name:
             observation.dimensions.find(({ type }) => type === dimension?.type)?.value ??
             segmentLabel(observation),
           observation,
-          comparison: comparisons[index] ?? 'none',
+          comparison: observation.comparison,
         }))}
         confidence={confidence}
         indicator={indicator}

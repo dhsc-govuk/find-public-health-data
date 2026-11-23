@@ -127,7 +127,6 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                   id="indicator-inequalities-chart"
                   indicator={detail}
                   confidence={inequality.confidence}
-                  comparisons={inequality.comparisons}
                   benchmark={inequalityBenchmark}
                   observations={inequalityRows}
                   areaName={inequalityArea?.areaName ?? 'England'}
@@ -138,7 +137,6 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                 benchmarkMeasures={{ count: inequalityBenchmarkObservation?.count ?? null }}
                 indicator={detail}
                 confidence={inequalityConfidence}
-                comparisons={inequality.comparisons}
                 observations={inequalityRows}
                 areaName={inequalityArea?.areaName ?? 'England'}
               />
