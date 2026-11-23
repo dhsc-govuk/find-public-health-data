@@ -55,8 +55,8 @@ const AGE_RANGES: ReadonlyMap<string, AgeRange | null> = new Map([
   ['212M', { from: [65, 'year'], under: null }],
   ['212F', { from: [60, 'year'], under: null }],
   ['274F', { from: [16, 'year'], under: [62, 'year'] }],
-  // Not age ranges: the indicator's population (Newborn, gestational age, the NCMP band, school
-  // stages), so the plan maps them to "not broken down".
+  // Not age ranges, so they get no range: the indicator's population, such as Newborn,
+  // gestational age, the NCMP band and school stages.
   ['309', null],
   ['235', null],
   ['329', null],

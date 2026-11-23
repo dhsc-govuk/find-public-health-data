@@ -75,10 +75,12 @@ const lists = {
   areaTypes: { file: 'area-types.json', table: schema.areaType, label: 'name' },
   dimensionTypes: { file: 'dimension-types.json', table: schema.dimensionType, label: 'name' },
   dimensionValues: { file: 'dimension-values.json', table: schema.dimensionValue, label: 'name' },
+  // Nothing references an age range, so the import deletes the ones no longer in the file.
   dimensionValueAgeRanges: {
     file: 'dimension-value-age-ranges.json',
     table: schema.dimensionValueAgeRange,
     label: 'id',
+    prune: true,
   },
   noteTypes: { file: 'note-types.json', table: schema.noteType, label: 'text' },
 } as const;
@@ -168,6 +170,11 @@ export async function importReferenceCoreData(
       `,
         [JSON.stringify(payload)],
       );
+      if ('prune' in lists[key]) {
+        await tx.unsafe(`DELETE FROM "${tableName}" WHERE NOT (id = ANY($1::uuid[]))`, [
+          records[key].map(({ id }) => id),
+        ]);
+      }
       const labelColumn = lists[key].label;
       const orphaned = await tx.unsafe<{ id: string; name: string }[]>(
         `

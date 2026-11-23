@@ -10,11 +10,6 @@ export const AGE_UNIT_DESIGNATORS: Readonly<Record<AgeUnit, string>> = {
   day: 'D',
 };
 
-/** An age band's end as an ISO 8601 duration, such as `P5Y` or `P28D`. */
-export function isoDuration(value: number, unit: AgeUnit): string {
-  return `P${value}${AGE_UNIT_DESIGNATORS[unit]}`;
-}
-
 /** Lengths in days, for comparing ends written in different units. */
 const DAYS: Readonly<Record<AgeUnit, number>> = {
   year: 365.25,
@@ -28,10 +23,10 @@ export function durationDays(value: number, unit: AgeUnit): number {
   return value * DAYS[unit];
 }
 
-/** A duration `isoDuration` writes, capturing its value and designator. */
+/** An age band's end as an ISO 8601 duration, such as `P5Y` or `P28D`, capturing its parts. */
 export const ISO_AGE_DURATION = /^P(\d+)([YMWD])$/;
 
-/** The length in days of a duration `isoDuration` writes, or undefined for any other string. */
+/** The length in days of an `ISO_AGE_DURATION`, or undefined for any other string. */
 export function isoDurationDays(duration: string): number | undefined {
   const [, value, designator] = ISO_AGE_DURATION.exec(duration) ?? [];
   const unit = AGE_UNITS.find((unit) => AGE_UNIT_DESIGNATORS[unit] === designator);
