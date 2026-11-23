@@ -125,16 +125,19 @@ and the internal reads join `currentPublishedVersion` for the same rule, each th
 version's batch: each version points at the upload batch holding its data
 (`indicator_version.upload_batch_id`, shared by a later version until it uploads its own), and
 `published.observation` shows the rows of the batch the current published version points at, with
-`published.observation_dimension` and `published.observation_note` following it. Publishing
-therefore switches an indicator's data over in one step, and a draft's rows never show. The
-read-model rebuild reads the published views, so the read models hold published data alone.
-`published.indicator` carries that version's `slug` as the indicator's canonical address, while
-`published.indicator_slug` lists every slug any published version carries, so an address a later
-publication replaced still resolves. The definitions are hand-written in the migration;
-`src/schema/published.ts` declares them with `pgSchema('published').view(...).existing()` so
-drizzle-kit gives the repositories typed columns without generating a second `CREATE VIEW`. Exports
-are prefixed (`publishedIndicator`) because the table names are taken. `@fphd/internal-api-features`
-reads the tables directly, every status.
+`published.observation_dimension` and `published.observation_note` following it. The version's
+nullable `published_from` date also hides observations whose `from_date` precedes it. A null date
+shows the whole batch. The cutoff lives beside `period_type` and `year_type` on `indicator_version`
+so publishing switches the source metadata and its data visibility together. Publishing therefore
+switches an indicator's data over in one step, and a draft's rows never show. The read-model rebuild
+resolves the same published batch and cutoff once per indicator and applies the shared visibility
+condition to every derived model. `published.indicator` carries that version's `slug` as the
+indicator's canonical address, while `published.indicator_slug` lists every slug any published
+version carries, so an address a later publication replaced still resolves. The definitions are
+hand-written in the migration; `src/schema/published.ts` declares them with
+`pgSchema('published').view(...).existing()` so drizzle-kit gives the repositories typed columns
+without generating a second `CREATE VIEW`. Exports are prefixed (`publishedIndicator`) because the
+table names are taken. `@fphd/internal-api-features` reads the tables directly, every status.
 
 A migration that only appends columns to a view uses `CREATE OR REPLACE VIEW`, which keeps the view
 and its grants. One that renames a column uses `ALTER VIEW ... RENAME COLUMN`; only one that removes

@@ -31,6 +31,26 @@ moves to this service. The operations image applies the packages with `db migrat
   below). Unknown areas, notes, metadata and dimension values stop export with source-row
   diagnostics. Historical dates and future periods are not excluded by the current Grouping baseline
   or data point.
+- Each exported `indicator_version` carries a nullable `published_from` date. It is the earliest
+  baseline across all of the indicator's Groupings, converted with the same source period and
+  year-type logic as observation dates. It lives beside `period_type` and `year_type` because a
+  published version's metadata determines which of its batch's observations the public sees.
+  Indicators without Groupings have a null date and show every retained observation. The export
+  retains observations before the baseline. Public observation views and shared read-model builders
+  filter on `from_date >= published_from`, covering tabs, downloads, API responses, period coverage,
+  trends, year filters and topics. Bridge views follow the filtered observation view.
+- The start date imposes no upper bound, gaps, period-format or cohort-specific visibility rules.
+  For 90632, Academic year type and baseline 2021 produce `2021-09-01`, retaining 2021/22 onwards.
+  For NHS Health Check indicators 91111, 91112 and 91116, cumulative financial year type and
+  baseline 2022 Q1 produce `2022-04-01`. The 2022-baseline cumulative cohort stays visible,
+  including quarters above four. Older cohorts and within-year rows starting before April 2022 stay
+  stored and are hidden. Retained within-year 2022/23 and later rows also show, even when
+  Fingertips' current Groupings select only the cumulative cohort. A single date cannot distinguish
+  those series or hide future periods beyond the Groupings' latest data point.
+- To update an environment, apply the schema migration, re-export Pholio, prepare and import a new
+  package, then rebuild read models. Migration alone leaves existing versions' dates null and their
+  rows visible. Incremental snapshots must use matching column headers, so regenerate the previous
+  prepared snapshot with the new exporter before diffing it against the new snapshot.
 - `scanned_observations` counts all source observations, including compound-age expansion.
   `source_observations` counts the selected observations after the base filters (test id, unapproved
   ids, note 506, empty sentinel rows and years before 1900). `excluded_observations` totals the

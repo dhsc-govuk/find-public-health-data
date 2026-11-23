@@ -175,7 +175,8 @@ describe('bridge/registry schema', () => {
     }
   });
 
-  it('produces the same observation ranges as the migration query', async () => {
+  it('produces the same observation ranges as the migration query without start cutoffs', async () => {
+    await sql`UPDATE indicator_version SET published_from = NULL`;
     await rebuildReadModels(sql);
     const journal = JSON.parse(
       readFileSync(new URL('../drizzle/meta/_journal.json', import.meta.url), 'utf8'),

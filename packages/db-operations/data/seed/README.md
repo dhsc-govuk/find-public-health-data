@@ -34,7 +34,10 @@ onto them by name. Areas, observations and bridge rows contain:
 - The nine Pholio indicators retain their existing focused date window. The prototype additions
   include their full published trend for the geographies above.
 
-That yields 433,531 observations, 657,582 bridge rows and 67,978 observation notes.
+That yields 433,531 observations, 657,582 bridge rows and 67,978 observation notes. The dummy seeder
+sets diabetes mortality (93995) to start at 2001-01-01 and adds one retained England observation in 1901.
+Public reads hide that row, exercising start-date filtering without changing the source CSVs. The
+stored total is 433,532 observations.
 
 ## Semantics worth knowing
 

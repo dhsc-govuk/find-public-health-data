@@ -7,6 +7,8 @@ const HAND_WRITTEN = [
   'indicator',
   'indicator_slug',
   'indicator_update_summary',
+  'observation_dimension',
+  'observation_note',
   'observation_range',
 ];
 

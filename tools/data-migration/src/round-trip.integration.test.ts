@@ -44,6 +44,7 @@ async function snapshot(
   observations: ExportRow[],
   withdrawn = false,
   dataUpdatedAt: string | null = null,
+  publishedFrom: string | null = '2026-01-01',
 ) {
   const out = join(directory, id);
   await mkdir(out);
@@ -75,6 +76,7 @@ async function snapshot(
         published_at: enteredAt,
         name: 'Round trip indicator',
         update_frequency: 'other',
+        published_from: publishedFrom,
         update_frequency_text: '<p>Academic year</p><p>Published in winter.</p>',
         upload_batch_id: 108,
         data_table_confirmed_at: enteredAt,
@@ -217,11 +219,15 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
     SELECT value.id FROM dimension_value value JOIN dimension_type type ON type.id = value.dimension_type_id
     WHERE type.name = 'Sex' AND value.name = 'Female'
   `;
+  expect(
+    await sql`SELECT published_from::text FROM indicator_version WHERE name = 'Round trip indicator'`,
+  ).toEqual([{ published_from: '2026-01-01' }]);
+  expect(await sql`SELECT value FROM published.observation ORDER BY id`).toEqual([{ value: 11 }]);
   expect(await sql`SELECT value, dimension_key FROM observation ORDER BY id`).toEqual([
     { value: 10, dimension_key: female?.id },
     { value: 11, dimension_key: female?.id },
   ]);
-  expect((await sql`SELECT id FROM published.observation`).length).toBe(2);
+  expect((await sql`SELECT id FROM published.observation`).length).toBe(1);
 
   const publishedDates = async () =>
     (
@@ -270,6 +276,7 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
     ],
     false,
     correctedDate,
+    null,
   );
   const increment = join(directory, 'increment');
   await createIncremental(dated, current, increment, 'increment-2');

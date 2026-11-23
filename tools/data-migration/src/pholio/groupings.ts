@@ -1,4 +1,5 @@
 import type mssql from 'mssql';
+import { computeDates } from './period.ts';
 import { queryPholio } from './source.ts';
 
 interface Grouping {
@@ -6,6 +7,7 @@ interface Grouping {
   SexID: number;
   AgeID: number;
   YearRange: number;
+  BaselineYear: number;
   BaselineQuarter: number;
   BaselineMonth: number;
 }
@@ -30,7 +32,8 @@ function samePeriodicity(grouping: Grouping, row: ObservationSeries): boolean {
 export async function loadObservationGroupings(pool: mssql.ConnectionPool) {
   const rows = await queryPholio<Grouping>(
     pool,
-    `SELECT DISTINCT IndicatorID, SexID, AgeID, YearRange, BaselineQuarter, BaselineMonth
+    `SELECT DISTINCT IndicatorID, SexID, AgeID, YearRange,
+       BaselineYear, BaselineQuarter, BaselineMonth
      FROM dbo.Grouping`,
   );
   return createObservationGroupings(rows);
@@ -44,6 +47,20 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
     byIndicator.set(row.IndicatorID, groupings);
   }
   return {
+    publishedFrom(indicatorId: number, yearTypeId: number): string | null {
+      let earliest: string | null = null;
+      for (const grouping of byIndicator.get(indicatorId) ?? []) {
+        const { fromDate } = computeDates(
+          grouping.BaselineYear,
+          grouping.BaselineMonth,
+          grouping.BaselineQuarter,
+          grouping.YearRange,
+          yearTypeId,
+        );
+        if (earliest === null || fromDate < earliest) earliest = fromDate;
+      }
+      return earliest;
+    },
     exclusionReason(row: ObservationSeries): GroupingExclusion | undefined {
       const groupings = byIndicator.get(row.IndicatorID);
       if (!groupings) return undefined;

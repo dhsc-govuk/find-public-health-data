@@ -213,6 +213,22 @@ export async function seedDummyTables(
   // Read before any database work, so a bad file fails while the transaction has done nothing.
   const relationshipFile = readDummyRelationships();
   const tables = await seedTables(tx, directory);
+  await tx`
+    UPDATE indicator_version SET published_from = '2001-01-01'
+    WHERE indicator_id = (SELECT id FROM indicator WHERE short_id = 93995)
+  `;
+  const hidden = await tx`
+    INSERT INTO observation
+      (indicator_id, upload_batch_id, area_id, from_date, to_date, value,
+       dimension_key)
+    SELECT i.id, v.upload_batch_id, a.id, '1901-01-01', '1901-12-31', 9999, ''
+    FROM indicator i
+    JOIN current_published_version c ON c.indicator_id = i.id
+    JOIN indicator_version v ON v.id = c.id
+    CROSS JOIN area a
+    WHERE i.short_id = 93995 AND a.code = 'E92000001'
+  `;
+  tables.observation = (tables.observation ?? 0) + hidden.count;
   const relationships = await applyIndicatorTopics(createDbFromTransaction(tx), relationshipFile);
   // Freshly loaded tables have no statistics, and the planner's guesses are wrong by enough
   // to turn an indexed observation lookup into a sequential scan over the whole table.

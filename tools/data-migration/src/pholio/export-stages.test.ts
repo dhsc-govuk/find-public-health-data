@@ -793,6 +793,8 @@ function indicatorQueries(
   uploads: { IndicatorID: number; LastUploadedAt: Date }[] = [],
   metadata: {
     groupings?: Record<string, unknown>[];
+    baselines?: Record<string, unknown>[];
+    yearTypeId?: number;
     ownerProfileId?: number | null;
     formattingMaximum?: number | null;
     decimalPlaces?: number | null;
@@ -842,11 +844,13 @@ function indicatorQueries(
         DecimalPlacesDisplayed: metadata.decimalPlaces ?? null,
         UnitName: unitName,
         YearTypeName: 'Calendar',
+        YearTypeID: metadata.yearTypeId ?? 1,
         OwnerProfileId: metadata.ownerProfileId === undefined ? 10 : metadata.ownerProfileId,
         CIMethodID: null,
         EnteredAt: new Date('2020-01-01T00:00:00Z'),
       })),
     )
+    .mockResolvedValueOnce(metadata.baselines ?? [])
     .mockResolvedValueOnce(uploads)
     .mockResolvedValueOnce([
       {
@@ -1247,4 +1251,21 @@ it('refuses a published inverted interval when the source limits change', async 
     'published inverted interval does not match source UpperCI95',
   );
   expect(await readdir(directory)).toEqual([]);
+});
+
+it('exports the earliest grouping baseline as version metadata and keeps observation files separate', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    yearTypeId: 10,
+    baselines: [
+      { IndicatorID: 108, BaselineYear: 2022, BaselineQuarter: 1, BaselineMonth: -1, YearRange: 5 },
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.published_from).toBe('2022-04-01');
+});
+
+it('exports a null start date without grouping baselines', async () => {
+  indicatorQueries();
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.published_from).toBe(DATA_MIGRATION_NULL);
 });

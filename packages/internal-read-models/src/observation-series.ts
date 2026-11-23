@@ -15,6 +15,7 @@ import {
 import { and, count, countDistinct, eq, not, or, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
+import { visibleObservations } from './observation-visibility.ts';
 import type { Transaction } from './read-models.ts';
 
 const {
@@ -52,6 +53,7 @@ async function insertSeries(
   tx: Executor,
   indicatorId: string,
   uploadBatchId: string,
+  publishedFrom: string | null,
 ): Promise<void> {
   const sexValues = tx.$with('sex_values').as(
     tx
@@ -76,9 +78,7 @@ async function insertSeries(
         value: observation.value,
       })
       .from(observation)
-      .where(
-        and(eq(observation.indicatorId, indicatorId), eq(observation.uploadBatchId, uploadBatchId)),
-      ),
+      .where(visibleObservations(indicatorId, uploadBatchId, publishedFrom)),
   );
 
   const periods = sql`(VALUES (
@@ -359,6 +359,7 @@ async function englandTrend(
   tx: Executor,
   indicatorId: string,
   uploadBatchId: string,
+  publishedFrom: string | null,
 ): Promise<number[] | null> {
   const [trend] = await tx
     .select({ values: recentNonNull<number>(observation.value, observation) })
@@ -366,8 +367,7 @@ async function englandTrend(
     .innerJoin(area, eq(area.id, observation.areaId))
     .where(
       and(
-        eq(observation.indicatorId, indicatorId),
-        eq(observation.uploadBatchId, uploadBatchId),
+        visibleObservations(indicatorId, uploadBatchId, publishedFrom),
         eq(area.code, ENGLAND_AREA_CODE),
       ),
     )
@@ -396,6 +396,7 @@ export async function replaceObservationSeries(
   tx: Executor,
   indicatorId: string,
   uploadBatchId: string | undefined,
+  publishedFrom: string | null,
 ): Promise<void> {
   await tx.delete(observationSeries).where(eq(observationSeries.indicatorId, indicatorId));
   await tx
@@ -403,11 +404,11 @@ export async function replaceObservationSeries(
     .where(eq(observationSeriesBatch.indicatorId, indicatorId));
   if (!uploadBatchId) return;
 
-  await insertSeries(tx, indicatorId, uploadBatchId);
+  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom);
   await tx.insert(observationSeriesBatch).values({
     uploadBatchId,
     indicatorId,
-    trendValues: await englandTrend(tx, indicatorId, uploadBatchId),
+    trendValues: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom),
     version: OBSERVATION_SERIES_VERSION,
   });
 }

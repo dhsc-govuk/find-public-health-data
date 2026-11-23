@@ -1,7 +1,7 @@
 import { type Database, observationRangeSql, observationSegmentSql, schema } from '@fphd/db';
 import { and, countDistinct, eq, isNotNull, max, sql } from 'drizzle-orm';
-
 import { replaceObservationSeries } from './observation-series.ts';
+import { visibleObservations } from './observation-visibility.ts';
 
 /** A transaction opened on a `Database`, as its `transaction` callback receives it. */
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -39,18 +39,20 @@ async function replaceReadModelRows(
     publishedDimensionValue: dv,
   } = schema;
 
-  // The published view's ANY(all published batches) can scan the entire batch index even for
-  // one indicator. Resolve the same visibility rule once, then constrain every read to its batch.
+  // Resolving the published batch and cutoff once avoids repeating the version lookup for each model.
   const [published] = await tx
-    .select({ uploadBatchId: indicatorVersion.uploadBatchId })
+    .select({
+      uploadBatchId: indicatorVersion.uploadBatchId,
+      publishedFrom: indicatorVersion.publishedFrom,
+    })
     .from(currentPublishedVersion)
     .innerJoin(indicatorVersion, eq(indicatorVersion.id, currentPublishedVersion.id))
     .where(eq(currentPublishedVersion.indicatorId, indicatorId));
   const uploadBatchId = published?.uploadBatchId;
-  const visible = and(
-    eq(o.indicatorId, indicatorId),
-    uploadBatchId ? eq(o.uploadBatchId, uploadBatchId) : undefined,
-  );
+  const publishedFrom = published?.publishedFrom ?? null;
+  const visible = uploadBatchId
+    ? visibleObservations(indicatorId, uploadBatchId, publishedFrom)
+    : undefined;
 
   let started = performance.now();
   await tx.delete(availableData).where(eq(availableData.indicatorId, indicatorId));
@@ -123,7 +125,7 @@ async function replaceReadModelRows(
   onTiming?.({ table: 'observation_range', milliseconds: performance.now() - started });
 
   started = performance.now();
-  await replaceObservationSeries(tx, indicatorId, uploadBatchId ?? undefined);
+  await replaceObservationSeries(tx, indicatorId, uploadBatchId ?? undefined, publishedFrom);
   onTiming?.({ table: 'observation_series', milliseconds: performance.now() - started });
 }
 

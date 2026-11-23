@@ -54,6 +54,7 @@ const UNSAVED_COLUMNS = [
   'ciConfidenceLevel',
   'fingertipsFormatting',
   'comparatorMethodId',
+  'publishedFrom',
   'createdAt',
   'updatedAt',
   'createdBy',

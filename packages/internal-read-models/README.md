@@ -22,8 +22,10 @@ rather than resuming from a saved cursor.
 
 Seeds, snapshot imports and live-data migrations still use the transaction-aware whole rebuild, with
 its table lock, because their canonical changes and read models must commit together. Both paths
-resolve the current published batch before reading observations, exclude soft-deleted rows, and use
-the batch directly rather than scanning the published view's complete batch list for each indicator.
+resolve the current published batch and its version's nullable `published_from` date before reading
+observations. One shared condition includes only rows on or after that start date, or the whole
+batch when it is null. Availability, ranges, elected series and England trends all use it. Queries
+constrain the batch directly to keep per-indicator rebuilds efficient.
 
 | Entry | Purpose                                                                                                                                                           |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |

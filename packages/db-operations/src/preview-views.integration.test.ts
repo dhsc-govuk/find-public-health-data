@@ -390,26 +390,21 @@ describe('recreating the preview views around a migration', () => {
   it('lets a migration drop a column a preview view reads, and copies the new definition', async () => {
     await asOwnerGroup(sql, () =>
       withPreviewViewsRecreated(sql, async () => {
-        await sql`DROP VIEW published.observation_note`;
-        await sql`ALTER TABLE observation_note DROP COLUMN note_type_id`;
+        await sql`DROP VIEW published.observation_series_batch`;
+        await sql`ALTER TABLE observation_series_batch DROP COLUMN trend_values`;
         await sql`
-          CREATE VIEW published.observation_note AS
-          SELECT onote.observation_id FROM observation_note onote
-          WHERE EXISTS (
-            SELECT 1 FROM observation o
-            WHERE o.id = onote.observation_id AND o.upload_batch_id = ANY (ARRAY(
-              SELECT v.upload_batch_id FROM current_published_version cpv
-              JOIN indicator_version v ON v.id = cpv.id
-            ))
-          )
+          CREATE VIEW published.observation_series_batch AS
+          SELECT b.indicator_id FROM observation_series_batch b
+          JOIN current_published_version cpv ON cpv.indicator_id = b.indicator_id
+          JOIN indicator_version v ON v.id = cpv.id AND v.upload_batch_id = b.upload_batch_id
         `;
       }),
     );
     const columns = await sql`
       SELECT column_name FROM information_schema.columns
-      WHERE table_schema = 'preview' AND table_name = 'observation_note'
+      WHERE table_schema = 'preview' AND table_name = 'observation_series_batch'
     `;
-    expect(columns).toEqual([{ column_name: 'observation_id' }]);
+    expect(columns).toEqual([{ column_name: 'indicator_id' }]);
   });
 
   it('copies a view that names current_published_version without an alias, and only that name', async () => {
