@@ -30,6 +30,10 @@ const EMPTY_FACETS = {
   yearTypes: [],
 };
 
+function topicFacets(...slugs: string[]) {
+  return { ...EMPTY_FACETS, topics: slugs.map((slug) => ({ slug, title: slug })) };
+}
+
 const EMPTY_RESULT = { total: 0, limit: 200, indicators: [] };
 
 /** Every area a lookup asks for, as a unitary authority. */
@@ -234,8 +238,8 @@ describe('loadSearch', () => {
     expect(['fromYear', 'toYear', 'updatedWithin'].some((key) => sent.has(key))).toBe(false);
   });
   it('preserves full source names through the loader and API query', async () => {
-    const client = api();
     const source = 'A data source with a full attribution '.repeat(6);
+    const client = api({ 'GET /api/indicators/facets': { ...EMPTY_FACETS, sources: [source] } });
     const result = await loadSearch(
       loaderArgs(client, `http://localhost/search?${new URLSearchParams({ source })}`),
     );
@@ -331,7 +335,7 @@ describe('loadSearch', () => {
   });
 
   it('passes topic slugs to the search API', async () => {
-    const client = api();
+    const client = api({ 'GET /api/indicators/facets': topicFacets('mortality', 'obesity') });
 
     await loadSearch(loaderArgs(client, 'http://localhost/search?t=mortality&t=obesity'));
 
@@ -393,13 +397,115 @@ describe('loadSearch', () => {
   });
 
   it('deduplicates repeated param values', async () => {
-    const client = api();
+    const client = api({ 'GET /api/indicators/facets': topicFacets('mortality', 'obesity') });
 
     const result = await loadSearch(
       loaderArgs(client, 'http://localhost/search?t=mortality&t=mortality&t=obesity'),
     );
 
     expect(result.topics).toEqual(['mortality', 'obesity']);
+  });
+
+  it('ignores filter values the facets do not offer, and searches again without them', async () => {
+    const client = api({
+      'GET /api/indicators/facets': {
+        ...topicFacets('cancer'),
+        classifications: [
+          { dimension: 'framework', slug: 'phof', name: 'PHOF' },
+          { dimension: 'indicator_type', slug: 'outcome', name: 'Outcome' },
+        ],
+        sources: ['NHS England'],
+        valueTypes: ['Proportion'],
+        yearTypes: ['Financial year'],
+      },
+    });
+    const offered = {
+      t: 'cancer',
+      it: 'outcome',
+      fw: 'phof',
+      source: 'NHS England',
+      vt: 'Proportion',
+      per: 'Financial year',
+    };
+    const query = new URLSearchParams({ q: 'smoking', ...offered });
+    // `outcome` is a measure type here, so it is unknown as a life stage.
+    for (const [name, value] of [...Object.keys(offered), 'ls', 'pg', 'eq'].map(
+      (name) => [name, name === 'ls' ? 'outcome' : 'nonsense'] as const,
+    ))
+      query.append(name, value);
+
+    const result = await loadSearch(
+      loaderArgs(client, `http://localhost/search?${query}&sort=recently-updated`),
+      { page: { number: 2, size: 10 } },
+    );
+
+    expect(result).toMatchObject({
+      q: 'smoking',
+      topics: ['cancer'],
+      indicatorTypes: ['outcome'],
+      lifeStages: [],
+      frameworks: ['phof'],
+      populations: [],
+      inequalities: [],
+      sources: ['NHS England'],
+      valueTypes: ['Proportion'],
+      yearTypes: ['Financial year'],
+    });
+    const searches = paths(client).filter((path) => path.startsWith('/api/indicators/search'));
+    expect(searches).toHaveLength(2);
+    expect(searches[1]).toBe(
+      '/api/indicators/search?q=smoking&t=cancer&it=outcome&fw=phof&src=NHS%20England&vt=Proportion&per=Financial%20year&sort=recently-updated&page=2&limit=10',
+    );
+  });
+
+  it('returns the results of the search without the unknown value', async () => {
+    const indicator = { shortId: 1, name: 'Indicator', slug: 'indicator' };
+    const row = {
+      ...indicator,
+      topics: [],
+      classifications: [],
+      latestPeriod: null,
+      yearType: null,
+      dataUpdatedAt: null,
+    };
+    const client = api({
+      'GET /api/indicators/search': (call) =>
+        call.path.includes('t=nonsense')
+          ? EMPTY_RESULT
+          : { total: 1, limit: 200, indicators: [row] },
+    });
+
+    const { searchResult } = await loadSearch(
+      loaderArgs(client, 'http://localhost/search?t=nonsense'),
+    );
+
+    expect(searchResult.total).toBe(1);
+    expect(searchResult.indicators.map(({ name }) => name)).toEqual(['Indicator']);
+  });
+
+  it('searches once when the facets offer every filter value', async () => {
+    const client = api({ 'GET /api/indicators/facets': topicFacets('cancer') });
+
+    await loadSearch(loaderArgs(client, 'http://localhost/search?q=smoking&t=cancer&t=cancer'));
+
+    expect(paths(client).filter((path) => path.startsWith('/api/indicators/search'))).toEqual([
+      '/api/indicators/search?q=smoking&t=cancer',
+    ]);
+  });
+
+  it('keeps a topic page to its own topic when the facets offer no topics', async () => {
+    const client = api();
+
+    await loadSearch(loaderArgs(client, 'http://localhost/topics/injuries?t=cancer&vt=nonsense'), {
+      topicSlug: 'injuries',
+      path: '/topics/injuries',
+    });
+
+    const searches = paths(client).filter((path) => path.startsWith('/api/indicators/search'));
+    expect(searches).toEqual([
+      '/api/indicators/search?t=injuries&vt=nonsense&sort=subtopic-asc',
+      '/api/indicators/search?t=injuries&sort=subtopic-asc',
+    ]);
   });
 
   it('fires facets and search in parallel (two calls, not sequential)', async () => {

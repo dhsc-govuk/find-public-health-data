@@ -319,6 +319,29 @@ test('topic checkboxes apply and remove filters immediately', async ({ page }, t
   await expect(results(page).getByRole('link')).toHaveCount(10);
 });
 
+for (const [description, topic] of [
+  ['is not recognised', 'nonsense'],
+  ['has no published indicators', 'injuries'],
+]) {
+  test(`ignores a topic filter that ${description}`, async ({ page }, testInfo) => {
+    await ready(page, `/search?t=${topic}`);
+    await expect(
+      page.getByRole('heading', { name: /^12 indicators ?, page 1 of 2$/ }),
+    ).toBeVisible();
+    await expect(page.locator(`main input[value="${topic}"]`)).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Topics and types', exact: true }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+}
+
+test('keeps recognised filter values beside one that is not', async ({ page }) => {
+  await ready(page, '/search?t=diabetes&t=nonsense&it=nonsense');
+  await expect(results(page).getByRole('link')).toHaveCount(2);
+  await expect(page.getByRole('checkbox', { name: 'Diabetes', exact: true })).toBeChecked();
+});
+
 test('years and last updated filters preserve the keyword and other filters', async ({ page }) => {
   await ready(page, '/search?q=diabetes&t=diabetes&fromYear=2010&toYear=2025');
   await expect(page.getByRole('textbox', { name: 'From', exact: true })).toHaveValue('2010');

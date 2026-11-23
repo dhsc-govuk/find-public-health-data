@@ -288,3 +288,15 @@ test('offers only the filter values the topic’s indicators carry', async ({ pa
     }),
   ).toHaveCount(0);
 });
+
+test('ignores a filter value none of the topic’s indicators carry', async ({ page }) => {
+  const source = 'Versus Arthritis and University College London UCL data';
+  await openTopicPage(
+    page,
+    `/topics/cancer?${new URLSearchParams({ 'tab-topic': 'data', source, vt: 'nonsense' })}`,
+  );
+  const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+
+  await expect(panel.getByRole('heading', { name: '1 indicator', exact: true })).toBeVisible();
+  await expect(panel.getByText('No indicators match your selected filters')).toHaveCount(0);
+});
