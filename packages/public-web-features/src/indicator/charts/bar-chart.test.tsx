@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { cloneElement, type ReactElement, type Ref } from 'react';
+import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorComparisonModel } from '../comparison-model.ts';
+import { benchmarkJudgement } from '../data.ts';
+import { inequalityTableModel } from '../inequalities.ts';
+import { InequalitiesTab } from '../inequalities-tab.tsx';
 import type { IndicatorAreaData, IndicatorRangePeriod, SelectedIndicator } from '../loader.ts';
 import { AreaComparisonTable } from '../tables/area-comparison-table.tsx';
 import { deprivation, indicatorDetail, observation } from '../view.testing.ts';
@@ -266,7 +270,7 @@ it.each([
   },
 );
 
-it('names the chosen area for the average of its inequality bars', () => {
+it('omits the line and comparisons when no England benchmark exists', () => {
   const { container } = render(
     <InequalitiesChart
       id="inequalities"
@@ -275,11 +279,227 @@ it('names the chosen area for the average of its inequality bars', () => {
       )}
       indicator={indicatorDetail(108, { unit: '%' })}
       confidence="none"
-      comparisonConfidence="95"
+      comparisons={['none', 'none']}
+      benchmark={null}
       areaName="Cornwall"
-      englandObservations={[]}
     />,
   );
-  expect(container.textContent).toContain('Cornwall average 10.0%');
-  expect(container.textContent).not.toContain('England average');
+  expect(container.querySelector('.recharts-reference-line-line')).toBeNull();
+  expect(container.textContent).not.toContain('average');
+  expect(container.textContent).toContain('No England benchmark is available for this selection.');
+  expect(screen.queryByRole('list', { name: 'Comparison key' })).toBeNull();
 });
+
+function ethnicGroupsIndicator(): SelectedIndicator {
+  const period = { fromDate: '2018-04-01', toDate: '2019-03-31' };
+  const england = { ...observation(56.5), ...period, count: 50732 };
+  const groups = [
+    ['Chinese', 68.5, 58.1, 77.4],
+    ['Mixed', 61.1, 59.4, 62.8],
+    ['Unknown', 55.0, 50.9, 59.0],
+    ['Black', 64.3, 62.5, 66.1],
+    ['Asian', 62.7, 60.9, 64.4],
+    ['Other', 57.8, 54.7, 60.9],
+    ['White', 54.3, 53.7, 54.9],
+  ] as const;
+  return {
+    detail: indicatorDetail(90632),
+    areaData: [
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          england,
+          ...groups.map(([name, value, lower, upper], index) => ({
+            ...observation(value, [
+              {
+                type: 'Ethnic groups',
+                value: name,
+                dimensionClass: 'inequality',
+                sortOrder: index,
+              },
+            ]),
+            ...period,
+            count: name === 'Chinese' ? 213 : null,
+            lowerCi95: name === 'Unknown' ? 54.8 : lower,
+            upperCi95: name === 'Unknown' ? 55.2 : upper,
+            lowerCi998: lower,
+            upperCi998: upper,
+          })),
+        ],
+      },
+    ],
+  };
+}
+
+function renderInequalities(primary: SelectedIndicator, search = '') {
+  const Routes = createRoutesStub([
+    { path: '/', Component: () => <InequalitiesTab primary={primary} /> },
+  ]);
+  return render(<Routes initialEntries={[`/${search}`]} />);
+}
+
+function expectMatchingInequalityJudgements(primary: SelectedIndicator, search: string) {
+  const model = inequalityTableModel(primary, new URLSearchParams(search));
+  const chart = screen.getByRole('region', { name: /^Inequalities:/ });
+  const table = screen.getByRole('table');
+  const labels = new Map(
+    [...chart.querySelectorAll('.fphd-chart-key li')].map((item) => [
+      item.querySelector('rect')?.getAttribute('fill'),
+      item.textContent,
+    ]),
+  );
+  const expectedLabels = {
+    better: 'Better than England',
+    similar: 'Similar to England',
+    worse: 'Worse than England',
+    higher: 'Higher than England',
+    lower: 'Lower than England',
+    none: '',
+  };
+  const colours = {
+    better: '#8ed973',
+    similar: primary.detail.polarity === 'no-polarity' ? '#698AAB' : '#ffc000',
+    worse: '#c00000',
+    higher: '#0E3F69',
+    lower: '#CEE0F3',
+    none: '#505a5f',
+  };
+  const bars = [...chart.querySelectorAll('.recharts-bar-rectangle path')];
+  const sorted = [...model.rows].sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity));
+  expect(bars).toHaveLength(sorted.length);
+  sorted.forEach((row, index) => {
+    const judgement = benchmarkJudgement(
+      row,
+      model.benchmark?.value ?? null,
+      primary.detail,
+      model.comparisonConfidence === '99.8' ? '99.8' : '95',
+    );
+    const name = row.dimensions.find(({ type }) => type === model.category)?.value ?? '';
+    const tableRow = within(table).getByRole('rowheader', { name }).closest('tr');
+    const tableLabel = tableRow?.lastElementChild?.textContent;
+    expect(tableLabel, name).toBe(expectedLabels[judgement]);
+    const fill = bars[index]?.getAttribute('fill');
+    expect(fill, name).toBe(colours[judgement]);
+    expect(labels.get(fill), name).toBe(tableLabel || 'Not compared with England');
+  });
+  const englandRow = within(table).getByRole('rowheader', { name: 'England' }).closest('tr');
+  expect(englandRow?.textContent).toContain('50,732');
+  const englandValue = englandRow?.children[2]?.textContent;
+  expect(englandValue).toBe('56.5%');
+  expect(chart.textContent).toContain(`England average ${englandValue}`);
+  expect(chart.querySelector('.recharts-reference-line-line')).toBeTruthy();
+  return model;
+}
+
+it('uses the 90632 England observation instead of the unweighted ethnic group mean', () => {
+  const primary = ethnicGroupsIndicator();
+  renderInequalities(primary);
+  expect(screen.getByRole('region', { name: /^Inequalities:/ }).textContent).toContain(
+    'England average 56.5%',
+  );
+  const model = expectMatchingInequalityJudgements(primary, '');
+  expect(model.comparisonConfidence).toBe('99.8');
+  expect(model.comparisons).toEqual([
+    'better',
+    'better',
+    'similar',
+    'better',
+    'better',
+    'similar',
+    'worse',
+  ]);
+});
+
+it.each(['', '?ci-90632=95', '?ci-90632=99.8', '?ci-90632=none'])(
+  'matches the table at every confidence selection: %s',
+  (search) => {
+    const primary = ethnicGroupsIndicator();
+    renderInequalities(primary, search);
+    const model = expectMatchingInequalityJudgements(primary, search);
+    expect(model.comparisons[2]).toBe(
+      search === '' || search.includes('99.8') ? 'similar' : 'worse',
+    );
+  },
+);
+
+it.each([
+  ['lower-is-better', 'Confidence intervals overlapping reference value'],
+  ['no-polarity', 'Confidence intervals overlapping reference value'],
+  ['no-comparison-possible', 'Confidence intervals overlapping reference value'],
+  [null, 'Confidence intervals overlapping reference value'],
+  ['higher-is-better', 'Unsupported method'],
+  ['higher-is-better', null],
+  ['no-polarity', null],
+] as const)('matches polarity %s and comparator %s', (polarity, comparatorMethod) => {
+  const primary = ethnicGroupsIndicator();
+  primary.detail = { ...primary.detail, polarity, comparatorMethod };
+  renderInequalities(primary);
+  expectMatchingInequalityJudgements(primary, '');
+});
+
+it.each(['95', '99.8'] as const)(
+  'requires the selected %s interval without falling back',
+  (level) => {
+    const primary = ethnicGroupsIndicator();
+    const chinese = primary.areaData[0]?.observations[1];
+    if (!chinese) throw new Error('Missing Chinese test observation');
+    if (level === '95') {
+      chinese.lowerCi95 = null;
+      chinese.upperCi95 = null;
+    } else {
+      chinese.lowerCi998 = null;
+      chinese.upperCi998 = null;
+    }
+    const search = `?ci-90632=${level}`;
+    renderInequalities(primary, search);
+    expect(expectMatchingInequalityJudgements(primary, search).comparisons[0]).toBe('none');
+  },
+);
+
+it('does not apply a similar band when the selected interval excludes England by less than 0.5', () => {
+  const primary = ethnicGroupsIndicator();
+  const chinese = primary.areaData[0]?.observations[1];
+  if (!chinese) throw new Error('Missing Chinese test observation');
+  Object.assign(chinese, { value: 56.7, lowerCi998: 56.6, upperCi998: 56.8 });
+  renderInequalities(primary);
+  expect(expectMatchingInequalityJudgements(primary, '').comparisons[0]).toBe('better');
+});
+
+it.each(['missing', 'period', 'segment', 'null-value'])(
+  'shows unavailable comparisons without inventing an average when England is %s',
+  (reason) => {
+    const primary = ethnicGroupsIndicator();
+    const area = primary.areaData[0];
+    const england = area?.observations[0];
+    if (!area || !england) throw new Error('Missing England test observation');
+    if (reason === 'missing') area.observations = area.observations.slice(1);
+    if (reason === 'period') england.fromDate = '2017-04-01';
+    if (reason === 'segment')
+      england.dimensions = [{ type: 'Age', value: '18+', dimensionClass: 'core', sortOrder: 0 }];
+    if (reason === 'null-value') england.value = null;
+    // Keep the breakdown's baseline independent of an unavailable England headline.
+    primary.areaData.push({
+      areaCode: 'A',
+      areaName: 'Area A',
+      observations: [observation(10), ...area.observations.slice(reason === 'missing' ? 0 : 1)],
+    });
+    renderInequalities(primary, '?ig-90632=A');
+    const chart = screen.getByRole('region', { name: /^Inequalities:/ });
+    expect(chart.querySelector('.recharts-reference-line-line')).toBeNull();
+    expect(within(chart).queryByRole('list', { name: 'Comparison key' })).toBeNull();
+    expect(chart.textContent).toContain('No England benchmark is available for this selection.');
+    expect(chart.textContent).not.toContain('average');
+    expect(
+      [...chart.querySelectorAll('.recharts-bar-rectangle path')].map((bar) =>
+        bar.getAttribute('fill'),
+      ),
+    ).toEqual(Array(7).fill('#12436d'));
+    const table = screen.getByRole('table');
+    const rows = [...table.querySelectorAll('tbody tr')];
+    expect(rows[0]?.children[2]?.textContent).toBe('No data');
+    expect(rows.slice(1).map((row) => row.lastElementChild?.textContent)).toEqual(
+      Array(7).fill(''),
+    );
+  },
+);

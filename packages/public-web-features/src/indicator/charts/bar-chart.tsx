@@ -1,6 +1,7 @@
 import { ChartSection } from '@fphd/ui';
 import { periodLabel } from '@fphd/utils/period-label';
 import {
+  type BenchmarkJudgement,
   benchmarkJudgement,
   type ConfidenceLevel,
   inequalityCategoryLabel,
@@ -22,16 +23,17 @@ export function InequalitiesChart({
   observations,
   indicator,
   confidence,
-  comparisonConfidence,
+  comparisons,
+  benchmark,
   areaName,
 }: {
   id: string;
   observations: IndicatorObservation[];
   indicator: IndicatorPageDetail;
   confidence: ConfidenceLevel;
-  comparisonConfidence: ConfidenceLevel;
+  comparisons: BenchmarkJudgement[];
+  benchmark: number | null;
   areaName: string;
-  englandObservations: IndicatorObservation[];
 }) {
   const first = observations[0];
   const dimension = first?.dimensions.find(({ dimensionClass }) => dimensionClass === 'inequality');
@@ -46,21 +48,25 @@ export function InequalitiesChart({
         Chart of inequalities: {indicator.name}, {areaName}
       </h2>
       <ObservationBars
-        rows={observations.map((observation) => ({
+        rows={observations.map((observation, index) => ({
           key: segmentLabel(observation),
           name:
             observation.dimensions.find(({ type }) => type === dimension?.type)?.value ??
             segmentLabel(observation),
           observation,
+          comparison: comparisons[index] ?? 'none',
         }))}
         confidence={confidence}
         indicator={indicator}
         title={title}
         group="Segment"
-        averageEntity={areaName}
-        colourMode={indicator.polarity === 'higher-is-better' ? 'rag' : 'magnitude'}
-        comparisonConfidence={comparisonConfidence}
+        {...(benchmark === null
+          ? {}
+          : { benchmark: { name: 'England average', value: benchmark } })}
       />
+      {benchmark === null ? (
+        <p className="govuk-body-s">No England benchmark is available for this selection.</p>
+      ) : null}
       <ChartSources indicators={[indicator]} />
     </ChartSection>
   );

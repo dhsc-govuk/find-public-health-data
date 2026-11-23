@@ -2,6 +2,7 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import {
   alignedTrendSeries,
   availableConfidenceLevels,
+  benchmarkJudgement,
   type ConfidenceLevel,
   inequalityBreakdown,
   inequalityCategories,
@@ -80,5 +81,13 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
     confidence,
     comparisonConfidence,
     benchmark,
+    comparisons: rows.map((row) =>
+      benchmarkJudgement(
+        row,
+        benchmark?.value ?? null,
+        detail,
+        comparisonConfidence === '99.8' ? '99.8' : '95',
+      ),
+    ),
   };
 }

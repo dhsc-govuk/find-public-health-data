@@ -1,6 +1,7 @@
 import { areasInGeographyGroup } from '../geography/groups.ts';
 import {
   alignedTrendSeries,
+  type BenchmarkJudgement,
   benchmarkJudgement,
   comparisonRows,
   filterObservations,
@@ -403,7 +404,10 @@ export function observationComparisonLabel(
   detail: SelectedIndicator['detail'],
   confidence: '95' | '99.8' = '95',
 ) {
-  const judgement = benchmarkJudgement(observation, benchmark, detail, confidence);
+  return benchmarkJudgementLabel(benchmarkJudgement(observation, benchmark, detail, confidence));
+}
+
+export function benchmarkJudgementLabel(judgement: BenchmarkJudgement) {
   return {
     better: 'Better than England',
     similar: 'Similar to England',

@@ -1,8 +1,10 @@
 import { TableScrollRegion } from '@fphd/ui';
 import { periodLabel } from '@fphd/utils/period-label';
-import { observationComparisonLabel } from '../area-comparison.ts';
+import { benchmarkJudgementLabel } from '../area-comparison.ts';
 import {
   availableMeasures,
+  type BenchmarkJudgement,
+  benchmarkJudgement,
   type ConfidenceLevel,
   confidenceInterval,
   formatCalculatedValue,
@@ -21,6 +23,7 @@ export function InequalitiesTable({
   confidence,
   indicator,
   observations,
+  comparisons,
   benchmark,
   benchmarkMeasures = { count: null },
   areaName = 'England',
@@ -28,6 +31,7 @@ export function InequalitiesTable({
   confidence: ConfidenceLevel;
   indicator: IndicatorPageDetail;
   observations: IndicatorObservation[];
+  comparisons?: BenchmarkJudgement[];
   benchmark?: number | null;
   benchmarkMeasures?: Record<Measure, number | null>;
   areaName?: string;
@@ -44,6 +48,16 @@ export function InequalitiesTable({
   const noteTexts = [
     ...new Set(observations.flatMap(({ notes }) => notes.map(({ text }) => text))),
   ];
+  const judgements =
+    comparisons ??
+    observations.map((observation) =>
+      benchmarkJudgement(
+        observation,
+        benchmark ?? null,
+        indicator,
+        confidence === '99.8' ? '99.8' : '95',
+      ),
+    );
 
   return (
     <>
@@ -111,7 +125,7 @@ export function InequalitiesTable({
                 <td className="govuk-table__cell">Benchmark</td>
               </tr>
             ) : null}
-            {observations.map((observation) => (
+            {observations.map((observation, index) => (
               <tr className="govuk-table__row" key={segmentLabel(observation)}>
                 <th scope="row" className="govuk-table__header">
                   {/* The category value alone — baseline dimensions describe the whole table. */}
@@ -129,12 +143,7 @@ export function InequalitiesTable({
                 </td>
                 {compare ? (
                   <td className="govuk-table__cell">
-                    {observationComparisonLabel(
-                      observation,
-                      benchmark ?? null,
-                      indicator,
-                      confidence === '99.8' ? '99.8' : '95',
-                    )}
+                    {benchmarkJudgementLabel(judgements[index] ?? 'none')}
                   </td>
                 ) : confidence === 'none' ? null : (
                   <td className="govuk-table__cell govuk-table__cell--numeric">
