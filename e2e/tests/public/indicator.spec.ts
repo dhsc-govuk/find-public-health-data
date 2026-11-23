@@ -295,8 +295,12 @@ test('uses the prototype’s narrow metadata and fixed sidebar across different 
       expect(Math.round((await sidebar.boundingBox())?.width ?? 0)).toBe(235);
     }
     if (tab === 'Compare areas') {
-      const firstArea = panel.getByRole('table').locator('tbody tr').nth(1);
-      expect(Math.round((await firstArea.boundingBox())?.height ?? 0)).toBe(29);
+      // The lowest and highest quintiles have longer labels, which take two lines at this width.
+      const area = panel
+        .getByRole('row')
+        .filter({ has: page.getByRole('cell', { name: 'Quintile 3', exact: true }) })
+        .first();
+      expect(Math.round((await area.boundingBox())?.height ?? 0)).toBe(29);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440);
   }
@@ -355,9 +359,41 @@ test('compares areas across a selected geography type and sorts the table', asyn
   expect(exported.text.startsWith('\uFEFF')).toBe(true);
   const lines = exported.text.replace(/^\uFEFF/, '').split('\r\n');
   expect(lines[0]).toBe(
-    'Area,"Value (per 100,000)",Compared with England,95% lower confidence interval,95% upper confidence interval',
+    'Area,"Value (per 100,000)",Quintile,95% lower confidence interval,95% upper confidence interval',
   );
   expect(lines.slice(-3)).toEqual(['', '"Source: OHID, based on multiple sources"', '']);
+});
+
+test('colours areas by quintile when none can be compared with England', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/under-75-mortality-rate-from-cancer?tab-indicator=areas&areaType=Statistical+regions&areaColour=england',
+  );
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  const colour = panel.getByRole('combobox', { name: 'Colour geographies by' });
+  await expect(colour.getByRole('option')).toHaveText(['5 equal groups (quintiles)']);
+  const table = panel.getByRole('table', { name: /Table of area comparisons/ });
+  await expect(table.getByRole('columnheader', { name: 'Quintile', exact: true })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(0);
+  await expect(table.getByRole('cell', { name: 'Quintile 1 (lowest)' }).first()).toBeVisible();
+  await expect(table.locator('tbody').getByRole('cell', { name: /^Quintile \d/ })).toHaveCount(9);
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('keeps the comparison with England when areas can be compared', async ({ page }) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages?tab-indicator=areas',
+  );
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  await expect(
+    panel.getByRole('combobox', { name: 'Colour geographies by' }).getByRole('option'),
+  ).toHaveText(['Compared with England', '5 equal groups (quintiles)']);
+  const table = panel.getByRole('table', { name: /Table of area comparisons/ });
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toBeVisible();
+  await expect(table.getByRole('cell', { name: 'Better', exact: true }).first()).toBeVisible();
 });
 
 test('sorts hydrated area comparisons without Array.prototype.toSorted', async ({ page }) => {

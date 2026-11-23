@@ -7,6 +7,7 @@ import {
   areaComparisonOptions,
   areaComparisonRegions,
   areaComparisonRows,
+  comparesWithEngland,
   comparisonRankingData,
   highlightedAreaCodes,
   highlightedAreas,
@@ -262,9 +263,28 @@ it('uses the latest local period when England alone has a newer value', () => {
 });
 
 it('offers England comparison and quintiles only, reading old quartile links as England', () => {
-  expect(areaColourMode('quintiles')).toBe('quintiles');
-  expect(areaColourMode('quartiles')).toBe('england');
-  expect(areaColourMode(null)).toBe('england');
+  expect(areaColourMode('quintiles', true)).toBe('quintiles');
+  expect(areaColourMode('quartiles', true)).toBe('england');
+  expect(areaColourMode(null, true)).toBe('england');
+});
+
+it.each(['england', 'quartiles', 'quintiles', null])(
+  'colours by quintile for %s when no area can be compared with England',
+  (value) => {
+    expect(areaColourMode(value, false)).toBe('quintiles');
+  },
+);
+
+it('compares with England unless areas have values and none of them has a comparison', () => {
+  const england = { areaCode: 'E92000001', value: 5, label: '' };
+  const missing = { areaCode: 'missing', value: null, label: 'Not compared' };
+  const notCompared = { areaCode: 'a', value: 4, label: 'Not compared' };
+  const similar = { areaCode: 'b', value: 5, label: 'Similar' };
+  expect(comparesWithEngland([england, notCompared, missing])).toBe(false);
+  expect(comparesWithEngland([notCompared])).toBe(false);
+  expect(comparesWithEngland([england, notCompared, similar, missing])).toBe(true);
+  expect(comparesWithEngland([england, missing])).toBe(true);
+  expect(comparesWithEngland([england])).toBe(true);
 });
 
 it('lists highlighted areas in the order picked, then England, then the rest by sort', () => {

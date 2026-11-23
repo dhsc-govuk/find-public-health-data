@@ -5,6 +5,7 @@ import {
   areaComparisonLabel,
   areaComparisonRows,
   benchmarkJudgementLabel,
+  comparesWithEngland,
   highlightedAreaCodes,
   highlightedAreaRows,
   orderAreaComparisonRows,
@@ -33,16 +34,20 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
   if (tab === 'areas') {
     const sort = params.get('areaSort') ?? 'descending';
     const areas = areaComparisonRows(primary, data.compareAreasData, sort);
-    const colour = areaColourMode(params.get('areaColour'));
-    const groups = areaComparisonGroups(areas.rows, colour);
-    const hasCi = areas.rows.some((cell) => {
+    const areaRows = areas.rows.map((cell) => ({
+      ...cell,
+      label: areaComparisonLabel(cell, areas.england, primary.detail),
+    }));
+    const colour = areaColourMode(params.get('areaColour'), comparesWithEngland(areaRows));
+    const groups = areaComparisonGroups(areaRows, colour);
+    const hasCi = areaRows.some((cell) => {
       const latest = cell.series.at(-1);
       return latest?.lowerCi95 != null || latest?.upperCi95 != null;
     });
     const highlighted = highlightedAreaCodes(params, data.compareAreaOptions);
     const only = statisticalNeighbourAreas(params, data.compareAreaOptions);
-    const ordered = orderAreaComparisonRows(areas.rows, sort, highlighted, only);
-    const chosen = highlightedAreaRows(areas.rows, highlighted, only);
+    const ordered = orderAreaComparisonRows(areaRows, sort, highlighted, only);
+    const chosen = highlightedAreaRows(areaRows, highlighted, only);
     rows = [
       [
         'Area',
@@ -59,7 +64,7 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
             ? 'No data'
             : colour === 'quintiles'
               ? (groups.labels.get(cell.areaCode) ?? '')
-              : areaComparisonLabel(cell, areas.england, primary.detail),
+              : cell.label,
         ...(hasCi
           ? [cell.series.at(-1)?.lowerCi95 ?? null, cell.series.at(-1)?.upperCi95 ?? null]
           : []),

@@ -104,6 +104,7 @@ export function CompareAreasTab({
             ) : null}
             <AreaControls
               shortId={detail.shortId}
+              comparedWithEngland={comparison.comparedWithEngland}
               group={compareAreaGroup}
               groups={comparisonDisplayGroups}
               areas={areaOptions}
@@ -147,7 +148,7 @@ export function CompareAreasTab({
                 model={comparison}
                 sort={params.get('areaSort') ?? 'descending'}
                 highlighted={highlightedAreaCodes(params, areaOptions)}
-                colour={areaColourMode(params.get('areaColour'))}
+                colour={areaColourMode(params.get('areaColour'), comparison.comparedWithEngland)}
                 only={statisticalNeighbourAreas(params, areaOptions)}
               />
             </GridColumn>

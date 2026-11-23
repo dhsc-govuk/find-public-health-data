@@ -158,7 +158,7 @@ describe('indicator view CSV', () => {
     const lines = (await (await loadIndicatorViewCsv(args('tab-indicator=areas'))).text())
       .trim()
       .split('\r\n');
-    expect(lines[0]).toBe('Area,Value (%),Compared with England');
+    expect(lines[0]).toBe('Area,Value (%),Quintile');
     expect(lines.every((line) => line.split(',').length === 3)).toBe(true);
   });
 
@@ -179,7 +179,7 @@ describe('indicator view CSV', () => {
       .trim()
       .split('\r\n');
     expect(lines[0]).toBe(
-      'Area,Value (%),Compared with England,95% lower confidence interval,95% upper confidence interval',
+      'Area,Value (%),Quintile,95% lower confidence interval,95% upper confidence interval',
     );
     expect(lines).toContain('England (benchmark),40.0,,39.0,41.0');
     expect(
@@ -233,6 +233,53 @@ describe('indicator view CSV', () => {
     expect(lines.some((line) => line.startsWith('Cornwall'))).toBe(false);
     expect(lines.every((line) => line.split(',').length === 5)).toBe(true);
   });
+  it.each(['', '&areaColour=england'])(
+    'exports quintiles for %j when no area can be compared with England',
+    async (colour) => {
+      const data = await loadIndicator(args(''));
+      vi.mocked(loadIndicator).mockResolvedValue({
+        ...data,
+        selected: [
+          { ...primary, detail: { ...primary.detail, comparatorMethod: 'No comparison' } },
+        ],
+      });
+      const lines = (
+        await (await loadIndicatorViewCsv(args(`tab-indicator=areas${colour}`))).text()
+      )
+        .trim()
+        .split('\r\n');
+      expect(lines.map((line) => line.split(',')[2])).toEqual([
+        'Quintile',
+        '',
+        'Quintile 3',
+        'Quintile 1 (lowest)',
+      ]);
+    },
+  );
+
+  it('says an area with a value but no comparison is not compared', async () => {
+    const data = await loadIndicator(args(''));
+    vi.mocked(loadIndicator).mockResolvedValue({
+      ...data,
+      compareAreasData: [
+        ...areas,
+        {
+          areaCode: 'E06000002',
+          areaName: 'Middlesbrough',
+          observations: [{ ...observation(5), lowerCi95: null, upperCi95: null }],
+        },
+      ],
+    });
+    const lines = (await (await loadIndicatorViewCsv(args('tab-indicator=areas'))).text())
+      .trim()
+      .split('\r\n');
+    expect(lines.slice(2).map((line) => line.split(',').slice(0, 3))).toEqual([
+      ['Cornwall', '30.0', 'Worse'],
+      ['Hartlepool', '10.0', 'Worse'],
+      ['Middlesbrough', '5.0', 'Not compared'],
+    ]);
+  });
+
   it('exports the area table in the selected sort and colour order', async () => {
     const response = await loadIndicatorViewCsv(
       args('tab-indicator=areas&areaSort=alphabetical&areaColour=quintiles'),

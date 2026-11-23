@@ -179,7 +179,7 @@ it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-po
       Worse: '#c00000',
       Higher: '#0E3F69',
       Lower: '#CEE0F3',
-      '': '#505a5f',
+      'Not compared': '#505a5f',
     };
     for (const confidence of ['none', '95', '99.8'] as const) {
       const { container, unmount } = render(
@@ -216,11 +216,10 @@ it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-po
           keyLabels.get(bar.getAttribute('fill')),
         ),
       ).toEqual(
-        judgements.map((label) =>
-          label
-            ? `${label} ${label === 'Similar' ? 'to' : 'than'} England`
-            : 'Not compared with England',
-        ),
+        judgements.map((label) => {
+          if (label === 'Not compared') return 'Not compared with England';
+          return `${label} ${label === 'Similar' ? 'to' : 'than'} England`;
+        }),
       );
       expect(
         [...(chart?.querySelectorAll('.recharts-bar-rectangle path') ?? [])].map((bar) =>
@@ -231,7 +230,7 @@ it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-po
       expect(key.length).toBeGreaterThan(0);
       for (const item of key) {
         const label = item.textContent?.startsWith('Not compared')
-          ? ''
+          ? 'Not compared'
           : (item.textContent?.split(' ')[0] ?? '');
         expect(item.querySelector('rect')?.getAttribute('fill')).toBe(colours[label]);
       }

@@ -305,9 +305,23 @@ export function orderAreaComparisonRows<T extends SortableAreaRow>(
 
 export type AreaColourMode = 'england' | 'quintiles';
 
+const NOT_COMPARED = 'Not compared';
+
+/**
+ * Whether the listed areas can be coloured by their comparison with England. They can't when some
+ * areas have a value and none of those has a comparison, for example when the indicator has no
+ * comparator method or no England value.
+ */
+export function comparesWithEngland(
+  rows: { areaCode: string; value: number | null; label: string }[],
+): boolean {
+  const withValue = rows.filter((row) => row.areaCode !== 'E92000001' && row.value !== null);
+  return withValue.length === 0 || withValue.some(({ label }) => label !== NOT_COMPARED);
+}
+
 // Links from before quartiles were dropped still carry areaColour=quartiles.
-export function areaColourMode(value: string | null): AreaColourMode {
-  return value === 'quintiles' ? 'quintiles' : 'england';
+export function areaColourMode(value: string | null, comparedWithEngland: boolean): AreaColourMode {
+  return value === 'quintiles' || !comparedWithEngland ? 'quintiles' : 'england';
 }
 
 export function areaComparisonLabel(
@@ -323,7 +337,7 @@ export function areaComparisonLabel(
     worse: 'Worse',
     higher: 'Higher',
     lower: 'Lower',
-    none: '',
+    none: NOT_COMPARED,
   }[judgement];
 }
 
