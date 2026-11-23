@@ -64,7 +64,8 @@ export function InequalitiesTable({
               </>
             ) : (
               <>
-                {inequalityCategoryLabel(dimensionType)}, {periodLabel(first, indicator.yearType)}
+                {inequalityCategoryLabel(dimensionType)}
+                {sex ? `, ${sex}` : ''}, {periodLabel(first, indicator.yearType)}
               </>
             )}
           </caption>
