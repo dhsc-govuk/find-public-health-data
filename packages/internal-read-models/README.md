@@ -28,11 +28,11 @@ the batch directly rather than scanning the published view's complete batch list
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.`   | `READ_MODEL_TABLES`; `refreshIndicatorReadModels`, one indicator's refresh, and `rebuildReadModelTables`, the whole rebuild, each inside the caller's transaction |
 
-Period types use exact whole-year spans: `1-year`, `3-year`, `5-year`, `7-year`, and other published
-lengths. Other spans use their inclusive day count, such as `500-day`, so monthly, quarterly and
-partial-year data cannot join annual histories. Each length has its own history; an `all` choice
-elects one of those histories rather than combining lengths. The batch marker records the series
-algorithm version. Readers use canonical histories for older versions until publication or
+Period types use whole calendar months with month-end clamping: `1-month`, `3-month`, and other
+published lengths. Multiples of 12 months use years, such as `1-year`, `3-year`, and `5-year`. Other
+spans use their inclusive day count, such as `500-day`. Each length has its own history; an `all`
+choice elects one of those histories rather than combining lengths. The batch marker records the
+series algorithm version. Readers use canonical histories for older versions until publication or
 `pnpm db:rebuild-read-models` refreshes them. Deployment needs no manual rebuild. The cache period
 column remains PostgreSQL `text`; widening its TypeScript type needs no migration.
 

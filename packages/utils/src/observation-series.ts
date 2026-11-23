@@ -1,15 +1,15 @@
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 1;
+export const OBSERVATION_SERIES_VERSION = 2;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
-export type ObservationPeriodType = `${number}-year` | `${number}-day`;
+export type ObservationPeriodType = `${number}-year` | `${number}-month` | `${number}-day`;
 export type SeriesPeriodType = 'all' | ObservationPeriodType;
 
 export function isObservationPeriodType(value: unknown): value is ObservationPeriodType {
   return (
     typeof value === 'string' &&
-    /^[1-9]\d*-(year|day)$/.test(value) &&
+    /^[1-9]\d*-(year|month|day)$/.test(value) &&
     Number.isSafeInteger(Number.parseInt(value, 10))
   );
 }
@@ -28,29 +28,54 @@ export function observationSegmentKey(observation: SeriesObservation): string {
     .join('|');
 }
 
-export function periodYears(
+function addMonthsClamped(start: Date, months: number): Date {
+  const result = new Date(start);
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months + 1);
+  result.setUTCDate(0);
+  result.setUTCDate(Math.min(start.getUTCDate(), result.getUTCDate()));
+  return result;
+}
+
+export function periodMonths(
   observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
 ): number | null {
   const start = new Date(observation.fromDate);
+  const inclusiveEnd = new Date(observation.toDate);
   const end = new Date(Date.parse(observation.toDate) + 86_400_000);
-  const years = end.getUTCFullYear() - start.getUTCFullYear();
-  return years > 0 &&
-    start.getUTCMonth() === end.getUTCMonth() &&
-    start.getUTCDate() === end.getUTCDate()
-    ? years
-    : null;
+  const months =
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth();
+  if (months > 0 && addMonthsClamped(start, months).getTime() === end.getTime()) return months;
+  if (
+    months > 1 &&
+    start.getUTCDate() > inclusiveEnd.getUTCDate() &&
+    addMonthsClamped(start, months - 1).getTime() === inclusiveEnd.getTime()
+  )
+    return months - 1;
+  return null;
+}
+
+export function periodYears(
+  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
+): number | null {
+  const months = periodMonths(observation);
+  return months !== null && months % 12 === 0 ? months / 12 : null;
 }
 
 export function observationPeriodType(
   observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
 ): ObservationPeriodType {
-  const years = periodYears(observation);
+  const months = periodMonths(observation);
   const days = (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 + 1;
-  return years === null ? `${days}-day` : `${years}-year`;
+  if (months === null) return `${days}-day`;
+  return months % 12 === 0 ? `${months / 12}-year` : `${months}-month`;
 }
 
 export function periodTypeLength(periodType: ObservationPeriodType): number {
-  return Number.parseInt(periodType, 10) * (periodType.endsWith('-year') ? 365.25 : 1);
+  return (
+    Number.parseInt(periodType, 10) *
+    (periodType.endsWith('-year') ? 365.25 : periodType.endsWith('-month') ? 30.4375 : 1)
+  );
 }
 
 export function seriesPeriodTypes(

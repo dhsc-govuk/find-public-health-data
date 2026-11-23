@@ -1,11 +1,17 @@
-import { OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
-import { eq, sql } from 'drizzle-orm';
+import {
+  headlineSeries,
+  OBSERVATION_SERIES_VERSION,
+  observationPeriodType,
+  periodTypeLength,
+  seriesPeriodTypes,
+} from '@fphd/utils/observation-series';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
-import { observationPeriodSql } from './observation-series-sql.ts';
+import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import {
   area,
   areaType,
@@ -262,15 +268,140 @@ it('breaks equal non-null history counts by period length for England and local 
     );
 });
 
-it.each([365, 500, 550, 730])('classifies a %i day span consistently in SQL', async (days) => {
-  const [row] = await database.db
+it('classifies and orders the same calendar fixture rows identically in SQL and JS', async () => {
+  const fixture = await publishedIndicator('Calendar classification parity');
+  const periods = [
+    ['2023-01-01', '2023-03-31', '3-month'],
+    ['2024-01-01', '2024-03-31', '3-month'],
+    ['2024-04-01', '2024-06-30', '3-month'],
+    ['2024-07-01', '2024-09-30', '3-month'],
+    ['2023-02-01', '2023-02-28', '1-month'],
+    ['2024-02-01', '2024-02-29', '1-month'],
+    ['2024-04-01', '2024-04-30', '1-month'],
+    ['2024-01-01', '2024-01-31', '1-month'],
+    ['2024-01-31', '2024-02-28', '1-month'],
+    ['2024-01-31', '2024-02-29', '1-month'],
+    ['2023-01-31', '2023-02-27', '1-month'],
+    ['2023-01-31', '2023-02-28', '1-month'],
+    ['2024-01-30', '2024-02-28', '1-month'],
+    ['2024-01-30', '2024-02-29', '1-month'],
+    ['2024-03-31', '2024-04-30', '1-month'],
+    ['2024-01-15', '2024-02-14', '1-month'],
+    ['2023-12-15', '2024-03-14', '3-month'],
+    ['2020-01-01', '2021-06-30', '18-month'],
+    ['2024-02-29', '2025-02-27', '1-year'],
+    ['2024-02-29', '2025-02-28', '1-year'],
+    ['2024-04-01', '2025-03-31', '1-year'],
+    ['2021-01-01', '2022-05-15', '500-day'],
+    ['2021-01-01', '2022-07-04', '550-day'],
+    ['2021-01-01', '2022-12-31', '2-year'],
+    ['2024-01-01', '2024-01-01', '1-day'],
+    ['2020-01-01', '2021-07-01', '548-day'],
+    ['2024-01-31', '2024-02-27', '28-day'],
+    ['2024-01-31', '2024-03-01', '31-day'],
+    ['2024-01-01', '2024-01-30', '30-day'],
+    ['2024-02-29', '2025-03-01', '367-day'],
+  ] as const;
+  await database.db.insert(observation).values(
+    periods.map(([fromDate, toDate]) => ({
+      indicatorId: fixture.id,
+      uploadBatchId: fixture.batchId,
+      areaId: englandId,
+      dimensionKey: '',
+      fromDate,
+      toDate,
+      value: 1,
+    })),
+  );
+  const type = observationPeriodSql(observation.fromDate, observation.toDate);
+  const rows = await database.db
     .select({
-      type: observationPeriodSql(
-        sql`date '2021-01-01'`,
-        sql`date '2021-01-01' + ${days - 1}::integer`,
-      ),
+      fromDate: observation.fromDate,
+      toDate: observation.toDate,
+      type,
+      length: periodLengthSql(type),
     })
-    .from(area)
-    .limit(1);
-  expect(row?.type).toBe(days === 365 ? '1-year' : days === 730 ? '2-year' : `${days}-day`);
+    .from(observation)
+    .where(eq(observation.indicatorId, fixture.id))
+    .orderBy(periodLengthSql(type));
+  expect(rows).toHaveLength(periods.length);
+  for (const row of rows) {
+    const expected = periods.find(
+      ([fromDate, toDate]) => fromDate === row.fromDate && toDate === row.toDate,
+    );
+    expect(row.type).toBe(expected?.[2]);
+    expect(row.type).toBe(observationPeriodType(row));
+    expect(Number(row.length)).toBe(periodTypeLength(row.type));
+  }
+  expect([...new Set(rows.map(({ type }) => type))]).toEqual(seriesPeriodTypes(rows));
 });
+
+it('keeps quarterly trend histories together across 90, 91 and 92 day spans', async () => {
+  const fixture = await publishedIndicator('Quarterly trend history');
+  await database.db.insert(observation).values(
+    [
+      ['2023-01-01', '2023-03-31'],
+      ['2023-04-01', '2023-06-30'],
+      ['2023-07-01', '2023-09-30'],
+      ['2023-10-01', '2023-12-31'],
+      ['2024-01-01', '2024-03-31'],
+    ].flatMap(([fromDate = '', toDate = ''], index) =>
+      [englandId, westSussexId].map((areaId) => ({
+        indicatorId: fixture.id,
+        uploadBatchId: fixture.batchId,
+        areaId,
+        dimensionKey: '',
+        fromDate,
+        toDate,
+        value: index + 1,
+      })),
+    ),
+  );
+  for (const code of ['E92000001', WEST_SUSSEX])
+    expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
+      new Map([[fixture.id, 'up']]),
+    );
+});
+
+it.each([
+  [1, 30, 'up'],
+  [1, 31, 'down'],
+  [3, 91, 'up'],
+  [3, 92, 'down'],
+] as const)(
+  'breaks month/day trend ties for %i months and %i days as %s',
+  async (months, days, trend) => {
+    const fixture = await publishedIndicator(`Month day trend tie ${months} ${days}`);
+    const points = Array.from({ length: 5 }, (_, index) => [
+      {
+        fromDate: `${2050 + index}-09-01`,
+        toDate: new Date(Date.UTC(2050 + index, 8 + months, 0)).toISOString().slice(0, 10),
+        value: index + 1,
+        dimensions: [],
+      },
+      {
+        fromDate: `${2050 + index}-02-01`,
+        toDate: new Date(Date.parse(`${2050 + index}-02-01`) + (days - 1) * 86_400_000)
+          .toISOString()
+          .slice(0, 10),
+        value: 5 - index,
+        dimensions: [],
+      },
+    ]).flat();
+    expect(headlineSeries(points).map(({ value }) => value)).toEqual(
+      trend === 'up' ? [1, 2, 3, 4, 5] : [5, 4, 3, 2, 1],
+    );
+    await database.db.insert(observation).values(
+      points.map(({ dimensions, ...point }) => ({
+        ...point,
+        indicatorId: fixture.id,
+        uploadBatchId: fixture.batchId,
+        areaId: englandId,
+        dimensionKey: '',
+      })),
+    );
+    expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
+      new Map([[fixture.id, trend]]),
+    );
+  },
+);

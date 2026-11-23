@@ -7,6 +7,8 @@ import {
   isObservationPeriodType,
   isRollingPeriod,
   observationPeriodType,
+  periodMonths,
+  periodTypeLength,
   periodYears,
   rankingAreaSeries,
   seriesPeriodTypes,
@@ -132,6 +134,8 @@ it('keeps England at the local ranking period and population rather than its new
 it.each([
   ['2024-01-01', '2024-12-31', 1],
   ['2024-04-01', '2025-03-31', 1],
+  ['2024-02-29', '2025-02-28', 1],
+  ['2024-02-29', '2025-02-27', 1],
   ['2021-01-01', '2023-12-31', 3],
   ['2015-09-01', '2020-08-31', 5],
   ['2013-09-01', '2020-08-31', 7],
@@ -149,6 +153,9 @@ it.each([
   '5-year',
   '7-year',
   '12-year',
+  '1-month',
+  '3-month',
+  '18-month',
   '1-day',
   '500-day',
   '550-day',
@@ -171,6 +178,12 @@ it.each([
   '0-day',
   '05-day',
   '1.5-day',
+  '0-month',
+  '03-month',
+  '1.5-month',
+  '-1-month',
+  '3-months',
+  '9007199254740992-month',
 ])('rejects invalid period type %s', (type) => {
   expect(isObservationPeriodType(type)).toBe(false);
 });
@@ -270,14 +283,75 @@ it('offers only the periods each sex publishes and caches only offered variants'
 });
 
 it.each([
-  ['2024-01-01', '2024-03-31', '91-day'],
   ['2024-01-01', '2024-01-01', '1-day'],
-  ['2020-01-01', '2021-06-30', '547-day'],
   ['2020-01-01', '2021-07-01', '548-day'],
-  ['2020-02-29', '2021-02-28', '366-day'],
-])('keeps a partial-year span %s to %s as %s', (fromDate, toDate, type) => {
+  ['2024-01-31', '2024-02-27', '28-day'],
+  ['2024-01-31', '2024-03-01', '31-day'],
+  ['2024-02-29', '2025-03-01', '367-day'],
+])('keeps a non-month span %s to %s as %s', (fromDate, toDate, type) => {
+  expect(periodMonths({ fromDate, toDate })).toBeNull();
   expect(periodYears({ fromDate, toDate })).toBeNull();
   expect(observationPeriodType({ fromDate, toDate })).toBe(type);
+});
+
+it.each([
+  ['2023-01-01', '2023-03-31', 3],
+  ['2024-01-01', '2024-03-31', 3],
+  ['2024-04-01', '2024-06-30', 3],
+  ['2024-07-01', '2024-09-30', 3],
+  ['2023-02-01', '2023-02-28', 1],
+  ['2024-02-01', '2024-02-29', 1],
+  ['2024-04-01', '2024-04-30', 1],
+  ['2024-01-01', '2024-01-31', 1],
+  ['2024-01-31', '2024-02-28', 1],
+  ['2024-01-31', '2024-02-29', 1],
+  ['2023-01-31', '2023-02-27', 1],
+  ['2023-01-31', '2023-02-28', 1],
+  ['2024-01-30', '2024-02-28', 1],
+  ['2024-01-30', '2024-02-29', 1],
+  ['2024-03-31', '2024-04-30', 1],
+  ['2024-01-15', '2024-02-14', 1],
+  ['2023-12-15', '2024-03-14', 3],
+  ['2020-01-01', '2021-06-30', 18],
+])('classifies calendar months from %s to %s as %i months', (fromDate, toDate, months) => {
+  const point = { fromDate, toDate };
+  expect(periodMonths(point)).toBe(months);
+  expect(periodYears(point)).toBeNull();
+  expect(observationPeriodType(point)).toBe(`${months}-month`);
+  expect(isRollingPeriod(point)).toBe(months > 12);
+});
+
+it('orders and elects day, month and year series by the same approximate length', () => {
+  const observations = [
+    ['2024-01-01', '2024-12-31'],
+    ['2024-07-01', '2024-09-30'],
+    ['2024-01-31', '2024-03-01'],
+    ['2024-02-01', '2024-02-29'],
+    ['2024-01-01', '2024-01-30'],
+  ].map(([fromDate = '', toDate = '']) => ({ fromDate, toDate, dimensions: [], value: 1 }));
+  expect(seriesPeriodTypes(observations)).toEqual([
+    '30-day',
+    '1-month',
+    '31-day',
+    '3-month',
+    '1-year',
+  ]);
+  expect(periodTypeLength('1-month')).toBe(30.4375);
+  expect(periodTypeLength('12-month')).toBe(periodTypeLength('1-year'));
+  expect(headlineSeries(observations)).toEqual([observations[0]]);
+  expect(headlineSeries(observations.slice(1))).toEqual([observations[1]]);
+  expect(headlineSeries(observations.slice(3))).toEqual([observations[3]]);
+});
+
+it('keeps quarters of different day lengths in one history', () => {
+  const observations = [
+    ['2023-01-01', '2023-03-31'],
+    ['2023-04-01', '2023-06-30'],
+    ['2023-07-01', '2023-09-30'],
+  ].map(([fromDate = '', toDate = '']) => ({ fromDate, toDate, dimensions: [] }));
+  expect(seriesPeriodTypes(observations)).toEqual(['3-month']);
+  expect(filterSeries(observations, { periodType: '3-month' })).toEqual(observations);
+  expect(headlineSeries(observations)).toEqual(observations);
 });
 
 it('keeps 500 and 550 day histories separate from annual and biennial histories', () => {

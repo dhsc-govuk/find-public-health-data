@@ -389,9 +389,10 @@ export type PeriodType = SeriesPeriodType;
 
 export function periodTypeLabel(periodType: PeriodType): string {
   if (periodType === 'all') return 'All';
-  const years = Number.parseInt(periodType, 10);
-  if (periodType.endsWith('-day')) return `${years} ${years === 1 ? 'day' : 'days'}`;
-  return years === 1 ? '1 year' : `${years} year rolling average`;
+  const length = Number.parseInt(periodType, 10);
+  if (periodType.endsWith('-day')) return `${length} ${length === 1 ? 'day' : 'days'}`;
+  if (periodType.endsWith('-month')) return `${length} ${length === 1 ? 'month' : 'months'}`;
+  return length === 1 ? '1 year' : `${length} year rolling average`;
 }
 
 /** Offer only published period lengths so every option can match data. */
@@ -409,7 +410,7 @@ export interface PeriodTypeChoice {
 }
 
 function periodNoticePhrases(periodType: Exclude<PeriodType, 'all'>) {
-  if (periodType.endsWith('-day'))
+  if (periodType.endsWith('-day') || periodType.endsWith('-month'))
     return {
       showing: `${periodTypeLabel(periodType)} data`,
       missing: `${periodTypeLabel(periodType)} data`,

@@ -77,24 +77,37 @@ describe('indicatorPageDetailSchema', () => {
   });
 });
 
-it.each(['all', '1-year', '3-year', '5-year', '7-year', '12-year', '500-day'])(
-  'accepts table series period type %s',
-  (periodType) => {
-    expect(
-      indicatorTableDataSchema.safeParse([
-        { detail, areaData: [], tableSeries: [{ sex: '', periodType, segments: {} }] },
-      ]).success,
-    ).toBe(true);
-  },
-);
+it.each([
+  'all',
+  '1-year',
+  '3-year',
+  '5-year',
+  '7-year',
+  '12-year',
+  '1-month',
+  '3-month',
+  '500-day',
+])('accepts table series period type %s', (periodType) => {
+  expect(
+    indicatorTableDataSchema.safeParse([
+      { detail, areaData: [], tableSeries: [{ sex: '', periodType, segments: {} }] },
+    ]).success,
+  ).toBe(true);
+});
 
-it.each(['0-year', '05-year', '5.5-year', '-5-year', 'invalid'])(
-  'rejects invalid table series period type %s',
-  (periodType) => {
-    expect(
-      indicatorTableDataSchema.safeParse([
-        { detail, areaData: [], tableSeries: [{ sex: '', periodType, segments: {} }] },
-      ]).success,
-    ).toBe(false);
-  },
-);
+it.each([
+  '0-year',
+  '05-year',
+  '5.5-year',
+  '-5-year',
+  '0-month',
+  '03-month',
+  '1.5-month',
+  'invalid',
+])('rejects invalid table series period type %s', (periodType) => {
+  expect(
+    indicatorTableDataSchema.safeParse([
+      { detail, areaData: [], tableSeries: [{ sex: '', periodType, segments: {} }] },
+    ]).success,
+  ).toBe(false);
+});

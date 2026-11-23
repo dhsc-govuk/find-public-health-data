@@ -799,3 +799,19 @@ it('labels partial-year period lengths in days', () => {
   expect(periodTypeLabel('1-day')).toBe('1 day');
   expect(periodTypeLabel('500-day')).toBe('500 days');
 });
+
+it('labels months and explains a quarterly fallback naturally', () => {
+  expect(periodTypeLabel('1-month')).toBe('1 month');
+  expect(periodTypeLabel('3-month')).toBe('3 months');
+  const point = (toDate: string) => obs({ fromDate: '2024-01-01', toDate, dimensions: [] });
+  const areas = [
+    { areaCode: 'E92000001', areaName: 'England', observations: [point('2024-12-31')] },
+    { areaCode: 'local', areaName: 'Oxford', observations: [point('2024-03-31')] },
+  ];
+  expect(periodTypeChoice(areas, '1-year').notice).toBe(
+    'Showing 3 months data because Oxford has no 1 year data.',
+  );
+  expect(periodTypeChoice(areas, '1-month').notice).toBe(
+    'Showing 3 months data because Oxford has no 1 month data.',
+  );
+});

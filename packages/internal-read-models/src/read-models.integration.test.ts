@@ -1,5 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
+import { observationPeriodType } from '@fphd/utils/observation-series';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -324,7 +325,7 @@ it.each([92026, 92033])(
 );
 
 it.each([false, true])(
-  'refreshes distinct three, five and seven year histories with sexed=%s',
+  'refreshes distinct month, year and day histories with sexed=%s',
   async (sexed) => {
     await expect(
       db.transaction(async (tx) => {
@@ -363,6 +364,17 @@ it.each([false, true])(
         const rows = await tx
           .insert(schema.observation)
           .values([
+            ...[1, 3].flatMap((months) =>
+              Array.from({ length: 10 }, (_, index) => ({
+                indicatorId,
+                uploadBatchId,
+                areaId: england.id,
+                dimensionKey: sexed ? female.id : '',
+                fromDate: `2050-${String(index + 1).padStart(2, '0')}-01`,
+                toDate: new Date(Date.UTC(2050, index + months, 0)).toISOString().slice(0, 10),
+                value: months * 10 + index,
+              })),
+            ),
             ...[3, 5, 7].flatMap((years) =>
               Array.from({ length: 10 }, (_, index) => ({
                 indicatorId,
@@ -429,7 +441,9 @@ it.each([false, true])(
             ),
           );
         expect(cached.map(({ periodType }) => periodType).sort()).toEqual(
-          sexed ? ['3-year', '5-year', '500-day', '550-day', '7-year'] : ['all'],
+          sexed
+            ? ['1-month', '3-month', '3-year', '5-year', '500-day', '550-day', '7-year']
+            : ['all'],
         );
         for (const years of sexed ? [3, 5, 7] : []) {
           const row = cached.find(({ periodType }) => periodType === `${years}-year`);
@@ -437,12 +451,13 @@ it.each([false, true])(
           expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => years * 100 + index));
           expect(row?.variants.map(({ sex, periodType }) => ({ sex, periodType }))).toEqual(
             expect.arrayContaining([
+              ...[1, 3].map((months) => ({ sex: 'Female', periodType: `${months}-month` })),
               ...[3, 5, 7].map((length) => ({ sex: 'Female', periodType: `${length}-year` })),
               ...[500, 550].map((days) => ({ sex: 'Female', periodType: `${days}-day` })),
               { sex: 'Male', periodType: '1-year' },
             ]),
           );
-          expect(row?.variants).toHaveLength(6);
+          expect(row?.variants).toHaveLength(8);
           const points = await tx
             .select({ fromDate: schema.observation.fromDate, toDate: schema.observation.toDate })
             .from(schema.observation)
@@ -452,6 +467,17 @@ it.each([false, true])(
             expect(Number(point.toDate.slice(0, 4)) - Number(point.fromDate.slice(0, 4))).toBe(
               years,
             );
+        }
+        for (const months of sexed ? [1, 3] : []) {
+          const row = cached.find(({ periodType }) => periodType === `${months}-month`);
+          expect(row?.sparklineObservationIds).toHaveLength(8);
+          expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => months * 10 + index));
+          const points = await tx
+            .select()
+            .from(schema.observation)
+            .where(inArray(schema.observation.id, row?.recentObservationIds ?? []));
+          expect(points).toHaveLength(5);
+          for (const point of points) expect(observationPeriodType(point)).toBe(`${months}-month`);
         }
         for (const days of sexed ? [500, 550] : []) {
           const row = cached.find(({ periodType }) => periodType === `${days}-day`);
