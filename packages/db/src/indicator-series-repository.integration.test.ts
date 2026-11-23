@@ -309,6 +309,30 @@ it.each(['latest', 'recent', 'ranking', 'sparkline'] as const)(
 );
 
 it('keeps selected values and older England benchmarks in one publication snapshot', async () => {
+  // Every seeded local headline ends with England's, so England gets one later period.
+  const [benchmark] = await database.sql<{ id: string }[]>`
+    select b.id
+    from published.observation_series l join area a on a.id = l.area_id
+    join observation p on p.id = l.latest_observation_id
+    join area england on england.code = 'E92000001'
+    join published.observation b on b.indicator_id = l.indicator_id and b.area_id = england.id
+      and b.dimension_key = l.dimension_key and b.from_date = p.from_date and b.to_date = p.to_date
+    where a.code <> 'E92000001' and l.indicator_id <> ${ids[0] ?? ''}::uuid
+    limit 1
+  `;
+  if (!benchmark) throw new Error('Expected a local period with an England benchmark');
+  const [later] = await database.sql<{ id: string }[]>`
+    insert into observation
+      (indicator_id, area_id, from_date, to_date, value, upload_batch_id, dimension_key)
+    select indicator_id, area_id, from_date + interval '1 year', to_date + interval '1 year',
+      value, upload_batch_id, dimension_key
+    from observation where id = ${benchmark.id}
+    returning id
+  `;
+  await database.sql`
+    update observation_series set latest_observation_id = ${later?.id ?? null}
+    where latest_observation_id = ${benchmark.id}
+  `;
   const [candidate] = await database.sql<{ id: string; code: string }[]>`
     select l.indicator_id as id, a.code
     from published.observation_series l join area a on a.id = l.area_id

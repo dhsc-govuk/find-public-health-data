@@ -1,10 +1,10 @@
-import { type Database, schema } from '@fphd/db';
+import { type Database, dimensionKeyRank, headlineOrder, schema } from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   ROLLING_PERIOD_THRESHOLD_DAYS,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, desc, eq, not, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
+import { and, count, eq, not, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { Transaction } from './read-models.ts';
@@ -13,10 +13,13 @@ const {
   area,
   dimensionType,
   dimensionValue,
+  dimensionValueAgeRange,
   observationSeries,
   observationSeriesBatch,
   observation,
 } = schema;
+
+const headlineDimensions = { dimensionType, dimensionValue, dimensionValueAgeRange };
 
 type Executor = Database | Transaction;
 type PeriodType = schema.ObservationSeriesVariant['periodType'];
@@ -33,14 +36,9 @@ function recentNonNull<T>(
   )`;
 }
 
-/** Orders segments with the fewest dimensions first, as the plainest series of a group. */
-function fewestDimensions(dimensionKey: SQLWrapper) {
-  return sql`cardinality(string_to_array(${dimensionKey}, ','))`;
-}
-
 /**
  * Inserts the series a table or ranking shows for each area, sex and period type of one
- * indicator's published data: the segment with the fewest dimensions, then the most points.
+ * indicator's published data, in the order `headlineOrder` gives.
  */
 async function insertSeries(
   tx: Executor,
@@ -109,6 +107,7 @@ async function insertSeries(
           ''
         )`.as('sex'),
         length: count().as('length'),
+        latestPeriod: sql<string>`max(${points.toDate})`.as('latest_period'),
         firstPoint: sql<string>`min(${points.fromDate}::text || ':' || ${points.toDate}::text)`.as(
           'first_point',
         ),
@@ -191,13 +190,35 @@ async function insertSeries(
       .groupBy(choices.areaId),
   );
 
+  // Ranking a dimension key looks up its dimensions and age, so each distinct key is ranked once.
+  const keys = tx
+    .$with('keys')
+    .as(tx.selectDistinct({ dimensionKey: segments.dimensionKey }).from(segments));
+  const rank = dimensionKeyRank(keys.dimensionKey, headlineDimensions);
+  const keyRanks = tx.$with('key_ranks').as(
+    tx
+      .select({
+        rankedKey: sql<string>`${keys.dimensionKey}`.as('ranked_key'),
+        otherDimensions: rank.otherDimensions.as('other_dimensions'),
+        dimensions: rank.dimensions.as('dimension_count'),
+        ageOpen: rank.ageOpen.as('age_open'),
+        ageSpan: rank.ageSpan.as('age_span'),
+      })
+      .from(keys),
+  );
+
   // Each segment is a candidate for all sexes together and for its own sex.
   const candidateColumns = {
     areaId: segments.areaId,
     dimensionKey: segments.dimensionKey,
     periodType: segments.periodType,
     length: segments.length,
+    latestPeriod: segments.latestPeriod,
     firstPoint: segments.firstPoint,
+    otherDimensions: keyRanks.otherDimensions,
+    dimensions: keyRanks.dimensions,
+    ageOpen: keyRanks.ageOpen,
+    ageSpan: keyRanks.ageSpan,
     latestId: segments.latestId,
     rankingId: segments.rankingId,
     recentIds: segments.recentIds,
@@ -208,33 +229,43 @@ async function insertSeries(
     tx
       .select({ ...candidateColumns, sex: sql<string>`''`.as('sex') })
       .from(segments)
+      .innerJoin(keyRanks, eq(keyRanks.rankedKey, segments.dimensionKey))
       .unionAll(
         tx
           .select({ ...candidateColumns, sex: sexValues.name })
           .from(segments)
+          .innerJoin(keyRanks, eq(keyRanks.rankedKey, segments.dimensionKey))
           .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
       ),
   );
 
-  const winners = tx
-    .$with('winners')
-    .as(
-      tx
-        .selectDistinctOn([candidates.areaId, candidates.sex, candidates.periodType])
-        .from(candidates)
-        .orderBy(
-          candidates.areaId,
-          candidates.sex,
-          candidates.periodType,
-          fewestDimensions(candidates.dimensionKey),
-          desc(candidates.length),
-          sql`${candidates.firstPoint} COLLATE "C"`,
-          sql`${candidates.dimensionKey} COLLATE "C"`,
-        ),
-    );
+  const winners = tx.$with('winners').as(
+    tx
+      .selectDistinctOn([candidates.areaId, candidates.sex, candidates.periodType])
+      .from(candidates)
+      .orderBy(
+        candidates.areaId,
+        candidates.sex,
+        candidates.periodType,
+        ...headlineOrder(candidates),
+        sql`${candidates.dimensionKey} COLLATE "C"`,
+      ),
+  );
 
   await tx
-    .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
+    .with(
+      sexValues,
+      source,
+      points,
+      segments,
+      areas,
+      choices,
+      variants,
+      keys,
+      keyRanks,
+      candidates,
+      winners,
+    )
     .insert(observationSeries)
     .select(
       tx
@@ -279,9 +310,13 @@ async function englandTrend(
     )
     .groupBy(observation.areaId, observation.dimensionKey)
     .orderBy(
-      fewestDimensions(observation.dimensionKey),
-      desc(count(observation.value)),
-      observation.dimensionKey,
+      ...headlineOrder({
+        ...dimensionKeyRank(observation.dimensionKey, headlineDimensions),
+        latestPeriod: sql`max(${observation.toDate})`,
+        length: count(),
+        firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
+      }),
+      sql`${observation.dimensionKey} COLLATE "C"`,
     )
     .limit(1);
   return trend?.values ?? null;

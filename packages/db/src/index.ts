@@ -22,6 +22,7 @@ export {
   resolveDbLogin,
   resolveDbTls,
 } from './env.ts';
+export { dimensionKeyRank, headlineOrder } from './headline-order.ts';
 export {
   completeIndicatorDetail,
   type FoundIndicatorDetail,

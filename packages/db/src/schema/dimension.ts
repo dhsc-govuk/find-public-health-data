@@ -1,3 +1,4 @@
+import { AGE_UNITS } from '@fphd/utils/age-range';
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
@@ -6,6 +7,7 @@ import {
   index,
   integer,
   pgTable,
+  smallint,
   text,
   unique,
   uuid,
@@ -53,5 +55,33 @@ export const dimensionValue = pgTable(
     unique('dimension_value_id_dimension_type_id_unique').on(t.id, t.dimensionTypeId),
     index('idx_dimension_value_type').on(t.dimensionTypeId),
     index('idx_dimension_value_parent').on(t.parentId).where(sql`${t.parentId} IS NOT NULL`),
+  ],
+);
+
+/**
+ * The range of each age value that is one, from inclusive and under exclusive, as HL7 time period
+ * ranges. A null upper bound means no upper limit. An age that isn't a range, such as All ages or
+ * School age, has no row.
+ */
+export const dimensionValueAgeRange = pgTable(
+  'dimension_value_age_range',
+  {
+    id: uuid()
+      .primaryKey()
+      .references(() => dimensionValue.id, { onUpdate: 'cascade', onDelete: 'cascade' }),
+    ageFromValue: smallint().notNull(),
+    ageFromUnit: text({ enum: AGE_UNITS }).notNull(),
+    ageUnderValue: smallint(),
+    ageUnderUnit: text({ enum: AGE_UNITS }),
+  },
+  (t) => [
+    check(
+      'dimension_value_age_range_age_from_unit_check',
+      sql`${t.ageFromUnit} IN (${literals(AGE_UNITS)})`,
+    ),
+    check(
+      'dimension_value_age_range_age_under_check',
+      sql`(${t.ageUnderValue} IS NULL) = (${t.ageUnderUnit} IS NULL) AND ${t.ageUnderUnit} IN (${literals(AGE_UNITS)})`,
+    ),
   ],
 );
