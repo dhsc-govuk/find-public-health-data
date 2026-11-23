@@ -1,5 +1,6 @@
 import {
   ENGLAND_AREA_CODE,
+  OBSERVATION_SERIES_VERSION,
   observationSegmentKey,
   observationSeriesKey,
   type TableSeriesSelection,
@@ -88,6 +89,7 @@ export async function getIndicatorSeriesData(
   const loaded = await db
     .select({
       indicatorId: batches.indicatorId,
+      version: batches.version,
       series: {
         indicatorId: series.indicatorId,
         areaId: series.areaId,
@@ -118,6 +120,7 @@ export async function getIndicatorSeriesData(
   // The batch marker distinguishes missing data from a read model awaiting its rebuild.
   if (new Set(loaded.map(({ indicatorId }) => indicatorId)).size !== indicatorIds.length)
     return undefined;
+  if (loaded.some(({ version }) => version !== OBSERVATION_SERIES_VERSION)) return undefined;
   const rows = loaded.flatMap((row) => (row.series ? [row.series] : []));
   if (mode === 'sparkline' && rows.some((row) => row.sparklineObservationIds === null))
     return undefined;

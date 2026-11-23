@@ -180,6 +180,7 @@ export function createVersionedViews(schema: PgSchema<string>) {
   return {
     observationSeriesBatch: schema
       .view('observation_series_batch', {
+        version: integer('version').notNull(),
         trendValues: doublePrecision('trend_values').array(),
         indicatorId: uuid('indicator_id').notNull(),
       })

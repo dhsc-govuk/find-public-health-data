@@ -1,5 +1,9 @@
 import { type Database, headlineSeriesOrder, schema } from '@fphd/db';
-import { ENGLAND_AREA_CODE, SEX_DIMENSION_NAME } from '@fphd/utils/observation-series';
+import {
+  ENGLAND_AREA_CODE,
+  OBSERVATION_SERIES_VERSION,
+  SEX_DIMENSION_NAME,
+} from '@fphd/utils/observation-series';
 import { and, count, countDistinct, eq, not, or, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
@@ -341,5 +345,6 @@ export async function replaceObservationSeries(
     uploadBatchId,
     indicatorId,
     trendValues: await englandTrend(tx, indicatorId, uploadBatchId),
+    version: OBSERVATION_SERIES_VERSION,
   });
 }

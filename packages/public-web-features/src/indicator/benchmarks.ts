@@ -103,9 +103,9 @@ export function benchmarkCheckboxOptions(
   return [
     // England is no benchmark for an indicator without an England value.
     ...(context &&
-    !filterObservations(context.englandObservations, { periodType: context.periodType ?? 'all' }).some(
-      ({ value }) => value !== null,
-    )
+    !filterObservations(context.englandObservations, {
+      periodType: context.periodType ?? 'all',
+    }).some(({ value }) => value !== null)
       ? []
       : [{ value: 'england' as const, label: 'England' }]),
     ...(region ? [{ value: 'region' as const, label: 'Statistical regions' }] : []),

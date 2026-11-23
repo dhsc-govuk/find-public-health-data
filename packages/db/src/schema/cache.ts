@@ -21,6 +21,7 @@ export interface ObservationSeriesVariant {
 }
 
 export const observationSeriesBatch = pgTable('observation_series_batch', {
+  version: integer().notNull().default(0),
   trendValues: doublePrecision().array(),
   uploadBatchId: uuid().primaryKey(),
   indicatorId: uuid().notNull(),

@@ -1,6 +1,6 @@
-import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
-import { inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
 import { headlineSeriesOrder } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
@@ -23,7 +23,7 @@ export async function indicatorTrendDirections(
   const cached = await db
     .select({ id: batches.indicatorId, values: batches.trendValues })
     .from(batches)
-    .where(inArray(batches.indicatorId, ids));
+    .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
   const result = new Map(
     cached.flatMap(({ id, values }) =>
       values === null ? [] : [[id, recentTrendDirection([...values].reverse())] as const],

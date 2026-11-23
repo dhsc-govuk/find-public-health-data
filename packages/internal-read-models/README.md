@@ -30,10 +30,10 @@ the batch directly rather than scanning the published view's complete batch list
 
 Period types use the inclusive date span rounded to whole years: `1-year`, `3-year`, `5-year`,
 `7-year`, and other published lengths. Each length has its own history; an `all` choice elects one
-of those histories rather than combining lengths. After deploying this period classification,
-rebuild existing cached rows with `pnpm db:rebuild-read-models`. Publication refreshes the changed
-indicator's rows automatically. The cache period column remains PostgreSQL `text`; widening its
-TypeScript type needs no migration.
+of those histories rather than combining lengths. The batch marker records the series algorithm
+version. Readers use canonical histories for older versions until publication or
+`pnpm db:rebuild-read-models` refreshes them. Deployment needs no manual rebuild. The cache period
+column remains PostgreSQL `text`; widening its TypeScript type needs no migration.
 
 ## Tests
 

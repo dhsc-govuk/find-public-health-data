@@ -1,3 +1,4 @@
+import { OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -174,6 +175,7 @@ it("works out the trend of the same series choice for another area, ignoring Eng
     uploadBatchId: fixture.batchId,
     indicatorId: fixture.id,
     trendValues: [1, 2, 3, 4, 5],
+    version: OBSERVATION_SERIES_VERSION,
   });
   await addSeries(fixture, westSussexId, [1, 2, 3, 4, 5]);
   await addSeries(fixture, westSussexId, [9, 8, 7, 6, 5, 4, 3], dimensions);
