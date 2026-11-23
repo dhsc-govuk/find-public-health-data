@@ -98,6 +98,7 @@ export function IndicatorTab({
     areas: pickedAreaData,
     geography: benchmarkGeography,
     englandObservations: england,
+    periodType,
     goal: detail.goal,
   });
   const benchmarks = options.benchmarks.filter((choice) =>

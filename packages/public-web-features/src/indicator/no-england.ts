@@ -62,8 +62,14 @@ export function sexObservations(
 export function noEnglandLevel(
   england: Pick<IndicatorAreaData, 'observations'> | undefined,
   levels: string[],
+  periodType: PeriodType = 'all',
 ): string | undefined {
-  if (england?.observations.some(({ value }) => value !== null)) return undefined;
+  if (
+    filterObservations(england?.observations ?? [], { periodType }).some(
+      ({ value }) => value !== null,
+    )
+  )
+    return undefined;
   return NO_ENGLAND_LEVELS.find((level) => levels.includes(level));
 }
 

@@ -109,7 +109,13 @@ export async function loadIndicatorCsv(
   let areaData = await dataFor(codesToLoad);
   // With nothing chosen, an indicator with no England value has the page's default level.
   if (kind === 'table' && pickedCodes.length === 0) {
-    const defaultCodes = await noEnglandAreaCodes(api, segment, areaData, url.searchParams);
+    const defaultCodes = await noEnglandAreaCodes(
+      api,
+      segment,
+      areaData,
+      url.searchParams,
+      detail.shortId,
+    );
     if (defaultCodes.length > 0) {
       pickedCodes = defaultCodes;
       areaData = await dataFor([...defaultCodes, ENGLAND_CODE]);
@@ -250,16 +256,26 @@ async function noEnglandAreaCodes(
   segment: string,
   areaData: IndicatorAreaData[],
   params: URLSearchParams,
+  shortId: number,
 ): Promise<string[]> {
   const england = areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE);
-  if (england?.observations.some(({ value }) => value !== null)) return [];
+  const requestedPeriod = params.get(`pt-${shortId}`);
+  const periodType = isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all';
+  if (
+    filterObservations(england?.observations ?? [], { periodType }).some(
+      ({ value }) => value !== null,
+    )
+  )
+    return [];
   const levels = (
     await api.get(
       `${apiPath`/api/indicators/${segment}/areas`}?limit=1`,
       areaDisplayGroupListSchema,
     )
   ).map(({ displayGroup }) => displayGroup);
-  const level = choosesNothing(params, levels) ? noEnglandLevel(england, levels) : undefined;
+  const level = choosesNothing(params, levels)
+    ? noEnglandLevel(england, levels, periodType)
+    : undefined;
   if (!level) return [];
   const groups = await api.get(
     `${apiPath`/api/indicators/${segment}/areas`}?displayGroup=${encodeURIComponent(level)}`,

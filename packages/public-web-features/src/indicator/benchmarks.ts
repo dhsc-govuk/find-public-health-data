@@ -1,5 +1,6 @@
 import { publicCouncilTier } from '../geography/groups.ts';
 import type { BenchmarkChoice } from './comparison.ts';
+import { filterObservations, type PeriodType } from './data.ts';
 import type {
   BenchmarkGeography,
   IndicatorAreaData,
@@ -96,11 +97,15 @@ export function benchmarkCheckboxOptions(
     geography: BenchmarkGeography;
     englandObservations: IndicatorObservation[];
     goal: IndicatorDetail['goal'];
+    periodType?: PeriodType;
   },
 ): BenchmarkOption[] {
   return [
     // England is no benchmark for an indicator without an England value.
-    ...(context && !context.englandObservations.some(({ value }) => value !== null)
+    ...(context &&
+    !filterObservations(context.englandObservations, { periodType: context.periodType ?? 'all' }).some(
+      ({ value }) => value !== null,
+    )
       ? []
       : [{ value: 'england' as const, label: 'England' }]),
     ...(region ? [{ value: 'region' as const, label: 'Statistical regions' }] : []),

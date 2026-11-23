@@ -141,3 +141,12 @@ describe('sexObservations', () => {
     ).toEqual(oxford);
   });
 });
+
+it('opens on regions when England has no value at the selected period length', () => {
+  const data = england([
+    { ...observation(), value: null },
+    { ...observation(0), fromDate: '2022-01-01' },
+  ]);
+  expect(noEnglandLevel(data, ['Statistical regions'], '1-year')).toBe('Statistical regions');
+  expect(noEnglandLevel(data, ['Statistical regions'], '3-year')).toBeUndefined();
+});
