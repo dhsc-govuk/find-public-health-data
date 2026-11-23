@@ -9,8 +9,6 @@ export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 interface SeriesObservation {
   fromDate: string;
   toDate: string;
-  /** Only a numeric value makes its period the segment's newest, as in `headlineOrder`. */
-  value?: number | null;
   dimensions: {
     type: string;
     value: string;
@@ -35,7 +33,7 @@ export function isRollingPeriod(
 /**
  * How an observation's age ranks for the headline, higher first: an age with no upper limit, the
  * earlier start first, then a closed range, the longer first, then no age range at all.
- * `widestAgeFirst` in `@fphd/db` is the same rule in SQL.
+ * `ageRankSql` in `@fphd/db` is the same rule in SQL.
  */
 export function ageRank({ dimensions }: SeriesObservation): [number, number] {
   for (const { ageFrom, ageUnder } of dimensions) {
@@ -50,11 +48,11 @@ export function ageRank({ dimensions }: SeriesObservation): [number, number] {
 
 /**
  * The series a page shows for a set of observations: the segment with the fewest dimensions other
- * than age, then the newest value, then the fewest dimensions, then the widest age (see
- * `ageRank`), then the most points, then the earliest first point. `headlineOrder` in `@fphd/db`
- * is the same rule in SQL. A tie after that keeps the input order. The SQL breaks it by dimension
- * key, so the two agree when observations come in period and then dimension key order, as the
- * observation loaders return them.
+ * than age, then the newest period, suppressed or not, then the fewest dimensions, then the widest
+ * age (see `ageRank`), then the most points, then the earliest first point. `headlineOrder` in
+ * `@fphd/db` is the same rule in SQL. A tie after that keeps the input order. The SQL breaks it by
+ * dimension key, so the two agree when observations come in period and then dimension key order,
+ * as the observation loaders return them.
  */
 export function headlineSeries<T extends SeriesObservation>(observations: T[]): T[] {
   const segments = new Map<
@@ -79,9 +77,7 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       first: `${point.fromDate}:${point.toDate}`,
     };
     segment.points.push(point);
-    if (typeof point.value === 'number' && point.toDate > segment.latest) {
-      segment.latest = point.toDate;
-    }
+    if (point.toDate > segment.latest) segment.latest = point.toDate;
     const first = `${point.fromDate}:${point.toDate}`;
     if (first < segment.first) segment.first = first;
     segments.set(key, segment);

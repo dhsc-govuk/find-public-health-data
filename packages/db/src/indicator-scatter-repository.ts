@@ -15,6 +15,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  max,
   min,
   notInArray,
   or,
@@ -23,7 +24,7 @@ import {
 } from 'drizzle-orm';
 import { alias, union } from 'drizzle-orm/pg-core';
 import type { DatabaseReader } from './client.ts';
-import { headlineOrder } from './headline-order.ts';
+import { dimensionKeyRank, headlineOrder } from './headline-order.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import type { ViewSet } from './schema/index.ts';
@@ -218,8 +219,7 @@ async function getCachedScatterVariants(
         sex: sql<string>`${points.sex}`.as('segment_sex'),
         dimensionKey: points.dimensionKey,
         length: count().as('segment_length'),
-        latestValue: sql<string | null>`max(${points.toDate})
-          FILTER (WHERE ${points.value} IS NOT NULL)`.as('segment_latest_value'),
+        latestPeriod: max(points.toDate).as('segment_latest_period'),
         firstPoint: min(sql<string>`${points.fromDate}::text || ':' || ${points.toDate}::text`).as(
           'first_point',
         ),
@@ -250,7 +250,12 @@ async function getCachedScatterVariants(
       .orderBy(
         segments.indicatorId,
         segments.sex,
-        ...headlineOrder(segments, views),
+        ...headlineOrder({
+          ...dimensionKeyRank(segments.dimensionKey, views),
+          latestPeriod: segments.latestPeriod,
+          length: segments.length,
+          firstPoint: segments.firstPoint,
+        }),
         segments.labelKey,
         segments.dimensionKey,
       ),

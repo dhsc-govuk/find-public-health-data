@@ -2,7 +2,7 @@ import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
-import { headlineOrder } from './headline-order.ts';
+import { dimensionKeyRank, headlineOrder } from './headline-order.ts';
 import type { ViewSet } from './schema/index.ts';
 
 /**
@@ -58,15 +58,12 @@ async function areaTrendDirections(
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
       from points group by indicator_id, segment
       order by indicator_id, ${sql.join(
-        headlineOrder(
-          {
-            dimensionKey: sql`segment`,
-            latestValue: sql`max(to_date) filter (where value is not null)`,
-            length: sql`count(*)`,
-            firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
-          },
-          views,
-        ),
+        headlineOrder({
+          ...dimensionKeyRank(sql`segment`, views),
+          latestPeriod: sql`max(to_date)`,
+          length: sql`count(*)`,
+          firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
+        }),
         sql`, `,
       )}, segment collate "C"
     )

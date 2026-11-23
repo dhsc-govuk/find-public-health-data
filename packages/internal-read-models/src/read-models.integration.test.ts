@@ -351,7 +351,47 @@ describe('observation_series', () => {
     expect(series).toEqual([{ dimension_key: ageId('18-74') }]);
   });
 
-  it('stores the series with the newest value, even over one with fewer dimensions', async () => {
+  it('keeps the widest age when its newest period is suppressed', async () => {
+    const [, , , indicatorId] = await seededIndicatorIds();
+    if (indicatorId === undefined) throw new Error('The seed holds too few indicators');
+    const [area] = (await db.execute(sql`
+      SELECT a.id FROM published.area a
+      JOIN published.area_type at ON at.id = a.area_type_id
+      WHERE at.display_group IS NOT NULL
+        AND NOT EXISTS (
+          SELECT FROM observation o WHERE o.indicator_id = ${indicatorId} AND o.area_id = a.id
+        )
+      ORDER BY a.id LIMIT 1
+    `)) as unknown as { id: string }[];
+    const ages = (await db.execute(sql`
+      SELECT v.name, v.id::text AS id FROM dimension_value_age_range r
+      JOIN dimension_value v ON v.id = r.id
+      WHERE v.name IN ('18-74 yrs', '70-74 yrs')
+    `)) as unknown as { name: string; id: string }[];
+    const ageId = (name: string) => ages.find((age) => age.name === `${name} yrs`)?.id;
+    if (!area || !ageId('18-74') || !ageId('70-74')) throw new Error('Age fixtures missing');
+    await db.execute(sql`
+      INSERT INTO observation
+        (indicator_id, area_id, from_date, to_date, value, upload_batch_id, dimension_key)
+      SELECT ${indicatorId}, ${area.id}, make_date(year, 1, 1), make_date(year, 12, 31), value,
+        v.upload_batch_id, point.key
+      FROM current_published_version cpv
+      JOIN indicator_version v ON v.id = cpv.id
+      CROSS JOIN (VALUES (${ageId('18-74')}, 2096, 1), (${ageId('18-74')}, 2097, NULL),
+        (${ageId('70-74')}, 2096, 1), (${ageId('70-74')}, 2097, 0)) point(key, year, value)
+      WHERE cpv.indicator_id = ${indicatorId}
+    `);
+
+    await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
+
+    const series = (await db.execute(sql`
+      SELECT DISTINCT dimension_key FROM observation_series
+      WHERE indicator_id = ${indicatorId} AND area_id = ${area.id}
+    `)) as unknown as { dimension_key: string }[];
+    expect(series).toEqual([{ dimension_key: ageId('18-74') }]);
+  });
+
+  it('stores the series with the newest period, even over one with fewer dimensions', async () => {
     const [, indicatorId] = await seededIndicatorIds();
     if (indicatorId === undefined) throw new Error('The seed holds too few indicators');
     const [area] = (await db.execute(sql`
@@ -376,8 +416,7 @@ describe('observation_series', () => {
         v.upload_batch_id, point.key
       FROM current_published_version cpv
       JOIN indicator_version v ON v.id = cpv.id
-      CROSS JOIN (VALUES ('', 2095, 1), ('', 2096, 1), (${band.id}, 2097, 1), ('', 2098, NULL))
-        point(key, year, value)
+      CROSS JOIN (VALUES ('', 2095, 1), ('', 2096, 1), (${band.id}, 2097, 1)) point(key, year, value)
       WHERE cpv.indicator_id = ${indicatorId}
     `);
 

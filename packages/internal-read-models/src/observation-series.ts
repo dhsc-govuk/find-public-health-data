@@ -1,4 +1,4 @@
-import { type Database, headlineOrder, schema } from '@fphd/db';
+import { type Database, dimensionKeyRank, headlineOrder, schema } from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   ROLLING_PERIOD_THRESHOLD_DAYS,
@@ -107,8 +107,7 @@ async function insertSeries(
           ''
         )`.as('sex'),
         length: count().as('length'),
-        latestValue: sql<string | null>`max(${points.toDate})
-          FILTER (WHERE ${points.value} IS NOT NULL)`.as('latest_value'),
+        latestPeriod: sql<string>`max(${points.toDate})`.as('latest_period'),
         firstPoint: sql<string>`min(${points.fromDate}::text || ':' || ${points.toDate}::text)`.as(
           'first_point',
         ),
@@ -191,14 +190,35 @@ async function insertSeries(
       .groupBy(choices.areaId),
   );
 
+  // Ranking a dimension key looks up its dimensions and age, so each distinct key is ranked once.
+  const keys = tx
+    .$with('keys')
+    .as(tx.selectDistinct({ dimensionKey: segments.dimensionKey }).from(segments));
+  const rank = dimensionKeyRank(keys.dimensionKey, headlineDimensions);
+  const keyRanks = tx.$with('key_ranks').as(
+    tx
+      .select({
+        rankedKey: sql<string>`${keys.dimensionKey}`.as('ranked_key'),
+        otherDimensions: rank.otherDimensions.as('other_dimensions'),
+        dimensions: rank.dimensions.as('dimension_count'),
+        ageOpen: rank.ageOpen.as('age_open'),
+        ageSpan: rank.ageSpan.as('age_span'),
+      })
+      .from(keys),
+  );
+
   // Each segment is a candidate for all sexes together and for its own sex.
   const candidateColumns = {
     areaId: segments.areaId,
     dimensionKey: segments.dimensionKey,
     periodType: segments.periodType,
     length: segments.length,
-    latestValue: segments.latestValue,
+    latestPeriod: segments.latestPeriod,
     firstPoint: segments.firstPoint,
+    otherDimensions: keyRanks.otherDimensions,
+    dimensions: keyRanks.dimensions,
+    ageOpen: keyRanks.ageOpen,
+    ageSpan: keyRanks.ageSpan,
     latestId: segments.latestId,
     rankingId: segments.rankingId,
     recentIds: segments.recentIds,
@@ -209,10 +229,12 @@ async function insertSeries(
     tx
       .select({ ...candidateColumns, sex: sql<string>`''`.as('sex') })
       .from(segments)
+      .innerJoin(keyRanks, eq(keyRanks.rankedKey, segments.dimensionKey))
       .unionAll(
         tx
           .select({ ...candidateColumns, sex: sexValues.name })
           .from(segments)
+          .innerJoin(keyRanks, eq(keyRanks.rankedKey, segments.dimensionKey))
           .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
       ),
   );
@@ -225,13 +247,25 @@ async function insertSeries(
         candidates.areaId,
         candidates.sex,
         candidates.periodType,
-        ...headlineOrder(candidates, headlineDimensions),
+        ...headlineOrder(candidates),
         sql`${candidates.dimensionKey} COLLATE "C"`,
       ),
   );
 
   await tx
-    .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
+    .with(
+      sexValues,
+      source,
+      points,
+      segments,
+      areas,
+      choices,
+      variants,
+      keys,
+      keyRanks,
+      candidates,
+      winners,
+    )
     .insert(observationSeries)
     .select(
       tx
@@ -276,15 +310,12 @@ async function englandTrend(
     )
     .groupBy(observation.areaId, observation.dimensionKey)
     .orderBy(
-      ...headlineOrder(
-        {
-          dimensionKey: observation.dimensionKey,
-          latestValue: sql`max(${observation.toDate}) FILTER (WHERE ${observation.value} IS NOT NULL)`,
-          length: count(),
-          firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
-        },
-        headlineDimensions,
-      ),
+      ...headlineOrder({
+        ...dimensionKeyRank(observation.dimensionKey, headlineDimensions),
+        latestPeriod: sql`max(${observation.toDate})`,
+        length: count(),
+        firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
+      }),
       sql`${observation.dimensionKey} COLLATE "C"`,
     )
     .limit(1);

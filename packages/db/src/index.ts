@@ -1,8 +1,3 @@
-export {
-  type AgeRanges,
-  isoDurationSql,
-  widestAgeFirst,
-} from './age-span-sql.ts';
 export { type AreaSummary, listAreasByType } from './area-repository.ts';
 export {
   closeDb,
@@ -27,11 +22,7 @@ export {
   resolveDbLogin,
   resolveDbTls,
 } from './env.ts';
-export {
-  type HeadlineDimensions,
-  type HeadlineSegment,
-  headlineOrder,
-} from './headline-order.ts';
+export { dimensionKeyRank, headlineOrder } from './headline-order.ts';
 export {
   completeIndicatorDetail,
   type FoundIndicatorDetail,

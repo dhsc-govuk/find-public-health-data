@@ -131,7 +131,7 @@ it('falls through to the most points when two ages are as wide', () => {
   expect(series.map(({ dimensions }) => dimensions[0]?.value)).toEqual(Array(3).fill('5-9 yrs'));
 });
 
-it('chooses the series with the newest value, even with more dimensions', () => {
+it('chooses the series with the newest period, even with more dimensions', () => {
   const older = Array.from({ length: 5 }, (_, index) => ({
     fromDate: `${2019 + index}-01-01`,
     toDate: `${2019 + index}-12-31`,
@@ -140,8 +140,15 @@ it('chooses the series with the newest value, even with more dimensions', () => 
   }));
   const newer = observations(age('12+ yrs', 'P12Y'), 2);
   expect(headlineSeries([...older, ...newer])).toEqual(newer);
-  const suppressed = newer.map((point) => ({ ...point, value: null }));
-  expect(headlineSeries([...older, ...suppressed])).toEqual(older);
+});
+
+it('keeps the widest age when its newest period is suppressed', () => {
+  const wider = observations(age('0-4 yrs', 'P0Y', 'P5Y'), 3).map((point, index) => ({
+    ...point,
+    value: index === 2 ? null : 1,
+  }));
+  const narrower = observations(age('<1 yr', 'P0Y', 'P1Y'), 3);
+  expect(headlineSeries([...narrower, ...wider])).toEqual(wider);
 });
 
 it('keeps the total over a newer breakdown by a dimension other than age', () => {
