@@ -113,10 +113,12 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         : []),
     ];
   } else {
-    const { rows: breakdown, benchmark: benchmarkObservation } = inequalityTableModel(
-      primary,
-      params,
-    );
+    const {
+      rows: breakdown,
+      benchmark: benchmarkObservation,
+      sex,
+    } = inequalityTableModel(primary, params);
+    if (sex) filename = `${primary.detail.shortId}-${tab}-${sex.toLowerCase()}.csv`;
     const benchmark = benchmarkObservation?.value ?? null;
     const available = availableMeasures([
       ...breakdown,

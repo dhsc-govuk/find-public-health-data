@@ -300,6 +300,9 @@ describe('indicator view CSV', () => {
         `White,${values[0] * 100},${values[0]},Similar to England`,
         `Asian,${values[1] * 100},${values[1]},Better than England`,
       ]);
+      expect(response.headers.get('Content-Disposition')).toBe(
+        `attachment; filename="90632-inequalities-${sexValue.toLowerCase()}.csv"`,
+      );
     },
   );
 
@@ -338,5 +341,8 @@ describe('indicator view CSV', () => {
       'White,5200,52,Similar to England',
       'Asian,5400,54,Better than England',
     ]);
+    expect(response.headers.get('Content-Disposition')).toBe(
+      'attachment; filename="90632-inequalities.csv"',
+    );
   });
 });
