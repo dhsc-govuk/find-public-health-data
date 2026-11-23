@@ -138,6 +138,7 @@ export function PeriodTypePage(form: SectionPageProps<PeriodTypeField>) {
         error={fieldErrors.publishedFrom}
         hint="Enter a date in the format YYYY-MM-DD, for example 2021-04-01. Only periods starting on or after this date will be shown. Leave blank to show all periods."
         label="Show data from (optional)"
+        labelHeading="h2"
         name="publishedFrom"
       />
     </IndicatorSectionForm>

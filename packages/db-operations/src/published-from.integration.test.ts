@@ -92,6 +92,19 @@ it('keeps hidden observations and their bridges in storage but excludes them fro
   ).toEqual([]);
 });
 
+it('includes observation bridges when the period starts exactly at the publication cutoff', async () => {
+  await database.sql.begin(async (tx) => {
+    await tx`UPDATE observation SET from_date = '2021-01-01', to_date = '2021-12-31' WHERE id = ${hiddenId}`;
+    expect(
+      await tx`SELECT observation_id FROM published.observation_dimension WHERE observation_id = ${hiddenId}`,
+    ).toEqual([{ observation_id: hiddenId }]);
+    expect(
+      await tx`SELECT observation_id FROM published.observation_note WHERE observation_id = ${hiddenId}`,
+    ).toEqual([{ observation_id: hiddenId }]);
+    await tx`UPDATE observation SET from_date = '2014-01-01', to_date = '2014-12-31' WHERE id = ${hiddenId}`;
+  });
+});
+
 it('serves only visible periods to observation, comparison and download callers', async () => {
   const data = await repositories.indicators.findObservations(indicatorId, 'E92000001');
   expect(data?.observations.map((o) => o.fromDate)).toEqual([
