@@ -18,6 +18,10 @@ export function topicOverviewModel(
     const area = entry.areaData.find((data) => data.areaCode === areaCode);
     const observations = area?.observations ?? [];
     const selection =
+      entry.tableSeries?.find(
+        (selection) =>
+          selection.headlines?.[areaCode] && selection.rowOrder?.[areaCode] !== undefined,
+      ) ??
       entry.tableSeries?.find((selection) => selection.headlines?.[areaCode]) ??
       entry.tableSeries?.find(
         (selection) => selection.periodType === 'all' && selection.segments[areaCode],

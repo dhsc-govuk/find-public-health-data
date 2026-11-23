@@ -8,8 +8,9 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
+import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
 import type { Database } from './client.ts';
 import {
   getIndicatorObservationData,
@@ -21,6 +22,8 @@ import { getIndicatorRankingData, getIndicatorTableData } from './indicator-tabl
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   area,
+  dimensionType,
+  dimensionValue,
   indicatorVersion,
   observation,
   observationSeries,
@@ -43,6 +46,57 @@ beforeAll(async () => {
   ids = (await db.select({ id: publishedIndicator.id }).from(publishedIndicator)).map(
     ({ id }) => id,
   );
+});
+
+it('hydrates every area headline for aggregate comparisons alongside sexed-only areas', async () => {
+  class RolledBack extends Error {}
+  await expect(
+    database.db.transaction(async (tx) => {
+      const [model] = await tx.select().from(observationSeries).limit(1);
+      const areas = await tx
+        .select()
+        .from(area)
+        .where(inArray(area.code, ['E06000052', 'E92000001']));
+      const [female] = await tx
+        .select({ id: dimensionValue.id })
+        .from(dimensionValue)
+        .innerJoin(dimensionType, eq(dimensionType.id, dimensionValue.dimensionTypeId))
+        .where(and(eq(dimensionType.name, 'Sex'), eq(dimensionValue.name, 'Female')));
+      if (!model || !female || areas.length !== 2) throw new Error('Expected seeded fixtures');
+      await tx.delete(observation).where(eq(observation.indicatorId, model.indicatorId));
+      await tx.insert(observation).values(
+        areas.map((a) => ({
+          indicatorId: model.indicatorId,
+          uploadBatchId: model.uploadBatchId,
+          areaId: a.id,
+          fromDate: '2024-01-01',
+          toDate: '2024-12-31',
+          dimensionKey: a.code === 'E92000001' ? '' : female.id,
+          value: 10,
+        })),
+      );
+      await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId);
+      for (const mode of ['latest', 'recent', 'sparkline'] as const) {
+        const cached = await getIndicatorSeriesData(
+          tx,
+          publishedViews,
+          [model.indicatorId],
+          ['E92000001', 'E06000052'],
+          mode,
+        );
+        const aggregate = cached
+          ?.get(model.indicatorId)
+          ?.tableSeries?.find(({ sex, periodType }) => !sex && periodType === 'all');
+        expect(aggregate?.segments).toEqual({
+          E92000001: '|1-year',
+          E06000052: 'Sex:Female|1-year',
+        });
+        expect(aggregate?.headlines).toEqual({ E92000001: true, E06000052: true });
+        expect(aggregate?.rowOrder).toEqual({ E92000001: 0 });
+      }
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
 });
 afterAll(async () => {
   await database.drop();

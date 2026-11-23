@@ -277,9 +277,26 @@ it('offers only the periods each sex publishes and caches only offered variants'
   ).toEqual(expect.arrayContaining(variants));
   expect(
     tableSummary([{ areaCode: 'local', observations }]).tableSeries.filter(
-      ({ segments }) => segments.local,
+      ({ rowOrder }) => rowOrder?.local !== undefined,
     ),
   ).toHaveLength(3);
+});
+
+it('keeps every area headline for aggregate comparisons without offering an extra row', () => {
+  const point = { fromDate: '2024-01-01', toDate: '2024-12-31', value: 10 };
+  const areas = [
+    { areaCode: 'aggregate', observations: [{ ...point, dimensions: [] }] },
+    {
+      areaCode: 'sexed',
+      observations: [{ ...point, dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }] }],
+    },
+  ];
+  const summary = tableSummary(areas);
+  const aggregate = summary.tableSeries.find(({ sex, periodType }) => !sex && periodType === 'all');
+  expect(aggregate?.segments).toEqual({ aggregate: '|1-year', sexed: 'Sex:Female|1-year' });
+  expect(aggregate?.headlines).toEqual({ aggregate: true, sexed: true });
+  expect(aggregate?.rowOrder).toEqual({ aggregate: 0 });
+  expect(summary.areaData).toEqual(areas);
 });
 
 it.each([

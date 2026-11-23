@@ -171,6 +171,15 @@ async function insertSeries(
       .union(
         tx
           .select({
+            areaId: areas.areaId,
+            sex: sql<string>`''`,
+            periodType: sql<PeriodType>`'all'`,
+          })
+          .from(areas),
+      )
+      .union(
+        tx
+          .select({
             areaId: segments.areaId,
             sex: sexValues.name,
             periodType: sql<PeriodType>`'all'`,

@@ -6,7 +6,7 @@ import {
   type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
 import type {
   IndicatorAreaData,
@@ -112,8 +112,11 @@ export async function getIndicatorSeriesData(
         eq(series.indicatorId, batches.indicatorId),
         mode === 'ranking'
           ? undefined
-          : sql`${series.variants} @> jsonb_build_array(jsonb_build_object(
-              'sex', ${series.sex}, 'periodType', ${series.periodType}))`,
+          : or(
+              and(eq(series.sex, ''), eq(series.periodType, 'all')),
+              sql`${series.variants} @> jsonb_build_array(jsonb_build_object(
+                'sex', ${series.sex}, 'periodType', ${series.periodType}))`,
+            ),
         inArray(
           series.areaId,
           areas.map(({ id }) => id),
@@ -274,6 +277,8 @@ export async function getIndicatorSeriesData(
         const latest = byId.get(row.latestObservationId);
         if (!latest) continue;
         const entry = choice(row.sex, row.periodType);
+        if (row.sex === '' && row.periodType === 'all' && entry.headlines)
+          entry.headlines[a.code] = true;
         entry.segments[a.code] = observationSeriesKey(latest);
         if (entry.trends)
           entry.trends[a.code] = recentTrendDirection([...row.recentValues].reverse());

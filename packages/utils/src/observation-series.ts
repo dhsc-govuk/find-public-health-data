@@ -1,6 +1,6 @@
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 3;
+export const OBSERVATION_SERIES_VERSION = 4;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
 export type ObservationPeriodType = `${number}-year` | `${number}-month` | `${number}-day`;
@@ -209,8 +209,8 @@ export function tableSummary<
             .get(area.areaCode)
             ?.findIndex((variant) => variant.sex === sex && variant.periodType === periodType) ??
           -1;
-        if (order < 0) continue;
-        rowOrder[area.areaCode] = order;
+        if (order < 0 && (sex !== '' || periodType !== 'all')) continue;
+        if (order >= 0) rowOrder[area.areaCode] = order;
         const series = headlineSeries(filterSeries(area.observations, selection));
         const latest = series.at(-1);
         if (!latest) continue;
