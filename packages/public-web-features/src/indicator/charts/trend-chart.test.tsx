@@ -248,3 +248,38 @@ it('explains unavailable figures with distinct value notes from every shown area
   ).toBeTruthy();
   expect(screen.queryByText('No data matches the selected options.')).toBeNull();
 });
+
+it('uses unavailable-value notes only from the plotted population and period type', () => {
+  const point = (text: string) => ({
+    ...observation(),
+    fromDate: '2020-01-01',
+    value: null,
+    notes: [{ text, category: 'value' as const }],
+  });
+  render(
+    <TrendChart
+      id="trend"
+      title="Trend"
+      indicator={indicatorDetail()}
+      areas={[
+        {
+          areaCode: 'local',
+          areaName: 'Local',
+          observations: [point('Shown note'), { ...point('Other period'), fromDate: '2024-01-01' }],
+        },
+        {
+          areaCode: 'other',
+          areaName: 'Other',
+          observations: [
+            {
+              ...point('Other population'),
+              dimensions: [{ type: 'Sex', value: 'Male', sortOrder: 1, dimensionClass: 'core' }],
+            },
+          ],
+        },
+      ]}
+    />,
+  );
+  expect(screen.getByText('Figures are not available. Shown note.')).toBeTruthy();
+  expect(screen.queryByText(/Other period|Other population/)).toBeNull();
+});

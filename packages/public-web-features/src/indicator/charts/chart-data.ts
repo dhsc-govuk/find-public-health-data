@@ -57,7 +57,8 @@ export function valueExtent(
 
 export function alignedSeries(areas: IndicatorAreaData[]) {
   const first = areas.find(({ observations }) => observations.some(({ value }) => value !== null));
-  const reference = first && trendSeries(first.observations)[0];
+  const source = first ?? areas.find(({ observations }) => observations.length);
+  const reference = source && trendSeries(source.observations)[0];
   return areas.map(({ areaCode, areaName, observations }) => ({
     code: areaCode,
     name: areaName,

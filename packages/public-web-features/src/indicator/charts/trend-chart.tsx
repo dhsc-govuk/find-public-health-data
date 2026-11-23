@@ -120,13 +120,14 @@ function TrendPlot({
   const yTitleLines = trendTitleLines(yTitle, width);
   const yTitleHalfWidth =
     (titleWidth || Math.max(...yTitleLines.map((line) => line.length)) * 7.4) / 2;
-  const series = alignedSeries(areas).filter(({ observations }) =>
+  const aligned = alignedSeries(areas);
+  const series = aligned.filter(({ observations }) =>
     [...observations.values()].some(({ value }) => value !== null),
   );
   const periods = chartPeriods(series, indicator.yearType);
   const primary = series[0];
   if (!primary) {
-    const observations = areas.flatMap(({ observations }) => observations);
+    const observations = aligned.flatMap(({ observations }) => [...observations.values()]);
     if (!observations.length) return <NoChartData />;
     const notes = [...new Set(observations.flatMap(({ notes }) => notes.map(({ text }) => text)))];
     return (

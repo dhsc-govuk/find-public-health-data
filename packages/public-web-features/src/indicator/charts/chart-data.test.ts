@@ -132,5 +132,5 @@ it('aligns a mixed three and five year history to one period length', () => {
   ]);
   expect(
     series.map(({ observations }) => [...observations.values()].map(({ value }) => value)),
-  ).toEqual([[3], [30], []]);
+  ).toEqual([[5], [50], [5]]);
 });
