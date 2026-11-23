@@ -137,6 +137,18 @@ it.each([
   },
 );
 
+it('diagnoses each unconvertible baseline once across duplicate groupings', () => {
+  const skipped: unknown[] = [];
+  const invalid = { ...annual, BaselineQuarter: 5 };
+  const groupings = createObservationGroupings([
+    invalid,
+    { ...invalid, GroupingID: 43, SexID: 1 },
+    { ...invalid, GroupingID: 44, AgeID: 2 },
+  ]);
+  expect(groupings.publishedFrom(108, 1, (entry) => skipped.push(entry))).toBeNull();
+  expect(skipped).toHaveLength(1);
+});
+
 it('uses the observation Calendar fallback when the source year type is null', () => {
   expect(createObservationGroupings([annual]).publishedFrom(108, null)).toBe('2021-01-01');
 });

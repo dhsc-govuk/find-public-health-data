@@ -61,7 +61,16 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
       onSkipped?: (exclusion: GroupingBaselineExclusion) => void,
     ): string | null {
       let earliest: string | null = null;
+      const tried = new Set<string>();
       for (const grouping of byIndicator.get(indicatorId) ?? []) {
+        const shape = [
+          grouping.BaselineYear,
+          grouping.BaselineQuarter,
+          grouping.BaselineMonth,
+          grouping.YearRange,
+        ].join('/');
+        if (tried.has(shape)) continue;
+        tried.add(shape);
         try {
           const { fromDate } = computeDates(
             grouping.BaselineYear,
