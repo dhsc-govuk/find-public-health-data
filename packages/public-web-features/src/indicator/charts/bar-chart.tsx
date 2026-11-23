@@ -42,9 +42,9 @@ export function InequalitiesChart({
   }`;
   return (
     <ChartSection id={id} title={title}>
-      <h3 className="govuk-heading-s govuk-!-margin-bottom-2">
+      <h2 className="govuk-heading-s govuk-!-margin-bottom-2">
         Chart of inequalities: {indicator.name}, {areaName}
-      </h3>
+      </h2>
       <ObservationBars
         rows={observations.map((observation) => ({
           key: segmentLabel(observation),

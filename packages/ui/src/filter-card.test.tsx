@@ -38,6 +38,27 @@ describe('CollapsibleFilterCard', () => {
     expect(html).toContain('class="fphd-filter-card__toggle');
   });
 
+  it('makes the title a heading at the level asked for', () => {
+    render(
+      <CollapsibleFilterCard active={false} headingLevel={2} title="Topics and types">
+        Filters
+      </CollapsibleFilterCard>,
+    );
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Topics and types' })).toBeTruthy();
+  });
+
+  it('leaves the title as plain text with no heading level', () => {
+    render(
+      <CollapsibleFilterCard active={false} headingLevel={null} title="Geographies">
+        Filters
+      </CollapsibleFilterCard>,
+    );
+
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Geographies' })).toBeTruthy();
+  });
+
   it('toggles the body', () => {
     render(
       <CollapsibleFilterCard active={false} title="Topics and types">

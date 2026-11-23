@@ -117,12 +117,12 @@ export function CompareIndicatorsChart({
         <NoChartData>No areas have values for both indicators.</NoChartData>
       ) : (
         <>
-          <h3 className="govuk-heading-s govuk-!-margin-bottom-2">
+          <h2 className="govuk-heading-s govuk-!-margin-bottom-2">
             Chart of indicator comparison
             {highlighted.length
               ? `, ${highlighted.length === 1 ? highlighted[0]?.name : `${highlighted.length} chosen areas`}`
               : ''}
-          </h3>
+          </h2>
           <ScatterCanvas chartRef={tooltip.ref}>
             {(descriptionId) => (
               <ScatterChart

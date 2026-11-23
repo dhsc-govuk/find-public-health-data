@@ -9,10 +9,13 @@ export const MORTALITY_SHORT_ID = 108;
 /** The seed fixes indicator ids, so the publisher's pages for it have a stable address. */
 export const MORTALITY_ID = '019fa38f-1346-7094-b773-79dcd43ae4b4';
 
-/** An accordion card, by its title. */
+/**
+ * An accordion card, by the title its toggle button carries. Without JavaScript the button is
+ * hidden and the title shows as text, so the match includes hidden buttons.
+ */
 export function filterCard(page: Page, title: string) {
   return page.locator('.fphd-filter-card', {
-    has: page.getByRole('heading', { name: title, exact: true }),
+    has: page.getByRole('button', { name: title, exact: true, includeHidden: true }),
   });
 }
 

@@ -47,7 +47,7 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
           {inequalityAreas.length > 0 ? (
             <>
               <h2 className="govuk-heading-m">Geographies</h2>
-              <CollapsibleFilterCard active headingLevel={3} title="Geographies">
+              <CollapsibleFilterCard active headingLevel={null} title="Geographies">
                 <Form method="get" action={`${location.pathname}#indicator-inequalities`}>
                   {[...params]
                     .filter(([name]) => name !== `ig-${id}`)

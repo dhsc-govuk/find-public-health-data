@@ -151,7 +151,7 @@ export function CompareAreasTab({
               />
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">
-              <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Map view</h3>
+              <h2 className="govuk-heading-s govuk-!-margin-bottom-2">Map view</h2>
               <p className="govuk-body-s">
                 Map of {detail.name} by {geographyGroupLabel(compareAreaGroup)} in England.
               </p>
@@ -164,7 +164,7 @@ export function CompareAreasTab({
               </div>
             </GridColumn>
           </GridRow>
-          <h3 className="govuk-heading-s govuk-!-margin-bottom-2">Chart of area comparison</h3>
+          <h2 className="govuk-heading-s govuk-!-margin-bottom-2">Chart of area comparison</h2>
           <div className="fphd-indicator-chart fphd-indicator-chart--areas">
             <PanelOptionsPanel
               confidenceLevels={confidenceLevels}

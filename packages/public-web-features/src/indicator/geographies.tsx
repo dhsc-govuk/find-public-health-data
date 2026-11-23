@@ -52,7 +52,7 @@ export function IndicatorGeographies({
       <h2 className="govuk-heading-m">Geographies</h2>
       <CollapsibleFilterCard
         active
-        headingLevel={3}
+        headingLevel={null}
         title="Geographies"
         onClear={picked ? urlFor([], []) : undefined}
       >

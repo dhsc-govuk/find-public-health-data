@@ -134,6 +134,25 @@ test('shows the definition on its own between the heading and the summary', asyn
   expect(mobile.definitionWidth).toBeCloseTo(mobile.headingWidth, 0);
 });
 
+test('heads the Indicator tab chart once', async ({ page }) => {
+  const panel = page.locator('#indicator-data');
+  await expect(panel.getByRole('heading', { name: /^Chart:/ })).toHaveCount(1);
+  await expect(
+    panel.getByRole('heading', { level: 2, name: `Chart: ${MORTALITY_NAME}` }),
+  ).toBeVisible();
+});
+
+test('moves focus to the chart heading from the skip link', async ({ page }) => {
+  const panel = page.locator('#indicator-data');
+  const url = page.url();
+  await panel.getByRole('link', { name: 'Skip to indicator chart and table' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    panel.getByRole('heading', { level: 2, name: `Chart: ${MORTALITY_NAME}` }),
+  ).toBeFocused();
+  expect(page.url()).toBe(url);
+});
+
 test('answers an unknown indicator with the not-found page', async ({ page }) => {
   const response = await page.goto('/indicator/no-such-indicator');
   expect(response?.status()).toBe(404);
@@ -965,7 +984,7 @@ test('shows a picked area of an indicator with no England value without ticking 
 }) => {
   await openIndicatorPage(page, `${NO_ENGLAND_PATH}?geo-level=Upper-tier%20local%20authorities`);
   const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
-    has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+    has: page.getByRole('button', { name: 'Geographies', exact: true, includeHidden: true }),
   });
   await geographies.getByRole('checkbox', { name: 'Manchester', exact: true }).check();
   await expect(page).toHaveURL((url) => url.searchParams.get('as') === 'E08000003');
@@ -976,6 +995,19 @@ test('shows a picked area of an indicator with no England value without ticking 
   await expect(answerTo(page, 'Trend (last 5 periods)')).toHaveText(
     /^Trend unavailable\s*\(no England figure\)$/,
   );
+});
+
+test('moves focus to the no-data message from the skip link when there is nothing to chart', async ({
+  page,
+}) => {
+  // An area code the service doesn't know, as in an old shared link, leaves nothing to chart.
+  await openIndicatorPage(page, `${NO_ENGLAND_PATH}?as=E06999999`);
+  const panel = page.locator('#indicator-data');
+  await panel.getByRole('link', { name: 'Skip to indicator chart and table' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    panel.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+  ).toBeFocused();
 });
 
 test('opens an indicator with no England value on its statistical regions without JavaScript', async ({

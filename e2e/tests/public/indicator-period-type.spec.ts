@@ -55,7 +55,7 @@ test('switches to the 3 year rolling average chart with England when Oxford has 
 }, testInfo) => {
   await openIndicatorPage(page, `${PATH}?pt-93995=1-year`);
   const geographies = page.locator('#indicator-data').locator('.fphd-filter-card', {
-    has: page.getByRole('heading', { name: 'Geographies', exact: true }),
+    has: page.getByRole('button', { name: 'Geographies', exact: true, includeHidden: true }),
   });
   await geographies.getByLabel('Search for a geography').fill('Oxford');
   await geographies.getByRole('checkbox', { name: 'Oxford', exact: true }).check();
