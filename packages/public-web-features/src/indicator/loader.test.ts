@@ -1233,6 +1233,31 @@ describe('loadIndicatorPage notices of area types without data', () => {
     expect(paths(client)).toContain('/api/areas/display-groups');
   });
 
+  it('asks for the area catalogue without waiting for the areas, and for the page only', async () => {
+    const client = api(englandValue);
+    const areas = Promise.withResolvers<void>();
+    const delayed: FakeApiClient = {
+      ...client,
+      get: async (path, schema) => {
+        if (path.includes('/indicator-108/areas')) await areas.promise;
+        return client.get(path, schema);
+      },
+    };
+    const page = await loadPage(
+      args(delayed, 'http://localhost/indicator/indicator-108.data?tab-indicator=indicator'),
+    );
+    try {
+      expect(paths(client)).toContain('/api/areas/display-groups');
+    } finally {
+      areas.resolve();
+      await Promise.all([page.data, page.comparison]);
+    }
+
+    const csv = api(englandValue);
+    await loadIndicator(args(csv));
+    expect(paths(csv)).not.toContain('/api/areas/display-groups');
+  });
+
   it('loads the page without the notice when the area catalogue cannot be loaded', async () => {
     const client = api({
       'GET /api/areas/display-groups': fails(new Response('Bad Gateway', { status: 502 })),

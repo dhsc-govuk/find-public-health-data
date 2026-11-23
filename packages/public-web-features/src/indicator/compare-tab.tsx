@@ -186,6 +186,7 @@ export function CompareIndicatorsTab({
                   selectedAreaCodes={params.getAll('highlight')}
                   group={groupLabel}
                   only={only}
+                  englandOnly={englandOnly}
                   sex={selectedSex}
                   initialSwapped={params.has('scatter-x') || params.has('scatter-y')}
                 />

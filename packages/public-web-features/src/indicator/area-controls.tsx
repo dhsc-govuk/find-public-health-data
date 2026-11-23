@@ -9,7 +9,7 @@ import {
   highlightedAreaCodes,
   neighbourAnchors,
 } from './area-comparison.ts';
-import { ENGLAND_ONLY_MESSAGE } from './area-type-notice.ts';
+import { GeographiesCard } from './geographies-card.tsx';
 import { useIndicatorLinks } from './links.ts';
 
 const VISIBLE_NEIGHBOUR_ANCHORS = 3;
@@ -182,7 +182,7 @@ export function AreaControls({
   groups: string[];
   areas: CompareAreaOption[];
   displayOptions?: boolean;
-  /** Shows that England is the only geography with data, in place of the area choices. */
+  /** Whether England is the only geography the indicator has data for. */
   englandOnly?: boolean;
 }) {
   const links = useIndicatorLinks();
@@ -202,78 +202,66 @@ export function AreaControls({
   return (
     <>
       <h2 className="govuk-heading-m">Geographies</h2>
-      <CollapsibleFilterCard active headingLevel={null} title="Geographies">
-        {englandOnly ? (
-          <p className="govuk-hint">{ENGLAND_ONLY_MESSAGE}</p>
-        ) : (
-          <>
-            <Form method="get" action={action}>
-              {hidden([
-                'areaType',
-                'highlight',
-                'highlightRegion',
-                'highlightRegionBefore',
-                'geo-q',
-              ])}
-              <Select
-                id={displayOptions ? 'compare-area-type' : 'pair-area-type'}
-                name="areaType"
-                label="Type of geography"
-                value={params.get('areaType') ?? group}
-                options={groups.map((value) => ({ value, label: value }))}
-                onChange={(event) => update('areaType', event.currentTarget.value)}
-              />
-              <noscript>
-                <Button type="submit">Change geography type</Button>
-              </noscript>
-            </Form>
-            <Form method="get" action={action}>
-              {hidden(['geo-q', 'highlight', 'highlightRegion', 'highlightRegionBefore'])}
-              <GeographyTree
-                key={group}
-                flat
-                name="highlight"
-                choicesLabel={`Geography choices for ${displayOptions ? 'Compare areas' : 'Compare indicators'}`}
-                levels={[group]}
-                selected={highlighted}
-                selectedLevels={[]}
-                regions={regions}
-                regionName="highlightRegion"
-                regionAreasNoun={
-                  group === 'Local authorities'
-                    ? 'upper tier local authorities'
-                    : geographyGroupLabel(group)
-                }
-                searchLabel={`Highlight ${geographyGroupLabel(group)}`}
-                searchHint="Search areas"
-                lookupUrl={`${links.geographies}?indicator=${shortId}&displayGroup=${encodeURIComponent(group)}`}
-                fallback={{
-                  query: search,
-                  level: '',
-                  groups: search ? [{ name: group, areas: matches }] : [],
-                  previews: [{ name: group, areas }],
-                  error: false,
-                }}
-                onChange={(codes) => update('highlight', codes)}
-                onLevelsChange={() => {}}
-              />
-              <noscript>
-                <Button type="submit">Apply highlights</Button>
-              </noscript>
-            </Form>
-            {anchors.length ? (
-              <NeighbourControl
-                anchors={anchors}
-                idPrefix={displayOptions ? 'compare-neighbours' : 'pair-neighbours'}
-                params={params}
-                action={action}
-                update={update}
-                hidden={hidden}
-              />
-            ) : null}
-          </>
-        )}
-      </CollapsibleFilterCard>
+      <GeographiesCard notice={englandOnly ? 'england-only' : undefined}>
+        <Form method="get" action={action}>
+          {hidden(['areaType', 'highlight', 'highlightRegion', 'highlightRegionBefore', 'geo-q'])}
+          <Select
+            id={displayOptions ? 'compare-area-type' : 'pair-area-type'}
+            name="areaType"
+            label="Type of geography"
+            value={params.get('areaType') ?? group}
+            options={groups.map((value) => ({ value, label: value }))}
+            onChange={(event) => update('areaType', event.currentTarget.value)}
+          />
+          <noscript>
+            <Button type="submit">Change geography type</Button>
+          </noscript>
+        </Form>
+        <Form method="get" action={action}>
+          {hidden(['geo-q', 'highlight', 'highlightRegion', 'highlightRegionBefore'])}
+          <GeographyTree
+            key={group}
+            flat
+            name="highlight"
+            choicesLabel={`Geography choices for ${displayOptions ? 'Compare areas' : 'Compare indicators'}`}
+            levels={[group]}
+            selected={highlighted}
+            selectedLevels={[]}
+            regions={regions}
+            regionName="highlightRegion"
+            regionAreasNoun={
+              group === 'Local authorities'
+                ? 'upper tier local authorities'
+                : geographyGroupLabel(group)
+            }
+            searchLabel={`Highlight ${geographyGroupLabel(group)}`}
+            searchHint="Search areas"
+            lookupUrl={`${links.geographies}?indicator=${shortId}&displayGroup=${encodeURIComponent(group)}`}
+            fallback={{
+              query: search,
+              level: '',
+              groups: search ? [{ name: group, areas: matches }] : [],
+              previews: [{ name: group, areas }],
+              error: false,
+            }}
+            onChange={(codes) => update('highlight', codes)}
+            onLevelsChange={() => {}}
+          />
+          <noscript>
+            <Button type="submit">Apply highlights</Button>
+          </noscript>
+        </Form>
+        {anchors.length ? (
+          <NeighbourControl
+            anchors={anchors}
+            idPrefix={displayOptions ? 'compare-neighbours' : 'pair-neighbours'}
+            params={params}
+            action={action}
+            update={update}
+            hidden={hidden}
+          />
+        ) : null}
+      </GeographiesCard>
       {displayOptions ? (
         <>
           <h2 className="govuk-heading-m">Display options</h2>

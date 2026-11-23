@@ -709,7 +709,7 @@ it('moves focus from the skip link to the no-data message when there is nothing 
   );
 });
 
-it('says England is the only geography on Compare areas, without the sentence naming an area type', () => {
+it('says England is the only geography on Compare areas, without the text naming an area type', () => {
   page(
     [selected(241, 'Diabetes prevalence', 7.9)],
     '/indicator/indicator-241?tab-indicator=areas',
@@ -722,4 +722,6 @@ it('says England is the only geography on Compare areas, without the sentence na
   expect(within(panel).getByText('Data only available for England')).toBeTruthy();
   expect(within(panel).queryByRole('combobox', { name: 'Type of geography' })).toBeNull();
   expect(within(panel).queryByText(/for every/)).toBeNull();
+  expect(within(panel).queryByText('Showing:')).toBeNull();
+  expect(within(panel).queryByText(/^Map of/)).toBeNull();
 });

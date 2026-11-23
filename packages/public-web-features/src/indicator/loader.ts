@@ -96,6 +96,8 @@ export interface IndicatorPageData {
   detail: IndicatorPageDetail;
   compared: IndicatorPageDetail | undefined;
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
+  /** Every area type in the area catalogue, or none when it could not be loaded. */
+  catalogueGroups: Promise<string[]> | string[];
 }
 
 // Charts and tables with dozens of series are unreadable long before they are slow, so the
@@ -219,7 +221,7 @@ export async function loadIndicatorData(
   // Only the picked areas resolve to names and levels — the tree fetches its own
   // catalogue on demand, keeping thousands of areas out of the page payload.
   const codeQuery = nonEnglandCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
-  const [lookedUp, areaParents, catalogueGroups, publicCatalogueGroups] = await Promise.all([
+  const [lookedUp, areaParents, catalogueGroups] = await Promise.all([
     nonEnglandCodes.length > 0
       ? Promise.all(
           Array.from(
@@ -252,11 +254,6 @@ export async function loadIndicatorData(
         : includePageData
           ? api.get('/api/areas/display-groups', displayGroupListSchema)
           : Promise.resolve([]),
-    // The Geographies panel says when the indicator has no data for some of these area types. A
-    // failed request only leaves that message out, so the page still loads.
-    singlePage
-      ? api.get('/api/areas/display-groups', displayGroupListSchema).catch(() => [])
-      : Promise.resolve([]),
   ]);
   const displayGroups = singlePage ? publicGeographyLevels(catalogueGroups) : catalogueGroups;
   const areaLevels = requestedLevels.filter((level) => displayGroups.includes(level));
@@ -416,9 +413,9 @@ export async function loadIndicatorData(
     selected,
     selectedAreas,
     displayGroups,
-    areaTypeNotice: singlePage
+    areaTypeNotice: page
       ? areaTypeNotice({
-          catalogueLevels: publicGeographyLevels(publicCatalogueGroups),
+          catalogueLevels: publicGeographyLevels(await page.catalogueGroups),
           indicatorLevels: displayGroups,
           areaData: routeIndicator?.areaData ?? [],
         })

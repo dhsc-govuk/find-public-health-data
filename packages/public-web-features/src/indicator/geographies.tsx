@@ -1,15 +1,11 @@
-import { CollapsibleFilterCard } from '@fphd/ui';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate, useNavigation } from 'react-router';
 import { normalizePublicLevels } from '../geography/groups.ts';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
-import {
-  type AreaTypeNotice,
-  ENGLAND_ONLY_MESSAGE,
-  OTHER_AREA_TYPES_UNAVAILABLE_MESSAGE,
-} from './area-type-notice.ts';
+import type { AreaTypeNotice } from './area-type-notice.ts';
+import { GeographiesCard } from './geographies-card.tsx';
 import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSelection } from './loader.ts';
 import { indicatorSelectionUrl, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
@@ -58,44 +54,32 @@ export function IndicatorGeographies({
   return (
     <div className="fphd-indicator-geographies">
       <h2 className="govuk-heading-m">Geographies</h2>
-      <CollapsibleFilterCard
-        active
-        headingLevel={null}
-        title="Geographies"
-        onClear={picked ? urlFor([], []) : undefined}
-      >
-        {notice === 'england-only' ? (
-          <p className="govuk-hint">{ENGLAND_ONLY_MESSAGE}</p>
-        ) : (
-          <GeographyPicker
-            lookupUrl={`${links.geographies}?indicator=${shortId}&scheme=public`}
-            searchLabel="Search for a geography"
-            searchHint="Search by name, for example Leeds"
-            action={`${location.pathname}#indicator-data`}
-            displayGroups={displayGroups}
-            geographyOptions={geographyOptions}
-            levelName="als"
-            name="as"
-            choicesLabel="Geography choices for Indicator"
-            onApply={({ areaCodes, areaLevels }) => {
-              void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
-            }}
-            selection={currentSelection}
-          >
-            {englandBenchmark && !picked && !params.has(`cmp-${shortId}`) ? (
-              <input name={`cmp-${shortId}`} type="hidden" value="england" />
-            ) : null}
-            {[...params]
-              .filter(([name]) => name !== 'as' && name !== 'als' && name !== 'find')
-              .map(([name, value], index) => (
-                <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
-              ))}
-          </GeographyPicker>
-        )}
-        {notice === 'others-unavailable' ? (
-          <p className="govuk-hint govuk-!-margin-top-2">{OTHER_AREA_TYPES_UNAVAILABLE_MESSAGE}</p>
-        ) : null}
-      </CollapsibleFilterCard>
+      <GeographiesCard notice={notice} onClear={picked ? urlFor([], []) : undefined}>
+        <GeographyPicker
+          lookupUrl={`${links.geographies}?indicator=${shortId}&scheme=public`}
+          searchLabel="Search for a geography"
+          searchHint="Search by name, for example Leeds"
+          action={`${location.pathname}#indicator-data`}
+          displayGroups={displayGroups}
+          geographyOptions={geographyOptions}
+          levelName="als"
+          name="as"
+          choicesLabel="Geography choices for Indicator"
+          onApply={({ areaCodes, areaLevels }) => {
+            void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
+          }}
+          selection={currentSelection}
+        >
+          {englandBenchmark && !picked && !params.has(`cmp-${shortId}`) ? (
+            <input name={`cmp-${shortId}`} type="hidden" value="england" />
+          ) : null}
+          {[...params]
+            .filter(([name]) => name !== 'as' && name !== 'als' && name !== 'find')
+            .map(([name, value], index) => (
+              <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
+            ))}
+        </GeographyPicker>
+      </GeographiesCard>
       {children}
     </div>
   );
