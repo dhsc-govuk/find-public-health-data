@@ -659,6 +659,30 @@ describe('loadIndicatorCsv', () => {
     ]);
   });
 
+  it('omits England benchmarks when England only has values of another period type', async () => {
+    const client = api(
+      [
+        {
+          areaCode: 'E06000052',
+          areaName: 'Cornwall',
+          observations: [observation({ fromDate: '2021-01-01', value: 3 })],
+        },
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation({ value: 7 })] },
+      ],
+      { 'GET /api/areas/lookup': [], 'GET /api/areas/parents': [] },
+    );
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E06000052&pt-108=3-year&cmp-108=england`,
+      ),
+      'table',
+    );
+    const body = await response.text();
+    expect(body).toContain('Cornwall');
+    expect(body).not.toContain('England');
+  });
+
   it('ignores a sex published only in the other period type, as the page does', async () => {
     const client = api([
       {

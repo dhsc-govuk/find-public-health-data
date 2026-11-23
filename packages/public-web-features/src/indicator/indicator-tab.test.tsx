@@ -263,6 +263,29 @@ it('shows the default level of an indicator with no England value, without an En
   ).toEqual(['E12000001', 'E12000002']);
 });
 
+it('shows no England figure when only another period type has England values', () => {
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: indicatorDetail(),
+      areaData: [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [
+            observation(10),
+            { ...observation(), fromDate: '2022-01-01', value: null },
+          ],
+        },
+      ],
+    },
+  });
+  render(<Routes initialEntries={['/?pt-108=3-year']} />);
+  expect(
+    screen.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+  ).toBeTruthy();
+  expect(screen.queryByRole('table')).toBeNull();
+});
+
 it("offers England's sexes when England has a value, whatever the picked area has", () => {
   const fixture = benchmarkFixture();
   const Routes = noEnglandRoutes({

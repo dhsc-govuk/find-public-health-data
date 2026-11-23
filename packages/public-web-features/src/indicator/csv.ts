@@ -134,7 +134,9 @@ export async function loadIndicatorCsv(
       isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
     );
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
-    const hasEngland = englandObservations(areaData).some(({ value }) => value !== null);
+    const hasEngland = filterObservations(englandObservations(areaData), { periodType }).some(
+      ({ value }) => value !== null,
+    );
     const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = filterObservations(

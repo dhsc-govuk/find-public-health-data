@@ -62,13 +62,13 @@ export function IndicatorTab({
   const params = new URLSearchParams(navigation.location?.search ?? location.search);
   const [options, applyOptions] = usePanelOptions(id);
   const applyOptionParams = useOptionParamNavigation();
-  const england = englandObservations(areaData);
-  const hasEngland = england.some(({ value }) => value !== null);
   const pickedAreaData = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const periodChoice = periodTypeChoice(areaData, options.periodType, {
     defaultAreas: !!defaultAreaLevel,
   });
   const { periodType } = periodChoice;
+  const england = filterObservations(englandObservations(areaData), { periodType });
+  const hasEngland = england.some(({ value }) => value !== null);
   const shownObservations = filterObservations(
     (pickedAreaData.length ? pickedAreaData : areaData).flatMap(({ observations }) => observations),
     { periodType },
