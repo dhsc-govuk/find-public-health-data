@@ -25,7 +25,7 @@ CREATE TABLE "dimension_value_public" (
 	"age_under_unit" text,
 	"deprivation_group" smallint,
 	CONSTRAINT "dimension_value_public_age_from_check" CHECK (("dimension_value_public"."age_from_value" IS NULL) = ("dimension_value_public"."age_from_unit" IS NULL) AND "dimension_value_public"."age_from_unit" IN ('year', 'month', 'week', 'day')),
-	CONSTRAINT "dimension_value_public_age_under_check" CHECK (("dimension_value_public"."age_under_value" IS NULL) = ("dimension_value_public"."age_under_unit" IS NULL) AND "dimension_value_public"."age_under_unit" IN ('year', 'month', 'week', 'day')),
+	CONSTRAINT "dimension_value_public_age_under_check" CHECK (("dimension_value_public"."age_under_value" IS NULL) = ("dimension_value_public"."age_under_unit" IS NULL) AND "dimension_value_public"."age_under_unit" IN ('year', 'month', 'week', 'day') AND ("dimension_value_public"."age_under_value" IS NULL OR "dimension_value_public"."age_from_value" IS NOT NULL)),
 	CONSTRAINT "dimension_value_public_deprivation_group_check" CHECK ("dimension_value_public"."deprivation_group" BETWEEN 1 AND 10)
 );
 --> statement-breakpoint

@@ -105,7 +105,7 @@ export const dimensionValuePublic = pgTable(
     ),
     check(
       'dimension_value_public_age_under_check',
-      sql`(${t.ageUnderValue} IS NULL) = (${t.ageUnderUnit} IS NULL) AND ${t.ageUnderUnit} IN (${literals(AGE_UNITS)})`,
+      sql`(${t.ageUnderValue} IS NULL) = (${t.ageUnderUnit} IS NULL) AND ${t.ageUnderUnit} IN (${literals(AGE_UNITS)}) AND (${t.ageUnderValue} IS NULL OR ${t.ageFromValue} IS NOT NULL)`,
     ),
     check(
       'dimension_value_public_deprivation_group_check',

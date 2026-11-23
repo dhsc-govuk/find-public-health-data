@@ -1048,7 +1048,7 @@
         },
         "dimension_value_public_age_under_check": {
           "name": "dimension_value_public_age_under_check",
-          "value": "(\"dimension_value_public\".\"age_under_value\" IS NULL) = (\"dimension_value_public\".\"age_under_unit\" IS NULL) AND \"dimension_value_public\".\"age_under_unit\" IN ('year', 'month', 'week', 'day')"
+          "value": "(\"dimension_value_public\".\"age_under_value\" IS NULL) = (\"dimension_value_public\".\"age_under_unit\" IS NULL) AND \"dimension_value_public\".\"age_under_unit\" IN ('year', 'month', 'week', 'day') AND (\"dimension_value_public\".\"age_under_value\" IS NULL OR \"dimension_value_public\".\"age_from_value\" IS NOT NULL)"
         },
         "dimension_value_public_deprivation_group_check": {
           "name": "dimension_value_public_deprivation_group_check",
