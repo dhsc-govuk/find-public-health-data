@@ -15,6 +15,10 @@ import {
 import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
 import { answerTo } from '../support/summary-list.ts';
 
+// The fills of the bars in the Compare areas table, for each way of colouring the areas.
+const COMPARISON_FILL = /^(#8ED973|#FFC000|#C00000)$/;
+const QUINTILE_FILL = /^(#C5EEE9|#84CAC2|#27A096|#027068|#004842)$/;
+
 test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
 });
@@ -382,18 +386,40 @@ test('colours areas by quintile when none can be compared with England', async (
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-test('keeps the comparison with England when areas can be compared', async ({ page }) => {
+test('switches areas between the comparison with England and quintiles', async ({ page }) => {
   await openIndicatorPage(
     page,
-    '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages?tab-indicator=areas',
+    '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages?tab-indicator=areas&areaType=Statistical+regions',
   );
   const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
-  await expect(
-    panel.getByRole('combobox', { name: 'Colour geographies by' }).getByRole('option'),
-  ).toHaveText(['Compared with England', '5 equal groups (quintiles)']);
+  const colour = panel.getByRole('combobox', { name: 'Colour geographies by' });
+  await expect(colour.getByRole('option')).toHaveText([
+    'Compared with England',
+    '5 equal groups (quintiles)',
+  ]);
   const table = panel.getByRole('table', { name: /Table of area comparisons/ });
-  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toBeVisible();
-  await expect(table.getByRole('cell', { name: 'Better', exact: true }).first()).toBeVisible();
+  const london = table
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: 'London', exact: true }) });
+  const bar = london.locator('.fphd-comparison-bar rect').nth(1);
+  const comparison = table.getByRole('columnheader', { name: 'Compared with England' });
+  const quintile = table.getByRole('columnheader', { name: 'Quintile', exact: true });
+
+  await expect(colour).toHaveValue('england');
+  await expect(comparison).toBeVisible();
+  await expect(bar).toHaveAttribute('fill', COMPARISON_FILL);
+
+  await colour.selectOption('quintiles');
+  await expect(page).toHaveURL(/areaColour=quintiles/);
+  await expect(quintile).toBeVisible();
+  await expect(comparison).toHaveCount(0);
+  await expect(bar).toHaveAttribute('fill', QUINTILE_FILL);
+
+  await colour.selectOption('england');
+  await expect(page).toHaveURL(/areaColour=england/);
+  await expect(comparison).toBeVisible();
+  await expect(quintile).toHaveCount(0);
+  await expect(bar).toHaveAttribute('fill', COMPARISON_FILL);
 });
 
 test('sorts hydrated area comparisons without Array.prototype.toSorted', async ({ page }) => {
@@ -1132,7 +1158,7 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
     .getByRole('row')
     .filter({ has: page.getByRole('rowheader', { name: 'Slough', exact: true }) });
   const bar = slough.locator('.fphd-comparison-bar rect').nth(1);
-  await expect(bar).toHaveAttribute('fill', /^#[0-9a-f]{6}$/i);
+  await expect(bar).toHaveAttribute('fill', QUINTILE_FILL);
   expect(Number(await bar.getAttribute('width'))).toBeGreaterThan(70);
   expect(Number(await bar.getAttribute('width'))).toBeLessThan(80);
   const chart = page.getByRole('region', { name: /^Compare areas: Diabetes: QOF prevalence/ });
@@ -1148,9 +1174,6 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await page.getByRole('tablist').evaluate((element) => element.scrollIntoView({ block: 'start' }));
   await page.screenshot({ path: testInfo.outputPath('comparison-charts.png') });
   await expectNoAccessibilityViolations(page, testInfo);
-  await page.getByRole('combobox', { name: 'Colour geographies by' }).selectOption('quintiles');
-  await expect(bar).toHaveAttribute('fill', /#C5EEE9|#84CAC2|#27A096|#027068|#004842/);
-  await expect(page.getByRole('option', { name: /quartiles/ })).toHaveCount(0);
   await page.getByLabel('Colour areas by', { exact: true }).selectOption('yes');
   await expect(page).toHaveURL(/quintile-241=yes/);
   await expect(chart).toContainText(

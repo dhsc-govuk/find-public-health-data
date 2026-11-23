@@ -483,6 +483,42 @@ describe('loadSearch', () => {
     expect(searchResult.indicators.map(({ name }) => name)).toEqual(['Indicator']);
   });
 
+  it('reads every page of results without the unknown value', async () => {
+    const row = (shortId: number) => ({
+      shortId,
+      name: `Indicator ${shortId}`,
+      slug: `indicator-${shortId}`,
+      topics: [],
+      classifications: [],
+      latestPeriod: null,
+      yearType: null,
+      dataUpdatedAt: null,
+    });
+    const client = api({
+      'GET /api/indicators/facets': { ...EMPTY_FACETS, valueTypes: ['Proportion'] },
+      'GET /api/indicators/search': (call) => {
+        const params = new URL(`http://x${call.path}`).searchParams;
+        if (params.getAll('vt').includes('nonsense')) return EMPTY_RESULT;
+        const page = Number(params.get('page') ?? 1);
+        return { total: 3, limit: 1, page, indicators: [row(page)] };
+      },
+    });
+
+    const { searchResult } = await loadSearch(
+      loaderArgs(client, 'http://localhost/topics/cancer?vt=Proportion&vt=nonsense'),
+      { topicSlug: 'cancer', path: '/topics/cancer', complete: true },
+    );
+
+    expect(searchResult.indicators.map(({ shortId }) => shortId)).toEqual([1, 2, 3]);
+    const filtered = '/api/indicators/search?t=cancer&vt=Proportion&sort=subtopic-asc';
+    expect(paths(client).filter((path) => path.startsWith('/api/indicators/search'))).toEqual([
+      '/api/indicators/search?t=cancer&vt=Proportion&vt=nonsense&sort=subtopic-asc',
+      filtered,
+      `${filtered}&page=2&limit=200`,
+      `${filtered}&page=3&limit=200`,
+    ]);
+  });
+
   it('searches once when the facets offer every filter value', async () => {
     const client = api({ 'GET /api/indicators/facets': topicFacets('cancer') });
 
