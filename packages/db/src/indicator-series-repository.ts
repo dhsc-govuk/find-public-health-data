@@ -110,6 +110,10 @@ export async function getIndicatorSeriesData(
       series,
       and(
         eq(series.indicatorId, batches.indicatorId),
+        mode === 'ranking'
+          ? undefined
+          : sql`${series.variants} @> jsonb_build_array(jsonb_build_object(
+              'sex', ${series.sex}, 'periodType', ${series.periodType}))`,
         inArray(
           series.areaId,
           areas.map(({ id }) => id),

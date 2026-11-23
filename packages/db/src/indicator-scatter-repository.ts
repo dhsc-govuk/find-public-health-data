@@ -79,6 +79,8 @@ async function getCachedScatterVariants(
         indicatorId: series.indicatorId,
         areaId: series.areaId,
         dimensionKey: series.dimensionKey,
+        sex: sql<string>`${series.sex}`.as('series_sex'),
+        periodType: sql<string>`${series.periodType}`.as('series_period_type'),
         headline: sql<boolean>`${series.variants} @> jsonb_build_array(jsonb_build_object(
           'sex', ${series.sex}, 'periodType', ${series.periodType}, 'headline', true))`.as(
           'is_headline',
@@ -238,7 +240,13 @@ async function getCachedScatterVariants(
           eq(selected.indicatorId, points.indicatorId),
           eq(selected.areaId, points.areaId),
           eq(selected.dimensionKey, points.dimensionKey),
-          sql`${selected.headline}`,
+          or(
+            and(
+              or(eq(points.sex, ''), notInArray(points.indicatorId, sexedIndicatorIds)),
+              sql`${selected.headline}`,
+            ),
+            and(eq(selected.sex, points.sex), eq(selected.periodType, 'all')),
+          ),
         ),
       )
       .leftJoin(dimensions, eq(dimensions.dimensionKey, points.dimensionKey))
@@ -326,10 +334,6 @@ async function getCachedScatterVariants(
       areaId: areas.id,
       areaCode: areas.code,
       areaName: areas.name,
-      sexed: sql<boolean>`exists (select 1 from ${series} sexed_series
-        join ${areas} sexed_area on sexed_area.id = sexed_series.area_id
-        where sexed_series.indicator_id = ${batches.indicatorId}
-          and coalesce(jsonb_array_length(sexed_series.variants -> 0 -> 'sexes'), 0) > 0)`,
       complete: eq(
         db.select({ value: count() }).from(wanted),
         db.select({ value: count() }).from(candidates),
@@ -367,7 +371,7 @@ async function getCachedScatterVariants(
   }
   if (
     new Set(loaded.map((row) => row.indicatorId)).size !== indicatorIds.length ||
-    loaded.some((row) => !row.complete || (row.sexed && sexes.some(Boolean))) ||
+    loaded.some((row) => !row.complete) ||
     [...identities.values()].some((ids) => ids.size > 1)
   )
     return undefined;
@@ -447,7 +451,7 @@ export async function getPublishedIndicatorScatterData(
   const [first, second] = ids;
   if (!first || !second || first === second) return undefined;
   const indicatorIds: [string, string] = [first, second];
-  const ranking = await getIndicatorSeriesData(db, views, indicatorIds, codes, 'ranking', true);
+  const ranking = await getIndicatorSeriesData(db, views, indicatorIds, codes, 'ranking');
   if (ranking) {
     const sexesByIndicator = indicatorIds.map((id) => ranking.get(id)?.sexes ?? []);
     const sexes = (sexesByIndicator.find((values) => values.length) ?? [])

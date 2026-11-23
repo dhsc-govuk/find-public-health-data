@@ -1,5 +1,6 @@
 import {
   headlineSeries,
+  OBSERVATION_SERIES_VERSION,
   observationSegmentKey,
   pairedAreaSexValues,
   pairedAreaValues,
@@ -67,7 +68,17 @@ it('reads bounded cached candidates, markers and benchmarks in one statement', a
   }
 });
 
-it('keeps sex variants when comparison caches offer only aggregate rows', async () => {
+it('reads cached sex histories while comparison variants offer only aggregate rows', async () => {
+  const rows = await database.db
+    .select()
+    .from(observationSeries)
+    .where(inArray(observationSeries.indicatorId, ids));
+  const sexRows = rows.filter(({ sex }) => sex);
+  expect(sexRows.length).toBeGreaterThan(0);
+  for (const row of sexRows)
+    expect(row.variants).not.toContainEqual(
+      expect.objectContaining({ sex: row.sex, periodType: row.periodType }),
+    );
   const expected = (await canonical()).map((point) => ({
     ...point,
     x: point.y,
@@ -89,6 +100,7 @@ it('keeps sex variants when comparison caches offer only aggregate rows', async 
       [40501, 108],
       codes,
     );
+    expect(query).toHaveBeenCalledTimes(5);
     expect(comparison?.points).toEqual(expected);
     expect(comparison?.variants).toEqual(variants);
     expect(comparison?.variants.map(({ sex }) => sex)).toEqual(['Female', 'Male']);
@@ -377,7 +389,7 @@ it('keeps sex variants while older cache versions use canonical histories', asyn
   const expected = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);
   await database.db
     .update(observationSeriesBatch)
-    .set({ version: 0 })
+    .set({ version: OBSERVATION_SERIES_VERSION - 1 })
     .where(inArray(observationSeriesBatch.indicatorId, ids));
   expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
   const actual = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);

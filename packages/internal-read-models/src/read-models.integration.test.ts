@@ -442,7 +442,7 @@ it.each([false, true])(
           );
         expect(cached.map(({ periodType }) => periodType).sort()).toEqual(
           sexed
-            ? ['1-month', '3-month', '3-year', '5-year', '500-day', '550-day', '7-year']
+            ? ['1-month', '3-month', '3-year', '5-year', '500-day', '550-day', '7-year', 'all']
             : ['all'],
         );
         for (const years of sexed ? [3, 5, 7] : []) {
@@ -496,7 +496,7 @@ it.each([false, true])(
           .select()
           .from(schema.observationSeries)
           .where(eq(schema.observationSeries.indicatorId, indicatorId));
-        for (const row of allRows)
+        for (const row of allRows.filter(({ periodType }) => !sexed || periodType !== 'all'))
           expect(row.variants).toEqual(
             expect.arrayContaining([
               expect.objectContaining({ sex: row.sex, periodType: row.periodType }),
@@ -504,8 +504,11 @@ it.each([false, true])(
           );
         if (sexed)
           expect(
-            allRows.filter(({ sex }) => sex === 'Male').map(({ periodType }) => periodType),
-          ).toEqual(['1-year']);
+            allRows
+              .filter(({ sex }) => sex === 'Male')
+              .map(({ periodType }) => periodType)
+              .sort(),
+          ).toEqual(['1-year', 'all']);
         const [batch] = await tx
           .select()
           .from(schema.observationSeriesBatch)

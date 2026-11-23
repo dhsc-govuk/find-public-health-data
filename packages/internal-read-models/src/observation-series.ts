@@ -164,6 +164,21 @@ async function insertSeries(
       .where(sql`${areas.aggregate}`)
       .union(sexChoices),
   );
+  const seriesChoices = tx.$with('series_choices').as(
+    tx
+      .select({ areaId: choices.areaId, sex: choices.sex, periodType: choices.periodType })
+      .from(choices)
+      .union(
+        tx
+          .select({
+            areaId: segments.areaId,
+            sex: sexValues.name,
+            periodType: sql<PeriodType>`'all'`,
+          })
+          .from(segments)
+          .innerJoin(sexValues, eq(sexValues.id, segments.sex)),
+      ),
+  );
 
   // An all-period choice elects one complete series, so different lengths never share a history.
   const candidateColumns = {
@@ -183,18 +198,21 @@ async function insertSeries(
     tx
       .select({
         ...candidateColumns,
-        sex: sql<string>`${choices.sex}`.as('sex'),
-        periodType: sql<PeriodType>`${choices.periodType}`.as('period_type'),
+        sex: sql<string>`${seriesChoices.sex}`.as('sex'),
+        periodType: sql<PeriodType>`${seriesChoices.periodType}`.as('period_type'),
       })
       .from(segments)
       .innerJoin(
-        choices,
+        seriesChoices,
         and(
-          eq(choices.areaId, segments.areaId),
-          or(eq(choices.periodType, 'all'), eq(choices.periodType, segments.periodType)),
+          eq(seriesChoices.areaId, segments.areaId),
           or(
-            eq(choices.sex, ''),
-            sql`${choices.sex} = (
+            eq(seriesChoices.periodType, 'all'),
+            eq(seriesChoices.periodType, segments.periodType),
+          ),
+          or(
+            eq(seriesChoices.sex, ''),
+            sql`${seriesChoices.sex} = (
           select ${sexValues.name} from ${sexValues} where ${sexValues.id} = ${segments.sex}
         )`,
           ),
@@ -226,6 +244,9 @@ async function insertSeries(
     tx
       .selectDistinctOn([winners.areaId])
       .from(winners)
+      .where(sql`exists (select 1 from ${choices}
+        where ${choices.areaId} = ${winners.areaId} and ${choices.sex} = ${winners.sex}
+          and ${choices.periodType} = ${winners.periodType})`)
       .orderBy(
         winners.areaId,
         ...headlineSeriesOrder(
@@ -272,6 +293,7 @@ async function insertSeries(
       segments,
       areas,
       choices,
+      seriesChoices,
       candidates,
       winners,
       headlines,

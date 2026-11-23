@@ -2,6 +2,7 @@ import { createRepositories, type Database, schema } from '@fphd/db';
 import { apiLogin, createTestDb, type TestDb } from '@fphd/db/testing';
 import { request } from '@fphd/express/testing';
 import { publicApiRoutes } from '@fphd/public-api-features';
+import { OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
 import { apiContext } from '@fphd/web-server/api-context';
 import { createFakeApiClient } from '@fphd/web-server/testing';
 import { eq, inArray } from 'drizzle-orm';
@@ -61,6 +62,11 @@ async function load(url: string, onRead: (path: string) => void = () => {}) {
 }
 
 it('keeps the seeded diabetes and smoking comparison within its statement budget', async () => {
+  expect(
+    await database.db
+      .selectDistinct({ version: schema.observationSeriesBatch.version })
+      .from(schema.observationSeriesBatch),
+  ).toEqual([{ version: OBSERVATION_SERIES_VERSION }]);
   const query = vi.spyOn(db.$client, 'unsafe');
   const paths: string[] = [];
   try {
@@ -69,7 +75,14 @@ it('keeps the seeded diabetes and smoking comparison within its statement budget
       (path) => paths.push(path),
     );
     expect(comparison.scatter?.points.length).toBeGreaterThan(1);
-    expect(query.mock.calls.length).toBeLessThanOrEqual(34);
+    expect(
+      query.mock.calls.filter(
+        ([statement]) =>
+          statement.startsWith('select "observation"."id", "observation"."indicator_id"') &&
+          /where "observation"\."indicator_id" in \(\$\d+,/.test(statement),
+      ),
+    ).toHaveLength(0);
+    expect(query.mock.calls.length).toBeLessThanOrEqual(31);
     expect(paths.filter((path) => path.startsWith('/api/indicator-scatter?'))).toHaveLength(1);
     expect(paths.some((path) => /\/(indicator-data|ranking)\?/.test(path))).toBe(false);
     for (const variant of comparison.scatter?.variants ?? []) {

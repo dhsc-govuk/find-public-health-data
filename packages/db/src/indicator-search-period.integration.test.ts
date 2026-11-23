@@ -65,6 +65,7 @@ beforeAll(async () => {
       ORDER BY o.from_date DESC, o.to_date DESC LIMIT 1
     ) point ON true
     WHERE s.sex = '' AND s.period_type = 'all'
+    ON CONFLICT DO NOTHING
   `;
   await owner`
     DELETE FROM observation_series s
