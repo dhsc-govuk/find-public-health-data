@@ -67,6 +67,7 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
     'period-type': {
       periodType: 'Time periods',
       yearType: 'Year type',
+      publishedFrom: 'Show data from',
       yearEndDay: 'Year end day',
       yearEndMonth: 'Year end month',
     },

@@ -32,13 +32,13 @@ moves to this service. The operations image applies the packages with `db migrat
   diagnostics. Historical dates and future periods are not excluded by the current Grouping baseline
   or data point.
 - Each exported `indicator_version` carries a nullable `published_from` date. It is the earliest
-  baseline across all of the indicator's Groupings, converted with the same source period and
-  year-type logic as observation dates. It lives beside `period_type` and `year_type` because a
-  published version's metadata determines which of its batch's observations the public sees.
-  Indicators without Groupings have a null date and show every retained observation. The export
-  retains observations before the baseline. Public observation views and shared read-model builders
-  filter on `from_date >= published_from`, covering tabs, downloads, API responses, period coverage,
-  trends, year filters and topics. Bridge views follow the filtered observation view.
+  convertible baseline across all of the indicator's Groupings, converted with the same source
+  period and year-type logic as observation dates. It lives beside `period_type` and `year_type`
+  because a published version's metadata determines which of its batch's observations the public
+  sees. Indicators without Groupings have a null date and show every retained observation. The
+  export retains observations before the baseline. Public observation views and shared read-model
+  builders filter on `from_date >= published_from`, covering tabs, downloads, API responses, period
+  coverage, trends, year filters and topics. Bridge views follow the filtered observation view.
 - The start date imposes no upper bound, gaps, period-format or cohort-specific visibility rules.
   For 90632, Academic year type and baseline 2021 produce `2021-09-01`, retaining 2021/22 onwards.
   For NHS Health Check indicators 91111, 91112 and 91116, cumulative financial year type and
@@ -290,6 +290,43 @@ pnpm --filter @fphd/data-migration data-migration export-pholio \
 
 The ids to exclude in production are a human decision documented alongside the reviewed
 relationships file; the approved list itself is the committed `data/approved-indicators.json`.
+
+## Grouping baseline diagnostics and profile state
+
+Unsupported baseline periods do not stop indicator export. `source-manifest.json` records
+`grouping_baseline_exclusions` with the indicator ID, grouping baseline fields, `GroupingID`, source
+year type and conversion error. The earliest convertible baseline is used; if none converts,
+`published_from` is null. A null source `YearTypeID` uses Calendar, as observation conversion does.
+The publisher can edit or clear the date in the Period type task; clearing it shows all retained
+periods after publication.
+
+Baseline selection still reads every row of `dbo.Grouping`. The Fingertips source inspected at
+[`67808972`](https://github.com/ukhsa-collaboration/fingertips-open/tree/678089724a516138232d273c4c7f511ed3c5a338)
+does not establish a universal live-grouping predicate for this calculation:
+
+- [`PholioObjects.hbm.xml:77–95`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/PholioObjects/PholioObjects.hbm.xml#L77-L95)
+  maps `IsProfileLive` to `UI_Profiles.is_profile_live`, but the grouping and group metadata
+  mappings at lines 482–534 have no published, disclosure-controlled or deleted marker.
+- [`ProfileReader.cs:67–110`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/DataAccess/ProfileReader.cs#L67-L110)
+  applies `exclude_indicators_from_search` when selecting search groups; `GetAllProfiles` at lines
+  113–119 has no live filter. The indicator-profile SQL in
+  [`PholioObjects.hbm.xml:879–901`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/PholioObjects/PholioObjects.hbm.xml#L879-L901)
+  likewise joins profiles without filtering live state.
+- [`ProfilesController.cs:28–40`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/ServicesWeb/Controllers/ProfilesController.cs#L28-L40)
+  lists profiles except the Search profile.
+  [`GroupDataReader.cs:263–267`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/DataAccess/GroupDataReader.cs#L263-L267)
+  reads an indicator's groupings without a state filter.
+- [`DataFileGenerator.cs:84–96`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/FingertipsDataExtractionTool/DataFileGenerator.cs#L84-L96)
+  uses `(ShouldBuildExcel || IsProfileLive) && IsNational` for generating profile downloads. That
+  permits non-live profiles with `ShouldBuildExcel`; it does not filter API grouping baselines.
+- [`AccessControlHelper.cs:25–34`](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/IndicatorsUI/MainUI/Helpers/AccessControlHelper.cs#L25-L34)
+  controls profile access through an environment setting and the user's access-control group, rather
+  than a live or deleted flag.
+
+These paths distinguish search visibility, profile access and stored live state; they do not show
+that any one of those controls determines which baselines an indicator publishes. No additional
+state filter is inferred. The export SQL is in `src/pholio/groupings.ts`; analytical owner-profile
+selection in `src/pholio/indicators.ts` is independent of baseline selection.
 
 ## Build the baseline
 

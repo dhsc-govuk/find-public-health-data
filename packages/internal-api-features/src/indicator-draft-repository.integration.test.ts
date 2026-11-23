@@ -7,7 +7,6 @@ import { MAX_AGE } from '@fphd/utils/ages';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
-
 import { editVersion } from './edit-version.ts';
 import {
   createIndicatorDraft,
@@ -35,6 +34,8 @@ import {
   typeClassification,
   underFive,
 } from './indicator-repository.testing.ts';
+import { periodTypeColumns } from './indicator-section-columns.ts';
+import { changesTask } from './indicator-task-audit-fields.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
 
@@ -1318,3 +1319,39 @@ describe('getIndicatorDraftState', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+repositoryTest(
+  'persists and audits setting and clearing the publication start in the period type task',
+  async ({ db }) => {
+    const created = await newDraft(db, 'Editable publication start');
+    for (const publishedFrom of ['2020-01-01', '']) {
+      const attributes = periodTypeColumns.toAttributes({
+        periodType: 'years',
+        yearType: 'calendar',
+        yearEndDay: '',
+        yearEndMonth: '',
+        publishedFrom,
+      });
+      expect(
+        await updateIndicatorDraft(
+          db,
+          created.indicatorId,
+          'period-type',
+          attributes,
+          {},
+          AS_ACTOR,
+        ),
+      ).toMatchObject({ ok: true });
+      const state = await getIndicatorDraftState(db, created.indicatorId);
+      expect(state?.draft?.publishedFrom).toBe(publishedFrom || null);
+      const entry = (await auditEntriesFor(db, created.indicatorId)).at(-1);
+      expect(entry?.changes).toMatchObject({
+        publishedFrom: {
+          before: publishedFrom ? null : '2020-01-01',
+          after: publishedFrom || null,
+        },
+      });
+      expect(changesTask('period-type', Object.keys(entry?.changes ?? {}))).toBe(true);
+    }
+  },
+);

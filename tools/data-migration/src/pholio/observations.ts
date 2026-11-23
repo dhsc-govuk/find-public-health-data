@@ -350,7 +350,7 @@ async function assertDistinctObservations(
       c.Month,
       c.Quarter,
       c.YearRange,
-      c.YearTypeID ?? 1,
+      c.YearTypeID,
     );
     for (const [split, dimensions] of observationDimensions(c).entries()) {
       for (const dimension of dimensions) {
@@ -455,7 +455,7 @@ export async function exportObservations(context: ObservationExportOptions) {
       c.Month,
       c.Quarter,
       c.YearRange,
-      c.YearTypeID ?? 1,
+      c.YearTypeID,
     );
     const value = nullIfSentinel(c.Value);
     const suppressed = suppressSourceMeasures(c.Value, c.ValueNoteId);

@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { createObservationGroupings } from './groupings.ts';
 
 const annual = {
+  GroupingID: 42,
   IndicatorID: 108,
   SexID: 4,
   AgeID: 1,
@@ -98,4 +99,44 @@ it('uses the earliest converted baseline across every grouping of the indicator'
 it('returns null when the indicator has no groupings', () => {
   expect(createObservationGroupings([]).publishedFrom(108, 1)).toBeNull();
   expect(createObservationGroupings([annual]).publishedFrom(999, 1)).toBeNull();
+});
+
+it.each([
+  [3, { BaselineQuarter: 1 }, 'Academic quarters'],
+  [4, { YearRange: 3 }, 'Rolling year range'],
+  [5, { YearRange: 3 }, 'Rolling year range'],
+  [6, { YearRange: 3 }, 'Rolling year range'],
+  [12, { YearRange: 3 }, 'Rolling year range'],
+  [12, { BaselineMonth: 6 }, 'Financial rolling monthly'],
+  [1, { BaselineQuarter: 5 }, 'Unsupported quarter'],
+  [2, { BaselineQuarter: 0 }, 'Unsupported quarter'],
+  [1, { BaselineMonth: 13 }, 'Invalid source month'],
+  [0, {}, 'Unsupported source year type'],
+])(
+  'skips and diagnoses unconvertible baselines for year type %i',
+  (yearType, overrides, reason) => {
+    const skipped: unknown[] = [];
+    const invalid = { ...annual, BaselineYear: 2000, ...overrides };
+    const groupings = createObservationGroupings([invalid, { ...annual, GroupingID: 43 }]);
+    const expected =
+      yearType === 0
+        ? null
+        : yearType === 3
+          ? '2021-09-01'
+          : [2, 4].includes(yearType)
+            ? '2021-04-01'
+            : '2021-01-01';
+    expect(groupings.publishedFrom(108, yearType, (entry) => skipped.push(entry))).toBe(expected);
+    expect(skipped[0]).toEqual({
+      indicator_id: 108,
+      grouping: invalid,
+      year_type_id: yearType,
+      reason: expect.stringContaining(reason),
+    });
+    expect(createObservationGroupings([invalid]).publishedFrom(108, yearType)).toBeNull();
+  },
+);
+
+it('uses the observation Calendar fallback when the source year type is null', () => {
+  expect(createObservationGroupings([annual]).publishedFrom(108, null)).toBe('2021-01-01');
 });

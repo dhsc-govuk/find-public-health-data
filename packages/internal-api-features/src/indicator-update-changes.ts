@@ -176,6 +176,7 @@ const CHANGED_SECTIONS: Readonly<
   'period-type': sectionOf(periodTypeSection, periodTypeColumns, {
     periodType: option(PERIOD_TYPE_LABELS),
     yearType: option(YEAR_TYPE_LABELS),
+    publishedFrom: entered,
     yearEndDay: entered,
     yearEndMonth: (value) => (isAnswered(value) ? monthName(Number(value)) : null),
   }),

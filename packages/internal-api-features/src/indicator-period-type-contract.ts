@@ -3,7 +3,7 @@ import { isDayOfMonth, isYearType, PERIOD_TYPES } from '@fphd/utils/period-type'
 
 import { type IndicatorSection, isSmallNumber, textSection } from './indicator-section-contract.ts';
 
-const fields = z.enum(['periodType', 'yearType', 'yearEndDay', 'yearEndMonth']);
+const fields = z.enum(['periodType', 'yearType', 'yearEndDay', 'yearEndMonth', 'publishedFrom']);
 
 export type PeriodTypeField = z.infer<typeof fields>;
 
@@ -34,6 +34,15 @@ function yearEndProblems(day: string, month: string): Partial<Record<PeriodTypeF
  */
 const schema = z
   .object({
+    publishedFrom: z
+      .string()
+      .trim()
+      .pipe(
+        z.union([
+          z.literal(''),
+          z.iso.date({ error: 'Enter a real date in the format YYYY-MM-DD' }),
+        ]),
+      ),
     periodType: z.enum(PERIOD_TYPES, { error: 'Select the period type' }),
     yearType: z.string(),
     yearEndDay: z.string().trim(),

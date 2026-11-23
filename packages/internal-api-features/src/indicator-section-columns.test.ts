@@ -146,7 +146,13 @@ describe('periodTypeColumns', () => {
         yearEndDay: 31,
         yearEndMonth: 7,
       }),
-    ).toEqual({ periodType: years, yearType: specified, yearEndDay: '31', yearEndMonth: '7' });
+    ).toEqual({
+      periodType: years,
+      yearType: specified,
+      yearEndDay: '31',
+      yearEndMonth: '7',
+      publishedFrom: null,
+    });
   });
 
   it('writes the year end of a year ending on a specified date', () => {
@@ -156,8 +162,15 @@ describe('periodTypeColumns', () => {
         yearType: specified,
         yearEndDay: '31',
         yearEndMonth: '07',
+        publishedFrom: '',
       }),
-    ).toEqual({ periodType: years, yearType: specified, yearEndDay: 31, yearEndMonth: 7 });
+    ).toEqual({
+      periodType: years,
+      yearType: specified,
+      yearEndDay: 31,
+      yearEndMonth: 7,
+      publishedFrom: null,
+    });
   });
 
   it('clears a year end the year type does not ask for', () => {
@@ -167,12 +180,14 @@ describe('periodTypeColumns', () => {
         yearType: 'financial',
         yearEndDay: '31',
         yearEndMonth: '7',
+        publishedFrom: '',
       }),
     ).toEqual({
       periodType: 'quarters',
       yearType: 'financial',
       yearEndDay: null,
       yearEndMonth: null,
+      publishedFrom: null,
     });
   });
 
@@ -183,12 +198,14 @@ describe('periodTypeColumns', () => {
         yearType: specified,
         yearEndDay: '31',
         yearEndMonth: '7',
+        publishedFrom: '',
       }),
     ).toEqual({
       periodType: 'months',
       yearType: null,
       yearEndDay: null,
       yearEndMonth: null,
+      publishedFrom: null,
     });
   });
 });
@@ -694,5 +711,23 @@ describe('publishingDateColumns', () => {
         scheduledPublishAt,
       }),
     ).toEqual({ scheduledPublishAt, fastTrackReason: null });
+  });
+});
+
+it.each([
+  ['2020-01-01', '2020-01-01'],
+  ['', null],
+] as const)('saves and clears the publication start date %s', (publishedFrom, stored) => {
+  expect(
+    periodTypeColumns.toAttributes({
+      periodType: 'months',
+      yearType: '',
+      yearEndDay: '',
+      yearEndMonth: '',
+      publishedFrom,
+    }),
+  ).toMatchObject({ publishedFrom: stored });
+  expect(periodTypeColumns.fromDraft({ ...unansweredDraft, publishedFrom: stored })).toMatchObject({
+    publishedFrom: stored,
   });
 });

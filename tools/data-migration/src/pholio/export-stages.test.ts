@@ -794,7 +794,7 @@ function indicatorQueries(
   metadata: {
     groupings?: Record<string, unknown>[];
     baselines?: Record<string, unknown>[];
-    yearTypeId?: number;
+    yearTypeId?: number | null;
     ownerProfileId?: number | null;
     formattingMaximum?: number | null;
     decimalPlaces?: number | null;
@@ -844,7 +844,7 @@ function indicatorQueries(
         DecimalPlacesDisplayed: metadata.decimalPlaces ?? null,
         UnitName: unitName,
         YearTypeName: 'Calendar',
-        YearTypeID: metadata.yearTypeId ?? 1,
+        YearTypeID: metadata.yearTypeId === undefined ? 1 : metadata.yearTypeId,
         OwnerProfileId: metadata.ownerProfileId === undefined ? 10 : metadata.ownerProfileId,
         CIMethodID: null,
         EnteredAt: new Date('2020-01-01T00:00:00Z'),
@@ -1268,4 +1268,72 @@ it('exports a null start date without grouping baselines', async () => {
   indicatorQueries();
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.published_from).toBe(DATA_MIGRATION_NULL);
+});
+
+it('exports convertible baselines and diagnostics without aborting the indicator', async () => {
+  const invalid = {
+    GroupingID: 42,
+    IndicatorID: 108,
+    SexID: 4,
+    AgeID: 1,
+    BaselineYear: 2000,
+    BaselineQuarter: 1,
+    BaselineMonth: -1,
+    YearRange: 1,
+  };
+  indicatorQueries('No unit', undefined, [], {
+    yearTypeId: 3,
+    baselines: [invalid, { ...invalid, GroupingID: 43, BaselineYear: 2021, BaselineQuarter: -1 }],
+  });
+  const result = await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.published_from).toBe('2021-09-01');
+  expect(result.groupingBaselineExclusions).toEqual([
+    {
+      indicator_id: 108,
+      grouping: invalid,
+      year_type_id: 3,
+      reason: 'Academic quarters require a verified source date mapping',
+    },
+  ]);
+});
+
+it('exports a null cutoff when every baseline is unconvertible', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    yearTypeId: 3,
+    baselines: [
+      {
+        GroupingID: 42,
+        IndicatorID: 108,
+        BaselineYear: 2000,
+        BaselineQuarter: 1,
+        BaselineMonth: -1,
+        YearRange: 1,
+      },
+    ],
+  });
+  const result = await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]?.published_from).toBe(DATA_MIGRATION_NULL);
+  expect(result.groupingBaselineExclusions).toHaveLength(1);
+});
+
+it('aligns a null source year type baseline with observation dates', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    yearTypeId: null,
+    baselines: [
+      {
+        GroupingID: 42,
+        IndicatorID: 108,
+        BaselineYear: 2021,
+        BaselineQuarter: -1,
+        BaselineMonth: -1,
+        YearRange: 1,
+      },
+    ],
+  });
+  await exportIndicators(options);
+  const publishedFrom = (await rows('indicator_version'))[0]?.published_from;
+  sourceObservations([observation({ YearTypeID: null, Year: 2021 })]);
+  await exportObservations(observationOptions());
+  expect(publishedFrom).toBe('2021-01-01');
+  expect((await rows('observation'))[0]?.from_date).toBe(publishedFrom);
 });

@@ -11,9 +11,16 @@ afterEach(cleanup);
 
 const TITLE = 'What is the period type in this indicator?';
 
-const unanswered = { periodType: '', yearType: '', yearEndDay: '', yearEndMonth: '' };
+const unanswered = {
+  periodType: '',
+  yearType: '',
+  yearEndDay: '',
+  yearEndMonth: '',
+  publishedFrom: '',
+};
 
 const quartersEndingOn = {
+  publishedFrom: '',
   periodType: 'quarters',
   yearType: 'specified-end-date',
   yearEndDay: '30',
@@ -138,4 +145,20 @@ describe('periodTypeControlNames', () => {
   ])('reads no year type for %s', (_, periodType) => {
     expect(periodTypeControlNames(formData({ periodType }))).toEqual({});
   });
+});
+
+it('edits the optional publication start date and links its validation error', () => {
+  renderPage({
+    values: { ...unanswered, publishedFrom: '2024-02-29' },
+    fieldErrors: { publishedFrom: 'Enter a real date in the format YYYY-MM-DD' },
+  });
+  const input = screen.getByRole('textbox', {
+    name: 'Show data from (optional)',
+  }) as HTMLInputElement;
+  expect(input.value).toBe('2024-02-29');
+  expect(input.name).toBe('publishedFrom');
+  expect(screen.getByText(/Leave blank to show all periods/)).toBeTruthy();
+  expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe(
+    `#${input.id}`,
+  );
 });

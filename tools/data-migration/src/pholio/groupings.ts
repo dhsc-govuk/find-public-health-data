@@ -3,6 +3,7 @@ import { computeDates } from './period.ts';
 import { queryPholio } from './source.ts';
 
 interface Grouping {
+  GroupingID: number;
   IndicatorID: number;
   SexID: number;
   AgeID: number;
@@ -21,6 +22,13 @@ interface ObservationSeries {
   Month: number;
 }
 
+export interface GroupingBaselineExclusion {
+  indicator_id: number;
+  grouping: Grouping;
+  year_type_id: number | null;
+  reason: string;
+}
+
 export type GroupingExclusion = 'year_range_not_in_grouping' | 'periodicity_not_in_grouping';
 
 function samePeriodicity(grouping: Grouping, row: ObservationSeries): boolean {
@@ -32,7 +40,7 @@ function samePeriodicity(grouping: Grouping, row: ObservationSeries): boolean {
 export async function loadObservationGroupings(pool: mssql.ConnectionPool) {
   const rows = await queryPholio<Grouping>(
     pool,
-    `SELECT DISTINCT IndicatorID, SexID, AgeID, YearRange,
+    `SELECT GroupingID, IndicatorID, SexID, AgeID, YearRange,
        BaselineYear, BaselineQuarter, BaselineMonth
      FROM dbo.Grouping`,
   );
@@ -47,17 +55,30 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
     byIndicator.set(row.IndicatorID, groupings);
   }
   return {
-    publishedFrom(indicatorId: number, yearTypeId: number): string | null {
+    publishedFrom(
+      indicatorId: number,
+      yearTypeId: number | null,
+      onSkipped?: (exclusion: GroupingBaselineExclusion) => void,
+    ): string | null {
       let earliest: string | null = null;
       for (const grouping of byIndicator.get(indicatorId) ?? []) {
-        const { fromDate } = computeDates(
-          grouping.BaselineYear,
-          grouping.BaselineMonth,
-          grouping.BaselineQuarter,
-          grouping.YearRange,
-          yearTypeId,
-        );
-        if (earliest === null || fromDate < earliest) earliest = fromDate;
+        try {
+          const { fromDate } = computeDates(
+            grouping.BaselineYear,
+            grouping.BaselineMonth,
+            grouping.BaselineQuarter,
+            grouping.YearRange,
+            yearTypeId,
+          );
+          if (earliest === null || fromDate < earliest) earliest = fromDate;
+        } catch (error) {
+          onSkipped?.({
+            indicator_id: indicatorId,
+            grouping,
+            year_type_id: yearTypeId,
+            reason: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
       return earliest;
     },

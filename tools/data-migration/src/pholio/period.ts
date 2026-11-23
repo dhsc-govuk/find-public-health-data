@@ -92,8 +92,9 @@ export function computeDates(
   month: number,
   quarter: number,
   yearRange: number,
-  yearTypeId: number,
+  sourceYearTypeId: number | null,
 ): { fromDate: string; toDate: string } {
+  const yearTypeId = sourceYearTypeId ?? 1;
   const firstMonth = yearTypeFromMonth(yearTypeId);
   if ([4, 5, 6, 12].includes(yearTypeId) && yearRange > 1)
     throw new Error(`Rolling year range ${yearRange} requires a verified source mapping`);

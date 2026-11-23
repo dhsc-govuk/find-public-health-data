@@ -3,9 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { periodTypeSection as section } from './indicator-period-type-contract.ts';
 import { sectionFieldErrors } from './testing.ts';
 
-const unanswered = { periodType: '', yearType: '', yearEndDay: '', yearEndMonth: '' };
+const unanswered = {
+  periodType: '',
+  yearType: '',
+  yearEndDay: '',
+  yearEndMonth: '',
+  publishedFrom: '',
+};
 
 const years = (yearType: string, yearEndDay = '', yearEndMonth = '') => ({
+  publishedFrom: '',
   periodType: 'years',
   yearType,
   yearEndDay,
@@ -94,6 +101,7 @@ describe('periodTypeSection', () => {
   it('takes a year type of quarters ending on a date', () => {
     expect(
       sectionFieldErrors(section, {
+        publishedFrom: '',
         periodType: 'quarters',
         yearType: 'specified-end-date',
         yearEndDay: '30',
@@ -104,5 +112,20 @@ describe('periodTypeSection', () => {
 
   it('checks no date for a year type that does not ask for one', () => {
     expect(sectionFieldErrors(section, years('calendar', 'last', 'July'))).toBeUndefined();
+  });
+});
+
+it.each(['2023-02-29', '2024-04-31', '2024-13-01', '1 February 2024', '2024-2-01'])(
+  'refuses an invalid publication start date %s',
+  (publishedFrom) => {
+    expect(sectionFieldErrors(section, { ...years('calendar'), publishedFrom })).toEqual({
+      publishedFrom: 'Enter a real date in the format YYYY-MM-DD',
+    });
+  },
+);
+
+it.each(['', '2024-02-29'])('accepts an optional publication start date %s', (publishedFrom) => {
+  expect(section.schema.parse({ ...years('calendar'), publishedFrom })).toMatchObject({
+    publishedFrom,
   });
 });

@@ -6,7 +6,7 @@ import { plainTextFromHtml } from '../plain-text.ts';
 import { indicatorAnalyticalSettings, type SourceGroupingSetting } from './analytical-settings.ts';
 import type { PholioExportOptions } from './context.ts';
 import { sourceUpdateFrequency } from './frequency.ts';
-import { loadObservationGroupings } from './groupings.ts';
+import { type GroupingBaselineExclusion, loadObservationGroupings } from './groupings.ts';
 import { uploadBatchId } from './ids.ts';
 import { INDICATOR_NAME_MAPPINGS, reviewedIndicatorName } from './indicator-names.ts';
 import type { PholioRow } from './source.ts';
@@ -139,6 +139,7 @@ export async function exportIndicators(context: PholioExportOptions) {
   );
 
   const groupings = await loadObservationGroupings(pool);
+  const groupingBaselineExclusions: GroupingBaselineExclusion[] = [];
 
   const selectedRows = metaRows.filter(
     (row) =>
@@ -350,7 +351,9 @@ export async function exportIndicators(context: PholioExportOptions) {
       year_type: yearTypeEntry?.year_type ?? null,
       year_end_day: yearTypeEntry?.year_end_day ?? null,
       year_end_month: yearTypeEntry?.year_end_month ?? null,
-      published_from: groupings.publishedFrom(id, row.YearTypeID ?? 1),
+      published_from: groupings.publishedFrom(id, row.YearTypeID, (entry) =>
+        groupingBaselineExclusions.push(entry),
+      ),
       polarity,
       has_data_quality_issues: null,
       definition,
@@ -433,6 +436,7 @@ export async function exportIndicators(context: PholioExportOptions) {
   }
 
   return {
+    groupingBaselineExclusions,
     analyticalReconciliations: [...analyticalById.values()].flatMap(({ reconciliation }) =>
       reconciliation ? [reconciliation] : [],
     ),

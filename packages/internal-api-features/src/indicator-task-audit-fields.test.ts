@@ -54,7 +54,6 @@ const UNSAVED_COLUMNS = [
   'ciConfidenceLevel',
   'fingertipsFormatting',
   'comparatorMethodId',
-  'publishedFrom',
   'createdAt',
   'updatedAt',
   'createdBy',
@@ -144,6 +143,7 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       yearType: 'specified-end-date',
       yearEndDay: '31',
       yearEndMonth: '3',
+      publishedFrom: '2020-01-01',
     }),
   'other-notes-and-caveats': () =>
     savedFields(otherNotesAndCaveatsColumns, {

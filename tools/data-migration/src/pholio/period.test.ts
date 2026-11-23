@@ -200,3 +200,10 @@ describe('computeDates', () => {
     });
   });
 });
+
+it('converts a null source year type as Calendar for both observations and baselines', () => {
+  expect(computeDates(2021, -1, -1, 1, null)).toEqual({
+    fromDate: '2021-01-01',
+    toDate: '2021-12-31',
+  });
+});
