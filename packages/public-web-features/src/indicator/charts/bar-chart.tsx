@@ -57,7 +57,6 @@ export function InequalitiesChart({
         indicator={indicator}
         title={title}
         group="Segment"
-        showTable={false}
         averageEntity={areaName}
         colourMode={indicator.polarity === 'higher-is-better' ? 'rag' : 'magnitude'}
         comparisonConfidence={comparisonConfidence}

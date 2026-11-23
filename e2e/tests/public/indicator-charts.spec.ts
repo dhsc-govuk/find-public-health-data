@@ -197,7 +197,8 @@ test('Compare areas bars use the England value and match the table judgements', 
   const england = table.getByRole('row', { name: /^England \(benchmark\)/ });
   const englandValue = await england.locator('td').first().innerText();
   await expect(tooltip).toContainText(`England: ${englandValue}`);
-  const firstArea = (await chart.locator('tbody th').first().textContent())?.trim() ?? '';
+  const firstArea = (await tooltip.innerText()).match(/Area:\s*(.+)/)?.[1]?.trim() ?? '';
+  expect(firstArea).not.toBe('');
   const tableRow = table
     .getByRole('row')
     .filter({ has: page.getByRole('rowheader', { name: firstArea, exact: true }) });

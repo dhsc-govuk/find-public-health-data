@@ -1,4 +1,3 @@
-import { Details, TableScrollRegion } from '@fphd/ui';
 import {
   type KeyboardEventHandler,
   type ReactNode,
@@ -255,49 +254,6 @@ export function ChartSources({
       ))}
     </p>
   ) : null;
-}
-
-export function ChartDataTable({
-  title,
-  columns,
-  rows,
-}: {
-  title: string;
-  columns: string[];
-  rows: { key: string; label: string; values: ReactNode[] }[];
-}) {
-  return (
-    <Details summary="View chart data as a table">
-      <TableScrollRegion label={`Chart data table: ${title}`}>
-        <table className="govuk-table">
-          <caption className="govuk-table__caption govuk-visually-hidden">{title}</caption>
-          <thead className="govuk-table__head">
-            <tr className="govuk-table__row">
-              {columns.map((column, index) => (
-                <th className="govuk-table__header" key={`${index}:${column}`} scope="col">
-                  {column}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="govuk-table__body">
-            {rows.map(({ key, label, values }) => (
-              <tr className="govuk-table__row" key={key}>
-                <th className="govuk-table__header" scope="row">
-                  {label}
-                </th>
-                {values.map((value, index) => (
-                  <td className="govuk-table__cell" key={`${index}:${columns[index + 1]}`}>
-                    {value}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableScrollRegion>
-    </Details>
-  );
 }
 
 export function NoChartData({

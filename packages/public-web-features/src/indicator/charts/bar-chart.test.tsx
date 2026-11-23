@@ -200,9 +200,17 @@ it.each(['higher-is-better', 'lower-is-better', 'no-polarity', 'no-comparison-po
       const judgements = [...tableRows].slice(1).map((row) => row.children[2]?.textContent ?? '');
       expect(new Set(judgements).size).toBe(polarity === 'no-comparison-possible' ? 1 : 4);
       const chart = container.querySelector('.fphd-chart-section');
-      const chartRows = chart?.querySelectorAll('tbody tr') ?? [];
+      // Each bar's judgement is the key's label for its colour.
+      const keyLabels = new Map(
+        [...(chart?.querySelectorAll('.fphd-chart-key li') ?? [])].map((item) => [
+          item.querySelector('rect')?.getAttribute('fill'),
+          item.textContent,
+        ]),
+      );
       expect(
-        [...chartRows].map((row) => row.children[row.children.length - 1]?.textContent),
+        [...(chart?.querySelectorAll('.recharts-bar-rectangle path') ?? [])].map((bar) =>
+          keyLabels.get(bar.getAttribute('fill')),
+        ),
       ).toEqual(
         judgements.map((label) =>
           label
