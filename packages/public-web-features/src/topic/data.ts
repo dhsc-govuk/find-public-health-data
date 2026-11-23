@@ -50,6 +50,14 @@ export const TOPIC_AREA_GROUPS = [
   DEFAULT_TOPIC_AREA_GROUP,
 ];
 
+/** The geography types Area summaries opens on, best first, when the link names none. */
+export const TOPIC_AREA_GROUP_ORDER = [
+  DEFAULT_TOPIC_AREA_GROUP,
+  'NHS regions',
+  'Integrated care boards',
+  'Local authorities',
+];
+
 export const TOPIC_COLUMNS = [
   { value: 'period', label: 'Most recent period' },
   { value: 'updated', label: 'Data last updated' },

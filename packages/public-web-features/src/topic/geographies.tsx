@@ -41,9 +41,11 @@ export function TopicGeographies({
     return `${path}?${next}`;
   };
   const action = `${path}#${tab === 'areas' ? 'topic-area-summaries' : `topic-${tab}`}`;
+  // Without a type in the link, Area summaries shows the type the loader opened it on.
+  const loadedGroup = search.geoLevels[0] ?? DEFAULT_TOPIC_AREA_GROUP;
   const requestedGroup = TOPIC_AREA_GROUPS.includes(params.get('geo') ?? '')
-    ? (params.get('geo') ?? DEFAULT_TOPIC_AREA_GROUP)
-    : DEFAULT_TOPIC_AREA_GROUP;
+    ? (params.get('geo') ?? loadedGroup)
+    : loadedGroup;
   const codesKey = params.getAll('ga').join(',');
   const [selectedGroup, setSelectedGroup] = useState(requestedGroup);
   useEffect(() => setSelectedGroup(requestedGroup), [requestedGroup]);

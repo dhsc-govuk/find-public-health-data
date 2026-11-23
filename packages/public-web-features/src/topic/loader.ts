@@ -3,6 +3,7 @@ import {
   indicatorDetailSchema,
   indicatorPeriodFiltersSchema,
   indicatorRangeSchema,
+  indicatorSearchResultSchema,
   topicDetailSchema,
   topicSummaryListSchema,
   topicTrendSummarySchema,
@@ -17,7 +18,12 @@ import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
 import { compactTopicAreaTable, compactTopicDataTable } from './compact-table.ts';
-import { DEFAULT_TOPIC_AREA_GROUP, TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
+import {
+  DEFAULT_TOPIC_AREA_GROUP,
+  TOPIC_AREA_GROUP_ORDER,
+  TOPIC_AREA_GROUPS,
+  topicTableSelection,
+} from './data.ts';
 import { topicDataKey, topicSort } from './filters.ts';
 import { topicOverviewModel } from './overview-model.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
@@ -120,6 +126,23 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
     content: completed?.[1].status === 'fulfilled' ? completed[1].value : content,
     areas: completed?.[2].status === 'fulfilled' ? completed[2].value : areas,
   };
+}
+
+/**
+ * The first geography type in the order Area summaries prefers that any of the topic's indicators
+ * have data for, or the default type when none do.
+ */
+async function topicAreaGroupWithData(api: ApiClient, slug: string) {
+  const totals = await Promise.all(
+    TOPIC_AREA_GROUP_ORDER.map(async (group) => {
+      const { total } = await api.get(
+        `/api/indicators/search?t=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}&page=1&limit=1`,
+        indicatorSearchResultSchema,
+      );
+      return { group, total };
+    }),
+  );
+  return totals.find(({ total }) => total > 0)?.group ?? DEFAULT_TOPIC_AREA_GROUP;
 }
 
 function topicTableSearch(search: Awaited<ReturnType<typeof loadSearch>>) {
@@ -239,16 +262,23 @@ export async function loadTopic(
             areaDisplayGroupListSchema,
           )
       : Promise.resolve([]);
-  const [loadedSearch, groups] = await Promise.all([
+  const searchFor = (geographyGroup?: string) =>
     loadSearch(args, {
       topicSlug: slug,
       path,
       complete: true,
-      ...(tab === 'areas' ? { geographyGroup: summaryGroup, geographyPreviews: areaGroups } : {}),
-    }),
+      ...(geographyGroup ? { geographyGroup, geographyPreviews: areaGroups } : {}),
+    });
+  const [loadedSearch, groups] = await Promise.all([
+    searchFor(tab === 'areas' ? summaryGroup : undefined),
     areaGroups,
   ]);
-  const search = loadedSearch;
+  // Area summaries opens on the default geography only if the topic has indicators for it.
+  const openingGroup =
+    tab === 'areas' && summaryGroup !== requestedGroup && loadedSearch.searchResult.total === 0
+      ? await topicAreaGroupWithData(context.get(apiContext), slug)
+      : summaryGroup;
+  const search = openingGroup === summaryGroup ? loadedSearch : await searchFor(openingGroup);
   const listing = {
     sort: topicSort(url.searchParams.get('sort')) ?? 'subtopic-asc',
     indicators: search.searchResult.indicators,
