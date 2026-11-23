@@ -1194,8 +1194,19 @@ describe('loadIndicatorPage notices of area types without data', () => {
     'GET /api/indicators/108/data': (call: FakeApiCall) => areaData(call, [observation(10)]),
   };
 
-  it('says England is the only geography when the indicator has no area types', async () => {
-    const client = api({ 'GET /api/indicators/indicator-108/areas': [], ...englandValue });
+  const covering = (...names: string[]) => ({
+    'GET /api/indicators/indicator-108': {
+      ...indicatorDetail(108),
+      areaTypes: names.map((name) => ({ name, areaCount: 1 })),
+    },
+  });
+
+  it('says England is the only geography when the data covers England alone', async () => {
+    const client = api({
+      ...covering('England'),
+      'GET /api/indicators/indicator-108/areas': [],
+      ...englandValue,
+    });
 
     const page = await loadPage(args(client));
 
@@ -1203,8 +1214,43 @@ describe('loadIndicatorPage notices of area types without data', () => {
     expect((await page.comparison).englandOnly).toBe(true);
   });
 
-  it('says nothing when the indicator has no area types and no England value either', async () => {
-    const client = api({ 'GET /api/indicators/indicator-108/areas': [] });
+  it.each([
+    [
+      'GP practices',
+      'GPs',
+      [{ displayGroup: 'GP practices', areas: [{ code: 'A81001', name: 'GP' }] }],
+    ],
+    ['trusts', 'Acute Trust', []],
+  ])('says nothing when the data also covers %s', async (_kind, name, groups) => {
+    const client = api({
+      ...covering('England', name),
+      'GET /api/indicators/indicator-108/areas': groups,
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBeUndefined();
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('keeps comparisons available when the data load fails and there is no area type to compare', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [],
+      'GET /api/indicators/108/data': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+
+    const page = await loadPage(args(client));
+    await expect(page.data).rejects.toMatchObject({ status: 502 });
+
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('says nothing when the data covers England alone and England has no value', async () => {
+    const client = api({
+      ...covering('England'),
+      'GET /api/indicators/indicator-108/areas': [],
+    });
 
     const page = await loadPage(args(client));
 

@@ -806,8 +806,6 @@ test('selects only the visible search matches in a region', async ({ page }) => 
     .toEqual(['E06000001']);
 });
 
-// DAC's App Gateway refuses a query string holding a long hyphenated name beside other
-// parameters, so the page's lookups name the indicator by its number.
 test('lists only the area types with data and says other area types have none, also while searching', async ({
   page,
 }) => {
@@ -835,6 +833,8 @@ test('says nothing about other area types when the indicator has data for each o
   await expect(geographies.getByText('Data unavailable for other area types')).toHaveCount(0);
 });
 
+// DAC's App Gateway refuses a query string holding a long hyphenated name beside other
+// parameters, so the page's lookups name the indicator by its number.
 test("names an indicator with a long slug by its number in the page's lookups", async ({
   page,
 }) => {

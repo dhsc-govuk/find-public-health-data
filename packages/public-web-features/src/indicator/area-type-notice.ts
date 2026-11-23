@@ -1,10 +1,10 @@
-import type { IndicatorAreaData } from '@fphd/public-api-features/contract';
+import type { IndicatorAreaData, IndicatorDetail } from '@fphd/public-api-features/contract';
 import { englandObservations } from './no-england.ts';
 
 /**
  * What a Geographies panel says about the area types an indicator has no data for:
- * `england-only` when England is the only geography with a value, and `others-unavailable` when
- * the indicator lacks some of the area types the public site offers.
+ * `england-only` when England has a value and the indicator's data covers no other area, and
+ * `others-unavailable` when the indicator lacks some of the area types the public site offers.
  */
 export type AreaTypeNotice = 'england-only' | 'others-unavailable';
 
@@ -25,20 +25,24 @@ const NOTICED_LEVELS = [
 
 /**
  * The notice for an indicator with data for `indicatorLevels`, out of the public area types the
- * area catalogue holds (`catalogueLevels`). An indicator with no area types and no England value
- * has no notice, as it has no data to show for any geography.
+ * area catalogue holds (`catalogueLevels`). `areaTypes` are all the area types its data covers,
+ * including those the public site doesn't offer, such as GP practices and trusts. An indicator
+ * with data for those alone, or without an England value, has no notice.
  */
 export function areaTypeNotice({
   catalogueLevels,
   indicatorLevels,
+  areaTypes,
   areaData,
 }: {
   catalogueLevels: string[];
   indicatorLevels: string[];
+  areaTypes: Pick<IndicatorDetail['areaTypes'][number], 'name'>[];
   areaData: Pick<IndicatorAreaData, 'areaCode' | 'observations'>[];
 }): AreaTypeNotice | undefined {
   if (indicatorLevels.length === 0) {
-    return englandObservations(areaData).some(({ value }) => value !== null)
+    const coversEnglandAlone = areaTypes.length === 1 && areaTypes[0]?.name === 'England';
+    return coversEnglandAlone && englandObservations(areaData).some(({ value }) => value !== null)
       ? 'england-only'
       : undefined;
   }

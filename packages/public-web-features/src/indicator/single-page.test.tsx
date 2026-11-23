@@ -725,3 +725,22 @@ it('says England is the only geography on Compare areas, without the text naming
   expect(within(panel).queryByText('Showing:')).toBeNull();
   expect(within(panel).queryByText(/^Map of/)).toBeNull();
 });
+
+it('says England is the only geography on Compare indicators, and names no other areas in the chart key', () => {
+  page(
+    [selected(108, 'Mortality', 100), selected(241, 'Diabetes prevalence', 7.9)],
+    '/indicator/indicator-108?tab-indicator=compare&compareWith=241',
+    [],
+    undefined,
+    undefined,
+    true,
+  );
+  const panel = screen.getByRole('tabpanel', { name: 'Compare indicators' });
+  expect(within(panel).getByText('Data only available for England')).toBeTruthy();
+  expect(within(panel).queryByRole('combobox', { name: 'Type of geography' })).toBeNull();
+  expect(
+    within(within(panel).getByRole('list', { name: 'Chart key' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  ).toEqual(['England']);
+});

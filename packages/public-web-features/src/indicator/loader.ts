@@ -417,6 +417,7 @@ export async function loadIndicatorData(
       ? areaTypeNotice({
           catalogueLevels: publicGeographyLevels(await page.catalogueGroups),
           indicatorLevels: displayGroups,
+          areaTypes: page.detail.areaTypes,
           areaData: routeIndicator?.areaData ?? [],
         })
       : undefined,
