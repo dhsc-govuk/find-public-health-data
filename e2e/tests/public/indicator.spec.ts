@@ -925,6 +925,18 @@ test('serves an indicator without an update frequency on its page and in downloa
   await expect(page.getByRole('term').filter({ hasText: /^Polarity$/ })).toBeVisible();
 });
 
+// Gastroenteritis is seeded with 0-4 yrs and the bands in it, <1 yr, 1 yr and 2-4 yrs, each with
+// the same periods.
+test('headlines the whole age group over the bands in it', async ({ page }) => {
+  await openIndicatorPage(page, '/indicator/emergency-admissions-for-gastroenteritis-0-to-4-years');
+  await expect(
+    page.getByRole('table', { name: /^Table:.*, England , 0-4 yrs , table with/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('table', { name: /^Table:.*, (<1 yr|1 yr|2-4 yrs) , table with/ }),
+  ).toHaveCount(0);
+});
+
 // Air pollution is seeded with values for areas but none for England.
 const NO_ENGLAND_PATH =
   '/indicator/air-pollution-estimated-fraction-of-mortality-attributable-to-particulate-air-pollution';

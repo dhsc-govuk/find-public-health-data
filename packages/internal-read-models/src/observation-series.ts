@@ -1,10 +1,10 @@
-import { type Database, schema } from '@fphd/db';
+import { type Database, headlineOrder, schema } from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   ROLLING_PERIOD_THRESHOLD_DAYS,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, desc, eq, not, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
+import { and, count, eq, not, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { Transaction } from './read-models.ts';
@@ -13,10 +13,13 @@ const {
   area,
   dimensionType,
   dimensionValue,
+  dimensionValueAgeRange,
   observationSeries,
   observationSeriesBatch,
   observation,
 } = schema;
+
+const headlineDimensions = { dimensionType, dimensionValue, dimensionValueAgeRange };
 
 type Executor = Database | Transaction;
 type PeriodType = schema.ObservationSeriesVariant['periodType'];
@@ -33,14 +36,9 @@ function recentNonNull<T>(
   )`;
 }
 
-/** Orders segments with the fewest dimensions first, as the plainest series of a group. */
-function fewestDimensions(dimensionKey: SQLWrapper) {
-  return sql`cardinality(string_to_array(${dimensionKey}, ','))`;
-}
-
 /**
  * Inserts the series a table or ranking shows for each area, sex and period type of one
- * indicator's published data: the segment with the fewest dimensions, then the most points.
+ * indicator's published data, in the order `headlineOrder` gives.
  */
 async function insertSeries(
   tx: Executor,
@@ -109,6 +107,8 @@ async function insertSeries(
           ''
         )`.as('sex'),
         length: count().as('length'),
+        latestValue: sql<string | null>`max(${points.toDate})
+          FILTER (WHERE ${points.value} IS NOT NULL)`.as('latest_value'),
         firstPoint: sql<string>`min(${points.fromDate}::text || ':' || ${points.toDate}::text)`.as(
           'first_point',
         ),
@@ -197,6 +197,7 @@ async function insertSeries(
     dimensionKey: segments.dimensionKey,
     periodType: segments.periodType,
     length: segments.length,
+    latestValue: segments.latestValue,
     firstPoint: segments.firstPoint,
     latestId: segments.latestId,
     rankingId: segments.rankingId,
@@ -216,22 +217,18 @@ async function insertSeries(
       ),
   );
 
-  const winners = tx
-    .$with('winners')
-    .as(
-      tx
-        .selectDistinctOn([candidates.areaId, candidates.sex, candidates.periodType])
-        .from(candidates)
-        .orderBy(
-          candidates.areaId,
-          candidates.sex,
-          candidates.periodType,
-          fewestDimensions(candidates.dimensionKey),
-          desc(candidates.length),
-          sql`${candidates.firstPoint} COLLATE "C"`,
-          sql`${candidates.dimensionKey} COLLATE "C"`,
-        ),
-    );
+  const winners = tx.$with('winners').as(
+    tx
+      .selectDistinctOn([candidates.areaId, candidates.sex, candidates.periodType])
+      .from(candidates)
+      .orderBy(
+        candidates.areaId,
+        candidates.sex,
+        candidates.periodType,
+        ...headlineOrder(candidates, headlineDimensions),
+        sql`${candidates.dimensionKey} COLLATE "C"`,
+      ),
+  );
 
   await tx
     .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
@@ -279,9 +276,16 @@ async function englandTrend(
     )
     .groupBy(observation.areaId, observation.dimensionKey)
     .orderBy(
-      fewestDimensions(observation.dimensionKey),
-      desc(count(observation.value)),
-      observation.dimensionKey,
+      ...headlineOrder(
+        {
+          dimensionKey: observation.dimensionKey,
+          latestValue: sql`max(${observation.toDate}) FILTER (WHERE ${observation.value} IS NOT NULL)`,
+          length: count(),
+          firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
+        },
+        headlineDimensions,
+      ),
+      sql`${observation.dimensionKey} COLLATE "C"`,
     )
     .limit(1);
   return trend?.values ?? null;
