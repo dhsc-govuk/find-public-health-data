@@ -32,6 +32,8 @@ export interface ComparisonTabProps extends IndicatorComparisonModel {
   areaChart: ReturnType<typeof compactIndicator>;
   compareAreaRanges: IndicatorRangePeriod[];
   scatter: ScatterComparison | undefined;
+  /** Whether England is the only geography the indicator has data for. */
+  englandOnly: boolean;
 }
 
 export function CompareIndicatorsTab({
@@ -44,6 +46,7 @@ export function CompareIndicatorsTab({
   findResults,
   findSubject,
   scatter,
+  englandOnly,
 }: ComparisonTabProps & {
   compared:
     | Pick<IndicatorPageDetail, 'shortId' | 'name' | 'slug' | 'unit' | 'yearType' | 'dataSource'>
@@ -106,6 +109,7 @@ export function CompareIndicatorsTab({
               groups={comparisonDisplayGroups}
               areas={areaDetail.areas}
               displayOptions={false}
+              englandOnly={englandOnly}
             />
             {sexes.length > 1 ? (
               <>

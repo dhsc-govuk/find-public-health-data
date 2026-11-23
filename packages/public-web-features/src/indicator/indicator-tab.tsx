@@ -3,6 +3,7 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
+import type { AreaTypeNotice } from './area-type-notice.ts';
 import { benchmarkCheckboxOptions, isRangeBenchmark, setBenchmarkParams } from './benchmarks.ts';
 import { TrendChart } from './charts/trend-chart.tsx';
 import {
@@ -44,6 +45,7 @@ export function IndicatorTab({
   geographyOptions,
   selection,
   defaultAreaLevel,
+  areaTypeNotice,
 }: {
   primary: SelectedIndicator;
   selectedAreas: SelectedArea[];
@@ -53,6 +55,7 @@ export function IndicatorTab({
   selection: IndicatorSelection;
   /** The level shown when nothing is chosen and the indicator has no England value. */
   defaultAreaLevel?: string | undefined;
+  areaTypeNotice?: AreaTypeNotice | undefined;
 }) {
   const { detail, areaData, regionData = [], benchmarkData = [], ranges = {} } = primary;
   const id = detail.shortId;
@@ -124,6 +127,7 @@ export function IndicatorTab({
       geographyOptions={geographyOptions}
       selection={selection}
       englandBenchmark={hasEngland}
+      notice={areaTypeNotice}
     >
       {hasPickedAreas && benchmarkOptions.length > 0 ? (
         <BenchmarksPanel

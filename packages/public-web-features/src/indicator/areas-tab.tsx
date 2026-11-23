@@ -34,6 +34,7 @@ export function CompareAreasTab({
   comparisonDisplayGroups,
   areaChart,
   compareAreaRanges = [],
+  englandOnly,
 }: ComparisonTabProps) {
   const { detail } = primary;
   const location = useLocation();
@@ -85,11 +86,13 @@ export function CompareAreasTab({
   return (
     <>
       <h2 className="govuk-heading-l">Compare areas</h2>
-      <p className="govuk-body">
-        {detail.name} for every {comparisonGeography} in England, most recent{' '}
-        {comparison.multiYear ? 'multi-year' : 'single-year'} data
-        {comparisonPeriod ? ` (${comparisonPeriod})` : ''}.
-      </p>
+      {englandOnly ? null : (
+        <p className="govuk-body">
+          {detail.name} for every {comparisonGeography} in England, most recent{' '}
+          {comparison.multiYear ? 'multi-year' : 'single-year'} data
+          {comparisonPeriod ? ` (${comparisonPeriod})` : ''}.
+        </p>
+      )}
       <GridRow>
         <GridColumn width="one-quarter">
           <div ref={detailRef}>
@@ -106,6 +109,7 @@ export function CompareAreasTab({
               group={compareAreaGroup}
               groups={comparisonDisplayGroups}
               areas={areaOptions}
+              englandOnly={englandOnly}
             />
           </div>
         </GridColumn>

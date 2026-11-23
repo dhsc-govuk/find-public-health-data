@@ -808,6 +808,33 @@ test('selects only the visible search matches in a region', async ({ page }) => 
 
 // DAC's App Gateway refuses a query string holding a long hyphenated name beside other
 // parameters, so the page's lookups name the indicator by its number.
+test('lists only the area types with data and says other area types have none, also while searching', async ({
+  page,
+}) => {
+  const geographies = filterCard(page, 'Geographies').first();
+  await expect(
+    geographies.getByRole('checkbox', { name: /^All Statistical regions/ }),
+  ).toBeVisible();
+  await expect(geographies.getByRole('checkbox', { name: /NHS regions/ })).toHaveCount(0);
+  await expect(geographies.getByText('Data unavailable for other area types')).toBeVisible();
+
+  await geographies.getByRole('searchbox', { name: 'Search for a geography' }).fill('Leeds');
+  await expect(
+    geographies.getByRole('checkbox', { name: 'Leeds', exact: true }).first(),
+  ).toBeVisible();
+  await expect(geographies.getByText('Data unavailable for other area types')).toBeVisible();
+});
+
+test('says nothing about other area types when the indicator has data for each of them', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages');
+
+  const geographies = filterCard(page, 'Geographies').first();
+  await expect(geographies.getByRole('checkbox', { name: /^All NHS regions/ })).toBeVisible();
+  await expect(geographies.getByText('Data unavailable for other area types')).toHaveCount(0);
+});
+
 test("names an indicator with a long slug by its number in the page's lookups", async ({
   page,
 }) => {

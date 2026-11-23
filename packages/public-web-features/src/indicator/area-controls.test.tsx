@@ -152,3 +152,28 @@ it.each(['Area 1', 'e06000001'])(
     router.dispose();
   },
 );
+
+it.each([true, false])(
+  'says England is the only geography in place of the area choices (display options %s)',
+  (displayOptions) => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: () => (
+          <AreaControls
+            shortId={108}
+            group=""
+            groups={[]}
+            areas={[]}
+            displayOptions={displayOptions}
+            englandOnly
+          />
+        ),
+      },
+    ]);
+    render(<Routes initialEntries={['/']} />);
+    expect(screen.getByText('Data only available for England')).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: 'Type of geography' })).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+  },
+);

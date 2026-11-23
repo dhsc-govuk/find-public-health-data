@@ -147,6 +147,7 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
       }),
       compareAreaRanges,
       scatter: scatter ? compactScatterComparison(scatter) : undefined,
+      englandOnly: comparison.englandOnly,
     };
   });
   // Wait for the final models so document HTML includes compact data, comparisons and search results.
@@ -319,6 +320,14 @@ async function loadIndicatorComparison(
   const scatter: ScatterComparison | undefined = comparedDetail
     ? (compactScatter ?? loadScatterComparison(chartIndicators, url.searchParams))
     : undefined;
+  // Without an area type to compare, the Geographies panel says whether England is all there is.
+  // The Indicator tab reports a failed data load, so this one treats it as not England only.
+  const englandOnly =
+    !compareAreaGroup &&
+    (await data.then(
+      ({ areaTypeNotice }) => areaTypeNotice === 'england-only',
+      () => false,
+    ));
   return {
     compareAreasData,
     comparedAreasData,
@@ -328,5 +337,6 @@ async function loadIndicatorComparison(
     chartIndicators,
     compareAreaRanges,
     scatter,
+    englandOnly,
   };
 }

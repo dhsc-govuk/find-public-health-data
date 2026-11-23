@@ -5,6 +5,11 @@ import { normalizePublicLevels } from '../geography/groups.ts';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
+import {
+  type AreaTypeNotice,
+  ENGLAND_ONLY_MESSAGE,
+  OTHER_AREA_TYPES_UNAVAILABLE_MESSAGE,
+} from './area-type-notice.ts';
 import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSelection } from './loader.ts';
 import { indicatorSelectionUrl, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
@@ -16,6 +21,7 @@ export function IndicatorGeographies({
   geographyOptions,
   selection,
   englandBenchmark = true,
+  notice,
 }: {
   children?: ReactNode;
   shortId: number;
@@ -24,6 +30,8 @@ export function IndicatorGeographies({
   selection: IndicatorSelection;
   /** Whether choosing a first area also ticks the England benchmark, which needs an England value. */
   englandBenchmark?: boolean;
+  /** What the panel says about the area types the indicator has no data for, if anything. */
+  notice?: AreaTypeNotice | undefined;
 }) {
   const location = useLocation();
   const navigation = useNavigation();
@@ -56,30 +64,37 @@ export function IndicatorGeographies({
         title="Geographies"
         onClear={picked ? urlFor([], []) : undefined}
       >
-        <GeographyPicker
-          lookupUrl={`${links.geographies}?indicator=${shortId}&scheme=public`}
-          searchLabel="Search for a geography"
-          searchHint="Search by name, for example Leeds"
-          action={`${location.pathname}#indicator-data`}
-          displayGroups={displayGroups}
-          geographyOptions={geographyOptions}
-          levelName="als"
-          name="as"
-          choicesLabel="Geography choices for Indicator"
-          onApply={({ areaCodes, areaLevels }) => {
-            void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
-          }}
-          selection={currentSelection}
-        >
-          {englandBenchmark && !picked && !params.has(`cmp-${shortId}`) ? (
-            <input name={`cmp-${shortId}`} type="hidden" value="england" />
-          ) : null}
-          {[...params]
-            .filter(([name]) => name !== 'as' && name !== 'als' && name !== 'find')
-            .map(([name, value], index) => (
-              <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
-            ))}
-        </GeographyPicker>
+        {notice === 'england-only' ? (
+          <p className="govuk-hint">{ENGLAND_ONLY_MESSAGE}</p>
+        ) : (
+          <GeographyPicker
+            lookupUrl={`${links.geographies}?indicator=${shortId}&scheme=public`}
+            searchLabel="Search for a geography"
+            searchHint="Search by name, for example Leeds"
+            action={`${location.pathname}#indicator-data`}
+            displayGroups={displayGroups}
+            geographyOptions={geographyOptions}
+            levelName="als"
+            name="as"
+            choicesLabel="Geography choices for Indicator"
+            onApply={({ areaCodes, areaLevels }) => {
+              void navigate(urlFor(areaCodes, areaLevels), { preventScrollReset: true });
+            }}
+            selection={currentSelection}
+          >
+            {englandBenchmark && !picked && !params.has(`cmp-${shortId}`) ? (
+              <input name={`cmp-${shortId}`} type="hidden" value="england" />
+            ) : null}
+            {[...params]
+              .filter(([name]) => name !== 'as' && name !== 'als' && name !== 'find')
+              .map(([name, value], index) => (
+                <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
+              ))}
+          </GeographyPicker>
+        )}
+        {notice === 'others-unavailable' ? (
+          <p className="govuk-hint govuk-!-margin-top-2">{OTHER_AREA_TYPES_UNAVAILABLE_MESSAGE}</p>
+        ) : null}
       </CollapsibleFilterCard>
       {children}
     </div>

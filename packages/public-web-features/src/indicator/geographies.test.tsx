@@ -86,3 +86,39 @@ it('preserves a pending unchecked benchmark when clearing geographies', async ()
   await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('?cmp-108='));
   await act(async () => pending.resolve(null));
 });
+
+function mountWithNotice(notice: 'england-only' | 'others-unavailable') {
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => (
+        <IndicatorGeographies
+          shortId={108}
+          displayGroups={notice === 'england-only' ? [] : ['NHS regions']}
+          selection={{ areaCodes: [], areaLevels: [], shortIds: [108] }}
+          notice={notice}
+        />
+      ),
+    },
+  ]);
+  return render(<Routes initialEntries={['/']} />);
+}
+
+it('says England is the only geography in place of the search and area types', () => {
+  const { container } = mountWithNotice('england-only');
+  expect(screen.getByText('Data only available for England')).toBeTruthy();
+  expect(screen.queryByRole('searchbox')).toBeNull();
+  expect(container.querySelector('form')).toBeNull();
+  expect(screen.queryByText('Data unavailable for other area types')).toBeNull();
+});
+
+it('says other area types have no data below the choices, and keeps saying so while searching', () => {
+  mountWithNotice('others-unavailable');
+  const hint = screen.getByText('Data unavailable for other area types');
+  expect(hint.className).toContain('govuk-hint');
+  expect(screen.getByRole('checkbox', { name: /NHS regions/ })).toBeTruthy();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search for a geography' }), {
+    target: { value: 'Lon' },
+  });
+  expect(screen.getByText('Data unavailable for other area types')).toBeTruthy();
+});

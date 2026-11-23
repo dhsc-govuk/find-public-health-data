@@ -29,6 +29,7 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
 import { loadAreaData } from './area-data.ts';
+import { areaTypeNotice } from './area-type-notice.ts';
 import { loadInBatches } from './batches.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
@@ -218,7 +219,7 @@ export async function loadIndicatorData(
   // Only the picked areas resolve to names and levels — the tree fetches its own
   // catalogue on demand, keeping thousands of areas out of the page payload.
   const codeQuery = nonEnglandCodes.map((code) => `areaCode=${encodeURIComponent(code)}`).join('&');
-  const [lookedUp, areaParents, catalogueGroups] = await Promise.all([
+  const [lookedUp, areaParents, catalogueGroups, publicCatalogueGroups] = await Promise.all([
     nonEnglandCodes.length > 0
       ? Promise.all(
           Array.from(
@@ -251,6 +252,11 @@ export async function loadIndicatorData(
         : includePageData
           ? api.get('/api/areas/display-groups', displayGroupListSchema)
           : Promise.resolve([]),
+    // The Geographies panel says when the indicator has no data for some of these area types. A
+    // failed request only leaves that message out, so the page still loads.
+    singlePage
+      ? api.get('/api/areas/display-groups', displayGroupListSchema).catch(() => [])
+      : Promise.resolve([]),
   ]);
   const displayGroups = singlePage ? publicGeographyLevels(catalogueGroups) : catalogueGroups;
   const areaLevels = requestedLevels.filter((level) => displayGroups.includes(level));
@@ -405,10 +411,18 @@ export async function loadIndicatorData(
           };
         });
 
+  const routeIndicator = selected.find(({ detail }) => detail.shortId === routeDetail?.shortId);
   return {
     selected,
     selectedAreas,
     displayGroups,
+    areaTypeNotice: singlePage
+      ? areaTypeNotice({
+          catalogueLevels: publicGeographyLevels(publicCatalogueGroups),
+          indicatorLevels: displayGroups,
+          areaData: routeIndicator?.areaData ?? [],
+        })
+      : undefined,
     benchmarkGeography,
     findSubject,
     findResults,

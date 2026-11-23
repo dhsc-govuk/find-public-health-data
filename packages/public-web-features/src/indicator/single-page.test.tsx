@@ -81,6 +81,7 @@ function page(
   areas: SelectedIndicator['areaData'] = [],
   history?: Promise<never>,
   search?: Promise<never>,
+  englandOnly = false,
 ) {
   const primary = entries[0];
   if (!primary) throw new Error('Indicator fixture missing');
@@ -106,6 +107,7 @@ function page(
               geographyOptions: undefined,
               areasLimited: false,
               defaultAreaLevel: undefined,
+              areaTypeNotice: undefined,
               selection: {
                 areaCodes: [],
                 areaLevels: [],
@@ -120,11 +122,12 @@ function page(
             }),
             compareAreaRanges: [],
             scatter: scatter ? compactScatterComparison(scatter) : undefined,
+            englandOnly,
             ...indicatorComparisonModel(entries, {
               compareAreasData: areas,
               comparedAreasData: [],
               compareAreaOptions: [],
-              compareAreaGroup: 'Local authorities',
+              compareAreaGroup: englandOnly ? '' : 'Local authorities',
               comparisonDisplayGroups: [],
             }),
           }}
@@ -406,6 +409,7 @@ it('keeps benchmark controls interactive while replacement indicator data is def
     geographyOptions: undefined,
     areasLimited: false,
     defaultAreaLevel: undefined,
+    areaTypeNotice: undefined,
     selection: { areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] },
   };
   const pending = Promise.withResolvers<typeof data>();
@@ -432,6 +436,7 @@ it('keeps benchmark controls interactive while replacement indicator data is def
                 areaChart: compactIndicator(primary),
                 compareAreaRanges: [],
                 scatter: undefined,
+                englandOnly: false,
                 ...indicatorComparisonModel([primary], {
                   compareAreasData: [],
                   comparedAreasData: [],
@@ -506,6 +511,7 @@ it('keeps a geography unchecked when earlier benchmark data resolves during navi
     },
     areasLimited: false,
     defaultAreaLevel: undefined,
+    areaTypeNotice: undefined,
     selection: { areaCodes: ['E08000003'], areaLevels: [], shortIds: [108] },
   };
   const benchmark = Promise.withResolvers<typeof data>();
@@ -701,4 +707,19 @@ it('moves focus from the skip link to the no-data message when there is nothing 
   expect(document.activeElement).toBe(
     panel.getByText(/^This indicator has no England-level figure/),
   );
+});
+
+it('says England is the only geography on Compare areas, without the sentence naming an area type', () => {
+  page(
+    [selected(241, 'Diabetes prevalence', 7.9)],
+    '/indicator/indicator-241?tab-indicator=areas',
+    [],
+    undefined,
+    undefined,
+    true,
+  );
+  const panel = screen.getByRole('tabpanel', { name: 'Compare areas' });
+  expect(within(panel).getByText('Data only available for England')).toBeTruthy();
+  expect(within(panel).queryByRole('combobox', { name: 'Type of geography' })).toBeNull();
+  expect(within(panel).queryByText(/for every/)).toBeNull();
 });

@@ -1184,3 +1184,65 @@ describe('loadIndicator for an indicator with no England value', () => {
     ).toHaveLength(1);
   });
 });
+
+describe('loadIndicatorPage notices of area types without data', () => {
+  const nhsRegions = {
+    displayGroup: 'NHS regions',
+    areas: [{ code: 'E40000003', name: 'London' }],
+  };
+  const englandValue = {
+    'GET /api/indicators/108/data': (call: FakeApiCall) => areaData(call, [observation(10)]),
+  };
+
+  it('says England is the only geography when the indicator has no area types', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108/areas': [], ...englandValue });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBe('england-only');
+    expect((await page.comparison).englandOnly).toBe(true);
+  });
+
+  it('says nothing when the indicator has no area types and no England value either', async () => {
+    const client = api({ 'GET /api/indicators/indicator-108/areas': [] });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBeUndefined();
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('points out an area type the catalogue holds and the indicator has no data for', async () => {
+    const client = api(englandValue);
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBe('others-unavailable');
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('says nothing when the indicator has data for every area type the catalogue holds', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [...localAuthorities, nhsRegions],
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBeUndefined();
+    expect(paths(client)).toContain('/api/areas/display-groups');
+  });
+
+  it('loads the page without the notice when the area catalogue cannot be loaded', async () => {
+    const client = api({
+      'GET /api/areas/display-groups': fails(new Response('Bad Gateway', { status: 502 })),
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    const data = await page.data;
+    expect(data.areaTypeNotice).toBeUndefined();
+    expect(data.selected).toHaveLength(1);
+  });
+});
