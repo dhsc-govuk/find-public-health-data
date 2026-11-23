@@ -292,9 +292,13 @@ export async function loadTopic(
     searchFor(tab === 'areas' ? summaryGroup : undefined),
     areaGroups,
   ]);
-  // Area summaries opens on the default geography only if the topic has indicators for it.
+  // Area summaries opens on the default geography only if the topic has indicators for it. Chosen
+  // areas of the default type keep it open, because another type's search would drop them.
   const openingGroup =
-    tab === 'areas' && summaryGroup !== requestedGroup && loadedSearch.searchResult.total === 0
+    tab === 'areas' &&
+    summaryGroup !== requestedGroup &&
+    loadedSearch.gaCodes.length === 0 &&
+    loadedSearch.searchResult.total === 0
       ? await topicAreaGroupWithData(context.get(apiContext), slug, loadedSearch)
       : summaryGroup;
   const search = openingGroup === summaryGroup ? loadedSearch : await searchFor(openingGroup);

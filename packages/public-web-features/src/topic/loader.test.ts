@@ -720,7 +720,11 @@ describe('the geography type Area summaries opens on', () => {
    * A client for a topic whose one indicator has data for the `withData` types and matches no
    * search term. With `published` false the topic has no indicators at all.
    */
-  function apiWithDataFor(withData: string[], published = true) {
+  function apiWithDataFor(
+    withData: string[],
+    published = true,
+    areas: { code: string; name: string; displayGroup: string }[] = [],
+  ) {
     return createFakeApiClient({
       ...topicStubs(),
       'GET /api/indicators/facets': {
@@ -736,6 +740,7 @@ describe('the geography type Area summaries opens on', () => {
         'NHS regions',
         'Statistical regions',
       ],
+      'GET /api/areas/lookup': areas.map((area) => ({ ...area, areaType: area.displayGroup })),
       'GET /api/indicators/search': (call) => {
         const params = query(call);
         const found =
@@ -825,6 +830,34 @@ describe('the geography type Area summaries opens on', () => {
       loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=areas${search}`),
     );
     expect(content?.search.geoLevels).toEqual([opens]);
+    expect(content?.search.searchResult.total).toBe(total);
+    expect(countedTypes(api)).toEqual(counted);
+  });
+
+  it.each([
+    {
+      name: 'stays on statistical regions without counting when the link chooses one of them',
+      area: { code: 'E12000007', name: 'London', displayGroup: 'Statistical regions' },
+      opens: 'Statistical regions',
+      chosen: ['E12000007'],
+      total: 0,
+      counted: [],
+    },
+    {
+      name: 'still falls back when the only area in the link is one the default type drops',
+      area: { code: 'E10000032', name: 'West Sussex', displayGroup: 'Local authorities' },
+      opens: 'NHS regions',
+      chosen: [],
+      total: 1,
+      counted: OTHER_TYPES,
+    },
+  ])('$name', async ({ area, opens, chosen, total, counted }) => {
+    const api = apiWithDataFor(['NHS regions'], true, [area]);
+    const { content } = await loadTopic(
+      loaderArgs(api, { slug: 'topic-a' }, `?tab-topic=areas&ga=${area.code}`),
+    );
+    expect(content?.search.geoLevels).toEqual([opens]);
+    expect(content?.search.gaCodes).toEqual(chosen);
     expect(content?.search.searchResult.total).toBe(total);
     expect(countedTypes(api)).toEqual(counted);
   });
