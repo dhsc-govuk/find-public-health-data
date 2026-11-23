@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { z } from '@fphd/config';
 import { schema } from '@fphd/db';
 import { AGE_UNITS } from '@fphd/utils/age-range';
+import { AGE_DIMENSION_NAME } from '@fphd/utils/observation-series';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { toSnakeCase } from 'drizzle-orm/casing';
 import type postgres from 'postgres';
@@ -111,9 +112,15 @@ export function parseReferenceData(data: unknown): ReferenceData {
       throw new Error(`Dimension value ${value.id} names an unknown parent`);
     }
   }
+  const ageTypeIds = new Set(
+    records.dimensionTypes.filter(({ name }) => name === AGE_DIMENSION_NAME).map(({ id }) => id),
+  );
+  const values = new Map(records.dimensionValues.map((value) => [value.id, value]));
   for (const range of records.dimensionValueAgeRanges) {
-    if (!valueTypes.has(range.id)) {
-      throw new Error(`Age range ${range.id} names an unknown dimension value`);
+    const value = values.get(range.id);
+    if (!value) throw new Error(`Age range ${range.id} names an unknown dimension value`);
+    if (!ageTypeIds.has(value.dimensionTypeId) || value.isAggregate) {
+      throw new Error(`Age range ${range.id} names a value that isn't an age band`);
     }
   }
   return records;

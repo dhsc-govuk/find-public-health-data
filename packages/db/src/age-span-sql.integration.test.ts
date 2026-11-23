@@ -50,6 +50,12 @@ function parse(duration: string) {
 let database: TestDb;
 const ids = new Map<string, string>();
 
+function idOf(name: string): string {
+  const id = ids.get(name);
+  if (id === undefined) throw new Error(`No dimension value fixture for ${name}`);
+  return id;
+}
+
 beforeAll(async () => {
   database = await createTestDb();
   const [type] = await database.db
@@ -70,7 +76,7 @@ beforeAll(async () => {
       const under = range[1] ? parse(range[1]) : null;
       return [
         {
-          id: ids.get(name) ?? '',
+          id: idOf(name),
           ageFromValue: from.value,
           ageFromUnit: from.unit,
           ageUnderValue: under?.value ?? null,
@@ -90,6 +96,7 @@ function observations(age: Age, years: number) {
   return Array.from({ length: years }, (_, index) => ({
     fromDate: `${2025 - years + index}-01-01`,
     toDate: `${2025 - years + index}-12-31`,
+    value: 1,
     dimensions: [
       {
         type: 'Age',
@@ -107,13 +114,13 @@ it.each(cases)('chooses %s in TypeScript, even with fewer points', (_, wider, na
 });
 
 it.each(cases)('chooses %s in SQL', async (_, wider, narrower) => {
-  const keys = [narrower, wider].map(({ name }) => sql`(${ids.get(name)})`);
+  const keys = [narrower, wider].map(({ name }) => sql`(${idOf(name)})`);
   const [first] = await database.db.execute<{ key: string }>(sql`
     SELECT key FROM (VALUES ${sql.join(keys, sql`, `)}) segment(key)
     ORDER BY ${widestAgeFirst(sql`key`, dimensionValueAgeRange)}
     LIMIT 1
   `);
-  expect(first?.key).toBe(ids.get(wider.name));
+  expect(first?.key).toBe(idOf(wider.name));
 });
 
 it('falls through to the most points when two ages are as wide', () => {
@@ -128,6 +135,7 @@ it('chooses the series with the newest value, even with more dimensions', () => 
   const older = Array.from({ length: 5 }, (_, index) => ({
     fromDate: `${2019 + index}-01-01`,
     toDate: `${2019 + index}-12-31`,
+    value: 1,
     dimensions: [],
   }));
   const newer = observations(age('12+ yrs', 'P12Y'), 2);
@@ -141,6 +149,7 @@ it('keeps the total over a newer breakdown by a dimension other than age', () =>
   const breakdown = Array.from({ length: 2 }, (_, index) => ({
     fromDate: `${2024 + index}-01-01`,
     toDate: `${2024 + index}-12-31`,
+    value: 1,
     dimensions: [{ type: 'Deprivation', value: 'Most deprived decile' }],
   }));
   expect(headlineSeries([...breakdown, ...total])).toEqual(total);

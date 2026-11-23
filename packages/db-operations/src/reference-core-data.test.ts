@@ -40,6 +40,20 @@ it('refuses an age range for a dimension value that does not exist', () => {
   ).toThrow(/names an unknown dimension value/);
 });
 
+it('refuses an age range for a value that is not an age band', () => {
+  const records = readReferenceData();
+  const [first] = records.dimensionValueAgeRanges;
+  const ageTypeId = records.dimensionValues.find(({ id }) => id === first?.id)?.dimensionTypeId;
+  const other = records.dimensionValues.find(
+    ({ dimensionTypeId }) => dimensionTypeId !== ageTypeId,
+  );
+  if (!first || !other) throw new Error('Missing fixtures');
+
+  expect(() =>
+    parseReferenceData({ ...records, dimensionValueAgeRanges: [{ ...first, id: other.id }] }),
+  ).toThrow(/isn't an age band/);
+});
+
 it('refuses duplicate lookup ids and names before import', () => {
   const records = readReferenceData();
   const note = records.noteTypes[0];
