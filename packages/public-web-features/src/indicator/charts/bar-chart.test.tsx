@@ -367,13 +367,19 @@ function expectMatchingInequalityJudgements(primary: SelectedIndicator, search: 
   };
   const bars = [...chart.querySelectorAll('.recharts-bar-rectangle path')];
   const sorted = [...model.rows].sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity));
+  const judgementLevel =
+    model.comparisonConfidence === 'none'
+      ? model.confidenceLevels.includes('99.8')
+        ? '99.8'
+        : '95'
+      : model.comparisonConfidence;
   expect(bars).toHaveLength(sorted.length);
   sorted.forEach((row, index) => {
     const judgement = benchmarkJudgement(
       row,
       model.benchmark?.value ?? null,
       primary.detail,
-      model.comparisonConfidence === '99.8' ? '99.8' : '95',
+      judgementLevel,
     );
     const name = row.dimensions.find(({ type }) => type === model.category)?.value ?? '';
     const tableRow = within(table).getByRole('rowheader', { name }).closest('tr');
@@ -417,9 +423,7 @@ it.each(['', '?ci-90632=95', '?ci-90632=99.8', '?ci-90632=none'])(
     const primary = ethnicGroupsIndicator();
     renderInequalities(primary, search);
     const model = expectMatchingInequalityJudgements(primary, search);
-    expect(model.rows[2]?.comparison).toBe(
-      search === '' || search.includes('99.8') ? 'similar' : 'worse',
-    );
+    expect(model.rows[2]?.comparison).toBe(search.endsWith('=95') ? 'worse' : 'similar');
   },
 );
 
