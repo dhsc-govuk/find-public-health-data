@@ -101,6 +101,7 @@ export interface TableSeriesSelection {
   segments: Record<string, string>;
   trends?: Record<string, TrendDirection>;
   rowOrder?: Record<string, number>;
+  headlines?: Record<string, boolean>;
 }
 
 export function filterSeries<T extends SeriesObservation>(
@@ -152,7 +153,15 @@ export function tableSummary<
     ] as const) {
       const trends: Record<string, TrendDirection> = {};
       const rowOrder: Record<string, number> = {};
-      const selection: TableSeriesSelection = { sex, periodType, segments: {}, trends, rowOrder };
+      const headlines: Record<string, boolean> = {};
+      const selection: TableSeriesSelection = {
+        sex,
+        periodType,
+        segments: {},
+        trends,
+        rowOrder,
+        headlines,
+      };
       for (const area of areas) {
         const order =
           variantsByArea
@@ -165,6 +174,9 @@ export function tableSummary<
         const latest = series.at(-1);
         if (!latest) continue;
         selection.segments[area.areaCode] = observationSeriesKey(latest);
+        const headline = headlineSeries(area.observations)[0];
+        if (headline && observationSeriesKey(headline) === observationSeriesKey(latest))
+          headlines[area.areaCode] = true;
         trends[area.areaCode] = recentTrendDirection(series.map(({ value }) => value));
         if (points !== 'latest')
           for (const point of series.filter(({ value }) => value !== null).slice(-5))

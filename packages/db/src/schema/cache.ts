@@ -15,6 +15,7 @@ import {
 // they can be truncated and rebuilt independently.
 
 export interface ObservationSeriesVariant {
+  headline?: boolean;
   sex: string;
   periodType: SeriesPeriodType;
 }

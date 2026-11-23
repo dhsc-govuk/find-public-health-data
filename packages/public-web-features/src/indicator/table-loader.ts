@@ -52,13 +52,16 @@ export async function loadIndicatorTableEntries(
         const tableSeries = new Map<string, TableSeriesSelection>();
         for (const entry of entries)
           for (const series of entry.tableSeries ?? []) {
-            const { trends, rowOrder, ...selection } = series;
+            const { trends, rowOrder, headlines, ...selection } = series;
             const key = `${series.sex}|${series.periodType}`;
             const existing = tableSeries.get(key);
             tableSeries.set(key, {
               ...selection,
               segments: { ...existing?.segments, ...series.segments },
               ...(existing?.trends || trends ? { trends: { ...existing?.trends, ...trends } } : {}),
+              ...(existing?.headlines || headlines
+                ? { headlines: { ...existing?.headlines, ...headlines } }
+                : {}),
               ...(existing?.rowOrder || rowOrder
                 ? { rowOrder: { ...existing?.rowOrder, ...rowOrder } }
                 : {}),

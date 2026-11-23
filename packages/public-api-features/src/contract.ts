@@ -313,6 +313,7 @@ export const indicatorTableDataSchema = z.array(
           ]),
           segments: z.record(z.string(), z.string()),
           trends: z.record(z.string(), z.enum(['up', 'down', 'right']).nullable()).optional(),
+          headlines: z.record(z.string(), z.boolean()).optional(),
           rowOrder: z.record(z.string(), z.number().int().nonnegative()).optional(),
         }),
       )

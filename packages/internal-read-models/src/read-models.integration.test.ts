@@ -364,7 +364,7 @@ it.each([false, true])(
           .insert(schema.observation)
           .values(
             [3, 5, 7].flatMap((years) =>
-              Array.from({ length: 6 }, (_, index) => ({
+              Array.from({ length: 10 }, (_, index) => ({
                 indicatorId,
                 uploadBatchId,
                 areaId: england.id,
@@ -420,8 +420,9 @@ it.each([false, true])(
         );
         for (const years of sexed ? [3, 5, 7] : []) {
           const row = cached.find(({ periodType }) => periodType === `${years}-year`);
-          expect(row?.recentValues).toEqual([5, 4, 3, 2, 1].map((index) => years * 100 + index));
-          expect(row?.variants).toEqual(
+          expect(row?.sparklineObservationIds).toHaveLength(8);
+          expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => years * 100 + index));
+          expect(row?.variants.map(({ sex, periodType }) => ({ sex, periodType }))).toEqual(
             expect.arrayContaining([
               ...[3, 5, 7].map((length) => ({ sex: 'Female', periodType: `${length}-year` })),
               { sex: 'Male', periodType: '1-year' },
@@ -443,7 +444,11 @@ it.each([false, true])(
           .from(schema.observationSeries)
           .where(eq(schema.observationSeries.indicatorId, indicatorId));
         for (const row of allRows)
-          expect(row.variants).toContainEqual({ sex: row.sex, periodType: row.periodType });
+          expect(row.variants).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({ sex: row.sex, periodType: row.periodType }),
+            ]),
+          );
         if (sexed)
           expect(
             allRows.filter(({ sex }) => sex === 'Male').map(({ periodType }) => periodType),
@@ -452,10 +457,10 @@ it.each([false, true])(
           .select()
           .from(schema.observationSeriesBatch)
           .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId));
-        expect(batch?.trendValues).toEqual([705, 704, 703, 702, 701]);
+        expect(batch?.trendValues).toEqual([709, 708, 707, 706, 705]);
         if (!sexed)
           expect(cached.find(({ periodType }) => periodType === 'all')?.recentValues).toEqual([
-            705, 704, 703, 702, 701,
+            709, 708, 707, 706, 705,
           ]);
         throw new RolledBack();
       }),

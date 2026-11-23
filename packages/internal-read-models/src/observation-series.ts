@@ -152,19 +152,6 @@ async function insertSeries(
       .union(sexChoices),
   );
 
-  const variants = tx.$with('variants').as(
-    tx
-      .select({
-        areaId: choices.areaId,
-        variants: sql<schema.ObservationSeriesVariant[]>`jsonb_agg(
-          jsonb_build_object('sex', ${choices.sex}, 'periodType', ${choices.periodType})
-          ORDER BY ${choices.sexOrder}, ${choices.sex}, ${choices.periodOrder}
-        )`.as('variants'),
-      })
-      .from(choices)
-      .groupBy(choices.areaId),
-  );
-
   // An all-period choice elects one complete series, so different lengths never share a history.
   const candidateColumns = {
     areaId: segments.areaId,
@@ -224,8 +211,58 @@ async function insertSeries(
       ),
   );
 
+  const headlines = tx.$with('headlines').as(
+    tx
+      .selectDistinctOn([winners.areaId])
+      .from(winners)
+      .orderBy(
+        winners.areaId,
+        ...headlineSeriesOrder(
+          {
+            dimensionKey: winners.dimensionKey,
+            valueCount: winners.length,
+            periodLength: winners.periodLength,
+            firstPoint: winners.firstPoint,
+          },
+          { dimensionValue, dimensionType },
+        ),
+      ),
+  );
+  const variants = tx.$with('variants').as(
+    tx
+      .select({
+        areaId: choices.areaId,
+        variants: sql<schema.ObservationSeriesVariant[]>`jsonb_agg(
+        jsonb_build_object('sex', ${choices.sex}, 'periodType', ${choices.periodType}) ||
+        case when ${headlines.areaId} is not null then '{"headline":true}'::jsonb else '{}'::jsonb end
+        order by ${choices.sexOrder}, ${choices.sex}, ${choices.periodOrder}
+      )`.as('variants'),
+      })
+      .from(choices)
+      .leftJoin(
+        headlines,
+        and(
+          eq(headlines.areaId, choices.areaId),
+          eq(headlines.sex, choices.sex),
+          eq(headlines.periodType, choices.periodType),
+        ),
+      )
+      .groupBy(choices.areaId),
+  );
+
   await tx
-    .with(sexValues, source, points, segments, areas, choices, variants, candidates, winners)
+    .with(
+      sexValues,
+      source,
+      points,
+      segments,
+      areas,
+      choices,
+      candidates,
+      winners,
+      headlines,
+      variants,
+    )
     .insert(observationSeries)
     .select(
       tx

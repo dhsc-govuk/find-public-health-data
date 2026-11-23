@@ -4,6 +4,7 @@ import {
   headlineSeries,
   observationSegmentKey,
   rankingAreaSeries,
+  seriesPeriodTypes,
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
@@ -133,18 +134,12 @@ it('includes all elected population keys without changing ranking values or SQL 
   expect([...(populations[0] ?? [])].some((key) => populations[1]?.has(key))).toBe(false);
 });
 
-it('retains eight periods of each length without merging annual and rolling histories', async () => {
+it('retains eight periods of each offered variant without merging period lengths', async () => {
   const codes = ['E92000001'];
   const full = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const mixed = [...full].find(([, entry]) => {
     const observations = entry.areaData[0]?.observations ?? [];
-    return (
-      comparisonVariants(observations).filter(
-        (variant) =>
-          variant.periodType !== 'all' &&
-          headlineSeries(filterSeries(observations, variant)).length >= 8,
-      ).length > 1
-    );
+    return seriesPeriodTypes(observations).length > 1 && headlineSeries(observations).length >= 8;
   });
   if (!mixed) throw new Error('Expected seeded annual and rolling histories');
   const [id, entry] = mixed;

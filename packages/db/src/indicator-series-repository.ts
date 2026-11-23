@@ -243,7 +243,7 @@ export async function getIndicatorSeriesData(
       const key = `${sex}|${periodType}`;
       let entry = choices.get(key);
       if (!entry) {
-        entry = { sex, periodType, segments: {}, trends: {}, rowOrder: {} };
+        entry = { sex, periodType, segments: {}, trends: {}, rowOrder: {}, headlines: {} };
         choices.set(key, entry);
       }
       return entry;
@@ -255,6 +255,7 @@ export async function getIndicatorSeriesData(
       ).entries()) {
         const entry = choice(variant.sex, variant.periodType);
         if (entry.rowOrder) entry.rowOrder[a.code] = index;
+        if (variant.headline && entry.headlines) entry.headlines[a.code] = true;
       }
       for (const row of areaRows) {
         const latest = byId.get(row.latestObservationId);
