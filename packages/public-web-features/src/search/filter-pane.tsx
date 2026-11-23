@@ -141,18 +141,13 @@ export function SearchFilterPane({
             title="About the data"
           />
           {includeDataPeriod ? (
-            <>
-              <CollapsibleFilterCard active={false} title="Status">
-                <p className="govuk-body-s">Release status information is not yet available.</p>
-              </CollapsibleFilterCard>
-              <SearchPeriodFilter
-                key={JSON.stringify([state.fromYear, state.toYear, state.updatedWithin])}
-                action={action}
-                formAction={formAction}
-                extraParams={extraParams}
-                state={state}
-              />
-            </>
+            <SearchPeriodFilter
+              key={JSON.stringify([state.fromYear, state.toYear, state.updatedWithin])}
+              action={action}
+              formAction={formAction}
+              extraParams={extraParams}
+              state={state}
+            />
           ) : null}
         </>
       ) : null}
