@@ -10,6 +10,7 @@ import {
 import { Form, useLocation, useNavigation } from 'react-router';
 import { InequalitiesChart } from './charts/bar-chart.tsx';
 import { englandCode } from './charts/chart-data.ts';
+import { availablePeriodTypes } from './data.ts';
 import { inequalityTableModel } from './inequalities.ts';
 import type { SelectedIndicator } from './loader.ts';
 import { providerSourceText } from './metadata-data.ts';
@@ -24,7 +25,10 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
   const location = useLocation();
   const navigation = useNavigation();
   const params = new URLSearchParams(navigation.location?.search ?? location.search);
-  const [options, applyOptions] = usePanelOptions(id);
+  const [options, applyOptions] = usePanelOptions(
+    id,
+    availablePeriodTypes(primary.areaData.flatMap(({ observations }) => observations)),
+  );
   const applyOptionParams = useOptionParamNavigation();
   const inequality = inequalityTableModel(primary, params);
   const {

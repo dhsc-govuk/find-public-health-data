@@ -324,7 +324,8 @@ it('shows the period notice in the table options without announcing it a second 
 it.each([
   ['5-year', '5-year'],
   ['7-year', '7-year'],
-  ['2-year', '2-year'],
+  ['2-year', 'all'],
+  ['9007199254740991-year', 'all'],
   ['0-year', 'all'],
   ['-5-year', 'all'],
   ['5.5-year', 'all'],
@@ -335,7 +336,7 @@ it.each([
     {
       path: '/',
       Component: () => {
-        const [options] = usePanelOptions(108);
+        const [options] = usePanelOptions(108, ['5-year', '7-year']);
         return <output>{options.periodType}</output>;
       },
     },
@@ -349,7 +350,7 @@ it('offers distinct labels and submits the selected five or seven year period', 
     {
       path: '/',
       Component: () => {
-        const [options, update] = usePanelOptions(108);
+        const [options, update] = usePanelOptions(108, ['3-year', '5-year', '7-year']);
         return (
           <PanelOptionsPanel
             label="Options"

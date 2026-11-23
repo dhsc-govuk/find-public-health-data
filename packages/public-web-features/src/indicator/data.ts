@@ -445,10 +445,10 @@ export function periodTypeChoice(
   const anyType = availablePeriodTypes(typesByArea.flatMap(({ data }) => data.observations));
   const common = anyType.filter((type) => typesByArea.every(({ types }) => types.includes(type)));
   const options = common.length ? common : anyType;
-  const wanted = requested === 'all' ? '1-year' : requested;
+  const publishedTypes = availablePeriodTypes(areaData.flatMap(({ observations }) => observations));
+  const wanted = requested !== 'all' && publishedTypes.includes(requested) ? requested : '1-year';
   const periodType = options.includes(wanted) ? wanted : (options[0] ?? 'all');
-  const offered =
-    availablePeriodTypes(areaData.flatMap(({ observations }) => observations)).length > 1;
+  const offered = publishedTypes.length > 1;
   const lacking = typesByArea
     .filter(({ types }) => !types.includes(wanted))
     .map(({ data }) => data.areaName);

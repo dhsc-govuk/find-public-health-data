@@ -331,6 +331,15 @@ describe('periodTypeChoice', () => {
     expect(periodTypeChoice([england, northEast], '3-year').periodType).toBe('3-year');
   });
 
+  it.each(['2-year', '9007199254740991-year'] as const)(
+    'uses the default without reflecting the unpublished period type %s',
+    (requested) => {
+      expect(periodTypeChoice([england, oxford], requested)).toEqual(
+        periodTypeChoice([england, oxford], 'all'),
+      );
+    },
+  );
+
   it('switches to the period type a picked area publishes and says why', () => {
     expect(periodTypeChoice([england, oxford], '1-year')).toEqual({
       offered: true,
@@ -805,7 +814,11 @@ it('labels months and explains a quarterly fallback naturally', () => {
   expect(periodTypeLabel('3-month')).toBe('3 months');
   const point = (toDate: string) => obs({ fromDate: '2024-01-01', toDate, dimensions: [] });
   const areas = [
-    { areaCode: 'E92000001', areaName: 'England', observations: [point('2024-12-31')] },
+    {
+      areaCode: 'E92000001',
+      areaName: 'England',
+      observations: [point('2024-12-31'), point('2024-01-31')],
+    },
     { areaCode: 'local', areaName: 'Oxford', observations: [point('2024-03-31')] },
   ];
   expect(periodTypeChoice(areas, '1-year').notice).toBe(

@@ -88,7 +88,7 @@ function panelOptionNames(scope: OptionScope) {
   };
 }
 
-export function usePanelOptions(scope: OptionScope) {
+export function usePanelOptions(scope: OptionScope, periodTypes: readonly PeriodType[] = []) {
   const { search } = useLocation();
   const navigation = useNavigation();
   const params = new URLSearchParams(navigation.location?.search ?? search);
@@ -99,7 +99,8 @@ export function usePanelOptions(scope: OptionScope) {
   const options: PanelOptions = {
     benchmarks: selectedBenchmarks(params, scope),
     confidence: confidence === '95' || confidence === '99.8' ? confidence : 'none',
-    periodType: isObservationPeriodType(periodType) ? periodType : 'all',
+    periodType:
+      isObservationPeriodType(periodType) && periodTypes.includes(periodType) ? periodType : 'all',
     sex: params.get(names.sex) ?? '',
   };
   const update = (next: PanelOptions) =>

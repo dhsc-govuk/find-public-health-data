@@ -8,6 +8,7 @@ import { TrendChart } from './charts/trend-chart.tsx';
 import {
   availableConfidenceLevels,
   availableMeasures,
+  availablePeriodTypes,
   dimensionValues,
   filterObservations,
   periodTypeChoice,
@@ -60,7 +61,10 @@ export function IndicatorTab({
   const links = useIndicatorLinks();
   const navigation = useNavigation();
   const params = new URLSearchParams(navigation.location?.search ?? location.search);
-  const [options, applyOptions] = usePanelOptions(id);
+  const [options, applyOptions] = usePanelOptions(
+    id,
+    availablePeriodTypes(areaData.flatMap(({ observations }) => observations)),
+  );
   const applyOptionParams = useOptionParamNavigation();
   const pickedAreaData = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const periodChoice = periodTypeChoice(areaData, options.periodType, {
