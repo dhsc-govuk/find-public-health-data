@@ -256,3 +256,22 @@ test('names each geography tree on the page differently at 320px', async ({ page
   for (const tree of await trees.all()) await expect(tree).toBeVisible();
   await expectUniqueLandmarkNames(page);
 });
+
+test('offers only the filter values the topic’s indicators carry', async ({ page }) => {
+  await openTopicPage(page, '/topics/cancer?tab-topic=data');
+  const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
+  await panel.getByRole('button', { name: 'About the data', exact: true }).click();
+
+  await expect(
+    panel.getByRole('checkbox', {
+      name: 'OHID, based on multiple sources',
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(
+    panel.getByRole('checkbox', {
+      name: 'Versus Arthritis and University College London UCL data',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+});

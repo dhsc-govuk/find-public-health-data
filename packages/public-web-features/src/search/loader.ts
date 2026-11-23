@@ -154,6 +154,10 @@ export async function loadSearch(
   const hasAddControl = addParams.some((p) => params.has(`${p}-add`));
 
   const rawGa = pickAreaCodes(params.getAll('ga'), MAX_SELECTED_AREAS);
+  // A topic page offers only the filter values its own indicators carry.
+  const facetsPath = topicSlug
+    ? `/api/indicators/facets?t=${encodeURIComponent(topicSlug)}`
+    : '/api/indicators/facets';
 
   const [catalogueGroups, lookedUp] = await Promise.all([
     api.get('/api/areas/display-groups', displayGroupListSchema),
@@ -189,7 +193,7 @@ export async function loadSearch(
   );
 
   if (hasAddControl) {
-    const facets = await api.get('/api/indicators/facets', indicatorFacetsSchema);
+    const facets = await api.get(facetsPath, indicatorFacetsSchema);
 
     const next = new URLSearchParams(params);
     next.delete('page');
@@ -238,7 +242,7 @@ export async function loadSearch(
   }
 
   const [facets, firstResult, geographyOptions] = await Promise.all([
-    api.get('/api/indicators/facets', indicatorFacetsSchema),
+    api.get(facetsPath, indicatorFacetsSchema),
     api.get(
       `/api/indicators/search${searchQuery ? `?${searchQuery}` : ''}`,
       indicatorSearchResultSchema,
