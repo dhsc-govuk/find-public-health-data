@@ -4,7 +4,8 @@ import { englandObservations } from './no-england.ts';
 /**
  * What a Geographies panel says about the area types an indicator has no data for:
  * `england-only` when England has a value and the indicator's data covers no other area, and
- * `others-unavailable` when the indicator lacks some of the area types the public site offers.
+ * `others-unavailable` when the indicator has some of the area types the public site offers and
+ * lacks others, MSOAs aside.
  */
 export type AreaTypeNotice = 'england-only' | 'others-unavailable';
 
@@ -27,7 +28,8 @@ const NOTICED_LEVELS = [
  * The notice for an indicator with data for `indicatorLevels`, out of the public area types the
  * area catalogue holds (`catalogueLevels`). `areaTypes` are all the area types its data covers,
  * including those the public site doesn't offer, such as GP practices and trusts. An indicator
- * with data for those alone, or without an England value, has no notice.
+ * with none of the public area types has no notice unless its data covers England alone and
+ * England has a value.
  */
 export function areaTypeNotice({
   catalogueLevels,
