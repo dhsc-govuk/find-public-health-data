@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { z } from '@fphd/config';
 import { schema } from '@fphd/db';
+import { AGE_UNITS } from '@fphd/utils/age-range';
 import { getTableColumns, getTableName } from 'drizzle-orm';
 import { toSnakeCase } from 'drizzle-orm/casing';
 import type postgres from 'postgres';
@@ -36,6 +37,15 @@ const dimensionValueRecord = z.object({
   sortOrder: z.int(),
   isAggregate: z.boolean(),
 });
+const ageValue = z.int().nonnegative();
+const ageUnit = z.enum(AGE_UNITS);
+const dimensionValueAgeRangeRecord = z.object({
+  id,
+  ageFromValue: ageValue,
+  ageFromUnit: ageUnit,
+  ageUnderValue: ageValue.nullable(),
+  ageUnderUnit: ageUnit.nullable(),
+});
 const noteTypeRecord = z.object({
   id,
   text: name,
@@ -46,6 +56,7 @@ export const referenceDataSchema = z.object({
   areaTypes: z.array(areaTypeRecord),
   dimensionTypes: z.array(dimensionTypeRecord),
   dimensionValues: z.array(dimensionValueRecord),
+  dimensionValueAgeRanges: z.array(dimensionValueAgeRangeRecord),
   noteTypes: z.array(noteTypeRecord),
 });
 
@@ -58,22 +69,30 @@ export type ReferenceCoreDataImport = Record<
   }
 >;
 
+// In foreign-key order. `label` names the column the orphan report shows.
 const lists = {
-  areaTypes: { file: 'area-types.json', table: schema.areaType },
-  dimensionTypes: { file: 'dimension-types.json', table: schema.dimensionType },
-  dimensionValues: { file: 'dimension-values.json', table: schema.dimensionValue },
-  noteTypes: { file: 'note-types.json', table: schema.noteType },
+  areaTypes: { file: 'area-types.json', table: schema.areaType, label: 'name' },
+  dimensionTypes: { file: 'dimension-types.json', table: schema.dimensionType, label: 'name' },
+  dimensionValues: { file: 'dimension-values.json', table: schema.dimensionValue, label: 'name' },
+  dimensionValueAgeRanges: {
+    file: 'dimension-value-age-ranges.json',
+    table: schema.dimensionValueAgeRange,
+    label: 'id',
+  },
+  noteTypes: { file: 'note-types.json', table: schema.noteType, label: 'text' },
 } as const;
 
 export function parseReferenceData(data: unknown): ReferenceData {
   const records = referenceDataSchema.parse(data);
   for (const [list, rows] of Object.entries(records)) {
-    const names = rows.map((row) =>
+    const names = rows.flatMap((row) =>
       'text' in row
-        ? row.text
+        ? [row.text]
         : 'dimensionTypeId' in row
-          ? `${row.dimensionTypeId}:${row.name}`
-          : row.name,
+          ? [`${row.dimensionTypeId}:${row.name}`]
+          : 'name' in row
+            ? [row.name]
+            : [],
     );
     const duplicates = [...findDuplicates(rows.map(({ id }) => id)), ...findDuplicates(names)];
     if (duplicates.length > 0) {
@@ -90,6 +109,11 @@ export function parseReferenceData(data: unknown): ReferenceData {
     }
     if (value.parentId !== null && !valueTypes.has(value.parentId)) {
       throw new Error(`Dimension value ${value.id} names an unknown parent`);
+    }
+  }
+  for (const range of records.dimensionValueAgeRanges) {
+    if (!valueTypes.has(range.id)) {
+      throw new Error(`Age range ${range.id} names an unknown dimension value`);
     }
   }
   return records;
@@ -137,7 +161,7 @@ export async function importReferenceCoreData(
       `,
         [JSON.stringify(payload)],
       );
-      const labelColumn = key === 'noteTypes' ? 'text' : 'name';
+      const labelColumn = lists[key].label;
       const orphaned = await tx.unsafe<{ id: string; name: string }[]>(
         `
         SELECT id, "${labelColumn}" AS name FROM "${tableName}"

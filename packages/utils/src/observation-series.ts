@@ -2,6 +2,7 @@ import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
+export const AGE_DIMENSION_NAME = 'Age';
 export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 
 interface SeriesObservation {

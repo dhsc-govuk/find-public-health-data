@@ -11,6 +11,7 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     areaTypes: 101,
     dimensionTypes: 154,
     dimensionValues: 1392,
+    dimensionValueAgeRanges: 311,
     noteTypes: 236,
   });
 });
@@ -25,6 +26,18 @@ it.each([
     'quality',
   );
   expect(readSeedTable('note_type').find((note) => note.text === text)?.category).toBe('quality');
+});
+
+it('refuses an age range for a dimension value that does not exist', () => {
+  const records = readReferenceData();
+  const [first] = records.dimensionValueAgeRanges;
+
+  expect(() =>
+    parseReferenceData({
+      ...records,
+      dimensionValueAgeRanges: [{ ...first, id: '019de0d5-c800-7000-8000-000000000000' }],
+    }),
+  ).toThrow(/names an unknown dimension value/);
 });
 
 it('refuses duplicate lookup ids and names before import', () => {
