@@ -19,6 +19,7 @@ export { default as Tag } from '@not-govuk/tag';
 export { default as TaskList } from '@not-govuk/task-list';
 export { default as TextInput } from '@not-govuk/text-input';
 export { default as Textarea } from '@not-govuk/textarea';
+export { default as WarningText } from '@not-govuk/warning-text';
 export { AppDocument } from './app-document.tsx';
 export { type AppNavigationItem, AppShell } from './app-shell.tsx';
 export { Autocomplete, type AutocompleteOption } from './autocomplete.tsx';
