@@ -19,7 +19,7 @@ import {
   correctObservationInterval,
   type ObservationCorrection,
 } from './observation-corrections.ts';
-import { computeDates } from './period.ts';
+import { computeDates, sourcePeriodType } from './period.ts';
 import { queryPholio, streamPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 
@@ -98,8 +98,9 @@ export function dedupKey(
   toDate: string,
   batchId: number,
   sortedDimValueIds: readonly number[],
+  periodType: string | null = null,
 ): string {
-  return `${indicatorId}|${areaId}|${fromDate}|${toDate}|${batchId}|${sortedDimValueIds.join(',')}`;
+  return `${indicatorId}|${areaId}|${fromDate}|${toDate}|${batchId}|${periodType ? `${periodType}|` : ''}${sortedDimValueIds.join(',')}`;
 }
 
 // ─── CoreDataSet row type ──────────────────────────────────────────────────────
@@ -270,7 +271,8 @@ function exclusionReason(
     return 'empty_observation';
   if (c.Year < 1900) return 'year_before_1900';
   if (excluded.has(c.IndicatorID)) return 'excluded_indicator';
-  return groupings.exclusionReason(c);
+  // The current grouping hides earlier cycles and annual rows; they still belong in the import.
+  return c.YearTypeID === 10 ? undefined : groupings.exclusionReason(c);
 }
 
 const observationQuery = `
@@ -364,6 +366,9 @@ async function assertDistinctObservations(
         toDate,
         c.IndicatorID,
         dimensions.map((d) => d.valueId),
+        groupings.hasCumulativeBaseline(c)
+          ? sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1)
+          : null,
       );
       const previous = seen.get(key);
       const id = observationId(c.uid, split as 0 | 1);
@@ -471,6 +476,9 @@ export async function exportObservations(context: ObservationExportOptions) {
         indicator_id: c.IndicatorID,
         area_id: areaId,
         from_date: fromDate,
+        period_type: groupings.hasCumulativeBaseline(c)
+          ? sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1)
+          : null,
         to_date: toDate,
         value,
         ...countAndNumerator(

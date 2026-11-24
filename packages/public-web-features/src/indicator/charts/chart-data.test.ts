@@ -5,6 +5,7 @@ import {
   alignedSeries,
   areaQuintile,
   bounds,
+  chartPeriods,
   englandCode,
   errorOffsets,
   pairedObservations,
@@ -162,3 +163,25 @@ it.each(['95', '99.8'] as const)(
     );
   },
 );
+it('plots every cumulative endpoint with its baseline in the labels and excludes annual and old-cycle points', () => {
+  const cumulative = Array.from({ length: 17 }, (_, index) => ({
+    ...point(2022, index + 1),
+    fromDate: '2022-04-01',
+    toDate: new Date(Date.UTC(2022, 6 + index * 3, 0)).toISOString().slice(0, 10),
+    periodType: 'cumulative-quarter-2022-04-01' as const,
+  }));
+  const series = alignedSeries([
+    area(
+      englandCode,
+      ...cumulative,
+      { ...point(2022, 90), fromDate: '2022-04-01', toDate: '2023-03-31' },
+      { ...point(2021, 80), periodType: 'cumulative-quarter-2021-01-01' },
+    ),
+  ]);
+  expect([...(series[0]?.observations.values() ?? [])]).toEqual(cumulative);
+  const labels = chartPeriods(series, { value: 'financial', label: 'Financial' });
+  expect(labels).toHaveLength(17);
+  expect(labels[3]?.label).toBe('2022/23 Q1 - 2022/23 Q4');
+  expect(labels[5]?.label).toBe('2022/23 Q1 - 2023/24 Q2');
+  expect(labels.at(-1)?.label).toBe('2022/23 Q1 - 2026/27 Q1');
+});

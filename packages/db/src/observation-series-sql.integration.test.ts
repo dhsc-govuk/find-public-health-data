@@ -1,7 +1,12 @@
-import { observationSegmentKey } from '@fphd/utils/observation-series';
+import {
+  observationPeriodType,
+  observationSegmentKey,
+  periodTypeLength,
+} from '@fphd/utils/observation-series';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { dimensionKeyOrder } from './headline-order.ts';
+import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import { dimensionType, dimensionValue } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
@@ -51,5 +56,25 @@ it('matches the JavaScript key including the input order of values with the same
         })),
       }),
     );
+  }
+});
+
+it('matches cumulative period identities and lengths in JavaScript at every quarterly endpoint', async () => {
+  for (let quarter = 1; quarter <= 17; quarter++) {
+    const point = {
+      fromDate: '2022-04-01',
+      toDate: new Date(Date.UTC(2022, 3 + quarter * 3, 0)).toISOString().slice(0, 10),
+      periodType: 'cumulative-quarter-2022-04-01' as const,
+    };
+    const type = observationPeriodSql(
+      sql`${point.fromDate}::date`,
+      sql`${point.toDate}::date`,
+      sql`${point.periodType}::text`,
+    );
+    const [row] = await database.db
+      .select({ type, length: periodLengthSql(type) })
+      .from(sql`(values (1)) fixture(id)`);
+    expect(row?.type).toBe(observationPeriodType(point));
+    expect(Number(row?.length)).toBe(periodTypeLength(point.periodType));
   }
 });

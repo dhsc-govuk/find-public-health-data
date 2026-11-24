@@ -144,6 +144,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'indicator_id',
     'area_id',
     'from_date',
+    'period_type',
     'to_date',
     'value',
     'count',

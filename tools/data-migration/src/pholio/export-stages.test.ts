@@ -1377,3 +1377,51 @@ it('aligns a null source year type baseline with observation dates', async () =>
   expect(publishedFrom).toBe('2021-01-01');
   expect((await rows('observation'))[0]?.from_date).toBe(publishedFrom);
 });
+
+it('exports cumulative endpoints as one baseline series and retains an annual row with the same dates', async () => {
+  sourceObservations(
+    [
+      ...[1, 2, 4, 6, 17].map((quarter) =>
+        observation({
+          uid: quarter,
+          Year: 2022,
+          Quarter: quarter,
+          YearRange: 5,
+          YearTypeID: 10,
+        }),
+      ),
+      observation({ uid: 30, Year: 2022, YearRange: 1, YearTypeID: 10 }),
+      observation({ uid: 31, Year: 2023, Quarter: 1, YearRange: 5, YearTypeID: 10 }),
+    ],
+    [
+      {
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 1,
+        YearRange: 5,
+        BaselineYear: 2022,
+        BaselineQuarter: 1,
+        BaselineMonth: -1,
+      },
+    ],
+  );
+  const result = await exportObservations(observationOptions());
+  const exported = await rows('observation');
+  expect(result.tables.observation.rows).toBe(7);
+  expect(exported.slice(0, 5).map((row) => row.period_type)).toEqual(
+    Array(5).fill('cumulative-quarter-2022-04-01'),
+  );
+  expect(exported.map((row) => row.to_date)).toEqual([
+    '2022-06-30',
+    '2022-09-30',
+    '2023-03-31',
+    '2023-09-30',
+    '2026-06-30',
+    '2023-03-31',
+    '2023-06-30',
+  ]);
+  expect(exported.slice(5).map((row) => row.period_type)).toEqual([
+    DATA_MIGRATION_NULL,
+    DATA_MIGRATION_NULL,
+  ]);
+});

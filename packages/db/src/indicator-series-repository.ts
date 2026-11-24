@@ -48,6 +48,7 @@ async function readPoints(
         and benchmark.area_id = ${englandId ?? null}::uuid
         and benchmark.dimension_key = source.dimension_key
         and benchmark.from_date = source.from_date and benchmark.to_date = source.to_date
+        and benchmark.period_type is not distinct from source.period_type
       where source.id = any(${`{${benchmarkIds.join(',')}}`}::uuid[])
     ), wanted as (select unnest(${`{${ids.join(',')}}`}::uuid[]) as id union select id from benchmarks)
     , points as materialized (
@@ -78,7 +79,8 @@ async function readPoints(
       'lowerCi95', o.lower_ci_95, 'upperCi95', o.upper_ci_95,
       'lowerCi998', o.lower_ci_998, 'upperCi998', o.upper_ci_998,
       'dimensions', d.data, 'notes', coalesce(n.data, '[]'::jsonb)
-    ) as point from points o join dimensions d on d.dimension_key = o.dimension_key
+    ) || case when o.period_type is null then '{}'::jsonb
+      else jsonb_build_object('periodType', o.period_type) end as point from points o join dimensions d on d.dimension_key = o.dimension_key
     left join notes n on n.observation_id = o.id
   `);
 }

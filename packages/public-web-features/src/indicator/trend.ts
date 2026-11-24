@@ -330,7 +330,11 @@ export function trendTableModel({
         .sort((a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate))
         .map((observation) => [
           `${observation.fromDate}|${observation.toDate}`,
-          { fromDate: observation.fromDate, toDate: observation.toDate },
+          {
+            fromDate: observation.fromDate,
+            toDate: observation.toDate,
+            ...(observation.periodType ? { periodType: observation.periodType } : {}),
+          },
         ]),
     ).values(),
   ];

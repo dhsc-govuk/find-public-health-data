@@ -51,14 +51,16 @@ async function areaTrendDirections(
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
         ${observation.toDate} as to_date, ${observation.value} as value,
         ${observation.dimensionKey} as segment,
-        ${observationPeriodSql(observation.fromDate, observation.toDate)} as period_type
+        ${observation.periodType} as source_period_type,
+        max(${observation.periodType}) over (partition by ${observation.indicatorId}) as cumulative_period_type,
+        ${observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType)} as period_type
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${areaCode}
       where ${inArray(observation.indicatorId, ids)}
     ), series as (
       select distinct on (indicator_id) indicator_id, segment, period_type,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
-      from points group by indicator_id, segment, period_type
+      from points where cumulative_period_type is null or source_period_type = cumulative_period_type group by indicator_id, segment, period_type
       order by indicator_id, ${sql.join(
         headlineOrder({
           ...dimensionKeyRank(sql`segment`, views),

@@ -18,7 +18,7 @@ type ObservationRow = [
 // Display options reuse the full history without a loader request, including inequality
 // breakdowns. Dictionaries retain that history without repeating its metadata per point.
 export function compactIndicator(indicator: SelectedIndicator) {
-  const periods = dataDictionary<[string, string]>();
+  const periods = dataDictionary<[string, string, IndicatorObservation['periodType']?]>();
   const dimensions = dataDictionary<IndicatorObservation['dimensions']>();
   const notes = dataDictionary<IndicatorObservation['notes']>();
   const compactArea = (area: SelectedIndicator['areaData'][number]) => ({
@@ -27,7 +27,11 @@ export function compactIndicator(indicator: SelectedIndicator) {
     observations: JSON.stringify(
       area.observations.map(
         (point): ObservationRow => [
-          periods.index([point.fromDate, point.toDate]),
+          periods.index(
+            point.periodType === undefined
+              ? [point.fromDate, point.toDate]
+              : [point.fromDate, point.toDate, point.periodType],
+          ),
           dimensions.index(point.dimensions),
           notes.index(point.notes),
           point.value,
@@ -77,6 +81,7 @@ export function expandIndicator({
           return {
             fromDate: period[0],
             toDate: period[1],
+            ...(period.length > 2 ? { periodType: period[2] } : {}),
             dimensions,
             notes,
             value,

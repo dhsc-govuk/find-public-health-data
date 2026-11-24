@@ -104,6 +104,7 @@ it.each([
   '1-month',
   '3-month',
   '500-day',
+  'cumulative-quarter-2022-04-01',
 ])('accepts table series period type %s', (periodType) => {
   expect(
     indicatorTableDataSchema.safeParse([

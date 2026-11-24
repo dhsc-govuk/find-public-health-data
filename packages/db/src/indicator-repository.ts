@@ -637,6 +637,10 @@ export async function getObservationRangeByCategory(
   dimensionValueId: string,
 ): Promise<ObservationRangePeriod[]> {
   const { areaCategory, dimensionType, dimensionValue, observation, observationDimension } = views;
+  const displayPeriod = db
+    .select({ periodType: max(observation.periodType) })
+    .from(observation)
+    .where(eq(observation.indicatorId, indicatorId));
   const points = db.$with('category_range_observations').as(
     db
       .select({
@@ -656,7 +660,13 @@ export async function getObservationRangeByCategory(
       .leftJoin(observationDimension, eq(observationDimension.observationId, observation.id))
       .leftJoin(dimensionValue, eq(dimensionValue.id, observationDimension.dimensionValueId))
       .leftJoin(dimensionType, eq(dimensionType.id, observationDimension.dimensionTypeId))
-      .where(and(eq(observation.indicatorId, indicatorId), isNotNull(observation.value)))
+      .where(
+        and(
+          eq(observation.indicatorId, indicatorId),
+          isNotNull(observation.value),
+          sql`${observation.periodType} is not distinct from (${displayPeriod})`,
+        ),
+      )
       .groupBy(observation.id, observation.fromDate, observation.toDate, observation.value),
   );
   return db
@@ -713,6 +723,10 @@ export async function getObservationRangeByTier(
             ),
       ),
     );
+  const displayPeriod = db
+    .select({ periodType: max(observation.periodType) })
+    .from(observation)
+    .where(eq(observation.indicatorId, indicatorId));
   const points = db.$with('tier_range_observations').as(
     db
       .select({
@@ -729,6 +743,7 @@ export async function getObservationRangeByTier(
         and(
           eq(observation.indicatorId, indicatorId),
           inArray(observation.areaId, councils),
+          sql`${observation.periodType} is not distinct from (${displayPeriod})`,
           isNotNull(observation.value),
         ),
       )

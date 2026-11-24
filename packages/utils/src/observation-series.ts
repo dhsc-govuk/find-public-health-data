@@ -1,25 +1,35 @@
 import { isoDurationDays } from './age-range.ts';
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 6;
+export const OBSERVATION_SERIES_VERSION = 7;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
-export type ObservationPeriodType = `${number}-year` | `${number}-month` | `${number}-day`;
+export type CumulativePeriodType = `cumulative-quarter-${string}`;
+export type ObservationPeriodType =
+  | `${number}-year`
+  | `${number}-month`
+  | `${number}-day`
+  | CumulativePeriodType;
 export type SeriesPeriodType = 'all' | ObservationPeriodType;
 
 export function isObservationPeriodType(value: unknown): value is ObservationPeriodType {
   return (
     typeof value === 'string' &&
-    /^[1-9]\d*-(year|month|day)$/.test(value) &&
-    Number.isSafeInteger(Number.parseInt(value, 10))
+    ((/^[1-9]\d*-(year|month|day)$/.test(value) &&
+      Number.isSafeInteger(Number.parseInt(value, 10))) ||
+      /^cumulative-quarter-\d{4}-\d{2}-\d{2}$/.test(value))
   );
 }
 export const AGE_DIMENSION_NAME = 'Age';
 export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 
-interface SeriesObservation {
+export interface ObservationPeriod {
+  periodType?: ObservationPeriodType | null | undefined;
   fromDate: string;
   toDate: string;
+}
+
+interface SeriesObservation extends ObservationPeriod {
   dimensions: {
     type: string;
     value: string;
@@ -44,9 +54,7 @@ function addMonthsClamped(start: Date, months: number): Date {
   return result;
 }
 
-export function periodMonths(
-  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
-): number | null {
+export function periodMonths(observation: ObservationPeriod): number | null {
   const start = new Date(observation.fromDate);
   const inclusiveEnd = new Date(observation.toDate);
   const end = new Date(Date.parse(observation.toDate) + 86_400_000);
@@ -62,16 +70,13 @@ export function periodMonths(
   return null;
 }
 
-export function periodYears(
-  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
-): number | null {
+export function periodYears(observation: ObservationPeriod): number | null {
   const months = periodMonths(observation);
   return months !== null && months % 12 === 0 ? months / 12 : null;
 }
 
-export function observationPeriodType(
-  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
-): ObservationPeriodType {
+export function observationPeriodType(observation: ObservationPeriod): ObservationPeriodType {
+  if (observation.periodType) return observation.periodType;
   const months = periodMonths(observation);
   const days = (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 + 1;
   if (months === null) return `${days}-day`;
@@ -79,23 +84,26 @@ export function observationPeriodType(
 }
 
 export function periodTypeLength(periodType: ObservationPeriodType): number {
+  if (periodType.startsWith('cumulative-quarter-')) return 3 * 30.4375;
   return (
     Number.parseInt(periodType, 10) *
     (periodType.endsWith('-year') ? 365.25 : periodType.endsWith('-month') ? 30.4375 : 1)
   );
 }
 
-export function seriesPeriodTypes(
-  observations: Pick<SeriesObservation, 'fromDate' | 'toDate'>[],
-): ObservationPeriodType[] {
-  return [...new Set(observations.map(observationPeriodType))].sort(
-    (a, b) => periodTypeLength(a) - periodTypeLength(b),
-  );
+export function seriesPeriodTypes(observations: ObservationPeriod[]): ObservationPeriodType[] {
+  const types = [...new Set(observations.map(observationPeriodType))];
+  // A new baseline replaces the previous cycle on Fingertips; its history stays imported.
+  const cumulative = types
+    .filter((type) => type.startsWith('cumulative-quarter-'))
+    .sort()
+    .at(-1);
+  return cumulative
+    ? [cumulative]
+    : types.sort((a, b) => periodTypeLength(a) - periodTypeLength(b));
 }
 
-export function isRollingPeriod(
-  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
-): boolean {
+export function isRollingPeriod(observation: ObservationPeriod): boolean {
   return periodTypeLength(observationPeriodType(observation)) > 365.25;
 }
 
@@ -145,7 +153,9 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       dimensionKey: string;
     }
   >();
+  const publishedTypes = seriesPeriodTypes(observations);
   for (const point of observations) {
+    if (!publishedTypes.includes(observationPeriodType(point))) continue;
     const key = observationSeriesKey(point);
     const segment = segments.get(key) ?? {
       points: [],
@@ -237,8 +247,10 @@ export function filterSeries<T extends SeriesObservation>(
   observations: T[],
   { sex, periodType = 'all' }: SeriesFilter,
 ): T[] {
+  const publishedTypes = seriesPeriodTypes(observations);
   return observations.filter(
     (point) =>
+      publishedTypes.includes(observationPeriodType(point)) &&
       (periodType === 'all' || observationPeriodType(point) === periodType) &&
       (!sex ||
         point.dimensions.some(({ type, value }) => type === SEX_DIMENSION_NAME && value === sex)),
@@ -316,7 +328,8 @@ export function tableSummary<
           if (
             point.fromDate === latest.fromDate &&
             point.toDate === latest.toDate &&
-            observationSegmentKey(point) === observationSegmentKey(latest)
+            observationSegmentKey(point) === observationSegmentKey(latest) &&
+            observationPeriodType(point) === observationPeriodType(latest)
           )
             keep.add(point);
       }
@@ -392,6 +405,7 @@ export function rankingAreaSeries<
               (point) =>
                 latest &&
                 observationSegmentKey(point) === observationSegmentKey(latest) &&
+                observationPeriodType(point) === observationPeriodType(latest) &&
                 point.fromDate === latest.fromDate &&
                 point.toDate === latest.toDate,
             )
@@ -436,7 +450,7 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
     return { ...area, observations: area.observations.filter((point) => keep.has(point)) };
   });
   const benchmarkSegments = new Set(
-    selected.flatMap(({ observations }) => observations.map(observationSegmentKey)),
+    selected.flatMap(({ observations }) => observations.map(observationSeriesKey)),
   );
   return selected.map((area) => {
     if (area.areaCode !== ENGLAND_AREA_CODE || areas.length === 1) return area;
@@ -444,7 +458,7 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
     return {
       ...area,
       observations: (england?.observations ?? []).filter((point) =>
-        benchmarkSegments.has(observationSegmentKey(point)),
+        benchmarkSegments.has(observationSeriesKey(point)),
       ),
     };
   });
@@ -461,7 +475,17 @@ export interface ScatterArea {
   observations: ScatterObservation[];
 }
 
-export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
+export function pairedAreaValues(
+  xAreas: ScatterArea[],
+  yAreas: ScatterArea[],
+): {
+  code: string;
+  name: string;
+  xPeriod: ObservationPeriod;
+  yPeriod: ObservationPeriod;
+  x: number;
+  y: number;
+}[] {
   const samePopulation = (a: ScatterObservation, b: ScatterObservation) =>
     a.dimensions.length === b.dimensions.length &&
     a.dimensions.every(
@@ -480,7 +504,13 @@ export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
       name: areaName,
       observations: new Map(
         observations
-          .filter((point) => reference && samePopulation(point, reference))
+          .filter(
+            (point) =>
+              reference &&
+              samePopulation(point, reference) &&
+              (!reference.periodType?.startsWith('cumulative-quarter-') ||
+                point.periodType === reference.periodType),
+          )
           .map((point) => [`${point.fromDate}|${point.toDate}`, point]),
       ),
     }));
@@ -500,8 +530,16 @@ export function pairedAreaValues(xAreas: ScatterArea[], yAreas: ScatterArea[]) {
           {
             code,
             name,
-            xPeriod: { fromDate: x.fromDate, toDate: x.toDate },
-            yPeriod: { fromDate: y.fromDate, toDate: y.toDate },
+            xPeriod: {
+              fromDate: x.fromDate,
+              toDate: x.toDate,
+              ...(x.periodType ? { periodType: x.periodType } : {}),
+            },
+            yPeriod: {
+              fromDate: y.fromDate,
+              toDate: y.toDate,
+              ...(y.periodType ? { periodType: y.periodType } : {}),
+            },
             x: x.value,
             y: y.value,
           },

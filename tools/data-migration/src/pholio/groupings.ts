@@ -100,6 +100,16 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
         return 'periodicity_not_in_grouping';
       return undefined;
     },
+    hasCumulativeBaseline(row: ObservationSeries & { Year: number }): boolean {
+      return (byIndicator.get(row.IndicatorID) ?? []).some(
+        (grouping) =>
+          grouping.BaselineYear === row.Year &&
+          grouping.YearRange === row.YearRange &&
+          samePeriodicity(grouping, row) &&
+          grouping.SexID === row.SexID &&
+          grouping.AgeID === row.AgeID,
+      );
+    },
     hasSeries(row: ObservationSeries): boolean {
       return (byIndicator.get(row.IndicatorID) ?? []).some(
         (grouping) =>

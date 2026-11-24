@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { computeDates, endOfMonth, yearTypeOnlyFromDate, yearTypeOnlyToDate } from './period.ts';
+import {
+  computeDates,
+  endOfMonth,
+  sourcePeriodType,
+  yearTypeOnlyFromDate,
+  yearTypeOnlyToDate,
+} from './period.ts';
 
 describe('endOfMonth', () => {
   it('returns Jan 31', () => expect(endOfMonth(2020, 1)).toBe('2020-01-31'));
@@ -206,4 +212,12 @@ it('converts a null source year type as Calendar for both observations and basel
     fromDate: '2021-01-01',
     toDate: '2021-12-31',
   });
+});
+
+it('retains the multi-year cumulative identity without relabelling ordinary or single-year periods', () => {
+  expect(sourcePeriodType(2022, 17, 10)).toBe('cumulative-quarter-2022-04-01');
+  expect(sourcePeriodType(2022, 4, 10)).toBe('cumulative-quarter-2022-04-01');
+  expect(sourcePeriodType(2022, -1, 10)).toBeNull();
+  expect(sourcePeriodType(2022, 2, 7)).toBeNull();
+  expect(sourcePeriodType(2022, 2, 2)).toBeNull();
 });

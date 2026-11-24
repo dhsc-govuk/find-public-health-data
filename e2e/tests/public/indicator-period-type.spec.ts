@@ -154,3 +154,19 @@ for (const [shortId, slug] of [
     await expectNoAccessibilityViolations(page, testInfo);
   });
 }
+
+test('an old cumulative-series link falls back to the periods this indicator publishes', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, `${PATH}?pt-93995=cumulative-quarter-2022-04-01`);
+  await expect(chartOptions(page).getByLabel('Type of time period', { exact: true })).toHaveValue(
+    '1-year',
+  );
+  await expect(trendChart(page).locator('.fphd-chart-canvas')).toHaveCount(1);
+  await expect(
+    trendTable(page).getByRole('rowheader', { name: '2024', exact: true }),
+  ).toBeVisible();
+  await expect(
+    trendTable(page).getByRole('rowheader', { name: '2022/23 Q1 - 2022/23 Q4', exact: true }),
+  ).toHaveCount(0);
+});

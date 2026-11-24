@@ -885,3 +885,65 @@ it("names a picked area's age when another area has an age outside it", () => {
   expect(uncertainSeriesAge(picked, seriesSegments(areaData.slice(0, 1)))).toBeUndefined();
   expect(uncertainSeriesAge(picked, seriesSegments(areaData))).toBe('65+ yrs');
 });
+
+it('offers the current cumulative series without annual or duration-based alternatives', () => {
+  const observations = [
+    obs({ fromDate: '2022-04-01', toDate: '2023-03-31' }),
+    obs({
+      fromDate: '2021-04-01',
+      toDate: '2026-03-31',
+      periodType: 'cumulative-quarter-2021-04-01',
+    }),
+    ...[1, 4, 6, 17].map((quarter) =>
+      obs({
+        fromDate: '2022-04-01',
+        toDate: new Date(Date.UTC(2022, 3 + quarter * 3, 0)).toISOString().slice(0, 10),
+        periodType: 'cumulative-quarter-2022-04-01' as const,
+      }),
+    ),
+  ];
+  expect(
+    periodTypeChoice([{ areaCode: 'E92000001', areaName: 'England', observations }], 'all'),
+  ).toEqual({
+    offered: false,
+    options: ['cumulative-quarter-2022-04-01'],
+    periodType: 'cumulative-quarter-2022-04-01',
+    notice: null,
+  });
+  const filtered = filterObservations(observations, {
+    periodType: 'cumulative-quarter-2022-04-01',
+  });
+  expect(filtered).toHaveLength(4);
+  expect(alignedTrendSeries(observations, filtered[0])).toEqual(filtered);
+  expect(periodTypeLabel('cumulative-quarter-2022-04-01')).toBe('Cumulative quarters');
+  expect(periodCovered(observations, publicYearType('financial', null))).toBe(
+    '2022/23 Q1 - 2026/27 Q1',
+  );
+  expect(recentTrend(filtered, null)).toMatchObject({
+    direction: null,
+    reason: 'cumulative periods',
+  });
+});
+
+it('keeps the published cumulative period when a selected area only has retained annual data', () => {
+  const england = obs({
+    fromDate: '2022-04-01',
+    toDate: '2026-06-30',
+    periodType: 'cumulative-quarter-2022-04-01',
+  });
+  const retained = obs({ fromDate: '2022-04-01', toDate: '2023-03-31' });
+  const choice = periodTypeChoice(
+    [
+      { areaCode: 'E92000001', areaName: 'England', observations: [england] },
+      { areaCode: 'old-area', areaName: 'Old area', observations: [retained] },
+    ],
+    '1-year',
+  );
+  expect(choice).toEqual({
+    offered: false,
+    options: ['cumulative-quarter-2022-04-01'],
+    periodType: 'cumulative-quarter-2022-04-01',
+    notice: null,
+  });
+  expect(filterObservations([retained], { periodType: choice.periodType })).toEqual([]);
+});

@@ -134,6 +134,13 @@ moves to this service. The operations image applies the packages with `db migrat
   stops and names the count.
 - Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
   observation keys stop the export with source-row diagnostics.
+- Cumulative financial quarters retain a baseline-specific `observation.period_type`, such as
+  `cumulative-quarter-2022-04-01`. This keeps a 12-month cumulative endpoint distinct from an annual
+  observation on identical dates, and keeps longer endpoints in the same series. All exported
+  observations remain stored; the exporter marks the cumulative baseline named by the published
+  Fingertips Groupings. Display selection uses that series even if the source retains newer,
+  unpublished baselines. Existing environments need a fresh Pholio export and import after migration
+  0100; the old date-only export has lost this identity.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.
   November-to-November annual periods run from 16 November to 15 November. Financial year-end
   snapshots retain their 31 March point date. Academic quarters and multi-year rolling periods

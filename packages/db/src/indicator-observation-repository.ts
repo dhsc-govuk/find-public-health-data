@@ -1,3 +1,4 @@
+import type { ObservationPeriodType } from '@fphd/utils/observation-series';
 import {
   rankingAreaSeries,
   type TableSeriesSelection,
@@ -24,6 +25,7 @@ export interface ObservationDimensionValue {
 export interface IndicatorObservation {
   fromDate: string;
   toDate: string;
+  periodType?: ObservationPeriodType | null | undefined;
   value: number | null;
   lowerCi95: number | null;
   upperCi95: number | null;
@@ -85,6 +87,7 @@ export async function getIndicatorObservationData(
     dimensionKey: observation.dimensionKey,
     fromDate: observation.fromDate,
     toDate: observation.toDate,
+    periodType: observation.periodType,
     value: observation.value,
     lowerCi95: observation.lowerCi95,
     upperCi95: observation.upperCi95,
@@ -153,6 +156,7 @@ export async function getIndicatorObservationData(
     indicatorId,
     areaId: _areaId,
     dimensionKey,
+    periodType,
     areaCode,
     areaName: _areaName,
     ...observationRow
@@ -162,6 +166,7 @@ export async function getIndicatorObservationData(
     observations.push({
       obsId,
       ...observationRow,
+      ...(periodType ? { periodType } : {}),
       dimensions: dimensionKey
         .split(',')
         .flatMap((id) => {

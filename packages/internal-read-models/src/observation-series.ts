@@ -10,9 +10,10 @@ import {
 import {
   ENGLAND_AREA_CODE,
   OBSERVATION_SERIES_VERSION,
+  type ObservationPeriodType,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, countDistinct, eq, not, or, type SQL, sql } from 'drizzle-orm';
+import { and, count, countDistinct, eq, max, not, or, type SQL, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import { visibleObservations } from './observation-visibility.ts';
@@ -54,6 +55,7 @@ async function insertSeries(
   indicatorId: string,
   uploadBatchId: string,
   publishedFrom: string | null,
+  cumulativePeriodType: ObservationPeriodType | null,
 ): Promise<void> {
   const sexValues = tx.$with('sex_values').as(
     tx
@@ -76,13 +78,19 @@ async function insertSeries(
         fromDate: observation.fromDate,
         toDate: observation.toDate,
         value: observation.value,
+        sourcePeriodType: observation.periodType,
       })
       .from(observation)
-      .where(visibleObservations(indicatorId, uploadBatchId, publishedFrom)),
+      .where(
+        and(
+          visibleObservations(indicatorId, uploadBatchId, publishedFrom),
+          cumulativePeriodType ? eq(observation.periodType, cumulativePeriodType) : undefined,
+        ),
+      ),
   );
 
   const periods = sql`(VALUES (
-    ${observationPeriodSql(source.fromDate, source.toDate)}
+    ${observationPeriodSql(source.fromDate, source.toDate, source.sourcePeriodType)}
   )) AS periods(period_type)`;
   // Dimension keys contain UUIDs, so locale comparisons add cost without changing equality.
   const points = tx.$with('points').as(
@@ -360,6 +368,7 @@ async function englandTrend(
   indicatorId: string,
   uploadBatchId: string,
   publishedFrom: string | null,
+  cumulativePeriodType: ObservationPeriodType | null,
 ): Promise<number[] | null> {
   const [trend] = await tx
     .select({ values: recentNonNull<number>(observation.value, observation) })
@@ -369,12 +378,13 @@ async function englandTrend(
       and(
         visibleObservations(indicatorId, uploadBatchId, publishedFrom),
         eq(area.code, ENGLAND_AREA_CODE),
+        cumulativePeriodType ? eq(observation.periodType, cumulativePeriodType) : undefined,
       ),
     )
     .groupBy(
       observation.areaId,
       observation.dimensionKey,
-      observationPeriodSql(observation.fromDate, observation.toDate),
+      observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType),
     )
     .orderBy(
       ...headlineOrder({
@@ -382,7 +392,7 @@ async function englandTrend(
         latestPeriod: sql`max(${observation.toDate})`,
         length: count(),
         periodLength: periodLengthSql(
-          observationPeriodSql(observation.fromDate, observation.toDate),
+          observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType),
         ),
         firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
       }),
@@ -404,11 +414,25 @@ export async function replaceObservationSeries(
     .where(eq(observationSeriesBatch.indicatorId, indicatorId));
   if (!uploadBatchId) return;
 
-  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom);
+  // Resolving this once keeps a window filter from distorting series-election row estimates.
+  const [source] = await tx
+    .select({ periodType: max(observation.periodType) })
+    .from(observation)
+    .where(
+      and(eq(observation.indicatorId, indicatorId), eq(observation.uploadBatchId, uploadBatchId)),
+    );
+  const cumulativePeriodType = source?.periodType ?? null;
+  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom, cumulativePeriodType);
   await tx.insert(observationSeriesBatch).values({
     uploadBatchId,
     indicatorId,
-    trendValues: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom),
+    trendValues: await englandTrend(
+      tx,
+      indicatorId,
+      uploadBatchId,
+      publishedFrom,
+      cumulativePeriodType,
+    ),
     version: OBSERVATION_SERIES_VERSION,
   });
 }

@@ -255,3 +255,29 @@ describe('trendColumnsParam', () => {
     ).toBe('none');
   });
 });
+
+it('keeps cumulative period identity through the trend table model, including its year-end labels', () => {
+  const points = [1, 4, 6, 17].map((quarter) => ({
+    ...observation(quarter),
+    fromDate: '2022-04-01',
+    toDate: new Date(Date.UTC(2022, 3 + quarter * 3, 0)).toISOString().slice(0, 10),
+    periodType: 'cumulative-quarter-2022-04-01' as const,
+  }));
+  const model = trendTableModel({
+    areaData: [
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          ...points,
+          { ...observation(99), fromDate: '2022-04-01', toDate: '2023-03-31' },
+        ],
+      },
+    ],
+    confidence: 'none',
+  });
+  expect(model.periods).toEqual(
+    points.map(({ fromDate, toDate, periodType }) => ({ fromDate, toDate, periodType })),
+  );
+  expect(model.seriesByArea[0]?.series).toEqual(points);
+});

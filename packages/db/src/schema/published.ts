@@ -7,7 +7,7 @@ import {
   RATIO_FORMATS,
   type RatePer,
 } from '@fphd/utils/counts-and-values';
-import type { SeriesPeriodType } from '@fphd/utils/observation-series';
+import type { ObservationPeriodType, SeriesPeriodType } from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
@@ -186,6 +186,41 @@ export const publishedNoteType = publishedSchema
     category: text('category').notNull(),
   })
   .existing();
+
+function observationView(schema: PgSchema<string>) {
+  const view = schema.view('observation', {
+    id: uuid('id').notNull(),
+    indicatorId: uuid('indicator_id').notNull(),
+    areaId: uuid('area_id').notNull(),
+    fromDate: date('from_date').notNull(),
+    toDate: date('to_date').notNull(),
+    value: doublePrecision('value'),
+    count: doublePrecision('count'),
+    numerator: doublePrecision('numerator'),
+    denominator: doublePrecision('denominator'),
+    denominator2: doublePrecision('denominator_2'),
+    lowerCi95: doublePrecision('lower_ci_95'),
+    upperCi95: doublePrecision('upper_ci_95'),
+    lowerCi998: doublePrecision('lower_ci_998'),
+    upperCi998: doublePrecision('upper_ci_998'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    dimensionKey: text('dimension_key').notNull(),
+    periodType: text('period_type').$type<ObservationPeriodType>(),
+  });
+
+  return schema.schemaName === 'published'
+    ? view.as(sql`SELECT o.id, o.indicator_id, o.area_id, o.from_date, o.to_date, o.value,
+        o.count, o.denominator, o.denominator_2, o.lower_ci_95, o.upper_ci_95,
+        o.lower_ci_998, o.upper_ci_998, o.created_at, o.numerator, o.dimension_key, o.period_type
+      FROM public.observation o
+      WHERE o.from_date >= ((
+        SELECT jsonb_object_agg(v.upload_batch_id, COALESCE(v.published_from, '-infinity'::date))
+        FROM public.current_published_version cpv
+        JOIN public.indicator_version v ON v.id = cpv.id
+        WHERE v.upload_batch_id IS NOT NULL
+      ) ->> o.upload_batch_id::text)::date`)
+    : view.existing();
+}
 
 /**
  * The published views that depend on which version of an indicator is visible, declared in the
@@ -415,26 +450,7 @@ JOIN indicator_version_goal g ON g.indicator_version_id = cpv.id
         disclosureControlDetail: text('disclosure_control_detail'),
       })
       .existing(),
-    observation: schema
-      .view('observation', {
-        id: uuid('id').notNull(),
-        indicatorId: uuid('indicator_id').notNull(),
-        areaId: uuid('area_id').notNull(),
-        fromDate: date('from_date').notNull(),
-        toDate: date('to_date').notNull(),
-        value: doublePrecision('value'),
-        count: doublePrecision('count'),
-        numerator: doublePrecision('numerator'),
-        denominator: doublePrecision('denominator'),
-        denominator2: doublePrecision('denominator_2'),
-        lowerCi95: doublePrecision('lower_ci_95'),
-        upperCi95: doublePrecision('upper_ci_95'),
-        lowerCi998: doublePrecision('lower_ci_998'),
-        upperCi998: doublePrecision('upper_ci_998'),
-        createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
-        dimensionKey: text('dimension_key').notNull(),
-      })
-      .existing(),
+    observation: observationView(schema),
     observationDimension: schema
       .view('observation_dimension', {
         observationId: uuid('observation_id').notNull(),

@@ -625,3 +625,65 @@ describe('applyDataMigration', () => {
     expect(row).toEqual({ indicators: 0, topics: 0 });
   });
 });
+
+it('imports cumulative identity through the live-data package without losing an annual observation on identical dates', async () => {
+  const batchId = '22222222-2222-7222-8222-222222222222';
+  const areaId = '44444444-4444-7444-8444-444444444444';
+  await baseline({
+    upserts: {
+      indicator_version: versionWithBatch(batchId, '2026-01-01T00:00:00Z'),
+      upload_batch: batch(batchId),
+      area_type: {
+        columns: ['id', 'name', 'hierarchy_type'],
+        rows: [[areaId, 'England', 'Administrative']],
+      },
+      area: {
+        columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
+        rows: [[areaId, areaId, 'E92000001', 'England', '2010-01-01', 't']],
+      },
+      observation: {
+        columns: [
+          'id',
+          'indicator_id',
+          'area_id',
+          'upload_batch_id',
+          'from_date',
+          'to_date',
+          'period_type',
+          'value',
+          'dimension_key',
+        ],
+        rows: [
+          [
+            '55555555-5555-7555-8555-555555555555',
+            INDICATOR_ID,
+            areaId,
+            batchId,
+            '2022-04-01',
+            '2023-03-31',
+            'cumulative-quarter-2022-04-01',
+            10,
+            '',
+          ],
+          [
+            '66666666-6666-7666-8666-666666666666',
+            INDICATOR_ID,
+            areaId,
+            batchId,
+            '2022-04-01',
+            '2023-03-31',
+            null,
+            20,
+            '',
+          ],
+        ],
+      },
+    },
+  });
+  expect(await db.sql`SELECT period_type, value FROM published.observation ORDER BY value`).toEqual(
+    [
+      { period_type: 'cumulative-quarter-2022-04-01', value: 10 },
+      { period_type: null, value: 20 },
+    ],
+  );
+});

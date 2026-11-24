@@ -77,6 +77,10 @@ async function replaceReadModelRows(
   started = performance.now();
   await tx.delete(observationRange).where(eq(observationRange.indicatorId, indicatorId));
   if (uploadBatchId) {
+    const displayPeriod = tx
+      .select({ periodType: max(o.periodType) })
+      .from(o)
+      .where(visible);
     // Keep aligned with the newest migration inserting into observation_range, which reads the
     // tables; a test runs both against a seed whose data is all published.
     const rangeObservations = tx.$with('range_observations').as(
@@ -95,7 +99,14 @@ async function replaceReadModelRows(
         .leftJoin(od, eq(od.observationId, o.id))
         .leftJoin(dt, eq(dt.id, od.dimensionTypeId))
         .leftJoin(dv, eq(dv.id, od.dimensionValueId))
-        .where(and(isNotNull(o.value), isNotNull(at.displayGroup), visible))
+        .where(
+          and(
+            isNotNull(o.value),
+            isNotNull(at.displayGroup),
+            visible,
+            sql`${o.periodType} is not distinct from (${displayPeriod})`,
+          ),
+        )
         .groupBy(o.id, o.indicatorId, at.displayGroup, o.fromDate, o.toDate, o.value),
     );
 
