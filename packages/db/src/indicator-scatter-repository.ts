@@ -1,6 +1,7 @@
 import {
   ENGLAND_AREA_CODE,
   OBSERVATION_SERIES_VERSION,
+  type ObservationPeriodType,
   observationSegmentKey,
   pairedAreaSexValues,
   pairedAreaValues,
@@ -195,6 +196,9 @@ async function getCachedScatterVariants(
         toDate: candidates.toDate,
         value: candidates.value,
         dimensionKey: candidates.dimensionKey,
+        sourcePeriodType: sql<ObservationPeriodType | null>`${candidates.sourcePeriodType}`.as(
+          'source_period_type',
+        ),
         periodType: observationPeriodSql(
           candidates.fromDate,
           candidates.toDate,
@@ -271,7 +275,7 @@ async function getCachedScatterVariants(
         indicatorId: segments.indicatorId,
         sex: sql<string>`${segments.sex}`.as('reference_sex'),
         dimensionKey: segments.dimensionKey,
-        periodType: segments.periodType,
+        periodType: sql<ObservationPeriodType>`${segments.periodType}`.as('reference_period_type'),
         length: sql<number>`${segments.length}`.as('reference_length'),
         firstPoint: sql<string>`${segments.firstPoint}`.as('reference_first_point'),
       })
@@ -300,10 +304,9 @@ async function getCachedScatterVariants(
         toDate: points.toDate,
         dimensionKey: points.dimensionKey,
         value: points.value,
-        periodType: candidates.sourcePeriodType,
+        periodType: points.sourcePeriodType,
       })
       .from(points)
-      .innerJoin(candidates, eq(candidates.id, points.id))
       .innerJoin(
         references,
         and(

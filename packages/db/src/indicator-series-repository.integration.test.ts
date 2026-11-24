@@ -8,7 +8,7 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
 import type { Database } from './client.ts';
@@ -22,6 +22,7 @@ import { getIndicatorRankingData, getIndicatorTableData } from './indicator-tabl
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   area,
+  currentPublishedVersion,
   dimensionType,
   dimensionValue,
   indicatorVersion,
@@ -591,9 +592,17 @@ it('keeps imported annual and historical rows while cached and full reads select
   class RolledBack extends Error {}
   await expect(
     database.db.transaction(async (tx) => {
-      const [model] = await tx.select().from(observationSeries).limit(1);
+      const [model] = await tx
+        .select({
+          indicatorId: currentPublishedVersion.indicatorId,
+          uploadBatchId: indicatorVersion.uploadBatchId,
+        })
+        .from(currentPublishedVersion)
+        .innerJoin(indicatorVersion, eq(indicatorVersion.id, currentPublishedVersion.id))
+        .where(isNotNull(indicatorVersion.uploadBatchId))
+        .limit(1);
       const [england] = await tx.select().from(area).where(eq(area.code, 'E92000001'));
-      if (!model || !england) throw new Error('Missing seeded series fixtures');
+      if (!model?.uploadBatchId || !england) throw new Error('Missing seeded series fixtures');
       const common = {
         indicatorId: model.indicatorId,
         uploadBatchId: model.uploadBatchId,
@@ -626,7 +635,9 @@ it('keeps imported annual and historical rows while cached and full reads select
         ['E92000001'],
       );
       const points = full.get(model.indicatorId)?.areaData[0]?.observations ?? [];
-      expect(points.filter(({ fromDate }) => fromDate >= '2089-04-01')).toHaveLength(19);
+      expect(
+        points.filter(({ fromDate }) => fromDate === '2089-04-01' || fromDate === '2090-04-01'),
+      ).toHaveLength(19);
       expect(headlineSeries(points).map(({ value }) => value)).toEqual(
         cumulative.map(({ value }) => value),
       );
