@@ -490,3 +490,16 @@ test.describe('without JavaScript', () => {
     await expect(page).toHaveURL(/sex-108=Male/);
   });
 });
+
+test('hides the age selector for one published age and ignores an unpublished age URL', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?age-108=65%2B+yrs`);
+  const options = filterCard(page, 'Table columns');
+  await options.getByRole('button', { name: 'Table columns', exact: true }).click();
+  await expect(page.getByLabel('Select age')).toHaveCount(0);
+  await expect(trendTable(page)).toHaveAccessibleName(/<75 yrs/);
+  await page.reload();
+  await expect(trendTable(page)).toHaveAccessibleName(/<75 yrs/);
+  await expect(page.getByLabel('Select age')).toHaveCount(0);
+});

@@ -65,6 +65,9 @@ WHERE cpv.indicator_id IS DISTINCT FROM (
  * order, and `createPreviewViews` checks that it does.
  */
 const HAND_WRITTEN_VIEWS: Record<string, string> = {
+  indicator_grouping: `SELECT g.* FROM public.indicator_grouping g
+    WHERE g.indicator_id IN (SELECT indicator_id FROM preview.current_published_version)`,
+
   observation_dimension: `
 SELECT od.observation_id, od.dimension_value_id, od.dimension_type_id
 FROM public.observation_dimension od

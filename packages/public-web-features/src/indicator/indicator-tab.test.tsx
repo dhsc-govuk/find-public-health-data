@@ -425,3 +425,91 @@ it('offers only the table columns and intervals the period type shown publishes'
   expect(screen.queryByLabelText('Select confidence intervals')).toBeNull();
   expect(screen.queryByRole('columnheader', { name: /Count/ })).toBeNull();
 });
+
+it('offers just the two published ages for 90799, switches chart and table, and preserves the age URL', async () => {
+  const age = (years: number) => ({
+    type: 'Age',
+    value: `${years}+ yrs`,
+    ageFrom: `P${years}Y`,
+    dimensionClass: 'core' as const,
+    sortOrder: years,
+  });
+  const detail = indicatorDetail(90799, {
+    publishedGroupings: [18, 65].map((years) => ({
+      sex: null,
+      age: `${years}+ yrs`,
+      yearRange: 1,
+      periodKind: 'annual' as const,
+    })),
+  });
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => (
+        <>
+          <IndicatorTab
+            primary={{
+              detail,
+              areaData: [
+                {
+                  areaCode: 'E92000001',
+                  areaName: 'England',
+                  observations: [18, 65, 75, 85, 90, 95].map((years) =>
+                    observation(years, [age(years)]),
+                  ),
+                },
+              ],
+            }}
+            selectedAreas={[]}
+            benchmarkGeography={{ regionByCode: {}, levelByCode: {} }}
+            displayGroups={[]}
+            selection={{ areaCodes: [], areaLevels: [], shortIds: [90799] }}
+          />
+          <output data-testid="location">{useLocation().search}</output>
+        </>
+      ),
+    },
+  ]);
+  render(<Routes initialEntries={['/?age-90799=75%2B+yrs']} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Table columns' }));
+  const selects = screen.getAllByLabelText('Select age') as HTMLSelectElement[];
+  expect(selects).toHaveLength(2);
+  for (const select of selects) {
+    expect([...select.options].map(({ value }) => value)).toEqual(['18+ yrs', '65+ yrs']);
+    expect(select.value).toBe('18+ yrs');
+  }
+  const select = selects[0];
+  if (!select) throw new Error('Age select missing');
+  fireEvent.change(select, { target: { value: '65+ yrs' } });
+  await waitFor(() =>
+    expect(screen.getByTestId('location').textContent).toContain('age-90799=65%2B+yrs'),
+  );
+  expect(screen.getByRole('table', { name: /^Table:.*65\+ yrs/ })).toBeTruthy();
+  expect(document.querySelector('#indicator-trend-chart')?.textContent).toContain('65.0%');
+  for (const select of selects) expect(select.value).toBe('65+ yrs');
+  const form = select.closest('form');
+  if (!form) throw new Error('Age form missing');
+  expect(new FormData(form).get('age-90799')).toBe('65+ yrs');
+});
+
+it('hides the age control for one published age', () => {
+  const detail = indicatorDetail(108, {
+    publishedGroupings: [{ sex: null, age: '18+ yrs', yearRange: 1, periodKind: 'annual' }],
+  });
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => (
+        <IndicatorTab
+          primary={{ detail, areaData: [] }}
+          selectedAreas={[]}
+          benchmarkGeography={{ regionByCode: {}, levelByCode: {} }}
+          displayGroups={[]}
+          selection={{ areaCodes: [], areaLevels: [], shortIds: [108] }}
+        />
+      ),
+    },
+  ]);
+  render(<Routes />);
+  expect(screen.queryByLabelText('Select age')).toBeNull();
+});

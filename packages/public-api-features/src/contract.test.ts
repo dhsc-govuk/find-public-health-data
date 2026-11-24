@@ -41,6 +41,7 @@ const detail = {
   topics: [],
   classifications: [],
   updateSummaries: [],
+  publishedGroupings: [],
 };
 
 describe('indicatorDetailSchema', () => {

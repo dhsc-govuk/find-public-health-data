@@ -229,6 +229,17 @@ function observationView(schema: PgSchema<string>) {
  */
 export function createVersionedViews(schema: PgSchema<string>) {
   return {
+    indicatorGrouping: schema
+      .view('indicator_grouping', {
+        id: uuid('id').notNull(),
+        indicatorId: uuid('indicator_id').notNull(),
+        sexId: uuid('sex_id'),
+        ageId: uuid('age_id'),
+        yearRange: integer('year_range').notNull(),
+        periodKind: text('period_kind', { enum: ['annual', 'quarterly', 'monthly'] }).notNull(),
+      })
+      .as(sql`SELECT g.* FROM public.indicator_grouping g
+        WHERE g.indicator_id IN (SELECT id FROM ${sql.identifier(schema.schemaName)}.indicator)`),
     observationSeriesBatch: schema
       .view('observation_series_batch', {
         version: integer('version').notNull(),
@@ -492,6 +503,7 @@ JOIN indicator_version_goal g ON g.indicator_version_id = cpv.id
 const publishedVersionedViews = createVersionedViews(publishedSchema);
 
 export const {
+  indicatorGrouping: publishedIndicatorGrouping,
   observationSeriesBatch: publishedObservationSeriesBatch,
   observationSeries: publishedObservationSeries,
   indicator: publishedIndicator,

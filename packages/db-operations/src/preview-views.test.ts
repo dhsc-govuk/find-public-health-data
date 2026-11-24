@@ -5,6 +5,7 @@ import { type PublishedViewReads, planPreviewViews } from './preview-views.ts';
 const HAND_WRITTEN = [
   'available_data',
   'indicator',
+  'indicator_grouping',
   'indicator_slug',
   'indicator_update_summary',
   'observation_dimension',

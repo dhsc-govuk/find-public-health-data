@@ -1066,3 +1066,52 @@ it.each([3, 5, 7])(
     );
   },
 );
+
+it.each(['65+ yrs', 'unpublished'])(
+  'downloads the chosen published age with URL age %s',
+  async (age) => {
+    const client = api(
+      [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [18, 65, 75].map((years) =>
+            observation({
+              value: years,
+              dimensions: [
+                {
+                  type: 'Age',
+                  value: `${years}+ yrs`,
+                  ageFrom: `P${years}Y`,
+                  dimensionClass: 'core',
+                  sortOrder: years,
+                },
+              ],
+            }),
+          ),
+        },
+      ],
+      {
+        [`GET ${DETAIL}`]: {
+          ...detail,
+          publishedGroupings: [18, 65].map((years) => ({
+            sex: null,
+            age: `${years}+ yrs`,
+            yearRange: 1,
+            periodKind: 'annual',
+          })),
+        },
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?age-108=${encodeURIComponent(age)}`,
+      ),
+      'table',
+    );
+    const body = await response.text();
+    expect(body).toContain(`2023,${age === '65+ yrs' ? 65 : 18},`);
+    expect(body).not.toContain('2023,75,');
+  },
+);

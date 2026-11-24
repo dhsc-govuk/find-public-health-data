@@ -241,6 +241,7 @@ export function uncertainHeadlineAge(
 }
 
 export interface SeriesFilter {
+  age?: string;
   sex?: string;
   periodType?: SeriesPeriodType;
 }
@@ -256,11 +257,12 @@ export interface TableSeriesSelection {
 
 export function filterSeries<T extends SeriesObservation>(
   observations: T[],
-  { sex, periodType = 'all' }: SeriesFilter,
+  { sex, age, periodType = 'all' }: SeriesFilter,
 ): T[] {
   return displayObservations(observations).filter(
     (point) =>
       (periodType === 'all' || observationPeriodType(point) === periodType) &&
+      (!age || observationAge(point) === age) &&
       (!sex ||
         point.dimensions.some(({ type, value }) => type === SEX_DIMENSION_NAME && value === sex)),
   );
@@ -603,4 +605,35 @@ export function pairedAreaSexValues(xAreas: ScatterArea[], yAreas: ScatterArea[]
     };
   });
   return { points: pairedAreaValues(xAreas, yAreas), variants };
+}
+
+export interface PublishedGrouping {
+  sex: string | null;
+  age: string;
+  yearRange: number;
+  periodKind: 'annual' | 'quarterly' | 'monthly';
+}
+
+export function observationAge(point: SeriesObservation): string {
+  return point.dimensions.find(({ type }) => type === AGE_DIMENSION_NAME)?.value ?? 'All ages';
+}
+
+export function publishedAgeChoice<T extends SeriesObservation>(
+  observations: T[],
+  groupings: readonly PublishedGrouping[] = [],
+  requested = '',
+  sex = '',
+): { options: string[]; value: string } {
+  const options = [
+    ...new Set(groupings.filter((grouping) => !sex || grouping.sex === sex).map(({ age }) => age)),
+  ];
+  const headline = headlineSeries(
+    filterSeries(observations, { sex }).filter((point) => options.includes(observationAge(point))),
+  )[0];
+  const value = options.includes(requested)
+    ? requested
+    : headline
+      ? observationAge(headline)
+      : (options[0] ?? '');
+  return { options, value };
 }

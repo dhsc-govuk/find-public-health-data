@@ -29,6 +29,7 @@ export const SEED_TABLES = [
   'indicator',
   'indicator_version',
   'upload_batch',
+  'indicator_grouping',
   'note_type',
   'observation',
   'observation_dimension',

@@ -552,6 +552,7 @@ export function dimensionValues(
 }
 
 export interface ObservationFilter {
+  age?: string;
   sex?: string;
   periodType?: PeriodType;
 }
@@ -563,9 +564,13 @@ export interface ObservationFilter {
  */
 export function filterObservations(
   observations: IndicatorObservation[],
-  { sex, periodType = 'all' }: ObservationFilter,
+  { sex, age, periodType = 'all' }: ObservationFilter,
 ): IndicatorObservation[] {
-  return filterSeries(observations, { ...(sex ? { sex } : {}), periodType });
+  return filterSeries(observations, {
+    ...(sex ? { sex } : {}),
+    ...(age ? { age } : {}),
+    periodType,
+  });
 }
 
 export type ConfidenceLevel = 'none' | '95' | '99.8';

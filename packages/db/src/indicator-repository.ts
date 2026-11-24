@@ -2,7 +2,7 @@ import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
 import { valuesUnit } from '@fphd/utils/counts-and-values';
 import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
-import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, type PublishedGrouping } from '@fphd/utils/observation-series';
 import type { Period } from '@fphd/utils/period-label';
 import {
   type PublicYearType,
@@ -244,6 +244,7 @@ export interface IndicatorDetail {
   denominatorSources: IndicatorProviderSource[];
   /** In the order the publisher gave them; empty for an indicator with a numerator and denominator. */
   dataValues: IndicatorDataValue[];
+  publishedGroupings: PublishedGrouping[];
   areaTypes: IndicatorAreaType[];
   topics: IndicatorTopic[];
   classifications: IndicatorClassification[];
@@ -349,6 +350,8 @@ export async function getIndicatorDetailsByIds(
     indicatorGoal,
     indicatorSource,
     indicatorUpdateSummary,
+    indicatorGrouping,
+    dimensionValue,
     valueType,
   } = views;
   if (!indicatorIds.length) return new Map();
@@ -414,6 +417,16 @@ export async function getIndicatorDetailsByIds(
         WHERE ${availableData.indicatorId} = ${indicator.id}
       )`,
       // Read in this statement, rather than in one of its own, so the page costs no more queries.
+      publishedGroupings: sql<PublishedGrouping[]>`(
+        SELECT coalesce(json_agg(json_build_object(
+          'sex', sex.name, 'age', coalesce(age.name, 'All ages'),
+          'yearRange', g.year_range, 'periodKind', g.period_kind
+        ) ORDER BY age.sort_order, age.name, sex.sort_order, g.year_range, g.period_kind), '[]')
+        FROM ${indicatorGrouping} g
+        LEFT JOIN ${dimensionValue} sex ON sex.id = g.sex_id
+        LEFT JOIN ${dimensionValue} age ON age.id = g.age_id
+        WHERE g.indicator_id = ${indicator.id}
+      )`,
       updateSummaries: sql<{ publishedAt: string; summary: string }[]>`(
         SELECT coalesce(
           json_agg(
@@ -534,6 +547,7 @@ export async function getIndicatorDetailsByIds(
             definition,
             disclosureControl,
           })),
+          publishedGroupings: row.publishedGroupings,
           areaTypes: row.areaTypes,
           topics: topics.get(row.id) ?? [],
           classifications: classifications.get(row.id) ?? [],

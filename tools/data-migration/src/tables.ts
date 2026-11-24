@@ -27,6 +27,7 @@ const TAGGED_TABLES = [
   'observation',
   'observation_dimension',
   'observation_note',
+  'indicator_grouping',
 ] as const;
 
 export const TABLE_TAGS: Record<string, number> = Object.fromEntries(
@@ -49,6 +50,11 @@ export const FOREIGN_KEYS: Partial<Record<(typeof TABLES)[number], Record<string
   upload_batch: {
     indicator_id: 'indicator',
     indicator_version_id: 'indicator_version',
+  },
+  indicator_grouping: {
+    indicator_id: 'indicator',
+    sex_id: 'dimension_value',
+    age_id: 'dimension_value',
   },
   observation: {
     indicator_id: 'indicator',

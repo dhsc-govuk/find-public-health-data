@@ -69,6 +69,7 @@ export interface PanelOptions {
   confidence: ConfidenceLevel;
   periodType: PeriodType;
   sex: string;
+  age?: string;
 }
 
 type OptionScope = number | 'compare';
@@ -85,6 +86,7 @@ function panelOptionNames(scope: OptionScope) {
     confidence: `ci-${scope}`,
     periodType: `pt-${scope}`,
     sex: `sex-${scope}`,
+    age: `age-${scope}`,
   };
 }
 
@@ -102,6 +104,7 @@ export function usePanelOptions(scope: OptionScope, periodTypes: readonly Period
     periodType:
       isObservationPeriodType(periodType) && periodTypes.includes(periodType) ? periodType : 'all',
     sex: params.get(names.sex) ?? '',
+    age: params.get(names.age) ?? '',
   };
   const update = (next: PanelOptions) =>
     apply([
@@ -111,6 +114,7 @@ export function usePanelOptions(scope: OptionScope, periodTypes: readonly Period
       [names.confidence, next.confidence, 'none'],
       [names.periodType, next.periodType, 'all'],
       [names.sex, next.sex, ''],
+      [names.age, next.age ?? '', ''],
     ]);
   return [options, update] as const;
 }
@@ -225,6 +229,7 @@ export function PanelOptionsPanel({
   period,
   scope,
   sexes,
+  age,
   showConfidence,
   target,
 }: {
@@ -246,6 +251,7 @@ export function PanelOptionsPanel({
   period?: PeriodSelect | undefined;
   scope: OptionScope;
   sexes: string[];
+  age?: { options: string[]; value: string } | undefined;
   showConfidence: boolean;
   target: OptionTarget;
 }) {
@@ -253,6 +259,7 @@ export function PanelOptionsPanel({
     confidence: useId(),
     period: useId(),
     sex: useId(),
+    age: useId(),
     colour: useId(),
     goal: useId(),
   };
@@ -408,6 +415,16 @@ export function PanelOptionsPanel({
           />
         ) : null}
 
+        {age && age.options.length > 1 ? (
+          <Select
+            id={ids.age}
+            label="Select age"
+            name={names.age}
+            onChange={(event) => onChange({ ...options, age: event.currentTarget.value })}
+            options={age.options.map((value) => ({ label: value, value }))}
+            value={age.value}
+          />
+        ) : null}
         {period ? (
           <>
             <Select

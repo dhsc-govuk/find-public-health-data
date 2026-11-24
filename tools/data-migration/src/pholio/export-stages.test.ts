@@ -10,7 +10,13 @@ import { checkSlugs } from '../indicator-checks.ts';
 import type { ObservationExportOptions, PholioExportOptions } from './context.ts';
 import { exportDimensions } from './dimensions.ts';
 import { exportGeography } from './geography.ts';
-import { ageDimensionValueId, areaId, observationId, sexDimensionValueId } from './ids.ts';
+import {
+  ageDimensionValueId,
+  areaId,
+  compoundAgeDimensionValueId,
+  observationId,
+  sexDimensionValueId,
+} from './ids.ts';
 import { exportIndicators } from './indicators.ts';
 import { exportLookups } from './lookups.ts';
 import { exportObservations, observationDimensions } from './observations.ts';
@@ -1554,3 +1560,78 @@ it.each([
     ]);
   },
 );
+
+it('exports only the published age tuples for 90799 while retaining all six observation ages', async () => {
+  const ages = [168, 27, 28, 29, 30, 31];
+  const source = ages.map((AgeID, index) =>
+    observation({ IndicatorID: 90799, uid: index + 1, AgeID }),
+  );
+  const published = [168, 27].map((AgeID) => ({
+    IndicatorID: 90799,
+    SexID: 4,
+    AgeID,
+    YearRange: 1,
+    BaselineQuarter: -1,
+    BaselineMonth: -1,
+  }));
+  sourceObservations(source, [...published, ...published, { ...published[0], IndicatorID: 99999 }]);
+  const context = {
+    ...observationOptions(),
+    indicatorSelection: { kind: 'approved' as const, indicators: [90799] },
+    indicatorIds: new Set([90799]),
+    indicatorEnteredAt: new Map([[90799, '2020-01-01T00:00:00.000Z']]),
+    dimensionValueIds: new Set(ages.map(ageDimensionValueId)),
+  };
+  await exportObservations(context);
+  expect(await rows('observation')).toHaveLength(6);
+  const tuples = await rows('indicator_grouping');
+  expect(tuples).toHaveLength(2);
+  expect(tuples.map((row) => row.age_id).sort()).toEqual(
+    [27, 168].map((age) => String(ageDimensionValueId(age))).sort(),
+  );
+  expect(
+    tuples.every(
+      (row) =>
+        row.sex_id === DATA_MIGRATION_NULL &&
+        row.period_kind === 'annual' &&
+        row.year_range === '1',
+    ),
+  ).toBe(true);
+});
+
+it('preserves published period shapes and splits compound ages using the observation mapping', async () => {
+  const grouping = {
+    IndicatorID: 108,
+    SexID: 4,
+    AgeID: 212,
+    YearRange: 1,
+    BaselineQuarter: -1,
+    BaselineMonth: -1,
+  };
+  sourceObservations(
+    [],
+    [
+      grouping,
+      { ...grouping, BaselineQuarter: 1 },
+      { ...grouping, BaselineMonth: 1 },
+      { ...grouping, YearRange: 3 },
+    ],
+  );
+  const context = observationOptions();
+  context.dimensionValueIds = new Set([
+    sexDimensionValueId(1),
+    sexDimensionValueId(2),
+    compoundAgeDimensionValueId(212, 'M'),
+    compoundAgeDimensionValueId(212, 'F'),
+  ]);
+  await exportObservations(context);
+  const tuples = await rows('indicator_grouping');
+  expect(tuples).toHaveLength(8);
+  expect(new Set(tuples.map((row) => `${row.period_kind}:${row.year_range}`))).toEqual(
+    new Set(['annual:1', 'annual:3', 'monthly:1', 'quarterly:1']),
+  );
+  for (const row of tuples) {
+    const sex = row.sex_id === String(sexDimensionValueId(1)) ? 'M' : 'F';
+    expect(row.age_id).toBe(String(compoundAgeDimensionValueId(212, sex)));
+  }
+});

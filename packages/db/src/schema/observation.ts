@@ -7,10 +7,12 @@ import {
   doublePrecision,
   foreignKey,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -142,4 +144,28 @@ export const observationNote = pgTable(
       .references(() => noteType.id),
   },
   (t) => [primaryKey({ name: 'observation_note_pk', columns: [t.observationId, t.noteTypeId] })],
+);
+
+export const indicatorGrouping = pgTable(
+  'indicator_grouping',
+  {
+    id: uuidPrimaryKey(),
+    indicatorId: uuid()
+      .notNull()
+      .references(() => indicator.id, { onDelete: 'cascade' }),
+    sexId: uuid().references(() => dimensionValue.id),
+    ageId: uuid().references(() => dimensionValue.id),
+    yearRange: integer().notNull(),
+    periodKind: text({ enum: ['annual', 'quarterly', 'monthly'] }).notNull(),
+  },
+  (t) => [
+    index('idx_indicator_grouping_indicator').on(t.indicatorId),
+    unique('indicator_grouping_tuple')
+      .on(t.indicatorId, t.sexId, t.ageId, t.yearRange, t.periodKind)
+      .nullsNotDistinct(),
+    check(
+      'indicator_grouping_period_kind_check',
+      sql`${t.periodKind} IN ('annual', 'quarterly', 'monthly')`,
+    ),
+  ],
 );

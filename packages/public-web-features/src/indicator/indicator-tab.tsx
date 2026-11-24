@@ -1,5 +1,6 @@
 import { A, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { isOneOf } from '@fphd/utils/is-one-of';
+import { publishedAgeChoice } from '@fphd/utils/observation-series';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
@@ -84,6 +85,13 @@ export function IndicatorTab({
     { periodType },
   );
   const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
+  const sex = sexes.includes(options.sex) ? options.sex : '';
+  const age = publishedAgeChoice(
+    england.length ? england : shownObservations,
+    detail.publishedGroupings,
+    options.age,
+    sex,
+  );
   const period = periodChoice.offered
     ? { options: periodChoice.options, value: periodType, notice: periodChoice.notice }
     : undefined;
@@ -94,7 +102,8 @@ export function IndicatorTab({
   const narrow = (data: (typeof areaData)[number]) => ({
     ...data,
     observations: filterObservations(data.observations, {
-      sex: sexes.includes(options.sex) ? options.sex : '',
+      sex,
+      age: age.value,
       periodType,
     }),
   });
@@ -167,6 +176,7 @@ export function IndicatorTab({
       next.set('order', 'desc');
       next.set(`columns-${id}`, trendColumnsParam(columns));
       if (sexes.includes(options.sex) && options.sex) next.set(`sex-${id}`, options.sex);
+      if (age.value) next.set(`age-${id}`, age.value);
       if (periodChoice.offered) next.set(`pt-${id}`, periodType);
       if (confidence !== 'none') next.set(`ci-${id}`, confidence);
       setBenchmarkParams(next, id, benchmarks);
@@ -290,6 +300,7 @@ export function IndicatorTab({
               anchor: 'indicator-data',
             }}
             sexes={sexes}
+            age={age}
             showConfidence
           />
         </GridColumn>
@@ -323,6 +334,7 @@ export function IndicatorTab({
                     period={period}
                     scope={id}
                     sexes={sexes}
+                    age={age}
                     showConfidence
                     target={{
                       tabParam: 'tab-indicator',

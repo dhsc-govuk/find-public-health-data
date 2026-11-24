@@ -55,6 +55,7 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
     byIndicator.set(row.IndicatorID, groupings);
   }
   return {
+    rows,
     publishedFrom(
       indicatorId: number,
       yearTypeId: number | null,
