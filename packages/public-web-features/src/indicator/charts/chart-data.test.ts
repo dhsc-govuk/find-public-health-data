@@ -4,7 +4,9 @@ import { observation } from '../view.testing.ts';
 import {
   alignedSeries,
   areaQuintile,
+  bounds,
   englandCode,
+  errorOffsets,
   pairedObservations,
   valueExtent,
 } from './chart-data.ts';
@@ -134,3 +136,29 @@ it('aligns a mixed three and five year history to one period length', () => {
     series.map(({ observations }) => [...observations.values()].map(({ value }) => value)),
   ).toEqual([[5], [50], [5]]);
 });
+
+it.each(['95', '99.8'] as const)(
+  'caps the %s chart bars and extent before scaling the axis',
+  (level) => {
+    const point = {
+      ...observation(72.49),
+      value: 72.49,
+      lowerCi95: 72042.0954,
+      upperCi95: 72939.9819,
+      lowerCi998: -2,
+      upperCi998: 120.4115,
+    };
+    const indicator = { valueType: 'Proportion' };
+    const interval = bounds(point, level, indicator);
+    expect(interval).toEqual(level === '95' ? [100, 100] : [-2, 100]);
+    const [below, above] = errorOffsets(point.value, interval) ?? [];
+    expect(point.value + (above ?? 0)).toBe(100);
+    expect(point.value - (below ?? 0)).toBe(level === '95' ? 100 : -2);
+    expect(valueExtent(alignedSeries([area('England', point)]), level, indicator)).toEqual(
+      level === '95' ? [72.49, 100] : [-2, 100],
+    );
+    expect(bounds(point, level, { valueType: 'Crude rate' })).toEqual(
+      level === '95' ? [72042.0954, 72939.9819] : [-2, 120.4115],
+    );
+  },
+);

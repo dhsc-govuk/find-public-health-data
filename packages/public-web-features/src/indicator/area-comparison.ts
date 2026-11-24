@@ -1,5 +1,6 @@
 import { isRollingPeriod } from '@fphd/utils/observation-series';
 import { areasInGeographyGroup } from '../geography/groups.ts';
+import { displayConfidenceLimit } from './confidence-interval.ts';
 import {
   alignedTrendSeries,
   type BenchmarkJudgement,
@@ -7,7 +8,7 @@ import {
   comparisonRows,
   filterObservations,
 } from './data.ts';
-import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
+import type { IndicatorObservation, IndicatorPageDetail, SelectedIndicator } from './loader.ts';
 
 export const AREA_COMPARISON_GROUPS = new Set([
   'Local authorities',
@@ -368,10 +369,18 @@ export function areaComparisonGroups(
   return { heading, labels };
 }
 
-export function areaComparisonBarMaximum(rows: ReturnType<typeof areaComparisonRows>['rows']) {
+export function areaComparisonBarMaximum(
+  rows: ReturnType<typeof areaComparisonRows>['rows'],
+  indicator?: Pick<IndicatorPageDetail, 'valueType' | 'fingertipsFormatting'>,
+) {
   const top = Math.max(
     0,
-    ...rows.flatMap((row) => [row.value ?? 0, row.series.at(-1)?.upperCi95 ?? 0]),
+    ...rows.flatMap((row) => [
+      row.value ?? 0,
+      indicator
+        ? (displayConfidenceLimit(row.series.at(-1)?.upperCi95 ?? null, indicator) ?? 0)
+        : (row.series.at(-1)?.upperCi95 ?? 0),
+    ]),
   );
   if (top === 0) return 1;
   const step = 10 ** Math.floor(Math.log10(top)) / 2;

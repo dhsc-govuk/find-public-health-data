@@ -52,6 +52,7 @@ const UNSAVED_COLUMNS = [
   'dataTableConfirmedAt',
   'dataSourceId',
   'ciConfidenceLevel',
+  'fingertipsFormatting',
   'comparatorMethodId',
   'createdAt',
   'updatedAt',

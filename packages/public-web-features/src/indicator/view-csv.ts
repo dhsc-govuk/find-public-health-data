@@ -152,7 +152,13 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
   return new Response(
     tableCsv(
       rows,
-      tab === 'areas' ? { excel: true, formatNumber: calculatedValueCsvFormat.format } : undefined,
+      tab === 'areas'
+        ? {
+            excel: true,
+            formatNumber: (value, column) =>
+              column === 1 ? calculatedValueCsvFormat.format(value) : String(value),
+          }
+        : undefined,
     ),
     {
       headers: {

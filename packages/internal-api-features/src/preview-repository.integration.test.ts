@@ -90,6 +90,31 @@ it('shows the version the setting names through the public repository functions'
   expect(published.names).not.toContain('A name only the preview shows');
 });
 
+it('reads draft formatting only in preview', async () => {
+  const update = await openedUpdate(testDb.db, 'Source formatting in preview');
+  const publishedFormatting = { maximum: 100, decimalPlaces: -1 };
+  await testDb.db
+    .update(indicatorVersion)
+    .set({ fingertipsFormatting: publishedFormatting })
+    .where(eq(indicatorVersion.indicatorId, update.indicatorId));
+  const draftFormatting = { maximum: 9.99, decimalPlaces: 2 };
+  await testDb.db
+    .update(indicatorVersion)
+    .set({ fingertipsFormatting: draftFormatting })
+    .where(eq(indicatorVersion.id, update.versionId));
+  const previewed = await internal.begin(async (tx) => {
+    await tx`SELECT set_config(${PREVIEW_VERSION_SETTING}, ${update.versionId}, true)`;
+    const db = createDbFromTransaction(tx);
+    return {
+      draft: (await getIndicatorDetailById(db, previewViews, update.indicatorId))
+        ?.fingertipsFormatting,
+      published: (await getIndicatorDetailById(db, publishedViews, update.indicatorId))
+        ?.fingertipsFormatting,
+    };
+  });
+  expect(previewed).toEqual({ draft: draftFormatting, published: publishedFormatting });
+});
+
 it('reads draft policy goals through the preview while keeping the published goal', async () => {
   const update = await openedUpdate(testDb.db, 'Policy goals in preview');
   const publishedGoal = (

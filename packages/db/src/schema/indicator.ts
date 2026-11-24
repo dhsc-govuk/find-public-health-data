@@ -29,6 +29,7 @@ import {
   type UpdateFrequency,
 } from '@fphd/utils/update-frequency';
 import {
+  type FingertipsFormatting,
   INDIRECTLY_STANDARDISED_VALUE_TYPE_IDS,
   STANDARD_POPULATIONS,
   type StandardPopulation,
@@ -44,6 +45,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgSequence,
   pgTable,
   pgView,
@@ -253,6 +255,8 @@ export const indicatorVersion = pgTable(
     // Asked of an other CI method only.
     ciMethodDetail: text(),
     ciConfidenceLevel: text({ enum: CI_CONFIDENCE_LEVELS }),
+    // Retain source-wide formatting settings so area and period selections cannot change the CI cap.
+    fingertipsFormatting: jsonb().$type<FingertipsFormatting>(),
     // Benchmarking
     comparatorMethodId: uuid().references(() => comparatorMethod.id),
     // A goal is kept beside a yes alone; a single goal value has no upper value.

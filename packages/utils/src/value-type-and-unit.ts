@@ -84,3 +84,8 @@ export function unitLabel(
   if (unit.id === UNIT_IDS.noUnit) return null;
   return unit.id === UNIT_IDS.other && detail !== null ? detail : unit.name;
 }
+
+export interface FingertipsFormatting {
+  maximum: number | null;
+  decimalPlaces: number | null;
+}

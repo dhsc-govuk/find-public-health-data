@@ -114,6 +114,24 @@ describe('applyDataMigration', () => {
     expect(states.slice(-2)).toEqual(['inserting', 'complete']);
     expect(states.filter((state) => state === 'complete')).toHaveLength(1);
   });
+  it('imports source formatting settings and publishes them without losing precision', async () => {
+    const formatting = { maximum: 9.999, decimalPlaces: 2 };
+    await baseline({
+      upserts: {
+        indicator_version: {
+          columns: [...VERSION_COLUMNS, 'fingertips_formatting'],
+          rows: [[...VERSION_ROW, JSON.stringify(formatting)]],
+        },
+      },
+    });
+    expect(await db.sql`SELECT fingertips_formatting FROM indicator_version`).toEqual([
+      { fingertips_formatting: formatting },
+    ]);
+    expect(await db.sql`SELECT fingertips_formatting FROM published.indicator`).toEqual([
+      { fingertips_formatting: formatting },
+    ]);
+  });
+
   it('loads prepared CSV NULLs separately from quoted empty strings', async () => {
     await baseline({
       upserts: {

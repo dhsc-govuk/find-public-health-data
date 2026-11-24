@@ -179,6 +179,7 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.updated_at timestamp with time zone',
   'indicator.first_published_at timestamp with time zone',
   'indicator.last_published_at timestamp with time zone',
+  'indicator.fingertips_formatting jsonb',
   'indicator_classification.indicator_id uuid',
   'indicator_classification.classification_id uuid',
   'indicator_source.indicator_id uuid',

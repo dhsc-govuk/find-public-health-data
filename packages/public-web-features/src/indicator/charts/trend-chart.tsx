@@ -13,7 +13,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { type ConfidenceLevel, formatValue, segmentLabel, unitNote } from '../data.ts';
+import { formatConfidenceLimit } from '../confidence-interval.ts';
+import {
+  type ConfidenceLevel,
+  formatCalculatedValue,
+  formatValue,
+  segmentLabel,
+  unitNote,
+  withUnit,
+} from '../data.ts';
 import type { IndicatorAreaData, IndicatorPageDetail } from '../loader.ts';
 import { goalThresholds, goalThresholdText, type PolicyGoal } from '../policy-goal.ts';
 import { alignedSeries, bounds, chartPeriods, errorOffsets, valueExtent } from './chart-data.ts';
@@ -45,8 +53,9 @@ export function trendAxisTicks(
   series: ReturnType<typeof alignedSeries>,
   confidence: ConfidenceLevel,
   goal: PolicyGoal | null | undefined,
+  indicator?: Pick<IndicatorPageDetail, 'valueType' | 'fingertipsFormatting'>,
 ) {
-  const [lowest, highest] = valueExtent(series, confidence);
+  const [lowest, highest] = valueExtent(series, confidence, indicator);
   const goals = goal ? goalThresholds(goal).map(({ value }) => value) : [];
   return getNiceTickValues([Math.min(lowest, ...goals), Math.max(highest, ...goals)], 6);
 }
@@ -146,7 +155,7 @@ function TrendPlot({
         const value = observation?.value ?? null;
         return [
           [`v${index}`, value],
-          [`ci${index}`, errorOffsets(value, bounds(observation, confidence))],
+          [`ci${index}`, errorOffsets(value, bounds(observation, confidence, indicator))],
         ];
       }),
     ),
@@ -161,7 +170,7 @@ function TrendPlot({
   const latest = periods.findLast(({ key }) => primary.observations.get(key)?.value != null);
   const chartTitle = `${title}${segment ? `, ${segmentLabel(segment)}` : ''}`;
   const narrow = width < 480;
-  const yTicks = trendAxisTicks(series, confidence, goal);
+  const yTicks = trendAxisTicks(series, confidence, goal, indicator);
   const longest = Math.max(...series.map(({ name }) => name.length));
   const ticks = new Map(
     periods.map(({ key }) => {
@@ -185,9 +194,9 @@ function TrendPlot({
   const latestValue = latest && primary.observations.get(latest.key)?.value;
   const firstValue = first && primary.observations.get(first.key)?.value;
   const intervalText = (period: string, index: number) => {
-    const interval = bounds(series[index]?.observations.get(period), confidence);
+    const interval = bounds(series[index]?.observations.get(period), confidence, indicator);
     return interval
-      ? ` (${confidence}% confidence interval: ${chartValue(interval[0], indicator.unit)} to ${chartValue(interval[1], indicator.unit)})`
+      ? ` (${confidence}% confidence interval: ${withUnit(formatConfidenceLimit(interval[0], indicator, formatCalculatedValue), indicator.unit)} to ${withUnit(formatConfidenceLimit(interval[1], indicator, formatCalculatedValue), indicator.unit)})`
       : '';
   };
   return (
@@ -433,7 +442,7 @@ function TrendPlot({
                     <strong>Area:</strong> {series[index]?.name}
                   </div>
                   {confidence !== 'none' &&
-                  bounds(series[index]?.observations.get(period), confidence) ? (
+                  bounds(series[index]?.observations.get(period), confidence, indicator) ? (
                     <div>
                       <strong>{confidence}% confidence interval:</strong>{' '}
                       {intervalText(period, index).replace(/^ \([^:]+: |\)$/g, '')}

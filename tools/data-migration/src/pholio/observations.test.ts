@@ -28,6 +28,14 @@ describe('computeDenominator2', () => {
 });
 
 describe('computeCiPair', () => {
+  it.each([
+    [72.49, 72042.0954, 72939.9819],
+    [33.33, 4.0368, 120.4115],
+    [100, 99, 100.00000000000003],
+    [0.5, -2, 1.2],
+  ])('preserves raw bounds for value %s: %s to %s', (value, lower, upper) => {
+    expect(computeCiPair(value, lower, upper)).toEqual({ lower, upper });
+  });
   it('value=-1 nulls both CIs', () => {
     expect(computeCiPair(-1, 1.0, 2.0)).toEqual({ lower: null, upper: null });
   });

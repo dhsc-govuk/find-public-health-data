@@ -16,7 +16,8 @@ import { YEAR_TYPES, yearTypeValues } from './year-type.ts';
 
 interface CiLevelRow extends PholioRow {
   IndicatorID: number;
-  ci_confidence_level: string;
+  ci_confidence_level: string | null;
+  FormattingMaximum: number | null;
 }
 
 interface IndicatorMetaRow extends PholioRow {
@@ -26,6 +27,7 @@ interface IndicatorMetaRow extends PholioRow {
   UnitName: string | null;
   YearTypeName: string | null;
   CIMethodID: number | null;
+  DecimalPlacesDisplayed: number | null;
   EnteredAt: Date;
   OwnerProfileId: number | null;
 }
@@ -88,10 +90,11 @@ export async function exportIndicators(context: PholioExportOptions) {
   );
   const frequencyById = new Map(frequencyRows.map((row) => [row.IndicatorID, row]));
 
-  // Pre-compute CI confidence level per indicator from CoreDataSet.
+  // Fingertips selects its formatter from all source values, including undisplayed rows.
+  // GroupDataReader.cs:765–783 and NumericFormatterFactory.cs:38–41 in fingertips-open.
   const ciLevelRows = await queryPholio<CiLevelRow>(
     pool,
-    `SELECT IndicatorID,
+    `SELECT IndicatorID, MAX(NULLIF(Value, -1)) AS FormattingMaximum,
        CASE
          WHEN MAX(CASE WHEN LowerCI95 != -1 OR UpperCI95 != -1 THEN 1 ELSE 0 END) = 1
           AND MAX(CASE WHEN LowerCI99_8 != -1 OR UpperCI99_8 != -1 THEN 1 ELSE 0 END) = 1 THEN 'both'
@@ -100,9 +103,10 @@ export async function exportIndicators(context: PholioExportOptions) {
          ELSE NULL
        END AS ci_confidence_level
      FROM dbo.CoreDataSet
-     GROUP BY IndicatorID
-     HAVING MAX(CASE WHEN LowerCI95 != -1 OR UpperCI95 != -1 THEN 1 ELSE 0 END) = 1
-         OR MAX(CASE WHEN LowerCI99_8 != -1 OR UpperCI99_8 != -1 THEN 1 ELSE 0 END) = 1`,
+     GROUP BY IndicatorID`,
+  );
+  const formattingMaximumById = new Map(
+    ciLevelRows.map((row) => [row.IndicatorID, row.FormattingMaximum]),
   );
   const ciLevelById = new Map<number, string>();
   for (const row of ciLevelRows) {
@@ -120,6 +124,7 @@ export async function exportIndicators(context: PholioExportOptions) {
        ISNULL(u.Unit, CONCAT('Unknown unit ', im.UnitID)) AS UnitName,
        yt.YearType AS YearTypeName,
        im.CIMethodID,
+       im.DecimalPlacesDisplayed,
        im.DateEnteredInPHOLIO AS EnteredAt
      FROM dbo.IndicatorMetadata im
      LEFT JOIN dbo.IndicatorMetadataTextValues imtv
@@ -355,6 +360,10 @@ export async function exportIndicators(context: PholioExportOptions) {
       ci_method_modifications_detail: null,
       ci_method_detail: null,
       ci_confidence_level: ciLevel,
+      fingertips_formatting: JSON.stringify({
+        maximum: formattingMaximumById.get(id) ?? null,
+        decimalPlaces: row.DecimalPlacesDisplayed ?? null,
+      }),
       comparator_method_id: comparatorMethodId,
       has_goal_benchmark: null,
       goal_lower_value: null,

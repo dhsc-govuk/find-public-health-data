@@ -134,7 +134,7 @@ export function InequalitiesTable({
                   </td>
                 ) : confidence === 'none' ? null : (
                   <td className="govuk-table__cell govuk-table__cell--numeric">
-                    {confidenceInterval(observation, confidence)}
+                    {confidenceInterval(observation, confidence, indicator)}
                   </td>
                 )}
               </tr>

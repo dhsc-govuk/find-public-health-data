@@ -16,7 +16,15 @@ import {
   YAxis,
 } from 'recharts';
 import { noPolarityComparisonColours } from '../area-comparison.ts';
-import { type BenchmarkJudgement, type ConfidenceLevel, formatValue, unitNote } from '../data.ts';
+import { formatConfidenceLimit } from '../confidence-interval.ts';
+import {
+  type BenchmarkJudgement,
+  type ConfidenceLevel,
+  formatCalculatedValue,
+  formatValue,
+  unitNote,
+  withUnit,
+} from '../data.ts';
 import type { IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
 import {
   type BarColourMode,
@@ -209,13 +217,22 @@ export function ObservationBars({
   const data = rows.map(({ key, observation }) => ({
     key,
     value: observation?.value ?? null,
-    error: errorOffsets(observation?.value ?? null, bounds(observation, confidence)),
+    error: errorOffsets(observation?.value ?? null, bounds(observation, confidence, indicator)),
   }));
   if (!data.some(({ value }) => value !== null)) return <NoChartData />;
   const formatName = (key: string) => names.get(key) ?? key;
   const interval = (row: BarRow) => {
-    const range = bounds(row.observation, confidence);
-    return range ? range.map((value) => chartValue(value, indicator.unit)).join(' to ') : 'No data';
+    const range = bounds(row.observation, confidence, indicator);
+    return range
+      ? range
+          .map((value) =>
+            withUnit(
+              formatConfidenceLimit(value, indicator, formatCalculatedValue),
+              indicator.unit,
+            ),
+          )
+          .join(' to ')
+      : 'No data';
   };
   return (
     <>

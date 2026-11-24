@@ -20,6 +20,8 @@ import type { PublicYearType } from '@fphd/utils/period-type';
 import type { Polarity } from '@fphd/utils/polarity';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 
+import { formatConfidenceLimit } from './confidence-interval.ts';
+
 export function segmentLabel(observation: IndicatorObservation): string {
   if (observation.dimensions.length === 0) {
     return 'All';
@@ -173,11 +175,11 @@ export function unitNote(unit: string | null): string {
   return unit === null ? '' : ` (${unit})`;
 }
 
-export function formatConfidenceInterval(observation: IndicatorObservation): string {
-  if (observation.lowerCi95 === null || observation.upperCi95 === null) {
-    return '—';
-  }
-  return `${valueFormat.format(observation.lowerCi95)} to ${valueFormat.format(observation.upperCi95)}`;
+export function formatConfidenceInterval(
+  observation: IndicatorObservation,
+  indicator: Pick<IndicatorPageDetail, 'valueType' | 'fingertipsFormatting'>,
+): string {
+  return confidenceInterval(observation, '95', indicator);
 }
 
 export interface ComparisonCell {
@@ -529,6 +531,7 @@ export function availableConfidenceLevels(
 export function confidenceInterval(
   observation: IndicatorObservation,
   level: ConfidenceLevel,
+  indicator: Pick<IndicatorPageDetail, 'valueType' | 'fingertipsFormatting'>,
 ): string {
   if (level === 'none') {
     return '';
@@ -538,7 +541,7 @@ export function confidenceInterval(
   if (lower === null || upper === null || lower === undefined || upper === undefined) {
     return '—';
   }
-  return `${valueFormat.format(lower)} to ${valueFormat.format(upper)}`;
+  return `${formatConfidenceLimit(lower, indicator, valueFormat.format)} to ${formatConfidenceLimit(upper, indicator, valueFormat.format)}`;
 }
 
 /** Every inequality dimension an indicator reports, for the category chooser. */

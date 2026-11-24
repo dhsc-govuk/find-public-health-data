@@ -62,6 +62,42 @@ async function insertDraftOnlyIndicator(
 const MORTALITY_SLUG = 'under-75-mortality-rate-from-all-causes';
 
 describe('public routers against the seeded database', () => {
+  it('returns the published Fingertips formatting settings without changing raw intervals', async () => {
+    const original = await owner`SELECT o.id, o.lower_ci_95, o.upper_ci_95 FROM observation o
+      JOIN indicator i ON i.id = o.indicator_id WHERE i.short_id = 241`;
+    const formatting = { maximum: 9.99, decimalPlaces: 2 };
+    await owner.begin(async (tx) => {
+      const [version] = await tx`
+        UPDATE indicator_version SET fingertips_formatting = ${tx.json(formatting)}
+        WHERE id = (SELECT cv.id FROM current_published_version cv
+          JOIN indicator i ON i.id = cv.indicator_id WHERE i.short_id = 241)
+        RETURNING indicator_id, upload_batch_id
+      `;
+      if (!version) throw new Error('seed has no indicator 241');
+      await tx`
+        UPDATE observation SET lower_ci_95 = 4.0368, upper_ci_95 = 120.4115
+        WHERE indicator_id = ${version.indicator_id} AND upload_batch_id = ${version.upload_batch_id}
+      `;
+    });
+    try {
+      const detail = await request(app).get('/api/indicators/241');
+      expect(detail.status).toBe(200);
+      expect(indicatorDetailSchema.parse(detail.body).fingertipsFormatting).toEqual(formatting);
+      const data = await request(app).get('/api/indicators/241/data?areaCode=E92000001');
+      expect(data.status).toBe(200);
+      const england = indicatorAreaDataSchema.parse(data.body);
+      expect(england?.observations.length).toBeGreaterThan(0);
+      expect(england?.observations[0]).toMatchObject({ lowerCi95: 4.0368, upperCi95: 120.4115 });
+    } finally {
+      await owner`UPDATE observation o SET lower_ci_95 = saved.lower_ci_95,
+        upper_ci_95 = saved.upper_ci_95 FROM jsonb_to_recordset(${owner.json(original)})
+          AS saved(id uuid, lower_ci_95 double precision, upper_ci_95 double precision)
+        WHERE o.id = saved.id`;
+      await owner`UPDATE indicator_version SET fingertips_formatting = NULL
+        WHERE indicator_id = (SELECT id FROM indicator WHERE short_id = 241)`;
+    }
+  });
+
   it('returns compact rankings at the same shared period as the full histories', async () => {
     const path = '/api/indicators/108/data?areaCode=E06000052&areaCode=E92000001';
     const full = await request(app).get(path);
@@ -196,6 +232,18 @@ describe('public routers against the seeded database', () => {
       }
     },
   );
+
+  it('returns the source formatter settings through the public view', async () => {
+    await owner`UPDATE indicator_version SET fingertips_formatting =
+      '{"maximum":100,"decimalPlaces":null}'::jsonb
+      WHERE id = (SELECT cp.id FROM current_published_version cp
+        JOIN indicator i ON i.id = cp.indicator_id WHERE i.short_id = 241)`;
+    const detail = await request(app).get('/api/indicators/241');
+    expect(indicatorDetailSchema.parse(detail.body).fingertipsFormatting).toEqual({
+      maximum: 100,
+      decimalPlaces: null,
+    });
+  });
 
   it('serves the England observations for a seeded indicator, matching the wire contract', async () => {
     const response = await request(app).get('/api/indicators/108/data');

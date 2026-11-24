@@ -83,7 +83,11 @@ export async function migrateToLatest(
       await asOwnerGroup(sql, () =>
         withPreviewViewsRecreated(
           sql,
-          () => migrate(drizzle(sql), { migrationsFolder }),
+          async () => {
+            await migrate(drizzle(sql), { migrationsFolder });
+            // Generated view replacements lose their grants, so restore this published read surface.
+            await sql`GRANT SELECT ON published.indicator TO public_api, internal_api`;
+          },
           onPreviewViewsLost,
         ),
       );

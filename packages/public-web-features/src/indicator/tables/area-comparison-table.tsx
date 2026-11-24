@@ -6,6 +6,7 @@ import {
   orderAreaComparisonRows,
 } from '../area-comparison.ts';
 import type { IndicatorComparisonModel } from '../comparison-model.ts';
+import { formatConfidenceLimit } from '../confidence-interval.ts';
 import { formatCalculatedValue } from '../data.ts';
 import type { SelectedIndicator } from '../loader.ts';
 
@@ -126,10 +127,22 @@ export function AreaComparisonTable({
                 {hasCi ? (
                   <>
                     <td className="govuk-table__cell">
-                      {cell.lowerCi95 == null ? '-' : formatCalculatedValue(cell.lowerCi95)}
+                      {cell.lowerCi95 == null
+                        ? '-'
+                        : formatConfidenceLimit(
+                            cell.lowerCi95,
+                            indicator.detail,
+                            formatCalculatedValue,
+                          )}
                     </td>
                     <td className="govuk-table__cell">
-                      {cell.upperCi95 == null ? '-' : formatCalculatedValue(cell.upperCi95)}
+                      {cell.upperCi95 == null
+                        ? '-'
+                        : formatConfidenceLimit(
+                            cell.upperCi95,
+                            indicator.detail,
+                            formatCalculatedValue,
+                          )}
                     </td>
                   </>
                 ) : null}

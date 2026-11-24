@@ -4,6 +4,7 @@ import {
   areaComparisonRows,
   comparesWithEngland,
 } from './area-comparison.ts';
+import { displayConfidenceLimit } from './confidence-interval.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { SelectedIndicator } from './loader.ts';
 import type { loadIndicator } from './single-loader.ts';
@@ -33,8 +34,8 @@ export function indicatorComparisonModel(
     areaCode: cell.areaCode,
     areaName: cell.areaName,
     value: cell.value,
-    lowerCi95: cell.series.at(-1)?.lowerCi95 ?? null,
-    upperCi95: cell.series.at(-1)?.upperCi95 ?? null,
+    lowerCi95: displayConfidenceLimit(cell.series.at(-1)?.lowerCi95 ?? null, primary.detail),
+    upperCi95: displayConfidenceLimit(cell.series.at(-1)?.upperCi95 ?? null, primary.detail),
     label: areaComparisonLabel(cell, areas.england, primary.detail),
   }));
   const compared = selected[1];
@@ -55,7 +56,7 @@ export function indicatorComparisonModel(
     areas: {
       period: areas.period,
       multiYear: areas.multiYear,
-      barMaximum: areaComparisonBarMaximum(areas.rows),
+      barMaximum: areaComparisonBarMaximum(areas.rows, primary.detail),
       comparedWithEngland: comparesWithEngland(areaRows),
       rows: areaRows,
     },

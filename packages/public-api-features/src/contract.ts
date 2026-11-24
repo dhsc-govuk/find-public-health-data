@@ -233,6 +233,13 @@ export const indicatorDetailSchema = z.object({
   polarity: z.enum(POLARITIES),
   ciMethod: z.string().nullable(),
   ciConfidenceLevel: z.enum(CI_CONFIDENCE_LEVELS).nullable(),
+  fingertipsFormatting: z
+    .object({
+      maximum: z.number().nullable(),
+      decimalPlaces: z.number().int().nullable(),
+    })
+    .nullable()
+    .optional(),
   comparatorMethod: z.string().nullable(),
   dataUpdatedAt: z.iso.datetime().nullable(),
   firstPublishedAt: z.iso.datetime(),

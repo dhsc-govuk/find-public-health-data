@@ -29,6 +29,28 @@ const observations = [
 ];
 
 describe('InequalitiesTable', () => {
+  it.each(['95', '99.8'] as const)(
+    'uses the shared Proportion formatter for %s limits',
+    (confidence) => {
+      const points = observations.map((point) => ({
+        ...point,
+        lowerCi95: 4.0368,
+        upperCi95: 120.4115,
+        lowerCi998: 72042.0954,
+        upperCi998: 72939.9819,
+      }));
+      render(
+        <InequalitiesTable
+          confidence={confidence}
+          indicator={{ ...indicator('%'), valueType: 'Proportion' }}
+          observations={points}
+        />,
+      );
+      expect(screen.getByText(confidence === '95' ? '4.0 to 100' : '100 to 100')).toBeTruthy();
+      expect(points[0]?.upperCi95).toBe(120.4115);
+    },
+  );
+
   it.each([
     ['with no unit', null, 'Value'],
     ['per 100,000', 'per 100,000', 'Value (per 100,000)'],
