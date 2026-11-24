@@ -14,6 +14,7 @@ import {
   seriesPeriodTypes,
   tableAreaSeries,
   tableSummary,
+  uncertainHeadlineAge,
 } from './observation-series.ts';
 
 function series(age: string, years: number[]) {
@@ -401,4 +402,61 @@ it('counts suppressed points before period length and period length before the f
   const tied = history(1, [1, 2]);
   expect(headlineSeries([...tied, ...rolling])).toEqual(rolling);
   expect(headlineSeries([...rolling, ...tied])).toEqual(rolling);
+});
+
+it('trusts a headline with no age, the only age, or an age that contains every other age', () => {
+  const point = (value: string, ageFrom: string, ageUnder?: string) => ({
+    fromDate: '2024-01-01',
+    toDate: '2024-12-31',
+    dimensions: [{ type: 'Age', value, ageFrom, ...(ageUnder ? { ageUnder } : {}) }],
+  });
+  const total = { fromDate: '2024-01-01', toDate: '2024-12-31', dimensions: [] };
+  const whole = point('0-4 yrs', 'P0Y', 'P5Y');
+  const adults = point('18+ yrs', 'P18Y');
+  const female = (observation: typeof whole) => ({
+    ...observation,
+    dimensions: [...observation.dimensions, { type: 'Sex', value: 'Female' }],
+  });
+
+  expect(uncertainHeadlineAge([total, whole], total)).toBe(false);
+  expect(uncertainHeadlineAge([whole, whole], whole)).toBe(false);
+  expect(
+    uncertainHeadlineAge(
+      [
+        whole,
+        point('<1 yr', 'P0Y', 'P1Y'),
+        point('1 yr', 'P1Y', 'P2Y'),
+        point('2-4 yrs', 'P2Y', 'P5Y'),
+      ],
+      whole,
+    ),
+  ).toBe(false);
+  expect(uncertainHeadlineAge([adults, point('65+ yrs', 'P65Y')], adults)).toBe(false);
+  expect(uncertainHeadlineAge([whole, female(point('<18 yrs', 'P0Y', 'P18Y'))], whole)).toBe(false);
+});
+
+it('doubts a headline age beside a total or an age outside it', () => {
+  const point = (value: string, ageFrom?: string, ageUnder?: string) => ({
+    fromDate: '2024-01-01',
+    toDate: '2024-12-31',
+    dimensions: [
+      { type: 'Age', value, ...(ageFrom ? { ageFrom } : {}), ...(ageUnder ? { ageUnder } : {}) },
+    ],
+  });
+  const total = { fromDate: '2020-01-01', toDate: '2020-12-31', dimensions: [] };
+  const adults = point('18+ yrs', 'P18Y');
+  const older = point('65+ yrs', 'P65Y');
+
+  expect(uncertainHeadlineAge([total, adults], adults)).toBe(true);
+  expect(uncertainHeadlineAge([adults, point('16-24 yrs', 'P16Y', 'P25Y')], adults)).toBe(true);
+  expect(uncertainHeadlineAge([older, point('45-64 yrs', 'P45Y', 'P65Y')], older)).toBe(true);
+  expect(
+    uncertainHeadlineAge(
+      [point('5-14 yrs', 'P5Y', 'P15Y'), point('15+ yrs', 'P15Y')],
+      point('5-14 yrs', 'P5Y', 'P15Y'),
+    ),
+  ).toBe(true);
+  expect(
+    uncertainHeadlineAge([point('School age'), point('Primary school age')], point('School age')),
+  ).toBe(true);
 });
