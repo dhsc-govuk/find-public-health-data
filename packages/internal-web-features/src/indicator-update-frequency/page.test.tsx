@@ -14,9 +14,13 @@ const NO_FIXED = 'No fixed frequency';
 const NO_LONGER_UPDATED = 'This indicator will no longer be updated';
 const NO_FIXED_ERROR = 'Enter the reason this indicator has no fixed update frequency';
 
+const MORE_THAN_1_YEAR = 'Frequency of more than 1 year';
+const YEARS_ERROR = 'Number of years must be a whole number of 2 or more';
+
 const empty = {
-  updateFrequencyText: '',
   updateFrequency: '',
+  updateFrequencyYears: '',
+  updateFrequencyText: '',
   noFixedFrequencyReason: '',
   noLongerUpdatedReason: '',
 };
@@ -34,11 +38,11 @@ function option(label: string) {
   return screen.getByLabelText(label, { exact: true }) as HTMLInputElement;
 }
 
-/** The reason box the named answer reveals, and the reveal that holds it. */
+/** The box the named answer reveals for its details, and the reveal that holds it. */
 function reason(answer: string) {
   const reveal = document.getElementById(option(answer).getAttribute('aria-controls') ?? '');
-  const field = reveal?.querySelector('textarea');
-  if (!reveal || !field) throw new Error(`"${answer}" reveals no reason`);
+  const field = reveal?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+  if (!reveal || !field) throw new Error(`"${answer}" reveals no details`);
   return { reveal, field };
 }
 
@@ -80,7 +84,8 @@ describe('UpdateFrequencyPage', () => {
       'Monthly',
       'Quarterly',
       'Annually',
-      'Every 2 years',
+      'Frequency of more than 1 year',
+      'Other',
       'No fixed frequency',
       'This indicator will no longer be updated',
     ]);
@@ -88,14 +93,15 @@ describe('UpdateFrequencyPage', () => {
       'monthly',
       'quarterly',
       'annually',
-      'every-2-years',
+      'every-n-years',
+      'other',
       'no-fixed-frequency',
       'no-longer-updated',
     ]);
     expect(radios.every((radio) => radio.name === 'updateFrequency' && !radio.checked)).toBe(true);
-    // "No fixed frequency" is followed by its reveal, then the divider.
-    expect(items[6]?.className).toBe('govuk-radios__divider');
-    expect(items[6]?.textContent).toBe('or');
+    // The last three frequencies are each followed by their reveal, then the divider.
+    expect(items[9]?.className).toBe('govuk-radios__divider');
+    expect(items[9]?.textContent).toBe('or');
   });
 
   it('shows the frequency it is given, so a draft can be revisited', () => {
@@ -113,43 +119,56 @@ describe('UpdateFrequencyPage', () => {
   });
 
   it.each([
-    [NO_FIXED, 'noFixedFrequencyReason'],
-    [NO_LONGER_UPDATED, 'noLongerUpdatedReason'],
-  ])('asks for a reason inside the reveal that "%s" controls', (answer, name) => {
+    [NO_FIXED, 'noFixedFrequencyReason', 'Enter reason'],
+    [NO_LONGER_UPDATED, 'noLongerUpdatedReason', 'Enter reason'],
+    ['Other', 'updateFrequencyText', 'Enter frequency'],
+  ])('asks for details inside the reveal that "%s" controls', (answer, name, label) => {
     renderPage();
 
     const { field, reveal } = reason(answer);
 
+    expect(field.tagName).toBe('TEXTAREA');
     expect(field.name).toBe(name);
     expect(field.getAttribute('rows')).toBe('3');
-    expect(field.labels?.[0]?.textContent).toBe('Enter reason');
+    expect(field.labels?.[0]?.textContent).toBe(label);
     expect(reveal.className).toContain('govuk-radios__conditional--hidden');
   });
 
-  it('reveals no reason under the other answers', () => {
+  it('asks for the number of years inside the reveal that "Frequency of more than 1 year" controls', () => {
     renderPage();
 
-    for (const answer of ['Monthly', 'Quarterly', 'Annually', 'Every 2 years']) {
-      expect(option(answer).getAttribute('aria-controls')).toBeNull();
-    }
-    expect(screen.getAllByRole('textbox')).toHaveLength(3);
+    const { field, reveal } = reason(MORE_THAN_1_YEAR);
+
+    expect(field.tagName).toBe('INPUT');
+    expect(field.name).toBe('updateFrequencyYears');
+    expect(field.getAttribute('inputmode')).toBe('numeric');
+    expect(field.className).toContain('govuk-input--width-3');
+    expect(field.labels?.[0]?.textContent).toBe('Enter number of years');
+    expect(reveal.className).toContain('govuk-radios__conditional--hidden');
   });
 
-  it('shows the optional description with its hint outside the conditional reasons', () => {
-    renderPage({
-      values: { ...empty, updateFrequencyText: 'Academic year.\nPublished in winter.' },
-    });
-    const field = screen.getByLabelText(
-      'Describe how often it is updated (optional)',
-    ) as HTMLTextAreaElement;
+  it('reveals nothing under monthly, quarterly and annually', () => {
+    renderPage();
 
-    expect(field.name).toBe('updateFrequencyText');
-    expect(field.rows).toBe(5);
-    expect(field.value).toBe('Academic year.\nPublished in winter.');
-    expect(field.closest('.govuk-radios__conditional')).toBeNull();
-    expect(document.getElementById(field.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
-      "Shown on the indicator page in place of the frequency above. If you chose no fixed frequency or no longer updated, that answer and your reason are still shown after it. For example 'Annual measurements during the academic year, published in the final quarter of the calendar year.'",
-    );
+    for (const answer of ['Monthly', 'Quarterly', 'Annually']) {
+      expect(option(answer).getAttribute('aria-controls')).toBeNull();
+    }
+    expect(screen.getAllByRole('textbox')).toHaveLength(4);
+  });
+
+  it.each([
+    [{ updateFrequency: 'every-n-years', updateFrequencyYears: '3' }, MORE_THAN_1_YEAR, '3'],
+    [
+      { updateFrequency: 'other', updateFrequencyText: 'Academic year.' },
+      'Other',
+      'Academic year.',
+    ],
+  ])('shows the details it is given under their answer %o', (values, answer, shown) => {
+    renderPage({ values: { ...empty, ...values } });
+
+    expect(option(answer).checked).toBe(true);
+    expect(reason(answer).field.value).toBe(shown);
+    expect(reason(answer).reveal.className).not.toContain('govuk-radios__conditional--hidden');
   });
 
   it('reveals the reason when its answer is chosen', () => {
@@ -176,6 +195,22 @@ describe('UpdateFrequencyPage', () => {
     expect(field.className).toContain('govuk-textarea--error');
     expect(field.getAttribute('aria-describedby')).toBe(error?.id);
     expect(reason(NO_LONGER_UPDATED).field.className).not.toContain('govuk-textarea--error');
+  });
+
+  it('shows the number of years error inside the open reveal, linked from the summary', () => {
+    renderPage({
+      fieldErrors: { updateFrequencyYears: YEARS_ERROR },
+      values: { ...empty, updateFrequency: 'every-n-years', updateFrequencyYears: '1' },
+    });
+
+    const link = within(screen.getByRole('alert')).getByRole('link', { name: YEARS_ERROR });
+    const { field, reveal } = reason(MORE_THAN_1_YEAR);
+    const error = reveal.querySelector('.govuk-error-message');
+
+    expect(link.getAttribute('href')).toBe(`#${field.id}`);
+    expect(error?.textContent).toContain(YEARS_ERROR);
+    expect(field.className).toContain('govuk-input--error');
+    expect(field.value).toBe('1');
   });
 
   it('links the refusal to the first option and describes the options with it', () => {

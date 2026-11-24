@@ -16,6 +16,7 @@ const detail = {
   updateFrequency: 'annually',
   updateFrequencyReason: null,
   updateFrequencyText: null,
+  updateFrequencyYears: null,
   polarity: 'lower-is-better',
   ciMethod: null,
   ciConfidenceLevel: null,
@@ -43,6 +44,20 @@ const detail = {
 describe('indicatorDetailSchema', () => {
   it.each(['valueType', 'polarity'])('rejects a detail with no %s', (field) => {
     expect(indicatorDetailSchema.safeParse({ ...detail, [field]: null }).success).toBe(false);
+  });
+
+  const everyYears = (updateFrequencyYears: number) => ({
+    ...detail,
+    updateFrequency: 'every-n-years',
+    updateFrequencyYears,
+  });
+
+  it.each([2, 99])('accepts %s years between updates', (years) => {
+    expect(indicatorDetailSchema.safeParse(everyYears(years)).success).toBe(true);
+  });
+
+  it.each([1, 100, 2.5])('refuses %s years between updates', (years) => {
+    expect(indicatorDetailSchema.safeParse(everyYears(years)).success).toBe(false);
   });
 
   it('drops an unanswered list and a data state, so the public page never shows a placeholder', () => {

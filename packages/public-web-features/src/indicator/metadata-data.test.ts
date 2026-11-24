@@ -2,23 +2,43 @@ import { describe, expect, it } from 'vitest';
 
 import { updateFrequencyLine } from './metadata-data.ts';
 
+const NO_DETAILS = {
+  updateFrequencyYears: null,
+  updateFrequencyText: null,
+  updateFrequencyReason: null,
+};
+
 describe('updateFrequencyLine', () => {
-  it('gives the label of a frequency with no reason', () => {
+  it('gives the label of a frequency with no details', () => {
+    expect(updateFrequencyLine({ updateFrequency: 'annually', ...NO_DETAILS })).toBe('Annually');
+  });
+
+  it('gives the number of years of a frequency of more than 1 year', () => {
     expect(
       updateFrequencyLine({
-        updateFrequency: 'annually',
-        updateFrequencyText: null,
-        updateFrequencyReason: null,
+        updateFrequency: 'every-n-years',
+        ...NO_DETAILS,
+        updateFrequencyYears: 4,
       }),
-    ).toBe('Annually');
+    ).toBe('Every 4 years');
+  });
+
+  it("gives the publisher's own description of an other frequency", () => {
+    expect(
+      updateFrequencyLine({
+        updateFrequency: 'other',
+        ...NO_DETAILS,
+        updateFrequencyText: 'Annual measurements during the academic year.\nPublished in winter.',
+      }),
+    ).toBe('Annual measurements during the academic year.\nPublished in winter.');
   });
 
   it('introduces the reason given, on the line above it', () => {
     expect(
       updateFrequencyLine({
         updateFrequency: 'no-longer-updated',
+        ...NO_DETAILS,
         updateFrequencyReason: 'The survey has ended.',
-        updateFrequencyText: null,
       }),
     ).toBe(
       'This indicator will no longer be updated for the following reason:\nThe survey has ended.',
@@ -26,48 +46,12 @@ describe('updateFrequencyLine', () => {
   });
 
   it('gives the label alone for an indicator imported without a reason', () => {
-    expect(
-      updateFrequencyLine({
-        updateFrequency: 'no-fixed-frequency',
-        updateFrequencyText: null,
-        updateFrequencyReason: null,
-      }),
-    ).toBe('No fixed frequency');
-  });
-
-  it.each(['annually', 'no-fixed-frequency', null] as const)(
-    'uses the original text in place of %s when there is no reason',
-    (updateFrequency) => {
-      expect(
-        updateFrequencyLine({
-          updateFrequency,
-          updateFrequencyReason: null,
-          updateFrequencyText:
-            'Annual measurements during the academic year.\nPublished in winter.',
-        }),
-      ).toBe('Annual measurements during the academic year.\nPublished in winter.');
-    },
-  );
-
-  it('keeps the reason given after the original text', () => {
-    expect(
-      updateFrequencyLine({
-        updateFrequency: 'no-longer-updated',
-        updateFrequencyReason: 'The survey has ended.',
-        updateFrequencyText: 'Annual measurements during the academic year.',
-      }),
-    ).toBe(
-      'Annual measurements during the academic year.\nThis indicator will no longer be updated for the following reason:\nThe survey has ended.',
+    expect(updateFrequencyLine({ updateFrequency: 'no-fixed-frequency', ...NO_DETAILS })).toBe(
+      'No fixed frequency',
     );
   });
 
   it('gives nothing for an indicator imported without a frequency', () => {
-    expect(
-      updateFrequencyLine({
-        updateFrequency: null,
-        updateFrequencyText: null,
-        updateFrequencyReason: null,
-      }),
-    ).toBeNull();
+    expect(updateFrequencyLine({ updateFrequency: null, ...NO_DETAILS })).toBeNull();
   });
 });

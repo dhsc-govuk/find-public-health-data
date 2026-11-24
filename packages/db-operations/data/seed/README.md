@@ -67,9 +67,10 @@ That yields 433,531 observations, 657,582 bridge rows and 67,978 observation not
   `export/update_frequency.py`; neither export carries a `frequency` table. The export leaves the
   frequency of gastroenteritis admissions (94194) empty, so the e2e suite covers imported indicators
   without one on their public page and in downloads.
-- `indicator_version.update_frequency_text` is Pholio's own wording of the frequency. Neither export
-  carries it, so it is empty except for reception obesity (92026), whose Fingertips wording the
-  reshape adds so the e2e suite covers it on the public page and in downloads.
+- `indicator_version.update_frequency_text` is the description of an "Other" update frequency.
+  Neither export carries Pholio's own wording of the frequency, so it is empty except for reception
+  obesity (92026). The reshape gives that indicator its Fingertips wording as an "Other" frequency,
+  so the e2e suite covers it on the public page and in downloads.
 - `numerator_source_id` and `denominator_source_id` in `indicator_version.csv.gz` name rows of
   Pholio's `numerator_denominator_source.csv.gz`. The service has neither the columns nor the table:
   the load maps each name onto the core data providers through

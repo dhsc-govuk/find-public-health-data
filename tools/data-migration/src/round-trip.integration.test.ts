@@ -74,6 +74,7 @@ async function snapshot(
         is_locked: true,
         published_at: enteredAt,
         name: 'Round trip indicator',
+        update_frequency: 'other',
         update_frequency_text: '<p>Academic year</p><p>Published in winter.</p>',
         upload_batch_id: 108,
         data_table_confirmed_at: enteredAt,
@@ -210,7 +211,7 @@ it('imports baseline dates, date-only corrections, observations and withdrawal',
   expect(
     await sql`SELECT update_frequency, update_frequency_text FROM published.indicator WHERE short_id = 108`,
   ).toEqual([
-    { update_frequency: null, update_frequency_text: 'Academic year\nPublished in winter.' },
+    { update_frequency: 'other', update_frequency_text: 'Academic year\nPublished in winter.' },
   ]);
   const [female] = await sql<{ id: string }[]>`
     SELECT value.id FROM dimension_value value JOIN dimension_type type ON type.id = value.dimension_type_id

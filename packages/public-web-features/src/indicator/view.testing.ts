@@ -19,6 +19,7 @@ export function indicatorDetail(
     updateFrequency: 'annually',
     updateFrequencyReason: null,
     updateFrequencyText: null,
+    updateFrequencyYears: null,
     polarity: 'higher-is-better',
     ciMethod: null,
     ciConfidenceLevel: '95',

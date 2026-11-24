@@ -204,9 +204,10 @@ const CHANGED_SECTIONS: Readonly<
   }),
   'update-frequency': sectionOf(updateFrequencySection, updateFrequencyColumns, {
     updateFrequency: option(UPDATE_FREQUENCY_LABELS),
+    updateFrequencyYears: entered,
+    updateFrequencyText: 'text',
     noFixedFrequencyReason: 'text',
     noLongerUpdatedReason: 'text',
-    updateFrequencyText: 'text',
   }),
   'value-type-and-units': sectionOf(valueTypeAndUnitsSection, valueTypeAndUnitsColumns, {
     valueTypeId: named,
