@@ -379,6 +379,13 @@ export async function getIndicatorDetailsByIds(
       notes: indicator.otherNotesDetail,
       dataSourceName: dataSource.name,
       dataSourceUrl: dataSource.url,
+      areaTypes: sql<IndicatorAreaType[]>`(
+        SELECT coalesce(json_agg(json_build_object(
+          'name', ${availableData.areaTypeName}, 'areaCount', ${availableData.areaCount}
+        ) ORDER BY ${availableData.areaTypeName}), '[]')
+        FROM ${availableData}
+        WHERE ${availableData.indicatorId} = ${indicator.id}
+      )`,
       // Read in this statement, rather than in one of its own, so the page costs no more queries.
       updateSummaries: sql<{ publishedAt: string; summary: string }[]>`(
         SELECT coalesce(
@@ -400,16 +407,7 @@ export async function getIndicatorDetailsByIds(
     .leftJoin(dataSource, eq(indicator.dataSourceId, dataSource.id))
     .where(inArray(indicator.id, indicatorIds));
 
-  const [areaTypes, topics, classifications, sources] = await Promise.all([
-    db
-      .select({
-        indicatorId: availableData.indicatorId,
-        name: availableData.areaTypeName,
-        areaCount: availableData.areaCount,
-      })
-      .from(availableData)
-      .where(inArray(availableData.indicatorId, indicatorIds))
-      .orderBy(asc(availableData.areaTypeName)),
+  const [topics, classifications, sources] = await Promise.all([
     listTopicsForIndicators(db, views, indicatorIds),
     listClassificationsForIndicators(db, views, indicatorIds),
     db
@@ -481,9 +479,7 @@ export async function getIndicatorDetailsByIds(
               : { name: row.dataSourceName, url: row.dataSourceUrl },
           numeratorSources: sourcesOf('numerator'),
           denominatorSources: sourcesOf('denominator'),
-          areaTypes: areaTypes
-            .filter((entry) => entry.indicatorId === row.id)
-            .map(({ indicatorId: _id, ...entry }) => entry),
+          areaTypes: row.areaTypes,
           topics: topics.get(row.id) ?? [],
           classifications: classifications.get(row.id) ?? [],
           updateSummaries: row.updateSummaries.map(({ publishedAt, summary }) => ({

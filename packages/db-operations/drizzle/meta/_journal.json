@@ -708,6 +708,13 @@
       "when": 1795628038271,
       "tag": "0100_discard-drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795688438714,
+      "tag": "0101_indicator-published-from",
+      "breakpoints": true
     }
   ]
 }
