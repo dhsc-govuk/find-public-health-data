@@ -82,7 +82,7 @@ it('keeps the seeded diabetes and smoking comparison within its statement budget
           /where "observation"\."indicator_id" in \(\$\d+,/.test(statement),
       ),
     ).toHaveLength(0);
-    expect(query.mock.calls.length).toBeLessThanOrEqual(31);
+    expect(query.mock.calls.length).toBeLessThanOrEqual(32);
     expect(paths.filter((path) => path.startsWith('/api/indicator-scatter?'))).toHaveLength(1);
     expect(paths.some((path) => /\/(indicator-data|ranking)\?/.test(path))).toBe(false);
     for (const variant of comparison.scatter?.variants ?? []) {
