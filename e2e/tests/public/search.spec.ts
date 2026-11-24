@@ -144,7 +144,6 @@ test('search uses the shared accordion filters beneath geographies', async ({ pa
     'Topics and types',
     'Frameworks and programmes',
     'About the data',
-    'Status',
     'Years the data covers',
     'Last updated',
   ]) {
@@ -320,6 +319,29 @@ test('topic checkboxes apply and remove filters immediately', async ({ page }, t
   await expect(results(page).getByRole('link')).toHaveCount(10);
 });
 
+for (const [description, topic] of [
+  ['is not recognised', 'nonsense'],
+  ['has no published indicators', 'injuries'],
+]) {
+  test(`ignores a topic filter that ${description}`, async ({ page }, testInfo) => {
+    await ready(page, `/search?t=${topic}`);
+    await expect(
+      page.getByRole('heading', { name: /^12 indicators ?, page 1 of 2$/ }),
+    ).toBeVisible();
+    await expect(page.locator(`main input[value="${topic}"]`)).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'Topics and types', exact: true }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+}
+
+test('keeps recognised filter values beside one that is not', async ({ page }) => {
+  await ready(page, '/search?t=diabetes&t=nonsense&it=nonsense');
+  await expect(results(page).getByRole('link')).toHaveCount(2);
+  await expect(page.getByRole('checkbox', { name: 'Diabetes', exact: true })).toBeChecked();
+});
+
 test('years and last updated filters preserve the keyword and other filters', async ({ page }) => {
   await ready(page, '/search?q=diabetes&t=diabetes&fromYear=2010&toYear=2025');
   await expect(page.getByRole('textbox', { name: 'From', exact: true })).toHaveValue('2010');
@@ -378,12 +400,21 @@ test('the sort survives tab switches, new searches and filter changes', async ({
   await expect(sortBy(page)).toHaveValue('recently-updated');
 });
 
-test('the Status filter says release status information is not yet available', async ({ page }) => {
-  await ready(page);
-  const status = card(page, 'Status');
-  await status.getByRole('button', { name: 'Status', exact: true }).click();
-  await expect(status.getByText('Release status information is not yet available.')).toBeVisible();
-});
+for (const [name, path, tab] of [
+  ['the search page', '/search', /^Indicators/],
+  ['a topic’s Data tab', '/topics/cancer?tab-topic=data', 'Data'],
+] as const) {
+  test(`offers no Status filter on ${name}`, async ({ page }) => {
+    await page.goto(path);
+    const panel = page.getByRole('tabpanel', { name: tab, exact: true });
+    const filters = panel.locator('.fphd-topic-indicator-filters');
+    await expect(
+      filters.getByRole('button', { name: 'About the data', exact: true }),
+    ).toBeVisible();
+    await expect(filters.getByRole('button', { name: 'Status', exact: true })).toHaveCount(0);
+    await expect(panel.getByText('Release status')).toHaveCount(0);
+  });
+}
 
 test('a complete long data source remains selected and narrows results', async ({ page }) => {
   await ready(page);

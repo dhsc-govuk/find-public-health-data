@@ -15,6 +15,10 @@ import {
 import { INVITEE_STORAGE_STATE } from '../support/private-beta.ts';
 import { answerTo } from '../support/summary-list.ts';
 
+// The fills of the bars in the Compare areas table, for each way of colouring the areas.
+const COMPARISON_FILL = /^(#8ED973|#FFC000|#C00000)$/;
+const QUINTILE_FILL = /^(#C5EEE9|#84CAC2|#27A096|#027068|#004842)$/;
+
 test.beforeEach(async ({ page }) => {
   await openIndicatorPage(page, MORTALITY_PATH);
 });
@@ -295,8 +299,12 @@ test('uses the prototype’s narrow metadata and fixed sidebar across different 
       expect(Math.round((await sidebar.boundingBox())?.width ?? 0)).toBe(235);
     }
     if (tab === 'Compare areas') {
-      const firstArea = panel.getByRole('table').locator('tbody tr').nth(1);
-      expect(Math.round((await firstArea.boundingBox())?.height ?? 0)).toBe(29);
+      // The lowest and highest quintiles have longer labels, which take two lines at this width.
+      const area = panel
+        .getByRole('row')
+        .filter({ has: page.getByRole('cell', { name: 'Quintile 3', exact: true }) })
+        .first();
+      expect(Math.round((await area.boundingBox())?.height ?? 0)).toBe(29);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440);
   }
@@ -355,9 +363,63 @@ test('compares areas across a selected geography type and sorts the table', asyn
   expect(exported.text.startsWith('\uFEFF')).toBe(true);
   const lines = exported.text.replace(/^\uFEFF/, '').split('\r\n');
   expect(lines[0]).toBe(
-    'Area,"Value (per 100,000)",Compared with England,95% lower confidence interval,95% upper confidence interval',
+    'Area,"Value (per 100,000)",Quintile,95% lower confidence interval,95% upper confidence interval',
   );
   expect(lines.slice(-3)).toEqual(['', '"Source: OHID, based on multiple sources"', '']);
+});
+
+test('colours areas by quintile when none can be compared with England', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/under-75-mortality-rate-from-cancer?tab-indicator=areas&areaType=Statistical+regions&areaColour=england',
+  );
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  const colour = panel.getByRole('combobox', { name: 'Colour geographies by' });
+  await expect(colour.getByRole('option')).toHaveText(['5 equal groups (quintiles)']);
+  const table = panel.getByRole('table', { name: /Table of area comparisons/ });
+  await expect(table.getByRole('columnheader', { name: 'Quintile', exact: true })).toBeVisible();
+  await expect(table.getByRole('columnheader', { name: 'Compared with England' })).toHaveCount(0);
+  await expect(table.getByRole('cell', { name: 'Quintile 1 (lowest)' }).first()).toBeVisible();
+  await expect(table.locator('tbody').getByRole('cell', { name: /^Quintile \d/ })).toHaveCount(9);
+  await expectNoAccessibilityViolations(page, testInfo);
+});
+
+test('switches areas between the comparison with England and quintiles', async ({ page }) => {
+  await openIndicatorPage(
+    page,
+    '/indicator/mortality-rate-for-deaths-involving-diabetes-all-ages?tab-indicator=areas&areaType=Statistical+regions',
+  );
+  const panel = page.getByRole('tabpanel', { name: 'Compare areas' });
+  const colour = panel.getByRole('combobox', { name: 'Colour geographies by' });
+  await expect(colour.getByRole('option')).toHaveText([
+    'Compared with England',
+    '5 equal groups (quintiles)',
+  ]);
+  const table = panel.getByRole('table', { name: /Table of area comparisons/ });
+  const london = table
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: 'London', exact: true }) });
+  const bar = london.locator('.fphd-comparison-bar rect').nth(1);
+  const comparison = table.getByRole('columnheader', { name: 'Compared with England' });
+  const quintile = table.getByRole('columnheader', { name: 'Quintile', exact: true });
+
+  await expect(colour).toHaveValue('england');
+  await expect(comparison).toBeVisible();
+  await expect(bar).toHaveAttribute('fill', COMPARISON_FILL);
+
+  await colour.selectOption('quintiles');
+  await expect(page).toHaveURL(/areaColour=quintiles/);
+  await expect(quintile).toBeVisible();
+  await expect(comparison).toHaveCount(0);
+  await expect(bar).toHaveAttribute('fill', QUINTILE_FILL);
+
+  await colour.selectOption('england');
+  await expect(page).toHaveURL(/areaColour=england/);
+  await expect(comparison).toBeVisible();
+  await expect(quintile).toHaveCount(0);
+  await expect(bar).toHaveAttribute('fill', COMPARISON_FILL);
 });
 
 test('sorts hydrated area comparisons without Array.prototype.toSorted', async ({ page }) => {
@@ -1123,7 +1185,7 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
     .getByRole('row')
     .filter({ has: page.getByRole('rowheader', { name: 'Slough', exact: true }) });
   const bar = slough.locator('.fphd-comparison-bar rect').nth(1);
-  await expect(bar).toHaveAttribute('fill', /^#[0-9a-f]{6}$/i);
+  await expect(bar).toHaveAttribute('fill', QUINTILE_FILL);
   expect(Number(await bar.getAttribute('width'))).toBeGreaterThan(70);
   expect(Number(await bar.getAttribute('width'))).toBeLessThan(80);
   const chart = page.getByRole('region', { name: /^Compare areas: Diabetes: QOF prevalence/ });
@@ -1139,9 +1201,6 @@ test('plots trends, area comparisons, inequalities and paired indicators', async
   await page.getByRole('tablist').evaluate((element) => element.scrollIntoView({ block: 'start' }));
   await page.screenshot({ path: testInfo.outputPath('comparison-charts.png') });
   await expectNoAccessibilityViolations(page, testInfo);
-  await page.getByRole('combobox', { name: 'Colour geographies by' }).selectOption('quintiles');
-  await expect(bar).toHaveAttribute('fill', /#C5EEE9|#84CAC2|#27A096|#027068|#004842/);
-  await expect(page.getByRole('option', { name: /quartiles/ })).toHaveCount(0);
   await page.getByLabel('Colour areas by', { exact: true }).selectOption('yes');
   await expect(page).toHaveURL(/quintile-241=yes/);
   await expect(chart).toContainText(

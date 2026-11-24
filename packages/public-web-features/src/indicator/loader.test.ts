@@ -461,7 +461,7 @@ describe('loadIndicator', () => {
       const comparison = await page.comparison;
       expect(comparison.areas.rows).toMatchObject([
         { areaCode: 'E92000001', value: null, label: '' },
-        { areaCode: 'E06000052', value: 30, label: '' },
+        { areaCode: 'E06000052', value: 30, label: 'Not compared' },
       ]);
       expect(comparison.areas.period).toBe('2024');
       await page.data;

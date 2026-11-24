@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 import { indicatorComparisonModel } from '../comparison-model.ts';
-import { selected } from '../view.testing.ts';
+import { observation, selected, sex } from '../view.testing.ts';
 import { AreaComparisonTable } from './area-comparison-table.tsx';
 
 afterEach(cleanup);
@@ -117,6 +117,38 @@ it('keeps CI columns when only the filtered-out areas have confidence intervals'
   expect(screen.queryByRole('rowheader', { name: 'Beta' })).toBeNull();
   expect(screen.getByRole('columnheader', { name: '95% lower confidence interval' })).toBeTruthy();
   expect(screen.getByRole('columnheader', { name: '95% upper confidence interval' })).toBeTruthy();
+});
+
+it('says an area with a value but no comparison is not compared, on a grey bar', () => {
+  const primary = selected();
+  const female = observation(10, [sex('Female')]);
+  primary.areaData.push(
+    {
+      areaCode: 'a',
+      areaName: 'Alpha',
+      observations: [{ ...female, lowerCi95: null, upperCi95: null }],
+    },
+    { areaCode: 'n', areaName: 'Nowhere', observations: [{ ...female, value: null }] },
+  );
+  const model = indicatorComparisonModel([primary], {
+    compareAreasData: primary.areaData,
+    comparedAreasData: [],
+    compareAreaOptions: [],
+    compareAreaGroup: 'Local authorities',
+    comparisonDisplayGroups: [],
+  }).areas;
+  render(
+    <AreaComparisonTable indicator={primary} model={model} sort="descending" highlighted={[]} />,
+  );
+  const rowFor = (name: string) => {
+    const found = screen.getByRole('rowheader', { name }).closest('tr');
+    if (!found) throw new Error(`Missing ${name} row`);
+    return found;
+  };
+  expect(within(rowFor('Cornwall')).getByRole('cell', { name: 'Better' })).toBeTruthy();
+  expect(within(rowFor('Alpha')).getByRole('cell', { name: 'Not compared' })).toBeTruthy();
+  expect(rowFor('Alpha').querySelector('svg svg rect')?.getAttribute('fill')).toBe('#b1b4b6');
+  expect(within(rowFor('Nowhere')).getAllByRole('cell', { name: 'No data' })).toHaveLength(2);
 });
 
 it('draws no polarity bars in blues with a dark border and leaves England unbordered', () => {

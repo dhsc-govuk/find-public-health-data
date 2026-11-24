@@ -267,6 +267,12 @@ it('names England and the topic total when no area is chosen', () => {
   });
 });
 
+it('counts a single indicator in the singular', () => {
+  expect(overviewText(card([], {}, { trends: { ...TRENDS, total: 1 } })).heading).toBe(
+    'Diabetes has 1 indicator in total',
+  );
+});
+
 it('names the chosen area in the heading, intro and each highlighted card', () => {
   const doc = card([], {}, { area: { code: 'E10000032', name: 'West Sussex' } });
   expect(overviewText(doc)).toEqual({

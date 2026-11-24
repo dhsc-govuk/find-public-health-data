@@ -106,6 +106,51 @@ it('does not propagate orphaned neighbours in subsequent no-script forms', () =>
   }
 });
 
+it.each([
+  [true, ['Compared with England', '5 equal groups (quintiles)'], 'england'],
+  [false, ['5 equal groups (quintiles)'], 'quintiles'],
+])(
+  'offers the colour choices for an indicator whose comparison with England is %s',
+  (comparedWithEngland, labels, value) => {
+    const Routes = createRoutesStub([
+      {
+        path: '/',
+        Component: () => (
+          <AreaControls
+            shortId={108}
+            comparedWithEngland={comparedWithEngland}
+            group="Local authorities"
+            groups={['Local authorities']}
+            areas={areas}
+          />
+        ),
+      },
+    ]);
+    render(<Routes initialEntries={['/?areaColour=england']} />);
+    const select = screen.getByRole('combobox', {
+      name: 'Colour geographies by',
+    }) as HTMLSelectElement;
+    expect([...select.options].map(({ label }) => label)).toEqual(labels);
+    expect(select.value).toBe(value);
+  },
+);
+
+it('puts the chosen colour option in the query', async () => {
+  mount(true, 'areaSort=ascending');
+  const colour = screen.getByRole('combobox', {
+    name: 'Colour geographies by',
+  }) as HTMLSelectElement;
+  for (const value of ['quintiles', 'england']) {
+    fireEvent.change(colour, { target: { value } });
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'Current query' }).textContent).toBe(
+        `?areaSort=ascending&areaColour=${value}`,
+      ),
+    );
+    expect(colour.value).toBe(value);
+  }
+});
+
 it('offers individual area highlights without region controls on Compare indicators', () => {
   mount(false);
   expect(screen.queryByRole('checkbox', { name: /North East/ })).toBeNull();

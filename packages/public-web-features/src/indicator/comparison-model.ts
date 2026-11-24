@@ -2,6 +2,7 @@ import {
   areaComparisonBarMaximum,
   areaComparisonLabel,
   areaComparisonRows,
+  comparesWithEngland,
 } from './area-comparison.ts';
 import { indicatorPair } from './indicator-pair.ts';
 import type { SelectedIndicator } from './loader.ts';
@@ -28,6 +29,14 @@ export function indicatorComparisonModel(
     comparisonDisplayGroups,
   } = comparison;
   const areas = areaComparisonRows(primary, compareAreasData, 'descending');
+  const areaRows = areas.rows.map((cell) => ({
+    areaCode: cell.areaCode,
+    areaName: cell.areaName,
+    value: cell.value,
+    lowerCi95: cell.series.at(-1)?.lowerCi95 ?? null,
+    upperCi95: cell.series.at(-1)?.upperCi95 ?? null,
+    label: areaComparisonLabel(cell, areas.england, primary.detail),
+  }));
   const compared = selected[1];
   const forPair = (indicator: SelectedIndicator, areaData: SelectedIndicator['areaData']) => ({
     ...indicator,
@@ -47,14 +56,8 @@ export function indicatorComparisonModel(
       period: areas.period,
       multiYear: areas.multiYear,
       barMaximum: areaComparisonBarMaximum(areas.rows),
-      rows: areas.rows.map((cell) => ({
-        areaCode: cell.areaCode,
-        areaName: cell.areaName,
-        value: cell.value,
-        lowerCi95: cell.series.at(-1)?.lowerCi95 ?? null,
-        upperCi95: cell.series.at(-1)?.upperCi95 ?? null,
-        label: areaComparisonLabel(cell, areas.england, primary.detail),
-      })),
+      comparedWithEngland: comparesWithEngland(areaRows),
+      rows: areaRows,
     },
     pair: pair
       ? { periods: pair.periods, areas: pair.areas, england: pair.england, range: pair.range }

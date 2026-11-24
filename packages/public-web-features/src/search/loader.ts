@@ -2,6 +2,7 @@ import {
   type AreaLookup,
   areaLookupListSchema,
   displayGroupListSchema,
+  type IndicatorFacets,
   indicatorFacetsSchema,
   indicatorPeriodFiltersSchema,
   indicatorSearchResultSchema,
@@ -29,7 +30,7 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { topicSort } from '../topic/filters.ts';
 import { searchPageNumber } from './pagination.ts';
-import { DIMENSIONS, PERIOD_PARAMS } from './url.ts';
+import { DIMENSIONS, type DimensionConfig, PERIOD_PARAMS } from './url.ts';
 
 /**
  * The search page reads one page of results at a time. A page number that isn't one of the
@@ -110,6 +111,31 @@ function buildSearchQuery(
   }
 
   return parts.join('&');
+}
+
+/** The values the facets offer for a filter, as the URL writes them. */
+function offeredValues(facets: IndicatorFacets, dim: DimensionConfig): string[] {
+  if (dim.isTopicDimension) return facets.topics.map(({ slug }) => slug);
+  if (dim.stateKey === 'sources') return facets.sources;
+  if (dim.stateKey === 'valueTypes') return facets.valueTypes;
+  if (dim.stateKey === 'yearTypes') return facets.yearTypes;
+  return facets.classifications
+    .filter(({ dimension }) => dimension === dim.classificationDimension)
+    .map(({ slug }) => slug);
+}
+
+/** The query without the filter values the facets don't offer, which no checkbox could untick. */
+function withOfferedValues(
+  params: URLSearchParams,
+  facets: IndicatorFacets,
+  dimensions: DimensionConfig[],
+): URLSearchParams {
+  const offered = new Map(
+    dimensions.map((dim) => [dim.param, new Set(offeredValues(facets, dim))] as const),
+  );
+  return new URLSearchParams(
+    [...params].filter(([name, value]) => offered.get(name)?.has(value) ?? true),
+  );
 }
 
 export async function loadSearch(
@@ -232,27 +258,44 @@ export async function loadSearch(
     throw redirect(`${path}${search ? `?${search}` : ''}`, { status: 302 });
   }
 
-  let searchQuery = buildSearchQuery(query, params, displayGroups, gaCodes);
   const sort = topicSlug
     ? (topicSort(params.get('sort')) ?? 'subtopic-asc')
     : searchSort(params.get('sort'));
-  if (sort !== 'relevance') searchQuery += `${searchQuery ? '&' : ''}sort=${sort}`;
-  if (page !== undefined) {
-    searchQuery += `${searchQuery ? '&' : ''}page=${page.number}&limit=${page.size}`;
-  }
-
-  const [facets, firstResult, geographyOptions] = await Promise.all([
-    api.get(facetsPath, indicatorFacetsSchema),
+  const searchQueryFor = (filters: URLSearchParams) =>
+    [
+      buildSearchQuery(query, filters, displayGroups, gaCodes),
+      sort === 'relevance' ? '' : `sort=${sort}`,
+      page === undefined ? '' : `page=${page.number}&limit=${page.size}`,
+    ]
+      .filter(Boolean)
+      .join('&');
+  const runSearch = (searchQuery: string) =>
     api.get(
       `/api/indicators/search${searchQuery ? `?${searchQuery}` : ''}`,
       indicatorSearchResultSchema,
-    ),
+    );
+  const requestedQuery = searchQueryFor(params);
+
+  const [facets, requestedResult, geographyOptions] = await Promise.all([
+    api.get(facetsPath, indicatorFacetsSchema),
+    runSearch(requestedQuery),
     geographyPreviews
       ? geographyPreviews.then((previews) =>
           loadGeographyOptions(api, params, displayGroups, { publicOnly, previews }),
         )
       : loadGeographyOptions(api, params, displayGroups, { publicOnly }),
   ]);
+
+  // The facets arrive with the results, so a query with a value they don't offer is run again.
+  // A topic page's own topic always applies.
+  const filters = withOfferedValues(
+    params,
+    facets,
+    topicSlug ? DIMENSIONS.filter(({ isTopicDimension }) => !isTopicDimension) : DIMENSIONS,
+  );
+  const searchQuery = searchQueryFor(filters);
+  const firstResult =
+    searchQuery === requestedQuery ? requestedResult : await runSearch(searchQuery);
 
   let searchResult = firstResult;
   if (complete && firstResult.indicators.length < firstResult.total) {
@@ -274,16 +317,16 @@ export async function loadSearch(
 
   return {
     q: query,
-    topics: topicSlug ? [] : pickStrings(params, 't'),
+    topics: topicSlug ? [] : pickStrings(filters, 't'),
     ...(subtopics.length ? { subtopics } : {}),
-    indicatorTypes: pickStrings(params, 'it'),
-    lifeStages: pickStrings(params, 'ls'),
-    frameworks: pickStrings(params, 'fw'),
-    populations: pickStrings(params, 'pg'),
-    inequalities: pickStrings(params, 'eq'),
-    sources: pickStrings(params, 'source'),
-    valueTypes: pickStrings(params, 'vt'),
-    yearTypes: pickStrings(params, 'per'),
+    indicatorTypes: pickStrings(filters, 'it'),
+    lifeStages: pickStrings(filters, 'ls'),
+    frameworks: pickStrings(filters, 'fw'),
+    populations: pickStrings(filters, 'pg'),
+    inequalities: pickStrings(filters, 'eq'),
+    sources: pickStrings(filters, 'source'),
+    valueTypes: pickStrings(filters, 'vt'),
+    yearTypes: pickStrings(filters, 'per'),
     geoLevels: validatedGeo,
     gaCodes,
     gaAreaNames,

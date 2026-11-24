@@ -171,6 +171,7 @@ function NeighbourControl({
 
 export function AreaControls({
   shortId,
+  comparedWithEngland = true,
   group,
   groups,
   areas,
@@ -178,6 +179,8 @@ export function AreaControls({
   englandOnly = false,
 }: {
   shortId: number;
+  /** Whether the areas can be coloured by their comparison with England. */
+  comparedWithEngland?: boolean;
   group: string;
   groups: string[];
   areas: CompareAreaOption[];
@@ -272,9 +275,11 @@ export function AreaControls({
                 id="compare-area-colour"
                 name="areaColour"
                 label="Colour geographies by"
-                value={areaColourMode(params.get('areaColour'))}
+                value={areaColourMode(params.get('areaColour'), comparedWithEngland)}
                 options={[
-                  { label: 'Compared with England', value: 'england' },
+                  ...(comparedWithEngland
+                    ? [{ label: 'Compared with England', value: 'england' }]
+                    : []),
                   { label: '5 equal groups (quintiles)', value: 'quintiles' },
                 ]}
                 onChange={(event) => update('areaColour', event.currentTarget.value)}
