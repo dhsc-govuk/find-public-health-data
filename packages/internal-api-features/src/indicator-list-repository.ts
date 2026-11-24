@@ -1,6 +1,18 @@
 import type { IndicatorListScope } from '@fphd/auth/permissions';
 import { type Database, escapeLike, schema } from '@fphd/db';
-import { and, asc, count, desc, eq, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  notInArray,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import type {
@@ -91,7 +103,9 @@ export interface IndicatorAdminDetailRow extends IndicatorAdminRow {
 }
 
 function scopeCondition(scope: IndicatorListScope): SQL | undefined {
-  return scope.all ? undefined : inArray(indicator.teamId, [...scope.teamIds]);
+  if (!scope.all) return inArray(indicator.teamId, [...scope.teamIds]);
+  const except = scope.exceptTeamIds ?? [];
+  return except.length === 0 ? undefined : notInArray(indicator.teamId, [...except]);
 }
 
 function inNoTeams(scope: IndicatorListScope): boolean {

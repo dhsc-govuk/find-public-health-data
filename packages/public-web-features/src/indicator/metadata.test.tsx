@@ -380,6 +380,7 @@ describe('placeholders', () => {
   it.each([
     ['no-upload', '[Not provided yet]'],
     ['read-models-missing', "[Data isn't shown in the preview yet]"],
+    ['metadata-only', '[Not shown in this preview]'],
   ] as const)('reads %s data as %s where the page needs data', (dataState, text) => {
     renderSummary({ ...indicator, dataState });
 

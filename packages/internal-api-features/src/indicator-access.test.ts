@@ -4,7 +4,11 @@ import { request } from '@fphd/express/testing';
 import { Router } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
+import {
+  guardedIndicator,
+  requireIndicatorAccess,
+  requireIndicatorViewer,
+} from './indicator-access.ts';
 import type { IndicatorAccessRow } from './indicator-list-repository.ts';
 import {
   createRouterTestApp,
@@ -67,7 +71,7 @@ describe('requireIndicatorAccess', () => {
 
   it.each([
     ['no such indicator', undefined],
-    ["another team's indicator", inTeam(OTHER_TEAM_ID)],
+    ["another team's indicator, which a publisher may see but not work on", inTeam(OTHER_TEAM_ID)],
   ])('answers a read or a write of %s as one that does not exist', async (_case, row) => {
     const { app } = createTestApp(row);
 
@@ -81,7 +85,7 @@ describe('requireIndicatorAccess', () => {
     }
   });
 
-  it('refuses a read or a write by a user who may see the indicator but not act on it', async () => {
+  it('refuses a read or a write by a user who works on the indicator but may not act on it', async () => {
     const { app } = createTestApp(inTeam(TEST_TEAM_ID));
 
     for (const method of ['get', 'put'] as const) {
@@ -119,6 +123,51 @@ describe('requireIndicatorAccess', () => {
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ error: 'internal_error' });
+  });
+});
+
+describe('requireIndicatorViewer', () => {
+  function createViewerApp(row: IndicatorAccessRow | undefined) {
+    const router = Router();
+    router.get(
+      '/indicators/:id',
+      requireIndicatorViewer(testSessionVerifier, { findAccess: async () => row }),
+      (_request, response) => {
+        response.status(200).json(guardedIndicator(response));
+      },
+    );
+    const app = createRouterTestApp(router);
+    addFallbackHandlers(app);
+    return app;
+  }
+
+  it("lets a publisher see another team's indicator", async () => {
+    const response = await request(createViewerApp(inTeam(OTHER_TEAM_ID)))
+      .get(`/indicators/${ID}`)
+      .set('Cookie', await publisher());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ id: ID, access: { teamId: OTHER_TEAM_ID, reviewerIds: [] } });
+  });
+
+  it.each([
+    ['no such indicator', undefined],
+    ['an indicator not assigned to them', inTeam(TEST_TEAM_ID)],
+  ])('answers an IMRG reviewer who does not publish %s as not found', async (_case, row) => {
+    const response = await request(createViewerApp(row))
+      .get(`/indicators/${ID}`)
+      .set('Cookie', await testSessionCookie(['imrg-reviewer'], []));
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('answers 400 for an id that is not one', async () => {
+    const response = await request(createViewerApp(inTeam(TEST_TEAM_ID)))
+      .get('/indicators/108')
+      .set('Cookie', await publisher());
+
+    expect(response.status).toBe(400);
   });
 });
 

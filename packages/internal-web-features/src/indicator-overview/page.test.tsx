@@ -44,6 +44,32 @@ function renderPage(overrides: Partial<IndicatorAdminDetail> = {}, canEdit = tru
 }
 
 describe('IndicatorOverviewPage', () => {
+  it('offers a publisher in another team only the metadata-only preview, on an Actions tab alone', () => {
+    render(
+      <MemoryRouter initialEntries={[`/dashboard/indicators/${indicator.id}`]}>
+        <IndicatorOverviewPage
+          canEdit={false}
+          metadataOnly
+          indicator={{
+            ...indicator,
+            indicatorStatus: 'new',
+            draftStatus: 'draft',
+            publishedSlug: null,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Actions']);
+    expect(
+      screen
+        .getByRole('link', { name: 'View indicator preview (metadata only)' })
+        .getAttribute('href'),
+    ).toBe(`/dashboard/indicators/${indicator.id}/preview`);
+    expect(screen.queryByRole('link', { name: /^Continue/ })).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('names the indicator and shows its public number', () => {
     renderPage();
 

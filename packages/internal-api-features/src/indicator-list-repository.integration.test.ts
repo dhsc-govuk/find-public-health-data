@@ -100,6 +100,39 @@ describe('listIndicatorsPage within teams', () => {
     expect(page.total).toBe(1);
   });
 
+  seededRepositoryTest(
+    "lists and counts every indicator outside the given teams'",
+    async ({ db }) => {
+      const inTeamA = await newDraft(db, 'Kiwi sightings in Team A');
+      const inTeamB = await newDraft(db, 'Kiwi sightings in Team B');
+      await db
+        .update(schema.indicator)
+        .set({ teamId: TEAM_IDS.teamB })
+        .where(eq(schema.indicator.id, inTeamB.indicatorId));
+      const every = await listIndicatorsPage(db, 1, 1, EVERY_INDICATOR);
+      const teamA = await listIndicatorsPage(db, 1, 1, { all: false, teamIds: [TEAM_IDS.teamA] });
+
+      const page = await listIndicatorsPage(db, 1, every.total, {
+        all: true,
+        exceptTeamIds: [TEAM_IDS.teamA],
+      });
+
+      const ids = page.indicators.map((row) => row.id);
+      expect(ids).toContain(inTeamB.indicatorId);
+      expect(ids).not.toContain(inTeamA.indicatorId);
+      expect(page.indicators.every((row) => row.teamId !== TEAM_IDS.teamA)).toBe(true);
+      expect(page.total).toBe(every.total - teamA.total);
+    },
+  );
+
+  seededRepositoryTest('lists every indicator when no team is excepted', async ({ db }) => {
+    const every = await listIndicatorsPage(db, 1, 1, EVERY_INDICATOR);
+
+    const page = await listIndicatorsPage(db, 1, 1, { all: true, exceptTeamIds: [] });
+
+    expect(page.total).toBe(every.total);
+  });
+
   seededRepositoryTest('lists nothing for a scope of no teams', async ({ db }) => {
     await expect(listIndicatorsPage(db, 1, 10, { all: false, teamIds: [] })).resolves.toEqual({
       indicators: [],
@@ -935,6 +968,9 @@ describe('the dashboard search', () => {
 
     await expect(
       listIndicatorsPage(db, 1, 10, { all: false, teamIds: [TEAM_IDS.teamB] }, 'platypus'),
+    ).resolves.toEqual({ indicators: [], total: 0 });
+    await expect(
+      listIndicatorsPage(db, 1, 10, { all: true, exceptTeamIds: [TEAM_IDS.teamA] }, 'platypus'),
     ).resolves.toEqual({ indicators: [], total: 0 });
   });
 

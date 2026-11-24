@@ -75,12 +75,34 @@ function primaryIndicator(selected: SelectedIndicator[]) {
   return primary;
 }
 
-interface IndicatorTabContents {
-  indicator: ReactNode;
-  areas: ReactNode;
-  compare: ReactNode;
-  inequalities: ReactNode;
-  about: ReactNode;
+/** Each tab's content. A page with no data tabs, as a metadata-only preview is, has About alone. */
+type IndicatorTabContents =
+  | {
+      indicator: ReactNode;
+      areas: ReactNode;
+      compare: ReactNode;
+      inequalities: ReactNode;
+      about: ReactNode;
+    }
+  | { about: ReactNode };
+
+function dataTabs(tabs: Extract<IndicatorTabContents, { indicator: ReactNode }>) {
+  return [
+    { id: 'indicator-data', param: 'indicator', label: 'Indicator', content: tabs.indicator },
+    { id: 'indicator-compare-areas', param: 'areas', label: 'Compare areas', content: tabs.areas },
+    {
+      id: 'indicator-compare-indicators',
+      param: 'compare',
+      label: 'Compare indicators',
+      content: tabs.compare,
+    },
+    {
+      id: 'indicator-inequalities',
+      param: 'inequalities',
+      label: 'Inequalities',
+      content: tabs.inequalities,
+    },
+  ];
 }
 
 /** The indicator page: its heading, summary and tabs, around whatever content each one has. */
@@ -130,25 +152,7 @@ function IndicatorPageLayout({
         paramKey="tab-indicator"
         title={`${detail.name} contents`}
         items={[
-          { id: 'indicator-data', param: 'indicator', label: 'Indicator', content: tabs.indicator },
-          {
-            id: 'indicator-compare-areas',
-            param: 'areas',
-            label: 'Compare areas',
-            content: tabs.areas,
-          },
-          {
-            id: 'indicator-compare-indicators',
-            param: 'compare',
-            label: 'Compare indicators',
-            content: tabs.compare,
-          },
-          {
-            id: 'indicator-inequalities',
-            param: 'inequalities',
-            label: 'Inequalities',
-            content: tabs.inequalities,
-          },
+          ...('indicator' in tabs ? dataTabs(tabs) : []),
           {
             id: 'indicator-about',
             param: 'about',
@@ -166,22 +170,30 @@ function IndicatorPageLayout({
   );
 }
 
-/** The page of a preview's draft that has no data to show: each data section reads `text`. */
+/**
+ * The page of a preview's draft that has no data to show: each data section reads `text`. A
+ * metadata-only preview leaves the data tabs out.
+ */
 function IndicatorPlaceholderPage({ detail, text }: { detail: IndicatorPageDetail; text: string }) {
   const placeholder = <p className="govuk-body">{text}</p>;
+  const about = <BackgroundInformation indicator={detail} />;
   return (
     <IndicatorPageLayout
       detail={detail}
       contentReady
       compareFirst={false}
       summary={<IndicatorSummary indicator={detail} observations={[]} />}
-      tabs={{
-        indicator: placeholder,
-        areas: placeholder,
-        compare: placeholder,
-        inequalities: placeholder,
-        about: <BackgroundInformation indicator={detail} />,
-      }}
+      tabs={
+        detail.dataState === 'metadata-only'
+          ? { about }
+          : {
+              indicator: placeholder,
+              areas: placeholder,
+              compare: placeholder,
+              inequalities: placeholder,
+              about,
+            }
+      }
     />
   );
 }

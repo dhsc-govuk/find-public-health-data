@@ -154,13 +154,53 @@ test('the draft never shows as a published indicator page', async ({ page }) => 
 test.describe('a publisher in another team', () => {
   test.use({ storageState: TEAM_B_PUBLISHER.storageState });
 
-  test("can't preview a Team A draft, which is not found", async ({ browser, page }) => {
+  test('opens a Team A draft from its overview as a metadata-only preview, under a banner that says so', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const name = uniqueIndicatorName('preview team A');
     const teamA = await browser.newContext({ storageState: PUBLISHER.storageState });
-    const id = await createDraft(await teamA.newPage(), uniqueIndicatorName('preview team A'));
+    const teamAPage = await teamA.newPage();
+    const id = await createDraft(teamAPage, name);
+    await completeDraft(teamAPage, id);
     await teamA.close();
 
-    const response = await page.goto(previewPath(id));
+    await page.goto(`/dashboard/indicators/${id}`);
+    await page.getByRole('link', { name: 'View indicator preview (metadata only)' }).click();
 
-    expect(response?.status()).toBe(404);
+    await expect(page).toHaveURL(previewPath(id));
+    await expect(page.getByRole('region', { name: 'Important' })).toContainText(
+      'This is a preview of the indicator. Only metadata is visible as this indicator belongs to a team you are not in.',
+    );
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await expect(page.getByRole('tab')).toHaveText(['About this indicator']);
+    await expect(answerTo(page, 'Period covered')).toHaveText('[Not shown in this preview]');
+    await expect(answerTo(page, 'Value type')).not.toHaveText('[Not entered yet]');
+    await expect(page.getByRole('link', { name: 'Back to indicator overview' })).toHaveAttribute(
+      'href',
+      `/dashboard/indicators/${id}`,
+    );
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+
+  test("gives a Team A draft's metadata file but none of its data", async ({ browser, page }) => {
+    const name = uniqueIndicatorName('preview team A data');
+    const teamA = await browser.newContext({ storageState: PUBLISHER.storageState });
+    const teamAPage = await teamA.newPage();
+    const id = await createDraft(teamAPage, name);
+    await completeDraft(teamAPage, id);
+    await teamA.close();
+
+    const metadata = await page.request.get(`${previewPath(id)}/metadata.txt`);
+    expect(metadata.status()).toBe(200);
+    expect(await metadata.text()).toContain(`Indicator: ${name}`);
+
+    for (const path of [
+      'table.csv',
+      'all-data.csv',
+      `indicators/search?q=${encodeURIComponent(name)}`,
+    ]) {
+      expect((await page.request.get(`${previewPath(id)}/${path}`)).status(), path).toBe(404);
+    }
   });
 });

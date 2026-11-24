@@ -5,6 +5,7 @@ import {
   canReviewIndicator,
   canSeeIndicatorHistory,
   canSeeNotesForReviewers,
+  canWorkOnIndicator,
   canWriteReviewerNotes,
 } from '@fphd/auth/permissions';
 import {
@@ -84,6 +85,7 @@ export async function loadIndicatorOverview({ context, params, request }: Loader
 
   return {
     canEdit: session !== undefined && canEditIndicator(session, indicator),
+    metadataOnly: session !== undefined && !canWorkOnIndicator(session, access),
     isReviewer: session !== undefined && canReviewIndicator(session, access),
     indicator,
     notesForReviewers,

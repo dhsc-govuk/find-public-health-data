@@ -203,6 +203,32 @@ it("reads a placeholder in each data section of a preview's draft with no data t
   ).toBeTruthy();
 });
 
+it('leaves the data tabs out of a metadata-only preview, keeping About this indicator', async () => {
+  const { detail } = selected(241, 'Diabetes prevalence', 7.9);
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      Component: () => (
+        <SingleIndicatorPage
+          detail={{ ...detail, dataState: 'metadata-only', unanswered: [] }}
+          dataPlaceholder="[Not shown in this preview]"
+        />
+      ),
+    },
+  ]);
+  render(<Routes initialEntries={['/indicator/indicator-241']} />);
+
+  await screen.findByRole('heading', { level: 1, name: 'Diabetes prevalence' });
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+    'About this indicator',
+  ]);
+  expect(
+    within(screen.getByRole('tabpanel', { name: 'About this indicator' })).getByRole('heading', {
+      name: 'Data attributes',
+    }),
+  ).toBeTruthy();
+});
+
 it.each([
   [79, true],
   [null, false],

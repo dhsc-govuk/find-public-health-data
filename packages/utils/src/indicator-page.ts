@@ -9,8 +9,13 @@ export type IndicatorQuestion = (typeof INDICATOR_QUESTIONS)[number];
 
 /**
  * Whether a preview can show a draft's data: it has none uploaded, its data has no read models
- * yet, or its data is ready.
+ * yet, its data is ready, or the user may see only its metadata.
  */
-export const INDICATOR_DATA_STATES = ['no-upload', 'read-models-missing', 'ready'] as const;
+export const INDICATOR_DATA_STATES = [
+  'no-upload',
+  'read-models-missing',
+  'ready',
+  'metadata-only',
+] as const;
 
 export type IndicatorDataState = (typeof INDICATOR_DATA_STATES)[number];

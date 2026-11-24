@@ -194,4 +194,32 @@ test.describe('as a publisher in another team', () => {
     }
     await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
   });
+
+  test("refuses every write to another team's draft as not found, and changes nothing", async ({
+    browser,
+    page,
+  }) => {
+    const publisher = await browser.newContext({ storageState: PUBLISHER.storageState });
+    const ownerPage = await publisher.newPage();
+    const id = await createDraft(ownerPage, uniqueIndicatorName('task-list other team writes'));
+    const base = `/publish/indicators/${id}`;
+    const polarityVersion = await shownVersion(ownerPage, `${base}/polarity`);
+
+    const writes: [string, Record<string, string>][] = [
+      [`${base}/polarity`, { polarity: 'higher-is-better', version: polarityVersion }],
+      [`${base}/name`, { name: uniqueIndicatorName('renamed by another team') }],
+      [`${base}/sample-answers`, {}],
+      [`${base}/task-list`, {}],
+      [`${base}/start-update`, {}],
+      [`${base}/withdraw-submission`, {}],
+    ];
+    for (const [path, form] of writes) {
+      const response = await page.request.post(path, { form, maxRedirects: 0 });
+      expect(response.status(), path).toBe(404);
+    }
+
+    await ownerPage.goto(`${base}/task-list`);
+    await expect(taskRow(ownerPage, 'Polarity')).toContainText('Incomplete');
+    await publisher.close();
+  });
 });

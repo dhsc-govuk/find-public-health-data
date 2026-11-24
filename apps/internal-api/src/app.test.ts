@@ -657,12 +657,27 @@ describe('internal API', () => {
 
 describe('the indicator routes', () => {
   const id = '00000000-0000-7000-8000-000000000001';
+  const preview = `/api/internal/indicators/${id}/preview`;
   const routes = [
     ['a section read', 'get', `/api/internal/indicators/${id}/polarity`],
     ['a section write', 'put', `/api/internal/indicators/${id}/polarity`],
+    ['a rename', 'patch', `/api/internal/indicators/${id}`],
     ['a workflow step', 'post', `/api/internal/indicators/${id}/submit`],
+    ['the task list', 'get', `/api/internal/indicators/${id}/task-list`],
+    ['the start of an update', 'post', `/api/internal/indicators/${id}/draft`],
+    ['a data upload', 'post', `/api/internal/indicators/${id}/data-uploads`],
+    ['the data table check', 'get', `/api/internal/indicators/${id}/data-table`],
+    ['the revision response', 'get', `/api/internal/indicators/${id}/revision-response`],
+    ['the notes for reviewers', 'get', `/api/internal/indicators/${id}/notes-for-reviewers`],
+    ['the history', 'get', `/api/internal/indicators/${id}/history`],
+    ['the reviewer notes', 'get', `/api/internal/indicators/${id}/reviewer-notes`],
+    ['a reviewer note', 'post', `/api/internal/indicators/${id}/reviewer-notes`],
+    ['a withdrawal', 'post', `/api/internal/indicators/${id}/withdraw`],
+    ['the preview data', 'get', `${preview}/api/indicators/108/data`],
+  ] as const;
+  const detailRoutes = [
     ['the detail route', 'get', `/api/internal/indicators/${id}`],
-    ['the preview', 'get', `/api/internal/indicators/${id}/preview/api/indicators/108`],
+    ['the preview detail', 'get', `${preview}/api/indicators/108`],
   ] as const;
 
   function createTeamBApp() {
@@ -681,7 +696,7 @@ describe('the indicator routes', () => {
     expect(response.body).toEqual({ error: 'not_found' });
   });
 
-  it.each(routes.slice(0, 3))(
+  it.each(routes.slice(0, 4))(
     'answer an admin, who may see the indicator but not edit it, 403 on %s',
     async (_, method, path) => {
       const response = await request(createTeamBApp())
@@ -693,14 +708,17 @@ describe('the indicator routes', () => {
     },
   );
 
-  it.each(routes)('answer 400 for an id that is not one on %s', async (_, method, path) => {
-    const response = await request(createTeamBApp())
-      [method](path.replace(id, 'not-an-id'))
-      .set('Cookie', await createCookie(['publisher']));
+  it.each([...routes, ...detailRoutes])(
+    'answer 400 for an id that is not one on %s',
+    async (_, method, path) => {
+      const response = await request(createTeamBApp())
+        [method](path.replace(id, 'not-an-id'))
+        .set('Cookie', await createCookie(['publisher']));
 
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'invalid_id' });
-  });
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: 'invalid_id' });
+    },
+  );
 });
 
 // One probe per kind of public router: the preview's own behaviour is tested in
@@ -761,6 +779,78 @@ describe('the indicator preview', () => {
   ])('mounts %s on the preview repositories', async (path) => {
     const response = await request(app)
       .get(`${prefix}${path}`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(200);
+  });
+
+  const teamB = createTestApp(
+    createFakeRepositories(),
+    createFakeInternalRepositories({
+      indicators: { findAccess: async () => ({ ...stepRow, teamId: TEAM_IDS.teamB }) },
+      preview: {
+        findVersion: async () => ({ id: 'version-id', slug: 'a-draft' }),
+        // Short id 108 is the previewed indicator, and 555 another one.
+        repositoriesFor: () => ({
+          ...previewed,
+          indicators: {
+            ...previewed.indicators,
+            resolveId: async (shortId: number) => (shortId === 108 ? id : 'another-id'),
+          },
+          findDataState: async () => 'ready',
+        }),
+      },
+    }),
+  );
+
+  it("answers a publisher in another team another indicator's detail as not found", async () => {
+    const response = await request(teamB)
+      .get(`${prefix}/api/indicators/555`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('answers a publisher in another team the detail alone, as metadata only', async () => {
+    const response = await request(teamB)
+      .get(`${prefix}/api/indicators/108`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      name: 'A draft',
+      unanswered: ['polarity'],
+      dataState: 'metadata-only',
+    });
+  });
+
+  it.each([
+    '/api/indicators/108/',
+    '/api/indicators/a-draft',
+    '/api/indicators/108/data',
+    '/api/indicators/108/areas',
+    '/api/indicators/search?q=draft',
+    '/api/indicators/Search?q=draft',
+    '/api/indicators/SEARCH?q=draft',
+    '/api/indicators/facets',
+    '/api/indicators/%73earch?q=draft',
+    '/api/indicators?q=draft',
+    '/api/indicator-data?indicator=108',
+    '/api/areas/lookup?areaCode=E92000001',
+    '/api/topics',
+  ])('answers a publisher in another team not found for %s', async (path) => {
+    const response = await request(teamB)
+      .get(`${prefix}${path}`)
+      .set('Cookie', await createCookie(['publisher']));
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'not_found' });
+  });
+
+  it('serves the search in any case to a user who works on the indicator', async () => {
+    const response = await request(app)
+      .get(`${prefix}/api/indicators/Search?q=draft`)
       .set('Cookie', await createCookie(['publisher']));
 
     expect(response.status).toBe(200);

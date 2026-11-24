@@ -14,9 +14,12 @@ export interface IndicatorAccess {
   readonly reviewerIds: readonly string[];
 }
 
-/** The indicators a list shows: every one, or those of the given teams. */
+/**
+ * The indicators a list shows: every one, less those of any teams in `exceptTeamIds`, or those of
+ * the given teams.
+ */
 export type IndicatorListScope =
-  | { readonly all: true }
+  | { readonly all: true; readonly exceptTeamIds?: readonly string[] }
   | { readonly all: false; readonly teamIds: readonly string[] };
 
 const INTERNAL_ROLES: readonly Role[] = ['publisher', 'imrg-manager', 'imrg-reviewer', 'admin'];
@@ -123,8 +126,8 @@ export function canReadReviewerNotes(
 
 /**
  * Whether the user may read what the publisher wrote for the indicator's reviewers. It admits
- * the users `canSeeIndicator` does, and is kept apart from it so the notes stay closed to anyone
- * a wider overview access lets in later.
+ * the users `canWorkOnIndicator` does, and is kept apart from it so the notes stay closed to
+ * anyone a wider access to the indicator's work lets in later.
  */
 export function canSeeNotesForReviewers(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
@@ -136,8 +139,9 @@ export function canSeeNotesForReviewers(user: SessionUser, indicator: IndicatorA
 }
 
 /**
- * Whether the user may read the indicator's history. It admits the users `canSeeIndicator` does,
- * and is kept apart from it so a wider overview access decides the history on its own.
+ * Whether the user may read the indicator's history. It admits the users `canWorkOnIndicator`
+ * does, and is kept apart from it so a wider access to the indicator's work decides the history
+ * on its own.
  */
 export function canSeeIndicatorHistory(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
@@ -148,13 +152,26 @@ export function canSeeIndicatorHistory(user: SessionUser, indicator: IndicatorAc
   );
 }
 
-export function canSeeIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {
+/**
+ * Whether the user works on the indicator: an admin, an IMRG manager, one of its editors or one
+ * of its assigned reviewers. Only they may open anything of the indicator's beyond its overview
+ * and its metadata-only preview, and the API answers anyone else as if it did not exist.
+ */
+export function canWorkOnIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {
   return (
     holds(user, 'admin') ||
     holds(user, 'imrg-manager') ||
     canEditIndicator(user, indicator) ||
     canReviewIndicator(user, indicator)
   );
+}
+
+/**
+ * Whether the user may see the indicator's overview and preview. A publisher sees every team's
+ * indicators, read only, and the preview shows them only the metadata of one they don't work on.
+ */
+export function canSeeIndicator(user: SessionUser, indicator: IndicatorAccess): boolean {
+  return canEditIndicators(user) || canWorkOnIndicator(user, indicator);
 }
 
 export function canAssignReviewers(user: SessionUser): boolean {
@@ -189,6 +206,14 @@ export function canBrowseAllIndicators(user: SessionUser): boolean {
   return holds(user, 'admin');
 }
 
+/**
+ * Whether the dashboard lists the user's teams' indicators apart from every other team's: a
+ * publisher, unless they browse every indicator in one list.
+ */
+export function canBrowseOtherTeamsIndicators(user: SessionUser): boolean {
+  return canEditIndicators(user) && !canBrowseAllIndicators(user);
+}
+
 export function canSeeTeamsAndUsers(user: SessionUser): boolean {
   return holds(user, 'admin');
 }
@@ -198,12 +223,26 @@ export function canSeeTeamsAndUsers(user: SessionUser): boolean {
  * assigned to review an indicator adds nothing to the scope.
  */
 export function indicatorListScope(user: SessionUser): IndicatorListScope {
-  if (holds(user, 'admin') || holds(user, 'imrg-manager')) return { all: true };
+  if (holds(user, 'admin') || holds(user, 'imrg-manager') || canEditIndicators(user)) {
+    return { all: true };
+  }
 
-  return ownTeamsListScope(user);
+  return { all: false, teamIds: [] };
+}
+
+/** The teams the user publishes for. */
+function publishingTeams(user: SessionUser): readonly string[] {
+  return canEditIndicators(user) ? user.teams : [];
 }
 
 /** The indicators of the teams the user publishes for, however many more they may see. */
 export function ownTeamsListScope(user: SessionUser): IndicatorListScope {
-  return { all: false, teamIds: holds(user, 'publisher') ? user.teams : [] };
+  return { all: false, teamIds: publishingTeams(user) };
+}
+
+/** The indicators the user may see outside the teams they publish for. */
+export function otherTeamsListScope(user: SessionUser): IndicatorListScope {
+  return indicatorListScope(user).all
+    ? { all: true, exceptTeamIds: publishingTeams(user) }
+    : { all: false, teamIds: [] };
 }
