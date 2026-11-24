@@ -1,33 +1,5 @@
 import type { ObservationPeriodType } from '@fphd/utils/observation-series';
-import { desc, type SQLWrapper, sql } from 'drizzle-orm';
-
-export function headlineSeriesOrder(
-  series: {
-    dimensionKey: SQLWrapper;
-    valueCount: SQLWrapper;
-    periodLength: SQLWrapper;
-    firstPoint: SQLWrapper;
-  },
-  dimensions: {
-    dimensionValue: SQLWrapper;
-    dimensionType: SQLWrapper;
-  },
-) {
-  const key = sql`(select coalesce(string_agg(dt.name || ':' || dv.name, '|'
-    order by dt.name COLLATE "C", key.position), '')
-    from unnest(string_to_array(${series.dimensionKey}, ',')::uuid[])
-      with ordinality as key(id, position)
-    join ${dimensions.dimensionValue} dv on dv.id = key.id
-    join ${dimensions.dimensionType} dt on dt.id = dv.dimension_type_id
-    )`;
-  return [
-    sql`cardinality(string_to_array(${series.dimensionKey}, ','))`,
-    desc(series.valueCount),
-    desc(series.periodLength),
-    sql`${series.firstPoint} COLLATE "C"`,
-    sql`${key} COLLATE "C"`,
-  ];
-}
+import { type SQLWrapper, sql } from 'drizzle-orm';
 
 export function observationPeriodSql(fromDate: SQLWrapper, toDate: SQLWrapper) {
   const months = sql`((extract(year from ${toDate} + 1) - extract(year from ${fromDate})) * 12

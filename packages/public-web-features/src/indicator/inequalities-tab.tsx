@@ -9,7 +9,6 @@ import {
 } from '@fphd/ui';
 import { Form, useLocation, useNavigation } from 'react-router';
 import { InequalitiesChart } from './charts/bar-chart.tsx';
-import { englandCode } from './charts/chart-data.ts';
 import { availablePeriodTypes } from './data.ts';
 import { inequalityTableModel } from './inequalities.ts';
 import type { SelectedIndicator } from './loader.ts';
@@ -132,13 +131,9 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                   id="indicator-inequalities-chart"
                   indicator={detail}
                   confidence={inequality.confidence}
-                  comparisonConfidence={inequalityConfidence}
+                  benchmark={inequalityBenchmark}
                   observations={inequalityRows}
                   areaName={inequalityArea?.areaName ?? 'England'}
-                  englandObservations={
-                    primary.areaData.find(({ areaCode }) => areaCode === englandCode)
-                      ?.observations ?? []
-                  }
                 />
               </div>
               <InequalitiesTable

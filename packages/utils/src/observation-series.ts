@@ -1,6 +1,7 @@
+import { isoDurationDays } from './age-range.ts';
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 5;
+export const OBSERVATION_SERIES_VERSION = 6;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
 export type ObservationPeriodType = `${number}-year` | `${number}-month` | `${number}-day`;
@@ -13,12 +14,18 @@ export function isObservationPeriodType(value: unknown): value is ObservationPer
     Number.isSafeInteger(Number.parseInt(value, 10))
   );
 }
+export const AGE_DIMENSION_NAME = 'Age';
+export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 
 interface SeriesObservation {
   fromDate: string;
   toDate: string;
-  dimensions: { type: string; value: string }[];
-  value?: number | null;
+  dimensions: {
+    type: string;
+    value: string;
+    ageFrom?: string | undefined;
+    ageUnder?: string | undefined;
+  }[];
 }
 
 export function observationSegmentKey(observation: SeriesObservation): string {
@@ -100,35 +107,77 @@ function compareKeys(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/**
+ * How an observation's age ranks for the headline, higher first: an age with no upper limit, the
+ * earlier start first, then a closed range, the longer first, then no age range at all.
+ * `ageRankSql` in `@fphd/db` is the same rule in SQL.
+ */
+export function ageRank({ dimensions }: SeriesObservation): [number, number] {
+  for (const { ageFrom, ageUnder } of dimensions) {
+    const from = ageFrom === undefined ? undefined : isoDurationDays(ageFrom);
+    if (from === undefined) continue;
+    if (ageUnder === undefined) return [1, -from];
+    const under = isoDurationDays(ageUnder);
+    if (under !== undefined) return [0, under - from];
+  }
+  return [-1, 0];
+}
+
+/**
+ * The series a page shows for a set of observations: the segment with the fewest dimensions other
+ * than age, then the newest period, suppressed or not, then the fewest dimensions, then the widest
+ * age (see `ageRank`), then the most points, then the longest period type, then the earliest first
+ * point, then the dimension key (type name, then the input order of values with that type). Each
+ * segment shares a dimension key and a calendar-based period type. `headlineOrder` in `@fphd/db`
+ * is the same rule in SQL, with the dimension key supplied by its callers.
+ */
 export function headlineSeries<T extends SeriesObservation>(observations: T[]): T[] {
-  if (!observations.length) return [];
-  const groups = new Map<string, T[]>();
+  const segments = new Map<
+    string,
+    {
+      points: T[];
+      others: number;
+      latest: string;
+      dimensions: number;
+      age: [number, number];
+      first: string;
+      periodLength: number;
+      dimensionKey: string;
+    }
+  >();
   for (const point of observations) {
     const key = observationSeriesKey(point);
-    const group = groups.get(key) ?? [];
-    group.push(point);
-    groups.set(key, group);
+    const segment = segments.get(key) ?? {
+      points: [],
+      others: point.dimensions.filter(({ type }) => type !== AGE_DIMENSION_NAME).length,
+      latest: '',
+      dimensions: point.dimensions.length,
+      age: ageRank(point),
+      first: `${point.fromDate}:${point.toDate}`,
+      periodLength: periodTypeLength(observationPeriodType(point)),
+      dimensionKey: observationSegmentKey(point),
+    };
+    segment.points.push(point);
+    if (point.toDate > segment.latest) segment.latest = point.toDate;
+    const first = `${point.fromDate}:${point.toDate}`;
+    if (first < segment.first) segment.first = first;
+    segments.set(key, segment);
   }
-  const ordered = [...groups.values()].map((points) => ({
-    points: points.sort(
-      (a, b) => compareKeys(a.fromDate, b.fromDate) || compareKeys(a.toDate, b.toDate),
-    ),
-    values: points.filter(({ value }) => value != null).length,
-  }));
-  ordered.sort((a, b) => {
-    const first = a.points[0];
-    const second = b.points[0];
-    if (!first || !second) return 0;
-    return (
-      first.dimensions.length - second.dimensions.length ||
-      b.values - a.values ||
-      periodTypeLength(observationPeriodType(second)) -
-        periodTypeLength(observationPeriodType(first)) ||
-      compareKeys(`${first.fromDate}:${first.toDate}`, `${second.fromDate}:${second.toDate}`) ||
-      compareKeys(observationSegmentKey(first), observationSegmentKey(second))
-    );
-  });
-  return ordered[0]?.points ?? [];
+  const [winner] = [...segments.values()].sort(
+    (a, b) =>
+      a.others - b.others ||
+      b.latest.localeCompare(a.latest) ||
+      a.dimensions - b.dimensions ||
+      b.age[0] - a.age[0] ||
+      b.age[1] - a.age[1] ||
+      b.points.length - a.points.length ||
+      b.periodLength - a.periodLength ||
+      compareKeys(a.first, b.first) ||
+      compareKeys(a.dimensionKey, b.dimensionKey),
+  );
+  return (winner?.points ?? []).sort(
+    (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
+  );
 }
 
 export interface SeriesFilter {

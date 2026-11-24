@@ -1,7 +1,7 @@
 import { observationSegmentKey } from '@fphd/utils/observation-series';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
-import { headlineSeriesOrder } from './observation-series-sql.ts';
+import { dimensionKeyOrder } from './headline-order.ts';
 import { dimensionType, dimensionValue } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
@@ -34,17 +34,12 @@ it('matches the JavaScript key including the input order of values with the same
     ])
     .returning();
   for (const ordered of [values, [...values].reverse()]) {
-    const order = headlineSeriesOrder(
-      {
-        dimensionKey: sql`${ordered.map(({ id }) => id).join(',')}`,
-        valueCount: sql`1`,
-        periodLength: sql`1`,
-        firstPoint: sql`''`,
-      },
-      { dimensionValue, dimensionType },
-    );
+    const order = dimensionKeyOrder(sql`${ordered.map(({ id }) => id).join(',')}`, {
+      dimensionValue,
+      dimensionType,
+    });
     const [row] = await db
-      .select({ key: sql<string>`${order[4]}` })
+      .select({ key: sql<string>`${order}` })
       .from(sql`(values (1)) fixture(id)`);
     expect(row?.key).toBe(
       observationSegmentKey({

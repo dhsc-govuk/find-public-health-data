@@ -176,9 +176,9 @@ it('keeps the history fallback when the elected populations differ', () => {
     {
       code: 'A',
       x: 10,
-      y: 20,
+      y: 21,
       xPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
-      yPeriod: { fromDate: '2014-01-01', toDate: '2016-12-31' },
+      yPeriod: { fromDate: '2024-01-01', toDate: '2024-12-31' },
     },
   ]);
   const rankings = indicators.map((entry) => ({

@@ -143,6 +143,12 @@
       "types": "./src/standard-methods.ts",
       "default": "./dist/standard-methods.js"
     },
+    "./age-range": {
+      "browser": "./src/age-range.ts",
+      "development": "./src/age-range.ts",
+      "types": "./src/age-range.ts",
+      "default": "./dist/age-range.js"
+    },
     "./tidy-name": {
       "browser": "./src/tidy-name.ts",
       "development": "./src/tidy-name.ts",

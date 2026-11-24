@@ -61,6 +61,24 @@ describe('fresh core-data setup', () => {
   });
 });
 
+it('deletes the age ranges no longer in the file', async () => {
+  const database = await createTestDb({ template: 'core' });
+  try {
+    const [dropped, ...kept] = records.dimensionValueAgeRanges;
+    if (!dropped) throw new Error('Missing age range fixture');
+    const result = await importReferenceCoreData(database.sql, {
+      ...records,
+      dimensionValueAgeRanges: kept,
+    });
+    expect(result.dimensionValueAgeRanges.orphaned).toEqual([]);
+    expect(
+      await database.sql`SELECT id FROM dimension_value_age_range WHERE id = ${dropped.id}`,
+    ).toEqual([]);
+  } finally {
+    await database.drop();
+  }
+});
+
 it('reports extra reference rows and records nothing in the audit log for a changed row', async () => {
   const database = await createTestDb({ template: 'core' });
   try {

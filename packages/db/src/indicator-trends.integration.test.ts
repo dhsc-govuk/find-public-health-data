@@ -17,6 +17,7 @@ import {
   areaType,
   dimensionType,
   dimensionValue,
+  dimensionValueAgeRange,
   IMPORTED_INDICATOR_TEAM_ID,
   indicator,
   indicatorVersion,
@@ -128,6 +129,7 @@ async function publishedIndicator(
   return { id: identity.id, versionId: version.id, batchId: batch.id };
 }
 
+/** Adds a series of yearly values ending in 2019, so series of any length end together. */
 async function addSeries(
   fixture: { id: string; batchId: string },
   areaId: string,
@@ -141,8 +143,8 @@ async function addSeries(
       values.map((value, index) => ({
         indicatorId: fixture.id,
         areaId,
-        fromDate: `${2010 + index}-01-01`,
-        toDate: `${2010 + index + years - 1}-12-31`,
+        fromDate: `${2021 - values.length + index - years}-01-01`,
+        toDate: `${2020 - values.length + index}-12-31`,
         value,
         dimensionKey: dimensionKey(seriesDimensions.map(({ id }) => id)),
         uploadBatchId: fixture.batchId,
@@ -173,6 +175,42 @@ it.each([0, 1])(
     );
   },
 );
+
+it('prefers the widest age over a band in it with more points', async () => {
+  const age = dimensions.find(({ name }) => name === 'Age');
+  if (!age) throw new Error('Age fixture missing');
+  const bands = await database.db
+    .insert(dimensionValue)
+    .values([
+      { dimensionTypeId: age.dimensionTypeId, name: '18-74 yrs' },
+      { dimensionTypeId: age.dimensionTypeId, name: '70-74 yrs' },
+    ])
+    .returning();
+  const [whole, band] = bands;
+  if (!whole || !band) throw new Error('Age band fixtures missing');
+  await database.db.insert(dimensionValueAgeRange).values([
+    {
+      id: whole.id,
+      ageFromValue: 18,
+      ageFromUnit: 'year',
+      ageUnderValue: 75,
+      ageUnderUnit: 'year',
+    },
+    {
+      id: band.id,
+      ageFromValue: 70,
+      ageFromUnit: 'year',
+      ageUnderValue: 75,
+      ageUnderUnit: 'year',
+    },
+  ]);
+  const fixture = await publishedIndicator('Age trend fixture');
+  await addSeries(fixture, englandId, [1, 2, 3, 4, 5], [whole]);
+  await addSeries(fixture, englandId, [7, 6, 5, 4, 3, 2, 1], [band]);
+  expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
+    new Map([[fixture.id, 'up']]),
+  );
+});
 
 it("works out the trend of the same series choice for another area, ignoring England's cache", async () => {
   const fixture = await publishedIndicator('Area trend fixture');
@@ -256,10 +294,22 @@ describe('getTopicTrendSummary', () => {
   });
 });
 
-it('breaks equal non-null history counts by period length for England and local trends', async () => {
+it('counts suppressed points before period length for England and local trends', async () => {
   const fixture = await publishedIndicator('Period length trend tie');
   for (const areaId of [englandId, westSussexId]) {
     await addSeries(fixture, areaId, [1, 2, 3, 4, 5, null]);
+    await addSeries(fixture, areaId, [5, 4, 3, 2, 1], [], 7);
+  }
+  for (const code of ['E92000001', WEST_SUSSEX])
+    expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
+      new Map([[fixture.id, 'up']]),
+    );
+});
+
+it('breaks equal point counts by period length for England and local trends', async () => {
+  const fixture = await publishedIndicator('Equal point count period length tie');
+  for (const areaId of [englandId, westSussexId]) {
+    await addSeries(fixture, areaId, [1, 2, 3, 4, 5]);
     await addSeries(fixture, areaId, [5, 4, 3, 2, 1], [], 7);
   }
   for (const code of ['E92000001', WEST_SUSSEX])
@@ -372,22 +422,28 @@ it.each([
   'breaks month/day trend ties for %i months and %i days as %s',
   async (months, days, trend) => {
     const fixture = await publishedIndicator(`Month day trend tie ${months} ${days}`);
-    const points = Array.from({ length: 5 }, (_, index) => [
-      {
-        fromDate: `${2050 + index}-09-01`,
-        toDate: new Date(Date.UTC(2050 + index, 8 + months, 0)).toISOString().slice(0, 10),
-        value: index + 1,
-        dimensions: [],
-      },
-      {
-        fromDate: `${2050 + index}-02-01`,
-        toDate: new Date(Date.parse(`${2050 + index}-02-01`) + (days - 1) * 86_400_000)
-          .toISOString()
-          .slice(0, 10),
-        value: 5 - index,
-        dimensions: [],
-      },
-    ]).flat();
+    const month = months === 1 ? (days === 30 ? 1 : 2) : days === 91 ? 7 : 1;
+    const points = Array.from({ length: 5 }, (_, index) => {
+      const toDate = new Date(Date.UTC(2050 + index, month - 1 + months, 14))
+        .toISOString()
+        .slice(0, 10);
+      return [
+        {
+          fromDate: `${2050 + index}-${String(month).padStart(2, '0')}-15`,
+          toDate,
+          value: index + 1,
+          dimensions: [],
+        },
+        {
+          fromDate: new Date(Date.parse(toDate) - (days - 1) * 86_400_000)
+            .toISOString()
+            .slice(0, 10),
+          toDate,
+          value: 5 - index,
+          dimensions: [],
+        },
+      ];
+    }).flat();
     expect(headlineSeries(points).map(({ value }) => value)).toEqual(
       trend === 'up' ? [1, 2, 3, 4, 5] : [5, 4, 3, 2, 1],
     );

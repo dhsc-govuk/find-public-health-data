@@ -347,9 +347,19 @@ it('pairs the latest financial and three-year values independently for each area
           value: financial ? 0 : 20,
         };
         return [
-          { ...latest, fromDate: '2019-01-01', toDate: '2019-12-31', value: 5 },
+          {
+            ...latest,
+            fromDate: financial ? '2019-04-01' : '2017-01-01',
+            toDate: financial ? '2020-03-31' : '2019-12-31',
+            value: 5,
+          },
           latest,
-          { ...latest, fromDate: '2026-01-01', toDate: '2026-12-31', value: null },
+          {
+            ...latest,
+            fromDate: financial ? '2026-04-01' : '2024-01-01',
+            toDate: financial ? '2027-03-31' : '2026-12-31',
+            value: null,
+          },
         ];
       }),
     );

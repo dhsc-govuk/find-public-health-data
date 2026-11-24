@@ -1,13 +1,14 @@
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { parseReferenceData } from '@fphd/db-operations';
+import { parseReferenceData, referenceDataSchema } from '@fphd/db-operations';
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
 
 import { readGzipCsv } from '../csv.ts';
 import { rekeyTable } from '../prepare-baseline.ts';
 import { writePreparedDirectory } from '../prepared-directory.ts';
 import { tidyReferenceTables } from '../reference-names.ts';
+import { ageRanges } from './age-ranges.ts';
 import { exportDimensions } from './dimensions.ts';
 import { exportGeography } from './geography.ts';
 import { exportNoteTypes } from './lookups.ts';
@@ -65,6 +66,7 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
     const pool = await connectToPholio(options.connectionString);
     const source = { name: options.expectedDatabase };
     const rowCounts = new Map<string, number>();
+    const ageYears = new Map<string, { min: number; max: number }>();
     try {
       const [identity] = await queryPholio<{ name: string }>(pool, 'SELECT DB_NAME() AS name');
       if (identity?.name !== source.name)
@@ -74,6 +76,13 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       const geography = await exportGeography(context);
       const dimensions = await exportDimensions(context);
       const notes = await exportNoteTypes(context);
+      const ages = await queryPholio<{ AgeID: number; MinYears: number; MaxYears: number }>(
+        pool,
+        'SELECT AgeID, MinYears, MaxYears FROM L_Ages WHERE MinYears IS NOT NULL AND MaxYears IS NOT NULL',
+      );
+      for (const age of ages) {
+        ageYears.set(String(age.AgeID), { min: age.MinYears, max: age.MaxYears });
+      }
       for (const [table, file] of Object.entries({
         ...geography.tables,
         ...dimensions.tables,
@@ -94,11 +103,22 @@ export async function exportCoreReferenceData(options: CoreReferenceOptions): Pr
       if (rows.length !== file.rows) throw new Error(`Missing lookup rows for ${table}`);
       lookupRows[key] = rows;
     }
-    const lookups = parseReferenceData(lookupRows);
+    const lookups = parseReferenceData({
+      ...lookupRows,
+      dimensionValueAgeRanges: ageRanges(
+        referenceDataSchema.shape.dimensionTypes.parse(lookupRows.dimensionTypes),
+        referenceDataSchema.shape.dimensionValues.parse(lookupRows.dimensionValues),
+        ageYears,
+      ),
+    });
     for (const key of Object.keys(lookupTables) as (keyof typeof lookupTables)[]) {
       const file = `${lookupTables[key].replace('_', '-')}s.json`;
       await writeFile(join(staged, file), `${JSON.stringify(lookups[key], null, 2)}\n`);
     }
+    await writeFile(
+      join(staged, 'dimension-value-age-ranges.json'),
+      `${JSON.stringify(lookups.dimensionValueAgeRanges, null, 2)}\n`,
+    );
 
     const geographyDir = join(staged, 'geography');
     await mkdir(geographyDir);

@@ -1,3 +1,4 @@
+import { AGE_UNITS } from '@fphd/utils/age-range';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import type { SeriesPeriodType } from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
@@ -118,6 +119,16 @@ export const publishedDimensionValue = publishedSchema
     code: text('code'),
     sortOrder: integer('sort_order').notNull(),
     isAggregate: boolean('is_aggregate').notNull(),
+  })
+  .existing();
+
+export const publishedDimensionValueAgeRange = publishedSchema
+  .view('dimension_value_age_range', {
+    id: uuid('id').notNull(),
+    ageFromValue: smallint('age_from_value').notNull(),
+    ageFromUnit: text('age_from_unit', { enum: AGE_UNITS }).notNull(),
+    ageUnderValue: smallint('age_under_value'),
+    ageUnderUnit: text('age_under_unit', { enum: AGE_UNITS }),
   })
   .existing();
 
@@ -395,6 +406,7 @@ export const publishedViews = {
   dataSource: publishedDataSource,
   dimensionType: publishedDimensionType,
   dimensionValue: publishedDimensionValue,
+  dimensionValueAgeRange: publishedDimensionValueAgeRange,
   noteType: publishedNoteType,
   subtopic: publishedSubtopic,
   topic: publishedTopic,

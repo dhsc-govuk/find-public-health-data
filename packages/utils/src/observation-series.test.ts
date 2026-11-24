@@ -240,10 +240,11 @@ it('elects the same headline regardless of input order', () => {
     ...history('Z', 9, [1, null]),
     ...winner,
   ];
-  expect(headlineSeries(candidates)).toEqual(winner);
-  expect(headlineSeries([...candidates].reverse())).toEqual(winner);
+  const newest = history('Z', 9, [1, null]);
+  expect(headlineSeries(candidates)).toEqual(newest);
+  expect(headlineSeries([...candidates].reverse())).toEqual(newest);
   const earlier = history('ZZ', 7, [1, 2], 2010);
-  expect(headlineSeries([...winner, ...earlier])).toEqual(earlier);
+  expect(headlineSeries([...winner, ...earlier])).toEqual(winner);
   const tied = history('A', 7, [1, 2]);
   expect(headlineSeries([...winner, ...tied])).toEqual(tied);
   expect(headlineSeries([...tied, ...winner])).toEqual(tied);
@@ -384,4 +385,20 @@ it('keeps 500 and 550 day histories separate from annual and biennial histories'
       point,
     ]);
   expect(headlineSeries(observations)[0]?.value).toBe(730);
+});
+
+it('counts suppressed points before period length and period length before the first point', () => {
+  const history = (years: number, values: (number | null)[]) =>
+    values.map((value, index) => ({
+      fromDate: `${2025 - values.length + index - years}-01-01`,
+      toDate: `${2024 - values.length + index}-12-31`,
+      value,
+      dimensions: [],
+    }));
+  const annual = history(1, [1, 2, null]);
+  const rolling = history(7, [1, 2]);
+  expect(headlineSeries([...annual, ...rolling])).toEqual(annual);
+  const tied = history(1, [1, 2]);
+  expect(headlineSeries([...tied, ...rolling])).toEqual(rolling);
+  expect(headlineSeries([...rolling, ...tied])).toEqual(rolling);
 });

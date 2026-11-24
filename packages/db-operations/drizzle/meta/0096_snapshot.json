@@ -1,5 +1,5 @@
 {
-  "id": "98b470c5-5f5c-48b4-80ce-7933b46ebc5b",
+  "id": "795c9cf4-e091-4c30-bb76-cfc1df9f117b",
   "prevId": "91a3b7e0-0ff3-4e19-abc9-54c3b9db7b72",
   "version": "7",
   "dialect": "postgresql",
@@ -394,13 +394,6 @@
       "name": "observation_series_batch",
       "schema": "",
       "columns": {
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "trend_values": {
           "name": "trend_values",
           "type": "double precision[]",
@@ -858,6 +851,72 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.dimension_value_age_range": {
+      "name": "dimension_value_age_range",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "age_from_value": {
+          "name": "age_from_value",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_from_unit": {
+          "name": "age_from_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_under_value": {
+          "name": "age_under_value",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_under_unit": {
+          "name": "age_under_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dimension_value_age_range_id_dimension_value_id_fk": {
+          "name": "dimension_value_age_range_id_dimension_value_id_fk",
+          "tableFrom": "dimension_value_age_range",
+          "tableTo": "dimension_value",
+          "columnsFrom": [
+            "id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "dimension_value_age_range_age_from_unit_check": {
+          "name": "dimension_value_age_range_age_from_unit_check",
+          "value": "\"dimension_value_age_range\".\"age_from_unit\" IN ('year', 'month', 'week', 'day')"
+        },
+        "dimension_value_age_range_age_under_check": {
+          "name": "dimension_value_age_range_age_under_check",
+          "value": "(\"dimension_value_age_range\".\"age_under_value\" IS NULL) = (\"dimension_value_age_range\".\"age_under_unit\" IS NULL) AND \"dimension_value_age_range\".\"age_under_unit\" IN ('year', 'month', 'week', 'day')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.area": {
@@ -5213,6 +5272,44 @@
       "isExisting": true,
       "materialized": false
     },
+    "published.dimension_value_age_range": {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_from_value": {
+          "name": "age_from_value",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_from_unit": {
+          "name": "age_from_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_under_value": {
+          "name": "age_under_value",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_under_unit": {
+          "name": "age_under_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "name": "dimension_value_age_range",
+      "schema": "published",
+      "isExisting": true,
+      "materialized": false
+    },
     "published.indicator": {
       "columns": {
         "id": {
@@ -5907,12 +6004,6 @@
     },
     "published.observation_series_batch": {
       "columns": {
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "trend_values": {
           "name": "trend_values",
           "type": "double precision[]",

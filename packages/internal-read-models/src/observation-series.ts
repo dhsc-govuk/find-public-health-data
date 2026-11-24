@@ -1,6 +1,8 @@
 import {
   type Database,
-  headlineSeriesOrder,
+  dimensionKeyOrder,
+  dimensionKeyRank,
+  headlineOrder,
   observationPeriodSql,
   periodLengthSql,
   schema,
@@ -19,10 +21,13 @@ const {
   area,
   dimensionType,
   dimensionValue,
+  dimensionValueAgeRange,
   observationSeries,
   observationSeriesBatch,
   observation,
 } = schema;
+
+const headlineDimensions = { dimensionType, dimensionValue, dimensionValueAgeRange };
 
 type Executor = Database | Transaction;
 type PeriodType = schema.ObservationSeriesVariant['periodType'];
@@ -39,6 +44,10 @@ function recentNonNull<T>(
   )`;
 }
 
+/**
+ * Inserts the series a table or ranking shows for each area, sex and period type of one
+ * indicator's published data, in the order `headlineOrder` gives.
+ */
 async function insertSeries(
   tx: Executor,
   indicatorId: string,
@@ -102,7 +111,8 @@ async function insertSeries(
            WHERE position(${sexValues.id} in ${points.dimensionKey}) > 0 LIMIT 1),
           ''
         )`.as('sex'),
-        length: count(points.value).as('length'),
+        length: count().as('length'),
+        latestPeriod: sql<string>`max(${points.toDate})`.as('latest_period'),
         firstPoint: sql<string>`min(${points.fromDate}::text || ':' || ${points.toDate}::text)`.as(
           'first_point',
         ),
@@ -189,14 +199,36 @@ async function insertSeries(
       ),
   );
 
-  // An all-period choice elects one complete series, so different lengths never share a history.
+  // Ranking a dimension key looks up its dimensions and age, so each distinct key is ranked once.
+  const keys = tx
+    .$with('keys')
+    .as(tx.selectDistinct({ dimensionKey: segments.dimensionKey }).from(segments));
+  const rank = dimensionKeyRank(keys.dimensionKey, headlineDimensions);
+  const keyRanks = tx.$with('key_ranks').as(
+    tx
+      .select({
+        rankedKey: sql<string>`${keys.dimensionKey}`.as('ranked_key'),
+        otherDimensions: rank.otherDimensions.as('other_dimensions'),
+        dimensions: rank.dimensions.as('dimension_count'),
+        ageOpen: rank.ageOpen.as('age_open'),
+        ageSpan: rank.ageSpan.as('age_span'),
+      })
+      .from(keys),
+  );
+
+  // Each segment is a candidate for all sexes together and for its own sex.
   const candidateColumns = {
     areaId: segments.areaId,
     dimensionKey: segments.dimensionKey,
     periodType: segments.periodType,
     length: segments.length,
+    latestPeriod: segments.latestPeriod,
     firstPoint: segments.firstPoint,
     periodLength: periodLengthSql(segments.periodType).as('period_length'),
+    otherDimensions: keyRanks.otherDimensions,
+    dimensions: keyRanks.dimensions,
+    ageOpen: keyRanks.ageOpen,
+    ageSpan: keyRanks.ageSpan,
     latestId: segments.latestId,
     rankingId: segments.rankingId,
     recentIds: segments.recentIds,
@@ -211,6 +243,7 @@ async function insertSeries(
         periodType: sql<PeriodType>`${seriesChoices.periodType}`.as('period_type'),
       })
       .from(segments)
+      .innerJoin(keyRanks, eq(keyRanks.rankedKey, segments.dimensionKey))
       .innerJoin(
         seriesChoices,
         and(
@@ -237,15 +270,8 @@ async function insertSeries(
         candidates.areaId,
         candidates.sex,
         candidates.periodType,
-        ...headlineSeriesOrder(
-          {
-            dimensionKey: candidates.dimensionKey,
-            valueCount: candidates.length,
-            periodLength: candidates.periodLength,
-            firstPoint: candidates.firstPoint,
-          },
-          { dimensionValue, dimensionType },
-        ),
+        ...headlineOrder(candidates),
+        dimensionKeyOrder(candidates.dimensionKey, headlineDimensions),
       ),
   );
 
@@ -258,15 +284,8 @@ async function insertSeries(
           and ${choices.periodType} = ${winners.periodType})`)
       .orderBy(
         winners.areaId,
-        ...headlineSeriesOrder(
-          {
-            dimensionKey: winners.dimensionKey,
-            valueCount: winners.length,
-            periodLength: winners.periodLength,
-            firstPoint: winners.firstPoint,
-          },
-          { dimensionValue, dimensionType },
-        ),
+        ...headlineOrder(winners),
+        dimensionKeyOrder(winners.dimensionKey, headlineDimensions),
       ),
   );
   const variants = tx.$with('variants').as(
@@ -303,6 +322,8 @@ async function insertSeries(
       areas,
       choices,
       seriesChoices,
+      keys,
+      keyRanks,
       candidates,
       winners,
       headlines,
@@ -331,8 +352,8 @@ async function insertSeries(
 }
 
 /**
- * The recent values of England's plainest 'all periods' series, the trend a topic page shows
- * for the indicator, or null when England has no data.
+ * The recent values of England's headline series, elected by `headlineOrder` across period types,
+ * or null when England has no data.
  */
 async function englandTrend(
   tx: Executor,
@@ -356,17 +377,16 @@ async function englandTrend(
       observationPeriodSql(observation.fromDate, observation.toDate),
     )
     .orderBy(
-      ...headlineSeriesOrder(
-        {
-          dimensionKey: observation.dimensionKey,
-          valueCount: count(observation.value),
-          periodLength: periodLengthSql(
-            observationPeriodSql(observation.fromDate, observation.toDate),
-          ),
-          firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
-        },
-        { dimensionValue, dimensionType },
-      ),
+      ...headlineOrder({
+        ...dimensionKeyRank(observation.dimensionKey, headlineDimensions),
+        latestPeriod: sql`max(${observation.toDate})`,
+        length: count(),
+        periodLength: periodLengthSql(
+          observationPeriodSql(observation.fromDate, observation.toDate),
+        ),
+        firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
+      }),
+      dimensionKeyOrder(observation.dimensionKey, headlineDimensions),
     )
     .limit(1);
   return trend?.values ?? null;

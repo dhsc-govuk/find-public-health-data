@@ -31,6 +31,22 @@ describe('inequality table model', () => {
     expect(model.area?.areaName).toBe('North East');
     expect(model.areas.map(({ areaName }) => areaName)).toEqual(['North East']);
   });
+  it('keeps judging at the best available level when intervals are hidden', () => {
+    const indicator = selected();
+    for (const { observations } of indicator.areaData) {
+      for (const row of observations) {
+        row.lowerCi95 = null;
+        row.upperCi95 = null;
+      }
+    }
+    const shown = inequalityTableModel(indicator, new URLSearchParams()).rows.map(
+      ({ comparison }) => comparison,
+    );
+    const hidden = inequalityTableModel(indicator, new URLSearchParams('ci-108=none'));
+    expect(shown).not.toContain('none');
+    expect(hidden.confidence).toBe('none');
+    expect(hidden.rows.map(({ comparison }) => comparison)).toEqual(shown);
+  });
   it('does not compare with another sex when England lacks the matching segment', () => {
     const indicator = selected();
     const england = indicator.areaData[0];
@@ -38,4 +54,19 @@ describe('inequality table model', () => {
     england.observations = england.observations.filter(({ value }) => value !== 20);
     expect(inequalityTableModel(indicator, new URLSearchParams()).benchmark).toBeUndefined();
   });
+});
+
+it.each([false, true])('matches England to the shown period type with annual=%s', (annual) => {
+  const indicator = selected();
+  const england = indicator.areaData.find(({ areaCode }) => areaCode === 'E92000001');
+  const matching = england?.observations.find(({ value }) => value === 20);
+  if (!england || !matching) throw new Error('Missing England fixture');
+  england.observations = [
+    ...england.observations.filter(({ value }) => value !== 20),
+    ...(annual ? [matching] : []),
+    { ...matching, fromDate: '2022-01-01', value: 90 },
+  ];
+  const model = inequalityTableModel(indicator, new URLSearchParams());
+  expect(model.benchmark?.value).toBe(annual ? 20 : undefined);
+  if (!annual) expect(model.rows.every(({ comparison }) => comparison === 'none')).toBe(true);
 });

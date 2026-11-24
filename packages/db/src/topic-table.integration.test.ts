@@ -337,7 +337,7 @@ it('uses polarity to put improving or worsening trends first', async () => {
   }
 });
 
-it('selects the longest valid trend among equally disaggregated series', async () => {
+it('follows the series with the newest period, even when its values are suppressed', async () => {
   const [source] = await db
     .select()
     .from(indicatorVersion)
@@ -414,7 +414,8 @@ it('selects the longest valid trend among equally disaggregated series', async (
       })),
     );
   }
+  // Male runs a year later than Female, so it is the headline, and it has no values to trend.
   expect((await indicatorTrendDirections(db, publishedViews, [identity.id])).get(identity.id)).toBe(
-    'up',
+    null,
   );
 });

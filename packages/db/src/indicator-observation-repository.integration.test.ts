@@ -106,3 +106,16 @@ it('keeps different area headlines when the first area selects an aggregate comp
     );
   }
 });
+
+it('gives each age its range, with no upper end for an open-ended age', async () => {
+  const data = await getIndicatorObservationData(db, publishedViews, ids, ['E92000001']);
+  const ages = new Map(
+    [...data.values()]
+      .flatMap(({ areaData }) => areaData.flatMap((area) => area.observations))
+      .flatMap(({ dimensions }) => dimensions)
+      .filter(({ type }) => type === 'Age')
+      .map(({ value, ageFrom, ageUnder }) => [value, { ageFrom, ageUnder }]),
+  );
+  expect(ages.get('0-4 yrs')).toEqual({ ageFrom: 'P0Y', ageUnder: 'P5Y' });
+  expect(ages.get('90+ yrs')).toEqual({ ageFrom: 'P90Y', ageUnder: undefined });
+});

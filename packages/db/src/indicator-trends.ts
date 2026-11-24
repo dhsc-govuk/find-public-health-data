@@ -2,18 +2,16 @@ import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/obser
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
-import {
-  headlineSeriesOrder,
-  observationPeriodSql,
-  periodLengthSql,
-} from './observation-series-sql.ts';
+import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
+import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 /**
- * The trend of each indicator's least-disaggregated, longest series in one area, from its five
- * latest valid values. Indicators without a single value for the area, such as those whose
- * values are all suppressed, are left out of the result. England reads the trend values cached
- * at publication and works out only the ones missing.
+ * The trend of each indicator's headline series in one area, from its five latest valid values.
+ * The series is chosen once per indicator, in the order `headlineOrder` gives, not per sex and
+ * period type as the stored series are. Indicators without a single value for the area, such as those
+ * whose values are all suppressed, are left out of the result. England reads the trend values
+ * cached at publication and works out only the ones missing.
  */
 export async function indicatorTrendDirections(
   db: DatabaseReader,
@@ -48,15 +46,6 @@ async function areaTrendDirections(
   areaCode: string,
 ): Promise<Map<string, TrendDirection>> {
   const { area, observation } = views;
-  const order = headlineSeriesOrder(
-    {
-      dimensionKey: sql`segment`,
-      valueCount: sql`count(value)`,
-      periodLength: periodLengthSql(sql`period_type`),
-      firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
-    },
-    views,
-  );
   const rows = await db.execute<{ indicator_id: string; values: number[] }>(sql`
     with points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
@@ -70,7 +59,16 @@ async function areaTrendDirections(
       select distinct on (indicator_id) indicator_id, segment, period_type,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
       from points group by indicator_id, segment, period_type
-      order by indicator_id, ${sql.join(order, sql`, `)}
+      order by indicator_id, ${sql.join(
+        headlineOrder({
+          ...dimensionKeyRank(sql`segment`, views),
+          latestPeriod: sql`max(to_date)`,
+          length: sql`count(*)`,
+          periodLength: periodLengthSql(sql`period_type`),
+          firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
+        }),
+        sql`, `,
+      )}, ${dimensionKeyOrder(sql`segment`, views)}
     )
     select s.indicator_id,
       coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)

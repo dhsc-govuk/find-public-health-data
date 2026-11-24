@@ -11,6 +11,7 @@ it('holds complete lookup rows under unique stable ids and names', () => {
     areaTypes: 101,
     dimensionTypes: 154,
     dimensionValues: 1392,
+    dimensionValueAgeRanges: 311,
     noteTypes: 236,
   });
 });
@@ -25,6 +26,32 @@ it.each([
     'quality',
   );
   expect(readSeedTable('note_type').find((note) => note.text === text)?.category).toBe('quality');
+});
+
+it('refuses an age range for a dimension value that does not exist', () => {
+  const records = readReferenceData();
+  const [first] = records.dimensionValueAgeRanges;
+
+  expect(() =>
+    parseReferenceData({
+      ...records,
+      dimensionValueAgeRanges: [{ ...first, id: '019de0d5-c800-7000-8000-000000000000' }],
+    }),
+  ).toThrow(/names an unknown dimension value/);
+});
+
+it('refuses an age range for a value that is not an age band', () => {
+  const records = readReferenceData();
+  const [first] = records.dimensionValueAgeRanges;
+  const ageTypeId = records.dimensionValues.find(({ id }) => id === first?.id)?.dimensionTypeId;
+  const other = records.dimensionValues.find(
+    ({ dimensionTypeId }) => dimensionTypeId !== ageTypeId,
+  );
+  if (!first || !other) throw new Error('Missing fixtures');
+
+  expect(() =>
+    parseReferenceData({ ...records, dimensionValueAgeRanges: [{ ...first, id: other.id }] }),
+  ).toThrow(/isn't an age band/);
 });
 
 it('refuses duplicate lookup ids and names before import', () => {

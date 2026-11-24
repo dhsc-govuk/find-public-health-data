@@ -15,6 +15,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  max,
   min,
   notInArray,
   or,
@@ -23,8 +24,10 @@ import {
 } from 'drizzle-orm';
 import { alias, union } from 'drizzle-orm/pg-core';
 import type { DatabaseReader } from './client.ts';
+import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
+import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export async function getCachedScatterAreas(
@@ -161,10 +164,6 @@ async function getCachedScatterVariants(
     db
       .select({
         dimensionKey: keys.dimensionKey,
-        labelKey:
-          sql<string>`string_agg(${dimensionType.name} || ':' || ${dimensionValue.name}, '|' order by ${dimensionType.name})`.as(
-            'label_key',
-          ),
         sex: sql<
           string | null
         >`max(case when ${dimensionType.name} = 'Sex' then ${dimensionValue.name} end)`.as(
@@ -193,6 +192,7 @@ async function getCachedScatterVariants(
         toDate: candidates.toDate,
         value: candidates.value,
         dimensionKey: candidates.dimensionKey,
+        periodType: observationPeriodSql(candidates.fromDate, candidates.toDate).as('period_type'),
         sex: variants.sex,
       })
       .from(candidates)
@@ -224,14 +224,12 @@ async function getCachedScatterVariants(
         indicatorId: points.indicatorId,
         sex: sql<string>`${points.sex}`.as('segment_sex'),
         dimensionKey: points.dimensionKey,
-        dimensions: sql<number>`cardinality(string_to_array(${points.dimensionKey}, ','))`.as(
-          'dimension_count',
-        ),
+        periodType: points.periodType,
         length: count().as('segment_length'),
+        latestPeriod: max(points.toDate).as('segment_latest_period'),
         firstPoint: min(sql<string>`${points.fromDate}::text || ':' || ${points.toDate}::text`).as(
           'first_point',
         ),
-        labelKey: min(dimensions.labelKey).as('segment_key'),
       })
       .from(points)
       .innerJoin(
@@ -258,7 +256,7 @@ async function getCachedScatterVariants(
           eq(firstAreas.areaId, points.areaId),
         ),
       )
-      .groupBy(points.indicatorId, points.sex, points.dimensionKey),
+      .groupBy(points.indicatorId, points.sex, points.dimensionKey, points.periodType),
   );
   const references = db.$with('scatter_references').as(
     db
@@ -266,7 +264,6 @@ async function getCachedScatterVariants(
         indicatorId: segments.indicatorId,
         sex: sql<string>`${segments.sex}`.as('reference_sex'),
         dimensionKey: segments.dimensionKey,
-        dimensions: sql<number>`${segments.dimensions}`.as('reference_dimension_count'),
         length: sql<number>`${segments.length}`.as('reference_length'),
         firstPoint: sql<string>`${segments.firstPoint}`.as('reference_first_point'),
       })
@@ -274,11 +271,14 @@ async function getCachedScatterVariants(
       .orderBy(
         segments.indicatorId,
         segments.sex,
-        segments.dimensions,
-        desc(segments.length),
-        segments.firstPoint,
-        segments.labelKey,
-        segments.dimensionKey,
+        ...headlineOrder({
+          ...dimensionKeyRank(segments.dimensionKey, views),
+          latestPeriod: segments.latestPeriod,
+          length: segments.length,
+          periodLength: periodLengthSql(segments.periodType),
+          firstPoint: segments.firstPoint,
+        }),
+        dimensionKeyOrder(segments.dimensionKey, views),
       ),
   );
   const chosen = db.$with('scatter_chosen').as(

@@ -22,6 +22,7 @@ export {
   resolveDbLogin,
   resolveDbTls,
 } from './env.ts';
+export { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
 export {
   completeIndicatorDetail,
   type FoundIndicatorDetail,
@@ -52,7 +53,6 @@ export {
 export { escapeLike } from './like-pattern.ts';
 export { observationRangeSql, observationSegmentSql } from './observation-range-sql.ts';
 export {
-  headlineSeriesOrder,
   observationPeriodSql,
   periodLengthSql,
 } from './observation-series-sql.ts';
