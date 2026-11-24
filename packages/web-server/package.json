@@ -108,8 +108,7 @@
     "express": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-router": "catalog:",
-    "uuid": "catalog:"
+    "react-router": "catalog:"
   },
   "devDependencies": {
     "@fphd/ui": "workspace:*",

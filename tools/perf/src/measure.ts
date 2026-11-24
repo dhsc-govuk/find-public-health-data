@@ -26,21 +26,14 @@ export async function signIn(): Promise<Sessions> {
 /** Session cookies for one fake user. */
 async function signInAs(userId: string): Promise<string> {
   const origin = ORIGINS['internal-web'];
-  const started = await fetch(`${origin}/auth/sign-in`, {
+  const response = await fetch(`${origin}/auth/sign-in`, {
     method: 'POST',
     body: new URLSearchParams({ userId }),
     redirect: 'manual',
   });
-  const callback = started.headers.get('location');
-  if (started.status !== 303 || callback === null) {
-    throw new Error(`Sign-in answered ${started.status}, expected a 303 to the callback`);
-  }
-  const finished = await fetch(new URL(callback, origin), { redirect: 'manual' });
-  const cookies = finished.headers.getSetCookie().map((cookie) => cookie.split(';')[0]);
-  if (finished.status !== 303 || cookies.length === 0) {
-    throw new Error(
-      `The sign-in callback answered ${finished.status}, expected a 303 setting a session`,
-    );
+  const cookies = response.headers.getSetCookie().map((cookie) => cookie.split(';')[0]);
+  if (response.status !== 303 || cookies.length === 0) {
+    throw new Error(`Sign-in answered ${response.status}, expected a 303 setting a session`);
   }
   return cookies.join('; ');
 }
