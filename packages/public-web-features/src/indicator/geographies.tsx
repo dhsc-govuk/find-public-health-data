@@ -1,10 +1,11 @@
-import { CollapsibleFilterCard } from '@fphd/ui';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate, useNavigation } from 'react-router';
 import { normalizePublicLevels } from '../geography/groups.ts';
 import type { GeographyOptions } from '../geography/loader.ts';
 import { GeographyPicker } from '../geography/picker.tsx';
 import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
+import type { AreaTypeNotice } from './area-type-notice.ts';
+import { GeographiesCard } from './geographies-card.tsx';
 import { useIndicatorLinks } from './links.ts';
 import type { IndicatorSelection } from './loader.ts';
 import { indicatorSelectionUrl, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
@@ -16,6 +17,7 @@ export function IndicatorGeographies({
   geographyOptions,
   selection,
   englandBenchmark = true,
+  notice,
 }: {
   children?: ReactNode;
   shortId: number;
@@ -24,6 +26,8 @@ export function IndicatorGeographies({
   selection: IndicatorSelection;
   /** Whether choosing a first area also ticks the England benchmark, which needs an England value. */
   englandBenchmark?: boolean;
+  /** What the panel says about the area types the indicator has no data for, if anything. */
+  notice?: AreaTypeNotice | undefined;
 }) {
   const location = useLocation();
   const navigation = useNavigation();
@@ -50,12 +54,7 @@ export function IndicatorGeographies({
   return (
     <div className="fphd-indicator-geographies">
       <h2 className="govuk-heading-m">Geographies</h2>
-      <CollapsibleFilterCard
-        active
-        headingLevel={null}
-        title="Geographies"
-        onClear={picked ? urlFor([], []) : undefined}
-      >
+      <GeographiesCard notice={notice} onClear={picked ? urlFor([], []) : undefined}>
         <GeographyPicker
           lookupUrl={`${links.geographies}?indicator=${shortId}&scheme=public`}
           searchLabel="Search for a geography"
@@ -80,7 +79,7 @@ export function IndicatorGeographies({
               <input key={`${name}-${index}`} name={name} type="hidden" value={value} />
             ))}
         </GeographyPicker>
-      </CollapsibleFilterCard>
+      </GeographiesCard>
       {children}
     </div>
   );

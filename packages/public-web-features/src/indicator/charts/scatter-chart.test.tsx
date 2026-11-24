@@ -88,6 +88,22 @@ it.each([false, true])(
   },
 );
 
+it('names England alone in the key when England is the only geography with data', () => {
+  render(
+    <CompareIndicatorsChart
+      selected={indicators}
+      group=""
+      englandOnly
+      scatter={{ points: [point('E92000001', 5, 6)] }}
+    />,
+  );
+  expect(
+    within(screen.getByRole('list', { name: 'Chart key' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  ).toEqual(['England']);
+});
+
 it('names the highlighted area and population and uses the prototype markers', () => {
   const { container } = render(
     <CompareIndicatorsChart

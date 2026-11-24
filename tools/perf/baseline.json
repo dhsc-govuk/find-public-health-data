@@ -126,10 +126,10 @@
     "bytes": 27754
   },
   "public-web /indicator/diabetes-qof-prevalence": {
-    "statements": 18,
-    "buffers": 38017,
-    "rows": 2583,
-    "bytes": 406046
+    "statements": 19,
+    "buffers": 39305,
+    "rows": 2589,
+    "bytes": 388479
   },
   "public-web /indicator/diabetes-qof-prevalence/table.csv": {
     "statements": 10,
@@ -138,16 +138,16 @@
     "bytes": 573
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&compareWith=92443&as=E07000223&as=E07000032": {
-    "statements": 31,
-    "buffers": 61070,
-    "rows": 5243,
-    "bytes": 511332
+    "statements": 32,
+    "buffers": 61295,
+    "rows": 5249,
+    "bytes": 489368
   },
   "public-web /indicator/diabetes-qof-prevalence?tab-indicator=compare&find=mortality": {
-    "statements": 19,
-    "buffers": 38044,
-    "rows": 2587,
-    "bytes": 408853
+    "statements": 20,
+    "buffers": 39318,
+    "rows": 2593,
+    "bytes": 390857
   },
   "public-web /indicator/under-75-mortality-rate-from-all-causes/all-data.csv": {
     "statements": 10,

@@ -30,6 +30,7 @@ import { loadGeographyOptions } from '../geography/loader.ts';
 import { MAX_SELECTED_AREAS, MAX_SELECTED_INDICATORS } from '../selection-limits.ts';
 import { areaComparisonOptions } from './area-comparison.ts';
 import { loadAreaData } from './area-data.ts';
+import { areaTypeNotice } from './area-type-notice.ts';
 import { loadInBatches } from './batches.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
@@ -96,6 +97,8 @@ export interface IndicatorPageData {
   detail: IndicatorPageDetail;
   compared: IndicatorPageDetail | undefined;
   groups: { displayGroup: string; areas: { code: string; name: string }[] }[];
+  /** Every area type in the area catalogue, or none when it could not be loaded. */
+  catalogueGroups: Promise<string[]> | string[];
 }
 
 // Charts and tables with dozens of series are unreadable long before they are slow, so the
@@ -408,10 +411,19 @@ export async function loadIndicatorData(
           };
         });
 
+  const routeIndicator = selected.find(({ detail }) => detail.shortId === routeDetail?.shortId);
   return {
     selected,
     selectedAreas,
     displayGroups,
+    areaTypeNotice: page
+      ? areaTypeNotice({
+          catalogueLevels: publicGeographyLevels(await page.catalogueGroups),
+          indicatorLevels: displayGroups,
+          areaTypes: page.detail.areaTypes,
+          areaData: routeIndicator?.areaData ?? [],
+        })
+      : undefined,
     benchmarkGeography,
     findSubject,
     findResults,

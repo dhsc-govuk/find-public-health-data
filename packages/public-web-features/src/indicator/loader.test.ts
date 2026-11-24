@@ -1190,3 +1190,136 @@ describe('loadIndicator for an indicator with no England value', () => {
     ).toHaveLength(1);
   });
 });
+
+describe('loadIndicatorPage notices of area types without data', () => {
+  const nhsRegions = {
+    displayGroup: 'NHS regions',
+    areas: [{ code: 'E40000003', name: 'London' }],
+  };
+  const englandValue = {
+    'GET /api/indicators/108/data': (call: FakeApiCall) => areaData(call, [observation(10)]),
+  };
+
+  const covering = (...names: string[]) => ({
+    'GET /api/indicators/indicator-108': {
+      ...indicatorDetail(108),
+      areaTypes: names.map((name) => ({ name, areaCount: 1 })),
+    },
+  });
+
+  it('says England is the only geography when the data covers England alone', async () => {
+    const client = api({
+      ...covering('England'),
+      'GET /api/indicators/indicator-108/areas': [],
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBe('england-only');
+    expect((await page.comparison).englandOnly).toBe(true);
+  });
+
+  it.each([
+    [
+      'GP practices',
+      'GPs',
+      [{ displayGroup: 'GP practices', areas: [{ code: 'A81001', name: 'GP' }] }],
+    ],
+    ['trusts', 'Acute Trust', []],
+  ])('says nothing when the data also covers %s', async (_kind, name, groups) => {
+    const client = api({
+      ...covering('England', name),
+      'GET /api/indicators/indicator-108/areas': groups,
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBeUndefined();
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('keeps comparisons available when the data load fails and there is no area type to compare', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [],
+      'GET /api/indicators/108/data': fails(new Response('Bad Gateway', { status: 502 })),
+    });
+
+    const page = await loadPage(args(client));
+    await expect(page.data).rejects.toMatchObject({ status: 502 });
+
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('says nothing when the data covers England alone and England has no value', async () => {
+    const client = api({
+      ...covering('England'),
+      'GET /api/indicators/indicator-108/areas': [],
+    });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBeUndefined();
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('points out an area type the catalogue holds and the indicator has no data for', async () => {
+    const client = api(englandValue);
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBe('others-unavailable');
+    expect((await page.comparison).englandOnly).toBe(false);
+  });
+
+  it('says nothing when the indicator has data for every area type the catalogue holds', async () => {
+    const client = api({
+      'GET /api/indicators/indicator-108/areas': [...localAuthorities, nhsRegions],
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    expect((await page.data).areaTypeNotice).toBeUndefined();
+    expect(paths(client)).toContain('/api/areas/display-groups');
+  });
+
+  it('asks for the area catalogue without waiting for the areas, and for the page only', async () => {
+    const client = api(englandValue);
+    const areas = Promise.withResolvers<void>();
+    const delayed: FakeApiClient = {
+      ...client,
+      get: async (path, schema) => {
+        if (path.includes('/indicator-108/areas')) await areas.promise;
+        return client.get(path, schema);
+      },
+    };
+    const page = await loadPage(
+      args(delayed, 'http://localhost/indicator/indicator-108.data?tab-indicator=indicator'),
+    );
+    try {
+      expect(paths(client)).toContain('/api/areas/display-groups');
+    } finally {
+      areas.resolve();
+      await Promise.all([page.data, page.comparison]);
+    }
+
+    const csv = api(englandValue);
+    await loadIndicator(args(csv));
+    expect(paths(csv)).not.toContain('/api/areas/display-groups');
+  });
+
+  it('loads the page without the notice when the area catalogue cannot be loaded', async () => {
+    const client = api({
+      'GET /api/areas/display-groups': fails(new Response('Bad Gateway', { status: 502 })),
+      ...englandValue,
+    });
+
+    const page = await loadPage(args(client));
+
+    const data = await page.data;
+    expect(data.areaTypeNotice).toBeUndefined();
+    expect(data.selected).toHaveLength(1);
+  });
+});

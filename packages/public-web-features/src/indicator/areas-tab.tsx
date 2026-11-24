@@ -34,6 +34,7 @@ export function CompareAreasTab({
   comparisonDisplayGroups,
   areaChart,
   compareAreaRanges = [],
+  englandOnly,
 }: ComparisonTabProps) {
   const { detail } = primary;
   const location = useLocation();
@@ -86,11 +87,13 @@ export function CompareAreasTab({
   return (
     <>
       <h2 className="govuk-heading-l">Compare areas</h2>
-      <p className="govuk-body">
-        {detail.name} for every {comparisonGeography} in England, most recent{' '}
-        {comparison.multiYear ? 'multi-year' : 'single-year'} data
-        {comparisonPeriod ? ` (${comparisonPeriod})` : ''}.
-      </p>
+      {englandOnly ? null : (
+        <p className="govuk-body">
+          {detail.name} for every {comparisonGeography} in England, most recent{' '}
+          {comparison.multiYear ? 'multi-year' : 'single-year'} data
+          {comparisonPeriod ? ` (${comparisonPeriod})` : ''}.
+        </p>
+      )}
       <GridRow>
         <GridColumn width="one-quarter">
           <div ref={detailRef}>
@@ -107,37 +110,40 @@ export function CompareAreasTab({
               group={compareAreaGroup}
               groups={comparisonDisplayGroups}
               areas={areaOptions}
+              englandOnly={englandOnly}
             />
           </div>
         </GridColumn>
         <GridColumn width="three-quarters">
-          <div className="fphd-indicator-showing">
-            <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
-            <FilterChips collapse>
-              <FilterChip value={compareAreaGroup}>{compareAreaGroup}</FilterChip>
-              {shownAreas.map(({ code, name }) => (
-                <FilterChip
-                  key={code}
-                  value={code}
-                  onRemove={areasTabUrl(withoutHighlightedArea(params, areaOptions, code))}
-                  removeLabel={name}
+          {englandOnly ? null : (
+            <div className="fphd-indicator-showing">
+              <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
+              <FilterChips collapse>
+                <FilterChip value={compareAreaGroup}>{compareAreaGroup}</FilterChip>
+                {shownAreas.map(({ code, name }) => (
+                  <FilterChip
+                    key={code}
+                    value={code}
+                    onRemove={areasTabUrl(withoutHighlightedArea(params, areaOptions, code))}
+                    removeLabel={name}
+                    replace
+                  >
+                    {name}
+                  </FilterChip>
+                ))}
+              </FilterChips>
+              {shownAreas.length ? (
+                <Link
+                  className="govuk-link govuk-body-s"
+                  preventScrollReset
                   replace
+                  to={areasTabUrl(withoutHighlightedAreas(params))}
                 >
-                  {name}
-                </FilterChip>
-              ))}
-            </FilterChips>
-            {shownAreas.length ? (
-              <Link
-                className="govuk-link govuk-body-s"
-                preventScrollReset
-                replace
-                to={areasTabUrl(withoutHighlightedAreas(params))}
-              >
-                Clear all
-              </Link>
-            ) : null}
-          </div>
+                  Clear all
+                </Link>
+              ) : null}
+            </div>
+          )}
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <GridRow className="fphd-area-table-layout">
             <GridColumn width="one-half" className="fphd-area-table">
@@ -153,9 +159,11 @@ export function CompareAreasTab({
             </GridColumn>
             <GridColumn width="one-half" className="fphd-map-space">
               <h2 className="govuk-heading-s govuk-!-margin-bottom-2">Map view</h2>
-              <p className="govuk-body-s">
-                Map of {detail.name} by {geographyGroupLabel(compareAreaGroup)} in England.
-              </p>
+              {englandOnly ? null : (
+                <p className="govuk-body-s">
+                  Map of {detail.name} by {geographyGroupLabel(compareAreaGroup)} in England.
+                </p>
+              )}
               <div className="fphd-indicator-chart fphd-indicator-chart--map">
                 <ChartSection
                   id="indicator-area-map"

@@ -255,6 +255,7 @@ function LoadedIndicatorPage({
                 geographyOptions={data.geographyOptions}
                 selection={data.selection}
                 defaultAreaLevel={data.defaultAreaLevel}
+                areaTypeNotice={data.areaTypeNotice}
               />
             )}
           </IndicatorDataSection>

@@ -38,6 +38,7 @@ export function CompareIndicatorsChart({
   selectedAreaCodes = [],
   group = 'Local authorities',
   only = null,
+  englandOnly = false,
   sex = '',
   initialSwapped = false,
 }: {
@@ -46,6 +47,8 @@ export function CompareIndicatorsChart({
   scatter?: ScatterComparison | undefined;
   group?: string;
   only?: Set<string> | null;
+  /** Leaves other areas out of the chart key, when England is the only geography with data. */
+  englandOnly?: boolean;
   sex?: string;
   initialSwapped?: boolean;
 }) {
@@ -217,11 +220,15 @@ export function CompareIndicatorsChart({
                 label: name,
                 kind: 'selected' as const,
               })),
-              {
-                code: 'areas',
-                label: `${group === 'Local authorities' ? 'Upper tier local authorities' : group} (${locals.length})`,
-                kind: 'other' as const,
-              },
+              ...(englandOnly
+                ? []
+                : [
+                    {
+                      code: 'areas',
+                      label: `${group === 'Local authorities' ? 'Upper tier local authorities' : group} (${locals.length})`,
+                      kind: 'other' as const,
+                    },
+                  ]),
             ].map(({ code, label, kind }) => (
               <li key={code}>
                 <svg width="16" height="16" aria-hidden="true">

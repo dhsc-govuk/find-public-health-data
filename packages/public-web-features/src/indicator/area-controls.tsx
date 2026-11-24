@@ -9,6 +9,7 @@ import {
   highlightedAreaCodes,
   neighbourAnchors,
 } from './area-comparison.ts';
+import { GeographiesCard } from './geographies-card.tsx';
 import { useIndicatorLinks } from './links.ts';
 
 const VISIBLE_NEIGHBOUR_ANCHORS = 3;
@@ -174,12 +175,15 @@ export function AreaControls({
   groups,
   areas,
   displayOptions = true,
+  englandOnly = false,
 }: {
   shortId: number;
   group: string;
   groups: string[];
   areas: CompareAreaOption[];
   displayOptions?: boolean;
+  /** Whether England is the only geography the indicator has data for. */
+  englandOnly?: boolean;
 }) {
   const links = useIndicatorLinks();
   const { params, action, update, hidden } = useAreaParams(
@@ -198,7 +202,7 @@ export function AreaControls({
   return (
     <>
       <h2 className="govuk-heading-m">Geographies</h2>
-      <CollapsibleFilterCard active headingLevel={null} title="Geographies">
+      <GeographiesCard notice={englandOnly ? 'england-only' : undefined}>
         <Form method="get" action={action}>
           {hidden(['areaType', 'highlight', 'highlightRegion', 'highlightRegionBefore', 'geo-q'])}
           <Select
@@ -257,7 +261,7 @@ export function AreaControls({
             hidden={hidden}
           />
         ) : null}
-      </CollapsibleFilterCard>
+      </GeographiesCard>
       {displayOptions ? (
         <>
           <h2 className="govuk-heading-m">Display options</h2>
