@@ -25,6 +25,7 @@ export function InequalitiesTable({
   benchmark,
   benchmarkMeasures = { count: null },
   areaName = 'England',
+  sex = '',
 }: {
   confidence: ConfidenceLevel;
   indicator: IndicatorPageDetail;
@@ -32,6 +33,7 @@ export function InequalitiesTable({
   benchmark?: number | null;
   benchmarkMeasures?: Record<Measure, number | null>;
   areaName?: string;
+  sex?: string;
 }) {
   const first = observations[0];
   const compare = benchmark !== undefined;
@@ -54,6 +56,7 @@ export function InequalitiesTable({
             {compare ? (
               <>
                 Table of inequalities: {indicator.name}
+                {sex ? `, ${sex}` : ''}
                 <span className="govuk-visually-hidden">
                   , {inequalityCategoryLabel(dimensionType)}, {areaName},{' '}
                   {periodLabel(first, indicator.yearType)}
@@ -61,7 +64,8 @@ export function InequalitiesTable({
               </>
             ) : (
               <>
-                {inequalityCategoryLabel(dimensionType)}, {periodLabel(first, indicator.yearType)}
+                {inequalityCategoryLabel(dimensionType)}
+                {sex ? `, ${sex}` : ''}, {periodLabel(first, indicator.yearType)}
               </>
             )}
           </caption>

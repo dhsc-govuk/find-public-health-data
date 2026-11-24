@@ -5,6 +5,7 @@ import { createRoutesStub } from 'react-router';
 import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorComparisonModel } from '../comparison-model.ts';
 import { benchmarkJudgement } from '../data.ts';
+import { sexedInequalities } from '../inequalities.testing.ts';
 import { inequalityTableModel } from '../inequalities.ts';
 import { InequalitiesTab } from '../inequalities-tab.tsx';
 import type { IndicatorAreaData, IndicatorRangePeriod, SelectedIndicator } from '../loader.ts';
@@ -337,6 +338,21 @@ function renderInequalities(primary: SelectedIndicator, search = '') {
   ]);
   return render(<Routes initialEntries={[`/${search}`]} />);
 }
+
+it.each([
+  ['Female', 20],
+  ['Male', 40],
+  ['Unpublished', 50],
+] as const)(
+  'draws the %s England benchmark line from the validated sex selection',
+  (sexValue, benchmark) => {
+    renderInequalities(sexedInequalities(), `?sex-90632=${sexValue}&ic-90632=Ethnic+groups`);
+    const chart = screen.getByRole('region', { name: /^Inequalities:/ });
+    expect(chart.textContent).toContain(`England average ${benchmark}.0%`);
+    expect(chart.querySelector('.recharts-reference-line-line')).toBeTruthy();
+    expect(chart.querySelectorAll('.recharts-bar-rectangle path')).toHaveLength(2);
+  },
+);
 
 function expectMatchingInequalityJudgements(primary: SelectedIndicator, search: string) {
   const model = inequalityTableModel(primary, new URLSearchParams(search));

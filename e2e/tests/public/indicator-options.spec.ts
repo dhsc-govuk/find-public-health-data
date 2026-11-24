@@ -1,4 +1,5 @@
 import { expect, type Locator, test } from '@playwright/test';
+import { parse } from 'csv-parse/sync';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { filterCard, MORTALITY_PATH, openIndicatorPage } from '../support/indicator-page.ts';
@@ -261,6 +262,94 @@ test('inequality options change the breakdown period', async ({ page }) => {
   const period = await selectEarlierInequalityPeriod(options);
   await expect(page).toHaveURL((url) => url.searchParams.get('ip-108') === period.value);
   await expect(table.locator('caption')).toContainText(period.label);
+});
+
+test('selecting Male or Female carries inequalities figures and the England benchmark between tabs', async ({
+  page,
+}, testInfo) => {
+  for (const [sex, englandValue, segmentValue] of [
+    ['Male', '405.4', '553.4'],
+    ['Female', '257.9', '347.3'],
+  ] as const) {
+    await openIndicatorPage(page, MORTALITY_PATH);
+    const options = filterCard(page, 'Table columns');
+    await options.getByRole('button', { name: 'Table columns', exact: true }).click();
+    await options.getByLabel('Select sex').selectOption(sex);
+    await expect(page).toHaveURL((url) => url.searchParams.get('sex-108') === sex);
+    await page.getByRole('tab', { name: 'Inequalities', exact: true }).click();
+    const table = page.locator('.fphd-inequalities-table');
+    await expect(table.locator('caption')).toContainText(`, ${sex}`);
+    await expect(page.locator('#indicator-inequalities .fphd-indicator-showing')).toContainText(
+      sex,
+    );
+    await expect(
+      table.getByRole('row', { name: /^England / }).locator('td:nth-last-child(2)'),
+    ).toHaveText(englandValue);
+    await expect(
+      table
+        .getByRole('row', { name: /^Decile 1 \(most deprived, IMD 2019\)/ })
+        .locator('td:nth-last-child(2)'),
+    ).toHaveText(segmentValue);
+    const chart = page.getByRole('region', { name: /^Inequalities:/ });
+    await expect(chart.getByRole('heading')).toContainText(`England, ${sex}`);
+    await expect(
+      chart.locator('text').filter({ hasText: `England average ${englandValue} per 100,000` }),
+    ).toHaveCount(1);
+    await chart.locator('.recharts-bar-rectangle').first().hover();
+    await expect(chart.getByRole('status')).toContainText(`Value: ${segmentValue} per 100,000`);
+    await expect(chart.getByRole('status')).toContainText(
+      `England average: ${englandValue} per 100,000`,
+    );
+    await page
+      .getByRole('tabpanel', { name: 'Inequalities', exact: true })
+      .getByText('Download or share data', { exact: true })
+      .click();
+    const download = page.getByRole('link', {
+      name: "Download data for the areas you've chosen (CSV)",
+    });
+    await expect(download).toHaveAttribute('href', new RegExp(`sex-108=${sex}`));
+    await expectNoAccessibilityViolations(page, testInfo);
+  }
+});
+
+test('a stale inequalities sex falls back to Persons in the table, chart and CSV', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?tab-indicator=inequalities&sex-108=Unpublished`);
+  const table = page.locator('.fphd-inequalities-table');
+  await expect(
+    table.getByRole('row', { name: /^England / }).locator('td:nth-last-child(2)'),
+  ).toHaveText('329.4');
+  await expect(
+    table
+      .getByRole('row', { name: /^Decile 1 \(most deprived, IMD 2019\)/ })
+      .locator('td:nth-last-child(2)'),
+  ).toHaveText('448.4');
+  await expect(table.locator('caption')).not.toContainText('Unpublished');
+  await expect(page.locator('#indicator-inequalities .fphd-indicator-showing')).not.toContainText(
+    'Unpublished',
+  );
+  const chart = page.getByRole('region', { name: /^Inequalities:/ });
+  await expect(
+    chart.locator('text').filter({ hasText: 'England average 329.4 per 100,000' }),
+  ).toHaveCount(1);
+  await expect(page.getByText(/no inequality breakdowns/)).toHaveCount(0);
+  await page
+    .getByRole('tabpanel', { name: 'Inequalities', exact: true })
+    .getByText('Download or share data', { exact: true })
+    .click();
+  const href = await page
+    .getByRole('link', { name: "Download data for the areas you've chosen (CSV)" })
+    .getAttribute('href');
+  expect(href).toBeTruthy();
+  const response = await page.request.get(href ?? '');
+  expect(response.ok()).toBe(true);
+  const rows = parse(await response.text(), { columns: true }) as Record<string, string>[];
+  expect(rows[0]?.Segment).toBe('England');
+  expect(Number(rows[0]?.['Value (per 100,000)'])).toBeCloseTo(329.412706, 4);
+  expect(rows[1]?.Segment).toBe('Decile 1 (most deprived, IMD 2019)');
+  expect(Number(rows[1]?.['Value (per 100,000)'])).toBeCloseTo(448.375398, 4);
+  await expectNoAccessibilityViolations(page, testInfo);
 });
 
 test.describe('without JavaScript', () => {

@@ -7,6 +7,7 @@ import { loadScatterComparison } from './charts/scatter-loader.ts';
 import { compactIndicator, compactScatterComparison } from './compact-data.ts';
 import { indicatorComparisonModel } from './comparison-model.ts';
 import { indicatorPair } from './indicator-pair.ts';
+import { sexedInequalities } from './inequalities.testing.ts';
 import type { IndicatorDetail, SelectedIndicator } from './loader.ts';
 import { IndicatorRoute } from './route.tsx';
 import { SingleIndicatorPage } from './single-page.tsx';
@@ -138,6 +139,31 @@ function page(
   ]);
   render(<Routes initialEntries={[url]} />);
 }
+
+it.each([
+  ['Male', '42.0%'],
+  ['Female', '22.0%'],
+] as const)(
+  'carries the Indicator %s choice through tab navigation to inequalities and its CSV link',
+  async (sexValue, value) => {
+    page([sexedInequalities()], '/indicator/indicator-90632');
+    const indicator = screen.getByRole('tabpanel', { name: 'Indicator' });
+    const select = within(indicator).getAllByLabelText('Select sex')[0] as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: sexValue } });
+    await waitFor(() => expect(select.value).toBe(sexValue));
+    fireEvent.click(screen.getByRole('tab', { name: 'Inequalities' }));
+    const inequalities = screen.getByRole('tabpanel', { name: 'Inequalities' });
+    fireEvent.click(within(inequalities).getByLabelText('Ethnic groups'));
+    const white = await within(inequalities).findByText('White', { selector: 'th' });
+    expect(white.closest('tr')?.textContent).toContain(value);
+    const href = within(inequalities)
+      .getByText("Download data for the areas you've chosen (CSV)")
+      .getAttribute('href');
+    const params = new URL(href ?? '', 'http://localhost').searchParams;
+    expect(params.get('sex-90632')).toBe(sexValue);
+    expect(params.get('tab-indicator')).toBe('inequalities');
+  },
+);
 
 it('opens one indicator with the five prototype tabs and no selection controls', () => {
   page([selected(241, 'Diabetes prevalence', 7.9)], '/indicator/indicator-241');

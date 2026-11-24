@@ -68,4 +68,33 @@ describe('InequalitiesTable', () => {
     expect(within(female as HTMLElement).getAllByRole('cell')[0]?.textContent).toBe('41');
     expect(within(england as HTMLElement).getAllByRole('cell')[0]?.textContent).toBe('900');
   });
+
+  it.each([
+    ['with', { benchmark: 10 }],
+    ['without', {}],
+  ])('names the selected sex in the caption %s an England benchmark', (_, benchmark) => {
+    render(
+      <InequalitiesTable
+        {...benchmark}
+        confidence="none"
+        indicator={indicator(null)}
+        observations={observations}
+        sex="Male"
+      />,
+    );
+
+    expect(screen.getByRole('table').querySelector('caption')?.textContent).toContain('Male');
+  });
+
+  it('leaves the caption without a sex when none is selected', () => {
+    render(
+      <InequalitiesTable
+        confidence="none"
+        indicator={indicator(null)}
+        observations={observations}
+      />,
+    );
+
+    expect(screen.getByRole('table').querySelector('caption')?.textContent).toBe('Sex, 2023');
+  });
 });

@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sexedInequalities } from './inequalities.testing.ts';
 import { loadIndicator } from './loader.ts';
 import { observation, selected } from './view.testing.ts';
 import { loadIndicatorViewCsv } from './view-csv.ts';
@@ -327,5 +328,81 @@ describe('indicator view CSV', () => {
     expect(lines[0]).toBe('Segment,Count,Value (%),Compared with England');
     expect(lines[1]).toBe('England,2000,20,Benchmark');
     expect(lines[2]).toBe('Most deprived,3200,32,Better than England');
+  });
+
+  it.each([
+    ['Female', 20, [22, 24]],
+    ['Male', 40, [42, 44]],
+  ] as const)(
+    'exports only %s inequalities and its England benchmark',
+    async (sexValue, benchmark, values) => {
+      const data = await loadIndicator(args(''));
+      vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
+      const response = await loadIndicatorViewCsv(
+        args(`tab-indicator=inequalities&sex-90632=${sexValue}&ic-90632=Ethnic+groups`),
+      );
+      expect((await response.text()).trim().split('\n')).toEqual([
+        'Segment,Count,Value (%),Compared with England',
+        `England,${benchmark * 100},${benchmark},Benchmark`,
+        `White,${values[0] * 100},${values[0]},Similar to England`,
+        `Asian,${values[1] * 100},${values[1]},Better than England`,
+      ]);
+      expect(response.headers.get('Content-Disposition')).toBe(
+        `attachment; filename="90632-inequalities-${sexValue.toLowerCase()}.csv"`,
+      );
+    },
+  );
+
+  it('exports the selected sex period rather than another sex default', async () => {
+    const data = await loadIndicator(args(''));
+    vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
+    const response = await loadIndicatorViewCsv(
+      args(
+        'tab-indicator=inequalities&sex-90632=Male&ic-90632=Ethnic+groups&ip-90632=2022-01-01/2022-12-31',
+      ),
+    );
+    expect((await response.text()).trim().split('\n')).toEqual([
+      'Segment,Count,Value (%),Compared with England',
+      'England,3900,39,Benchmark',
+      'White,4100,41,Similar to England',
+    ]);
+  });
+
+  it('exports no substitute data for a sex with no inequality breakdown', async () => {
+    const response = await loadIndicatorViewCsv(args('tab-indicator=inequalities&sex-108=Male'));
+    expect((await response.text()).trim().split('\n')).toEqual([
+      'Segment,Value (%),Compared with England',
+      'England,,Benchmark',
+    ]);
+  });
+
+  it.each([
+    ['sex-90632=Male&ic-90632=Ethnic+groups', '90632-inequalities-male.csv'],
+    ['ic-90632=Ethnic+groups', '90632-inequalities.csv'],
+  ])(
+    'names the download by the inequalities tab without a tab parameter: %s',
+    async (search, name) => {
+      const data = await loadIndicator(args(''));
+      vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
+      const response = await loadIndicatorViewCsv(args(search));
+      expect(response.headers.get('Content-Disposition')).toBe(`attachment; filename="${name}"`);
+    },
+  );
+
+  it('exports the default Persons breakdown for an invalid or stale sex', async () => {
+    const data = await loadIndicator(args(''));
+    vi.mocked(loadIndicator).mockResolvedValue({ ...data, selected: [sexedInequalities()] });
+    const response = await loadIndicatorViewCsv(
+      args('tab-indicator=inequalities&sex-90632=Unpublished&ic-90632=Ethnic+groups'),
+    );
+    expect((await response.text()).trim().split('\n')).toEqual([
+      'Segment,Count,Value (%),Compared with England',
+      'England,5000,50,Benchmark',
+      'White,5200,52,Similar to England',
+      'Asian,5400,54,Better than England',
+    ]);
+    expect(response.headers.get('Content-Disposition')).toBe(
+      'attachment; filename="90632-inequalities.csv"',
+    );
   });
 });

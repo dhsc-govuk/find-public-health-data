@@ -5,32 +5,43 @@ import {
   type BenchmarkJudgement,
   benchmarkJudgement,
   type ConfidenceLevel,
+  dimensionValues,
+  filterObservations,
   inequalityBreakdown,
   inequalityCategories,
   inequalityPeriods,
   sameSegment,
 } from './data.ts';
 import type { IndicatorObservation, SelectedIndicator } from './loader.ts';
+import { sexObservations } from './no-england.ts';
 
 export type InequalityRow = IndicatorObservation & { comparison: BenchmarkJudgement };
 
 export function inequalityTableModel(indicator: SelectedIndicator, params: URLSearchParams) {
   const { areaData, detail } = indicator;
   const id = detail.shortId;
+  const requestedSex = params.get(`sex-${id}`) ?? '';
+  const sexes = dimensionValues(sexObservations(areaData), 'Sex');
+  const sex = sexes.includes(requestedSex) ? requestedSex : '';
+  // The category helpers infer a baseline, so they must only see the requested sex.
+  const observationsForSex = (observations: IndicatorObservation[]) =>
+    filterObservations(observations, { sex });
   const published = areaData.filter(
-    ({ observations }) => inequalityCategories(observations).length > 0,
+    ({ observations }) => inequalityCategories(observationsForSex(observations)).length > 0,
   );
-  // England is left out when the indicator has no England value.
+  // England is left out when the indicator has no England value, and with a sex selected so is
+  // any area with no data for it.
   const areas = published.length
     ? published
-    : areaData.filter(
-        ({ areaCode, observations }) => areaCode !== 'E92000001' || observations.length > 0,
-      );
+    : areaData.filter(({ areaCode, observations }) => {
+        const needsData = areaCode === 'E92000001' || sex !== '';
+        return !needsData || observationsForSex(observations).length > 0;
+      });
   const area =
     areas.find(({ areaCode }) => areaCode === params.get(`ig-${id}`)) ??
     areas.find(({ areaCode }) => areaCode === 'E92000001') ??
     areas[0];
-  const observations = area?.observations ?? [];
+  const observations = observationsForSex(area?.observations ?? []);
   const categories = inequalityCategories(observations);
   const requestedCategory = params.get(`ic-${id}`) ?? '';
   const category = categories.includes(requestedCategory)
@@ -67,7 +78,9 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
         ),
       }
     : undefined;
-  const england = areaData.find(({ areaCode }) => areaCode === 'E92000001')?.observations ?? [];
+  const england = observationsForSex(
+    areaData.find(({ areaCode }) => areaCode === 'E92000001')?.observations ?? [],
+  );
   const benchmark = reference
     ? alignedTrendSeries(england, reference).find(
         (row) =>
@@ -77,6 +90,7 @@ export function inequalityTableModel(indicator: SelectedIndicator, params: URLSe
       )
     : undefined;
   return {
+    sex,
     areas,
     area,
     categories,

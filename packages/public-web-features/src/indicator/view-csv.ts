@@ -118,10 +118,16 @@ export async function loadIndicatorViewCsv(args: LoaderFunctionArgs): Promise<Re
         : []),
     ];
   } else {
-    const { rows: breakdown, benchmark: benchmarkObservation } = inequalityTableModel(
-      primary,
-      params,
-    );
+    const {
+      rows: breakdown,
+      benchmark: benchmarkObservation,
+      sex,
+    } = inequalityTableModel(primary, params);
+    const sexSlug = sex
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    filename = `${primary.detail.shortId}-inequalities${sexSlug ? `-${sexSlug}` : ''}.csv`;
     const benchmark = benchmarkObservation?.value ?? null;
     const available = availableMeasures([
       ...breakdown,
