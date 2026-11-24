@@ -33,8 +33,7 @@ describe('fake-auth React Router application', () => {
     const signIn = await request(app).post('/auth/sign-in').type('form').send({
       userId: FAKE_USER_IDS.publisherTeamA,
     });
-    const callback = await request(app).get(requireHeader(signIn.get('Location'), 'Location'));
-    const cookie = requireHeader(callback.get('Set-Cookie')?.[0], 'Set-Cookie');
+    const cookie = requireHeader(signIn.get('Set-Cookie')?.[0], 'Set-Cookie');
     const token = session.readToken(cookie);
 
     if (token === undefined) throw new Error('Session cookie did not contain a token');
@@ -45,6 +44,5 @@ describe('fake-auth React Router application', () => {
       teams: [TEAM_IDS.teamA],
     });
     expect(signIn.headers['cache-control']).toBe('private, no-store');
-    expect(callback.headers['cache-control']).toBe('private, no-store');
   });
 });

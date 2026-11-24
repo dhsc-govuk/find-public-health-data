@@ -33,21 +33,16 @@ function requireHeader(value: string | undefined, name: string): string {
 }
 
 describe('fake authentication backend', () => {
-  it('signs an internal user in through a one-use callback', async () => {
-    const app = createTestApp();
-    const start = await request(app).post('/auth/sign-in').type('form').send({
+  it('signs an internal user in with the one request', async () => {
+    const response = await request(createTestApp()).post('/auth/sign-in').type('form').send({
       returnTo: '/manage?view=drafts',
       userId: FAKE_USER_IDS.publisherTeamA,
     });
 
-    expect(start.status).toBe(303);
-    const callbackPath = requireHeader(start.get('Location'), 'Location');
-    const callback = await request(app).get(callbackPath);
+    expect(response.status).toBe(303);
+    expect(response.get('Location')).toBe('/manage?view=drafts');
 
-    expect(callback.status).toBe(303);
-    expect(callback.get('Location')).toBe('/manage?view=drafts');
-
-    const cookie = requireHeader(callback.get('Set-Cookie')?.[0], 'Set-Cookie');
+    const cookie = requireHeader(response.get('Set-Cookie')?.[0], 'Set-Cookie');
     const token = session.readToken(cookie);
     if (token === undefined) throw new Error('Session cookie did not contain a token');
 
@@ -56,7 +51,6 @@ describe('fake authentication backend', () => {
       sub: FAKE_USER_IDS.publisherTeamA,
       teams: [TEAM_IDS.teamA],
     });
-    expect((await request(app).get(callbackPath)).status).toBe(400);
   });
 
   it('refuses to sign in a user it does not offer', async () => {
@@ -66,28 +60,25 @@ describe('fake authentication backend', () => {
 
     expect(response.status).toBe(403);
     expect(response.text).toBe('This user cannot access this service.');
+    expect(response.get('Set-Cookie')).toBeUndefined();
   });
 
   it('ignores a return address that is not one of the pages', async () => {
-    const app = createTestApp();
-    const start = await request(app).post('/auth/sign-in').type('form').send({
+    const response = await request(createTestApp()).post('/auth/sign-in').type('form').send({
       returnTo: '/auth/sign-out',
       userId: FAKE_USER_IDS.publisherTeamA,
     });
-    const callback = await request(app).get(requireHeader(start.get('Location'), 'Location'));
 
-    expect(callback.get('Location')).toBe('/');
+    expect(response.get('Location')).toBe('/');
   });
 
   it('does not redirect to an external return URL', async () => {
-    const app = createTestApp();
-    const start = await request(app).post('/auth/sign-in').type('form').send({
+    const response = await request(createTestApp()).post('/auth/sign-in').type('form').send({
       returnTo: '//example.com/steal-session',
       userId: FAKE_USER_IDS.publisherTeamA,
     });
-    const callback = await request(app).get(requireHeader(start.get('Location'), 'Location'));
 
-    expect(callback.get('Location')).toBe('/');
+    expect(response.get('Location')).toBe('/');
   });
 
   it('clears the session cookie on sign out', async () => {

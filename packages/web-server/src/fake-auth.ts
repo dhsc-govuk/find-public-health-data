@@ -1,17 +1,8 @@
 import { type FakeUser, normalizeReturnTo } from '@fphd/auth';
 import type { JwtSessionService } from '@fphd/auth/jwt-session';
 import express, { type Router } from 'express';
-import { v7 as uuidv7 } from 'uuid';
-
-interface PendingSignIn {
-  readonly expiresAt: number;
-  readonly returnTo: string;
-  readonly user: FakeUser;
-}
 
 export interface FakeAuthRouterOptions {
-  clock?: () => Date;
-  codeLifetimeSeconds?: number;
   defaultReturnTo?: string;
   /** Whether a return address is one of the app's pages; anything else falls back to the default. */
   isPagePath: (path: string) => boolean | Promise<boolean>;
@@ -27,20 +18,13 @@ function readStringField(body: unknown, name: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-function readQueryValue(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
-
 export function createFakeAuthRouter({
-  clock = () => new Date(),
-  codeLifetimeSeconds = 300,
   defaultReturnTo = '/',
   isPagePath,
   session,
   sessionLifetimeSeconds = 8 * 60 * 60,
   users,
 }: FakeAuthRouterOptions): Router {
-  const pendingSignIns = new Map<string, PendingSignIn>();
   const router = express.Router();
   // Per route: this router fronts the whole app, and a parser on all of it would leave every
   // React Router action's `request.formData()` empty.
@@ -61,41 +45,15 @@ export function createFakeAuthRouter({
       return;
     }
 
-    const now = clock().getTime();
-    for (const [code, signIn] of pendingSignIns) {
-      if (signIn.expiresAt <= now) pendingSignIns.delete(code);
-    }
-
-    const code = uuidv7();
-    pendingSignIns.set(code, {
-      expiresAt: now + codeLifetimeSeconds * 1_000,
-      returnTo: await returnToFrom(request.body, defaultReturnTo),
-      user,
-    });
-
-    response.redirect(303, `/auth/callback?code=${encodeURIComponent(code)}`);
-  });
-
-  router.get('/auth/callback', async (request, response) => {
-    const code = readQueryValue(request.query.code);
-    const signIn = code === undefined ? undefined : pendingSignIns.get(code);
-
-    if (code === undefined || signIn === undefined || signIn.expiresAt <= clock().getTime()) {
-      if (code !== undefined) pendingSignIns.delete(code);
-      response.status(400).send('The sign-in request is invalid or has expired.');
-      return;
-    }
-
-    pendingSignIns.delete(code);
     const token = await session.issueToken({
       expiresInSeconds: sessionLifetimeSeconds,
-      roles: signIn.user.roles,
-      subject: signIn.user.id,
-      teams: signIn.user.teamIds,
+      roles: user.roles,
+      subject: user.id,
+      teams: user.teamIds,
     });
 
     response.setHeader('Set-Cookie', session.createCookieHeader(token, sessionLifetimeSeconds));
-    response.redirect(303, signIn.returnTo);
+    response.redirect(303, await returnToFrom(request.body, defaultReturnTo));
   });
 
   router.post('/auth/sign-out', parseForm, async (request, response) => {
