@@ -806,7 +806,7 @@ jobs:
           not_imported='/data/(seed/|indicator-(classifications|data-updated|topics)\.json|published-indicator-topics\.json|legacy-numerator-denominator-sources\.json|taxonomy-v2\.json)|\.(md|py)$|\.test\.ts$'
           core_data=$(grep -E '^packages/db-operations/(data/|src/([a-z-]+-)?core-data\.ts|src/(topic-import|parse-topics-file)\.ts)' <<<"${files}" | grep -Ev "${not_imported}" || true)
           # The last four files are what the rebuild imports from packages/db.
-          read_models=$(grep -E '^packages/(internal-read-models/src/|utils/src/observation-series\.ts|db/src/(observation-range-sql|observation-series-sql|headline-order|age-span-sql)\.ts)' <<<"${files}" | grep -Ev '\.test\.ts$' || true)
+          read_models=$(grep -E '^packages/(internal-read-models/src/|db-operations/src/read-models\.ts|utils/src/observation-series\.ts|db/src/(observation-range-sql|observation-series-sql|headline-order|age-span-sql)\.ts)' <<<"${files}" | grep -Ev '\.test\.ts$' || true)
           labels=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.labels[].name')
           warn_unless_labelled() { # <label> <changed files>
             if [ -n "$2" ] && ! grep -qxF "$1" <<<"${labels}"; then
