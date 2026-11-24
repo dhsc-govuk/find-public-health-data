@@ -6,17 +6,17 @@ import { TopicMoreInformation } from './more-information.tsx';
 
 afterEach(cleanup);
 
-const OHID_LINK = 'Research and statistics from the Office for Health Improvement and Disparities';
+const OHID_LINK = 'Release calendar for the Office for Health Improvement and Disparities';
 
-it('links to OHID statistics on GOV.UK for a topic without curated content', () => {
+it('links to the OHID release calendar on GOV.UK for a topic without curated content', () => {
   render(<TopicMoreInformation content={null} />);
   expect(
     screen.getByText(
-      'Find official statistics releases and statistical commentaries about public health data published on GOV.UK.',
+      'Find upcoming official statistics releases about public health data on GOV.UK.',
     ),
   ).toBeTruthy();
   expect(screen.getByRole('link', { name: OHID_LINK }).getAttribute('href')).toBe(
-    'https://www.gov.uk/search/research-and-statistics?content_store_document_type=statistics_published&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest',
+    'https://www.gov.uk/search/research-and-statistics?content_store_document_type=upcoming_statistics&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest',
   );
   expect(screen.queryByText('No further information is available for this topic.')).toBeNull();
 });

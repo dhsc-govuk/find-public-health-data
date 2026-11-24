@@ -1,6 +1,20 @@
 import { expect, it } from 'vitest';
 
-import { rankingAreaSeries, tableAreaSeries, tableSummary } from './observation-series.ts';
+import {
+  comparisonVariants,
+  filterSeries,
+  headlineSeries,
+  isObservationPeriodType,
+  isRollingPeriod,
+  observationPeriodType,
+  periodMonths,
+  periodTypeLength,
+  periodYears,
+  rankingAreaSeries,
+  seriesPeriodTypes,
+  tableAreaSeries,
+  tableSummary,
+} from './observation-series.ts';
 
 function series(age: string, years: number[]) {
   return years.map((year) => ({
@@ -115,4 +129,276 @@ it('keeps England at the local ranking period and population rather than its new
       { ...england, observations: [point(2024, 20)] },
     ])[1]?.observations,
   ).toEqual([]);
+});
+
+it.each([
+  ['2024-01-01', '2024-12-31', 1],
+  ['2024-04-01', '2025-03-31', 1],
+  ['2024-02-29', '2025-02-28', 1],
+  ['2024-02-29', '2025-02-27', 1],
+  ['2021-01-01', '2023-12-31', 3],
+  ['2015-09-01', '2020-08-31', 5],
+  ['2013-09-01', '2020-08-31', 7],
+])('derives inclusive whole years from %s to %s as %i', (fromDate, toDate, years) => {
+  const point = { fromDate, toDate };
+  expect(periodYears(point)).toBe(years);
+  expect(observationPeriodType(point)).toBe(`${years}-year`);
+  expect(isRollingPeriod(point)).toBe(years > 1);
+});
+
+it.each([
+  '1-year',
+  '2-year',
+  '3-year',
+  '5-year',
+  '7-year',
+  '12-year',
+  '1-month',
+  '3-month',
+  '18-month',
+  '1-day',
+  '500-day',
+  '550-day',
+])('accepts period type %s', (type) => {
+  expect(isObservationPeriodType(type)).toBe(true);
+});
+
+it.each([
+  null,
+  undefined,
+  '',
+  'all',
+  '0-year',
+  '-3-year',
+  '3.5-year',
+  '03-year',
+  '3-years',
+  '1e3-year',
+  '9007199254740992-year',
+  '0-day',
+  '05-day',
+  '1.5-day',
+  '0-month',
+  '03-month',
+  '1.5-month',
+  '-1-month',
+  '3-months',
+  '9007199254740992-month',
+])('rejects invalid period type %s', (type) => {
+  expect(isObservationPeriodType(type)).toBe(false);
+});
+
+it('keeps mixed three, five and seven year histories and cache selections separate', () => {
+  const history = (years: number) =>
+    Array.from({ length: 10 }, (_, index) => ({
+      fromDate: `${2000 + index}-09-01`,
+      toDate: `${2000 + index + years}-08-31`,
+      value: years * 100 + index,
+      dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
+    }));
+  const three = history(3);
+  const five = history(5);
+  const seven = history(7);
+  const observations = [...three, ...five, ...seven];
+  expect(seriesPeriodTypes([...observations].reverse())).toEqual(['3-year', '5-year', '7-year']);
+  expect(comparisonVariants(observations)).toEqual([
+    { sex: 'Female', periodType: '3-year' },
+    { sex: 'Female', periodType: '5-year' },
+    { sex: 'Female', periodType: '7-year' },
+  ]);
+  const complete = tableAreaSeries([{ areaCode: 'local', observations }]);
+  expect(complete[0]?.observations).toEqual(observations);
+  const summary = tableSummary(complete, 'sparkline');
+  for (const [points, type] of [
+    [three, '3-year'],
+    [five, '5-year'],
+    [seven, '7-year'],
+  ] as const) {
+    expect(filterSeries(observations, { periodType: type })).toEqual(points);
+    expect(summary.areaData[0]?.observations).toEqual(expect.arrayContaining(points.slice(-8)));
+    expect(
+      summary.tableSeries.find(
+        (selection) => selection.sex === 'Female' && selection.periodType === type,
+      )?.segments.local,
+    ).toBe(`Sex:Female|${type}`);
+  }
+  expect(new Set(headlineSeries(observations).map(observationPeriodType)).size).toBe(1);
+});
+
+it('elects the same headline regardless of input order', () => {
+  const history = (age: string, years: number, values: (number | null)[], start = 2020) =>
+    values.map((value, index) => ({
+      fromDate: `${start + index}-01-01`,
+      toDate: `${start + index + years - 1}-12-31`,
+      value,
+      dimensions: [{ type: 'Age', value: age }],
+    }));
+  const winner = history('Z', 7, [1, 2]);
+  const candidates = [
+    ...history('A', 1, [1, 2, null]),
+    ...history('A', 3, [1, 2]),
+    ...history('Z', 9, [1, null]),
+    ...winner,
+  ];
+  const newest = history('Z', 9, [1, null]);
+  expect(headlineSeries(candidates)).toEqual(newest);
+  expect(headlineSeries([...candidates].reverse())).toEqual(newest);
+  const earlier = history('ZZ', 7, [1, 2], 2010);
+  expect(headlineSeries([...winner, ...earlier])).toEqual(winner);
+  const tied = history('A', 7, [1, 2]);
+  expect(headlineSeries([...winner, ...tied])).toEqual(tied);
+  expect(headlineSeries([...tied, ...winner])).toEqual(tied);
+});
+
+it('offers only the periods each sex publishes and caches only offered variants', () => {
+  const observations = [
+    {
+      fromDate: '2024-01-01',
+      toDate: '2024-12-31',
+      value: 1,
+      dimensions: [{ type: 'Sex', value: 'Male', sortOrder: 2 }],
+    },
+    ...[3, 5].map((years) => ({
+      fromDate: '2020-01-01',
+      toDate: `${2020 + years - 1}-12-31`,
+      value: 2,
+      dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
+    })),
+  ];
+  const variants = comparisonVariants(observations);
+  expect(variants).toEqual([
+    { sex: 'Female', periodType: '3-year' },
+    { sex: 'Female', periodType: '5-year' },
+    { sex: 'Male', periodType: '1-year' },
+  ]);
+  expect(
+    tableSummary([{ areaCode: 'local', observations }])
+      .tableSeries.filter(({ segments }) => segments.local)
+      .map(({ sex, periodType }) => ({ sex, periodType })),
+  ).toEqual(expect.arrayContaining(variants));
+  expect(
+    tableSummary([{ areaCode: 'local', observations }]).tableSeries.filter(
+      ({ rowOrder }) => rowOrder?.local !== undefined,
+    ),
+  ).toHaveLength(3);
+});
+
+it('keeps every area headline for aggregate comparisons without offering an extra row', () => {
+  const point = { fromDate: '2024-01-01', toDate: '2024-12-31', value: 10 };
+  const areas = [
+    { areaCode: 'aggregate', observations: [{ ...point, dimensions: [] }] },
+    {
+      areaCode: 'sexed',
+      observations: [{ ...point, dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }] }],
+    },
+  ];
+  const summary = tableSummary(areas);
+  const aggregate = summary.tableSeries.find(({ sex, periodType }) => !sex && periodType === 'all');
+  expect(aggregate?.segments).toEqual({ aggregate: '|1-year', sexed: 'Sex:Female|1-year' });
+  expect(aggregate?.headlines).toEqual({ aggregate: true, sexed: true });
+  expect(aggregate?.rowOrder).toEqual({ aggregate: 0 });
+  expect(summary.areaData).toEqual(areas);
+});
+
+it.each([
+  ['2024-01-01', '2024-01-01', '1-day'],
+  ['2020-01-01', '2021-07-01', '548-day'],
+  ['2024-01-31', '2024-02-27', '28-day'],
+  ['2024-01-31', '2024-03-01', '31-day'],
+  ['2024-02-29', '2025-03-01', '367-day'],
+])('keeps a non-month span %s to %s as %s', (fromDate, toDate, type) => {
+  expect(periodMonths({ fromDate, toDate })).toBeNull();
+  expect(periodYears({ fromDate, toDate })).toBeNull();
+  expect(observationPeriodType({ fromDate, toDate })).toBe(type);
+});
+
+it.each([
+  ['2023-01-01', '2023-03-31', 3],
+  ['2024-01-01', '2024-03-31', 3],
+  ['2024-04-01', '2024-06-30', 3],
+  ['2024-07-01', '2024-09-30', 3],
+  ['2023-02-01', '2023-02-28', 1],
+  ['2024-02-01', '2024-02-29', 1],
+  ['2024-04-01', '2024-04-30', 1],
+  ['2024-01-01', '2024-01-31', 1],
+  ['2024-01-31', '2024-02-28', 1],
+  ['2024-01-31', '2024-02-29', 1],
+  ['2023-01-31', '2023-02-27', 1],
+  ['2023-01-31', '2023-02-28', 1],
+  ['2024-01-30', '2024-02-28', 1],
+  ['2024-01-30', '2024-02-29', 1],
+  ['2024-03-31', '2024-04-30', 1],
+  ['2024-01-15', '2024-02-14', 1],
+  ['2023-12-15', '2024-03-14', 3],
+  ['2020-01-01', '2021-06-30', 18],
+])('classifies calendar months from %s to %s as %i months', (fromDate, toDate, months) => {
+  const point = { fromDate, toDate };
+  expect(periodMonths(point)).toBe(months);
+  expect(periodYears(point)).toBeNull();
+  expect(observationPeriodType(point)).toBe(`${months}-month`);
+  expect(isRollingPeriod(point)).toBe(months > 12);
+});
+
+it('orders and elects day, month and year series by the same approximate length', () => {
+  const observations = [
+    ['2024-01-01', '2024-12-31'],
+    ['2024-07-01', '2024-09-30'],
+    ['2024-01-31', '2024-03-01'],
+    ['2024-02-01', '2024-02-29'],
+    ['2024-01-01', '2024-01-30'],
+  ].map(([fromDate = '', toDate = '']) => ({ fromDate, toDate, dimensions: [], value: 1 }));
+  expect(seriesPeriodTypes(observations)).toEqual([
+    '30-day',
+    '1-month',
+    '31-day',
+    '3-month',
+    '1-year',
+  ]);
+  expect(periodTypeLength('1-month')).toBe(30.4375);
+  expect(periodTypeLength('12-month')).toBe(periodTypeLength('1-year'));
+  expect(headlineSeries(observations)).toEqual([observations[0]]);
+  expect(headlineSeries(observations.slice(1))).toEqual([observations[1]]);
+  expect(headlineSeries(observations.slice(3))).toEqual([observations[3]]);
+});
+
+it('keeps quarters of different day lengths in one history', () => {
+  const observations = [
+    ['2023-01-01', '2023-03-31'],
+    ['2023-04-01', '2023-06-30'],
+    ['2023-07-01', '2023-09-30'],
+  ].map(([fromDate = '', toDate = '']) => ({ fromDate, toDate, dimensions: [] }));
+  expect(seriesPeriodTypes(observations)).toEqual(['3-month']);
+  expect(filterSeries(observations, { periodType: '3-month' })).toEqual(observations);
+  expect(headlineSeries(observations)).toEqual(observations);
+});
+
+it('keeps 500 and 550 day histories separate from annual and biennial histories', () => {
+  const observations = [365, 500, 550, 730].map((days) => ({
+    fromDate: '2021-01-01',
+    toDate: new Date(Date.parse('2021-01-01') + (days - 1) * 86_400_000).toISOString().slice(0, 10),
+    value: days,
+    dimensions: [],
+  }));
+  expect(seriesPeriodTypes(observations)).toEqual(['1-year', '500-day', '550-day', '2-year']);
+  for (const point of observations)
+    expect(filterSeries(observations, { periodType: observationPeriodType(point) })).toEqual([
+      point,
+    ]);
+  expect(headlineSeries(observations)[0]?.value).toBe(730);
+});
+
+it('counts suppressed points before period length and period length before the first point', () => {
+  const history = (years: number, values: (number | null)[]) =>
+    values.map((value, index) => ({
+      fromDate: `${2025 - values.length + index - years}-01-01`,
+      toDate: `${2024 - values.length + index}-12-31`,
+      value,
+      dimensions: [],
+    }));
+  const annual = history(1, [1, 2, null]);
+  const rolling = history(7, [1, 2]);
+  expect(headlineSeries([...annual, ...rolling])).toEqual(annual);
+  const tied = history(1, [1, 2]);
+  expect(headlineSeries([...tied, ...rolling])).toEqual(rolling);
+  expect(headlineSeries([...rolling, ...tied])).toEqual(rolling);
 });

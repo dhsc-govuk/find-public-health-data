@@ -21,6 +21,7 @@ import {
   inequalityValueLabel,
   periodCovered,
   periodTypeChoice,
+  periodTypeLabel,
   recentTrend,
   segmentLabel,
   trendSeries,
@@ -69,13 +70,16 @@ describe('recentTrend', () => {
   );
 
   it.each([
-    ['2021-02-04', 'Increasing and getting better'],
-    ['2021-02-05', 'Trend unavailable'],
-  ])('uses the 400-day boundary for periods ending %s', (toDate, label) => {
-    expect(
-      recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
-    ).toBe(label);
-  });
+    ['2021-06-30', 'Trend unavailable'],
+    ['2021-07-01', 'Trend unavailable'],
+  ])(
+    'keeps partial multi-year spans out of annual trends for periods ending %s',
+    (toDate, label) => {
+      expect(
+        recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
+      ).toBe(label);
+    },
+  );
 
   it('explains when there are too few valid annual observations', () => {
     expect(recentTrend([obs(), obs({ value: null })], null)).toEqual({
@@ -326,6 +330,15 @@ describe('periodTypeChoice', () => {
   it('shows the requested period type when the shown areas publish it', () => {
     expect(periodTypeChoice([england, northEast], '3-year').periodType).toBe('3-year');
   });
+
+  it.each(['2-year', '9007199254740991-year'] as const)(
+    'uses the default without reflecting the unpublished period type %s',
+    (requested) => {
+      expect(periodTypeChoice([england, oxford], requested)).toEqual(
+        periodTypeChoice([england, oxford], 'all'),
+      );
+    },
+  );
 
   it('switches to the period type a picked area publishes and says why', () => {
     expect(periodTypeChoice([england, oxford], '1-year')).toEqual({
@@ -720,4 +733,98 @@ describe('inequalityValueLabel', () => {
       ),
     ).toBe('Original label');
   });
+});
+
+it.each([3, 5, 7])('labels and guards %i year rolling periods', (years) => {
+  const point = obs({ fromDate: `${2025 - years}-09-01`, toDate: '2025-08-31' });
+  expect(availablePeriodTypes([point])).toEqual([`${years}-year`]);
+  expect(periodTypeLabel(`${years}-year`)).toBe(`${years} year rolling average`);
+  expect(recentTrend([point], 'higher-is-better', 'up')).toMatchObject({
+    direction: null,
+    reason: 'multi-year periods',
+  });
+});
+
+it('offers and selects three and five year periods independently', () => {
+  const three = obs({ fromDate: '2022-09-01', toDate: '2025-08-31', value: 3 });
+  const five = obs({ fromDate: '2020-09-01', toDate: '2025-08-31', value: 5 });
+  const seven = obs({ fromDate: '2018-09-01', toDate: '2025-08-31', value: 7 });
+  const areas = [
+    { areaCode: 'E92000001', areaName: 'England', observations: [five, seven, three] },
+  ];
+  for (const [periodType, point] of [
+    ['3-year', three],
+    ['5-year', five],
+    ['7-year', seven],
+  ] as const) {
+    expect(periodTypeChoice(areas, periodType)).toMatchObject({
+      options: ['3-year', '5-year', '7-year'],
+      periodType,
+    });
+    expect(filterObservations([five, seven, three], { periodType })).toEqual([point]);
+  }
+  expect(periodTypeChoice(areas, '1-year').notice).toBe(
+    'Showing 3 year rolling averages because England has no 1 year data.',
+  );
+  expect(
+    periodTypeChoice(
+      [
+        { areaCode: 'E92000001', areaName: 'England', observations: [five] },
+        { areaCode: 'local', areaName: 'Oxford', observations: [seven] },
+      ],
+      '5-year',
+    ).notice,
+  ).toBe('Showing 7 year rolling averages because Oxford has no 5 year rolling average data.');
+});
+
+it('labels separate comparison rows for sexed three and five year periods', () => {
+  const points = [3, 5].map((years) =>
+    obs({
+      fromDate: `${2025 - years}-09-01`,
+      toDate: '2025-08-31',
+      value: years,
+      dimensions: [dim('Sex', 'Female')],
+    }),
+  );
+  const rows = comparisonRows([
+    {
+      detail: { shortId: 1, name: 'Indicator', unit: '%' } as never,
+      areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: points }],
+    },
+  ]);
+  expect(
+    rows.map(({ periodType, suffix, series }) => ({
+      periodType,
+      suffix,
+      values: series.map(({ value }) => value),
+    })),
+  ).toEqual([
+    { periodType: '3-year', suffix: '(Female, 3 year rolling average)', values: [3] },
+    { periodType: '5-year', suffix: '(Female, 5 year rolling average)', values: [5] },
+  ]);
+});
+
+it('labels partial-year period lengths in days', () => {
+  expect(periodTypeLabel('1-day')).toBe('1 day');
+  expect(periodTypeLabel('500-day')).toBe('500 days');
+});
+
+it('labels months and explains a quarterly fallback naturally', () => {
+  expect(periodTypeLabel('1-month')).toBe('1 month');
+  expect(periodTypeLabel('3-month')).toBe('3 months');
+  const point = (toDate: string) => obs({ fromDate: '2024-01-01', toDate, dimensions: [] });
+  const areas = [
+    {
+      areaCode: 'E92000001',
+      areaName: 'England',
+      observations: [point('2024-12-31'), point('2024-01-31')],
+    },
+    { areaCode: 'local', areaName: 'Oxford', observations: [point('2024-03-31')] },
+  ];
+  expect(periodTypeChoice(areas, '1-year').notice).toBe(
+    'Showing 3 months data because Oxford has no 1 year data.',
+  );
+  expect(periodTypeChoice(areas, '1-month').notice).toBe(
+    'Showing 3 months data because Oxford has no 1 month data.',
+  );
 });

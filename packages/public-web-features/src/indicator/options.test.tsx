@@ -320,3 +320,64 @@ it('shows the period notice in the table options without announcing it a second 
   expect(screen.getByText(notice)).toBeTruthy();
   expect(screen.queryByRole('status')).toBeNull();
 });
+
+it.each([
+  ['5-year', '5-year'],
+  ['7-year', '7-year'],
+  ['2-year', 'all'],
+  ['9007199254740991-year', 'all'],
+  ['0-year', 'all'],
+  ['-5-year', 'all'],
+  ['5.5-year', 'all'],
+  ['05-year', 'all'],
+  ['invalid', 'all'],
+])('reads pt-108=%s as %s', (requested, expected) => {
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => {
+        const [options] = usePanelOptions(108, ['5-year', '7-year']);
+        return <output>{options.periodType}</output>;
+      },
+    },
+  ]);
+  render(<Routes initialEntries={[`/?pt-108=${requested}`]} />);
+  expect(screen.getByRole('status').textContent).toBe(expected);
+});
+
+it('offers distinct labels and submits the selected five or seven year period', () => {
+  const Routes = createRoutesStub([
+    {
+      path: '/',
+      Component: () => {
+        const [options, update] = usePanelOptions(108, ['3-year', '5-year', '7-year']);
+        return (
+          <PanelOptionsPanel
+            label="Options"
+            scope={108}
+            confidenceLevels={[]}
+            showConfidence={false}
+            period={{ options: ['3-year', '5-year', '7-year'], value: options.periodType }}
+            sexes={[]}
+            options={options}
+            onChange={update}
+            target={{ tabParam: 'tab-indicator', tabValue: 'indicator', anchor: 'indicator-data' }}
+          />
+        );
+      },
+    },
+  ]);
+  render(<Routes initialEntries={['/?pt-108=5-year']} />);
+  const select = screen.getByLabelText('Type of time period') as HTMLSelectElement;
+  expect([...select.options].map(({ text }) => text)).toEqual([
+    '3 year rolling average',
+    '5 year rolling average',
+    '7 year rolling average',
+  ]);
+  expect(select.value).toBe('5-year');
+  const form = select.closest('form');
+  if (!form) throw new Error('Options form missing');
+  expect(new FormData(form).get('pt-108')).toBe('5-year');
+  fireEvent.change(select, { target: { value: '7-year' } });
+  expect(new FormData(form).get('pt-108')).toBe('7-year');
+});

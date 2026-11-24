@@ -1,8 +1,9 @@
-import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
+import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
 import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
-import { inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
-import { dimensionKeyRank, headlineOrder } from './headline-order.ts';
+import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
+import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 /**
@@ -24,7 +25,7 @@ export async function indicatorTrendDirections(
   const cached = await db
     .select({ id: batches.indicatorId, values: batches.trendValues })
     .from(batches)
-    .where(inArray(batches.indicatorId, ids));
+    .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
   const result = new Map(
     cached.flatMap(({ id, values }) =>
       values === null ? [] : [[id, recentTrendDirection([...values].reverse())] as const],
@@ -49,28 +50,31 @@ async function areaTrendDirections(
     with points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
         ${observation.toDate} as to_date, ${observation.value} as value,
-        ${observation.dimensionKey} as segment
+        ${observation.dimensionKey} as segment,
+        ${observationPeriodSql(observation.fromDate, observation.toDate)} as period_type
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${areaCode}
       where ${inArray(observation.indicatorId, ids)}
     ), series as (
-      select distinct on (indicator_id) indicator_id, segment,
+      select distinct on (indicator_id) indicator_id, segment, period_type,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
-      from points group by indicator_id, segment
+      from points group by indicator_id, segment, period_type
       order by indicator_id, ${sql.join(
         headlineOrder({
           ...dimensionKeyRank(sql`segment`, views),
           latestPeriod: sql`max(to_date)`,
           length: sql`count(*)`,
+          periodLength: periodLengthSql(sql`period_type`),
           firstPoint: sql`min(from_date::text || ':' || to_date::text)`,
         }),
         sql`, `,
-      )}, segment collate "C"
+      )}, ${dimensionKeyOrder(sql`segment`, views)}
     )
     select s.indicator_id,
       coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)
         filter (where p.value is not null))[1:5], '{}') as values
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
+        and p.period_type = s.period_type
     where s.has_value
     group by s.indicator_id
 

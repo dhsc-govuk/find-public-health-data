@@ -112,3 +112,23 @@ test.describe('without JavaScript', () => {
     await expect(table.getByRole('rowheader', { name: '2024', exact: true })).toHaveCount(0);
   });
 });
+
+for (const [shortId, slug] of [
+  [92026, 'reception-prevalence-of-obesity-including-severe-obesity-5-years-data-combined'],
+  [92033, 'year-6-prevalence-of-obesity-including-severe-obesity-5-years-data-combined'],
+] as const) {
+  test(`shows five-year academic periods for indicator ${shortId}`, async ({ page }, testInfo) => {
+    await openIndicatorPage(page, `/indicator/${slug}?pt-${shortId}=5-year`);
+    const panel = page.locator('#indicator-data');
+    await expect(trendChart(page).locator('.fphd-chart-canvas')).toHaveCount(1);
+    await expect(trendChart(page).locator('.recharts-label')).toHaveText('Period');
+    await expect(
+      trendTable(page).getByRole('rowheader', { name: '2015 to 2020', exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByText('3 year rolling average', { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Trend unavailable (multi-year periods)', { exact: true }).first(),
+    ).toBeVisible();
+    await expectNoAccessibilityViolations(page, testInfo);
+  });
+}

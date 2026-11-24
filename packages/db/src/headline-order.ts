@@ -23,12 +23,14 @@ interface KeyRank {
   ageSpan: SQLWrapper;
 }
 
-/** A group of observations that share a dimension key, with that key's rank. */
+/** Observations sharing a dimension key and calendar-based period type, with that key's rank. */
 interface HeadlineSegment extends KeyRank {
   /** The latest `to_date`, whether or not its value is suppressed. */
   latestPeriod: SQLWrapper;
   /** The number of points. */
   length: SQLWrapper;
+  /** The approximate period length in days, shared by every point in the segment. */
+  periodLength: SQLWrapper;
   /** The earliest point, as `from_date:to_date` text. */
   firstPoint: SQLWrapper;
 }
@@ -59,8 +61,8 @@ export function dimensionKeyRank(
 /**
  * Orders segments for the headline, as `headlineSeries` in `@fphd/utils/observation-series`
  * does. The rule is the fewest dimensions other than age, then the newest period, then the fewest
- * dimensions, then the widest age, then the most points, then the earliest first point. Callers
- * add their own final tie-breaker, such as the dimension key.
+ * dimensions, then the widest age, then the most points, then the longest period type, then the
+ * earliest first point. Callers add the dimension key as their final tie-breaker.
  */
 export function headlineOrder(segment: HeadlineSegment): SQL[] {
   return [
@@ -70,6 +72,21 @@ export function headlineOrder(segment: HeadlineSegment): SQL[] {
     sql`${segment.ageOpen} DESC NULLS LAST`,
     sql`${segment.ageSpan} DESC`,
     sql`${segment.length} DESC`,
+    sql`${segment.periodLength} DESC`,
     sql`${segment.firstPoint} COLLATE "C"`,
   ];
+}
+
+/** The JavaScript dimension key: type name in C order, then each value's position in the key. */
+export function dimensionKeyOrder(
+  dimensionKey: SQLWrapper,
+  dimensions: Pick<HeadlineDimensions, 'dimensionValue' | 'dimensionType'>,
+): SQL<string> {
+  return sql<string>`(select coalesce(string_agg(dt.name || ':' || dv.name, '|'
+    order by dt.name COLLATE "C", key.position), '')
+    from unnest(string_to_array(${dimensionKey}, ',')::uuid[])
+      with ordinality as key(id, position)
+    join ${dimensions.dimensionValue} dv on dv.id = key.id
+    join ${dimensions.dimensionType} dt on dt.id = dv.dimension_type_id
+    ) COLLATE "C"`;
 }

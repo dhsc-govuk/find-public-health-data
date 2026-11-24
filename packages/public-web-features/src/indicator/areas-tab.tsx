@@ -49,11 +49,11 @@ export function CompareAreasTab({
     areas: compareAreaOptions,
     params,
   });
-  const [options, applyOptions] = usePanelOptions(detail.shortId);
   const compareAreasData = useMemo(() => expandIndicator(areaChart).areaData, [areaChart]);
   const observations = compareAreasData.flatMap(({ observations }) => observations);
   const confidenceLevels = availableConfidenceLevels(observations);
   const periodTypes = availablePeriodTypes(observations);
+  const [options, applyOptions] = usePanelOptions(detail.shortId, periodTypes);
   const sexes = dimensionValues(observations, 'Sex');
   const confidence = confidenceLevels.includes(options.confidence as '95' | '99.8')
     ? options.confidence
@@ -63,9 +63,10 @@ export function CompareAreasTab({
     ...area,
     observations: filterObservations(area.observations, {
       sex: sexes.includes(options.sex) ? options.sex : '',
-      periodType: periodTypes.includes(options.periodType as '1-year' | '3-year')
-        ? options.periodType
-        : 'all',
+      periodType:
+        options.periodType !== 'all' && periodTypes.includes(options.periodType)
+          ? options.periodType
+          : 'all',
     }),
   }));
   const shownAreas = highlightedAreas(params, areaOptions);

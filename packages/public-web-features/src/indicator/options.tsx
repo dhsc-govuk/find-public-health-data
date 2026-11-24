@@ -1,4 +1,5 @@
 import { Button, Checkboxes, CollapsibleFilterCard, Details, Hint, Radios, Select } from '@fphd/ui';
+import { isObservationPeriodType } from '@fphd/utils/observation-series';
 import { type ReactNode, useId } from 'react';
 import { Form, useLocation, useNavigate, useNavigation } from 'react-router';
 
@@ -87,7 +88,7 @@ function panelOptionNames(scope: OptionScope) {
   };
 }
 
-export function usePanelOptions(scope: OptionScope) {
+export function usePanelOptions(scope: OptionScope, periodTypes: readonly PeriodType[] = []) {
   const { search } = useLocation();
   const navigation = useNavigation();
   const params = new URLSearchParams(navigation.location?.search ?? search);
@@ -98,7 +99,8 @@ export function usePanelOptions(scope: OptionScope) {
   const options: PanelOptions = {
     benchmarks: selectedBenchmarks(params, scope),
     confidence: confidence === '95' || confidence === '99.8' ? confidence : 'none',
-    periodType: periodType === '1-year' || periodType === '3-year' ? periodType : 'all',
+    periodType:
+      isObservationPeriodType(periodType) && periodTypes.includes(periodType) ? periodType : 'all',
     sex: params.get(names.sex) ?? '',
   };
   const update = (next: PanelOptions) =>

@@ -1,7 +1,9 @@
+import { tableSummary } from '@fphd/utils/observation-series';
 import { publicYearType } from '@fphd/utils/period-type';
 import { expect, it } from 'vitest';
 import type { SelectedIndicator } from '../indicator/loader.ts';
 import { indicatorDetail, observation } from '../indicator/view.testing.ts';
+import { topicTableSelection } from './data.ts';
 import { topicOverviewModel } from './overview-model.ts';
 
 const area = {
@@ -153,7 +155,6 @@ it.each([0, 1234, null])('shows count %s in the single Count row', (count) => {
 
 it.each([
   ['', 'up', 'up'],
-  ['Sex:Male', 'up', 'down'],
   ['', null, null],
 ] as const)(
   'uses the selected period trend only for the matching segment %s and direction %s',
@@ -176,13 +177,13 @@ it.each([
             {
               sex: '',
               periodType: 'all',
-              segments: { E12000001: '' },
-              trends: { E12000001: 'down' },
+              segments: { E12000001: `${segment}|1-year` },
+              trends: { E12000001: direction },
             },
             {
               sex: '',
               periodType: '1-year',
-              segments: { E12000001: segment },
+              segments: { E12000001: `${segment}|1-year` },
               trends: { E12000001: direction },
             },
           ],
@@ -224,4 +225,103 @@ it("shows England's figures when no area is chosen, even with data for another a
   };
   const [highlight] = topicOverviewModel([{ ...selected, areaData: [area, england] }]);
   expect(highlight).toMatchObject({ areaName: 'England', value: 50, count: 5000 });
+});
+
+it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
+  'never substitutes England when the chosen area has no values in %j',
+  ({ observations }) => {
+    const england = { areaCode: 'E92000001', areaName: 'England', observations: [observation(50)] };
+    for (const areaData of [[england], [england, { ...area, observations }]]) {
+      const [highlight] = topicOverviewModel(
+        [{ ...selected, areaData }],
+        area.areaCode,
+        area.areaName,
+      );
+      expect(highlight).toMatchObject({
+        period: 'No data',
+        value: null,
+        count: null,
+        hasTrend: false,
+      });
+      expect(highlight?.areaName).toBe('North East');
+    }
+  },
+);
+
+it.each([5, 7])(
+  'keeps a %i year highlight separate from shorter periods after history compaction',
+  (years) => {
+    const points = (length: number) =>
+      Array.from({ length: 10 }, (_, index) => ({
+        ...observation(length * 100 + index),
+        fromDate: `${2000 + index}-09-01`,
+        toDate: `${2000 + index + length}-08-31`,
+      }));
+    const entry = {
+      ...selected,
+      areaData: [{ ...area, observations: [...points(3), ...points(years)] }],
+    };
+    const compact = topicTableSelection([entry], 5, 8);
+    const [highlight] = topicOverviewModel(compact, area.areaCode);
+    expect(highlight?.value).toBe(years * 100 + 9);
+    expect(highlight?.trend).toMatchObject({ reason: 'multi-year periods' });
+    expect(highlight?.points.map(({ value }) => value)).toEqual(
+      points(years)
+        .slice(-8)
+        .map(({ value }) => value),
+    );
+  },
+);
+
+it.each([false, true])('uses the headline period election for sexed=%s', (sexed) => {
+  const points = [3, 5].map((years) => ({
+    ...observation(years),
+    fromDate: '2020-01-01',
+    toDate: `${2020 + years - 1}-12-31`,
+    dimensions: sexed
+      ? [{ type: 'Sex', value: 'Female', sortOrder: 1, dimensionClass: 'core' }]
+      : [],
+  }));
+  const [highlight] = topicOverviewModel(
+    [{ ...selected, areaData: [{ ...area, observations: points }] }],
+    area.areaCode,
+  );
+  expect(highlight?.value).toBe(5);
+});
+
+it('keeps the cached population when the remaining histories would elect another', () => {
+  const points = ['A', 'B'].map((age) => ({
+    ...observation(age === 'A' ? 999 : 12),
+    dimensions: [{ type: 'Age', value: age, sortOrder: 1, dimensionClass: 'core' }],
+  }));
+  const [highlight] = topicOverviewModel(
+    [
+      {
+        ...selected,
+        areaData: [{ ...area, observations: points }],
+        tableSeries: [
+          { sex: '', periodType: 'all', segments: { [area.areaCode]: 'Age:B|1-year' } },
+        ],
+      },
+    ],
+    area.areaCode,
+  );
+  expect(highlight?.value).toBe(12);
+});
+
+it('keeps the full-history headline after sexed period histories are bounded', () => {
+  const points = (years: number, count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      ...observation(years * 100 + index),
+      fromDate: `${2000 + index}-01-01`,
+      toDate: `${2000 + index + years - 1}-12-31`,
+      dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1, dimensionClass: 'core' }],
+    }));
+  const compact = tableSummary(
+    [{ ...area, observations: [...points(3, 12), ...points(5, 10)] }],
+    'sparkline',
+  );
+  const [highlight] = topicOverviewModel([{ ...selected, ...compact }], area.areaCode);
+  expect(highlight?.value).toBe(311);
+  expect(highlight?.points).toHaveLength(8);
 });

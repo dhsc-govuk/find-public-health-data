@@ -607,6 +607,10 @@ describe('the overview for a chosen area', () => {
     expect(overview?.trends.total).toBe(0);
     expect(overview?.area).toBeUndefined();
     expect(overview?.unavailableArea).toBe('North East');
+    expect(overview?.highlights.map(({ areaName }) => areaName)).toEqual([
+      'North East',
+      'North East',
+    ]);
     expect(paths(api).filter((path) => path.includes('/trends'))).toEqual([
       '/api/topics/topic-a/trends?areaCode=E12000001',
     ]);

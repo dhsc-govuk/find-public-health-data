@@ -15,6 +15,7 @@ import {
   MAX_INDICATOR_QUERY_LENGTH,
 } from '@fphd/public-api-features/contract';
 import type { TableSeriesSelection } from '@fphd/utils/observation-series';
+import { isObservationPeriodType } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import type { LoaderFunctionArgs } from 'react-router';
@@ -164,11 +165,13 @@ export async function loadIndicatorData(
   // With nothing chosen, an indicator with no England value opens on a level it has data for.
   // In the usual case England has a value, and its request is the one the data load makes.
   const indicatorLevels = indicatorGroups?.map(({ displayGroup }) => displayGroup) ?? [];
+  const requestedPeriod = url.searchParams.get(`pt-${routeDetail?.shortId}`);
   const defaultAreaLevel =
     singlePage && routeDetail && choosesNothing(url.searchParams, indicatorLevels)
       ? noEnglandLevel(
           (await loadAreaData(api, String(routeDetail.shortId), [ENGLAND_CODE]))[0],
           indicatorLevels,
+          isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
         )
       : undefined;
   const levelsToLoad = defaultAreaLevel ? [defaultAreaLevel] : requestedLevels;

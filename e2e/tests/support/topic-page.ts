@@ -6,7 +6,7 @@ import { MORTALITY_NAME, MORTALITY_PATH } from './indicator-page.ts';
 
 const TOPIC_PATH = '/topics/mortality-and-life-expectancy';
 const OHID_STATISTICS_LINK =
-  'Research and statistics from the Office for Health Improvement and Disparities';
+  'Release calendar for the Office for Health Improvement and Disparities';
 
 export async function openTopicPage(page: Page, path: string) {
   await page.goto(path);
@@ -168,11 +168,11 @@ export function topicPageTests() {
       /^(?:\S+ ){7}\S+$/,
     );
     await expect(mortality.getByRole('img')).toHaveAccessibleDescription(
-      /rose from 92\.3 per 100,000 in 2015 to 2017, peaked at 125\.6 in 2020 to 2022, and has since decreased to 109\.6 in 2022 to 2024$/,
+      /rose from 94\.4 per 100,000 in 2017, peaked at 132\.0 in 2020, and has since decreased to 105\.0 in 2024$/,
     );
     for (const [chart, period, count, value] of [
       [highlight, '2024 to 2025', '4,109,134', '7.9%'],
-      [mortality, '2022 to 2024', '186,922', '109.6 per 100,000'],
+      [mortality, '2024', '60,825', '105.0 per 100,000'],
     ] as const) {
       const card = page.locator('.fphd-topic-highlight').filter({ has: chart });
       await expect(card.locator('.govuk-summary-list__key')).toHaveText([
@@ -188,10 +188,12 @@ export function topicPageTests() {
     const cards = page.locator('.fphd-topic-highlight');
     await expect(cards).toHaveCount(2);
     await expect(cards.nth(0).locator('.fphd-trend-tag')).toHaveText('Increasing');
-    await expect(cards.nth(1).locator('.fphd-trend-tag')).toHaveCount(0);
-    await expect(cards.nth(1).locator('.fphd-trend-reason')).toHaveText('multi-year periods');
+    await expect(cards.nth(1).locator('.fphd-trend-tag')).toHaveText(
+      'Decreasing and getting better',
+    );
+    await expect(cards.nth(1).locator('.fphd-trend-reason')).toHaveCount(0);
     await expect(cards.nth(1).locator('.govuk-summary-list__value').nth(3)).toHaveText(
-      'Trend unavailable (multi-year periods)',
+      'Decreasing and getting better',
     );
     await expect(
       cards.nth(1).locator('.govuk-summary-list__value').nth(2).locator('.govuk-hint'),
@@ -1070,12 +1072,12 @@ export function topicPageTests() {
     const panel = page.getByRole('tabpanel', { name: 'More information' });
     await expect(
       panel.getByText(
-        'Find official statistics releases and statistical commentaries about public health data published on GOV.UK.',
+        'Find upcoming official statistics releases about public health data on GOV.UK.',
       ),
     ).toBeVisible();
     await expect(panel.getByRole('link', { name: OHID_STATISTICS_LINK })).toHaveAttribute(
       'href',
-      'https://www.gov.uk/search/research-and-statistics?content_store_document_type=statistics_published&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest',
+      'https://www.gov.uk/search/research-and-statistics?content_store_document_type=upcoming_statistics&organisations[]=office-for-health-improvement-and-disparities&order=release-date-oldest',
     );
     await expectNoAccessibilityViolations(page, testInfo);
   });

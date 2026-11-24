@@ -55,3 +55,18 @@ describe('inequality table model', () => {
     expect(inequalityTableModel(indicator, new URLSearchParams()).benchmark).toBeUndefined();
   });
 });
+
+it.each([false, true])('matches England to the shown period type with annual=%s', (annual) => {
+  const indicator = selected();
+  const england = indicator.areaData.find(({ areaCode }) => areaCode === 'E92000001');
+  const matching = england?.observations.find(({ value }) => value === 20);
+  if (!england || !matching) throw new Error('Missing England fixture');
+  england.observations = [
+    ...england.observations.filter(({ value }) => value !== 20),
+    ...(annual ? [matching] : []),
+    { ...matching, fromDate: '2022-01-01', value: 90 },
+  ];
+  const model = inequalityTableModel(indicator, new URLSearchParams());
+  expect(model.benchmark?.value).toBe(annual ? 20 : undefined);
+  if (!annual) expect(model.rows.every(({ comparison }) => comparison === 'none')).toBe(true);
+});

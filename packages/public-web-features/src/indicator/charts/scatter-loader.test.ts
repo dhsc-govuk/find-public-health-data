@@ -143,7 +143,7 @@ it('keeps the history fallback when population metadata is missing for any area'
   expect(loadRankingScatterComparison(indicators, new URLSearchParams())).toBeUndefined();
 });
 
-it('keeps the fallback when bounded annual and rolling histories can elect a common population', () => {
+it('keeps the history fallback when the elected populations differ', () => {
   const point = (year: number, value: number, population: string, rolling = false) => ({
     ...observation(value, [
       { type: 'Age', value: population, dimensionClass: 'core', sortOrder: 1 },

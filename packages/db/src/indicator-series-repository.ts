@@ -1,10 +1,12 @@
 import {
   ENGLAND_AREA_CODE,
+  OBSERVATION_SERIES_VERSION,
   observationSegmentKey,
+  observationSeriesKey,
   type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
 import { recentTrendDirection } from '@fphd/utils/recent-trend';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { isoDurationSql } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
 import type {
@@ -99,6 +101,7 @@ export async function getIndicatorSeriesData(
   const loaded = await db
     .select({
       indicatorId: batches.indicatorId,
+      version: batches.version,
       series: {
         indicatorId: series.indicatorId,
         areaId: series.areaId,
@@ -119,6 +122,13 @@ export async function getIndicatorSeriesData(
       series,
       and(
         eq(series.indicatorId, batches.indicatorId),
+        mode === 'ranking'
+          ? undefined
+          : or(
+              and(eq(series.sex, ''), eq(series.periodType, 'all')),
+              sql`${series.variants} @> jsonb_build_array(jsonb_build_object(
+                'sex', ${series.sex}, 'periodType', ${series.periodType}))`,
+            ),
         inArray(
           series.areaId,
           areas.map(({ id }) => id),
@@ -129,6 +139,7 @@ export async function getIndicatorSeriesData(
   // The batch marker distinguishes missing data from a read model awaiting its rebuild.
   if (new Set(loaded.map(({ indicatorId }) => indicatorId)).size !== indicatorIds.length)
     return undefined;
+  if (loaded.some(({ version }) => version !== OBSERVATION_SERIES_VERSION)) return undefined;
   const rows = loaded.flatMap((row) => (row.series ? [row.series] : []));
   if (mode === 'sparkline' && rows.some((row) => row.sparklineObservationIds === null))
     return undefined;
@@ -205,7 +216,13 @@ export async function getIndicatorSeriesData(
           (a, b) => b.toDate.localeCompare(a.toDate) || b.fromDate.localeCompare(a.fromDate),
         )[0];
       result.set(indicatorId, {
-        sexes: [...new Set(selected.map(({ sex }) => sex).filter(Boolean))],
+        sexes: [
+          ...new Set(
+            selected.flatMap(({ variants }) =>
+              variants.flatMap(({ sexes, sex }) => sexes ?? (sex ? [sex] : [])),
+            ),
+          ),
+        ],
         areaData: ordered.map((a) => {
           const pointId = chosen.find((row) => row.areaId === a.id)?.rankingObservationId;
           const point =
@@ -254,7 +271,7 @@ export async function getIndicatorSeriesData(
       const key = `${sex}|${periodType}`;
       let entry = choices.get(key);
       if (!entry) {
-        entry = { sex, periodType, segments: {}, trends: {}, rowOrder: {} };
+        entry = { sex, periodType, segments: {}, trends: {}, rowOrder: {}, headlines: {} };
         choices.set(key, entry);
       }
       return entry;
@@ -266,12 +283,15 @@ export async function getIndicatorSeriesData(
       ).entries()) {
         const entry = choice(variant.sex, variant.periodType);
         if (entry.rowOrder) entry.rowOrder[a.code] = index;
+        if (variant.headline && entry.headlines) entry.headlines[a.code] = true;
       }
       for (const row of areaRows) {
         const latest = byId.get(row.latestObservationId);
         if (!latest) continue;
         const entry = choice(row.sex, row.periodType);
-        entry.segments[a.code] = observationSegmentKey(latest);
+        if (row.sex === '' && row.periodType === 'all' && entry.headlines)
+          entry.headlines[a.code] = true;
+        entry.segments[a.code] = observationSeriesKey(latest);
         if (entry.trends)
           entry.trends[a.code] = recentTrendDirection([...row.recentValues].reverse());
         add(a.id, latest);

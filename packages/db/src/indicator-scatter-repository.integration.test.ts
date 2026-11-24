@@ -1,5 +1,6 @@
 import {
   headlineSeries,
+  OBSERVATION_SERIES_VERSION,
   observationSegmentKey,
   pairedAreaSexValues,
   pairedAreaValues,
@@ -67,7 +68,17 @@ it('reads bounded cached candidates, markers and benchmarks in one statement', a
   }
 });
 
-it('loads both published axes, rankings and sex variants in five statements', async () => {
+it('reads cached sex histories while comparison variants offer only aggregate rows', async () => {
+  const rows = await database.db
+    .select()
+    .from(observationSeries)
+    .where(inArray(observationSeries.indicatorId, ids));
+  const sexRows = rows.filter(({ sex }) => sex);
+  expect(sexRows.length).toBeGreaterThan(0);
+  for (const row of sexRows)
+    expect(row.variants).not.toContainEqual(
+      expect.objectContaining({ sex: row.sex, periodType: row.periodType }),
+    );
   const expected = (await canonical()).map((point) => ({
     ...point,
     x: point.y,
@@ -75,7 +86,7 @@ it('loads both published axes, rankings and sex variants in five statements', as
     xPeriod: point.yPeriod,
     yPeriod: point.xPeriod,
   }));
-  const recent = await getIndicatorSeriesData(db, publishedViews, ids, codes, 'recent');
+  const recent = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const ranking = await getIndicatorSeriesData(db, publishedViews, ids, codes, 'ranking', true);
   const variants = pairedAreaSexValues(
     recent?.get(ids[1])?.areaData ?? [],
@@ -89,13 +100,14 @@ it('loads both published axes, rankings and sex variants in five statements', as
       [40501, 108],
       codes,
     );
+    expect(query).toHaveBeenCalledTimes(5);
     expect(comparison?.points).toEqual(expected);
     expect(comparison?.variants).toEqual(variants);
+    expect(comparison?.variants.map(({ sex }) => sex)).toEqual(['Female', 'Male']);
     expect(comparison?.rankings).toEqual([
-      ranking?.get(ids[1])?.areaData,
-      ranking?.get(ids[0])?.areaData,
+      ranking?.get(ids[1])?.areaData.map(({ populationKeys: _, ...area }) => area),
+      ranking?.get(ids[0])?.areaData.map(({ populationKeys: _, ...area }) => area),
     ]);
-    expect(query).toHaveBeenCalledTimes(5);
   } finally {
     query.mockRestore();
   }
@@ -335,9 +347,19 @@ it('pairs the latest financial and three-year values independently for each area
           value: financial ? 0 : 20,
         };
         return [
-          { ...latest, fromDate: '2019-01-01', toDate: '2019-12-31', value: 5 },
+          {
+            ...latest,
+            fromDate: financial ? '2019-04-01' : '2017-01-01',
+            toDate: financial ? '2020-03-31' : '2019-12-31',
+            value: 5,
+          },
           latest,
-          { ...latest, fromDate: '2026-01-01', toDate: '2026-12-31', value: null },
+          {
+            ...latest,
+            fromDate: financial ? '2026-04-01' : '2024-01-01',
+            toDate: financial ? '2027-03-31' : '2026-12-31',
+            value: null,
+          },
         ];
       }),
     );
@@ -371,4 +393,17 @@ it('pairs the latest financial and three-year values independently for each area
     .where(eq(observationSeriesBatch.indicatorId, ids[1]));
   expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
   expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toMatchObject(expected);
+});
+
+it('keeps sex variants while older cache versions use canonical histories', async () => {
+  const expected = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);
+  await database.db
+    .update(observationSeriesBatch)
+    .set({ version: OBSERVATION_SERIES_VERSION - 1 })
+    .where(inArray(observationSeriesBatch.indicatorId, ids));
+  expect(await getCachedScatterAreas(db, publishedViews, ids, codes)).toBeUndefined();
+  const actual = await getPublishedIndicatorScatterData(db, publishedViews, [108, 40501], codes);
+  expect(actual?.points).toEqual(expected?.points);
+  expect(actual?.variants).toEqual(expected?.variants);
+  expect(actual?.variants.map(({ sex }) => sex)).toEqual(['Female', 'Male']);
 });

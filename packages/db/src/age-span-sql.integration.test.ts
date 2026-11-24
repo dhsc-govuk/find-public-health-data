@@ -165,7 +165,8 @@ it('keeps the total over a newer breakdown by a dimension other than age', () =>
 it('breaks a full tie by the earliest first point, whatever the input order', () => {
   const earlier = observations(age('0-4 yrs', 'P0Y', 'P5Y'), 2).map((point, index) => ({
     ...point,
-    fromDate: index === 0 ? '2022-06-01' : point.fromDate,
+    fromDate: index === 0 ? '2022-01-01' : point.fromDate,
+    toDate: index === 0 ? '2022-12-31' : point.toDate,
   }));
   const later = observations(age('5-9 yrs', 'P5Y', 'P10Y'), 2);
   expect(headlineSeries([...later, ...earlier])).toEqual(earlier);

@@ -1,5 +1,6 @@
 import { AGE_UNITS } from '@fphd/utils/age-range';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
+import type { SeriesPeriodType } from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
@@ -190,6 +191,7 @@ export function createVersionedViews(schema: PgSchema<string>) {
   return {
     observationSeriesBatch: schema
       .view('observation_series_batch', {
+        version: integer('version').notNull(),
         trendValues: doublePrecision('trend_values').array(),
         indicatorId: uuid('indicator_id').notNull(),
       })
@@ -200,7 +202,7 @@ export function createVersionedViews(schema: PgSchema<string>) {
         areaId: uuid('area_id').notNull(),
         dimensionKey: text('dimension_key').notNull(),
         sex: text('sex').notNull(),
-        periodType: text('period_type', { enum: ['all', '1-year', '3-year'] }).notNull(),
+        periodType: text('period_type').$type<SeriesPeriodType>().notNull(),
         variants: jsonb('variants').$type<ObservationSeriesVariant[]>().notNull(),
         latestObservationId: uuid('latest_observation_id').notNull(),
         rankingObservationId: uuid('ranking_observation_id'),

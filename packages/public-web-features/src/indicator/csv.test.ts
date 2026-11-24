@@ -659,6 +659,30 @@ describe('loadIndicatorCsv', () => {
     ]);
   });
 
+  it('omits England benchmarks when England only has values of another period type', async () => {
+    const client = api(
+      [
+        {
+          areaCode: 'E06000052',
+          areaName: 'Cornwall',
+          observations: [observation({ fromDate: '2021-01-01', value: 3 })],
+        },
+        { areaCode: 'E92000001', areaName: 'England', observations: [observation({ value: 7 })] },
+      ],
+      { 'GET /api/areas/lookup': [], 'GET /api/areas/parents': [] },
+    );
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E06000052&pt-108=3-year&cmp-108=england`,
+      ),
+      'table',
+    );
+    const body = await response.text();
+    expect(body).toContain('Cornwall');
+    expect(body).not.toContain('England');
+  });
+
   it('ignores a sex published only in the other period type, as the page does', async () => {
     const client = api([
       {
@@ -824,21 +848,33 @@ describe('the table download of an indicator with no England value', () => {
     return levels.map((displayGroup) => ({ displayGroup, areas: [] }));
   };
 
-  it("holds the page's default regions when nothing is chosen", async () => {
-    const client = api(data, {
-      [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
-    });
-
-    const response = await loadIndicatorCsv(
-      args(client, `http://localhost/indicator/${SLUG}/table.csv`),
-      'table',
-    );
-
-    const [header, row] = (await response.text()).split('\n');
-    expect(header).toContain('North East');
-    expect(header).toContain('North West');
-    expect(row).toContain('10');
-  });
+  it.each([{ observations: [] }, { observations: [observation({ value: null })] }])(
+    "holds the page's default regions when England has no values in %j",
+    async ({ observations }) => {
+      const client = api(
+        (call: FakeApiCall) => {
+          const answers = areaCodes(call).map((code) =>
+            code === 'E92000001'
+              ? { areaCode: code, areaName: 'England', observations }
+              : regionData(code, code === 'E12000001' ? 10 : 20),
+          );
+          return answers.length === 1 ? answers[0] : answers;
+        },
+        {
+          [`GET ${DETAIL}/areas`]: areas(['Local authorities', 'Statistical regions']),
+        },
+      );
+      const response = await loadIndicatorCsv(
+        args(client, `http://localhost/indicator/${SLUG}/table.csv`),
+        'table',
+      );
+      const [header, row] = (await response.text()).split('\n');
+      expect(header).toContain('North East');
+      expect(header).toContain('North West');
+      expect(header).not.toContain('England');
+      expect(row).toContain('10');
+    },
+  );
 
   it.each(['als=Foo', 'als='])(
     "holds the page's default regions when %s chooses no level the indicator has",
@@ -959,3 +995,27 @@ describe('a route that shows the page at one address, as the preview does', () =
     expect(response.status).toBe(200);
   });
 });
+
+it.each([3, 5, 7])(
+  'downloads only the requested %i year series from mixed periods',
+  async (years) => {
+    const client = api([
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [3, 5, 7].map((length) =>
+          observation({ fromDate: `${2025 - length}-09-01`, toDate: '2025-08-31', value: length }),
+        ),
+      },
+    ]);
+    const response = await loadIndicatorCsv(
+      args(client, `http://localhost/indicator/${SLUG}/table.csv?pt-108=${years}-year`),
+      'table',
+    );
+    const rows = (await response.text()).trim().split('\n').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toBe(
+      `${2025 - years}/${String(2026 - years).slice(-2)} to 2024/25,${years},339,343.2`,
+    );
+  },
+);

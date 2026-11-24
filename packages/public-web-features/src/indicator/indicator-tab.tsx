@@ -8,6 +8,7 @@ import { TrendChart } from './charts/trend-chart.tsx';
 import {
   availableConfidenceLevels,
   availableMeasures,
+  availablePeriodTypes,
   dimensionValues,
   filterObservations,
   periodTypeChoice,
@@ -60,15 +61,18 @@ export function IndicatorTab({
   const links = useIndicatorLinks();
   const navigation = useNavigation();
   const params = new URLSearchParams(navigation.location?.search ?? location.search);
-  const [options, applyOptions] = usePanelOptions(id);
+  const [options, applyOptions] = usePanelOptions(
+    id,
+    availablePeriodTypes(areaData.flatMap(({ observations }) => observations)),
+  );
   const applyOptionParams = useOptionParamNavigation();
-  const england = englandObservations(areaData);
-  const hasEngland = england.length > 0;
   const pickedAreaData = areaData.filter(({ areaCode }) => areaCode !== 'E92000001');
   const periodChoice = periodTypeChoice(areaData, options.periodType, {
     defaultAreas: !!defaultAreaLevel,
   });
   const { periodType } = periodChoice;
+  const england = filterObservations(englandObservations(areaData), { periodType });
+  const hasEngland = england.some(({ value }) => value !== null);
   const shownObservations = filterObservations(
     (pickedAreaData.length ? pickedAreaData : areaData).flatMap(({ observations }) => observations),
     { periodType },
@@ -98,6 +102,7 @@ export function IndicatorTab({
     areas: pickedAreaData,
     geography: benchmarkGeography,
     englandObservations: england,
+    periodType,
     goal: detail.goal,
   });
   const benchmarks = options.benchmarks.filter((choice) =>

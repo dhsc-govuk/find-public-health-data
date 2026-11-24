@@ -1,8 +1,19 @@
 import { isoDurationDays } from './age-range.ts';
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
+export const OBSERVATION_SERIES_VERSION = 6;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
+export type ObservationPeriodType = `${number}-year` | `${number}-month` | `${number}-day`;
+export type SeriesPeriodType = 'all' | ObservationPeriodType;
+
+export function isObservationPeriodType(value: unknown): value is ObservationPeriodType {
+  return (
+    typeof value === 'string' &&
+    /^[1-9]\d*-(year|month|day)$/.test(value) &&
+    Number.isSafeInteger(Number.parseInt(value, 10))
+  );
+}
 export const AGE_DIMENSION_NAME = 'Age';
 export const ROLLING_PERIOD_THRESHOLD_DAYS = 400;
 
@@ -18,16 +29,82 @@ interface SeriesObservation {
 }
 
 export function observationSegmentKey(observation: SeriesObservation): string {
-  return observation.dimensions.map(({ type, value }) => `${type}:${value}`).join('|');
+  return [...observation.dimensions]
+    .sort((a, b) => compareKeys(a.type, b.type))
+    .map(({ type, value }) => `${type}:${value}`)
+    .join('|');
+}
+
+function addMonthsClamped(start: Date, months: number): Date {
+  const result = new Date(start);
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months + 1);
+  result.setUTCDate(0);
+  result.setUTCDate(Math.min(start.getUTCDate(), result.getUTCDate()));
+  return result;
+}
+
+export function periodMonths(
+  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
+): number | null {
+  const start = new Date(observation.fromDate);
+  const inclusiveEnd = new Date(observation.toDate);
+  const end = new Date(Date.parse(observation.toDate) + 86_400_000);
+  const months =
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth();
+  if (months > 0 && addMonthsClamped(start, months).getTime() === end.getTime()) return months;
+  if (
+    months > 1 &&
+    start.getUTCDate() > inclusiveEnd.getUTCDate() &&
+    addMonthsClamped(start, months - 1).getTime() === inclusiveEnd.getTime()
+  )
+    return months - 1;
+  return null;
+}
+
+export function periodYears(
+  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
+): number | null {
+  const months = periodMonths(observation);
+  return months !== null && months % 12 === 0 ? months / 12 : null;
+}
+
+export function observationPeriodType(
+  observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
+): ObservationPeriodType {
+  const months = periodMonths(observation);
+  const days = (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 + 1;
+  if (months === null) return `${days}-day`;
+  return months % 12 === 0 ? `${months / 12}-year` : `${months}-month`;
+}
+
+export function periodTypeLength(periodType: ObservationPeriodType): number {
+  return (
+    Number.parseInt(periodType, 10) *
+    (periodType.endsWith('-year') ? 365.25 : periodType.endsWith('-month') ? 30.4375 : 1)
+  );
+}
+
+export function seriesPeriodTypes(
+  observations: Pick<SeriesObservation, 'fromDate' | 'toDate'>[],
+): ObservationPeriodType[] {
+  return [...new Set(observations.map(observationPeriodType))].sort(
+    (a, b) => periodTypeLength(a) - periodTypeLength(b),
+  );
 }
 
 export function isRollingPeriod(
   observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>,
 ): boolean {
-  return (
-    (Date.parse(observation.toDate) - Date.parse(observation.fromDate)) / 86_400_000 >
-    ROLLING_PERIOD_THRESHOLD_DAYS
-  );
+  return periodTypeLength(observationPeriodType(observation)) > 365.25;
+}
+
+export function observationSeriesKey(observation: SeriesObservation): string {
+  return `${observationSegmentKey(observation)}|${observationPeriodType(observation)}`;
+}
+
+function compareKeys(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**
@@ -49,10 +126,10 @@ export function ageRank({ dimensions }: SeriesObservation): [number, number] {
 /**
  * The series a page shows for a set of observations: the segment with the fewest dimensions other
  * than age, then the newest period, suppressed or not, then the fewest dimensions, then the widest
- * age (see `ageRank`), then the most points, then the earliest first point. `headlineOrder` in
- * `@fphd/db` is the same rule in SQL. A tie after that keeps the input order. The SQL breaks it by
- * dimension key, so the two agree when observations come in period and then dimension key order,
- * as the observation loaders return them.
+ * age (see `ageRank`), then the most points, then the longest period type, then the earliest first
+ * point, then the dimension key (type name, then the input order of values with that type). Each
+ * segment shares a dimension key and a calendar-based period type. `headlineOrder` in `@fphd/db`
+ * is the same rule in SQL, with the dimension key supplied by its callers.
  */
 export function headlineSeries<T extends SeriesObservation>(observations: T[]): T[] {
   const segments = new Map<
@@ -64,10 +141,12 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       dimensions: number;
       age: [number, number];
       first: string;
+      periodLength: number;
+      dimensionKey: string;
     }
   >();
   for (const point of observations) {
-    const key = observationSegmentKey(point);
+    const key = observationSeriesKey(point);
     const segment = segments.get(key) ?? {
       points: [],
       others: point.dimensions.filter(({ type }) => type !== AGE_DIMENSION_NAME).length,
@@ -75,6 +154,8 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       dimensions: point.dimensions.length,
       age: ageRank(point),
       first: `${point.fromDate}:${point.toDate}`,
+      periodLength: periodTypeLength(observationPeriodType(point)),
+      dimensionKey: observationSegmentKey(point),
     };
     segment.points.push(point);
     if (point.toDate > segment.latest) segment.latest = point.toDate;
@@ -90,7 +171,9 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       b.age[0] - a.age[0] ||
       b.age[1] - a.age[1] ||
       b.points.length - a.points.length ||
-      a.first.localeCompare(b.first),
+      b.periodLength - a.periodLength ||
+      compareKeys(a.first, b.first) ||
+      compareKeys(a.dimensionKey, b.dimensionKey),
   );
   return (winner?.points ?? []).sort(
     (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
@@ -99,15 +182,16 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
 
 export interface SeriesFilter {
   sex?: string;
-  periodType?: 'all' | '1-year' | '3-year';
+  periodType?: SeriesPeriodType;
 }
 
 export interface TableSeriesSelection {
   sex: string;
-  periodType: 'all' | '1-year' | '3-year';
+  periodType: SeriesPeriodType;
   segments: Record<string, string>;
   trends?: Record<string, TrendDirection>;
   rowOrder?: Record<string, number>;
+  headlines?: Record<string, boolean>;
 }
 
 export function filterSeries<T extends SeriesObservation>(
@@ -116,7 +200,7 @@ export function filterSeries<T extends SeriesObservation>(
 ): T[] {
   return observations.filter(
     (point) =>
-      (periodType === 'all' || isRollingPeriod(point) === (periodType === '3-year')) &&
+      (periodType === 'all' || observationPeriodType(point) === periodType) &&
       (!sex ||
         point.dimensions.some(({ type, value }) => type === SEX_DIMENSION_NAME && value === sex)),
   );
@@ -153,21 +237,36 @@ export function tableSummary<
     areas.map((area) => [area.areaCode, comparisonVariants(area.observations)]),
   );
   for (const sex of sexes) {
-    for (const periodType of ['all', '1-year', '3-year'] as const) {
+    for (const periodType of [
+      'all',
+      ...seriesPeriodTypes(areas.flatMap(({ observations }) => observations)),
+    ] as const) {
       const trends: Record<string, TrendDirection> = {};
       const rowOrder: Record<string, number> = {};
-      const selection: TableSeriesSelection = { sex, periodType, segments: {}, trends, rowOrder };
+      const headlines: Record<string, boolean> = {};
+      const selection: TableSeriesSelection = {
+        sex,
+        periodType,
+        segments: {},
+        trends,
+        rowOrder,
+        headlines,
+      };
       for (const area of areas) {
         const order =
           variantsByArea
             .get(area.areaCode)
             ?.findIndex((variant) => variant.sex === sex && variant.periodType === periodType) ??
           -1;
+        if (order < 0 && (sex !== '' || periodType !== 'all')) continue;
         if (order >= 0) rowOrder[area.areaCode] = order;
         const series = headlineSeries(filterSeries(area.observations, selection));
         const latest = series.at(-1);
         if (!latest) continue;
-        selection.segments[area.areaCode] = observationSegmentKey(latest);
+        selection.segments[area.areaCode] = observationSeriesKey(latest);
+        const headline = headlineSeries(area.observations)[0];
+        if (headline && observationSeriesKey(headline) === observationSeriesKey(latest))
+          headlines[area.areaCode] = true;
         trends[area.areaCode] = recentTrendDirection(series.map(({ value }) => value));
         if (points !== 'latest')
           for (const point of series.filter(({ value }) => value !== null).slice(-5))
@@ -204,13 +303,14 @@ export function comparisonVariants(observations: SortedSeriesObservation[]) {
     observations.some((point) => !point.dimensions.some(({ type }) => type === SEX_DIMENSION_NAME))
   )
     return [{ sex: '', periodType: 'all' as const }];
-  const periods: ('1-year' | '3-year')[] = [];
-  if (observations.some((point) => !isRollingPeriod(point))) periods.push('1-year');
-  if (observations.some(isRollingPeriod)) periods.push('3-year');
+  const periods = seriesPeriodTypes(observations);
   return [...sexes]
     .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
     .flatMap(([sex]) =>
-      (periods.length > 1 ? periods : (['all'] as const)).map((periodType) => ({
+      (periods.length > 1
+        ? seriesPeriodTypes(filterSeries(observations, { sex }))
+        : (['all'] as const)
+      ).map((periodType) => ({
         sex,
         periodType,
       })),
@@ -290,8 +390,7 @@ export function tableAreaSeries<T extends { areaCode: string; observations: Seri
     for (const group of groups) {
       for (const points of [
         group,
-        group.filter(isRollingPeriod),
-        group.filter((point) => !isRollingPeriod(point)),
+        ...seriesPeriodTypes(group).map((periodType) => filterSeries(group, { periodType })),
       ])
         for (const point of headlineSeries(points)) keep.add(point);
     }

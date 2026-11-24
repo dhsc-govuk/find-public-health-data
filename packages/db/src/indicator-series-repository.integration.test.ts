@@ -1,13 +1,16 @@
 import {
+  comparisonVariants,
+  filterSeries,
   headlineSeries,
-  isRollingPeriod,
   observationSegmentKey,
   rankingAreaSeries,
+  seriesPeriodTypes,
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
+import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
 import type { Database } from './client.ts';
 import {
   getIndicatorObservationData,
@@ -19,9 +22,12 @@ import { getIndicatorRankingData, getIndicatorTableData } from './indicator-tabl
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   area,
+  dimensionType,
+  dimensionValue,
   indicatorVersion,
   observation,
   observationSeries,
+  observationSeriesBatch,
   publishedArea,
   publishedViews,
   uploadBatch,
@@ -40,6 +46,57 @@ beforeAll(async () => {
   ids = (await db.select({ id: publishedIndicator.id }).from(publishedIndicator)).map(
     ({ id }) => id,
   );
+});
+
+it('hydrates every area headline for aggregate comparisons alongside sexed-only areas', async () => {
+  class RolledBack extends Error {}
+  await expect(
+    database.db.transaction(async (tx) => {
+      const [model] = await tx.select().from(observationSeries).limit(1);
+      const areas = await tx
+        .select()
+        .from(area)
+        .where(inArray(area.code, ['E06000052', 'E92000001']));
+      const [female] = await tx
+        .select({ id: dimensionValue.id })
+        .from(dimensionValue)
+        .innerJoin(dimensionType, eq(dimensionType.id, dimensionValue.dimensionTypeId))
+        .where(and(eq(dimensionType.name, 'Sex'), eq(dimensionValue.name, 'Female')));
+      if (!model || !female || areas.length !== 2) throw new Error('Expected seeded fixtures');
+      await tx.delete(observation).where(eq(observation.indicatorId, model.indicatorId));
+      await tx.insert(observation).values(
+        areas.map((a) => ({
+          indicatorId: model.indicatorId,
+          uploadBatchId: model.uploadBatchId,
+          areaId: a.id,
+          fromDate: '2024-01-01',
+          toDate: '2024-12-31',
+          dimensionKey: a.code === 'E92000001' ? '' : female.id,
+          value: 10,
+        })),
+      );
+      await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId);
+      for (const mode of ['latest', 'recent', 'sparkline'] as const) {
+        const cached = await getIndicatorSeriesData(
+          tx,
+          publishedViews,
+          [model.indicatorId],
+          ['E92000001', 'E06000052'],
+          mode,
+        );
+        const aggregate = cached
+          ?.get(model.indicatorId)
+          ?.tableSeries?.find(({ sex, periodType }) => !sex && periodType === 'all');
+        expect(aggregate?.segments).toEqual({
+          E92000001: '|1-year',
+          E06000052: 'Sex:Female|1-year',
+        });
+        expect(aggregate?.headlines).toEqual({ E92000001: true, E06000052: true });
+        expect(aggregate?.rowOrder).toEqual({ E92000001: 0 });
+      }
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
 });
 afterAll(async () => {
   await database.drop();
@@ -132,26 +189,20 @@ it('includes all elected population keys without changing ranking values or SQL 
   expect([...(populations[0] ?? [])].some((key) => populations[1]?.has(key))).toBe(false);
 });
 
-it('retains eight periods of both shapes when the all-period series mixes annual and rolling data', async () => {
+it('retains eight periods of each offered variant without merging period lengths', async () => {
   const codes = ['E92000001'];
   const full = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const mixed = [...full].find(([, entry]) => {
-    const history = headlineSeries(entry.areaData[0]?.observations ?? []);
-    return (
-      history.filter(isRollingPeriod).length >= 8 &&
-      history.filter((point) => !isRollingPeriod(point)).length >= 8
-    );
+    const observations = entry.areaData[0]?.observations ?? [];
+    return seriesPeriodTypes(observations).length > 1 && headlineSeries(observations).length >= 8;
   });
-  if (!mixed) throw new Error('Expected seeded annual and rolling histories in one segment');
+  if (!mixed) throw new Error('Expected seeded annual and rolling histories');
   const [id, entry] = mixed;
-  const history = headlineSeries(entry.areaData[0]?.observations ?? []);
+  const observations = entry.areaData[0]?.observations ?? [];
   const cached = await getIndicatorSeriesData(db, publishedViews, [id], codes, 'sparkline');
   const points = cached?.get(id)?.areaData[0]?.observations;
-  for (const series of [
-    history,
-    history.filter(isRollingPeriod),
-    history.filter((point) => !isRollingPeriod(point)),
-  ]) {
+  for (const variant of comparisonVariants(observations)) {
+    const series = headlineSeries(filterSeries(observations, variant));
     expect(points).toEqual(expect.arrayContaining(series.slice(-8)));
   }
 });
@@ -458,3 +509,80 @@ async function publishNextBatch(id: string) {
     value: 123,
   });
 }
+
+it('uses canonical comparisons and trends for caches written by an older series algorithm', async () => {
+  const id = ids[6];
+  if (!id) throw new Error('Expected a seeded indicator');
+  const [identity] = await db
+    .select({ shortId: publishedIndicator.shortId })
+    .from(publishedIndicator)
+    .where(eq(publishedIndicator.id, id));
+  const [batch] = await database.db
+    .select()
+    .from(observationSeriesBatch)
+    .where(eq(observationSeriesBatch.indicatorId, id));
+  const original = await database.db
+    .select()
+    .from(observationSeries)
+    .where(eq(observationSeries.indicatorId, id));
+  if (!identity || !batch) throw new Error('Expected a completed read model');
+  const codes = ['E92000001'];
+  const expectedTrend = await indicatorTrendDirections(db, publishedViews, [id]);
+  const expected = new Map(
+    await Promise.all(
+      (['latest', 'recent', 'sparkline'] as const).map(
+        async (mode) =>
+          [
+            mode,
+            await getIndicatorTableData(db, publishedViews, [identity.shortId], codes, mode),
+          ] as const,
+      ),
+    ),
+  );
+  const expectedRanking = await getIndicatorRankingData(db, publishedViews, id, codes);
+  try {
+    await database.db
+      .update(observationSeriesBatch)
+      .set({ version: 0, trendValues: [1, 2, 3, 4, 5] })
+      .where(eq(observationSeriesBatch.indicatorId, id));
+    await database.sql`update observation_series set period_type = 'annual',
+      variants = '[{"sex":"","periodType":"annual"}]'::jsonb
+      where indicator_id = ${id} and period_type = 'all'`;
+    const normalise = (entries: Awaited<ReturnType<typeof getIndicatorTableData>>) =>
+      entries.map((entry) => ({
+        ...entry,
+        tableSeries: entry.tableSeries
+          ?.filter(({ segments }) => Object.keys(segments).length)
+          .sort((a, b) => `${a.sex}|${a.periodType}`.localeCompare(`${b.sex}|${b.periodType}`)),
+        areaData: entry.areaData.map((area) => ({
+          ...area,
+          observations: [...area.observations].sort(
+            (a, b) =>
+              a.fromDate.localeCompare(b.fromDate) ||
+              a.toDate.localeCompare(b.toDate) ||
+              observationSegmentKey(a).localeCompare(observationSegmentKey(b)),
+          ),
+        })),
+      }));
+    for (const mode of ['latest', 'recent', 'sparkline'] as const) {
+      expect(await getIndicatorSeriesData(db, publishedViews, [id], codes, mode)).toBeUndefined();
+      expect(
+        normalise(await getIndicatorTableData(db, publishedViews, [identity.shortId], codes, mode)),
+      ).toEqual(normalise(expected.get(mode) ?? []));
+    }
+    expect(
+      await getIndicatorSeriesData(db, publishedViews, [id], codes, 'ranking'),
+    ).toBeUndefined();
+    expect(await getIndicatorRankingData(db, publishedViews, id, codes)).toEqual(
+      expectedRanking.map(({ populationKeys: _, ...area }) => area),
+    );
+    expect(await indicatorTrendDirections(db, publishedViews, [id])).toEqual(expectedTrend);
+  } finally {
+    await database.db.delete(observationSeries).where(eq(observationSeries.indicatorId, id));
+    if (original.length) await database.db.insert(observationSeries).values(original);
+    await database.db
+      .update(observationSeriesBatch)
+      .set(batch)
+      .where(eq(observationSeriesBatch.indicatorId, id));
+  }
+});

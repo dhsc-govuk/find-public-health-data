@@ -202,20 +202,28 @@ function noEnglandRoutes(props: Partial<Parameters<typeof IndicatorTab>[0]>) {
   ]);
 }
 
-it('says the indicator has no England-level figure, without the chosen-areas download, when nothing is shown', () => {
-  const Routes = noEnglandRoutes({});
-  const { container } = render(<Routes initialEntries={['/']} />);
+it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
+  'says the indicator has no England-level figure when England has no values in %j',
+  ({ observations }) => {
+    const Routes = noEnglandRoutes({
+      primary: {
+        detail: indicatorDetail(),
+        areaData: [{ areaCode: 'E92000001', areaName: 'England', observations }],
+      },
+    });
+    const { container } = render(<Routes initialEntries={['/']} />);
 
-  expect(
-    screen.getByText('This indicator has no England-level figure. Choose areas to see data.'),
-  ).toBeTruthy();
-  expect(screen.queryByRole('table')).toBeNull();
-  expect(
-    screen.queryByRole('link', { name: "Download data for the areas you've chosen (CSV)" }),
-  ).toBeNull();
-  expect(screen.getByRole('link', { name: 'Download data for all areas (CSV)' })).toBeTruthy();
-  expect(container.querySelector('input[type="hidden"][name="cmp-108"]')).toBeNull();
-});
+    expect(
+      screen.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: "Download data for the areas you've chosen (CSV)" }),
+    ).toBeNull();
+    expect(screen.getByRole('link', { name: 'Download data for all areas (CSV)' })).toBeTruthy();
+    expect(container.querySelector('input[type="hidden"][name="cmp-108"]')).toBeNull();
+  },
+);
 
 it('shows the default level of an indicator with no England value, without an England benchmark', () => {
   const fixture = benchmarkFixture();
@@ -253,6 +261,29 @@ it('shows the default level of an indicator with no England value, without an En
   expect(
     new URL(download.getAttribute('href') ?? '', 'http://localhost').searchParams.getAll('as'),
   ).toEqual(['E12000001', 'E12000002']);
+});
+
+it('shows no England figure when only another period type has England values', () => {
+  const Routes = noEnglandRoutes({
+    primary: {
+      detail: indicatorDetail(),
+      areaData: [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [
+            observation(10),
+            { ...observation(), fromDate: '2022-01-01', value: null },
+          ],
+        },
+      ],
+    },
+  });
+  render(<Routes initialEntries={['/?pt-108=3-year']} />);
+  expect(
+    screen.getByText('This indicator has no England-level figure. Choose areas to see data.'),
+  ).toBeTruthy();
+  expect(screen.queryByRole('table')).toBeNull();
 });
 
 it("offers England's sexes when England has a value, whatever the picked area has", () => {

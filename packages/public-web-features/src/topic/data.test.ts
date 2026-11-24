@@ -49,6 +49,34 @@ it('uses England for the area row period rather than a newer England observation
   expect(englandObservation(entry, { ...row, series: [observation(2022, 8)] })).toBeUndefined();
 });
 
+it('uses the England value of the same period length as the area row', () => {
+  const rolling = (year: number, value: number) => ({
+    ...observation(year, value),
+    fromDate: `${year - 2}-01-01`,
+  });
+  const entry = {
+    areaData: [
+      {
+        areaCode: 'E92000001',
+        areaName: 'England',
+        observations: [
+          observation(2024, 10),
+          rolling(2022, 30),
+          rolling(2023, 31),
+          rolling(2024, 32),
+        ],
+      },
+    ],
+  } as SelectedIndicator;
+  const row: Pick<ComparisonRow, 'sex' | 'periodType' | 'series'> = {
+    sex: '',
+    periodType: 'all',
+    series: [observation(2024, 8)],
+  };
+  expect(englandObservation(entry, row)?.value).toBe(10);
+  expect(englandObservation(entry, { ...row, series: [rolling(2024, 9)] })?.value).toBe(32);
+});
+
 it('retains the displayed values, valid trend points and older England benchmark when compacting history', () => {
   const entry = {
     detail: {

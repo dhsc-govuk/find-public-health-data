@@ -3,6 +3,10 @@ import { ISO_AGE_DURATION } from '@fphd/utils/age-range';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
 import { INDICATOR_DATA_STATES, INDICATOR_QUESTIONS } from '@fphd/utils/indicator-page';
+import {
+  isObservationPeriodType,
+  type ObservationPeriodType,
+} from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -311,9 +315,13 @@ export const indicatorTableDataSchema = z.array(
       .array(
         z.object({
           sex: z.string(),
-          periodType: z.enum(['all', '1-year', '3-year']),
+          periodType: z.union([
+            z.literal('all'),
+            z.custom<ObservationPeriodType>(isObservationPeriodType),
+          ]),
           segments: z.record(z.string(), z.string()),
           trends: z.record(z.string(), z.enum(['up', 'down', 'right']).nullable()).optional(),
+          headlines: z.record(z.string(), z.boolean()).optional(),
           rowOrder: z.record(z.string(), z.number().int().nonnegative()).optional(),
         }),
       )

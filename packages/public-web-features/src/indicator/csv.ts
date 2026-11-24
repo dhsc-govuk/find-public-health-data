@@ -5,6 +5,7 @@ import {
   MAX_AREA_CODES_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
+import { isObservationPeriodType } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
@@ -108,7 +109,13 @@ export async function loadIndicatorCsv(
   let areaData = await dataFor(codesToLoad);
   // With nothing chosen, an indicator with no England value has the page's default level.
   if (kind === 'table' && pickedCodes.length === 0) {
-    const defaultCodes = await noEnglandAreaCodes(api, segment, areaData, url.searchParams);
+    const defaultCodes = await noEnglandAreaCodes(
+      api,
+      segment,
+      areaData,
+      url.searchParams,
+      detail.shortId,
+    );
     if (defaultCodes.length > 0) {
       pickedCodes = defaultCodes;
       areaData = await dataFor([...defaultCodes, ENGLAND_CODE]);
@@ -124,10 +131,12 @@ export async function loadIndicatorCsv(
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
     const { periodType } = periodTypeChoice(
       areaData,
-      isOneOf(['1-year', '3-year'] as const, requestedPeriod) ? requestedPeriod : 'all',
+      isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
     );
     const requestedSex = url.searchParams.get(`sex-${shortId}`) ?? '';
-    const hasEngland = englandObservations(areaData).length > 0;
+    const hasEngland = filterObservations(englandObservations(areaData), { periodType }).some(
+      ({ value }) => value !== null,
+    );
     const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
     const sex = sexes.includes(requestedSex) ? requestedSex : '';
     const shownObservations = filterObservations(
@@ -249,16 +258,26 @@ async function noEnglandAreaCodes(
   segment: string,
   areaData: IndicatorAreaData[],
   params: URLSearchParams,
+  shortId: number,
 ): Promise<string[]> {
   const england = areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE);
-  if (england && england.observations.length > 0) return [];
+  const requestedPeriod = params.get(`pt-${shortId}`);
+  const periodType = isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all';
+  if (
+    filterObservations(england?.observations ?? [], { periodType }).some(
+      ({ value }) => value !== null,
+    )
+  )
+    return [];
   const levels = (
     await api.get(
       `${apiPath`/api/indicators/${segment}/areas`}?limit=1`,
       areaDisplayGroupListSchema,
     )
   ).map(({ displayGroup }) => displayGroup);
-  const level = choosesNothing(params, levels) ? noEnglandLevel(england, levels) : undefined;
+  const level = choosesNothing(params, levels)
+    ? noEnglandLevel(england, levels, periodType)
+    : undefined;
   if (!level) return [];
   const groups = await api.get(
     `${apiPath`/api/indicators/${segment}/areas`}?displayGroup=${encodeURIComponent(level)}`,

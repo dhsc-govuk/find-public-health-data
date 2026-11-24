@@ -191,3 +191,40 @@ describe('benchmark options', () => {
     ).not.toContain('england');
   });
 });
+
+it('offers no England benchmark when all England values are null', () => {
+  const fixture = benchmarkFixture();
+  const options = benchmarkCheckboxOptions(false, {
+    areas: fixture.areaData,
+    geography: fixture.geography,
+    englandObservations: fixture.areaData
+      .flatMap(({ observations }) => observations)
+      .map((point) => ({ ...point, value: null })),
+    goal: null,
+  });
+  expect(options.map(({ value }) => value)).not.toContain('england');
+});
+
+it('offers England only when the shown period type has a value', () => {
+  const fixture = benchmarkFixture();
+  const point = fixture.areaData.flatMap(({ observations }) => observations)[0];
+  if (!point) throw new Error('Missing observation');
+  const context = {
+    areas: fixture.areaData,
+    geography: fixture.geography,
+    englandObservations: [
+      { ...point, fromDate: '2024-01-01', toDate: '2024-12-31', value: null },
+      { ...point, fromDate: '2022-01-01', toDate: '2024-12-31', value: 0 },
+    ],
+    goal: null,
+  };
+  for (const [periodType, offered] of [
+    ['1-year', false],
+    ['3-year', true],
+  ] as const)
+    expect(
+      benchmarkCheckboxOptions(false, { ...context, periodType }).some(
+        ({ value }) => value === 'england',
+      ),
+    ).toBe(offered);
+});

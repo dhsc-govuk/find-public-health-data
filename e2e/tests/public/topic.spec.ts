@@ -63,8 +63,8 @@ for (const width of [1020, 375]) {
       if (topic === 'diabetes') {
         const rate = cards.filter({ hasText: 'Mortality rate for deaths involving diabetes' });
         await expect(rate.locator('.fphd-sparkline__endpoints > span')).toHaveText([
-          '92.3per 100,000in 2015-17',
-          '109.6per 100,000in 2022-24',
+          '94.4per 100,000in 2017',
+          '105.0per 100,000in 2024',
         ]);
         const tag = cards.first().locator('.fphd-trend-tag');
         await expect(tag).toHaveCSS('width', '136px');
@@ -125,7 +125,7 @@ for (const { title, query, area, note } of [
       expect(unavailable).toEqual(unavailable.toSorted((a, b) => Number(a) - Number(b)));
     };
     for (const sort of ['trend-desc', 'trend-asc', 'trend-better', 'trend-worse']) {
-      await openTopicPage(page, `/topics/diabetes?tab-topic=data&sort=${sort}${query}`);
+      await openTopicPage(page, `/topics/health-behaviours?tab-topic=data&sort=${sort}${query}`);
       const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
       await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
       await expect(panel.getByText(/^Trend sorting uses/)).toHaveText(

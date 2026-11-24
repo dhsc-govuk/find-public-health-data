@@ -121,3 +121,16 @@ it("takes the axis's extent from the values and their error bars as drawn", () =
   // An interval that contradicts its value draws no bar on either side, so it adds nothing.
   expect(valueExtent(series(10, 12, 8), '95')).toEqual([10, 10]);
 });
+
+it('aligns a mixed three and five year history to one period length', () => {
+  const three = { ...observation(3), fromDate: '2022-09-01', toDate: '2025-08-31' };
+  const five = { ...observation(5), fromDate: '2020-09-01', toDate: '2025-08-31' };
+  const series = alignedSeries([
+    area('local', three, five),
+    area('benchmark', { ...three, value: 30 }, { ...five, value: 50 }),
+    area('other-length', five),
+  ]);
+  expect(
+    series.map(({ observations }) => [...observations.values()].map(({ value }) => value)),
+  ).toEqual([[5], [50], [5]]);
+});

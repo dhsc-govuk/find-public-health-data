@@ -69,7 +69,11 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
           trends: overview.trends,
           area: overview.area,
           unavailableArea: overview.unavailableArea,
-          highlights: topicOverviewModel(overview.selected, overview.area?.code),
+          highlights: topicOverviewModel(
+            overview.selected,
+            overview.search.gaCodes[0],
+            overview.search.gaAreaNames[overview.search.gaCodes[0] ?? ''] ?? 'England',
+          ),
         }
       : null,
   );

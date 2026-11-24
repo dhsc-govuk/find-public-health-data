@@ -120,12 +120,23 @@ function TrendPlot({
   const yTitleLines = trendTitleLines(yTitle, width);
   const yTitleHalfWidth =
     (titleWidth || Math.max(...yTitleLines.map((line) => line.length)) * 7.4) / 2;
-  const series = alignedSeries(areas).filter(({ observations }) =>
+  const aligned = alignedSeries(areas);
+  const series = aligned.filter(({ observations }) =>
     [...observations.values()].some(({ value }) => value !== null),
   );
   const periods = chartPeriods(series, indicator.yearType);
   const primary = series[0];
-  if (!primary) return <NoChartData />;
+  if (!primary) {
+    const observations = aligned.flatMap(({ observations }) => [...observations.values()]);
+    if (!observations.length) return <NoChartData />;
+    const notes = [...new Set(observations.flatMap(({ notes }) => notes.map(({ text }) => text)))];
+    return (
+      <NoChartData>
+        Figures are not available.
+        {notes.map((note) => ` ${note.endsWith('.') ? note : `${note}.`}`)}
+      </NoChartData>
+    );
+  }
   const labels = new Map(periods.map(({ key, label }) => [key, label]));
   const points = periods.map(({ key: period }) => ({
     period,

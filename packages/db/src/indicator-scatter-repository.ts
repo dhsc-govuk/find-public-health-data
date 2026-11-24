@@ -1,12 +1,12 @@
 import {
   ENGLAND_AREA_CODE,
+  OBSERVATION_SERIES_VERSION,
   observationSegmentKey,
   pairedAreaSexValues,
   pairedAreaValues,
   rankingAreaSeries,
   type ScatterArea,
   tableAreaSeries,
-  tableSummary,
 } from '@fphd/utils/observation-series';
 import {
   and,
@@ -24,9 +24,10 @@ import {
 } from 'drizzle-orm';
 import { alias, union } from 'drizzle-orm/pg-core';
 import type { DatabaseReader } from './client.ts';
-import { dimensionKeyRank, headlineOrder } from './headline-order.ts';
+import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
+import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export async function getCachedScatterAreas(
@@ -79,6 +80,14 @@ async function getCachedScatterVariants(
     db
       .select({
         indicatorId: series.indicatorId,
+        areaId: series.areaId,
+        dimensionKey: series.dimensionKey,
+        sex: sql<string>`${series.sex}`.as('series_sex'),
+        periodType: sql<string>`${series.periodType}`.as('series_period_type'),
+        headline: sql<boolean>`${series.variants} @> jsonb_build_array(jsonb_build_object(
+          'sex', ${series.sex}, 'periodType', ${series.periodType}, 'headline', true))`.as(
+          'is_headline',
+        ),
         latestId: series.latestObservationId,
         recentIds: series.recentObservationIds,
       })
@@ -155,10 +164,6 @@ async function getCachedScatterVariants(
     db
       .select({
         dimensionKey: keys.dimensionKey,
-        labelKey:
-          sql<string>`string_agg(${dimensionType.name} || ':' || ${dimensionValue.name}, '|' order by ${dimensionType.name})`.as(
-            'label_key',
-          ),
         sex: sql<
           string | null
         >`max(case when ${dimensionType.name} = 'Sex' then ${dimensionValue.name} end)`.as(
@@ -187,6 +192,7 @@ async function getCachedScatterVariants(
         toDate: candidates.toDate,
         value: candidates.value,
         dimensionKey: candidates.dimensionKey,
+        periodType: observationPeriodSql(candidates.fromDate, candidates.toDate).as('period_type'),
         sex: variants.sex,
       })
       .from(candidates)
@@ -218,14 +224,29 @@ async function getCachedScatterVariants(
         indicatorId: points.indicatorId,
         sex: sql<string>`${points.sex}`.as('segment_sex'),
         dimensionKey: points.dimensionKey,
+        periodType: points.periodType,
         length: count().as('segment_length'),
         latestPeriod: max(points.toDate).as('segment_latest_period'),
         firstPoint: min(sql<string>`${points.fromDate}::text || ':' || ${points.toDate}::text`).as(
           'first_point',
         ),
-        labelKey: min(dimensions.labelKey).as('segment_key'),
       })
       .from(points)
+      .innerJoin(
+        selected,
+        and(
+          eq(selected.indicatorId, points.indicatorId),
+          eq(selected.areaId, points.areaId),
+          eq(selected.dimensionKey, points.dimensionKey),
+          or(
+            and(
+              or(eq(points.sex, ''), notInArray(points.indicatorId, sexedIndicatorIds)),
+              sql`${selected.headline}`,
+            ),
+            and(eq(selected.sex, points.sex), eq(selected.periodType, 'all')),
+          ),
+        ),
+      )
       .leftJoin(dimensions, eq(dimensions.dimensionKey, points.dimensionKey))
       .innerJoin(
         firstAreas,
@@ -235,7 +256,7 @@ async function getCachedScatterVariants(
           eq(firstAreas.areaId, points.areaId),
         ),
       )
-      .groupBy(points.indicatorId, points.sex, points.dimensionKey),
+      .groupBy(points.indicatorId, points.sex, points.dimensionKey, points.periodType),
   );
   const references = db.$with('scatter_references').as(
     db
@@ -254,10 +275,10 @@ async function getCachedScatterVariants(
           ...dimensionKeyRank(segments.dimensionKey, views),
           latestPeriod: segments.latestPeriod,
           length: segments.length,
+          periodLength: periodLengthSql(segments.periodType),
           firstPoint: segments.firstPoint,
         }),
-        segments.labelKey,
-        segments.dimensionKey,
+        dimensionKeyOrder(segments.dimensionKey, views),
       ),
   );
   const chosen = db.$with('scatter_chosen').as(
@@ -335,7 +356,12 @@ async function getCachedScatterVariants(
       ),
     )
     .leftJoin(dimensions, eq(dimensions.dimensionKey, chosen.dimensionKey))
-    .where(inArray(batches.indicatorId, indicatorIds));
+    .where(
+      and(
+        inArray(batches.indicatorId, indicatorIds),
+        eq(batches.version, OBSERVATION_SERIES_VERSION),
+      ),
+    );
   // Historical area codes and incomplete rebuilds need canonical series election.
   const identities = new Map<string, Set<string>>();
   for (const row of loaded) {
@@ -392,7 +418,7 @@ export async function getIndicatorScatterData(
   const data =
     cached ??
     new Map(
-      [...(await getIndicatorObservationData(db, views, indicatorIds, codes, 'table'))].map(
+      [...(await getIndicatorObservationData(db, views, indicatorIds, codes))].map(
         ([id, entry]) => [
           id,
           entry.areaData.map((area) => ({
@@ -425,7 +451,7 @@ export async function getPublishedIndicatorScatterData(
   const [first, second] = ids;
   if (!first || !second || first === second) return undefined;
   const indicatorIds: [string, string] = [first, second];
-  const ranking = await getIndicatorSeriesData(db, views, indicatorIds, codes, 'ranking', true);
+  const ranking = await getIndicatorSeriesData(db, views, indicatorIds, codes, 'ranking');
   if (ranking) {
     const sexesByIndicator = indicatorIds.map((id) => ranking.get(id)?.sexes ?? []);
     const sexes = (sexesByIndicator.find((values) => values.length) ?? [])
@@ -468,7 +494,7 @@ export async function getPublishedIndicatorScatterData(
   }
   const data = await getIndicatorObservationData(db, views, indicatorIds, codes);
   const areas = indicatorIds.map((id) => data.get(id)?.areaData ?? []);
-  const [x, y] = areas.map((areaData) => tableSummary(tableAreaSeries(areaData)).areaData);
+  const [x, y] = areas.map((areaData) => tableAreaSeries(areaData));
   return {
     ...pairedAreaSexValues(x ?? [], y ?? []),
     rankings: areas.map(rankingAreaSeries),

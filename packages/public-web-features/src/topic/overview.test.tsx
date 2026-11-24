@@ -214,8 +214,11 @@ it('keeps the trend on the displayed period type for indicators with sex and per
     toDate: `${2022 + index}-12-31`,
   }));
   const doc = card([...annual, ...rolling], {});
-  expect(summary(doc)[0]).toEqual(['Most recent period', '2024']);
-  expect(summary(doc)[3]).toEqual(['Trend (last 5 periods)', 'Increasing and getting better']);
+  expect(summary(doc)[0]).toEqual(['Most recent period', '2024 to 2026']);
+  expect(summary(doc)[3]).toEqual([
+    'Trend (last 5 periods)',
+    'Trend unavailable (multi-year periods)',
+  ]);
 });
 
 it.each([
