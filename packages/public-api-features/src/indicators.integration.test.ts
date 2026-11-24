@@ -402,6 +402,31 @@ describe('public routers against the seeded database', () => {
     });
   });
 
+  it('returns only the filter values of the indicators in the t topic', async () => {
+    const [catalogue, topic] = await Promise.all([
+      request(app).get('/api/indicators/facets'),
+      request(app).get('/api/indicators/facets?t=cancer'),
+    ]);
+
+    expect(topic.status).toBe(200);
+    expect(topic.body.topics.map(({ slug }: { slug: string }) => slug)).toContain('cancer');
+    expect(topic.body.sources.length).toBeGreaterThan(0);
+    expect(topic.body.sources.length).toBeLessThan(catalogue.body.sources.length);
+  });
+
+  it('returns empty filter values for a topic that does not exist', async () => {
+    const response = await request(app).get('/api/indicators/facets?t=no-such-topic');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      topics: [],
+      classifications: [],
+      sources: [],
+      valueTypes: [],
+      yearTypes: [],
+    });
+  });
+
   it('returns search results matching the wire contract shape', async () => {
     const { indicatorSearchResultSchema } = await import('@fphd/public-api-features/contract');
 

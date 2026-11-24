@@ -287,6 +287,18 @@ describe('loadSearch', () => {
     expect(paths(client)).toContain('/api/indicators/search');
   });
 
+  it('asks for the filter values of the topic only on a topic page', async () => {
+    const client = api();
+
+    await loadSearch(loaderArgs(client, 'http://localhost/topics/topic-a'), {
+      topicSlug: 'topic-a',
+      path: '/topics/topic-a',
+    });
+
+    expect(paths(client)).toContain('/api/indicators/facets?t=topic-a');
+    expect(paths(client)).not.toContain('/api/indicators/facets');
+  });
+
   it('treats a query of control characters alone as no query', async () => {
     const client = api();
 

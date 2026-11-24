@@ -50,6 +50,13 @@ export const TOPIC_AREA_GROUPS = [
   DEFAULT_TOPIC_AREA_GROUP,
 ];
 
+/** The types Area summaries tries in turn when a topic has no data for the default type. */
+export const TOPIC_AREA_FALLBACK_GROUPS = [
+  'NHS regions',
+  'Integrated care boards',
+  'Local authorities',
+];
+
 export const TOPIC_COLUMNS = [
   { value: 'period', label: 'Most recent period' },
   { value: 'updated', label: 'Data last updated' },

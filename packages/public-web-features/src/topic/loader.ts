@@ -3,6 +3,7 @@ import {
   indicatorDetailSchema,
   indicatorPeriodFiltersSchema,
   indicatorRangeSchema,
+  indicatorSearchResultSchema,
   topicDetailSchema,
   topicSummaryListSchema,
   topicTrendSummarySchema,
@@ -17,8 +18,13 @@ import { loadIndicatorTableData } from '../indicator/loader.ts';
 import { loadSearch } from '../search/loader.ts';
 import { DIMENSIONS } from '../search/url.ts';
 import { compactTopicAreaTable, compactTopicDataTable } from './compact-table.ts';
-import { DEFAULT_TOPIC_AREA_GROUP, TOPIC_AREA_GROUPS, topicTableSelection } from './data.ts';
-import { topicDataKey, topicSort } from './filters.ts';
+import {
+  DEFAULT_TOPIC_AREA_GROUP,
+  TOPIC_AREA_FALLBACK_GROUPS,
+  TOPIC_AREA_GROUPS,
+  topicTableSelection,
+} from './data.ts';
+import { narrowsTopicIndicators, topicDataKey, topicSort } from './filters.ts';
 import { topicOverviewModel } from './overview-model.ts';
 import { topicAreaTableModel, topicDataTableModel } from './table-models.ts';
 
@@ -124,6 +130,42 @@ export async function loadTopicPage(args: LoaderFunctionArgs) {
     content: completed?.[1].status === 'fulfilled' ? completed[1].value : content,
     areas: completed?.[2].status === 'fulfilled' ? completed[2].value : areas,
   };
+}
+
+/** How many of the topic's indicators have data for a geography type, with no other filter. */
+async function topicAreaGroupTotal(api: ApiClient, slug: string, group: string) {
+  const { total } = await api.get(
+    `/api/indicators/search?t=${encodeURIComponent(slug)}&displayGroup=${encodeURIComponent(group)}&page=1&limit=1`,
+    indicatorSearchResultSchema,
+  );
+  return total;
+}
+
+/**
+ * The geography type Area summaries opens on when the link names none and `search`, for the
+ * default type, found no indicators: the first type the topic has data for, or the default when
+ * it has none.
+ */
+async function topicAreaGroupWithData(
+  api: ApiClient,
+  slug: string,
+  search: Awaited<ReturnType<typeof loadSearch>>,
+) {
+  // A topic with indicators is always among its own facet topics.
+  if (search.facets.topics.length === 0) return DEFAULT_TOPIC_AREA_GROUP;
+  // A search with no filters has already counted the default type.
+  if (
+    narrowsTopicIndicators(search) &&
+    (await topicAreaGroupTotal(api, slug, DEFAULT_TOPIC_AREA_GROUP)) > 0
+  )
+    return DEFAULT_TOPIC_AREA_GROUP;
+  const totals = await Promise.all(
+    TOPIC_AREA_FALLBACK_GROUPS.map(async (group) => ({
+      group,
+      total: await topicAreaGroupTotal(api, slug, group),
+    })),
+  );
+  return totals.find(({ total }) => total > 0)?.group ?? DEFAULT_TOPIC_AREA_GROUP;
 }
 
 function topicTableSearch(search: Awaited<ReturnType<typeof loadSearch>>) {
@@ -243,16 +285,27 @@ export async function loadTopic(
             areaDisplayGroupListSchema,
           )
       : Promise.resolve([]);
-  const [loadedSearch, groups] = await Promise.all([
+  const searchFor = (geographyGroup?: string) =>
     loadSearch(args, {
       topicSlug: slug,
       path,
       complete: true,
-      ...(tab === 'areas' ? { geographyGroup: summaryGroup, geographyPreviews: areaGroups } : {}),
-    }),
+      ...(geographyGroup ? { geographyGroup, geographyPreviews: areaGroups } : {}),
+    });
+  const [loadedSearch, groups] = await Promise.all([
+    searchFor(tab === 'areas' ? summaryGroup : undefined),
     areaGroups,
   ]);
-  const search = loadedSearch;
+  // Area summaries opens on the default geography only if the topic has indicators for it. Chosen
+  // areas of the default type keep it open, because another type's search would drop them.
+  const openingGroup =
+    tab === 'areas' &&
+    summaryGroup !== requestedGroup &&
+    loadedSearch.gaCodes.length === 0 &&
+    loadedSearch.searchResult.total === 0
+      ? await topicAreaGroupWithData(context.get(apiContext), slug, loadedSearch)
+      : summaryGroup;
+  const search = openingGroup === summaryGroup ? loadedSearch : await searchFor(openingGroup);
   const listing = {
     sort: topicSort(url.searchParams.get('sort')) ?? 'subtopic-asc',
     indicators: search.searchResult.indicators,

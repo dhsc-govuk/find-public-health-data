@@ -1,4 +1,5 @@
 import { INDICATOR_SORTS, type IndicatorSort } from '@fphd/utils/indicator-sort';
+import { DIMENSIONS, PERIOD_PARAMS, type SearchState } from '../search/url.ts';
 
 // The topic Data tab doesn't offer the search page's "Recently updated" order.
 export type TopicSort = Exclude<IndicatorSort, 'recently-updated'>;
@@ -32,4 +33,18 @@ export function topicDataKey(url: { pathname: string; search: string }) {
   params.set('sort', topicSort(params.get('sort')) ?? 'subtopic-asc');
   params.sort();
   return `${url.pathname}?${params}`;
+}
+
+/**
+ * Whether a search term, an indicator filter or a chosen area narrows the topic's indicators. A
+ * geography type alone doesn't: it only says which areas to show.
+ */
+export function narrowsTopicIndicators(state: SearchState) {
+  return (
+    state.q !== '' ||
+    Boolean(state.subtopics?.length) ||
+    state.gaCodes.length > 0 ||
+    DIMENSIONS.some(({ stateKey }) => (state[stateKey] as string[]).length > 0) ||
+    PERIOD_PARAMS.some((key) => Boolean(state[key]))
+  );
 }

@@ -12,7 +12,7 @@ import {
   topicAreaRowSort,
   topicColumns,
 } from './data.ts';
-import { topicDataKey, topicSort } from './filters.ts';
+import { narrowsTopicIndicators, topicDataKey, topicSort } from './filters.ts';
 import type { loadTopicPage } from './loader.ts';
 import { AreaSummariesTable } from './tables/area-summaries-table.tsx';
 import { TopicDataTable } from './tables/data-table.tsx';
@@ -41,7 +41,9 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
   const columns = useMemo(() => topicColumns(new URLSearchParams(columnKey)), [columnKey]);
   const sourceTable = useMemo(() => expandTopicTable(data.table), [data.table]);
   const areaKey = new URLSearchParams([...params].filter(([key]) => key === 'ga')).toString();
-  const sameGroup = search.geoLevels.includes(params.get('geo') ?? DEFAULT_TOPIC_AREA_GROUP);
+  const sameGroup = search.geoLevels.includes(
+    params.get('geo') ?? search.geoLevels[0] ?? DEFAULT_TOPIC_AREA_GROUP,
+  );
   const table = useMemo(() => {
     const selectedCodes = new URLSearchParams(areaKey).getAll('ga');
     if (
@@ -166,7 +168,11 @@ export function TopicListing({ data, areas = false }: { data: TopicData; areas?:
         </p>
       ) : null}
       {!hasRows ? (
-        <InsetText>No indicators match your selected filters or search terms.</InsetText>
+        <InsetText>
+          {areas && total === 0 && search.geoLevels[0] && !narrowsTopicIndicators(search)
+            ? `No indicators in this topic have data for ${geographyGroupLabel(search.geoLevels[0])}.`
+            : 'No indicators match your selected filters or search terms.'}
+        </InsetText>
       ) : table.kind === 'areas' ? (
         <>
           {data.data.areasLimited && !data.defaultAreas ? (

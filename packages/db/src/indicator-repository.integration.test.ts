@@ -1176,6 +1176,54 @@ describe('listIndicatorFacets', () => {
     expect(facets.yearTypes).toEqual([...facets.yearTypes].sort((a, b) => a.localeCompare(b)));
   });
 
+  it('given topics, lists only the values of the indicators in those topics', async () => {
+    const catalogue = await listIndicatorFacets(db, publishedViews);
+    const facets = await listIndicatorFacets(db, publishedViews, ['cancer']);
+    const { indicators } = await searchIndicators(
+      db,
+      publishedViews,
+      noFilters({ topics: ['cancer'] }),
+    );
+
+    expect(indicators.length).toBeGreaterThan(0);
+    expect(facets.sources.length).toBeLessThan(catalogue.sources.length);
+    for (const source of facets.sources) {
+      const { total } = await searchIndicators(
+        db,
+        publishedViews,
+        noFilters({ topics: ['cancer'], sources: [source] }),
+      );
+      expect(total).toBeGreaterThan(0);
+    }
+    for (const { dimension, slug } of facets.classifications) {
+      const filterKey = dimension === 'framework' ? 'frameworks' : 'indicatorTypes';
+      const { total } = await searchIndicators(
+        db,
+        publishedViews,
+        noFilters({ topics: ['cancer'], [filterKey]: [slug] }),
+      );
+      expect(total).toBeGreaterThan(0);
+    }
+    for (const valueType of facets.valueTypes) {
+      const { total } = await searchIndicators(
+        db,
+        publishedViews,
+        noFilters({ topics: ['cancer'], valueTypes: [valueType] }),
+      );
+      expect(total).toBeGreaterThan(0);
+    }
+  });
+
+  it('given a topic that does not exist, lists no values', async () => {
+    await expect(listIndicatorFacets(db, publishedViews, ['no-such-topic'])).resolves.toEqual({
+      topics: [],
+      classifications: [],
+      sources: [],
+      valueTypes: [],
+      yearTypes: [],
+    });
+  });
+
   it('all facet classification slugs return at least one result when searched', async () => {
     const facets = await listIndicatorFacets(db, publishedViews);
 
