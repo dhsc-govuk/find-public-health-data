@@ -168,8 +168,8 @@ jobs:
           fi
           docker push "${IMAGE}:latest"
 
-      # Deploys are manual for now; the run summary puts the digest where a person can find
-      # it without digging through logs.
+      # Only deploys to the development environment are automatic; the run summary puts the digest
+      # where a person can find it without digging through logs.
       - name: Record the deployable reference
         env:
           APP: ${{ matrix.app }}

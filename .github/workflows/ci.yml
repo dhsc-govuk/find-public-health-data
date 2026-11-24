@@ -781,6 +781,42 @@ jobs:
           fi
           echo "${reason}"
 
+  # A deploy to the development environment runs the database jobs that its pull requests' labels
+  # ask for, so a forgotten label leaves that environment on old data. This only warns: no label
+  # means no job is needed, which is often right for a change to these files. Labels are read live,
+  # so re-running the job after adding one clears the warning.
+  database-changes-may-need-labels:
+    name: Database changes may need deploy labels
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # Nothing to check on a push to main; the job still reports success so the gate stays green.
+      - name: Check the changed files
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --jq '.[] | .filename, (.previous_filename // empty)')
+          # Everything in data/ counts unless it is listed here as not loaded by import-core-data.
+          not_imported='/data/(seed/|indicator-(classifications|data-updated|topics)\.json|published-indicator-topics\.json|legacy-numerator-denominator-sources\.json|taxonomy-v2\.json)|\.(md|py)$|\.test\.ts$'
+          core_data=$(grep -E '^packages/db-operations/(data/|src/([a-z-]+-)?core-data\.ts|src/(topic-import|parse-topics-file)\.ts)' <<<"${files}" | grep -Ev "${not_imported}" || true)
+          # The last four files are what the rebuild imports from packages/db.
+          read_models=$(grep -E '^packages/(internal-read-models/src/|db-operations/src/read-models\.ts|utils/src/observation-series\.ts|db/src/(observation-range-sql|observation-series-sql|headline-order|age-span-sql)\.ts)' <<<"${files}" | grep -Ev '\.test\.ts$' || true)
+          labels=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.labels[].name')
+          warn_unless_labelled() { # <label> <changed files>
+            if [ -n "$2" ] && ! grep -qxF "$1" <<<"${labels}"; then
+              printf 'Changed files:\n%s\n' "$2"
+              echo "::warning::This pull request may need the $1 label: it changes files that the job works from. Ignore this if the change doesn't need the job."
+            fi
+          }
+          warn_unless_labelled import-core-data "${core_data}"
+          warn_unless_labelled rebuild-read-models "${read_models}"
+
   all-checks-pass:
     name: All checks pass
     # The required status check in branch protection for every job in this workflow; pr-body.yml's
@@ -805,6 +841,7 @@ jobs:
         migration-drift,
         e2e-coverage,
         web-changes-need-e2e,
+        database-changes-may-need-labels,
       ]
     # `always()` so a failing need reddens the gate rather than skipping it — GitHub reports a
     # skipped required check as satisfied, so the default `success()` would stop the gate blocking
