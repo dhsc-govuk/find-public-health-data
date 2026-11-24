@@ -35,6 +35,7 @@ import { loadInBatches } from './batches.ts';
 import { benchmarkMemberships, loadBenchmarkData } from './benchmark-loader.ts';
 import { selectedBenchmarks } from './benchmarks.ts';
 import { quintileParam } from './charts/chart-data.ts';
+import { periodTypeChoice } from './data.ts';
 import { choosesNothing, noEnglandLevel } from './no-england.ts';
 import { ENGLAND_CODE, requestedAreaCodes, requestedAreaLevels } from './paths.ts';
 import { loadIndicatorTableEntries } from './table-loader.ts';
@@ -168,15 +169,16 @@ export async function loadIndicatorData(
   // With nothing chosen, an indicator with no England value opens on a level it has data for.
   // In the usual case England has a value, and its request is the one the data load makes.
   const indicatorLevels = indicatorGroups?.map(({ displayGroup }) => displayGroup) ?? [];
-  const requestedPeriod = url.searchParams.get(`pt-${routeDetail?.shortId}`);
-  const defaultAreaLevel =
-    singlePage && routeDetail && choosesNothing(url.searchParams, indicatorLevels)
-      ? noEnglandLevel(
-          (await loadAreaData(api, String(routeDetail.shortId), [ENGLAND_CODE]))[0],
-          indicatorLevels,
-          isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
-        )
-      : undefined;
+  let defaultAreaLevel: string | undefined;
+  if (singlePage && routeDetail && choosesNothing(url.searchParams, indicatorLevels)) {
+    const areaData = await loadAreaData(api, String(routeDetail.shortId), [ENGLAND_CODE]);
+    const requestedPeriod = url.searchParams.get(`pt-${routeDetail.shortId}`);
+    const { periodType } = periodTypeChoice(
+      areaData,
+      isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
+    );
+    defaultAreaLevel = noEnglandLevel(areaData[0], indicatorLevels, periodType);
+  }
   const levelsToLoad = defaultAreaLevel ? [defaultAreaLevel] : requestedLevels;
 
   // A whole-level selection ("Local authorities") rides in the URL as its name; its
