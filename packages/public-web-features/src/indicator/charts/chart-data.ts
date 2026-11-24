@@ -55,9 +55,16 @@ export function valueExtent(
   return values.length ? [Math.min(...values), Math.max(...values)] : [0, 0];
 }
 
+/** The area whose headline series a comparison chart aligns every area to. */
+export function seriesReferenceArea<T extends IndicatorAreaData>(areas: T[]): T | undefined {
+  return (
+    areas.find(({ observations }) => observations.some(({ value }) => value !== null)) ??
+    areas.find(({ observations }) => observations.length)
+  );
+}
+
 export function alignedSeries(areas: IndicatorAreaData[]) {
-  const first = areas.find(({ observations }) => observations.some(({ value }) => value !== null));
-  const source = first ?? areas.find(({ observations }) => observations.length);
+  const source = seriesReferenceArea(areas);
   const reference = source && trendSeries(source.observations)[0];
   return areas.map(({ areaCode, areaName, observations }) => ({
     code: areaCode,

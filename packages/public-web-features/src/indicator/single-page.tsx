@@ -87,6 +87,7 @@ function useSeriesSegments(
       return;
     }
     let active = true;
+    setLoaded(undefined);
     void data.then(
       (value) => {
         if (active) setLoaded(value);

@@ -14,6 +14,7 @@ import {
   dimensionValues,
   filterObservations,
   periodTypeChoice,
+  seriesSegments,
   uncertainSeriesAge,
 } from './data.ts';
 import { IndicatorGeographies } from './geographies.tsx';
@@ -127,14 +128,13 @@ export function IndicatorTab({
     goal: detail.goal,
   });
   const trendAreas = trendChartAreas(model);
-  // The chart and table follow the first picked area's series, or England's when none is picked.
-  const shownArea = filtered.find(({ areaCode }) => areaCode !== 'E92000001') ?? filtered[0];
+  // The chart and table follow the first picked area with data, or England when none is picked.
+  const shownArea =
+    filtered.find(
+      ({ areaCode, observations }) => areaCode !== 'E92000001' && observations.length,
+    ) ?? filtered[0];
   const uncertainAge =
-    shownArea &&
-    uncertainSeriesAge(
-      shownArea.observations,
-      areaData.find(({ areaCode }) => areaCode === shownArea.areaCode)?.observations,
-    );
+    shownArea && uncertainSeriesAge(shownArea.observations, seriesSegments(areaData));
   const geography = (
     <IndicatorGeographies
       shortId={id}

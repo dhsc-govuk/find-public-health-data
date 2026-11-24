@@ -159,12 +159,12 @@ export function seriesSegments(
 
 /**
  * The age of the series the page shows for `observations`, when that age may be only part of the
- * indicator's population (see `uncertainHeadlineAge`). `segments` are the series to check it
- * against, which are the observations' own unless the page has only the shown ones.
+ * indicator's population (see `uncertainHeadlineAge`). `segments` are every series the page has
+ * for the indicator, as `seriesSegments` lists them.
  */
 export function uncertainSeriesAge(
   observations: IndicatorObservation[],
-  segments: Pick<IndicatorObservation, 'dimensions'>[] = observations,
+  segments: Pick<IndicatorObservation, 'dimensions'>[],
 ): string | undefined {
   const shown = trendSeries(observations).at(-1);
   if (!shown || !uncertainHeadlineAge(segments, shown)) return undefined;

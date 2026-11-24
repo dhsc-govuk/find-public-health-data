@@ -13,7 +13,7 @@ import {
 } from './area-comparison.ts';
 import { AreaControls, AreaSortControl } from './area-controls.tsx';
 import { CompareAreasChart } from './charts/bar-chart.tsx';
-import { quintileParam } from './charts/chart-data.ts';
+import { quintileParam, seriesReferenceArea } from './charts/chart-data.ts';
 import { expandIndicator } from './compact-data.ts';
 import { useCompareAreaDetail } from './compare-area-detail.ts';
 import type { ComparisonTabProps } from './compare-tab.tsx';
@@ -78,11 +78,7 @@ export function CompareAreasTab({
     }),
   }));
   const uncertainAge = uncertainSeriesAge(
-    (
-      chartAreas.find(
-        ({ areaCode, observations }) => areaCode !== 'E92000001' && observations.length,
-      ) ?? chartAreas[0]
-    )?.observations ?? [],
+    seriesReferenceArea(chartAreas)?.observations ?? [],
     segments,
   );
   const shownAreas = highlightedAreas(params, areaOptions);
