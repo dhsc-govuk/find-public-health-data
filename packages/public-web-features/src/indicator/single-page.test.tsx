@@ -771,3 +771,50 @@ it('says England is the only geography on Compare indicators, and names no other
       .map((item) => item.textContent),
   ).toEqual(['England']);
 });
+
+it('warns on Indicator and Compare areas when another age falls outside the one shown', () => {
+  const primary = selected(241, 'Diabetes prevalence', 7.9);
+  const [point] = primary.areaData[0]?.observations ?? [];
+  if (!point) throw new Error('England fixture missing');
+  const age = (value: string, ageFrom: string, ageUnder?: string) => ({
+    ...point,
+    dimensions: [
+      {
+        type: 'Age',
+        value,
+        dimensionClass: 'core',
+        sortOrder: 0,
+        ageFrom,
+        ...(ageUnder ? { ageUnder } : {}),
+      },
+    ],
+  });
+  const older = age('65+ yrs', 'P65Y');
+  page(
+    [
+      {
+        ...primary,
+        areaData: [
+          {
+            areaCode: 'E92000001',
+            areaName: 'England',
+            observations: [older, age('45-64 yrs', 'P45Y', 'P65Y')],
+          },
+        ],
+      },
+    ],
+    '/indicator/indicator-241',
+    [{ areaCode: 'E06000039', areaName: 'Slough', observations: [older] }],
+  );
+  const warning =
+    'These figures are for the age group 65+ yrs. This indicator also has data for other ages, which may match its title better.';
+  for (const name of ['Indicator', 'Compare areas'])
+    expect(
+      within(screen.getByRole('tabpanel', { name, hidden: true })).getByText(warning),
+    ).toBeTruthy();
+});
+
+it('gives no age warning when the series shown has no age', () => {
+  page([selected(241, 'Diabetes prevalence', 7.9)], '/indicator/indicator-241');
+  expect(screen.queryByText(/These figures are for the age group/)).toBeNull();
+});

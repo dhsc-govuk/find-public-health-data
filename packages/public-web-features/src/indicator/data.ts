@@ -4,6 +4,7 @@ import type {
   IndicatorPageDetail,
 } from '@fphd/public-api-features/contract';
 import {
+  AGE_DIMENSION_NAME,
   comparisonVariants,
   ENGLAND_AREA_CODE,
   filterSeries,
@@ -14,6 +15,7 @@ import {
   type SeriesPeriodType,
   seriesPeriodTypes,
   type TableSeriesSelection,
+  uncertainHeadlineAge,
 } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import type { PublicYearType } from '@fphd/utils/period-type';
@@ -139,6 +141,34 @@ export function alignedTrendSeries(
     .filter((observation) => segmentKey(observation) === key)
     .sort((a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate));
   return matching.length > 0 ? matching : trendSeries(observations);
+}
+
+/** Each distinct series in the areas' data, by its dimensions alone. */
+export function seriesSegments(
+  areaData: IndicatorAreaData[],
+): Pick<IndicatorObservation, 'dimensions'>[] {
+  const segments = new Map(
+    areaData.flatMap(({ observations }) =>
+      observations.map(
+        (observation) => [segmentKey(observation), { dimensions: observation.dimensions }] as const,
+      ),
+    ),
+  );
+  return [...segments.values()];
+}
+
+/**
+ * The age of the series the page shows for `observations`, when that age may be only part of the
+ * indicator's population (see `uncertainHeadlineAge`). `segments` are the series to check it
+ * against, which are the observations' own unless the page has only the shown ones.
+ */
+export function uncertainSeriesAge(
+  observations: IndicatorObservation[],
+  segments: Pick<IndicatorObservation, 'dimensions'>[] = observations,
+): string | undefined {
+  const shown = trendSeries(observations).at(-1);
+  if (!shown || !uncertainHeadlineAge(segments, shown)) return undefined;
+  return shown.dimensions.find(({ type }) => type === AGE_DIMENSION_NAME)?.value;
 }
 
 const valueFormat = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 });

@@ -2,6 +2,7 @@ import { ChartSection, FilterChip, FilterChips, GridColumn, GridRow } from '@fph
 import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router';
 import { geographyGroupLabel } from '../geography/groups.ts';
+import { AgeWarning } from './age-warning.tsx';
 import {
   areaColourMode,
   highlightedAreaCodes,
@@ -21,7 +22,9 @@ import {
   availablePeriodTypes,
   dimensionValues,
   filterObservations,
+  uncertainSeriesAge,
 } from './data.ts';
+import type { IndicatorObservation } from './loader.ts';
 import { PanelOptionsPanel, usePanelOptions } from './options.tsx';
 import { AreaComparisonTable } from './tables/area-comparison-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
@@ -35,7 +38,11 @@ export function CompareAreasTab({
   areaChart,
   compareAreaRanges = [],
   englandOnly,
-}: ComparisonTabProps) {
+  segments,
+}: ComparisonTabProps & {
+  /** Every series the indicator has in the page's areas, as `seriesSegments` lists them. */
+  segments: Pick<IndicatorObservation, 'dimensions'>[];
+}) {
   const { detail } = primary;
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -70,6 +77,14 @@ export function CompareAreasTab({
           : 'all',
     }),
   }));
+  const uncertainAge = uncertainSeriesAge(
+    (
+      chartAreas.find(
+        ({ areaCode, observations }) => areaCode !== 'E92000001' && observations.length,
+      ) ?? chartAreas[0]
+    )?.observations ?? [],
+    segments,
+  );
   const shownAreas = highlightedAreas(params, areaOptions);
   const areasTabUrl = (next: URLSearchParams) =>
     `${location.pathname}?${next}#indicator-compare-areas`;
@@ -146,6 +161,7 @@ export function CompareAreasTab({
             </div>
           )}
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
+          <AgeWarning age={uncertainAge} />
           <GridRow className="fphd-area-table-layout">
             <GridColumn width="one-half" className="fphd-area-table">
               <AreaSortControl areas={areaOptions} />
