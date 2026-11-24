@@ -567,6 +567,23 @@ AZURE_CLIENT_ID          # DB_AUTH=entra only: the job's managed identity
 `DB_AUTH`, `DB_PORT`, `DB_TLS` and `LOG_LEVEL` are optional. Exit codes: `0` success, `1` failure,
 `2` unrecognised command.
 
+### Labels for the jobs a deploy needs
+
+Some changes need a database job when they are deployed. Label the pull request, and deploys to the
+development environment run the job:
+
+- `import-core-data` for a change to the files or code that `db import-core-data` loads
+- `rebuild-read-models` for a change to how the read models are built
+- `no-auto-deploy` for a change that needs something else first, such as a reset or new
+  configuration. It stops that pull request, and those merged after it, from being deployed
+  automatically until someone deploys it by hand.
+
+In other environments the jobs are run by hand.
+
+No label means that no job is needed. The `Database changes may need deploy labels` CI job warns
+when a pull request changes core data or read model files without the matching label, but doesn't
+fail it. A label can be added after the merge, as long as it is before the deploy.
+
 ## Container images
 
 `docker/Dockerfile` builds the production images — one per deployable application, plus
@@ -647,7 +664,8 @@ ghcr.io/<owner>/find-public-health-data/fphd-public-web@sha256:4f30b957…
 ```
 
 That is what a revision should reference, and what `app_images` in the infrastructure repository
-should be set to. Deploys are manual for now, so the summary is where to copy it from.
+should be set to. Only deploys to the development environment are automatic; for others, the summary
+is where to copy it from.
 
 Trivy scans each image in CI, before the push, and a fixable high or critical vulnerability in an
 operating system package stops it reaching the registry. That layer is otherwise unscanned — CodeQL
