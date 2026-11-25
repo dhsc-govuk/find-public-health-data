@@ -227,7 +227,7 @@ describe('the update decision pages', () => {
     );
 
     expect(outcome).toMatchObject({
-      fieldErrors: { 'flags.update-summary': 'Enter the revisions advised for update summary' },
+      fieldErrors: { 'flags.update-summary': 'Enter the revisions needed for update summary' },
     });
     expect(api.calls).toEqual([]);
   });

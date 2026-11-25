@@ -46,7 +46,7 @@ export function updateDecisionRouter(
       let decision: UpdateDecisionBody = body.data;
 
       if (decision.decision === 'request_revisions') {
-        const sent = reviewResponseSchemaFor(now()).safeParse(revisionsAsFeedback(decision));
+        const sent = reviewResponseSchemaFor(now(), true).safeParse(revisionsAsFeedback(decision));
 
         if (!sent.success) {
           response.status(400).json({

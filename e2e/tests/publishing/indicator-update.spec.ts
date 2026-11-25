@@ -553,7 +553,7 @@ test.describe('the core team', () => {
     ]);
   });
 
-  test('"Request revisions" opens "What needs to be revised or clarified?" with an "Update summary" task', async ({
+  test('"Request revisions" opens "What needs to be revised or clarified?" with an "Update summary" task that asks "Enter required revisions" and errors "Enter the revisions needed for update summary" when left empty', async ({
     page,
   }, testInfo) => {
     await decide(page, indicator.id, 'Request revisions');
@@ -564,6 +564,17 @@ test.describe('the core team', () => {
     await expect(
       page.getByRole('group', { name: 'Publishing' }).getByLabel('Update summary', { exact: true }),
     ).toBeVisible();
+    await page.getByLabel('Update summary', { exact: true }).check();
+    await expect(page.locator('textarea[name="flags.update-summary"]')).toHaveAccessibleName(
+      'Enter required revisions',
+    );
+    await expectNoAccessibilityViolations(page, testInfo);
+
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expectErrorSummaryReady(page);
+    await expect(page.getByRole('alert').getByRole('link')).toHaveText([
+      'Enter the revisions needed for update summary',
+    ]);
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
@@ -776,7 +787,7 @@ test.describe('IMRG review of an update', () => {
     });
   });
 
-  test('"No" asks nothing more and goes to "What needs to be revised or clarified?" with the Update summary task, and sends the update back as "Revisions or clarifications needed" with its banner', async ({
+  test('"No" asks nothing more and goes to "What needs to be revised or clarified?" with the Update summary task, which asks "Enter required revisions" and errors "Enter the revisions needed for update summary" when left empty, and sends the update back as "Revisions or clarifications needed" with its banner', async ({
     browser,
   }, testInfo) => {
     await asUser(browser, IMRG_REVIEWER, async (reviewer) => {
@@ -793,10 +804,23 @@ test.describe('IMRG review of an update', () => {
           .getByRole('group', { name: 'Publishing' })
           .getByLabel('Update summary', { exact: true }),
       ).toBeVisible();
-      await expect(reviewer.getByLabel('High-level clarification request')).not.toBeChecked();
-      await reviewer.getByLabel('High-level clarification request').check();
+      await reviewer.getByLabel('Update summary', { exact: true }).check();
+      await expect(reviewer.locator('textarea[name="flags.update-summary"]')).toHaveAccessibleName(
+        'Enter required revisions',
+      );
+      await reviewer.getByRole('button', { name: 'Continue' }).click();
+      await expectErrorSummaryReady(reviewer);
+      await expect(reviewer.getByRole('alert').getByRole('link')).toHaveText([
+        'Enter the revisions needed for update summary',
+      ]);
+      await expectNoAccessibilityViolations(reviewer, testInfo);
+      await reviewer.getByLabel('Update summary', { exact: true }).uncheck();
+      await expect(
+        reviewer.getByLabel('High-level comments or clarification requests'),
+      ).not.toBeChecked();
+      await reviewer.getByLabel('High-level comments or clarification requests').check();
       await reviewer
-        .getByLabel('What are you requesting clarification about?')
+        .getByLabel('Enter comments or requests')
         .fill('Which source says higher is better?');
       await reviewer.getByRole('button', { name: 'Continue' }).click();
 

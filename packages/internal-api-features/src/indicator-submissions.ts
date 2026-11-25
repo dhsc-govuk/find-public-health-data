@@ -4,6 +4,7 @@ import type { IndicatorStepResult } from '@fphd/internal-workflow';
 import { type RequestHandler, type Response, Router } from 'express';
 
 import {
+  checkReviewResponse,
   type IndicatorAssignReviewersError,
   type IndicatorStep,
   type IndicatorSubmitError,
@@ -15,7 +16,6 @@ import {
   reviewedBeforeSubmissionMessage,
   reviewResponseBodySchema,
   reviewResponseFieldSchema,
-  reviewResponseSchemaFor,
   toFieldErrors,
 } from './contract.ts';
 import {
@@ -183,7 +183,11 @@ export function indicatorSubmissionsRouter(
         return;
       }
 
-      const sent = reviewResponseSchemaFor(now()).safeParse(request.body);
+      const sent = await checkReviewResponse(
+        request.body,
+        now(),
+        async () => (await indicators.findById(id))?.indicatorStatus === 'live',
+      );
 
       if (!sent.success) {
         response.status(400).json({
