@@ -76,9 +76,9 @@ describe('indicator view CSV', () => {
       expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8');
       expect(await csvText(response)).toBe(
         `\uFEFFArea,Value (%),${colour === 'quintiles' ? 'Quintile' : 'Compared with England'},95% lower confidence interval,95% upper confidence interval\r\n` +
-          'England (benchmark),7.9,,7.9,7.9\r\n' +
-          `West Sussex,7.9,${colour === 'quintiles' ? 'Quintile 3' : 'Similar'},7.9,8.0\r\n` +
-          `Cornwall,7.6,${colour === 'quintiles' ? 'Quintile 1 (lowest)' : 'Lower'},7.5,7.7\r\n` +
+          'England (benchmark),7.9,,7.9,7.94\r\n' +
+          `West Sussex,7.9,${colour === 'quintiles' ? 'Quintile 3' : 'Similar'},7.89,7.99\r\n` +
+          `Cornwall,7.6,${colour === 'quintiles' ? 'Quintile 1 (lowest)' : 'Lower'},7.54,7.74\r\n` +
           'Missing,,No data,,\r\n' +
           '\r\n' +
           '"Source: Example, ""quoted"" source"\r\n',
@@ -89,9 +89,9 @@ describe('indicator view CSV', () => {
     const response = await loadIndicatorViewCsv(args('tab-indicator=areas'));
     expect(await csvText(response)).toBe(
       '\uFEFFArea,Value (%),Compared with England,95% lower confidence interval,95% upper confidence interval\r\n' +
-        'England (benchmark),40.0,,39.0,41.0\r\n' +
-        'Cornwall,30.0,Worse,29.0,31.0\r\n' +
-        'Hartlepool,10.0,Worse,9.0,11.0\r\n',
+        'England (benchmark),40.0,,39,41\r\n' +
+        'Cornwall,30.0,Worse,29,31\r\n' +
+        'Hartlepool,10.0,Worse,9,11\r\n',
     );
   });
   it('exports negative values and intervals without formula escapes or thousands separators', async () => {
@@ -109,8 +109,8 @@ describe('indicator view CSV', () => {
     const response = await loadIndicatorViewCsv(args('tab-indicator=areas'));
     expect(await csvText(response)).toBe(
       '\uFEFFArea,Value (%),Compared with England,95% lower confidence interval,95% upper confidence interval\r\n' +
-        'England (benchmark),40.0,,39.0,41.0\r\n' +
-        'Cornwall,-1234.0,Worse,-1235.0,-1233.9\r\n',
+        'England (benchmark),40.0,,39,41\r\n' +
+        'Cornwall,-1234.0,Worse,-1234.96,-1233.94\r\n',
     );
   });
   it.each([
@@ -182,7 +182,7 @@ describe('indicator view CSV', () => {
     expect(lines[0]).toBe(
       'Area,Value (%),Quintile,95% lower confidence interval,95% upper confidence interval',
     );
-    expect(lines).toContain('England (benchmark),40.0,,39.0,41.0');
+    expect(lines).toContain('England (benchmark),40.0,,39,41');
     expect(
       lines
         .find((line) => line.startsWith('Cornwall,'))
@@ -291,9 +291,9 @@ describe('indicator view CSV', () => {
     );
     expect(lines.slice(1)).toMatchInlineSnapshot(`
       [
-        "England (benchmark),40.0,,39.0,41.0",
-        "Cornwall,30.0,Quintile 3,29.0,31.0",
-        "Hartlepool,10.0,Quintile 1 (lowest),9.0,11.0",
+        "England (benchmark),40.0,,39,41",
+        "Cornwall,30.0,Quintile 3,29,31",
+        "Hartlepool,10.0,Quintile 1 (lowest),9,11",
       ]
     `);
   });
@@ -304,9 +304,9 @@ describe('indicator view CSV', () => {
     const lines = (await response.text()).trim().split('\r\n');
     expect(lines.slice(1)).toMatchInlineSnapshot(`
       [
-        "Hartlepool,10.0,Worse,9.0,11.0",
-        "England (benchmark),40.0,,39.0,41.0",
-        "Cornwall,30.0,Worse,29.0,31.0",
+        "Hartlepool,10.0,Worse,9,11",
+        "England (benchmark),40.0,,39,41",
+        "Cornwall,30.0,Worse,29,31",
       ]
     `);
   });

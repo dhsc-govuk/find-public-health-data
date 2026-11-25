@@ -220,6 +220,7 @@ async function loadInTransaction(
     const pointed = await tx`
       UPDATE indicator_version
       SET upload_batch_id = ${upload.batchId}, data_table_confirmed_at = NULL,
+        fingertips_formatting = NULL,
         updated_at = now(), updated_by = ${upload.actor.userId}
       WHERE id = ${draft.id} AND status IN (${tx.unsafe(UNPUBLISHED_STATUS_LITERALS)}) AND NOT is_locked`;
     if (pointed.count === 0) throw await draftGone(tx, draft.id);

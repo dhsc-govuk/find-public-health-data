@@ -48,6 +48,10 @@ moves to this service. The operations image applies the packages with `db migrat
   retained as `observation_corrections` in package provenance and both development manifests.
   Numeric suppression follows the explicit source-note policy independently of the note's display
   category, so recategorising a note cannot expose a hidden count or denominator.
+- Confidence intervals retain their raw source bounds, including Proportion bounds outside 0–100.
+  The indicator version carries `fingertips_formatting`: the maximum nonmissing value across all
+  source rows and `DecimalPlacesDisplayed`. The web display uses these to match Fingertips' cap and
+  its formatter exceptions; CSV downloads retain the raw intervals.
 - Preparation combines note types only when their tidied text and every other field match. It
   preserves every observation-note link, records the source-id aliases in `reference_name_aliases`,
   and updates the prepared file counts and hashes. Conflicting categories or other reference-name
@@ -136,6 +140,31 @@ Review the lookup changes and geography counts, then copy the five JSON files an
 geography files into the corresponding paths under `packages/db-operations/data/`. Review any lookup
 rename against existing database references and upload labels before deploying the refreshed
 catalog.
+
+## Confidence interval display
+
+The export retains raw CI bounds at both confidence levels, including values above 100 and
+floating-point noise. CSV downloads also retain those values. The web layer caps displayed
+Proportion limits; it does not change stored observations or statistical comparisons.
+
+Fingertips selects its formatter by value type, with no unit check:
+[NumericFormatterFactory.cs, lines 56–67](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/Formatting/NumericFormatterFactory.cs#L56-L67).
+Its default Proportion formatter displays any limit at least 99.95 as 100, at 95% and 99.8%, with no
+lower floor and no unitless cap at 1:
+[ProportionFormatter.cs, lines 21–28](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/Formatting/ProportionFormatter.cs#L21-L28)
+and
+[lines 70–77](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/Formatting/ProportionFormatter.cs#L70-L77).
+[Fixed-decimal overrides](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/Formatting/NumericFormatterFactory.cs#L56-L60)
+and a
+[source-wide maximum below 10](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/Formatting/ProportionFormatter.cs#L80-L110)
+bypass that cap. The export retains these settings in `indicator_version.fingertips_formatting`, so
+choosing a different area or period does not change the rule. The maximum includes all source rows
+except nulls and the `-1` sentinel:
+[GroupDataReader.cs, lines 765–783](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/DataAccess/GroupDataReader.cs#L765-L783).
+CSV export reads the raw CI fields:
+[CoreDataSetExportFormatter.cs, lines 17–38](https://github.com/ukhsa-collaboration/fingertips-open/blob/678089724a516138232d273c4c7f511ed3c5a338/PholioVisualisationWS/Export/CoreDataSetExportFormatter.cs#L17-L38).
+Re-export existing packages to populate this metadata; old packages and native indicators without it
+use the default formatter's no-limits branch.
 
 ## Relationship file
 

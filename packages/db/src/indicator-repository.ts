@@ -14,6 +14,7 @@ import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import type { IndicatorSourcePart } from '@fphd/utils/source-part';
 import type { UpdateFrequency } from '@fphd/utils/update-frequency';
+import type { FingertipsFormatting } from '@fphd/utils/value-type-and-unit';
 import { unitLabel } from '@fphd/utils/value-type-and-unit';
 import {
   and,
@@ -213,6 +214,7 @@ export interface IndicatorDetail {
   polarity: Polarity;
   ciMethod: string | null;
   ciConfidenceLevel: CiConfidenceLevel | null;
+  fingertipsFormatting?: FingertipsFormatting | null;
   comparatorMethod: string | null;
   dataUpdatedAt: string | null;
   /** When the first published version went live. */
@@ -362,6 +364,7 @@ export async function getIndicatorDetailsByIds(
       goalPolicyDetail: indicator.goalPolicyDetail,
       ciMethod: ciMethod.name,
       ciConfidenceLevel: indicator.ciConfidenceLevel,
+      fingertipsFormatting: indicator.fingertipsFormatting,
       comparatorMethod: comparatorMethod.name,
       dataUpdatedAt: indicator.dataUpdatedAt,
       firstPublishedAt: indicator.firstPublishedAt,
@@ -459,6 +462,7 @@ export async function getIndicatorDetailsByIds(
           polarity: row.polarity,
           ciMethod: row.ciMethod,
           ciConfidenceLevel: row.ciConfidenceLevel,
+          fingertipsFormatting: row.fingertipsFormatting,
           comparatorMethod: row.comparatorMethod,
           dataUpdatedAt: row.dataUpdatedAt?.toISOString() ?? null,
           firstPublishedAt: row.firstPublishedAt.toISOString(),

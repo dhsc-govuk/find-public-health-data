@@ -226,6 +226,20 @@ describe('POST /api/internal/indicators/:id/data-uploads', () => {
     ]);
   });
 
+  it('clears imported formatter settings when a new upload replaces the source data', async () => {
+    const { indicatorId } = await newDraft(internalDb, 'Replace source formatting');
+    const draft = await draftOf(ownerDb, indicatorId);
+    await ownerDb
+      .update(indicatorVersion)
+      .set({
+        fingertipsFormatting: { maximum: 0.9, decimalPlaces: 2 },
+      })
+      .where(eq(indicatorVersion.id, draft.id));
+    const response = await upload(indicatorId, VALID_CSV);
+    expect(response.status).toBe(201);
+    expect((await draftOf(ownerDb, indicatorId)).fingertipsFormatting).toBeNull();
+  });
+
   it('reads the columns by their headings, in any order and case', async () => {
     const { indicatorId } = await newDraft(internalDb, 'Upload in any column order');
     const csv = [

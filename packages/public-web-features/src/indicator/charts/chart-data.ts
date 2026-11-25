@@ -1,5 +1,6 @@
 import { observationPeriodType, pairedAreaValues } from '@fphd/utils/observation-series';
 import { expandedPeriodLabel, periodLabel, shortPeriodLabel } from '@fphd/utils/period-label';
+import { displayConfidenceLimit } from '../confidence-interval.ts';
 import { type ConfidenceLevel, sameSegment, trendSeries } from '../data.ts';
 import type { IndicatorAreaData, IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
 
@@ -26,30 +27,44 @@ export function periodKey({ fromDate, toDate }: Pick<IndicatorObservation, 'from
   return `${fromDate}|${toDate}`;
 }
 
-export function bounds(observation: IndicatorObservation | undefined, confidence: ConfidenceLevel) {
+export function bounds(
+  observation: IndicatorObservation | undefined,
+  confidence: ConfidenceLevel,
+  indicator?: Pick<IndicatorPageDetail, 'valueType' | 'fingertipsFormatting'>,
+) {
   if (!observation || confidence === 'none') return null;
   const lower = confidence === '95' ? observation.lowerCi95 : observation.lowerCi998;
   const upper = confidence === '95' ? observation.upperCi95 : observation.upperCi998;
-  return lower === null || upper === null ? null : ([lower, upper] as const);
+  return lower === null || upper === null
+    ? null
+    : ([
+        indicator ? displayConfidenceLimit(lower, indicator) : lower,
+        indicator ? displayConfidenceLimit(upper, indicator) : upper,
+      ] as const);
 }
 
 export function errorOffsets(value: number | null, interval: ReturnType<typeof bounds>) {
   if (value === null || !interval) return undefined;
-  return [Math.max(0, value - interval[0]), Math.max(0, interval[1] - value)] as [number, number];
+  // Signed offsets keep an interval capped to 100–100 at 100, even when the estimate is lower.
+  return interval[0] <= interval[1]
+    ? ([value - interval[0], interval[1] - value] as [number, number])
+    : ([Math.max(0, value - interval[0]), Math.max(0, interval[1] - value)] as [number, number]);
 }
 
 /** The lowest and highest values the y-axis shows: every plotted value and its error bar as drawn. */
 export function valueExtent(
   series: ReturnType<typeof alignedSeries>,
   confidence: ConfidenceLevel,
+  indicator?: Pick<IndicatorPageDetail, 'valueType' | 'fingertipsFormatting'>,
 ): [number, number] {
   const values = series.flatMap(({ observations }) =>
     [...observations.values()].flatMap(({ value, ...observation }) => {
       if (value === null) return [];
-      const [below, above] = errorOffsets(value, bounds({ value, ...observation }, confidence)) ?? [
-        0, 0,
-      ];
-      return [value - below, value + above];
+      const [below, above] = errorOffsets(
+        value,
+        bounds({ value, ...observation }, confidence, indicator),
+      ) ?? [0, 0];
+      return [value, value - below, value + above];
     }),
   );
   return values.length ? [Math.min(...values), Math.max(...values)] : [0, 0];

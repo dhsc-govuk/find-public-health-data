@@ -3,6 +3,7 @@ import { expandedPeriodLabel } from '@fphd/utils/period-label';
 import { Fragment, type ReactNode, useId } from 'react';
 import { SpineChartKey } from '../charts/spine-chart.tsx';
 import type { BenchmarkChoice } from '../comparison.ts';
+import { formatConfidenceLimit } from '../confidence-interval.ts';
 import { type ConfidenceLevel, formatCalculatedValue, formatValue, segmentLabel } from '../data.ts';
 import type {
   BenchmarkGeography,
@@ -333,12 +334,12 @@ export function TrendTable({
                           <Fragment key={level}>
                             <td headers={at(`lower-${level}`)} className="govuk-table__cell">
                               {lower != null
-                                ? `${formatCalculatedValue(lower)}${valueSuffix}`
+                                ? `${formatConfidenceLimit(lower, indicator, formatCalculatedValue)}${valueSuffix}`
                                 : '-'}
                             </td>
                             <td headers={at(`upper-${level}`)} className="govuk-table__cell">
                               {upper != null
-                                ? `${formatCalculatedValue(upper)}${valueSuffix}`
+                                ? `${formatConfidenceLimit(upper, indicator, formatCalculatedValue)}${valueSuffix}`
                                 : '-'}
                             </td>
                           </Fragment>

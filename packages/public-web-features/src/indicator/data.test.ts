@@ -212,8 +212,10 @@ describe('formatting', () => {
   });
 
   it('formats a confidence interval as a range', () => {
-    expect(formatConfidenceInterval(obs())).toBe('95 to 105');
-    expect(formatConfidenceInterval(obs({ lowerCi95: null }))).toBe('—');
+    expect(formatConfidenceInterval(obs(), { valueType: 'Crude rate' })).toBe('95 to 105');
+    expect(formatConfidenceInterval(obs({ lowerCi95: null }), { valueType: 'Crude rate' })).toBe(
+      '—',
+    );
   });
 });
 
@@ -493,16 +495,18 @@ describe('inequalitySegments', () => {
 
 describe('confidenceInterval', () => {
   it('reads the interval for the chosen level', () => {
-    expect(confidenceInterval(obs(), '95')).toBe('95 to 105');
-    expect(confidenceInterval(obs(), '99.8')).toBe('92 to 108');
+    expect(confidenceInterval(obs(), '95', { valueType: 'Crude rate' })).toBe('95 to 105');
+    expect(confidenceInterval(obs(), '99.8', { valueType: 'Crude rate' })).toBe('92 to 108');
   });
 
   it('shows nothing at all when intervals are turned off', () => {
-    expect(confidenceInterval(obs(), 'none')).toBe('');
+    expect(confidenceInterval(obs(), 'none', { valueType: 'Crude rate' })).toBe('');
   });
 
   it('marks an interval the source does not carry', () => {
-    expect(confidenceInterval(obs({ lowerCi998: null }), '99.8')).toBe('—');
+    expect(confidenceInterval(obs({ lowerCi998: null }), '99.8', { valueType: 'Crude rate' })).toBe(
+      '—',
+    );
   });
 });
 

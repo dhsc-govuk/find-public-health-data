@@ -81,3 +81,34 @@ it('keeps displayed comparisons and pair ranges while leaving histories on the s
   expect(model.pair).toEqual(pair);
   expect(JSON.stringify(model)).not.toMatch(/observations|dimensions|series|definition/);
 });
+
+it('caps area display limits and bar scale while comparing the raw bounds', () => {
+  const primary = selected();
+  primary.detail.valueType = 'Proportion';
+  primary.areaData = [
+    {
+      areaCode: 'E92000001',
+      areaName: 'England',
+      observations: [observation(101)],
+    },
+    {
+      areaCode: 'E06000001',
+      areaName: 'Hartlepool',
+      observations: [
+        {
+          ...observation(72.49),
+          lowerCi95: 72042.0954,
+          upperCi95: 72939.9819,
+        },
+      ],
+    },
+  ];
+  const model = areasModel(primary);
+  expect(model.rows.find(({ areaName }) => areaName === 'Hartlepool')).toMatchObject({
+    lowerCi95: 100,
+    upperCi95: 100,
+    label: 'Better',
+  });
+  expect(model.barMaximum).toBeLessThan(200);
+  expect(primary.areaData[1]?.observations[0]?.lowerCi95).toBe(72042.0954);
+});

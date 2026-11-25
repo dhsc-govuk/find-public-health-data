@@ -110,7 +110,8 @@ SELECT i.id,
   v.data_source_id,
   v.updated_at,
   p.first_published_at,
-  p.last_published_at
+  p.last_published_at,
+  v.fingertips_formatting
 FROM public.indicator i
 JOIN preview.current_published_version cv ON cv.indicator_id = i.id
 JOIN public.indicator_version v ON v.id = cv.id

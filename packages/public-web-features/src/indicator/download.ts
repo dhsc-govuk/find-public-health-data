@@ -8,14 +8,17 @@ import type { TrendColumns, trendTableModel } from './trend.ts';
 
 export function tableCsv(
   rows: (string | number | null)[][],
-  options: { excel?: boolean; formatNumber?: (value: number) => string } = {},
+  options: {
+    excel?: boolean;
+    formatNumber?: (value: number, column: number | string | undefined) => string;
+  } = {},
 ): string {
   return stringify(rows, {
     ...(options.excel ? { bom: true, record_delimiter: '\r\n' } : {}),
     escape_formulas: true,
     cast: {
-      number: (value) => ({
-        value: options.formatNumber ? options.formatNumber(value) : String(value),
+      number: (value, context) => ({
+        value: options.formatNumber ? options.formatNumber(value, context.column) : String(value),
         escape_formulas: false,
       }),
     },

@@ -21,9 +21,9 @@ import { answerTo } from '../support/summary-list.ts';
 // Values for England and for London. England is the benchmark, and London gives the published
 // indicator's Compare areas tab a region to compare with it.
 const DATA_TABLE = [
-  'area_code,period_start,period_end,value',
-  'E92000001,2019-04-01,2020-03-31,83.8',
-  'E12000007,2019-04-01,2020-03-31,79.2',
+  'area_code,period_start,period_end,value,lower_ci_95,upper_ci_95,lower_ci_998,upper_ci_998',
+  'E92000001,2019-04-01,2020-03-31,72.49,72042.0954,72939.9819,-2,100.00000000000003',
+  'E12000007,2019-04-01,2020-03-31,33.33,4.0368,120.4115,3,130',
 ].join('\n');
 
 const UPDATE_FREQUENCY_REASON = 'Published whenever the survey runs.';
@@ -38,6 +38,10 @@ async function approvedWithRegion(browser: Browser) {
   const id = await asUser(browser, PUBLISHER, async (page) => {
     const draftId = await createDraft(page, name);
     await completeDraft(page, draftId);
+    await page.goto(`/publish/indicators/${draftId}/value-type-and-units`);
+    await page.getByLabel('Select value type').selectOption({ label: 'Proportion' });
+    await page.getByLabel('Select units').selectOption({ label: '%' });
+    await page.getByRole('button', { name: 'Continue' }).click();
     await page.goto(`/publish/indicators/${draftId}/update-frequency`);
     await page.getByLabel('No fixed frequency', { exact: true }).check();
     await page.getByRole('textbox', { name: 'Enter reason' }).fill(UPDATE_FREQUENCY_REASON);
@@ -93,6 +97,25 @@ test('publishes a scheduled indicator at its publication time', async ({
   const updateFrequency = answerTo(page, 'Update frequency');
   await expect(updateFrequency).toContainText('No fixed frequency, for the following reason:');
   await expect(updateFrequency.getByText(UPDATE_FREQUENCY_REASON)).toBeVisible();
+  const shortId = (await answerTo(page, 'Indicator ID').textContent())?.trim();
+  expect(shortId).toMatch(/^\d+$/);
+  await openIndicatorPage(page, `${publicUrl}?ci-${shortId}=95&columns-${shortId}=value,95,99.8`);
+  const trend = page.locator('#indicator-table table');
+  await expect(trend.locator('tbody td')).toHaveText(['72.5%', '100%', '100%', '-2.0%', '100%']);
+  const chart = page.getByRole('region', { name: `${name} trend chart` });
+  const ticks = chart.locator('.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value');
+  await expect(ticks.first()).toBeVisible();
+  expect((await ticks.allTextContents()).map(Number).every((value) => value < 200)).toBe(true);
+  for (const file of ['table.csv', 'all-data.csv']) {
+    const response = await page.request.get(
+      `${publicUrl}/${file}?columns-${shortId}=value,95,99.8`,
+    );
+    expect(response.ok()).toBe(true);
+    const csv = await response.text();
+    expect(csv).toContain('72042.0954,72939.9819');
+    expect(csv).toContain('-2,100.00000000000003');
+  }
+
   // The Compare areas tab offers only the area types listed for this indicator in the
   // `available_data` read-model table. Publishing adds the indicator's rows to that table, so
   // this checks that publishing refreshed the read models.
@@ -110,6 +133,15 @@ test('publishes a scheduled indicator at its publication time', async ({
     'England (benchmark)',
     'London',
   ]);
+  const london = compareAreas.getByRole('row', { name: /London/ });
+  await expect(london.getByRole('cell').last()).toHaveText('100');
+  await expect(london.getByRole('cell').nth(2)).toHaveText('4.0');
+  await expect(compareAreas.getByRole('table')).not.toContainText('72,042');
+  const areaCsv = await page.request.get(
+    `${publicUrl}/table.csv?tab-indicator=areas&areaType=Statistical%20regions`,
+  );
+  expect(areaCsv.ok()).toBe(true);
+  expect(await areaCsv.text()).toContain('4.0368,120.4115');
   await expectNoAccessibilityViolations(page, testInfo);
 
   await page.goto(`/dashboard/indicators/${id}`);

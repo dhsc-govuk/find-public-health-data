@@ -5,6 +5,8 @@ import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
+import type { FingertipsFormatting } from '@fphd/utils/value-type-and-unit';
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -23,7 +25,7 @@ import type { ObservationSeriesVariant } from './cache.ts';
 /**
  * The only objects `public_api` may read. The views carry the predicates that keep an
  * unpublished indicator out, so no query has to remember them; the definitions live in a
- * custom migration and are declared here as existing so drizzle-kit never rewrites them.
+ * schema or a legacy migration. Legacy definitions are declared as existing until changed.
  * Exports are prefixed because the table names are taken. Column names are spelled out:
  * drizzle keys its casing cache on the unqualified relation name, so a view sharing a
  * table's name would otherwise inherit that table's column list.
@@ -254,8 +256,57 @@ export function createVersionedViews(schema: PgSchema<string>) {
         // `indicator_version_published_at_check` gives every published version a `published_at`.
         firstPublishedAt: timestamp('first_published_at', { withTimezone: true }).notNull(),
         lastPublishedAt: timestamp('last_published_at', { withTimezone: true }).notNull(),
+        fingertipsFormatting: jsonb('fingertips_formatting').$type<FingertipsFormatting>(),
       })
-      .existing(),
+      .as(sql`
+SELECT
+  i.id,
+  i.short_id,
+  i.data_updated_at,
+  i.created_at,
+  v.name,
+  v.slug,
+  v.value_type_id,
+  v.unit_id,
+  v.unit_detail,
+  v.year_type,
+  v.year_end_day,
+  v.year_end_month,
+  v.ci_method_id,
+  v.polarity,
+  v.update_frequency,
+  v.update_frequency_reason,
+  v.update_frequency_text,
+  v.update_frequency_years,
+  v.comparator_method_id,
+  v.has_goal_benchmark,
+  v.goal_lower_value,
+  v.goal_upper_value,
+  v.goal_polarity,
+  v.goal_policy_detail,
+  v.ci_confidence_level,
+  v.definition,
+  v.rationale,
+  v.methodology,
+  v.numerator_definition,
+  v.denominator_definition,
+  v.disclosure_control_detail,
+  v.caveats_detail,
+  v.other_notes_detail,
+  v.data_source_id,
+  v.updated_at,
+  p.first_published_at,
+  p.last_published_at,
+  v.fingertips_formatting
+FROM indicator i
+JOIN current_published_version cpv ON cpv.indicator_id = i.id
+JOIN indicator_version v ON v.id = cpv.id
+CROSS JOIN LATERAL (
+  SELECT min(pv.published_at) AS first_published_at, max(pv.published_at) AS last_published_at
+  FROM indicator_version pv
+  WHERE pv.indicator_id = i.id
+) p
+      `),
     /**
      * The summaries of published updates, each with the time its version was published: every
      * update but one the core team published without visibility in history. Only a published

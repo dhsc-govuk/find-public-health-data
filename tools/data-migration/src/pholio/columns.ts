@@ -73,6 +73,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'ci_method_modifications_detail',
     'ci_method_detail',
     'ci_confidence_level',
+    'fingertips_formatting',
     'comparator_method_id',
     'has_goal_benchmark',
     'goal_lower_value',

@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
-import { tableCsv, trendCsv } from './download.ts';
+import { allDataCsv, tableCsv, trendCsv } from './download.ts';
 import type { IndicatorDetail } from './loader.ts';
 import { trendTableModel } from './trend.ts';
+import { indicatorDetail, observation } from './view.testing.ts';
 
 it('escapes formula-like text while retaining negative numeric cells', () => {
   expect(
@@ -57,4 +58,31 @@ it('escapes a trend cell that starts with a formula character, keeping negative 
   });
 
   expect(trendCsv(indicator, model, 'none')).toBe("Period,'=SUM(1) calculated value\n2023,-2.5\n");
+});
+
+it('keeps raw intervals at both levels in all-data and trend CSV downloads', () => {
+  const indicator = indicatorDetail(90799, { valueType: 'Proportion' });
+  const areaData = [
+    {
+      areaCode: 'E92000001',
+      areaName: 'England',
+      observations: [
+        {
+          ...observation(72.49),
+          lowerCi95: 72042.0954,
+          upperCi95: 72939.9819,
+          lowerCi998: -2,
+          upperCi998: 120.4115,
+        },
+      ],
+    },
+  ];
+  expect(allDataCsv(indicator, areaData, () => 'Country')).toContain(
+    '72.49,72042.0954,72939.9819,-2,120.4115',
+  );
+  const model = trendTableModel({ areaData, confidence: '95' });
+  for (const level of ['95', '99.8'] as const) {
+    const csv = trendCsv(indicator, model, level);
+    expect(csv).toContain(level === '95' ? '72042.0954,72939.9819' : '-2,120.4115');
+  }
 });

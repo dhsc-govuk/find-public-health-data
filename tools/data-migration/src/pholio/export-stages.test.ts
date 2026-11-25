@@ -627,6 +627,34 @@ it('excludes quarter-coded uploads of an annual series before canonical keys col
   expect(result.sourceObservations).toBe(4);
 });
 
+it.each([
+  [72.49, 72042.0954, 72939.9819],
+  [33.33, 4.0368, 120.4115],
+  [100, 99, 100.00000000000003],
+  [0.5, -2, 1.2],
+])('exports raw CI bounds unchanged for value %s', async (value, lower, upper) => {
+  sourceObservations([
+    observation({
+      Value: value,
+      LowerCI95: lower,
+      UpperCI95: upper,
+      LowerCI99_8: lower,
+      UpperCI99_8: upper,
+    }),
+  ]);
+  const result = await exportObservations(observationOptions());
+  expect(await rows('observation')).toEqual([
+    expect.objectContaining({
+      value: String(value),
+      lower_ci_95: String(lower),
+      upper_ci_95: String(upper),
+      lower_ci_998: String(lower),
+      upper_ci_998: String(upper),
+    }),
+  ]);
+  expect(result.excludedObservations).toBe(0);
+});
+
 it('keeps the grouped persons series when a not-applicable twin has conflicting values', async () => {
   sourceObservations([
     observation({ uid: 1, SexID: -1, Value: 66.66667, Count: 2, Denominator: 3 }),
@@ -766,6 +794,9 @@ function indicatorQueries(
   metadata: {
     groupings?: Record<string, unknown>[];
     ownerProfileId?: number | null;
+    formattingMaximum?: number | null;
+    decimalPlaces?: number | null;
+    confidenceLevel?: string | null;
     frequency?: string;
     frequencyProse?: string;
     frequencies?: { IndicatorID: number; FrequencyID: number | null; Name: string | null }[];
@@ -795,12 +826,20 @@ function indicatorQueries(
           ? [{ IndicatorID: 108, FrequencyID: 1, Name: metadata.frequency }]
           : []),
     )
-    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce(
+      indicators.map(({ IndicatorID }) => ({
+        IndicatorID,
+        ci_confidence_level:
+          metadata.confidenceLevel === undefined ? '95' : metadata.confidenceLevel,
+        FormattingMaximum: metadata.formattingMaximum ?? null,
+      })),
+    )
     .mockResolvedValueOnce(
       indicators.map(({ IndicatorID, Name }) => ({
         IndicatorID,
         Name,
         ValueTypeName: 'Count',
+        DecimalPlacesDisplayed: metadata.decimalPlaces ?? null,
         UnitName: unitName,
         YearTypeName: 'Calendar',
         OwnerProfileId: metadata.ownerProfileId === undefined ? 10 : metadata.ownerProfileId,
@@ -835,6 +874,36 @@ it('exports only the approved indicators and uses plain text without damaging in
   expect(result.excludedNonApprovedIndicators).toBe(1);
   expect((await rows('indicator_version'))[0]?.definition).toBe('aged <16 and >64, high');
 });
+it.each([
+  [100, null],
+  [9.99, null],
+  [100, 2],
+  [null, -1],
+])(
+  'preserves source formatting settings: maximum %s, override %s',
+  async (maximum, decimalPlaces) => {
+    indicatorQueries('Percent', undefined, [], { formattingMaximum: maximum, decimalPlaces });
+    await exportIndicators(options);
+    expect(JSON.parse((await rows('indicator_version'))[0]?.fingertips_formatting ?? '{}')).toEqual(
+      {
+        maximum,
+        decimalPlaces,
+      },
+    );
+  },
+);
+
+it('retains formatting limits even when the indicator has no confidence intervals', async () => {
+  indicatorQueries('Percent', undefined, [], { formattingMaximum: 9.99, confidenceLevel: null });
+  await exportIndicators(options);
+  const [version] = await rows('indicator_version');
+  expect(version?.ci_confidence_level).toBe(DATA_MIGRATION_NULL);
+  expect(JSON.parse(version?.fingertips_formatting ?? '{}')).toEqual({
+    maximum: 9.99,
+    decimalPlaces: null,
+  });
+});
+
 it('writes each exported version published and locked', async () => {
   indicatorQueries();
   await exportIndicators(options);
