@@ -71,6 +71,7 @@ catalog:
   "@not-govuk/task-list": 0.19.5
   "@not-govuk/text-input": 0.19.5
   "@not-govuk/textarea": 0.19.5
+  "@not-govuk/warning-text": 0.19.5
   "@playwright/test": 1.65.0
   "@react-foundry/router": 0.7.1
   "@react-router/dev": 8.5.1

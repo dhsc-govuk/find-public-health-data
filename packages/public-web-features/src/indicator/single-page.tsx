@@ -6,6 +6,7 @@ import { MAX_SELECTED_AREAS } from '../selection-limits.ts';
 import { CompareAreasTab } from './areas-tab.tsx';
 import { expandIndicator, expandScatterComparison } from './compact-data.ts';
 import { CompareIndicatorsTab } from './compare-tab.tsx';
+import { seriesSegments } from './data.ts';
 import { IndicatorTab } from './indicator-tab.tsx';
 import { InequalitiesTab } from './inequalities-tab.tsx';
 import type { IndicatorPageDetail, SelectedIndicator } from './loader.ts';
@@ -57,15 +58,49 @@ function IndicatorDataSection({
   const resolve = props.resolve instanceof Promise ? completed : props.resolve;
   return (
     <DataSection {...props} resolve={resolve}>
-      {(value) => {
-        let data = cache.get(value);
-        if (!data) {
-          data = { ...value, selected: value.selected.map(expandIndicator) };
-          cache.set(value, data);
-        }
-        return children(data);
-      }}
+      {(value) => children(expandData(cache, value))}
     </DataSection>
+  );
+}
+
+function expandData(cache: WeakMap<CompactData, ExpandedData>, value: CompactData) {
+  let data = cache.get(value);
+  if (!data) {
+    data = { ...value, selected: value.selected.map(expandIndicator) };
+    cache.set(value, data);
+  }
+  return data;
+}
+
+/**
+ * Every series in the page's data, once it has loaded, for the Compare areas tab's age warning.
+ * That tab has only each area's shown series, and loads without waiting for this data.
+ */
+function useSeriesSegments(
+  cache: WeakMap<CompactData, ExpandedData>,
+  data: CompactData | Promise<CompactData>,
+) {
+  // The resolved value is kept with its promise, so a navigation never pairs new comparisons with
+  // the previous indicator's series.
+  const [loaded, setLoaded] = useState<{ source: Promise<CompactData>; value: CompactData }>();
+  useEffect(() => {
+    if (!(data instanceof Promise)) return;
+    let active = true;
+    void data.then(
+      (value) => {
+        if (active) setLoaded({ source: data, value });
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [data]);
+  const current =
+    data instanceof Promise ? (loaded?.source === data ? loaded.value : undefined) : data;
+  return useMemo(
+    () => (current ? seriesSegments(expandData(cache, current).selected[0]?.areaData ?? []) : []),
+    [cache, current],
   );
 }
 
@@ -218,6 +253,7 @@ function LoadedIndicatorPage({
   // Resolve before expanding so Suspense retries reuse the loader promise during navigation.
   const cache = useMemo(() => new WeakMap<CompactData, ExpandedData>(), []);
   const contentReady = useDataReady([data, comparison, findResults]);
+  const segments = useSeriesSegments(cache, data);
   return (
     <IndicatorPageLayout
       detail={detail}
@@ -275,7 +311,11 @@ function LoadedIndicatorPage({
         areas: (
           <DataSection label="area comparisons" resolve={comparison}>
             {(comparison) => (
-              <CompareAreasTab primary={{ detail }} {...expandComparison(comparison)} />
+              <CompareAreasTab
+                primary={{ detail }}
+                {...expandComparison(comparison)}
+                segments={segments}
+              />
             )}
           </DataSection>
         ),

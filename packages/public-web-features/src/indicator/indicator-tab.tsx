@@ -3,6 +3,7 @@ import { isOneOf } from '@fphd/utils/is-one-of';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
+import { AgeWarning } from './age-warning.tsx';
 import type { AreaTypeNotice } from './area-type-notice.ts';
 import { benchmarkCheckboxOptions, isRangeBenchmark, setBenchmarkParams } from './benchmarks.ts';
 import { TrendChart } from './charts/trend-chart.tsx';
@@ -13,6 +14,8 @@ import {
   dimensionValues,
   filterObservations,
   periodTypeChoice,
+  seriesSegments,
+  uncertainSeriesAge,
 } from './data.ts';
 import { IndicatorGeographies } from './geographies.tsx';
 import { useIndicatorLinks } from './links.ts';
@@ -125,6 +128,13 @@ export function IndicatorTab({
     goal: detail.goal,
   });
   const trendAreas = trendChartAreas(model);
+  // The chart and table follow the first picked area with data, or England when none is picked.
+  const shownArea =
+    filtered.find(
+      ({ areaCode, observations }) => areaCode !== 'E92000001' && observations.length,
+    ) ?? filtered[0];
+  const uncertainAge =
+    shownArea && uncertainSeriesAge(shownArea.observations, seriesSegments(areaData));
   const geography = (
     <IndicatorGeographies
       shortId={id}
@@ -292,6 +302,7 @@ export function IndicatorTab({
             </p>
           ) : (
             <>
+              <AgeWarning age={uncertainAge} />
               <div className="fphd-indicator-chart fphd-indicator-chart--trend">
                 <h2 className="govuk-heading-s" id="indicator-chart-heading" tabIndex={-1}>
                   Chart: {detail.name}

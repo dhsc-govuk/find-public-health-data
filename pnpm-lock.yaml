@@ -105,6 +105,9 @@ catalogs:
     '@not-govuk/textarea':
       specifier: 0.19.5
       version: 0.19.5
+    '@not-govuk/warning-text':
+      specifier: 0.19.5
+      version: 0.19.5
     '@playwright/test':
       specifier: 1.65.0
       version: 1.65.0
@@ -1229,6 +1232,9 @@ importers:
         specifier: 'catalog:'
         version: 0.19.5(react@19.3.1)
       '@not-govuk/textarea':
+        specifier: 'catalog:'
+        version: 0.19.5(react@19.3.1)
+      '@not-govuk/warning-text':
         specifier: 'catalog:'
         version: 0.19.5(react@19.3.1)
       '@react-foundry/router':
@@ -2498,6 +2504,18 @@ packages:
       '@storybook/addon-docs':
         optional: true
 
+  '@not-govuk/warning-text@0.19.5':
+    resolution: {integrity: sha512-/utuKfvt978kEXoJUZEwQC13Wuli0YPphU/WMSKmxlUqq8HXx/hG6n06dVg40nrNpePR1szdngvvf6UuTCR0xw==}
+    peerDependencies:
+      '@react-foundry/docs-components': ^0.7.1
+      '@storybook/addon-docs': ^10.6.4
+      react: ^19.3.1
+    peerDependenciesMeta:
+      '@react-foundry/docs-components':
+        optional: true
+      '@storybook/addon-docs':
+        optional: true
+
   '@not-govuk/width-container@0.19.5':
     resolution: {integrity: sha512-znTGznLsqKeySa5hObO9gs2DVxMKxBQPVb0cTsSn/zB813g8BFmohU17y7yErXQI6svSknZFFpVM1LmloW0IJQ==}
     peerDependencies:
@@ -2957,6 +2975,7 @@ packages:
   '@typespec/ts-http-runtime@0.3.10':
     resolution: {integrity: sha512-vddvvtZ7sejSlCv+OIkn2ztjB1O31Fc2JsxI/YK725r3elXXlF/J3o3lbXJFRhoeWRWK1tjdZ+GTi6Fdtrp+EA==}
     engines: {node: '>=22.0.0'}
+    deprecated: A newer version 0.3.11 has been published.
 
   '@vitest/mocker@5.1.0':
     resolution: {integrity: sha512-5umB9/jlWcqVS6fsrFmv5Gdnpu6wAUio/lEOwAmvB7v+lFo/IW2B9FhAD0p19GCULTgMzLCdUmuCDCnAzWgppQ==}
@@ -5464,6 +5483,14 @@ snapshots:
   '@not-govuk/visually-hidden@0.19.5(react@19.3.1)':
     dependencies:
       '@not-govuk/sass-base': 0.19.5
+      '@react-foundry/component-helpers': 0.7.1
+      govuk-frontend: 6.6.0
+      react: 19.3.1
+
+  '@not-govuk/warning-text@0.19.5(react@19.3.1)':
+    dependencies:
+      '@not-govuk/sass-base': 0.19.5
+      '@not-govuk/visually-hidden': 0.19.5(react@19.3.1)
       '@react-foundry/component-helpers': 0.7.1
       govuk-frontend: 6.6.0
       react: 19.3.1

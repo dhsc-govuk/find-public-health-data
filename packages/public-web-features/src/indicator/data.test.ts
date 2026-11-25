@@ -24,10 +24,13 @@ import {
   periodTypeLabel,
   recentTrend,
   segmentLabel,
+  seriesSegments,
   trendSeries,
+  uncertainSeriesAge,
   unitNote,
   withUnit,
 } from './data.ts';
+import { observation } from './view.testing.ts';
 
 function obs(overrides = {}) {
   return {
@@ -827,4 +830,31 @@ it('labels months and explains a quarterly fallback naturally', () => {
   expect(periodTypeChoice(areas, '1-month').notice).toBe(
     'Showing 3 months data because Oxford has no 1 month data.',
   );
+});
+
+it("names a picked area's age when another area has an age outside it", () => {
+  const age = (value: string, ageFrom: string, ageUnder?: string) =>
+    observation(10, [
+      {
+        type: 'Age',
+        value,
+        dimensionClass: 'core',
+        sortOrder: 0,
+        ageFrom,
+        ...(ageUnder ? { ageUnder } : {}),
+      },
+    ]);
+  const older = age('65+ yrs', 'P65Y');
+  const picked = [older];
+  const areaData = [
+    { areaCode: 'E06000039', areaName: 'Slough', observations: picked },
+    {
+      areaCode: 'E92000001',
+      areaName: 'England',
+      observations: [older, age('45-64 yrs', 'P45Y', 'P65Y')],
+    },
+  ];
+
+  expect(uncertainSeriesAge(picked, seriesSegments(areaData.slice(0, 1)))).toBeUndefined();
+  expect(uncertainSeriesAge(picked, seriesSegments(areaData))).toBe('65+ yrs');
 });

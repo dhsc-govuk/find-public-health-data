@@ -180,6 +180,45 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
   );
 }
 
+/**
+ * Whether the age of a series chosen by `headlineSeries` may be only part of the indicator's
+ * population. It is safe when the series has no age, or when every other series that differs from
+ * it only by age has an age inside the chosen one. A series with no age, or with an age outside
+ * the chosen one, means the headline rule may have picked a part over the whole.
+ */
+export function uncertainHeadlineAge(
+  observations: Pick<SeriesObservation, 'dimensions'>[],
+  headline: Pick<SeriesObservation, 'dimensions'>,
+): boolean {
+  type Series = Pick<SeriesObservation, 'dimensions'>;
+  const ageOf = ({ dimensions }: Series) =>
+    dimensions.find(({ type }) => type === AGE_DIMENSION_NAME);
+  const otherDimensions = ({ dimensions }: Series) =>
+    observationSegmentKey({
+      fromDate: '',
+      toDate: '',
+      dimensions: dimensions.filter(({ type }) => type !== AGE_DIMENSION_NAME),
+    });
+  const days = (duration: string | undefined) =>
+    duration === undefined ? undefined : isoDurationDays(duration);
+  const age = ageOf(headline);
+  if (!age) return false;
+  const from = days(age.ageFrom);
+  const under = days(age.ageUnder);
+  const inside = (point: Series) => {
+    const other = ageOf(point);
+    if (!other) return false;
+    if (other.value === age.value) return true;
+    const otherFrom = days(other.ageFrom);
+    if (from === undefined || otherFrom === undefined || otherFrom < from) return false;
+    if (age.ageUnder === undefined) return true;
+    const otherUnder = days(other.ageUnder);
+    return under !== undefined && otherUnder !== undefined && otherUnder <= under;
+  };
+  const group = otherDimensions(headline);
+  return observations.some((point) => otherDimensions(point) === group && !inside(point));
+}
+
 export interface SeriesFilter {
   sex?: string;
   periodType?: SeriesPeriodType;

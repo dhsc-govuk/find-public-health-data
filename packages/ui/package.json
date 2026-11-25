@@ -46,6 +46,7 @@
     "@not-govuk/task-list": "catalog:",
     "@not-govuk/text-input": "catalog:",
     "@not-govuk/textarea": "catalog:",
+    "@not-govuk/warning-text": "catalog:",
     "@react-foundry/router": "catalog:",
     "accessible-autocomplete": "catalog:",
     "govuk-frontend": "catalog:",
