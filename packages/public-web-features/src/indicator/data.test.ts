@@ -841,7 +841,9 @@ it.each([
   const point = obs({ fromDate, toDate });
   expect(availablePeriodTypes([point])).toEqual([type]);
   expect(periodTypeLabel(type)).toBe(label);
-  expect(recentTrend([point], 'higher-is-better', 'up')).toMatchObject({
+  expect(
+    recentTrend([point], { polarity: 'higher-is-better', valueType: 'Proportion' }, 'up'),
+  ).toMatchObject({
     direction: null,
     reason: 'multi-year periods',
   });
