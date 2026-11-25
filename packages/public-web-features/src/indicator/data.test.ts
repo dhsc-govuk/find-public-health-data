@@ -55,29 +55,14 @@ function dim(type: string, value: string, overrides = {}) {
 
 describe('recentTrend', () => {
   it.each([
-    'Directly standardised rate',
-    'Indirectly standardised proportion',
-    'Indirectly standardised ratio',
-    'Count',
-  ])('marks %s unavailable with five valid annual points', (valueType) => {
-    const points = [10, 12, 14, 16, 18].map((value, index) =>
-      obs({
-        fromDate: `${2019 + index}-01-01`,
-        toDate: `${2019 + index}-12-31`,
-        value,
-        count: value * 10,
-        denominator: 1000,
-        lowerCi95: value - 0.5,
-        upperCi95: value + 0.5,
-      }),
-    );
-    expect(recentTrend(points, { polarity: null, valueType })).toMatchObject({
-      direction: null,
-      label: 'Trend unavailable',
-    });
-  });
-
-  it.each(['Proportion', 'Crude rate'])('uses the comparator for the %s fallback', (valueType) => {
+    ['Proportion', 'up'],
+    ['Indirectly standardised proportion', 'up'],
+    ['Crude rate', 'right'],
+    ['Directly standardised rate', 'right'],
+    ['Indirectly standardised ratio', 'right'],
+    ['Count', null],
+    ['Score', null],
+  ])('uses the value type for the %s fallback', (valueType, expected) => {
     const points = [10, 12, 14, 16, 18].map((value, index) =>
       obs({
         fromDate: `${2019 + index}-01-01`,
@@ -89,13 +74,7 @@ describe('recentTrend', () => {
         upperCi95: 1e6,
       }),
     );
-    expect(
-      recentTrend(points, { polarity: null, valueType, comparatorMethod: 'SPC for proportions' })
-        .direction,
-    ).toBe('up');
-    expect(
-      recentTrend(points, { polarity: null, valueType, comparatorMethod: null }).direction,
-    ).toBe('right');
+    expect(recentTrend(points, { polarity: null, valueType }).direction).toBe(expected);
   });
 
   it.each([undefined, 'up', 'right', null] as const)(

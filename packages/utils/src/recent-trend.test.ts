@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import publishedTrends from './fixtures/fingertips-recent-trends.json' with { type: 'json' };
 import {
   summariseTrend,
   type TrendObservation,
@@ -6,30 +7,8 @@ import {
   trendDirection,
 } from './recent-trend.ts';
 
-const proportion = { valueType: 'Proportion', comparatorMethod: 'SPC for proportions' };
+const proportion = { valueType: 'Proportion' };
 const rate: TrendSettings = { valueType: 'Crude rate' };
-
-type Row = [
-  string,
-  string,
-  number | null,
-  number | null,
-  number | null,
-  number | null,
-  number | null,
-];
-
-function rows(data: Row[]): TrendObservation[] {
-  return data.map(([fromDate, toDate, value, count, denominator, lowerCi95, upperCi95]) => ({
-    fromDate,
-    toDate,
-    value,
-    count,
-    denominator,
-    lowerCi95,
-    upperCi95,
-  }));
-}
 
 function year(
   start: number,
@@ -57,147 +36,31 @@ const rising = years([10, 12, 14, 16, 18]);
 const direction = (series: TrendObservation[], settings = rate, annual = true) =>
   trendDirection(summariseTrend(series, annual), settings);
 
-describe('Fingertips calculation branches', () => {
-  it('uses counts and denominators for SPC for proportions', () => {
-    // Rounded intervals distinguish the two tests on indicator 91871's England rows.
-    const pupils = rows([
-      ['2021-04-01', '2022-03-31', 2.99214, 250272, 8364328, 2.98061, 3.0037],
-      ['2022-04-01', '2023-03-31', 3.3, 275093, 8426530, 3.3, 3.3],
-      ['2023-04-01', '2024-03-31', 3.61927, 305511, 8441223, 3.6067, 3.6319],
-      ['2024-04-01', '2025-03-31', 4.04183, 339146, 8390893, 4.0285, 4.0552],
-      ['2025-04-01', '2026-03-31', 4.496, 373284, 8302640, 4.4819, 4.5101],
-    ]);
-    expect(direction(pupils, proportion)).toBe('up');
-    // The confidence interval test sees no trend here: one interval has no width.
-    expect(direction(pupils, { ...proportion, comparatorMethod: null })).toBe('right');
-    expect(
-      direction(pupils, {
-        ...proportion,
-        comparatorMethod: 'Confidence intervals overlapping reference value (95.0)',
-      }),
-    ).toBe('right');
-    expect(direction(pupils, { ...proportion, valueType: 'Crude rate' })).toBe('up');
-
-    // 90811 Deliveries to young women and girls aged 12 to 17: "Decreasing and getting better".
-    const deliveries = rows([
-      ['2020-04-01', '2021-03-31', 0.58, 3079, 534802, 0.6, 0.6],
-      ['2021-04-01', '2022-03-31', 0.56, 3085, 549836, 0.54, 0.58],
-      ['2022-04-01', '2023-03-31', 0.605631892, 3125, 515990, 0.58, 0.63],
-      ['2023-04-01', '2024-03-31', 0.55912, 2870, 513310, 0.54, 0.58],
-      ['2024-04-01', '2025-03-31', 0.51296, 2612, 509200, 0.49371, 0.53296],
-    ]);
-    expect(direction(deliveries, proportion)).toBe('down');
-
-    // 93793 Heart failure diagnosis confirmed by an ECG: "No significant change".
-    const heartFailure = rows([
-      [
-        '2020-04-01',
-        '2021-03-31',
-        84.4922413956038,
-        44704,
-        52909,
-        84.1813014579672,
-        84.7981730773501,
-      ],
-      ['2021-04-01', '2022-03-31', 87.27361, 61006, 69902, 87.0245, 87.51862],
-      ['2022-04-01', '2023-03-31', 92.71271, 148141, 159785, 92.58423, 92.83913],
-      ['2023-04-01', '2024-03-31', 79.14188, 85660, 108236, 78.89879, 79.38289],
-      ['2024-04-01', '2025-03-31', 84.97225, 179622, 211389, 84.81929, 85.12395],
-    ]);
-    expect(direction(heartFailure, proportion)).toBe('right');
-  });
-
-  it('excludes directly standardised rates despite complete observations', () => {
-    // The pinned TrendRequest excludes DSRs even though the live API publishes trends for them.
-    const influenza = rows([
-      ['2020-01-01', '2020-12-31', 35.06888, 18714.604, 56325961, 34.56708, 35.57613],
-      ['2021-01-01', '2021-12-31', 28.09202, 15189.198, 56554891, 27.64617, 28.54325],
-      [
-        '2022-01-01',
-        '2022-12-31',
-        34.0386740747639,
-        18842,
-        57144395,
-        33.5534407364282,
-        34.5291589353817,
-      ],
-      [
-        '2023-01-01',
-        '2023-12-31',
-        40.3652174203186,
-        22667,
-        57932470,
-        39.8399873252923,
-        40.8956274094622,
-      ],
-      [
-        '2024-01-01',
-        '2024-12-31',
-        37.4940038587246,
-        21508,
-        58620101,
-        36.9929453187846,
-        38.0001360411576,
-      ],
-    ]);
-    expect(
-      direction(influenza, { ...proportion, valueType: 'Directly standardised rate' }),
-    ).toBeNull();
-  });
-
-  it('cannot calculate across a missing year', () => {
-    // 91891 Dementia recorded prevalence, aged 65 and over, has no 2022: "Cannot be calculated".
-    const dementia = rows([
-      [
-        '2018-01-01',
-        '2018-12-31',
-        4.32382451710711,
-        448121,
-        10363996,
-        4.31145859376916,
-        4.33622430056661,
-      ],
-      [
-        '2019-01-01',
-        '2019-12-31',
-        4.33644285812844,
-        456958,
-        10537623,
-        4.32416199538,
-        4.34875701389001,
-      ],
-      [
-        '2020-01-01',
-        '2020-12-31',
-        3.97473523331541,
-        422973,
-        10641539,
-        3.96301387538155,
-        3.98648982029546,
-      ],
-      ['2021-01-01', '2021-12-31', 3.94294, 425627, 10794653, 3.93135, 3.95457],
-      ['2023-01-01', '2023-12-31', 4.2, 463843, 11160338, 4.1, 4.2],
-      ['2024-01-01', '2024-12-31', 4.2, 482890, 11377188, 4.2, 4.3],
-    ]);
-    expect(summariseTrend(dementia, true).run).toBe(2);
-    expect(direction(dementia, proportion)).toBeNull();
+describe('published live Fingertips series', () => {
+  it.each(publishedTrends.samples)('$key matches published marker $marker.Marker', (sample) => {
+    expect(direction(sample.observations, { valueType: sample.valueType }, sample.annual)).toBe(
+      [null, 'up', 'down', 'right'][sample.marker.Marker],
+    );
   });
 });
 
 describe('valid rows', () => {
+  it.each(['Count', 'Score', null])(
+    'cannot calculate %s with complete observations',
+    (valueType) => {
+      expect(direction(rising, { valueType })).toBeNull();
+    },
+  );
+
   it.each([
     'Directly standardised rate',
     'Indirectly standardised proportion',
     'Indirectly standardised ratio',
     'Indirectly standardised rate',
-    'Count',
     'Ratio',
     'Mean',
-    'Unknown value type',
-    null,
-  ])('cannot calculate %s with either significance test', (valueType) => {
-    for (const settings of [rate, proportion])
-      expect(direction(rising, { ...settings, valueType })).toBeNull();
+  ])('allows %s when the observations support the calculation', (valueType) => {
+    expect(direction(rising, { valueType })).toBe('up');
   });
 
   it('only calculates a series of annual periods', () => {
@@ -220,7 +83,7 @@ describe('valid rows', () => {
     expect(direction([...rising.slice(0, 4), year(2023, 18, { upperCi95: null })])).toBeNull();
   });
 
-  it('stops the run at the first invalid row or missing period back from the latest', () => {
+  it('stops the run at an interior invalid row or missing period', () => {
     const invalid = [year(2017, 8), year(2018, 9, { count: null }), ...rising];
     expect(summariseTrend(invalid, true).run).toBe(5);
     expect(direction(invalid)).toBe('up');
@@ -234,6 +97,16 @@ describe('valid rows', () => {
     const gap = [...years([8, 9]), ...years([10, 12, 14, 16, 18], 2022)];
     expect(summariseTrend(gap, true).run).toBe(5);
     expect(direction(gap)).toBe('up');
+  });
+
+  it('skips trailing invalid rows before finding the latest run', () => {
+    const series = [
+      ...rising,
+      year(2024, 19, { value: null }),
+      year(2025, 20, { denominator: null }),
+    ];
+    expect(summariseTrend(series, true).run).toBe(5);
+    expect(direction(series)).toBe('up');
   });
 
   it('cannot calculate when any row of the run has Count equal to Denominator', () => {

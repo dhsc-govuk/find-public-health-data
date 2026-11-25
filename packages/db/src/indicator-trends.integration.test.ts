@@ -6,11 +6,12 @@ import {
   seriesPeriodTypes,
   seriesTrend,
 } from '@fphd/utils/observation-series';
-import { SPC_FOR_PROPORTIONS } from '@fphd/utils/recent-trend';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
 import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
+import publishedTrends from '../../utils/src/fixtures/fingertips-recent-trends.json' with {
+  type: 'json',
+};
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
@@ -21,7 +22,6 @@ import { observationPeriodSql, periodLengthSql } from './observation-series-sql.
 import {
   area,
   areaType,
-  comparatorMethod,
   dimensionType,
   dimensionValue,
   dimensionValueAgeRange,
@@ -54,13 +54,6 @@ let dimensions: (typeof dimensionValue.$inferSelect)[];
 
 beforeAll(async () => {
   database = await createTestDb();
-  await database.db
-    .insert(comparatorMethod)
-    .values([
-      { name: SPC_FOR_PROPORTIONS },
-      { name: 'Confidence intervals overlapping reference value (95.0)' },
-    ])
-    .onConflictDoNothing();
   const [proportion] = await database.db
     .select()
     .from(valueType)
@@ -124,7 +117,7 @@ async function publishedIndicator(
     .values({
       indicatorId: identity.id,
       name,
-      slug: name.toLowerCase().replaceAll(' ', '-'),
+      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       polarity,
       valueTypeId: proportionId,
       status: 'published',
@@ -208,45 +201,29 @@ it('leaves a 94184-style proportion with values and CIs but no counts or denomin
   );
 });
 
-it.each([
-  ['Proportion', SPC_FOR_PROPORTIONS, 'up'],
-  ['Proportion', 'Confidence intervals overlapping reference value (95.0)', 'right'],
-  ['Proportion', null, 'right'],
-  ['Crude rate', SPC_FOR_PROPORTIONS, 'up'],
-  ['Crude rate', 'Confidence intervals overlapping reference value (95.0)', 'right'],
-  ['Crude rate', null, 'right'],
-  ...[
-    'Directly standardised rate',
-    'Indirectly standardised proportion',
-    'Indirectly standardised ratio',
-    'Count',
-    null,
-  ].flatMap((valueType) => [
-    [valueType, SPC_FOR_PROPORTIONS, null],
-    [valueType, null, null],
-  ]),
-])(
-  'uses value type %s and comparator %s in every trend path',
-  async (typeName, methodName, expected) => {
-    const methodLabel = methodName === SPC_FOR_PROPORTIONS ? 'SPC' : methodName ? 'CI' : 'none';
-    const fixture = await publishedIndicator(`Trend settings ${typeName} ${methodLabel}`);
+it.each(publishedTrends.samples)(
+  '$key preserves the published marker through SQL, fallback and cached reads',
+  async (sample) => {
+    const fixture = await publishedIndicator(`Published trend ${sample.key}`);
     const types = await database.db.select().from(valueType);
-    const methods = await database.db.select().from(comparatorMethod);
-    const type = types.find(({ name }) => name === typeName);
-    const method = methods.find(({ name }) => name === methodName);
-    if (typeName && !type) throw new Error('Value type fixture missing');
-    if (methodName && !method) throw new Error('Comparator method fixture missing');
+    const type = types.find(({ name }) => name.toLowerCase() === sample.valueType.toLowerCase());
+    if (!type) throw new Error(`Value type fixture missing: ${sample.valueType}`);
     await database.db
       .update(indicatorVersion)
-      .set({ valueTypeId: type?.id ?? null, comparatorMethodId: method?.id ?? null })
+      .set({ valueTypeId: type.id })
       .where(eq(indicatorVersion.id, fixture.versionId));
-    for (const areaId of [englandId, westSussexId])
-      await addSeries(fixture, areaId, [10, 12, 14, 16, 18]);
-    // Wide intervals leave only the count test significant, so the selected branch is observable.
-    await database.db
-      .update(observation)
-      .set({ lowerCi95: 0, upperCi95: 1e6 })
-      .where(eq(observation.indicatorId, fixture.id));
+    await database.db.insert(observation).values(
+      sample.observations.flatMap((point) =>
+        [englandId, westSussexId].map((areaId) => ({
+          ...point,
+          indicatorId: fixture.id,
+          uploadBatchId: fixture.batchId,
+          areaId,
+          dimensionKey: '',
+        })),
+      ),
+    );
+    const expected = [null, 'up', 'down', 'right'][sample.marker.Marker];
     const codes = ['E92000001', WEST_SUSSEX];
     const assertDirections = async () => {
       for (const code of codes)

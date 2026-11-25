@@ -1,10 +1,5 @@
 import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
-import {
-  type TrendDirection,
-  type TrendSettings,
-  type TrendSummary,
-  trendDirection,
-} from '@fphd/utils/recent-trend';
+import { type TrendDirection, type TrendSummary, trendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
 import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
@@ -15,13 +10,14 @@ import {
 } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
-/** Eligibility and comparator settings travel with the summary so every read uses the same test. */
-interface TrendInput extends TrendSettings {
+/** A series' trend summary with the value type that picks Fingertips' test for it. */
+interface TrendInput {
   summary: TrendSummary;
+  valueType: string | null;
 }
 
 /**
- * The trend summary of each indicator's headline series in one area, with its analytical settings. The
+ * The trend summary of each indicator's headline series in one area, with its value type. The
  * series is chosen once per indicator, in the order `headlineOrder` gives, not per sex and period
  * type as the stored series are. Indicators without a single value for the area, such as those
  * whose values are all suppressed, are left out of the result. England reads the summaries cached
@@ -33,24 +29,18 @@ async function trendInputs(
   ids: string[],
   areaCode: string,
 ): Promise<Map<string, TrendInput>> {
-  const { comparatorMethod, indicator, observationSeriesBatch: batches, valueType } = views;
+  const { indicator, observationSeriesBatch: batches, valueType } = views;
   if (ids.length === 0) return new Map();
   if (areaCode !== ENGLAND_AREA_CODE) return areaTrendInputs(db, views, ids, areaCode);
   const cached = await db
-    .select({
-      id: batches.indicatorId,
-      summary: batches.trend,
-      valueType: valueType.name,
-      comparatorMethod: comparatorMethod.name,
-    })
+    .select({ id: batches.indicatorId, summary: batches.trend, valueType: valueType.name })
     .from(batches)
     .innerJoin(indicator, eq(indicator.id, batches.indicatorId))
     .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
-    .leftJoin(comparatorMethod, eq(comparatorMethod.id, indicator.comparatorMethodId))
     .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
-  const result = new Map<string, TrendInput>(
-    cached.flatMap(({ id, summary, ...settings }) =>
-      summary === null ? [] : [[id, { summary, ...settings }] as const],
+  const result = new Map(
+    cached.flatMap(({ id, summary, valueType }) =>
+      summary === null ? [] : [[id, { summary, valueType }] as const],
     ),
   );
   const missing = ids.filter((id) => !result.has(id));
@@ -81,7 +71,7 @@ export async function indicatorTrendDirections(
   const inputs = await trendInputs(db, views, ids, areaCode);
   return new Map(
     [...inputs].map(
-      ([id, { summary, ...settings }]) => [id, trendDirection(summary, settings)] as const,
+      ([id, { summary, valueType }]) => [id, trendDirection(summary, { valueType })] as const,
     ),
   );
 }
@@ -92,12 +82,11 @@ async function areaTrendInputs(
   ids: string[],
   areaCode: string,
 ): Promise<Map<string, TrendInput>> {
-  const { area, comparatorMethod, indicator, observation, valueType } = views;
+  const { area, indicator, observation, valueType } = views;
   const rows = await db.execute<{
     indicator_id: string;
     trend: TrendSummary;
     value_type: string | null;
-    comparator_method: string | null;
   }>(sql`
     with cumulative_periods as (
       select ${observation.indicatorId} as indicator_id, ${observation.dimensionKey} as segment,
@@ -145,10 +134,7 @@ async function areaTrendInputs(
     })} as trend,
       (select ${valueType.name} from ${indicator}
         join ${valueType} on ${valueType.id} = ${indicator.valueTypeId}
-        where ${indicator.id} = s.indicator_id) as value_type,
-      (select ${comparatorMethod.name} from ${indicator}
-        join ${comparatorMethod} on ${comparatorMethod.id} = ${indicator.comparatorMethodId}
-        where ${indicator.id} = s.indicator_id) as comparator_method
+        where ${indicator.id} = s.indicator_id) as value_type
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
         and p.period_type = s.period_type
     where s.has_value
@@ -157,11 +143,8 @@ async function areaTrendInputs(
   `);
   return new Map(
     rows.map(
-      ({ indicator_id, trend, value_type, comparator_method }) =>
-        [
-          indicator_id,
-          { summary: trend, valueType: value_type, comparatorMethod: comparator_method },
-        ] as const,
+      ({ indicator_id, trend, value_type }) =>
+        [indicator_id, { summary: trend, valueType: value_type }] as const,
     ),
   );
 }

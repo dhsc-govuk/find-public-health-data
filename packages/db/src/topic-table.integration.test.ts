@@ -315,19 +315,7 @@ it('uses polarity to put improving or worsening trends first', async () => {
     .select()
     .from(publishedIndicator)
     .where(eq(publishedIndicator.shortId, 241));
-  const [mortality] = await db
-    .select()
-    .from(publishedIndicator)
-    .where(eq(publishedIndicator.shortId, 108));
-  if (!diabetes || !mortality) throw new Error('Seed trend indicators missing');
-  expect(
-    (await indicatorTrendDirections(db, publishedViews, [mortality.id])).get(mortality.id),
-  ).toBeNull();
-  // Two eligible series let this test distinguish polarity ordering from DSR eligibility.
-  await db
-    .update(indicatorVersion)
-    .set({ valueTypeId: diabetes.valueTypeId })
-    .where(eq(indicatorVersion.indicatorId, mortality.id));
+  if (!diabetes) throw new Error('Seed diabetes indicator missing');
   await db
     .update(indicatorVersion)
     .set({ polarity: 'lower-is-better' })
@@ -342,10 +330,6 @@ it('uses polarity to put improving or worsening trends first', async () => {
       else expect(ids.indexOf(241)).toBeLessThan(ids.indexOf(108));
     }
   } finally {
-    await db
-      .update(indicatorVersion)
-      .set({ valueTypeId: mortality.valueTypeId })
-      .where(eq(indicatorVersion.indicatorId, mortality.id));
     await db
       .update(indicatorVersion)
       .set({ polarity: diabetes.polarity })

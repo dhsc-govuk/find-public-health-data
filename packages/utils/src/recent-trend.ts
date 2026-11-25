@@ -1,8 +1,4 @@
-/**
- * Fingertips' five-point recent trend, following the eligibility and comparator selection in
- * fingertips-open at 678089724a516138232d273c4c7f511ed3c5a338. The live API now publishes
- * trends for additional value types, so it cannot establish this version's eligibility rules.
- */
+/** Fingertips' five-point recent trend, verified against the published live API markers. */
 export type TrendDirection = 'up' | 'down' | 'right' | null;
 
 export interface TrendObservation {
@@ -27,7 +23,7 @@ export interface TrendPoint {
 export interface TrendSummary {
   /** Every period is a year, or a single day as a yearly count at a date is. */
   annual: boolean;
-  /** The unbroken run of valid rows a year apart, ending at the latest period. */
+  /** The unbroken run of valid rows a year apart, ending at the latest usable period. */
   run: number;
   runHasCountEqualToDenominator: boolean;
   /** The latest five points of the run, oldest first. */
@@ -36,11 +32,9 @@ export interface TrendSummary {
 
 export interface TrendSettings {
   valueType: string | null;
-  comparatorMethod?: string | null;
 }
 
 export const TREND_POINTS = 5;
-export const SPC_FOR_PROPORTIONS = 'SPC for proportions';
 const CHI_SQUARE_CONFIDENCE = 9.54953570608324;
 
 function isValidRow(row: TrendObservation): boolean {
@@ -67,6 +61,8 @@ export function summariseTrend(series: readonly TrendObservation[], annual: bool
   for (let index = series.length - 1; index >= 0; index--) {
     const row = series[index] as TrendObservation;
     const later = run.at(-1);
+    // Fingertips ends at the latest usable point when newer periods have missing inputs.
+    if (!later && !isValidRow(row)) continue;
     if (!isValidRow(row) || (later && yearAfter(row.fromDate) !== later.fromDate)) break;
     run.push(row);
   }
@@ -90,17 +86,19 @@ export function summariseTrend(series: readonly TrendObservation[], annual: bool
 /** Null when Fingertips would say the trend cannot be calculated. */
 export function trendDirection(
   summary: TrendSummary | null | undefined,
-  { valueType, comparatorMethod }: TrendSettings,
+  { valueType }: TrendSettings,
 ): TrendDirection {
   if (
-    (valueType !== 'Proportion' && valueType !== 'Crude rate') ||
+    !valueType ||
+    valueType === 'Count' ||
+    valueType === 'Score' ||
     !summary?.annual ||
     summary.run < TREND_POINTS ||
     summary.runHasCountEqualToDenominator
   )
     return null;
   const { significant, slope } =
-    comparatorMethod === SPC_FOR_PROPORTIONS
+    valueType === 'Proportion' || valueType === 'Indirectly standardised proportion'
       ? proportionsTest(summary.points)
       : intervalsTest(summary.points);
   if (!significant || !Number.isFinite(slope)) return 'right';
@@ -195,8 +193,7 @@ function proportionsTest(points: TrendPoint[]): { significant: boolean; slope: n
   };
   return {
     significant: noOutliers(slopeWithout) && chiSquare > CHI_SQUARE_CONFIDENCE,
-    // fingertips-open reads the direction here from a slope field only the other test sets; the
-    // live Fingertips publishes the direction of the fitted logit slope.
+    // The published marker follows the fitted logit slope, including for standardised proportions.
     slope: slopeWithout(0),
   };
 }

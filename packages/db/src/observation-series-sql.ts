@@ -82,18 +82,24 @@ export function trendSummarySql(points: {
     SELECT v.*,
       coalesce(min(v.n) FILTER (WHERE NOT v.valid) OVER (), count(*) OVER () + 1) - 1 AS run
     FROM (
-      SELECT e.n, (e.row->>2)::float8 AS value, (e.row->>3)::float8 AS count,
-        (e.row->>4)::float8 AS denominator, (e.row->>5)::float8 AS lower_ci_95,
-        (e.row->>6)::float8 AS upper_ci_95,
-        e.row->>2 IS NOT NULL AND e.row->>3 IS NOT NULL
-          AND coalesce((e.row->>4)::float8 > 0, false)
-          AND e.row->>5 IS NOT NULL AND e.row->>6 IS NOT NULL
-          AND coalesce(((e.row->>0)::date + interval '1 year')::date
-            = (lag(e.row->>0) OVER (ORDER BY e.n))::date, true) AS valid
-      FROM jsonb_array_elements(jsonb_agg(jsonb_build_array(${points.fromDate}, ${points.toDate},
-        ${points.value}, ${points.count}, ${points.denominator}, ${points.lowerCi95},
-        ${points.upperCi95}) ORDER BY ${points.fromDate} DESC, ${points.toDate} DESC))
-        WITH ORDINALITY AS e(row, n)
+      SELECT e.n - min(e.n) FILTER (WHERE e.valid) OVER () + 1 AS n,
+        e.value, e.count, e.denominator, e.lower_ci_95, e.upper_ci_95,
+        e.valid AND (e.n = min(e.n) FILTER (WHERE e.valid) OVER () OR e.consecutive) AS valid
+      FROM (
+        SELECT e.n, (e.row->>2)::float8 AS value, (e.row->>3)::float8 AS count,
+          (e.row->>4)::float8 AS denominator, (e.row->>5)::float8 AS lower_ci_95,
+          (e.row->>6)::float8 AS upper_ci_95,
+          e.row->>2 IS NOT NULL AND e.row->>3 IS NOT NULL
+            AND coalesce((e.row->>4)::float8 > 0, false)
+            AND e.row->>5 IS NOT NULL AND e.row->>6 IS NOT NULL AS valid,
+          coalesce(((e.row->>0)::date + interval '1 year')::date
+              = (lag(e.row->>0) OVER (ORDER BY e.n))::date, true) AS consecutive
+        FROM jsonb_array_elements(jsonb_agg(jsonb_build_array(${points.fromDate}, ${points.toDate},
+          ${points.value}, ${points.count}, ${points.denominator}, ${points.lowerCi95},
+          ${points.upperCi95}) ORDER BY ${points.fromDate} DESC, ${points.toDate} DESC))
+          WITH ORDINALITY AS e(row, n)
+      ) e
     ) v
+    WHERE v.n >= 1
   ) r)`;
 }

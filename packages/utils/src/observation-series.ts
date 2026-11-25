@@ -8,7 +8,7 @@ import {
   trendDirection,
 } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 10;
+export const OBSERVATION_SERIES_VERSION = 11;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
 export type CumulativePeriodType = `cumulative-quarter-${string}`;

@@ -1,4 +1,3 @@
-import { SPC_FOR_PROPORTIONS } from '@fphd/utils/recent-trend';
 import { tidyName } from '@fphd/utils/tidy-name';
 
 import type { PholioSource } from './context.ts';
@@ -59,16 +58,12 @@ export async function exportLookups(context: PholioSource) {
      FROM [grouping]
      WHERE ComparatorMethodID IS NOT NULL AND ComparatorMethodID != -1`,
   );
-  // Method 5 can survive in groupings after its lookup is removed; retain its SPC meaning.
   const gapFill = gapFillRows
     .map((r) => r.ComparatorMethodID)
     .filter((id) => !existingComparatorIds.has(id))
-    .map((id) => ({ id, name: id === 5 ? SPC_FOR_PROPORTIONS : `Legacy comparator method ${id}` }));
+    .map((id) => ({ id, name: `Legacy comparator method ${id}` }));
   await comparatorMethodWriter.writeAll([
-    ...comparatorRows.map((row) => ({
-      id: row.ComparatorMethodID,
-      name: row.ComparatorMethodID === 5 ? SPC_FOR_PROPORTIONS : row.ComparatorMethod,
-    })),
+    ...comparatorRows.map((row) => ({ id: row.ComparatorMethodID, name: row.ComparatorMethod })),
     ...gapFill,
   ]);
 

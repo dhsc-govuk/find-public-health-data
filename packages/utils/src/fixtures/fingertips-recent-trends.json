@@ -1,0 +1,2184 @@
+{
+  "source": "Live Fingertips API, fetched 2026-11-25; full audit in ignored test-results/fingertips-evidence/",
+  "samples": [
+    {
+      "key": "90916:4:173:1:-1:-1:E92000001",
+      "valueType": "Count",
+      "yearRange": 1,
+      "comparatorMethodId": -1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated for this value type"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=90879,90886,90898,90903,90916,90922,90933,90986,90987,90988,90999,91005,91013,91020,91021,91022,91023,91025,91029,91030,91040,91041,91046,91058,91099",
+      "observations": [
+        {
+          "fromDate": "2013-01-01",
+          "toDate": "2013-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2014-01-01",
+          "toDate": "2014-12-31",
+          "value": 1970,
+          "count": 1970,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2015-01-01",
+          "toDate": "2015-12-31",
+          "value": 2030,
+          "count": 2030,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2016-01-01",
+          "toDate": "2016-12-31",
+          "value": 4210,
+          "count": 4210,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2017-01-01",
+          "toDate": "2017-12-31",
+          "value": 4560,
+          "count": 4560,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": 4480,
+          "count": 4480,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "20401:2:173:1:-1:-1:E92000001",
+      "valueType": "Crude rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 3,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=10301,10401,10601,10602,11201,11202,11401,11601,20101,20401,20601,20602,21001,22001,22301,22302,22303,22304,22401,22402,22403,30301,30302,30303,30304",
+      "observations": [
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": 16.6129,
+          "count": 14736,
+          "denominator": 887020,
+          "lowerCi95": 16.3458,
+          "upperCi95": 16.8834
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 15.4865,
+          "count": 14019,
+          "denominator": 905242,
+          "lowerCi95": 15.2312,
+          "upperCi95": 15.745
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 12.8234,
+          "count": 11878,
+          "denominator": 926276,
+          "lowerCi95": 12.5938,
+          "upperCi95": 13.0561
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 13.0767,
+          "count": 12361,
+          "denominator": 945268,
+          "lowerCi95": 12.8472,
+          "upperCi95": 13.3093
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 13.8914,
+          "count": 13424,
+          "denominator": 966352,
+          "lowerCi95": 13.6574,
+          "upperCi95": 14.1284
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 13.5,
+          "count": 13540,
+          "denominator": 1002436,
+          "lowerCi95": 13.2805,
+          "upperCi95": 13.7366
+        }
+      ]
+    },
+    {
+      "key": "108:4:163:1:-1:-1:E92000001",
+      "valueType": "Directly standardised rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 2,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=108,200,212,219,224,241,247,253,258,262,273,276,280,294,337,352,383,811,848,849,1179,1180,1203,1204,1210",
+      "observations": [
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 360.3078,
+          "count": 177600,
+          "denominator": 51530437,
+          "lowerCi95": 358.6315,
+          "upperCi95": 361.9899
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 363.3574,
+          "count": 180556,
+          "denominator": 51653460,
+          "lowerCi95": 361.6809,
+          "upperCi95": 365.0398
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 342.2409,
+          "count": 169041,
+          "denominator": 51997664,
+          "lowerCi95": 340.609,
+          "upperCi95": 343.8788
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 341.1159,
+          "count": 168858,
+          "denominator": 52620626,
+          "lowerCi95": 339.4878,
+          "upperCi95": 342.75
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 329.4127,
+          "count": 164096,
+          "denominator": 53158959,
+          "lowerCi95": 327.8172,
+          "upperCi95": 331.014
+        },
+        {
+          "fromDate": "2025-01-01",
+          "toDate": "2025-12-31",
+          "value": 321.0382,
+          "count": 161332,
+          "denominator": 53319634.115,
+          "lowerCi95": 319.4696,
+          "upperCi95": 322.6127
+        }
+      ]
+    },
+    {
+      "key": "93979:4:208:1:-1:-1:E92000001",
+      "valueType": "Gap",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": "Not enough data points to calculate recent trend"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=93959,93960,93961,93962,93963,93964,93965,93967,93972,93979,93981,93982,93994,93995,93997,93998,93999,94000,94001,94002,94003,94004,94005,94006,94035",
+      "observations": [
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 69.4,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 69.0946,
+          "upperCi95": 69.7055
+        }
+      ]
+    },
+    {
+      "key": "41101:4:1:1:-1:-1:E92000001",
+      "valueType": "Indirectly standardised proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=30306,30308,30309,30310,30311,30313,30314,30315,40401,40501,40601,40701,41001,41101,41201,41202,41203,41204,41401,41402,41403,90244,90245,90280,90284",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 14.3,
+          "count": 908781,
+          "denominator": 6365261,
+          "lowerCi95": 14.2,
+          "upperCi95": 14.3
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 15.4,
+          "count": 762875,
+          "denominator": 4941801,
+          "lowerCi95": 15.4,
+          "upperCi95": 15.5
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 14.4,
+          "count": 863467,
+          "denominator": 6015583,
+          "lowerCi95": 14.3,
+          "upperCi95": 14.4
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 14.2,
+          "count": 837569,
+          "denominator": 5901936,
+          "lowerCi95": 14.2,
+          "upperCi95": 14.2
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 14.8,
+          "count": 938873,
+          "denominator": 6340121,
+          "lowerCi95": 14.8,
+          "upperCi95": 14.8
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 14.7,
+          "count": 948836,
+          "denominator": 6467596,
+          "lowerCi95": 14.6,
+          "upperCi95": 14.7
+        }
+      ]
+    },
+    {
+      "key": "92670:4:1:1:-1:-1:E92000001",
+      "valueType": "Indirectly standardised ratio",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=92670,92702,92705,92706,92708,92818,92819,92820,92821,92822,92828,92829,92830,92831,92832,92833,92834,92835,92836,92837,92838,92841,92842,92843,92852",
+      "observations": [
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 0.7506,
+          "count": 27197435,
+          "denominator": 36235275.854166664,
+          "lowerCi95": 0.7503,
+          "upperCi95": 0.7509
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 0.7355,
+          "count": 26124475,
+          "denominator": 35519880.3833333,
+          "lowerCi95": 0.7352,
+          "upperCi95": 0.7358
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 0.87,
+          "count": 29984535,
+          "denominator": 34465540.48333,
+          "lowerCi95": 0.8697,
+          "upperCi95": 0.8703
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 0.8777,
+          "count": 30668278,
+          "denominator": 34943502.12917,
+          "lowerCi95": 0.8773,
+          "upperCi95": 0.878
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 0.8504,
+          "count": 30104733,
+          "denominator": 35401117.83,
+          "lowerCi95": 0.8501,
+          "upperCi95": 0.8507
+        },
+        {
+          "fromDate": "2025-01-01",
+          "toDate": "2025-12-31",
+          "value": 0.7668,
+          "count": 27358920,
+          "denominator": 35677284.47917,
+          "lowerCi95": 0.7666,
+          "upperCi95": 0.7671
+        }
+      ]
+    },
+    {
+      "key": "90366:1:1:1:-1:-1:E92000001",
+      "valueType": "Life expectancy",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 1,
+        "PointsUsed": 5,
+        "Message": "Not enough data points with valid values to calculate recent trend"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=90285,90286,90287,90290,90291,90292,90312,90313,90314,90315,90316,90317,90319,90320,90321,90323,90357,90358,90362,90366,90400,90413,90443,90452,90453",
+      "observations": [
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 78.54,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 78.49,
+          "upperCi95": 78.59
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 78.73,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 78.68,
+          "upperCi95": 78.78
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 79.3,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 79.2,
+          "upperCi95": 79.3
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 79.3,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 79.3,
+          "upperCi95": 79.4
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 79.8,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 79.7,
+          "upperCi95": 79.8
+        },
+        {
+          "fromDate": "2025-01-01",
+          "toDate": "2025-12-31",
+          "value": 80,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 79.9,
+          "upperCi95": 80
+        }
+      ]
+    },
+    {
+      "key": "92010:4:168:1:-1:-1:E92000001",
+      "valueType": "Mean",
+      "yearRange": 1,
+      "comparatorMethodId": 15,
+      "annual": false,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": "Not enough data points with valid values to calculate recent trend"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=91871,91872,91884,91891,91893,91894,91895,91920,92010,92026,92031,92033,92127,92129,92135,92196,92220,92240,92244,92250,92254,92255,92266,92275,92280",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2019-04-30",
+          "value": 23.4,
+          "count": 23.4,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-05-01",
+          "toDate": "2019-05-31",
+          "value": 23.2,
+          "count": 23.2,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-06-01",
+          "toDate": "2019-06-30",
+          "value": 22,
+          "count": 22,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-07-01",
+          "toDate": "2019-07-31",
+          "value": 21.3,
+          "count": 21.3,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-08-01",
+          "toDate": "2019-08-31",
+          "value": 19.5,
+          "count": 19.5,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-09-01",
+          "toDate": "2019-09-30",
+          "value": 20.2,
+          "count": 20.2,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "93351:4:164:1:-1:-1:E92000001",
+      "valueType": "Median",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 1,
+        "PointsUsed": 5,
+        "Message": "Not enough data points with valid values to calculate recent trend"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=93315,93316,93347,93350,93351,93355,93356,93357,93377,93378,93379,93380,93381,93382,93386,93431,93432,93433,93434,93435,93436,93438,93443,93444,93453",
+      "observations": [
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 475.6,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 472.8035,
+          "upperCi95": 478.3965
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 496.7,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 494.7529,
+          "upperCi95": 498.6471
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 523.7,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 520.6206,
+          "upperCi95": 526.7794
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 566.7,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 564.4785,
+          "upperCi95": 568.9215
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 603.7,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 601.3335,
+          "upperCi95": 606.0665
+        },
+        {
+          "fromDate": "2025-01-01",
+          "toDate": "2025-12-31",
+          "value": 632.5,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 631.2603,
+          "upperCi95": 633.7397
+        }
+      ]
+    },
+    {
+      "key": "91469:4:1:1:-1:-1:E92000001",
+      "valueType": "Percentage point",
+      "yearRange": 1,
+      "comparatorMethodId": -1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated for this value type"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=91451,91456,91458,91462,91468,91469,91486,91487,91514,91521,91522,91523,91546,91547,91720,91733,91734,91735,91736,91743,91745,91750,91751,91818,91819",
+      "observations": [
+        {
+          "fromDate": "2018-04-01",
+          "toDate": "2019-03-31",
+          "value": 32.39,
+          "count": 18953,
+          "denominator": 58513,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 43.6,
+          "count": 26666,
+          "denominator": 61124,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 41.5,
+          "count": 23307,
+          "denominator": 56212,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 40,
+          "count": 24239,
+          "denominator": 60667,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 38.1,
+          "count": 22841,
+          "denominator": 59931,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 37.9,
+          "count": 23601,
+          "denominator": 62334,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "90731:2:173:1:-1:-1:E92000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 1,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 1,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=90535,90552,90581,90592,90593,90600,90603,90616,90617,90619,90631,90632,90633,90634,90637,90638,90639,90646,90669,90694,90700,90729,90731,90739,90740",
+      "observations": [
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": 53,
+          "count": 7810,
+          "denominator": 14736,
+          "lowerCi95": 52.1929,
+          "upperCi95": 53.8044
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 54.7,
+          "count": 7668,
+          "denominator": 14019,
+          "lowerCi95": 53.872,
+          "upperCi95": 55.5198
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 53,
+          "count": 6295,
+          "denominator": 11878,
+          "lowerCi95": 52.0988,
+          "upperCi95": 53.8936
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 53.4018,
+          "count": 6601,
+          "denominator": 12361,
+          "lowerCi95": 52.5215,
+          "upperCi95": 54.28
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 58.2017,
+          "count": 7813,
+          "denominator": 13424,
+          "lowerCi95": 57.3651,
+          "upperCi95": 59.0336
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 61.5,
+          "count": 8325,
+          "denominator": 13540,
+          "lowerCi95": 60.6617,
+          "upperCi95": 62.3008
+        }
+      ]
+    },
+    {
+      "key": "93111:4:1:1:-1:-1:E92000001",
+      "valueType": "Ratio",
+      "yearRange": 1,
+      "comparatorMethodId": 15,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated, gap in the data points"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=93105,93106,93107,93108,93110,93111,93119,93120,93124,93177,93183,93190,93194,93195,93203,93226,93268,93275,93279,93280,93283,93305,93306,93311,93312",
+      "observations": [
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 7.87,
+          "count": 250000,
+          "denominator": 31780,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 9.06,
+          "count": 285000,
+          "denominator": 31445,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 8.56,
+          "count": 285000,
+          "denominator": 33279,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 8.45,
+          "count": 297500,
+          "denominator": 35194,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 7.84,
+          "count": 295000,
+          "denominator": 37636,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2025-01-01",
+          "toDate": "2025-12-31",
+          "value": 7.64,
+          "count": 300000,
+          "denominator": 39243,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "90669:-1:-1:1:-1:-1:E92000001",
+      "valueType": "Score",
+      "yearRange": 1,
+      "comparatorMethodId": 15,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated for this value type"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=90535,90552,90581,90592,90593,90600,90603,90616,90617,90619,90631,90632,90633,90634,90637,90638,90639,90646,90669,90694,90700,90729,90731,90739,90740",
+      "observations": [
+        {
+          "fromDate": "2014-01-01",
+          "toDate": "2014-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2015-01-01",
+          "toDate": "2015-12-31",
+          "value": 22.1382,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2016-01-01",
+          "toDate": "2016-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2017-01-01",
+          "toDate": "2017-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 22.0968,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "92901:1:1:3:-1:-1:E92000001",
+      "valueType": "Slope Index of Inequality",
+      "yearRange": 3,
+      "comparatorMethodId": 15,
+      "annual": false,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 3,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated for this year range"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=92853,92856,92857,92863,92868,92870,92871,92872,92873,92878,92879,92882,92883,92897,92899,92901,92904,92906,92949,92950,92951,92953,92955,92973,93000",
+      "observations": [
+        {
+          "fromDate": "2017-01-01",
+          "toDate": "2019-12-31",
+          "value": 9.533,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 9.433,
+          "upperCi95": 9.6333
+        },
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2020-12-31",
+          "value": 9.8602,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 9.7617,
+          "upperCi95": 9.9584
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2021-12-31",
+          "value": 10.348,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 10.2498,
+          "upperCi95": 10.446
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2022-12-31",
+          "value": 10.6504,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 10.5531,
+          "upperCi95": 10.7478
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2023-12-31",
+          "value": 10.5042,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 10.4053,
+          "upperCi95": 10.6026
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2024-12-31",
+          "value": 10.374,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 10.2754,
+          "upperCi95": 10.4725
+        }
+      ]
+    },
+    {
+      "key": "1204:4:1:1:-1:-1:E92000001",
+      "valueType": "Directly standardised rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 1,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=108,200,212,219,224,241,247,253,258,262,273,276,280,294,337,352,383,811,848,849,1179,1180,1203,1204,1210",
+      "observations": [
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 51.07,
+          "count": 27194.774,
+          "denominator": 56230056,
+          "lowerCi95": 50.4633,
+          "upperCi95": 51.6822
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 43.9774,
+          "count": 23650,
+          "denominator": 56325961,
+          "lowerCi95": 43.4175,
+          "upperCi95": 44.5427
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 39.7885,
+          "count": 21701,
+          "denominator": 56554891,
+          "lowerCi95": 39.26,
+          "upperCi95": 40.3223
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 44.4948,
+          "count": 24835,
+          "denominator": 57144395,
+          "lowerCi95": 43.9423,
+          "upperCi95": 45.0525
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 47.2763,
+          "count": 26827,
+          "denominator": 57932470,
+          "lowerCi95": 46.7109,
+          "upperCi95": 47.8469
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 44.8619,
+          "count": 25995,
+          "denominator": 58620101,
+          "lowerCi95": 44.3164,
+          "upperCi95": 45.4124
+        }
+      ]
+    },
+    {
+      "key": "91871:4:217:1:-1:-1:E92000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 1,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 1,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=91871,91872,91884,91891,91893,91894,91895,91920,92010,92026,92031,92033,92127,92129,92135,92196,92220,92240,92244,92250,92254,92255,92266,92275,92280",
+      "observations": [
+        {
+          "fromDate": "2020-09-01",
+          "toDate": "2021-08-31",
+          "value": 2.7929,
+          "count": 231463,
+          "denominator": 8287430,
+          "lowerCi95": 2.7817,
+          "upperCi95": 2.8042
+        },
+        {
+          "fromDate": "2021-09-01",
+          "toDate": "2022-08-31",
+          "value": 2.9921,
+          "count": 250272,
+          "denominator": 8364328,
+          "lowerCi95": 2.9806,
+          "upperCi95": 3.0037
+        },
+        {
+          "fromDate": "2022-09-01",
+          "toDate": "2023-08-31",
+          "value": 3.3,
+          "count": 275093,
+          "denominator": 8426530,
+          "lowerCi95": 3.3,
+          "upperCi95": 3.3
+        },
+        {
+          "fromDate": "2023-09-01",
+          "toDate": "2024-08-31",
+          "value": 3.6193,
+          "count": 305511,
+          "denominator": 8441223,
+          "lowerCi95": 3.6067,
+          "upperCi95": 3.6319
+        },
+        {
+          "fromDate": "2024-09-01",
+          "toDate": "2025-08-31",
+          "value": 4.0418,
+          "count": 339146,
+          "denominator": 8390893,
+          "lowerCi95": 4.0285,
+          "upperCi95": 4.0552
+        },
+        {
+          "fromDate": "2025-09-01",
+          "toDate": "2026-08-31",
+          "value": 4.496,
+          "count": 373284,
+          "denominator": 8302640,
+          "lowerCi95": 4.4819,
+          "upperCi95": 4.5101
+        }
+      ]
+    },
+    {
+      "key": "90811:2:244:1:-1:-1:E92000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 2,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=90741,90742,90747,90748,90754,90759,90776,90777,90784,90790,90791,90799,90801,90803,90804,90808,90810,90811,90812,90813,90825,90832,90851,90861,90878",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 0.65,
+          "count": 3664,
+          "denominator": 566762,
+          "lowerCi95": 0.6,
+          "upperCi95": 0.7
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 0.58,
+          "count": 3079,
+          "denominator": 534802,
+          "lowerCi95": 0.6,
+          "upperCi95": 0.6
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 0.56,
+          "count": 3085,
+          "denominator": 549836,
+          "lowerCi95": 0.54,
+          "upperCi95": 0.58
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 0.6056,
+          "count": 3125,
+          "denominator": 515990,
+          "lowerCi95": 0.58,
+          "upperCi95": 0.63
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 0.5591,
+          "count": 2870,
+          "denominator": 513310,
+          "lowerCi95": 0.54,
+          "upperCi95": 0.58
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 0.513,
+          "count": 2612,
+          "denominator": 509200,
+          "lowerCi95": 0.4937,
+          "upperCi95": 0.533
+        }
+      ]
+    },
+    {
+      "key": "93793:4:1:1:-1:-1:E92000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 18,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 1,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=93778,93786,93787,93788,93790,93791,93792,93793,93794,93795,93796,93797,93823,93827,93840,93852,93861,93862,93863,93864,93865,93867,93869,93878,93880",
+      "observations": [
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 84.4922,
+          "count": 44704,
+          "denominator": 52909,
+          "lowerCi95": 84.1813,
+          "upperCi95": 84.7982
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 87.2736,
+          "count": 61006,
+          "denominator": 69902,
+          "lowerCi95": 87.0245,
+          "upperCi95": 87.5186
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 92.7127,
+          "count": 148141,
+          "denominator": 159785,
+          "lowerCi95": 92.5842,
+          "upperCi95": 92.8391
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 79.1419,
+          "count": 85660,
+          "denominator": 108236,
+          "lowerCi95": 78.8988,
+          "upperCi95": 79.3829
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 84.9723,
+          "count": 179622,
+          "denominator": 211389,
+          "lowerCi95": 84.8193,
+          "upperCi95": 85.1239
+        }
+      ]
+    },
+    {
+      "key": "91891:4:27:1:-1:-1:E92000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 3,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated, gap in the data points"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=91871,91872,91884,91891,91893,91894,91895,91920,92010,92026,92031,92033,92127,92129,92135,92196,92220,92240,92244,92250,92254,92255,92266,92275,92280",
+      "observations": [
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 4.3364,
+          "count": 456958,
+          "denominator": 10537623,
+          "lowerCi95": 4.3242,
+          "upperCi95": 4.3488
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 3.9747,
+          "count": 422973,
+          "denominator": 10641539,
+          "lowerCi95": 3.963,
+          "upperCi95": 3.9865
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 3.9429,
+          "count": 425627,
+          "denominator": 10794653,
+          "lowerCi95": 3.9314,
+          "upperCi95": 3.9546
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 4.2,
+          "count": 463843,
+          "denominator": 11160338,
+          "lowerCi95": 4.1,
+          "upperCi95": 4.2
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 4.2,
+          "count": 482890,
+          "denominator": 11377188,
+          "lowerCi95": 4.2,
+          "upperCi95": 4.3
+        }
+      ]
+    },
+    {
+      "key": "94184:4:164:1:-1:-1:E92000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 1,
+        "PointsUsed": 5,
+        "Message": "Not enough data points with valid values to calculate recent trend"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=6&parent_area_code=E92000001&indicator_ids=94171,94174,94175,94176,94177,94182,94183,94184,94185,94186,94189,94190,94191,94192,94193,94194,94195,94199,94200,94201,94202,94207,94209,94210,94211",
+      "observations": [
+        {
+          "fromDate": "2017-01-01",
+          "toDate": "2017-12-31",
+          "value": 17.3392,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 16.2683,
+          "upperCi95": 18.465
+        },
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": 18.1774,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 17.1948,
+          "upperCi95": 19.203
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 18.7467,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 17.5876,
+          "upperCi95": 19.9638
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 17.7479,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 16.4073,
+          "upperCi95": 0.1917
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 18.7854,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": 17.5151,
+          "upperCi95": 20.1254
+        }
+      ]
+    },
+    {
+      "key": "92955:4:1:1:-1:-1:E92000001",
+      "valueType": "Crude rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=92853,92856,92857,92863,92868,92870,92871,92872,92873,92878,92879,92882,92883,92897,92899,92901,92904,92906,92949,92950,92951,92953,92955,92973,93000",
+      "observations": [
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": 0.93,
+          "count": 522,
+          "denominator": 55924528,
+          "lowerCi95": 0.86,
+          "upperCi95": 1.02
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 0.89,
+          "count": 499,
+          "denominator": 56230056,
+          "lowerCi95": 0.81,
+          "upperCi95": 0.97
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 0.56,
+          "count": 317,
+          "denominator": 56325961,
+          "lowerCi95": 0.5,
+          "upperCi95": 0.63
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 0.56,
+          "count": 318,
+          "denominator": 56554891,
+          "lowerCi95": 0.5,
+          "upperCi95": 0.63
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 0.68,
+          "count": 389,
+          "denominator": 57144395,
+          "lowerCi95": 0.62,
+          "upperCi95": 0.75
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 0.98,
+          "count": 567,
+          "denominator": 57932470,
+          "lowerCi95": 0.9,
+          "upperCi95": 1.06
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 0.73,
+          "count": 427,
+          "denominator": null,
+          "lowerCi95": 0.66,
+          "upperCi95": 0.8
+        }
+      ]
+    },
+    {
+      "key": "108:4:163:3:-1:-1:E92000001",
+      "valueType": "Directly standardised rate",
+      "yearRange": 3,
+      "comparatorMethodId": 1,
+      "annual": false,
+      "marker": {
+        "Marker": 0,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": "The recent trend cannot be calculated for this year range"
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=108,200,212,219,224,241,247,253,258,262,273,276,280,294,337,352,383,811,848,849,1179,1180,1203,1204,1210",
+      "observations": [
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2020-12-31",
+          "value": 337.7493,
+          "count": 496007,
+          "denominator": 154385201,
+          "lowerCi95": 336.8088,
+          "upperCi95": 338.6919
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2021-12-31",
+          "value": 348.6175,
+          "count": 515896,
+          "denominator": 154694775,
+          "lowerCi95": 347.6656,
+          "upperCi95": 349.5715
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2022-12-31",
+          "value": 355.2801,
+          "count": 527197,
+          "denominator": 155181561,
+          "lowerCi95": 354.3205,
+          "upperCi95": 356.2417
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2023-12-31",
+          "value": 348.8881,
+          "count": 518455,
+          "denominator": 156271750,
+          "lowerCi95": 347.9378,
+          "upperCi95": 349.8404
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2024-12-31",
+          "value": 337.5618,
+          "count": 501995,
+          "denominator": 157777249,
+          "lowerCi95": 336.627,
+          "upperCi95": 338.4986
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2025-12-31",
+          "value": 330.4589,
+          "count": 494286,
+          "denominator": 159099219.115,
+          "lowerCi95": 329.5363,
+          "upperCi95": 331.3834
+        }
+      ]
+    },
+    {
+      "key": "41101:4:1:1:-1:-1:E12000007",
+      "valueType": "Indirectly standardised proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=6&parent_area_code=E92000001&indicator_ids=30306,30308,30309,30310,30311,30313,30314,30315,40401,40501,40601,40701,41001,41101,41201,41202,41203,41204,41401,41402,41403,90244,90245,90280,90284",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 14.7,
+          "count": 125345,
+          "denominator": 866305,
+          "lowerCi95": 14.6,
+          "upperCi95": 14.8
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 16.2,
+          "count": 103375,
+          "denominator": 653330,
+          "lowerCi95": 16.1,
+          "upperCi95": 16.3
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 14.9,
+          "count": 112455,
+          "denominator": 765135,
+          "lowerCi95": 14.8,
+          "upperCi95": 15
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 14.5,
+          "count": 103765,
+          "denominator": 717570,
+          "lowerCi95": 14.4,
+          "upperCi95": 14.6
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 14.8,
+          "count": 111920,
+          "denominator": 749285,
+          "lowerCi95": 14.8,
+          "upperCi95": 14.9
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 14.6,
+          "count": 112855,
+          "denominator": 770565,
+          "lowerCi95": 14.5,
+          "upperCi95": 14.7
+        }
+      ]
+    },
+    {
+      "key": "90803:4:173:1:-1:-1:E92000001",
+      "valueType": "Crude rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 2,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=90741,90742,90747,90748,90754,90759,90776,90777,90784,90790,90791,90799,90801,90803,90804,90808,90810,90811,90812,90813,90825,90832,90851,90861,90878",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 68,
+          "count": 80000,
+          "denominator": 11790492,
+          "lowerCi95": 67,
+          "upperCi95": 68
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 69,
+          "count": 80780,
+          "denominator": 11787794,
+          "lowerCi95": 68,
+          "upperCi95": 69
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 70,
+          "count": 82090,
+          "denominator": 11762878,
+          "lowerCi95": 69,
+          "upperCi95": 70
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 70,
+          "count": 83750,
+          "denominator": 11901267,
+          "lowerCi95": 69.8949,
+          "upperCi95": 70.8489
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 69,
+          "count": 83530,
+          "denominator": 12059476,
+          "lowerCi95": 68.7961,
+          "upperCi95": 69.7364
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 67,
+          "count": 81770,
+          "denominator": 12183016,
+          "lowerCi95": 66.6588,
+          "upperCi95": 67.5797
+        }
+      ]
+    },
+    {
+      "key": "1204:1:1:1:-1:-1:E92000001",
+      "valueType": "Directly standardised rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=15&parent_area_code=E92000001&indicator_ids=108,200,212,219,224,241,247,253,258,262,273,276,280,294,337,352,383,811,848,849,1179,1180,1203,1204,1210",
+      "observations": [
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": 61.1401,
+          "count": 14040.404,
+          "denominator": 27572159,
+          "lowerCi95": 60.1189,
+          "upperCi95": 62.1741
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 53.681,
+          "count": 12497,
+          "denominator": 27596643,
+          "lowerCi95": 52.7309,
+          "upperCi95": 54.6438
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 47.2858,
+          "count": 11199,
+          "denominator": 27683687,
+          "lowerCi95": 46.4028,
+          "upperCi95": 48.1813
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 51.7384,
+          "count": 12621,
+          "denominator": 27970547,
+          "lowerCi95": 50.8295,
+          "upperCi95": 52.6594
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 55.141,
+          "count": 13711,
+          "denominator": 28370187,
+          "lowerCi95": 54.2108,
+          "upperCi95": 56.0831
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 52.1011,
+          "count": 13313,
+          "denominator": 28724339,
+          "lowerCi95": 51.2101,
+          "upperCi95": 53.0036
+        }
+      ]
+    },
+    {
+      "key": "92670:4:1:1:-1:-1:E06000001",
+      "valueType": "Indirectly standardised ratio",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 2,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=502&parent_area_code=E12000001&indicator_ids=92670,92702,92705,92706,92708,92818,92819,92820,92821,92822,92828,92829,92830,92831,92832,92833,92834,92835,92836,92837,92838,92841,92842,92843,92852",
+      "observations": [
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": 0.7808,
+          "count": 53397,
+          "denominator": 68387.70416666666,
+          "lowerCi95": 0.7742,
+          "upperCi95": 0.7874
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": 0.9939,
+          "count": 54599,
+          "denominator": 54931.73333333332,
+          "lowerCi95": 0.9856,
+          "upperCi95": 1.0023
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": 1.0772,
+          "count": 59580,
+          "denominator": 55308.70833,
+          "lowerCi95": 1.0686,
+          "upperCi95": 1.0859
+        },
+        {
+          "fromDate": "2023-01-01",
+          "toDate": "2023-12-31",
+          "value": 1.0441,
+          "count": 58428,
+          "denominator": 55962.075,
+          "lowerCi95": 1.0356,
+          "upperCi95": 1.0526
+        },
+        {
+          "fromDate": "2024-01-01",
+          "toDate": "2024-12-31",
+          "value": 0.9964,
+          "count": 56519,
+          "denominator": 56723.80833,
+          "lowerCi95": 0.9882,
+          "upperCi95": 1.0046
+        },
+        {
+          "fromDate": "2025-01-01",
+          "toDate": "2025-12-31",
+          "value": 0.9094,
+          "count": 52038,
+          "denominator": 57221.325,
+          "lowerCi95": 0.9016,
+          "upperCi95": 0.9173
+        }
+      ]
+    },
+    {
+      "key": "91547:4:188:1:-1:-1:E12000001",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 2,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=6&parent_area_code=E92000001&indicator_ids=91451,91456,91458,91462,91468,91469,91486,91487,91514,91521,91522,91523,91546,91547,91720,91733,91734,91735,91736,91743,91745,91750,91751,91818,91819",
+      "observations": [
+        {
+          "fromDate": "2016-04-01",
+          "toDate": "2017-03-31",
+          "value": 18.6867,
+          "count": 429748,
+          "denominator": 2299758,
+          "lowerCi95": 18.6363,
+          "upperCi95": 18.7371
+        },
+        {
+          "fromDate": "2017-04-01",
+          "toDate": "2018-03-31",
+          "value": 18.073,
+          "count": 418219,
+          "denominator": 2314058,
+          "lowerCi95": 18.0234,
+          "upperCi95": 18.1226
+        },
+        {
+          "fromDate": "2018-04-01",
+          "toDate": "2019-03-31",
+          "value": 17.5173,
+          "count": 408004,
+          "denominator": 2329146,
+          "lowerCi95": 17.4686,
+          "upperCi95": 17.5662
+        },
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 17.0933,
+          "count": 400888,
+          "denominator": 2345287,
+          "lowerCi95": 17.0452,
+          "upperCi95": 17.1416
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 16.5728,
+          "count": 389846,
+          "denominator": 2352330,
+          "lowerCi95": 16.5253,
+          "upperCi95": 16.6203
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 15.9781,
+          "count": 379381,
+          "denominator": 2374376,
+          "lowerCi95": 15.9316,
+          "upperCi95": 16.0248
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": null,
+          "count": null,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "93471:4:30:1:-1:-1:E12000008",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 1,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=6&parent_area_code=E92000001&indicator_ids=93454,93464,93469,93470,93471,93472,93474,93475,93476,93477,93478,93479,93480,93491,93494,93495,93496,93505,93513,93515,93523,93542,93543,93544,93545",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 81.7932,
+          "count": 80478,
+          "denominator": 98392,
+          "lowerCi95": 81.5509,
+          "upperCi95": 82.0331
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 76.7091,
+          "count": 70636,
+          "denominator": 92083,
+          "lowerCi95": 76.4349,
+          "upperCi95": 76.9809
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 82.0473,
+          "count": 75993,
+          "denominator": 92621,
+          "lowerCi95": 81.7988,
+          "upperCi95": 82.2931
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 84.313,
+          "count": 73171,
+          "denominator": 86785,
+          "lowerCi95": 84.0695,
+          "upperCi95": 84.5534
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 84.5254,
+          "count": 72145,
+          "denominator": 85353,
+          "lowerCi95": 84.2813,
+          "upperCi95": 84.7665
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 86.4008,
+          "count": 77792.6667,
+          "denominator": 90037,
+          "lowerCi95": 86.1753,
+          "upperCi95": 86.6231
+        },
+        {
+          "fromDate": "2025-04-01",
+          "toDate": "2026-03-31",
+          "value": null,
+          "count": 66966,
+          "denominator": 74147,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "93671:4:1:1:-1:-1:E12000007",
+      "valueType": "Proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 3,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 0,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=6&parent_area_code=E92000001&indicator_ids=93608,93613,93622,93623,93624,93644,93648,93661,93662,93663,93670,93671,93672,93673,93674,93675,93691,93697,93700,93701,93705,93706,93707,93708,93709",
+      "observations": [
+        {
+          "fromDate": "2013-01-01",
+          "toDate": "2013-12-31",
+          "value": 53.4209,
+          "count": 10939,
+          "denominator": 20477,
+          "lowerCi95": 52.7371,
+          "upperCi95": 54.1034
+        },
+        {
+          "fromDate": "2014-01-01",
+          "toDate": "2014-12-31",
+          "value": 55.1007,
+          "count": 12477,
+          "denominator": 22644,
+          "lowerCi95": 54.452,
+          "upperCi95": 55.7476
+        },
+        {
+          "fromDate": "2015-01-01",
+          "toDate": "2015-12-31",
+          "value": 54.6436,
+          "count": 12803,
+          "denominator": 23430,
+          "lowerCi95": 54.0055,
+          "upperCi95": 55.2803
+        },
+        {
+          "fromDate": "2016-01-01",
+          "toDate": "2016-12-31",
+          "value": 54.4568,
+          "count": 13172,
+          "denominator": 24188,
+          "lowerCi95": 53.8285,
+          "upperCi95": 55.0836
+        },
+        {
+          "fromDate": "2017-01-01",
+          "toDate": "2017-12-31",
+          "value": 55.8595,
+          "count": 13785,
+          "denominator": 24678,
+          "lowerCi95": 55.2391,
+          "upperCi95": 56.478
+        },
+        {
+          "fromDate": "2018-01-01",
+          "toDate": "2018-12-31",
+          "value": 55.9005,
+          "count": 13936,
+          "denominator": 24930,
+          "lowerCi95": 55.2833,
+          "upperCi95": 56.5159
+        },
+        {
+          "fromDate": "2019-01-01",
+          "toDate": "2019-12-31",
+          "value": null,
+          "count": 11252,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2020-01-01",
+          "toDate": "2020-12-31",
+          "value": null,
+          "count": 9272,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2021-01-01",
+          "toDate": "2021-12-31",
+          "value": null,
+          "count": 10906,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        },
+        {
+          "fromDate": "2022-01-01",
+          "toDate": "2022-12-31",
+          "value": null,
+          "count": 12854,
+          "denominator": null,
+          "lowerCi95": null,
+          "upperCi95": null
+        }
+      ]
+    },
+    {
+      "key": "41101:4:1:1:-1:-1:E06000005",
+      "valueType": "Indirectly standardised proportion",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 2,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 2,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=502&parent_area_code=E12000001&indicator_ids=30306,30308,30309,30310,30311,30313,30314,30315,40401,40501,40601,40701,41001,41101,41201,41202,41203,41204,41401,41402,41403,90244,90245,90280,90284",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 13.5,
+          "count": 1735,
+          "denominator": 12950,
+          "lowerCi95": 12.9,
+          "upperCi95": 14.1
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 14.8,
+          "count": 1570,
+          "denominator": 10565,
+          "lowerCi95": 14.1,
+          "upperCi95": 15.6
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 15,
+          "count": 2505,
+          "denominator": 16595,
+          "lowerCi95": 14.4,
+          "upperCi95": 15.6
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 14.9,
+          "count": 2385,
+          "denominator": 16175,
+          "lowerCi95": 14.3,
+          "upperCi95": 15.5
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 15,
+          "count": 2595,
+          "denominator": 17640,
+          "lowerCi95": 14.4,
+          "upperCi95": 15.6
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 13.2,
+          "count": 1980,
+          "denominator": 15045,
+          "lowerCi95": 12.7,
+          "upperCi95": 13.8
+        }
+      ]
+    },
+    {
+      "key": "92477:4:28:1:-1:-1:E06000005",
+      "valueType": "Crude rate",
+      "yearRange": 1,
+      "comparatorMethodId": 1,
+      "annual": true,
+      "marker": {
+        "Marker": 1,
+        "MarkerForMostRecentValueComparedWithPreviousValue": 3,
+        "PointsUsed": 5,
+        "Message": ""
+      },
+      "url": "https://fingertips.phe.org.uk/api/trend_data/specific_indicators_for_child_areas?area_type_id=502&parent_area_code=E12000001&indicator_ids=92455,92456,92464,92465,92477,92489,92490,92517,92530,92531,92532,92534,92538,92543,92544,92552,92563,92564,92587,92590,92594,92616,92617,92622,92623",
+      "observations": [
+        {
+          "fromDate": "2019-04-01",
+          "toDate": "2020-03-31",
+          "value": 291.747,
+          "count": 1665,
+          "denominator": 5707,
+          "lowerCi95": 278.0711,
+          "upperCi95": 306.2846
+        },
+        {
+          "fromDate": "2020-04-01",
+          "toDate": "2021-03-31",
+          "value": 160.5093,
+          "count": 895,
+          "denominator": 5576,
+          "lowerCi95": 149.8175,
+          "upperCi95": 171.0087
+        },
+        {
+          "fromDate": "2021-04-01",
+          "toDate": "2022-03-31",
+          "value": 286.0015,
+          "count": 1565,
+          "denominator": 5472,
+          "lowerCi95": 272.1838,
+          "upperCi95": 300.718
+        },
+        {
+          "fromDate": "2022-04-01",
+          "toDate": "2023-03-31",
+          "value": 340.9295,
+          "count": 1900,
+          "denominator": 5573,
+          "lowerCi95": 325.7703,
+          "upperCi95": 356.612
+        },
+        {
+          "fromDate": "2023-04-01",
+          "toDate": "2024-03-31",
+          "value": 384.9621,
+          "count": 2135,
+          "denominator": 5546,
+          "lowerCi95": 368.8042,
+          "upperCi95": 401.6457
+        },
+        {
+          "fromDate": "2024-04-01",
+          "toDate": "2025-03-31",
+          "value": 354.1179,
+          "count": 1965,
+          "denominator": 5549,
+          "lowerCi95": 338.4557,
+          "upperCi95": 369.9451
+        }
+      ]
+    }
+  ]
+}

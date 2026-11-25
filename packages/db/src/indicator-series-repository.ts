@@ -95,7 +95,6 @@ export async function getIndicatorSeriesData(
 ): Promise<Result | undefined> {
   const {
     area,
-    comparatorMethod,
     indicator,
     observationSeriesBatch: batches,
     observationSeries: series,
@@ -112,7 +111,6 @@ export async function getIndicatorSeriesData(
       indicatorId: batches.indicatorId,
       version: batches.version,
       valueType: valueType.name,
-      comparatorMethod: comparatorMethod.name,
       series: {
         indicatorId: series.indicatorId,
         areaId: series.areaId,
@@ -131,7 +129,6 @@ export async function getIndicatorSeriesData(
     .from(batches)
     .leftJoin(indicator, eq(indicator.id, batches.indicatorId))
     .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
-    .leftJoin(comparatorMethod, eq(comparatorMethod.id, indicator.comparatorMethodId))
     .leftJoin(
       series,
       and(
@@ -212,12 +209,7 @@ export async function getIndicatorSeriesData(
       ]
     : [];
   const extra = await readPoints(db, views, [...wanted], benchmarkIds, england?.id);
-  const trendSettings = new Map(
-    loaded.map(({ indicatorId, valueType, comparatorMethod }) => [
-      indicatorId,
-      { valueType, comparatorMethod },
-    ]),
-  );
+  const valueTypes = new Map(loaded.map(({ indicatorId, valueType }) => [indicatorId, valueType]));
   const byId = new Map(extra.map((row) => [row.id, row.point]));
   // A publication can change after the marker read and hide the selected points.
   if ([...wanted].some((id) => !byId.has(id))) return undefined;
@@ -277,7 +269,7 @@ export async function getIndicatorSeriesData(
       });
       continue;
     }
-    const trend = trendSettings.get(indicatorId) ?? { valueType: null, comparatorMethod: null };
+    const trend = { valueType: valueTypes.get(indicatorId) ?? null };
     const choices = new Map<string, TableSeriesSelection>();
     const points = new Map<string, Map<string, IndicatorObservation>>();
     const add = (id: string, point: IndicatorObservation) => {
