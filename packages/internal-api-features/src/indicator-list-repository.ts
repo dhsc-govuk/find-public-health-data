@@ -46,6 +46,7 @@ import {
   publishedJoin,
   publishedVersion,
   publishedVersionJoin,
+  submissionsWithdrawn,
 } from './indicator-repository-sql.ts';
 
 const { appUser, currentPublishedVersion, indicator, indicatorVersionSubmissionReviewer, team } =
@@ -100,6 +101,10 @@ export interface IndicatorAdminDetailRow extends IndicatorAdminRow {
   draftFirstSubmittedAt: Date | null;
   /** The latest response to the draft's latest submission; null until a reviewer responds. */
   draftResponse: DraftResponse | null;
+  /** When the draft was last edited; null with no draft. */
+  draftUpdatedAt: Date | null;
+  /** Whether every submission of the draft was withdrawn, as none is while it has none. */
+  draftSubmissionsWithdrawn: boolean;
 }
 
 function scopeCondition(scope: IndicatorListScope): SQL | undefined {
@@ -335,6 +340,8 @@ export async function getIndicatorById(
       draftFastTrackReason: draftVersion.fastTrackReason,
       draftFirstSubmittedAt,
       draftResponse,
+      draftUpdatedAt: draftVersion.updatedAt,
+      draftSubmissionsWithdrawn: submissionsWithdrawn(draftVersion.id),
     })
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)

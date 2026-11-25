@@ -9,6 +9,7 @@ import {
   recordAudit,
   rowOf,
 } from '@fphd/db/audit-log';
+import { sql } from 'drizzle-orm';
 import type { PendingQuery, TransactionSql } from 'postgres';
 
 import { type DataTableEvent, readDataTable } from './data-table.ts';
@@ -17,11 +18,23 @@ import type { DataTableReferences, DataTableRow } from './data-table-rows.ts';
 import { DATA_TABLE_PROBLEM_ITEMS, type DataTableProblem } from './data-upload-contract.ts';
 import { loadDataTableReferences } from './data-upload-repository.ts';
 import { elapsedMs, TimedUploadError, timed, type UploadTimings } from './data-upload-timings.ts';
+import type { Transaction } from './indicator-repository-sql.ts';
 
 const { UNPUBLISHED_STATUS_LITERALS, uploadBatch } = schema;
 
 // Scopes the per-draft upload locks within the two-key advisory lock space.
 const UPLOAD_LOCK_NAMESPACE = 0x75706c64; // 'upld'
+
+/**
+ * Holds the indicator's upload lock until the transaction ends, so an upload that starts meanwhile
+ * waits for it. Answers false, without waiting, while an upload is running.
+ */
+export async function tryUploadLock(tx: Transaction, indicatorId: string): Promise<boolean> {
+  const [row] = (await tx.execute(
+    sql`SELECT pg_try_advisory_xact_lock(${UPLOAD_LOCK_NAMESPACE}, hashtext(${indicatorId})) AS locked`,
+  )) as unknown as { locked: boolean }[];
+  return row?.locked === true;
+}
 
 /** A stored file about to be processed into the batch named by `batchId`. */
 export interface DataUpload {

@@ -52,6 +52,8 @@ export function indicatorDetail(
     draftFirstSubmittedAt: null,
     draftResponse: null,
     nameVersion: SHOWN_VERSION,
+    draftUpdatedAt: '2026-01-02T00:00:00.000Z',
+    canDiscardDraft: false,
     actions: [],
     ...overrides,
   };

@@ -38,6 +38,7 @@ import {
   type UploadDraftRow,
 } from './data-upload-repository.ts';
 import type { EditPrecondition } from './edit-version.ts';
+import { type DiscardDraftResult, discardDraft } from './indicator-discard-repository.ts';
 import {
   type CreateIndicatorDraftResult,
   createIndicatorDraft,
@@ -198,6 +199,15 @@ export interface InternalIndicatorRepository {
     draftUpdatedAt: Date,
     actor: Actor,
   ): Promise<IndicatorStepResult<'changed' | 'incomplete' | 'flagged' | 'no_response'>>;
+  /**
+   * Deletes the draft, as long as no review has started on it, `draftUpdatedAt` is current and no
+   * upload to it is running. A new indicator is deleted with its draft.
+   */
+  discardDraft(
+    indicatorId: string,
+    draftUpdatedAt: Date,
+    actor: Actor,
+  ): Promise<DiscardDraftResult>;
   /** Withdraws the draft's submission, unlocking the draft, as long as it is the one numbered. */
   withdraw(
     indicatorId: string,
@@ -368,6 +378,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       draftFromPublished: (indicatorId, actor) => createDraftFromPublished(db, indicatorId, actor),
       submit: (indicatorId, draftUpdatedAt, actor) =>
         submitIndicator(db, indicatorId, draftUpdatedAt, actor),
+      discardDraft: (indicatorId, draftUpdatedAt, actor) =>
+        discardDraft(db, indicatorId, draftUpdatedAt, actor),
       withdraw: (indicatorId, submissionNumber, actor) =>
         withdrawSubmission(db, indicatorId, submissionNumber, actor),
       assignReviewers: (indicatorId, assignment, actor) =>

@@ -42,6 +42,8 @@ const approvedRow: IndicatorAdminDetailRow = {
   draftFastTrackReason: null,
   draftFirstSubmittedAt: new Date('2026-10-20T09:30:00.000Z'),
   draftResponse: { kind: 'approved', flaggedTaskCount: 0 },
+  draftUpdatedAt: new Date('2026-10-20T09:00:00.000Z'),
+  draftSubmissionsWithdrawn: false,
 };
 
 const body = {

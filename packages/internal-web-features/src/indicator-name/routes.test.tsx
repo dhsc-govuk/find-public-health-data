@@ -26,6 +26,8 @@ const indicator: IndicatorAdminDetail = {
   draftFirstSubmittedAt: null,
   draftResponse: null,
   nameVersion: SHOWN_VERSION,
+  draftUpdatedAt: '2026-08-04T23:30:00.000Z',
+  canDiscardDraft: false,
   actions: [],
   updatedAt: '2026-08-04T23:30:00.000Z',
 };

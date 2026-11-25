@@ -5,6 +5,7 @@ import type { BlobStorage } from '@fphd/internal-storage';
 import { type Request, type Response, Router } from 'express';
 import { v7 as uuidv7 } from 'uuid';
 
+import { deleteBlob } from './blob-deletion.ts';
 import type {
   DataUploadCreated,
   DataUploadError,
@@ -90,19 +91,12 @@ export function dataUploadsRouter(
         if (!response.writableFinished) abandoned.abort(new UploadAbortedError());
       });
 
-      const deleteBlob = (name: string) =>
-        storage
-          .delete(name)
-          .catch((error: unknown) =>
-            request.log.warn({ err: error, blobName: name }, 'Blob not deleted'),
-          );
-
       try {
         const received = await receiveDataTable(request, storage, blobName);
         receiveMs = elapsedMs(started);
 
         if (!received.ok) {
-          await deleteBlob(blobName);
+          await deleteBlob(request, storage, blobName);
           response.status(400).json({
             error: 'validation_failed',
             fieldErrors: { dataTable: received.message },
@@ -119,7 +113,7 @@ export function dataUploadsRouter(
 
         // The draft was locked or stopped being a draft while the file loaded.
         if (!result.ok && result.reason !== 'invalid') {
-          await deleteBlob(blobName);
+          await deleteBlob(request, storage, blobName);
           response.status(result.reason === 'locked' ? 409 : 404).json({ error: result.reason });
           return;
         }
@@ -151,9 +145,9 @@ export function dataUploadsRouter(
         }
 
         // Only now are the deletions committed: a failure leaves an orphan blob, never a lost one.
-        for (const name of result.deletedBlobNames) await deleteBlob(name);
+        for (const name of result.deletedBlobNames) await deleteBlob(request, storage, name);
       } catch (error) {
-        await deleteBlob(blobName);
+        await deleteBlob(request, storage, blobName);
         const timings = timingsWith(error instanceof TimedUploadError ? error.timings : {});
         if (abandoned.signal.aborted || error instanceof UploadAbortedError) {
           request.log.info({ ...logFields, timings }, 'Data table upload abandoned');

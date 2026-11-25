@@ -175,8 +175,9 @@ const scheduling = sql<HistorySchedulingRecord[]>`coalesce((
     and a.entity_id = ${indicator.id}::text
 ), '[]'::json)`;
 
-// Who opened each draft of the live indicator to update it, and when. The entity index finds the
-// indicator's entries and the action narrows them, as for the assignments.
+// Who opened each draft of the live indicator to update it, and when, leaving out the drafts
+// since discarded, whose versions no longer exist. The entity index finds the indicator's entries
+// and the action narrows them, as for the assignments.
 const updates = sql<HistoryUpdateRecord[]>`coalesce((
   select json_agg(json_build_object(
     'at', a.occurred_at,
@@ -187,6 +188,9 @@ const updates = sql<HistoryUpdateRecord[]>`coalesce((
   where a.action = 'indicator.draft_created_from_published'
     and a.entity_type = 'indicator'
     and a.entity_id = ${indicator.id}::text
+    and exists (
+      select 1 from indicator_version v where v.id = (a.changes -> 'id' ->> 'after')::uuid
+    )
 ), '[]'::json)`;
 
 // Only the field names: the values are the draft's, which this history never shows. The entity

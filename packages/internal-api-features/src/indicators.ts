@@ -44,7 +44,7 @@ import type {
   IndicatorAdminRow,
 } from './indicator-list-repository.ts';
 import { indicatorTaskList, taskListReview } from './indicator-task-list.ts';
-import { stepsOpenTo } from './indicator-workflow.ts';
+import { mayDiscardDraft, stepsOpenTo } from './indicator-workflow.ts';
 import type { InternalIndicatorRepository } from './repositories.ts';
 
 export const INDICATORS_PAGE_SIZE = 10;
@@ -102,6 +102,8 @@ function toDetail(row: IndicatorAdminDetailRow, user: SessionUser): IndicatorAdm
     draftFirstSubmittedAt: row.draftFirstSubmittedAt?.toISOString() ?? null,
     draftResponse: row.draftResponse,
     nameVersion: nameVersion(row.name),
+    draftUpdatedAt: row.draftUpdatedAt?.toISOString() ?? null,
+    canDiscardDraft: mayDiscardDraft(user, row),
     actions: stepsOpenTo(user, row),
   };
 }
@@ -116,8 +118,8 @@ function listItemFor(user: SessionUser, item: IndicatorAdminListItem): Indicator
 
 /**
  * The detail as `user` may read it. A user who doesn't work on the indicator reads its statuses
- * and publication date, but not its reviewers, its latest response or its submission's number
- * and date.
+ * and publication date, but not its reviewers, its latest response, its submission's number and
+ * date or when the draft was last edited.
  */
 function detailFor(user: SessionUser, detail: IndicatorAdminDetail): IndicatorAdminDetail {
   return canWorkOnIndicator(user, indicatorAccess(detail))
@@ -128,6 +130,7 @@ function detailFor(user: SessionUser, detail: IndicatorAdminDetail): IndicatorAd
         draftResponse: null,
         draftSubmissionNumber: null,
         draftFirstSubmittedAt: null,
+        draftUpdatedAt: null,
       };
 }
 
