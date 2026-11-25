@@ -14,6 +14,10 @@ export function nameKey(name: string): string {
   return tidyName(name).toLowerCase();
 }
 
+/** The keys of the two dimensions that have columns of their own, so a category never names them. */
+export const SEX = nameKey('Sex');
+export const AGE = nameKey('Age');
+
 /** A category's key: its type's and its own, joined by a newline, which tidying never leaves. */
 export function categoryKey(type: string, name: string): string {
   return `${nameKey(type)}\n${nameKey(name)}`;

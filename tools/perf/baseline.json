@@ -17,6 +17,12 @@
     "rows": 102,
     "bytes": 15876
   },
+  "internal-api /api/internal/indicators/01a00000-0000-7000-8000-0000000f4040/data-table?page=524&rowsPerPage=50&f=sex.b719ce180e": {
+    "statements": 8,
+    "buffers": 26559,
+    "rows": 107,
+    "bytes": 16906
+  },
   "internal-api /api/internal/indicators/01a00ab4-ce0a-70c1-b22b-f8192c94a59d": {
     "statements": 2,
     "buffers": 14,
@@ -52,6 +58,12 @@
     "buffers": 112,
     "rows": 22,
     "bytes": 38824
+  },
+  "internal-web /publish/indicators/01a00000-0000-7000-8000-0000000f4040/data-table/check?f=sex.b719ce180e": {
+    "statements": 8,
+    "buffers": 21045,
+    "rows": 27,
+    "bytes": 43388
   },
   "internal-web /topics/mortality-and-life-expectancy?tab-topic=areas": {
     "statements": 52,

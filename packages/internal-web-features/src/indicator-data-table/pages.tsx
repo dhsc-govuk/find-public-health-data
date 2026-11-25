@@ -24,6 +24,8 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { indicatorDataTableCheckPath, indicatorDataTablePath } from '../publish-paths.ts';
 import { checkColumns, dataChanges, rowsShowing, uploadSummary } from './check-data.ts';
 import type { DataTableCheckData } from './check-loader.ts';
+import { ColumnFilters, FilterInputs } from './column-filters.tsx';
+import type { ColumnFilterState } from './column-filters-loader.ts';
 import type { DataTableProblem, DataTableUploadFailure } from './loader.ts';
 import { problemRows } from './problem-content.tsx';
 
@@ -190,21 +192,25 @@ export function pageLinks<Link>(
 
 interface CheckDataTablePageProps extends DataTableCheckData {
   formError?: string | undefined;
+  filterState?: ColumnFilterState | undefined;
 }
 
 export function CheckDataTablePage({
   id,
   dataTable,
   totalPages,
+  filtersLimited,
   formError,
+  filterState,
 }: CheckDataTablePageProps) {
   const { page, rowsPerPage, yearType } = dataTable;
   const columns = checkColumns(dataTable.columns);
   const changes = dataChanges(dataTable);
+  const filterIds = dataTable.filters.map((filter) => filter.id);
 
   // Plain anchors: the router-aware link would also mark every link to the bare path as current.
   const pageLink = (number: number) => ({
-    href: indicatorDataTableCheckPath(id, { page: number, rowsPerPage }),
+    href: indicatorDataTableCheckPath(id, { page: number, rowsPerPage, filterIds }),
     forceExternal: true,
     ...(number === page ? { 'aria-current': 'page' as const } : {}),
   });
@@ -226,10 +232,25 @@ export function CheckDataTablePage({
               </GridColumn>
             </GridRow>
           )}
+        </GridColumn>
+      </GridRow>
+      <GridRow>
+        <GridColumn width="one-quarter">
+          {/* Another upload has other values, so nothing listed or ticked carries over to it. */}
+          <ColumnFilters
+            dataTable={dataTable}
+            filtersLimited={filtersLimited}
+            id={id}
+            key={dataTable.batchId}
+            state={filterState}
+          />
+        </GridColumn>
+        <GridColumn width="three-quarters">
           <div className="fphd-table-controls">
             <p className="govuk-body">{uploadSummary(dataTable)}</p>
             {/* Asks for the first page in the new size, without JavaScript too. */}
             <form className="fphd-table-controls__form" method="get">
+              <FilterInputs filterIds={filterIds} />
               <Select
                 defaultValue={String(rowsPerPage)}
                 label="Rows per page"
@@ -270,7 +291,9 @@ export function CheckDataTablePage({
             </table>
           </TableScrollRegion>
           <div className="fphd-table-controls">
-            <p className="govuk-body">{rowsShowing(dataTable)}</p>
+            <p className="govuk-body" role="status">
+              {rowsShowing(dataTable)}
+            </p>
             {totalPages > 1 ? (
               <Pagination
                 currentPage={page}

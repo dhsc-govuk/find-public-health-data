@@ -10,6 +10,7 @@ import {
   dataTableConfirmationSchema,
   dataTablePageQuerySchema,
 } from './data-table-check-contract.ts';
+import { type DataTableValues, dataTableValuesQuerySchema } from './data-table-filter-contract.ts';
 import {
   guardedIndicator,
   type IndicatorAccessReader,
@@ -17,7 +18,7 @@ import {
 } from './indicator-access.ts';
 import type { InternalDataUploadRepository } from './repositories.ts';
 
-/** Routes for paging through the draft's uploaded data table and confirming it. */
+/** Routes for paging through, filtering and confirming the draft's uploaded data table. */
 export function dataTableCheckRouter(
   dataUploads: InternalDataUploadRepository,
   indicators: IndicatorAccessReader,
@@ -47,15 +48,47 @@ export function dataTableCheckRouter(
         return;
       }
 
-      const { page, rowsPerPage } = query.data;
+      const { page, rowsPerPage, filterIds } = query.data;
       const { dataTable } = found;
-      // A page after the last has no rows, so there is nothing to query.
-      const rows =
-        dataTable === null || (page - 1) * rowsPerPage >= dataTable.rowCount
-          ? []
-          : await dataUploads.listRows(dataTable, page, rowsPerPage);
       const body: DataTableCheck = {
-        dataTable: dataTable === null ? null : { ...dataTable, page, rowsPerPage, rows },
+        dataTable:
+          dataTable === null
+            ? null
+            : {
+                ...dataTable,
+                page,
+                rowsPerPage,
+                ...(await dataUploads.readPage(dataTable, { page, rowsPerPage, filterIds })),
+              },
+      };
+
+      response.status(200).json(body);
+    },
+  );
+
+  router.get(
+    '/api/internal/indicators/:id/data-table/values',
+    requireEditor,
+    async (request, response) => {
+      const { id } = guardedIndicator(response);
+
+      const query = dataTableValuesQuerySchema.safeParse(request.query);
+
+      if (!query.success) {
+        response.status(400).json({ error: 'invalid_query' });
+        return;
+      }
+
+      const found = await dataUploads.findDraftDataTable(id);
+
+      if (!found.found) {
+        response.status(found.reason === 'locked' ? 409 : 404).json({ error: found.reason });
+        return;
+      }
+
+      const { dataTable } = found;
+      const body: DataTableValues = {
+        columns: dataTable === null ? [] : await dataUploads.listValues(dataTable, query.data),
       };
 
       response.status(200).json(body);

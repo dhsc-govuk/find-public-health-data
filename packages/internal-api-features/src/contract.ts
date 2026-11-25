@@ -529,6 +529,7 @@ export type IndicatorWithdraw = z.infer<typeof indicatorWithdrawSchema>;
 export type IndicatorWithdrawError = z.infer<typeof indicatorWithdrawErrorSchema>;
 
 export * from './data-table-check-contract.ts';
+export * from './data-table-filter-contract.ts';
 export * from './data-upload-contract.ts';
 export * from './edit-version-contract.ts';
 export * from './indicator-ages-contract.ts';

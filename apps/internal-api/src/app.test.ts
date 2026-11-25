@@ -667,6 +667,7 @@ describe('the indicator routes', () => {
     ['the start of an update', 'post', `/api/internal/indicators/${id}/draft`],
     ['a data upload', 'post', `/api/internal/indicators/${id}/data-uploads`],
     ['the data table check', 'get', `/api/internal/indicators/${id}/data-table`],
+    ["the data table's values", 'get', `/api/internal/indicators/${id}/data-table/values`],
     ['the revision response', 'get', `/api/internal/indicators/${id}/revision-response`],
     ['the notes for reviewers', 'get', `/api/internal/indicators/${id}/notes-for-reviewers`],
     ['the history', 'get', `/api/internal/indicators/${id}/history`],

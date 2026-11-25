@@ -1,19 +1,20 @@
-import type {
-  DataTableCheck,
-  DataTableColumn,
-  DataTableRow,
+import {
+  type CheckColumnKey,
+  checkColumnKeys,
+  type DataTableCheck,
+  type DataTableColumn,
+  type DataTableFilter,
+  type DataTableRow,
 } from '@fphd/internal-api-features/contract';
 import { periodLabel } from '@fphd/utils/period-label';
 
 type CheckedTable = NonNullable<DataTableCheck['dataTable']>;
 type YearType = CheckedTable['yearType'];
 
-/** A column in the check page's table. It's shown if the file included any of its columns. */
+/** A column in the check page's table. */
 export interface CheckColumn {
-  key: string;
+  key: CheckColumnKey;
   heading: string;
-  /** The file columns this column displays. */
-  from: readonly DataTableColumn[];
   cell: (row: DataTableRow, yearType: YearType) => string;
 }
 
@@ -22,72 +23,32 @@ function number(value: number | null): string {
   return value === null ? '' : String(value);
 }
 
-const COLUMNS: readonly CheckColumn[] = [
-  { key: 'count', heading: 'Count', from: ['count'], cell: (row) => number(row.count) },
-  {
-    key: 'numerator',
-    heading: 'Numerator',
-    from: ['numerator'],
-    cell: (row) => number(row.numerator),
-  },
-  {
-    key: 'denominator',
-    heading: 'Denominator',
-    from: ['denominator'],
-    cell: (row) => number(row.denominator),
-  },
-  { key: 'value', heading: 'Value', from: ['value'], cell: (row) => number(row.value) },
-  {
-    key: 'lowerCi95',
-    heading: 'Lower CI 95.0 limit',
-    from: ['lower_ci_95'],
-    cell: (row) => number(row.lowerCi95),
-  },
-  {
-    key: 'upperCi95',
-    heading: 'Upper CI 95.0 limit',
-    from: ['upper_ci_95'],
-    cell: (row) => number(row.upperCi95),
-  },
-  {
-    key: 'lowerCi998',
-    heading: 'Lower CI 99.8 limit',
-    from: ['lower_ci_998'],
-    cell: (row) => number(row.lowerCi998),
-  },
-  {
-    key: 'upperCi998',
-    heading: 'Upper CI 99.8 limit',
-    from: ['upper_ci_998'],
-    cell: (row) => number(row.upperCi998),
-  },
-  {
-    key: 'period',
-    heading: 'Period',
-    from: ['period_start', 'period_end'],
-    cell: (row, yearType) => periodLabel(row, yearType),
-  },
-  { key: 'areaCode', heading: 'Area code', from: ['area_code'], cell: (row) => row.areaCode },
-  { key: 'sex', heading: 'Sex', from: ['sex'], cell: (row) => row.sex ?? '' },
-  { key: 'age', heading: 'Age', from: ['age'], cell: (row) => row.age ?? '' },
-  {
-    key: 'categoryType',
-    heading: 'Category type',
-    from: ['category_type'],
-    cell: (row) => row.categoryType ?? '',
-  },
-  { key: 'category', heading: 'Category', from: ['category'], cell: (row) => row.category ?? '' },
-  {
-    key: 'valueNote',
-    heading: 'Value note',
-    from: ['value_note'],
-    cell: (row) => row.valueNotes.join('; '),
-  },
-];
+const COLUMNS: Record<CheckColumnKey, Omit<CheckColumn, 'key'>> = {
+  count: { heading: 'Count', cell: (row) => number(row.count) },
+  numerator: { heading: 'Numerator', cell: (row) => number(row.numerator) },
+  denominator: { heading: 'Denominator', cell: (row) => number(row.denominator) },
+  value: { heading: 'Value', cell: (row) => number(row.value) },
+  lowerCi95: { heading: 'Lower CI 95.0 limit', cell: (row) => number(row.lowerCi95) },
+  upperCi95: { heading: 'Upper CI 95.0 limit', cell: (row) => number(row.upperCi95) },
+  lowerCi998: { heading: 'Lower CI 99.8 limit', cell: (row) => number(row.lowerCi998) },
+  upperCi998: { heading: 'Upper CI 99.8 limit', cell: (row) => number(row.upperCi998) },
+  period: { heading: 'Period', cell: (row, yearType) => periodLabel(row, yearType) },
+  areaCode: { heading: 'Area code', cell: (row) => row.areaCode },
+  sex: { heading: 'Sex', cell: (row) => row.sex ?? '' },
+  age: { heading: 'Age', cell: (row) => row.age ?? '' },
+  categoryType: { heading: 'Category type', cell: (row) => row.categoryType ?? '' },
+  category: { heading: 'Category', cell: (row) => row.category ?? '' },
+  valueNote: { heading: 'Value note', cell: (row) => row.valueNotes.join('; ') },
+};
 
 /** The check page's columns for the columns a file included, in display order. */
 export function checkColumns(fileColumns: readonly DataTableColumn[]): CheckColumn[] {
-  return COLUMNS.filter(({ from }) => from.some((column) => fileColumns.includes(column)));
+  return checkColumnKeys(fileColumns).map((key) => ({ key, ...COLUMNS[key] }));
+}
+
+/** A selected value with the column it is in: "2025 (Period)". */
+export function filterLabel({ column, label }: DataTableFilter): string {
+  return `${label} (${COLUMNS[column].heading})`;
 }
 
 const count = new Intl.NumberFormat('en-GB');
@@ -101,11 +62,17 @@ export function uploadSummary({ rowCount }: CheckedTable): string {
   return `Your upload contains ${rows(rowCount)}`;
 }
 
-/** Which rows this page shows, out of the total. */
-export function rowsShowing({ page, rowsPerPage, rowCount }: CheckedTable): string {
+/** Which rows this page shows, out of those that match the filters. */
+export function rowsShowing({
+  page,
+  rowsPerPage,
+  matchingRowCount,
+  filters,
+}: CheckedTable): string {
+  if (matchingRowCount === 0 && filters.length > 0) return 'No rows match these filters';
   const first = (page - 1) * rowsPerPage + 1;
-  const last = Math.min(page * rowsPerPage, rowCount);
-  return `Showing ${count.format(first)} to ${count.format(last)} of ${rows(rowCount)}`;
+  const last = Math.min(page * rowsPerPage, matchingRowCount);
+  return `Showing ${count.format(first)} to ${count.format(last)} of ${rows(matchingRowCount)}`;
 }
 
 /** One count in the summary above an update's data table. */

@@ -14,15 +14,18 @@ import type {
   ValueTypeAndUnitOptions,
 } from './contract.ts';
 import { type DataProviderRow, listDataProviders } from './data-provider-repository.ts';
-import type { DataTableRow } from './data-table-check-contract.ts';
+import type { DataTablePage } from './data-table-check-contract.ts';
 import {
   type ConfirmDataTableResult,
   confirmDataTable,
+  type DataTablePageRequest,
   type DraftDataTableRow,
   type FindDraftDataTableResult,
   findDraftDataTable,
-  listDataTableRows,
+  readDataTablePage,
 } from './data-table-check-repository.ts';
+import type { DataTableColumnValues, DataTableValuesQuery } from './data-table-filter-contract.ts';
+import { type FilterableDataTable, listDataTableValues } from './data-table-filter-repository.ts';
 import {
   type DataUpload,
   type ProcessDataUploadResult,
@@ -291,11 +294,12 @@ export interface InternalDataUploadRepository {
     signal: AbortSignal,
   ): Promise<ProcessDataUploadResult>;
   findDraftDataTable(indicatorId: string): Promise<FindDraftDataTableResult>;
-  listRows(
-    batch: Pick<DraftDataTableRow, 'batchId' | 'rowCount'>,
-    page: number,
-    rowsPerPage: number,
-  ): Promise<DataTableRow[]>;
+  readPage(dataTable: DraftDataTableRow, request: DataTablePageRequest): Promise<DataTablePage>;
+  /** The values the data table can be filtered by, of one column or matching a search. */
+  listValues(
+    dataTable: FilterableDataTable,
+    query: DataTableValuesQuery,
+  ): Promise<DataTableColumnValues[]>;
   /** Confirms the draft's data table, as long as the draft still uses the batch named. */
   confirm(indicatorId: string, batchId: string, actor: Actor): Promise<ConfirmDataTableResult>;
 }
@@ -340,7 +344,8 @@ export function createInternalRepositories(db: Database): InternalRepositories {
       findLatest: (draftId) => getLatestDataUpload(db, draftId),
       process: (upload, openFile, signal) => processDataUpload(db, upload, openFile, signal),
       findDraftDataTable: (indicatorId) => findDraftDataTable(db, indicatorId),
-      listRows: (batch, page, rowsPerPage) => listDataTableRows(db, batch, page, rowsPerPage),
+      readPage: (dataTable, request) => readDataTablePage(db, dataTable, request),
+      listValues: (dataTable, query) => listDataTableValues(db, dataTable, query),
       confirm: (indicatorId, batchId, actor) => confirmDataTable(db, indicatorId, batchId, actor),
     },
     indicators: {
