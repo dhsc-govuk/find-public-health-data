@@ -528,3 +528,46 @@ it('keeps annual twins out of year-end benchmarks and scatter values', () => {
     })),
   );
 });
+
+it.each([false, true])(
+  'uses the published cumulative scatter series when the first area has only annual data (reverse twins: %s)',
+  (reverse) => {
+    const annual = {
+      fromDate: '2022-04-01',
+      toDate: '2023-03-31',
+      dimensions: [],
+      value: 99,
+    };
+    const cumulative = {
+      ...annual,
+      periodType: 'cumulative-quarter-2022-04-01' as const,
+      value: 4,
+    };
+    const areas = [
+      { areaCode: 'annual-only', areaName: 'Annual only', observations: [annual] },
+      {
+        areaCode: 'cumulative',
+        areaName: 'Cumulative',
+        observations: reverse ? [annual, cumulative] : [cumulative, annual],
+      },
+    ];
+    expect(pairedAreaValues(areas, areas)).toEqual([
+      {
+        code: 'cumulative',
+        name: 'Cumulative',
+        x: 4,
+        y: 4,
+        xPeriod: {
+          fromDate: cumulative.fromDate,
+          toDate: cumulative.toDate,
+          periodType: cumulative.periodType,
+        },
+        yPeriod: {
+          fromDate: cumulative.fromDate,
+          toDate: cumulative.toDate,
+          periodType: cumulative.periodType,
+        },
+      },
+    ]);
+  },
+);

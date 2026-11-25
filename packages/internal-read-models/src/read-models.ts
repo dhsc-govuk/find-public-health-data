@@ -51,7 +51,10 @@ async function replaceReadModelRows(
   const uploadBatchId = published?.uploadBatchId;
   const publishedFrom = published?.publishedFrom ?? null;
   const visible = uploadBatchId
-    ? visibleObservations(indicatorId, uploadBatchId, publishedFrom)
+    ? and(
+        visibleObservations(indicatorId, uploadBatchId, publishedFrom),
+        eq(o.isCurrentSeries, true),
+      )
     : undefined;
 
   let started = performance.now();

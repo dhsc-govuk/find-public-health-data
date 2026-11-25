@@ -495,11 +495,18 @@ export function pairedAreaValues(
     );
 
   const aligned = (areas: ScatterArea[]) => {
-    const first = areas.find(({ observations }) =>
+    const publishedTypes = seriesPeriodTypes(areas.flatMap(({ observations }) => observations));
+    const selected = areas.map((area) => ({
+      ...area,
+      observations: area.observations.filter((point) =>
+        publishedTypes.includes(observationPeriodType(point)),
+      ),
+    }));
+    const first = selected.find(({ observations }) =>
       observations.some(({ value }) => value !== null),
     );
     const reference = first && headlineSeries(first.observations)[0];
-    return areas.map(({ areaCode, areaName, observations }) => ({
+    return selected.map(({ areaCode, areaName, observations }) => ({
       code: areaCode,
       name: areaName,
       observations: new Map(

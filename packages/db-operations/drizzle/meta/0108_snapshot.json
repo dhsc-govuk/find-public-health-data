@@ -1,5 +1,5 @@
 {
-  "id": "98e1d42d-f886-45fe-ab29-3b9357fd227b",
+  "id": "eb12f6fb-4fe9-47a2-b447-9575a076a9a3",
   "prevId": "364e2620-d53c-4c11-bcae-5a52b4f18817",
   "version": "7",
   "dialect": "postgresql",
@@ -3354,6 +3354,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "is_current_series": {
+          "name": "is_current_series",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "value": {
           "name": "value",
           "type": "double precision",
@@ -6245,7 +6252,7 @@
           "notNull": false
         }
       },
-      "definition": "SELECT o.id, o.indicator_id, o.area_id, o.from_date, o.to_date, o.value,\n        o.count, o.denominator, o.denominator_2, o.lower_ci_95, o.upper_ci_95,\n        o.lower_ci_998, o.upper_ci_998, o.created_at, o.numerator, o.dimension_key, o.period_type\n      FROM public.observation o\n      WHERE o.from_date >= ((\n        SELECT jsonb_object_agg(v.upload_batch_id, COALESCE(v.published_from, '-infinity'::date))\n        FROM public.current_published_version cpv\n        JOIN public.indicator_version v ON v.id = cpv.id\n        WHERE v.upload_batch_id IS NOT NULL\n      ) ->> o.upload_batch_id::text)::date",
+      "definition": "SELECT o.id, o.indicator_id, o.area_id, o.from_date, o.to_date, o.value,\n        o.count, o.denominator, o.denominator_2, o.lower_ci_95, o.upper_ci_95,\n        o.lower_ci_998, o.upper_ci_998, o.created_at, o.numerator, o.dimension_key, o.period_type\n      FROM public.observation o\n      WHERE o.is_current_series AND o.from_date >= ((\n        SELECT jsonb_object_agg(v.upload_batch_id, COALESCE(v.published_from, '-infinity'::date))\n        FROM public.current_published_version cpv\n        JOIN public.indicator_version v ON v.id = cpv.id\n        WHERE v.upload_batch_id IS NOT NULL\n      ) ->> o.upload_batch_id::text)::date",
       "name": "observation",
       "schema": "published",
       "isExisting": false,

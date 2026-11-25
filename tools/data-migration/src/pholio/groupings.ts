@@ -100,6 +100,11 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
         return 'periodicity_not_in_grouping';
       return undefined;
     },
+    hasCumulativeSeries(indicatorId: number): boolean {
+      return (byIndicator.get(indicatorId) ?? []).some(
+        (grouping) => grouping.BaselineYear != null && grouping.BaselineQuarter > 0,
+      );
+    },
     hasCumulativeBaseline(row: ObservationSeries & { Year: number }): boolean {
       return (byIndicator.get(row.IndicatorID) ?? []).some(
         (grouping) =>

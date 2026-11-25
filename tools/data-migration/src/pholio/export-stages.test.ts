@@ -1490,8 +1490,67 @@ it('exports cumulative endpoints as one baseline series and retains its annual s
   ]);
   expect(exported.slice(5).map((row) => row.period_type)).toEqual([
     DATA_MIGRATION_NULL,
-    DATA_MIGRATION_NULL,
-    DATA_MIGRATION_NULL,
+    'cumulative-quarter-2023-04-01',
+    'cumulative-quarter-2017-04-01',
     DATA_MIGRATION_NULL,
   ]);
+  expect(exported.map((row) => row.is_current_series)).toEqual([
+    't',
+    't',
+    't',
+    't',
+    't',
+    't',
+    'f',
+    'f',
+    't',
+  ]);
 });
+
+it.each([
+  { year: 2021, annualGrouping: false },
+  { year: 2021, annualGrouping: true },
+  { year: 2023, annualGrouping: false },
+  { year: 2023, annualGrouping: true },
+])(
+  'retains cumulative and annual twins outside the published baseline ($year, annual grouping: $annualGrouping)',
+  async ({ year, annualGrouping }) => {
+    const grouping = {
+      IndicatorID: 108,
+      SexID: 4,
+      AgeID: 1,
+      YearRange: 5,
+      BaselineYear: 2022,
+      BaselineQuarter: 1,
+      BaselineMonth: -1,
+    };
+    sourceObservations(
+      [
+        observation({ uid: 1, Year: 2022, Quarter: 1, YearRange: 5, YearTypeID: 10 }),
+        observation({ uid: 2, Year: year, Quarter: 4, YearRange: 5, YearTypeID: 10, Value: 7 }),
+        observation({ uid: 3, Year: year, YearRange: 1, YearTypeID: 10, Value: 99 }),
+      ],
+      [grouping, ...(annualGrouping ? [{ ...grouping, YearRange: 1, BaselineQuarter: -1 }] : [])],
+    );
+    const result = await exportObservations(observationOptions());
+    expect(result.tables.observation.rows).toBe(3);
+    expect(result.excludedObservations).toBe(0);
+    expect(await rows('observation')).toMatchObject([
+      { period_type: 'cumulative-quarter-2022-04-01', is_current_series: 't' },
+      {
+        from_date: `${year}-04-01`,
+        to_date: `${year + 1}-03-31`,
+        period_type: `cumulative-quarter-${year}-04-01`,
+        is_current_series: 'f',
+        value: '7',
+      },
+      {
+        from_date: `${year}-04-01`,
+        to_date: `${year + 1}-03-31`,
+        period_type: DATA_MIGRATION_NULL,
+        is_current_series: 't',
+        value: '99',
+      },
+    ]);
+  },
+);

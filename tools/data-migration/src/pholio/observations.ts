@@ -368,9 +368,7 @@ async function assertDistinctObservations(
         toDate,
         c.IndicatorID,
         dimensions.map((d) => d.valueId),
-        groupings.hasCumulativeBaseline(c)
-          ? sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1)
-          : null,
+        sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1),
       );
       const previous = seen.get(key);
       const id = observationId(c.uid, split as 0 | 1);
@@ -470,6 +468,7 @@ export async function exportObservations(context: ObservationExportOptions) {
     const ci95 = computeCi95(c, diagnostic);
     const ci998 = computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     const halves = observationDimensions(c);
+    const periodType = sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1);
     for (const [split, dimensions] of halves.entries()) {
       const obsId = observationId(c.uid, split as 0 | 1);
       if (dropped.has(obsId)) continue;
@@ -478,9 +477,11 @@ export async function exportObservations(context: ObservationExportOptions) {
         indicator_id: c.IndicatorID,
         area_id: areaId,
         from_date: fromDate,
-        period_type: groupings.hasCumulativeBaseline(c)
-          ? sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1)
-          : null,
+        period_type: periodType,
+        is_current_series:
+          periodType === null ||
+          !groupings.hasCumulativeSeries(c.IndicatorID) ||
+          groupings.hasCumulativeBaseline(c),
         to_date: toDate,
         value,
         ...countAndNumerator(

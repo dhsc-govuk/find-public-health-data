@@ -1,6 +1,7 @@
 import type { ObservationPeriodType } from '@fphd/utils/observation-series';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   doublePrecision,
@@ -58,6 +59,8 @@ export const observation = pgTable(
     fromDate: date().notNull(),
     toDate: date().notNull(),
     periodType: text().$type<ObservationPeriodType>(),
+    // A retained cycle needs its own identity even when Fingertips selects another baseline.
+    isCurrentSeries: boolean().notNull().default(true),
     value: doublePrecision(),
     count: doublePrecision(),
     numerator: doublePrecision(),

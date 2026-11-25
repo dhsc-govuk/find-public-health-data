@@ -102,6 +102,7 @@ async function snapshot(
       area_id: 1,
       upload_batch_id: 108,
       dimension_key: '1',
+      is_current_series: true,
       created_at: enteredAt,
       created_by: 'pholio-migration',
       ...row,

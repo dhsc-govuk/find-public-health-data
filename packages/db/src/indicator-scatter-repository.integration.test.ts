@@ -473,3 +473,68 @@ it('keeps retained annual values out of cumulative scatter points and benchmark 
   ).toBe(true);
   expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
 });
+
+it.each([false, true])(
+  'elects cumulative scatter before an annual-only area in cached and fallback reads (reverse twins: %s)',
+  async (reverse) => {
+    const places = await database.db.select().from(area).where(inArray(area.code, codes));
+    for (const id of ids) {
+      const [batch] = await database.db
+        .select({ id: observationSeriesBatch.uploadBatchId })
+        .from(observationSeriesBatch)
+        .where(eq(observationSeriesBatch.indicatorId, id));
+      if (!batch) throw new Error('Missing seeded batch');
+      await database.db.delete(observation).where(eq(observation.indicatorId, id));
+      await database.db.insert(observation).values(
+        places.flatMap((place) => {
+          const annual = {
+            indicatorId: id,
+            uploadBatchId: batch.id,
+            areaId: place.id,
+            dimensionKey: '',
+            fromDate: '2022-04-01',
+            toDate: '2023-03-31',
+            value: 99,
+          };
+          if (place.code !== 'E92000001') return [annual];
+          const cumulative = {
+            ...annual,
+            periodType: 'cumulative-quarter-2022-04-01' as const,
+            value: 4,
+          };
+          return reverse ? [annual, cumulative] : [cumulative, annual];
+        }),
+      );
+      await database.db.transaction((tx) => replaceObservationSeries(tx, id, batch.id, null));
+    }
+    const selected = await database.db
+      .selectDistinct({ periodType: observation.periodType })
+      .from(observationSeries)
+      .innerJoin(observation, eq(observation.id, observationSeries.latestObservationId))
+      .where(inArray(observationSeries.indicatorId, ids));
+    expect(selected).toEqual([{ periodType: 'cumulative-quarter-2022-04-01' }]);
+    const cached = await getCachedScatterAreas(db, publishedViews, ids, codes);
+    expect(cached).toBeDefined();
+    for (const id of ids) {
+      expect(cached?.get(id)?.[0]?.observations).toEqual([]);
+      expect(cached?.get(id)?.[1]?.observations).toEqual([
+        {
+          fromDate: '2022-04-01',
+          toDate: '2023-03-31',
+          periodType: 'cumulative-quarter-2022-04-01',
+          dimensions: [],
+          value: 4,
+        },
+      ]);
+    }
+    const expected = pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? []);
+    expect(expected).toHaveLength(1);
+    expect(expected[0]).toMatchObject({ code: 'E92000001', x: 4, y: 4 });
+    expect(await canonical()).toEqual(expected);
+    await database.db
+      .update(observationSeriesBatch)
+      .set({ version: OBSERVATION_SERIES_VERSION - 1 })
+      .where(inArray(observationSeriesBatch.indicatorId, ids));
+    expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
+  },
+);

@@ -84,6 +84,7 @@ async function insertSeries(
       .where(
         and(
           visibleObservations(indicatorId, uploadBatchId, publishedFrom),
+          eq(observation.isCurrentSeries, true),
           cumulativePeriodType ? eq(observation.periodType, cumulativePeriodType) : undefined,
         ),
       ),
@@ -377,6 +378,7 @@ async function englandTrend(
     .where(
       and(
         visibleObservations(indicatorId, uploadBatchId, publishedFrom),
+        eq(observation.isCurrentSeries, true),
         eq(area.code, ENGLAND_AREA_CODE),
         cumulativePeriodType ? eq(observation.periodType, cumulativePeriodType) : undefined,
       ),
@@ -419,7 +421,11 @@ export async function replaceObservationSeries(
     .select({ periodType: max(observation.periodType) })
     .from(observation)
     .where(
-      and(eq(observation.indicatorId, indicatorId), eq(observation.uploadBatchId, uploadBatchId)),
+      and(
+        eq(observation.indicatorId, indicatorId),
+        eq(observation.uploadBatchId, uploadBatchId),
+        eq(observation.isCurrentSeries, true),
+      ),
     );
   const cumulativePeriodType = source?.periodType ?? null;
   await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom, cumulativePeriodType);

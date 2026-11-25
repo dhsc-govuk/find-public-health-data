@@ -213,7 +213,7 @@ function observationView(schema: PgSchema<string>) {
         o.count, o.denominator, o.denominator_2, o.lower_ci_95, o.upper_ci_95,
         o.lower_ci_998, o.upper_ci_998, o.created_at, o.numerator, o.dimension_key, o.period_type
       FROM public.observation o
-      WHERE o.from_date >= ((
+      WHERE o.is_current_series AND o.from_date >= ((
         SELECT jsonb_object_agg(v.upload_batch_id, COALESCE(v.published_from, '-infinity'::date))
         FROM public.current_published_version cpv
         JOIN public.indicator_version v ON v.id = cpv.id

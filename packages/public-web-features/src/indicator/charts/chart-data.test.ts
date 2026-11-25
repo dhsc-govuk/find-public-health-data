@@ -163,6 +163,7 @@ it.each(['95', '99.8'] as const)(
     );
   },
 );
+
 it('plots every cumulative endpoint with its baseline in the labels and excludes annual and old-cycle points', () => {
   const cumulative = Array.from({ length: 17 }, (_, index) => ({
     ...point(2022, index + 1),
