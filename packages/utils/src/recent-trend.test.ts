@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   summariseTrend,
-  type TrendDirection,
   type TrendObservation,
   type TrendSettings,
   trendDirection,
 } from './recent-trend.ts';
 
-const proportion: TrendSettings = { valueType: 'Proportion' };
+const proportion = { valueType: 'Proportion', comparatorMethod: 'SPC for proportions' };
 const rate: TrendSettings = { valueType: 'Crude rate' };
 
 type Row = [
@@ -58,10 +57,9 @@ const rising = years([10, 12, 14, 16, 18]);
 const direction = (series: TrendObservation[], settings = rate, annual = true) =>
   trendDirection(summariseTrend(series, annual), settings);
 
-// Fingertips' own England rows, each with the Recent Trend Fingertips publishes for it.
-describe('agrees with Fingertips', () => {
-  it('tests proportions on their counts and denominators', () => {
-    // 91871 School pupils with social, emotional and mental health needs: "Increasing".
+describe('Fingertips calculation branches', () => {
+  it('uses counts and denominators for SPC for proportions', () => {
+    // Rounded intervals distinguish the two tests on indicator 91871's England rows.
     const pupils = rows([
       ['2021-04-01', '2022-03-31', 2.99214, 250272, 8364328, 2.98061, 3.0037],
       ['2022-04-01', '2023-03-31', 3.3, 275093, 8426530, 3.3, 3.3],
@@ -71,7 +69,14 @@ describe('agrees with Fingertips', () => {
     ]);
     expect(direction(pupils, proportion)).toBe('up');
     // The confidence interval test sees no trend here: one interval has no width.
-    expect(direction(pupils, rate)).toBe('right');
+    expect(direction(pupils, { ...proportion, comparatorMethod: null })).toBe('right');
+    expect(
+      direction(pupils, {
+        ...proportion,
+        comparatorMethod: 'Confidence intervals overlapping reference value (95.0)',
+      }),
+    ).toBe('right');
+    expect(direction(pupils, { ...proportion, valueType: 'Crude rate' })).toBe('up');
 
     // 90811 Deliveries to young women and girls aged 12 to 17: "Decreasing and getting better".
     const deliveries = rows([
@@ -102,9 +107,8 @@ describe('agrees with Fingertips', () => {
     expect(direction(heartFailure, proportion)).toBe('right');
   });
 
-  it('tests other value types on their 95% confidence intervals', () => {
-    // 93999 Mortality rate from influenza and pneumonia, a directly standardised rate:
-    // "Increasing and getting worse".
+  it('excludes directly standardised rates despite complete observations', () => {
+    // The pinned TrendRequest excludes DSRs even though the live API publishes trends for them.
     const influenza = rows([
       ['2020-01-01', '2020-12-31', 35.06888, 18714.604, 56325961, 34.56708, 35.57613],
       ['2021-01-01', '2021-12-31', 28.09202, 15189.198, 56554891, 27.64617, 28.54325],
@@ -136,46 +140,9 @@ describe('agrees with Fingertips', () => {
         38.0001360411576,
       ],
     ]);
-    expect(direction(influenza, { valueType: 'Directly standardised rate' })).toBe('up');
-  });
-
-  it.each<{ area: string; trend: TrendDirection; data: Row[] }>([
-    {
-      area: 'Darlington (E06000005)',
-      trend: 'down',
-      data: [
-        ['2020-04-01', '2021-03-31', 14.8, 1570, 10565, 14.1, 15.6],
-        ['2021-04-01', '2022-03-31', 15, 2505, 16595, 14.4, 15.6],
-        ['2022-04-01', '2023-03-31', 14.9, 2385, 16175, 14.3, 15.5],
-        ['2023-04-01', '2024-03-31', 15, 2595, 17640, 14.4, 15.6],
-        ['2024-04-01', '2025-03-31', 13.2, 1980, 15045, 12.7, 13.8],
-      ],
-    },
-    {
-      area: 'Cheshire West and Chester (E06000050)',
-      trend: 'up',
-      data: [
-        ['2020-04-01', '2021-03-31', 14.4, 4820, 33490, 14, 14.8],
-        ['2021-04-01', '2022-03-31', 13.5, 5575, 43240, 13.1, 13.8],
-        ['2022-04-01', '2023-03-31', 13.9, 5245, 37990, 13.5, 14.3],
-        ['2023-04-01', '2024-03-31', 14.5, 5910, 41065, 14.1, 14.9],
-        ['2024-04-01', '2025-03-31', 14.5, 6155, 42215, 14.1, 14.9],
-      ],
-    },
-    {
-      area: 'Telford and Wrekin (E06000020)',
-      trend: 'right',
-      data: [
-        ['2020-04-01', '2021-03-31', 14.4, 2245, 15370, 13.8, 15],
-        ['2021-04-01', '2022-03-31', 12.8, 2510, 19165, 12.3, 13.3],
-        ['2022-04-01', '2023-03-31', 13.1, 2630, 19490, 12.6, 13.7],
-        ['2023-04-01', '2024-03-31', 14.7, 3230, 21635, 14.2, 15.3],
-        ['2024-04-01', '2025-03-31', 14.5, 3530, 24455, 14.1, 15],
-      ],
-    },
-  ])('tests indirectly standardised proportions on counts for $area', ({ data, trend }) => {
-    // Indicator 41101's published trends differ from the interval test for these areas.
-    expect(direction(rows(data), { valueType: 'Indirectly standardised proportion' })).toBe(trend);
+    expect(
+      direction(influenza, { ...proportion, valueType: 'Directly standardised rate' }),
+    ).toBeNull();
   });
 
   it('cannot calculate across a missing year', () => {
@@ -218,6 +185,21 @@ describe('agrees with Fingertips', () => {
 });
 
 describe('valid rows', () => {
+  it.each([
+    'Directly standardised rate',
+    'Indirectly standardised proportion',
+    'Indirectly standardised ratio',
+    'Indirectly standardised rate',
+    'Count',
+    'Ratio',
+    'Mean',
+    'Unknown value type',
+    null,
+  ])('cannot calculate %s with either significance test', (valueType) => {
+    for (const settings of [rate, proportion])
+      expect(direction(rising, { ...settings, valueType })).toBeNull();
+  });
+
   it('only calculates a series of annual periods', () => {
     expect(direction(rising)).toBe('up');
     expect(direction(rising, rate, false)).toBeNull();

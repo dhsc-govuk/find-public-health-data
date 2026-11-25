@@ -300,11 +300,16 @@ export async function publishedTrendSettings(
   db: Database,
   ids: string[],
 ): Promise<Map<string, TrendSettings>> {
-  const { indicator, valueType } = publishedViews;
+  const { comparatorMethod, indicator, valueType } = publishedViews;
   const rows = await db
-    .select({ id: indicator.id, valueType: valueType.name })
+    .select({
+      id: indicator.id,
+      valueType: valueType.name,
+      comparatorMethod: comparatorMethod.name,
+    })
     .from(indicator)
     .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
+    .leftJoin(comparatorMethod, eq(comparatorMethod.id, indicator.comparatorMethodId))
     .where(inArray(indicator.id, ids));
-  return new Map(rows.map(({ id, valueType }) => [id, { valueType }]));
+  return new Map(rows.map(({ id, ...settings }) => [id, settings]));
 }

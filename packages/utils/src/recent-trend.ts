@@ -1,8 +1,7 @@
 /**
- * Fingertips' recent trend: a chi-square test for a trend across the latest five valid points.
- * The calculation is ported from fingertips-open `TrendMarkerCalculator.cs`. The rules for which
- * points it may use follow what the live Fingertips publishes, which has moved on from that 2020
- * code, as checked against Fingertips' own England rows for every indicator the service imports.
+ * Fingertips' five-point recent trend, following the eligibility and comparator selection in
+ * fingertips-open at 678089724a516138232d273c4c7f511ed3c5a338. The live API now publishes
+ * trends for additional value types, so it cannot establish this version's eligibility rules.
  */
 export type TrendDirection = 'up' | 'down' | 'right' | null;
 
@@ -37,9 +36,11 @@ export interface TrendSummary {
 
 export interface TrendSettings {
   valueType: string | null;
+  comparatorMethod?: string | null;
 }
 
 export const TREND_POINTS = 5;
+export const SPC_FOR_PROPORTIONS = 'SPC for proportions';
 const CHI_SQUARE_CONFIDENCE = 9.54953570608324;
 
 function isValidRow(row: TrendObservation): boolean {
@@ -89,12 +90,17 @@ export function summariseTrend(series: readonly TrendObservation[], annual: bool
 /** Null when Fingertips would say the trend cannot be calculated. */
 export function trendDirection(
   summary: TrendSummary | null | undefined,
-  { valueType }: TrendSettings,
+  { valueType, comparatorMethod }: TrendSettings,
 ): TrendDirection {
-  if (!summary?.annual || summary.run < TREND_POINTS || summary.runHasCountEqualToDenominator)
+  if (
+    (valueType !== 'Proportion' && valueType !== 'Crude rate') ||
+    !summary?.annual ||
+    summary.run < TREND_POINTS ||
+    summary.runHasCountEqualToDenominator
+  )
     return null;
   const { significant, slope } =
-    valueType === 'Proportion' || valueType === 'Indirectly standardised proportion'
+    comparatorMethod === SPC_FOR_PROPORTIONS
       ? proportionsTest(summary.points)
       : intervalsTest(summary.points);
   if (!significant || !Number.isFinite(slope)) return 'right';

@@ -6,18 +6,22 @@ import {
   seriesPeriodTypes,
   seriesTrend,
 } from '@fphd/utils/observation-series';
+import { SPC_FOR_PROPORTIONS } from '@fphd/utils/recent-trend';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
+import { getIndicatorObservationData } from './indicator-observation-repository.ts';
 import { searchIndicators } from './indicator-repository.ts';
+import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import { indicatorTrendDirections, indicatorTrendSummaries } from './indicator-trends.ts';
 import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import {
   area,
   areaType,
+  comparatorMethod,
   dimensionType,
   dimensionValue,
   dimensionValueAgeRange,
@@ -50,6 +54,13 @@ let dimensions: (typeof dimensionValue.$inferSelect)[];
 
 beforeAll(async () => {
   database = await createTestDb();
+  await database.db
+    .insert(comparatorMethod)
+    .values([
+      { name: SPC_FOR_PROPORTIONS },
+      { name: 'Confidence intervals overlapping reference value (95.0)' },
+    ])
+    .onConflictDoNothing();
   const [proportion] = await database.db
     .select()
     .from(valueType)
@@ -197,42 +208,77 @@ it('leaves a 94184-style proportion with values and CIs but no counts or denomin
   );
 });
 
-it('uses counts for indirectly standardised proportions in cached and live trends', async () => {
-  const fixture = await publishedIndicator('Indirectly standardised proportion trend');
-  const [type] = await database.db
-    .select()
-    .from(valueType)
-    .where(eq(valueType.name, 'Indirectly standardised proportion'));
-  if (!type) throw new Error('Value type fixture missing');
-  await database.db
-    .update(indicatorVersion)
-    .set({ valueTypeId: type.id })
-    .where(eq(indicatorVersion.id, fixture.versionId));
-  for (const areaId of [englandId, westSussexId])
-    await addSeries(fixture, areaId, [10, 12, 14, 16, 18]);
-  const rows = await database.db
-    .update(observation)
-    .set({ lowerCi95: 0, upperCi95: 1e6 })
-    .where(eq(observation.indicatorId, fixture.id))
-    .returning();
-  for (const code of ['E92000001', WEST_SUSSEX])
-    expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
-      new Map([[fixture.id, 'up']]),
+it.each([
+  ['Proportion', SPC_FOR_PROPORTIONS, 'up'],
+  ['Proportion', 'Confidence intervals overlapping reference value (95.0)', 'right'],
+  ['Proportion', null, 'right'],
+  ['Crude rate', SPC_FOR_PROPORTIONS, 'up'],
+  ['Crude rate', 'Confidence intervals overlapping reference value (95.0)', 'right'],
+  ['Crude rate', null, 'right'],
+  ...[
+    'Directly standardised rate',
+    'Indirectly standardised proportion',
+    'Indirectly standardised ratio',
+    'Count',
+    null,
+  ].flatMap((valueType) => [
+    [valueType, SPC_FOR_PROPORTIONS, null],
+    [valueType, null, null],
+  ]),
+])(
+  'uses value type %s and comparator %s in every trend path',
+  async (typeName, methodName, expected) => {
+    const methodLabel = methodName === SPC_FOR_PROPORTIONS ? 'SPC' : methodName ? 'CI' : 'none';
+    const fixture = await publishedIndicator(`Trend settings ${typeName} ${methodLabel}`);
+    const types = await database.db.select().from(valueType);
+    const methods = await database.db.select().from(comparatorMethod);
+    const type = types.find(({ name }) => name === typeName);
+    const method = methods.find(({ name }) => name === methodName);
+    if (typeName && !type) throw new Error('Value type fixture missing');
+    if (methodName && !method) throw new Error('Comparator method fixture missing');
+    await database.db
+      .update(indicatorVersion)
+      .set({ valueTypeId: type?.id ?? null, comparatorMethodId: method?.id ?? null })
+      .where(eq(indicatorVersion.id, fixture.versionId));
+    for (const areaId of [englandId, westSussexId])
+      await addSeries(fixture, areaId, [10, 12, 14, 16, 18]);
+    // Wide intervals leave only the count test significant, so the selected branch is observable.
+    await database.db
+      .update(observation)
+      .set({ lowerCi95: 0, upperCi95: 1e6 })
+      .where(eq(observation.indicatorId, fixture.id));
+    const codes = ['E92000001', WEST_SUSSEX];
+    const assertDirections = async () => {
+      for (const code of codes)
+        expect(
+          await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code),
+        ).toEqual(new Map([[fixture.id, expected]]));
+    };
+    await assertDirections();
+    for (const projection of ['table', 'summary', 'sparkline'] as const) {
+      const full = (
+        await getIndicatorObservationData(publicDb, publishedViews, [fixture.id], codes, projection)
+      ).get(fixture.id);
+      expect(full?.tableSeries?.[0]?.trends).toEqual({
+        E92000001: expected,
+        [WEST_SUSSEX]: expected,
+      });
+    }
+    await database.db.transaction((tx) =>
+      replaceObservationSeries(tx, fixture.id, fixture.batchId),
     );
-  await database.db.insert(observationSeriesBatch).values({
-    uploadBatchId: fixture.batchId,
-    indicatorId: fixture.id,
-    trend: seriesTrend(
-      rows
-        .filter((row) => row.areaId === englandId)
-        .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
-    ),
-    version: OBSERVATION_SERIES_VERSION,
-  });
-  expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
-    new Map([[fixture.id, 'up']]),
-  );
-});
+    await assertDirections();
+    for (const mode of ['recent', 'latest', 'sparkline'] as const) {
+      const cached = (
+        await getIndicatorSeriesData(publicDb, publishedViews, [fixture.id], codes, mode)
+      )?.get(fixture.id);
+      expect(cached?.tableSeries?.[0]?.trends).toEqual({
+        E92000001: expected,
+        [WEST_SUSSEX]: expected,
+      });
+    }
+  },
+);
 
 it.each([0, 1])(
   'prefers a series with %i dimensions over a longer, more disaggregated series as public_api',

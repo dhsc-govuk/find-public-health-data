@@ -5,6 +5,7 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
+import type { TrendSettings } from '@fphd/utils/recent-trend';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { isoDurationSql } from './age-span-sql.ts';
@@ -72,6 +73,7 @@ export async function getIndicatorObservationData(
 ): Promise<Map<string, { areaData: IndicatorAreaData[]; tableSeries?: TableSeriesSelection[] }>> {
   const {
     area,
+    comparatorMethod,
     dimensionType,
     dimensionValue,
     dimensionValueAgeRange: ages,
@@ -103,8 +105,9 @@ export async function getIndicatorObservationData(
     denominator: observation.denominator,
     areaCode: area.code,
     areaName: area.name,
-    // The trend's test depends on the value type, which only the summarised projections need.
+    // Only summarised projections calculate trends, so full histories need no metadata joins.
     valueType: summarised ? valueType.name : sql<string | null>`null`,
+    comparatorMethod: summarised ? comparatorMethod.name : sql<string | null>`null`,
   };
   const base = db
     .select(fields)
@@ -116,6 +119,7 @@ export async function getIndicatorObservationData(
       ? base
           .leftJoin(indicator, eq(indicator.id, observation.indicatorId))
           .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
+          .leftJoin(comparatorMethod, eq(comparatorMethod.id, indicator.comparatorMethodId))
       : base
   ).where(inArray(observation.indicatorId, indicatorIds));
   const rows = await query.orderBy(
@@ -164,7 +168,7 @@ export async function getIndicatorObservationData(
 
   type Point = IndicatorObservation & { obsId: string };
   const byIndicator = new Map<string, Map<string, Point[]>>();
-  const valueTypes = new Map<string, string | null>();
+  const trendSettings = new Map<string, TrendSettings>();
   for (const {
     obsId,
     indicatorId,
@@ -174,9 +178,13 @@ export async function getIndicatorObservationData(
     areaCode,
     areaName: _areaName,
     valueType: indicatorValueType,
+    comparatorMethod: indicatorComparatorMethod,
     ...observationRow
   } of rows) {
-    valueTypes.set(indicatorId, indicatorValueType);
+    trendSettings.set(indicatorId, {
+      valueType: indicatorValueType,
+      comparatorMethod: indicatorComparatorMethod,
+    });
     const byArea = byIndicator.get(indicatorId) ?? new Map<string, Point[]>();
     const observations = byArea.get(areaCode) ?? [];
     observations.push({
@@ -212,7 +220,7 @@ export async function getIndicatorObservationData(
               : projection === 'sparkline'
                 ? 'sparkline'
                 : 'recent',
-            { valueType: valueTypes.get(id) ?? null },
+            trendSettings.get(id) ?? { valueType: null, comparatorMethod: null },
           )
         : { areaData: projection === 'ranking' ? rankingAreaSeries(areaData) : areaData }),
     };

@@ -54,6 +54,50 @@ function dim(type: string, value: string, overrides = {}) {
 }
 
 describe('recentTrend', () => {
+  it.each([
+    'Directly standardised rate',
+    'Indirectly standardised proportion',
+    'Indirectly standardised ratio',
+    'Count',
+  ])('marks %s unavailable with five valid annual points', (valueType) => {
+    const points = [10, 12, 14, 16, 18].map((value, index) =>
+      obs({
+        fromDate: `${2019 + index}-01-01`,
+        toDate: `${2019 + index}-12-31`,
+        value,
+        count: value * 10,
+        denominator: 1000,
+        lowerCi95: value - 0.5,
+        upperCi95: value + 0.5,
+      }),
+    );
+    expect(recentTrend(points, { polarity: null, valueType })).toMatchObject({
+      direction: null,
+      label: 'Trend unavailable',
+    });
+  });
+
+  it.each(['Proportion', 'Crude rate'])('uses the comparator for the %s fallback', (valueType) => {
+    const points = [10, 12, 14, 16, 18].map((value, index) =>
+      obs({
+        fromDate: `${2019 + index}-01-01`,
+        toDate: `${2019 + index}-12-31`,
+        value,
+        count: value * 10,
+        denominator: 1000,
+        lowerCi95: 0,
+        upperCi95: 1e6,
+      }),
+    );
+    expect(
+      recentTrend(points, { polarity: null, valueType, comparatorMethod: 'SPC for proportions' })
+        .direction,
+    ).toBe('up');
+    expect(
+      recentTrend(points, { polarity: null, valueType, comparatorMethod: null }).direction,
+    ).toBe('right');
+  });
+
   it.each([undefined, 'up', 'right', null] as const)(
     'marks multi-year periods unavailable even with precomputed direction %s',
     (precomputed) => {

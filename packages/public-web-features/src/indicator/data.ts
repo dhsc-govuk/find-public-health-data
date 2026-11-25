@@ -870,7 +870,11 @@ export const NO_ENGLAND_TREND: RecentTrend = {
  */
 export function recentTrend(
   observations: IndicatorObservation[],
-  { polarity, valueType }: { polarity: Polarity | null; valueType: string | null },
+  {
+    polarity,
+    valueType,
+    comparatorMethod = null,
+  }: { polarity: Polarity | null; valueType: string | null; comparatorMethod?: string | null },
   precomputed?: TrendDirection,
 ): RecentTrend {
   const series = trendSeries(observations);
@@ -892,7 +896,9 @@ export function recentTrend(
       reason: 'periods shorter than a year',
     };
   const direction =
-    precomputed === undefined ? trendDirection(seriesTrend(series), { valueType }) : precomputed;
+    precomputed === undefined
+      ? trendDirection(seriesTrend(series), { valueType, comparatorMethod })
+      : precomputed;
   if (direction === null) return UNCALCULATED_TREND;
   if (direction === 'right') return { direction, label: 'No significant change', tone: 'yellow' };
   const goodDirection = polarityGoodDirection(polarity);

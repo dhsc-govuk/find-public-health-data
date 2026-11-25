@@ -1243,6 +1243,23 @@ it('sorts comparator gap-fill rows together with existing lookup IDs', async () 
   ]);
 });
 
+it.each([true, false])(
+  'preserves SPC method 5 when the source lookup exists: %s',
+  async (hasLookup) => {
+    vi.mocked(queryPholio)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        hasLookup ? [{ ComparatorMethodID: 5, ComparatorMethod: 'SPC for Proportions' }] : [],
+      )
+      .mockResolvedValueOnce([{ ComparatorMethodID: 5 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    await exportLookups(options);
+    expect(await rows('comparator_method')).toEqual([{ id: '5', name: 'SPC for proportions' }]);
+  },
+);
+
 it('rejects an unreviewed disclosure note masking policy', async () => {
   vi.mocked(queryPholio)
     .mockResolvedValueOnce([])

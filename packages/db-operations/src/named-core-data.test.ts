@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { SPC_FOR_PROPORTIONS } from '@fphd/utils/recent-trend';
 import { STANDARD_CALCULATION_METHODS } from '@fphd/utils/standard-methods';
 import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
@@ -38,6 +39,14 @@ describe('parseNamedRecordsFile', () => {
     expect(() => parseNamedRecordsFile('value types', [count, { ...mean, name: 'Count' }])).toThrow(
       /duplicate name/,
     );
+  });
+
+  it('includes the comparator method the trend calculation selects', () => {
+    expect(
+      parseNamedRecordsFile('comparator methods', committed('comparator-methods.json')).map(
+        ({ name }) => name,
+      ),
+    ).toContain(SPC_FOR_PROPORTIONS);
   });
 
   it('accepts the committed files', () => {
