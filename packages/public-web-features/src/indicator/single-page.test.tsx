@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { useState } from 'react';
+import { type ComponentProps, useState } from 'react';
 import { createRoutesStub, useLocation, useNavigate, useNavigation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { loadScatterComparison } from './charts/scatter-loader.ts';
@@ -76,67 +76,65 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
   };
 }
 
-function page(
+function pageProps(
   entries: SelectedIndicator[],
   url: string,
   areas: SelectedIndicator['areaData'] = [],
   history?: Promise<never>,
   search?: Promise<never>,
   englandOnly = false,
-) {
+): Extract<ComponentProps<typeof SingleIndicatorPage>, { dataPlaceholder: null }> {
   const primary = entries[0];
   if (!primary) throw new Error('Indicator fixture missing');
   const scatter = loadScatterComparison(entries, new URL(url, 'http://localhost').searchParams);
-  const Routes = createRoutesStub([
-    {
-      path: 'indicator/:slug',
-      Component: () => (
-        <SingleIndicatorPage
-          detail={entries[0]?.detail as IndicatorDetail}
-          dataPlaceholder={null}
-          comparedDetail={entries[1]?.detail}
-          findSubject={search ? 'mortality' : ''}
-          findResults={search ?? []}
-          data={
-            history ?? {
-              selected: entries.slice(0, 1).map(compactIndicator),
-              selectedAreas: [],
-              displayGroups: [],
-              benchmarkGeography: { regionByCode: {}, levelByCode: {} },
-              findSubject: '',
-              findResults: [],
-              geographyOptions: undefined,
-              areasLimited: false,
-              defaultAreaLevel: undefined,
-              areaTypeNotice: undefined,
-              selection: {
-                areaCodes: [],
-                areaLevels: [],
-                shortIds: entries.map(({ detail }) => detail.shortId),
-              },
-            }
-          }
-          comparison={{
-            areaChart: compactIndicator({
-              ...primary,
-              areaData: [...areas, ...(entries[0]?.areaData ?? [])],
-            }),
-            compareAreaRanges: [],
-            scatter: scatter ? compactScatterComparison(scatter) : undefined,
-            englandOnly,
-            ...indicatorComparisonModel(entries, {
-              compareAreasData: areas,
-              comparedAreasData: [],
-              compareAreaOptions: [],
-              compareAreaGroup: englandOnly ? '' : 'Local authorities',
-              comparisonDisplayGroups: [],
-            }),
-          }}
-        />
-      ),
+  return {
+    detail: entries[0]?.detail as IndicatorDetail,
+    dataPlaceholder: null,
+    comparedDetail: entries[1]?.detail,
+    findSubject: search ? 'mortality' : '',
+    findResults: search ?? [],
+    data: history ?? {
+      selected: entries.slice(0, 1).map(compactIndicator),
+      selectedAreas: [],
+      displayGroups: [],
+      benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+      findSubject: '',
+      findResults: [],
+      geographyOptions: undefined,
+      areasLimited: false,
+      defaultAreaLevel: undefined,
+      areaTypeNotice: undefined,
+      selection: {
+        areaCodes: [],
+        areaLevels: [],
+        shortIds: entries.map(({ detail }) => detail.shortId),
+      },
     },
+    comparison: {
+      areaChart: compactIndicator({
+        ...primary,
+        areaData: [...areas, ...(entries[0]?.areaData ?? [])],
+      }),
+      compareAreaRanges: [],
+      scatter: scatter ? compactScatterComparison(scatter) : undefined,
+      englandOnly,
+      ...indicatorComparisonModel(entries, {
+        compareAreasData: areas,
+        comparedAreasData: [],
+        compareAreaOptions: [],
+        compareAreaGroup: englandOnly ? '' : 'Local authorities',
+        comparisonDisplayGroups: [],
+      }),
+    },
+  };
+}
+
+function page(...args: Parameters<typeof pageProps>) {
+  const props = pageProps(...args);
+  const Routes = createRoutesStub([
+    { path: 'indicator/:slug', Component: () => <SingleIndicatorPage {...props} /> },
   ]);
-  render(<Routes initialEntries={[url]} />);
+  render(<Routes initialEntries={[args[1]]} />);
 }
 
 it('opens one indicator with the five prototype tabs and no selection controls', () => {
@@ -772,11 +770,11 @@ it('says England is the only geography on Compare indicators, and names no other
   ).toEqual(['England']);
 });
 
-it('warns on Indicator and Compare areas when another age falls outside the one shown', () => {
-  const primary = selected(241, 'Diabetes prevalence', 7.9);
-  const [point] = primary.areaData[0]?.observations ?? [];
+/** England's first diabetes prevalence point, recorded for one age group. */
+function ageObservation(value: string, ageFrom: string, ageUnder?: string) {
+  const [point] = selected(241, 'Diabetes prevalence', 7.9).areaData[0]?.observations ?? [];
   if (!point) throw new Error('England fixture missing');
-  const age = (value: string, ageFrom: string, ageUnder?: string) => ({
+  return {
     ...point,
     dimensions: [
       {
@@ -788,8 +786,15 @@ it('warns on Indicator and Compare areas when another age falls outside the one 
         ...(ageUnder ? { ageUnder } : {}),
       },
     ],
-  });
-  const older = age('65+ yrs', 'P65Y');
+  };
+}
+
+const ageWarning =
+  'These figures are for the age group 65+ yrs. This indicator also has data for other ages, which may match its title better.';
+
+it('warns on Indicator and Compare areas when another age falls outside the one shown', () => {
+  const primary = selected(241, 'Diabetes prevalence', 7.9);
+  const older = ageObservation('65+ yrs', 'P65Y');
   page(
     [
       {
@@ -798,7 +803,7 @@ it('warns on Indicator and Compare areas when another age falls outside the one 
           {
             areaCode: 'E92000001',
             areaName: 'England',
-            observations: [older, age('45-64 yrs', 'P45Y', 'P65Y')],
+            observations: [older, ageObservation('45-64 yrs', 'P45Y', 'P65Y')],
           },
         ],
       },
@@ -806,12 +811,50 @@ it('warns on Indicator and Compare areas when another age falls outside the one 
     '/indicator/indicator-241',
     [{ areaCode: 'E06000039', areaName: 'Slough', observations: [older] }],
   );
-  const warning =
-    'These figures are for the age group 65+ yrs. This indicator also has data for other ages, which may match its title better.';
   for (const name of ['Indicator', 'Compare areas'])
     expect(
-      within(screen.getByRole('tabpanel', { name, hidden: true })).getByText(warning),
+      within(screen.getByRole('tabpanel', { name, hidden: true })).getByText(ageWarning),
     ).toBeTruthy();
+});
+
+it("never pairs a new indicator's comparison with the previous indicator's ages", async () => {
+  const url = '/indicator/indicator-241';
+  const primary = selected(241, 'Diabetes prevalence', 7.9);
+  const older = ageObservation('65+ yrs', 'P65Y');
+  const england = (observations: (typeof older)[]) => ({
+    ...primary,
+    areaData: [{ areaCode: 'E92000001', areaName: 'England', observations }],
+  });
+  const before = {
+    ...pageProps([primary], url),
+    data: pageProps([england([older, ageObservation('45-64 yrs', 'P45Y', 'P65Y')])], url).data,
+  };
+  const after = {
+    ...pageProps([england([older])], url, [
+      { areaCode: 'E06000039', areaName: 'Slough', observations: [older] },
+    ]),
+    data: new Promise<never>(() => undefined),
+  };
+  let navigate: () => void = () => undefined;
+  const Routes = createRoutesStub([
+    {
+      path: 'indicator/:slug',
+      Component: () => {
+        const [props, setProps] = useState(before);
+        navigate = () => setProps(after);
+        return <SingleIndicatorPage {...props} />;
+      },
+    },
+  ]);
+  render(<Routes initialEntries={[url]} />);
+  const panel = await screen.findByRole('tabpanel', { name: 'Compare areas', hidden: true });
+  expect(within(panel).queryByText(ageWarning)).toBeNull();
+  const observer = new MutationObserver(() => undefined);
+  observer.observe(panel, { childList: true, subtree: true });
+  act(() => navigate());
+  const added = observer.takeRecords().flatMap(({ addedNodes }) => [...addedNodes]);
+  observer.disconnect();
+  expect(added.some((node) => node.textContent?.includes(ageWarning))).toBe(false);
 });
 
 it('gives no age warning when the series shown has no age', () => {

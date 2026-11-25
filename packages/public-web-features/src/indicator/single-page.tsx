@@ -80,17 +80,15 @@ function useSeriesSegments(
   cache: WeakMap<CompactData, ExpandedData>,
   data: CompactData | Promise<CompactData>,
 ) {
-  const [loaded, setLoaded] = useState(data instanceof Promise ? undefined : data);
+  // The resolved value is kept with its promise, so a navigation never pairs new comparisons with
+  // the previous indicator's series.
+  const [loaded, setLoaded] = useState<{ source: Promise<CompactData>; value: CompactData }>();
   useEffect(() => {
-    if (!(data instanceof Promise)) {
-      setLoaded(data);
-      return;
-    }
+    if (!(data instanceof Promise)) return;
     let active = true;
-    setLoaded(undefined);
     void data.then(
       (value) => {
-        if (active) setLoaded(value);
+        if (active) setLoaded({ source: data, value });
       },
       () => undefined,
     );
@@ -98,9 +96,11 @@ function useSeriesSegments(
       active = false;
     };
   }, [data]);
+  const current =
+    data instanceof Promise ? (loaded?.source === data ? loaded.value : undefined) : data;
   return useMemo(
-    () => (loaded ? seriesSegments(expandData(cache, loaded).selected[0]?.areaData ?? []) : []),
-    [cache, loaded],
+    () => (current ? seriesSegments(expandData(cache, current).selected[0]?.areaData ?? []) : []),
+    [cache, current],
   );
 }
 
