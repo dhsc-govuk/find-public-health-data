@@ -1,5 +1,5 @@
 {
-  "id": "a4b48afa-2c8a-45c2-a10b-76e62cdbf904",
+  "id": "98e1d42d-f886-45fe-ab29-3b9357fd227b",
   "prevId": "364e2620-d53c-4c11-bcae-5a52b4f18817",
   "version": "7",
   "dialect": "postgresql",
@@ -3578,7 +3578,7 @@
       "checkConstraints": {
         "observation_period_type_check": {
           "name": "observation_period_type_check",
-          "value": "\"observation\".\"period_type\" IS NULL OR \"observation\".\"period_type\" = 'cumulative-quarter-' || \"observation\".\"from_date\"::text"
+          "value": "\"observation\".\"period_type\" IS NULL OR \"observation\".\"period_type\" = 'cumulative-quarter-' || to_char(\"observation\".\"from_date\", 'YYYY-MM-DD')"
         },
         "observation_date_order_check": {
           "name": "observation_date_order_check",

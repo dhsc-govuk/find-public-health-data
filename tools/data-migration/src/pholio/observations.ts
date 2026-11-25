@@ -271,8 +271,10 @@ function exclusionReason(
     return 'empty_observation';
   if (c.Year < 1900) return 'year_before_1900';
   if (excluded.has(c.IndicatorID)) return 'excluded_indicator';
-  // The current grouping hides earlier cycles and annual rows; they still belong in the import.
-  return c.YearTypeID === 10 ? undefined : groupings.exclusionReason(c);
+  // Annual observations can share dates with cumulative endpoints and must survive independently.
+  return c.YearTypeID === 10 && groupings.retainsCumulativeHistory(c)
+    ? undefined
+    : groupings.exclusionReason(c);
 }
 
 const observationQuery = `

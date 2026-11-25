@@ -82,7 +82,7 @@ export const observation = pgTable(
     }),
     check(
       'observation_period_type_check',
-      sql`${t.periodType} IS NULL OR ${t.periodType} = 'cumulative-quarter-' || ${t.fromDate}::text`,
+      sql`${t.periodType} IS NULL OR ${t.periodType} = 'cumulative-quarter-' || to_char(${t.fromDate}, 'YYYY-MM-DD')`,
     ),
     check('observation_date_order_check', sql`${t.fromDate} <= ${t.toDate}`),
     // The natural key: one row per area, period and dimension values within a batch. Leading with
