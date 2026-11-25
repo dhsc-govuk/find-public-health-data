@@ -53,6 +53,7 @@ function card(
                   ...tableSummary(
                     [{ areaCode: 'E92000001', areaName: 'England', observations }],
                     'sparkline',
+                    { ...entry.detail, ...detail },
                   ),
                 },
               ],
@@ -116,6 +117,9 @@ it('shows the prevalence count and expands summary and accessible financial year
       fromDate: `${2017 + index}-04-01`,
       toDate: `${2018 + index}-03-31`,
       count: 4_109_134,
+      denominator: Math.round((4_109_134 * 100) / value),
+      lowerCi95: value - 0.02,
+      upperCi95: value + 0.02,
     })),
     { polarity: 'no-polarity', yearType: publicYearType('financial', null) },
   );
@@ -160,17 +164,18 @@ it.each(['per 1,000', 'per 1,000 live births'])(
   },
 );
 
-it('uses the selected period trend when missing values push valid points beyond the chart history', () => {
-  const annual = [1, 2, 3, 4, 5, null, null, null, null, null, null, null, 6, 7, null].map(
-    (value, index) => ({
-      ...observation(),
-      value,
-      fromDate: `${2010 + index}-01-01`,
-      toDate: `${2010 + index}-12-31`,
-    }),
-  );
+it('leaves the trend unavailable when recent periods lack the intervals it needs', () => {
+  const annual = Array.from({ length: 15 }, (_, index) => ({
+    ...observation(index + 1),
+    ...((index >= 5 && index <= 11) || index === 14 ? { lowerCi95: null, upperCi95: null } : {}),
+    fromDate: `${2010 + index}-01-01`,
+    toDate: `${2010 + index}-12-31`,
+  }));
   const doc = card(annual, {});
-  expect(summary(doc)[3]).toEqual(['Trend (last 5 periods)', 'Increasing and getting better']);
+  expect(summary(doc)[3]).toEqual([
+    'Trend (last 5 periods)',
+    'Trend unavailable (not enough data points)',
+  ]);
 });
 
 it.each([0, 7.9])('uses the latest non-null value %s when the history ends in gaps', (value) => {

@@ -320,6 +320,7 @@ it('keeps the full-history headline after sexed period histories are bounded', (
   const compact = tableSummary(
     [{ ...area, observations: [...points(3, 12), ...points(5, 10)] }],
     'sparkline',
+    selected.detail,
   );
   const [highlight] = topicOverviewModel([{ ...selected, ...compact }], area.areaCode);
   expect(highlight?.value).toBe(311);

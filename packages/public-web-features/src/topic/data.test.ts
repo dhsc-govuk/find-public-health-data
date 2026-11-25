@@ -183,9 +183,7 @@ it('keeps eight sparkline periods including gaps alongside the unchanged five va
   expect(points.filter(({ value }) => value !== null)).toEqual(
     recent[0]?.areaData[0]?.observations,
   );
-  expect(recentTrend(points, entry.detail.polarity)).toEqual(
-    recentTrend(series, entry.detail.polarity),
-  );
+  expect(recentTrend(points, entry.detail)).toEqual(recentTrend(series, entry.detail));
 });
 
 it('retains eight rolling periods when annual and rolling observations share the headline series', () => {

@@ -31,11 +31,15 @@ export function comparisonTable(
     areaName: areaName,
   }));
   const byId = new Map(selected.map((entry) => [entry.detail.shortId, entry]));
-  const polarities = new Map(selected.map(({ detail }) => [detail.shortId, detail.polarity]));
   const trendOf = (
     row: (typeof rows)[number],
     cell: Pick<ComparisonCell, 'series' | 'trendDirection'>,
-  ) => recentTrend(cell.series, polarities.get(row.shortId) ?? null, cell.trendDirection);
+  ) =>
+    recentTrend(
+      cell.series,
+      byId.get(row.shortId)?.detail ?? { polarity: null, valueType: null },
+      cell.trendDirection,
+    );
   const hasPickedAreas = areas.some(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
   const regionAvailable = areas.some(({ areaCode }) => geography.regionByCode[areaCode]);
   const benchmark = hasPickedAreas ? choice : 'none';

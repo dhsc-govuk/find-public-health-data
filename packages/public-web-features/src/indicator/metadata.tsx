@@ -100,9 +100,7 @@ export function IndicatorSummary({
   const ofDimension = (dimension: string) =>
     indicator.classifications.filter((entry) => entry.dimension === dimension);
   const trend =
-    trendObservations === null
-      ? NO_ENGLAND_TREND
-      : recentTrend(trendObservations, indicator.polarity);
+    trendObservations === null ? NO_ENGLAND_TREND : recentTrend(trendObservations, indicator);
   const placeholder = dataPlaceholder(indicator);
   const indicatorTypes = ofDimension('indicator_type');
   const lifeStages = ofDimension('life_stage');

@@ -114,7 +114,7 @@ async function insertDraftOnlyIndicator(): Promise<void> {
     VALUES (${batch?.id ?? ''}, ${draftIndicatorId})`;
   await owner`INSERT INTO observation_series
     SELECT ${batch?.id ?? ''}, ${draftIndicatorId}, area_id, dimension_key, sex, period_type,
-           variants, latest_observation_id, ranking_observation_id, recent_observation_ids, recent_values
+           variants, latest_observation_id, ranking_observation_id, recent_observation_ids, sparkline_observation_ids, trend
     FROM observation_series LIMIT 1`;
 
   await owner`
@@ -556,7 +556,7 @@ describe('an indicator published again with new data', () => {
       SELECT upload_batch_id, indicator_id FROM observation WHERE id = ${first}`;
     await owner`INSERT INTO observation_series
       SELECT o.upload_batch_id, o.indicator_id, s.area_id, s.dimension_key, s.sex, s.period_type,
-             s.variants, s.latest_observation_id, s.ranking_observation_id, s.recent_observation_ids, s.recent_values
+             s.variants, s.latest_observation_id, s.ranking_observation_id, s.recent_observation_ids, s.sparkline_observation_ids, s.trend
       FROM observation o CROSS JOIN (SELECT * FROM observation_series LIMIT 1) s WHERE o.id = ${first}`;
     expect(
       await member`SELECT indicator_id FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,

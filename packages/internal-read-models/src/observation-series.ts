@@ -6,12 +6,14 @@ import {
   observationPeriodSql,
   periodLengthSql,
   schema,
+  trendSummarySql,
 } from '@fphd/db';
 import {
   ENGLAND_AREA_CODE,
   OBSERVATION_SERIES_VERSION,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
+import type { TrendSummary } from '@fphd/utils/recent-trend';
 import {
   and,
   count,
@@ -89,6 +91,12 @@ async function insertSeries(
         toDate: observation.toDate,
         value: observation.value,
         sourcePeriodType: observation.periodType,
+        count: sql<number | null>`coalesce(${observation.count}, ${observation.numerator})`.as(
+          'count',
+        ),
+        denominator: observation.denominator,
+        lowerCi95: observation.lowerCi95,
+        upperCi95: observation.upperCi95,
       })
       .from(observation)
       .where(
@@ -113,6 +121,10 @@ async function insertSeries(
         fromDate: source.fromDate,
         toDate: source.toDate,
         value: source.value,
+        count: source.count,
+        denominator: source.denominator,
+        lowerCi95: source.lowerCi95,
+        upperCi95: source.upperCi95,
         periodType: sql<PeriodType>`periods.period_type`.as('period_type'),
       })
       .from(source)
@@ -146,7 +158,7 @@ async function insertSeries(
         >`(array_agg(${points.id} ORDER BY ${points.fromDate} DESC, ${points.toDate} DESC))[1:8]`.as(
           'sparkline_ids',
         ),
-        recentValues: recentNonNull<number>(points.value, points).as('recent_values'),
+        trend: trendSummarySql(points).as('trend'),
       })
       .from(points)
       .groupBy(points.areaId, points.dimensionKey, points.periodType),
@@ -252,7 +264,7 @@ async function insertSeries(
     rankingId: segments.rankingId,
     recentIds: segments.recentIds,
     sparklineIds: segments.sparklineIds,
-    recentValues: segments.recentValues,
+    trend: segments.trend,
   };
   const candidates = tx.$with('candidates').as(
     tx
@@ -363,7 +375,7 @@ async function insertSeries(
           rankingObservationId: winners.rankingId,
           recentObservationIds: winners.recentIds,
           sparklineObservationIds: winners.sparklineIds,
-          recentValues: winners.recentValues,
+          trend: winners.trend,
         })
         .from(winners)
         .innerJoin(variants, eq(variants.areaId, winners.areaId)),
@@ -371,9 +383,9 @@ async function insertSeries(
 }
 
 /**
- * The recent values of England's headline series, elected by `headlineOrder` across period types,
- * or null when England has no data. Cumulative endpoints cover different durations, so they
- * carry no trend inputs.
+ * The trend summary of England's headline series, elected by `headlineOrder` across period types,
+ * or null when England has no data. Cumulative endpoints cover different durations, so their
+ * summary is not annual and gives no trend.
  */
 async function englandTrend(
   tx: Executor,
@@ -381,15 +393,23 @@ async function englandTrend(
   uploadBatchId: string,
   publishedFrom: string | null,
   periodFilter: SQL | undefined,
-): Promise<number[] | null> {
+): Promise<TrendSummary | null> {
   const [trend] = await tx
     .select({
-      values: recentNonNull<number>(observation.value, observation),
-      periodType: observationPeriodSql(
-        observation.fromDate,
-        observation.toDate,
-        observation.periodType,
-      ),
+      summary: trendSummarySql({
+        fromDate: observation.fromDate,
+        toDate: observation.toDate,
+        value: observation.value,
+        count: sql`coalesce(${observation.count}, ${observation.numerator})`,
+        denominator: observation.denominator,
+        lowerCi95: observation.lowerCi95,
+        upperCi95: observation.upperCi95,
+        periodType: observationPeriodSql(
+          observation.fromDate,
+          observation.toDate,
+          observation.periodType,
+        ),
+      }),
     })
     .from(observation)
     .innerJoin(area, eq(area.id, observation.areaId))
@@ -419,7 +439,7 @@ async function englandTrend(
       dimensionKeyOrder(observation.dimensionKey, headlineDimensions),
     )
     .limit(1);
-  return trend?.periodType.startsWith('cumulative-quarter-') ? [] : (trend?.values ?? null);
+  return trend?.summary ?? null;
 }
 
 export async function replaceObservationSeries(
@@ -466,7 +486,7 @@ export async function replaceObservationSeries(
   await tx.insert(observationSeriesBatch).values({
     uploadBatchId,
     indicatorId,
-    trendValues: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom, periodFilter),
+    trend: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom, periodFilter),
     version: OBSERVATION_SERIES_VERSION,
   });
 }

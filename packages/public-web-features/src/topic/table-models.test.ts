@@ -9,7 +9,7 @@ const observation = (year: number, value: number): IndicatorObservation => ({
   toDate: `${year}-12-31`,
   value,
   count: value * 10,
-  denominator: null,
+  denominator: 1000,
   dimensions: [],
   notes: [],
   lowerCi95: value - 1,
@@ -23,6 +23,7 @@ const entry = {
     name: 'Indicator',
     slug: 'indicator',
     unit: '%',
+    valueType: 'Proportion',
     yearType: null,
     polarity: 'lower-is-better',
     comparatorMethod: 'Confidence intervals overlapping reference value',
@@ -76,7 +77,7 @@ it('preserves table values, trends, missing values and older England benchmarks 
   if (!local) throw new Error('Expected a local area');
   local.observations = local.observations.slice(0, 2);
   local.observations.push({ ...observation(2017, 0), value: null });
-  const compact = { ...source, ...tableSummary(source.areaData, 'latest') };
+  const compact = { ...source, ...tableSummary(source.areaData, 'latest', source.detail) };
   expect(compact.areaData[0]?.observations.length).toBeLessThan(
     source.areaData[0]?.observations.length ?? 0,
   );
@@ -102,7 +103,7 @@ it('elects the same series when trimming would make two histories the same lengt
     }));
     area.observations = [...short, ...long];
   }
-  const compact = { ...source, ...tableSummary(source.areaData, 'latest') };
+  const compact = { ...source, ...tableSummary(source.areaData, 'latest', source.detail) };
   expect(topicDataTableModel([compact], 'diabetes')).toEqual(
     topicDataTableModel([source], 'diabetes'),
   );
@@ -117,7 +118,7 @@ it('serialises calculated table cells and trends without observation histories',
   expect(cell).toMatchObject({
     value: 18,
     count: 180,
-    trend: recentTrend(entry.areaData[1]?.observations ?? [], 'lower-is-better'),
+    trend: recentTrend(entry.areaData[1]?.observations ?? [], entry.detail),
   });
   expect(model.rows[0]).toMatchObject({ slug: 'indicator', subtopics: ['Care and treatment'] });
   expect(JSON.stringify(model)).not.toContain('observations');
@@ -144,7 +145,7 @@ it('preserves aggregate row choices when the winning headline contains a sex dim
       ],
     });
   }
-  const compact = { ...source, ...tableSummary(source.areaData, 'latest') };
+  const compact = { ...source, ...tableSummary(source.areaData, 'latest', source.detail) };
   expect(topicDataTableModel([compact], 'diabetes')).toEqual(
     topicDataTableModel([source], 'diabetes'),
   );
@@ -609,8 +610,13 @@ it.each([false, true])(
 );
 
 describe('trend sorts', () => {
+  // Population-sized denominators, so a steady rise is significant to Fingertips' proportions test.
   const years = (values: number[]) =>
-    values.map((value, index) => observation(2018 + index, value));
+    values.map((value, index) => ({
+      ...observation(2018 + index, value),
+      count: value * 1000,
+      denominator: 100_000,
+    }));
   const rolling = (point: IndicatorObservation) => ({
     ...point,
     fromDate: `${Number(point.fromDate.slice(0, 4)) - 2}-01-01`,

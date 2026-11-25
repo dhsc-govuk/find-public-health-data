@@ -61,7 +61,7 @@ export function topicOverviewModel(
       count: latest?.count ?? null,
       value: latest?.value ?? null,
       hasTrend: !!area && series.filter(({ value }) => value !== null).length >= 2,
-      trend: recentTrend(series, detail.polarity, cell?.trendDirection),
+      trend: recentTrend(series, detail, cell?.trendDirection),
     };
   });
 }

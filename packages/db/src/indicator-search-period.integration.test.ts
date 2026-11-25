@@ -48,10 +48,10 @@ beforeAll(async () => {
   await owner`
     INSERT INTO observation_series (upload_batch_id, indicator_id, area_id, dimension_key,
       sex, period_type, variants, latest_observation_id, ranking_observation_id,
-      recent_observation_ids, sparkline_observation_ids, recent_values)
+      recent_observation_ids, sparkline_observation_ids, trend)
     SELECT s.upload_batch_id, s.indicator_id, s.area_id, point.dimension_key,
       sex.name, 'all', s.variants, point.id, point.id, ARRAY[point.id], ARRAY[point.id],
-      CASE WHEN point.value IS NULL THEN '{}'::double precision[] ELSE ARRAY[point.value] END
+      s.trend
     FROM observation_series s
     JOIN indicator i ON i.id = s.indicator_id AND i.short_id = ${SEXED_ONLY}
     JOIN area a ON a.id = s.area_id AND a.code = 'E92000001'

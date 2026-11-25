@@ -5,7 +5,7 @@ import {
   observationSeriesKey,
   type TableSeriesSelection,
 } from '@fphd/utils/observation-series';
-import { recentTrendDirection } from '@fphd/utils/recent-trend';
+import { trendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { isoDurationSql } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
@@ -13,6 +13,7 @@ import type {
   IndicatorAreaData,
   IndicatorObservation,
 } from './indicator-observation-repository.ts';
+import { indicatorTrendSettings } from './indicator-trends.ts';
 import type { ViewSet } from './schema/index.ts';
 
 type Result = Map<
@@ -116,7 +117,7 @@ export async function getIndicatorSeriesData(
         recentObservationIds: series.recentObservationIds,
         sparklineObservationIds:
           mode === 'sparkline' ? series.sparklineObservationIds : sql<string[] | null>`null`,
-        recentValues: series.recentValues,
+        trend: series.trend,
       },
     })
     .from(batches)
@@ -199,7 +200,10 @@ export async function getIndicatorSeriesData(
         ),
       ]
     : [];
-  const extra = await readPoints(db, views, [...wanted], benchmarkIds, england?.id);
+  const [extra, settings] = await Promise.all([
+    readPoints(db, views, [...wanted], benchmarkIds, england?.id),
+    mode === 'ranking' ? new Map() : indicatorTrendSettings(db, views, indicatorIds),
+  ]);
   const byId = new Map(extra.map((row) => [row.id, row.point]));
   // A publication can change after the marker read and hide the selected points.
   if ([...wanted].some((id) => !byId.has(id))) return undefined;
@@ -259,6 +263,7 @@ export async function getIndicatorSeriesData(
       });
       continue;
     }
+    const trend = settings.get(indicatorId) ?? { valueType: null };
     const choices = new Map<string, TableSeriesSelection>();
     const points = new Map<string, Map<string, IndicatorObservation>>();
     const add = (id: string, point: IndicatorObservation) => {
@@ -294,8 +299,7 @@ export async function getIndicatorSeriesData(
         if (row.sex === '' && row.periodType === 'all' && entry.headlines)
           entry.headlines[a.code] = true;
         entry.segments[a.code] = observationSeriesKey(latest);
-        if (entry.trends)
-          entry.trends[a.code] = recentTrendDirection([...row.recentValues].reverse());
+        if (entry.trends) entry.trends[a.code] = trendDirection(row.trend, trend);
         add(a.id, latest);
         if (mode !== 'latest')
           for (const id of row.recentObservationIds) {

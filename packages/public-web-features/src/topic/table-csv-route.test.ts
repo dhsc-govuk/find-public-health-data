@@ -589,7 +589,11 @@ it.each([
           englandOnly(
             2,
             'With a trend',
-            [20, 21, 22, 23, 24].map((value, index) => annualObservation(2020 + index, value)),
+            [20, 21, 22, 23, 24].map((value, index) => ({
+              ...annualObservation(2020 + index, value),
+              count: value * 1000,
+              denominator: 100_000,
+            })),
           ),
         ],
         benchmarkGeography: { regionByCode: {}, levelByCode: {} },

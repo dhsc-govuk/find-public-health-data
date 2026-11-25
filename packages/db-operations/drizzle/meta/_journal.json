@@ -771,6 +771,13 @@
       "when": 1795790770908,
       "tag": "0109_indicator-published-groupings",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1795796915020,
+      "tag": "0110_fingertips-recent-trend",
+      "breakpoints": true
     }
   ]
 }

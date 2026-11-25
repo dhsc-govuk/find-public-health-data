@@ -57,6 +57,7 @@ export {
   cumulativePeriodsFor,
   observationPeriodSql,
   periodLengthSql,
+  trendSummarySql,
 } from './observation-series-sql.ts';
 export {
   type AreaRepository,

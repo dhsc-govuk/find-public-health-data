@@ -4,6 +4,7 @@ import {
   observationPeriodType,
   periodTypeLength,
   seriesPeriodTypes,
+  seriesTrend,
 } from '@fphd/utils/observation-series';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,7 +13,7 @@ import { replaceObservationSeries } from '../../internal-read-models/src/observa
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { searchIndicators } from './indicator-repository.ts';
-import { indicatorTrendDirections } from './indicator-trends.ts';
+import { indicatorTrendDirections, indicatorTrendSummaries } from './indicator-trends.ts';
 import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import {
   area,
@@ -31,6 +32,7 @@ import {
   SYSTEM_USER_IDS,
   topic,
   uploadBatch,
+  valueType,
 } from './schema/index.ts';
 import { apiLogin, createTestDb, type TestDb } from './testing.ts';
 import { getTopicTrendSummary } from './topic-repository.ts';
@@ -43,10 +45,17 @@ let publicDb: Database;
 let englandId: string;
 let westSussexId: string;
 let cornwallId: string;
+let proportionId: string;
 let dimensions: (typeof dimensionValue.$inferSelect)[];
 
 beforeAll(async () => {
   database = await createTestDb();
+  const [proportion] = await database.db
+    .select()
+    .from(valueType)
+    .where(eq(valueType.name, 'Proportion'));
+  if (!proportion) throw new Error('Value type fixture missing');
+  proportionId = proportion.id;
   publicDb = database.connectDb({ login: apiLogin('public_api') });
   const [type] = await database.db
     .insert(areaType)
@@ -106,6 +115,7 @@ async function publishedIndicator(
       name,
       slug: name.toLowerCase().replaceAll(' ', '-'),
       polarity,
+      valueTypeId: proportionId,
       status: 'published',
       publishedAt: new Date('2026-01-01T00:00:00Z'),
       createdBy: SYSTEM_USER_IDS.pholioMigration,
@@ -148,6 +158,10 @@ async function addSeries(
         fromDate: `${2021 - values.length + index - years}-01-01`,
         toDate: `${2020 - values.length + index}-12-31`,
         value,
+        count: value === null ? null : value * 100,
+        denominator: 10000,
+        lowerCi95: value === null ? null : value - 0.5,
+        upperCi95: value === null ? null : value + 0.5,
         dimensionKey: dimensionKey(seriesDimensions.map(({ id }) => id)),
         uploadBatchId: fixture.batchId,
       })),
@@ -165,6 +179,23 @@ async function addSeries(
     );
   }
 }
+
+it('leaves a 94184-style proportion with values and CIs but no counts or denominators uncalculated', async () => {
+  const fixture = await publishedIndicator('Fingertips 94184 style');
+  await addSeries(fixture, englandId, [10, 12, 14, 16, 18]);
+  const rows = await database.db
+    .update(observation)
+    .set({ count: null, denominator: null })
+    .where(eq(observation.indicatorId, fixture.id))
+    .returning();
+  expect(rows).toHaveLength(5);
+  expect(
+    rows.every((row) => row.value !== null && row.lowerCi95 !== null && row.upperCi95 !== null),
+  ).toBe(true);
+  expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
+    new Map([[fixture.id, null]]),
+  );
+});
 
 it.each([0, 1])(
   'prefers a series with %i dimensions over a longer, more disaggregated series as public_api',
@@ -217,11 +248,21 @@ it('prefers the widest age over a band in it with more points', async () => {
 it("works out the trend of the same series choice for another area, ignoring England's cache", async () => {
   const fixture = await publishedIndicator('Area trend fixture');
   await addSeries(fixture, englandId, [1, 2, 3, 4, 5]);
-  // England's cached values run newest first, so these make a falling England trend.
+  // England's cached summary describes a falling trend.
   await database.db.insert(observationSeriesBatch).values({
     uploadBatchId: fixture.batchId,
     indicatorId: fixture.id,
-    trendValues: [1, 2, 3, 4, 5],
+    trend: seriesTrend(
+      [5, 4, 3, 2, 1].map((value, index) => ({
+        fromDate: `${2015 + index}-01-01`,
+        toDate: `${2015 + index}-12-31`,
+        value,
+        count: value * 100,
+        denominator: 10000,
+        lowerCi95: value - 0.5,
+        upperCi95: value + 0.5,
+      })),
+    ),
     version: OBSERVATION_SERIES_VERSION,
   });
   await addSeries(fixture, westSussexId, [1, 2, 3, 4, 5]);
@@ -346,12 +387,25 @@ it('keeps cumulative trends unavailable in topic counts and search with missing,
         .select()
         .from(observationSeriesBatch)
         .where(eq(observationSeriesBatch.indicatorId, cumulative.id));
-      expect.soft(batch?.trendValues).toEqual([]);
+      expect.soft(batch?.trend?.annual).toBe(false);
     }
     if (cache === 'version-8')
       await database.db
         .update(observationSeriesBatch)
-        .set({ version: 8, trendValues: [5, 4, 3, 2, 1] })
+        .set({
+          version: 8,
+          trend: seriesTrend(
+            [5, 4, 3, 2, 1].map((value, index) => ({
+              fromDate: `${2015 + index}-01-01`,
+              toDate: `${2015 + index}-12-31`,
+              value,
+              count: value * 100,
+              denominator: 10000,
+              lowerCi95: value - 0.5,
+              upperCi95: value + 0.5,
+            })),
+          ),
+        })
         .where(eq(observationSeriesBatch.indicatorId, cumulative.id));
 
     for (const code of ['E92000001', WEST_SUSSEX]) {
@@ -400,7 +454,7 @@ it('keeps cumulative trends unavailable in topic counts and search with missing,
 it('counts suppressed points before period length for England and local trends', async () => {
   const fixture = await publishedIndicator('Period length trend tie');
   for (const areaId of [englandId, westSussexId]) {
-    await addSeries(fixture, areaId, [1, 2, 3, 4, 5, null]);
+    await addSeries(fixture, areaId, [null, 1, 2, 3, 4, 5]);
     await addSeries(fixture, areaId, [5, 4, 3, 2, 1], [], 7);
   }
   for (const code of ['E92000001', WEST_SUSSEX])
@@ -409,7 +463,7 @@ it('counts suppressed points before period length for England and local trends',
     );
 });
 
-it('breaks equal point counts by period length for England and local trends', async () => {
+it('elects multi-year periods on equal row counts and leaves their trend uncalculated', async () => {
   const fixture = await publishedIndicator('Equal point count period length tie');
   for (const areaId of [englandId, westSussexId]) {
     await addSeries(fixture, areaId, [1, 2, 3, 4, 5]);
@@ -417,7 +471,7 @@ it('breaks equal point counts by period length for England and local trends', as
   }
   for (const code of ['E92000001', WEST_SUSSEX])
     expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
-      new Map([[fixture.id, 'down']]),
+      new Map([[fixture.id, null]]),
     );
 });
 
@@ -507,13 +561,25 @@ it('keeps quarterly trend histories together across 90, 91 and 92 day spans', as
         fromDate,
         toDate,
         value: index + 1,
+        count: (index + 1) * 100,
+        denominator: 10000,
+        lowerCi95: index + 0.5,
+        upperCi95: index + 1.5,
       })),
     ),
   );
-  for (const code of ['E92000001', WEST_SUSSEX])
+  for (const code of ['E92000001', WEST_SUSSEX]) {
+    const summary = (
+      await indicatorTrendSummaries(publicDb, publishedViews, [fixture.id], code)
+    ).get(fixture.id);
+    // Quarters follow on from each other, but a run needs periods a year apart.
+    expect(summary).toMatchObject({ annual: false, run: 1 });
+    expect(summary?.points.map(({ value }) => value)).toEqual([5]);
+    // Fingertips calculates no recent trend for periods shorter than a year.
     expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
-      new Map([[fixture.id, 'up']]),
+      new Map([[fixture.id, null]]),
     );
+  }
 });
 
 it.each([
@@ -535,6 +601,10 @@ it.each([
           fromDate: `${2050 + index}-${String(month).padStart(2, '0')}-15`,
           toDate,
           value: index + 1,
+          count: (index + 1) * 100,
+          denominator: 10000,
+          lowerCi95: index + 0.5,
+          upperCi95: index + 1.5,
           dimensions: [],
         },
         {
@@ -543,6 +613,10 @@ it.each([
             .slice(0, 10),
           toDate,
           value: 5 - index,
+          count: (5 - index) * 100,
+          denominator: 10000,
+          lowerCi95: 4.5 - index,
+          upperCi95: 5.5 - index,
           dimensions: [],
         },
       ];
@@ -559,8 +633,13 @@ it.each([
         dimensionKey: '',
       })),
     );
+    // The latest point of the summary is the latest of the series the tie elects.
+    const summary = (await indicatorTrendSummaries(publicDb, publishedViews, [fixture.id])).get(
+      fixture.id,
+    );
+    expect(summary?.points.at(-1)?.value).toBe(trend === 'up' ? 5 : 1);
     expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
-      new Map([[fixture.id, trend]]),
+      new Map([[fixture.id, null]]),
     );
   },
 );

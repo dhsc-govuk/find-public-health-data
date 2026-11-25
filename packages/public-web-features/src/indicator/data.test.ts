@@ -60,7 +60,7 @@ describe('recentTrend', () => {
       expect(
         recentTrend(
           [obs({ fromDate: '2020-01-01', toDate: '2022-12-31' })],
-          'higher-is-better',
+          { polarity: 'higher-is-better', valueType: 'Proportion' },
           precomputed,
         ),
       ).toEqual({
@@ -79,13 +79,19 @@ describe('recentTrend', () => {
     'keeps partial multi-year spans out of annual trends for periods ending %s',
     (toDate, label) => {
       expect(
-        recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
+        recentTrend(
+          [obs({ fromDate: '2020-01-01', toDate })],
+          { polarity: 'higher-is-better', valueType: 'Proportion' },
+          'up',
+        ).label,
       ).toBe(label);
     },
   );
 
   it('explains when there are too few valid annual observations', () => {
-    expect(recentTrend([obs(), obs({ value: null })], null)).toEqual({
+    expect(
+      recentTrend([obs(), obs({ value: null })], { polarity: null, valueType: 'Proportion' }),
+    ).toEqual({
       direction: null,
       label: 'Trend unavailable',
       tone: 'grey',
@@ -754,7 +760,9 @@ it.each([3, 5, 7])('labels and guards %i year rolling periods', (years) => {
   const point = obs({ fromDate: `${2025 - years}-09-01`, toDate: '2025-08-31' });
   expect(availablePeriodTypes([point])).toEqual([`${years}-year`]);
   expect(periodTypeLabel(`${years}-year`)).toBe(`${years} year rolling average`);
-  expect(recentTrend([point], 'higher-is-better', 'up')).toMatchObject({
+  expect(
+    recentTrend([point], { polarity: 'higher-is-better', valueType: 'Proportion' }, 'up'),
+  ).toMatchObject({
     direction: null,
     reason: 'multi-year periods',
   });
@@ -919,7 +927,7 @@ it('offers the current cumulative series without annual or duration-based altern
   expect(periodCovered(observations, publicYearType('financial', null))).toBe(
     '2022/23 Q1 - 2026/27 Q1',
   );
-  expect(recentTrend(filtered, null)).toMatchObject({
+  expect(recentTrend(filtered, { polarity: null, valueType: 'Proportion' })).toMatchObject({
     direction: null,
     reason: 'cumulative periods',
   });

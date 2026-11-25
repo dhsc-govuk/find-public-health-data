@@ -5,10 +5,12 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
+import type { TrendSettings } from '@fphd/utils/recent-trend';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { isoDurationSql } from './age-span-sql.ts';
 import type { DatabaseReader } from './client.ts';
+import { indicatorTrendSettings } from './indicator-trends.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export interface ObservationDimensionValue {
@@ -179,6 +181,11 @@ export async function getIndicatorObservationData(
     byArea.set(areaCode, observations);
     byIndicator.set(indicatorId, byArea);
   }
+  const summarised =
+    projection === 'table' || projection === 'summary' || projection === 'sparkline';
+  const settings = summarised
+    ? await indicatorTrendSettings(db, views, indicatorIds)
+    : new Map<string, TrendSettings>();
   const entries = indicatorIds.map((id) => {
     const areaData = areaCodes.flatMap((areaCode) => {
       const areaName = names.get(areaCode);
@@ -188,7 +195,7 @@ export async function getIndicatorObservationData(
     });
     return {
       id,
-      ...(projection === 'table' || projection === 'summary' || projection === 'sparkline'
+      ...(summarised
         ? tableSummary(
             tableAreaSeries(areaData),
             projection === 'summary'
@@ -196,6 +203,7 @@ export async function getIndicatorObservationData(
               : projection === 'sparkline'
                 ? 'sparkline'
                 : 'recent',
+            settings.get(id) ?? { valueType: null },
           )
         : { areaData: projection === 'ranking' ? rankingAreaSeries(areaData) : areaData }),
     };
