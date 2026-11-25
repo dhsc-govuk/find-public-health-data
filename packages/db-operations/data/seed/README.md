@@ -40,14 +40,14 @@ Public reads hide that row, exercising start-date filtering without changing the
 stored total is 433,532 observations.
 
 `indicator_grouping.csv.gz` supplies published selector fixtures for 108, 92443 and 93622, refreshed
-by `export/refresh-indicator-groupings.py` from Fingertips' `grouproot_summaries/by_indicator_id` API.
-Mortality (108) publishes Persons, Female and Male at <75 for single-year and three-year periods.
-Smoking (92443) publishes Persons at 18+ for both periods; mental health contacts (93622) publishes
-Persons at all ages and <18 for single-year periods. The refresh maps Fingertips sex/age ids and
-labels onto the seed's reference rows, preserving Persons and All ages as absent dimensions, and
-deduplicates tuples across profiles. It stops on missing indicators, unmapped references or periods
-other than annual. The Pholio exporter writes complete grouping tuples for each imported indicator;
-the legacy clone has no grouping table, so its seed needs this refresh after rekeying.
+by `export/refresh-indicator-groupings.py` from Fingertips' `grouproot_summaries/by_indicator_id`
+API. Mortality (108) publishes Persons, Female and Male at <75 for single-year and three-year
+periods. Smoking (92443) publishes Persons at 18+ for both periods; mental health contacts (93622)
+publishes Persons at all ages and <18 for single-year periods. The refresh maps Fingertips sex/age
+ids and labels onto the seed's reference rows, preserving Persons and All ages as absent dimensions,
+and deduplicates tuples across profiles. It stops on missing indicators, unmapped references or
+periods other than annual. The Pholio exporter writes complete grouping tuples for each imported
+indicator; the legacy clone has no grouping table, so its seed needs this refresh after rekeying.
 
 ## Semantics worth knowing
 
@@ -231,8 +231,8 @@ python3 export/import-prototype-indicators.py \
 ```
 
 Validate the staging output before copying its nine `.csv.gz` files into this directory, then run
-`python3 export/refresh-indicator-groupings.py .` and `python3 export/drop-england-values.py .`:
-air pollution (93861) is seeded without its England values, so the e2e suite covers an indicator
-page with no England value. Then run
-`pnpm db:seed-dummy-data` — it imports the indicator relationships and rebuilds the read models in
-the same command — to prove the committed files reproduce the local database.
+`python3 export/refresh-indicator-groupings.py .` and `python3 export/drop-england-values.py .`: air
+pollution (93861) is seeded without its England values, so the e2e suite covers an indicator page
+with no England value. Then run `pnpm db:seed-dummy-data` — it imports the indicator relationships
+and rebuilds the read models in the same command — to prove the committed files reproduce the local
+database.
