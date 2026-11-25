@@ -197,6 +197,43 @@ it('leaves a 94184-style proportion with values and CIs but no counts or denomin
   );
 });
 
+it('uses counts for indirectly standardised proportions in cached and live trends', async () => {
+  const fixture = await publishedIndicator('Indirectly standardised proportion trend');
+  const [type] = await database.db
+    .select()
+    .from(valueType)
+    .where(eq(valueType.name, 'Indirectly standardised proportion'));
+  if (!type) throw new Error('Value type fixture missing');
+  await database.db
+    .update(indicatorVersion)
+    .set({ valueTypeId: type.id })
+    .where(eq(indicatorVersion.id, fixture.versionId));
+  for (const areaId of [englandId, westSussexId])
+    await addSeries(fixture, areaId, [10, 12, 14, 16, 18]);
+  const rows = await database.db
+    .update(observation)
+    .set({ lowerCi95: 0, upperCi95: 1e6 })
+    .where(eq(observation.indicatorId, fixture.id))
+    .returning();
+  for (const code of ['E92000001', WEST_SUSSEX])
+    expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code)).toEqual(
+      new Map([[fixture.id, 'up']]),
+    );
+  await database.db.insert(observationSeriesBatch).values({
+    uploadBatchId: fixture.batchId,
+    indicatorId: fixture.id,
+    trend: seriesTrend(
+      rows
+        .filter((row) => row.areaId === englandId)
+        .sort((a, b) => a.fromDate.localeCompare(b.fromDate)),
+    ),
+    version: OBSERVATION_SERIES_VERSION,
+  });
+  expect(await indicatorTrendDirections(publicDb, publishedViews, [fixture.id])).toEqual(
+    new Map([[fixture.id, 'up']]),
+  );
+});
+
 it.each([0, 1])(
   'prefers a series with %i dimensions over a longer, more disaggregated series as public_api',
   async (dimensionCount) => {

@@ -94,7 +94,9 @@ export function trendDirection(
   if (!summary?.annual || summary.run < TREND_POINTS || summary.runHasCountEqualToDenominator)
     return null;
   const { significant, slope } =
-    valueType === 'Proportion' ? proportionsTest(summary.points) : intervalsTest(summary.points);
+    valueType === 'Proportion' || valueType === 'Indirectly standardised proportion'
+      ? proportionsTest(summary.points)
+      : intervalsTest(summary.points);
   if (!significant || !Number.isFinite(slope)) return 'right';
   return slope > 0 ? 'up' : 'down';
 }

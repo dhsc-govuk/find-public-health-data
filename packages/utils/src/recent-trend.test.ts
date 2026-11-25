@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   summariseTrend,
+  type TrendDirection,
   type TrendObservation,
   type TrendSettings,
   trendDirection,
@@ -136,6 +137,45 @@ describe('agrees with Fingertips', () => {
       ],
     ]);
     expect(direction(influenza, { valueType: 'Directly standardised rate' })).toBe('up');
+  });
+
+  it.each<{ area: string; trend: TrendDirection; data: Row[] }>([
+    {
+      area: 'Darlington (E06000005)',
+      trend: 'down',
+      data: [
+        ['2020-04-01', '2021-03-31', 14.8, 1570, 10565, 14.1, 15.6],
+        ['2021-04-01', '2022-03-31', 15, 2505, 16595, 14.4, 15.6],
+        ['2022-04-01', '2023-03-31', 14.9, 2385, 16175, 14.3, 15.5],
+        ['2023-04-01', '2024-03-31', 15, 2595, 17640, 14.4, 15.6],
+        ['2024-04-01', '2025-03-31', 13.2, 1980, 15045, 12.7, 13.8],
+      ],
+    },
+    {
+      area: 'Cheshire West and Chester (E06000050)',
+      trend: 'up',
+      data: [
+        ['2020-04-01', '2021-03-31', 14.4, 4820, 33490, 14, 14.8],
+        ['2021-04-01', '2022-03-31', 13.5, 5575, 43240, 13.1, 13.8],
+        ['2022-04-01', '2023-03-31', 13.9, 5245, 37990, 13.5, 14.3],
+        ['2023-04-01', '2024-03-31', 14.5, 5910, 41065, 14.1, 14.9],
+        ['2024-04-01', '2025-03-31', 14.5, 6155, 42215, 14.1, 14.9],
+      ],
+    },
+    {
+      area: 'Telford and Wrekin (E06000020)',
+      trend: 'right',
+      data: [
+        ['2020-04-01', '2021-03-31', 14.4, 2245, 15370, 13.8, 15],
+        ['2021-04-01', '2022-03-31', 12.8, 2510, 19165, 12.3, 13.3],
+        ['2022-04-01', '2023-03-31', 13.1, 2630, 19490, 12.6, 13.7],
+        ['2023-04-01', '2024-03-31', 14.7, 3230, 21635, 14.2, 15.3],
+        ['2024-04-01', '2025-03-31', 14.5, 3530, 24455, 14.1, 15],
+      ],
+    },
+  ])('tests indirectly standardised proportions on counts for $area', ({ data, trend }) => {
+    // Indicator 41101's published trends differ from the interval test for these areas.
+    expect(direction(rows(data), { valueType: 'Indirectly standardised proportion' })).toBe(trend);
   });
 
   it('cannot calculate across a missing year', () => {
