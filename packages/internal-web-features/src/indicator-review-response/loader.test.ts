@@ -484,19 +484,25 @@ describe('the response pages', () => {
     });
   });
 
-  it('check the revisions before sending them', async () => {
-    const api = createFakeApiClient();
-    const { outcome } = await run(
-      sendRevisions,
-      api,
-      post(`${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`, [['flags', 'polarity']]),
-    );
+  it.each([
+    ['a new indicator', 'new', 'Enter the revisions advised for polarity'],
+    ['an update', 'live', 'Enter the revisions needed for polarity'],
+  ] as const)(
+    'check the revisions of %s before sending them',
+    async (_, indicatorStatus, message) => {
+      const api = reading({ ...inReview, indicatorStatus });
+      const { outcome } = await run(
+        sendRevisions,
+        api,
+        post(`${REVIEW}/revisions?submission=2&kind=pre_imrg_feedback`, [['flags', 'polarity']]),
+      );
 
-    expect(outcome).toMatchObject({
-      fieldErrors: { 'flags.polarity': 'Enter the revisions advised for polarity' },
-    });
-    expect(api.calls).toEqual([]);
-  });
+      expect(outcome).toMatchObject({
+        fieldErrors: { 'flags.polarity': message },
+      });
+      expect(api.calls.map(({ method }) => method)).toEqual(['GET']);
+    },
+  );
 
   const revisions = post(
     `${REVIEW}/revisions?submission=2&kind=minor_revisions&reviewedOn=2026-10-29`,

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  checkReviewResponse,
   imrgReviewDateSchemaFor,
   reviewApprovalSchema,
   reviewResponseBodySchema,
@@ -182,7 +183,7 @@ describe('reviewResponseBodySchema', () => {
 });
 
 describe('reviewResponseSchemaFor', () => {
-  const schema = reviewResponseSchemaFor(NOW);
+  const schema = reviewResponseSchemaFor(NOW, false);
 
   it('trims the text it answers', () => {
     expect(
@@ -260,11 +261,42 @@ describe('reviewResponseSchemaFor', () => {
     ).toEqual({ 'flags.calculation': message });
   });
 
+  it("asks for the notes of an update's flag without any as the revisions needed", () => {
+    expect(
+      issues(
+        reviewResponseSchemaFor(NOW, true).safeParse({
+          ...feedback,
+          flags: [{ task: 'update-summary', notes: ' ' }],
+        }),
+      ),
+    ).toEqual({ 'flags.update-summary': 'Enter the revisions needed for update summary' });
+  });
+
   it('limits the notes as a textarea is limited', () => {
     expect(
       issues(
         schema.safeParse({ ...decision, flags: [{ task: 'name', notes: 'x'.repeat(10_001) }] }),
       ),
     ).toEqual({ 'flags.name': 'Revisions for name must be 10,000 characters or fewer' });
+  });
+});
+
+describe('checkReviewResponse', () => {
+  const empty = { ...feedback, flags: [{ task: 'polarity', notes: '' }] };
+
+  it('answers a valid response without reading whether the draft is an update', async () => {
+    const isUpdate = vi.fn();
+
+    expect((await checkReviewResponse(feedback, NOW, isUpdate)).success).toBe(true);
+    expect(isUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a new indicator', false, 'Enter the revisions advised for polarity'],
+    ['an update', true, 'Enter the revisions needed for polarity'],
+  ])('words a refusal for %s', async (_, isUpdate, message) => {
+    expect(issues(await checkReviewResponse(empty, NOW, async () => isUpdate))).toEqual({
+      'flags.polarity': message,
+    });
   });
 });

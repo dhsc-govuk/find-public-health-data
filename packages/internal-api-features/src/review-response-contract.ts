@@ -240,13 +240,14 @@ function isDecision(kind: z.infer<typeof reviewResponseKindSchema>): boolean {
  * revisions need a flagged task or a clarification request, and each flag needs notes. Text is
  * trimmed. The repository says, under the draft's lock, whether the date is before the version's
  * first submission, and whether the draft is an update, whose approval has no date, or a new
- * indicator, whose approval needs one.
+ * indicator, whose approval needs one. `isUpdate` changes only the message for a flag without
+ * notes, which says "needed" for an update and "advised" for feedback on a new indicator.
  */
-export function reviewResponseSchemaFor(now: Date) {
+export function reviewResponseSchemaFor(now: Date, isUpdate: boolean) {
   return reviewResponseBodySchema.transform((body, ctx) => {
     const issue = (path: ReviewResponseField, message: string) =>
       ctx.addIssue({ code: 'custom', path: [path], message });
-    const advised = body.kind === 'pre_imrg_feedback';
+    const advised = body.kind === 'pre_imrg_feedback' && !isUpdate;
 
     if (isDecision(body.kind) && !(body.kind === 'approved' && body.imrgReviewedOn === null)) {
       const date = body.imrgReviewedOn === null ? undefined : parseIsoDate(body.imrgReviewedOn);
@@ -286,6 +287,23 @@ export function reviewResponseSchemaFor(now: Date) {
       flags,
     };
   });
+}
+
+/**
+ * Checks a reviewer's response where the draft has not been read. `isUpdate` reads whether the
+ * draft is an update. It is called only when the response is refused, to choose the wording of the
+ * messages.
+ */
+export async function checkReviewResponse(
+  response: unknown,
+  now: Date,
+  isUpdate: () => Promise<boolean>,
+) {
+  const checked = reviewResponseSchemaFor(now, false).safeParse(response);
+
+  return checked.success
+    ? checked
+    : reviewResponseSchemaFor(now, await isUpdate()).safeParse(response);
 }
 
 export const reviewResponseFieldErrorsSchema = z.partialRecord(

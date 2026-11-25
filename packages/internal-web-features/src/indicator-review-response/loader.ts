@@ -2,6 +2,7 @@
 
 import { canReviewIndicators } from '@fphd/auth/permissions';
 import {
+  checkReviewResponse,
   type IndicatorAdminDetail,
   imrgReviewDateSchemaFor,
   indicatorAdminDetailSchema,
@@ -10,7 +11,6 @@ import {
   reviewApprovalSchema,
   reviewedBeforeSubmissionMessage,
   reviewResponseFieldSchema,
-  reviewResponseSchemaFor,
   reviewResponseTypeSchema,
   toFieldErrors,
   updateApprovalSchema,
@@ -386,7 +386,11 @@ export async function sendRevisions({
   const journey = requireJourney(request, id, isRevisionsJourney);
   const values = readRevisions(await request.formData());
   const body = revisionsBody(journey, values);
-  const checked = reviewResponseSchemaFor(new Date()).safeParse(body);
+  const checked = await checkReviewResponse(
+    body,
+    new Date(),
+    async () => (await fetchIndicator(context, id)).indicatorStatus === 'live',
+  );
 
   if (!checked.success) {
     return { values, fieldErrors: toFieldErrors(checked.error, reviewResponseFieldSchema) };

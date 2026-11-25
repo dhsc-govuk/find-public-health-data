@@ -133,18 +133,25 @@ describe('POST /api/internal/indicators/:id/update-decision', () => {
     );
   });
 
-  it('names the field of a request for revisions that asks for nothing', async () => {
+  it.each([
+    ['asks for nothing', [], { flags: 'Select what needs to be revised or clarified' }],
+    [
+      'leaves a flag empty',
+      [{ task: 'update-summary', notes: '' }],
+      { 'flags.update-summary': 'Enter the revisions needed for update summary' },
+    ],
+  ])('names the field of a request for revisions that %s', async (_, flags, fieldErrors) => {
     const decideUpdate = vi.fn();
 
     const response = await request(createTestApp({ decideUpdate }))
       .post(PATH)
       .set('Cookie', await adminCookie())
-      .send({ ...revisions, flags: [] });
+      .send({ ...revisions, flags });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       error: 'validation_failed',
-      fieldErrors: { flags: 'Select what needs to be revised or clarified' },
+      fieldErrors,
     });
     expect(decideUpdate).not.toHaveBeenCalled();
   });
