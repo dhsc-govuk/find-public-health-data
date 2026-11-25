@@ -117,10 +117,10 @@ function addedTopics(
 }
 
 /**
- * The topic question: a select and its Add button. Choosing a topic with subtopics asks for one
- * of them instead, in a select whose button adds the two together. In the browser the subtopic
- * select follows the topic as it is chosen. Without JavaScript, Add topic sends the form back
- * to ask for the subtopic, so it stays beside the topic select.
+ * The topic question: a select with its Add button below it. Choosing a topic with subtopics asks
+ * for one of them instead, in a select whose button adds the two together. In the browser the
+ * subtopic select follows the topic as it is chosen. Without JavaScript, Add topic sends the form
+ * back to ask for the subtopic, so it stays under the topic select.
  */
 function TopicPicker({
   options,
@@ -141,7 +141,7 @@ function TopicPicker({
 
   return (
     <div className="govuk-!-margin-bottom-6">
-      <div className="fphd-field-row fphd-field-row--with-button">
+      <div className="fphd-field-row fphd-field-row--with-button fphd-field-row--button-below">
         <Select
           defaultValue={values.addTopic}
           // A topic without the subtopic it needs is refused on the topic question.
@@ -159,7 +159,7 @@ function TopicPicker({
         )}
       </div>
       {chosen === undefined || subtopics.length === 0 ? null : (
-        <div className="fphd-field-row fphd-field-row--with-button govuk-!-margin-top-3">
+        <div className="fphd-field-row fphd-field-row--with-button fphd-field-row--button-below govuk-!-margin-top-3">
           <Select
             defaultValue={chosen.id === values.addTopic ? values.addSubtopic : ''}
             // The refusal was for the topic sent, not one chosen since.
@@ -184,8 +184,8 @@ function TopicPicker({
 }
 
 /**
- * One list of tags: a select and its Add button, then the tags added so far, each carried in
- * a hidden field until Continue saves it. A tag the page no longer offers is left out.
+ * One list of tags: a select with its Add button below it, then the tags added so far, each
+ * carried in a hidden field until Continue saves it. A tag the page no longer offers is left out.
  */
 function TagPicker({
   list,
@@ -206,8 +206,8 @@ function TagPicker({
 
   return (
     <div className="govuk-!-margin-bottom-6">
-      {/* The select and its Add button side by side, as one control. */}
-      <div className="fphd-field-row fphd-field-row--with-button">
+      {/* The select with its Add button below it, as one control. */}
+      <div className="fphd-field-row fphd-field-row--with-button fphd-field-row--button-below">
         <Select
           // A list refused as a whole is shown on the select that adds to it.
           defaultValue={values[field]}
