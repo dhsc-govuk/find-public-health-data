@@ -71,8 +71,8 @@ export function trendSummarySql(points: {
   periodType: SQLWrapper;
 }) {
   return sql<TrendSummary>`(SELECT jsonb_build_object(
-    'annual', bool_and(${points.periodType} IN ('1-year', '1-day')),
-    'run', max(r.run),
+    'annual', coalesce(bool_and(${points.periodType} IN ('1-year', '1-day')), true),
+    'run', coalesce(max(r.run), 0),
     'runHasCountEqualToDenominator',
       coalesce(bool_or(r.count = r.denominator) FILTER (WHERE r.n <= r.run), false),
     'points', coalesce(jsonb_agg(jsonb_build_object('value', r.value, 'count', r.count,

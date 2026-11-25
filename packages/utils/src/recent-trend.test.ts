@@ -264,6 +264,14 @@ describe('proportions test', () => {
   const counts = (values: number[], intervals: Partial<TrendObservation> = {}) =>
     years(values, 2019, (count) => ({ count, denominator: 1000, ...intervals }));
 
+  it.each([0, 1100])('reports no change when count %i makes the logit slope undefined', (count) => {
+    for (let index = 0; index < 5; index++) {
+      const values = [100, 120, 140, 160, 180];
+      values[index] = count;
+      expect(direction(counts(values), proportion)).toBe('right');
+    }
+  });
+
   it('tests counts against denominators whatever the intervals say', () => {
     const wide = counts([100, 120, 140, 160, 180], { lowerCi95: 0, upperCi95: 1e6 });
     expect(direction(wide)).toBe('right');

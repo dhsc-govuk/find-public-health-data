@@ -95,7 +95,7 @@ export function trendDirection(
     return null;
   const { significant, slope } =
     valueType === 'Proportion' ? proportionsTest(summary.points) : intervalsTest(summary.points);
-  if (!significant) return 'right';
+  if (!significant || !Number.isFinite(slope)) return 'right';
   return slope > 0 ? 'up' : 'down';
 }
 

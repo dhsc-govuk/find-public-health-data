@@ -2,12 +2,17 @@ import {
   observationPeriodType,
   observationSegmentKey,
   periodTypeLength,
+  seriesTrend,
 } from '@fphd/utils/observation-series';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { dimensionKeyOrder } from './headline-order.ts';
-import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
-import { dimensionType, dimensionValue } from './schema/index.ts';
+import {
+  observationPeriodSql,
+  periodLengthSql,
+  trendSummarySql,
+} from './observation-series-sql.ts';
+import { dimensionType, dimensionValue, observation } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
 let database: TestDb;
@@ -77,4 +82,18 @@ it('matches cumulative period identities and lengths in JavaScript at every quar
     expect(row?.type).toBe(observationPeriodType(point));
     expect(Number(row?.length)).toBe(periodTypeLength(point.periodType));
   }
+});
+
+it('summarises an empty group like an empty history', async () => {
+  const [row] = await database.db
+    .select({
+      trend: trendSummarySql({
+        ...observation,
+        periodType: observationPeriodSql(observation.fromDate, observation.toDate),
+      }),
+    })
+    .from(observation)
+    .where(sql`false`);
+
+  expect(row?.trend).toEqual(seriesTrend([]));
 });
