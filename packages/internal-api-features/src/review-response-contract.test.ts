@@ -245,9 +245,9 @@ describe('reviewResponseSchemaFor', () => {
     ).toBe(true);
   });
 
-  it('asks what the clarification is about when it is asked for but empty', () => {
+  it('asks for the comments or clarification requests when they are ticked but empty', () => {
     expect(issues(schema.safeParse({ ...feedback, clarificationRequest: '  ' }))).toEqual({
-      clarificationRequest: 'Enter what you are requesting clarification about',
+      clarificationRequest: 'Enter high-level comments or clarification requests',
     });
   });
 

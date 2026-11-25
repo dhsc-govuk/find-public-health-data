@@ -43,7 +43,7 @@ const ENTER_IMRG_DATE = 'Enter the date this indicator was reviewed by IMRG';
 const REAL_IMRG_DATE = `${IMRG_DATE} must be a real date`;
 const PAST_IMRG_DATE = `${IMRG_DATE} must be today or in the past`;
 export const SELECT_REVISIONS = 'Select what needs to be revised or clarified';
-const ENTER_CLARIFICATION = 'Enter what you are requesting clarification about';
+const ENTER_CLARIFICATION = 'Enter high-level comments or clarification requests';
 
 const ukDateFormat = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',

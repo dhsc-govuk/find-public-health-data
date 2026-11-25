@@ -255,7 +255,10 @@ export function RevisionsPage({
   ...form
 }: ReviewPageProps<ReviewResponseField, RevisionsValues> & {
   kind: Exclude<ReviewResponseKind, 'approved'>;
-  /** Whether the draft is an update, which has an update summary to flag. */
+  /**
+   * Whether the draft is an update, which has an update summary to flag and whose revisions are
+   * worded as required whoever asks for them.
+   */
   isUpdate: boolean;
 }) {
   const { fieldErrors, values } = form;
@@ -266,7 +269,7 @@ export function RevisionsPage({
     ...groups.flatMap(({ tasks }) => tasks.map(({ key }) => flagNotesName(key))),
   ];
   const notesLabel =
-    kind === 'pre_imrg_feedback'
+    kind === 'pre_imrg_feedback' && !isUpdate
       ? 'Enter advised revisions or clarification request'
       : 'Enter required revisions';
 
@@ -288,12 +291,12 @@ export function RevisionsPage({
         options={[
           {
             value: 'yes',
-            label: 'High-level clarification request',
+            label: 'High-level comments or clarification requests',
             conditional: (
               <Textarea
                 defaultValue={values.clarificationRequest}
                 error={fieldErrors.clarificationRequest}
-                label="What are you requesting clarification about?"
+                label="Enter comments or requests"
                 name="clarificationRequest"
                 rows={3}
               />
