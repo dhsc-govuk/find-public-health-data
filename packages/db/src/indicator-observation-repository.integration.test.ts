@@ -4,9 +4,8 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
-import { indicatorTrendSettings } from './indicator-trends.ts';
 import { publishedViews } from './schema/index.ts';
-import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+import { apiLogin, createTestDb, publishedTrendSettings, type TestDb } from './testing.ts';
 
 const { indicator: publishedIndicator } = publishedViews;
 
@@ -29,7 +28,7 @@ afterAll(async () => {
 it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']]])(
   'keeps every table series and its England benchmarks for %j',
   async (areas) => {
-    const settings = await indicatorTrendSettings(db, publishedViews, ids);
+    const settings = await publishedTrendSettings(db, ids);
     const full = await getIndicatorObservationData(db, publishedViews, ids, areas);
     const candidates = await getIndicatorObservationData(db, publishedViews, ids, areas, 'table');
     const rankings = await getIndicatorObservationData(db, publishedViews, ids, areas, 'ranking');

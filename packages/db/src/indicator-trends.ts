@@ -1,10 +1,5 @@
 import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
-import {
-  type TrendDirection,
-  type TrendSettings,
-  type TrendSummary,
-  trendDirection,
-} from '@fphd/utils/recent-trend';
+import { type TrendDirection, type TrendSummary, trendDirection } from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
 import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
@@ -15,79 +10,84 @@ import {
 } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
-/** What each indicator's recent trend depends on beyond its data. */
-export async function indicatorTrendSettings(
-  db: DatabaseReader,
-  views: ViewSet,
-  ids: string[],
-): Promise<Map<string, TrendSettings>> {
-  const { indicator, valueType } = views;
-  if (ids.length === 0) return new Map();
-  const rows = await db
-    .select({ id: indicator.id, valueType: valueType.name })
-    .from(indicator)
-    .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
-    .where(inArray(indicator.id, ids));
-  return new Map(rows.map(({ id, valueType }) => [id, { valueType }]));
+/** A series' trend summary with the value type that picks Fingertips' test for it. */
+interface TrendInput {
+  summary: TrendSummary;
+  valueType: string | null;
 }
 
 /**
- * The trend summary of each indicator's headline series in one area. The series is chosen once
- * per indicator, in the order `headlineOrder` gives, not per sex and period type as the stored
- * series are. Indicators without a single value for the area, such as those whose values are all
- * suppressed, are left out of the result. England reads the summaries cached at publication and
- * works out only the ones missing.
+ * The trend summary of each indicator's headline series in one area, with its value type. The
+ * series is chosen once per indicator, in the order `headlineOrder` gives, not per sex and period
+ * type as the stored series are. Indicators without a single value for the area, such as those
+ * whose values are all suppressed, are left out of the result. England reads the summaries cached
+ * at publication and works out only the ones missing.
  */
+async function trendInputs(
+  db: DatabaseReader,
+  views: ViewSet,
+  ids: string[],
+  areaCode: string,
+): Promise<Map<string, TrendInput>> {
+  const { indicator, observationSeriesBatch: batches, valueType } = views;
+  if (ids.length === 0) return new Map();
+  if (areaCode !== ENGLAND_AREA_CODE) return areaTrendInputs(db, views, ids, areaCode);
+  const cached = await db
+    .select({ id: batches.indicatorId, summary: batches.trend, valueType: valueType.name })
+    .from(batches)
+    .innerJoin(indicator, eq(indicator.id, batches.indicatorId))
+    .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
+    .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
+  const result = new Map(
+    cached.flatMap(({ id, summary, valueType }) =>
+      summary === null ? [] : [[id, { summary, valueType }] as const],
+    ),
+  );
+  const missing = ids.filter((id) => !result.has(id));
+  if (missing.length)
+    for (const entry of await areaTrendInputs(db, views, missing, ENGLAND_AREA_CODE))
+      result.set(...entry);
+  return result;
+}
+
+/** The trend summary of each indicator's headline series in one area, as `trendInputs` finds it. */
 export async function indicatorTrendSummaries(
   db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   areaCode = ENGLAND_AREA_CODE,
 ): Promise<Map<string, TrendSummary>> {
-  const { observationSeriesBatch: batches } = views;
-  if (ids.length === 0) return new Map();
-  if (areaCode !== ENGLAND_AREA_CODE) return areaTrendSummaries(db, views, ids, areaCode);
-  const cached = await db
-    .select({ id: batches.indicatorId, trend: batches.trend })
-    .from(batches)
-    .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
-  const result = new Map(
-    cached.flatMap(({ id, trend }) => (trend === null ? [] : [[id, trend] as const])),
-  );
-  const missing = ids.filter((id) => !result.has(id));
-  if (missing.length)
-    for (const entry of await areaTrendSummaries(db, views, missing, ENGLAND_AREA_CODE))
-      result.set(...entry);
-  return result;
+  const inputs = await trendInputs(db, views, ids, areaCode);
+  return new Map([...inputs].map(([id, { summary }]) => [id, summary] as const));
 }
 
-/** The recent trend of each indicator `indicatorTrendSummaries` summarises, by Fingertips' rules. */
+/** The recent trend of each indicator's headline series in one area, by Fingertips' rules. */
 export async function indicatorTrendDirections(
   db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   areaCode = ENGLAND_AREA_CODE,
 ): Promise<Map<string, TrendDirection>> {
-  const [settings, summaries] = await Promise.all([
-    indicatorTrendSettings(db, views, ids),
-    indicatorTrendSummaries(db, views, ids, areaCode),
-  ]);
+  const inputs = await trendInputs(db, views, ids, areaCode);
   return new Map(
-    [...summaries].map(
-      ([id, summary]) =>
-        [id, trendDirection(summary, settings.get(id) ?? { valueType: null })] as const,
+    [...inputs].map(
+      ([id, { summary, valueType }]) => [id, trendDirection(summary, { valueType })] as const,
     ),
   );
 }
 
-async function areaTrendSummaries(
+async function areaTrendInputs(
   db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   areaCode: string,
-): Promise<Map<string, TrendSummary>> {
-  const { area, observation } = views;
-  const rows = await db.execute<{ indicator_id: string; trend: TrendSummary }>(sql`
+): Promise<Map<string, TrendInput>> {
+  const { area, indicator, observation, valueType } = views;
+  const rows = await db.execute<{
+    indicator_id: string;
+    trend: TrendSummary;
+    value_type: string | null;
+  }>(sql`
     with cumulative_periods as (
       select ${observation.indicatorId} as indicator_id, ${observation.dimensionKey} as segment,
         max(${observation.periodType}) as period_type
@@ -131,12 +131,20 @@ async function areaTrendSummaries(
       lowerCi95: sql`p.lower_ci_95`,
       upperCi95: sql`p.upper_ci_95`,
       periodType: sql`p.period_type`,
-    })} as trend
+    })} as trend,
+      (select ${valueType.name} from ${indicator}
+        join ${valueType} on ${valueType.id} = ${indicator.valueTypeId}
+        where ${indicator.id} = s.indicator_id) as value_type
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
         and p.period_type = s.period_type
     where s.has_value
     group by s.indicator_id
 
   `);
-  return new Map(rows.map(({ indicator_id, trend }) => [indicator_id, trend] as const));
+  return new Map(
+    rows.map(
+      ({ indicator_id, trend, value_type }) =>
+        [indicator_id, { summary: trend, valueType: value_type }] as const,
+    ),
+  );
 }

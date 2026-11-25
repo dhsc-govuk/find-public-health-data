@@ -20,7 +20,7 @@ import {
 } from './indicator-observation-repository.ts';
 import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import { getIndicatorRankingData, getIndicatorTableData } from './indicator-table-repository.ts';
-import { indicatorTrendDirections, indicatorTrendSettings } from './indicator-trends.ts';
+import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   area,
   currentPublishedVersion,
@@ -35,7 +35,7 @@ import {
   uploadBatch,
   valueType,
 } from './schema/index.ts';
-import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+import { apiLogin, createTestDb, publishedTrendSettings, type TestDb } from './testing.ts';
 
 const { indicator: publishedIndicator, observationSeries: publishedObservationSeries } =
   publishedViews;
@@ -228,7 +228,7 @@ it.each([
 it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], [['UNKNOWN']]])(
   'matches history-based table cells, trends and rankings for %j',
   async (areas) => {
-    const settings = await indicatorTrendSettings(db, publishedViews, ids);
+    const settings = await publishedTrendSettings(db, ids);
     const full = await getIndicatorObservationData(db, publishedViews, ids, areas);
     for (const mode of ['recent', 'latest', 'ranking', 'sparkline'] as const) {
       const cached = await getIndicatorSeriesData(db, publishedViews, ids, areas, mode);

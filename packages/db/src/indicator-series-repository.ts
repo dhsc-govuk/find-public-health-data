@@ -13,7 +13,6 @@ import type {
   IndicatorAreaData,
   IndicatorObservation,
 } from './indicator-observation-repository.ts';
-import { indicatorTrendSettings } from './indicator-trends.ts';
 import type { ViewSet } from './schema/index.ts';
 
 type Result = Map<
@@ -94,7 +93,13 @@ export async function getIndicatorSeriesData(
   mode: 'ranking' | 'recent' | 'latest' | 'sparkline',
   includePopulationKeys = false,
 ): Promise<Result | undefined> {
-  const { area, observationSeriesBatch: batches, observationSeries: series } = views;
+  const {
+    area,
+    indicator,
+    observationSeriesBatch: batches,
+    observationSeries: series,
+    valueType,
+  } = views;
   if (!indicatorIds.length || !codes.length) return new Map();
   const areas = await db
     .select({ id: area.id, code: area.code, name: area.name })
@@ -105,6 +110,7 @@ export async function getIndicatorSeriesData(
     .select({
       indicatorId: batches.indicatorId,
       version: batches.version,
+      valueType: valueType.name,
       series: {
         indicatorId: series.indicatorId,
         areaId: series.areaId,
@@ -121,6 +127,8 @@ export async function getIndicatorSeriesData(
       },
     })
     .from(batches)
+    .leftJoin(indicator, eq(indicator.id, batches.indicatorId))
+    .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
     .leftJoin(
       series,
       and(
@@ -200,10 +208,8 @@ export async function getIndicatorSeriesData(
         ),
       ]
     : [];
-  const [extra, settings] = await Promise.all([
-    readPoints(db, views, [...wanted], benchmarkIds, england?.id),
-    mode === 'ranking' ? new Map() : indicatorTrendSettings(db, views, indicatorIds),
-  ]);
+  const extra = await readPoints(db, views, [...wanted], benchmarkIds, england?.id);
+  const valueTypes = new Map(loaded.map(({ indicatorId, valueType }) => [indicatorId, valueType]));
   const byId = new Map(extra.map((row) => [row.id, row.point]));
   // A publication can change after the marker read and hide the selected points.
   if ([...wanted].some((id) => !byId.has(id))) return undefined;
@@ -263,7 +269,7 @@ export async function getIndicatorSeriesData(
       });
       continue;
     }
-    const trend = settings.get(indicatorId) ?? { valueType: null };
+    const trend = { valueType: valueTypes.get(indicatorId) ?? null };
     const choices = new Map<string, TableSeriesSelection>();
     const points = new Map<string, Map<string, IndicatorObservation>>();
     const add = (id: string, point: IndicatorObservation) => {
