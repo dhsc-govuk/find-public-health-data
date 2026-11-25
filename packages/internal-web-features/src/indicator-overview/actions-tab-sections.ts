@@ -9,6 +9,7 @@ import { indicatorPreviewPath } from '../indicator-preview/paths.ts';
 import { reviewResponsePath } from '../indicator-review-response/paths.ts';
 import { updateDecisionPath } from '../indicator-update-decision/paths.ts';
 import {
+  indicatorDiscardPath,
   indicatorStartUpdatePath,
   indicatorTaskListPath,
   indicatorWithdrawalPath,
@@ -43,6 +44,7 @@ export interface ActionsTabInput {
     IndicatorAdminDetail,
     | 'id'
     | 'actions'
+    | 'canDiscardDraft'
     | 'indicatorStatus'
     | 'draftStatus'
     | 'draftLocked'
@@ -117,9 +119,9 @@ function actionsButton(
   return null;
 }
 
-// An editor continues from the task list while the draft is unlocked, and withdraws what the
-// workflow lets them; an IMRG manager changes the reviewers once assigned; an admin changes a
-// confirmed publication date.
+// An editor continues from the task list while the draft is unlocked, discards it until a review
+// starts, and withdraws what the workflow lets them; an IMRG manager changes the reviewers once
+// assigned; an admin changes a confirmed publication date.
 function actionsSection(input: ActionsTabInput): ActionsTabSection {
   const { canEdit, indicator } = input;
   const mayAssign = indicator.actions.includes('assign_reviewers');
@@ -136,6 +138,9 @@ function actionsSection(input: ActionsTabInput): ActionsTabSection {
               ? 'Continue updating indicator'
               : 'Continue creating indicator',
         },
+    indicator.canDiscardDraft
+      ? { href: indicatorDiscardPath(indicator.id), label: 'Discard draft' }
+      : undefined,
     indicator.actions.includes('withdraw')
       ? { href: indicatorWithdrawalPath(indicator.id), label: 'Withdraw submission' }
       : undefined,

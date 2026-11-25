@@ -685,24 +685,28 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('shows what the page before left to say in an important banner', () => {
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <DashboardPage
-          underReview={null}
-          toReview={[]}
-          scheduled={null}
-          awaitingDecision={null}
-          list={null}
-          notification="You are no longer a reviewer of this indicator."
-        />
-      </MemoryRouter>,
-    );
+  it.each([
+    ['important', 'Important', 'region'],
+    ['success', 'Success', 'alert'],
+  ] as const)(
+    'shows what the page before left to say in a banner of type %s',
+    (type, name, role) => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <DashboardPage
+            underReview={null}
+            toReview={[]}
+            scheduled={null}
+            awaitingDecision={null}
+            list={null}
+            notification={{ type, text: 'Something to say.' }}
+          />
+        </MemoryRouter>,
+      );
 
-    expect(screen.getByRole('region', { name: 'Important' }).textContent).toContain(
-      'You are no longer a reviewer of this indicator.',
-    );
-  });
+      expect(screen.getByRole(role, { name }).textContent).toContain('Something to say.');
+    },
+  );
 });
 
 describe('the dashboard search', () => {

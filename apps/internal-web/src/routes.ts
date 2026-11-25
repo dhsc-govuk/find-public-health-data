@@ -131,6 +131,10 @@ export default withRouteIds([
         '../../../packages/internal-web-features/src/indicator-withdrawal/route.tsx',
       ),
       route(
+        'publish/indicators/:id/discard-draft',
+        '../../../packages/internal-web-features/src/indicator-discard/route.tsx',
+      ),
+      route(
         'publish/indicators/:id/data-table',
         '../../../packages/internal-web-features/src/indicator-data-table/upload-route.tsx',
       ),

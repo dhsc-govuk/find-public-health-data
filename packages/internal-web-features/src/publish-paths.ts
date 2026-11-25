@@ -45,6 +45,11 @@ export function indicatorWithdrawalPath(id: string): string {
   return indicatorPublishPath(id, 'withdraw-submission');
 }
 
+/** The page that confirms discarding the draft. */
+export function indicatorDiscardPath(id: string): string {
+  return indicatorPublishPath(id, 'discard-draft');
+}
+
 /** Each section of a draft has a page, named by its task key. */
 export function indicatorSectionPath(id: string, section: IndicatorTaskKey): string {
   return indicatorPublishPath(id, section);

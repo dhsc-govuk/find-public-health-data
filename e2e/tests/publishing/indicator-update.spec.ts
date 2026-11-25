@@ -147,6 +147,48 @@ test('a live indicator with no draft gets "Update indicator", which opens a draf
   await expect(page.getByRole('heading', { level: 1, name: indicator.name })).toBeVisible();
 });
 
+test('discarding the update leaves the live indicator as it was, with no update in its history, and another can be started', async ({
+  page,
+}, testInfo) => {
+  await savePolarity(page, 'Higher is better');
+  const copy = await page.context().newPage();
+  await copy.goto(`/publish/indicators/${indicator.id}/discard-draft`);
+  await page.goto(overviewPath());
+  await page.getByRole('link', { name: 'Discard draft' }).click();
+  await expect(
+    page.getByText(
+      'The changes in this draft will be deleted. The live indicator will stay as it is. You cannot undo this.',
+    ),
+  ).toBeVisible();
+  await expectNoAccessibilityViolations(page, testInfo);
+  await page.getByRole('button', { name: 'Discard draft' }).click();
+
+  await expect(page).toHaveURL(overviewPath());
+  await expect(page.getByRole('alert', { name: 'Success' })).toContainText(
+    'Draft discarded. The live indicator has not changed.',
+  );
+  await expect(statusTags(page)).toHaveText([
+    'Indicator status: Live indicator',
+    'Publishing status: Published',
+  ]);
+  await expect(page.getByRole('link', { name: 'Discard draft' })).toHaveCount(0);
+  await expectNoAccessibilityViolations(page, testInfo);
+  await copy.getByRole('button', { name: 'Discard draft' }).click();
+  await expect(copy).toHaveURL(overviewPath());
+  await expect(copy.getByRole('region', { name: 'Important' })).toContainText(
+    'This draft has already been discarded.',
+  );
+  expect((await page.goto(taskListPath()))?.status()).toBe(404);
+  await openHistory(page, indicator.id);
+  await expect(historyEntries(page).filter({ hasText: 'update started' })).toHaveCount(0);
+
+  await page.goto(overviewPath());
+  await page.getByRole('button', { name: 'Update indicator' }).click();
+
+  await expect(page).toHaveURL(taskListPath());
+  await expect(taskStatus(page, 'Polarity')).toHaveText('Unchanged');
+});
+
 test('with a draft open, the Actions tab shows "Continue updating indicator" and the overview shows "Live indicator" and "Update incomplete"', async ({
   page,
 }, testInfo) => {

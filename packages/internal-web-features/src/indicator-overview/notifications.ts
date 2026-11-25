@@ -25,6 +25,26 @@ const NOTIFICATIONS = {
     type: 'important',
     text: 'This submission can no longer be withdrawn.',
   },
+  'draft-discarded': {
+    type: 'success',
+    text: 'Draft discarded. The live indicator has not changed.',
+  },
+  'already-discarded': {
+    type: 'important',
+    text: 'This draft has already been discarded.',
+  },
+  'discard-upload-running': {
+    type: 'important',
+    text: 'A data table is being uploaded to this draft. Wait for the upload to finish, then try again.',
+  },
+  'discard-refused': {
+    type: 'important',
+    text: 'This draft can no longer be discarded.',
+  },
+  'discard-changed': {
+    type: 'important',
+    text: 'This draft has changed since you opened the page. Check the changes, then try again.',
+  },
   'draft-locked': {
     type: 'important',
     text: 'This indicator has been submitted for approval and cannot be edited.',

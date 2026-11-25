@@ -30,6 +30,10 @@ const withdraw = {
   href: `/publish/indicators/${ID}/withdraw-submission`,
   label: 'Withdraw submission',
 };
+const discard = {
+  href: `/publish/indicators/${ID}/discard-draft`,
+  label: 'Discard draft',
+};
 const assignFirst = {
   href: `/dashboard/indicators/${ID}/assign-reviewers`,
   label: 'Assign reviewers to indicator',
@@ -57,6 +61,7 @@ type State = ActionsTabInput['indicator'];
 const newDraft: State = {
   id: ID,
   actions: [],
+  canDiscardDraft: false,
   indicatorStatus: 'new',
   draftStatus: 'draft',
   draftLocked: false,
@@ -271,6 +276,15 @@ describe('actionsTabSections', () => {
         sections({ ...live, draftStatus: 'draft' }, { canEdit: true }).map(({ links }) => links),
       ).toEqual([
         [previewUpdate, viewLive, { ...continueCreating, label: 'Continue updating indicator' }],
+      ]);
+    });
+
+    it('offers to discard a draft straight after the task list, while it may be discarded', () => {
+      expect(sections({ ...newDraft, canDiscardDraft: true }, { canEdit: true })).toEqual([
+        { heading: 'Actions', button: null, links: [preview, continueCreating, discard] },
+      ]);
+      expect(sections(newDraft, { canEdit: true })).toEqual([
+        { heading: 'Actions', button: null, links: [preview, continueCreating] },
       ]);
     });
 
