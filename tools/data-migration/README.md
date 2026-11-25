@@ -139,11 +139,11 @@ moves to this service. The operations image applies the packages with `db migrat
   observation on identical dates, and keeps longer endpoints in the same series. All exported
   observations remain stored with their source period identity. `observation.is_current_series`
   separates the baseline named by the published Fingertips Groupings from retained older and
-  unpublished newer cycles; published and preview reads exclude those other cycles.
-  Grouping-format exceptions retain only the matching indicator, sex, age and
-  year range, plus its single-year annual observations. Display selection uses that series even if
-  the source retains newer, unpublished baselines. Existing environments need a fresh Pholio export
-  and import after migration 0100; the old date-only export has lost this identity.
+  unpublished newer cycles; published and preview reads exclude those other cycles. Grouping-format
+  exceptions retain only the matching indicator, sex, age and year range, plus its single-year
+  annual observations. Display selection uses that series even if the source retains newer,
+  unpublished baselines. Existing environments need a fresh Pholio export and import after migration
+  0100; the old date-only export has lost this identity.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.
   November-to-November annual periods run from 16 November to 15 November. Financial year-end
   snapshots retain their 31 March point date. Academic quarters and multi-year rolling periods
