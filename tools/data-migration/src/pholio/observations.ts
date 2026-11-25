@@ -441,7 +441,6 @@ export async function exportObservations(context: ObservationExportOptions) {
   const groupings = await loadObservationGroupings(context.pool);
   const { exclusions, dropped, sourceObservations, scannedObservations } =
     await assertDistinctObservations(context, groupings);
-  await using groupingWriter = new TableWriter(context.outDir, 'indicator_grouping');
   const tuples = new Map<number, ExportRow>();
   for (const grouping of groupings.rows) {
     if (!context.indicatorIds.has(grouping.IndicatorID)) continue;
@@ -466,20 +465,15 @@ export async function exportObservations(context: ObservationExportOptions) {
           : grouping.BaselineMonth > 0
             ? 'monthly'
             : 'annual';
-      const tuple = JSON.stringify([
-        grouping.IndicatorID,
-        sex,
-        age,
-        grouping.YearRange,
-        periodKind,
-      ]);
+      const yearRange = grouping.YearRange === -1 ? 1 : grouping.YearRange;
+      const tuple = JSON.stringify([grouping.IndicatorID, sex, age, yearRange, periodKind]);
       const id = indicatorGroupingId(tuple);
       const row = {
         id,
         indicator_id: grouping.IndicatorID,
         sex_id: sex,
         age_id: age,
-        year_range: grouping.YearRange,
+        year_range: yearRange,
         period_kind: periodKind,
       };
       if (tuples.has(id) && JSON.stringify(tuples.get(id)) !== JSON.stringify(row))
@@ -487,6 +481,7 @@ export async function exportObservations(context: ObservationExportOptions) {
       tuples.set(id, row);
     }
   }
+  await using groupingWriter = new TableWriter(context.outDir, 'indicator_grouping');
   await groupingWriter.writeAll(tuples.values());
   await using obsWriter = new TableWriter(context.outDir, 'observation');
   await using dimWriter = new TableWriter(context.outDir, 'observation_dimension');

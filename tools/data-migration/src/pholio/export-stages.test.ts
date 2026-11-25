@@ -14,6 +14,7 @@ import {
   ageDimensionValueId,
   areaId,
   compoundAgeDimensionValueId,
+  indicatorGroupingId,
   observationId,
   sexDimensionValueId,
 } from './ids.ts';
@@ -1635,3 +1636,56 @@ it('preserves published period shapes and splits compound ages using the observa
     expect(row.age_id).toBe(String(compoundAgeDimensionValueId(212, sex)));
   }
 });
+
+it('rejects a missing grouping dimension before creating any output files', async () => {
+  sourceObservations(
+    [],
+    [
+      {
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 28,
+        YearRange: 1,
+        BaselineQuarter: -1,
+        BaselineMonth: -1,
+      },
+    ],
+  );
+  await expect(exportObservations(observationOptions())).rejects.toThrow(
+    `Grouping for 108 references missing dimension ${ageDimensionValueId(28)}`,
+  );
+  expect(await readdir(directory)).toEqual([]);
+});
+
+it.each([{ yearRanges: [-1] }, { yearRanges: [1] }, { yearRanges: [-1, 1] }])(
+  'exports one canonical one-year grouping for source year ranges $yearRanges',
+  async ({ yearRanges }) => {
+    sourceObservations(
+      yearRanges.map((YearRange, index) =>
+        observation({ uid: index + 1, YearRange, Year: 2023 + index }),
+      ),
+      yearRanges.map((YearRange) => ({
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 1,
+        YearRange,
+        BaselineQuarter: -1,
+        BaselineMonth: -1,
+      })),
+    );
+    await exportObservations(observationOptions());
+    expect(await rows('indicator_grouping')).toEqual([
+      {
+        id: String(indicatorGroupingId(JSON.stringify([108, null, null, 1, 'annual']))),
+        indicator_id: '108',
+        sex_id: DATA_MIGRATION_NULL,
+        age_id: DATA_MIGRATION_NULL,
+        year_range: '1',
+        period_kind: 'annual',
+      },
+    ]);
+    expect(
+      (await rows('observation')).map(({ from_date, to_date }) => [from_date, to_date]),
+    ).toEqual(yearRanges.map((_, index) => [`${2023 + index}-01-01`, `${2023 + index}-12-31`]));
+  },
+);
