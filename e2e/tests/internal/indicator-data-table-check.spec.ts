@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
+import { dataTableRows, openDataTableCheck, uploadDataTable } from '../support/data-table.ts';
 import { expectNotFoundWithoutDraft, taskRow } from '../support/section-page.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
 
@@ -23,28 +24,9 @@ const REPLACEMENT_CSV = [
 
 test.use({ storageState: PUBLISHER.storageState });
 
-/** Submits the upload form, as Continue does, and returns the page it redirects to. */
-async function uploadFile(page: Page, id: string, content: string): Promise<string> {
-  const response = await page.request.post(`/publish/indicators/${id}/data-table`, {
-    multipart: {
-      dataTable: { name: 'data.csv', mimeType: 'text/csv', buffer: Buffer.from(content) },
-    },
-    maxRedirects: 0,
-  });
-  return response.headers().location ?? '';
-}
-
-/** Creates a draft, uploads the 23-row table and opens its check page. Returns the draft's id. */
-async function openCheckPage(page: Page): Promise<string> {
-  const id = await createDraft(page, uniqueIndicatorName('check data'));
-  expect(await uploadFile(page, id, CSV)).toBe(`/publish/indicators/${id}/data-table/check`);
-  await page.goto(`/publish/indicators/${id}/data-table/check`);
-  await expect(page.getByRole('heading', { level: 1, name: HEADING })).toBeVisible();
-  return id;
-}
-
-function dataRows(page: Page) {
-  return page.getByRole('region', { name: 'Data table' }).locator('tbody tr');
+/** Opens the check page of a new draft with the 23-row table. Returns the draft's id. */
+function openCheckPage(page: Page): Promise<string> {
+  return openDataTableCheck(page, CSV);
 }
 
 test('is reached by uploading a data table', async ({ page }) => {
@@ -75,8 +57,8 @@ test('shows a preview of the uploaded data table', async ({ page }) => {
     'Area code',
     'Sex',
   ]);
-  await expect(dataRows(page)).toHaveCount(10);
-  await expect(dataRows(page).first().locator('th, td')).toHaveText([
+  await expect(dataTableRows(page)).toHaveCount(10);
+  await expect(dataTableRows(page).first().locator('th, td')).toHaveText([
     '80',
     '79',
     '81',
@@ -90,13 +72,11 @@ test('shows a preview of the uploaded data table', async ({ page }) => {
 test('shows the count, numerator and denominator before the value, in separate columns', async ({
   page,
 }) => {
-  const id = await createDraft(page, uniqueIndicatorName('check data'));
   const csv = [
     'area_code,period_start,period_end,value,count,numerator,denominator',
     'E92000001,2019-01-01,2019-12-31,25,120,100,400',
   ].join('\n');
-  expect(await uploadFile(page, id, csv)).toBe(`/publish/indicators/${id}/data-table/check`);
-  await page.goto(`/publish/indicators/${id}/data-table/check`);
+  await openDataTableCheck(page, csv);
 
   const table = page.getByRole('region', { name: 'Data table' }).getByRole('table');
   await expect(table.getByRole('columnheader')).toHaveText([
@@ -107,7 +87,7 @@ test('shows the count, numerator and denominator before the value, in separate c
     'Period',
     'Area code',
   ]);
-  await expect(dataRows(page).first().locator('th, td')).toHaveText([
+  await expect(dataTableRows(page).first().locator('th, td')).toHaveText([
     '120',
     '100',
     '400',
@@ -125,11 +105,11 @@ test('pages through the data table', async ({ page }) => {
 
   await expect(page).toHaveURL(`/publish/indicators/${id}/data-table/check?page=2`);
   await expect(page.getByText('Showing 11 to 20 of 23 rows')).toBeVisible();
-  await expect(dataRows(page).first().locator('th, td').nth(3)).toHaveText('2011');
+  await expect(dataTableRows(page).first().locator('th, td').nth(3)).toHaveText('2011');
 
   await pages.getByRole('link', { name: '3' }).click();
   await expect(page.getByText('Showing 21 to 23 of 23 rows')).toBeVisible();
-  await expect(dataRows(page)).toHaveCount(3);
+  await expect(dataTableRows(page)).toHaveCount(3);
 });
 
 test('changes the number of rows per page', async ({ page }) => {
@@ -143,7 +123,7 @@ test('changes the number of rows per page', async ({ page }) => {
   await page.getByRole('button', { name: 'Apply' }).click();
 
   await expect(page).toHaveURL(`/publish/indicators/${id}/data-table/check?rowsPerPage=25`);
-  await expect(dataRows(page)).toHaveCount(23);
+  await expect(dataTableRows(page)).toHaveCount(23);
   await expect(page.getByText('Showing 1 to 23 of 23 rows')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Data table pages' })).toHaveCount(0);
   await expect(page.getByLabel('Rows per page')).toHaveValue('25');
@@ -186,7 +166,7 @@ test('shows the new data table when another upload replaced it before Continue',
   page,
 }) => {
   const id = await openCheckPage(page);
-  await uploadFile(page, id, REPLACEMENT_CSV);
+  await uploadDataTable(page, id, REPLACEMENT_CSV);
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -195,7 +175,7 @@ test('shows the new data table when another upload replaced it before Continue',
     'Another data table was uploaded while you were checking this one. Check the new data table.',
   );
   await expect(page.getByText('Your upload contains 1 row')).toBeVisible();
-  await expect(dataRows(page).first().locator('th, td')).toHaveText([
+  await expect(dataTableRows(page).first().locator('th, td')).toHaveText([
     '83.8',
     '2019/20',
     'E92000001',
@@ -232,7 +212,7 @@ test.describe('without JavaScript', () => {
 
     await page.getByLabel('Rows per page').selectOption('50');
     await page.getByRole('button', { name: 'Apply' }).click();
-    await expect(dataRows(page)).toHaveCount(23);
+    await expect(dataTableRows(page)).toHaveCount(23);
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page).toHaveURL(`/publish/indicators/${id}/task-list`);
@@ -248,7 +228,7 @@ test('has no WCAG 2.2 AA violations on the check page', async ({ page }, testInf
 
 test('has no WCAG 2.2 AA violations when the table was replaced', async ({ page }, testInfo) => {
   const id = await openCheckPage(page);
-  await uploadFile(page, id, REPLACEMENT_CSV);
+  await uploadDataTable(page, id, REPLACEMENT_CSV);
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
 

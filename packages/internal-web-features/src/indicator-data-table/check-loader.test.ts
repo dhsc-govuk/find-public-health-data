@@ -12,13 +12,15 @@ import { describe, expect, it } from 'vitest';
 
 import { flashedResponse, redirectWithFlash, withFlashStorage } from '../flash.testing.ts';
 import { FORM_NOT_SAVED } from '../form-refusal.ts';
-import { BATCH, DATA_TABLE } from './check-data.testing.ts';
-import { confirmDataTable, DATA_TABLE_CHANGED, loadDataTableCheck } from './check-loader.ts';
+import { BATCH, DATA_TABLE, FILTERS } from './check-data.testing.ts';
+import { DATA_TABLE_CHANGED, loadDataTableCheck, submitDataTableCheck } from './check-loader.ts';
 
 const ID = '00000000-0000-7000-8000-000000000001';
 const CHECK = `https://internal.test/publish/indicators/${ID}/data-table/check`;
 const DATA_TABLE_PATH = `/api/internal/indicators/${ID}/data-table` as const;
 const CONFIRMATION = `PUT /api/internal/indicators/${ID}/data-table/confirmation` as const;
+
+const FILTER_QUERY = FILTERS.map(({ id }) => `f=${id}`).join('&');
 
 /** An API that answers the data table's page `query` with `answer`. */
 function answering(answer: FakeApiAnswer, query = '?page=1&rowsPerPage=10') {
@@ -43,7 +45,7 @@ function confirm(api: FakeApiClient, batchId: string | null = BATCH) {
   const form = new FormData();
   if (batchId !== null) form.set('batchId', batchId);
 
-  return confirmDataTable({
+  return submitDataTableCheck({
     context: contextWith(api),
     params: { id: ID },
     request: new Request(CHECK, { method: 'POST', body: form }),
@@ -59,7 +61,12 @@ describe('loadDataTableCheck', () => {
   it('asks for the first page of 10 rows by default, and counts the pages', async () => {
     const api = answering({ dataTable: DATA_TABLE });
 
-    expect(await load(api)).toEqual({ id: ID, dataTable: DATA_TABLE, totalPages: 5237 });
+    expect(await load(api)).toEqual({
+      id: ID,
+      dataTable: DATA_TABLE,
+      totalPages: 5237,
+      filtersLimited: false,
+    });
   });
 
   it('asks for the page and rows per page in the address', async () => {
@@ -81,7 +88,7 @@ describe('loadDataTableCheck', () => {
 
   it('sends a page past the last to the last page, keeping the rows per page', async () => {
     const api = answering(
-      { dataTable: { ...DATA_TABLE, page: 40, rowsPerPage: 25, rowCount: 60, rows: [] } },
+      { dataTable: { ...DATA_TABLE, page: 40, rowsPerPage: 25, matchingRowCount: 60, rows: [] } },
       '?page=40&rowsPerPage=25',
     );
 
@@ -94,7 +101,7 @@ describe('loadDataTableCheck', () => {
 
   it('sends a page past the end of a one-page table to the first page', async () => {
     const api = answering(
-      { dataTable: { ...DATA_TABLE, page: 2, rowCount: 10, rows: [] } },
+      { dataTable: { ...DATA_TABLE, page: 2, matchingRowCount: 10, rows: [] } },
       '?page=2&rowsPerPage=10',
     );
 
@@ -103,7 +110,50 @@ describe('loadDataTableCheck', () => {
     expect(locationOf(outcome)).toBe(`/publish/indicators/${ID}/data-table/check`);
   });
 
-  it.each(['?page=0', '?rowsPerPage=20', '?page=1&page=2'])(
+  it('asks for the rows that match the filters in the address, and counts their pages', async () => {
+    const api = answering(
+      { dataTable: { ...DATA_TABLE, filters: FILTERS, matchingRowCount: 41 } },
+      `?page=1&rowsPerPage=10&${FILTER_QUERY}`,
+    );
+
+    expect(await load(api, `?${FILTER_QUERY}`)).toMatchObject({ totalPages: 5 });
+  });
+
+  it('keeps only the filters that apply when it sends a page past the last to the last', async () => {
+    const api = answering(
+      {
+        dataTable: {
+          ...DATA_TABLE,
+          page: 9,
+          filters: FILTERS.slice(0, 1),
+          matchingRowCount: 41,
+          rows: [],
+        },
+      },
+      `?page=9&rowsPerPage=10&${FILTER_QUERY}`,
+    );
+
+    const outcome = await load(api, `?page=9&${FILTER_QUERY}`).catch((thrown: unknown) => thrown);
+
+    expect(locationOf(outcome)).toBe(
+      `/publish/indicators/${ID}/data-table/check?page=5&f=${FILTERS[0]?.id}`,
+    );
+  });
+
+  it('asks for the first 100 filters, and says there were others', async () => {
+    const filters = Array.from(
+      { length: 101 },
+      (_, index) => `f=value.${String(index).padStart(10, '0')}`,
+    );
+    const api = answering(
+      { dataTable: DATA_TABLE },
+      `?page=1&rowsPerPage=10&${filters.slice(0, 100).join('&')}`,
+    );
+
+    expect(await load(api, `?${filters.join('&')}`)).toMatchObject({ filtersLimited: true });
+  });
+
+  it.each(['?page=0', '?rowsPerPage=20', '?page=1&page=2', '?f=sex.Female', '?f='])(
     'is not found for %s, without asking the API',
     async (query) => {
       const api = createFakeApiClient();
@@ -121,7 +171,7 @@ describe('loadDataTableCheck', () => {
   });
 });
 
-describe('confirmDataTable', () => {
+describe('submitDataTableCheck', () => {
   it('confirms the batch the page showed and returns to the task list', async () => {
     const api = createFakeApiClient({
       [CONFIRMATION]: { confirmedAt: '2026-10-12T09:30:00.000Z' },
@@ -139,6 +189,23 @@ describe('confirmDataTable', () => {
     });
 
     expect(await confirm(api)).toEqual({ formError: DATA_TABLE_CHANGED });
+  });
+
+  it('confirms a form that is not the column filters, whatever its intent', async () => {
+    const api = createFakeApiClient({
+      [CONFIRMATION]: { confirmedAt: '2026-10-12T09:30:00.000Z' },
+    });
+    const form = new FormData();
+    form.set('batchId', BATCH);
+    form.set('intent', 'show-values-area_code');
+
+    const outcome = await submitDataTableCheck({
+      context: contextWith(api),
+      params: { id: ID },
+      request: new Request(CHECK, { method: 'POST', body: form }),
+    } as never);
+
+    expect(locationOf(outcome)).toBe(`/publish/indicators/${ID}/task-list`);
   });
 
   it('says it was not saved when the API refuses the form', async () => {
@@ -186,7 +253,7 @@ describe('the check page of a draft locked for review', () => {
     form.set('batchId', BATCH);
     const request = new Request(CHECK, { method: 'POST', body: form });
 
-    expect(await redirectWithFlash(await respond(confirmDataTable, api, request))).toEqual(
+    expect(await redirectWithFlash(await respond(submitDataTableCheck, api, request))).toEqual(
       toOverview,
     );
   });

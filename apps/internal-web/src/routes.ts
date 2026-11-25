@@ -143,6 +143,10 @@ export default withRouteIds([
         '../../../packages/internal-web-features/src/indicator-data-table/check-route.tsx',
       ),
       route(
+        'publish/indicators/:id/data-table/values',
+        '../../../packages/internal-web-features/src/indicator-data-table/values-route.ts',
+      ),
+      route(
         'publish/indicators/:id/definition-and-rationale',
         '../../../packages/internal-web-features/src/indicator-definition-and-rationale/route.tsx',
       ),

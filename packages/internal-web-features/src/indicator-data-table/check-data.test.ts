@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DATA_TABLE, ROW } from './check-data.testing.ts';
-import { checkColumns, dataChanges, rowsShowing, uploadSummary } from './check-data.ts';
+import { DATA_TABLE, FILTERS, ROW } from './check-data.testing.ts';
+import {
+  checkColumns,
+  dataChanges,
+  filterLabel,
+  rowsShowing,
+  uploadSummary,
+} from './check-data.ts';
 
 function cells(row = ROW, columns = DATA_TABLE.columns, yearType = DATA_TABLE.yearType) {
   return Object.fromEntries(
@@ -113,6 +119,28 @@ describe('rowsShowing', () => {
     expect(rowsShowing({ ...DATA_TABLE, page: 1048, rowsPerPage: 50 })).toBe(
       'Showing 52,351 to 52,365 of 52,365 rows',
     );
+  });
+
+  it('counts only the rows that match the filters', () => {
+    expect(rowsShowing({ ...DATA_TABLE, filters: FILTERS, matchingRowCount: 12 })).toBe(
+      'Showing 1 to 10 of 12 rows',
+    );
+  });
+
+  it('says when no rows match the filters', () => {
+    expect(rowsShowing({ ...DATA_TABLE, filters: FILTERS, matchingRowCount: 0 })).toBe(
+      'No rows match these filters',
+    );
+  });
+});
+
+describe('filterLabel', () => {
+  it('names the column a selected value is in', () => {
+    expect(FILTERS.map(filterLabel)).toEqual([
+      '2019/20 (Period)',
+      '2020/21 (Period)',
+      'Female (Sex)',
+    ]);
   });
 });
 
