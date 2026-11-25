@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { loadIndicatorCsv } from './csv.ts';
 import { indicatorPageContext } from './page-context.ts';
+import { publishedSexFixture } from './published-sex.testing.ts';
 import { indicatorDetail, sex } from './view.testing.ts';
 
 const SLUG = 'mortality-all-causes';
@@ -78,6 +79,26 @@ function paths(client: FakeApiClient) {
 }
 
 describe('loadIndicatorCsv', () => {
+  it.each([92443, 93622] as const)(
+    'downloads only the published persons series for %s with a stale sex and age',
+    async (shortId) => {
+      const fixture = publishedSexFixture(shortId);
+      const client = api(fixture.areaData, {
+        [`GET ${DETAIL}`]: { ...fixture.detail, slug: SLUG },
+      });
+      const url = `http://localhost/indicator/${SLUG}/table.csv?sex-${shortId}=Male&age-${shortId}=65%2B+yrs`;
+      const response = await loadIndicatorCsv(args(client, url), 'table');
+      const body = await response.text();
+      expect(body).toContain('2024,12,');
+      for (const value of [77, 88, 99]) expect(body).not.toContain(`2024,${value},`);
+      const allData = await loadIndicatorCsv(args(client, url), 'all-data');
+      const all = await allData.text();
+      expect(all).toContain('Male');
+      expect(all).toContain('Female');
+      expect(all).toContain(shortId === 92443 ? '65+ yrs' : '25-64 yrs');
+    },
+  );
+
   it('exports both IMD value and spread groups, neighbour means, CA values and goal verdicts in table order', async () => {
     const fixture = benchmarkFixture();
     const client = api([], {

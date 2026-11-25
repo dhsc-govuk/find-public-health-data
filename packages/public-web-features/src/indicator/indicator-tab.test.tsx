@@ -4,9 +4,39 @@ import { createRoutesStub, useLocation } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { IndicatorTab } from './indicator-tab.tsx';
+import { publishedSexFixture } from './published-sex.testing.ts';
 import { indicatorDetail, observation, sex } from './view.testing.ts';
 
 afterEach(cleanup);
+
+it.each([92443, 93622] as const)(
+  'matches Fingertips persons-only choices for %s with a stale sex and unpublished age',
+  (shortId) => {
+    const Routes = noEnglandRoutes({
+      primary: publishedSexFixture(shortId),
+      selection: { areaCodes: [], areaLevels: [], shortIds: [shortId] },
+    });
+    render(<Routes initialEntries={[`/?sex-${shortId}=Male&age-${shortId}=65%2B+yrs`]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Table columns' }));
+    expect(screen.queryByLabelText('Select sex')).toBeNull();
+    const ages = screen.queryAllByLabelText<HTMLSelectElement>('Select age');
+    if (shortId === 92443) expect(ages).toHaveLength(0);
+    else {
+      expect(ages.length).toBeGreaterThan(0);
+      for (const select of ages)
+        expect([...select.options].map(({ value }) => value)).toEqual(['All ages', '<18 yrs']);
+    }
+    const chart = document.querySelector('#indicator-trend-chart')?.textContent;
+    expect(chart).toContain('12.0%');
+    for (const value of ['77.0%', '88.0%', '99.0%']) expect(chart).not.toContain(value);
+    const download = screen.getByRole('link', {
+      name: "Download data for the areas you've chosen (CSV)",
+    });
+    const params = new URL(download.getAttribute('href') ?? '', 'http://localhost').searchParams;
+    expect(params.has(`sex-${shortId}`)).toBe(false);
+    expect(params.get(`age-${shortId}`)).toBe(shortId === 92443 ? '18+ yrs' : 'All ages');
+  },
+);
 
 it('offers no-area goal radios with a working GET form, default No, and toggles England verdicts', async () => {
   const fixture = benchmarkFixture();

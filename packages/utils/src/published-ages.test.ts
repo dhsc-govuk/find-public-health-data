@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { filterSeries, type PublishedGrouping, publishedAgeChoice } from './observation-series.ts';
+import {
+  filterSeries,
+  type PublishedGrouping,
+  publishedAgeChoice,
+  publishedSeries,
+} from './observation-series.ts';
 
 const groupings = ['18+ yrs', '65+ yrs'].map((age) => ({
   age,
@@ -16,6 +21,44 @@ function point(age: number) {
   };
 }
 const points = [18, 65, 75, 85].map(point);
+
+it.each([
+  { indicator: 92443, ages: ['18+ yrs'], unpublishedAge: '65+ yrs', yearRanges: [1, 3] },
+  { indicator: 93622, ages: ['All ages', '<18 yrs'], unpublishedAge: '25-64 yrs', yearRanges: [1] },
+])(
+  'matches the exact published sex/age pairs for $indicator',
+  ({ ages, unpublishedAge, yearRanges }) => {
+    const published = ages.flatMap((age) =>
+      yearRanges.map((yearRange) => ({
+        sex: null,
+        age,
+        yearRange,
+        periodKind: 'annual' as const,
+      })),
+    );
+    const observations = [null, 'Female', 'Male'].flatMap((sex) =>
+      [...ages, unpublishedAge].map((age) => ({
+        ...point(18),
+        dimensions: [
+          ...(age === 'All ages' ? [] : [{ type: 'Age', value: age }]),
+          ...(sex ? [{ type: 'Sex', value: sex }] : []),
+        ],
+      })),
+    );
+    expect(publishedSeries(observations, published)).toEqual(observations.slice(0, ages.length));
+    expect(publishedSeries(observations, [])).toEqual(observations);
+    const male = observations.filter(({ dimensions }) =>
+      dimensions.some(({ type, value }) => type === 'Sex' && value === 'Male'),
+    );
+    expect(publishedSeries(male, published)).toEqual([]);
+    expect(
+      publishedSeries(
+        male,
+        published.map((grouping) => ({ ...grouping, sex: 'Male' })),
+      ),
+    ).toEqual(male.slice(0, ages.length));
+  },
+);
 
 it('offers only published ages, deduplicated across periods and defaults to the headline age', () => {
   expect(publishedAgeChoice(points, [...groupings, { ...groupings[0], yearRange: 3 }])).toEqual({

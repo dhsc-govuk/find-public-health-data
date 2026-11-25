@@ -618,6 +618,23 @@ export function observationAge(point: SeriesObservation): string {
   return point.dimensions.find(({ type }) => type === AGE_DIMENSION_NAME)?.value ?? 'All ages';
 }
 
+export function publishedSeries<T extends SeriesObservation>(
+  observations: T[],
+  groupings: readonly PublishedGrouping[] = [],
+): T[] {
+  if (!groupings.length) return observations;
+  // Fingertips publishes sex/age pairs explicitly; persons tuples do not cover sex breakdowns.
+  const pairs = new Set(groupings.map(({ sex, age }) => JSON.stringify([sex, age])));
+  return observations.filter((point) =>
+    pairs.has(
+      JSON.stringify([
+        point.dimensions.find(({ type }) => type === SEX_DIMENSION_NAME)?.value ?? null,
+        observationAge(point),
+      ]),
+    ),
+  );
+}
+
 export function publishedAgeChoice<T extends SeriesObservation>(
   observations: T[],
   groupings: readonly PublishedGrouping[] = [],

@@ -1,5 +1,6 @@
 import { A, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { isOneOf } from '@fphd/utils/is-one-of';
+import { publishedSeries } from '@fphd/utils/observation-series';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
@@ -63,7 +64,17 @@ export function IndicatorTab({
   defaultAreaLevel?: string | undefined;
   areaTypeNotice?: AreaTypeNotice | undefined;
 }) {
-  const { detail, areaData, regionData = [], benchmarkData = [], ranges = {} } = primary;
+  const {
+    detail,
+    areaData: rawAreaData,
+    regionData = [],
+    benchmarkData = [],
+    ranges = {},
+  } = primary;
+  const areaData = rawAreaData.map((area) => ({
+    ...area,
+    observations: publishedSeries(area.observations, detail.publishedGroupings),
+  }));
   const id = detail.shortId;
   const location = useLocation();
   const links = useIndicatorLinks();
@@ -113,11 +124,14 @@ export function IndicatorTab({
   const confidence = isOneOf(confidenceLevels, options.confidence) ? options.confidence : 'none';
   const narrow = (data: (typeof areaData)[number]) => ({
     ...data,
-    observations: filterObservations(data.observations, {
-      sex,
-      age: age.value,
-      periodType,
-    }),
+    observations: filterObservations(
+      publishedSeries(data.observations, detail.publishedGroupings),
+      {
+        sex,
+        age: age.value,
+        periodType,
+      },
+    ),
   });
   const filtered = areaData.map(narrow);
   const filteredRegions = regionData.map(narrow);
