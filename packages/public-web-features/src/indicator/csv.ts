@@ -262,7 +262,10 @@ async function noEnglandAreaCodes(
 ): Promise<string[]> {
   const england = areaData.find(({ areaCode }) => areaCode === ENGLAND_CODE);
   const requestedPeriod = params.get(`pt-${shortId}`);
-  const periodType = isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all';
+  const { periodType } = periodTypeChoice(
+    areaData,
+    isObservationPeriodType(requestedPeriod) ? requestedPeriod : 'all',
+  );
   if (
     filterObservations(england?.observations ?? [], { periodType }).some(
       ({ value }) => value !== null,

@@ -12,6 +12,7 @@ import {
   isRollingPeriod,
   observationSegmentKey,
   observationSeriesKey,
+  periodTypeLength,
   type SeriesPeriodType,
   seriesPeriodTypes,
   type TableSeriesSelection,
@@ -416,9 +417,14 @@ export type PeriodType = SeriesPeriodType;
 export function periodTypeLabel(periodType: PeriodType): string {
   if (periodType === 'all') return 'All';
   const length = Number.parseInt(periodType, 10);
-  if (periodType.endsWith('-day')) return `${length} ${length === 1 ? 'day' : 'days'}`;
-  if (periodType.endsWith('-month')) return `${length} ${length === 1 ? 'month' : 'months'}`;
-  return length === 1 ? '1 year' : `${length} year rolling average`;
+  const unit = periodType.endsWith('-day')
+    ? 'day'
+    : periodType.endsWith('-month')
+      ? 'month'
+      : 'year';
+  return periodTypeLength(periodType) > 365.25
+    ? `${length} ${unit} rolling average`
+    : `${length} ${unit}${length === 1 ? '' : 's'}`;
 }
 
 /** Offer only published period lengths so every option can match data. */

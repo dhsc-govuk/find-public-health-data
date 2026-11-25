@@ -807,9 +807,24 @@ it('labels separate comparison rows for sexed three and five year periods', () =
   ]);
 });
 
-it('labels partial-year period lengths in days', () => {
+it('labels sub-year period lengths in days', () => {
   expect(periodTypeLabel('1-day')).toBe('1 day');
-  expect(periodTypeLabel('500-day')).toBe('500 days');
+  expect(periodTypeLabel('365-day')).toBe('365 days');
+});
+
+it.each([
+  ['2023-01-01', '2024-01-31', '13-month', '13 month rolling average'],
+  ['2023-01-01', '2024-06-30', '18-month', '18 month rolling average'],
+  ['2023-01-01', '2024-11-30', '23-month', '23 month rolling average'],
+  ['2023-01-01', '2024-05-14', '500-day', '500 day rolling average'],
+] as const)('labels and guards rolling periods from %s to %s', (fromDate, toDate, type, label) => {
+  const point = obs({ fromDate, toDate });
+  expect(availablePeriodTypes([point])).toEqual([type]);
+  expect(periodTypeLabel(type)).toBe(label);
+  expect(recentTrend([point], 'higher-is-better', 'up')).toMatchObject({
+    direction: null,
+    reason: 'multi-year periods',
+  });
 });
 
 it('labels months and explains a quarterly fallback naturally', () => {

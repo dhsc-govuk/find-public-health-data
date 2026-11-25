@@ -848,6 +848,53 @@ describe('the table download of an indicator with no England value', () => {
     return levels.map((displayGroup) => ({ displayGroup, areas: [] }));
   };
 
+  const annual = observation({ value: null });
+  const rolling = observation({ fromDate: '2021-01-01', value: 3 });
+
+  it.each([
+    ['', [annual, rolling], true],
+    ['?pt-108=all', [annual, rolling], true],
+    ['?pt-108=invalid', [annual, rolling], true],
+    ['?pt-108=99-year', [annual, rolling], true],
+    ['?pt-108=3-year', [annual, rolling], false],
+    ['?pt-108=1-year', [rolling], false],
+    ['?pt-108=99-year', [rolling], false],
+    ['?pt-108=99-year', [observation()], false],
+  ] as const)(
+    'downloads the resolved default geography for %s with %j',
+    async (query, observations, defaultRegions) => {
+      const client = api(
+        (call: FakeApiCall) => {
+          const answers = areaCodes(call).map((code) =>
+            code === 'E92000001'
+              ? { areaCode: code, areaName: 'England', observations }
+              : regionData(code, code === 'E12000001' ? 10 : 20),
+          );
+          return answers.length === 1 ? answers[0] : answers;
+        },
+        { [`GET ${DETAIL}/areas`]: areas(['Statistical regions']) },
+      );
+
+      const response = await loadIndicatorCsv(
+        args(client, `http://localhost/indicator/${SLUG}/table.csv${query}`),
+        'table',
+      );
+      const [header, row] = (await response.text()).trim().split('\n');
+
+      if (defaultRegions) {
+        expect(header).toContain('North East');
+        expect(header).toContain('North West');
+        expect(header).not.toContain('England');
+        expect(row).toContain('10');
+      } else {
+        expect(header).toContain('England');
+        expect(header).not.toContain('North East');
+        expect(row).toBeDefined();
+        expect(paths(client).some((path) => path.includes('/areas'))).toBe(false);
+      }
+    },
+  );
+
   it.each([{ observations: [] }, { observations: [observation({ value: null })] }])(
     "holds the page's default regions when England has no values in %j",
     async ({ observations }) => {

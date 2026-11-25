@@ -1132,6 +1132,37 @@ describe('loadIndicator for an indicator with no England value', () => {
       ? [regions]
       : [...localAuthorities, regions];
 
+  const annual = { ...observation(), value: null };
+  const rolling = { ...observation(3), fromDate: '2022-01-01' };
+
+  it.each([
+    ['', [annual, rolling], 'Statistical regions'],
+    ['?pt-108=all', [annual, rolling], 'Statistical regions'],
+    ['?pt-108=invalid', [annual, rolling], 'Statistical regions'],
+    ['?pt-108=99-year', [annual, rolling], 'Statistical regions'],
+    ['?pt-108=3-year', [annual, rolling], undefined],
+    ['?pt-108=1-year', [rolling], undefined],
+    ['?pt-108=99-year', [rolling], undefined],
+    ['?pt-108=99-year', [observation()], undefined],
+  ] as const)(
+    'resolves the period before choosing default geography for %s with %j',
+    async (query, observations, expected) => {
+      const client = api({
+        'GET /api/indicators/indicator-108/areas': areasWithRegions,
+        'GET /api/indicators/108/data': (call: FakeApiCall) => areaData(call, [...observations]),
+      });
+
+      const result = await loadIndicator(
+        args(client, `http://localhost/indicator/indicator-108${query}`),
+      );
+
+      expect(result.defaultAreaLevel).toBe(expected);
+      expect(result.selected[0]?.areaData.map(({ areaCode }) => areaCode)).toEqual(
+        expected ? ['E12000001', 'E12000002', 'E92000001'] : ['E92000001'],
+      );
+    },
+  );
+
   it.each([{ observations: [] }, { observations: [{ ...observation(), value: null }] }])(
     'opens on statistical regions when England has no values in %j and nothing is chosen',
     async ({ observations }) => {
