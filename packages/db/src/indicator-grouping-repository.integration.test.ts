@@ -34,6 +34,10 @@ it('reads published grouping tuples through the public view without deriving cho
   const detail = await getIndicatorDetailById(publicDb, publishedViews, indicator.id);
   expect(detail?.publishedGroupings).toEqual([
     { sex: 'Female', age: '65+ yrs', yearRange: 3, periodKind: 'annual' },
+    { sex: 'Male', age: '<75 yrs', yearRange: 1, periodKind: 'annual' },
+    { sex: 'Male', age: '<75 yrs', yearRange: 3, periodKind: 'annual' },
+    { sex: 'Female', age: '<75 yrs', yearRange: 1, periodKind: 'annual' },
+    { sex: 'Female', age: '<75 yrs', yearRange: 3, periodKind: 'annual' },
     { sex: null, age: '<75 yrs', yearRange: 1, periodKind: 'annual' },
     { sex: null, age: '<75 yrs', yearRange: 3, periodKind: 'annual' },
   ]);
