@@ -47,20 +47,27 @@ async function areaTrendDirections(
 ): Promise<Map<string, TrendDirection>> {
   const { area, observation } = views;
   const rows = await db.execute<{ indicator_id: string; values: number[] }>(sql`
-    with points as materialized (
+    with cumulative_periods as (
+      select ${observation.indicatorId} as indicator_id, ${observation.dimensionKey} as segment,
+        max(${observation.periodType}) as period_type
+      from ${observation}
+      where ${inArray(observation.indicatorId, ids)} and ${observation.periodType} like 'cumulative-quarter-%'
+      group by ${observation.indicatorId}, ${observation.dimensionKey}
+    ), points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
         ${observation.toDate} as to_date, ${observation.value} as value,
         ${observation.dimensionKey} as segment,
-        ${observation.periodType} as source_period_type,
-        max(${observation.periodType}) over (partition by ${observation.indicatorId}) as cumulative_period_type,
         ${observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType)} as period_type
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${areaCode}
+      left join cumulative_periods c on c.indicator_id = ${observation.indicatorId}
+        and c.segment = ${observation.dimensionKey}
       where ${inArray(observation.indicatorId, ids)}
+        and (c.period_type is null or ${observation.periodType} = c.period_type)
     ), series as (
       select distinct on (indicator_id) indicator_id, segment, period_type,
         bool_or(bool_or(value is not null)) over (partition by indicator_id) as has_value
-      from points where cumulative_period_type is null or source_period_type = cumulative_period_type group by indicator_id, segment, period_type
+      from points group by indicator_id, segment, period_type
       order by indicator_id, ${sql.join(
         headlineOrder({
           ...dimensionKeyRank(sql`segment`, views),

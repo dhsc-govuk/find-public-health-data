@@ -281,3 +281,88 @@ it('keeps cumulative period identity through the trend table model, including it
   );
   expect(model.seriesByArea[0]?.series).toEqual(points);
 });
+
+it.each([false, true])(
+  'pairs every cumulative benchmark with its own period identity (annual first: %s)',
+  (annualFirst) => {
+    const fixture = benchmarkFixture();
+    for (const area of [...fixture.areaData, ...fixture.regionData, ...fixture.benchmarkData]) {
+      area.observations = area.observations.flatMap((point) => {
+        const annual = { ...point, fromDate: '2022-04-01', toDate: '2023-03-31', value: 99 };
+        const cumulative = {
+          ...annual,
+          periodType: 'cumulative-quarter-2022-04-01' as const,
+          value: point.value,
+        };
+        return annualFirst ? [annual, cumulative] : [cumulative, annual];
+      });
+    }
+    const model = trendTableModel({ ...fixture, confidence: '95' });
+    const benchmarks = model.benchmarksByArea.get('E08000003');
+    for (const [choice, value] of [
+      ['england', 5],
+      ['region', 5],
+      ['imd2019', 7],
+      ['imd2025', 8],
+      ['neighbours:E08000003', 15],
+      ['ca:E08000003', 9],
+    ] as const) {
+      expect
+        .soft(
+          benchmarks
+            ?.find((benchmark) => benchmark.choice === choice)
+            ?.series.map((point) => point.value),
+        )
+        .toEqual([value]);
+    }
+  },
+);
+
+it('keeps benchmark groups and table cells distinct when aligned areas use different period types on the same dates', () => {
+  const fixture = benchmarkFixture();
+  const first = fixture.areaData[0];
+  const england = fixture.areaData[2];
+  if (!first || !england) throw new Error('Missing fixtures');
+  first.observations = first.observations.map((point) => ({
+    ...point,
+    periodType: 'cumulative-quarter-2024-01-01',
+  }));
+  england.observations = england.observations.flatMap((point) => [
+    point,
+    { ...point, periodType: 'cumulative-quarter-2024-01-01', value: 42 },
+  ]);
+  const secondMembership = fixture.geography.deprivation.find(
+    (membership) => membership.code === 'E06000052' && membership.scheme === 'IMD2025',
+  );
+  if (!secondMembership) throw new Error('Missing membership');
+  secondMembership.decile = 1;
+  secondMembership.dimensionValueId = fixture.geography.deprivation[1]?.dimensionValueId ?? '';
+  const model = trendTableModel({ ...fixture, benchmarks: ['imd2025'], confidence: 'none' });
+  const shared = model.benchmarkGroups[0];
+  expect(shared?.series.map((point) => point.value).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([
+    8, 42,
+  ]);
+  expect(model.periods).toHaveLength(2);
+  const cumulativePeriod = model.periods.find((period) => period.periodType);
+  if (!cumulativePeriod) throw new Error('Missing cumulative period');
+  expect(
+    shared?.series.filter(model.inPeriod(cumulativePeriod)).map((point) => point.value),
+  ).toEqual([42]);
+});
+
+it('leaves a cumulative benchmark missing when only its annual twin is available', () => {
+  const fixture = benchmarkFixture();
+  for (const area of fixture.areaData.filter(({ areaCode }) => areaCode !== 'E92000001')) {
+    area.observations = area.observations.map((point) => ({
+      ...point,
+      periodType: 'cumulative-quarter-2024-01-01',
+    }));
+  }
+  const model = trendTableModel({ ...fixture, confidence: 'none' });
+  const benchmarks = model.benchmarksByArea.get('E08000003');
+  expect(benchmarks?.find(({ choice }) => choice === 'imd2025')?.series).toEqual([]);
+  expect(benchmarks?.find(({ choice }) => choice === 'ca:E08000003')?.series).toEqual([]);
+  expect(
+    benchmarks?.find(({ choice }) => choice === 'neighbours:E08000003')?.series[0]?.value,
+  ).toBeNull();
+});

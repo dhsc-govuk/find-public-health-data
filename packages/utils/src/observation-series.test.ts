@@ -571,3 +571,25 @@ it.each([false, true])(
     ]);
   },
 );
+
+it('elects cumulative baselines per population while retaining other populations and their annual periods', () => {
+  const point = {
+    fromDate: '2022-04-01',
+    toDate: '2023-03-31',
+    value: 99,
+    dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
+  };
+  const female = { ...point, periodType: 'cumulative-quarter-2022-04-01' as const, value: 4 };
+  const male = { ...point, dimensions: [{ type: 'Sex', value: 'Male', sortOrder: 2 }], value: 7 };
+  const oldMale = {
+    ...male,
+    fromDate: '2021-04-01',
+    periodType: 'cumulative-quarter-2021-04-01' as const,
+    value: 3,
+  };
+  const observations = [point, female, male];
+  expect(filterSeries(observations, {})).toEqual([female, male]);
+  expect(filterSeries(observations, { sex: 'Male' })).toEqual([male]);
+  expect(seriesPeriodTypes(observations)).toEqual([female.periodType, '1-year']);
+  expect(filterSeries([point, female, oldMale], {})).toEqual([female, oldMale]);
+});

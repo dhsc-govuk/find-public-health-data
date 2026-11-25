@@ -503,7 +503,7 @@ export function periodTypeChoice(
 ): PeriodTypeChoice {
   const publishedTypes = availablePeriodTypes(areaData.flatMap(({ observations }) => observations));
   const cumulative = publishedTypes.find((type) => type.startsWith('cumulative-quarter-'));
-  if (cumulative)
+  if (cumulative && publishedTypes.length === 1)
     return { offered: false, options: [cumulative], periodType: cumulative, notice: null };
   const withData = areaData.filter(({ observations }) => observations.length > 0);
   const picked = withData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);

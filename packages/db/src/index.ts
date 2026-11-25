@@ -54,6 +54,7 @@ export {
 export { escapeLike } from './like-pattern.ts';
 export { observationRangeSql, observationSegmentSql } from './observation-range-sql.ts';
 export {
+  cumulativePeriodsFor,
   observationPeriodSql,
   periodLengthSql,
 } from './observation-series-sql.ts';

@@ -10,10 +10,20 @@ import {
 import {
   ENGLAND_AREA_CODE,
   OBSERVATION_SERIES_VERSION,
-  type ObservationPeriodType,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, countDistinct, eq, max, not, or, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  countDistinct,
+  eq,
+  max,
+  not,
+  notInArray,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import { visibleObservations } from './observation-visibility.ts';
@@ -55,7 +65,7 @@ async function insertSeries(
   indicatorId: string,
   uploadBatchId: string,
   publishedFrom: string | null,
-  cumulativePeriodType: ObservationPeriodType | null,
+  periodFilter: SQL | undefined,
 ): Promise<void> {
   const sexValues = tx.$with('sex_values').as(
     tx
@@ -85,7 +95,7 @@ async function insertSeries(
         and(
           visibleObservations(indicatorId, uploadBatchId, publishedFrom),
           eq(observation.isCurrentSeries, true),
-          cumulativePeriodType ? eq(observation.periodType, cumulativePeriodType) : undefined,
+          periodFilter,
         ),
       ),
   );
@@ -369,7 +379,7 @@ async function englandTrend(
   indicatorId: string,
   uploadBatchId: string,
   publishedFrom: string | null,
-  cumulativePeriodType: ObservationPeriodType | null,
+  periodFilter: SQL | undefined,
 ): Promise<number[] | null> {
   const [trend] = await tx
     .select({ values: recentNonNull<number>(observation.value, observation) })
@@ -380,7 +390,7 @@ async function englandTrend(
         visibleObservations(indicatorId, uploadBatchId, publishedFrom),
         eq(observation.isCurrentSeries, true),
         eq(area.code, ENGLAND_AREA_CODE),
-        cumulativePeriodType ? eq(observation.periodType, cumulativePeriodType) : undefined,
+        periodFilter,
       ),
     )
     .groupBy(
@@ -416,29 +426,39 @@ export async function replaceObservationSeries(
     .where(eq(observationSeriesBatch.indicatorId, indicatorId));
   if (!uploadBatchId) return;
 
-  // Resolving this once keeps a window filter from distorting series-election row estimates.
-  const [source] = await tx
-    .select({ periodType: max(observation.periodType) })
+  // Resolving these populations once keeps series-election row estimates accurate, including
+  // batches with no cumulative data.
+  const periods = await tx
+    .select({ dimensionKey: observation.dimensionKey, periodType: max(observation.periodType) })
     .from(observation)
     .where(
       and(
         eq(observation.indicatorId, indicatorId),
         eq(observation.uploadBatchId, uploadBatchId),
         eq(observation.isCurrentSeries, true),
+        sql`${observation.periodType} like 'cumulative-quarter-%'`,
       ),
-    );
-  const cumulativePeriodType = source?.periodType ?? null;
-  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom, cumulativePeriodType);
+    )
+    .groupBy(observation.dimensionKey);
+  const selected = periods.flatMap(({ dimensionKey, periodType }) =>
+    periodType ? [{ dimensionKey, periodType }] : [],
+  );
+  const periodFilter = selected.length
+    ? or(
+        notInArray(
+          observation.dimensionKey,
+          selected.map(({ dimensionKey }) => dimensionKey),
+        ),
+        ...selected.map(({ dimensionKey, periodType }) =>
+          and(eq(observation.dimensionKey, dimensionKey), eq(observation.periodType, periodType)),
+        ),
+      )
+    : undefined;
+  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom, periodFilter);
   await tx.insert(observationSeriesBatch).values({
     uploadBatchId,
     indicatorId,
-    trendValues: await englandTrend(
-      tx,
-      indicatorId,
-      uploadBatchId,
-      publishedFrom,
-      cumulativePeriodType,
-    ),
+    trendValues: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom, periodFilter),
     version: OBSERVATION_SERIES_VERSION,
   });
 }

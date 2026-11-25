@@ -30,7 +30,7 @@ import {
   unitNote,
   withUnit,
 } from './data.ts';
-import { observation } from './view.testing.ts';
+import { observation, sex } from './view.testing.ts';
 
 function obs(overrides = {}) {
   return {
@@ -946,4 +946,21 @@ it('keeps the published cumulative period when a selected area only has retained
     notice: null,
   });
   expect(filterObservations([retained], { periodType: choice.periodType })).toEqual([]);
+});
+
+it('offers annual populations alongside cumulative populations in a mixed indicator', () => {
+  const cumulative = {
+    ...observation(4, [sex('Female')]),
+    periodType: 'cumulative-quarter-2024-01-01' as const,
+  };
+  const annual = observation(7, [sex('Male')]);
+  const areas = [
+    { areaCode: 'E92000001', areaName: 'England', observations: [cumulative, annual] },
+  ];
+  expect(periodTypeChoice(areas, '1-year')).toMatchObject({
+    offered: true,
+    options: [cumulative.periodType, '1-year'],
+    periodType: '1-year',
+  });
+  expect(periodTypeChoice(areas, cumulative.periodType).periodType).toBe(cumulative.periodType);
 });

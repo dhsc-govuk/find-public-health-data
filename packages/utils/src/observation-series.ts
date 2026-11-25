@@ -1,7 +1,7 @@
 import { isoDurationDays } from './age-range.ts';
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 7;
+export const OBSERVATION_SERIES_VERSION = 8;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
 export type CumulativePeriodType = `cumulative-quarter-${string}`;
@@ -91,16 +91,29 @@ export function periodTypeLength(periodType: ObservationPeriodType): number {
   );
 }
 
-export function seriesPeriodTypes(observations: ObservationPeriod[]): ObservationPeriodType[] {
-  const types = [...new Set(observations.map(observationPeriodType))];
-  // A new baseline replaces the previous cycle on Fingertips; its history stays imported.
-  const cumulative = types
-    .filter((type) => type.startsWith('cumulative-quarter-'))
-    .sort()
-    .at(-1);
-  return cumulative
-    ? [cumulative]
-    : types.sort((a, b) => periodTypeLength(a) - periodTypeLength(b));
+function displayObservations<
+  T extends ObservationPeriod & { dimensions?: SeriesObservation['dimensions'] },
+>(observations: T[]): T[] {
+  const segmentOf = (point: T) =>
+    observationSegmentKey({ ...point, dimensions: point.dimensions ?? [] });
+  const cumulativeBySegment = new Map<string, ObservationPeriodType>();
+  for (const point of observations) {
+    const type = observationPeriodType(point);
+    if (!type.startsWith('cumulative-quarter-')) continue;
+    const key = segmentOf(point);
+    if (type > (cumulativeBySegment.get(key) ?? '')) cumulativeBySegment.set(key, type);
+  }
+  return observations.filter((point) => {
+    const cumulative = cumulativeBySegment.get(segmentOf(point));
+    return !cumulative || observationPeriodType(point) === cumulative;
+  });
+}
+
+export function seriesPeriodTypes(
+  observations: (ObservationPeriod & { dimensions?: SeriesObservation['dimensions'] })[],
+): ObservationPeriodType[] {
+  const types = [...new Set(displayObservations(observations).map(observationPeriodType))];
+  return types.sort((a, b) => periodTypeLength(a) - periodTypeLength(b) || a.localeCompare(b));
 }
 
 export function isRollingPeriod(observation: ObservationPeriod): boolean {
@@ -153,9 +166,7 @@ export function headlineSeries<T extends SeriesObservation>(observations: T[]): 
       dimensionKey: string;
     }
   >();
-  const publishedTypes = seriesPeriodTypes(observations);
-  for (const point of observations) {
-    if (!publishedTypes.includes(observationPeriodType(point))) continue;
+  for (const point of displayObservations(observations)) {
     const key = observationSeriesKey(point);
     const segment = segments.get(key) ?? {
       points: [],
@@ -247,10 +258,8 @@ export function filterSeries<T extends SeriesObservation>(
   observations: T[],
   { sex, periodType = 'all' }: SeriesFilter,
 ): T[] {
-  const publishedTypes = seriesPeriodTypes(observations);
-  return observations.filter(
+  return displayObservations(observations).filter(
     (point) =>
-      publishedTypes.includes(observationPeriodType(point)) &&
       (periodType === 'all' || observationPeriodType(point) === periodType) &&
       (!sex ||
         point.dimensions.some(({ type, value }) => type === SEX_DIMENSION_NAME && value === sex)),
@@ -495,12 +504,12 @@ export function pairedAreaValues(
     );
 
   const aligned = (areas: ScatterArea[]) => {
-    const publishedTypes = seriesPeriodTypes(areas.flatMap(({ observations }) => observations));
+    const published = new Set(
+      displayObservations(areas.flatMap(({ observations }) => observations)),
+    );
     const selected = areas.map((area) => ({
       ...area,
-      observations: area.observations.filter((point) =>
-        publishedTypes.includes(observationPeriodType(point)),
-      ),
+      observations: area.observations.filter((point) => published.has(point)),
     }));
     const first = selected.find(({ observations }) =>
       observations.some(({ value }) => value !== null),

@@ -1,5 +1,7 @@
 import type { ObservationPeriodType } from '@fphd/utils/observation-series';
-import { type SQLWrapper, sql } from 'drizzle-orm';
+import { and, like, max, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
+import type { DatabaseReader } from './client.ts';
+import type { observation as observationTable, ViewSet } from './schema/index.ts';
 
 export function observationPeriodSql(
   fromDate: SQLWrapper,
@@ -31,4 +33,24 @@ export function periodLengthSql(periodType: SQLWrapper) {
     else split_part(${periodType}, '-', 1)::numeric *
     case when ${periodType} like '%-year' then 365.25
       when ${periodType} like '%-month' then 30.4375 else 1 end end`;
+}
+
+// A baseline replaces annual twins only for the same population; other populations can publish
+// annual data or a different cumulative cycle in the same batch.
+export function cumulativePeriodsFor(
+  db: DatabaseReader,
+  observation: typeof observationTable | ViewSet['observation'],
+  scope: SQL | undefined,
+) {
+  return db.$with('cumulative_periods').as(
+    db
+      .select({
+        indicatorId: observation.indicatorId,
+        dimensionKey: observation.dimensionKey,
+        periodType: max(observation.periodType).as('cumulative_period_type'),
+      })
+      .from(observation)
+      .where(and(scope, like(observation.periodType, 'cumulative-quarter-%')))
+      .groupBy(observation.indicatorId, observation.dimensionKey),
+  );
 }

@@ -1,5 +1,12 @@
-import { type Database, observationRangeSql, observationSegmentSql, schema } from '@fphd/db';
-import { and, countDistinct, eq, isNotNull, max, sql } from 'drizzle-orm';
+import {
+  cumulativePeriodsFor,
+  type Database,
+  observationRangeSql,
+  observationSegmentSql,
+  schema,
+} from '@fphd/db';
+import { and, countDistinct, eq, isNotNull, isNull, max, or, sql } from 'drizzle-orm';
+
 import { replaceObservationSeries } from './observation-series.ts';
 import { visibleObservations } from './observation-visibility.ts';
 
@@ -80,10 +87,7 @@ async function replaceReadModelRows(
   started = performance.now();
   await tx.delete(observationRange).where(eq(observationRange.indicatorId, indicatorId));
   if (uploadBatchId) {
-    const displayPeriod = tx
-      .select({ periodType: max(o.periodType) })
-      .from(o)
-      .where(visible);
+    const cumulativePeriods = cumulativePeriodsFor(tx, o, visible);
     // Keep aligned with the newest migration inserting into observation_range, which reads the
     // tables; a test runs both against a seed whose data is all published.
     const rangeObservations = tx.$with('range_observations').as(
@@ -97,6 +101,13 @@ async function replaceReadModelRows(
           segment: observationSegmentSql(dv.name, dt.name).as('segment'),
         })
         .from(o)
+        .leftJoin(
+          cumulativePeriods,
+          and(
+            eq(cumulativePeriods.indicatorId, o.indicatorId),
+            eq(cumulativePeriods.dimensionKey, o.dimensionKey),
+          ),
+        )
         .innerJoin(a, eq(a.id, o.areaId))
         .innerJoin(at, eq(at.id, a.areaTypeId))
         .leftJoin(od, eq(od.observationId, o.id))
@@ -107,14 +118,17 @@ async function replaceReadModelRows(
             isNotNull(o.value),
             isNotNull(at.displayGroup),
             visible,
-            sql`${o.periodType} is not distinct from (${displayPeriod})`,
+            or(
+              isNull(cumulativePeriods.periodType),
+              eq(o.periodType, cumulativePeriods.periodType),
+            ),
           ),
         )
         .groupBy(o.id, o.indicatorId, at.displayGroup, o.fromDate, o.toDate, o.value),
     );
 
     await tx
-      .with(rangeObservations)
+      .with(cumulativePeriods, rangeObservations)
       .insert(observationRange)
       .select(
         tx

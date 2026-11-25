@@ -80,6 +80,7 @@ export function TrendTable({
     firstObservation,
     hasCounts: availableCounts,
     inPeriod,
+    inRangePeriod,
     periods,
     referenceSegment,
     seriesByArea,
@@ -121,7 +122,8 @@ export function TrendTable({
     .some((benchmark) =>
       benchmark.rangePeriods?.some(
         (range) =>
-          range.segment === referenceSegment && periods.some((period) => inPeriod(period)(range)),
+          range.segment === referenceSegment &&
+          periods.some((period) => inRangePeriod(period)(range)),
       ),
     );
   const valueSuffix = unitParts(indicator.unit).after;
@@ -284,7 +286,10 @@ export function TrendTable({
           </thead>
           <tbody className="govuk-table__body">
             {rows.map((period, row) => (
-              <tr className="govuk-table__row" key={`${period.fromDate}-${period.toDate}`}>
+              <tr
+                className="govuk-table__row"
+                key={`${period.fromDate}-${period.toDate}-${period.periodType ?? ''}`}
+              >
                 <th id={rowId(row)} scope="row" className="govuk-table__header fphd-table__frozen">
                   {expandedPeriodLabel(period, indicator.yearType)}
                 </th>
@@ -326,7 +331,7 @@ export function TrendTable({
                           indicator={indicator}
                           rangePeriod={benchmark.rangePeriods?.find(
                             (range) =>
-                              inPeriod(period)(range) && range.segment === referenceSegment,
+                              inRangePeriod(period)(range) && range.segment === referenceSegment,
                           )}
                           unit={indicator.unit}
                         />
@@ -376,7 +381,8 @@ export function TrendTable({
                       )}
                       headersFor={(column) => headers(row, index, 'benchmark', column)}
                       rangePeriod={benchmark.rangePeriods?.find(
-                        (range) => inPeriod(period)(range) && range.segment === referenceSegment,
+                        (range) =>
+                          inRangePeriod(period)(range) && range.segment === referenceSegment,
                       )}
                     />
                   ),

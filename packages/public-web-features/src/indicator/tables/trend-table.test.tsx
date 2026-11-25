@@ -618,3 +618,37 @@ describe('TrendTable benchmark columns', () => {
     ).toBeTruthy();
   });
 });
+
+it('retains cumulative benchmark spreads when the ranges carry only dates and population', () => {
+  render(
+    <TrendTable
+      {...benchmarked}
+      areaData={benchmarked.areaData.map((area) => ({
+        ...area,
+        observations: area.observations.map((point) => ({
+          ...point,
+          periodType: 'cumulative-quarter-2023-04-01',
+        })),
+      }))}
+      columns={allColumns}
+    />,
+  );
+  expect(document.querySelector('.fphd-range-slot')).not.toBeNull();
+  expect(screen.getAllByRole('cell').map((cell) => cell.textContent)).toEqual(
+    expect.arrayContaining(['5.0%', '30.0%', '10.0%', '20.0%']),
+  );
+});
+
+it('retains cumulative benchmark spreads in CSV exports', () => {
+  const model = trendTableModel({
+    ...benchmarked,
+    areaData: benchmarked.areaData.map((area) => ({
+      ...area,
+      observations: area.observations.map((point) => ({
+        ...point,
+        periodType: 'cumulative-quarter-2023-04-01',
+      })),
+    })),
+  });
+  expect(trendCsv(benchmarked.indicator, model, '95', allColumns)).toContain('5,10,20,30');
+});
