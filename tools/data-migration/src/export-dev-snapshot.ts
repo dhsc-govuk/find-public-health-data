@@ -10,6 +10,7 @@ import {
 } from '@fphd/db-operations/data-migration-contract';
 
 import { exportPholio } from './pholio/export-pholio.ts';
+import type { GroupingBaselineExclusion } from './pholio/groupings.ts';
 import { rekeyDirectory } from './prepare-baseline.ts';
 import { tidyReferenceNames } from './reference-names.ts';
 import { writeActorsAsUsers } from './seed-writers.ts';
@@ -37,6 +38,7 @@ interface PholioSourceManifest {
   excluded_observations: number;
   indicator_name_mappings?: unknown;
   observation_exclusions?: Record<string, number>;
+  grouping_baseline_exclusions?: GroupingBaselineExclusion[];
   tables: Record<string, { rows: number; bytes: number; sha256: string }>;
 }
 
@@ -84,6 +86,7 @@ export async function exportDevSnapshot(options: ExportDevSnapshotOptions): Prom
     excluded_indicators: [...excludedIndicators].sort((a, b) => a - b),
     excluded_observations: exported.excluded_observations,
     observation_exclusions: exported.observation_exclusions,
+    grouping_baseline_exclusions: exported.grouping_baseline_exclusions,
     source_csv_null: DATA_MIGRATION_NULL,
   };
   await writeFile(

@@ -1,5 +1,6 @@
 import { createRepositories, schema } from '@fphd/db';
 import { apiLogin, auditEntriesFor, createTestDb } from '@fphd/db/testing';
+import { refreshIndicatorReadModels } from '@fphd/internal-read-models';
 import { publishDueVersions, publishNextDueVersion } from '@fphd/internal-workflow';
 import { createCapturingLogger } from '@fphd/logger/testing';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -188,24 +189,147 @@ describe('publishing a scheduled update', () => {
     });
   });
 
-  it('keeps the data date of an update that brings no new data table, and leaves its read models unrefreshed', async () => {
-    const { indicatorId } = await dueUpdate(db, 'Update without data', 'publish_with_history');
+  it.each([null, '2021-01-01'])(
+    'keeps the data date and read models when the batch and cutoff (%s) are unchanged',
+    async (publishedFrom) => {
+      const { indicatorId, publishedId } = await dueUpdate(
+        db,
+        `Update without data ${publishedFrom ?? 'none'}`,
+        'publish_with_history',
+        { publishedFrom },
+      );
+      await db
+        .update(indicatorVersion)
+        .set({ publishedFrom })
+        .where(eq(indicatorVersion.id, publishedId));
+      await db
+        .update(schema.indicator)
+        .set({ dataUpdatedAt: new Date('2026-01-01T00:00:00Z') })
+        .where(eq(schema.indicator.id, indicatorId));
+      // A read-model row the indicator's data does not give, which a refresh would delete.
+      await db.execute(sql`
+        INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
+        SELECT ${indicatorId}, at.id, at.name, 999 FROM area_type at ORDER BY at.id LIMIT 1
+      `);
+      const rows = await readModelRowsOf(db, indicatorId);
+      expect(rows).not.toEqual(await rowsAfterWholeRebuild(db, indicatorId));
+
+      await publishNext();
+
+      expect(await dataUpdatedAtOf(db, indicatorId)).toEqual(new Date('2026-01-01T00:00:00Z'));
+      expect(await readModelRowsOf(db, indicatorId)).toEqual(rows);
+    },
+  );
+
+  it.each([
+    [null, '2023-01-01'],
+    ['2023-01-01', '2025-01-01'],
+    ['2023-01-01', '2021-01-01'],
+    ['2023-01-01', null],
+  ])('refreshes same-batch data when the cutoff changes from %s to %s', async (before, after) => {
+    const name = `Update publication cutoff ${before ?? 'none'} to ${after ?? 'none'}`;
+    const { indicatorId, versionId, publishedId } = await dueUpdate(
+      db,
+      name,
+      'publish_with_history',
+      { publishedFrom: after },
+    );
+    const [published] = await db
+      .select({ batchId: indicatorVersion.uploadBatchId })
+      .from(indicatorVersion)
+      .where(eq(indicatorVersion.id, publishedId));
+    if (!published?.batchId) throw new Error('expected the published version to have data');
+    await db
+      .update(indicatorVersion)
+      .set({ publishedFrom: before })
+      .where(eq(indicatorVersion.id, publishedId));
+    const dataDate = new Date('2026-01-01T00:00:00Z');
     await db
       .update(schema.indicator)
-      .set({ dataUpdatedAt: new Date('2026-01-01T00:00:00Z') })
+      .set({ dataUpdatedAt: dataDate })
       .where(eq(schema.indicator.id, indicatorId));
-    // A read-model row the indicator's data does not give, which a refresh would delete.
     await db.execute(sql`
-      INSERT INTO available_data (indicator_id, area_type_id, area_type_name, area_count)
-      SELECT ${indicatorId}, at.id, at.name, 999 FROM area_type at ORDER BY at.id LIMIT 1
+      INSERT INTO observation
+        (indicator_id, upload_batch_id, area_id, from_date, to_date, value, dimension_key)
+      SELECT ${indicatorId}, ${published.batchId}, a.id, make_date(y, 1, 1),
+        make_date(y, 12, 31), y, ''
+      FROM area a CROSS JOIN generate_series(2020, 2025) y
+      WHERE a.code IN ('E92000001', 'E12000007')
     `);
-    const rows = await readModelRowsOf(db, indicatorId);
-    expect(rows).not.toEqual(await rowsAfterWholeRebuild(db, indicatorId));
+    await db.execute(sql`
+      INSERT INTO observation
+        (indicator_id, upload_batch_id, area_id, from_date, to_date, value, dimension_key)
+      SELECT ${indicatorId}, ${published.batchId}, a.id, '2019-01-01', '2019-12-31', 2019, ''
+      FROM area a JOIN area_type at ON at.id = a.area_type_id
+      WHERE at.display_group = 'Local authorities' ORDER BY a.id LIMIT 1
+    `);
+    await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
 
     await publishNext();
 
-    expect(await dataUpdatedAtOf(db, indicatorId)).toEqual(new Date('2026-01-01T00:00:00Z'));
-    expect(await readModelRowsOf(db, indicatorId)).toEqual(rows);
+    const [updated] = await db
+      .select({ batchId: indicatorVersion.uploadBatchId })
+      .from(indicatorVersion)
+      .where(eq(indicatorVersion.id, versionId));
+    expect(updated?.batchId).toBe(published.batchId);
+    expect(await dataUpdatedAtOf(db, indicatorId)).toEqual(dataDate);
+    expect((await publishedEntriesFor(indicatorId))[0]?.changes).not.toHaveProperty(
+      'dataUpdatedAt',
+    );
+    const visibleYears = [2019, 2020, 2021, 2022, 2023, 2024, 2025].filter(
+      (year) => after === null || `${year}-01-01` >= after,
+    );
+    const englandYears = visibleYears.filter((year) => year >= 2020);
+    const england = await publicSite.indicators.findObservations(indicatorId, 'E92000001');
+    expect(england?.observations.map(({ value }) => value)).toEqual(englandYears);
+    const ranges = await db
+      .select({ fromDate: schema.observationRange.fromDate })
+      .from(schema.observationRange)
+      .where(eq(schema.observationRange.indicatorId, indicatorId))
+      .orderBy(schema.observationRange.fromDate);
+    expect(ranges.map(({ fromDate }) => fromDate)).toEqual(
+      visibleYears.map((year) => `${year}-01-01`),
+    );
+    const availability = await db
+      .select({ areaCount: schema.availableData.areaCount })
+      .from(schema.availableData)
+      .where(eq(schema.availableData.indicatorId, indicatorId));
+    expect(availability.map(({ areaCount }) => areaCount)).toEqual(
+      after === null ? [1, 1, 1] : [1, 1],
+    );
+    const englandValues = englandYears.slice(-5).reverse();
+    expect(
+      await db
+        .select({ trendValues: schema.observationSeriesBatch.trendValues })
+        .from(schema.observationSeriesBatch)
+        .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId)),
+    ).toEqual([{ trendValues: englandValues }]);
+    const series = await db.execute<{ recent_values: number[] }>(sql`
+      SELECT s.recent_values FROM observation_series s JOIN area a ON a.id = s.area_id
+      WHERE s.indicator_id = ${indicatorId} AND a.code = 'E92000001'
+    `);
+    expect(series).toEqual([{ recent_values: englandValues }]);
+    const search = await publicSite.indicators.searchWithFilters({
+      query: name,
+      topics: [],
+      indicatorTypes: [],
+      lifeStages: [],
+      frameworks: [],
+      populations: [],
+      inequalities: [],
+      displayGroups: [],
+      areaCodes: [],
+      sources: [],
+      valueTypes: [],
+      yearTypes: [],
+      limit: 10,
+      dataFromYear: 2020,
+      dataToYear: 2020,
+    });
+    expect(search.total).toBe(visibleYears.includes(2020) ? 1 : 0);
+    expect(await readModelRowsOf(db, indicatorId)).toEqual(
+      await rowsAfterWholeRebuild(db, indicatorId),
+    );
   });
 
   it('replaces the live data with the data table an update brings, and dates the data', async () => {

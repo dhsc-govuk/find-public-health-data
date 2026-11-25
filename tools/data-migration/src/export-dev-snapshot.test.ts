@@ -31,7 +31,7 @@ it('builds an archive accepted by the receiver using the real tidy and rekey pip
   expect((await stat(join(directory, 'snapshot.tar'))).size).toBeGreaterThan(0);
 });
 
-it('preserves profile metadata in both development archive manifests', async () => {
+it('preserves profile metadata and baseline diagnostics in both development archive manifests', async () => {
   directory = await mkdtemp(join(tmpdir(), 'dev-snapshot-'));
   const profileMetadata = [
     {
@@ -53,6 +53,23 @@ it('preserves profile metadata in both development archive manifests', async () 
         'https://fingertips.phe.org.uk/static-reports/public-health-technical-guidance/Basic_statistics/Proportions.html',
     },
   ];
+  const groupingBaselineExclusions = [
+    {
+      indicator_id: 108,
+      grouping: {
+        GroupingID: 42,
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 1,
+        YearRange: 1,
+        BaselineYear: 2020,
+        BaselineQuarter: 1,
+        BaselineMonth: -1,
+      },
+      year_type_id: 3,
+      reason: 'Academic quarters require a verified source date mapping',
+    },
+  ];
   vi.mocked(exportPholio).mockImplementation(async ({ outDir }) => {
     await writeDevelopmentSource(outDir);
     const path = join(outDir, 'source-manifest.json');
@@ -60,6 +77,7 @@ it('preserves profile metadata in both development archive manifests', async () 
     source.source.profile_metadata = profileMetadata;
     source.source.observation_corrections = corrections;
     source.source.analytical_reconciliations = verifiedSettings;
+    source.grouping_baseline_exclusions = groupingBaselineExclusions;
     await writeFile(path, JSON.stringify(source));
   });
   await exportDevSnapshot({ connectionString: 'test source', outDir: directory });
@@ -69,6 +87,7 @@ it('preserves profile metadata in both development archive manifests', async () 
     expect(manifest.profile_metadata).toEqual(profileMetadata);
     expect(manifest.observation_corrections).toEqual(corrections);
     expect(manifest.analytical_reconciliations).toEqual(verifiedSettings);
+    expect(manifest.grouping_baseline_exclusions).toEqual(groupingBaselineExclusions);
   }
 });
 
