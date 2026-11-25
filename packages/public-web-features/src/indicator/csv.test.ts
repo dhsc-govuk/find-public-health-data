@@ -1115,3 +1115,49 @@ it.each(['65+ yrs', 'unpublished'])(
     expect(body).not.toContain('2023,75,');
   },
 );
+
+it.each(['', '65+ yrs', '18+ yrs'])(
+  'downloads the selected areas age with suppressed England and requested age %s',
+  async (age) => {
+    const point = (years: number, value: number | null) =>
+      observation({
+        value,
+        dimensions: [
+          {
+            type: 'Age',
+            value: `${years}+ yrs`,
+            ageFrom: `P${years}Y`,
+            dimensionClass: 'core',
+            sortOrder: years,
+          },
+        ],
+      });
+    const client = api(
+      [
+        { areaCode: 'E12000001', areaName: 'North East', observations: [point(65, 65)] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [point(18, null)] },
+      ],
+      {
+        [`GET ${DETAIL}`]: {
+          ...detail,
+          publishedGroupings: [18, 65].map((years) => ({
+            sex: null,
+            age: `${years}+ yrs`,
+            yearRange: 1,
+            periodKind: 'annual',
+          })),
+        },
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E12000001&age-108=${encodeURIComponent(age)}`,
+      ),
+      'table',
+    );
+    const body = await response.text();
+    if (age === '18+ yrs') expect(body.trim()).toBe('Period');
+    else expect(body).toContain('2023,65,');
+  },
+);

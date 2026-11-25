@@ -5,7 +5,7 @@ import {
   MAX_AREA_CODES_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
-import { isObservationPeriodType, publishedAgeChoice } from '@fphd/utils/observation-series';
+import { isObservationPeriodType } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
@@ -21,6 +21,7 @@ import {
   type ConfidenceLevel,
   dimensionValues,
   filterObservations,
+  indicatorAgeChoice,
   periodTypeChoice,
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
@@ -146,13 +147,11 @@ export async function loadIndicatorCsv(
       ).flatMap(({ observations }) => observations),
       { periodType },
     );
-    const england = filterObservations(englandObservations(areaData), { periodType });
-    const age = publishedAgeChoice(
-      england.length ? england : shownObservations,
-      detail.publishedGroupings,
-      url.searchParams.get(`age-${shortId}`) ?? '',
+    const age = indicatorAgeChoice(areaData, detail.publishedGroupings, {
+      age: url.searchParams.get(`age-${shortId}`) ?? '',
       sex,
-    ).value;
+      periodType,
+    }).value;
     const requestedConfidence = url.searchParams.get(`ci-${shortId}`);
     const confidence: ConfidenceLevel = isOneOf(
       availableConfidenceLevels(shownObservations),

@@ -14,6 +14,8 @@ import {
   observationSegmentKey,
   observationSeriesKey,
   periodTypeLength,
+  type PublishedGrouping,
+  publishedAgeChoice,
   type SeriesPeriodType,
   seriesPeriodTypes,
   type TableSeriesSelection,
@@ -571,6 +573,25 @@ export function filterObservations(
     ...(age ? { age } : {}),
     periodType,
   });
+}
+
+export function indicatorAgeChoice(
+  areaData: IndicatorAreaData[],
+  groupings: readonly PublishedGrouping[] | undefined,
+  selection: ObservationFilter,
+): { options: string[]; value: string } {
+  const england = filterObservations(
+    areaData.find(({ areaCode }) => areaCode === ENGLAND_AREA_CODE)?.observations ?? [],
+    { periodType: selection.periodType ?? 'all' },
+  );
+  const picked = areaData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
+  const observations = england.some(({ value }) => value !== null)
+    ? england
+    : filterObservations(
+        (picked.length ? picked : areaData).flatMap(({ observations }) => observations),
+        { periodType: selection.periodType ?? 'all' },
+      );
+  return publishedAgeChoice(observations, groupings, selection.age, selection.sex);
 }
 
 export type ConfidenceLevel = 'none' | '95' | '99.8';

@@ -1,6 +1,5 @@
 import { A, FilterChip, FilterChips, GridColumn, GridRow } from '@fphd/ui';
 import { isOneOf } from '@fphd/utils/is-one-of';
-import { publishedAgeChoice } from '@fphd/utils/observation-series';
 import { useLocation, useNavigation } from 'react-router';
 import { DownloadShareData } from '../download-share.tsx';
 import type { GeographyOptions } from '../geography/loader.ts';
@@ -14,6 +13,7 @@ import {
   availablePeriodTypes,
   dimensionValues,
   filterObservations,
+  indicatorAgeChoice,
   periodTypeChoice,
   seriesSegments,
   uncertainSeriesAge,
@@ -29,6 +29,7 @@ import type {
 import { englandObservations, NO_ENGLAND_MESSAGE, sexObservations } from './no-england.ts';
 import {
   BenchmarksPanel,
+  type PanelOptions,
   PanelOptionsPanel,
   useOptionParamNavigation,
   usePanelOptions,
@@ -86,12 +87,23 @@ export function IndicatorTab({
   );
   const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
   const sex = sexes.includes(options.sex) ? options.sex : '';
-  const age = publishedAgeChoice(
-    england.length ? england : shownObservations,
-    detail.publishedGroupings,
-    options.age,
+  const age = indicatorAgeChoice(areaData, detail.publishedGroupings, {
+    age: options.age ?? '',
     sex,
-  );
+    periodType,
+  });
+  const updateOptions = (next: PanelOptions) => {
+    const { periodType } = periodTypeChoice(areaData, next.periodType, {
+      defaultAreas: !!defaultAreaLevel,
+    });
+    const sexes = dimensionValues(sexObservations(areaData, periodType), 'Sex');
+    const age = indicatorAgeChoice(areaData, detail.publishedGroupings, {
+      age: next.age ?? '',
+      sex: sexes.includes(next.sex) ? next.sex : '',
+      periodType,
+    });
+    applyOptions({ ...next, age: age.value });
+  };
   const period = periodChoice.offered
     ? { options: periodChoice.options, value: periodType, notice: periodChoice.notice }
     : undefined;
@@ -156,7 +168,7 @@ export function IndicatorTab({
       {hasPickedAreas && benchmarkOptions.length > 0 ? (
         <BenchmarksPanel
           choices={options.benchmarks}
-          onChange={(benchmarks) => applyOptions({ ...options, benchmarks })}
+          onChange={(benchmarks) => updateOptions({ ...options, benchmarks })}
           region={regionAvailable}
           availableOptions={benchmarkOptions}
           scope={id}
@@ -290,7 +302,7 @@ export function IndicatorTab({
             confidenceLevels={confidenceLevels}
             measures={measures}
             label="Table columns"
-            onChange={applyOptions}
+            onChange={updateOptions}
             options={options}
             period={period}
             scope={id}
@@ -322,13 +334,14 @@ export function IndicatorTab({
                 detail.goal ||
                 confidenceLevels.length > 0 ||
                 sexes.length > 0 ||
+                age.options.length > 1 ||
                 period ? (
                   <PanelOptionsPanel
                     rangeBenchmarks={hasPickedAreas && benchmarks.some(isRangeBenchmark)}
                     goalRadios={!hasPickedAreas && !!detail.goal}
                     confidenceLevels={confidenceLevels}
                     label="Chart options"
-                    onChange={applyOptions}
+                    onChange={updateOptions}
                     options={options}
                     panel="chart"
                     period={period}
