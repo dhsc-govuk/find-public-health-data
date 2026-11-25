@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { DATA_TABLE_DRAFT } from './fixtures.ts';
 
 export type App = 'public-web' | 'internal-web' | 'public-api' | 'internal-api';
@@ -36,6 +38,10 @@ const AREAS = ['E92000001', 'E08000003', 'E07000223', 'E07000032', 'E06000047'];
 const DATA_TABLE = `/api/internal/indicators/${DATA_TABLE_DRAFT.indicatorId}/data-table`;
 // The deepest page the API counts from the start: the last page that starts in the first half.
 const DEEPEST_DATA_TABLE_PAGE = `page=${Math.floor(DATA_TABLE_DRAFT.rowCount / 2 / 50) + 1}&rowsPerPage=50`;
+// The filter for Female, which half the rows match: its column and the start of the value's hash.
+const FEMALE = `f=sex.${createHash('md5').update('Female').digest('hex').slice(0, 10)}`;
+// The filter's deepest page, as the one above is for the whole table.
+const DEEPEST_FEMALE_PAGE = `page=${Math.floor(DATA_TABLE_DRAFT.rowCount / 4 / 50) + 1}&rowsPerPage=50&${FEMALE}`;
 
 /**
  * Read-only GETs over the seeded data, and the draft data table the fixture adds: the common pages
@@ -92,6 +98,11 @@ export const ROUTES: Route[] = [
   },
   {
     app: 'internal-web',
+    path: `/publish/indicators/${DATA_TABLE_DRAFT.indicatorId}/data-table/check?${FEMALE}`,
+    limitMs: 500,
+  },
+  {
+    app: 'internal-web',
     path: '/topics/mortality-and-life-expectancy?tab-topic=data',
     limitMs: 500,
   },
@@ -133,4 +144,5 @@ export const ROUTES: Route[] = [
   { app: 'internal-api', path: '/api/internal/topics', limitMs: 250, as: 'admin' },
   { app: 'internal-api', path: DATA_TABLE, limitMs: 250 },
   { app: 'internal-api', path: `${DATA_TABLE}?${DEEPEST_DATA_TABLE_PAGE}`, limitMs: 250 },
+  { app: 'internal-api', path: `${DATA_TABLE}?${DEEPEST_FEMALE_PAGE}`, limitMs: 250 },
 ];
