@@ -82,34 +82,40 @@ async function put(app: ReturnType<typeof createTestApp>, body: object) {
     .send(body);
 }
 
+const FILTER = { id: 'sex.0123456789', label: 'Female', column: 'sex' as const };
+const PAGE = { filters: [], matchingRowCount: 52, rows: [ROW] };
+
 describe('GET /api/internal/indicators/:id/data-table', () => {
   it('answers the first page of 10 rows by default', async () => {
-    const listRows = vi.fn(async () => [ROW]);
+    const readPage = vi.fn(async () => PAGE);
 
-    const response = await get(createTestApp({ listRows }));
+    const response = await get(createTestApp({ readPage }));
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
-      dataTable: { ...DRAFT_TABLE, page: 1, rowsPerPage: 10, rows: [ROW] },
+      dataTable: { ...DRAFT_TABLE, page: 1, rowsPerPage: 10, ...PAGE },
     });
-    expect(listRows).toHaveBeenCalledWith(DRAFT_TABLE, 1, 10);
+    expect(readPage).toHaveBeenCalledWith(DRAFT_TABLE, { page: 1, rowsPerPage: 10, filterIds: [] });
   });
 
-  it('reads the page and rows per page asked for', async () => {
-    const listRows = vi.fn(async () => [ROW]);
+  it('reads the page, rows per page and filters asked for', async () => {
+    const readPage = vi.fn(async () => ({ ...PAGE, filters: [FILTER], matchingRowCount: 1 }));
 
-    await get(createTestApp({ listRows }), `${DATA_TABLE}?page=3&rowsPerPage=25`);
+    const response = await get(
+      createTestApp({ readPage }),
+      `${DATA_TABLE}?page=3&rowsPerPage=25&f=sex.0123456789&f=age.abcdef0123`,
+    );
 
-    expect(listRows).toHaveBeenCalledWith(DRAFT_TABLE, 3, 25);
-  });
-
-  it('answers a page past the last with no rows, without reading the batch', async () => {
-    const listRows = vi.fn(async () => [ROW]);
-
-    const response = await get(createTestApp({ listRows }), `${DATA_TABLE}?page=3&rowsPerPage=50`);
-
-    expect(response.body.dataTable).toMatchObject({ page: 3, rowsPerPage: 50, rows: [] });
-    expect(listRows).not.toHaveBeenCalled();
+    expect(readPage).toHaveBeenCalledWith(DRAFT_TABLE, {
+      page: 3,
+      rowsPerPage: 25,
+      filterIds: ['sex.0123456789', 'age.abcdef0123'],
+    });
+    expect(response.body.dataTable).toMatchObject({
+      filters: [FILTER],
+      rowCount: 52,
+      matchingRowCount: 1,
+    });
   });
 
   it('answers 400 for a page the query schema refuses', async () => {
@@ -156,6 +162,70 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
   it('refuses an admin, who may see the indicator but not edit it', async () => {
     const response = await request(createTestApp())
       .get(DATA_TABLE)
+      .set('Cookie', await testSessionCookie(['admin']));
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('GET /api/internal/indicators/:id/data-table/values', () => {
+  const VALUES = `${DATA_TABLE}/values`;
+  const COLUMNS = [
+    { column: 'sex' as const, values: [{ id: FILTER.id, label: FILTER.label }], more: false },
+  ];
+
+  it('answers the values of a column', async () => {
+    const listValues = vi.fn(async () => COLUMNS);
+
+    const response = await get(createTestApp({ listValues }), `${VALUES}?column=sex`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ columns: COLUMNS });
+    expect(listValues).toHaveBeenCalledWith(DRAFT_TABLE, { column: 'sex', search: '' });
+  });
+
+  it('answers the values that contain a search', async () => {
+    const listValues = vi.fn(async () => COLUMNS);
+
+    await get(createTestApp({ listValues }), `${VALUES}?search=${encodeURIComponent(' <1 yr')}`);
+
+    expect(listValues).toHaveBeenCalledWith(DRAFT_TABLE, { search: '<1 yr' });
+  });
+
+  it('answers no values before a file has loaded', async () => {
+    const response = await get(
+      createTestApp({ findDraftDataTable: async () => ({ found: true, dataTable: null }) }),
+      `${VALUES}?column=sex`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ columns: [] });
+  });
+
+  it('answers 400 for a query the schema refuses', async () => {
+    const response = await get(createTestApp(), VALUES);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_query' });
+  });
+
+  it.each([
+    ['no_draft', 404],
+    ['not_found', 404],
+    ['locked', 409],
+  ] as const)('answers %s with %i', async (reason, status) => {
+    const response = await get(
+      createTestApp({ findDraftDataTable: async () => ({ found: false, reason }) }),
+      `${VALUES}?column=sex`,
+    );
+
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ error: reason });
+  });
+
+  it('refuses an admin, who may see the indicator but not edit it', async () => {
+    const response = await request(createTestApp())
+      .get(`${VALUES}?column=sex`)
       .set('Cookie', await testSessionCookie(['admin']));
 
     expect(response.status).toBe(403);
