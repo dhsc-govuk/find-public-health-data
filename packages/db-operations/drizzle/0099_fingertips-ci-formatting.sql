@@ -48,4 +48,5 @@ CROSS JOIN LATERAL (
   FROM indicator_version pv
   WHERE pv.indicator_id = i.id
 ) p
-      );
+      );--> statement-breakpoint
+GRANT SELECT ON published.indicator TO public_api, internal_api;
