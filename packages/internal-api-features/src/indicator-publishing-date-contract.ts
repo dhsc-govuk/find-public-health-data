@@ -136,8 +136,11 @@ function dateProblems(answers: Answers): Problems {
     ...unless(isSmallNumber(month, 1, 12), 'publishingDateMonth', REAL_DATE),
     ...unless(/^\d{4}$/.test(year), 'publishingDateYear', 'Year must include 4 numbers'),
   };
+  const wrongParts = Object.keys(problems) as PublishingDateTimeField[];
 
-  if (Object.keys(problems).length > 0) return problems;
+  // The page shows one message for the date, so several wrong parts share the real date message.
+  if (wrongParts.length > 1) return each(wrongParts, REAL_DATE);
+  if (wrongParts.length > 0) return problems;
 
   // A year below 1000 is not a four-digit year, and the database refuses year 0 outright.
   if (Number(year) < 1000) return { publishingDateYear: REAL_DATE };

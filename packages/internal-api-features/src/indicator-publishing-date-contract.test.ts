@@ -98,6 +98,20 @@ describe('publishingDateSection', () => {
       date('14', '9', '27'),
       { publishingDateYear: 'Year must include 4 numbers' },
     ],
+    [
+      'a two-digit year beside a wrong month',
+      date('14', '13', '27'),
+      { publishingDateMonth: REAL_DATE, publishingDateYear: REAL_DATE },
+    ],
+    [
+      'every part in words',
+      date('a', 'b', 'c'),
+      {
+        publishingDateDay: REAL_DATE,
+        publishingDateMonth: REAL_DATE,
+        publishingDateYear: REAL_DATE,
+      },
+    ],
     ['year 0', date('14', '9', '0000'), { publishingDateYear: REAL_DATE }],
     ['a year below 1000', date('14', '9', '0999'), { publishingDateYear: REAL_DATE }],
   ])('refuses %s, on the part to correct', (_, body, errors) => {

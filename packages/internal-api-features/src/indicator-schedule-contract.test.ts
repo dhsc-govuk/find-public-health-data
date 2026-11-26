@@ -72,4 +72,12 @@ describe('scheduleSchemaFor', () => {
       publishingDateDay: 'Publishing date must be a real date',
     });
   });
+
+  it('gives one message on every wrong part of the date', () => {
+    expect(fieldErrors(answers('a', 'b', 'c'))).toEqual({
+      publishingDateDay: 'Publishing date must be a real date',
+      publishingDateMonth: 'Publishing date must be a real date',
+      publishingDateYear: 'Publishing date must be a real date',
+    });
+  });
 });
