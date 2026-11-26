@@ -76,7 +76,12 @@ export function ReviewerAssignmentPage({
                 ...offered.map((option) => ({ label: optionLabel(option), value: option.id })),
               ]}
             />
-            <Button classModifiers="secondary" name="intent" value={ADD_INTENT}>
+            <Button
+              classModifiers="secondary"
+              className="fphd-add-button"
+              name="intent"
+              value={ADD_INTENT}
+            >
               Add reviewer
             </Button>
           </>

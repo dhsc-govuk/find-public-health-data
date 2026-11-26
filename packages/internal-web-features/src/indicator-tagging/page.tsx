@@ -152,7 +152,7 @@ function TopicPicker({
         options={selectOptions(options.topics)}
       />
       {selected.hides(subtopics.length === 0) ? null : (
-        <Button name="intent" value={addIntent('topicIds')}>
+        <Button className="fphd-add-button" name="intent" value={addIntent('topicIds')}>
           Add topic
         </Button>
       )}
@@ -169,7 +169,7 @@ function TopicPicker({
             name="addSubtopic"
             options={selectOptions(subtopics)}
           />
-          <Button name="intent" value={addIntent('subtopicIds')}>
+          <Button className="fphd-add-button" name="intent" value={addIntent('subtopicIds')}>
             Add topic and subtopic
           </Button>
         </>
@@ -213,7 +213,7 @@ function TagPicker({
         name={field}
         options={selectOptions(options)}
       />
-      <Button name="intent" value={addIntent(list)}>
+      <Button className="fphd-add-button" name="intent" value={addIntent(list)}>
         Add {noun}
       </Button>
       <HiddenIds ids={added.map(({ id }) => id)} list={list} />
