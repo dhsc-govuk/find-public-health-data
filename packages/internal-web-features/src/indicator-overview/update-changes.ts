@@ -83,7 +83,7 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       dataValues: 'Data values',
     },
     calculation: {
-      standardMethodUsed: 'Standard calculation method used',
+      standardMethodUsed: 'Standard method used',
       methodology: 'Methodology',
       calculatedBy: 'Who calculated the indicator',
       calculatedByDetail: 'Other organisations',
