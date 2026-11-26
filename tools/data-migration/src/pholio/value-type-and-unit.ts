@@ -22,8 +22,9 @@ function idsFromJson(file: string): Record<string, string> {
 const valueTypeIdsByName: Record<string, string> = idsFromJson('value-types.json');
 
 /**
- * Each Fingertips value type, by the service value type it becomes. Percentage point and Excess
- * risk have no value type in the service, so an indicator of either stops the export.
+ * Each Fingertips value type, by the service value type it becomes. A percentage point is the gap
+ * between two percentages. Excess risk has no value type in the service, so an indicator of it
+ * stops the export.
  */
 export const VALUE_TYPES: Readonly<Record<string, string>> = {
   ...Object.fromEntries(Object.keys(valueTypeIdsByName).map((name) => [name, name])),
@@ -33,6 +34,7 @@ export const VALUE_TYPES: Readonly<Record<string, string>> = {
   'Months life lost': 'Count',
   'Rate ratio': 'Ratio',
   'Unknown value type 21': 'Gap',
+  'Percentage point': 'Gap',
 };
 
 /** The Fingertips names of the units Pholio has only a placeholder for. */
@@ -90,7 +92,7 @@ function rateOfOther(per: RatePer, detail: string): UnitReading {
 export const UNIT_READINGS: Readonly<Record<string, UnitReading>> = {
   'No unit': NONE,
   Count: NONE,
-  Score: NONE,
+  Score: otherMeasure('score'),
   Percent: { kind: 'percent' },
   'per 100': rate(100),
   'per 1,000': rate(1000),
@@ -116,19 +118,20 @@ export const UNIT_READINGS: Readonly<Record<string, UnitReading>> = {
   'per 100 procedures': rateOfOther(100, 'procedures'),
   'per offender': rateOfOther(1, 'offender'),
   'per 1,000, per day': rateOfOther(1000, 'per day'),
+  '£ per capita': rate(1, 'capita'),
+  'Persons per km2': rateOfOther(1, 'km2'),
   '£': measure('pounds'),
   Minutes: measure('minutes'),
   Days: measure('days'),
   Years: measure('years'),
   admissions: measure('admissions'),
   Cases: measure('cases'),
-  population: measure('people'),
+  population: otherMeasure('population'),
   'Percentage points': measure('percentage-points'),
   discharges: otherMeasure('discharges'),
   'Kg/m2': otherMeasure('kg/m2'),
   'litres per adult': otherMeasure('litres per adult'),
   'µg/m-3 (micrograms per cubic meter)': otherMeasure('µg/m3'),
-  'Persons per km2': otherMeasure('persons per km2'),
   Centimetre: otherMeasure('cm'),
   'Average daily quantity': otherMeasure('average daily quantity'),
   'Number of items prescribed': otherMeasure('items prescribed'),
@@ -206,10 +209,6 @@ const RATE_TYPES: readonly string[] = [
   VALUE_TYPE_IDS.directlyStandardisedRate,
   VALUE_TYPE_IDS.indirectlyStandardisedRate,
 ];
-const PROPORTION_TYPES: readonly string[] = [
-  VALUE_TYPE_IDS.proportion,
-  VALUE_TYPE_IDS.indirectlyStandardisedProportion,
-];
 const VALUE_MEASURE_TYPES: readonly string[] = [
   VALUE_TYPE_IDS.mean,
   VALUE_TYPE_IDS.median,
@@ -217,45 +216,38 @@ const VALUE_MEASURE_TYPES: readonly string[] = [
   VALUE_TYPE_IDS.slopeIndexOfInequality,
   VALUE_TYPE_IDS.relativeIndexOfInequality,
 ];
-const YEAR_TYPES: readonly string[] = [
-  VALUE_TYPE_IDS.lifeExpectancy,
-  VALUE_TYPE_IDS.healthyLifeExpectancy,
-];
 
 /**
- * The answers a value type and unit give, or undefined when the unit says something the answers
- * to that value type cannot hold. Fingertips says nothing of whether there is a count, or what it
- * measures beside a rate or a proportion, so those stay unanswered.
+ * The answers a value type and unit give: those the value type asks that the unit answers, and
+ * nothing for a unit its questions cannot hold. Fingertips says nothing of whether there is a
+ * count, or what it measures beside a rate or a proportion, so those stay unanswered.
  */
-function answersOf(
-  valueTypeId: string,
-  reading: UnitReading,
-): Partial<CountsAndValuesColumns> | undefined {
+function answersOf(valueTypeId: string, reading: UnitReading): Partial<CountsAndValuesColumns> {
   switch (reading.kind) {
     case 'none':
-      return valueTypeId === VALUE_TYPE_IDS.ratio ? { ratio_format: 'number' } : {};
+      return {};
     case 'percent':
-      if (PROPORTION_TYPES.includes(valueTypeId)) return {};
-      return valueTypeId === VALUE_TYPE_IDS.ratio ? { ratio_format: 'percentage' } : undefined;
+      if (valueTypeId === VALUE_TYPE_IDS.ratio) return { ratio_format: 'percentage' };
+      // A rate in percent is a rate per 100.
+      return RATE_TYPES.includes(valueTypeId) ? { rate_per: 100 } : {};
     case 'rate':
       return RATE_TYPES.includes(valueTypeId)
         ? { rate_per: reading.per, rate_object: reading.object, rate_object_detail: reading.detail }
-        : undefined;
+        : {};
     case 'measure':
       if (valueTypeId === VALUE_TYPE_IDS.count) {
         return { count_measure: reading.measure, count_measure_detail: reading.detail };
       }
-      if (VALUE_MEASURE_TYPES.includes(valueTypeId)) {
-        return { value_measure: reading.measure, value_measure_detail: reading.detail };
-      }
-      return YEAR_TYPES.includes(valueTypeId) && reading.measure === 'years' ? {} : undefined;
+      return VALUE_MEASURE_TYPES.includes(valueTypeId)
+        ? { value_measure: reading.measure, value_measure_detail: reading.detail }
+        : {};
   }
 }
 
 /**
  * The answers about a Fingertips indicator's counts and values, from its value type, its unit and
- * its id, or undefined when its unit cannot be expressed beside its value type. A survey's
- * estimated count is recorded as an estimate.
+ * its id, or undefined for a unit the export cannot read. A percentage point measures percentage
+ * points whatever its unit. A count's measure says whether it is an estimate, as the form does.
  */
 export function countsAndValuesColumns(
   valueTypeName: string,
@@ -263,30 +255,22 @@ export function countsAndValuesColumns(
   fingertipsId: number,
 ): CountsAndValuesColumns | undefined {
   const reading = unitReading(unitName);
-  const answers =
-    reading === undefined ? undefined : answersOf(valueTypeId(valueTypeName), reading);
-  if (answers === undefined) return undefined;
+  if (reading === undefined) return undefined;
+  const answers: Partial<CountsAndValuesColumns> =
+    valueTypeName === 'Percentage point'
+      ? { value_measure: 'percentage-points' }
+      : answersOf(valueTypeId(valueTypeName), reading);
+  const countMeasured = answers.count_measure !== undefined && answers.count_measure !== null;
   return {
     ...UNANSWERED,
     ...answers,
-    count_is_estimate: ESTIMATED_COUNT_INDICATOR_IDS.includes(fingertipsId) ? true : null,
+    count_is_estimate: countMeasured ? ESTIMATED_COUNT_INDICATOR_IDS.includes(fingertipsId) : null,
   };
 }
 
-/**
- * The value type and unit pairs of these indicators the answers cannot hold, each named
- * "value type: unit", sorted. A value type the export cannot translate is left to that check.
- */
-export function inexpressibleUnits(
-  indicators: Iterable<{ valueType: string; unit: string }>,
-): string[] {
-  const pairs = new Set<string>();
-  for (const { valueType, unit } of indicators) {
-    if (!(valueType in VALUE_TYPES)) continue;
-    if (countsAndValuesColumns(valueType, unit, 0) === undefined)
-      pairs.add(`${valueType}: ${unit}`);
-  }
-  return [...pairs].sort();
+/** The unit names among these the export cannot read, sorted. */
+export function unreadableUnits(names: Iterable<string>): string[] {
+  return [...new Set(names)].filter((name) => unitReading(name) === undefined).sort();
 }
 
 export function unknownValueTypes(names: Iterable<string>): string[] {

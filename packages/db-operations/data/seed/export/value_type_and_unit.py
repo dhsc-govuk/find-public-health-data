@@ -19,7 +19,8 @@ def _ids_by_name(file):
 
 VALUE_TYPE_IDS = _ids_by_name("value-types.json")
 
-# Any other Fingertips value type, Percentage point and Excess risk among them, stops the export.
+# Any other Fingertips value type, Excess risk among them, stops the export. A percentage point is
+# the gap between two percentages.
 VALUE_TYPES = {
     **{name: name for name in VALUE_TYPE_IDS},
     "Slope Index of Inequality": "Slope index of inequality",
@@ -29,6 +30,7 @@ VALUE_TYPES = {
     "Rate ratio": "Ratio",
     # Pholio's placeholder for the value type the Fingertips API gives id 21, Gap.
     "Unknown value type 21": "Gap",
+    "Percentage point": "Gap",
 }
 
 # Pholio's placeholders for units the Fingertips API names, each named as Pholio's unit with the
@@ -71,7 +73,7 @@ _NONE = {"kind": "none"}
 UNIT_READINGS = {
     "No unit": _NONE,
     "Count": _NONE,
-    "Score": _NONE,
+    "Score": _measure("other", "score"),
     "Percent": {"kind": "percent"},
     "per 100": _rate(100),
     "per 1,000": _rate(1000),
@@ -97,19 +99,20 @@ UNIT_READINGS = {
     "per 100 procedures": _rate(100, "other", "procedures"),
     "per offender": _rate(1, "other", "offender"),
     "per 1,000, per day": _rate(1000, "other", "per day"),
+    "£ per capita": _rate(1, "capita"),
+    "Persons per km2": _rate(1, "other", "km2"),
     "£": _measure("pounds"),
     "Minutes": _measure("minutes"),
     "Days": _measure("days"),
     "Years": _measure("years"),
     "admissions": _measure("admissions"),
     "Cases": _measure("cases"),
-    "population": _measure("people"),
+    "population": _measure("other", "population"),
     "Percentage points": _measure("percentage-points"),
     "discharges": _measure("other", "discharges"),
     "Kg/m2": _measure("other", "kg/m2"),
     "litres per adult": _measure("other", "litres per adult"),
     "µg/m-3 (micrograms per cubic meter)": _measure("other", "µg/m3"),
-    "Persons per km2": _measure("other", "persons per km2"),
     "Centimetre": _measure("other", "cm"),
     "Average daily quantity": _measure("other", "average daily quantity"),
     "Number of items prescribed": _measure("other", "items prescribed"),
@@ -151,7 +154,6 @@ COUNTS_AND_VALUES_COLUMNS = [
 ESTIMATED_COUNT_INDICATOR_IDS = frozenset({92443})
 
 RATE_TYPES = ("Crude rate", "Directly standardised rate", "Indirectly standardised rate")
-PROPORTION_TYPES = ("Proportion", "Indirectly standardised proportion")
 VALUE_MEASURE_TYPES = (
     "Mean",
     "Median",
@@ -159,7 +161,6 @@ VALUE_MEASURE_TYPES = (
     "Slope index of inequality",
     "Relative index of inequality",
 )
-YEAR_TYPES = ("Life expectancy", "Healthy life expectancy")
 
 
 def value_type_id(name):
@@ -176,16 +177,18 @@ def unit_reading(name):
 
 
 def _answers(value_type, reading):
+    """The answers the value type asks that the unit gives; nothing for a unit they cannot hold."""
     kind = reading["kind"]
     if kind == "none":
-        return {"ratio_format": "number"} if value_type == "Ratio" else {}
+        return {}
     if kind == "percent":
-        if value_type in PROPORTION_TYPES:
-            return {}
-        return {"ratio_format": "percentage"} if value_type == "Ratio" else None
+        if value_type == "Ratio":
+            return {"ratio_format": "percentage"}
+        # A rate in percent is a rate per 100.
+        return {"rate_per": 100} if value_type in RATE_TYPES else {}
     if kind == "rate":
         if value_type not in RATE_TYPES:
-            return None
+            return {}
         return {
             "rate_per": reading["per"],
             "rate_object": reading["object"],
@@ -195,22 +198,30 @@ def _answers(value_type, reading):
         return {"count_measure": reading["measure"], "count_measure_detail": reading["detail"]}
     if value_type in VALUE_MEASURE_TYPES:
         return {"value_measure": reading["measure"], "value_measure_detail": reading["detail"]}
-    return {} if value_type in YEAR_TYPES and reading["measure"] == "years" else None
+    return {}
 
 
 def counts_and_values(value_type_name, unit_name, fingertips_id):
-    """The counts and values columns for a Fingertips indicator; a unit they cannot hold stops."""
+    """The counts and values columns for a Fingertips indicator; a unit it cannot read stops.
+
+    A percentage point measures percentage points whatever its unit. A count's measure says
+    whether it is an estimate, as the form does.
+    """
     value_type_id(value_type_name)
     reading = unit_reading(unit_name)
-    answers = None if reading is None else _answers(VALUE_TYPES[value_type_name], reading)
-    if answers is None:
-        raise ValueError(
-            f"No answers for the Fingertips unit {unit_name!r} beside {value_type_name!r}"
-        )
+    if reading is None:
+        raise ValueError(f"No answers for the Fingertips unit {unit_name!r}")
+    if value_type_name == "Percentage point":
+        answers = {"value_measure": "percentage-points"}
+    else:
+        answers = _answers(VALUE_TYPES[value_type_name], reading)
+    counted = answers.get("count_measure") is not None
     return {
         **{column: None for column in COUNTS_AND_VALUES_COLUMNS},
         **answers,
-        "count_is_estimate": True if int(fingertips_id) in ESTIMATED_COUNT_INDICATOR_IDS else None,
+        "count_is_estimate": (int(fingertips_id) in ESTIMATED_COUNT_INDICATOR_IDS)
+        if counted
+        else None,
     }
 
 

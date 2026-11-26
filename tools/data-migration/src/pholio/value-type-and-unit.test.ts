@@ -4,14 +4,15 @@ import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 
 import {
+  type CountsAndValuesColumns,
   countsAndValuesColumns,
-  inexpressibleUnits,
   UNIT_NAMES_BY_LABEL,
   UNIT_PLACEHOLDERS,
   UNIT_READINGS,
   unitNameForLabel,
   unitReading,
   unknownValueTypes,
+  unreadableUnits,
   VALUE_TYPES,
   valueTypeId,
 } from './value-type-and-unit.ts';
@@ -38,7 +39,6 @@ const PHOLIO = JSON.parse(
 const UNREADABLE_UNITS = [
   '1,000',
   '£ per 100,000',
-  '£ per capita',
   '£1,000,000 per 100,000',
   'average daily quantity per STAR-PU',
   'mean dmft per child',
@@ -74,26 +74,19 @@ describe('valueTypeId', () => {
     );
   });
 
-  it('maps Unknown value type 21 to the Gap id', () => {
+  it('maps Unknown value type 21 and Percentage point to Gap', () => {
     expect(valueTypeId('Unknown value type 21')).toBe(VALUE_TYPE_IDS.gap);
+    expect(valueTypeId('Percentage point')).toBe(VALUE_TYPE_IDS.gap);
   });
 
-  it('throws for the value types the service does not have, and an unrecognised name', () => {
-    for (const name of [
-      'Percentage point',
-      'Excess risk',
-      'Unknown value type 22',
-      'Weighted mean',
-    ]) {
+  it('throws for Excess risk, which the service does not have, and an unrecognised name', () => {
+    for (const name of ['Excess risk', 'Unknown value type 22', 'Weighted mean']) {
       expect(() => valueTypeId(name)).toThrow(name);
     }
   });
 
-  it('maps every Pholio value type but Percentage point and Excess risk', () => {
-    expect(unknownValueTypes(PHOLIO.valueTypes.map(({ name }) => name))).toEqual([
-      'Excess risk',
-      'Percentage point',
-    ]);
+  it('maps every Pholio value type but Excess risk', () => {
+    expect(unknownValueTypes(PHOLIO.valueTypes.map(({ name }) => name))).toEqual(['Excess risk']);
   });
 
   it('includes every key in VALUE_TYPES as a recognised name', () => {
@@ -144,72 +137,87 @@ describe('unitReading', () => {
   });
 });
 
+// Every value type and unit pair among the indicators approved for launch, by their Pholio names,
+// from the Fingertips API's metadata in November 2026, with the answers each becomes.
+const APPROVED_PAIRS: [string, string, number, Partial<CountsAndValuesColumns>][] = [
+  ['Number', 'No unit', 5, {}],
+  ['Number', 'Unknown unit 67', 1, {}],
+  [
+    'Number',
+    'population',
+    1,
+    { count_measure: 'other', count_measure_detail: 'population', count_is_estimate: false },
+  ],
+  ['Number', 'Unknown unit 54', 1, { count_measure: 'admissions', count_is_estimate: false }],
+  ['Crude rate', 'per 100,000', 63, { rate_per: 100000 }],
+  ['Crude rate', 'per 1,000', 49, { rate_per: 1000 }],
+  ['Crude rate', 'per 10,000', 19, { rate_per: 10000 }],
+  ['Crude rate', 'Percent', 9, { rate_per: 100 }],
+  ['Crude rate', 'Unknown unit 60', 3, { rate_per: 100 }],
+  ['Crude rate', 'Unknown unit 56', 1, {}],
+  ['Crude rate', 'Unknown unit 57', 1, { rate_per: 1000000 }],
+  ['Crude rate', 'Unknown unit 73', 1, { rate_per: 1, rate_object: 're-offender' }],
+  ['Crude rate', 'Unknown unit 74', 1, { rate_per: 1000000000, rate_object: 'vehicle-miles' }],
+  [
+    'Crude rate',
+    'Unknown unit 75',
+    1,
+    { rate_per: 1, rate_object: 'other', rate_object_detail: 'km2' },
+  ],
+  ['Crude rate', '£ per capita', 1, { rate_per: 1, rate_object: 'capita' }],
+  ['Directly standardised rate', 'per 100,000', 121, { rate_per: 100000 }],
+  ['Directly standardised rate', 'per 10,000', 3, { rate_per: 10000 }],
+  ['Directly standardised rate', 'per 1,000', 1, { rate_per: 1000 }],
+  ['Unknown value type 21', 'Unknown unit 68', 1, { value_measure: 'percentage-points' }],
+  ['Indirectly standardised proportion', 'Percent', 1, {}],
+  ['Indirectly standardised ratio', 'Unknown unit 60', 1, {}],
+  ['Indirectly standardised ratio', 'No unit', 1, {}],
+  ['Indirectly standardised ratio', 'per STAR-PU', 1, {}],
+  ['Life expectancy', 'Years', 8, {}],
+  ['Mean', 'Unknown unit 76', 4, { value_measure: 'other', value_measure_detail: 'cm' }],
+  ['Mean', 'Unknown unit 66', 3, { value_measure: 'other', value_measure_detail: 'score' }],
+  ['Mean', 'Days', 2, { value_measure: 'days' }],
+  ['Mean', 'Unknown unit 58', 1, { value_measure: 'minutes' }],
+  ['Mean', 'Unknown unit 63', 1, { value_measure: 'other', value_measure_detail: 'µg/m3' }],
+  ['Median', 'Unknown unit 56', 1, { value_measure: 'pounds' }],
+  ['Percentage point', 'Percent', 1, { value_measure: 'percentage-points' }],
+  ['Proportion', 'Percent', 456, {}],
+  ['Ratio', 'No unit', 5, {}],
+  ['Ratio', 'Percent', 5, { ratio_format: 'percentage' }],
+  ['Ratio', 'Unknown unit 66', 2, {}],
+  ['Score', 'No unit', 4, {}],
+  ['Score', 'Unknown unit 66', 1, {}],
+  ['Slope Index of Inequality', 'Years', 4, { value_measure: 'years' }],
+];
+
 describe('countsAndValuesColumns', () => {
-  it.each([
-    ['a rate per 100,000', 'Directly standardised rate', 'per 100,000', { rate_per: 100000 }],
-    [
-      'a rate per a listed object',
-      'Crude rate',
-      'per 1,000 bed-days',
-      { rate_per: 1000, rate_object: 'bed-days' },
-    ],
-    [
-      'a rate per an object of its own',
-      'Indirectly standardised rate',
-      'per 1,000 live births',
-      { rate_per: 1000, rate_object: 'other', rate_object_detail: 'live births' },
-    ],
-    ['a proportion as a percentage', 'Proportion', 'Percent', {}],
-    ['a count of pounds', 'Count', '£', { count_measure: 'pounds' }],
-    ['a count with no unit', 'Number', 'No unit', {}],
-    [
-      'a mean of a measure of its own',
-      'Mean',
-      'Kg/m2',
-      { value_measure: 'other', value_measure_detail: 'kg/m2' },
-    ],
-    [
-      'a gap in percentage points',
-      'Unknown value type 21',
-      'Unknown unit 68',
-      { value_measure: 'percentage-points' },
-    ],
-    ['a ratio as a percentage', 'Ratio', 'Percent', { ratio_format: 'percentage' }],
-    ['a ratio as a number', 'Rate ratio', 'No unit', { ratio_format: 'number' }],
-    ['a life expectancy in years', 'Life expectancy', 'Years', {}],
-  ])('reads %s', (_, valueType, unit, answers) => {
+  it('covers the 785 indicators approved for launch', () => {
+    expect(APPROVED_PAIRS.reduce((total, [, , indicators]) => total + indicators, 0)).toBe(785);
+  });
+
+  it.each(APPROVED_PAIRS)('reads %s beside the unit %s', (valueType, unit, _, answers) => {
     expect(countsAndValuesColumns(valueType, unit, 108)).toEqual({ ...UNANSWERED, ...answers });
   });
 
-  it("records a survey's estimated count as an estimate", () => {
-    expect(countsAndValuesColumns('Proportion', 'Percent', 92443)).toEqual({
-      ...UNANSWERED,
+  it("records a survey's estimated count as an estimate once its count measure is answered", () => {
+    expect(countsAndValuesColumns('Proportion', 'Percent', 92443)).toEqual(UNANSWERED);
+    expect(countsAndValuesColumns('Number', 'population', 92443)).toMatchObject({
       count_is_estimate: true,
     });
   });
 
-  it.each([
-    ['a rate beside a count', 'Count', 'per 100,000'],
-    ['a measure beside a rate', 'Crude rate', 'admissions'],
-    ['a percentage beside a mean', 'Mean', 'Percent'],
-    ['a rate beside an indirectly standardised ratio', 'Indirectly standardised ratio', 'per 100'],
-    ['an unreadable unit', 'Mean', '£ per capita'],
-  ])('reads nothing from %s, which the answers cannot hold', (_, valueType, unit) => {
-    expect(countsAndValuesColumns(valueType, unit, 108)).toBeUndefined();
+  it('reads nothing from a unit it cannot read', () => {
+    expect(countsAndValuesColumns('Mean', '£ per 100,000', 108)).toBeUndefined();
   });
 });
 
-describe('inexpressibleUnits', () => {
-  it('names each pair the answers cannot hold once, sorted, leaving out unknown value types', () => {
-    expect(
-      inexpressibleUnits([
-        { valueType: 'Mean', unit: 'Percent' },
-        { valueType: 'Count', unit: 'per 100,000' },
-        { valueType: 'Mean', unit: 'Percent' },
-        { valueType: 'Proportion', unit: 'Percent' },
-        { valueType: 'Excess risk', unit: 'Percent' },
-      ]),
-    ).toEqual(['Count: per 100,000', 'Mean: Percent']);
+describe('unreadableUnits', () => {
+  it('names each unit it cannot read once, sorted', () => {
+    expect(unreadableUnits(['mean dmft per child', 'Percent', '1,000', '1,000', ''])).toEqual([
+      '',
+      '1,000',
+      'mean dmft per child',
+    ]);
   });
 });
 

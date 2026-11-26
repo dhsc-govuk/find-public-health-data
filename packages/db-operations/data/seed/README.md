@@ -101,9 +101,10 @@ stored total is 433,532 observations.
   measure or rate object outside the service's lists is "Other", named as Fingertips names it.
   Pholio's placeholders ("Unknown value type 21", "Unknown unit 54") translate as the value type or
   unit the public Fingertips API gives that id. `../../src/pholio-value-types-and-units.json` lists
-  every Pholio value type and unit. Percentage point, Excess risk, any other value type, and a unit
-  its value type cannot hold stop the export. Smoking prevalence (92443) records its count as an
-  estimate (`count_is_estimate`).
+  every Pholio value type and unit. A percentage point becomes a gap measuring percentage points,
+  and a rate in percent a rate per 100. A unit the value type's questions cannot hold leaves them
+  unanswered. Excess risk, any other value type, and a unit the export cannot read stop the export.
+  `count_is_estimate` is answered beside an answered count measure only, as the form answers it.
 - `observation.count` and `observation.numerator` split Pholio's one Count: it is the numerator for
   an indicator whose value type is calculated from a numerator and a denominator (crude rate,
   directly standardised rate, indirectly standardised proportion, rate and ratio, proportion and

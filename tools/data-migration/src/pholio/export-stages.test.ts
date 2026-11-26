@@ -1208,8 +1208,8 @@ it('requires a new review when a provisionally renamed source name changes', asy
   expect(await readdir(directory)).toEqual([]);
 });
 
-it.each(['', ' ', 'per 100,000'])(
-  'refuses an approved unit its value type cannot hold before writing tables (%j)',
+it.each(['', ' ', 'mean dmft per child'])(
+  'refuses an approved unit the export cannot read before writing tables (%j)',
   async (unitName) => {
     indicatorQueries(unitName);
     await expect(exportIndicators(options)).rejects.toThrow(/Cannot translate units/);

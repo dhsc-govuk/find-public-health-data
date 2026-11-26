@@ -15,8 +15,8 @@ import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 import {
   countsAndValuesColumns,
-  inexpressibleUnits,
   unknownValueTypes,
+  unreadableUnits,
   valueTypeId,
 } from './value-type-and-unit.ts';
 import { YEAR_TYPES, yearTypeValues } from './year-type.ts';
@@ -167,14 +167,9 @@ export async function exportIndicators(context: PholioExportOptions) {
   );
   if (unmappableValueTypes.length)
     throw new Error(`Cannot translate value types: ${unmappableValueTypes.join(', ')}`);
-  const unmappableUnits = inexpressibleUnits(
-    selectedRows.map((row) => ({
-      valueType: row.ValueTypeName ?? 'Count',
-      unit: row.UnitName ?? 'No unit',
-    })),
-  );
+  const unmappableUnits = unreadableUnits(selectedRows.map((row) => row.UnitName ?? 'No unit'));
   if (unmappableUnits.length)
-    throw new Error(`Cannot translate units beside value types: ${unmappableUnits.join(', ')}`);
+    throw new Error(`Cannot translate units: ${unmappableUnits.join(', ')}`);
   const unmappableYearTypes = selectedRows
     .map((row) => row.YearTypeName)
     .filter((name) => name !== null && !(name in YEAR_TYPES));

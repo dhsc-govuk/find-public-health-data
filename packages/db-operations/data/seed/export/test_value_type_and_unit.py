@@ -32,7 +32,6 @@ UNREADABLE_UNITS = [
     "mean dmft per child",
     "tonnes CO2e per 1000 population",
     "£ per 100,000",
-    "£ per capita",
     "£1,000,000 per 100,000",
 ]
 
@@ -48,17 +47,19 @@ class ValueTypeIdTest(unittest.TestCase):
     def test_translates_a_placeholder_as_the_value_type_the_fingertips_api_names(self):
         self.assertEqual(value_type_id("Unknown value type 21"), VALUE_TYPE_IDS["Gap"])
 
+    def test_translates_a_percentage_point_as_a_gap(self):
+        self.assertEqual(value_type_id("Percentage point"), VALUE_TYPE_IDS["Gap"])
+
     def test_refuses_a_value_type_the_service_does_not_have(self):
-        for name in ["Percentage point", "Excess risk", "Unknown value type 22", "Weighted mean"]:
+        for name in ["Excess risk", "Unknown value type 22", "Weighted mean"]:
             with self.assertRaises(ValueError) as raised:
                 value_type_id(name)
 
             self.assertIn(name, str(raised.exception))
 
-    def test_translates_every_pholio_value_type_but_two(self):
+    def test_translates_every_pholio_value_type_but_excess_risk(self):
         self.assertEqual(
-            unknown_value_types(row["name"] for row in PHOLIO["valueTypes"]),
-            ["Excess risk", "Percentage point"],
+            unknown_value_types(row["name"] for row in PHOLIO["valueTypes"]), ["Excess risk"]
         )
 
 
@@ -84,12 +85,16 @@ class CountsAndValuesTest(unittest.TestCase):
                 "per 1,000 live births",
                 {"rate_per": 1000, "rate_object": "other", "rate_object_detail": "live births"},
             ),
+            ("Crude rate", "Percent", {"rate_per": 100}),
+            ("Crude rate", "£ per capita", {"rate_per": 1, "rate_object": "capita"}),
             ("Proportion", "Percent", {}),
-            ("Number", "£", {"count_measure": "pounds"}),
+            ("Number", "£", {"count_measure": "pounds", "count_is_estimate": False}),
             ("Mean", "Kg/m2", {"value_measure": "other", "value_measure_detail": "kg/m2"}),
+            ("Mean", "Score", {"value_measure": "other", "value_measure_detail": "score"}),
             ("Ratio", "Percent", {"ratio_format": "percentage"}),
-            ("Ratio", "No unit", {"ratio_format": "number"}),
+            ("Ratio", "No unit", {}),
             ("Life expectancy", "Years", {}),
+            ("Percentage point", "Percent", {"value_measure": "percentage-points"}),
         ]
         for value_type, unit, answers in cases:
             with self.subTest(value_type=value_type, unit=unit):
@@ -97,22 +102,22 @@ class CountsAndValuesTest(unittest.TestCase):
                     counts_and_values(value_type, unit, 108), {**UNANSWERED, **answers}
                 )
 
-    def test_records_a_surveys_estimated_count_as_an_estimate(self):
-        self.assertEqual(
-            counts_and_values("Proportion", "Percent", 92443),
-            {**UNANSWERED, "count_is_estimate": True},
-        )
-
-    def test_refuses_a_unit_its_value_type_cannot_hold(self):
+    def test_leaves_unanswered_a_unit_its_value_type_cannot_hold(self):
         for value_type, unit in [
-            ("Count", "per 100,000"),
-            ("Mean", "Percent"),
+            ("Crude rate", "£"),
             ("Indirectly standardised ratio", "per 100"),
-            ("Mean", "£ per capita"),
+            ("Count", "per 100,000"),
         ]:
             with self.subTest(value_type=value_type, unit=unit):
-                with self.assertRaises(ValueError):
-                    counts_and_values(value_type, unit, 108)
+                self.assertEqual(counts_and_values(value_type, unit, 108), UNANSWERED)
+
+    def test_records_a_surveys_estimated_count_once_its_count_measure_is_answered(self):
+        self.assertEqual(counts_and_values("Proportion", "Percent", 92443), UNANSWERED)
+        self.assertTrue(counts_and_values("Number", "population", 92443)["count_is_estimate"])
+
+    def test_refuses_a_unit_it_cannot_read(self):
+        with self.assertRaises(ValueError):
+            counts_and_values("Mean", "£ per 100,000", 108)
 
 
 class UnitNameForLabelTest(unittest.TestCase):
