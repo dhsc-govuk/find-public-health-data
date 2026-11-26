@@ -32,7 +32,7 @@ import { problemRows } from './problem-content.tsx';
 const FIELD = 'dataTable';
 const ERROR_ID = `${FIELD}-error`;
 const UPLOAD_HEADING = 'Upload indicator data table';
-const UPLOADING = 'Uploading and checking your data table. This can take a few minutes.';
+const UPLOADING = 'Uploading and checking your data table. This can take up to a minute.';
 
 /** The browser's own refusal of the chosen file, counted so each one is announced afresh. */
 function useBrowserRefusal(): [

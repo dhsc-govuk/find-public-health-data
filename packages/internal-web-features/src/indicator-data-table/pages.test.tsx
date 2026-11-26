@@ -97,7 +97,7 @@ describe('UploadDataTablePage', () => {
     submit();
 
     expect(status.textContent).toBe(
-      'Uploading and checking your data table. This can take a few minutes.',
+      'Uploading and checking your data table. This can take up to a minute.',
     );
   });
 
