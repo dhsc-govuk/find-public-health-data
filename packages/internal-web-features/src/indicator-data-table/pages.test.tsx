@@ -101,6 +101,34 @@ describe('UploadDataTablePage', () => {
     );
   });
 
+  it('sends a file once, ignoring Continue while the upload is under way', () => {
+    renderUpload();
+    chooseFile('data.csv');
+
+    expect(submit()).toBe(true);
+    expect(submit()).toBe(false);
+    expect(submit()).toBe(false);
+  });
+
+  it('leaves Continue without the one-second debounce, as the form ignores repeat presses itself', () => {
+    renderUpload();
+
+    expect(
+      screen.getByRole('button', { name: 'Continue' }).getAttribute('data-prevent-double-click'),
+    ).toBeNull();
+  });
+
+  it('sends again once the browser restores the page from its cache on Back', () => {
+    renderUpload();
+    chooseFile('data.csv');
+    submit();
+
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }));
+
+    expect(screen.getByRole('status').textContent).toBe('');
+    expect(submit()).toBe(true);
+  });
+
   it('steers the file picker to CSV files', () => {
     renderUpload();
 

@@ -19,7 +19,7 @@ import {
   Table,
   TableScrollRegion,
 } from '@fphd/ui';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 import { indicatorDataTableCheckPath, indicatorDataTablePath } from '../publish-paths.ts';
 import { checkColumns, dataChanges, rowsShowing, uploadSummary } from './check-data.ts';
@@ -65,19 +65,40 @@ export function UploadDataTablePage({ fieldErrors = {}, formError }: UploadDataT
   // Says the upload is under way once Continue is pressed, as a large file takes a while to send
   // and check. Without JavaScript the browser's own progress shows instead.
   const [uploading, setUploading] = useState(false);
+  // Set as the form is sent rather than on the next render, so a press straight after is caught.
+  const sending = useRef(false);
   const [refusal, refuse] = useBrowserRefusal();
   // Once a file is on its way, the last refusal no longer applies.
   const error = uploading ? undefined : (refusal?.message ?? fieldErrors[FIELD]);
   const shownFormError = uploading || refusal !== undefined ? undefined : formError;
   const inputId = fieldInputId(FIELD);
 
-  // The browser refuses what the API would, before sending a file it would only send back.
+  // A page the browser restores from its cache on Back can send a file again.
+  useEffect(() => {
+    const restore = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      sending.current = false;
+      setUploading(false);
+    };
+    window.addEventListener('pageshow', restore);
+    return () => window.removeEventListener('pageshow', restore);
+  }, []);
+
+  // The browser refuses what the API would, before sending a file it would only send back. A
+  // second press while a file is on its way is ignored: it would abandon the first upload and
+  // start the wait again.
   const submit = (event: FormEvent<HTMLFormElement>) => {
+    if (sending.current) {
+      event.preventDefault();
+      return;
+    }
+
     const input = event.currentTarget.elements.namedItem(FIELD);
     const file = input instanceof HTMLInputElement ? input.files?.[0] : undefined;
     const message = dataTableFileRefusal(file ?? { name: '', size: 0 });
 
     if (message === undefined) {
+      sending.current = true;
       refuse(undefined);
       setUploading(true);
     } else {
@@ -121,7 +142,12 @@ export function UploadDataTablePage({ fieldErrors = {}, formError }: UploadDataT
                 type="file"
               />
             </div>
-            <Button type="submit">Continue</Button>
+            {/* Without the one-second debounce: the form itself ignores further presses for as
+                long as the upload takes, and a retry straight after the browser refuses a file
+                still goes. */}
+            <Button preventDoubleClick={false} type="submit">
+              Continue
+            </Button>
             <p className="govuk-body" role="status">
               {uploading ? UPLOADING : null}
             </p>
