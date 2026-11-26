@@ -168,6 +168,14 @@ geography files into the corresponding paths under `packages/db-operations/data/
 rename against existing database references and upload labels before deploying the refreshed
 catalog.
 
+## Refresh peer groups and deprivation categories
+
+`export-area-neighbours` and `export-area-categories` rebuild `area_neighbour.csv.gz` and
+`area_category.csv.gz` in `packages/db-operations/data/geography/` from the public Fingertips API,
+and update the geography manifest. They read no Pholio data. See the
+[db-operations README](../../packages/db-operations/README.md#upload-reference-data) for when to run
+them.
+
 ## Confidence interval display
 
 The export retains raw CI bounds at both confidence levels, including values above 100 and
@@ -412,6 +420,8 @@ Run `pnpm vitest run --project @fphd/data-migration` and
 - `archive.ts` verifies package files before creating the private transport archive.
 - `export-dev-snapshot.ts` produces a `verifyPublishedSnapshot`-compatible archive from Pholio for
   developer imports (see below).
+- `area-neighbours.ts` and `area-categories.ts` build the geography peer groups and deprivation
+  categories from the Fingertips API.
 - `taxonomy.ts` translates explicit workbook placements and tags without profile or name heuristics.
   `legacy-seed.ts` and `prototype-seed.ts` retain the historical maintenance workflows; production
   package construction does not call them. After either writes seed CSVs, run
