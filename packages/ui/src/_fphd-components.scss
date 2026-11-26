@@ -874,16 +874,6 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: 0;
 }
 
-// A select beside the button that acts on its choice: level at the foot, spaced as one control.
-.fphd-field-row--with-button {
-  row-gap: govuk-spacing(2);
-  margin-bottom: 0;
-}
-
-.fphd-field-row--with-button > .govuk-button {
-  margin-bottom: 0;
-}
-
 // A table's summary beside its controls (rows per page, pagination), wrapping on narrow screens.
 .fphd-table-controls {
   display: flex;

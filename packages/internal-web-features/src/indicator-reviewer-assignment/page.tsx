@@ -62,9 +62,9 @@ export function ReviewerAssignmentPage({
         <input key={id} name="previousReviewerIds" type="hidden" value={id} />
       ))}
       <div className="govuk-!-margin-bottom-6">
-        {/* The select and its Add button side by side, while anyone is left to add. */}
+        {/* The select with its Add button below it, while anyone is left to add. */}
         {allListed ? null : (
-          <div className="fphd-field-row fphd-field-row--with-button">
+          <>
             <Select
               defaultValue={values.addReviewer}
               error={fieldErrors.addReviewer}
@@ -79,7 +79,7 @@ export function ReviewerAssignmentPage({
             <Button classModifiers="secondary" name="intent" value={ADD_INTENT}>
               Add reviewer
             </Button>
-          </div>
+          </>
         )}
         {listed.length === 0 ? null : (
           <ul className="fphd-added-list">
